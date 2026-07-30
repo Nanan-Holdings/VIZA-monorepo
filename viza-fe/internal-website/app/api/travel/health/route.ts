@@ -72,6 +72,11 @@ function placesHealth(): ServiceHealth {
   return { configured, reachable: configured };
 }
 
+function clientSessionHealth(): ServiceHealth {
+  const configured = (process.env.CLIENT_SESSION_SECRET?.trim().length ?? 0) >= 32;
+  return { configured, reachable: configured };
+}
+
 export async function GET() {
   const [openai, travelService, sessionDatabase] = await Promise.all([
     checkOpenAI(),
@@ -79,10 +84,20 @@ export async function GET() {
     checkSessionDatabase(),
   ]);
   const places = placesHealth();
-  const services = { openai, travelService, sessionDatabase, places };
+  const clientSession = clientSessionHealth();
+  const services = {
+    openai,
+    travelService,
+    sessionDatabase,
+    places,
+    clientSession,
+  };
   return Response.json(
     {
-      ok: openai.reachable && sessionDatabase.reachable,
+      ok:
+        openai.reachable &&
+        sessionDatabase.reachable &&
+        clientSession.reachable,
       services,
       // Compatibility fields for clients during the protocol rollout.
       llmConfigured: openai.configured,

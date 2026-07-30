@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { isDigitalArrivalCardApplication } from "@/lib/submission-queue";
+import {
+  isDigitalArrivalCardApplication,
+  isSgArrivalCardApplication,
+} from "@/lib/submission-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -118,7 +121,24 @@ export async function POST(
   }
 
   const queue = queueData as QueueForCancel | null;
-  if (!queue) {
+  let runnerQueue: { id: string; status: string } | null = null;
+  if (!queue && isSgArrivalCardApplication(application.country, application.visa_type)) {
+    const { data: runnerData, error: runnerLoadError } = await admin
+      .from("runner_job")
+      .select("id, status")
+      .eq("application_id", applicationId)
+      .eq("country", "singapore")
+      .eq("status", "queued")
+      .order("enqueued_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    if (runnerLoadError) {
+      return NextResponse.json({ error: runnerLoadError.message }, { status: 500 });
+    }
+    runnerQueue = runnerData as { id: string; status: string } | null;
+  }
+
+  if (!queue && !runnerQueue) {
     return NextResponse.json(
       {
         error:
@@ -130,16 +150,28 @@ export async function POST(
 
   const now = new Date().toISOString();
   const cancelledStatus = cancelledStatusForVisaType(application.visa_type);
-  const { error: queueUpdateError } = await admin
-    .from("submission_queue")
-    .update({
-      status: cancelledStatus,
-      current_stage: "cancelled_by_user",
-      last_error: "Cancelled by user before official arrival card submission.",
-      updated_at: now,
-    })
-    .eq("id", queue.id)
-    .in("status", [...CANCELABLE_SGAC_QUEUE_STATUSES]);
+  const { error: queueUpdateError } = queue
+    ? await admin
+        .from("submission_queue")
+        .update({
+          status: cancelledStatus,
+          current_stage: "cancelled_by_user",
+          last_error: "Cancelled by user before official arrival card submission.",
+          updated_at: now,
+        })
+        .eq("id", queue.id)
+        .in("status", [...CANCELABLE_SGAC_QUEUE_STATUSES])
+    : await admin
+        .from("runner_job")
+        .update({
+          status: "cancelled",
+          last_error: "Cancelled by user before official SG Arrival Card submission.",
+          finished_at: now,
+          leased_by: null,
+          leased_until: null,
+        })
+        .eq("id", runnerQueue!.id)
+        .eq("status", "queued");
 
   if (queueUpdateError) {
     return NextResponse.json({ error: queueUpdateError.message }, { status: 500 });
@@ -164,7 +196,8 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     applicationId,
-    queueId: queue.id,
+    queueId: queue?.id ?? runnerQueue!.id,
+    queueTransport: queue ? "submission_queue" : "runner_job",
     cancelled: true,
     cancelledAt: now,
   });

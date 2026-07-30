@@ -46,10 +46,10 @@ describe("Travel authenticated session resolver", () => {
       userId: "supabase-applicant",
       sessionKind: "supabase",
     });
-    expect(authMocks.getClientSession).not.toHaveBeenCalled();
+    expect(authMocks.getClientSession).toHaveBeenCalledOnce();
   });
 
-  it("falls back to the signed client session used by the portal", async () => {
+  it("prefers the signed client session used by the portal", async () => {
     authMocks.getClientSession.mockResolvedValue({
       userId: "legacy-applicant",
     });
@@ -58,6 +58,7 @@ describe("Travel authenticated session resolver", () => {
       userId: "legacy-applicant",
       sessionKind: "client_session",
     });
+    expect(authMocks.getUserFromSupabaseSession).not.toHaveBeenCalled();
   });
 
   it("returns null when no accepted client identity exists", async () => {

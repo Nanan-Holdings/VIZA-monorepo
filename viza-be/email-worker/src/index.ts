@@ -242,6 +242,33 @@ async function loadForwardingDestination(
     return { email: null, reason: "missing_profile_email" };
   }
 
+  const accountConsentQuery = [
+    `applicant_id=eq.${encodeURIComponent(owner.id)}`,
+    `doc_kind=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_TYPE)}`,
+    `doc_version=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_VERSION)}`,
+    "select=id",
+    "limit=1",
+  ].join("&");
+  const accountConsentRes = await fetch(
+    `${base}/rest/v1/consent_event?${accountConsentQuery}`,
+    {
+      method: "GET",
+      headers: supabaseHeaders(env),
+    },
+  );
+  if (!accountConsentRes.ok) {
+    const detail = await accountConsentRes.text();
+    throw new Error(
+      `account forwarding consent lookup failed: ${accountConsentRes.status} ${detail}`,
+    );
+  }
+  const accountConsents = (await accountConsentRes.json()) as Array<{ id: string }>;
+  if (accountConsents.length > 0) {
+    return { email, reason: "authorized" };
+  }
+
+  // Compatibility for applicants who accepted forwarding on an application
+  // before authorization became account-wide.
   const consentQuery = [
     `applicant_id=eq.${encodeURIComponent(owner.id)}`,
     `consent_type=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_TYPE)}`,
@@ -281,7 +308,7 @@ async function skipForwarding(
 async function sendForwardedEmail(
   env: Env,
   row: InsertedEmailRow,
-  rawBytes: Uint8Array,
+  rawBytes?: Uint8Array,
 ): Promise<void> {
   if (!env.RESEND_API_KEY?.trim()) {
     throw new Error("RESEND_API_KEY is not configured");
@@ -296,14 +323,20 @@ async function sendForwardedEmail(
     await skipForwarding(env, row, "identical_destination");
     return;
   }
+  if (!rawBytes && !row.html && !row.text) {
+    throw new Error("forwarding source body is unavailable");
+  }
 
+  const archiveNotice = rawBytes
+    ? "完整原始邮件已作为 <code>official-message.eml</code> 附件保留，内含官方 QR、PDF 或其他附件。"
+    : "此邮件在授权前已由 VIZA 暂存；现已补发已保存的官方正文。";
   const html = `
     <p>此邮件由 VIZA 申请专属邮箱自动接收并转发。</p>
     <p><strong>官方发件人：</strong> ${escapeHtml(row.from_addr)}</p>
     <hr />
     ${row.html || `<pre style="white-space:pre-wrap">${escapeHtml(row.text ?? "")}</pre>`}
     <hr />
-    <p>完整原始邮件已作为 <code>official-message.eml</code> 附件保留，内含官方 QR、PDF 或其他附件。</p>
+    <p>${archiveNotice}</p>
   `;
   const text = [
     "此邮件由 VIZA 申请专属邮箱自动接收并转发。",
@@ -311,8 +344,18 @@ async function sendForwardedEmail(
     "",
     row.text ?? "",
     "",
-    "完整原始邮件已作为 official-message.eml 附件保留。",
+    rawBytes
+      ? "完整原始邮件已作为 official-message.eml 附件保留。"
+      : "此邮件在授权前已由 VIZA 暂存；现已补发已保存的官方正文。",
   ].join("\n");
+  const attachments = rawBytes
+    ? [
+        {
+          filename: "official-message.eml",
+          content: bytesToBase64(rawBytes),
+        },
+      ]
+    : undefined;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -326,12 +369,7 @@ async function sendForwardedEmail(
       subject: row.subject ? `[VIZA 转发] ${row.subject}` : "[VIZA 转发] 官方申请邮件",
       html,
       text,
-      attachments: [
-        {
-          filename: "official-message.eml",
-          content: bytesToBase64(rawBytes),
-        },
-      ],
+      ...(attachments ? { attachments } : {}),
       tags: [
         { name: "source", value: "alias_forward" },
         { name: "inbound_email_id", value: row.id },
@@ -422,17 +460,14 @@ async function retryPendingForwards(env: Env): Promise<void> {
   if (!env.RESEND_API_KEY?.trim()) return;
   const rows = await loadPendingForwards(env);
   for (const row of rows) {
-    if (!env.INBOX_BODIES || !row.r2_key) {
-      await recordForwardFailure(env, row, new Error("raw email is unavailable in R2"));
-      continue;
-    }
-    const object = await env.INBOX_BODIES.get(row.r2_key);
-    if (!object) {
-      await recordForwardFailure(env, row, new Error("raw email R2 object was not found"));
-      continue;
-    }
-    const rawBytes = new Uint8Array(await object.arrayBuffer());
     try {
+      let rawBytes: Uint8Array | undefined;
+      if (env.INBOX_BODIES && row.r2_key) {
+        const object = await env.INBOX_BODIES.get(row.r2_key);
+        if (object) {
+          rawBytes = new Uint8Array(await object.arrayBuffer());
+        }
+      }
       await sendForwardedEmail(env, row, rawBytes);
     } catch (error) {
       await recordForwardFailure(env, row, error);

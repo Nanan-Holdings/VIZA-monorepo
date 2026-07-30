@@ -14,6 +14,7 @@ import clsx from "clsx";
 import { Loader2 } from "lucide-react";
 import { SimplifiedFormProvider } from "@/lib/context/simplified-form-context";
 import { isIgnorableClientSessionCheckError } from "./session-check-errors";
+import { AliasForwardingConsentGate } from "./_components/alias-forwarding-consent-gate";
 
 // sessionStorage keys for tracking the session this browser tab has verified.
 // Browsers can copy sessionStorage into target=_blank tabs, so every stored
@@ -444,6 +445,9 @@ function ClientLayoutContent({
         onLogout={handleLogout}
         isLoggingOut={isLoggingOut}
         menuReady={menuReady}
+      />
+      <AliasForwardingConsentGate
+        enabled={sessionValid === true && formRequestChecked}
       />
 
       <main

@@ -24,7 +24,10 @@ import {
   classifyVnPrearrivalEmailVerificationText,
   type VnPrearrivalEmailVerificationState,
 } from "./email-verification";
-import { solveVietnamImageCaptcha } from "../vietnam/captcha";
+import {
+  hasVisibleVietnamCaptchaChallenge,
+  solveVietnamImageCaptcha,
+} from "../vietnam/captcha";
 import {
   InboxDomainUnroutableError,
   InboxTimeoutError,
@@ -974,8 +977,11 @@ async function downloadConfirmationPdf(page: Page, dir: string, logs: string[]):
 }
 
 async function handleCaptchaGate(page: Page, screenshots: string[], logs: string[], tempDir: string): Promise<void> {
-  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  if (!/captcha verification|enter captcha|captcha/i.test(bodyText)) return;
+  if (!(await hasVisibleVietnamCaptchaChallenge(page))) {
+    logs.push("vn_prearrival_captcha_gate_not_visible");
+    return;
+  }
+  logs.push("vn_prearrival_captcha_gate_visible");
 
   const captchaScreenshot = await saveScreenshot(page, tempDir, "captcha-gate", logs);
   if (captchaScreenshot) screenshots.push(captchaScreenshot);

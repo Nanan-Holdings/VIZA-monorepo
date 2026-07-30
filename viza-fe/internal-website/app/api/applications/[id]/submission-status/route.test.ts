@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveNonTerminalStatus,
   deriveSubmissionStatus,
+  sgacRunnerJobToQueueRow,
   selectQueueForSubmissionStatus,
 } from "./route";
 
@@ -11,6 +12,47 @@ const ukStoppedAtPayResult = {
   portalUrl: "https://visas-immigration.service.gov.uk/next-steps",
   portalUsername: "appl-mr3f3iva@haggstorm.com",
 };
+
+describe("sgacRunnerJobToQueueRow", () => {
+  it("maps a queued country job to the existing SGAC pending UI contract", () => {
+    const enqueuedAt = new Date().toISOString();
+    expect(
+      sgacRunnerJobToQueueRow({
+        id: "runner_1",
+        status: "queued",
+        attempts: 0,
+        last_error: null,
+        enqueued_at: enqueuedAt,
+        started_at: null,
+        finished_at: null,
+      }),
+    ).toMatchObject({
+      id: "runner_1",
+      status: "sgac_live_assisted_pending",
+      provider: "sg_arrival_card_runner_job",
+      transport: "runner_job",
+      created_at: enqueuedAt,
+    });
+  });
+
+  it("maps exhausted country jobs to a failed SGAC attempt", () => {
+    expect(
+      sgacRunnerJobToQueueRow({
+        id: "runner_2",
+        status: "dead_letter",
+        attempts: 3,
+        last_error: "Official portal unavailable",
+        enqueued_at: "2026-07-30T00:00:00.000Z",
+        started_at: "2026-07-30T00:01:00.000Z",
+        finished_at: "2026-07-30T00:02:00.000Z",
+      }),
+    ).toMatchObject({
+      status: "sgac_live_assisted_failed",
+      error_message: "Official portal unavailable",
+      updated_at: "2026-07-30T00:02:00.000Z",
+    });
+  });
+});
 
 describe("deriveNonTerminalStatus", () => {
   it("marks stale pending live submission rows stalled when the worker has not picked them up", () => {

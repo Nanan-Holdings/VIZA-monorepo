@@ -24,11 +24,12 @@ export async function wakeCloudSubmissionWorker(
   options: {
     env?: WakeEnvironment;
     fetchImpl?: typeof fetch;
+    target?: string;
   } = {},
 ): Promise<SubmissionWorkerWakeResult> {
   const env = options.env ?? process.env;
   const fetchImpl = options.fetchImpl ?? fetch;
-  const machineWake = await ensureFlyMachineStarted("legacy", {
+  const machineWake = await ensureFlyMachineStarted(options.target ?? "legacy", {
     env,
     fetchImpl,
   });

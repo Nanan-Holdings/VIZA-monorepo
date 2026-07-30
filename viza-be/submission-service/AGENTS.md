@@ -61,7 +61,9 @@ filling and one-shot submission for the applicant.
 ## Key Flows
 
 - `src/index.ts`: polling loop, Supabase data loading, document download,
-  per-country dispatch, retry/failure handling, queue status transitions.
+  per-country dispatch, retry/failure handling, queue status transitions, and
+  account-level alias forwarding authorization checks with compatibility for
+  historical per-application consent.
 - `src/queue-scheduler.ts`: local submission queue concurrency scheduler.
   Allows different account/country/provider work to run in parallel while
   serializing the same application and the same user/provider lane. The current

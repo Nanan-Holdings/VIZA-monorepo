@@ -51,4 +51,45 @@ describe("wakeCloudSubmissionWorker", () => {
       }),
     );
   });
+
+  it("starts the country-specific Fly machine before calling the wake endpoint", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/apps/viza-runner-vietnam/machines")) {
+        return Response.json([{ id: "machine-vn", state: "stopped" }]);
+      }
+      if (url.endsWith("/apps/viza-runner-vietnam/machines/machine-vn/start")) {
+        return new Response(null, { status: 202 });
+      }
+      if (url.endsWith("/internal/submission-queue/wake")) {
+        return new Response(null, { status: 202 });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    const result = await wakeCloudSubmissionWorker("job-vn", {
+      target: "vietnam",
+      env: {
+        NODE_ENV: "production",
+        FLY_SUBMISSION_ORG_TOKEN: "fly-token",
+        SUBMISSION_SERVICE_CLOUD_URL: "https://worker.example.test",
+        SUBMISSION_QUEUE_INTERNAL_TOKEN: "secret-token",
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.machines.dev/v1/apps/viza-runner-vietnam/machines",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer fly-token",
+        }),
+      }),
+    );
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.machines.dev/v1/apps/viza-runner-vietnam/machines/machine-vn/start",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import { compareFaces } from "@/lib/face/match";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { enqueueSgacRunnerRetry } from "@/lib/queue/enqueue";
 import {
   evaluateSgacSubmissionWindow,
   validateSgacTravelDates,
@@ -119,14 +120,59 @@ const VIETNAM_FACE_MATCH_MIN_SCORE = Number(process.env.VN_FACE_MATCH_MIN_SCORE 
 const VIETNAM_PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 const VIETNAM_PORTRAIT_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
 const DEFAULT_MANAGED_INBOX_DOMAIN = "viza.it.com";
+const LEGACY_MANAGED_INBOX_DOMAINS = new Set(["haggstorm.com"]);
+
+function activeManagedInboxDomain(): string {
+  const configured =
+    process.env.INBOX_ALIAS_DOMAIN?.trim().toLowerCase().replace(/^@/u, "") || "";
+  return configured && !LEGACY_MANAGED_INBOX_DOMAINS.has(configured)
+    ? configured
+    : DEFAULT_MANAGED_INBOX_DOMAIN;
+}
 
 function managedInboxDomain(alias: string | null): string {
   const aliasDomain = alias?.trim().toLowerCase().split("@").at(-1);
-  return (
-    aliasDomain ||
-    process.env.INBOX_ALIAS_DOMAIN?.trim().toLowerCase().replace(/^@/u, "") ||
-    DEFAULT_MANAGED_INBOX_DOMAIN
-  );
+  if (aliasDomain && LEGACY_MANAGED_INBOX_DOMAINS.has(aliasDomain)) {
+    return activeManagedInboxDomain();
+  }
+  return aliasDomain || activeManagedInboxDomain();
+}
+
+async function rotateLegacyManagedInboxAlias(
+  admin: ReturnType<typeof createAdminClient>,
+  applicantId: string,
+  alias: string | null,
+): Promise<string | null> {
+  const normalized = alias?.trim().toLowerCase() ?? null;
+  if (!normalized) return null;
+  const atIndex = normalized.lastIndexOf("@");
+  if (atIndex <= 0) return normalized;
+  const localPart = normalized.slice(0, atIndex);
+  const domain = normalized.slice(atIndex + 1);
+  if (!LEGACY_MANAGED_INBOX_DOMAINS.has(domain)) return normalized;
+
+  const replacement = `${localPart}@${managedInboxDomain(normalized)}`;
+  const { data: rotated, error: rotateError } = await admin
+    .from("applicant_profiles")
+    .update({ inbox_alias: replacement })
+    .eq("id", applicantId)
+    .eq("inbox_alias", alias)
+    .select("inbox_alias")
+    .maybeSingle();
+  if (rotateError) {
+    throw new Error(`Managed inbox alias rotation failed: ${rotateError.message}`);
+  }
+  if (rotated?.inbox_alias) return rotated.inbox_alias;
+
+  const { data: current, error: currentError } = await admin
+    .from("applicant_profiles")
+    .select("inbox_alias")
+    .eq("id", applicantId)
+    .maybeSingle();
+  if (currentError) {
+    throw new Error(`Managed inbox alias refresh failed: ${currentError.message}`);
+  }
+  return current?.inbox_alias?.trim().toLowerCase() ?? null;
 }
 
 async function getManagedInboxRouteBlocker(alias: string | null): Promise<string | null> {
@@ -1480,6 +1526,21 @@ export async function POST(
       );
     }
     if (isVietnamPrearrivalApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      try {
+        ownedProfile.inbox_alias = await rotateLegacyManagedInboxAlias(
+          admin,
+          ownedProfile.id,
+          ownedProfile.inbox_alias,
+        );
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error: error instanceof Error ? error.message : "Managed inbox alias rotation failed.",
+            code: "vn_prearrival_otp_alias_rotation_failed",
+          },
+          { status: 500 },
+        );
+      }
       const inboxRouteBlocker = await getManagedInboxRouteBlocker(ownedProfile.inbox_alias);
       if (inboxRouteBlocker) {
         return NextResponse.json(
@@ -1640,6 +1701,69 @@ export async function POST(
     }
   }
 
+  const useSgacCountryRunner =
+    mode === "live_assisted" &&
+    !scheduledResult &&
+    isSgArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type) &&
+    process.env.SGAC_RUNNER_JOB_MIGRATION_ENABLED !== "false";
+
+  if (useSgacCountryRunner) {
+    try {
+      const countryQueue = await enqueueSgacRunnerRetry(applicationId, {
+        correlationId: `retry:${applicationId}:${now}`,
+        metadata: {
+          source: "retry_submission",
+          mode,
+          provider,
+        },
+      });
+
+      if (countryQueue.route === "runner_job") {
+        const { error: appUpdateError } = await admin
+          .from("applications")
+          .update({
+            status: "submitted",
+            submitted_at: now,
+            submission_result_status: "waiting",
+            submission_result: null,
+            confirmation_number: null,
+            submission_result_updated_at: now,
+            updated_at: now,
+          })
+          .eq("id", applicationId);
+        if (appUpdateError) {
+          return NextResponse.json({ error: appUpdateError.message }, { status: 500 });
+        }
+
+        return NextResponse.json({
+          ok: true,
+          applicationId,
+          jobId: countryQueue.id,
+          queueStatus: "sgac_live_assisted_pending",
+          queueTransport: "runner_job",
+          mode,
+          provider,
+          alreadyQueued: !countryQueue.created,
+          newApplication: freshDs160Submission,
+          supersededCount: 0,
+          scheduled: false,
+          scheduledFor: null,
+          result: null,
+          workerTriggered: countryQueue.workerTriggered,
+        });
+      }
+      // A legacy row is already scheduled or processing. Continue through the
+      // legacy enqueue RPC, which will atomically reuse that protected row.
+    } catch (error) {
+      // Migration safety valve: if the RPC is unavailable or country wake
+      // fails before a job is returned, preserve the established legacy path.
+      console.warn("[retry-submission] SGAC country runner unavailable; using legacy queue.", {
+        applicationId: applicationId.slice(0, 8),
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   const queueResult = await insertRetryQueueRow(admin, {
     applicationId,
     queueStatus,
@@ -1682,6 +1806,7 @@ export async function POST(
       ok: true,
       applicationId,
       jobId: queueResult.jobId,
+      queueTransport: "submission_queue",
       queueStatus: queueResult.queueStatus,
       mode: queueResult.mode ?? mode,
       provider: queueResult.provider ?? provider,
@@ -1732,12 +1857,15 @@ export async function POST(
 
   const workerTriggered = scheduledResult
     ? false
-    : (await wakeCloudSubmissionWorker(queueResult.jobId)).ok;
+    : (await wakeCloudSubmissionWorker(queueResult.jobId, {
+        target: ownedApplication.country ?? "legacy",
+      })).ok;
 
   return NextResponse.json({
     ok: true,
     applicationId,
     jobId: queueResult.jobId,
+    queueTransport: "submission_queue",
     queueStatus,
     mode,
     provider,
