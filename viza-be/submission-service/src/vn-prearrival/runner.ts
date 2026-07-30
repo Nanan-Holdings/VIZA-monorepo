@@ -24,7 +24,7 @@ import {
   classifyVnPrearrivalEmailVerificationText,
   type VnPrearrivalEmailVerificationState,
 } from "./email-verification";
-import { solveVietnamImageCaptcha } from "../vietnam/captcha";
+import { hasVisibleVietnamCaptchaChallenge, solveVietnamImageCaptcha } from "../vietnam/captcha";
 import {
   InboxDomainUnroutableError,
   InboxTimeoutError,
@@ -974,8 +974,9 @@ async function downloadConfirmationPdf(page: Page, dir: string, logs: string[]):
 }
 
 async function handleCaptchaGate(page: Page, screenshots: string[], logs: string[], tempDir: string): Promise<void> {
-  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  if (!/captcha verification|enter captcha|captcha/i.test(bodyText)) return;
+  const challengeVisible = await hasVisibleVietnamCaptchaChallenge(page);
+  logs.push(`vn_prearrival_captcha_visible=${challengeVisible}`);
+  if (!challengeVisible) return;
 
   const captchaScreenshot = await saveScreenshot(page, tempDir, "captcha-gate", logs);
   if (captchaScreenshot) screenshots.push(captchaScreenshot);
@@ -984,6 +985,7 @@ async function handleCaptchaGate(page: Page, screenshots: string[], logs: string
     Number.parseInt(process.env.VN_PREARRIVAL_CAPTCHA_TIMEOUT_MS ?? "180000", 10),
   );
   if (!outcome.solved) {
+    logs.push(`vn_prearrival_captcha_solve_failed ${outcome.reason ?? "unknown CAPTCHA error"}`);
     throw new VnPrearrivalPortalError(
       `Vietnam Pre-Arrival CAPTCHA could not be solved: ${outcome.reason ?? "unknown CAPTCHA error"}.`,
       "vn_prearrival_captcha_required",
@@ -1005,6 +1007,39 @@ async function handleCaptchaGate(page: Page, screenshots: string[], logs: string
   }
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(1_000);
+}
+
+async function waitForPostStartPortalReady(page: Page, logs: string[]): Promise<boolean> {
+  const configuredTimeoutMs = Number.parseInt(
+    process.env.VN_PREARRIVAL_POST_START_TIMEOUT_MS ?? "120000",
+    10,
+  );
+  const timeoutMs = Number.isFinite(configuredTimeoutMs)
+    ? Math.max(30_000, configuredTimeoutMs)
+    : 120_000;
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (await hasVisibleVietnamCaptchaChallenge(page)) {
+      logs.push("vn_prearrival_post_start_ready=captcha");
+      return true;
+    }
+
+    const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    if (/select your nationality/i.test(bodyText)) {
+      logs.push("vn_prearrival_post_start_ready=nationality");
+      return true;
+    }
+    if (/passenger information/i.test(bodyText)) {
+      logs.push("vn_prearrival_post_start_ready=passenger_form");
+      return true;
+    }
+
+    await page.waitForTimeout(750);
+  }
+
+  logs.push(`vn_prearrival_post_start_timeout url=${page.url().slice(0, 240)}`);
+  return false;
 }
 
 async function waitForPassengerForm(
@@ -1102,8 +1137,17 @@ export async function runVietnamPrearrivalPortalSubmission(
         logs,
       );
     }
-    await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForTimeout(1_000);
+    if (!(await waitForPostStartPortalReady(page, logs))) {
+      const loadingScreenshot = await saveScreenshot(page, tempDir, "post-start-not-ready", logs);
+      if (loadingScreenshot) screenshots.push(loadingScreenshot);
+      throw new VnPrearrivalPortalError(
+        "Vietnam Pre-Arrival official portal remained on its loading screen after the declaration action was opened.",
+        "vn_prearrival_post_start_timeout",
+        "The official portal did not finish loading the nationality or CAPTCHA step. No submission was attempted.",
+        screenshots,
+        logs,
+      );
+    }
     await handleCaptchaGate(page, screenshots, logs, tempDir);
     if (!(await completeNationalityGate(page, payload.nationality))) {
       throw new VnPrearrivalPortalError(

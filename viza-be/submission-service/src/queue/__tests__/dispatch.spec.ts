@@ -52,3 +52,23 @@ test("dispatch: Korea aliases normalize and resolve", () => {
   assert.equal(normalizeCountry("Korea"), "south_korea");
   assert.equal(getRunOne("kr"), getRunOne("south_korea"));
 });
+
+test("dispatch: all six-country pool flow keys resolve only for their country", () => {
+  const flows = [
+    ["indonesia", "id_c1"],
+    ["indonesia", "id_b1_evoa"],
+    ["vietnam", "vn_evisa"],
+    ["vietnam", "vn_prearrival"],
+    ["singapore", "sgac"],
+    ["malaysia", "mdac"],
+    ["thailand", "tdac"],
+    ["south_korea", "kr_eform"],
+  ] as const;
+  for (const [country, flow] of flows) {
+    assert.equal(typeof getRunOne(country, flow), "function", `${country}/${flow}`);
+  }
+  assert.throws(
+    () => getRunOne("malaysia", "tdac"),
+    UnsupportedCountryError,
+  );
+});

@@ -128,6 +128,14 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/api/submission-worker/wake/route.ts` boundary and the server-only
   `lib/submission-worker-wake.server.ts` helper. Never expose the internal
   bearer token to client components.
+- Six-country retry submission resolves a typed flow through
+  `lib/queue/flows.ts`, atomically enqueues through
+  `lib/queue/enqueue.ts`, and starts only the immediately claimable capacity in
+  the ten-Machine Fly shared pool through
+  `lib/fly-machine-wake.server.ts`. Scheduled arrival-card work must keep its
+  future `available_at` and must not wake compute early. Legacy and Korea sticky
+  wake requests reserve one of the same ten database Machine slots and may
+  preempt only an idle shared worker.
 - Local developer recovery for stalled official submission jobs is exposed
   through `app/api/applications/[id]/local-submission-worker/route.ts`; it is
   localhost-only and may only start the repository `viza-be/submission-service`

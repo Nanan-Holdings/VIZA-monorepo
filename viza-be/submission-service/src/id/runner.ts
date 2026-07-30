@@ -132,12 +132,17 @@ export async function runIdRunner(input: IdRunInput): Promise<IdRunResult> {
  * Dispatch entrypoint (QUE-001 contract). Loads canonical answers and runs
  * the Indonesia flow, mapping the result to a DispatchOutcome.
  */
-export async function runOne(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+export async function runOneForVisaType(
+  applicationId: string,
+  jobId: string | undefined,
+  visaType: string | undefined,
+): Promise<DispatchOutcome> {
   const answers = await loadCanonicalAnswers(applicationId);
   const result = await runIdRunner({
     jobId: jobId ?? applicationId,
     applicationId,
     answers,
+    visaType,
   });
   switch (result.status) {
     case "stopped_before_pay":
@@ -150,4 +155,8 @@ export async function runOne(applicationId: string, jobId?: string): Promise<Dis
     default:
       throw new Error(`unexpected id status: ${result.status}`);
   }
+}
+
+export async function runOne(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+  return runOneForVisaType(applicationId, jobId, undefined);
 }
