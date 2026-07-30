@@ -205,6 +205,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - The required U.S. DS-160 China issuing-post selector is applied by
   `supabase/migrations/20260729054904_add_ds160_consular_post.sql`; its stored
   values are the live CEAC location codes consumed by submission-service.
+- Immediate SG Arrival Card retries use
+  `supabase/migrations/20260730170000_sgac_country_runner_retry.sql` and the
+  country-scoped `runner_job` transport. Keep future-window scheduled SGAC
+  rows in `submission_queue`, preserve the atomic legacy collision check, and
+  keep status/cancellation compatible with both transports during migration.
 - Vietnam e-Visa photo and face-match rules live in
   `supabase/migrations/20260625_vn_evisa_photo_face_rules.sql`,
   `app/client/documents/actions.ts`, `app/actions/face-match.ts`,

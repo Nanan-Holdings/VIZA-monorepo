@@ -155,6 +155,83 @@ export async function enqueueRunnerPoolJob(
   };
 }
 
+export type EnqueueSgacRetryResult =
+  | {
+      route: "runner_job";
+      id: string;
+      created: boolean;
+      workerTriggered: boolean;
+    }
+  | {
+      route: "legacy";
+      id: string;
+      status: string;
+    };
+
+/**
+ * Atomically routes an immediate SGAC retry to the Singapore runner.
+ *
+ * The database RPC holds a per-application lock and refuses to create a
+ * runner_job while a legacy submission_queue row is active. This prevents a
+ * retry click during the migration from submitting the same application in
+ * both transports.
+ */
+export async function enqueueSgacRunnerRetry(
+  applicationId: string,
+  opts: EnqueueOpts = {},
+): Promise<EnqueueSgacRetryResult> {
+  const result = await withAdmin("system", "lib/queue:enqueue-sgac-retry", async (admin) => {
+    const { data, error } = await admin.rpc("enqueue_sgac_country_runner_retry", {
+      p_application_id: applicationId,
+      p_max_attempts: opts.maxAttempts ?? 3,
+      p_correlation_id: opts.correlationId ?? null,
+      p_metadata: opts.metadata ?? {},
+    });
+    if (error) {
+      throw new Error(`SGAC runner enqueue: ${error.message}`);
+    }
+
+    const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+    if (row?.blocked_by_legacy === true) {
+      const legacyQueueId = typeof row.legacy_queue_id === "string" ? row.legacy_queue_id : null;
+      const legacyQueueStatus =
+        typeof row.legacy_queue_status === "string" ? row.legacy_queue_status : null;
+      if (!legacyQueueId || !legacyQueueStatus) {
+        throw new Error("SGAC runner enqueue returned an invalid legacy fallback.");
+      }
+      return {
+        route: "legacy" as const,
+        id: legacyQueueId,
+        status: legacyQueueStatus,
+      };
+    }
+
+    const id = typeof row?.runner_job_id === "string" ? row.runner_job_id : null;
+    if (!id) {
+      throw new Error("SGAC runner enqueue returned no runner job.");
+    }
+    return {
+      route: "runner_job" as const,
+      id,
+      created: row?.reused_existing !== true,
+    };
+  });
+
+  if (result.route === "legacy") return result;
+
+  const wake = await ensureFlyMachineStarted("singapore");
+  if (!wake.ok && wake.reason !== "unmanaged_target" && wake.reason !== "not_configured") {
+    console.warn("[runner-job] Singapore Fly wake failed; queued work remains recoverable.", {
+      jobId: result.id.slice(0, 8),
+      reason: wake.reason,
+    });
+  }
+  return {
+    ...result,
+    workerTriggered: wake.ok,
+  };
+}
+
 export async function enqueueRunnerJob(
   applicationId: string,
   country: string,
