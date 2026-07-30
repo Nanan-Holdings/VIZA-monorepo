@@ -11,6 +11,7 @@
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
+import { createHash } from "crypto";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 
@@ -65,6 +66,8 @@ interface CountryRagSeed {
 interface CliOptions {
   countries: string[];
   listOnly: boolean;
+  releaseKey: string;
+  dryRun: boolean;
 }
 
 function normalizeCountry(value: string): string {
@@ -74,6 +77,10 @@ function normalizeCountry(value: string): string {
 function parseArgs(argv: string[]): CliOptions {
   const countries = new Set<string>();
   let listOnly = false;
+  let dryRun = false;
+  let releaseKey =
+    process.env.VISA_KNOWLEDGE_RELEASE_KEY ??
+    `staged-${new Date().toISOString().slice(0, 10)}`;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -81,6 +88,22 @@ function parseArgs(argv: string[]): CliOptions {
 
     if (arg === "--list") {
       listOnly = true;
+      continue;
+    }
+    if (arg === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    if (arg === "--release") {
+      const value = argv[index + 1]?.trim();
+      if (!value) throw new Error("--release requires a value");
+      releaseKey = value;
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith("--release=")) {
+      releaseKey = arg.slice("--release=".length).trim();
+      if (!releaseKey) throw new Error("--release requires a value");
       continue;
     }
 
@@ -110,6 +133,8 @@ function parseArgs(argv: string[]): CliOptions {
   return {
     countries: Array.from(countries).sort(),
     listOnly,
+    releaseKey,
+    dryRun,
   };
 }
 
@@ -229,61 +254,78 @@ function buildChunkContent(document: RagDocument, chunk: RagChunk): string {
   ].join("\n");
 }
 
-async function deleteExistingDocument(document: RagDocument): Promise<void> {
-  const { data: existingDocs, error } = await supabase
-    .from("visa_documents")
-    .select("id")
-    .eq("country", document.country)
-    .eq("visa_type", document.visaType)
-    .eq("document_type", document.documentType)
-    .eq("source_url", document.sourceUrl)
-    .eq("title", document.title);
-
-  if (error) {
-    throw new Error(`Failed to query existing document: ${error.message}`);
-  }
-
-  for (const existing of existingDocs ?? []) {
-    const id = (existing as { id: string }).id;
-    const { error: chunkDeleteError } = await supabase
-      .from("visa_chunks")
-      .delete()
-      .eq("document_id", id);
-
-    if (chunkDeleteError) {
-      throw new Error(
-        `Failed to delete existing chunks for ${id}: ${chunkDeleteError.message}`
-      );
-    }
-
-    const { error: documentDeleteError } = await supabase
-      .from("visa_documents")
-      .delete()
-      .eq("id", id);
-
-    if (documentDeleteError) {
-      throw new Error(
-        `Failed to delete existing document ${id}: ${documentDeleteError.message}`
-      );
-    }
-  }
+function contentHash(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
-async function ingestDocument(document: RagDocument): Promise<{
+async function ensureRelease(releaseKey: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("visa_knowledge_releases")
+    .upsert(
+      {
+        release_key: releaseKey,
+        status: "staged",
+        description: "Country seed ingestion; pending data gates and regression tests.",
+      },
+      { onConflict: "release_key", ignoreDuplicates: true }
+    )
+    .select("id")
+    .single();
+  if (!error && data) return (data as { id: string }).id;
+
+  const { data: existing, error: lookupError } = await supabase
+    .from("visa_knowledge_releases")
+    .select("id")
+    .eq("release_key", releaseKey)
+    .single();
+  if (lookupError || !existing) {
+    throw new Error(`Failed to create knowledge release: ${error?.message ?? lookupError?.message}`);
+  }
+  return (existing as { id: string }).id;
+}
+
+async function ingestDocument(
+  document: RagDocument,
+  seedVersion: string,
+  releaseId: string
+): Promise<{
   inserted: number;
   embedded: number;
 }> {
-  await deleteExistingDocument(document);
-
-  const { data: insertedDocument, error: documentError } = await supabase
+  const sourceKey = `country:${document.slug}`;
+  const { data: existingDocument, error: existingError } = await supabase
     .from("visa_documents")
-    .insert({
-      country: document.country,
-      visa_type: document.visaType,
-      document_type: document.documentType,
-      title: document.title,
-      source_url: document.sourceUrl,
-    })
+    .select("id")
+    .eq("release_id", releaseId)
+    .eq("source_key", sourceKey)
+    .maybeSingle();
+  if (existingError) {
+    throw new Error(`Failed to query ${sourceKey}: ${existingError.message}`);
+  }
+
+  const payload = {
+    country: document.country,
+    visa_type: document.visaType,
+    document_type: document.documentType,
+    title: document.title,
+    source_url: document.sourceUrl,
+    source_key: sourceKey,
+    ingestion_scope: "country_seed",
+    release_id: releaseId,
+    status: "staged",
+    content_hash: contentHash(document),
+    verified_at: new Date(`${seedVersion}T00:00:00.000Z`).toISOString(),
+    last_synced_at: new Date().toISOString(),
+  };
+  const documentRequest = existingDocument
+    ? supabase
+        .from("visa_documents")
+        .update(payload)
+        .eq("id", (existingDocument as { id: string }).id)
+    : supabase
+    .from("visa_documents")
+        .insert(payload);
+  const { data: insertedDocument, error: documentError } = await documentRequest
     .select("id")
     .single();
 
@@ -294,6 +336,15 @@ async function ingestDocument(document: RagDocument): Promise<{
   }
 
   const documentId = (insertedDocument as { id: string }).id;
+  if (existingDocument) {
+    const { error: deleteError } = await supabase
+      .from("visa_chunks")
+      .delete()
+      .eq("document_id", documentId);
+    if (deleteError) {
+      throw new Error(`Failed to replace chunks for ${sourceKey}: ${deleteError.message}`);
+    }
+  }
   let inserted = 0;
   let embedded = 0;
 
@@ -328,7 +379,7 @@ async function ingestDocument(document: RagDocument): Promise<{
   return { inserted, embedded };
 }
 
-async function ingestSeed(seed: CountryRagSeed): Promise<{
+async function ingestSeed(seed: CountryRagSeed, releaseId: string): Promise<{
   inserted: number;
   embedded: number;
 }> {
@@ -341,7 +392,7 @@ async function ingestSeed(seed: CountryRagSeed): Promise<{
 
   for (const document of seed.documents) {
     console.log(`  Ingesting: ${document.title}`);
-    const result = await ingestDocument(document);
+    const result = await ingestDocument(document, seed.version, releaseId);
     inserted += result.inserted;
     embedded += result.embedded;
   }
@@ -357,10 +408,28 @@ async function main(): Promise<void> {
     console.log(seeds.map((seed) => seed.country).join("\n"));
     return;
   }
+  if (options.dryRun) {
+    console.log(
+      JSON.stringify(
+        {
+          releaseKey: options.releaseKey,
+          countries: seeds.map((seed) => seed.country),
+          documents: seeds.flatMap((seed) =>
+            seed.documents.map((document) => `country:${document.slug}`)
+          ),
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+  const releaseId = await ensureRelease(options.releaseKey);
 
   console.log("Starting country visa RAG ingestion");
   console.log(`Seed directory: ${SEED_DIR}`);
   console.log(`Countries: ${seeds.length}`);
+  console.log(`Staged release: ${options.releaseKey}`);
   console.log(
     `Embeddings: ${
       OPENAI_KEY && OPENAI_KEY !== "your_openai_api_key_here"
@@ -373,7 +442,7 @@ async function main(): Promise<void> {
   let totalEmbedded = 0;
 
   for (const seed of seeds) {
-    const result = await ingestSeed(seed);
+    const result = await ingestSeed(seed, releaseId);
     totalInserted += result.inserted;
     totalEmbedded += result.embedded;
   }
