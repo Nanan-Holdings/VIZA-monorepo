@@ -14,7 +14,9 @@ primary_region = "__REGION__"
   force_https = true
   auto_stop_machines = "off"
   auto_start_machines = true
-  min_machines_running = 1
+  # Queue-depth autoscaling starts and stops the retained Machine. Fly Proxy
+  # autostop is intentionally off because queue workers do not wake on HTTP.
+  min_machines_running = 0
 
   [[http_service.checks]]
     grace_period = "30s"
@@ -24,6 +26,6 @@ primary_region = "__REGION__"
     path = "/ready"
 
 [[vm]]
-  cpu_kind = "performance"
+  cpu_kind = "shared"
   cpus = 2
-  memory_mb = 4096
+  memory_mb = 2048

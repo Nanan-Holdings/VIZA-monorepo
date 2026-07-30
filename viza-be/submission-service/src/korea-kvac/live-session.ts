@@ -218,6 +218,11 @@ function cleanupExpired(referenceTime = nowMs()) {
   }
 }
 
+export function hasActiveKoreaKvacOfficialSessions(referenceTime = nowMs()): boolean {
+  cleanupExpired(referenceTime);
+  return sessions.size > 0 || cancelSessions.size > 0;
+}
+
 const AVAILABLE_DATE_SELECTOR = ".ui-datepicker-calendar td[data-handler='selectDay']:not(.ui-datepicker-other-month) a";
 const TIME_GROUP_SELECTOR = ".time-table__item:not(.-done) a, .time-table__item:not(.-done) button";
 const DETAILED_TIME_SELECTOR = ".time-table__ly-link:not(.-done), .time-table__ly-item:not(.-done) a, .time-table__ly-item:not(.-done) button";
