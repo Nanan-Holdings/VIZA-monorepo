@@ -91,7 +91,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
-  `lib/client-session.ts`, and `lib/impersonation-session.ts`.
+  `lib/client-session.ts`, `lib/impersonation-session.ts`, and the production
+  admin email allowlist in `lib/admin-access.ts`.
 - Supabase client credentials are normalized by `lib/supabase/env.ts` before
   use so BOM or surrounding whitespace from local environment files cannot
   produce invalid HTTP authorization headers.
@@ -305,6 +306,7 @@ Smoke URLs:
 - `components/field-guidance-panel.tsx`
 - `hooks/use-smooth-progress.ts`
 - `lib/supabase/*`
+- `lib/admin-access.ts`
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`
 - `lib/application-tab-completion.ts`
