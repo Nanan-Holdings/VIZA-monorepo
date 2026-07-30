@@ -41,13 +41,18 @@ jq -c '.[]' "$decisions" | while read -r decision; do
     paused="false"
   else
     country="$(jq -r '.country' <<<"$decision")"
-    if ! jq -e --arg country "$country" '.countries | index($country)' "$countries" >/dev/null; then
+    if [[ "$country" == "european_union" ]]; then
+      # The production Schengen runner is the France app, while the queue and
+      # concurrency registry use the broader european_union country key.
+      app="viza-runner-france"
+    elif ! jq -e --arg country "$country" '.countries | index($country)' "$countries" >/dev/null; then
       echo "[autoscale] ignoring unmapped country=$country"
       continue
+    else
+      app_country="${country//_/-}"
+      app="viza-runner-$app_country"
     fi
     paused="$(jq -r '.paused' <<<"$decision")"
-    app_country="${country//_/-}"
-    app="viza-runner-$app_country"
   fi
   echo "[autoscale] app=$app desired=$desired paused=$paused"
   if ! machines="$("$fly_bin" machine list --app "$app" --json 2>/dev/null)"; then
