@@ -1,5 +1,8 @@
 # Internal Website Agent Guide
 
+`lib/submission-worker-wake.server.ts` centralizes authenticated Fly worker
+wake requests; its focused tests live under `lib/__tests__/`.
+
 Scope: this file applies to `viza-fe/internal-website/**`.
 
 ## Purpose
@@ -120,6 +123,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Live-assisted official submission status summaries are loaded through
   `lib/submission-live-status.ts`; keep service-role access server-only and
   expose customer/staff actions through route handlers or server actions.
+- Cloud submission worker wake requests use the authenticated
+  `app/api/submission-worker/wake/route.ts` boundary and the server-only
+  `lib/submission-worker-wake.server.ts` helper. Never expose the internal
+  bearer token to client components.
 - Local developer recovery for stalled official submission jobs is exposed
   through `app/api/applications/[id]/local-submission-worker/route.ts`; it is
   localhost-only and may only start the repository `viza-be/submission-service`

@@ -32,6 +32,7 @@ interface QueueDepthRow {
 }
 
 interface ScaleDecision {
+  kind: "country";
   country: string;
   paused: boolean;
   cap: number;
@@ -41,6 +42,46 @@ interface ScaleDecision {
   violation: boolean;
 }
 
+interface LegacyScaleDecision {
+  kind: "legacy";
+  app: "viza-submission-legacy";
+  queued: number;
+  desired: 0 | 1;
+}
+
+const LEGACY_CLAIMABLE_QUEUE_STATUSES = [
+  "pending",
+  "ds160_prefill_pending",
+  "ds160_live_assisted_pending",
+  "ds160_proof_pending",
+  "fv_prefill_pending",
+  "france_live_assisted_pending",
+  "uk_prefill_pending",
+  "vn_dry_run_pending",
+  "vn_live_assisted_pending",
+  "vn_cloud_live_pending",
+  "vn_payment_pending",
+  "vn_prearrival_dry_run_pending",
+  "vn_prearrival_live_assisted_scheduled",
+  "vn_prearrival_live_assisted_pending",
+  "sgac_dry_run_pending",
+  "sgac_live_assisted_scheduled",
+  "sgac_live_assisted_pending",
+  "mdac_dry_run_pending",
+  "mdac_live_assisted_scheduled",
+  "mdac_live_assisted_pending",
+  "tdac_dry_run_pending",
+  "tdac_live_assisted_scheduled",
+  "tdac_live_assisted_pending",
+  "id_c1_live_assisted_pending",
+  "id_b1_evoa_live_assisted_pending",
+  "phetravel_dry_run_pending",
+  "phetravel_live_assisted_scheduled",
+  "phetravel_live_assisted_pending",
+  "vn_prefill_pending",
+  "au_prefill_pending",
+] as const;
+
 async function fetchDepth(): Promise<QueueDepthRow[]> {
   const supabase = createClient(
     process.env.SUPABASE_URL ?? "",
@@ -49,6 +90,20 @@ async function fetchDepth(): Promise<QueueDepthRow[]> {
   const { data, error } = await supabase.from("runner_queue_depth").select("*");
   if (error) throw new Error(`runner_queue_depth read: ${error.message}`);
   return (data ?? []) as QueueDepthRow[];
+}
+
+async function fetchLegacyQueueDepth(): Promise<number> {
+  const supabase = createClient(
+    process.env.SUPABASE_URL ?? "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+  );
+  const { count, error } = await supabase
+    .from("submission_queue")
+    .select("id", { count: "exact", head: true })
+    .in("status", [...LEGACY_CLAIMABLE_QUEUE_STATUSES])
+    .lt("attempts", 3);
+  if (error) throw new Error(`submission_queue depth read: ${error.message}`);
+  return count ?? 0;
 }
 
 function decide(rows: QueueDepthRow[]): ScaleDecision[] {
@@ -66,6 +121,7 @@ function decide(rows: QueueDepthRow[]): ScaleDecision[] {
       );
     }
     return {
+      kind: "country",
       country: r.country,
       paused: r.paused,
       cap: r.max_concurrent,
@@ -75,6 +131,15 @@ function decide(rows: QueueDepthRow[]): ScaleDecision[] {
       violation,
     };
   });
+}
+
+function decideLegacy(queued: number): LegacyScaleDecision {
+  return {
+    kind: "legacy",
+    app: "viza-submission-legacy",
+    queued,
+    desired: queued > 0 ? 1 : 0,
+  };
 }
 
 async function alertViolations(violations: ScaleDecision[]): Promise<void> {
@@ -114,13 +179,19 @@ async function alertViolations(violations: ScaleDecision[]): Promise<void> {
 
 async function main() {
   const json = process.argv.includes("--json");
-  const rows = await fetchDepth();
+  const [rows, legacyQueued] = await Promise.all([
+    fetchDepth(),
+    fetchLegacyQueueDepth(),
+  ]);
   const decisions = decide(rows);
+  const legacyDecision = decideLegacy(legacyQueued);
   const violations = decisions.filter((d) => d.violation);
   await alertViolations(violations);
 
   if (json) {
-    process.stdout.write(JSON.stringify(decisions, null, 2) + "\n");
+    process.stdout.write(
+      JSON.stringify([...decisions, legacyDecision], null, 2) + "\n",
+    );
     return;
   }
   for (const d of decisions) {
@@ -128,6 +199,9 @@ async function main() {
       `${d.country.padEnd(22)} cap=${d.cap} queued=${d.queued} running=${d.running} desired=${d.desired}${d.paused ? " (paused)" : ""}${d.violation ? " ⚠ VIOLATION" : ""}`,
     );
   }
+  console.log(
+    `${legacyDecision.app.padEnd(22)} queued=${legacyDecision.queued} desired=${legacyDecision.desired}`,
+  );
   if (violations.length > 0) {
     process.exitCode = 1;
   }
