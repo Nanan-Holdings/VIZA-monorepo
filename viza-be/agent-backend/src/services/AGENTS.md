@@ -13,6 +13,8 @@ conversation state, and other cross-route behavior.
   document-type targeting, fallback retrieval, and knowledge context formatting.
 - `visa-conversation-state.service.ts`: extracts, merges, persists, and
   summarizes VIZA conversation route state.
+- `visa-entry-rule.service.ts`: deterministic passport/destination eligibility
+  lookup, reviewed policy fallbacks, and policy-first prompt generation.
 - `internal-automation/**`: lifecycle status mapping, external status
   normalization, packet handoff payload shaping, and notification payload
   helpers for website-owned automation.

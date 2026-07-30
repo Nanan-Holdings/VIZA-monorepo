@@ -12,7 +12,8 @@ field guidance, and future form automation.
 
 1. Edit or add one country file in `countries/*.json`.
 2. Keep source URLs official or authorized where possible.
-3. Include exactly one `documentType: "form_requirements"` document per country.
+3. Include exactly one `documentType: "form_requirements"` document per
+   country + `visaType` product.
 4. Run ingestion from `viza-be/agent-backend`.
 5. Verify chat/RAG behavior for that country.
 
@@ -21,8 +22,8 @@ field guidance, and future form automation.
 - One country per file.
 - Every document in a file must match that file's `country`.
 - Chunk IDs must be unique inside the country file.
-- Do not append duplicate `form_requirements` documents; replace/update the
-  existing one.
+- Do not append duplicate `form_requirements` documents for the same
+  country/product; replace/update the existing one.
 - Do not invent requirements. Mark unknown or country-variant details clearly.
 - Runtime RAG routing is limited to destinations that are open on the
   application form/product surface. If a seed exists for a destination that is
