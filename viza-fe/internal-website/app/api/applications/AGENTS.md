@@ -43,6 +43,12 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/artifact-url/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/ds160-proof/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-artifact/route.ts`
+  authorizes both legacy application-id paths and exact artifact paths recorded
+  in the owned application's trusted submission result, including shared-runner
+  `jobs/<job-id>/**` QR paths.
+- `viza-fe/internal-website/app/api/applications/[id]/submission-artifact/route.test.ts`
+  guards shared-runner artifact access without allowing unrelated job paths or
+  strings found only in runner logs.
 - `viza-fe/internal-website/app/api/applications/[id]/arrival-card-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/new-application/route.ts`
   creates a new blank U.S. DS-160 VIZA draft from a submitted application and
