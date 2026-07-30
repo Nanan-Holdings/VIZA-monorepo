@@ -55,7 +55,10 @@ describe("travel LLM connectivity health", () => {
     vi.stubEnv("TRAVEL_BACKEND_URL", "http://travel-service.test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test/");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
-    const fetchMock = vi.fn(async () => new Response("", { status: 200 }));
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response("", { status: 200 })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await getTravelHealth();

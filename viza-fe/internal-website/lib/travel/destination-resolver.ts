@@ -1157,6 +1157,22 @@ const UNDECIDED_DESTINATION_PATTERNS = [
   /don't know where to go/i,
 ];
 
+const GENERIC_DESTINATION_RECOMMENDATION_PATTERNS = [
+  /^(?:请)?(?:给我|帮我)?推荐(?:一下)?(?:吧)?[。.!！?？]*$/u,
+  /^(?:请)?(?:给我|帮我)?推荐(?:一个|一些|几个)?(?:旅行)?(?:地点|目的地|城市)?(?:吧)?[。.!！?？]*$/u,
+  /^(?:please\s+)?recommend(?:\s+something|\s+somewhere|\s+a\s+destination)?[.!?]*$/i,
+  /^(?:can|could|would)\s+you\s+recommend(?:\s+something|\s+somewhere|\s+a\s+destination)?[.!?]*$/i,
+];
+
+export function isGenericDestinationRecommendationRequest(
+  value: string
+): boolean {
+  const normalized = normalizeUserUtterance(value);
+  return GENERIC_DESTINATION_RECOMMENDATION_PATTERNS.some((pattern) =>
+    pattern.test(normalized)
+  );
+}
+
 const EDIT_INTENT_PATTERNS = [
   /(删除|删掉|移除|去掉|重排|调整|修改|换到|改成|刷新|重做|重新安排|第二天|第[一二三四五六七八九十\d]+天)/,
   /\b(delete|remove|reorder|refresh|change|edit|revise|move|replace)\b/i,
@@ -1524,6 +1540,9 @@ function classifyTravelIntent(value: string): TravelIntentKind {
   const normalized = normalizeUserUtterance(value);
   if (INVALID_OR_UNRELATED_PATTERNS.some((pattern) => pattern.test(normalized))) {
     return "invalid_or_unrelated";
+  }
+  if (isGenericDestinationRecommendationRequest(normalized)) {
+    return "ask_question";
   }
   if (CLARIFY_COMMAND_PATTERNS.some((pattern) => pattern.test(normalized))) {
     return "clarify_needed";
@@ -2181,57 +2200,6 @@ export function extractDestinationTripHints(rawText: string): DestinationTripHin
   };
 }
 
-function extractTemporaryDestinationLabel(query: string): string | null {
-  const cleaned = normalizeDestinationText(query);
-  const tokens = cleaned
-    .split(" ")
-    .filter((token) => token.length >= 2 && !STOP_WORDS.has(token) && !/^\d+$/.test(token));
-
-  if (tokens.length === 0) return null;
-
-  const lastTokens = tokens.slice(-4).join(" ");
-  return lastTokens.length >= 2 ? lastTokens : null;
-}
-
-function stableHash(value: string): string {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash.toString(36);
-}
-
-export function createTemporaryDestination(
-  query: string
-): TravelDestinationSearchResult | null {
-  const label = extractTemporaryDestinationLabel(query);
-  if (!label) return null;
-
-  const title = label
-    .split(" ")
-    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
-    .join(" ");
-  return {
-    id: `temp-${stableHash(label)}`,
-    canonicalName: title,
-    displayName: title,
-    normalizedName: normalizeDestinationText(title),
-    countryCode: null,
-    countryName: null,
-    region: null,
-    city: title,
-    placeType: "city",
-    latitude: null,
-    longitude: null,
-    popularityScore: 0,
-    source: "temporary_resolver",
-    confidenceScore: 0.62,
-    isVerified: false,
-    aliases: [label],
-    imageKey: null,
-  };
-}
-
 export function buildTravelCandidatePayload(
   destinations: TravelDestinationSearchResult[],
   rawText = ""
@@ -2392,48 +2360,6 @@ function createPipelineDebug(options: {
   };
 }
 
-function allowsTemporaryFallback(
-  rawText: string,
-  intent: TravelIntentParseResult,
-  query: string
-): { allowed: boolean; reason: string | null } {
-  if (!query) return { allowed: false, reason: "empty_destination_query" };
-  if (isTravelCommandIntent(intent.intent)) {
-    return { allowed: false, reason: `${intent.intent}_does_not_create_destination` };
-  }
-  if (intent.intent === "ask_question") {
-    return { allowed: false, reason: "question_intent_does_not_create_destination" };
-  }
-  if (intent.intent === "invalid_or_unrelated") {
-    return { allowed: false, reason: "invalid_or_unrelated" };
-  }
-  if (intent.needsClarification) {
-    return { allowed: false, reason: "awaiting_destination_clarification" };
-  }
-
-  const firstCandidate = intent.destinations[0];
-  if (firstCandidate && firstCandidate.confidence < 0.55) {
-    return { allowed: false, reason: "low_destination_confidence" };
-  }
-
-  const normalizedQuery = normalizeDestinationText(query);
-  const cjkLength = (normalizedQuery.match(/[\u3400-\u9fff]/g) ?? []).length;
-  const latinWords = normalizedQuery.split(/\s+/).filter(Boolean);
-  if (cjkLength < 2 && latinWords.join("").length < 3) {
-    return { allowed: false, reason: "destination_query_too_short" };
-  }
-
-  const hasTravelContext = DESTINATION_CONTEXT_PATTERNS.some((pattern) =>
-    pattern.test(rawText)
-  );
-  const looksLikeShortPlaceName = latinWords.length > 0 && latinWords.length <= 4;
-  if (!hasTravelContext && !looksLikeShortPlaceName && cjkLength < 2) {
-    return { allowed: false, reason: "no_destination_context" };
-  }
-
-  return { allowed: true, reason: null };
-}
-
 export function resolveLocalDestinationText(rawText: string): DestinationResolution {
   const intent = parseTravelIntent(rawText);
   const query = resolutionQueryFromIntent(rawText, intent);
@@ -2477,6 +2403,7 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
   if (
     intent.intent === "ask_question" ||
     intent.intent === "invalid_or_unrelated" ||
+    isGenericDestinationRecommendationRequest(rawText) ||
     UNDECIDED_DESTINATION_PATTERNS.some((pattern) => pattern.test(rawText))
   ) {
     return {
@@ -2603,60 +2530,20 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
     };
   }
 
-  const fallbackGate = allowsTemporaryFallback(rawText, intent, query);
-  if (!fallbackGate.allowed) {
-    return {
-      status: "unresolved",
-      query,
-      message: fallbackGate.reason ?? "The text does not look like a resolvable destination yet.",
-      tripHints,
-      cards: [],
-      debugTrace: createPipelineDebug({
-        rawInput: rawText,
-        intent,
-        resolverResult: "unresolved",
-        localDb: "local_index_miss",
-        fallbackReason: fallbackGate.reason,
-        cardSourceStatus: "none",
-      }),
-    };
-  }
-
-  const temporaryDestination = createTemporaryDestination(query);
-  if (!temporaryDestination) {
-    return {
-      status: "unresolved",
-      query,
-      message: "The text does not look like a resolvable destination yet.",
-      tripHints,
-      cards: [],
-      debugTrace: createPipelineDebug({
-        rawInput: rawText,
-        intent,
-        resolverResult: "unresolved",
-        localDb: "local_index_miss",
-        fallbackReason: "temporary_destination_label_empty",
-        cardSourceStatus: "none",
-      }),
-    };
-  }
-
   return {
-    status: "temporary",
+    status: "unresolved",
     query,
-    destination: temporaryDestination,
-    confidenceScore: temporaryDestination.confidenceScore,
+    message:
+      "The destination is not present in the verified local destination index.",
     tripHints,
-    cards: generateLazyDestinationCards(temporaryDestination, {
-      source: "temporary_resolver",
-    }),
+    cards: [],
     debugTrace: createPipelineDebug({
       rawInput: rawText,
       intent,
-      resolverResult: "temporary",
+      resolverResult: "unresolved",
       localDb: "local_index_miss",
-      fallbackReason: "all_local_resolution_attempts_failed",
-      cardSourceStatus: "temporary_resolver",
+      fallbackReason: "unverified_destination_cards_disabled",
+      cardSourceStatus: "none",
     }),
   };
 }

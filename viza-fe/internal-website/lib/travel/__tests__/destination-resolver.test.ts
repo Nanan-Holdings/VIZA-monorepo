@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  LAZY_DESTINATION_CARD_TYPES,
   buildTravelCandidatePayload,
   extractDestinationIntentLabel,
   parseTravelIntent,
@@ -115,15 +114,13 @@ describe("travel destination resolver", () => {
     }
   });
 
-  it("creates temporary fallback cards for plausible missing destinations", () => {
+  it("does not create temporary fallback cards for missing destinations", () => {
     const resolution = resolveLocalDestinationText("Plan a trip to Blue Lantern Bay.");
-    expect(resolution.status).toBe("temporary");
-    if (resolution.status === "temporary") {
-      expect(resolution.destination.isVerified).toBe(false);
-      expect(resolution.cards.map((card) => card.cardType)).toEqual(
-        LAZY_DESTINATION_CARD_TYPES
-      );
-    }
+    expect(resolution.status).toBe("unresolved");
+    expect(resolution.cards).toEqual([]);
+    expect(resolution.debugTrace?.fallbackReason).toBe(
+      "unverified_destination_cards_disabled"
+    );
   });
 
   it("normalizes quick reply intent before creating destination cards", () => {
