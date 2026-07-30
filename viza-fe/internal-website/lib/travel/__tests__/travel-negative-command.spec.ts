@@ -262,6 +262,24 @@ function modelTurn(text: string) {
       ],
     };
   }
+  if (text === "我想去罗马") {
+    return {
+      ...base,
+      intent: "select_destination",
+      reply: "好的，罗马已经加入这次旅行。",
+      operations: [
+        {
+          op: "add",
+          path: "cities",
+          value_text: "罗马",
+          value_number: null,
+          value_boolean: null,
+          explicit: true,
+          evidence: "罗马",
+        },
+      ],
+    };
+  }
   if (text === "我不要去东京") {
     return {
       ...base,
@@ -278,6 +296,82 @@ function modelTurn(text: string) {
           evidence: "东京",
         },
       ],
+    };
+  }
+  if (text === "其实我不想去罗马了") {
+    return {
+      ...base,
+      intent: "remove_destination",
+      reply: "好的，那就先不考虑罗马了。",
+      // Reproduce a real model mistake: it acknowledged the removal but only
+      // cleared confirmation instead of removing the selected city.
+      operations: [
+        {
+          op: "unset",
+          path: "destination_confirmed",
+          value_text: null,
+          value_number: null,
+          value_boolean: null,
+          explicit: true,
+          evidence: "不想去罗马",
+        },
+      ],
+    };
+  }
+  if (
+    text === "Actually 还是罗马吧，4天，2个人，预算一万人民币，节奏轻快"
+  ) {
+    return {
+      ...base,
+      intent: "record_facts",
+      reply: "好，那我们回到罗马，按4天、2个人、预算1万人民币来规划。",
+      operations: [
+        {
+          op: "add",
+          path: "cities",
+          value_text: "Rome",
+          value_number: null,
+          value_boolean: null,
+          explicit: true,
+          evidence: "罗马",
+        },
+        {
+          op: "set",
+          path: "travel_days",
+          value_text: null,
+          value_number: 4,
+          value_boolean: null,
+          explicit: true,
+          evidence: "4天",
+        },
+        {
+          op: "set",
+          path: "travelers",
+          value_text: null,
+          value_number: 2,
+          value_boolean: null,
+          explicit: true,
+          evidence: "2个人",
+        },
+        {
+          op: "set",
+          path: "budget",
+          value_text: null,
+          value_number: 10_000,
+          value_boolean: null,
+          explicit: true,
+          evidence: "一万人民币",
+        },
+      ],
+    };
+  }
+  if (text === "出发时间就定在下周末") {
+    return {
+      ...base,
+      intent: "record_facts",
+      reply: "好的，出发时间定在下周末。",
+      // Reproduce a model acknowledgement that omitted the matching operation.
+      operations: [],
     };
   }
   if (text === "多少预算合适") {
@@ -482,6 +576,83 @@ describe("Travel Agent server coordinator", () => {
     ).json();
     expect(removed.state.cities).not.toContain("东京");
     expect(removed.state.destination_confirmed).toBe(false);
+  });
+
+  it("removes the selected city when the model only acknowledges the command", async () => {
+    const selected = await (
+      await postTravelChat(request("我想去罗马", "m1"))
+    ).json();
+    expect(selected.state.cities).toContain("罗马");
+
+    const unrelatedRejection = await (
+      await postTravelChat(request("我不想去俄罗斯", "m2"))
+    ).json();
+    expect(unrelatedRejection.state.cities).toContain("罗马");
+
+    const removed = await (
+      await postTravelChat(request("其实我不想去罗马了", "m3"))
+    ).json();
+    expect(removed.state.cities).not.toContain("罗马");
+    expect(removed.state.destination_confirmed).toBe(false);
+    expect(removed.applied_operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          op: "remove",
+          path: "cities",
+          valueText: "罗马",
+          explicit: true,
+        }),
+      ])
+    );
+
+    await postTravelChat(request("我想去罗马", "m4"));
+    const removedByAlias = await (
+      await postTravelChat(request("I don't want Rome anymore", "m5"))
+    ).json();
+    expect(removedByAlias.state.cities).not.toContain("罗马");
+
+    const mixedFacts = await (
+      await postTravelChat(
+        request(
+          "Actually 还是罗马吧，4天，2个人，预算一万人民币，节奏轻快",
+          "m6"
+        )
+      )
+    ).json();
+    expect(mixedFacts.state).toMatchObject({
+      cities: ["Rome"],
+      travel_days: 4,
+      travelers: 2,
+      budget: 10_000,
+    });
+
+    const keepRome = await (
+      await postTravelChat(request("我不想去俄罗斯，但保留罗马", "m7"))
+    ).json();
+    expect(keepRome.state.cities).toEqual(["Rome"]);
+
+    const departureDate = await (
+      await postTravelChat(request("出发时间就定在下周末", "m8"))
+    ).json();
+    expect(departureDate.state.departure_date).toMatch(
+      /^\d{4}-\d{2}-\d{2}$/
+    );
+    expect(departureDate.state.date_flexibility).toBe("fixed");
+    expect(departureDate.applied_operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          op: "set",
+          path: "departure_date",
+          explicit: true,
+        }),
+        expect.objectContaining({
+          op: "set",
+          path: "date_flexibility",
+          valueText: "fixed",
+          explicit: true,
+        }),
+      ])
+    );
   });
 
   it("keeps budget advice conversational and does not record a budget", async () => {

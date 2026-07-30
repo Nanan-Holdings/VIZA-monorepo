@@ -17,7 +17,8 @@ service URL off the client.
 - `chat/route.ts`: authenticated, idempotent server-side Travel Agent
   coordinator using versioned state and OpenAI response continuity.
 - `health/route.ts`: independent OpenAI, Python Travel Service, session
-  database, and Places readiness instead of one coupled AI status.
+  database, Places, and signed client-session readiness instead of one coupled
+  AI status.
 - `flights/route.ts`: flight option search.
 - `hotels/route.ts`: hotel option search.
 - `geocode/route.ts`: server-side Google Geocoding API lookup for city,

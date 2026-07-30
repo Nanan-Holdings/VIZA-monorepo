@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
+  isSgArrivalCardApplication,
   isUkMisroutedDryRunError,
   isUkPrefillSubmissionResult,
   ukPrefillProgressPercent,
@@ -61,6 +62,17 @@ type QueueRow = {
   vn_result_payload?: unknown | null;
   created_at: string | null;
   updated_at: string | null;
+  transport?: "submission_queue" | "runner_job";
+};
+
+type RunnerJobRow = {
+  id: string;
+  status: string;
+  attempts: number | null;
+  last_error: string | null;
+  enqueued_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
 };
 
 type DerivedStatus = {
@@ -608,6 +620,45 @@ export function selectQueueForSubmissionStatus(rows: QueueRow[]): QueueRow | nul
   return newestQueue(submissionRows);
 }
 
+export function sgacRunnerJobToQueueRow(row: RunnerJobRow): QueueRow {
+  const status = normalizeStatus(row.status);
+  const queueStatus =
+    status === "queued"
+      ? "sgac_live_assisted_pending"
+      : status === "running"
+        ? "sgac_live_assisted_processing"
+        : status === "succeeded"
+          ? "done"
+          : status === "paused"
+            ? "stalled"
+            : status === "cancelled" || status === "canceled"
+              ? "sgac_live_assisted_cancelled"
+              : "sgac_live_assisted_failed";
+  const updatedAt = latestTimestamp(row.finished_at, row.started_at, row.enqueued_at);
+  return {
+    id: row.id,
+    status: queueStatus,
+    attempts: row.attempts,
+    mode: "live_assisted",
+    provider: "sg_arrival_card_runner_job",
+    last_error: row.last_error,
+    error_code: null,
+    error_message: row.last_error,
+    current_stage:
+      status === "running"
+        ? "official_portal_submission"
+        : status === "queued"
+          ? "waiting_for_singapore_runner"
+          : null,
+    heartbeat_at: row.started_at,
+    manual_action_status: null,
+    official_status: status === "succeeded" ? "submitted" : null,
+    created_at: row.enqueued_at,
+    updated_at: updatedAt,
+    transport: "runner_job",
+  };
+}
+
 export function deriveNonTerminalStatus(
   application: ApplicationForStatus,
   queue: QueueRow | null,
@@ -841,7 +892,25 @@ async function getSubmissionStatus(
     return NextResponse.json({ error: queueError.message }, { status: 500 });
   }
 
-  const queue = selectQueueForSubmissionStatus((queueRows ?? []) as QueueRow[]);
+  const candidateRows: QueueRow[] = ((queueRows ?? []) as QueueRow[]).map((row) => ({
+    ...row,
+    transport: "submission_queue" as const,
+  }));
+  if (isSgArrivalCardApplication(application.country, application.visa_type)) {
+    const { data: runnerRows, error: runnerError } = await admin
+      .from("runner_job")
+      .select("id, status, attempts, last_error, enqueued_at, started_at, finished_at")
+      .eq("application_id", applicationId)
+      .eq("country", "singapore")
+      .order("enqueued_at", { ascending: false, nullsFirst: false })
+      .limit(10);
+    if (runnerError) {
+      return NextResponse.json({ error: runnerError.message }, { status: 500 });
+    }
+    candidateRows.push(...((runnerRows ?? []) as RunnerJobRow[]).map(sgacRunnerJobToQueueRow));
+  }
+
+  const queue = selectQueueForSubmissionStatus(candidateRows);
   const queueUpdatedAt = latestTimestamp(queue?.heartbeat_at, queue?.updated_at, queue?.created_at);
   const queueDerived = deriveQueueStage(normalizeStatus(queue?.status));
   // A newly created active queue represents an explicit retry. It must always
@@ -895,6 +964,7 @@ async function getSubmissionStatus(
       queue: queue
         ? {
             id: queue.id,
+            transport: queue.transport ?? "submission_queue",
             status: queue.status,
             attempts: queue.attempts,
             mode: queue.mode,
