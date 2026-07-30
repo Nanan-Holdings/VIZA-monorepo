@@ -1,9 +1,9 @@
 /**
  * Inbound email ingest worker (INBOX keystone).
  *
- * Cloudflare Email Routing catch-alls `*@haggstorm.com` and forwards into the
+ * Cloudflare Email Routing catch-alls `*@viza.it.com` and forwards into the
  * mailbox addressed by IMAP_EMAIL. This worker reads that mailbox, recovers
- * the ORIGINAL per-applicant alias (`appl-<ulid>@haggstorm.com`) from the
+ * the ORIGINAL per-applicant alias (`appl-<ulid>@viza.it.com`) from the
  * preserved headers, and writes a row into `inbound_email` — the table that
  * `inbox.waitForMessage()` (and therefore every gated-portal runner) reads.
  *
@@ -20,8 +20,25 @@ import { ImapFlow } from "imapflow";
 import { imapConfigFromEnv } from "./imap-poll.js";
 import { supabase } from "../supabase.js";
 
-const ALIAS_DOMAIN = process.env.INBOX_ALIAS_DOMAIN ?? "haggstorm.com";
-const ALIAS_RE = new RegExp(`([a-z0-9._+-]+@${ALIAS_DOMAIN.replace(/\./g, "\\.")})`, "i");
+const DEFAULT_ALIAS_DOMAINS = ["viza.it.com", "haggstorm.com"] as const;
+
+function aliasDomainsFromEnv(): string[] {
+  const configured =
+    process.env.INBOX_ALIAS_DOMAINS ??
+    process.env.INBOX_ALIAS_DOMAIN ??
+    DEFAULT_ALIAS_DOMAINS.join(",");
+  const domains = configured
+    .split(/[\s,;]+/u)
+    .map((domain) => domain.trim().toLowerCase().replace(/^@/u, ""))
+    .filter(Boolean);
+  return [...new Set(domains)];
+}
+
+const ALIAS_DOMAINS = aliasDomainsFromEnv();
+const ALIAS_DOMAIN_PATTERN = ALIAS_DOMAINS
+  .map((domain) => domain.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
+  .join("|");
+const ALIAS_RE = new RegExp(`([a-z0-9._+-]+@(?:${ALIAS_DOMAIN_PATTERN}))`, "i");
 
 export interface IngestResult {
   scanned: number;
@@ -44,10 +61,10 @@ function decodeQuotedPrintable(input: string): string {
     .replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 }
 
-/** Pull the @ALIAS_DOMAIN recipient out of the preserved header block. */
+/** Pull a managed alias recipient out of the preserved header block. */
 function aliasFromHeaders(headerBlock: string): string | null {
   // Only scan RECIPIENT header lines. Cloudflare SRS-rewrites the *sender* to
-  // <local>@haggstorm.com to pass SPF, so a naive whole-block scan would grab
+  // a managed alias domain to pass SPF, so a naive whole-block scan would grab
   // the rewritten From instead of the real applicant alias. The recipient is
   // preserved in Delivered-To / X-Forwarded-To / To / Cc.
   const RECIPIENT_LINE = /^(delivered-to|x-forwarded-to|to|cc):/i;

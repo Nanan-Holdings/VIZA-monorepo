@@ -1,7 +1,7 @@
 import type { InboundMessage, WaitForMessageOpts } from "../inbox/wait-for-message";
 
 const TLS_ACTIVATION_URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
-const DEFAULT_TLS_ALIAS_DOMAIN = "haggstorm.com";
+const DEFAULT_TLS_ALIAS_DOMAIN = "viza.it.com";
 
 export interface FranceTlsActivationEmailResult {
   alias: string;

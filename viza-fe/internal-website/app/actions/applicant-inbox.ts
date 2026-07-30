@@ -6,7 +6,7 @@ import { withAdmin } from "@/lib/auth/with-admin";
  * Per-applicant inbox alias (INBOX-003).
  *
  * `assignApplicantInboxAlias(applicantId)` returns the existing alias if
- * one is already assigned, otherwise mints a fresh `appl-{ulid}@haggstorm.com`,
+ * one is already assigned, otherwise mints a fresh `appl-{ulid}@viza.it.com`,
  * persists it to `applicant_profiles.inbox_alias`, and returns it.
  *
  * Aliases are case-insensitive (the unique index uses `LOWER(inbox_alias)`),
@@ -14,7 +14,9 @@ import { withAdmin } from "@/lib/auth/with-admin";
  * with `inbound_email.to_addr`.
  */
 
-const ALIAS_DOMAIN = "haggstorm.com";
+const ALIAS_DOMAIN =
+  process.env.INBOX_ALIAS_DOMAIN?.trim().toLowerCase().replace(/^@/u, "") ||
+  "viza.it.com";
 
 // Crockford base32 (no I, L, O, U) — keeps aliases legible in tickets.
 const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";

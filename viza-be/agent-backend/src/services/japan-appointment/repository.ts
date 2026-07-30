@@ -120,7 +120,7 @@ export class SupabaseJapanAppointmentRepository implements JapanAppointmentRepos
     const { data: existing, error } = await client.from("applicant_profiles").select("inbox_alias").eq("id", applicantId).maybeSingle();
     if (error) throw new Error(error.message);
     if (existing?.inbox_alias) return String(existing.inbox_alias);
-    const domain = process.env.APPLICANT_INBOX_ALIAS_DOMAIN?.trim() || "haggstorm.com";
+    const domain = process.env.APPLICANT_INBOX_ALIAS_DOMAIN?.trim() || "viza.it.com";
     const alias = `appl-${randomUUID().replace(/-/g, "")}@${domain}`.toLowerCase();
     const { data, error: updateError } = await client.from("applicant_profiles")
       .update({ inbox_alias: alias }).eq("id", applicantId).is("inbox_alias", null).select("inbox_alias").maybeSingle();

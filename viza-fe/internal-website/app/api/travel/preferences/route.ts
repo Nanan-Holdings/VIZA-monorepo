@@ -1,5 +1,5 @@
-import { getUserFromSupabaseSession } from "@/lib/client-session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTravelUserSession } from "@/lib/travel/auth";
 import type { Json } from "@/types/database";
 
 type TravelPreferenceItem = {
@@ -47,7 +47,7 @@ async function readPreferences(userId: string): Promise<TravelPreferenceItem[]> 
 }
 
 export async function GET() {
-  const auth = await getUserFromSupabaseSession();
+  const auth = await getTravelUserSession();
   if (!auth) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     return Response.json(
@@ -63,7 +63,7 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
-  const auth = await getUserFromSupabaseSession();
+  const auth = await getTravelUserSession();
   if (!auth) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const id = new URL(request.url).searchParams.get("id");
   try {
