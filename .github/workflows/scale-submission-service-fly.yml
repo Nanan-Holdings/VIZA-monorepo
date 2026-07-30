@@ -31,6 +31,12 @@ jobs:
           cache-dependency-path: viza-be/agent-backend/package-lock.json
       - run: npm ci
         working-directory: viza-be/agent-backend
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Calculate and apply worker counts
+        run: |
+          npx tsx scripts/autoscale-runners.ts --json > "$RUNNER_TEMP/runner-decisions.json"
+          bash ../submission-service/scripts/fly/scale-workers.sh "$RUNNER_TEMP/runner-decisions.json"
+        working-directory: viza-be/agent-backend
 
   legacy-maintenance-pulse:
     if: github.event_name == 'schedule' && github.event.schedule == '17 * * * *'
@@ -49,9 +55,3 @@ jobs:
           jq -n '[{kind:"legacy",app:"viza-submission-legacy",queued:0,desired:0}]' > "$RUNNER_TEMP/legacy-stop.json"
           bash scripts/fly/scale-workers.sh "$RUNNER_TEMP/legacy-stop.json"
         working-directory: viza-be/submission-service
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - name: Calculate and apply worker counts
-        run: |
-          npx tsx scripts/autoscale-runners.ts --json > "$RUNNER_TEMP/runner-decisions.json"
-          bash ../submission-service/scripts/fly/scale-workers.sh "$RUNNER_TEMP/runner-decisions.json"
-        working-directory: viza-be/agent-backend
