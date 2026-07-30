@@ -2,7 +2,7 @@
  * Cloudflare Email Worker — `viza-email-worker` (INBOX-002).
  *
  * Bound at the Cloudflare dashboard via Email Routing's catch-all route.
- * For every inbound message at *@haggstorm.com:
+ * For every inbound message at *@viza.it.com:
  *   1. Read the raw RFC 822 stream once.
  *   2. Extract the standard headers we care about (from / to / subject /
  *      message-id) and the spam score Cloudflare exposes via the headers.

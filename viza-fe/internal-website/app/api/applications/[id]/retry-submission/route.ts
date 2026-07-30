@@ -118,7 +118,7 @@ const VIETNAM_OFFICIAL_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 const VIETNAM_FACE_MATCH_MIN_SCORE = Number(process.env.VN_FACE_MATCH_MIN_SCORE || 0.7);
 const VIETNAM_PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 const VIETNAM_PORTRAIT_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
-const DEFAULT_MANAGED_INBOX_DOMAIN = "haggstorm.com";
+const DEFAULT_MANAGED_INBOX_DOMAIN = "viza.it.com";
 
 function managedInboxDomain(alias: string | null): string {
   const aliasDomain = alias?.trim().toLowerCase().split("@").at(-1);

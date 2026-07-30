@@ -1,6 +1,8 @@
 import { supabase } from "../supabase";
 
-const DEFAULT_ALIAS_DOMAIN = "haggstorm.com";
+const DEFAULT_ALIAS_DOMAIN =
+  process.env.INBOX_ALIAS_DOMAIN?.trim().toLowerCase().replace(/^@/u, "") ||
+  "viza.it.com";
 const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 type InboxAliasClient = Pick<typeof supabase, "from">;

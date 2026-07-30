@@ -3641,7 +3641,7 @@ async function createVietnamManualAction(
   }
 }
 
-const DEFAULT_INDONESIA_ALIAS_DOMAIN = "haggstorm.com";
+const DEFAULT_INDONESIA_ALIAS_DOMAIN = "viza.it.com";
 
 function parseAliasDomain(value: string | null | undefined): string | null {
   const normalized = value?.trim().toLowerCase();
