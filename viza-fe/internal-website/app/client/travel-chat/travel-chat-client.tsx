@@ -3580,8 +3580,17 @@ export function TravelChatClient({
       null
     );
   }, [activeSession?.activeVersionId, activeSession?.versions]);
+  const latestTravelVersion =
+    activeSession?.versions?.[activeSession.versions.length - 1] ?? null;
+  const isViewingHistoricalVersion = Boolean(
+    activeTravelVersion &&
+      latestTravelVersion &&
+      activeTravelVersion.id !== latestTravelVersion.id
+  );
   const displayItinerary = activeTravelVersion?.itinerary ?? latestItinerary;
-  const displayTravelState = activeTravelVersion?.travelState ?? travelState;
+  const displayTravelState = isViewingHistoricalVersion
+    ? activeTravelVersion?.travelState ?? travelState
+    : travelState;
   const missingField = useMemo(
     () => nextMissingField(travelState),
     [travelState]

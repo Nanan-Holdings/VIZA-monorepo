@@ -24,19 +24,22 @@ export async function getTravelUserSession(): Promise<TravelUserSession | null> 
     };
   }
 
-  const supabaseSession = await getUserFromSupabaseSession();
-  if (supabaseSession) {
-    return {
-      userId: supabaseSession.userId,
-      sessionKind: "supabase",
-    };
-  }
-
+  // Match proxy.ts: a valid signed VIZA session does not need a Supabase
+  // refresh request. This also keeps stale Supabase refresh cookies from
+  // producing errors when the portal session is still valid.
   const clientSession = await getClientSession();
   if (clientSession) {
     return {
       userId: clientSession.userId,
       sessionKind: "client_session",
+    };
+  }
+
+  const supabaseSession = await getUserFromSupabaseSession();
+  if (supabaseSession) {
+    return {
+      userId: supabaseSession.userId,
+      sessionKind: "supabase",
     };
   }
 

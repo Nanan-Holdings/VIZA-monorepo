@@ -277,7 +277,7 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(screen.queryByText("官网二维码未同步")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("上传已收到的官方二维码")).not.toBeInTheDocument();
     expect(
-      screen.getByText(/没有获取并保存可下载的官方二维码/),
+      screen.getByText(/云端任务未能完成，错误详情已记录/),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "提交" }));
@@ -336,6 +336,51 @@ describe("cloud submission retry routing", () => {
             country: "united_states",
             visaType: "DS160",
             intent: "new_application",
+          }),
+        }),
+      );
+    });
+    expect(onResubmit).not.toHaveBeenCalled();
+  });
+
+  it("queues a failed Vietnam arrival card directly from its saved answers", async () => {
+    const onResubmit = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        jobId: "new-vietnam-prearrival-queue-id",
+        queueStatus: "vn_prearrival_live_assisted_pending",
+        provider: "vietnam_prearrival_live",
+        workerTriggered: true,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="vietnam"
+        visaType="VN_PREARRIVAL_DECLARATION"
+        status="failed"
+        result={null}
+        onResubmit={onResubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "提交" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/application-id/retry-submission",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            mode: "live_assisted",
+            country: "vietnam",
+            visaType: "VN_PREARRIVAL_DECLARATION",
+            intent: "retry",
           }),
         }),
       );

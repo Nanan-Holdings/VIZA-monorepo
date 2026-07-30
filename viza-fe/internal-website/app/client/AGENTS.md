@@ -12,7 +12,11 @@ applicant info, and help pages.
 ## Key Flows
 
 - `layout.tsx`: client shell, nav, session validation, impersonation mismatch
-  handling, first-login form request redirect.
+  handling, first-login form request redirect, and the one-time account-level
+  application-email forwarding authorization gate.
+- `_components/alias-forwarding-consent-gate.tsx`: provisions and displays the
+  user's permanent VIZA application alias, then records explicit account-level
+  authorization before official emails can be forwarded to the profile email.
 - `home/page.tsx`: dashboard (hero, subscription entry, universal information
   summary, recent activity). Destination selection moved to
   `destinations/page.tsx`.

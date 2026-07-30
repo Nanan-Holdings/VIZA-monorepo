@@ -13,10 +13,16 @@ import {
   browserbaseEnabled,
   connectBrowserbaseCloudBrowser,
 } from "../browserbase-session";
+import { reportBadCaptcha } from "../captcha";
 import fs from "node:fs";
 import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
-import { solveVietnamImageCaptcha, type VietnamCaptchaSolveOutcome } from "./captcha";
+import {
+  refreshVietnamCaptchaChallenge,
+  solveVietnamImageCaptcha,
+  submitVietnamCaptchaChallenge,
+  type VietnamCaptchaSolveOutcome,
+} from "./captcha";
 import {
   fillVietnamConditionalRepeatGroups,
   validateVietnamConditionalAnswers,
@@ -463,10 +469,13 @@ async function fillVietnamApplicationOnce(
     let stateAfterCaptcha = reviewState;
     if (stateAfterCaptcha === "captcha_visible") {
       const maxReviewCaptchaAttempts = readPositiveInt(process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS, 3);
+      let rejectedCaptchaFingerprint: string | undefined;
       for (let attempt = 1; attempt <= maxReviewCaptchaAttempts && stateAfterCaptcha === "captcha_visible"; attempt++) {
         if (attempt > 1) {
-          await refreshVietnamReviewCaptcha(page);
-          await page.waitForTimeout(1_000);
+          const refreshed = await refreshVietnamCaptchaChallenge(page, rejectedCaptchaFingerprint);
+          if (!refreshed) {
+            console.warn(`[vn] Run ${runId} could not confirm that the rejected CAPTCHA image refreshed.`);
+          }
         }
         await emitProgress("captcha_solving");
         const captchaOutcome = await solveVietnamImageCaptcha(page, Math.min(stepTimeoutMs, 120_000));
@@ -497,10 +506,14 @@ async function fillVietnamApplicationOnce(
         }
         await emitProgress("captcha_submitted");
         await withTimeout(
-          submitReviewCaptchaAndWait(page, stepTimeoutMs),
+          submitVietnamCaptchaChallenge(page),
           Math.min(stepTimeoutMs, 55_000),
-          undefined,
+          false,
         );
+        // The Vietnam portal often keeps analytics/API requests open after the
+        // security-code submit. A bounded delay is more reliable than
+        // networkidle and still lets the state classifier observe the result.
+        await page.waitForTimeout(Math.min(stepTimeoutMs, 5_000));
         const codeAfterCaptcha = await withTimeout(captureRegistrationCode(page), 8_000, null);
         if (codeAfterCaptcha) {
           console.log(`[vn] Run ${runId} captured registration code after review CAPTCHA.`);
@@ -524,6 +537,11 @@ async function fillVietnamApplicationOnce(
         }
         lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
+        if (stateAfterCaptcha === "captcha_visible" && captchaOutcome.telemetry) {
+          rejectedCaptchaFingerprint = captchaOutcome.telemetry.imageFingerprint;
+          await reportBadCaptcha(captchaOutcome.telemetry.solveId).catch(() => undefined);
+          console.warn(`[vn] Run ${runId} official portal rejected CAPTCHA attempt ${attempt}; refreshing before retry.`);
+        }
       }
     }
     let registrationCode = await withTimeout(captureRegistrationCode(page), 15_000, null);
@@ -1572,94 +1590,6 @@ async function advanceToReview(page: Page, timeoutMs: number): Promise<void> {
   if (!clicked) return;
   await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 30_000) }).catch(() => undefined);
   await page.waitForTimeout(2_000);
-}
-
-async function submitReviewCaptchaAndWait(page: Page, timeoutMs: number): Promise<void> {
-  const target = await page
-    .evaluate(() => {
-      const visible = (element: Element | null): element is HTMLElement => {
-        if (!element) return false;
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-      };
-      const captchaInput = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
-        .filter(visible)
-        .find((input) => /captcha|security code|mã xác nhận|ma xac nhan/i.test(`${input.placeholder} ${input.name} ${input.id} ${input.className}`));
-      const inputRect = captchaInput?.getBoundingClientRect();
-      const candidates = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-        .filter(visible)
-        .filter((button) => !button.disabled && button.getAttribute("aria-disabled") !== "true")
-        .filter((button) => /^(next|continue|tiếp tục)$/i.test((button.innerText || button.textContent || "").replace(/\s+/g, " ").trim()))
-        .map((button) => {
-          const rect = button.getBoundingClientRect();
-          const distance = inputRect
-            ? Math.abs(rect.top - inputRect.bottom) + Math.abs(rect.left - inputRect.left)
-            : rect.top;
-          return { button, distance };
-        })
-        .sort((left, right) => left.distance - right.distance);
-      const button = candidates[0]?.button;
-      if (!button) return null;
-      button.scrollIntoView({ block: "center" });
-      const rect = button.getBoundingClientRect();
-      return {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
-    })
-    .catch(() => null);
-  if (target) {
-    await page.mouse.click(target.x, target.y).catch(async () => {
-      await page.evaluate(({ x, y }) => {
-        const element = document.elementFromPoint(x, y) as HTMLElement | null;
-        element?.click();
-      }, target);
-    });
-  }
-  // The Vietnam portal often keeps analytics/API requests open after the
-  // security-code submit. Waiting for networkidle can pin the worker at
-  // captcha_submitted even when the page has already advanced to payment.
-  await page.waitForTimeout(Math.min(timeoutMs, 5_000));
-}
-
-async function refreshVietnamReviewCaptcha(page: Page): Promise<void> {
-  await page
-    .evaluate(() => {
-      const visible = (element: Element | null): element is HTMLElement | SVGElement => {
-        if (!element) return false;
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-      };
-      const captchaInput = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
-        .filter(visible)
-        .find((input) => /captcha|security code|mã xác nhận|ma xac nhan/i.test(`${input.placeholder} ${input.name} ${input.id} ${input.className}`));
-      captchaInput?.focus();
-      if (captchaInput) {
-        captchaInput.value = "";
-        captchaInput.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
-        captchaInput.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      const inputRect = captchaInput?.getBoundingClientRect();
-      const candidates = Array.from(document.querySelectorAll<HTMLElement | SVGElement>("button, .anticon, svg, img, a"))
-        .filter(visible)
-        .map((element) => {
-          const rect = element.getBoundingClientRect();
-          const text = `${element.textContent ?? ""} ${element.getAttribute("aria-label") ?? ""} ${element.getAttribute("title") ?? ""} ${element.getAttribute("class") ?? ""}`;
-          const isRefresh = /reload|refresh|sync|redo|captcha|anticon-sync/i.test(text);
-          const distance = inputRect
-            ? Math.abs(rect.left - inputRect.right) + Math.abs(rect.top + rect.height / 2 - (inputRect.top + inputRect.height / 2)) * 2
-            : rect.top;
-          return { element, score: distance + (isRefresh ? -200 : 0) };
-        })
-        .sort((left, right) => left.score - right.score);
-      const target = candidates[0]?.element as HTMLElement | SVGElement | undefined;
-      target?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
-      target?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
-      target?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
-    })
-    .catch(() => undefined);
 }
 
 async function captureRegistrationCode(page: Page): Promise<string | null> {
