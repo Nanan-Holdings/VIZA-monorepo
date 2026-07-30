@@ -142,6 +142,9 @@ The current internal automation migrations are:
   service-role-only atomic enqueue/claim RPCs, country concurrency caps, ten
   logical Machine lease slots, sticky-service priority, scheduled availability,
   lease recovery, and the shared-pool depth view.
+- `0128_dedupe_visa_packages.sql`: removes the unused duplicate Japan and South
+  Korea package rows, preserves referenced canonical rows, and adds a
+  case-insensitive country/visa-type uniqueness guard.
 
 ## Guardrails
 

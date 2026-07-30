@@ -17,6 +17,44 @@ function belongsToApplication(path: string, applicationId: string): boolean {
   return path.split("/").includes(applicationId);
 }
 
+function isStringRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function artifactPaths(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+export function isArtifactReferencedBySubmissionResult(
+  path: string,
+  submissionResult: unknown,
+): boolean {
+  if (!isStringRecord(submissionResult)) return false;
+
+  const directPaths = [
+    submissionResult.confirmationPdfStoragePath,
+    submissionResult.printablePdfStoragePath,
+    submissionResult.reviewScreenshotStoragePath,
+  ].filter((value): value is string => typeof value === "string");
+
+  const artifacts = isStringRecord(submissionResult.artifacts)
+    ? submissionResult.artifacts
+    : null;
+  const capturedPaths = artifacts
+    ? [
+        ...artifactPaths(artifacts.qrCodes),
+        ...artifactPaths(artifacts.pdfs),
+        ...artifactPaths(artifacts.screenshots),
+        ...artifactPaths(artifacts.traces),
+      ]
+    : [];
+
+  return [...directPaths, ...capturedPaths].some(
+    (value) => normalizeArtifactPath(value) === path,
+  );
+}
+
 export async function GET(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> },
@@ -30,18 +68,21 @@ export async function GET(
   if (!applicationId || !path) {
     return NextResponse.json({ error: "Missing application id or artifact path" }, { status: 400 });
   }
-  if (!belongsToApplication(path, applicationId)) {
-    return NextResponse.json({ error: "Artifact does not belong to this application" }, { status: 403 });
-  }
 
   const admin = createAdminClient();
   const { data: app, error: appErr } = await admin
     .from("applications")
-    .select("id, applicant_id")
+    .select("id, applicant_id, submission_result")
     .eq("id", applicationId)
     .maybeSingle();
   if (appErr || !app) {
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  }
+  if (
+    !belongsToApplication(path, applicationId) &&
+    !isArtifactReferencedBySubmissionResult(path, app.submission_result)
+  ) {
+    return NextResponse.json({ error: "Artifact does not belong to this application" }, { status: 403 });
   }
 
   const impersonation = await getImpersonationSession();
