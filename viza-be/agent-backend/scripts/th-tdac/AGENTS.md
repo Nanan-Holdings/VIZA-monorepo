@@ -15,3 +15,10 @@ district, and subdistrict contracts. Regenerate it only from a read-only
 contains session-scoped encrypted IDs.
 Do not restore the former `tdac-residence-regions.generated.ts` snapshot from
 CountriesNow; residence regions must come from the official TDAC API audit.
+
+`residence-region-translations.zh.json` contains Chinese display labels for
+every official residence-region option. Regenerate it with
+`generate-residence-region-translations.ts`; the generator prefers pinned
+Unicode CLDR subdivision names and uses an explicit online Simplified Chinese
+fallback only where TDAC returns settlements or non-standard administrative
+names that CLDR does not cover. Never alter the official English option values.
