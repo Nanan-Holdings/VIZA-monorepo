@@ -2471,7 +2471,7 @@ function toAgentChatMessages(messages: TravelChatMessage[]) {
   return messages
     .map((message) => ({
       role: message.role,
-      content: getMessageText(message),
+      content: getVisibleMessageText(message),
     }))
     .filter((message) => message.content);
 }
@@ -2483,8 +2483,10 @@ function isRawPromptCardTitle(value: string): boolean {
     /^想去.+/.test(normalized) ||
     /^我不知道去哪/.test(normalized) ||
     /^不知道去哪/.test(normalized) ||
+    /^(?:请)?(?:给我|帮我)?推荐/.test(normalized) ||
     /^I want to (?:visit|go to|travel to) .+/i.test(normalized) ||
-    /^I'?m not sure where to go/i.test(normalized)
+    /^I'?m not sure where to go/i.test(normalized) ||
+    /^(?:please\s+)?recommend\b/i.test(normalized)
   );
 }
 
@@ -4898,6 +4900,7 @@ export function TravelChatClient({
             body: JSON.stringify({
               current_version_id: currentVersion?.id,
               user_prompt: latestVisibleUserText,
+              conversation_history: toAgentChatMessages(nextMessages),
               state: revisionBaseState,
               current_itinerary: currentItinerary,
               active_modules: {
@@ -5118,7 +5121,11 @@ export function TravelChatClient({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ ...payload, locale: travelAgentLocale }),
+          body: JSON.stringify({
+            ...payload,
+            locale: travelAgentLocale,
+            conversation_history: toAgentChatMessages(nextMessages),
+          }),
         });
 
         const result = (await response.json().catch(() => ({}))) as

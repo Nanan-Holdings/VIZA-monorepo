@@ -1,5 +1,8 @@
 # Submission Service Agent Guide
 
+`src/deploy-readiness.ts` contains the pure safety decision used before a
+retained Fly machine is stopped or replaced; keep its focused test in sync.
+
 Scope: this file applies to `viza-be/submission-service/**`.
 
 ## Purpose
@@ -80,8 +83,10 @@ filling and one-shot submission for the applicant.
 - `deploy/fly/` contains credential-free Fly templates and country mappings.
   Production endpoints and keys belong only in Fly Secrets.
   `deploy/fly/fly.south-korea.toml` pins the interactive Korea e-Form/KVAC
-  service to one always-on machine so an OTP request and its follow-up code use
-  the same in-memory official browser session.
+  service to one retained machine. Fly HTTP autostart wakes it, while
+  `/deploy-ready` blocks autoscaler stop whenever an SMS/cancellation browser
+  session is still in memory so the OTP request and follow-up code reach the
+  same process.
 - `scripts/fly/` renders and deploys country workers, deploys the dedicated
   legacy worker, syncs the three boot-required runtime secrets, and applies
   autoscaler decisions. These scripts require operator-provided Fly
@@ -435,11 +440,12 @@ filling and one-shot submission for the applicant.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use
-  `POST /internal/indonesia/card-session` only on the single always-on legacy
-  Fly worker with `ID_CLOUD_CARD_SESSION_ENABLED=true` and a matching
+  `POST /internal/indonesia/card-session` only on the single retained legacy
+  Fly worker with `ID_CLOUD_CARD_SESSION_ENABLED=true`, Fly HTTP autostart, and a matching
   `INDONESIA_CARD_SESSION_INTERNAL_TOKEN` supplied as Fly/Vercel secrets.
-- `GET /deploy-ready` reports whether the legacy worker is idle and holds no
-  unconsumed Vietnam/Indonesia card session. `scripts/fly/deploy-legacy.sh`
+- `GET /deploy-ready` reports whether the worker is idle and holds no
+  unconsumed Vietnam/Indonesia card session or protected Korea KVAC browser
+  session. `scripts/fly/deploy-legacy.sh`
   must fail closed unless this endpoint returns HTTP 200 both before secret
   staging and immediately before a rolling deploy. Runtime secrets are staged
   into that release so secret synchronization cannot independently restart the
