@@ -7,6 +7,11 @@ set -euo pipefail
 decisions="${1:?path to autoscaler decisions JSON is required}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 countries="$root/deploy/fly/countries.json"
+fly_bin="$(command -v fly || command -v flyctl || true)"
+if [[ -z "$fly_bin" ]]; then
+  echo "[autoscale] neither fly nor flyctl is installed" >&2
+  exit 127
+fi
 
 can_stop_safely() {
   local app="$1"
@@ -45,7 +50,10 @@ jq -c '.[]' "$decisions" | while read -r decision; do
     app="viza-runner-$app_country"
   fi
   echo "[autoscale] app=$app desired=$desired paused=$paused"
-  machines="$(fly machine list --app "$app" --json)"
+  if ! machines="$("$fly_bin" machine list --app "$app" --json 2>/dev/null)"; then
+    echo "[autoscale] ignoring app=$app because it does not exist or is inaccessible"
+    continue
+  fi
   total="$(jq 'length' <<<"$machines")"
 
   if [[ "$total" -eq 0 ]]; then
@@ -54,8 +62,8 @@ jq -c '.[]' "$decisions" | while read -r decision; do
   fi
 
   if [[ "$desired" -gt "$total" ]]; then
-    fly scale count "$desired" --app "$app" --yes
-    machines="$(fly machine list --app "$app" --json)"
+    "$fly_bin" scale count "$desired" --app "$app" --yes
+    machines="$("$fly_bin" machine list --app "$app" --json)"
   fi
 
   mapfile -t started_ids < <(
@@ -69,7 +77,7 @@ jq -c '.[]' "$decisions" | while read -r decision; do
       continue
     fi
     for ((i = desired; i < started; i++)); do
-      fly machine stop "${started_ids[$i]}" --app "$app"
+      "$fly_bin" machine stop "${started_ids[$i]}" --app "$app"
     done
   elif [[ "$started" -lt "$desired" ]]; then
     needed=$((desired - started))
@@ -82,7 +90,7 @@ jq -c '.[]' "$decisions" | while read -r decision; do
       exit 1
     fi
     for ((i = 0; i < needed; i++)); do
-      fly machine start "${stopped_ids[$i]}" --app "$app"
+      "$fly_bin" machine start "${stopped_ids[$i]}" --app "$app"
     done
   fi
 done
