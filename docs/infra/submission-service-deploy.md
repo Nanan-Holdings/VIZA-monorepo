@@ -1,10 +1,13 @@
 # Submission-service Fly Machines deploy runbook
 
-`submission-service` is a persistent Playwright worker. Production runs one
-always-on Fly Machine per supported `runner_job` country plus one dedicated
-legacy `submission_queue` worker. The workers are independent of developer
-machines and use database leases and country concurrency caps to prevent a
-second attempt from submitting the same application.
+`submission-service` is a persistent Playwright worker. Production retains one
+or more Fly Machines per supported `runner_job` country, but stops their CPU
+and RAM while the country has neither queued nor running jobs. The dedicated
+legacy `submission_queue` worker is also stopped when its queue is empty and
+its readiness endpoint confirms there is no active work or protected in-memory
+session. The workers are independent of developer machines and use database
+leases and country concurrency caps to prevent a second attempt from submitting
+the same application.
 
 ## Prerequisites
 
@@ -51,9 +54,21 @@ second attempt from submitting the same application.
 ## Scaling and operations
 
 - `scale-submission-service-fly` runs every five minutes and converts
-  `runner_queue_depth` decisions into `fly scale count` calls. A non-paused
-  country retains one warm machine so newly queued jobs are noticed; a paused
-  country scales to zero.
+  `runner_queue_depth` decisions into Machine start/stop operations. Country
+  Machines are retained but stopped at desired capacity zero, then started
+  again when queued work appears. Do not replace this with Fly Proxy autostop:
+  these workers poll Supabase and have no inbound request that can wake them.
+- Country workers use two shared CPUs and 2 GB RAM. The retained legacy worker
+  uses two shared CPUs and 4 GB RAM when started because it can run concurrent
+  Playwright flows and hold short-lived card sessions in memory.
+- South Korea and legacy may stop only after two consecutive `/deploy-ready`
+  checks return HTTP 200. Korea includes its SMS/cancellation browser-session
+  maps in this result; legacy includes queue activity and one-time card
+  sessions.
+- Authenticated frontend enqueue paths call the protected worker wake endpoint
+  for immediate startup. The five-minute queue-depth run is the fallback, and
+  an hourly maintenance pulse briefly starts legacy for periodic status/email
+  work before applying the same safe-stop gate.
 - The database remains the concurrency authority. The worker's country scope,
   claim lease and `runner_concurrency_cap` must not be bypassed by raising Fly
   machine counts.

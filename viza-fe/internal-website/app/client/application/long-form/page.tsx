@@ -1434,6 +1434,7 @@ async function insertSubmissionQueueJob(
 
   const { error } = await supabase.from("submission_queue").insert(enrichedPayload);
   if (!error) {
+    await requestCloudSubmissionWorkerWake(null);
     return {
       scheduled: false,
       scheduledFor: null,
@@ -1466,6 +1467,7 @@ async function insertSubmissionQueueJob(
     created_at: input.createdAt,
   });
   if (legacyError) throw new Error(legacyError.message);
+  await requestCloudSubmissionWorkerWake(null);
   return {
     scheduled: false,
     scheduledFor: null,
@@ -1475,6 +1477,22 @@ async function insertSubmissionQueueJob(
     submissionResultStatus: "waiting",
     submissionResult: null,
   };
+}
+
+async function requestCloudSubmissionWorkerWake(jobId: string | null): Promise<void> {
+  try {
+    const response = await fetch("/api/submission-worker/wake", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId }),
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      console.warn(`[submission-queue] Cloud worker wake returned ${response.status}; scheduled fallback will retry.`);
+    }
+  } catch (error) {
+    console.warn("[submission-queue] Cloud worker wake failed; scheduled fallback will retry.", error);
+  }
 }
 
 async function insertOfficialFeeSubmissionQueueJobWithCard(
