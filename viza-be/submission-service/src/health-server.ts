@@ -2,6 +2,7 @@ import * as http from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { evaluateDeploymentReadiness } from "./deploy-readiness.js";
 import { registerAndPrepareFranceTlsAccount } from "./france-tls/account-registration.js";
 import {
   bookFranceTlsOfficialAppointment,
@@ -14,6 +15,7 @@ import { loadKoreaOfficialEformDocuments } from "./korea-eform/documents.js";
 import {
   confirmKoreaKvacOfficialCancellation,
   completeKoreaKvacOfficialBooking,
+  hasActiveKoreaKvacOfficialSessions,
   KoreaKvacOfficialSessionError,
   printKoreaKvacOfficialConfirmation,
   startKoreaKvacOfficialCancelQuery,
@@ -615,14 +617,14 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       return;
     }
     if (req.method === "GET" && url === "/deploy-ready") {
-      const workerBusy = opts.isWorkerBusy?.() ?? false;
-      const oneTimeCardSessionsPresent = opts.hasOneTimeCardSessions?.() ?? false;
-      const safeToDeploy = !workerBusy && !oneTimeCardSessionsPresent;
-      sendJson(res, safeToDeploy ? 200 : 409, {
-        status: safeToDeploy ? "safe" : "busy",
-        safeToDeploy,
-        workerBusy,
-        oneTimeCardSessionsPresent,
+      const readiness = evaluateDeploymentReadiness({
+        workerBusy: opts.isWorkerBusy?.() ?? false,
+        oneTimeCardSessionsPresent: opts.hasOneTimeCardSessions?.() ?? false,
+        protectedBrowserSessionsPresent: hasActiveKoreaKvacOfficialSessions(),
+      });
+      sendJson(res, readiness.safeToDeploy ? 200 : 409, {
+        status: readiness.safeToDeploy ? "safe" : "busy",
+        ...readiness,
       });
       return;
     }
