@@ -29,6 +29,8 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 
 - `page.tsx`: server route entry; resolves the user, creates/loads the chat session, and passes latest application context.
 - `chat-client.tsx`: main client UI; owns tab switching, Socket.IO connection, streaming state, scroll behavior, and embedded Travel AI.
+- `visa-memory-summary.tsx`: editable per-chat passport/trip memory summary;
+  profile persistence requires a separate explicit confirmation.
 - `components/client/companion/chat-input.tsx`: shared bottom composer used by the VIZA AI chat surface.
 - `components/client/companion/chat-message.tsx`: shared message renderer for user and agent bubbles/text.
 - `components/client/companion/block-message.tsx`: renders application redirect CTA payloads. It must not render inline application form fields in VIZA chat.

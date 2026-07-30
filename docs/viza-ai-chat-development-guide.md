@@ -374,3 +374,25 @@ npm run type-check
 ## Taiwan entry-permit route
 
 Taiwan is supported only for `TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`: Chinese mainland passport holders resident in Singapore who seek tourism entry. VIZA AI must state this boundary, avoid collecting form fields in chat, and redirect eligible users to `/client/application?country=taiwan&visaType=TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`.
+## Versioned knowledge and durable chat memory
+
+VIZA chat now uses two independent persisted layers:
+
+- `visa_chat_sessions.memory_json` stores versioned per-chat passport and trip
+  state. `memory_revision` is required for optimistic concurrency; user edits
+  and streamed assistant updates must emit/consume `visa_memory_updated`.
+- Confirmed account identity remains in `applicant_profiles`. A new chat may
+  initialize passport nationality from the profile, but trip destination,
+  purpose, days and Schengen routing are never copied from an old chat.
+
+Knowledge ingestion writes stable `source_key` records into a staged
+`visa_knowledge_releases` release. `match_visa_chunks` and its fallback read
+active documents in the active release only. Promotion is atomic and fails
+when governance metadata, chunks, embeddings, official-source reachability, or
+the configured entry-rule matrix is incomplete. Visa eligibility comes from
+`visa_entry_rules` before product routing and RAG; arrival-card products remain
+separate from visas.
+
+History queries must order newest-first, limit to the latest 50 rows, and then
+reverse the result before model use. The browser retains 24 recent turns only
+as a database-failure fallback.

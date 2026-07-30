@@ -1,8 +1,8 @@
 import { Namespace, Socket } from 'socket.io';
-import { and, eq, asc } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { Logger } from '../utils/logger.js';
 import { db } from '../db/index.js';
-import { visaChatMessages } from '../db/schema.js';
+import { visaAgentRunDiagnostics, visaChatMessages } from '../db/schema.js';
 import {
   streamChat,
   buildApplicationContext,
@@ -29,11 +29,17 @@ import {
 import {
   buildVisaConversationStatePrompt,
   loadVisaConversationState,
+  normalizePassportCountryIso3,
+  normalizeVisaConversationState,
   saveVisaConversationState,
   summarizeVisaConversationState,
   updateVisaConversationState,
   type VisaConversationState,
 } from '../services/visa-conversation-state.service.js';
+import {
+  buildVisaEntryRulePrompt,
+  resolveVisaEntryRule,
+} from '../services/visa-entry-rule.service.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
 
@@ -831,7 +837,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
             .select({ role: visaChatMessages.role, content: visaChatMessages.content })
             .from(visaChatMessages)
             .where(eq(visaChatMessages.sessionId, session_id))
-            .orderBy(asc(visaChatMessages.createdAt))
+            .orderBy(desc(visaChatMessages.createdAt))
             .limit(50);
 
           if (history.length > 0) {
@@ -841,7 +847,8 @@ export function registerVisaNamespace(nsp: Namespace): void {
               .map((msg) => ({
                 role: msg.role as 'user' | 'assistant',
                 content: msg.content,
-              }));
+              }))
+              .reverse();
 
             if (databaseHistory.length >= clientHistory.length) {
               chatHistory = databaseHistory;
@@ -857,11 +864,38 @@ export function registerVisaNamespace(nsp: Namespace): void {
         // 3. Build structured state, dynamic system prompt, and RAG context.
         const appContext = await buildApplicationContext(user_id);
         let priorConversationState: VisaConversationState | null = null;
+        let memoryRevision = 0;
         try {
-          priorConversationState = await loadVisaConversationState(session_id);
+          const persistedState = await loadVisaConversationState(session_id);
+          priorConversationState = persistedState.state;
+          memoryRevision = persistedState.revision;
         } catch (stateErr) {
           logger.warn('Failed to load visa conversation state', stateErr as Error, {
             sessionId: session_id,
+          });
+        }
+        const profilePassportCountry =
+          appContext.profile?.nationality ??
+          appContext.profile?.passport_issuing_country ??
+          null;
+        if (
+          priorConversationState &&
+          !priorConversationState.passportCountryIso3 &&
+          profilePassportCountry
+        ) {
+          priorConversationState = normalizeVisaConversationState({
+            ...priorConversationState,
+            nationality:
+              priorConversationState.nationality ??
+              appContext.profile?.nationality ??
+              profilePassportCountry,
+            passportCountryIso3: normalizePassportCountryIso3(profilePassportCountry),
+            passportType: priorConversationState.passportType,
+            fieldSources: {
+              ...priorConversationState.fieldSources,
+              nationality: 'profile',
+              passportCountryIso3: 'profile',
+            },
           });
         }
         const conversationState = updateVisaConversationState(
@@ -870,11 +904,49 @@ export function registerVisaNamespace(nsp: Namespace): void {
           message
         );
         try {
-          await saveVisaConversationState(session_id, conversationState);
-        } catch (stateErr) {
-          logger.warn('Failed to save visa conversation state', stateErr as Error, {
+          memoryRevision = await saveVisaConversationState(
+            session_id,
+            conversationState,
+            memoryRevision
+          );
+          socket.emit('visa_memory_updated', {
             sessionId: session_id,
+            revision: memoryRevision,
+            state: conversationState,
           });
+        } catch (stateErr) {
+          if (
+            stateErr instanceof Error &&
+            stateErr.message === 'VISA_MEMORY_REVISION_CONFLICT'
+          ) {
+            try {
+              const current = await loadVisaConversationState(session_id);
+              const rebased = updateVisaConversationState(
+                current.state,
+                chatHistory,
+                message
+              );
+              memoryRevision = await saveVisaConversationState(
+                session_id,
+                rebased,
+                current.revision
+              );
+              Object.assign(conversationState, rebased);
+              socket.emit('visa_memory_updated', {
+                sessionId: session_id,
+                revision: memoryRevision,
+                state: rebased,
+              });
+            } catch (retryError) {
+              logger.warn('Failed to rebase visa conversation memory', retryError as Error, {
+                sessionId: session_id,
+              });
+            }
+          } else {
+            logger.warn('Failed to save visa conversation state', stateErr as Error, {
+              sessionId: session_id,
+            });
+          }
         }
 
         const recentUserContext = buildRecentUserContext(chatHistory);
@@ -893,10 +965,19 @@ export function registerVisaNamespace(nsp: Namespace): void {
             appContext.application?.country,
             recentUserContext
           );
+        const entryRule = await resolveVisaEntryRule({
+          destinationCountry: knowledgeCountry,
+          passportCountryIso3: conversationState.passportCountryIso3,
+          passportType: conversationState.passportType,
+          tripPurpose: conversationState.tripPurpose,
+          stayLengthDays: conversationState.stayLengthDays,
+        });
         const knowledgeVisaType = resolveKnowledgeVisaType(
           knowledgeCountry,
           message,
-          conversationState.recommendedVisaType ?? appContext.application?.visa_type,
+          entryRule?.visaType ??
+            conversationState.recommendedVisaType ??
+            appContext.application?.visa_type,
           recentUserContext
         );
         const knowledgeIntent = inferVisaKnowledgeIntent(
@@ -929,6 +1010,13 @@ export function registerVisaNamespace(nsp: Namespace): void {
               matchCount: 5,
             });
         const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
+        const entryRulePrompt =
+          entryRule ||
+          knowledgeIntent === 'eligibility' ||
+          knowledgeIntent === 'route_recommendation' ||
+          knowledgeIntent === 'form_intake'
+            ? buildVisaEntryRulePrompt(entryRule)
+            : '';
         const statePrompt = buildVisaConversationStatePrompt(conversationState);
         const stateSummary = summarizeVisaConversationState(conversationState);
         const responseLocale = normalizeResponseLocale(request.locale);
@@ -962,6 +1050,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
           knowledgeContext,
           [
             compactAnswerInterpretation,
+            entryRulePrompt,
             applicationRedirectNote,
             unsupportedServiceNote,
           ]
@@ -987,6 +1076,8 @@ export function registerVisaNamespace(nsp: Namespace): void {
             stateConfidence: conversationState.confidence,
             usedEmbedding: knowledgeResult.usedEmbedding,
             fallbackReason: knowledgeResult.fallbackReason,
+            entryRuleOutcome: entryRule?.outcome ?? 'unknown',
+            entryRuleKey: entryRule?.ruleKey ?? null,
             compactAnswerInterpreted: Boolean(compactAnswerInterpretation),
             unsupportedServiceCountries: unsupportedServiceCountries.map(
               (country) => COUNTRY_DISPLAY_NAMES[country]
@@ -1032,6 +1123,33 @@ export function registerVisaNamespace(nsp: Namespace): void {
                     sessionId: session_id,
                   });
                 }
+              }
+
+              try {
+                await db.insert(visaAgentRunDiagnostics).values({
+                  sessionId: session_id,
+                  memoryRevision,
+                  destinationCountry: knowledgeCountry,
+                  passportCountryIso3: conversationState.passportCountryIso3,
+                  entryRuleOutcome: entryRule?.outcome ?? 'unknown',
+                  visaType: knowledgeVisaType,
+                  intent: knowledgeIntent,
+                  sourceKeys: knowledgeResult.chunks
+                    .map((chunk) => chunk.sourceKey)
+                    .filter((sourceKey): sourceKey is string => Boolean(sourceKey)),
+                  fallbackReason: knowledgeResult.fallbackReason,
+                  model:
+                    process.env.OPENAI_MODEL ??
+                    process.env.OPENAI_CHAT_MODEL ??
+                    'unknown',
+                  durationMs: Date.now() - startTime,
+                });
+              } catch (diagnosticError) {
+                logger.warn(
+                  'Failed to persist redacted visa-agent diagnostic',
+                  diagnosticError as Error,
+                  { sessionId: session_id }
+                );
               }
 
               // 6. Emit response_complete
