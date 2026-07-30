@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ensureFlyMachineStarted } from "../fly-machine-wake.server";
+import {
+  ensureFlyMachineCapacity,
+  ensureFlyMachineStarted,
+} from "../fly-machine-wake.server";
 
 describe("ensureFlyMachineStarted", () => {
   it("does not manage countries outside the six-country rollout", async () => {
@@ -75,5 +78,32 @@ describe("ensureFlyMachineStarted", () => {
       }),
     ).resolves.toMatchObject({ ok: true, state: "already_running" });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts exactly the requested retained shared-pool capacity", async () => {
+    const machines = Array.from({ length: 10 }, (_, index) => ({
+      id: `pool-${String(index + 1).padStart(2, "0")}`,
+      state: "stopped",
+    }));
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(machines), { status: 200 }),
+      )
+      .mockResolvedValue(new Response(null, { status: 200 }));
+
+    await expect(
+      ensureFlyMachineCapacity("pool", 3, {
+        env: { FLY_SUBMISSION_ORG_TOKEN: "org-token" },
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      target: "pool",
+      desired: 3,
+      active: 3,
+      started: 3,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
   });
 });

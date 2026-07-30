@@ -21,7 +21,7 @@ export const runnerJobHandler: JobHandler = async (job) => {
   emitRunnerEvent(job.country, "started", job.id);
   console.log(`[queue] cid=${cid} job=${job.id.slice(0, 8)} country=${job.country} dispatch`);
   try {
-    const runOne = getRunOne(job.country);
+    const runOne = getRunOne(job.country, job.flow_key);
     const outcome = await runOne(job.application_id, job.id);
     emitRunnerEvent(job.country, outcome.outcome === "halted_before_pay" ? "halted" : "succeeded", job.id);
     console.log(

@@ -1,0 +1,56 @@
+# Six-country background worker pool. Interactive payment/OTP sessions remain
+# on the legacy and Korea sticky apps.
+app = "viza-runner-pool"
+primary_region = "sin"
+kill_signal = "SIGINT"
+kill_timeout = "5m"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  RUNNER_MACHINE_KIND = "pool"
+  SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "false"
+  SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "true"
+  SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
+  MDAC_WORKER_PLAYWRIGHT_HEADLESS = "true"
+  MDAC_BROWSERBASE_ENABLED = "true"
+  MDAC_BROWSERBASE_PROXIES = "true"
+  TDAC_PLAYWRIGHT_HEADLESS = "true"
+  TDAC_BROWSERBASE_ENABLED = "true"
+  TDAC_BROWSERBASE_PROXIES = "true"
+  SGAC_PLAYWRIGHT_HEADLESS = "true"
+  SGAC_BROWSERBASE_ENABLED = "true"
+  SGAC_BROWSERBASE_PROXIES = "true"
+  VN_PREARRIVAL_PLAYWRIGHT_HEADLESS = "true"
+  VN_PREARRIVAL_BROWSERBASE_ENABLED = "true"
+  VN_PREARRIVAL_BROWSERBASE_PROXIES = "true"
+  VN_PREARRIVAL_BROWSERBASE_COUNTRY = "VN"
+  VN_BROWSERBASE_ENABLED = "true"
+  VN_BROWSERBASE_PROXIES = "true"
+  INDONESIA_BROWSERBASE_ENABLED = "true"
+  INDONESIA_BROWSERBASE_PROXIES = "true"
+  BROWSERBASE_MAX_CONCURRENCY = "10"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 0
+  max_machines_running = 10
+
+  [[http_service.checks]]
+    grace_period = "45s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    path = "/ready"
+
+[[restart]]
+  policy = "on-failure"
+  retries = 10
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 2048

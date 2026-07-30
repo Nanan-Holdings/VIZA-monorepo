@@ -18,7 +18,7 @@ import { runOne as runUs } from "../ceac/runner.js";
 import { runOne as runUk } from "../uk/runner.js";
 import { runOne as runAu } from "../au/runner.js";
 import { runOne as runFrance } from "../france-visas/runner.js";
-import { runOne as runIndonesia } from "../id/runner.js";
+import { runOne as runIndonesia, runOneForVisaType as runIndonesiaForVisaType } from "../id/runner.js";
 import { runOne as runEgypt } from "../egypt/runner.js";
 import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
 import { runOne as runSaudi } from "../sa/runner.js";
@@ -31,6 +31,8 @@ import { runOne as runThailand } from "../th/runner.js";
 import { runOne as runSingapore } from "../sg/runner.js";
 import { runOne as runUae } from "../ae/runner.js";
 import { runOne as runTaiwan } from "../tw/runner.js";
+import { runArrivalCardPoolFlow } from "./arrival-card-runners.js";
+import { runKoreaEformBackground } from "./korea-eform-runner.js";
 
 // Types + error classes live in the leaf module ./types.js to avoid an
 // import cycle (runners import these; dispatch imports runners). Re-exported
@@ -133,6 +135,33 @@ export const DISPATCH: Record<string, RunOne> = {
   south_korea: (a, j) => runKorea(a, j),
 };
 
+export const POOL_FLOW_COUNTRIES = {
+  id_c1: "indonesia",
+  id_b1_evoa: "indonesia",
+  vn_evisa: "vietnam",
+  vn_prearrival: "vietnam",
+  sgac: "singapore",
+  mdac: "malaysia",
+  tdac: "thailand",
+  kr_eform: "south_korea",
+} as const;
+
+const POOL_FLOW_DISPATCH: Record<string, RunOne> = {
+  id_c1: (applicationId, jobId) =>
+    runIndonesiaForVisaType(applicationId, jobId, "ID_C1_TOURIST"),
+  id_b1_evoa: (applicationId, jobId) =>
+    runIndonesiaForVisaType(applicationId, jobId, "ID_B1_EVOA"),
+  vn_evisa: (applicationId, jobId) => runVietnam(applicationId, jobId),
+  vn_prearrival: (applicationId, jobId) =>
+    runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "vn_prearrival"),
+  sgac: (applicationId, jobId) => runSingapore(applicationId, jobId),
+  mdac: (applicationId, jobId) =>
+    runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "mdac"),
+  tdac: (applicationId, jobId) =>
+    runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "tdac"),
+  kr_eform: (applicationId) => runKoreaEformBackground(applicationId),
+};
+
 /**
  * Static routing metadata for tests/observability — which runner backs each
  * country and whether it is live. Kept in sync with DISPATCH by hand.
@@ -204,8 +233,18 @@ export function normalizeCountry(country: string): string {
 }
 
 /** Resolve a country to its runOne handler. Throws UnsupportedCountryError. */
-export function getRunOne(country: string): RunOne {
+export function getRunOne(country: string, flowKey?: string | null): RunOne {
   const key = normalizeCountry(country);
+  if (flowKey) {
+    const normalizedFlow = flowKey.trim().toLowerCase().replace(/[\s-]+/g, "_");
+    const expectedCountry =
+      POOL_FLOW_COUNTRIES[normalizedFlow as keyof typeof POOL_FLOW_COUNTRIES];
+    const poolRunOne = POOL_FLOW_DISPATCH[normalizedFlow];
+    if (!poolRunOne || expectedCountry !== key) {
+      throw new UnsupportedCountryError(`${country}/${flowKey}`);
+    }
+    return poolRunOne;
+  }
   const runOne = DISPATCH[key];
   if (!runOne) throw new UnsupportedCountryError(country);
   return runOne;

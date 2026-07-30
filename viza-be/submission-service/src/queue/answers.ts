@@ -1,4 +1,7 @@
 import { supabase } from "../supabase.js";
+import { buildCountrySubmissionApplication } from "../country-submissions/from-records.js";
+import type { CountrySubmissionApplication } from "../country-submissions/types.js";
+import type { ApplicantProfile, Application } from "../types.js";
 
 /**
  * Canonical answer loader for the runner_job dispatch layer (QUE-001).
@@ -15,6 +18,69 @@ import { supabase } from "../supabase.js";
  * tuning per portal — see docs/infra/queue.md.
  */
 export type CanonicalRecord = Record<string, string>;
+
+export interface CountrySubmissionContext {
+  profile: ApplicantProfile;
+  application: Application;
+  answers: CanonicalRecord;
+  submissionApplication: CountrySubmissionApplication;
+}
+
+function answersFromRows(
+  rows: Array<{ field_name: string; value_text: string | null }>,
+): CanonicalRecord {
+  const answers: CanonicalRecord = {};
+  for (const row of rows) {
+    if (row.value_text != null) answers[row.field_name] = String(row.value_text);
+  }
+  return answers;
+}
+
+export async function loadCountrySubmissionContext(
+  applicationId: string,
+): Promise<CountrySubmissionContext> {
+  const { data: application, error: applicationError } = await supabase
+    .from("applications")
+    .select("*")
+    .eq("id", applicationId)
+    .single();
+  if (applicationError) {
+    throw new Error(`applications lookup failed: ${applicationError.message}`);
+  }
+
+  const [{ data: profile, error: profileError }, { data: answerRows, error: answerError }] =
+    await Promise.all([
+      supabase
+        .from("applicant_profiles")
+        .select("*")
+        .eq("id", application.applicant_id)
+        .single(),
+      supabase
+        .from("visa_application_answers")
+        .select("field_name, value_text")
+        .eq("application_id", applicationId),
+    ]);
+  if (profileError) {
+    throw new Error(`applicant_profiles lookup failed: ${profileError.message}`);
+  }
+  if (answerError) {
+    throw new Error(`visa_application_answers lookup failed: ${answerError.message}`);
+  }
+
+  const typedProfile = profile as ApplicantProfile;
+  const typedApplication = application as Application;
+  const answers = answersFromRows(answerRows ?? []);
+  return {
+    profile: typedProfile,
+    application: typedApplication,
+    answers,
+    submissionApplication: buildCountrySubmissionApplication(
+      typedProfile,
+      typedApplication,
+      answers,
+    ),
+  };
+}
 
 export async function loadCanonicalAnswers(
   applicationId: string,

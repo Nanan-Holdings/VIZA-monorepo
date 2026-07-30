@@ -62,6 +62,11 @@ filling and one-shot submission for the applicant.
 
 - `src/index.ts`: polling loop, Supabase data loading, document download,
   per-country dispatch, retry/failure handling, queue status transitions.
+- `src/queue/arrival-card-runners.ts` and
+  `src/queue/korea-eform-runner.ts`: shared-pool adapters for complete
+  MDAC/TDAC/Vietnam Pre-Arrival portal runs and Korea background e-Form
+  validation/readiness. Korea final-review browser, SMS, and KVAC appointment
+  sessions remain on the sticky Korea service.
 - `src/queue-scheduler.ts`: local submission queue concurrency scheduler.
   Allows different account/country/provider work to run in parallel while
   serializing the same application and the same user/provider lane. The current
@@ -76,21 +81,29 @@ filling and one-shot submission for the applicant.
   `0119_submission_retry_queue_isolation.sql`: supersede-and-insert is one
   transaction, one application has at most one active browser job, and
   different application IDs remain independent queue items.
-- Cloud worker topology: `RUNNER_JOB_COUNTRY` scopes a Fly worker to one
-  `runner_job` country bucket, while `SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED`
-  must remain false there. Only the dedicated legacy worker may poll
-  `submission_queue` during the migration.
+- Six-country cloud topology uses the ten-Machine `viza-runner-pool` for
+  Indonesia, Vietnam, Singapore, Malaysia, Thailand, and Korea background
+  `runner_job` flows. `src/runner-slot-lease.ts` binds every started process to
+  one of ten database slots using `FLY_MACHINE_ID`; workers claim jobs through
+  the atomic pool RPC and exit after 120 idle seconds. The dedicated 4GB
+  legacy worker remains authoritative for active `submission_queue`,
+  payment/card/3DS, and maintenance work. The Korea worker remains sticky for
+  SMS, appointment, and continuous browser sessions.
 - `deploy/fly/` contains credential-free Fly templates and country mappings.
   Production endpoints and keys belong only in Fly Secrets.
+  `deploy/fly/fly.pool.toml` defines the retained shared pool without native
+  Fly autostart/autostop; application enqueue wakes exact capacity and the
+  scheduled reconciler is recovery-only.
   `deploy/fly/fly.south-korea.toml` pins the interactive Korea e-Form/KVAC
-  service to one retained machine. Fly HTTP autostart wakes it, while
+  service to one retained machine. Explicit server-side wake starts it, while
   `/deploy-ready` blocks autoscaler stop whenever an SMS/cancellation browser
   session is still in memory so the OTP request and follow-up code reach the
   same process.
 - `scripts/fly/` renders and deploys country workers, deploys the dedicated
-  legacy worker, syncs the three boot-required runtime secrets, and applies
-  autoscaler decisions. These scripts require operator-provided Fly
-  authentication and must never print or persist secret values.
+  legacy worker and ten-Machine pool, syncs boot-required runtime secrets, and
+  applies autoscaler decisions without stopping Machine IDs that own active
+  jobs. These scripts require operator-provided Fly authentication and must
+  never print or persist secret values.
 - `src/submission-queue-claim.ts`: service-role RPC wrapper around
   `claim_submission_queue_batch`, which atomically claims legacy
   `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple

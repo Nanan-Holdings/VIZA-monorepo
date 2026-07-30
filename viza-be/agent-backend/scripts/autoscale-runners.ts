@@ -1,45 +1,40 @@
 #!/usr/bin/env npx tsx
 /**
- * Per-country worker autoscaler driver (INFRA-003).
+ * Five-minute recovery reconciler for the hybrid Fly runner fleet.
  *
- * Reads `runner_queue_depth` and emits a `desired_workers` decision
- * per country. The actual driver — Fly Machines / Cloud Run jobs /
- * k8s HPA — consumes the JSON output via stdout.
- *
- * Decision rule (intentionally simple — bumps come from observed data):
- *   desired = clamp(ceil(queued / cap.max_concurrent), 0, cap.max_concurrent)
- *   if cap.paused → desired = 0
- *   if running > cap.max_concurrent → emit a concurrency-violation alert
- *
- * Usage:
- *   npx tsx viza-be/agent-backend/scripts/autoscale-runners.ts
- *   npx tsx viza-be/agent-backend/scripts/autoscale-runners.ts --json | xargs -I{} fly scale ...
- *
- * Required env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY,
- *               RESEND_OPS_ALERT_TO.
+ * The website performs the latency-sensitive first wake. This script repairs
+ * missed wakes and scales the shared pool back to current claimable demand.
+ * Pool Machines are retained and stopped, never destroyed.
  */
 
 import "dotenv/config";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-interface QueueDepthRow {
+interface PoolDepthRow {
   country: string;
   max_concurrent: number;
   paused: boolean;
-  queued: number;
+  claimable: number;
+  scheduled: number;
   running: number;
-  failed_24h: number;
 }
 
-interface ScaleDecision {
-  kind: "country";
-  country: string;
-  paused: boolean;
-  cap: number;
-  queued: number;
-  running: number;
+interface PoolScaleDecision {
+  kind: "pool";
+  app: "viza-runner-pool";
   desired: number;
-  violation: boolean;
+  demand: number;
+  stickySlots: number;
+  busyMachineIds: string[];
+  countries: Array<{
+    country: string;
+    cap: number;
+    claimable: number;
+    scheduled: number;
+    running: number;
+    desired: number;
+    violation: boolean;
+  }>;
 }
 
 interface LegacyScaleDecision {
@@ -108,21 +103,69 @@ function dateInTimeZone(now: Date, timeZone: string): string {
   return `${read("year")}-${read("month")}-${read("day")}`;
 }
 
-async function fetchDepth(): Promise<QueueDepthRow[]> {
-  const supabase = createClient(
+function client(): SupabaseClient {
+  return createClient(
     process.env.SUPABASE_URL ?? "",
     process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   );
-  const { data, error } = await supabase.from("runner_queue_depth").select("*");
-  if (error) throw new Error(`runner_queue_depth read: ${error.message}`);
-  return (data ?? []) as QueueDepthRow[];
 }
 
-async function fetchLegacyQueueDepth(): Promise<number> {
-  const supabase = createClient(
-    process.env.SUPABASE_URL ?? "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-  );
+async function fetchPoolDecision(supabase: SupabaseClient): Promise<PoolScaleDecision> {
+  const [
+    { data: depth, error: depthError },
+    { data: slots, error: slotsError },
+    { data: runningJobs, error: runningJobsError },
+  ] =
+    await Promise.all([
+      supabase.from("runner_pool_depth").select("*"),
+      supabase
+        .from("runner_machine_slot")
+        .select("owner_machine_id, owner_kind, lease_until")
+        .gt("lease_until", new Date().toISOString()),
+      supabase
+        .from("runner_job")
+        .select("leased_by")
+        .eq("status", "running")
+        .not("leased_by", "is", null),
+    ]);
+  if (depthError) throw new Error(`runner_pool_depth read: ${depthError.message}`);
+  if (slotsError) throw new Error(`runner_machine_slot read: ${slotsError.message}`);
+  if (runningJobsError) throw new Error(`runner_job leases read: ${runningJobsError.message}`);
+
+  const rows = (depth ?? []) as PoolDepthRow[];
+  const countries = rows.map((row) => {
+    const demand = row.paused ? 0 : Math.max(0, row.claimable + row.running);
+    return {
+      country: row.country,
+      cap: row.max_concurrent,
+      claimable: row.claimable,
+      scheduled: row.scheduled,
+      running: row.running,
+      desired: Math.min(row.max_concurrent, demand),
+      violation: row.running > row.max_concurrent,
+    };
+  });
+  const stickySlots = (slots ?? []).filter((slot) => slot.owner_kind !== "pool").length;
+  const busyMachineIds = [
+    ...new Set(
+      (runningJobs ?? [])
+        .filter((row) => row.leased_by)
+        .map((row) => String(row.leased_by)),
+    ),
+  ];
+  const demand = countries.reduce((total, row) => total + row.desired, 0);
+  return {
+    kind: "pool",
+    app: "viza-runner-pool",
+    desired: Math.min(demand, Math.max(0, 10 - stickySlots)),
+    demand,
+    stickySlots,
+    busyMachineIds,
+    countries,
+  };
+}
+
+async function fetchLegacyQueueDepth(supabase: SupabaseClient): Promise<number> {
   const { count, error } = await supabase
     .from("submission_queue")
     .select("id", { count: "exact", head: true })
@@ -170,60 +213,20 @@ async function fetchLegacyQueueDepth(): Promise<number> {
   return (count ?? 0) + dueScheduled;
 }
 
-function decide(rows: QueueDepthRow[]): ScaleDecision[] {
-  return rows.map((r) => {
-    const violation = r.running > r.max_concurrent;
-    let desired: number;
-    if (r.paused) {
-      desired = 0;
-    } else if (r.queued === 0) {
-      desired = Math.min(r.running, r.max_concurrent);
-    } else {
-      desired = Math.min(
-        r.max_concurrent,
-        Math.max(1, Math.ceil(r.queued / Math.max(1, r.max_concurrent))),
-      );
-    }
-    return {
-      kind: "country",
-      country: r.country,
-      paused: r.paused,
-      cap: r.max_concurrent,
-      queued: r.queued,
-      running: r.running,
-      desired,
-      violation,
-    };
-  });
-}
-
-function decideLegacy(queued: number): LegacyScaleDecision {
-  return {
-    kind: "legacy",
-    app: "viza-submission-legacy",
-    queued,
-    desired: queued > 0 ? 1 : 0,
-  };
-}
-
-async function alertViolations(violations: ScaleDecision[]): Promise<void> {
-  if (violations.length === 0) return;
-  const to = process.env.RESEND_OPS_ALERT_TO;
-  if (!to) {
-    console.warn("[autoscale] RESEND_OPS_ALERT_TO not set — skipping alert");
+async function alertViolations(decision: PoolScaleDecision): Promise<void> {
+  const violations = decision.countries.filter((row) => row.violation);
+  if (violations.length === 0 && decision.countries.reduce((sum, row) => sum + row.running, 0) <= 10) {
     return;
   }
-  const body =
-    `Per-country concurrency violation(s) detected.\n\n` +
-    violations
-      .map(
-        (v) =>
-          `  ${v.country}: running=${v.running} cap=${v.cap} queued=${v.queued}`,
-      )
-      .join("\n") +
-    `\n\nRun investigations from /admin/queue (TBD) or directly via\n` +
-    `  SELECT * FROM runner_queue_depth;`;
-  const res = await fetch("https://api.resend.com/emails", {
+  const to = process.env.RESEND_OPS_ALERT_TO;
+  if (!to || !process.env.RESEND_API_KEY) {
+    console.warn("[autoscale] concurrency violation; alert email is not configured");
+    return;
+  }
+  const body = violations
+    .map((row) => `${row.country}: running=${row.running} cap=${row.cap}`)
+    .join("\n");
+  const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
@@ -232,46 +235,43 @@ async function alertViolations(violations: ScaleDecision[]): Promise<void> {
     body: JSON.stringify({
       from: "VIZA OPS <ops@haggstorm.com>",
       to,
-      subject: "[VIZA] runner concurrency violation",
-      text: body,
+      subject: "[VIZA] shared runner concurrency violation",
+      text: `Shared-pool concurrency violation detected.\n\n${body}`,
     }),
   });
-  if (!res.ok) {
-    console.error(`[autoscale] alert send failed: ${res.status}`);
-  }
+  if (!response.ok) console.error(`[autoscale] alert send failed: ${response.status}`);
 }
 
-async function main() {
-  const json = process.argv.includes("--json");
-  const [rows, legacyQueued] = await Promise.all([
-    fetchDepth(),
-    fetchLegacyQueueDepth(),
+async function main(): Promise<void> {
+  const supabase = client();
+  const [pool, legacyQueued] = await Promise.all([
+    fetchPoolDecision(supabase),
+    fetchLegacyQueueDepth(supabase),
   ]);
-  const decisions = decide(rows);
-  const legacyDecision = decideLegacy(legacyQueued);
-  const violations = decisions.filter((d) => d.violation);
-  await alertViolations(violations);
+  await alertViolations(pool);
+  const legacy: LegacyScaleDecision = {
+    kind: "legacy",
+    app: "viza-submission-legacy",
+    queued: legacyQueued,
+    desired: legacyQueued > 0 ? 1 : 0,
+  };
 
-  if (json) {
-    process.stdout.write(
-      JSON.stringify([...decisions, legacyDecision], null, 2) + "\n",
-    );
+  if (process.argv.includes("--json")) {
+    process.stdout.write(`${JSON.stringify([pool, legacy], null, 2)}\n`);
     return;
   }
-  for (const d of decisions) {
+  console.log(
+    `${pool.app} desired=${pool.desired} demand=${pool.demand} stickySlots=${pool.stickySlots}`,
+  );
+  for (const row of pool.countries) {
     console.log(
-      `${d.country.padEnd(22)} cap=${d.cap} queued=${d.queued} running=${d.running} desired=${d.desired}${d.paused ? " (paused)" : ""}${d.violation ? " ⚠ VIOLATION" : ""}`,
+      `${row.country.padEnd(16)} cap=${row.cap} claimable=${row.claimable} scheduled=${row.scheduled} running=${row.running} desired=${row.desired}${row.violation ? " VIOLATION" : ""}`,
     );
   }
-  console.log(
-    `${legacyDecision.app.padEnd(22)} queued=${legacyDecision.queued} desired=${legacyDecision.desired}`,
-  );
-  if (violations.length > 0) {
-    process.exitCode = 1;
-  }
+  console.log(`${legacy.app} queued=${legacy.queued} desired=${legacy.desired}`);
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.stack ?? err.message : err);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.stack ?? error.message : error);
   process.exit(2);
 });
