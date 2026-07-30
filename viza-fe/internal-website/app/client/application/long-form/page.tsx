@@ -14,6 +14,7 @@ import {
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
 import { type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
+import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
 import {
   PersonalInfoStep,
@@ -1677,8 +1678,11 @@ export default function ApplicationPage() {
   const isCompanionFlow = Boolean(explicitApplicationId && returnToParam);
   const teamNotice = searchParams.get("teamNotice");
   const explicitCountry = searchParams.get("country")?.trim().toLowerCase() || null;
-  const explicitVisaType =
+  const requestedVisaType =
     searchParams.get("visaType")?.trim() || searchParams.get("visa_type")?.trim() || null;
+  const explicitVisaType = requestedVisaType
+    ? resolveVisaFormSchemaVisaType(requestedVisaType, explicitCountry)
+    : null;
   const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
   const isExplicitStatusView = Boolean(explicitApplicationId && jumpToConfirmation);
 

@@ -19,4 +19,22 @@ describe("visa form schema aliases", () => {
     expect(visaFormSchemaVisaTypesMatch("evisa_tourism", "VN_E_VISA", "vietnam")).toBe(true);
     expect(visaFormSchemaVisaTypesMatch("evisa_tourism", "VN_E_VISA", "egypt")).toBe(false);
   });
+
+  it.each([
+    ["SGAC", "singapore", "SG_ARRIVAL_CARD"],
+    ["sgac", "SG", "SG_ARRIVAL_CARD"],
+    ["MDAC", "malaysia", "MY_MDAC_ARRIVAL_CARD"],
+    ["my-mdac", "MY", "MY_MDAC_ARRIVAL_CARD"],
+    ["TDAC", "thailand", "TH_TDAC_ARRIVAL_CARD"],
+    ["th_tdac", "TH", "TH_TDAC_ARRIVAL_CARD"],
+    ["prearrival_declaration", "vietnam", "VN_PREARRIVAL_DECLARATION"],
+  ])("maps legacy %s route aliases for %s to %s", (visaType, country, canonical) => {
+    expect(resolveVisaFormSchemaVisaType(visaType, country)).toBe(canonical);
+  });
+
+  it("does not remap an arrival-card abbreviation for the wrong country", () => {
+    expect(resolveVisaFormSchemaVisaType("SGAC", "malaysia")).toBe("SGAC");
+    expect(resolveVisaFormSchemaVisaType("MDAC", "singapore")).toBe("MDAC");
+    expect(resolveVisaFormSchemaVisaType("TDAC", "vietnam")).toBe("TDAC");
+  });
 });
