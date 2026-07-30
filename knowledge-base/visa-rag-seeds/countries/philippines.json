@@ -1,5 +1,5 @@
 {
-  "version": "2026-06-28",
+  "version": "2026-07-30",
   "country": "philippines",
   "notes": "Country-level VIZA RAG seed for philippines. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -121,6 +121,38 @@
             "philippines"
           ],
           "content": "Official-source field answer norms for philippines.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://www.pna.gov.ph/articles/1267062 ; https://etravel.gov.ph/ ; https://customs.etravel.gov.ph/frequently-asked-questions\n\nIssue, expiry, and validity fields:\n- Only the verified QR Code by BOQ upon your arrival at the airport/seaport is valid for your travel.\n\nTravel plan and port fields:\n- You may only register within 72 hours prior to your arrival or departure in the Philippines.\n- Travelers are enjoined to present their eTravel QR code to flight boarding.\n- You may only register within 3 days (or 72 hours) prior to your arrival in the Philippines.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+        }
+      ]
+    },
+    {
+      "slug": "philippines-temporary-visitor-visa-requirements",
+      "country": "philippines",
+      "visaType": "PH_TEMPORARY_VISITOR_VISA",
+      "documentType": "requirements",
+      "title": "Philippines Temporary Visitor Visa",
+      "sourceUrl": "https://evisa.gov.ph/",
+      "chunks": [
+        {
+          "id": "philippines_visitor_visa_separate_route",
+          "title": "Philippines visitor visa is separate from eTravel",
+          "tags": ["philippines", "temporary-visitor-visa", "etravel", "routing"],
+          "content": "Use PH_TEMPORARY_VISITOR_VISA only when a deterministic passport, purpose and stay rule confirms a visa-required route. The Philippines eTravel declaration is separate and must not be treated as a visa or as proof of visa eligibility."
+        }
+      ]
+    },
+    {
+      "slug": "philippines-temporary-visitor-visa-form-requirements",
+      "country": "philippines",
+      "visaType": "PH_TEMPORARY_VISITOR_VISA",
+      "documentType": "form_requirements",
+      "title": "Philippines Temporary Visitor Visa Form Requirements",
+      "sourceUrl": "https://evisa.gov.ph/",
+      "chunks": [
+        {
+          "id": "philippines_visitor_visa_form_route",
+          "title": "Philippines visitor visa application preparation",
+          "tags": ["philippines", "temporary-visitor-visa", "form-requirements"],
+          "content": "For travellers deterministically routed to a Philippines temporary visitor visa, prepare the official channel's identity, passport, residence, contact, travel, accommodation, finance, photograph and supporting-document fields. Keep eTravel traveller declaration fields in the separate PH_ETRAVEL_ARRIVAL_CARD workflow."
         }
       ]
     }

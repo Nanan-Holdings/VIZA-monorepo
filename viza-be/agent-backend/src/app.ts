@@ -30,6 +30,7 @@ import {
   japanAppointmentApplicationRouter,
   japanAppointmentOperationsRouter,
 } from './routes/japan-appointment.routes.js';
+import { getSupabaseClient } from './db/supabase-client.js';
 
 const allowedOrigins = (
   process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000'
@@ -51,8 +52,34 @@ app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok' });
+app.get('/health', async (_req, res) => {
+  let knowledgeReleaseId: string | null = null;
+  let knowledgeReleaseKey: string | null = null;
+  try {
+    const { data } = await getSupabaseClient()
+      .from('visa_knowledge_releases')
+      .select('id, release_key')
+      .eq('status', 'active')
+      .order('activated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    knowledgeReleaseId = data?.id ?? null;
+    knowledgeReleaseKey = data?.release_key ?? null;
+  } catch {
+    // Health remains available during a database incident and exposes that
+    // release metadata could not be resolved.
+  }
+  res.status(200).json({
+    status: 'ok',
+    gitSha:
+      process.env.RENDER_GIT_COMMIT ??
+      process.env.VERCEL_GIT_COMMIT_SHA ??
+      process.env.GIT_COMMIT_SHA ??
+      'unknown',
+    memorySchemaVersion: 1,
+    knowledgeReleaseId,
+    knowledgeReleaseKey,
+  });
 });
 
 // Admin routes

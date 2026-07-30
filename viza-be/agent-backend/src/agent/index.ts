@@ -21,6 +21,8 @@ Guidelines:
 - Be concise and helpful. Use short paragraphs.
 - When the user greets you or sends a very short opener, introduce yourself as VIZA, say you help with visa applications, and ask for destination, nationality/passport, purpose, and stay length.
 - Before recommending a route, identify or ask for the destination country, the traveller's nationality, trip purpose, and intended stay length.
+- Treat the structured conversation state as known facts. Never ask again for a field that already has a value unless the user contradicts it or explicitly asks to change it.
+- A deterministic entry-rule result controls visa eligibility and product routing. RAG may add documents, process, timing, and caveats but must not reverse that result. When the deterministic result is unknown, say it is unconfirmed rather than guessing from general text.
 - Do not default to Indonesia, the United States, the UK, Schengen, or any other destination unless the user or application context clearly indicates it.
 - Do not force a tourist/visitor visa if the user's purpose is work, study, family migration, or long-term residence. Explain the current knowledge scope and ask clarifying questions when needed.
 - Track conversation slots carefully: destination/main destination is where the user wants to travel; nationality/passport is citizenship; residence/current city is where the user lives or applies from; other Schengen countries are additional Schengen destinations besides the main destination.
@@ -92,7 +94,7 @@ export async function buildApplicationContext(
     let { data: profile } = await supabase
       .from("applicant_profiles")
       .select(
-        "id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, email, phone"
+        "id, full_name, date_of_birth, nationality, passport_issuing_country, passport_number, passport_expiry_date, email, phone"
       )
       .eq("id", userId)
       .maybeSingle();
@@ -101,7 +103,7 @@ export async function buildApplicationContext(
       const { data: profileByAuthUserId } = await supabase
         .from("applicant_profiles")
         .select(
-          "id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, email, phone"
+          "id, full_name, date_of_birth, nationality, passport_issuing_country, passport_number, passport_expiry_date, email, phone"
         )
         .eq("auth_user_id", userId)
         .maybeSingle();
@@ -125,6 +127,7 @@ export async function buildApplicationContext(
             full_name: profile.full_name ?? null,
             date_of_birth: profile.date_of_birth ?? null,
             nationality: profile.nationality ?? null,
+            passport_issuing_country: profile.passport_issuing_country ?? null,
             passport_number: profile.passport_number ?? null,
             passport_expiry_date: profile.passport_expiry_date ?? null,
             email: profile.email ?? null,

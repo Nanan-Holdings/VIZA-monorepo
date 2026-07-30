@@ -62,6 +62,9 @@ The current internal automation migrations are:
   encrypted official retrieval fields, review snapshot/diff tables, and manual
   checkpoint tables. Dry-run remains the default and final applicant
   Sign/Submit remains outside automation.
+- `0123_viza_knowledge_releases_and_chat_memory.sql`: versioned RAG releases,
+  structured entry rules, durable per-session VIZA memory, and redacted agent
+  diagnostics.
 - `0094_vn_evisa_documents_and_labels.sql`: Vietnam e-Visa package document
   requirements and bilingual label metadata so the app uses official materials
   instead of generic fallback requirements.
