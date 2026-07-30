@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-07-30",
   "country": "malaysia",
   "notes": "Country-level VIZA RAG seed for malaysia. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -120,6 +120,38 @@
             "malaysia"
           ],
           "content": "Official-source field answer norms for malaysia.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://www.imi.gov.my/index.php/en/pengumuman/malaysia-digital-arrival-card-mdac/ ; https://imigresen-online.imi.gov.my/mdac/main\n\nPassport and identity fields:\n- Frequently Asked Questions Security &#038; Passport Division\n\nTravel plan and port fields:\n- MALAYSIA DIGITAL ARRIVAL CARD (MDAC) &#8211; Malaysian Immigration Department\n- MyTravelPass – Application For Entry / Exit Malaysia\n- How to register Malaysia Digital Arrival Card (MDAC) - Click for Infographic.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+        }
+      ]
+    },
+    {
+      "slug": "malaysia-tourist-evisa-requirements",
+      "country": "malaysia",
+      "visaType": "MY_TOURIST_E_VISA",
+      "documentType": "requirements",
+      "title": "Malaysia Tourist eVISA",
+      "sourceUrl": "https://malaysiavisa.imi.gov.my/evisa/evisa.jsp",
+      "chunks": [
+        {
+          "id": "malaysia_evisa_separate_route",
+          "title": "Malaysia eVISA is separate from MDAC",
+          "tags": ["malaysia", "evisa", "mdac", "routing"],
+          "content": "Use MY_TOURIST_E_VISA only when a deterministic passport, purpose and stay rule confirms that the traveller needs or is eligible for the tourist eVISA route. MDAC is a separate pre-arrival declaration and must not be presented as a visa."
+        }
+      ]
+    },
+    {
+      "slug": "malaysia-tourist-evisa-form-requirements",
+      "country": "malaysia",
+      "visaType": "MY_TOURIST_E_VISA",
+      "documentType": "form_requirements",
+      "title": "Malaysia Tourist eVISA Form Requirements",
+      "sourceUrl": "https://malaysiavisa.imi.gov.my/evisa/evisa.jsp",
+      "chunks": [
+        {
+          "id": "malaysia_evisa_form_route",
+          "title": "Malaysia eVISA application preparation",
+          "tags": ["malaysia", "evisa", "form-requirements"],
+          "content": "For travellers deterministically routed to Malaysia tourist eVISA, prepare official portal identity, passport, contact, travel, accommodation, photograph and supporting-document fields. Eligibility and permitted stay must come from current Immigration Malaysia rules. Do not copy MDAC-only fields into this visa workflow."
         }
       ]
     }

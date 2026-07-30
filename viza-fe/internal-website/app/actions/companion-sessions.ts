@@ -53,6 +53,54 @@ export interface Message {
   blockData?: Record<string, unknown> | null;
 }
 
+export interface VisaChatMemory {
+  destinationCountries: string[];
+  mainDestination: string | null;
+  nationality: string | null;
+  passportCountryIso3: string | null;
+  passportType: string | null;
+  residenceCountry: string | null;
+  residenceCity: string | null;
+  tripPurpose: string | null;
+  stayLengthDays: number | null;
+  schengenDaySplit: Record<string, number>;
+  firstEntryCountry: string | null;
+  recommendedVisaType: string | null;
+  fieldSources: Record<string, string>;
+  missingSlots: string[];
+  confidence: number;
+  updatedAt: string;
+}
+
+export interface VisaChatMemorySnapshot {
+  state: VisaChatMemory;
+  revision: number;
+}
+
+export interface LatestApplicationSummary {
+  id: string | null;
+  status: string | null;
+}
+
+const EMPTY_VISA_CHAT_MEMORY: VisaChatMemory = {
+  destinationCountries: [],
+  mainDestination: null,
+  nationality: null,
+  passportCountryIso3: null,
+  passportType: null,
+  residenceCountry: null,
+  residenceCity: null,
+  tripPurpose: null,
+  stayLengthDays: null,
+  schengenDaySplit: {},
+  firstEntryCountry: null,
+  recommendedVisaType: null,
+  fieldSources: {},
+  missingSlots: [],
+  confidence: 0,
+  updatedAt: new Date(0).toISOString(),
+};
+
 // =============================================================================
 // Helper: Get authenticated user ID
 // =============================================================================
@@ -184,6 +232,27 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
   }
 }
 
+export async function getLatestApplicationSummary(
+  userId: string
+): Promise<LatestApplicationSummary> {
+  const authenticatedUserId = await getAuthenticatedUserId();
+  if (!authenticatedUserId || authenticatedUserId !== userId) {
+    return { id: null, status: null };
+  }
+  const adminClient = createAdminClient();
+  const { data } = await adminClient
+    .from("applications")
+    .select("id, status")
+    .eq("applicant_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return {
+    id: data?.id ?? null,
+    status: data?.status ?? null,
+  };
+}
+
 /**
  * Get messages for a session (last 50, verify ownership)
  */
@@ -223,7 +292,7 @@ export async function getSessionMessages(
     .select("*")
     .eq("session_id", sessionId)
     .neq("role", "system")
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(50);
 
   if (error) {
@@ -231,7 +300,7 @@ export async function getSessionMessages(
     return [];
   }
 
-  return (messages || []).map((msg) => ({
+  return (messages || []).reverse().map((msg) => ({
     id: msg.id,
     sessionId: msg.session_id,
     senderType: (msg.role === "assistant" ? "agent" : msg.role) as Message["senderType"],
@@ -241,6 +310,207 @@ export async function getSessionMessages(
     createdAt: msg.created_at,
     blockData: msg.block_data ?? null,
   }));
+}
+
+function normalizeVisaChatMemory(value: unknown): VisaChatMemory {
+  const memory =
+    typeof value === "object" && value !== null
+      ? (value as Partial<VisaChatMemory>)
+      : {};
+  return {
+    ...EMPTY_VISA_CHAT_MEMORY,
+    ...memory,
+    destinationCountries: Array.isArray(memory.destinationCountries)
+      ? memory.destinationCountries.filter(
+          (country): country is string => typeof country === "string"
+        )
+      : [],
+    schengenDaySplit:
+      typeof memory.schengenDaySplit === "object" &&
+      memory.schengenDaySplit !== null
+        ? memory.schengenDaySplit
+        : {},
+    fieldSources:
+      typeof memory.fieldSources === "object" && memory.fieldSources !== null
+        ? memory.fieldSources
+        : {},
+    missingSlots: Array.isArray(memory.missingSlots)
+      ? memory.missingSlots.filter(
+          (slot): slot is string => typeof slot === "string"
+        )
+      : [],
+  };
+}
+
+function normalizeProfilePassportIso3(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const key = value.trim().toLowerCase();
+  const known: Record<string, string> = {
+    china: "CHN",
+    chn: "CHN",
+    中国: "CHN",
+    singapore: "SGP",
+    sgp: "SGP",
+    新加坡: "SGP",
+    "united kingdom": "GBR",
+    uk: "GBR",
+    gbr: "GBR",
+    "united states": "USA",
+    us: "USA",
+    usa: "USA",
+    canada: "CAN",
+    can: "CAN",
+    australia: "AUS",
+    aus: "AUS",
+    "new zealand": "NZL",
+    nzl: "NZL",
+  };
+  return known[key] ?? (/^[a-z]{3}$/i.test(value) ? value.toUpperCase() : null);
+}
+
+async function ownsVisaChatSession(
+  sessionId: string,
+  userId: string
+): Promise<boolean> {
+  const authenticatedUserId = await getAuthenticatedUserId();
+  if (!authenticatedUserId || authenticatedUserId !== userId) return false;
+  const adminClient = createAdminClient();
+  const { data } = await adminClient
+    .from("visa_chat_sessions")
+    .select("id")
+    .eq("id", sessionId)
+    .eq("applicant_id", userId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+export async function getSessionMemory(
+  sessionId: string,
+  userId: string
+): Promise<VisaChatMemorySnapshot | null> {
+  if (!(await ownsVisaChatSession(sessionId, userId))) return null;
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("visa_chat_sessions")
+    .select("memory_json, memory_revision")
+    .eq("id", sessionId)
+    .single();
+  if (error || !data) return null;
+  return {
+    state: normalizeVisaChatMemory(data.memory_json),
+    revision: Number(data.memory_revision ?? 0),
+  };
+}
+
+export async function updateSessionMemory(
+  sessionId: string,
+  userId: string,
+  expectedRevision: number,
+  patch: Pick<
+    VisaChatMemory,
+    | "passportCountryIso3"
+    | "passportType"
+    | "residenceCountry"
+    | "destinationCountries"
+    | "mainDestination"
+    | "tripPurpose"
+    | "stayLengthDays"
+  >
+): Promise<{ success: boolean; snapshot?: VisaChatMemorySnapshot; conflict?: boolean }> {
+  if (!(await ownsVisaChatSession(sessionId, userId))) {
+    return { success: false };
+  }
+  const current = await getSessionMemory(sessionId, userId);
+  if (!current || current.revision !== expectedRevision) {
+    return { success: false, snapshot: current ?? undefined, conflict: true };
+  }
+  const nextState = normalizeVisaChatMemory({
+    ...current.state,
+    ...patch,
+    nationality: patch.passportCountryIso3,
+    destinationCountries: patch.destinationCountries,
+    mainDestination:
+      patch.mainDestination ?? patch.destinationCountries[0] ?? null,
+    fieldSources: {
+      ...current.state.fieldSources,
+      passportCountryIso3: "manual",
+      passportType: "manual",
+      residenceCountry: "manual",
+      destinationCountries: "manual",
+      mainDestination: "manual",
+      tripPurpose: "manual",
+      stayLengthDays: "manual",
+    },
+    updatedAt: new Date().toISOString(),
+  });
+  const nextRevision = expectedRevision + 1;
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("visa_chat_sessions")
+    .update({
+      memory_json: nextState,
+      memory_revision: nextRevision,
+      memory_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", sessionId)
+    .eq("applicant_id", userId)
+    .eq("memory_revision", expectedRevision)
+    .select("memory_json, memory_revision")
+    .maybeSingle();
+  if (error || !data) {
+    return {
+      success: false,
+      snapshot: (await getSessionMemory(sessionId, userId)) ?? undefined,
+      conflict: true,
+    };
+  }
+  return {
+    success: true,
+    snapshot: {
+      state: normalizeVisaChatMemory(data.memory_json),
+      revision: Number(data.memory_revision),
+    },
+  };
+}
+
+export async function clearSessionMemory(
+  sessionId: string,
+  userId: string,
+  expectedRevision: number
+): Promise<{ success: boolean; snapshot?: VisaChatMemorySnapshot; conflict?: boolean }> {
+  return updateSessionMemory(sessionId, userId, expectedRevision, {
+    passportCountryIso3: null,
+    passportType: null,
+    residenceCountry: null,
+    destinationCountries: [],
+    mainDestination: null,
+    tripPurpose: null,
+    stayLengthDays: null,
+  });
+}
+
+export async function saveSessionPassportToProfile(
+  sessionId: string,
+  userId: string,
+  expectedRevision: number
+): Promise<{ success: boolean; error?: string }> {
+  const memory = await getSessionMemory(sessionId, userId);
+  if (!memory || memory.revision !== expectedRevision) {
+    return { success: false, error: "Memory changed. Please review it again." };
+  }
+  if (!memory.state.passportCountryIso3) {
+    return { success: false, error: "Passport country is empty." };
+  }
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("applicant_profiles")
+    .update({
+      nationality: memory.state.passportCountryIso3,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+  return error ? { success: false, error: error.message } : { success: true };
 }
 
 export async function ensureSessionMessage(
@@ -385,12 +655,36 @@ export async function createSession(
   }
 
   const adminClient = createAdminClient();
+  const { data: profile } = await adminClient
+    .from("applicant_profiles")
+    .select("nationality, passport_issuing_country")
+    .eq("id", userId)
+    .maybeSingle();
+  const passportValue =
+    profile?.nationality ?? profile?.passport_issuing_country ?? null;
+  const passportCountryIso3 = normalizeProfilePassportIso3(passportValue);
+  const initialMemory = passportCountryIso3
+    ? normalizeVisaChatMemory({
+        passportCountryIso3,
+        nationality: passportCountryIso3,
+        fieldSources: {
+          passportCountryIso3: "profile",
+          nationality: "profile",
+        },
+        updatedAt: new Date().toISOString(),
+      })
+    : EMPTY_VISA_CHAT_MEMORY;
 
   const { data: session, error } = await adminClient
     .from("visa_chat_sessions")
     .insert({
       applicant_id: userId,
       application_id: applicationId ?? null,
+      memory_json: initialMemory,
+      memory_revision: passportCountryIso3 ? 1 : 0,
+      memory_updated_at: passportCountryIso3
+        ? new Date().toISOString()
+        : null,
     })
     .select()
     .single();

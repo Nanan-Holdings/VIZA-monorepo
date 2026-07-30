@@ -6,7 +6,13 @@ Each file in `countries/*.json` owns one country's visitor/tourism visa knowledg
 
 `countries/taiwan.json` is limited to `TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`: Chinese mainland passport holders resident in Singapore applying for tourism. It is not a Taiwan arrival-card or a generic visitor-visa seed.
 
-Every country seed should include exactly one `documentType: "form_requirements"` document. This document is the bridge between RAG and future form automation: it describes the official application channel, the form fields VIZA should collect before filling, the supporting documents/uploads to prepare, and review/submission guardrails.
+Every country seed should include exactly one `documentType: "form_requirements"`
+document for each supported `visaType`/product. Visa and arrival-card products
+must have separate requirement and form-intake documents even when they share a
+destination. This document is the bridge between RAG and future form
+automation: it describes the official application channel, the form fields
+VIZA should collect before filling, the supporting documents/uploads to
+prepare, and review/submission guardrails.
 
 Each `form_requirements` document should also carry the shared
 `standard_passport_identity_field_rules` chunk. Field-level copilot retrieval
@@ -43,6 +49,11 @@ The ingestion writes all chunks to the shared `visa_documents` and `visa_chunks`
 - One country per file.
 - Every document in a file must have `country` equal to the file's `country`.
 - Chunk IDs must be unique inside each country file.
-- Keep one `form_requirements` document per country. Replace it when updating form requirements; do not append duplicates.
+- Keep one `form_requirements` document per country + `visaType`. Replace it
+  when updating that product's form requirements; do not append duplicates for
+  the same product.
+- Ingestion always targets a staged release. Run the promotion command only
+  after source, metadata, chunk, embedding and regression gates pass:
+  `npm run promote:visa-rag -- <release-key>`.
 - Prefer official government, embassy, immigration, or authorized visa-centre sources.
 - When adding a major country workflow file or seed, update this README, `docs/viza-ai-chat-development-guide.md`, and `viza-fe/internal-website/app/client/chat/AGENTS.md`.

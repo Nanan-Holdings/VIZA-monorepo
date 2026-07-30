@@ -126,7 +126,9 @@ export const VISA_DESTINATION_REGISTRY: Record<
   lithuania: destination('lithuania', 'Lithuania', ['立陶宛', 'lithuania', 'vilnius', '维尔纽斯'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   luxembourg: destination('luxembourg', 'Luxembourg', ['卢森堡', 'luxembourg'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   macau: destination('macau', 'Macau', ['澳门', '澳門', 'macau', 'macao', 'macau sar', 'macao sar'], 'mo_visit_visa'),
-  malaysia: destination('malaysia', 'Malaysia', ['马来西亚', 'malaysia', 'kuala lumpur', 'penang', 'sabah', '吉隆坡', '槟城', '沙巴', 'mdac', 'malaysia digital arrival card'], 'MY_MDAC_ARRIVAL_CARD'),
+  malaysia: destination('malaysia', 'Malaysia', ['马来西亚', 'malaysia', 'kuala lumpur', 'penang', 'sabah', '吉隆坡', '槟城', '沙巴', 'mdac', 'malaysia digital arrival card'], 'MY_MDAC_ARRIVAL_CARD', {
+    supportedVisaTypes: ['MY_MDAC_ARRIVAL_CARD', 'MY_TOURIST_E_VISA'],
+  }),
   maldives: destination('maldives', 'Maldives', ['马尔代夫', 'maldives', 'male', '马累'], 'tourist_visa_on_arrival'),
   malta: destination('malta', 'Malta', ['马耳他', 'malta', 'valletta', '瓦莱塔'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   mexico: destination('mexico', 'Mexico', ['墨西哥', 'mexico', 'mexico city', 'cancun', '墨西哥城', '坎昆'], 'visitor_visa_or_exemption'),
@@ -144,7 +146,9 @@ export const VISA_DESTINATION_REGISTRY: Record<
   romania: destination('romania', 'Romania', ['罗马尼亚', 'romania', 'bucharest', '布加勒斯特'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   russia: destination('russia', 'Russia', ['俄罗斯', '俄签', 'russia', 'russian federation', 'moscow', 'saint petersburg', '莫斯科', '圣彼得堡'], 'unified_evisa'),
   saudi_arabia: destination('saudi_arabia', 'Saudi Arabia', ['沙特', '沙特阿拉伯', 'saudi', 'saudi arabia', 'riyadh', 'jeddah', '利雅得', '吉达'], 'tourist_evisa'),
-  singapore: destination('singapore', 'Singapore', ['新加坡', 'singapore', 'singapore visa', 'sg arrival card', 'sgac'], 'SG_ARRIVAL_CARD'),
+  singapore: destination('singapore', 'Singapore', ['新加坡', 'singapore', 'singapore visa', 'sg arrival card', 'sgac'], 'SG_ARRIVAL_CARD', {
+    supportedVisaTypes: ['SG_ARRIVAL_CARD', 'SG_VISITOR_VISA'],
+  }),
   slovakia: destination('slovakia', 'Slovakia', ['斯洛伐克', 'slovakia', 'bratislava', '布拉迪斯拉发'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   slovenia: destination('slovenia', 'Slovenia', ['斯洛文尼亚', 'slovenia', 'ljubljana', '卢布尔雅那'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   south_africa: destination('south_africa', 'South Africa', ['南非', 'south africa', 'cape town', 'johannesburg', '开普敦', '约翰内斯堡'], 'visitor_visa_tourism'),
@@ -153,7 +157,9 @@ export const VISA_DESTINATION_REGISTRY: Record<
   sri_lanka: destination('sri_lanka', 'Sri Lanka', ['斯里兰卡', 'sri lanka', 'colombo', '科伦坡'], 'eta_tourism'),
   switzerland: destination('switzerland', 'Switzerland', ['瑞士', 'switzerland', 'swiss', 'zurich', 'geneva', '苏黎世', '日内瓦'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   sweden: destination('sweden', 'Sweden', ['瑞典', 'sweden', 'stockholm', '斯德哥尔摩'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
-  thailand: destination('thailand', 'Thailand', ['泰国', 'thailand', 'bangkok', 'phuket', 'chiang mai', '曼谷', '普吉', '清迈', 'tdac', 'thailand digital arrival card'], 'TH_TDAC_ARRIVAL_CARD'),
+  thailand: destination('thailand', 'Thailand', ['泰国', 'thailand', 'bangkok', 'phuket', 'chiang mai', '曼谷', '普吉', '清迈', 'tdac', 'thailand digital arrival card'], 'TH_TDAC_ARRIVAL_CARD', {
+    supportedVisaTypes: ['TH_TDAC_ARRIVAL_CARD', 'TH_TOURIST_E_VISA'],
+  }),
   taiwan: destination('taiwan', 'Taiwan', ['台湾', '中國台灣', '中国台湾', 'taiwan', 'taipei', '台北', '入台证', '入臺證', 'taiwan entry permit'], 'TW_ENTRY_PERMIT'),
   turkey: destination('turkey', 'Turkiye', ['土耳其', 'turkey', 'turkiye', 'istanbul', '伊斯坦布尔'], 'evisa_tourism_business'),
   uk: destination('uk', 'United Kingdom', ['英国', '英签', 'united kingdom', 'britain', 'england', 'london', '伦敦'], 'standard_visitor'),

@@ -522,6 +522,9 @@ export const visaChatSessions = pgTable("visa_chat_sessions", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicantId: uuid("applicant_id").notNull(),
 	applicationId: uuid("application_id"),
+	memoryJson: jsonb("memory_json").default({}).notNull(),
+	memoryRevision: bigint("memory_revision", { mode: "number" }).default(0).notNull(),
+	memoryUpdatedAt: timestamp("memory_updated_at", { withTimezone: true }),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -762,6 +765,20 @@ export const travelUnresolvedDestinations = pgTable("travel_unresolved_destinati
 // document_type: requirements | process | faq | form_fields | common_mistakes
 // =============================================================================
 
+export const visaKnowledgeReleases = pgTable("visa_knowledge_releases", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	releaseKey: text("release_key").notNull(),
+	status: text("status").default("staged").notNull(),
+	description: text("description"),
+	expectedEntryRuleCount: integer("expected_entry_rule_count").default(385).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	activatedAt: timestamp("activated_at", { withTimezone: true }),
+	quarantinedAt: timestamp("quarantined_at", { withTimezone: true }),
+}, (table) => ({
+	releaseKeyIdx: uniqueIndex("visa_knowledge_releases_release_key_unique_idx").on(table.releaseKey),
+	statusIdx: index("visa_knowledge_releases_status_idx").on(table.status),
+}));
+
 export const visaDocuments = pgTable("visa_documents", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	country: text("country").notNull(),
@@ -769,8 +786,24 @@ export const visaDocuments = pgTable("visa_documents", {
 	documentType: text("document_type").notNull(),
 	title: text("title"),
 	sourceUrl: text("source_url"),
+	sourceKey: text("source_key").notNull(),
+	ingestionScope: text("ingestion_scope").default("legacy").notNull(),
+	releaseId: uuid("release_id"),
+	status: text("status").default("active").notNull(),
+	contentHash: text("content_hash"),
+	verifiedAt: timestamp("verified_at", { withTimezone: true }),
+	lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).defaultNow().notNull(),
+	quarantinedAt: timestamp("quarantined_at", { withTimezone: true }),
+	quarantineReason: text("quarantine_reason"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+	sourceKeyIdx: uniqueIndex("visa_documents_release_source_key_unique_idx").on(
+		table.releaseId,
+		table.sourceKey,
+	),
+	releaseStatusIdx: index("visa_documents_release_status_idx").on(table.releaseId, table.status),
+	scopeCountryIdx: index("visa_documents_scope_country_idx").on(table.ingestionScope, table.country),
+}));
 
 // =============================================================================
 // VISA CHUNKS
@@ -790,6 +823,62 @@ export const visaChunks = pgTable("visa_chunks", {
 	embedding: vector(1536)("embedding"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
+
+export const visaEntryRules = pgTable("visa_entry_rules", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	ruleKey: text("rule_key").notNull(),
+	releaseId: uuid("release_id").notNull(),
+	status: text("status").default("staged").notNull(),
+	destinationCountry: text("destination_country").notNull(),
+	passportCountryIso3: text("passport_country_iso3").notNull(),
+	passportType: text("passport_type").default("ordinary").notNull(),
+	tripPurpose: text("trip_purpose").default("tourism").notNull(),
+	maxStayDays: integer("max_stay_days"),
+	outcome: text("outcome").notNull(),
+	visaType: text("visa_type"),
+	arrivalCardTypes: text("arrival_card_types").array().default([]).notNull(),
+	conditionsJson: jsonb("conditions_json").default({}).notNull(),
+	sourceUrl: text("source_url").notNull(),
+	effectiveFrom: date("effective_from"),
+	verifiedAt: timestamp("verified_at", { withTimezone: true }).notNull(),
+	contentHash: text("content_hash").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	ruleKeyIdx: uniqueIndex("visa_entry_rules_release_rule_key_unique_idx").on(
+		table.releaseId,
+		table.ruleKey,
+	),
+	lookupIdx: index("visa_entry_rules_lookup_idx").on(
+		table.destinationCountry,
+		table.passportCountryIso3,
+		table.passportType,
+		table.tripPurpose,
+		table.status,
+	),
+	releaseStatusIdx: index("visa_entry_rules_release_status_idx").on(table.releaseId, table.status),
+}));
+
+export const visaAgentRunDiagnostics = pgTable("visa_agent_run_diagnostics", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	sessionId: uuid("session_id").notNull(),
+	memoryRevision: bigint("memory_revision", { mode: "number" }).default(0).notNull(),
+	destinationCountry: text("destination_country"),
+	passportCountryIso3: text("passport_country_iso3"),
+	entryRuleOutcome: text("entry_rule_outcome"),
+	visaType: text("visa_type"),
+	intent: text("intent"),
+	sourceKeys: jsonb("source_keys").default([]).notNull(),
+	fallbackReason: text("fallback_reason"),
+	model: text("model"),
+	durationMs: integer("duration_ms"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	sessionCreatedIdx: index("visa_agent_run_diagnostics_session_created_idx").on(
+		table.sessionId,
+		table.createdAt,
+	),
+}));
 
 export type ApplicantProfile = typeof applicantProfiles.$inferSelect;
 export type NewApplicantProfile = typeof applicantProfiles.$inferInsert;
