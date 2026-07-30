@@ -22,6 +22,9 @@ explicitly reintroduces another provider.
 - VIZA AI chat: `src/socket/visa-namespace.ts` plus `src/agent/index.ts`.
 - RAG retrieval: `src/services/visa-knowledge.service.ts`,
   `src/config/visa-destination-registry.ts`, and `visa_chunks`.
+- Versioned RAG publishing: `scripts/ingest-country-visa-rag.ts`,
+  `scripts/promote-visa-knowledge-release.ts`, and
+  `visa_knowledge_releases`.
 - Conversation state: `src/services/visa-conversation-state.service.ts`.
 - Field guidance: `src/routes/field-guidance.routes.ts`.
 - Application translation/validation: `src/routes/translation.routes.ts` and

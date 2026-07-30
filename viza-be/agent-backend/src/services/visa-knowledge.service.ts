@@ -34,6 +34,8 @@ export interface VisaKnowledgeChunk {
   documentType: string | null;
   title: string | null;
   sourceUrl: string | null;
+  sourceKey: string | null;
+  verifiedAt: string | null;
   similarity: number | null;
 }
 
@@ -51,6 +53,8 @@ interface MatchVisaChunkRow {
   document_type?: unknown;
   title?: unknown;
   source_url?: unknown;
+  source_key?: unknown;
+  verified_at?: unknown;
   similarity?: unknown;
 }
 
@@ -200,6 +204,8 @@ function mapChunkRow(row: unknown): VisaKnowledgeChunk | null {
     documentType: asString(record.document_type),
     title: asString(record.title) ?? asString(source?.title),
     sourceUrl: asString(record.source_url) ?? asString(source?.source_url),
+    sourceKey: asString(record.source_key) ?? asString(source?.source_key),
+    verifiedAt: asString(record.verified_at) ?? asString(source?.verified_at),
     similarity: asNumber(record.similarity),
   };
 }
@@ -245,8 +251,10 @@ async function retrieveWithFilteredFallback(
   let request = supabase
     .from("visa_chunks")
     .select(
-      "id, content, country, visa_type, document_type, visa_documents(title, source_url)"
+      "id, content, country, visa_type, document_type, visa_documents!inner(title, source_url, source_key, verified_at, status, visa_knowledge_releases!inner(status))"
     )
+    .eq("visa_documents.status", "active")
+    .eq("visa_documents.visa_knowledge_releases.status", "active")
     .limit(matchCount);
 
   if (query.country) {

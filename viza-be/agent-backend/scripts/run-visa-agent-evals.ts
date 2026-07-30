@@ -12,6 +12,7 @@ import {
   COUNTRY_DISPLAY_NAMES,
   VISA_DESTINATION_REGISTRY,
   VISA_SERVICE_COUNTRIES,
+  countrySupportsVisaType,
   getDefaultVisitorVisaType,
   isVisaServiceSupportedCountry,
   type SupportedKnowledgeCountry,
@@ -35,6 +36,10 @@ import {
   buildSystemPrompt,
   normalizeResponseLocale,
 } from '../src/agent/index.js';
+import {
+  buildVisaEntryRulePrompt,
+  resolveReviewedVisaEntryRule,
+} from '../src/services/visa-entry-rule.service.js';
 
 type EvalCategory =
   | 'schengen_route'
@@ -296,7 +301,7 @@ const evalCases: EvalCase[] = [
       { role: 'assistant', content: '1. 您的国籍？\n2. 此次前往 Singapore 的目的？\n3. 停留几天？' },
       { role: 'user', content: '中国，旅游，5天' },
     ],
-    expected: { resolvedCountry: 'singapore', visaType: 'entry_visa_or_visit_pass' },
+    expected: { resolvedCountry: 'singapore', visaType: 'SG_ARRIVAL_CARD' },
   },
   {
     id: 'CMP-007',
@@ -381,7 +386,7 @@ const evalCases: EvalCase[] = [
     messages: [{ role: 'user', content: '帮我填表，中国护照去新加坡旅游5天' }],
     expected: {
       resolvedCountry: 'singapore',
-      visaType: 'entry_visa_or_visit_pass',
+      visaType: 'SG_ARRIVAL_CARD',
       mustMentionSources: false,
     },
   },
@@ -955,7 +960,7 @@ function pricingCountries(): string[] {
     new Set(
       [...pricingSource.matchAll(/country:\s*"([^"]+)"/g)].map((match) => match[1])
     )
-  );
+  ).filter((country) => country !== 'viza_test');
 }
 
 function evaluateBranchTests(): BranchResult[] {
@@ -1491,6 +1496,110 @@ function evaluateBranchTests(): BranchResult[] {
         expectEqual('direct url helper maps Hong Kong Visit Visa', buildApplicationFormUrl('hong_kong', 'hk_visit_visa'), '/client/application?country=hong_kong&visaType=HK_VISIT_VISA'),
         expectEqual('direct url helper maps Macau Visit Visa', buildApplicationFormUrl('macau', 'mo_visit_visa'), '/client/application?country=macau&visaType=MO_VISIT_VISA'),
         expectEqual('direct url helper maps Russia eVisa', buildApplicationFormUrl('russia', 'unified_evisa'), '/client/application?country=russia&visaType=RU_E_VISA'),
+      ];
+    }),
+    branch('ENTRY-RULE-SG-001', 'entry_rule_branch', () => {
+      const rule = resolveReviewedVisaEntryRule({
+        destinationCountry: 'singapore',
+        passportCountryIso3: 'CHN',
+        passportType: 'ordinary',
+        tripPurpose: 'tourism',
+        stayLengthDays: 10,
+      });
+      const prompt = buildVisaEntryRulePrompt(rule);
+      return [
+        expectEqual('PRC ordinary passport tourism is visa exempt', rule?.outcome, 'visa_exempt'),
+        expectEqual('SGAC remains a separate product', rule?.arrivalCardTypes.includes('SG_ARRIVAL_CARD'), true),
+        expectEqual('visitor visa is not selected', rule?.visaType, null),
+        expectEqual('arrival timing says before arrival', prompt.includes('抵达新加坡前3天内'), true),
+        expectEqual('arrival timing does not say before departure', prompt.includes('出发前3天'), false),
+      ];
+    }),
+    branch('ENTRY-RULE-MATRIX-001', 'entry_rule_branch', () => {
+      const passports = ['CHN', 'SGP', 'GBR', 'USA', 'CAN', 'AUS', 'NZL'];
+      const evaluated = Array.from(VISA_SERVICE_COUNTRIES).flatMap(
+        (destinationCountry) =>
+          passports.map((passportCountryIso3) =>
+            resolveReviewedVisaEntryRule({
+              destinationCountry,
+              passportCountryIso3,
+              passportType: 'ordinary',
+              tripPurpose: 'tourism',
+              stayLengthDays: 10,
+            })
+          )
+      );
+      const invalid = evaluated.filter(
+        (rule) =>
+          rule &&
+          !['visa_exempt', 'visa_required', 'conditional', 'unknown'].includes(
+            rule.outcome
+          )
+      );
+      return [
+        expectEqual(
+          'all service destinations x seven passports evaluated',
+          evaluated.length,
+          VISA_SERVICE_COUNTRIES.size * passports.length
+        ),
+        expectArrayEqual('matrix never invents an invalid outcome', invalid, []),
+      ];
+    }),
+    branch('ARRIVAL-VISA-ISOLATION-001', 'entry_rule_branch', () => [
+      expectEqual(
+        'Singapore visitor visa is a supported separate product',
+        countrySupportsVisaType('singapore', 'SG_VISITOR_VISA'),
+        true
+      ),
+      expectEqual(
+        'Singapore default route is SGAC',
+        getDefaultVisitorVisaType('singapore'),
+        'SG_ARRIVAL_CARD'
+      ),
+      expectEqual(
+        'Malaysia eVisa is separate from MDAC',
+        countrySupportsVisaType('malaysia', 'MY_TOURIST_E_VISA'),
+        true
+      ),
+      expectEqual(
+        'Thailand eVisa is separate from TDAC',
+        countrySupportsVisaType('thailand', 'TH_TOURIST_E_VISA'),
+        true
+      ),
+      expectEqual(
+        'Philippines visitor visa is separate from eTravel',
+        countrySupportsVisaType(
+          'philippines',
+          'PH_TEMPORARY_VISITOR_VISA'
+        ),
+        true
+      ),
+    ]),
+    branch('MEMORY-150-ROUND-001', 'long_conversation_memory_branch', () => {
+      let state = createEmptyVisaConversationState();
+      const history: EvalMessage[] = [];
+      const turns: EvalMessage[] = [
+        { role: 'user', content: '我持中国普通护照，住在新加坡，去日本旅游7天' },
+      ];
+      for (let index = 0; index < 149; index += 1) {
+        turns.push({
+          role: index % 2 === 0 ? 'assistant' : 'user',
+          content:
+            index % 2 === 0
+              ? '我已记住这些资料，你还想了解什么？'
+              : `请继续说明材料清单，第${index + 1}轮。`,
+        });
+      }
+      for (const turn of turns) {
+        history.push(turn);
+        if (turn.role === 'user') {
+          state = updateVisaConversationState(state, history, turn.content);
+        }
+      }
+      return [
+        expectEqual('passport survives 150 turns', state.passportCountryIso3, 'CHN'),
+        expectEqual('destination survives 150 turns', state.mainDestination, 'japan'),
+        expectEqual('stay survives 150 turns', state.stayLengthDays, 7),
       ];
     }),
     branch('SERVICE-RAG-001', 'service_rag_coverage_branch', () => {
