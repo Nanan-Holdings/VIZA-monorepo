@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import {
   TDAC_OFFICIAL_BOARDED_COUNTRY_ENTRIES,
   TDAC_OFFICIAL_DISTRICTS_BY_PROVINCE,
@@ -340,6 +341,25 @@ export const TDAC_PROVINCE_OPTIONS = TDAC_OFFICIAL_PROVINCE_LABELS.map((label) =
 const residenceRegion = (labelEn: string, labelZh = labelEn): TdacOption => option(labelEn, labelZh, labelEn, labelEn);
 
 const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL: Record<string, TdacOption[]> = {
+  // TDAC exposes Anguilla settlements rather than ISO 3166-2 subdivisions.
+  // Use established Chinese geographic names where available and consistent
+  // transliterations for the remaining official TDAC settlement labels.
+  AIA: [
+    residenceRegion("BLOWING POINT", "布洛因角"),
+    residenceRegion("EAST END", "东恩德"),
+    residenceRegion("GEORGE HILL", "乔治希尔"),
+    residenceRegion("ISLAND HARBOUR", "岛港"),
+    residenceRegion("NORTH HILL", "诺斯希尔"),
+    residenceRegion("NORTH SIDE", "北赛德"),
+    residenceRegion("SANDY GROUND", "桑迪格朗德"),
+    residenceRegion("SANDY HILL", "桑迪希尔"),
+    residenceRegion("SOUTH HILL", "南希尔"),
+    residenceRegion("STONEY GROUND", "斯托尼格朗德"),
+    residenceRegion("THE FARRINGTON", "法灵顿"),
+    residenceRegion("THE QUARTER", "夸特"),
+    residenceRegion("THE VALLEY", "瓦利"),
+    residenceRegion("WEST END", "韦斯滕德"),
+  ],
   CHN: [
     residenceRegion("ANHUI", "安徽"),
     residenceRegion("BEIJING", "北京"),
@@ -375,6 +395,27 @@ const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL: Record<string, TdacOption
     residenceRegion("XINJIANG", "新疆"),
     residenceRegion("YUNNAN", "云南"),
     residenceRegion("ZHEJIANG", "浙江"),
+  ],
+  // Hong Kong SAR Government's official Simplified Chinese district names.
+  HKG: [
+    residenceRegion("CENTRAL AND WESTERN", "中西区"),
+    residenceRegion("EASTERN", "东区"),
+    residenceRegion("ISLANDS", "离岛区"),
+    residenceRegion("KOWLOON CITY", "九龙城区"),
+    residenceRegion("KWAI TSING", "葵青区"),
+    residenceRegion("KWUN TONG", "观塘区"),
+    residenceRegion("NORTH", "北区"),
+    residenceRegion("SAI KUNG", "西贡区"),
+    residenceRegion("SHA TIN", "沙田区"),
+    residenceRegion("SHAM SHUI PO", "深水埗区"),
+    residenceRegion("SOUTHERN", "南区"),
+    residenceRegion("TAI PO", "大埔区"),
+    residenceRegion("TSUEN WAN", "荃湾区"),
+    residenceRegion("TUEN MUN", "屯门区"),
+    residenceRegion("WAN CHAI", "湾仔区"),
+    residenceRegion("WONG TAI SIN", "黄大仙区"),
+    residenceRegion("YAU TSIM MONG", "油尖旺区"),
+    residenceRegion("YUEN LONG", "元朗区"),
   ],
   MYS: [
     residenceRegion("JOHOR", "柔佛"),
@@ -467,6 +508,19 @@ const tdacOptionKey = (value: string): string =>
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 
+type TdacResidenceRegionTranslationFile = {
+  translations?: Record<string, Record<string, string>>;
+};
+
+const tdacResidenceRegionGeneratedTranslations = (
+  JSON.parse(
+    readFileSync(
+      new URL("./residence-region-translations.zh.json", import.meta.url),
+      "utf8",
+    ),
+  ) as TdacResidenceRegionTranslationFile
+).translations ?? {};
+
 const tdacResidenceRegionTranslationZh = new Map<string, string>();
 for (const [countryCode, options] of Object.entries(TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL)) {
   for (const item of options) {
@@ -480,7 +534,9 @@ export const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY: Record<string, TdacOption
     labels.map((label) =>
       option(
         tdacOptionKey(label),
-        tdacResidenceRegionTranslationZh.get(`${countryCode}:${label.toUpperCase()}`) ?? label,
+        tdacResidenceRegionTranslationZh.get(`${countryCode}:${label.toUpperCase()}`) ??
+          tdacResidenceRegionGeneratedTranslations[countryCode]?.[label] ??
+          label,
         label,
         label,
       )),
