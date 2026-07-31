@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy one immutable submission-service image to the retained ten-Machine
-# shared pool. Required: FLY_API_TOKEN, FLY_ORG and boot secrets.
+# Deploy one immutable submission-service image to the retained shared pool.
+# Required: FLY_API_TOKEN, FLY_ORG and boot secrets.
 image="${1:?immutable image reference is required}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 app="viza-runner-pool"

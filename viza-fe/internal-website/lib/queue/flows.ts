@@ -1,5 +1,4 @@
 import {
-  isIndonesiaEVisaApplication,
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
@@ -8,8 +7,6 @@ import {
 } from "@/lib/submission-queue";
 
 export const RUNNER_POOL_FLOW_KEYS = [
-  "id_c1",
-  "id_b1_evoa",
   "vn_evisa",
   "vn_prearrival",
   "sgac",
@@ -29,9 +26,6 @@ export function resolveRunnerPoolFlow(
   if (isThailandTdacApplication(country, visaType)) return "tdac";
   if (isVietnamPrearrivalApplication(country, visaType)) return "vn_prearrival";
   if (isVietnamEVisaApplication(country, visaType)) return "vn_evisa";
-  if (isIndonesiaEVisaApplication(country, visaType)) {
-    return visaType?.trim().toUpperCase().includes("B1") ? "id_b1_evoa" : "id_c1";
-  }
   const normalizedCountry = country?.trim().toLowerCase().replace(/[\s-]+/gu, "_");
   const normalizedVisaType = visaType?.trim().toUpperCase() ?? "";
   if (

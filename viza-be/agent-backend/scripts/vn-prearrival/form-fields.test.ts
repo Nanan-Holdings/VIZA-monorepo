@@ -4,6 +4,7 @@ import {
   VN_PREARRIVAL_AIRPORT_OPTIONS,
   VN_PREARRIVAL_FLIGHT_OPTIONS,
   VN_PREARRIVAL_PURPOSE_OPTIONS,
+  VN_PREARRIVAL_VISA_TYPE_OPTIONS,
 } from "./official-options";
 
 const fieldNames = VN_PREARRIVAL_FORM_FIELDS.map((field) => field.field_name);
@@ -87,6 +88,44 @@ describe("Vietnam Pre-Arrival official form schema", () => {
       numeric_length_when: { field: "visa_type", equals: "EV", length: 9 },
       helper_zh: expect.stringContaining("9 位纯数字"),
       helper_en: expect.stringContaining("9-digit numeric"),
+    });
+  });
+
+  it("matches the official visa-type options and conditional required fields", () => {
+    const visaNumber = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_number");
+    const visaIssueDate = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_issue_date");
+    const visaExpiryDate = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_expiry_date");
+    const visaIssuedPlace = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_issued_place");
+
+    expect(VN_PREARRIVAL_VISA_TYPE_OPTIONS.map((option) => option.value)).toEqual([
+      "GMTT", "EV", "MMT", "MTTQ", "TDL", "ABTC", "TTR", "TTA", "TT", "MM1", "MM2",
+    ]);
+    expect(VN_PREARRIVAL_VISA_TYPE_OPTIONS.map((option) => option.label_zh)).toEqual([
+      "免签证证明",
+      "电子签证（E-Visa）",
+      "按国家的默认免签政策",
+      "富国岛签证豁免",
+      "旅游卡",
+      "ABTC卡",
+      "永久居留卡",
+      "临时居留卡",
+      "签证",
+      "双边免签",
+      "单边免签",
+    ]);
+    expect(visaNumber?.validation_rules).toMatchObject({
+      required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaExpiryDate?.validation_rules).toMatchObject({
+      required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaIssueDate?.required).toBe(false);
+    expect(visaIssuedPlace).toMatchObject({
+      required: false,
+      validation_rules: expect.objectContaining({
+        official_source: "prearrival_category:visa_issue_place",
+        depends_on: "visa_type",
+      }),
     });
   });
 

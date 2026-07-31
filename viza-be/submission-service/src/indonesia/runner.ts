@@ -7,6 +7,12 @@ import {
   connectBrowserbaseCloudBrowser,
 } from "../browserbase-session";
 import { solveCaptcha } from "../captcha";
+import {
+  inbox,
+  InboxDomainUnroutableError,
+  InboxTimeoutError,
+  type InboundMessage,
+} from "../inbox/wait-for-message";
 import type { IndonesiaOneTimeCard } from "./card-session";
 import {
   actionForIndonesiaPortalState,
@@ -34,6 +40,11 @@ export interface IndonesiaPortalProbeInput {
     waitTimeoutMs?: number;
     oneTimeCard?: IndonesiaOneTimeCard | null;
     takeOneTimeCard?: () => IndonesiaOneTimeCard | null;
+    beforeCardSubmit?: (snapshot: {
+      url: string;
+      title: string | null;
+      state: IndonesiaPortalStateId;
+    }) => Promise<{ allowed: boolean; reason?: string }>;
     onWaitingForUser?: (snapshot: {
       url: string;
       title: string | null;
@@ -1379,58 +1390,57 @@ async function waitForIndonesiaVerificationLink(
   diagnostics: string[],
 ): Promise<URL | null> {
   const alias = clean(accountEmail)?.toLowerCase();
-  const { supabase } = await import("../supabase");
   const timeoutMs = Number(process.env.INDONESIA_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
   const since = new Date(Date.now() - Number(process.env.INDONESIA_EMAIL_VERIFICATION_LOOKBACK_MS ?? "1800000")).toISOString();
-  const deadline = Date.now() + Math.max(10_000, timeoutMs);
 
   if (!alias) {
     diagnostics.push("indonesia_account_email_verification_alias_missing");
     return null;
   }
 
-  while (Date.now() < deadline) {
-    const { data, error } = await supabase
-      .from("inbound_email")
-      .select("id, to_addr, from_addr, subject, text, html, received_at, processed")
-      .eq("to_addr", alias)
-      .gte("received_at", since)
-      .order("received_at", { ascending: false })
-      .limit(10);
-    if (error) {
-      diagnostics.push(`indonesia_account_email_verification_lookup_failed ${error.message}`);
+  try {
+    const message = await inbox.waitForMessage(
+      applicantId,
+      (candidate) => {
+        const addressedToAlias =
+          candidate.to_addr.trim().toLowerCase() === alias;
+        const haystack =
+          `${candidate.from_addr ?? ""} ${candidate.subject ?? ""} ` +
+          `${candidate.text ?? ""} ${candidate.html ?? ""}`;
+        return (
+          addressedToAlias &&
+          /evisa\.imigrasi\.go\.id|notif\.imigrasi\.go\.id/i.test(haystack) &&
+          /verify|verification|activate|activation|confirm|account|email/i.test(haystack) &&
+          extractIndonesiaVerificationUrlFromEmail(candidate) !== null
+        );
+      },
+      Math.max(10_000, timeoutMs),
+      { since, pollIntervalMs: 3_000, newestFirst: true },
+    );
+    const link = extractIndonesiaVerificationUrlFromEmail(message);
+    if (!link) {
+      diagnostics.push(
+        `indonesia_account_email_verification_link_not_extracted received_at=${message.received_at}`,
+      );
       return null;
     }
-
-    for (const row of (data ?? []) as Array<{
-      id: string;
-      from_addr: string | null;
-      subject: string | null;
-      text: string | null;
-      html: string | null;
-      received_at: string;
-    }>) {
-      const haystack = `${row.from_addr ?? ""} ${row.subject ?? ""} ${row.text ?? ""} ${row.html ?? ""}`;
-      if (!/evisa\.imigrasi\.go\.id|imigrasi/i.test(haystack)) continue;
-      if (!/verify|verification|activate|activation|confirm|account|email/i.test(haystack)) continue;
-      const link = extractIndonesiaVerificationUrlFromEmail(row);
-      if (!link) {
-        diagnostics.push(`indonesia_account_email_verification_link_not_extracted received_at=${row.received_at}`);
-        continue;
-      }
-      try {
-        await supabase
-          .from("inbound_email")
-          .update({ processed: true, processed_at: new Date().toISOString() })
-          .eq("id", row.id);
-      } catch {
-        // Marking the email processed is best-effort; the activation link can still be used.
-      }
-      diagnostics.push(`indonesia_account_email_verification_link_found received_at=${row.received_at}`);
-      return link;
+    diagnostics.push(
+      `indonesia_account_email_verification_link_found received_at=${message.received_at}`,
+    );
+    return link;
+  } catch (error) {
+    if (error instanceof InboxDomainUnroutableError) {
+      diagnostics.push("indonesia_account_email_verification_inbox_unroutable");
+      return null;
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 5_000));
+    if (!(error instanceof InboxTimeoutError)) {
+      diagnostics.push(
+        `indonesia_account_email_verification_lookup_failed ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }
   }
 
   diagnostics.push(`indonesia_account_email_verification_timeout applicant=${applicantId}`);
@@ -3444,75 +3454,49 @@ async function waitForIndonesiaOtpCode(
     diagnostics.push("indonesia_otp_alias_missing");
     return null;
   }
-  const { supabase } = await import("../supabase");
   const timeoutMs = Number(process.env.INDONESIA_EMAIL_OTP_TIMEOUT_MS ?? "90000");
   const since = new Date(Date.now() - Number(process.env.INDONESIA_EMAIL_OTP_LOOKBACK_MS ?? "120000")).toISOString();
-  const deadline = Date.now() + Math.max(10_000, timeoutMs);
-
-  while (Date.now() < deadline) {
-    const { data, error } = await supabase
-      .from("inbound_email")
-      .select("id, subject, text, html, received_at")
-      .eq("to_addr", alias)
-      .ilike("subject", "%OTP%")
-      .eq("processed", false)
-      .gte("received_at", since)
-      .order("received_at", { ascending: false })
-      .limit(8);
-    if (error) {
-      diagnostics.push(`indonesia_otp_email_lookup_failed ${error.message}`);
-      return null;
-    }
-
-    for (const row of (data ?? []) as IndonesiaInboundEmailRow[]) {
-      const code = extractIndonesiaOtpCode(row);
-      if (!code) continue;
-      try {
-        await supabase
-          .from("inbound_email")
-          .update({ processed: true, processed_at: new Date().toISOString() })
-          .eq("id", row.id);
-      } catch {
-        // Marking the email processed is best-effort; the OTP can still be used once.
-      }
-      diagnostics.push(`indonesia_otp_email_consumed received_at=${row.received_at}`);
-      return code;
-    }
-
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from("inbound_email")
-      .select("id, subject, text, html, received_at")
-      .eq("from_addr", "no-reply@notif.imigrasi.go.id")
-      .ilike("subject", "%OTP%")
-      .eq("processed", false)
-      .gte("received_at", since)
-      .order("received_at", { ascending: false })
-      .limit(3);
-    if (fallbackError) {
-      diagnostics.push(`indonesia_otp_email_fallback_lookup_failed ${fallbackError.message}`);
-      return null;
-    }
-
-    for (const row of (fallbackData ?? []) as IndonesiaInboundEmailRow[]) {
-      const code = extractIndonesiaOtpCode(row);
-      if (!code) continue;
-      try {
-        await supabase
-          .from("inbound_email")
-          .update({ processed: true, processed_at: new Date().toISOString() })
-          .eq("id", row.id);
-      } catch {
-        // Marking the email processed is best-effort; the OTP can still be used once.
-      }
-      diagnostics.push(`indonesia_otp_email_fallback_consumed received_at=${row.received_at}`);
-      return code;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 3_000));
+  if (!input.applicantId) {
+    diagnostics.push("indonesia_otp_applicant_missing");
+    return null;
   }
 
-  diagnostics.push("indonesia_otp_email_not_found");
-  return null;
+  try {
+    const message = await inbox.waitForMessage(
+      input.applicantId,
+      (candidate: InboundMessage) => {
+        const addressedToAlias =
+          candidate.to_addr.trim().toLowerCase() === alias;
+        const sender = candidate.from_addr ?? "";
+        const content = `${candidate.subject ?? ""} ${candidate.text ?? ""} ${candidate.html ?? ""}`;
+        return (
+          addressedToAlias &&
+          /(?:^|@|\.)(?:notif\.)?imigrasi\.go\.id$/i.test(sender.trim()) &&
+          /otp|one[- ]?time|verification|login|kode/i.test(content) &&
+          extractIndonesiaOtpCode(candidate) !== null
+        );
+      },
+      Math.max(10_000, timeoutMs),
+      { since, pollIntervalMs: 3_000, newestFirst: true },
+    );
+    const code = extractIndonesiaOtpCode(message);
+    if (!code) return null;
+    diagnostics.push(`indonesia_otp_email_consumed received_at=${message.received_at}`);
+    return code;
+  } catch (error) {
+    if (error instanceof InboxDomainUnroutableError) {
+      diagnostics.push("indonesia_otp_inbox_unroutable");
+    } else if (error instanceof InboxTimeoutError) {
+      diagnostics.push("indonesia_otp_email_not_found");
+    } else {
+      diagnostics.push(
+        `indonesia_otp_email_lookup_failed ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    return null;
+  }
 }
 
 async function continueFromIndonesiaOtpPage(
@@ -3854,6 +3838,17 @@ async function waitForUserPaymentCompletion(
     input.userPaymentHandoff?.takeOneTimeCard?.() ??
     null;
   if (oneTimeCard) {
+    const preflight = await input.userPaymentHandoff?.beforeCardSubmit?.({
+      url,
+      title,
+      state,
+    });
+    if (preflight && !preflight.allowed) {
+      diagnostics.push(
+        `indonesia_payment_resource_preflight_blocked ${preflight.reason ?? "unspecified"}`,
+      );
+      return { state: "payment_required", title, text, url };
+    }
     const cardSubmitted = await payIndonesiaPortalWithOneTimeCard(activePage, oneTimeCard, diagnostics);
     if (!cardSubmitted) {
       const controlsVisible = await hasIndonesiaPortalEmailOtpControls(activePage);
@@ -3918,7 +3913,10 @@ async function waitForUserPaymentCompletion(
 
   if ((state === "payment_required" || state === "payment_otp_required") && Date.now() >= deadline) {
     diagnostics.push("indonesia_user_payment_wait_timeout");
-    state = "payment_failed";
+    // A timeout is not proof that the charge failed. Stop in an unknown state
+    // so the next operator action reconciles the official application before
+    // another card submission is attempted.
+    state = "unknown";
   }
   if (state === "unknown") {
     diagnostics.push(`indonesia_payment_terminal_result_unconfirmed ${state}`);

@@ -1186,17 +1186,20 @@ export async function runVietnamPrearrivalPortalSubmission(
       // Supplying both here duplicates the country prefix and fails its 3-14
       // digit validation before the Trip Information action can proceed.
       [[/phone/i, /điện thoại/i], officialLocalPhoneNumber(payload.phoneCountryCode, payload.phoneNumber), "phone_number"],
-      [[/^number\b/i], payload.visaNumber, "visa_number"],
+      [[/^number\b/i], payload.visaNumber ?? "", "visa_number"],
       [[/^date of issue/i], payload.visaIssueDate ? officialDate(payload.visaIssueDate) : "", "visa_issue_date"],
     ];
     for (const [labels, value, field] of passengerFillTasks) {
-      if (!value && (field === "surname" || field === "visa_issue_date")) continue;
+      if (!value && (field === "surname" || field === "visa_issue_date" || field === "visa_number")) continue;
       if (!(await fillNearLabel(page, labels, value))) missingControls.push(field);
     }
     if (!(await fillLabeledInputAt(page, /^date of expiry/i, 0, officialDate(payload.passportExpiryDate)))) {
       missingControls.push("passport_expiry_date");
     }
-    if (!(await fillLabeledInputAt(page, /^date of expiry/i, 1, officialDate(payload.visaExpiryDate)))) {
+    if (
+      payload.visaExpiryDate
+      && !(await fillLabeledInputAt(page, /^date of expiry/i, 1, officialDate(payload.visaExpiryDate)))
+    ) {
       missingControls.push("visa_expiry_date");
     }
 
