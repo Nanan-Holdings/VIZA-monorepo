@@ -199,8 +199,9 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
   const mapping = VN_FIELD_MAPPINGS[fieldName];
   const normalized = rawValue.trim().toLowerCase();
   const normalizedSlug = normalized.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-  const explicit = mapping?.optionLabels?.[normalized];
+  const explicit = mapping?.optionLabels?.[normalized] ?? mapping?.optionLabels?.[normalizedSlug];
   if (explicit) return explicit;
+  if (fieldName === "occupation") return normalizeVnOccupationOption(rawValue);
   const countryText = normalizeVnCountryOptionText(rawValue);
   if (
     countryText &&
@@ -228,6 +229,33 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
       .replace(/\bSeaport\b/g, "Seaport");
   }
   return rawValue;
+}
+
+export function normalizeVnOccupationOption(rawValue: string): string {
+  const normalized = rawValue
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  if (!normalized) return "Others";
+  if (/\b(unemployed|jobless|not employed)\b/.test(normalized)) return "Unemployed";
+  if (/\b(retired|retiree|pensioner)\b/.test(normalized)) return "Retired";
+  if (/\b(student|pupil|undergraduate|postgraduate)\b/.test(normalized)) return "Student";
+  if (/\b(government|civil servant|public servant|official|diplomat|military|police)\b/.test(normalized)) {
+    return "Official";
+  }
+  if (/\b(businessman|business owner|entrepreneur|merchant|self employed|selfemployed)\b/.test(normalized)) {
+    return "Businessman";
+  }
+  if (
+    /\b(employee|engineer|developer|manager|consultant|accountant|teacher|doctor|nurse|lawyer|designer|analyst|staff|worker|sales|marketing|banker|architect|scientist|researcher|professor)\b/.test(
+      normalized,
+    )
+  ) {
+    return "Employee";
+  }
+  return "Others";
 }
 
 export function normalizeVnCountryOptionText(rawValue: string): string | null {

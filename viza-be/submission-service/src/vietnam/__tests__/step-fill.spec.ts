@@ -14,6 +14,7 @@ import {
   getVnCountryOptionIndex,
   getVnCountrySearchTextForOptionText,
   getVnPortalOptionText,
+  normalizeVnOccupationOption,
   normalizeVnCountryOptionText,
   VN_FIELD_MAPPINGS,
 } from "../field-mappings.js";
@@ -113,6 +114,15 @@ test("vn.step-fill: select option matching escapes portal labels", () => {
   const pattern = buildAntSelectOptionRegex("Cat Bi Int Airport (Hai Phong)");
   assert.equal(pattern.test("Cat Bi Int Airport (Hai Phong)"), true);
   assert.equal(pattern.test("Cat Bi Int Airport Hai Phong"), false);
+});
+
+test("vn.step-fill: free-text occupations map to official portal categories", () => {
+  assert.equal(normalizeVnOccupationOption("Software engineer"), "Employee");
+  assert.equal(normalizeVnOccupationOption("Self-employed consultant"), "Businessman");
+  assert.equal(normalizeVnOccupationOption("Civil servant"), "Official");
+  assert.equal(normalizeVnOccupationOption("University student"), "Student");
+  assert.equal(normalizeVnOccupationOption("Homemaker"), "Others");
+  assert.equal(getVnPortalOptionText("occupation", "software_engineer"), "Employee");
 });
 
 test("vn.step-fill: virtual select candidates match exact and token-equivalent labels", () => {
