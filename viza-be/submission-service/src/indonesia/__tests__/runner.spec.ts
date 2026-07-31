@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import {
   INDONESIA_B1_EVOA_PORTAL_URL,
@@ -169,6 +171,15 @@ test("extracts Indonesia email OTP from quoted-printable portal wording", () => 
     }),
     "A1B2C3",
   );
+});
+
+test("scopes Indonesia verification and OTP waits to applicant alias inboxes", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const aliasAddressChecks =
+    source.match(/candidate\.to_addr\.trim\(\)\.toLowerCase\(\) === alias/g) ?? [];
+
+  assert.equal(aliasAddressChecks.length, 2);
+  assert.doesNotMatch(source, /\.from\(["']inbound_email["']\)/);
 });
 
 test("classifies Indonesia portal login and registration gates", () => {

@@ -15,7 +15,10 @@ interface RpcError {
 
 interface SubmissionQueueClaimClient {
   rpc(
-    name: "claim_submission_queue_batch" | "claim_vn_cloud_submission_queue_batch",
+    name:
+      | "claim_submission_queue_batch"
+      | "claim_vn_cloud_submission_queue_batch"
+      | "claim_indonesia_submission_queue_batch",
     args: {
       p_worker_id: string;
       p_limit: number;
@@ -28,7 +31,10 @@ interface SubmissionQueueClaimClient {
 
 async function claimSubmissionQueueItems(
   client: SubmissionQueueClaimClient,
-  rpcName: "claim_submission_queue_batch" | "claim_vn_cloud_submission_queue_batch",
+  rpcName:
+    | "claim_submission_queue_batch"
+    | "claim_vn_cloud_submission_queue_batch"
+    | "claim_indonesia_submission_queue_batch",
   options: SubmissionQueueClaimOptions,
 ): Promise<SubmissionQueueItem[]> {
   const { data, error } = await client.rpc(rpcName, {
@@ -60,6 +66,17 @@ export async function claimPendingVietnamCloudQueueItems(
   return claimSubmissionQueueItems(client, "claim_vn_cloud_submission_queue_batch", options);
 }
 
+export async function claimPendingIndonesiaQueueItems(
+  client: SubmissionQueueClaimClient,
+  options: SubmissionQueueClaimOptions,
+): Promise<SubmissionQueueItem[]> {
+  return claimSubmissionQueueItems(
+    client,
+    "claim_indonesia_submission_queue_batch",
+    options,
+  );
+}
+
 export function isSubmissionQueueClaimRpcUnavailableError(error: unknown): boolean {
   const maybeRecord = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
   const code = typeof maybeRecord.code === "string" ? maybeRecord.code : "";
@@ -67,7 +84,7 @@ export function isSubmissionQueueClaimRpcUnavailableError(error: unknown): boole
 
   return (
     code === "PGRST202" ||
-    /claim_submission_queue_batch/i.test(message) &&
+    /claim_(?:vn_cloud_|indonesia_)?submission_queue_batch/i.test(message) &&
       (/schema cache/i.test(message) ||
         /could not find/i.test(message) ||
         /does not exist/i.test(message) ||

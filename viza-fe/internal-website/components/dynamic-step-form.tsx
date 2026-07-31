@@ -819,13 +819,84 @@ export function withVnPrearrivalOtherHotelOption(
 export function ensureVnPrearrivalOtherFlightFlow(
   steps: WizardStep[],
 ): WizardStep[] {
-  return steps.map((step) => {
-    const flightField = step.fields.find((field) => field.fieldName === "flight_number");
-    if (!flightField || flightField.visaType !== "VN_PREARRIVAL_DECLARATION") return step;
+  const visaTypeOptions =
+    getVnPrearrivalStaticOptions("prearrival_category:visa_type") ?? [];
+  const visaCredentialsOptionalExpression =
+    "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]";
 
+  return steps.map((step) => {
+    const isVnPrearrivalStep = step.fields.some(
+      (field) => field.visaType === "VN_PREARRIVAL_DECLARATION",
+    );
+    if (!isVnPrearrivalStep) return step;
+
+    const flightField = step.fields.find((field) => field.fieldName === "flight_number");
     let changed = false;
     let hasCustomFlightField = false;
     const fields = step.fields.map((field) => {
+      if (field.fieldName === "visa_type") {
+        changed = true;
+        return {
+          ...field,
+          required: true,
+          options: visaTypeOptions.length > 0 ? visaTypeOptions : field.options,
+          validationRules: {
+            ...(field.validationRules ?? {}),
+            official: true,
+            official_source: "prearrival_category:visa_type",
+          },
+        };
+      }
+
+      if (field.fieldName === "visa_number") {
+        changed = true;
+        return {
+          ...field,
+          required: true,
+          validationRules: {
+            ...(field.validationRules ?? {}),
+            official: true,
+            maxLength: 64,
+            required_unless: visaCredentialsOptionalExpression,
+            numeric_length_when: { field: "visa_type", equals: "EV", length: 9 },
+          },
+        };
+      }
+
+      if (field.fieldName === "visa_expiry_date") {
+        changed = true;
+        return {
+          ...field,
+          required: true,
+          validationRules: {
+            ...(field.validationRules ?? {}),
+            official: true,
+            required_unless: visaCredentialsOptionalExpression,
+          },
+        };
+      }
+
+      if (field.fieldName === "visa_issue_date") {
+        if (!field.required) return field;
+        changed = true;
+        return { ...field, required: false };
+      }
+
+      if (field.fieldName === "visa_issued_place") {
+        changed = true;
+        return {
+          ...field,
+          required: false,
+          validationRules: {
+            ...(field.validationRules ?? {}),
+            official: true,
+            official_source: "prearrival_category:visa_issue_place",
+            remote_search: true,
+            depends_on: "visa_type",
+          },
+        };
+      }
+
       if (field.fieldName === "custom_flight_number") {
         hasCustomFlightField = true;
         const expectedCondition = "mode_of_travel === air && flight_number === other";
@@ -861,7 +932,7 @@ export function ensureVnPrearrivalOtherFlightFlow(
       };
     });
 
-    if (!hasCustomFlightField) {
+    if (flightField && !hasCustomFlightField) {
       changed = true;
       fields.push({
         id: `${flightField.id}:custom-flight-number`,
@@ -3372,7 +3443,7 @@ export function DynamicStepForm({
     ) {
       return true;
     }
-    return field.required;
+    return field.required && !isRequiredUnlessSatisfied(field, values);
   };
 
   // Required validation: only check visible fields (and all instances of repeat groups)
@@ -3381,10 +3452,6 @@ export function DynamicStepForm({
     // File fields are mirrored from official portals for parity, but the
     // actual upload state is managed by Document Center.
     .filter((f) => f.fieldType !== "file")
-    // Annex-I-style starred fields: required_unless exempts the field when its
-    // expression evaluates true (e.g. UK Withdrawal Agreement beneficiaries
-    // skip fields 21/22/30/31/32 of the Schengen form).
-    .filter((f) => !isRequiredUnlessSatisfied(f, values))
     .every((f) => {
       const group = getRepeatGroup(f);
       if (group) {
@@ -3632,6 +3699,7 @@ export function DynamicStepForm({
 
     const guidanceField: VisaFormFieldRow = {
       ...field,
+      required: isRequiredField(field),
       fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
       label: getLocalizedFieldLabel(field, isChineseInterface ? "zh" : "en"),
       options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),

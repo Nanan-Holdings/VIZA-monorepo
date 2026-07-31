@@ -8,14 +8,15 @@ import {
   resolveRunnerPoolFlow,
   type RunnerPoolFlowKey,
 } from "@/lib/queue/flows";
+import { isIndonesiaEVisaApplication } from "@/lib/submission-queue";
 
 /**
- * Producers for the typed six-country runner pool.
+ * Producers for shared-pool and sticky submission runners.
  *
  * New supported flows use one service-role-only database RPC so a repeated
  * click cannot race another request or an in-flight legacy submission. The
  * direct insert path remains available behind the migration flag as a
- * rollback path until the six-country parity gate is opened.
+ * rollback path until each flow's pool parity gate is opened.
  */
 
 export interface EnqueueOpts {
@@ -166,7 +167,46 @@ export async function enqueueRunnerJob(
     return (data.visa_type as string | null) ?? null;
   });
   const flowKey = opts.flowKey ?? resolveRunnerPoolFlow(normalizedCountry, visaType);
-  if (poolMigrationEnabled() && flowKey) {
+  if (isIndonesiaEVisaApplication(normalizedCountry, visaType)) {
+    const isB1 = visaType?.trim().toUpperCase().includes("B1") ?? false;
+    const status = isB1
+      ? "id_b1_evoa_live_assisted_pending"
+      : "id_c1_live_assisted_pending";
+    const provider = isB1
+      ? "indonesia_b1_evoa_live"
+      : "indonesia_c1_live";
+    const result = await withAdmin(
+      "system",
+      "lib/queue:enqueue-indonesia-sticky",
+      async (admin) => {
+        const { data, error } = await admin.rpc("enqueue_submission_retry", {
+          p_application_id: applicationId,
+          p_status: status,
+          p_mode: "live_assisted",
+          p_provider: provider,
+          p_current_stage: "queued_for_indonesia_sticky_worker",
+        });
+        if (error) throw new Error(`Indonesia sticky enqueue: ${error.message}`);
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row?.queue_id) {
+          throw new Error("Indonesia sticky enqueue returned no queue id");
+        }
+        return {
+          id: String(row.queue_id),
+          created: !row.reused_existing,
+        };
+      },
+    );
+    const wake = await ensureFlyMachineStarted("indonesia");
+    if (!wake.ok && wake.reason !== "not_configured") {
+      console.warn("[indonesia] Sticky Fly wake failed; reconciler will recover.", {
+        jobId: result.id.slice(0, 8),
+        reason: wake.reason,
+      });
+    }
+    return result;
+  }
+  if ((poolMigrationEnabled() || flowKey === "vn_prearrival") && flowKey) {
     const result = await enqueueRunnerPoolJob(applicationId, normalizedCountry, flowKey, opts);
     return { id: result.id, created: result.created };
   }

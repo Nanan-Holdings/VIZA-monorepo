@@ -91,6 +91,45 @@ describe("Vietnam pre-arrival official option mapping", () => {
     });
   });
 
+  it.each([
+    ["CHN", "China", "中国"],
+    ["DOM", "Dominican Republic", "多米尼加共和国"],
+    ["LAO", "Lao People's Democratic Republic", "老挝"],
+    ["MDA", "Republic of Moldova", "摩尔多瓦"],
+    ["SJM", "Svalbard and Jan Mayen Islands", "斯瓦尔巴和扬马延"],
+    ["VAT", "Holy See", "梵蒂冈"],
+    ["COD", "Democratic Republic of the Congo", "刚果（金）"],
+  ])("maps official nationality %s to a complete Chinese label", (code, english, chinese) => {
+    expect(
+      __testables.optionFromOfficial(
+        {
+          code,
+          en_value: english,
+          vn_value: english,
+        },
+        "nationality",
+      ),
+    ).toMatchObject({
+      value: code,
+      label_en: english,
+      label_zh: chinese,
+      official_label: english,
+    });
+  });
+
+  it("maps every current official nationality code to a non-Latin Chinese region label", () => {
+    const officialNationalityCodes = [
+      "CHN", "DOM", "LAO", "MDA", "SJM", "VAT", "COD", "COG", "SGP", "MYS",
+      "THA", "IDN", "VNM", "USA", "GBR", "AUS", "CAN", "NZL", "JPN", "KOR",
+    ];
+
+    for (const code of officialNationalityCodes) {
+      const label = __testables.zhRegionNameFromOfficialCode(code);
+      expect(label, code).not.toBe("");
+      expect(label, code).not.toMatch(/[A-Za-z]/);
+    }
+  });
+
   it("filters official hotel options locally after loading findAllActive hotel", () => {
     const options = [
       { value: "KSHN_0001", text: "Sofitel Legend Metropole Hanoi", label_en: "Sofitel Legend Metropole Hanoi", label_zh: "Sofitel Legend Metropole Hanoi", official_label: "Sofitel Legend Metropole Hanoi" },

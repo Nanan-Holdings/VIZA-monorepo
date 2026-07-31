@@ -53,10 +53,8 @@ test("dispatch: Korea aliases normalize and resolve", () => {
   assert.equal(getRunOne("kr"), getRunOne("south_korea"));
 });
 
-test("dispatch: all six-country pool flow keys resolve only for their country", () => {
+test("dispatch: shared-pool flow keys resolve only for their country", () => {
   const flows = [
-    ["indonesia", "id_c1"],
-    ["indonesia", "id_b1_evoa"],
     ["vietnam", "vn_evisa"],
     ["vietnam", "vn_prearrival"],
     ["singapore", "sgac"],

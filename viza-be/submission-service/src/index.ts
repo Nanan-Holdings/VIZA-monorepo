@@ -88,10 +88,10 @@ import {
 } from "./france-visas";
 import {
   ensureApplicantInboxAlias,
-  ensureApplicantInboxAliasForDomain,
   generateApplicantInboxAlias,
 } from "./inbox/alias";
 import { assertInboxAliasDomainRoutable } from "./inbox/wait-for-message";
+import { hasAliasEmailForwardingConsent } from "./inbox/forwarding-consent.js";
 import { createSupabaseMailboxProvider } from "./france-visas/mailbox-provider";
 import {
   startUkSession,
@@ -147,6 +147,7 @@ import {
 } from "./queue-scheduler";
 import {
   claimBatchLimitForConcurrency,
+  claimPendingIndonesiaQueueItems,
   claimPendingSubmissionQueueItems,
   claimPendingVietnamCloudQueueItems,
   isSubmissionQueueClaimRpcUnavailableError,
@@ -221,10 +222,14 @@ import {
   INDONESIA_C1_PORTAL_URL,
   runIndonesiaLiveSubmission,
 } from "./indonesia";
-import { hasPreparedIndonesiaPortalAccount } from "./indonesia/managed-account";
+import {
+  IndonesiaAliasPreflightError,
+  prepareIndonesiaCanonicalAliasAccount,
+} from "./indonesia/account-alias.js";
 import { hasActiveKoreaKvacOfficialSessions } from "./korea-kvac/live-session.js";
 import {
   hasCountryRunnerWork,
+  hasIndonesiaWorkerWork,
   hasLegacyWorkerWork,
 } from "./work-availability.js";
 
@@ -348,6 +353,10 @@ const LEGACY_SUBMISSION_QUEUE_ENABLED = readBooleanEnv(
 );
 const VN_CLOUD_QUEUE_ENABLED = readBooleanEnv(
   "VN_CLOUD_QUEUE_ENABLED",
+  false,
+);
+const INDONESIA_QUEUE_ENABLED = readBooleanEnv(
+  "SUBMISSION_SERVICE_INDONESIA_QUEUE_ENABLED",
   false,
 );
 const RUNNER_JOB_COUNTRY = process.env.RUNNER_JOB_COUNTRY?.trim().toLowerCase() || undefined;
@@ -474,6 +483,18 @@ async function fetchPendingItems(input: {
   }
 
   const claimLimit = input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency);
+  const indonesiaItems = INDONESIA_QUEUE_ENABLED
+    ? await claimPendingIndonesiaQueueItems(supabase, {
+        workerId: SUBMISSION_QUEUE_WORKER_ID,
+        limit: claimLimit,
+        leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+        targetJobId: input.targetJobId ?? null,
+        maxAttempts: MAX_ATTEMPTS,
+      })
+    : [];
+  if (input.targetJobId && indonesiaItems.length > 0) {
+    return indonesiaItems;
+  }
   const cloudVietnamItems = VN_CLOUD_QUEUE_ENABLED
     ? await claimPendingVietnamCloudQueueItems(supabase, {
         workerId: SUBMISSION_QUEUE_WORKER_ID,
@@ -487,15 +508,20 @@ async function fetchPendingItems(input: {
     return cloudVietnamItems;
   }
 
+  const claimedDedicatedItems = [...indonesiaItems, ...cloudVietnamItems];
+  if (!LEGACY_SUBMISSION_QUEUE_ENABLED) {
+    return claimedDedicatedItems
+      .slice(0, claimLimit)
+      .sort((left, right) => queuePriority(left) - queuePriority(right));
+  }
+
   let items: SubmissionQueueItem[];
   try {
     if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
       let query = supabase
         .from("submission_queue")
         .select("*")
-        .in("status", STALE_QUEUE_STATUSES.filter((status) =>
-          status.endsWith("_pending") || status.endsWith("_scheduled") || status === "pending"
-        ))
+        .in("status", legacyPendingQueueStatuses())
         .lt("attempts", MAX_ATTEMPTS)
         .order("created_at", { ascending: true })
         .limit(input.targetJobId ? 1 : claimLimit);
@@ -516,7 +542,7 @@ async function fetchPendingItems(input: {
 
     items = await claimPendingSubmissionQueueItems(supabase, {
       workerId: SUBMISSION_QUEUE_WORKER_ID,
-      limit: Math.max(1, claimLimit - cloudVietnamItems.length),
+      limit: Math.max(1, claimLimit - claimedDedicatedItems.length),
       leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
       targetJobId: input.targetJobId ?? null,
       maxAttempts: MAX_ATTEMPTS,
@@ -532,7 +558,7 @@ async function fetchPendingItems(input: {
     console.warn(`[poll] claim_submission_queue_batch unavailable; using local select fallback: ${message}`);
     items = await selectPendingItemsFallback(input);
   }
-  const mergedItems = [...cloudVietnamItems, ...items].filter(
+  const mergedItems = [...claimedDedicatedItems, ...items].filter(
     (item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index,
   );
   return mergedItems
@@ -547,9 +573,7 @@ async function selectPendingItemsFallback(input: {
   const query = supabase
     .from("submission_queue")
     .select("*")
-    .in("status", STALE_QUEUE_STATUSES.filter((status) =>
-      status.endsWith("_pending") || status.endsWith("_scheduled") || status === "pending"
-    ))
+    .in("status", legacyPendingQueueStatuses())
     .lt("attempts", MAX_ATTEMPTS)
     .order("created_at", { ascending: true })
     .limit(input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency));
@@ -3648,75 +3672,6 @@ async function createVietnamManualAction(
   }
 }
 
-const DEFAULT_INDONESIA_ALIAS_DOMAIN = "viza.it.com";
-
-function parseAliasDomain(value: string | null | undefined): string | null {
-  const normalized = value?.trim().toLowerCase();
-  if (!normalized) return null;
-  const at = normalized.lastIndexOf("@");
-  if (at < 0 || at === normalized.length - 1) return null;
-  return normalized.slice(at + 1);
-}
-
-function normalizeAliasDomain(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/^\./, "")
-    .replace(/^@/, "");
-}
-
-function parseIndonesiaManagedAliasDomains(currentDomain: string | null): string[] {
-  const domains: string[] = [];
-  const envValue = process.env.INDONESIA_MANAGED_ALIAS_DOMAINS;
-  const legacyValue = process.env.INDONESIA_MANAGED_ALIAS_DOMAIN;
-
-  const collect = (value: string | undefined) => {
-    if (!value) return;
-    value
-      .split(/[,\s;|]+/)
-      .map((domain) => normalizeAliasDomain(domain))
-      .filter(Boolean)
-      .forEach((domain) => {
-        if (!domains.includes(domain)) {
-          domains.push(domain);
-        }
-      });
-  };
-
-  collect(envValue);
-  if (domains.length === 0) {
-    collect(legacyValue);
-  }
-  if (domains.length === 0) {
-    domains.push(DEFAULT_INDONESIA_ALIAS_DOMAIN);
-  }
-
-  const normalizedCurrent = normalizeAliasDomain(currentDomain ?? "");
-  if (normalizedCurrent && !domains.includes(normalizedCurrent)) {
-    domains.unshift(normalizedCurrent);
-  }
-  return domains;
-}
-
-function isManagedIndonesiaAliasEmail(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  return /^appl-[0-9a-z]{26}@/.test(normalized);
-}
-
-function shouldRotateIndonesiaAlias(result: { status?: string; actionType?: string | null; message?: string; actionInstructions?: string | null }, managedEmail: string): boolean {
-  if (!managedEmail || !isManagedIndonesiaAliasEmail(managedEmail)) return false;
-  if (result.status !== "action_required") return false;
-  if (result.actionType !== "official_account_registration_form_reached") return false;
-  const haystack = `${result.actionType ?? ""} ${result.message ?? ""} ${result.actionInstructions ?? ""}`.toLowerCase();
-  return (
-    /indonesia_account_email_verification_not_found_yet/.test(haystack) ||
-    /silahkan\s+periksa\s+kembali\s+email/.test(haystack) ||
-    /check\s+your\s+email/.test(haystack) ||
-    /indonesia_account_registration_errors/.test(haystack)
-  );
-}
-
 function generatePhEtravelMpin(): string {
   const value = randomBytes(4).readUInt32BE(0) % 1_000_000;
   return value.toString().padStart(6, "0");
@@ -6049,47 +6004,17 @@ async function uploadArrivalCardArtifacts(input: {
   return uploaded;
 }
 
-const VN_PREARRIVAL_FORWARDING_CONSENT = {
-  type: "alias_email_forwarding",
-  version: "2026-07-22",
-  documentHash:
-    "sha256:5d2d7fcccd083bbde90b9d42529b5f8cab380fd7bf26a79eb2ba84315f1fb212",
-} as const;
-
-async function hasCurrentVnPrearrivalEmailForwardingConsent(
-  applicantId: string,
-): Promise<boolean> {
-  const { data: accountConsent, error: accountError } = await supabase
-    .from("consent_event")
-    .select("id")
-    .eq("applicant_id", applicantId)
-    .eq("doc_kind", VN_PREARRIVAL_FORWARDING_CONSENT.type)
-    .eq("doc_version", VN_PREARRIVAL_FORWARDING_CONSENT.version)
-    .limit(1)
-    .maybeSingle();
-  if (accountError) {
-    throw new Error(
-      `Vietnam Pre-Arrival account email forwarding consent lookup failed: ${accountError.message}`,
-    );
-  }
-  if (accountConsent?.id) return true;
-
-  const { data: applicationConsent, error: applicationError } = await supabase
-    .from("consent_events")
-    .select("id")
-    .eq("applicant_id", applicantId)
-    .eq("consent_type", VN_PREARRIVAL_FORWARDING_CONSENT.type)
-    .eq("version", VN_PREARRIVAL_FORWARDING_CONSENT.version)
-    .eq("document_hash", VN_PREARRIVAL_FORWARDING_CONSENT.documentHash)
-    .eq("accepted", true)
-    .limit(1)
-    .maybeSingle();
-  if (applicationError) {
-    throw new Error(
-      `Vietnam Pre-Arrival application email forwarding consent lookup failed: ${applicationError.message}`,
-    );
-  }
-  return Boolean(applicationConsent?.id);
+function legacyPendingQueueStatuses(): SubmissionQueueItem["status"][] {
+  return STALE_QUEUE_STATUSES.filter((status) =>
+    (status.endsWith("_pending") ||
+      status.endsWith("_scheduled") ||
+      status === "pending") &&
+    status !== "id_c1_live_assisted_pending" &&
+    status !== "id_b1_evoa_live_assisted_pending" &&
+    status !== "vn_prearrival_dry_run_pending" &&
+    status !== "vn_prearrival_live_assisted_scheduled" &&
+    status !== "vn_prearrival_live_assisted_pending",
+  );
 }
 
 async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Promise<void> {
@@ -6214,7 +6139,7 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
       });
       return;
     }
-    if (!(await hasCurrentVnPrearrivalEmailForwardingConsent(profile.id))) {
+    if (!(await hasAliasEmailForwardingConsent(profile.id))) {
       await writeFailure({
         status: "validation_failed",
         code: "vn_prearrival_email_forwarding_consent_required",
@@ -6940,9 +6865,17 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const answers = await loadDs160Answers(item.application_id);
     const managedVaultEmail = await applicantVault.get(profile.id, "indonesia.portal.email", vaultOpts);
     const managedVaultPassword = await applicantVault.get(profile.id, "indonesia.portal.password", vaultOpts);
-
-    const existingAliasDomain = parseAliasDomain(managedVaultEmail);
-    const aliasDomains = parseIndonesiaManagedAliasDomains(existingAliasDomain);
+    const managedAccount = await prepareIndonesiaCanonicalAliasAccount({
+      applicantId: profile.id,
+      currentEmail: managedVaultEmail,
+      currentPassword: managedVaultPassword,
+      generatedPassword: generateFvPortalPassword(),
+      correlationId: item.id,
+    });
+    console.log(
+      `[indonesia] Canonical alias ready application=${redactIdentifier(item.application_id)} ` +
+      `migrated=${managedAccount.migrated} reuseAccount=${managedAccount.reuseExistingAccount}`,
+    );
 
     const reusableDocuments = await loadReusableApplicantDocuments(
       profile.id,
@@ -6980,17 +6913,6 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       /passport_bio_page/i,
       /passport_copy/i,
     ]);
-    const vaultPortalPassword = managedVaultPassword ?? generateFvPortalPassword();
-    if (!managedVaultPassword) {
-      await applicantVault.set(profile.id, "indonesia.portal.password", vaultPortalPassword, {
-        ...vaultOpts,
-        note: "VIZA-managed Indonesia eVisa portal password",
-      });
-    }
-    const preparedPortalAccount = hasPreparedIndonesiaPortalAccount({
-      email: managedVaultEmail,
-      password: vaultPortalPassword,
-    });
     // Indonesia B1/C1 payment is a closed cloud workflow. Never downgrade a
     // card-authorized run to a visible/manual official-payment handoff.
     const userPaymentHandoffEnabled = true;
@@ -7008,6 +6930,62 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       waitTimeoutMs: Number.parseInt(process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? `${10 * 60 * 1000}`, 10),
       oneTimeCard: oneTimeIndonesiaCard,
       takeOneTimeCard: () => consumeIndonesiaCardSession(item.application_id),
+      beforeCardSubmit: async () => {
+        const memory = process.memoryUsage();
+        const rssMb = Math.round(memory.rss / 1024 / 1024);
+        const heapUsedMb = Math.round(memory.heapUsed / 1024 / 1024);
+        let runtimeUsedMb = rssMb;
+        let runtimeMemorySource = "process_rss";
+        try {
+          const cgroupBytes = Number.parseInt(
+            fs.readFileSync("/sys/fs/cgroup/memory.current", "utf8").trim(),
+            10,
+          );
+          if (Number.isFinite(cgroupBytes)) {
+            runtimeUsedMb = Math.round(cgroupBytes / 1024 / 1024);
+            runtimeMemorySource = "cgroup_v2";
+          }
+        } catch {
+          // Local development and non-cgroup hosts fall back to process RSS.
+        }
+        const configuredLimit = Number.parseInt(
+          process.env.INDONESIA_PAYMENT_MAX_RSS_MB ?? "1700",
+          10,
+        );
+        const limitMb = Number.isFinite(configuredLimit)
+          ? Math.max(512, configuredLimit)
+          : 1700;
+        const allowed = runtimeUsedMb < limitMb;
+        console.log(
+          `[indonesia] Payment memory preflight application=${redactIdentifier(item.application_id)} ` +
+          `runtimeUsedMb=${runtimeUsedMb} source=${runtimeMemorySource} rssMb=${rssMb} ` +
+          `heapUsedMb=${heapUsedMb} limitMb=${limitMb} allowed=${allowed}`,
+        );
+        await supabase
+          .from("submission_queue")
+          .update({
+            heartbeat_at: new Date().toISOString(),
+            vn_result_payload: {
+              ...(item.vn_result_payload ?? {}),
+              memoryPreflight: {
+                runtimeUsedMb,
+                runtimeMemorySource,
+                rssMb,
+                heapUsedMb,
+                limitMb,
+                allowed,
+              },
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.id);
+        return {
+          allowed,
+          reason: allowed
+            ? undefined
+            : `runtime_memory_mb_${runtimeUsedMb}_exceeds_safe_payment_limit_${limitMb}`,
+        };
+      },
       onWaitingForUser: async (snapshot: {
         url: string;
         title: string | null;
@@ -7048,130 +7026,48 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       },
     };
 
-    let result: Awaited<ReturnType<typeof runIndonesiaLiveSubmission>> = {
-      country: "GENERIC",
-      targetCountry: "ID",
-      visaType: isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST",
-      status: "action_required",
-      mode: "live_assisted",
+    await markIndonesiaQueueStage(item.id, "official_portal_running", provider);
+    const result = await runIndonesiaLiveSubmission({
       applicationId: item.application_id,
-      actionType: "live_portal_recon_required",
-      actionInstructions: "Preparing Indonesia managed account before portal recon.",
-      implementationStatus: "partial",
-      message: "Indonesia managed account prep not started.",
-    };
-
-    if (preparedPortalAccount) {
-      const existingPortalEmail = managedVaultEmail!;
-      await markIndonesiaQueueStage(item.id, "official_portal_running", provider);
-      result = await runIndonesiaLiveSubmission({
-        applicationId: item.application_id,
-        visaType: application.visa_type || (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
-        answers: {
-          ...answers,
-          email: existingPortalEmail,
-          email_address: existingPortalEmail,
-        },
-        managedAccountAvailable: true,
-        managedAccountEmail: existingPortalEmail,
-        managedAccountPassword: vaultPortalPassword,
-        applicantId: profile.id,
-        passportImagePath,
-        photoImagePath,
-        returnTicketPath,
-        bankStatementPath: bankStatementPath && /\.pdf$/i.test(bankStatementPath)
-          ? bankStatementPath
-          : undefined,
-        passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
-          ? passportSupportPath
-          : undefined,
-        profile: {
-          fullName: profile.full_name,
-          gender: profile.gender,
-          dateOfBirth: profile.date_of_birth,
-          placeOfBirth: profile.place_of_birth,
-          nationality: profile.nationality,
-          passportNumber: profile.passport_number,
-          passportIssueDate: profile.passport_issue_date,
-          passportExpiryDate: profile.passport_expiry_date,
-          passportIssuingCountry: profile.issuing_country,
-          passportIssuingAuthority: profile.issuing_authority,
-          phone: profile.phone,
-        },
-        probeOfficialPortal: true,
-        portalProbeHeadless,
-        userPaymentHandoff,
-        onStage: async (stage, snapshot) => {
-          await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
-        },
-      });
-    } else {
-      for (let attempt = 0; attempt < aliasDomains.length; attempt += 1) {
-        const alias = await ensureApplicantInboxAliasForDomain(profile.id, aliasDomains[attempt], supabase);
-        const managedAliasEmail = alias.alias;
-
-        await applicantVault.set(profile.id, "indonesia.portal.email", managedAliasEmail, {
-          ...vaultOpts,
-          note: "VIZA-managed Indonesia eVisa portal alias email",
-        });
-
-        await markIndonesiaQueueStage(item.id, "official_portal_running", provider);
-        result = await runIndonesiaLiveSubmission({
-          applicationId: item.application_id,
-          visaType: application.visa_type || (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
-          answers: {
-            ...answers,
-            email: managedAliasEmail,
-            email_address: managedAliasEmail,
-          },
-          managedAccountAvailable: true,
-          managedAccountEmail: managedAliasEmail,
-          managedAccountPassword: vaultPortalPassword,
-          applicantId: profile.id,
-          passportImagePath,
-          photoImagePath,
-          returnTicketPath,
-          bankStatementPath: bankStatementPath && /\.pdf$/i.test(bankStatementPath)
-            ? bankStatementPath
-            : undefined,
-          passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
-            ? passportSupportPath
-            : undefined,
-          profile: {
-            fullName: profile.full_name,
-            gender: profile.gender,
-            dateOfBirth: profile.date_of_birth,
-            placeOfBirth: profile.place_of_birth,
-            nationality: profile.nationality,
-            passportNumber: profile.passport_number,
-            passportIssueDate: profile.passport_issue_date,
-            passportExpiryDate: profile.passport_expiry_date,
-            passportIssuingCountry: profile.issuing_country,
-            passportIssuingAuthority: profile.issuing_authority,
-            phone: profile.phone,
-          },
-          probeOfficialPortal: true,
-          portalProbeHeadless,
-          userPaymentHandoff,
-          onStage: async (stage, snapshot) => {
-            await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
-          },
-        });
-
-        if (
-          result.status === "action_required" &&
-          result.implementationStatus === "partial" &&
-          shouldRotateIndonesiaAlias(result, managedAliasEmail) &&
-          attempt + 1 < aliasDomains.length
-        ) {
-          console.log(
-            `[indonesia] ${provider} email check failed for ${redactIdentifier(managedAliasEmail)}; rotating domain`,
-          );
-          continue;
-        }
-        break;
-      }
-    }
+      visaType: application.visa_type || (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
+      answers: {
+        ...answers,
+        email: managedAccount.email,
+        email_address: managedAccount.email,
+      },
+      managedAccountAvailable: true,
+      managedAccountEmail: managedAccount.email,
+      managedAccountPassword: managedAccount.password,
+      applicantId: profile.id,
+      passportImagePath,
+      photoImagePath,
+      returnTicketPath,
+      bankStatementPath: bankStatementPath && /\.pdf$/i.test(bankStatementPath)
+        ? bankStatementPath
+        : undefined,
+      passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
+        ? passportSupportPath
+        : undefined,
+      profile: {
+        fullName: profile.full_name,
+        gender: profile.gender,
+        dateOfBirth: profile.date_of_birth,
+        placeOfBirth: profile.place_of_birth,
+        nationality: profile.nationality,
+        passportNumber: profile.passport_number,
+        passportIssueDate: profile.passport_issue_date,
+        passportExpiryDate: profile.passport_expiry_date,
+        passportIssuingCountry: profile.issuing_country,
+        passportIssuingAuthority: profile.issuing_authority,
+        phone: profile.phone,
+      },
+      probeOfficialPortal: true,
+      portalProbeHeadless,
+      userPaymentHandoff,
+      onStage: async (stage, snapshot) => {
+        await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
+      },
+    });
 
     if (result.country === "ID" && result.status === "submitted") {
       const artifactStoragePath = await uploadArtifact({
@@ -7301,6 +7197,45 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     );
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
+    if (err instanceof IndonesiaAliasPreflightError) {
+      const actionResult = {
+        country: "GENERIC" as const,
+        targetCountry: "ID",
+        visaType: isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST",
+        status: "action_required" as const,
+        mode: "live_assisted" as const,
+        applicationId: item.application_id,
+        actionType: err.code,
+        actionInstructions: errorMsg,
+        implementationStatus: "blocked" as const,
+        message: errorMsg,
+      };
+      await writeSubmissionResult(item.application_id, actionResult, "action_required");
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "action_required",
+          provider,
+          last_error: null,
+          error_code: err.code,
+          error_message: errorMsg,
+          current_stage: "alias_preflight_action_required",
+          manual_action_status: "pending",
+          vn_result_payload: {
+            actionType: err.code,
+            actionInstructions: errorMsg,
+            checkpoint: "alias_preflight_action_required",
+            message: errorMsg,
+            implementationStatus: "blocked",
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      console.warn(
+        `[indonesia] Alias preflight requires action application=${redactIdentifier(item.application_id)} code=${err.code}`,
+      );
+      return;
+    }
     const newAttempts = item.attempts + 1;
     const newStatus = newAttempts >= MAX_ATTEMPTS ? failedStatus : pendingStatus;
     await supabase
@@ -7862,6 +7797,9 @@ async function isSafeForIdleExit(): Promise<boolean> {
     if (LEGACY_SUBMISSION_QUEUE_ENABLED && await hasLegacyWorkerWork()) {
       return false;
     }
+    if (INDONESIA_QUEUE_ENABLED && await hasIndonesiaWorkerWork()) {
+      return false;
+    }
     return true;
   } catch (error) {
     console.error("[idle] Authoritative work check failed; keeping Machine running.", error);
@@ -7939,8 +7877,14 @@ async function main(): Promise<void> {
   if (!RUNNER_JOB_CONSUMER_ENABLED) {
     console.log("[main] runner_job consumer disabled by env");
   }
-  if (!LEGACY_SUBMISSION_QUEUE_ENABLED) {
-    console.log("[main] Legacy submission_queue polling disabled by env");
+  if (
+    !LEGACY_SUBMISSION_QUEUE_ENABLED &&
+    !VN_CLOUD_QUEUE_ENABLED &&
+    !INDONESIA_QUEUE_ENABLED
+  ) {
+    console.log("[main] submission_queue polling disabled by env");
+  } else if (INDONESIA_QUEUE_ENABLED) {
+    console.log("[main] Dedicated Indonesia submission_queue polling enabled");
   }
   if (RUNNER_JOB_COUNTRY) {
     console.log(`[main] runner_job country scope=${RUNNER_JOB_COUNTRY}`);
@@ -8019,7 +7963,11 @@ async function main(): Promise<void> {
 
   // Country-scoped cloud workers must not also contend for the legacy queue.
   // A single dedicated legacy worker retains this consumer during migration.
-  if (LEGACY_SUBMISSION_QUEUE_ENABLED) {
+  if (
+    LEGACY_SUBMISSION_QUEUE_ENABLED ||
+    VN_CLOUD_QUEUE_ENABLED ||
+    INDONESIA_QUEUE_ENABLED
+  ) {
     await poll();
     if (!shutdownRequested) {
       legacyPollTimer = setInterval(poll, POLL_INTERVAL_MS);

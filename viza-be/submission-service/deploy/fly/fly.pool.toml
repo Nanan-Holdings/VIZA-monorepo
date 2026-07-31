@@ -1,5 +1,5 @@
-# Six-country background worker pool. Interactive payment/OTP sessions remain
-# on the legacy and Korea sticky apps.
+# Shared background worker pool. Interactive Indonesia payment/OTP sessions
+# remain on the Indonesia sticky app.
 app = "viza-runner-pool"
 primary_region = "sin"
 kill_signal = "SIGINT"
@@ -27,8 +27,6 @@ kill_timeout = "5m"
   VN_PREARRIVAL_BROWSERBASE_COUNTRY = "VN"
   VN_BROWSERBASE_ENABLED = "true"
   VN_BROWSERBASE_PROXIES = "true"
-  INDONESIA_BROWSERBASE_ENABLED = "true"
-  INDONESIA_BROWSERBASE_PROXIES = "true"
   BROWSERBASE_MAX_CONCURRENCY = "10"
 
 [http_service]

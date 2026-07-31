@@ -44,6 +44,13 @@ interface LegacyScaleDecision {
   desired: 0 | 1;
 }
 
+interface IndonesiaScaleDecision {
+  kind: "indonesia";
+  app: "viza-runner-indonesia";
+  queued: number;
+  desired: 0 | 1;
+}
+
 const LEGACY_CLAIMABLE_QUEUE_STATUSES = [
   "pending",
   "ds160_prefill_pending",
@@ -56,16 +63,12 @@ const LEGACY_CLAIMABLE_QUEUE_STATUSES = [
   "vn_live_assisted_pending",
   "vn_cloud_live_pending",
   "vn_payment_pending",
-  "vn_prearrival_dry_run_pending",
-  "vn_prearrival_live_assisted_pending",
   "sgac_dry_run_pending",
   "sgac_live_assisted_pending",
   "mdac_dry_run_pending",
   "mdac_live_assisted_pending",
   "tdac_dry_run_pending",
   "tdac_live_assisted_pending",
-  "id_c1_live_assisted_pending",
-  "id_b1_evoa_live_assisted_pending",
   "phetravel_dry_run_pending",
   "phetravel_live_assisted_pending",
   "vn_prefill_pending",
@@ -73,7 +76,6 @@ const LEGACY_CLAIMABLE_QUEUE_STATUSES = [
 ] as const;
 
 const LEGACY_SCHEDULED_QUEUE_STATUSES = [
-  "vn_prearrival_live_assisted_scheduled",
   "sgac_live_assisted_scheduled",
   "mdac_live_assisted_scheduled",
   "tdac_live_assisted_scheduled",
@@ -213,6 +215,23 @@ async function fetchLegacyQueueDepth(supabase: SupabaseClient): Promise<number> 
   return (count ?? 0) + dueScheduled;
 }
 
+async function fetchIndonesiaQueueDepth(supabase: SupabaseClient): Promise<number> {
+  const { count, error } = await supabase
+    .from("submission_queue")
+    .select("id", { count: "exact", head: true })
+    .in("status", [
+      "id_c1_live_assisted_pending",
+      "id_c1_live_assisted_processing",
+      "id_c1_payment_processing",
+      "id_b1_evoa_live_assisted_pending",
+      "id_b1_evoa_live_assisted_processing",
+      "id_b1_evoa_payment_processing",
+    ])
+    .lt("attempts", 3);
+  if (error) throw new Error(`Indonesia submission_queue depth read: ${error.message}`);
+  return count ?? 0;
+}
+
 async function alertViolations(decision: PoolScaleDecision): Promise<void> {
   const violations = decision.countries.filter((row) => row.violation);
   if (violations.length === 0 && decision.countries.reduce((sum, row) => sum + row.running, 0) <= 10) {
@@ -244,9 +263,10 @@ async function alertViolations(decision: PoolScaleDecision): Promise<void> {
 
 async function main(): Promise<void> {
   const supabase = client();
-  const [pool, legacyQueued] = await Promise.all([
+  const [pool, legacyQueued, indonesiaQueued] = await Promise.all([
     fetchPoolDecision(supabase),
     fetchLegacyQueueDepth(supabase),
+    fetchIndonesiaQueueDepth(supabase),
   ]);
   await alertViolations(pool);
   const legacy: LegacyScaleDecision = {
@@ -255,9 +275,15 @@ async function main(): Promise<void> {
     queued: legacyQueued,
     desired: legacyQueued > 0 ? 1 : 0,
   };
+  const indonesia: IndonesiaScaleDecision = {
+    kind: "indonesia",
+    app: "viza-runner-indonesia",
+    queued: indonesiaQueued,
+    desired: indonesiaQueued > 0 ? 1 : 0,
+  };
 
   if (process.argv.includes("--json")) {
-    process.stdout.write(`${JSON.stringify([pool, legacy], null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify([pool, indonesia, legacy], null, 2)}\n`);
     return;
   }
   console.log(
@@ -268,6 +294,7 @@ async function main(): Promise<void> {
       `${row.country.padEnd(16)} cap=${row.cap} claimable=${row.claimable} scheduled=${row.scheduled} running=${row.running} desired=${row.desired}${row.violation ? " VIOLATION" : ""}`,
     );
   }
+  console.log(`${indonesia.app} queued=${indonesia.queued} desired=${indonesia.desired}`);
   console.log(`${legacy.app} queued=${legacy.queued} desired=${legacy.desired}`);
 }
 

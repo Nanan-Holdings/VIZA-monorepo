@@ -3,17 +3,7 @@ import { withAdmin } from "@/lib/auth/with-admin";
 
 type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
-export const FLY_WAKE_COUNTRIES = [
-  "indonesia",
-  "vietnam",
-  "singapore",
-  "malaysia",
-  "thailand",
-  "south_korea",
-] as const;
-
-export type FlyWakeCountry = (typeof FLY_WAKE_COUNTRIES)[number];
-export type FlyWakeTarget = FlyWakeCountry | "legacy" | "pool";
+export type FlyWakeTarget = "legacy" | "pool" | "indonesia" | "south_korea";
 
 export type FlyMachineWakeResult =
   | { ok: true; target: FlyWakeTarget; app: string; state: "already_running" | "start_requested" }
@@ -48,24 +38,20 @@ const TARGET_APPS: Record<FlyWakeTarget, string> = {
   pool: "viza-runner-pool",
   legacy: "viza-submission-legacy",
   indonesia: "viza-runner-indonesia",
-  vietnam: "viza-runner-vietnam",
-  singapore: "viza-runner-singapore",
-  malaysia: "viza-runner-malaysia",
-  thailand: "viza-runner-thailand",
   south_korea: "viza-runner-south-korea",
 };
 
-const COUNTRY_ALIASES: Record<string, FlyWakeCountry> = {
+const COUNTRY_ALIASES: Record<string, FlyWakeTarget> = {
   id: "indonesia",
   indonesia: "indonesia",
-  vn: "vietnam",
-  vietnam: "vietnam",
-  sg: "singapore",
-  singapore: "singapore",
-  my: "malaysia",
-  malaysia: "malaysia",
-  th: "thailand",
-  thailand: "thailand",
+  vn: "pool",
+  vietnam: "pool",
+  sg: "pool",
+  singapore: "pool",
+  my: "pool",
+  malaysia: "pool",
+  th: "pool",
+  thailand: "pool",
   kr: "south_korea",
   korea: "south_korea",
   kor: "south_korea",
@@ -81,8 +67,13 @@ function normalizeTarget(target: string): FlyWakeTarget | null {
   return COUNTRY_ALIASES[normalized] ?? null;
 }
 
-function slotKind(target: FlyWakeTarget): "pool" | "legacy" | "south_korea" | null {
-  if (target === "pool" || target === "legacy" || target === "south_korea") {
+function slotKind(target: FlyWakeTarget): "pool" | "legacy" | "south_korea" | "indonesia" | null {
+  if (
+    target === "pool" ||
+    target === "legacy" ||
+    target === "south_korea" ||
+    target === "indonesia"
+  ) {
     return target;
   }
   return null;
@@ -105,7 +96,7 @@ async function reserveSlot(
     return { reserved: true, evictedPoolMachineId: null };
   }
   return withAdmin("system", "fly-machine-wake:reserve-slot", async (admin) => {
-    if (kind === "legacy" || kind === "south_korea") {
+    if (kind === "legacy" || kind === "south_korea" || kind === "indonesia") {
       const { data, error } = await admin.rpc("reserve_sticky_runner_machine_slot", {
         p_machine_id: machineId,
         p_kind: kind,

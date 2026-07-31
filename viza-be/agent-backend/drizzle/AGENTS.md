@@ -145,6 +145,10 @@ The current internal automation migrations are:
 - `0128_dedupe_visa_packages.sql`: removes the unused duplicate Japan and South
   Korea package rows, preserves referenced canonical rows, and adds a
   case-insensitive country/visa-type uniqueness guard.
+- `0129_indonesia_sticky_runner.sql`: migrates queued Indonesia B1/C1 jobs out
+  of the generic pool, adds the sticky Indonesia Machine slot/claim RPC,
+  excludes Indonesia from legacy and pool claims, and prevents new simplified
+  Indonesia `runner_job` inserts.
 
 ## Guardrails
 

@@ -6,7 +6,7 @@ import {
 } from "../fly-machine-wake.server";
 
 describe("ensureFlyMachineStarted", () => {
-  it("does not manage countries outside the six-country rollout", async () => {
+  it("does not manage countries outside the shared/sticky topology", async () => {
     const fetchImpl = vi.fn() as unknown as typeof fetch;
     await expect(
       ensureFlyMachineStarted("france", { env: {}, fetchImpl }),
@@ -18,7 +18,7 @@ describe("ensureFlyMachineStarted", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("returns not_configured without the dedicated org token", async () => {
+  it("routes Vietnam aliases to the shared pool", async () => {
     await expect(
       ensureFlyMachineStarted("vn", {
         env: {},
@@ -26,7 +26,7 @@ describe("ensureFlyMachineStarted", () => {
       }),
     ).resolves.toEqual({
       ok: false,
-      target: "vietnam",
+      target: "pool",
       reason: "not_configured",
     });
   });
@@ -62,6 +62,34 @@ describe("ensureFlyMachineStarted", () => {
         method: "POST",
         headers: expect.objectContaining({ Authorization: "Bearer org-token" }),
       }),
+    );
+  });
+
+  it("routes Indonesia to its retained sticky app", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ id: "id-machine-1", state: "stopped" }]), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    await expect(
+      ensureFlyMachineStarted("indonesia", {
+        env: { FLY_SUBMISSION_ORG_TOKEN: "org-token" },
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      target: "indonesia",
+      app: "viza-runner-indonesia",
+      state: "start_requested",
+    });
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "https://api.machines.dev/v1/apps/viza-runner-indonesia/machines/id-machine-1/start",
+      expect.objectContaining({ method: "POST" }),
     );
   });
 

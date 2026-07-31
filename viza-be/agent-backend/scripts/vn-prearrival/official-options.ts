@@ -100,12 +100,15 @@ export const VN_PREARRIVAL_PORT_OPTIONS = [
 ];
 
 export const VN_PREARRIVAL_VISA_TYPE_OPTIONS = [
-  vnPrearrivalOption("GMTT", "免签证书", "Visa Exemption Certificate"),
-  vnPrearrivalOption("EV", "电子签证", "Electronic Visa (E-Visa)"),
-  vnPrearrivalOption("MMT", "按国籍默认免签", "Default visa exemption by country"),
-  vnPrearrivalOption("MTTQ", "富国免签", "Phu Quoc Visa Exemption"),
-  vnPrearrivalOption("TDL", "旅行卡", "Travel Card"),
-  vnPrearrivalOption("ABTC", "APEC 商务旅行卡", "ABTC Card"),
+  vnPrearrivalOption("GMTT", "免签证证明", "Visa Exemption Certificate"),
+  vnPrearrivalOption("EV", "电子签证（E-Visa）", "Electronic Visa (E-Visa)"),
+  vnPrearrivalOption("MMT", "按国家的默认免签政策", "Default visa exemption by country"),
+  vnPrearrivalOption("MTTQ", "富国岛签证豁免", "Phu Quoc Visa Exemption"),
+  vnPrearrivalOption("TDL", "旅游卡", "Travel Card"),
+  vnPrearrivalOption("ABTC", "ABTC卡", "ABTC Card"),
   vnPrearrivalOption("TTR", "永久居留卡", "Permanent Residence Card"),
   vnPrearrivalOption("TTA", "临时居留卡", "Temporary Residence Card"),
+  vnPrearrivalOption("TT", "签证", "Visa"),
+  vnPrearrivalOption("MM1", "双边免签", "Bilateral exemption"),
+  vnPrearrivalOption("MM2", "单边免签", "Unilateral exemption"),
 ];

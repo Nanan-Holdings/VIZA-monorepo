@@ -81,26 +81,30 @@ filling and one-shot submission for the applicant.
   `0119_submission_retry_queue_isolation.sql`: supersede-and-insert is one
   transaction, one application has at most one active browser job, and
   different application IDs remain independent queue items.
-- Six-country cloud topology uses the ten-Machine `viza-runner-pool` for
-  Indonesia, Vietnam, Singapore, Malaysia, Thailand, and Korea background
-  `runner_job` flows. `src/runner-slot-lease.ts` binds every started process to
-  one of ten database slots using `FLY_MACHINE_ID`; workers claim jobs through
-  the atomic pool RPC and exit after 120 idle seconds. The dedicated 4GB
-  legacy worker remains authoritative for active `submission_queue`,
-  payment/card/3DS, and maintenance work. The Korea worker remains sticky for
-  SMS, appointment, and continuous browser sessions.
+- Shared cloud topology uses `viza-runner-pool` for Vietnam Pre-Arrival,
+  Singapore, Malaysia, Thailand, and Korea background `runner_job` flows.
+  Indonesia B1/C1 uses one retained sticky `viza-runner-indonesia` Machine and
+  its dedicated `submission_queue` claim RPC so its account, OTP, card and
+  payment state stay on one process. `src/runner-slot-lease.ts` binds every
+  started process to a database slot using `FLY_MACHINE_ID`; idle workers exit
+  after 120 seconds. The dedicated 4GB legacy worker remains authoritative for
+  other active `submission_queue` and maintenance work. The Korea worker
+  remains sticky for SMS, appointment, and continuous browser sessions.
 - `deploy/fly/` contains credential-free Fly templates and country mappings.
   Production endpoints and keys belong only in Fly Secrets.
   `deploy/fly/fly.pool.toml` defines the retained shared pool without native
   Fly autostart/autostop; application enqueue wakes exact capacity and the
   scheduled reconciler is recovery-only.
+  `deploy/fly/fly.indonesia.toml` defines the one-CPU/2GB Indonesia sticky
+  Machine with scale-to-zero and one-job concurrency.
   `deploy/fly/fly.south-korea.toml` pins the interactive Korea e-Form/KVAC
   service to one retained machine. Explicit server-side wake starts it, while
   `/deploy-ready` blocks autoscaler stop whenever an SMS/cancellation browser
   session is still in memory so the OTP request and follow-up code reach the
   same process.
-- `scripts/fly/` renders and deploys country workers, deploys the dedicated
-  legacy worker and ten-Machine pool, syncs boot-required runtime secrets, and
+- `scripts/fly/` renders and deploys country workers, the sticky Indonesia and
+  Korea services, the dedicated legacy worker and shared pool, syncs
+  boot-required runtime secrets, and
   applies autoscaler decisions without stopping Machine IDs that own active
   jobs. These scripts require operator-provided Fly authentication and must
   never print or persist secret values.
@@ -453,12 +457,12 @@ filling and one-shot submission for the applicant.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use
-  `POST /internal/indonesia/card-session` only on the single retained legacy
+  `POST /internal/indonesia/card-session` only on the single retained Indonesia
   Fly worker with `ID_CLOUD_CARD_SESSION_ENABLED=true`, Fly HTTP autostart, and a matching
   `INDONESIA_CARD_SESSION_INTERNAL_TOKEN` supplied as Fly/Vercel secrets.
 - `GET /deploy-ready` reports whether the worker is idle and holds no
   unconsumed Vietnam/Indonesia card session or protected Korea KVAC browser
-  session. `scripts/fly/deploy-legacy.sh`
+  session. `scripts/fly/deploy-legacy.sh` and `scripts/fly/deploy-indonesia.sh`
   must fail closed unless this endpoint returns HTTP 200 both before secret
   staging and immediately before a rolling deploy. Runtime secrets are staged
   into that release so secret synchronization cannot independently restart the

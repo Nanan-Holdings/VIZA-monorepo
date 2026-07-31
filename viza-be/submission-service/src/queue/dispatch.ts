@@ -18,7 +18,7 @@ import { runOne as runUs } from "../ceac/runner.js";
 import { runOne as runUk } from "../uk/runner.js";
 import { runOne as runAu } from "../au/runner.js";
 import { runOne as runFrance } from "../france-visas/runner.js";
-import { runOne as runIndonesia, runOneForVisaType as runIndonesiaForVisaType } from "../id/runner.js";
+import { runOne as runIndonesia } from "../id/runner.js";
 import { runOne as runEgypt } from "../egypt/runner.js";
 import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
 import { runOne as runSaudi } from "../sa/runner.js";
@@ -136,8 +136,6 @@ export const DISPATCH: Record<string, RunOne> = {
 };
 
 export const POOL_FLOW_COUNTRIES = {
-  id_c1: "indonesia",
-  id_b1_evoa: "indonesia",
   vn_evisa: "vietnam",
   vn_prearrival: "vietnam",
   sgac: "singapore",
@@ -147,10 +145,6 @@ export const POOL_FLOW_COUNTRIES = {
 } as const;
 
 const POOL_FLOW_DISPATCH: Record<string, RunOne> = {
-  id_c1: (applicationId, jobId) =>
-    runIndonesiaForVisaType(applicationId, jobId, "ID_C1_TOURIST"),
-  id_b1_evoa: (applicationId, jobId) =>
-    runIndonesiaForVisaType(applicationId, jobId, "ID_B1_EVOA"),
   vn_evisa: (applicationId, jobId) => runVietnam(applicationId, jobId),
   vn_prearrival: (applicationId, jobId) =>
     runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "vn_prearrival"),

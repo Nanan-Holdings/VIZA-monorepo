@@ -11,14 +11,14 @@ Directorate General of Immigration eVisa portal.
 - Route both C1 and B1 to `https://evisa.imigrasi.go.id/` by default. Treat
   VFS Indonesia e-VoA as fallback recon only, not the primary B1 runner.
 - Keep portal probing/classification in `runner.ts` and `portal-state.ts`.
-- `managed-account.ts` owns the pure account-reuse decision. VIZA-managed
-  `appl-*` aliases with vault passwords are valid prepared portal accounts and
-  should be reused instead of forcing a new registration/recon pass.
+- `account-alias.ts` owns canonical alias v2 migration. B1 and C1 share the
+  applicant's one VIZA-managed alias/account; prior credentials are archived
+  read-only and must not be selected for new submissions.
 - Never log official account passwords, portal OTPs, card data, CAPTCHA tokens,
   or full applicant document paths.
-- Use VIZA-managed inbox aliases through `ensureApplicantInboxAlias`; do not
-  block the applicant on manual account email verification when the email worker
-  can consume the official verification email.
+- Use VIZA-managed inbox aliases through `ensureApplicantInboxAlias`. Verify MX
+  and forwarding consent before registration, and wait for verification/OTP by
+  applicant plus alias. Never fall back to sender-only OTP matching.
 - Stop with `action_required` for real payment authorization, 3DS/OTP, unknown
   portal gates, or official portal layout drift. Do not fabricate a submitted
   status.
@@ -29,8 +29,8 @@ Directorate General of Immigration eVisa portal.
 - Preserve screenshots/PDF/evidence artifacts outside Git.
 - `card-session.ts` owns the one-time card handoff for Indonesia official-fee
   payment continuation. Local development uses the localhost-only endpoint;
-  production uses the bearer-token-protected internal endpoint on the single
-  always-on legacy Fly worker. In both modes it must stay in process memory,
+  production uses the bearer-token-protected internal endpoint on the retained
+  sticky `viza-runner-indonesia` Machine. In both modes it must stay in process memory,
   consume PAN/CVV once, return only redacted metadata, and never persist card
   data. The runner may consume the card at job start or lazily when the official
   payment page is reached; the lazy consume closes the HTTP registration and

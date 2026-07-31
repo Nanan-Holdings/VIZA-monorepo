@@ -5,6 +5,7 @@ import { buildCountrySubmissionApplication } from "../country-submissions/from-r
 import { getCountrySubmissionProvider } from "../country-submissions/index.js";
 import type { SubmissionPayload } from "../country-submissions/types.js";
 import { ensureApplicantInboxAlias } from "../inbox/alias.js";
+import { hasAliasEmailForwardingConsent } from "../inbox/forwarding-consent.js";
 import { assertInboxAliasDomainRoutable } from "../inbox/wait-for-message.js";
 import { MdacPortalValidationError, normalizeMdacPortalPayload } from "../mdac/normalize.js";
 import { MdacPortalError, runMdacPortalSubmission } from "../mdac/runner.js";
@@ -30,45 +31,6 @@ interface PortalResult {
   qrCodes?: string[];
   pdfs: string[];
   logs: string[];
-}
-
-const VN_PREARRIVAL_FORWARDING_CONSENT = {
-  type: "alias_email_forwarding",
-  version: "2026-07-22",
-  documentHash:
-    "sha256:5d2d7fcccd083bbde90b9d42529b5f8cab380fd7bf26a79eb2ba84315f1fb212",
-} as const;
-
-async function hasVietnamForwardingConsent(applicantId: string): Promise<boolean> {
-  const { data: accountConsent, error: accountError } = await supabase
-    .from("consent_event")
-    .select("id")
-    .eq("applicant_id", applicantId)
-    .eq("doc_kind", VN_PREARRIVAL_FORWARDING_CONSENT.type)
-    .eq("doc_version", VN_PREARRIVAL_FORWARDING_CONSENT.version)
-    .limit(1)
-    .maybeSingle();
-  if (accountError) {
-    throw new Error(`Vietnam Pre-Arrival account consent lookup failed: ${accountError.message}`);
-  }
-  if (accountConsent?.id) return true;
-
-  const { data: applicationConsent, error: applicationError } = await supabase
-    .from("consent_events")
-    .select("id")
-    .eq("applicant_id", applicantId)
-    .eq("consent_type", VN_PREARRIVAL_FORWARDING_CONSENT.type)
-    .eq("version", VN_PREARRIVAL_FORWARDING_CONSENT.version)
-    .eq("document_hash", VN_PREARRIVAL_FORWARDING_CONSENT.documentHash)
-    .eq("accepted", true)
-    .limit(1)
-    .maybeSingle();
-  if (applicationError) {
-    throw new Error(
-      `Vietnam Pre-Arrival application consent lookup failed: ${applicationError.message}`,
-    );
-  }
-  return Boolean(applicationConsent?.id);
 }
 
 async function persistFiles(
@@ -140,7 +102,7 @@ async function preparePayload(
   if (flow === "vn_prearrival") {
     const managedAlias = await ensureApplicantInboxAlias(context.profile.id);
     await assertInboxAliasDomainRoutable(managedAlias.alias);
-    if (!(await hasVietnamForwardingConsent(context.profile.id))) {
+    if (!(await hasAliasEmailForwardingConsent(context.profile.id))) {
       throw new NeedsHumanError(
         "Vietnam Pre-Arrival official-email forwarding consent is required.",
       );

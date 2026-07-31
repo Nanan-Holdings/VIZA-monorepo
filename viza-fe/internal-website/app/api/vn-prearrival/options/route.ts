@@ -65,6 +65,13 @@ const FLIGHT_CACHE_TTL_MS = 5 * 60 * 1000;
 const officialOptionsCache = new Map<string, CachedOfficialOptions>();
 
 const STATIC_OPTION_SOURCES = staticOptions.sources as Record<string, OfficialOption[] | undefined>;
+const COUNTRY_ALPHA2_BY_ALPHA3 = new Map(
+  countries.all.flatMap((country) => {
+    const alpha2 = stringValue(country.alpha2);
+    const alpha3 = stringValue(country.alpha3);
+    return alpha2 && alpha3 ? [[alpha3.toUpperCase(), alpha2.toUpperCase()] as const] : [];
+  }),
+);
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -93,6 +100,14 @@ function zhRegionName(alpha2: string): string {
   } catch {
     return "";
   }
+}
+
+function zhRegionNameFromOfficialCode(code: string): string {
+  const normalizedCode = code.trim().toUpperCase();
+  const alpha2 = normalizedCode.length === 2
+    ? normalizedCode
+    : COUNTRY_ALPHA2_BY_ALPHA3.get(normalizedCode) ?? "";
+  return alpha2 ? zhRegionName(alpha2) : "";
 }
 
 function localCountryCodeOptions(): VisaFormOption[] {
@@ -142,8 +157,10 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormOptio
       ? code || (airport ? `${enValue}_${airport}` : enValue)
       : code || rawValue || enValue;
   const labelZh = source === "country_code"
-    ? `${zhRegionName(code) || vnValue.replace(/\s*\(\+\d+\)\s*$/, "") || enValue} (${rawValue || value})`
-    : vnValue;
+    ? `${zhRegionNameFromOfficialCode(code) || vnValue.replace(/\s*\(\+\d+\)\s*$/, "") || enValue} (${rawValue || value})`
+    : source === "nationality"
+      ? zhRegionNameFromOfficialCode(code) || vnValue
+      : vnValue;
 
   return {
     value,
@@ -406,4 +423,5 @@ export const __testables = {
   normalizeOfficialFlightSearch,
   optionFromOfficial,
   paginateOptions,
+  zhRegionNameFromOfficialCode,
 };

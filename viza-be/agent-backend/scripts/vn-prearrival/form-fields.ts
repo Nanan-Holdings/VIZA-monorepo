@@ -33,6 +33,8 @@ export interface VnPrearrivalFieldDef {
 
 const rules = (labelZh: string, extra: Record<string, unknown> = {}) => ({ label_zh: labelZh, ...extra });
 const showIf = (expression: string) => ({ showIf: expression });
+const VISA_CREDENTIALS_OPTIONAL_EXPRESSION =
+  "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]";
 
 export const VN_PREARRIVAL_FORM_FIELDS: VnPrearrivalFieldDef[] = [
   {
@@ -103,13 +105,14 @@ export const VN_PREARRIVAL_FORM_FIELDS: VnPrearrivalFieldDef[] = [
     validation_rules: rules("编号", {
       official: true,
       maxLength: 64,
+      required_unless: VISA_CREDENTIALS_OPTIONAL_EXPRESSION,
       numeric_length_when: { field: "visa_type", equals: "EV", length: 9 },
       helper_zh: "电子签证请选择文件顶部“Số / No.”后的 9 位纯数字。不要填写申请代码、登记码，也不要加“/EV”。",
       helper_en: "For an e-visa, enter the exact 9-digit numeric value shown on the “Số / No.” line. Do not enter an application or registration code, and do not add “/EV”.",
     }),
   },
   { field_name: "visa_issue_date", label: "Date of Issue (DD/MM/YYYY)", field_type: "date", required: false, step_number: 1, step_name: PASSENGER_STEP, display_order: 16, validation_rules: rules("签发日期（DD/MM/YYYY）", { official: true }) },
-  { field_name: "visa_expiry_date", label: "Date of Expiry (DD/MM/YYYY)", field_type: "date", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 17, validation_rules: rules("有效期至（DD/MM/YYYY）", { official: true }) },
+  { field_name: "visa_expiry_date", label: "Date of Expiry (DD/MM/YYYY)", field_type: "date", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 17, validation_rules: rules("有效期至（DD/MM/YYYY）", { official: true, required_unless: VISA_CREDENTIALS_OPTIONAL_EXPRESSION }) },
   { field_name: "visa_issued_place", label: "Issued Place", field_type: "select", required: false, step_number: 1, step_name: PASSENGER_STEP, display_order: 18, validation_rules: rules("签发地点", { official: true, official_source: "prearrival_category:visa_issue_place", remote_search: true, depends_on: "visa_type" }) },
 
   { field_name: "departure_country_before_arrival", label: "Departure country before Arrival in Vietnam", field_type: "country", required: true, step_number: 2, step_name: TRIP_STEP, display_order: 1, validation_rules: rules("抵达越南前出发国家 / 地区", { official: true, helper_en: "First Point of Departure if Transiting Through Multiple country" }) },

@@ -1,4 +1,5 @@
 import type { VisaFormFieldOption, VisaFormFieldRow } from "../types/visa-form-fields";
+import { countries } from "country-data-list";
 import {
   getChineseLabel,
   getChineseOptionText,
@@ -862,6 +863,7 @@ function getVietnamSpecificChineseOptionLabel(value: string, rawText: string): s
 }
 
 const COUNTRY_ZH: Record<string, string> = {
+  China: "中国",
   Australia: "澳大利亚",
   Canada: "加拿大",
   Cambodia: "柬埔寨",
@@ -895,6 +897,97 @@ const COUNTRY_ZH: Record<string, string> = {
   Vietnam: "越南",
   "Viet Nam": "越南",
 };
+
+interface CountryReference {
+  alpha2: string;
+  alpha3: string;
+  name: string;
+  status: string;
+}
+
+const COUNTRY_REGION_CODE_ALIASES: Record<string, string> = {
+  "bolivia plurinational state of": "BO",
+  "china hong kong sar": "HK",
+  "china macao sar": "MO",
+  "congo democratic republic of the": "CD",
+  "democratic peoples republic of korea": "KP",
+  "iran islamic republic of": "IR",
+  "moldova republic of": "MD",
+  "palestine state of": "PS",
+  "republic of korea": "KR",
+  "republic of moldova": "MD",
+  "russian federation": "RU",
+  "south korea": "KR",
+  "state of palestine": "PS",
+  "taiwan province of china": "TW",
+  "tanzania united republic of": "TZ",
+  "the bahamas": "BS",
+  "the gambia": "GM",
+  "united states of america": "US",
+  "venezuela bolivarian republic of": "VE",
+  "viet nam": "VN",
+};
+
+let countryRegionCodeByNameCache: Map<string, string> | null = null;
+const chineseCountryNameCache = new Map<string, string>();
+let countryTranslationEntriesCache: Array<readonly [string, string]> | null = null;
+let chineseRegionDisplayNames: Intl.DisplayNames | null = null;
+
+function normalizeCountryLookupKey(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function getCountryRegionCodeByName(): Map<string, string> {
+  if (countryRegionCodeByNameCache) return countryRegionCodeByNameCache;
+
+  const lookup = new Map<string, string>(Object.entries(COUNTRY_REGION_CODE_ALIASES));
+  for (const country of countries.all as CountryReference[]) {
+    if (country.status === "deleted") continue;
+    lookup.set(normalizeCountryLookupKey(country.name), country.alpha2.toUpperCase());
+    lookup.set(country.alpha2.toLowerCase(), country.alpha2.toUpperCase());
+    lookup.set(country.alpha3.toLowerCase(), country.alpha2.toUpperCase());
+  }
+  countryRegionCodeByNameCache = lookup;
+  return lookup;
+}
+
+function getChineseCountryName(value: string): string | null {
+  const regionCode = getCountryRegionCodeByName().get(normalizeCountryLookupKey(value));
+  if (!regionCode) return null;
+
+  const cached = chineseCountryNameCache.get(regionCode);
+  if (cached) return cached;
+
+  try {
+    chineseRegionDisplayNames ??= new Intl.DisplayNames(["zh-CN"], { type: "region" });
+    const localized = chineseRegionDisplayNames.of(regionCode);
+    if (localized && localized !== regionCode) {
+      chineseCountryNameCache.set(regionCode, localized);
+      return localized;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getCountryTranslationEntries(): Array<readonly [string, string]> {
+  if (countryTranslationEntriesCache) return countryTranslationEntriesCache;
+
+  countryTranslationEntriesCache = (countries.all as CountryReference[])
+    .filter((country) => country.status !== "deleted")
+    .map((country) => [country.name, getChineseCountryName(country.alpha2)] as const)
+    .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
+    .sort(([left], [right]) => right.length - left.length);
+
+  return countryTranslationEntriesCache;
+}
 
 const FIELD_TOKEN_ZH: Record<string, string> = {
   account: "账号",
@@ -1067,8 +1160,12 @@ function fieldNameToChinese(fieldName: string): string | null {
 }
 
 function countryNameToChinese(value: string): string {
+  const exactCountryName = getChineseCountryName(value);
+  if (exactCountryName) return exactCountryName;
+
   let output = value;
-  const entries = Object.entries(COUNTRY_ZH).sort(([left], [right]) => right.length - left.length);
+  const entries = [...Object.entries(COUNTRY_ZH), ...getCountryTranslationEntries()]
+    .sort(([left], [right]) => right.length - left.length);
   for (const [en, zh] of entries) {
     output = output.replace(new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), zh);
   }
