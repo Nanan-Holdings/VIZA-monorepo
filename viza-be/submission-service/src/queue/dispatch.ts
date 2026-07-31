@@ -18,7 +18,6 @@ import { runOne as runUs } from "../ceac/runner.js";
 import { runOne as runUk } from "../uk/runner.js";
 import { runOne as runAu } from "../au/runner.js";
 import { runOne as runFrance } from "../france-visas/runner.js";
-import { runOne as runIndonesia } from "../id/runner.js";
 import { runOne as runEgypt } from "../egypt/runner.js";
 import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
 import { runOne as runSaudi } from "../sa/runner.js";
@@ -96,8 +95,6 @@ export type LaunchCountry = (typeof LAUNCH_COUNTRIES)[number];
  * QUE-005; `saudi_arabia` and `japan` have no runner yet.
  */
 export const DISPATCH: Record<string, RunOne> = {
-  // RUN-ID-001: dedicated Indonesia flagship runner (replaces the generic t3 scaffold).
-  indonesia: (a, j) => runIndonesia(a, j),
   // RUN-EG-001: dedicated Egypt fill runner (replaces generic t3 scaffold).
   egypt: (a, j) => runEgypt(a, j),
   // RUN-IT-001: dedicated Italy VFS (CN corridor) runner (replaces generic t3 scaffold).
@@ -161,7 +158,6 @@ const POOL_FLOW_DISPATCH: Record<string, RunOne> = {
  * country and whether it is live. Kept in sync with DISPATCH by hand.
  */
 export const DISPATCH_META: Record<string, { runner: string; implemented: boolean }> = {
-  indonesia: { runner: "id/runner.runOne", implemented: true },
   egypt: { runner: "egypt/runner.runOne", implemented: true },
   italy: { runner: "italy-vfs-cn/runner.runOne", implemented: true },
   thailand: { runner: "th/runner.runOne", implemented: true },

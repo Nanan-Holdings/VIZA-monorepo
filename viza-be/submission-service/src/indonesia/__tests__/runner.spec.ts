@@ -17,6 +17,7 @@ import {
   normalizeIndonesiaMobilePhone,
   normalizeIndonesiaPostalCode,
   normalizeIndonesiaPaymentWaitState,
+  hasUnconfirmedIndonesiaPaymentResult,
   shouldSubmitIndonesiaPortalEmailOtp,
 } from "../runner";
 
@@ -455,5 +456,19 @@ test("keeps Indonesia Finpay handoff in bank OTP state once OTP is detected", ()
       "indonesia_one_time_card_finpay_terms_after stillVisible=yes hasFailure=no hasOtp=no url=https://live.finpay.id/pg/payment/card/id/v4/access/test",
     ]),
     "payment_required",
+  );
+});
+
+test("marks an unconfirmed Indonesia payment result as reconciliation-only", () => {
+  assert.equal(
+    hasUnconfirmedIndonesiaPaymentResult([
+      "indonesia_user_payment_wait_timeout",
+      "indonesia_payment_terminal_result_unconfirmed unknown",
+    ]),
+    true,
+  );
+  assert.equal(
+    hasUnconfirmedIndonesiaPaymentResult(["indonesia_user_payment_completed"]),
+    false,
   );
 });

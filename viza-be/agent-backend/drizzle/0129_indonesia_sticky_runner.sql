@@ -6,6 +6,7 @@
 -- submission_queue transport before retiring the old jobs.
 INSERT INTO public.submission_queue (
   application_id,
+  user_id,
   status,
   mode,
   provider,
@@ -16,6 +17,7 @@ INSERT INTO public.submission_queue (
 )
 SELECT
   rj.application_id,
+  applicant.auth_user_id,
   CASE
     WHEN rj.flow_key = 'id_b1_evoa' THEN 'id_b1_evoa_live_assisted_pending'
     ELSE 'id_c1_live_assisted_pending'
@@ -30,6 +32,10 @@ SELECT
   COALESCE(rj.enqueued_at, NOW()),
   NOW()
 FROM public.runner_job AS rj
+JOIN public.applications AS app
+  ON app.id = rj.application_id
+JOIN public.applicant_profiles AS applicant
+  ON applicant.id = app.applicant_id
 WHERE rj.country = 'indonesia'
   AND rj.status = 'queued'
   AND NOT EXISTS (

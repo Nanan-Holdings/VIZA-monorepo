@@ -3958,6 +3958,15 @@ export function normalizeIndonesiaPaymentWaitState(
   return state;
 }
 
+export function hasUnconfirmedIndonesiaPaymentResult(
+  diagnostics: readonly string[],
+): boolean {
+  return diagnostics.some((entry) =>
+    entry.startsWith("indonesia_payment_terminal_result_unconfirmed") ||
+    entry === "indonesia_user_payment_wait_timeout",
+  );
+}
+
 async function resolveActiveIndonesiaPaymentPage(page: Page, diagnostics: string[]): Promise<Page> {
   const currentContext = page.context();
   const pages = currentContext.pages().filter((candidate) => !candidate.isClosed());
@@ -4613,7 +4622,16 @@ export async function probeIndonesiaPortal(
       }
     }
 
-    const action = postalValidationBlocked
+    const paymentResultUnknown =
+      hasUnconfirmedIndonesiaPaymentResult(session.diagnostics);
+    const action = paymentResultUnknown
+      ? {
+          actionType: "official_fee_payment_result_unknown",
+          instruction:
+            "The Indonesia payment result could not be confirmed. Reconcile this application on the official portal before authorizing or submitting another card payment.",
+          implementationStatus: "blocked" as const,
+        }
+      : postalValidationBlocked
       ? {
           actionType: "official_postal_code_validation_failed",
           instruction:

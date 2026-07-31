@@ -6865,10 +6865,16 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const answers = await loadDs160Answers(item.application_id);
     const managedVaultEmail = await applicantVault.get(profile.id, "indonesia.portal.email", vaultOpts);
     const managedVaultPassword = await applicantVault.get(profile.id, "indonesia.portal.password", vaultOpts);
+    const managedAliasVersion = await applicantVault.get(
+      profile.id,
+      "indonesia.portal.alias_version",
+      vaultOpts,
+    );
     const managedAccount = await prepareIndonesiaCanonicalAliasAccount({
       applicantId: profile.id,
       currentEmail: managedVaultEmail,
       currentPassword: managedVaultPassword,
+      currentAliasVersion: managedAliasVersion,
       generatedPassword: generateFvPortalPassword(),
       correlationId: item.id,
     });
@@ -6949,7 +6955,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
           // Local development and non-cgroup hosts fall back to process RSS.
         }
         const configuredLimit = Number.parseInt(
-          process.env.INDONESIA_PAYMENT_MAX_RSS_MB ?? "1700",
+          process.env.INDONESIA_PAYMENT_MAX_MEMORY_MB ??
+            process.env.INDONESIA_PAYMENT_MAX_RSS_MB ??
+            "1700",
           10,
         );
         const limitMb = Number.isFinite(configuredLimit)

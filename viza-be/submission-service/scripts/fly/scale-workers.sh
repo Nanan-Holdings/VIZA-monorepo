@@ -15,7 +15,9 @@ fi
 
 can_stop_safely() {
   local app="$1"
-  if [[ "$app" != "viza-submission-legacy" && "$app" != "viza-runner-south-korea" ]]; then
+  if [[ "$app" != "viza-submission-legacy" &&
+        "$app" != "viza-runner-indonesia" &&
+        "$app" != "viza-runner-south-korea" ]]; then
     return 0
   fi
 
@@ -36,7 +38,7 @@ can_stop_safely() {
 jq -c '.[]' "$decisions" | while read -r decision; do
   kind="$(jq -r '.kind // "country"' <<<"$decision")"
   desired="$(jq -r '.desired' <<<"$decision")"
-  if [[ "$kind" == "legacy" || "$kind" == "pool" ]]; then
+  if [[ "$kind" == "legacy" || "$kind" == "pool" || "$kind" == "indonesia" ]]; then
     app="$(jq -r '.app' <<<"$decision")"
     paused="false"
   else
