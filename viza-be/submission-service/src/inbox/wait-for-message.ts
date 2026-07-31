@@ -76,28 +76,126 @@ export class InboxDomainUnroutableError extends Error {
 
 type MxResolver = (domain: string) => Promise<Array<{ exchange: string; priority: number }>>;
 
+interface DnsJsonAnswer {
+  type?: number;
+  data?: string;
+}
+
+interface DnsJsonResponse {
+  Status?: number;
+  Answer?: DnsJsonAnswer[];
+}
+
+const TRANSIENT_DNS_ERROR_CODES = new Set([
+  "ETIMEOUT",
+  "EAI_AGAIN",
+  "ESERVFAIL",
+  "ECONNREFUSED",
+]);
+
+function isTransientDnsError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = "code" in error ? String(error.code).toUpperCase() : "";
+  return TRANSIENT_DNS_ERROR_CODES.has(code);
+}
+
+function hasUsableMxRecord(
+  records: Array<{ exchange: string; priority: number }>,
+): boolean {
+  return records.some((record) => {
+    const exchange = record.exchange.trim();
+    return exchange.length > 0 && exchange !== ".";
+  });
+}
+
+/**
+ * HTTPS fallback for runtimes whose libc DNS resolver cannot reach an MX
+ * nameserver. Cloudflare's public DoH endpoint accepts JSON GET queries when
+ * the client sends Accept: application/dns-json.
+ */
+export async function resolveMxOverHttps(domain: string): ReturnType<MxResolver> {
+  const endpoint = new URL("https://cloudflare-dns.com/dns-query");
+  endpoint.searchParams.set("name", domain);
+  endpoint.searchParams.set("type", "MX");
+
+  const response = await fetch(endpoint, {
+    headers: { accept: "application/dns-json" },
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!response.ok) {
+    throw new Error(`Cloudflare DNS-over-HTTPS returned HTTP ${response.status}`);
+  }
+
+  const payload = (await response.json()) as DnsJsonResponse;
+  if (payload.Status !== 0) {
+    throw new Error(`Cloudflare DNS-over-HTTPS returned DNS status ${payload.Status ?? "unknown"}`);
+  }
+
+  return (payload.Answer ?? [])
+    .filter((answer) => answer.type === 15 && typeof answer.data === "string")
+    .flatMap((answer) => {
+      const match = answer.data?.trim().match(/^(\d+)\s+(.+)$/);
+      if (!match) return [];
+      return [{
+        priority: Number.parseInt(match[1], 10),
+        exchange: match[2].replace(/\.$/, ""),
+      }];
+    });
+}
+
 export async function assertInboxAliasDomainRoutable(
   alias: string,
   resolver: MxResolver = resolveMx,
+  options: {
+    retryDelaysMs?: number[];
+    fallbackResolver?: MxResolver | null;
+  } = {},
 ): Promise<void> {
   const domain = alias.trim().toLowerCase().split("@")[1];
   if (!domain) {
     throw new InboxDomainUnroutableError(alias, "the alias address is invalid");
   }
 
-  try {
-    const records = await resolver(domain);
-    const hasUsableMx = records.some((record) => {
-      const exchange = record.exchange.trim();
-      return exchange.length > 0 && exchange !== ".";
-    });
-    if (!hasUsableMx) {
-      throw new InboxDomainUnroutableError(domain);
+  const retryDelaysMs = options.retryDelaysMs ?? [250, 750];
+  const fallbackResolver = options.fallbackResolver === undefined
+    ? resolveMxOverHttps
+    : options.fallbackResolver;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const records = await resolver(domain);
+      if (!hasUsableMxRecord(records)) {
+        throw new InboxDomainUnroutableError(domain);
+      }
+      return;
+    } catch (error) {
+      if (error instanceof InboxDomainUnroutableError) throw error;
+      const retryDelay = retryDelaysMs[attempt];
+      if (isTransientDnsError(error) && retryDelay !== undefined) {
+        if (retryDelay > 0) await sleep(retryDelay);
+        continue;
+      }
+      if (isTransientDnsError(error) && fallbackResolver) {
+        try {
+          const fallbackRecords = await fallbackResolver(domain);
+          if (!hasUsableMxRecord(fallbackRecords)) {
+            throw new InboxDomainUnroutableError(domain);
+          }
+          return;
+        } catch (fallbackError) {
+          if (fallbackError instanceof InboxDomainUnroutableError) throw fallbackError;
+          const nativeReason = error instanceof Error ? error.message : String(error);
+          const fallbackReason = fallbackError instanceof Error
+            ? fallbackError.message
+            : String(fallbackError);
+          throw new InboxDomainUnroutableError(
+            domain,
+            `${nativeReason}; DNS-over-HTTPS fallback failed: ${fallbackReason}`,
+          );
+        }
+      }
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new InboxDomainUnroutableError(domain, reason);
     }
-  } catch (error) {
-    if (error instanceof InboxDomainUnroutableError) throw error;
-    const reason = error instanceof Error ? error.message : String(error);
-    throw new InboxDomainUnroutableError(domain, reason);
   }
 }
 

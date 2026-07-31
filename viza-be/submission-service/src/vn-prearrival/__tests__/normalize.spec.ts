@@ -4,6 +4,8 @@ import type { SubmissionPayload } from "../../country-submissions/types";
 import { evaluateVietnamPrearrivalSubmissionWindow } from "../date-window";
 import {
   VnPrearrivalPortalValidationError,
+  VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
+  VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
   matchesOfficialDialingCodeOption,
   normalizeVnPrearrivalPortalPayload,
   officialLocalPhoneNumber,
@@ -161,16 +163,34 @@ test("rejects an E-Visa number unless it is exactly nine numeric digits", () => 
 });
 
 test("requires visa credentials only for the official credential-bearing visa types", () => {
-  for (const visaType of ["EV", "TT", "GMTT", "TDL", "TTA", "ABTC", "TTR"]) {
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES) {
     assert.equal(vnPrearrivalVisaCredentialsRequired(visaType), true);
   }
-  for (const visaType of ["MMT", "MM1", "MM2", "MTTQ", "MTT", "TMTT"]) {
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES) {
     assert.equal(vnPrearrivalVisaCredentialsRequired(visaType), false);
   }
 });
 
+test("maps every Vietnam Pre-Arrival visa type to its own official portal label", async () => {
+  process.env.SUPABASE_URL ??= "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role";
+  const { officialCatalogLabel } = await import("../runner");
+
+  assert.equal(officialCatalogLabel("visa_type", "MTTQ"), "Phu Quoc Visa Exemption");
+  for (const visaType of [
+    ...VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES.filter((value) => !["TMTT", "MTT"].includes(value)),
+    ...VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
+  ]) {
+    assert.notEqual(
+      officialCatalogLabel("visa_type", visaType),
+      visaType,
+      `${visaType} must use its official displayed label rather than the persisted code`,
+    );
+  }
+});
+
 test("allows official exemption types without a visa number or expiry date", () => {
-  for (const visaType of ["MMT", "MM1", "MM2", "MTTQ"]) {
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES) {
     const normalized = normalizeVnPrearrivalPortalPayload(payload({
       visa_type: visaType,
       visa_number: "",
@@ -181,20 +201,22 @@ test("allows official exemption types without a visa number or expiry date", () 
   }
 });
 
-test("still requires a visa number and expiry date for credential-bearing types", () => {
-  assert.throws(
-    () => normalizeVnPrearrivalPortalPayload(payload({
-      visa_type: "TT",
-      visa_number: "",
-      visa_expiry_date: "",
-    })),
-    (error) => {
-      assert.ok(error instanceof VnPrearrivalPortalValidationError);
-      assert.ok(error.missingFields.includes("answers.visa_number"));
-      assert.ok(error.missingFields.includes("answers.visa_expiry_date"));
-      return true;
-    },
-  );
+test("still requires a visa number and expiry date for every credential-bearing type", () => {
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES) {
+    assert.throws(
+      () => normalizeVnPrearrivalPortalPayload(payload({
+        visa_type: visaType,
+        visa_number: "",
+        visa_expiry_date: "",
+      })),
+      (error) => {
+        assert.ok(error instanceof VnPrearrivalPortalValidationError);
+        assert.ok(error.missingFields.includes("answers.visa_number"));
+        assert.ok(error.missingFields.includes("answers.visa_expiry_date"));
+        return true;
+      },
+    );
+  }
 });
 
 test("requires alias email for OTP and keeps the real email for forwarding only", () => {

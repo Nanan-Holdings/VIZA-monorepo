@@ -8,6 +8,10 @@ import {
 } from "../index";
 import type { CountrySubmissionApplication } from "../types";
 import type { ApplicantProfile, Application } from "../../types";
+import {
+  VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
+  VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
+} from "../../vn-prearrival/normalize";
 
 function baseApplication(
   overrides: Partial<CountrySubmissionApplication> = {},
@@ -95,6 +99,39 @@ function vietnamAnswers(): Record<string, string> {
   };
 }
 
+function vietnamPrearrivalAnswers(
+  overrides: Record<string, string> = {},
+): Record<string, string> {
+  return {
+    expected_arrival_date: "2026-07-14",
+    passport_type: "P",
+    passport_number: "TEST123456",
+    passport_expiry_date: "2033-01-01",
+    gender: "male",
+    given_name: "ALEX",
+    date_of_birth: "1999-01-15",
+    nationality: "Singapore",
+    phone_country_code: "+65",
+    phone_number: "91234567",
+    alias_email_address: "alias-test@inbox.viza.test",
+    visa_information_acknowledgement: "true",
+    visa_type: "EV",
+    visa_number: "123456789",
+    visa_expiry_date: "2026-08-01",
+    departure_country_before_arrival: "Singapore",
+    purpose_of_travel: "travel",
+    mode_of_travel: "air",
+    flight_number: "VJ5439_CXR",
+    border_gate_airport: "CXR",
+    accommodation_type: "hotel",
+    province_city_of_hotel: "Da Nang City",
+    ward_commune_of_hotel: "Hoa Xuan Ward",
+    hotel_accommodation_address: "T&D Hoi An House",
+    final_declaration: "true",
+    ...overrides,
+  };
+}
+
 test("registry: every provider declares implementation and dry-run metadata", () => {
   const providers = listCountrySubmissionProviders();
   assert.ok(providers.length >= 20);
@@ -136,33 +173,7 @@ test("registry: Vietnam Pre-Arrival declaration validates dedicated answers", as
   const application = baseApplication({
     countryCode: "vietnam",
     visaType: "VN_PREARRIVAL_DECLARATION",
-    answers: {
-      expected_arrival_date: "2026-07-14",
-      passport_type: "P",
-      passport_number: "TEST123456",
-      passport_expiry_date: "2033-01-01",
-      gender: "male",
-      given_name: "ALEX",
-      date_of_birth: "1999-01-15",
-      nationality: "Singapore",
-      phone_country_code: "+65",
-      phone_number: "91234567",
-      alias_email_address: "alias-test@inbox.viza.test",
-      visa_information_acknowledgement: "true",
-      visa_type: "EV",
-      visa_number: "123456789",
-      visa_expiry_date: "2026-08-01",
-      departure_country_before_arrival: "Singapore",
-      purpose_of_travel: "travel",
-      mode_of_travel: "air",
-      flight_number: "VJ5439_CXR",
-      border_gate_airport: "CXR",
-      accommodation_type: "hotel",
-      province_city_of_hotel: "Da Nang City",
-      ward_commune_of_hotel: "Hoa Xuan Ward",
-      hotel_accommodation_address: "T&D Hoi An House",
-      final_declaration: "true",
-    },
+    answers: vietnamPrearrivalAnswers(),
   });
   const provider = getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION");
   assert.ok(provider);
@@ -177,6 +188,39 @@ test("registry: Vietnam Pre-Arrival declaration validates dedicated answers", as
   });
   assert.equal(result.status, "submitted_mock");
   assert.match(result.confirmationNumber ?? "", /^DRYRUN-VNPREARRIVAL-/);
+});
+
+test("registry: Vietnam Pre-Arrival applies visa credentials to every official visa type", () => {
+  const provider = getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION");
+  assert.ok(provider);
+
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES) {
+    const validation = provider.validate(baseApplication({
+      countryCode: "vietnam",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      answers: vietnamPrearrivalAnswers({
+        visa_type: visaType,
+        visa_number: "",
+        visa_expiry_date: "",
+      }),
+    }));
+    assert.equal(validation.ok, true, `${visaType} should not require visa credentials`);
+  }
+
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES) {
+    const validation = provider.validate(baseApplication({
+      countryCode: "vietnam",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      answers: vietnamPrearrivalAnswers({
+        visa_type: visaType,
+        visa_number: "",
+        visa_expiry_date: "",
+      }),
+    }));
+    assert.equal(validation.ok, false, `${visaType} should require visa credentials`);
+    assert.ok(validation.missingRequiredFields.includes("answers.visa_number"));
+    assert.ok(validation.missingRequiredFields.includes("answers.visa_expiry_date"));
+  }
 });
 
 test("registry: Vietnam Pre-Arrival requires a manual address for the official Other hotel option", () => {

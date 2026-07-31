@@ -128,8 +128,14 @@ describe("Vietnam pre-arrival dynamic form options", () => {
       required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
       numeric_length_when: { field: "visa_type", equals: "EV", length: 9 },
     });
+    expect(visaNumber?.conditionalLogic).toEqual({
+      showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
     expect(visaExpiry?.validationRules).toMatchObject({
       required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaExpiry?.conditionalLogic).toEqual({
+      showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
     });
   });
 

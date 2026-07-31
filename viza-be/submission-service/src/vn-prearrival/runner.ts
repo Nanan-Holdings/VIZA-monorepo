@@ -995,7 +995,16 @@ async function handleCaptchaGate(page: Page, screenshots: string[], logs: string
     );
   }
   logs.push(`captcha_solved solveId=${outcome.telemetry?.solveId ?? "unknown"} durationMs=${outcome.telemetry?.durationMs ?? 0}`);
-  const verified = await clickFirstVisible(page, [/^verify$/i, /^xác nhận$/i]);
+  // The official React form enables Verify only after it observes the CAPTCHA
+  // input's change/blur cycle. Tabbing out also avoids clicking a visible text
+  // child inside a still-disabled button while the form state is settling.
+  await page.keyboard.press("Tab").catch(() => undefined);
+  const verified = await clickFirstVisibleEnabled(page, [
+    "button:has-text('Verify')",
+    "button:has-text('Xác nhận')",
+    /^verify$/i,
+    /^xác nhận$/i,
+  ]);
   if (!verified) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival CAPTCHA was solved but the Verify control was not found.",
@@ -1039,6 +1048,32 @@ async function waitForPostStartPortalReady(page: Page, logs: string[]): Promise<
   }
 
   logs.push(`vn_prearrival_post_start_timeout url=${page.url().slice(0, 240)}`);
+  return false;
+}
+
+async function clickFirstVisibleEnabled(
+  page: Page,
+  selectors: Array<string | RegExp>,
+  timeoutMs = 15_000,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    for (const selector of selectors) {
+      const locator = typeof selector === "string" ? page.locator(selector) : page.getByText(selector);
+      const count = await locator.count().catch(() => 0);
+      for (let index = 0; index < count; index += 1) {
+        const candidate = locator.nth(index);
+        if (
+          await candidate.isVisible().catch(() => false)
+          && await candidate.isEnabled().catch(() => false)
+        ) {
+          await candidate.click({ timeout: 5_000 });
+          return true;
+        }
+      }
+    }
+    if (Date.now() < deadline) await page.waitForTimeout(250);
+  } while (Date.now() < deadline);
   return false;
 }
 
@@ -1203,9 +1238,10 @@ export async function runVietnamPrearrivalPortalSubmission(
       missingControls.push("visa_expiry_date");
     }
 
+    const visaTypeLabel = officialCatalogLabel("visa_type", payload.visaType);
     const passengerSelectTasks: Array<[RegExp[], string, string, string?]> = [
       [[/passport type/i], payload.passportType, "passport_type"],
-      [[/visa type\s*\/\s*purpose/i], payload.visaType, "visa_type", "Electronic Visa"],
+      [[/visa type\s*\/\s*purpose/i], visaTypeLabel, "visa_type", visaTypeLabel],
       [
         [/issued place/i],
         payload.visaIssuedPlace ? officialCatalogLabel("visa_issue_place", payload.visaIssuedPlace) : "",

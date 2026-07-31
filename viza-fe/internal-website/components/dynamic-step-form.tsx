@@ -63,6 +63,20 @@ const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
 /** Default max instances for repeatable groups without an explicit max_items */
 const REPEAT_GROUP_DEFAULT_MAX = 5;
 
+export const VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES = [
+  "TMTT",
+  "MTT",
+  "MMT",
+  "MM2",
+  "MM1",
+  "MTTQ",
+] as const;
+
+const VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_EXPRESSION =
+  `visa_type in [${VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES.join(", ")}]`;
+const VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_EXPRESSION =
+  `visa_type not in [${VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES.join(", ")}]`;
+
 const SCHENGEN_DESTINATION_BY_COUNTRY_SLUG: Record<string, string> = {
   austria: "Austria",
   belgium: "Belgium",
@@ -822,7 +836,9 @@ export function ensureVnPrearrivalOtherFlightFlow(
   const visaTypeOptions =
     getVnPrearrivalStaticOptions("prearrival_category:visa_type") ?? [];
   const visaCredentialsOptionalExpression =
-    "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]";
+    VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_EXPRESSION;
+  const visaCredentialsRequiredExpression =
+    VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_EXPRESSION;
 
   return steps.map((step) => {
     const isVnPrearrivalStep = step.fields.some(
@@ -853,6 +869,7 @@ export function ensureVnPrearrivalOtherFlightFlow(
         return {
           ...field,
           required: true,
+          conditionalLogic: { showIf: visaCredentialsRequiredExpression },
           validationRules: {
             ...(field.validationRules ?? {}),
             official: true,
@@ -868,6 +885,7 @@ export function ensureVnPrearrivalOtherFlightFlow(
         return {
           ...field,
           required: true,
+          conditionalLogic: { showIf: visaCredentialsRequiredExpression },
           validationRules: {
             ...(field.validationRules ?? {}),
             official: true,
@@ -877,9 +895,10 @@ export function ensureVnPrearrivalOtherFlightFlow(
       }
 
       if (field.fieldName === "visa_issue_date") {
-        if (!field.required) return field;
+        const expectedCondition = { showIf: visaCredentialsRequiredExpression };
+        if (!field.required && field.conditionalLogic?.showIf === expectedCondition.showIf) return field;
         changed = true;
-        return { ...field, required: false };
+        return { ...field, required: false, conditionalLogic: expectedCondition };
       }
 
       if (field.fieldName === "visa_issued_place") {
@@ -887,6 +906,7 @@ export function ensureVnPrearrivalOtherFlightFlow(
         return {
           ...field,
           required: false,
+          conditionalLogic: { showIf: visaCredentialsRequiredExpression },
           validationRules: {
             ...(field.validationRules ?? {}),
             official: true,

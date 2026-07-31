@@ -226,6 +226,10 @@ import {
   IndonesiaAliasPreflightError,
   prepareIndonesiaCanonicalAliasAccount,
 } from "./indonesia/account-alias.js";
+import {
+  missingIndonesiaRequiredDocumentPaths,
+  selectIndonesiaSubmissionDocuments,
+} from "./indonesia/document-reuse.js";
 import { hasActiveKoreaKvacOfficialSessions } from "./korea-kvac/live-session.js";
 import {
   hasCountryRunnerWork,
@@ -1166,24 +1170,19 @@ async function loadReusableApplicantDocuments(
   currentApplicationId: string,
   currentDocuments: ApplicationDocument[],
 ): Promise<ApplicationDocument[]> {
-  const documentsById = new Map<string, ApplicationDocument>();
-  for (const doc of currentDocuments) {
-    documentsById.set(doc.id, doc);
-  }
-
   const { data: applications, error: appError } = await supabase
     .from("applications")
     .select("id")
     .eq("applicant_id", applicantId);
   if (appError) {
     console.warn(`[indonesia] Could not load sibling applications for reusable documents: ${appError.message}`);
-    return Array.from(documentsById.values());
+    return currentDocuments;
   }
 
   const applicationIds = ((applications ?? []) as Array<{ id: string }>)
     .map((row) => row.id)
     .filter((id) => id && id !== currentApplicationId);
-  if (applicationIds.length === 0) return Array.from(documentsById.values());
+  if (applicationIds.length === 0) return currentDocuments;
 
   const { data: siblingDocs, error: docsError } = await supabase
     .from("application_documents")
@@ -1191,16 +1190,16 @@ async function loadReusableApplicantDocuments(
     .in("application_id", applicationIds);
   if (docsError) {
     console.warn(`[indonesia] Could not load reusable applicant documents: ${docsError.message}`);
-    return Array.from(documentsById.values());
+    return currentDocuments;
   }
 
-  for (const doc of (siblingDocs ?? []) as Array<ApplicationDocument & { filename?: string | null }>) {
-    documentsById.set(doc.id, {
+  const normalizedSiblingDocuments = (
+    (siblingDocs ?? []) as Array<ApplicationDocument & { filename?: string | null }>
+  ).map((doc) => ({
       ...doc,
       file_name: doc.file_name ?? doc.filename ?? null,
-    });
-  }
-  return Array.from(documentsById.values());
+    }));
+  return selectIndonesiaSubmissionDocuments(currentDocuments, normalizedSiblingDocuments);
 }
 
 function firstLocalDocumentPathMatching(
@@ -6919,6 +6918,67 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       /passport_bio_page/i,
       /passport_copy/i,
     ]);
+    const missingDocuments = missingIndonesiaRequiredDocumentPaths({
+      isB1,
+      passportImagePath,
+      photoImagePath,
+      returnTicketPath,
+      bankStatementPath,
+    });
+    if (missingDocuments.length > 0) {
+      const message =
+        `Indonesia ${isB1 ? "B1" : "C1"} submission needs valid applicant documents before payment: ` +
+        `${missingDocuments.join(", ")}. Obvious foreign arrival-card/annex files and test placeholders are not accepted.`;
+      const documentResult: GenericSubmissionResult = {
+        country: "GENERIC",
+        targetCountry: "ID",
+        visaType: isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST",
+        status: "action_required",
+        mode: "live_assisted",
+        applicationId: item.application_id,
+        actionType: "required_documents_invalid",
+        actionInstructions: message,
+        implementationStatus: "blocked",
+        message,
+      };
+      await writeSubmissionResult(item.application_id, documentResult, "action_required");
+      const { error: documentQueueError } = await supabase
+        .from("submission_queue")
+        .update({
+          status: "action_required",
+          provider,
+          current_stage: "indonesia_documents_required",
+          last_error: null,
+          error_code: "required_documents_invalid",
+          error_message: message,
+          manual_action_status: "pending",
+          locked_until: null,
+          locked_by: null,
+          heartbeat_at: null,
+          vn_result_payload: {
+            status: "action_required",
+            actionType: "required_documents_invalid",
+            checkpoint: "indonesia_documents_required",
+            message,
+            implementationStatus: "blocked",
+            missingDocuments,
+            evidence: {
+              paymentSubmitted: false,
+              officialPaymentSuccess: false,
+            },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      if (documentQueueError) {
+        throw new Error(`Failed to mark Indonesia documents action required: ${documentQueueError.message}`);
+      }
+      console.warn(
+        `[indonesia] Required documents blocked before card consume application=${redactIdentifier(item.application_id)} ` +
+        `missing=${missingDocuments.join(",")}`,
+      );
+      return;
+    }
     // Indonesia B1/C1 payment is a closed cloud workflow. Never downgrade a
     // card-authorized run to a visible/manual official-payment handoff.
     const userPaymentHandoffEnabled = true;
@@ -7799,7 +7859,10 @@ async function isSafeForIdleExit(): Promise<boolean> {
   }
 
   try {
-    if (RUNNER_JOB_COUNTRY && await hasCountryRunnerWork(RUNNER_JOB_COUNTRY)) {
+    if (
+      RUNNER_JOB_CONSUMER_ENABLED
+      && await hasCountryRunnerWork(RUNNER_JOB_COUNTRY || undefined)
+    ) {
       return false;
     }
     if (LEGACY_SUBMISSION_QUEUE_ENABLED && await hasLegacyWorkerWork()) {

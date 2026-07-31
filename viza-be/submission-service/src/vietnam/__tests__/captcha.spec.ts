@@ -2,7 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   describeVietnamCaptchaError,
+  fingerprintVietnamCaptchaImage,
   getVietnamCaptchaTimeoutMs,
+  isVietnamCaptchaSolveCurrent,
+  reportRejectedVietnamCaptcha,
   shouldSolveVietnamCaptcha,
 } from "../captcha.js";
 import { TwoCaptchaConfigError, TwoCaptchaZeroBalanceError } from "../../captcha/two-captcha.js";
@@ -40,4 +43,58 @@ test("vn.captcha: solve timeout has an independent configurable floor", () => {
   } else {
     process.env.VN_CAPTCHA_TIMEOUT_MS = previous;
   }
+});
+
+test("vn.captcha: fingerprints distinguish refreshed challenges", () => {
+  const first = fingerprintVietnamCaptchaImage(Buffer.from("captcha-one"));
+  const same = fingerprintVietnamCaptchaImage(Buffer.from("captcha-one"));
+  const refreshed = fingerprintVietnamCaptchaImage(Buffer.from("captcha-two"));
+
+  assert.equal(first, same);
+  assert.notEqual(first, refreshed);
+  assert.equal(isVietnamCaptchaSolveCurrent(first, same), true);
+  assert.equal(isVietnamCaptchaSolveCurrent(first, refreshed), false);
+  assert.equal(isVietnamCaptchaSolveCurrent(first, null), false);
+});
+
+test("vn.captcha: reports only a rejected solved task", async () => {
+  const reported: string[] = [];
+  const reporter = async (solveId: string) => {
+    reported.push(solveId);
+  };
+
+  assert.equal(await reportRejectedVietnamCaptcha({ solved: false }, reporter), false);
+  assert.equal(
+    await reportRejectedVietnamCaptcha(
+      {
+        solved: true,
+        telemetry: {
+          solveId: "task-123",
+          durationMs: 500,
+          challengeFingerprint: "fingerprint",
+        },
+      },
+      reporter,
+    ),
+    true,
+  );
+  assert.deepEqual(reported, ["task-123"]);
+});
+
+test("vn.captcha: reporting failures do not fail the submission flow", async () => {
+  const reported = await reportRejectedVietnamCaptcha(
+    {
+      solved: true,
+      telemetry: {
+        solveId: "task-456",
+        durationMs: 500,
+        challengeFingerprint: "fingerprint",
+      },
+    },
+    async () => {
+      throw new Error("2captcha reporting unavailable");
+    },
+  );
+
+  assert.equal(reported, false);
 });
