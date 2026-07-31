@@ -170,6 +170,11 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  if (result.status === "submitted_paid") {
+    console.error("[vn-smoke] Safety failure: a stop-before-submit smoke unexpectedly reached paid status.");
+    process.exit(3);
+  }
+
   console.error(`[vn-smoke] Failed at ${result.failedStep}`);
   process.exit(3);
 }
