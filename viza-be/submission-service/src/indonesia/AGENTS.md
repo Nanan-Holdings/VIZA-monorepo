@@ -27,6 +27,11 @@ Directorate General of Immigration eVisa portal.
   one-time payment card is attached; surface 3DS/OTP as a checkpoint instead
   of launching a headed browser.
 - Preserve screenshots/PDF/evidence artifacts outside Git.
+- `document-reuse.ts` allows sibling reuse only for universal passport/portrait
+  files, ensures current valid Indonesia files win document-type selection,
+  rejects test placeholders and obvious foreign arrival-card/annex artifacts,
+  and assigns package requirements before card consumption: B1 needs passport,
+  photo, and return/onward ticket; C1 additionally needs a PDF bank statement.
 - `card-session.ts` owns the one-time card handoff for Indonesia official-fee
   payment continuation. Local development uses the localhost-only endpoint;
   production uses the bearer-token-protected internal endpoint on the retained

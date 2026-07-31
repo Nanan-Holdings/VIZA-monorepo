@@ -4,6 +4,8 @@ import {
   VN_PREARRIVAL_AIRPORT_OPTIONS,
   VN_PREARRIVAL_FLIGHT_OPTIONS,
   VN_PREARRIVAL_PURPOSE_OPTIONS,
+  VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
+  VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
   VN_PREARRIVAL_VISA_TYPE_OPTIONS,
 } from "./official-options";
 
@@ -113,15 +115,34 @@ describe("Vietnam Pre-Arrival official form schema", () => {
       "双边免签",
       "单边免签",
     ]);
+    expect(new Set([
+      ...VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
+      ...VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
+    ])).toEqual(new Set([
+      "TMTT", "MTT",
+      ...VN_PREARRIVAL_VISA_TYPE_OPTIONS.map((option) => option.value),
+    ]));
     expect(visaNumber?.validation_rules).toMatchObject({
       required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaNumber?.conditional_logic).toEqual({
+      showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
     });
     expect(visaExpiryDate?.validation_rules).toMatchObject({
       required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
     });
+    expect(visaExpiryDate?.conditional_logic).toEqual({
+      showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
     expect(visaIssueDate?.required).toBe(false);
+    expect(visaIssueDate?.conditional_logic).toEqual({
+      showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
     expect(visaIssuedPlace).toMatchObject({
       required: false,
+      conditional_logic: {
+        showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+      },
       validation_rules: expect.objectContaining({
         official_source: "prearrival_category:visa_issue_place",
         depends_on: "visa_type",

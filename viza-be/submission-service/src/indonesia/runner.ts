@@ -550,12 +550,36 @@ async function isVisibleSelector(page: Page, selector: string, timeoutMs = 1_500
   return page.locator(selector).first().isVisible({ timeout: timeoutMs }).catch(() => false);
 }
 
+export type IndonesiaSweetAlertKind = "existing_application_warning" | "success" | "error" | "other";
+
+export function classifyIndonesiaSweetAlertSnapshot(input: {
+  text: string | null | undefined;
+  successIcon?: boolean;
+  errorIcon?: boolean;
+}): IndonesiaSweetAlertKind {
+  const text = input.text ?? "";
+  if (isExistingApplicationWarningText(text)) return "existing_application_warning";
+  if (input.successIcon || /\bsuccess\b|berhasil/i.test(text)) return "success";
+  if (input.errorIcon || /\berror\b|\bfailed\b|gagal|something wrong/i.test(text)) return "error";
+  return "other";
+}
+
+async function hasVisibleIndonesiaSweetAlert(page: Page): Promise<boolean> {
+  return page
+    .locator(".swal2-popup.swal2-show, .swal2-container.swal2-backdrop-show .swal2-popup")
+    .first()
+    .isVisible({ timeout: 500 })
+    .catch(() => false);
+}
+
 async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promise<boolean> {
   let sawExistingApplicationWarning = false;
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    const swal = page.locator(".swal2-confirm").first();
-    if (await swal.isVisible({ timeout: 1_000 }).catch(() => false)) {
-      const text = await page.locator(".swal2-container").first().innerText({ timeout: 1_000 }).catch(() => "");
+    const popup = page
+      .locator(".swal2-popup.swal2-show, .swal2-container.swal2-backdrop-show .swal2-popup")
+      .first();
+    if (await popup.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      const text = await popup.innerText({ timeout: 1_000 }).catch(() => "");
       sawExistingApplicationWarning ||= isExistingApplicationWarningText(text);
       if (isIndonesiaPassportInvalidDataText(text)) {
         diagnostics.push("indonesia_passport_scan_invalid_data");
@@ -567,8 +591,23 @@ async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promi
         diagnostics.push(`indonesia_dialog_existing_application_warning_visible ${text.replace(/\s+/g, " ").trim().slice(0, 80)}`);
         return true;
       }
-      await swal.click({ timeout: 5_000, force: true }).catch(() => undefined);
-      diagnostics.push(`indonesia_dialog_confirmed ${text.replace(/\s+/g, " ").trim().slice(0, 80)}`);
+
+      const kind = classifyIndonesiaSweetAlertSnapshot({
+        text,
+        successIcon: (await popup.getAttribute("class").catch(() => ""))?.includes("swal2-icon-success") ?? false,
+        errorIcon: (await popup.getAttribute("class").catch(() => ""))?.includes("swal2-icon-error") ?? false,
+      });
+      const action = popup
+        .locator(".swal2-confirm, .swal2-actions button, button, .swal2-close")
+        .filter({ visible: true })
+        .first();
+      if (!(await action.isVisible({ timeout: 750 }).catch(() => false))) {
+        diagnostics.push(`indonesia_dialog_${kind}_waiting_for_action`);
+        await page.waitForTimeout(750);
+        continue;
+      }
+      await action.click({ timeout: 5_000, force: true }).catch(() => undefined);
+      diagnostics.push(`indonesia_dialog_${kind}_confirmed ${text.replace(/\s+/g, " ").trim().slice(0, 80)}`);
       await page.waitForTimeout(1_000);
       continue;
     }
@@ -581,6 +620,9 @@ async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promi
       continue;
     }
     return sawExistingApplicationWarning;
+  }
+  if (await hasVisibleIndonesiaSweetAlert(page)) {
+    diagnostics.push("indonesia_dialog_unresolved_blocking_submit");
   }
   return sawExistingApplicationWarning;
 }
@@ -1965,6 +2007,10 @@ async function continueFromApplicationStepOne(
     }
     const shouldUseStepOneFallbacks = async (): Promise<boolean> => {
       if (!/\/step_1\b/i.test(page.url())) return false;
+      if (await hasVisibleIndonesiaSweetAlert(page)) {
+        diagnostics.push("indonesia_step_1_submit_fallbacks_blocked_by_dialog");
+        return false;
+      }
       if (process.env.INDONESIA_STEP_1_USE_LEGACY_FALLBACKS === "true") return true;
       const invalidControls = await visibleInvalidControlNames(page);
       if (invalidControls.length > 0) return false;
@@ -1977,11 +2023,16 @@ async function continueFromApplicationStepOne(
         url: page.url(),
         title: await page.title().catch(() => null),
       });
-      const fallbackClicked = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_1");
-      if (!fallbackClicked) {
-        diagnostics.push("indonesia_step_1_fallback_submit_not_clicked");
+      await dismissIndonesiaDialogs(page, diagnostics);
+      if (await hasVisibleIndonesiaSweetAlert(page)) {
+        diagnostics.push("indonesia_step_1_fallback_blocked_by_unresolved_dialog");
+      } else {
+        const fallbackClicked = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_1");
+        if (!fallbackClicked) {
+          diagnostics.push("indonesia_step_1_fallback_submit_not_clicked");
+        }
+        await waitForIndonesiaStepOneAdvance(page, 10_000);
       }
-      await waitForIndonesiaStepOneAdvance(page, 10_000);
     }
     if (await shouldUseStepOneFallbacks()) {
       await submitIndonesiaStepOneFormFallback(page, diagnostics);
@@ -3268,9 +3319,23 @@ async function navigateToWaitingPaymentDetail(page: Page, diagnostics: string[])
 }
 
 async function submitIndonesiaDraftApplicationFromList(page: Page, diagnostics: string[]): Promise<boolean> {
+  await dismissIndonesiaDialogs(page, diagnostics);
+  if (await hasVisibleIndonesiaSweetAlert(page)) {
+    diagnostics.push("indonesia_application_list_draft_submit_blocked_by_unresolved_dialog");
+    return false;
+  }
   const submit = page.locator("#btn-save, button#btn-save, .btn-save").first();
   if (!(await submit.isVisible({ timeout: 5_000 }).catch(() => false))) return false;
-  await submit.click({ timeout: 10_000 });
+  try {
+    await submit.click({ timeout: 10_000 });
+  } catch (error) {
+    if (await hasVisibleIndonesiaSweetAlert(page)) {
+      diagnostics.push("indonesia_application_list_draft_submit_intercepted_by_dialog");
+      await dismissIndonesiaDialogs(page, diagnostics);
+      return !(await hasVisibleIndonesiaSweetAlert(page));
+    }
+    throw error;
+  }
   await page.waitForTimeout(1_500);
   const asGuest = page.locator("#btn-as-guest").first();
   if (await asGuest.isVisible({ timeout: 5_000 }).catch(() => false)) {

@@ -1,4 +1,5 @@
 import type { GenericSubmissionResult } from "../submission-result";
+import { VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES } from "../vn-prearrival/normalize";
 import type {
   CountrySubmissionApplication,
   CountrySubmissionProvider,
@@ -491,6 +492,10 @@ const WHEN_VN_PREARRIVAL_OTHER_HOTEL_ADDRESS = {
   key: "answers.hotel_accommodation_address",
   equals: "other",
 };
+const WHEN_VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED = {
+  key: "answers.visa_type",
+  notIn: [...VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES],
+};
 
 const VN_PREARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("expected_arrival_date", "Expected arrival date", "trip"),
@@ -506,8 +511,18 @@ const VN_PREARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("alias_email_address", "VIZA alias email", "contact"),
   arrivalCardField("visa_information_acknowledgement", "Visa information acknowledgement", "passport"),
   arrivalCardField("visa_type", "Visa type / purpose", "passport"),
-  arrivalCardField("visa_number", "Visa number", "passport"),
-  arrivalCardField("visa_expiry_date", "Visa expiry date", "passport"),
+  arrivalCardField(
+    "visa_number",
+    "Visa number",
+    "passport",
+    WHEN_VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED,
+  ),
+  arrivalCardField(
+    "visa_expiry_date",
+    "Visa expiry date",
+    "passport",
+    WHEN_VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED,
+  ),
   arrivalCardField("departure_country_before_arrival", "Departure country before arrival", "trip"),
   arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
   arrivalCardField("mode_of_travel", "Mode of travel", "trip"),
@@ -1069,6 +1084,20 @@ function shouldValidateRequirement(
     return actual
       ? normalizeRequirementValue(actual) !== normalizeRequirementValue(requirement.condition.notEquals)
       : true;
+  }
+  if (requirement.condition.in !== undefined) {
+    if (!actual) return false;
+    const normalizedActual = normalizeRequirementValue(actual);
+    return requirement.condition.in.some(
+      (candidate) => normalizeRequirementValue(candidate) === normalizedActual,
+    );
+  }
+  if (requirement.condition.notIn !== undefined) {
+    if (!actual) return true;
+    const normalizedActual = normalizeRequirementValue(actual);
+    return !requirement.condition.notIn.some(
+      (candidate) => normalizeRequirementValue(candidate) === normalizedActual,
+    );
   }
   return true;
 }
