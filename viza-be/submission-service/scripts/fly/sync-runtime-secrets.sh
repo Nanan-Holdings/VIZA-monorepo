@@ -96,6 +96,11 @@ case "$country" in
     ;;
 esac
 
+if [[ "$country" == "indonesia" && -z "${INDONESIA_CARD_SESSION_INTERNAL_TOKEN:-}" ]]; then
+  echo "Missing required Indonesia card-session internal token." >&2
+  exit 2
+fi
+
 for key in "${capability[@]}"; do
   if [[ -n "${!key:-}" ]]; then
     secret_args+=("$key=${!key}")

@@ -104,8 +104,8 @@ filling and one-shot submission for the applicant.
   same process.
 - `scripts/fly/` renders and deploys country workers, the sticky Indonesia and
   Korea services, the dedicated legacy worker and shared pool, syncs
-  boot-required runtime secrets, and
-  applies autoscaler decisions without stopping Machine IDs that own active
+  boot-required runtime secrets, and applies autoscaler decisions without
+  stopping Machine IDs that own active
   jobs. These scripts require operator-provided Fly authentication and must
   never print or persist secret values.
 - `src/submission-queue-claim.ts`: service-role RPC wrapper around
@@ -115,6 +115,10 @@ filling and one-shot submission for the applicant.
   use the separate `claim_vn_cloud_submission_queue_batch` RPC and
   `vn_cloud_live_pending`; only the Fly legacy worker may enable
   `VN_CLOUD_QUEUE_ENABLED`.
+- `src/inbox/forwarding-consent.ts`: shared applicant-level authorization
+  lookup used by Vietnam Pre-Arrival and Indonesia canonical alias setup.
+- `src/__tests__/fly-topology-config.spec.ts`: static deployment contract for
+  shared-pool Vietnam routing and the one-CPU/2GB sticky Indonesia Machine.
 - `src/ds160-live-config.ts`: DS-160 dry-run/live-assisted feature flags and
   startup safety validation. Dry-run is the default.
 - `src/france-live-config.ts`: France Schengen dry-run/live-assisted feature

@@ -33,6 +33,7 @@ export function resolveIndonesiaAliasMigration(input: {
   canonicalAlias: string;
   currentEmail: string | null;
   currentPassword: string | null;
+  currentAliasVersion: string | null;
   generatedPassword: string;
 }): Pick<
   PreparedIndonesiaAliasAccount,
@@ -41,14 +42,18 @@ export function resolveIndonesiaAliasMigration(input: {
   const email = input.canonicalAlias.trim().toLowerCase();
   const currentEmail = input.currentEmail?.trim().toLowerCase() || null;
   const reuseExistingAccount =
-    currentEmail === email && Boolean(input.currentPassword);
+    input.currentAliasVersion === INDONESIA_ALIAS_VERSION &&
+    currentEmail === email &&
+    Boolean(input.currentPassword);
   return {
     email,
     password: reuseExistingAccount
       ? input.currentPassword!
       : input.generatedPassword,
     reuseExistingAccount,
-    migrated: currentEmail !== email,
+    migrated:
+      currentEmail !== email ||
+      input.currentAliasVersion !== INDONESIA_ALIAS_VERSION,
   };
 }
 
@@ -56,6 +61,7 @@ export async function prepareIndonesiaCanonicalAliasAccount(input: {
   applicantId: string;
   currentEmail: string | null;
   currentPassword: string | null;
+  currentAliasVersion: string | null;
   generatedPassword: string;
   correlationId: string;
 }): Promise<PreparedIndonesiaAliasAccount> {
@@ -101,6 +107,7 @@ export async function prepareIndonesiaCanonicalAliasAccount(input: {
     canonicalAlias,
     currentEmail: input.currentEmail,
     currentPassword: input.currentPassword,
+    currentAliasVersion: input.currentAliasVersion,
     generatedPassword: input.generatedPassword,
   });
   const currentEmail = input.currentEmail?.trim().toLowerCase() || null;
