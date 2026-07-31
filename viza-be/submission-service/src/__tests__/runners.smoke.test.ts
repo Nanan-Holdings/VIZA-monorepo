@@ -18,8 +18,10 @@ import {
 
 test("smoke: every launch country resolves to a runOne", () => {
   for (const c of LAUNCH_COUNTRIES) {
+    if (c === "indonesia") continue;
     assert.equal(typeof getRunOne(c), "function", `${c} resolves`);
   }
+  assert.throws(() => getRunOne("indonesia"), UnsupportedCountryError);
 });
 
 test("smoke: every DISPATCH key has matching DISPATCH_META", () => {

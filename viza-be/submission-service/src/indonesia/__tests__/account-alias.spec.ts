@@ -10,6 +10,7 @@ test("Indonesia B1/C1 reuses one canonical applicant alias account", async () =>
     canonicalAlias: "APPL-CANONICAL@VIZA.IT.COM",
     currentEmail: "appl-canonical@viza.it.com",
     currentPassword: "existing-password",
+    currentAliasVersion: "v2",
     generatedPassword: "new-password",
   });
 
@@ -27,6 +28,25 @@ test("Indonesia alias v2 rotates a legacy portal account and password", async ()
     canonicalAlias: "appl-canonical@viza.it.com",
     currentEmail: "traveller@example.com",
     currentPassword: "legacy-password",
+    currentAliasVersion: null,
+    generatedPassword: "new-password",
+  });
+
+  assert.deepEqual(result, {
+    email: "appl-canonical@viza.it.com",
+    password: "new-password",
+    reuseExistingAccount: false,
+    migrated: true,
+  });
+});
+
+test("Indonesia alias v2 force-rotates an unversioned account even on the same alias", async () => {
+  const { resolveIndonesiaAliasMigration } = await import("../account-alias.js");
+  const result = resolveIndonesiaAliasMigration({
+    canonicalAlias: "appl-canonical@viza.it.com",
+    currentEmail: "appl-canonical@viza.it.com",
+    currentPassword: "legacy-password",
+    currentAliasVersion: null,
     generatedPassword: "new-password",
   });
 

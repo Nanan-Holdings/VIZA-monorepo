@@ -38,6 +38,7 @@ test("dispatch: all launch countries resolve to a runOne", () => {
     "singapore", "united_arab_emirates", "france", "italy", "india", "south_korea",
   ];
   for (const c of launch) {
+    if (c === "indonesia") continue;
     assert.equal(typeof getRunOne(c), "function", `${c} resolves`);
   }
 });
@@ -67,6 +68,13 @@ test("dispatch: shared-pool flow keys resolve only for their country", () => {
   }
   assert.throws(
     () => getRunOne("malaysia", "tdac"),
+    UnsupportedCountryError,
+  );
+});
+
+test("dispatch: Indonesia cannot run through the simplified runner_job transport", () => {
+  assert.throws(
+    () => getRunOne("indonesia"),
     UnsupportedCountryError,
   );
 });

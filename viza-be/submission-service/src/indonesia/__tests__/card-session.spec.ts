@@ -67,6 +67,36 @@ test("id.card-session: expired sessions are unavailable", () => {
   assert.equal(hasIndonesiaCardSessions(33_000), false);
 });
 
+test("id.card-session: replacing the same application renews the one-time session", () => {
+  clearIndonesiaCardSessions();
+  putIndonesiaCardSession({
+    applicationId: "app_renew",
+    referenceTimeMs: 1_000,
+    ttlMs: 30_000,
+    card: {
+      pan: "4111111111111111",
+      expiry: "10/30",
+      cvv: "111",
+      holderName: "CARD HOLDER",
+    },
+  });
+  const renewed = putIndonesiaCardSession({
+    applicationId: "app_renew",
+    referenceTimeMs: 20_000,
+    ttlMs: 30_000,
+    card: {
+      pan: "5555555555554444",
+      expiry: "11/31",
+      cvv: "222",
+      holderName: "CARD HOLDER",
+    },
+  });
+
+  assert.equal(renewed.expiresAtIso, new Date(50_000).toISOString());
+  assert.equal(peekIndonesiaCardSession("app_renew", 31_001)?.card.cvv, "222");
+  assert.equal(consumeIndonesiaCardSession("app_renew", 31_002)?.pan, "5555555555554444");
+});
+
 test("id.card-session: rejects a missing or placeholder cardholder name", () => {
   clearIndonesiaCardSessions();
   assert.throws(
