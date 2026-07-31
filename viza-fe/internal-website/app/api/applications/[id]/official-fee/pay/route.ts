@@ -424,10 +424,9 @@ function getSubmissionServiceLocalUrlCandidates(countryPath: "vietnam" | "indone
 }
 
 function getIndonesiaCloudCardSessionConfig(): { baseUrl: string; token: string } | null {
-  const baseUrl = (
-    process.env.INDONESIA_SUBMISSION_SERVICE_URL ??
-    process.env.SUBMISSION_SERVICE_CLOUD_URL
-  )?.trim().replace(/\/+$/, "");
+  const baseUrl = process.env.INDONESIA_SUBMISSION_SERVICE_URL
+    ?.trim()
+    .replace(/\/+$/, "");
   const token = process.env.INDONESIA_CARD_SESSION_INTERNAL_TOKEN?.trim();
   if (!baseUrl || !token) return null;
   if (process.env.NODE_ENV === "production" && !baseUrl.startsWith("https://")) return null;
@@ -590,7 +589,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
   if (countryPath === "indonesia") {
     const cloud = getIndonesiaCloudCardSessionConfig();
     if (cloud) {
-      await ensureFlyMachineStarted("legacy");
+      await ensureFlyMachineStarted("indonesia");
       const result = await postOneTimeCardSession({
         endpoint: `${cloud.baseUrl}/internal/indonesia/card-session`,
         applicationId,

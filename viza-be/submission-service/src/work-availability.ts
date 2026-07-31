@@ -13,16 +13,12 @@ export const LEGACY_IMMEDIATE_QUEUE_STATUSES = [
   "vn_live_assisted_pending",
   "vn_cloud_live_pending",
   "vn_payment_pending",
-  "vn_prearrival_dry_run_pending",
-  "vn_prearrival_live_assisted_pending",
   "sgac_dry_run_pending",
   "sgac_live_assisted_pending",
   "mdac_dry_run_pending",
   "mdac_live_assisted_pending",
   "tdac_dry_run_pending",
   "tdac_live_assisted_pending",
-  "id_c1_live_assisted_pending",
-  "id_b1_evoa_live_assisted_pending",
   "phetravel_dry_run_pending",
   "phetravel_live_assisted_pending",
   "vn_prefill_pending",
@@ -30,7 +26,6 @@ export const LEGACY_IMMEDIATE_QUEUE_STATUSES = [
 ] as const;
 
 export const LEGACY_SCHEDULED_QUEUE_STATUSES = [
-  "vn_prearrival_live_assisted_scheduled",
   "sgac_live_assisted_scheduled",
   "mdac_live_assisted_scheduled",
   "tdac_live_assisted_scheduled",
@@ -106,6 +101,23 @@ export async function hasCountryRunnerWork(country: string): Promise<boolean> {
     .eq("country", country)
     .in("status", ["queued", "running"]);
   if (error) throw new Error(`runner_job idle work check: ${error.message}`);
+  return (count ?? 0) > 0;
+}
+
+export async function hasIndonesiaWorkerWork(): Promise<boolean> {
+  const { count, error } = await supabase
+    .from("submission_queue")
+    .select("id", { count: "exact", head: true })
+    .in("status", [
+      "id_c1_live_assisted_pending",
+      "id_c1_live_assisted_processing",
+      "id_c1_payment_processing",
+      "id_b1_evoa_live_assisted_pending",
+      "id_b1_evoa_live_assisted_processing",
+      "id_b1_evoa_payment_processing",
+    ])
+    .lt("attempts", 3);
+  if (error) throw new Error(`Indonesia submission_queue work check: ${error.message}`);
   return (count ?? 0) > 0;
 }
 

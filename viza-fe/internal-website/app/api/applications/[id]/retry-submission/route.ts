@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import { compareFaces } from "@/lib/face/match";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import { enqueueRunnerPoolJob } from "@/lib/queue/enqueue";
 import { resolveRunnerPoolFlow } from "@/lib/queue/flows";
 import {
@@ -1661,9 +1662,10 @@ export async function POST(
     ownedApplication.visa_type,
   );
   const useRunnerPool =
-    process.env.RUNNER_POOL_MIGRATION_ENABLED === "true" &&
     mode === "live_assisted" &&
-    poolFlow !== null;
+    poolFlow !== null &&
+    (process.env.RUNNER_POOL_MIGRATION_ENABLED === "true" ||
+      poolFlow === "vn_prearrival");
   const poolEnqueue = useRunnerPool
     ? await enqueueRunnerPoolJob(
         applicationId,
@@ -1712,6 +1714,12 @@ export async function POST(
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
   }
   if (queueResult.reusedExisting) {
+    const stickyWake = isIndonesiaEVisaApplication(
+      ownedApplication.country,
+      ownedApplication.visa_type,
+    )
+      ? await ensureFlyMachineStarted("indonesia")
+      : null;
     if (freshDs160Submission) {
       const { error: appUpdateError } = await admin
         .from("applications")
@@ -1741,7 +1749,7 @@ export async function POST(
       supersededCount: queueResult.supersededCount,
       result: ownedApplication.submission_result,
       queueTransport: poolEnqueue?.transport ?? "submission_queue",
-      workerTriggered: poolEnqueue?.workerTriggered ?? false,
+      workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? false,
     });
   }
 
@@ -1787,7 +1795,12 @@ export async function POST(
     ? false
     : poolEnqueue
       ? poolEnqueue.workerTriggered
-      : (await wakeCloudSubmissionWorker(queueResult.jobId)).ok;
+      : isIndonesiaEVisaApplication(
+          ownedApplication.country,
+          ownedApplication.visa_type,
+        )
+        ? (await ensureFlyMachineStarted("indonesia")).ok
+        : (await wakeCloudSubmissionWorker(queueResult.jobId)).ok;
 
   return NextResponse.json({
     ok: true,

@@ -128,14 +128,14 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/api/submission-worker/wake/route.ts` boundary and the server-only
   `lib/submission-worker-wake.server.ts` helper. Never expose the internal
   bearer token to client components.
-- Six-country retry submission resolves a typed flow through
-  `lib/queue/flows.ts`, atomically enqueues through
-  `lib/queue/enqueue.ts`, and starts only the immediately claimable capacity in
-  the ten-Machine Fly shared pool through
-  `lib/fly-machine-wake.server.ts`. Scheduled arrival-card work must keep its
-  future `available_at` and must not wake compute early. Legacy and Korea sticky
-  wake requests reserve one of the same ten database Machine slots and may
-  preempt only an idle shared worker.
+- Shared-pool retry submission resolves a typed flow through
+  `lib/queue/flows.ts`, atomically enqueues through `lib/queue/enqueue.ts`, and
+  starts only immediately claimable Fly pool capacity through
+  `lib/fly-machine-wake.server.ts`. Indonesia B1/C1 instead enqueue to their
+  dedicated `submission_queue` states and wake the sticky Indonesia Machine.
+  Scheduled arrival-card work must keep its future `available_at` and must not
+  wake compute early. Legacy, Indonesia and Korea sticky wake requests reserve
+  database Machine slots and may preempt only an idle shared worker.
 - Local developer recovery for stalled official submission jobs is exposed
   through `app/api/applications/[id]/local-submission-worker/route.ts`; it is
   localhost-only and may only start the repository `viza-be/submission-service`
@@ -154,7 +154,7 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   create the quote/intent/attempt/receipt tables and queue/status columns used
   by the Vietnam e-Visa payment checkpoint UI and submission-service runner.
 - Production Indonesia official-fee card handoff uses the bearer-protected Fly
-  endpoint configured by `SUBMISSION_SERVICE_CLOUD_URL` and
+  endpoint configured by `INDONESIA_SUBMISSION_SERVICE_URL` and
   `INDONESIA_CARD_SESSION_INTERNAL_TOKEN`; it must not fall back to localhost.
 - Production Vietnam official-fee card handoff uses the bearer-protected Fly
   endpoint configured by `VIETNAM_SUBMISSION_SERVICE_URL` (with

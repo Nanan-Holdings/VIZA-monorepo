@@ -56,3 +56,27 @@ test("RunnerSlotLease reports a healthy authoritative lease loss", async () => {
   assert.equal(lease.slot(), null);
   await lease.stop();
 });
+
+test("RunnerSlotLease uses the sticky reservation path for Indonesia", async () => {
+  let stickyKind: string | null = null;
+  const lease = new RunnerSlotLease({
+    machineId: "indonesia-machine-1",
+    kind: "indonesia",
+    renewEveryMs: 60_000,
+    rpc: {
+      reserve: async () => {
+        throw new Error("pool reservation must not be used");
+      },
+      reserveSticky: async (_machineId, kind) => {
+        stickyKind = kind;
+        return { slotNumber: 7, evictedPoolMachineId: null };
+      },
+      release: async () => undefined,
+    },
+  });
+
+  assert.equal(await lease.start(), true);
+  assert.equal(stickyKind, "indonesia");
+  assert.equal(lease.slot(), 7);
+  await lease.stop();
+});

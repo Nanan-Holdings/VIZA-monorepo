@@ -61,6 +61,78 @@ describe("Vietnam pre-arrival dynamic form options", () => {
     });
   });
 
+  it("repairs stale visa fields with the official type-specific required rules", () => {
+    const staleSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Passenger Information",
+      fields: [
+        {
+          id: "visa-type",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "visa_type",
+          label: "Visa Type / Purpose",
+          fieldType: "select",
+          required: true,
+          stepNumber: 1,
+          stepName: "Passenger Information",
+          displayOrder: 14,
+          placeholder: null,
+          validationRules: null,
+          options: null,
+          conditionalLogic: null,
+        },
+        {
+          id: "visa-number",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "visa_number",
+          label: "Number",
+          fieldType: "text",
+          required: true,
+          stepNumber: 1,
+          stepName: "Passenger Information",
+          displayOrder: 15,
+          placeholder: null,
+          validationRules: null,
+          options: null,
+          conditionalLogic: null,
+        },
+        {
+          id: "visa-expiry",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "visa_expiry_date",
+          label: "Date of Expiry",
+          fieldType: "date",
+          required: true,
+          stepNumber: 1,
+          stepName: "Passenger Information",
+          displayOrder: 17,
+          placeholder: null,
+          validationRules: null,
+          options: null,
+          conditionalLogic: null,
+        },
+      ],
+    }];
+
+    const [repairedStep] = ensureVnPrearrivalOtherFlightFlow(staleSteps);
+    const visaType = repairedStep.fields.find((field) => field.fieldName === "visa_type");
+    const visaNumber = repairedStep.fields.find((field) => field.fieldName === "visa_number");
+    const visaExpiry = repairedStep.fields.find((field) => field.fieldName === "visa_expiry_date");
+
+    expect(visaType?.options).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: "TT", label_zh: "签证" }),
+      expect.objectContaining({ value: "MM1", label_zh: "双边免签" }),
+      expect.objectContaining({ value: "MM2", label_zh: "单边免签" }),
+    ]));
+    expect(visaNumber?.validationRules).toMatchObject({
+      required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+      numeric_length_when: { field: "visa_type", equals: "EV", length: 9 },
+    });
+    expect(visaExpiry?.validationRules).toMatchObject({
+      required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+  });
+
   it("provides selectable phone country codes when the official category is not session-readable", () => {
     const options = getPhoneCountryCodeOptions();
 

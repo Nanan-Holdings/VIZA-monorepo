@@ -151,6 +151,20 @@ const AIRPORT_ZH_BY_CODE: Record<string, string> = {
   PQC: "富国国际机场",
 };
 
+const VISA_TYPE_ZH_BY_CODE: Record<string, string> = {
+  GMTT: "免签证证明",
+  EV: "电子签证（E-Visa）",
+  MMT: "按国家的默认免签政策",
+  MTTQ: "富国岛签证豁免",
+  TDL: "旅游卡",
+  ABTC: "ABTC卡",
+  TTR: "永久居留卡",
+  TTA: "临时居留卡",
+  TT: "签证",
+  MM1: "双边免签",
+  MM2: "单边免签",
+};
+
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -230,6 +244,8 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormField
     ? officialLabel
     : source === "visa_issue_place"
       ? translateIssuePlace(enValue)
+      : source === "visa_type"
+        ? (VISA_TYPE_ZH_BY_CODE[code] ?? zhValue)
       : source === "airport"
         ? (AIRPORT_ZH_BY_CODE[code] ?? (zhValue || enValue))
         : source === "hotel"

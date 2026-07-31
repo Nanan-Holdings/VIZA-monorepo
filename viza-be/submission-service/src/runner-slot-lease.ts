@@ -1,6 +1,6 @@
 import { supabase } from "./supabase.js";
 
-export type RunnerMachineKind = "pool" | "legacy" | "south_korea";
+export type RunnerMachineKind = "pool" | "legacy" | "south_korea" | "indonesia";
 
 interface SlotLeaseRpc {
   reserve: (

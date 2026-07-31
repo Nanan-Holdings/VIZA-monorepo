@@ -5,6 +5,7 @@ import path from "node:path";
 
 import {
   claimPendingSubmissionQueueItems,
+  claimPendingIndonesiaQueueItems,
   claimPendingVietnamCloudQueueItems,
   isSubmissionQueueClaimRpcUnavailableError,
 } from "../submission-queue-claim";
@@ -45,6 +46,13 @@ const submissionRetryIsolationMigrationPath = path.join(
   "drizzle",
   "0119_submission_retry_queue_isolation.sql",
 );
+const indonesiaStickyMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0129_indonesia_sticky_runner.sql",
+);
 
 test("submission_queue claim migration uses skip-locked leases and service-role-only RPC access", () => {
   const sql = readFileSync(migrationPath, "utf8").toLowerCase();
@@ -79,6 +87,22 @@ test("Vietnam Pre-Arrival states are included in the atomic legacy queue claim",
   assert.match(sql, /grant execute on function public\.claim_submission_queue_batch[\s\S]*to service_role/);
 });
 
+test("Indonesia sticky migration isolates B1/C1 behind a dedicated service-role claim", () => {
+  const sql = readFileSync(indonesiaStickyMigrationPath, "utf8").toLowerCase();
+  const genericClaim = sql
+    .split("create or replace function public.claim_submission_queue_batch")[1]
+    ?.split("revoke all on function public.claim_submission_queue_batch")[0] ?? "";
+
+  assert.match(sql, /create or replace function public\.claim_indonesia_submission_queue_batch/);
+  assert.match(sql, /for update skip locked/);
+  assert.match(sql, /grant execute on function public\.claim_indonesia_submission_queue_batch[\s\S]*to service_role/);
+  assert.match(sql, /owner_kind in \('pool', 'legacy', 'south_korea', 'indonesia'\)/);
+  assert.doesNotMatch(genericClaim, /id_c1_live_assisted_pending/);
+  assert.doesNotMatch(genericClaim, /id_b1_evoa_live_assisted_pending/);
+  assert.doesNotMatch(genericClaim, /vn_prearrival_live_assisted_pending/);
+  assert.match(sql, /before insert[\s\S]*reject_indonesia_runner_job_transport/);
+});
+
 test("official-fee enqueue is serialized per application and cannot create competing active jobs", () => {
   const sql = readFileSync(officialFeeIsolationMigrationPath, "utf8").toLowerCase();
 
@@ -88,7 +112,7 @@ test("official-fee enqueue is serialized per application and cannot create compe
   assert.match(sql, /from public\.applications[\s\S]*where id = p_application_id[\s\S]*for update/);
   assert.match(sql, /sq\.application_id = p_application_id/);
   assert.match(sql, /sq\.provider = p_provider/);
-  assert.match(sql, /queue claimers use skip locked[\s\S]*for update/);
+  assert.match(sql, /queue[\s\S]*claimers use skip locked[\s\S]*for update/);
   assert.match(sql, /status = 'retry_superseded'/);
   assert.match(sql, /locked_until > p_now/);
   assert.match(sql, /revoke all on function public\.enqueue_official_fee_submission/);
@@ -182,6 +206,31 @@ test("claimPendingVietnamCloudQueueItems calls only the cloud-isolated RPC", asy
     p_limit: 4,
     p_lease_seconds: 600,
     p_target_job_id: "00000000-0000-0000-0000-000000000001",
+    p_max_attempts: 3,
+  });
+});
+
+test("claimPendingIndonesiaQueueItems calls only the sticky Indonesia RPC", async () => {
+  const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  const client = {
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      calls.push({ name, args });
+      return { data: [], error: null };
+    },
+  };
+
+  await claimPendingIndonesiaQueueItems(client, {
+    workerId: "fly-indonesia",
+    limit: 1,
+    leaseSeconds: 900,
+  });
+
+  assert.equal(calls[0]?.name, "claim_indonesia_submission_queue_batch");
+  assert.deepEqual(calls[0]?.args, {
+    p_worker_id: "fly-indonesia",
+    p_limit: 1,
+    p_lease_seconds: 900,
+    p_target_job_id: null,
     p_max_attempts: 3,
   });
 });

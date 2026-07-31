@@ -8,6 +8,7 @@ import {
   normalizeVnPrearrivalPortalPayload,
   officialLocalPhoneNumber,
   routeVnPrearrivalEmailAnswers,
+  vnPrearrivalVisaCredentialsRequired,
 } from "../normalize";
 
 function payload(overrides: Record<string, string> = {}): SubmissionPayload {
@@ -154,6 +155,43 @@ test("rejects an E-Visa number unless it is exactly nine numeric digits", () => 
     (error) => {
       assert.ok(error instanceof VnPrearrivalPortalValidationError);
       assert.ok(error.missingFields.includes("answers.visa_number(9_digit_numeric_evisa_number)"));
+      return true;
+    },
+  );
+});
+
+test("requires visa credentials only for the official credential-bearing visa types", () => {
+  for (const visaType of ["EV", "TT", "GMTT", "TDL", "TTA", "ABTC", "TTR"]) {
+    assert.equal(vnPrearrivalVisaCredentialsRequired(visaType), true);
+  }
+  for (const visaType of ["MMT", "MM1", "MM2", "MTTQ", "MTT", "TMTT"]) {
+    assert.equal(vnPrearrivalVisaCredentialsRequired(visaType), false);
+  }
+});
+
+test("allows official exemption types without a visa number or expiry date", () => {
+  for (const visaType of ["MMT", "MM1", "MM2", "MTTQ"]) {
+    const normalized = normalizeVnPrearrivalPortalPayload(payload({
+      visa_type: visaType,
+      visa_number: "",
+      visa_expiry_date: "",
+    }));
+    assert.equal(normalized.visaNumber, null);
+    assert.equal(normalized.visaExpiryDate, null);
+  }
+});
+
+test("still requires a visa number and expiry date for credential-bearing types", () => {
+  assert.throws(
+    () => normalizeVnPrearrivalPortalPayload(payload({
+      visa_type: "TT",
+      visa_number: "",
+      visa_expiry_date: "",
+    })),
+    (error) => {
+      assert.ok(error instanceof VnPrearrivalPortalValidationError);
+      assert.ok(error.missingFields.includes("answers.visa_number"));
+      assert.ok(error.missingFields.includes("answers.visa_expiry_date"));
       return true;
     },
   );

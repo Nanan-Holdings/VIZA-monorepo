@@ -69,6 +69,34 @@ describe("bilingual schema contract", () => {
     expect(resolveOptionDisplayLabel(normalized.options, "family_visit", "en")).toBe("Family visit");
   });
 
+  it("localizes official nationality names while preserving official values", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "VN_PRE_ARRIVAL",
+      fieldName: "nationality",
+      label: "Nationality",
+      fieldType: "country",
+      options: [
+        { value: "China", text: "China" },
+        { value: "Dominican Republic", text: "Dominican Republic" },
+        { value: "Lao People's Democratic Republic", text: "Lao People's Democratic Republic" },
+        { value: "Republic of Moldova", text: "Republic of Moldova" },
+      ],
+    }));
+
+    expect(resolveLocalizedOptions(normalized.options, "zh")).toEqual([
+      expect.objectContaining({ value: "China", text: "中国" }),
+      expect.objectContaining({ value: "Dominican Republic", text: "多米尼加共和国" }),
+      expect.objectContaining({ value: "Lao People's Democratic Republic", text: "老挝" }),
+      expect.objectContaining({ value: "Republic of Moldova", text: "摩尔多瓦" }),
+    ]);
+    expect(resolveLocalizedOptions(normalized.options, "en")).toEqual([
+      expect.objectContaining({ value: "China", text: "China" }),
+      expect.objectContaining({ value: "Dominican Republic", text: "Dominican Republic" }),
+      expect.objectContaining({ value: "Lao People's Democratic Republic", text: "Lao People's Democratic Republic" }),
+      expect.objectContaining({ value: "Republic of Moldova", text: "Republic of Moldova" }),
+    ]);
+  });
+
   it("uses specific Vietnamese province and border-gate labels instead of generic fallbacks", () => {
     const province = normalizeBilingualFormField(field({
       fieldName: "intended_province_city",
