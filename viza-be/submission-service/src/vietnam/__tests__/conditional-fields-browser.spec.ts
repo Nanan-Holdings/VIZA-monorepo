@@ -731,12 +731,14 @@ test("vn.conditional-fields browser: selects Panama from a virtualized official 
     const display = page.locator(".ant-select-selection-item").first();
     assert.equal((await display.innerText()).trim(), "Panama");
     const searchedTerms = await page.evaluate(() => (window as unknown as { searchedTerms?: string[] }).searchedTerms ?? []);
+    const keydownCount = await page.evaluate(() => (window as unknown as { keydownCount?: number }).keydownCount ?? 0);
     assert.equal(searchedTerms.includes("PAN"), false);
-    assert.equal(searchedTerms.includes("Panama"), true);
-    assert.equal(searchedTerms.includes("Panam"), true);
-    assert.equal(searchedTerms.includes("Pana"), true);
-    assert.equal(searchedTerms.includes("Pan"), true);
-    assert.equal(searchedTerms.includes("Pa"), true);
+    assert.equal(
+      searchedTerms.filter(Boolean).length,
+      0,
+      "known countries should use direct indexed scrolling before non-empty search",
+    );
+    assert.ok(keydownCount < 100, `virtual select used ${keydownCount} keydown events`);
   } finally {
     await browser.close();
   }
@@ -968,6 +970,7 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
         input.addEventListener("focus", show);
         input.addEventListener("input", refreshSearch);
         input.addEventListener("keydown", (event) => {
+          window.keydownCount = (window.keydownCount || 0) + 1;
           if (event.key === "Home") {
             activeIndex = -1;
             holder.scrollTop = 0;

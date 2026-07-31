@@ -55,6 +55,13 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
   const searchTerms = buildAntSelectSearchTerms(optionText);
   const optionIndex = getVnCountryOptionIndex(optionText);
   await page.evaluate("window.__name = window.__name || ((fn) => fn)");
+  if (optionIndex !== null) {
+    const indexed = await pickKnownCountryByIndex(page, domId, optionText, optionIndex);
+    if (indexed.ok) {
+      await settle(page);
+      return;
+    }
+  }
   const result = await page.evaluate(
     async ({ domId, optionText, searchTerms }) => {
       const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -293,6 +300,40 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
   await settle(page);
 }
 
+async function pickKnownCountryByIndex(
+  page: Page,
+  domId: string,
+  optionText: string,
+  optionIndex: number,
+): Promise<{ ok: boolean; candidates: string[] }> {
+  const input = page.locator(`#${cssEscape(domId)}`).first();
+  const select = input.locator(
+    "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-select ')][1]",
+  );
+  const selector = select.locator(".ant-select-selector").first();
+  if ((await input.count()) === 0 || (await select.count()) === 0 || (await selector.count()) === 0) {
+    return { ok: false, candidates: [] };
+  }
+
+  await input.evaluate((element) => {
+    element.closest<HTMLElement>(".ant-select")?.scrollIntoView({ block: "center", inline: "center" });
+  });
+  await selector.click({ timeout: SHORT_TIMEOUT, force: true });
+  await page.waitForTimeout(150);
+  await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  await openFullSelectListForIndexedScroll(page, domId);
+  let candidates = await readVisibleSelectCandidates(page);
+  const indexed = await scrollToIndexedSelectOption(page, optionText, optionIndex);
+  if (indexed.candidates.length > candidates.length) {
+    candidates = indexed.candidates;
+  }
+  await page.waitForTimeout(300);
+  return {
+    ok: indexed.ok && (await selectDisplayMatches(page, domId, optionText)),
+    candidates,
+  };
+}
+
 async function pickSelectWithPlaywright(
   page: Page,
   domId: string,
@@ -323,12 +364,6 @@ async function pickSelectWithPlaywright(
   if (optionIndex !== null) {
     await openFullSelectListForIndexedScroll(page, domId);
     let candidates = await readVisibleSelectCandidates(page);
-    const keyboardIndexed = await selectIndexedOptionWithKeyboard(page, domId, optionText, optionIndex);
-    if (keyboardIndexed.candidates.length > candidates.length) {
-      candidates = keyboardIndexed.candidates;
-    }
-    if (keyboardIndexed.ok) return { ok: true, candidates };
-
     const indexed = await scrollToIndexedSelectOption(page, optionText, optionIndex);
     if (indexed.candidates.length > candidates.length) {
       candidates = indexed.candidates;
@@ -337,6 +372,17 @@ async function pickSelectWithPlaywright(
     if (indexed.ok && (await selectDisplayMatches(page, domId, optionText))) {
       return { ok: true, candidates };
     }
+
+    // A country list can contain more than 200 virtualized options. Sending
+    // one Playwright ArrowDown command per option over remote CDP can consume
+    // most of a Browserbase session. Direct indexed scrolling above normally
+    // renders the target in a few calls; keep keyboard traversal only as the
+    // compatibility fallback for portals whose virtual-list geometry changed.
+    const keyboardIndexed = await selectIndexedOptionWithKeyboard(page, domId, optionText, optionIndex);
+    if (keyboardIndexed.candidates.length > candidates.length) {
+      candidates = keyboardIndexed.candidates;
+    }
+    if (keyboardIndexed.ok) return { ok: true, candidates };
   }
   for (const searchTerm of searchTerms) {
     await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
