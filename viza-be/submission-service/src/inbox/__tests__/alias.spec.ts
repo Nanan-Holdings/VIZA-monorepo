@@ -179,4 +179,76 @@ describe("applicant inbox routing", () => {
       InboxDomainUnroutableError,
     );
   });
+
+  it("retries a transient DNS timeout before accepting a usable MX record", async () => {
+    const { assertInboxAliasDomainRoutable } = await import("../wait-for-message");
+    let attempts = 0;
+
+    await assert.doesNotReject(
+      assertInboxAliasDomainRoutable(
+        "appl-test@example.org",
+        async () => {
+          attempts += 1;
+          if (attempts === 1) {
+            throw Object.assign(new Error("queryMx ETIMEOUT example.org"), {
+              code: "ETIMEOUT",
+            });
+          }
+          return [{ exchange: "inbound.example.org", priority: 10 }];
+        },
+        { retryDelaysMs: [0] },
+      ),
+    );
+    assert.equal(attempts, 2);
+  });
+
+  it("still rejects a transient DNS failure after bounded retries", async () => {
+    const {
+      assertInboxAliasDomainRoutable,
+      InboxDomainUnroutableError,
+    } = await import("../wait-for-message");
+    let attempts = 0;
+
+    await assert.rejects(
+      assertInboxAliasDomainRoutable(
+        "appl-test@example.org",
+        async () => {
+          attempts += 1;
+          throw Object.assign(new Error("queryMx ETIMEOUT example.org"), {
+            code: "ETIMEOUT",
+          });
+        },
+        { retryDelaysMs: [0, 0], fallbackResolver: null },
+      ),
+      InboxDomainUnroutableError,
+    );
+    assert.equal(attempts, 3);
+  });
+
+  it("uses DNS-over-HTTPS after native MX lookups exhaust transient retries", async () => {
+    const { assertInboxAliasDomainRoutable } = await import("../wait-for-message");
+    let nativeAttempts = 0;
+    let fallbackAttempts = 0;
+
+    await assert.doesNotReject(
+      assertInboxAliasDomainRoutable(
+        "appl-test@example.org",
+        async () => {
+          nativeAttempts += 1;
+          throw Object.assign(new Error("queryMx ETIMEOUT example.org"), {
+            code: "ETIMEOUT",
+          });
+        },
+        {
+          retryDelaysMs: [0],
+          fallbackResolver: async () => {
+            fallbackAttempts += 1;
+            return [{ exchange: "inbound.example.org", priority: 10 }];
+          },
+        },
+      ),
+    );
+    assert.equal(nativeAttempts, 2);
+    assert.equal(fallbackAttempts, 1);
+  });
 });

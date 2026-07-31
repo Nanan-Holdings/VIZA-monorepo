@@ -94,12 +94,13 @@ async function hasDueVietnamStatusCheck(nowIso: string): Promise<boolean> {
   return (count ?? 0) > 0;
 }
 
-export async function hasCountryRunnerWork(country: string): Promise<boolean> {
-  const { count, error } = await supabase
+export async function hasCountryRunnerWork(country?: string): Promise<boolean> {
+  let query = supabase
     .from("runner_job")
     .select("id", { count: "exact", head: true })
-    .eq("country", country)
     .in("status", ["queued", "running"]);
+  if (country) query = query.eq("country", country);
+  const { count, error } = await query;
   if (error) throw new Error(`runner_job idle work check: ${error.message}`);
   return (count ?? 0) > 0;
 }

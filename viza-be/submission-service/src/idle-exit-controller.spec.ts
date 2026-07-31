@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
 
 import { IdleExitController } from "./idle-exit-controller.js";
@@ -56,3 +58,14 @@ test("unsafe authoritative check leaves the worker running", async () => {
   controller.stop();
 });
 
+test("shared runner-job consumers keep the Machine awake for unfiltered queued work", () => {
+  const indexSource = readFileSync(path.join(__dirname, "index.ts"), "utf8");
+  const availabilitySource = readFileSync(path.join(__dirname, "work-availability.ts"), "utf8");
+
+  assert.match(
+    indexSource,
+    /RUNNER_JOB_CONSUMER_ENABLED\s*&&\s*await hasCountryRunnerWork\(RUNNER_JOB_COUNTRY \|\| undefined\)/,
+  );
+  assert.match(availabilitySource, /hasCountryRunnerWork\(country\?: string\)/);
+  assert.match(availabilitySource, /if \(country\) query = query\.eq\("country", country\)/);
+});

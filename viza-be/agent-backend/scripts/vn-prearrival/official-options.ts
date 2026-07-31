@@ -99,6 +99,25 @@ export const VN_PREARRIVAL_PORT_OPTIONS = [
   vnPrearrivalOption("PQC", "富国港", "Phu Quoc Port"),
 ];
 
+export const VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES = [
+  "TMTT",
+  "MTT",
+  "MMT",
+  "MM2",
+  "MM1",
+  "MTTQ",
+] as const;
+
+export const VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES = [
+  "GMTT",
+  "EV",
+  "TDL",
+  "ABTC",
+  "TTR",
+  "TTA",
+  "TT",
+] as const;
+
 export const VN_PREARRIVAL_VISA_TYPE_OPTIONS = [
   vnPrearrivalOption("GMTT", "免签证证明", "Visa Exemption Certificate"),
   vnPrearrivalOption("EV", "电子签证（E-Visa）", "Electronic Visa (E-Visa)"),

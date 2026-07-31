@@ -11,6 +11,7 @@ import {
 import {
   extractIndonesiaOtpCode,
   isIndonesiaBillingCodeOnlyPaymentSnapshot,
+  classifyIndonesiaSweetAlertSnapshot,
   isIndonesiaApplicationDetailOtpChallenge,
   isExpiredIndonesiaApplicationText,
   isIndonesiaPortalAccountOtpChallenge,
@@ -20,6 +21,24 @@ import {
   hasUnconfirmedIndonesiaPaymentResult,
   shouldSubmitIndonesiaPortalEmailOtp,
 } from "../runner";
+
+test("classifies Indonesia SweetAlert success and preserves existing-application warnings", () => {
+  assert.equal(
+    classifyIndonesiaSweetAlertSnapshot({ text: "Success Application saved", successIcon: true }),
+    "success",
+  );
+  assert.equal(
+    classifyIndonesiaSweetAlertSnapshot({
+      text: "Currently the foreigner has a visa application that is being verified",
+      successIcon: true,
+    }),
+    "existing_application_warning",
+  );
+  assert.equal(
+    classifyIndonesiaSweetAlertSnapshot({ text: "Something wrong, Please try again", errorIcon: true }),
+    "error",
+  );
+});
 
 test("preserves the international plus sign for Indonesia mobile fields", () => {
   assert.equal(normalizeIndonesiaMobilePhone("+86 133 1234 5678"), "+8613312345678");

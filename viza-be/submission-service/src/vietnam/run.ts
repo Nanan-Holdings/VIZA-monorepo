@@ -16,7 +16,13 @@ import {
 import fs from "node:fs";
 import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
-import { solveVietnamImageCaptcha, type VietnamCaptchaSolveOutcome } from "./captcha";
+import {
+  captureVietnamCaptchaFingerprint,
+  reportRejectedVietnamCaptcha,
+  solveVietnamImageCaptcha,
+  waitForVietnamCaptchaRefresh,
+  type VietnamCaptchaSolveOutcome,
+} from "./captcha";
 import {
   fillVietnamConditionalRepeatGroups,
   validateVietnamConditionalAnswers,
@@ -496,10 +502,10 @@ async function fillVietnamApplicationOnce(
           };
         }
         await emitProgress("captcha_submitted");
-        await withTimeout(
+        const captchaSubmitted = await withTimeout(
           submitReviewCaptchaAndWait(page, stepTimeoutMs),
           Math.min(stepTimeoutMs, 55_000),
-          undefined,
+          false,
         );
         const codeAfterCaptcha = await withTimeout(captureRegistrationCode(page), 8_000, null);
         if (codeAfterCaptcha) {
@@ -524,6 +530,9 @@ async function fillVietnamApplicationOnce(
         }
         lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
+        if (captchaSubmitted && stateAfterCaptcha === "captcha_visible") {
+          await reportRejectedVietnamCaptcha(captchaOutcome);
+        }
       }
     }
     let registrationCode = await withTimeout(captureRegistrationCode(page), 15_000, null);
@@ -1574,7 +1583,7 @@ async function advanceToReview(page: Page, timeoutMs: number): Promise<void> {
   await page.waitForTimeout(2_000);
 }
 
-async function submitReviewCaptchaAndWait(page: Page, timeoutMs: number): Promise<void> {
+async function submitReviewCaptchaAndWait(page: Page, timeoutMs: number): Promise<boolean> {
   const target = await page
     .evaluate(() => {
       const visible = (element: Element | null): element is HTMLElement => {
@@ -1621,10 +1630,12 @@ async function submitReviewCaptchaAndWait(page: Page, timeoutMs: number): Promis
   // security-code submit. Waiting for networkidle can pin the worker at
   // captcha_submitted even when the page has already advanced to payment.
   await page.waitForTimeout(Math.min(timeoutMs, 5_000));
+  return Boolean(target);
 }
 
-async function refreshVietnamReviewCaptcha(page: Page): Promise<void> {
-  await page
+async function refreshVietnamReviewCaptcha(page: Page): Promise<boolean> {
+  const previousFingerprint = await captureVietnamCaptchaFingerprint(page, 1_000);
+  const clicked = await page
     .evaluate(() => {
       const visible = (element: Element | null): element is HTMLElement | SVGElement => {
         if (!element) return false;
@@ -1655,11 +1666,15 @@ async function refreshVietnamReviewCaptcha(page: Page): Promise<void> {
         })
         .sort((left, right) => left.score - right.score);
       const target = candidates[0]?.element as HTMLElement | SVGElement | undefined;
+      if (!target) return false;
       target?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
       target?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
       target?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+      return true;
     })
-    .catch(() => undefined);
+    .catch(() => false);
+  if (!clicked) return false;
+  return waitForVietnamCaptchaRefresh(page, previousFingerprint, 10_000);
 }
 
 async function captureRegistrationCode(page: Page): Promise<string | null> {

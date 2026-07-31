@@ -1,5 +1,7 @@
 import type { Frame, Locator, Page } from "@playwright/test";
+import { createHash } from "node:crypto";
 import {
+  reportBadCaptcha,
   solveImageCaptcha,
   TwoCaptchaConfigError,
   TwoCaptchaZeroBalanceError,
@@ -12,6 +14,7 @@ export interface VietnamCaptchaSolveOutcome {
   telemetry?: {
     solveId: string;
     durationMs: number;
+    challengeFingerprint: string;
   };
 }
 
@@ -73,10 +76,38 @@ export function describeVietnamCaptchaError(error: unknown): string {
   return String(error);
 }
 
+export function fingerprintVietnamCaptchaImage(image: Buffer): string {
+  return createHash("sha256").update(image).digest("hex");
+}
+
+export function isVietnamCaptchaSolveCurrent(
+  solvedFingerprint: string,
+  currentFingerprint: string | null,
+): boolean {
+  return Boolean(currentFingerprint && solvedFingerprint === currentFingerprint);
+}
+
+export async function reportRejectedVietnamCaptcha(
+  outcome: VietnamCaptchaSolveOutcome,
+  reporter: (solveId: string) => Promise<void> = reportBadCaptcha,
+): Promise<boolean> {
+  const solveId = outcome.solved ? outcome.telemetry?.solveId : undefined;
+  if (!solveId) return false;
+  try {
+    await reporter(solveId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function solveVietnamImageCaptcha(
   page: Page,
   timeoutMs: number,
-  solver: (image: Buffer, timeoutMs: number) => Promise<CaptchaSolveResult> = solveImageCaptcha,
+  solver: (image: Buffer, timeoutMs: number) => Promise<CaptchaSolveResult> = (image, budgetMs) =>
+    solveImageCaptcha(image, budgetMs, {
+      comment: "Vietnam e-Visa security code. Return only the visible characters and preserve letter case.",
+    }),
 ): Promise<VietnamCaptchaSolveOutcome> {
   const solveTimeoutMs = getVietnamCaptchaTimeoutMs(timeoutMs);
   if (!shouldSolveVietnamCaptcha()) {
@@ -98,13 +129,31 @@ export async function solveVietnamImageCaptcha(
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const imageBuffer = await image.screenshot({ timeout: Math.min(solveTimeoutMs, 30_000) });
+      const challengeFingerprint = fingerprintVietnamCaptchaImage(imageBuffer);
       const result = await solver(imageBuffer, solveTimeoutMs);
-      await input.fill(result.text, { timeout: 10_000 });
+      const currentControls = await locateVietnamCaptchaControls(page, CAPTCHA_INPUT_WAIT_MS);
+      const currentFingerprint = currentControls
+        ? fingerprintVietnamCaptchaImage(
+            await currentControls.image.screenshot({ timeout: Math.min(solveTimeoutMs, 30_000) }),
+          )
+        : null;
+      if (!isVietnamCaptchaSolveCurrent(challengeFingerprint, currentFingerprint)) {
+        lastReason = "Vietnam CAPTCHA changed while 2captcha was solving; discarded the stale answer.";
+        continue;
+      }
+      const answer = result.text.trim();
+      await currentControls?.input.fill(answer, { timeout: 10_000 });
+      const persistedAnswer = await currentControls?.input.inputValue({ timeout: 5_000 }).catch(() => "");
+      if (persistedAnswer !== answer) {
+        lastReason = "Vietnam CAPTCHA answer did not persist in the official portal input.";
+        continue;
+      }
       return {
         solved: true,
         telemetry: {
           solveId: result.solveId,
           durationMs: result.durationMs,
+          challengeFingerprint,
         },
       };
     } catch (error) {
@@ -120,6 +169,32 @@ export async function solveVietnamImageCaptcha(
     solved: false,
     reason: lastReason,
   };
+}
+
+export async function captureVietnamCaptchaFingerprint(
+  page: Page,
+  waitMs = 1_000,
+): Promise<string | null> {
+  const controls = await locateVietnamCaptchaControls(page, waitMs);
+  if (!controls) return null;
+  const image = await controls.image.screenshot({ timeout: 10_000 }).catch(() => null);
+  return image ? fingerprintVietnamCaptchaImage(image) : null;
+}
+
+export async function waitForVietnamCaptchaRefresh(
+  page: Page,
+  previousFingerprint: string | null,
+  timeoutMs = 10_000,
+): Promise<boolean> {
+  const deadline = Date.now() + Math.max(timeoutMs, 0);
+  do {
+    const currentFingerprint = await captureVietnamCaptchaFingerprint(page, 500);
+    if (currentFingerprint && (!previousFingerprint || currentFingerprint !== previousFingerprint)) {
+      return true;
+    }
+    if (Date.now() < deadline) await page.waitForTimeout(250);
+  } while (Date.now() < deadline);
+  return false;
 }
 
 async function firstUsableInput(locator: Locator): Promise<Locator | null> {

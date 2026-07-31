@@ -26,6 +26,8 @@ export interface FieldRequirement {
     key: string;
     equals?: string | boolean;
     notEquals?: string | boolean;
+    in?: Array<string | boolean>;
+    notIn?: Array<string | boolean>;
   };
 }
 

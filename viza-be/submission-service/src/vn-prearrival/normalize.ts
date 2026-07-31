@@ -136,14 +136,28 @@ function airportFromFlightNumber(flightNumber: string): string | null {
   return suffix ? suffix.toUpperCase() : null;
 }
 
-const VISA_CREDENTIALS_OPTIONAL_TYPES = new Set([
+export const VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES = [
   "TMTT",
   "MTT",
   "MMT",
   "MM2",
   "MM1",
   "MTTQ",
-]);
+] as const;
+
+export const VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES = [
+  "GMTT",
+  "EV",
+  "TDL",
+  "ABTC",
+  "TTR",
+  "TTA",
+  "TT",
+] as const;
+
+const VISA_CREDENTIALS_OPTIONAL_TYPES = new Set<string>(
+  VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
+);
 
 export function vnPrearrivalVisaCredentialsRequired(visaType: string): boolean {
   return !VISA_CREDENTIALS_OPTIONAL_TYPES.has(visaType.trim().toUpperCase());
