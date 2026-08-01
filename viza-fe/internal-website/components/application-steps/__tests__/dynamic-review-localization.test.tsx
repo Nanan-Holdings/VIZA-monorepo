@@ -1,12 +1,28 @@
-import { describe, expect, test } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, test, vi } from "vitest";
 import type { WizardStep } from "@/types/visa-form-fields";
 import {
+  DynamicReviewStep,
   getBilingualReviewValue,
+  getLocalizedReviewSectionTitle,
   getLocalizedOptionText,
   getReviewOptionText,
   getReviewOfficialLabel,
   getReviewSourceLabel,
 } from "../dynamic-review-step";
+import { BilingualReviewPanel } from "../bilingual-review-panel";
+
+vi.mock("next-intl", () => ({
+  useLocale: () => "zh",
+  useTranslations: () => {
+    const translate = (key: string) => ({
+      "review.missingInformation": "缺失信息",
+      "review.notProvided": "未填写",
+    })[key] ?? key;
+    translate.has = () => false;
+    return translate;
+  },
+}));
 
 function baseField(overrides: Partial<WizardStep["fields"][number]>): WizardStep["fields"][number] {
   return {
@@ -28,6 +44,104 @@ function baseField(overrides: Partial<WizardStep["fields"][number]>): WizardStep
 }
 
 describe("dynamic review localization", () => {
+  test("renders a compact field-and-answer table instead of input-like controls", () => {
+    const { container } = render(
+      <BilingualReviewPanel
+        onEditSection={vi.fn()}
+        rows={[{
+          section: "个人信息 / Personal Information",
+          fieldName: "surname",
+          label: "姓 / Surname",
+          sourceLabel: "姓",
+          officialLabel: "Surname",
+          sourceValue: "李",
+          officialValue: "LI",
+          badges: [],
+          warnings: [],
+          editable: true,
+          editStepIndex: 0,
+        }]}
+      />,
+    );
+
+    const table = screen.getByRole("table");
+    const row = within(table).getByRole("row");
+
+    expect(within(row).getByRole("rowheader")).toHaveTextContent("姓Surname");
+    expect(within(row).getByRole("rowheader")).toHaveClass("w-[56%]", "px-0", "text-left");
+    expect(within(row).getByRole("cell")).toHaveTextContent("李LI");
+    expect(within(row).getByRole("cell")).toHaveClass("px-0", "text-right");
+    expect(screen.getByRole("button", { name: "修改个人信息 / Personal Information" }))
+      .toHaveClass("justify-end", "p-0");
+    expect(screen.getByRole("heading", { name: "个人信息 / Personal Information" }))
+      .toHaveClass("text-sm");
+    expect(screen.getByText("姓")).toHaveClass("text-sm");
+    expect(screen.getByText("Surname")).toHaveClass("text-sm");
+    expect(screen.getByText("李")).toHaveClass("text-sm");
+    expect(screen.getByText("LI")).toHaveClass("text-sm");
+    expect(screen.getByRole("heading", { name: "个人信息 / Personal Information" }).parentElement)
+      .not.toHaveClass("px-3", "pl-3");
+    expect(container.firstElementChild).toHaveClass("gap-0");
+    expect(screen.queryByText("修改")).not.toBeInTheDocument();
+    expect(container.querySelector("section")).not.toHaveClass("border", "bg-card");
+    expect(container.querySelector("input")).not.toBeInTheDocument();
+    expect(container.querySelector("textarea")).not.toBeInTheDocument();
+  });
+
+  test("renders section headings in the active language only", () => {
+    expect(getLocalizedReviewSectionTitle("Personal Information / 个人信息", "en"))
+      .toBe("Personal Information");
+    expect(getLocalizedReviewSectionTitle("Personal Information / 个人信息", "zh"))
+      .toBe("个人信息");
+    expect(getLocalizedReviewSectionTitle("Passport Details", "en"))
+      .toBe("Passport Details");
+  });
+
+  test("keeps empty fields at the end of the merged review", () => {
+    const step: WizardStep = {
+      stepNumber: 1,
+      stepName: "Personal Information",
+      fields: [
+        baseField({
+          fieldName: "surname",
+          label: "Surname (Family name)",
+          validationRules: { label_zh: "姓", label_en: "Surname (Family name)" },
+        }),
+        baseField({
+          fieldName: "given_names",
+          label: "Given name(s)",
+          validationRules: { label_zh: "名", label_en: "Given name(s)" },
+        }),
+      ],
+    };
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ surname: "Edward" }}
+        dbSteps={[step]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        mode="continue"
+        showAction={false}
+      />,
+    );
+
+    const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
+    expect(headings).toEqual([
+      "个人信息",
+      "个人信息 · 缺失信息",
+    ]);
+    expect(screen.getAllByText("Edward").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("未填写").length).toBeGreaterThan(0);
+    expect(screen.getByText("未填写")).toHaveClass("text-red-600");
+    expect(screen.getByText("Not provided")).toHaveClass("text-red-600");
+    expect(screen.queryByRole("button", { name: "review.continueToTeam" }))
+      .not.toBeInTheDocument();
+  });
+
   test("uses Vietnam schema metadata for Chinese and official review labels", () => {
     const field = baseField({
       fieldName: "has_violated_vietnam_laws",

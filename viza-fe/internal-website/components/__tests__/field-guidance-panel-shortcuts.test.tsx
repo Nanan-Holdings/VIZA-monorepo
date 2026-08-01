@@ -126,7 +126,7 @@ describe("FieldGuidancePanel shortcuts", () => {
     expect(ctrlRequest.question).toBe("Need this exact?");
   });
 
-  it("renders Chinese source labels and cleaned excerpts", async () => {
+  it("does not render source material in the compact guidance card", async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -144,8 +144,8 @@ describe("FieldGuidancePanel shortcuts", () => {
 
     renderPanel();
 
-    expect(await screen.findByText("印度尼西亚申请表与材料要求")).toBeInTheDocument();
-    expect(screen.getByText("填表前字段清单。适用国家/地区：印度尼西亚；签证类型：B211A 旅游签证。")).toBeInTheDocument();
+    await screen.findByText("Passport number");
+    expect(screen.queryByText("印度尼西亚申请表与材料要求")).not.toBeInTheDocument();
     expect(screen.queryByText(/Source URL/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Document type/i)).not.toBeInTheDocument();
   });
@@ -182,7 +182,7 @@ describe("FieldGuidancePanel shortcuts", () => {
     expect(screen.getByText("外交护照")).toBeInTheDocument();
   });
 
-  it("shows at most three option explanations", async () => {
+  it("shows at most two option explanations", async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -201,7 +201,8 @@ describe("FieldGuidancePanel shortcuts", () => {
     renderPanel();
 
     expect(await screen.findByText("一")).toBeInTheDocument();
-    expect(screen.getByText("三")).toBeInTheDocument();
+    expect(screen.getByText("二")).toBeInTheDocument();
+    expect(screen.queryByText("三")).not.toBeInTheDocument();
     expect(screen.queryByText("四")).not.toBeInTheDocument();
   });
 });

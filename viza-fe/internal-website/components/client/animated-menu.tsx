@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Globe } from "lucide-react";
+import { CircleQuestionMark, Globe } from "lucide-react";
 
 interface MenuItemProps {
   icon: React.ReactNode;
@@ -100,8 +100,8 @@ interface AnimatedMenuProps {
   onClose?: () => void;
 }
 
-// Status / Application / Settings / Support live in the top nav bar — the
-// dropdown only carries destinations that have no nav tab.
+// Home / Application / Settings live in the top nav bar — the dropdown carries
+// everything else, including the applications index and help centre.
 export function AnimatedMenu({
   onLogout,
   isLoggingOut = false,
@@ -111,21 +111,20 @@ export function AnimatedMenu({
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("menu");
-  const isInDestinations = pathname.startsWith("/client/destinations");
+  // The change-country picker now lives on the applications index.
+  const isInDestinations =
+    pathname.startsWith("/client/destinations") || pathname.startsWith("/client/status");
   const isInInviteFriends = pathname.startsWith("/client/invite-friends");
+  const isInHelp = pathname.startsWith("/client/help");
 
-  const handleChangeCountry = () => {
-    router.push("/client/destinations");
+  const navigate = (href: string) => {
+    router.push(href);
     onClose?.();
   };
 
-  const handleInviteFriends = () => {
-    router.push("/client/invite-friends");
-    onClose?.();
-  };
-
-  // Index 0 = switch-country item; invite-friends (when shown) takes index 1.
-  const menuItemBaseIndex = showInviteFriends ? 1 : 0;
+  // Switch application is index 0; invite-friends (when shown) takes index 1,
+  // then help, then logout.
+  const helpIndex = showInviteFriends ? 2 : 1;
 
   return (
     <motion.div
@@ -144,20 +143,26 @@ export function AnimatedMenu({
         label={t("changeCountry")}
         backgroundColor={isInDestinations ? "bg-[#efefef]" : "bg-white"}
         index={0}
-        onClick={handleChangeCountry}
+        onClick={() => navigate("/client/status")}
       />
 
       {showInviteFriends && (
-        <>
-          <MenuItem
-            icon={<LucideUserPlus />}
-            label={t("inviteFriends")}
-            backgroundColor={isInInviteFriends ? "bg-[#efefef]" : "bg-white"}
-            index={1}
-            onClick={handleInviteFriends}
-          />
-        </>
+        <MenuItem
+          icon={<LucideUserPlus />}
+          label={t("inviteFriends")}
+          backgroundColor={isInInviteFriends ? "bg-[#efefef]" : "bg-white"}
+          index={1}
+          onClick={() => navigate("/client/invite-friends")}
+        />
       )}
+
+      <MenuItem
+        icon={<CircleQuestionMark className="h-4 w-4" />}
+        label={t("help")}
+        backgroundColor={isInHelp ? "bg-[#efefef]" : "bg-white"}
+        index={helpIndex}
+        onClick={() => navigate("/client/help")}
+      />
 
       <div className="w-full h-px bg-[#efefef]" />
 
@@ -165,7 +170,7 @@ export function AnimatedMenu({
         icon={<LucideLogOut />}
         label={isLoggingOut ? t("loggingOut") : t("logout")}
         backgroundColor="bg-white"
-        index={menuItemBaseIndex + 1}
+        index={helpIndex + 1}
         onClick={onLogout}
         textColor="text-red-500"
       />

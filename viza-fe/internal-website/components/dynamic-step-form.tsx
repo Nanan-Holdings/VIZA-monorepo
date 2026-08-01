@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Bot, CircleHelp, Loader2, Plus, Trash2 } from "lucide-react";
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import { CircleHelp, Loader2, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
+import { ApplicationConditionalFieldsPanel } from "@/components/ui/application-conditional-fields-panel";
+import { AiAssistButton } from "@/components/ui/ai-assist-button";
 import {
   Dialog,
   DialogClose,
@@ -15,6 +17,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { type VisaFormFieldOption, type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import {
   getChinesePlaceholder,
@@ -45,6 +52,7 @@ interface DynamicStepFormProps {
   onComplete: (data: Record<string, string>) => void;
   onDraftChange?: (data: Record<string, string>) => void;
   saving?: boolean;
+  showContinueButton?: boolean;
   country?: string | null;
   visaType?: string;
   /**
@@ -54,6 +62,12 @@ interface DynamicStepFormProps {
    * step's value must be supplied through `prefill`.
    */
   externallyHandledFieldNames?: string[];
+  /**
+   * Required fields surfaced by the page-level submit check. This state is
+   * intentionally controlled by the page so one click can validate every
+   * visible step in the long form at once.
+   */
+  invalidFieldNames?: ReadonlySet<string>;
 }
 
 const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
@@ -1055,6 +1069,47 @@ function findCanonicalOptionValue(
   return null;
 }
 
+function normalizeFixedChoiceStepValues(
+  fields: VisaFormFieldRow[],
+  values: Record<string, string>,
+): Record<string, string> {
+  const next = { ...values };
+
+  for (const field of fields) {
+    if (field.fieldType !== "select" || !field.options?.length) continue;
+
+    const rules = field.validationRules as {
+      dependent_on?: unknown;
+      depends_on?: unknown;
+      dependsOn?: unknown;
+      official_options_source?: unknown;
+      official_source?: unknown;
+      remote_search?: unknown;
+    } | null;
+    const optionsAreLoadedOrDependent = Boolean(
+      rules?.dependent_on
+      || rules?.depends_on
+      || rules?.dependsOn
+      || rules?.official_options_source
+      || rules?.official_source
+      || rules?.remote_search,
+    );
+    if (optionsAreLoadedOrDependent) continue;
+
+    const currentValue = next[field.fieldName]?.trim();
+    if (!currentValue) continue;
+
+    // Universal Profile and legacy answers may contain a displayed label (for
+    // example "Employed") or unrelated free text instead of the option's
+    // stored value ("employed"). Radix Select cannot display such a value, so
+    // canonicalize known labels and discard stale values that the user cannot
+    // actually see or select.
+    next[field.fieldName] = findCanonicalOptionValue(field.options, currentValue) ?? "";
+  }
+
+  return next;
+}
+
 function parsePhoneParts(rawPhone: string | null | undefined) {
   const value = rawPhone?.trim();
   if (!value) return { countryCode: "", localNumber: "" };
@@ -1171,8 +1226,9 @@ function normalizeTdacStepValues(
   visaType?: string,
 ): Record<string, string> {
   const resolvedVisaType = visaType ?? fields[0]?.visaType;
+  const fixedChoiceValues = normalizeFixedChoiceStepValues(fields, values);
   if (resolvedVisaType === "VN_E_VISA" || resolvedVisaType === "evisa_tourism") {
-    const next = { ...values };
+    const next = { ...fixedChoiceValues };
     const legacyChinaAliases = new Set([
       "hk",
       "hkg",
@@ -1207,9 +1263,9 @@ function normalizeTdacStepValues(
     }
     return next;
   }
-  if (resolvedVisaType !== "TH_TDAC_ARRIVAL_CARD") return values;
+  if (resolvedVisaType !== "TH_TDAC_ARRIVAL_CARD") return fixedChoiceValues;
 
-  const next = { ...values };
+  const next = { ...fixedChoiceValues };
   const fieldByName = new Map(fields.map((field) => [field.fieldName, field]));
 
   const normalizeOptionField = (fieldName: string, fallbackKeys: string[] = []) => {
@@ -1609,10 +1665,6 @@ function getLocalFieldIssue(
 function issueMessageClasses(severity: FieldIssueSeverity): string {
   if (severity === "error") return "text-red-600";
   return "text-[#03346E]";
-}
-
-function copilotButtonClasses(): string {
-  return "border-[#b8d3f3] bg-[#eef6ff] text-[#03346E] hover:bg-[#e3f0ff]";
 }
 
 /** Helper: get the repeat_group name from a field's validationRules */
@@ -2293,6 +2345,53 @@ function getBlockGroup(field: VisaFormFieldRow): string | null {
   return rules?.block_group ?? null;
 }
 
+function hasConditionalDependency(field: VisaFormFieldRow): boolean {
+  const showIf = (field.conditionalLogic as { showIf?: string } | null)?.showIf;
+  const rules = field.validationRules as {
+    dependent_on?: string;
+    depends_on?: string;
+    dependsOn?: string;
+  } | null;
+
+  return Boolean(showIf || rules?.dependent_on || rules?.depends_on || rules?.dependsOn);
+}
+
+function hasConditionalVisibility(field: VisaFormFieldRow): boolean {
+  return Boolean((field.conditionalLogic as { showIf?: string } | null)?.showIf);
+}
+
+function findVerticalScrollContainer(element: HTMLElement): HTMLElement | null {
+  let parent = element.parentElement;
+  while (parent) {
+    const overflowY = window.getComputedStyle(parent).overflowY;
+    if (overflowY === "auto" || overflowY === "scroll") return parent;
+    parent = parent.parentElement;
+  }
+  return null;
+}
+
+function getScrollMetrics(container: HTMLElement | null) {
+  return container
+    ? {
+        offset: container.scrollTop,
+        viewportSize: container.clientHeight,
+        scrollSize: container.scrollHeight,
+      }
+    : {
+        offset: window.scrollY,
+        viewportSize: window.innerHeight,
+        scrollSize: document.documentElement.scrollHeight,
+      };
+}
+
+function setScrollOffset(container: HTMLElement | null, offset: number) {
+  if (container) {
+    container.scrollTop = offset;
+    return;
+  }
+  window.scrollTo({ top: offset, behavior: "auto" });
+}
+
 /** Check if a field should be disabled because a sibling select in its
  *  inline_group currently has "LESS_THAN_24_HOURS" selected.
  *  Works for both regular and repeat-group fields by matching instance suffix. */
@@ -2366,9 +2465,11 @@ export function DynamicStepForm({
   onComplete,
   onDraftChange,
   saving,
+  showContinueButton = true,
   country,
   visaType,
   externallyHandledFieldNames,
+  invalidFieldNames,
 }: DynamicStepFormProps) {
   const tButtons = useTranslations("application.dynamicButtons");
   const externallyHandled = useMemo(
@@ -2378,6 +2479,98 @@ export function DynamicStepForm({
   const locale = useLocale();
   const isChineseInterface = isChineseLocale(locale);
   const [activeGuidanceKey, setActiveGuidanceKey] = useState<string | null>(null);
+  const formContentRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+  const previousContentHeightRef = useRef(0);
+  const measuredStepKeyRef = useRef(`${step.stepNumber}:${step.stepName}`);
+  const lastScrollYRef = useRef(0);
+  const preMutationScrollOffsetRef = useRef<number | null>(null);
+  const pendingScrollRestoreRef = useRef<number | null>(null);
+  const [preservedFormHeight, setPreservedFormHeight] = useState(0);
+
+  const captureScrollOffsetBeforeMutation = () => {
+    const content = formContentRef.current;
+    if (!content) return;
+    const scrollContainer = findVerticalScrollContainer(content);
+    scrollContainerRef.current = scrollContainer;
+    preMutationScrollOffsetRef.current = getScrollMetrics(scrollContainer).offset;
+  };
+
+  // This intentionally measures after every render so conditional UI changes,
+  // not only repeat-count changes, participate in scroll-height preservation.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const content = formContentRef.current;
+    if (!content) return;
+
+    const nextHeight = content.getBoundingClientRect().height;
+    const scrollContainer = findVerticalScrollContainer(content);
+    scrollContainerRef.current = scrollContainer;
+
+    if (preservedFormHeight > 0 && pendingScrollRestoreRef.current !== null) {
+      const restoreOffset = pendingScrollRestoreRef.current;
+      pendingScrollRestoreRef.current = null;
+      setScrollOffset(scrollContainer, restoreOffset);
+      lastScrollYRef.current = restoreOffset;
+    }
+
+    const stepKey = `${step.stepNumber}:${step.stepName}`;
+    if (measuredStepKeyRef.current !== stepKey) {
+      measuredStepKeyRef.current = stepKey;
+      previousContentHeightRef.current = nextHeight;
+      preMutationScrollOffsetRef.current = null;
+      pendingScrollRestoreRef.current = null;
+      if (preservedFormHeight > 0) setPreservedFormHeight(0);
+      return;
+    }
+
+    const previousHeight = previousContentHeightRef.current;
+    previousContentHeightRef.current = nextHeight;
+
+    if (previousHeight <= nextHeight + 1) {
+      preMutationScrollOffsetRef.current = null;
+      if (preservedFormHeight > 0 && nextHeight >= preservedFormHeight - 1) {
+        setPreservedFormHeight(0);
+      }
+      return;
+    }
+
+    const metrics = getScrollMetrics(scrollContainer);
+    const offsetBeforeMutation = preMutationScrollOffsetRef.current ?? metrics.offset;
+    preMutationScrollOffsetRef.current = null;
+    const viewportBottom = offsetBeforeMutation + metrics.viewportSize;
+    const naturalPageBottom = metrics.scrollSize;
+    if (viewportBottom < naturalPageBottom - 1) return;
+
+    pendingScrollRestoreRef.current = offsetBeforeMutation;
+    lastScrollYRef.current = offsetBeforeMutation;
+    setPreservedFormHeight((current) => Math.max(current, previousHeight));
+  });
+
+  useEffect(() => {
+    if (preservedFormHeight <= 0) return;
+
+    const handleScroll = () => {
+      const scrollContainer = scrollContainerRef.current;
+      const metrics = getScrollMetrics(scrollContainer);
+      const nextScrollY = metrics.offset;
+      const scrollingUp = nextScrollY < lastScrollYRef.current - 1;
+      lastScrollYRef.current = nextScrollY;
+      if (!scrollingUp) return;
+
+      const contentHeight = formContentRef.current?.getBoundingClientRect().height ?? 0;
+      const retainedSpace = Math.max(0, preservedFormHeight - contentHeight);
+      const naturalPageBottom = metrics.scrollSize - retainedSpace;
+      if (nextScrollY + metrics.viewportSize <= naturalPageBottom + 1) {
+        setPreservedFormHeight(0);
+      }
+    };
+
+    const scrollTarget = scrollContainerRef.current ?? window;
+    lastScrollYRef.current = getScrollMetrics(scrollContainerRef.current).offset;
+    scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
+    return () => scrollTarget.removeEventListener("scroll", handleScroll);
+  }, [preservedFormHeight]);
 
   // Track how many instances each repeat_group has (min 1)
   const [groupCounts, setGroupCounts] = useState<Record<string, number>>(() => {
@@ -3503,6 +3696,9 @@ export function DynamicStepForm({
 
   /** Translate and render a single field */
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
+    const submitCheckInvalid = Boolean(
+      invalidFieldNames?.has(field.fieldName) || invalidFieldNames?.has(valueKey),
+    );
     const rawPlaceholder = field.placeholder ?? null;
     const zhPlaceholder = getChinesePlaceholder(rawPlaceholder, field.fieldName)
       ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
@@ -3620,6 +3816,7 @@ export function DynamicStepForm({
     const isTextLike = usesBilingualTextPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
+    let guidancePopover: ReactNode = null;
 
     const renderSide = (side: BilingualSide) => {
       const isKoreaAddressSearchSelect =
@@ -3657,63 +3854,69 @@ export function DynamicStepForm({
       };
 
       return (
-        <DynamicFormField
-          key={`${valueKey}-${side}`}
-          field={sideField}
-          value={isTextLike ? pair[side] : (values[valueKey] ?? "")}
-          onChange={(nextValue) => {
-            if (isTextLike) {
-              handleBilingualTextChange(valueKey, side, nextValue);
-              return;
+        <div
+          className="min-w-0"
+          data-guidance-label-space={side === "en" ? "true" : undefined}
+        >
+          <DynamicFormField
+            key={`${valueKey}-${side}`}
+            field={sideField}
+            value={isTextLike ? pair[side] : (values[valueKey] ?? "")}
+            onChange={(nextValue) => {
+              if (isTextLike) {
+                handleBilingualTextChange(valueKey, side, nextValue);
+                return;
+              }
+              handleChange(valueKey, nextValue);
+            }}
+            forceWhiteBackground={forceWhiteBackground}
+            disabled={lt24Disabled || tdacTransitCheckboxLocked || isVnPrearrivalReadOnly}
+            displayLocale={side}
+            labelAction={side === "en" ? guidancePopover : undefined}
+            onSearchQuery={
+              isKoreaAddressSearchSelect
+                ? setKoreaAddressSearchQuery
+                : isVnPrearrivalRemoteSelect && vnPrearrivalKey
+                  ? (query) => setVnPrearrivalQueries((current) => ({ ...current, [vnPrearrivalKey]: query }))
+                  : undefined
             }
-            handleChange(valueKey, nextValue);
-          }}
-          forceWhiteBackground={forceWhiteBackground}
-          disabled={lt24Disabled || tdacTransitCheckboxLocked || isVnPrearrivalReadOnly}
-          displayLocale={side}
-          onSearchQuery={
-            isKoreaAddressSearchSelect
-              ? setKoreaAddressSearchQuery
-              : isVnPrearrivalRemoteSelect && vnPrearrivalKey
-                ? (query) => setVnPrearrivalQueries((current) => ({ ...current, [vnPrearrivalKey]: query }))
+            onLoadMore={
+              isVnPrearrivalRemoteSelect
+                && vnPrearrivalKey
+                && vnPrearrivalSource?.endsWith(":flight")
+                ? () => void loadMoreVnPrearrivalOptions(vnPrearrivalKey)
                 : undefined
-          }
-          onLoadMore={
-            isVnPrearrivalRemoteSelect
-              && vnPrearrivalKey
-              && vnPrearrivalSource?.endsWith(":flight")
-              ? () => void loadMoreVnPrearrivalOptions(vnPrearrivalKey)
-              : undefined
-          }
-          hasMore={
-            Boolean(
-              vnPrearrivalKey
-              && vnPrearrivalSource?.endsWith(":flight")
-              && vnPrearrivalPagination[vnPrearrivalKey]?.hasMore,
-            )
-          }
-          loadingMore={
-            Boolean(vnPrearrivalKey && vnPrearrivalLoadingMore[vnPrearrivalKey])
-          }
-          searching={
-            isKoreaAddressSearchSelect
-              ? koreaAddressSearching
-              : phEtravelSource
-                ? Boolean(phEtravelSearching[field.fieldName])
-              : vnPrearrivalKey
-                ? Boolean(vnPrearrivalSearching[vnPrearrivalKey])
-                : false
-          }
-          loadingText={
-            isKoreaAddressSearchSelect
-              ? side === "zh" ? "正在搜索韩国官方地址..." : "Searching official Korean addresses..."
-              : phEtravelSource
-                ? side === "zh" ? "正在加载菲律宾 eTravel 官方航班..." : "Loading official Philippines eTravel flights..."
-              : isVnPrearrivalRemoteSelect
-                ? getVnPrearrivalLoadingText(vnPrearrivalSource, side)
-                : undefined
-          }
-        />
+            }
+            hasMore={
+              Boolean(
+                vnPrearrivalKey
+                && vnPrearrivalSource?.endsWith(":flight")
+                && vnPrearrivalPagination[vnPrearrivalKey]?.hasMore,
+              )
+            }
+            loadingMore={
+              Boolean(vnPrearrivalKey && vnPrearrivalLoadingMore[vnPrearrivalKey])
+            }
+            searching={
+              isKoreaAddressSearchSelect
+                ? koreaAddressSearching
+                : phEtravelSource
+                  ? Boolean(phEtravelSearching[field.fieldName])
+                : vnPrearrivalKey
+                  ? Boolean(vnPrearrivalSearching[vnPrearrivalKey])
+                  : false
+            }
+            loadingText={
+              isKoreaAddressSearchSelect
+                ? side === "zh" ? "正在搜索韩国官方地址..." : "Searching official Korean addresses..."
+                : phEtravelSource
+                  ? side === "zh" ? "正在加载菲律宾 eTravel 官方航班..." : "Loading official Philippines eTravel flights..."
+                : isVnPrearrivalRemoteSelect
+                  ? getVnPrearrivalLoadingText(vnPrearrivalSource, side)
+                  : undefined
+            }
+          />
+        </div>
       );
     };
 
@@ -3737,67 +3940,77 @@ export function DynamicStepForm({
           }
       : null;
     const issue = postalLookupIssue ?? localIssue;
+    const showIssue = issue.severity !== "ok" && issue.message !== "Required" && issue.message !== "必填项";
     const panelOpen = activeGuidanceKey === valueKey;
     const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
-    const buttonLabel = panelOpen
-      ? (isChineseInterface ? "收起 AI 帮助" : "Hide AI help")
-      : (isChineseInterface ? "问 AI" : "Ask AI");
+    const buttonLabel = isChineseInterface ? "问 AI" : "Ask AI";
     const showVnPrearrivalEvisaHelp =
       isVnPrearrivalField &&
       field.fieldName === "visa_number" &&
       values.visa_type?.trim() === "EV";
+    guidancePopover = (
+      <Popover
+        open={panelOpen}
+        onOpenChange={(open) => setActiveGuidanceKey(open ? valueKey : null)}
+      >
+        <PopoverTrigger asChild>
+          <AiAssistButton
+            label={buttonLabel}
+            variant="field"
+            onClick={(event) => event.stopPropagation()}
+            className="application-form-ai-trigger"
+            data-copilot-trigger={valueKey}
+          />
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          className="w-[min(448px,calc(100vw-2rem))] border-0 bg-transparent p-0 shadow-none"
+          sideOffset={10}
+        >
+          <div data-copilot-panel-frame={valueKey}>
+            <FieldGuidancePanel
+              country={country}
+              visaType={resolvedVisaType}
+              locale={locale}
+              field={guidanceField}
+              answer={values[valueKey] ?? ""}
+              allAnswers={values}
+              onClose={() => setActiveGuidanceKey(null)}
+            />
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
 
     if (!isChineseInterface) {
       return (
         <div
           key={valueKey}
+          data-application-field-name={valueKey}
+          data-validation-invalid={submitCheckInvalid ? "true" : "false"}
+          aria-invalid={submitCheckInvalid || undefined}
           className={cn(
-            "py-3 transition-colors",
+            "application-form-field group/field relative py-1.5 transition-colors",
             panelOpen ? "bg-[#fbfdff]" : "",
+            submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500",
           )}
         >
           <div className="min-w-0">
             {renderSide("en")}
           </div>
-          <div className="mt-2 flex items-center justify-end gap-2">
-            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
-            {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
-              <span className="text-[13px] font-medium text-emerald-700">{indonesiaPostalLookup.summaryEn}</span>
-            )}
-            {issue.severity !== "ok" && (
-              <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
-                {issue.message}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
-              }}
-              className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
-                copilotButtonClasses(),
+          {(showVnPrearrivalEvisaHelp ||
+            (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved") ||
+            showIssue) && (
+            <div className="mt-2 flex items-center justify-end gap-2">
+              {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
+              {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
+                <span className="text-[13px] font-medium text-emerald-700">{indonesiaPostalLookup.summaryEn}</span>
               )}
-              aria-expanded={panelOpen}
-              aria-label={buttonLabel}
-              data-copilot-trigger={valueKey}
-            >
-              <Bot className="h-3.5 w-3.5" />
-              {buttonLabel}
-            </button>
-          </div>
-          {panelOpen && (
-            <div className="mt-2 w-full" data-copilot-panel-frame={valueKey}>
-              <FieldGuidancePanel
-                country={country}
-                visaType={resolvedVisaType}
-                locale={locale}
-                field={guidanceField}
-                answer={values[valueKey] ?? ""}
-                allAnswers={values}
-                onClose={() => setActiveGuidanceKey(null)}
-              />
+              {showIssue && (
+                <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
+                  {issue.message}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -3807,16 +4020,20 @@ export function DynamicStepForm({
     return (
       <div
         key={valueKey}
+        data-application-field-name={valueKey}
+        data-validation-invalid={submitCheckInvalid ? "true" : "false"}
+        aria-invalid={submitCheckInvalid || undefined}
         className={cn(
-          "py-3 transition-colors",
+          "application-form-field group/field relative py-1.5 transition-colors",
           panelOpen ? "bg-[#fbfdff]" : "",
+          submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500",
         )}
       >
         <div className="grid min-w-0 gap-3 md:grid-cols-2">
           {renderSide("zh")}
           {renderSide("en")}
         </div>
-        <div className="mt-2 grid min-w-0 gap-3 md:grid-cols-2">
+          <div className="mt-1 grid min-w-0 gap-2 md:grid-cols-2">
           <div className="flex min-w-0 items-start">
             {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
           </div>
@@ -3839,44 +4056,14 @@ export function DynamicStepForm({
                   {indonesiaPostalLookup.summaryZh}
                 </span>
               )}
-              {issue.severity !== "ok" && (
+              {showIssue && (
                 <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
                   {issue.message}
                 </span>
               )}
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
-                }}
-                className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
-                  copilotButtonClasses(),
-                )}
-                aria-expanded={panelOpen}
-                aria-label={buttonLabel}
-                data-copilot-trigger={valueKey}
-              >
-                <Bot className="h-3.5 w-3.5" />
-                {buttonLabel}
-              </button>
             </div>
           </div>
         </div>
-        {panelOpen && (
-          <div className="mt-2 w-full" data-copilot-panel-frame={valueKey}>
-            <FieldGuidancePanel
-              country={country}
-              visaType={resolvedVisaType}
-              locale={locale}
-              field={guidanceField}
-              answer={values[valueKey] ?? ""}
-              allAnswers={values}
-              onClose={() => setActiveGuidanceKey(null)}
-            />
-          </div>
-        )}
       </div>
     );
   };
@@ -3887,7 +4074,18 @@ export function DynamicStepForm({
   const renderedBlockGroups = new Set<string>();
 
   return (
-    <form onSubmit={handleSubmit} onKeyDown={handleKeyboardShortcuts} className="flex flex-col gap-3">
+    <form
+      onSubmit={handleSubmit}
+      onKeyDown={handleKeyboardShortcuts}
+      onClickCapture={captureScrollOffsetBeforeMutation}
+      onChangeCapture={captureScrollOffsetBeforeMutation}
+      style={preservedFormHeight > 0 ? { minHeight: `${preservedFormHeight}px` } : undefined}
+    >
+      <div
+        ref={formContentRef}
+        className="flex flex-col gap-2"
+        data-scroll-height-content="true"
+      >
       {step.fields.map((field) => {
         // Skip fields handled by an external control (e.g. passport OCR upload
         // card). They stay in required validation but are not rendered here.
@@ -3921,10 +4119,10 @@ export function DynamicStepForm({
             if (blockFields.length === 0) return null;
 
             const renderedInlineInBlock = new Set<string>();
-            return (
+            const blockContent = (
               <div
                 key={`block-${bg}`}
-                className="flex flex-col gap-3"
+                className="flex flex-col gap-2"
               >
                 {blockFields.map((f) => {
                   const inlineInBlock = getInlineGroup(f);
@@ -3934,7 +4132,7 @@ export function DynamicStepForm({
                     const inlineFields = blockFields.filter((x) => getInlineGroup(x) === inlineInBlock);
                     if (inlineFields.length <= 1) return renderField(f, f.fieldName, true);
                     return (
-                      <div key={`inline-${inlineInBlock}`} className="grid gap-3">
+                      <div key={`inline-${inlineInBlock}`} className="grid gap-2">
                         {inlineFields.map((x) => renderField(x, x.fieldName, true))}
                       </div>
                     );
@@ -3943,6 +4141,19 @@ export function DynamicStepForm({
                 })}
               </div>
             );
+
+            if (blockFields.some(hasConditionalVisibility)) {
+              return (
+                <ApplicationConditionalFieldsPanel
+                  key={`block-${bg}`}
+                  className="-mt-2"
+                >
+                  {blockContent}
+                </ApplicationConditionalFieldsPanel>
+              );
+            }
+
+            return blockContent;
           }
 
           const ig = getInlineGroup(field);
@@ -3961,16 +4172,58 @@ export function DynamicStepForm({
             );
 
             if (inlineFields.length <= 1) {
-              return renderField(inlineFields[0], inlineFields[0].fieldName);
+              const inlineField = inlineFields[0];
+              const renderedInlineField = renderField(
+                inlineField,
+                inlineField.fieldName,
+                hasConditionalVisibility(inlineField),
+              );
+
+              return hasConditionalVisibility(inlineField) ? (
+                <ApplicationConditionalFieldsPanel
+                  key={`inline-${ig}`}
+                  className="-mt-2"
+                >
+                  {renderedInlineField}
+                </ApplicationConditionalFieldsPanel>
+              ) : renderedInlineField;
             }
 
-            return (
-              <div key={`inline-${ig}`} className="grid gap-3">
-                {inlineFields.map((f) => renderField(f, f.fieldName))}
+            const isConditionalInlineGroup = inlineFields.some(hasConditionalVisibility);
+            const inlineContent = (
+              <div key={`inline-${ig}`} className="grid gap-2">
+                {inlineFields.map((f) => renderField(
+                  f,
+                  f.fieldName,
+                  isConditionalInlineGroup,
+                ))}
               </div>
             );
+
+            return isConditionalInlineGroup ? (
+              <ApplicationConditionalFieldsPanel
+                key={`inline-${ig}`}
+                className="-mt-2"
+              >
+                {inlineContent}
+              </ApplicationConditionalFieldsPanel>
+            ) : inlineContent;
           }
-          return renderField(field, field.fieldName);
+
+          const renderedField = renderField(
+            field,
+            field.fieldName,
+            hasConditionalVisibility(field),
+          );
+
+          return hasConditionalVisibility(field) ? (
+            <ApplicationConditionalFieldsPanel
+              key={`conditional-${field.fieldName}`}
+              className="-mt-2"
+            >
+              {renderedField}
+            </ApplicationConditionalFieldsPanel>
+          ) : renderedField;
         }
 
         // Repeatable group: render the whole group container once
@@ -3986,13 +4239,23 @@ export function DynamicStepForm({
         if (visibleGroupFields.length === 0) return null;
 
         const count = groupCounts[group] ?? 1;
+        const isConditionalGroup = groupFields.some(hasConditionalDependency);
+        const canAddGroupInstance =
+          (groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX);
 
         return (
-          <div key={`group-${group}`} className="flex flex-col gap-3">
+          <ApplicationConditionalFieldsPanel
+            key={`group-${group}`}
+            className={cn(isConditionalGroup && "-mt-2")}
+            canAdd={canAddGroupInstance}
+            onAdd={() => addGroupInstance(group)}
+            addLabel={tButtons("addAnother")}
+          >
             {Array.from({ length: count }, (_, instanceIdx) => (
               <div
                 key={`${group}-${instanceIdx}`}
-                className="flex flex-col gap-3"
+                className="flex flex-col gap-2"
+                data-repeat-group-instance="true"
               >
                 {count > 1 && (
                   <div className="flex items-center justify-between">
@@ -4012,7 +4275,7 @@ export function DynamicStepForm({
                 {groupFieldsInline(visibleGroupFields).map((item) => {
                   if (Array.isArray(item)) {
                     return (
-                      <div key={item.map((f) => f.fieldName).join("-")} className="grid gap-3">
+                      <div key={item.map((f) => f.fieldName).join("-")} className="grid gap-2">
                         {item.map((f) => renderField(f, instanceKey(f.fieldName, instanceIdx), true))}
                       </div>
                     );
@@ -4021,41 +4284,24 @@ export function DynamicStepForm({
                 })}
               </div>
             ))}
-            {(groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX) && (
-              <button
-                type="button"
-                onClick={() => addGroupInstance(group)}
-                className="flex items-center gap-1.5 text-[13px] font-medium text-[#03346E] hover:text-[#022a5a] transition-colors self-start cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                {tButtons("addAnother")}
-              </button>
-            )}
-          </div>
+          </ApplicationConditionalFieldsPanel>
         );
       })}
 
-      <BrandActionButton
-        type="submit"
-        disabled={!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue}
-        data-required-filled={requiredFilled ? "true" : "false"}
-        data-blocking-errors-clear={blockingErrorsClear ? "true" : "false"}
-        data-postal-lookup-blocked={indonesiaPostalLookupBlocksContinue ? "true" : "false"}
-        loading={saving}
-        loadingText={tButtons("saving")}
-        className="mt-2"
-      >
-        {tButtons("continue")}
-      </BrandActionButton>
-      <div className="fixed bottom-4 right-4 z-40 flex max-w-[260px] items-center gap-2 rounded-lg border border-[#dbe7f5] bg-white/95 px-3 py-2 text-[12px] text-[#3f4652] shadow-lg backdrop-blur">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#03346E] text-white">
-          <Bot className="h-4 w-4" />
-        </span>
-        <span>
-          {isChineseInterface
-            ? "对问题有疑问？点击题目旁的 AI 提示。"
-            : "Need help? Click the AI tip beside any question."}
-        </span>
+      {showContinueButton && (
+        <BrandActionButton
+          type="submit"
+          disabled={!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue}
+          data-required-filled={requiredFilled ? "true" : "false"}
+          data-blocking-errors-clear={blockingErrorsClear ? "true" : "false"}
+          data-postal-lookup-blocked={indonesiaPostalLookupBlocksContinue ? "true" : "false"}
+          loading={saving}
+          loadingText={tButtons("saving")}
+          className="mt-2"
+        >
+          {tButtons("continue")}
+        </BrandActionButton>
+      )}
       </div>
     </form>
   );

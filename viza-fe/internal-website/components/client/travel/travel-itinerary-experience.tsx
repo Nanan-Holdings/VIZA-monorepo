@@ -4395,6 +4395,7 @@ export function TravelItineraryExperience({
 
   const scrollToCity = useCallback(
     (city: string) => {
+      const root = scrollContainerRef.current;
       const cityKey = getCitySectionKey(city);
       const node = citySectionRefs.current[cityKey];
       setActiveCityKey(cityKey);
@@ -4414,7 +4415,13 @@ export function TravelItineraryExperience({
           currentKey === cityKey ? "" : currentKey
         );
       }, 1600);
-      node?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (node && root) {
+        const top =
+          node.getBoundingClientRect().top -
+          root.getBoundingClientRect().top +
+          root.scrollTop;
+        root.scrollTo({ top, behavior: "smooth" });
+      }
     },
     [editableItinerary]
   );

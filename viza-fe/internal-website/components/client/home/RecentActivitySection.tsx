@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "motion/react";
-import { Upload, CheckCircle2, Clock, AlertCircle, ChevronRight } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { ChevronRight } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 
 export interface ActivityEvent {
   id: string;
@@ -15,70 +17,82 @@ export interface ActivityEvent {
   href?: string;
 }
 
-function formatRelative(date: Date): string {
+type ActivityTranslator = ReturnType<typeof useTranslations<"home.activity">>;
+
+function formatRelative(
+  date: Date,
+  locale: string,
+  t: ActivityTranslator
+): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / (1000 * 60));
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (diffMins < 1) return t("justNow");
+  if (diffMins < 60) return t("minutesAgo", { count: diffMins });
+  if (diffHours < 24) return t("hoursAgo", { count: diffHours });
+  if (diffDays < 7) return t("daysAgo", { count: diffDays });
+  return date.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
-function ActivityIcon({ type }: { type: ActivityEvent["icon"] }) {
-  const cls = "h-5 w-5";
-  switch (type) {
-    case "upload": return <Upload className={`${cls} text-brand-400`} />;
-    case "check": return <CheckCircle2 className={`${cls} text-green-500`} />;
-    case "alert": return <AlertCircle className={`${cls} text-red-500`} />;
-    default: return <Clock className={`${cls} text-gray-400`} />;
-  }
-}
+const ACTIVITY_IMAGE: Record<ActivityEvent["icon"], string> = {
+  upload: "/images/home-activity/document-uploaded.png",
+  check: "/images/home-activity/application-submitted.png",
+  alert: "/images/home-activity/action-required.png",
+  clock: "/images/home-activity/application-created.png",
+};
 
 function ActivityRow({ event }: { event: ActivityEvent }) {
-  const isClickable = Boolean(event.href);
+  const locale = useLocale();
+  const t = useTranslations("home.activity");
   const content = (
-    <div className="flex items-center w-full p-[16px] xl:p-[20px] gap-[16px] xl:gap-[20px]">
-      <div className={`flex items-center justify-center shrink-0 size-[56px] rounded-[8px] ${isClickable ? "bg-white shadow-sm" : "bg-[#f6f6f6]"}`}>
-        <ActivityIcon type={event.icon} />
+    <div className="flex min-h-[96px] w-full items-center gap-4 px-4 py-4 sm:gap-5 sm:px-5">
+      <div className="relative size-14 shrink-0 overflow-hidden rounded-[8px] bg-[#f4f1ec] sm:size-16">
+        <Image
+          src={ACTIVITY_IMAGE[event.icon]}
+          alt=""
+          fill
+          sizes="64px"
+          className="object-cover"
+        />
       </div>
-      <div className="flex flex-col gap-[4px] min-w-0 flex-1">
-        <p className={`font-sans font-medium leading-[1.3] text-[16px] tracking-[-0.48px] truncate ${isClickable ? "text-brand-600" : "text-[#3d3d3d]"}`}>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-sans text-[16px] font-medium leading-[1.3] tracking-[-0.48px] text-[#171717]">
           {event.label}
         </p>
-        <p className={`font-sans font-normal leading-[1.3] text-[14px] tracking-[-0.42px] truncate ${isClickable ? "text-brand-500/75" : "text-[rgba(0,0,0,0.45)]"}`}>
+        <p className="mt-1 truncate font-sans text-[14px] font-normal leading-[1.3] tracking-[-0.42px] text-[#737373]">
           {event.sublabel}
         </p>
+        <p className="mt-2 text-[12px] text-[#a3a3a3] sm:hidden">
+          {formatRelative(new Date(event.timestamp), locale, t)}
+        </p>
       </div>
-      <p className={`font-sans text-[13px] shrink-0 hidden xl:block ${isClickable ? "text-brand-500/65" : "text-[rgba(0,0,0,0.35)]"}`}>
-        {formatRelative(new Date(event.timestamp))}
+      <p className="hidden shrink-0 font-sans text-[13px] text-[#a3a3a3] sm:block">
+        {formatRelative(new Date(event.timestamp), locale, t)}
       </p>
-      {isClickable ? <ChevronRight className="h-5 w-5 shrink-0 text-brand-500" aria-hidden="true" /> : null}
+      {event.href ? (
+        <ChevronRight
+          className="h-5 w-5 shrink-0 text-[#a3a3a3]"
+          aria-hidden="true"
+        />
+      ) : null}
     </div>
   );
-  const className =
-    "block w-full rounded-[16px] border border-[#efefef] bg-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40";
 
   if (event.href) {
     return (
       <Link
         href={event.href}
-        className={`${className} border-brand-200 bg-brand-50/50 shadow-sm hover:border-brand-400 hover:bg-brand-50`}
+        className="block w-full bg-white transition-colors hover:bg-[#fafafa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/25"
       >
         {content}
       </Link>
     );
   }
 
-  return (
-    <div className={className}>
-      {content}
-    </div>
-  );
+  return <div className="w-full bg-white">{content}</div>;
 }
 
 interface Props {
@@ -91,27 +105,29 @@ export function RecentActivitySection({ events }: Props) {
   if (events.length === 0) {
     return (
       <div className="w-full max-w-[1090px] pb-[80px]">
-        <div className="w-full rounded-[16px] border border-[#efefef] bg-white p-[24px] text-center">
+        <ApplicationFormPanel className="w-full p-6 text-center">
           <p className="font-sans text-[14px] text-[rgba(0,0,0,0.45)]">
             {t("noRecentActivity")}
           </p>
-        </div>
+        </ApplicationFormPanel>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[1090px] flex flex-col gap-[12px] pb-[80px]">
-      {events.map((event, i) => (
-        <motion.div
-          key={event.id}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.05 * i, duration: 0.4 }}
-        >
-          <ActivityRow event={event} />
-        </motion.div>
-      ))}
+    <div className="w-full max-w-[1090px] pb-[80px]">
+      <ApplicationFormPanel className="w-full divide-y divide-[#efefef] overflow-hidden p-0">
+        {events.map((event, i) => (
+          <motion.div
+            key={event.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.05 * i, duration: 0.4 }}
+          >
+            <ActivityRow event={event} />
+          </motion.div>
+        ))}
+      </ApplicationFormPanel>
     </div>
   );
 }

@@ -4,11 +4,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { MotionConfig, motion } from "motion/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { MessageCircle, Plane, Mic } from "lucide-react";
+import { Check, ChevronDown, Loader2, MessageCircle, Plane, Mic } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatedMenu } from "@/components/client/animated-menu";
 import { LanguageSelector } from "@/components/client/language-selector";
 import { AnimatedTabPill } from "@/components/ui/animated-tab-pill";
+import { NavDropdown, type NavDropdownItem } from "@/components/client/nav-dropdown";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { svgPaths } from "@/components/client/constants";
@@ -20,6 +21,7 @@ import {
 import { getFormVisaType } from "@/lib/visa-destinations";
 import {
   buildApplicationFormHref,
+  buildApplicationLongFormHref,
   getRecentApplicationFormHref,
   readApplicationFormTarget,
   RECENT_APPLICATION_FORM_EVENT,
@@ -66,6 +68,57 @@ const chatAgentOptions = [
   },
 ] as const;
 
+type LiveSaveStatus = "saving" | "saved";
+
+const LIVE_SAVE_STATUS_EVENT = "viza:live-save-status";
+
+function LiveSaveStatusIcon({
+  color,
+  size,
+  status,
+}: {
+  color: string;
+  size: "desktop" | "mobile";
+  status: LiveSaveStatus;
+}) {
+  const t = useTranslations("nav");
+  const isSaving = status === "saving";
+  const label = t(isSaving ? "saving" : "saved");
+
+  return (
+    <div
+      aria-atomic="true"
+      aria-label={label}
+      aria-live="polite"
+      className={cn(
+        "flex shrink-0 items-center justify-center gap-1.5 font-sans font-medium",
+        size === "desktop" ? "h-8 text-[13px]" : "h-7 text-xs",
+        "transition-colors duration-[600ms] ease-in-out",
+      )}
+      role="status"
+      style={{ color }}
+    >
+      {isSaving ? (
+        <Loader2
+          aria-hidden="true"
+          className={cn(
+            "animate-spin motion-reduce:animate-none",
+            size === "desktop" ? "h-5 w-5" : "h-[18px] w-[18px]",
+          )}
+        />
+      ) : (
+        <Check
+          aria-hidden="true"
+          className={cn(
+            size === "desktop" ? "h-5 w-5" : "h-[18px] w-[18px]",
+          )}
+        />
+      )}
+      <span className="whitespace-nowrap">{label}</span>
+    </div>
+  );
+}
+
 function hasApplicationIdentity(target: ApplicationFormTarget | null): target is ApplicationFormTarget {
   return Boolean(target?.applicationId || (target?.country && target?.visaType));
 }
@@ -102,9 +155,15 @@ export function NavBar({
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [mobileChatMenuOpen, setMobileChatMenuOpen] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
+  const [liveSaveStatus, setLiveSaveStatus] = useState<LiveSaveStatus>("saved");
   const [applicationSummaries, setApplicationSummaries] = useState<ApplicationLifecycleSummary[]>([]);
   const [recentApplicationHref, setRecentApplicationHref] = useState<string | null>(null);
   const transitionDuration = 0.6;
+  const showLiveSaveStatus =
+    pathname === "/client/application" ||
+    pathname.startsWith("/client/application/") ||
+    pathname === "/client/universal-info" ||
+    pathname.startsWith("/client/universal-info/");
 
   const tabLabels: Record<string, string> = {
     Home: t("home"),
@@ -118,6 +177,18 @@ export function NavBar({
 
   useEffect(() => {
     setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const handleLiveSaveStatus = (event: Event) => {
+      const nextStatus = (event as CustomEvent<{ status?: LiveSaveStatus }>).detail?.status;
+      if (nextStatus === "saving" || nextStatus === "saved") {
+        setLiveSaveStatus(nextStatus);
+      }
+    };
+
+    window.addEventListener(LIVE_SAVE_STATUS_EVENT, handleLiveSaveStatus);
+    return () => window.removeEventListener(LIVE_SAVE_STATUS_EVENT, handleLiveSaveStatus);
   }, []);
 
   useEffect(() => {
@@ -193,9 +264,10 @@ export function NavBar({
   const LOGO_DARK_MOBILE   = { w: 117, h: 23 };
   const LOGO_WHITE_MOBILE  = { w: 117, h: 23 };
 
-  const leftTabs = ["Home", "Application", "Status"];
-  const rightTabs = ["Settings", "Support"];
-  const mobileTabs = ["Home", "Application", "Status", "Settings", "Support"];
+  // Status and Help are reached through the account menu, not top-level tabs.
+  const leftTabs = ["Home", "Application"];
+  const rightTabs = ["Settings"];
+  const mobileTabs = ["Home", "Application", "Settings"];
 
   const currentApplicationTarget = useMemo(() => {
     const currentFormTarget = readApplicationFormTarget(
@@ -225,11 +297,19 @@ export function NavBar({
   }, [applicationSummaries, currentApplicationTarget]);
 
   const applicationMenuHref = currentApplicationTarget?.href ?? (currentApplication
-    ? `/client/application?country=${encodeURIComponent(currentApplication.country)}&visaType=${encodeURIComponent(currentApplication.visaType)}`
+    ? buildApplicationLongFormHref({
+        country: currentApplication.country,
+        visaType: currentApplication.visaType,
+      })
     : "/client/application");
 
   const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
   const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
+  const liveSaveColor = isDark
+    ? "#FFFFFF"
+    : liveSaveStatus === "saving"
+      ? activeTabColor
+      : "#000000";
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -249,34 +329,28 @@ export function NavBar({
     router.push(href);
   };
 
+  const openChatAgentById = (id: string) => {
+    const option = chatAgentOptions.find((item) => item.id === id);
+    if (option) openChatAgent(option.href);
+  };
+
   const toItems = (ids: string[]) =>
     ids.map((id) => ({ id, label: tabLabels[id] ?? id }));
-
-  const renderChatAgentMenu = () => (
-    <div className="w-[210px] rounded-2xl border border-[#dbe4f0] bg-white p-2 shadow-[0_18px_45px_rgba(3,52,110,0.18)]">
-      {chatAgentOptions.map((option) => {
-        const Icon = option.icon;
-        return (
-          <button
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left font-switzer text-sm font-medium text-[#03346E] transition-colors hover:bg-[#eef5ff]"
-            key={option.id}
-            onClick={() => openChatAgent(option.href)}
-            type="button"
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#03346E]/10 text-[#03346E]">
-              <Icon className="h-4 w-4" />
-            </span>
-            <span>{t(option.labelKey)}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
 
   const renderStandaloneChatTab = (isMobile: boolean = false) => {
     const isActive = activeTab === "Chat";
     const setOpenDropdown = isMobile ? setMobileChatMenuOpen : setChatMenuOpen;
     const openDropdown = isMobile ? mobileChatMenuOpen : chatMenuOpen;
+    const chatAgentItems: NavDropdownItem[] = chatAgentOptions.map((option) => ({
+      id: option.id,
+      icon: option.icon,
+      label: t(option.labelKey),
+      selected:
+        (option.id === "visa" && pathname === "/client/chat" && searchParams.get("agent") !== "travel") ||
+        (option.id === "travel" && pathname === "/client/chat" && searchParams.get("agent") === "travel") ||
+        (option.id === "interview" && pathname.startsWith("/client/interview-practice")),
+      tone: "default",
+    }));
 
     if (!hasMounted) {
       return (
@@ -300,11 +374,17 @@ export function NavBar({
     }
 
     return (
-      <Popover open={openDropdown} onOpenChange={setOpenDropdown}>
-        <PopoverTrigger asChild>
+      <NavDropdown
+        align={isMobile ? "start" : "center"}
+        items={chatAgentItems}
+        onOpenChange={setOpenDropdown}
+        onSelect={openChatAgentById}
+        open={openDropdown}
+        widthClassName="w-64 max-w-[calc(100vw-2rem)]"
+        trigger={
           <motion.button
             className={cn(
-              "font-switzer font-medium whitespace-nowrap transition-all duration-300 cursor-pointer text-ellipsis overflow-hidden",
+              "font-switzer font-medium whitespace-nowrap transition-all duration-300 cursor-pointer text-ellipsis overflow-hidden inline-flex items-center gap-1.5",
               isMobile
                 ? cn(
                     "px-4 py-1.5 text-base rounded-full border border-solid",
@@ -326,16 +406,13 @@ export function NavBar({
             >
               {t("chat")}
             </motion.span>
+            <ChevronDown
+              className={cn("h-4 w-4 shrink-0 transition-transform duration-200", openDropdown && "rotate-180")}
+              style={isMobile ? undefined : { color: isActive ? activeTabColor : inactiveColor }}
+            />
           </motion.button>
-        </PopoverTrigger>
-        <PopoverContent
-          align={isMobile ? "start" : "center"}
-          className="w-auto border-0 bg-transparent p-0 shadow-none"
-          sideOffset={10}
-        >
-          {renderChatAgentMenu()}
-        </PopoverContent>
-      </Popover>
+        }
+      />
     );
   };
 
@@ -345,7 +422,7 @@ export function NavBar({
       className="client-navbar hidden xl:block backdrop-blur backdrop-filter w-full fixed top-0 left-0 z-50"
     >
       <div className="mx-auto w-full px-4 sm:px-6 md:px-10 xl:px-20 py-4 md:py-7">
-        <div className="flex items-center justify-between">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center">
           {/* Hamburger */}
           <div className="shrink-0">
             {menuReady ? (
@@ -412,8 +489,11 @@ export function NavBar({
             <AnimatedTabPill tabs={toItems(rightTabs)} activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} />
           </motion.div>
 
-          {/* Globe */}
-          <div className="shrink-0">
+          {/* Live save status and language */}
+          <div className="flex shrink-0 items-center justify-self-end gap-2">
+            {showLiveSaveStatus && (
+              <LiveSaveStatusIcon color={liveSaveColor} size="desktop" status={liveSaveStatus} />
+            )}
             <LanguageSelector size="desktop" />
           </div>
         </div>
@@ -441,6 +521,9 @@ export function NavBar({
           </Link>
 
           <div className="flex items-center gap-1">
+            {showLiveSaveStatus && (
+              <LiveSaveStatusIcon color={liveSaveColor} size="mobile" status={liveSaveStatus} />
+            )}
             <LanguageSelector size="mobile" />
             {menuReady ? (
               <Popover open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>

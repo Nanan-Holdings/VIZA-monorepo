@@ -9,6 +9,9 @@ region from the client home dashboard.
 
 ## Key Flows
 
+- `page.tsx`: redirect only. The change-country index merged into
+  `/client/status`, which now lists every application and the destination
+  browser on one page. Do not rebuild an index here.
 - `schengen/page.tsx`: dedicated Schengen main-destination picker.
 - `[region]/page.tsx`: generic regional picker for North America, South
   America, Middle East, Africa, non-Schengen Europe, Southeast Asia, East Asia,

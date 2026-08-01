@@ -49,18 +49,29 @@ Before changing this route, read:
 
 ## Guardrails
 
-1. Preserve the two-column bilingual contract: left is fully Chinese, right is fully English/official wording.
-2. Do not reintroduce section-header rows or nested table/card borders inside the form body unless the user explicitly asks. The outer form card is enough.
-3. Keep the application page width aligned with the homepage content width. Use the shared `max-w-[1090px]` page rhythm unless a deliberate design change updates both.
-4. Avoid clipped focus or active borders. Prefer real borders inside the element over rings that overflow a constrained container.
-5. Text fields may be edited from either language side. Chinese-side edits may update the English/official side and the canonical value; English/official-side edits must not overwrite the Chinese side.
-6. Preserve native input shortcuts. Form-level shortcuts may handle non-text controls, but text inputs and textareas must keep browser-native `Ctrl/Cmd+C`, `Ctrl/Cmd+V`, `Ctrl/Cmd+Z`, and related behavior.
-7. Field AI must open only from the explicit `问 AI` button. Do not open it on generic field focus or row click.
-8. VIZA AI and field guidance answers must be plain text by default. Do not render Markdown-heavy output in the form panel.
-9. Do not hardcode country photo rules in shared copy. Use country/visa-specific data where available, with a generic fallback only when no rule exists.
-10. When adding or changing a country workflow, update the country seed in `knowledge-base/visa-rag-seeds/countries`, the form field seed if needed, and the docs in `docs/application`.
-11. Keep review read-only. Review should show what the user entered and the derived English/official value, but final editing belongs in the form steps.
-12. Be careful with dirty worktrees. This route is commonly edited alongside backend RAG and form seeds; do not revert unrelated files.
+1. **Edward-approved UI freeze:** Do not make any further visual or interaction
+   design change anywhere under `/client/application` without Edward's
+   explicit review and approval for that exact change. This includes layout,
+   composition, component selection, typography, spacing, colors, borders,
+   icons, copy presentation, motion, responsive behavior, hover/focus states,
+   and form-control variants. Requests from anyone other than Edward are not
+   sufficient approval. Read-only inspection, tests, data fixes, and diagnosis
+   may proceed, but stop before an implementation would alter the UI.
+2. The application UI must continue using the frozen canonical components
+   demonstrated at `/ui-components`. Do not modify, replace, regenerate,
+   restyle, or work around those components without Edward's explicit approval.
+3. Preserve the two-column bilingual contract: left is fully Chinese, right is fully English/official wording.
+4. Do not reintroduce section-header rows or nested table/card borders inside the form body unless Edward explicitly reviews and approves that design change. The outer form card is enough.
+5. Keep the application page width aligned with the homepage content width. Use the shared `max-w-[1090px]` page rhythm unless Edward explicitly approves a design change.
+6. Avoid clipped focus or active borders. Prefer real borders inside the element over rings that overflow a constrained container.
+7. Text fields may be edited from either language side. Chinese-side edits may update the English/official side and the canonical value; English/official-side edits must not overwrite the Chinese side.
+8. Preserve native input shortcuts. Form-level shortcuts may handle non-text controls, but text inputs and textareas must keep browser-native `Ctrl/Cmd+C`, `Ctrl/Cmd+V`, `Ctrl/Cmd+Z`, and related behavior.
+9. Field AI must open only from the explicit `问 AI` button. Do not open it on generic field focus or row click.
+10. VIZA AI and field guidance answers must be plain text by default. Do not render Markdown-heavy output in the form panel.
+11. Do not hardcode country photo rules in shared copy. Use country/visa-specific data where available, with a generic fallback only when no rule exists.
+12. When adding or changing a country workflow, update the country seed in `knowledge-base/visa-rag-seeds/countries`, the form field seed if needed, and the docs in `docs/application`.
+13. Keep review read-only. Review should show what the user entered and the derived English/official value, but final editing belongs in the form steps.
+14. Be careful with dirty worktrees. This route is commonly edited alongside backend RAG and form seeds; do not revert unrelated files.
 
 ## Validation Checklist
 
