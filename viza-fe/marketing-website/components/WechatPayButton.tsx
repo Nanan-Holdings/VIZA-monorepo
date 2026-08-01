@@ -56,6 +56,8 @@ export function WechatPayButton({
   return (
     <a
       href={href}
+      data-country={country}
+      data-payment-method="wechat"
       className={`${base} bg-wechat text-white hover:bg-wechat-hover transition-colors ${className ?? ""}`}
     >
       <WechatGlyph />

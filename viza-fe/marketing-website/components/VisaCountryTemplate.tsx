@@ -6,6 +6,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { LAUNCHED_COUNTRIES, visaHref, type CountryMeta } from "@/lib/countries";
 import { displayFeeSGD, totalSgd } from "@/lib/pricing";
 import "./visa-template.css";
+import VisaStructuredData from "@/components/VisaStructuredData";
 
 const FLAG_CDN = "https://hatscripts.github.io/circle-flags/flags";
 
@@ -30,6 +31,12 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
 
   return (
     <>
+      <VisaStructuredData
+        country={country}
+        locale={locale}
+        localName={localName}
+        localType={localType}
+      />
       <SiteNav />
       <main className="vt-wrap">
         <header className="vt-hero">

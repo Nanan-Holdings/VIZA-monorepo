@@ -8,6 +8,7 @@ import { PayByCardButton } from "@/components/PayByCardButton";
 import { WechatPayButton } from "@/components/WechatPayButton";
 import { countryBySlug } from "@/lib/countries";
 import SiteFooter from "@/components/SiteFooter";
+import { trackEvent } from "@/lib/analytics";
 
 type PassportExtraction = {
   surname: string;
@@ -308,6 +309,11 @@ export default function ApplyPage() {
 
   const runExtraction = useCallback(async (file: File) => {
     if (!file) return;
+    trackEvent("passport_scan_start", {
+      destination_country: countrySlug,
+      upload_mode: uploadMode,
+      file_type: file.type,
+    });
     setExtracted(null);
     setScanOutcome(null);
     setScanFailure(null);
@@ -381,6 +387,13 @@ export default function ApplyPage() {
       setScanOutcome(outcome);
       setTriedContinue(false);
       setExtractStage("done");
+      trackEvent("passport_scan_complete", {
+        destination_country: countrySlug,
+        scan_outcome: outcome,
+        confidence: data.confidence,
+        missing_field_count: missing.length,
+        warning_count: warnings.length,
+      });
 
       try {
         sessionStorage.setItem("viza.passport.extracted", JSON.stringify(data));
@@ -394,7 +407,7 @@ export default function ApplyPage() {
       setScanFailureDetail(err instanceof Error ? err.message : String(err));
       setExtractStage("idle");
     }
-  }, [goStep]);
+  }, [countrySlug, goStep, uploadMode]);
 
   const onFilePicked = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -561,6 +574,10 @@ export default function ApplyPage() {
   const onNext = useCallback(() => {
     if (!canProceed) return;
     if (step === 1 && isTestCheckout) {
+      trackEvent("apply_start", {
+        destination_country: countrySlug,
+        entry_point: "test_checkout_next",
+      });
       goStep(2);
       return;
     }
@@ -579,6 +596,12 @@ export default function ApplyPage() {
         }));
         return;
       }
+      trackEvent("apply_start", {
+        destination_country: countrySlug,
+        entry_point: "passport_review_complete",
+        selected_speed: speed,
+        addon_count: (Object.keys(addons) as Addon[]).filter((a) => addons[a]).length,
+      });
       try {
         sessionStorage.setItem(
           "viza.passport.extracted",
@@ -593,7 +616,7 @@ export default function ApplyPage() {
       }
     }
     goStep((step + 1) as Step);
-  }, [canProceed, step, isTestCheckout, goStep, step2Valid, missingFields, extracted, fields, email, dialCode, phone]);
+  }, [canProceed, step, isTestCheckout, goStep, step2Valid, missingFields, extracted, fields, email, dialCode, phone, countrySlug, speed, addons]);
 
   const showWarning = scanOutcome === "partial";
   const knownWarnings = (extracted?.warnings ?? []).filter((w): w is KnownWarning =>

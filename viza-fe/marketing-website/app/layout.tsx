@@ -2,17 +2,55 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Script from "next/script";
 import { switzer, geist } from "./fonts";
+import MarketingAnalytics from "@/components/MarketingAnalytics";
 
 const gtmId = process.env.NEXT_PUBLIC_GTM_ID ?? "GTM-PK9WNC3D";
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://viza.it.com").replace(/\/$/, "");
+const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL ?? "https://app.viza.it.com").replace(/\/$/, "");
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": `${siteUrl}/#organization`,
+  name: "VIZA",
+  url: siteUrl,
+  logo: `${siteUrl}/assets/viza-logo-black.svg`,
+  contactPoint: [
+    {
+      "@type": "ContactPoint",
+      telephone: "+65-8410-6368",
+      contactType: "customer support",
+      areaServed: ["SG", "CN"],
+      availableLanguage: ["English", "Chinese"],
+    },
+  ],
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": `${siteUrl}/#website`,
+  name: "VIZA",
+  url: siteUrl,
+  publisher: { "@id": `${siteUrl}/#organization` },
+};
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://viza.it.com"),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "VIZA — AI-powered visa applications",
     template: "%s · VIZA",
   },
   description:
     "VIZA is an AI-powered visa agency. Apply for tourist, business, work, student, and long-term visas with expert human oversight.",
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    siteName: "VIZA",
+    title: "VIZA — AI-powered visa applications",
+    description:
+      "Apply for tourist, business, work, student, and long-term visas with AI guidance and expert human oversight.",
+  },
 };
 
 export default function RootLayout({
@@ -23,6 +61,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="preconnect" href={portalUrl} />
         {gtmId ? (
           <Script id="google-tag-manager" strategy="afterInteractive">
             {`
@@ -46,6 +94,7 @@ export default function RootLayout({
             />
           </noscript>
         ) : null}
+        <MarketingAnalytics />
         {children}
       </body>
     </html>

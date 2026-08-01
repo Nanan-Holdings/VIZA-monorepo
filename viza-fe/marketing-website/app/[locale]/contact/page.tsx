@@ -6,6 +6,7 @@ import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
 import "./contact.css";
 import SiteFooter from "@/components/SiteFooter";
+import { trackEvent } from "@/lib/analytics";
 
 /* ----------------------------- Fake QR code ------------------------------ */
 /**
@@ -189,6 +190,12 @@ export default function ContactPage() {
       const json = (await res.json()) as { ok?: boolean };
       if (!res.ok || !json.ok) throw new Error("send failed");
       setFormStatus("success");
+      trackEvent("lead_submit", {
+        form_id: "VIZA-CON-FORM-26",
+        preferred_channel: String(data.get("preferredChannel") ?? ""),
+        reason_count: reasonsChecked.length,
+        locale,
+      });
       form.reset();
     } catch {
       setFormStatus("error");
