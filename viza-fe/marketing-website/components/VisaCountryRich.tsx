@@ -9,6 +9,7 @@ import { priceBreakdownSgd } from "@/lib/pricing";
 import type { IconName, VisaContent } from "@/lib/visa-content/types";
 import "./visa-rich.css";
 import SiteFooter from "@/components/SiteFooter";
+import VisaStructuredData from "@/components/VisaStructuredData";
 
 /**
  * Reusable, data-driven visa destination page (MKT-004/005).
@@ -126,6 +127,7 @@ export default function VisaCountryRich({
 
   const nearby = LAUNCHED_COUNTRIES.filter((c) => c.slug !== country.slug).slice(0, 4);
   const price = priceBreakdownSgd(country.visaType);
+  const localName = tc.has(country.slug) ? tc(country.slug) : country.name;
 
   // Group FAQ by category, preserving authoring order.
   const faqGroups: { category: string; items: typeof content.faq }[] = [];
@@ -138,6 +140,13 @@ export default function VisaCountryRich({
 
   return (
     <>
+      <VisaStructuredData
+        country={country}
+        locale={locale}
+        localName={localName}
+        localType={country.type}
+        faq={content.faq}
+      />
       <SiteNav />
 
       <div className="visa-grid">
