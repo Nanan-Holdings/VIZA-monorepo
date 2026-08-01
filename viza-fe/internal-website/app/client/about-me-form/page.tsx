@@ -539,7 +539,7 @@ export default function AboutMeFormPage() {
 
         {/* Error message - consolidated to avoid duplication */}
         {(validationErrors.length > 0 || error) && (
-          <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md space-y-2">
+          <div className="mt-6 rounded-lg border border-[#e5e7eb] bg-white px-4 py-3 text-sm text-[#71717a] space-y-2">
             {validationErrors.length > 0 ? (
               validationErrors.map((err, idx) => (
                 <p key={idx} className="text-sm">{err}</p>

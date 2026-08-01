@@ -202,7 +202,9 @@ API/action boundaries:
 4. If DB-driven steps exist, `DynamicStepForm` renders them; otherwise the page falls back to legacy hardcoded B211A steps.
 5. Each DB-driven field is rendered as a bilingual pair through `DynamicFormField`.
 6. Field values are stored in local step state, then persisted to application answer rows when the user continues.
-7. Photo, review, and status steps are appended after the DB-driven form steps.
+7. Team management (when applicable) is followed by one final Review Application
+   step. That step combines the read-only answer review, missing-field summary,
+   confirmation/submission controls, and post-submission status/result state.
 
 ## Bilingual Form Contract
 
@@ -318,6 +320,30 @@ npm run enrich:field-answer-norms-rag -- --all
 - Keep the outer form card clean and use spacing rather than extra internal borders.
 - Use explicit buttons for AI. Field focus should not open AI guidance.
 - Keep the review page read-only.
+
+## Universal Profile reuse
+
+Universal Profile uses two compatible layers:
+
+- `applicant_profiles` keeps the core identity, passport, contact, and OCR
+  fields used by existing flows.
+- `universal_profile_answers` stores reusable facts by canonical field key,
+  including bilingual values, the source application/visa type, and the field
+  schema that produced the answer.
+
+On the final Review Application tab, the applicant can explicitly choose
+**Update Universal Profile**. The server reads the saved application answers,
+keeps stable identity/contact/passport/family/work/education and immigration
+history facts, and excludes trip-specific plans, destination contacts,
+declarations, payment data, CAPTCHA/session data, and secrets. Future forms use
+these records only as non-overwriting prefill: an application-specific saved
+answer always wins.
+
+`/client/universal-info` builds its extended sections from the union of current
+`visa_form_fields` schemas. Saved values use the same read-only row treatment as
+Review Application, while missing values use the canonical application form
+controls. This lets new country schemas expand Universal Profile without adding
+one database column per question.
 
 ## Validation
 

@@ -20,6 +20,7 @@ import {
   selectUserVisaDestination,
   type UserVisaPackage,
 } from "@/app/actions/user-package";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -60,19 +61,19 @@ export default function SchengenDestinationsPage() {
 
   function handleSelect(destination: PopularVisaDestination) {
     setSelectionError(null);
+    const href = buildApplicationLongFormHref({
+      country: destination.country,
+      visaType: destination.visaType,
+    });
     setPendingDestinationId(destination.id);
+    router.push(href);
 
     startTransition(async () => {
       const result = await selectUserVisaDestination(destination.id);
       if (!result.success) {
         setSelectionError(result.error ?? (isZh ? "暂时无法选择该目的地，请重试。" : "Could not select this destination. Please try again."));
         setPendingDestinationId(null);
-        return;
       }
-
-      router.push(
-        `/client/application?country=${encodeURIComponent(destination.country)}&visaType=${encodeURIComponent(destination.visaType)}`,
-      );
     });
   }
 
@@ -113,7 +114,7 @@ export default function SchengenDestinationsPage() {
           </div>
 
           {selectionError && (
-            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-5 rounded-lg border border-[#e5e7eb] bg-white px-4 py-3 text-sm text-[#71717a]">
               {selectionError}
             </div>
           )}
@@ -122,6 +123,10 @@ export default function SchengenDestinationsPage() {
             {filteredDestinations.map((destination) => {
               const selected = isSelectedDestination(destination, selectedPackages);
               const loading = isPending && pendingDestinationId === destination.id;
+              const applicationHref = buildApplicationLongFormHref({
+                country: destination.country,
+                visaType: destination.visaType,
+              });
               const actionLabel = selected ? (isZh ? "打开" : "Open") : (isZh ? "开始" : "Start");
               const countryName = getVisaDestinationCountryName(destination, locale);
               const visaName = getVisaDestinationVisaName(destination, locale);
@@ -133,6 +138,8 @@ export default function SchengenDestinationsPage() {
                   key={destination.id}
                   type="button"
                   onClick={() => handleSelect(destination)}
+                  onFocus={() => router.prefetch(applicationHref)}
+                  onMouseEnter={() => router.prefetch(applicationHref)}
                   disabled={loading}
                   className={[
                     "group flex min-h-[144px] flex-col justify-between rounded-[16px] border bg-white p-4 text-left transition sm:min-h-[164px] sm:p-5",

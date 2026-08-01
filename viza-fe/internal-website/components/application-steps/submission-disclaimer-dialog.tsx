@@ -62,7 +62,7 @@ export function SubmissionDisclaimerDialog({
 
         <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-10">
           <div className="mx-auto flex max-w-3xl flex-col gap-6 text-[15px] leading-7 text-[#24272f] sm:text-base">
-            <div className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <div className="flex gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4 text-[#71717a]">
               <AlertTriangle className="mt-1 h-5 w-5 shrink-0" />
               <p>
                 以下为提交前占位声明。正式版本会替换为对应国家、签证类型和服务条款的官方确认内容。

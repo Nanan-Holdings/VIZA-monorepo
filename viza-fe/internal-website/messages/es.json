@@ -9,12 +9,15 @@
     "home": "[ES] Home",
     "application": "[ES] Application",
     "status": "[ES] Status",
-    "chat": "[ES] Chat",
+    "chat": "[ES] Concierge",
     "documents": "[ES] Documents",
     "settings": "[ES] Settings",
     "support": "[ES] Help",
     "visaConsultant": "[ES] Visa Consultant",
     "travelAgent": "[ES] Travel Agent",
+    "mockInterview": "[ES] Mock Interview",
+    "saving": "Guardando",
+    "saved": "Guardado",
     "inviteFriends": "[ES] Invite Friends"
   },
   "menu": {
@@ -49,9 +52,22 @@
     "percentComplete": "[ES] {pct}% complete",
     "quickActions": {
       "title": "[ES] Quick Actions",
-      "continueWithAI": "[ES] Continue with AI",
-      "uploadDocuments": "[ES] Upload Documents",
-      "viewApplication": "[ES] View Application"
+      "visaAI": "[ES] Open Visa AI",
+      "travelAI": "[ES] Open Travel AI",
+      "viewStatus": "[ES] View Application Status"
+    },
+    "activeVisa": {
+      "label": "[ES] Active visa",
+      "empty": "[ES] No active visa application",
+      "open": "[ES] Open application",
+      "choose": "[ES] Choose a visa"
+    },
+    "universalInfo": {
+      "title": "[ES] Profile readiness",
+      "subtitle": "[ES] Reusable details for this and future applications",
+      "saved": "[ES] {completed} of {total} details ready",
+      "fields": "[ES] Surname, given names, birthday, birthplace, passport, contact",
+      "edit": "[ES] Review profile"
     },
     "emptyApplication": {
       "noActiveApplication": "[ES] No active application",
@@ -660,6 +676,8 @@
       "accommodation": "[ES] Accommodation",
       "accommodationAddress": "[ES] Accommodation address",
       "reviewMessage": "[ES] Please review your details carefully before submitting.",
+      "missingInformation": "[ES] Missing information",
+      "notProvided": "[ES] Not provided",
       "confirmAndSubmit": "[ES] Confirm & Submit",
       "validation": {
         "failed": "[ES] Validation failed",
@@ -2708,14 +2726,19 @@
       "fallbackName": "[ES] VIZA applicant",
       "editDetails": "[ES] Edit details",
       "completion": "[ES] Reusable profile completion",
-      "completionHint": "[ES] Complete this once so VIZA can prefill repeated visa questions."
+      "completionHint": "[ES] Complete this once so VIZA can prefill repeated visa questions.",
+      "universalTitle": "Perfil universal",
+      "universalDescription": "Guarda tus datos personales habituales una sola vez para completar futuras solicitudes de visado más rápido.",
+      "complete": "{percent}% completado",
+      "reviewProfile": "Revisar perfil universal"
     },
     "quickSnapshot": {
-      "label": "[ES] Account snapshot",
-      "passport": "[ES] Passport",
-      "phone": "[ES] Phone",
-      "payment": "[ES] Payment",
-      "notSet": "[ES] Not set"
+      "label": "Resumen de la cuenta",
+      "email": "Correo electrónico",
+      "passport": "Número de pasaporte",
+      "phone": "Teléfono",
+      "payment": "Método de pago",
+      "notSet": "Sin configurar"
     },
     "sections": {
       "general": "[ES] General",

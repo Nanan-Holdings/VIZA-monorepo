@@ -707,6 +707,51 @@ const HELPER_ZH_BY_FIELD_NAME: Record<string, string> = {
     "该项涉及安全、公共秩序或国家安全背景审查；请按官方题目如实回答，并在需要时说明事件、时间、地点和处理结果。",
 };
 
+const HELPER_EN_BY_FIELD_NAME: Record<string, string> = {
+  refused_visa_or_entry_japan:
+    "If you answer Yes, provide the date, place, reason, and outcome in the next field.",
+  refused_visa_other_country:
+    "If you answer Yes, provide the country, date, reason, and outcome in the next field.",
+  has_criminal_record:
+    "If you answer Yes, provide the country, date, offence, and sentence in the next field.",
+  has_been_deported:
+    "If you answer Yes, provide the country, date, reason, and outcome in the next field.",
+  has_overstayed_japan:
+    "If you answer Yes, explain when the overstay occurred and how it was resolved in the next field.",
+  has_drug_or_trafficking_history:
+    "Select Yes if any of the activities listed in the question apply to you.",
+};
+
+const JP_CHARACTER_FIELDS_WITHOUT_HELPERS = new Set([
+  "has_criminal_record",
+  "criminal_record_country",
+  "criminal_record_date",
+  "criminal_record_details",
+  "criminal_record_sentence",
+  "has_been_deported",
+  "deportation_country",
+  "deportation_date",
+  "deportation_details",
+  "deportation_outcome",
+  "has_overstayed_japan",
+  "overstay_date",
+  "overstay_details",
+  "overstay_resolution",
+  "has_drug_or_trafficking_history",
+  "prohibited_activity_type",
+  "prohibited_activity_country",
+  "prohibited_activity_date",
+  "prohibited_activity_details",
+  "remarks_special_circumstances",
+  "application_date",
+  "final_declaration",
+]);
+
+function suppressHelper(field: FieldLike): boolean {
+  return field.visaType === "JP_TOURIST"
+    && JP_CHARACTER_FIELDS_WITHOUT_HELPERS.has(normalizeFieldName(field.fieldName));
+}
+
 const OPTION_ZH_BY_VALUE: Record<string, string> = {
   yes: "是",
   no: "否",
@@ -716,6 +761,11 @@ const OPTION_ZH_BY_VALUE: Record<string, string> = {
   female: "女",
   other: "其他",
   others: "其他",
+  drug_abuse: "吸毒",
+  prostitution: "卖淫",
+  human_trafficking: "人口贩运",
+  smuggling: "走私",
+  illegal_weapons: "持有非法武器",
   temporaryvisa: "我持有临时签证",
   permanentresident: "我是永久居民",
   own: "我拥有该住房",
@@ -1361,6 +1411,8 @@ function needsHelper(field: FieldLike, labelEn: string): boolean {
 }
 
 function deriveHelperZh(field: FieldLike, labelZh: string, labelEn: string): string | null {
+  if (suppressHelper(field)) return null;
+
   const existing = getRuleText(field, ["helper_zh", "zh_helper", "description_zh"]);
   if (existing && hasCjk(existing)) return existing;
 
@@ -1399,8 +1451,14 @@ function deriveHelperZh(field: FieldLike, labelZh: string, labelEn: string): str
 }
 
 function deriveHelperEn(field: FieldLike, labelEn: string): string | null {
+  if (suppressHelper(field)) return null;
+
   const existing = getRuleText(field, ["helper_en", "en_helper", "description_en"]);
   if (existing && !hasCjk(existing)) return existing;
+
+  const direct = HELPER_EN_BY_FIELD_NAME[normalizeFieldName(field.fieldName)];
+  if (direct) return direct;
+
   if (!needsHelper(field, labelEn)) return null;
   return labelEn;
 }
@@ -1509,11 +1567,18 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
   const placeholderEn = deriveEnglishPlaceholder(field, labelEn);
   const helperZh = deriveHelperZh(field, labelZh, labelEn);
   const helperEn = deriveHelperEn(field, labelEn);
+  const validationRules = { ...(field.validationRules ?? {}) };
+
+  if (suppressHelper(field)) {
+    for (const key of ["helper_zh", "zh_helper", "description_zh", "helper_en", "en_helper", "description_en"]) {
+      delete validationRules[key];
+    }
+  }
 
   return {
     ...field,
     validationRules: {
-      ...(field.validationRules ?? {}),
+      ...validationRules,
       label_zh: labelZh,
       label_en: labelEn,
       official_label_en: labelEn,

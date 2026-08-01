@@ -69,6 +69,50 @@ describe("bilingual schema contract", () => {
     expect(resolveOptionDisplayLabel(normalized.options, "family_visit", "en")).toBe("Family visit");
   });
 
+  it("keeps Japan travel-history guidance but suppresses Character & Declaration tips", () => {
+    const travelHistoryFields = [
+      ["refused_visa_or_entry_japan", "Have you ever been refused a visa to, or denied entry into, Japan?"],
+      ["refused_visa_other_country", "Have you ever been refused a visa to, or denied entry into, any other country?"],
+    ] as const;
+    const characterFields = [
+      ["has_criminal_record", "Have you ever been convicted of a crime in any country?"],
+      ["has_been_deported", "Have you ever been deported from Japan or any other country?"],
+      ["has_overstayed_japan", "Have you ever overstayed a visa or stayed in Japan illegally?"],
+      ["has_drug_or_trafficking_history", "Have you ever been involved in drug abuse, prostitution, human trafficking, smuggling, or possession of illegal weapons?"],
+      ["final_declaration", "I hereby declare that the statements made in this application are true and correct."],
+    ] as const;
+
+    for (const [fieldName, label] of travelHistoryFields) {
+      const normalized = normalizeBilingualFormField(field({
+        visaType: "JP_TOURIST",
+        fieldName,
+        label,
+        fieldType: "radio",
+        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+      }));
+
+      expect(normalized.validationRules?.helper_en).toBeTruthy();
+      expect(normalized.validationRules?.helper_en).not.toBe(label);
+    }
+
+    for (const [fieldName, label] of characterFields) {
+      const normalized = normalizeBilingualFormField(field({
+        visaType: "JP_TOURIST",
+        fieldName,
+        label,
+        fieldType: fieldName === "final_declaration" ? "checkbox" : "radio",
+        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+        validationRules: {
+          helper_en: "Legacy helper still stored in the database",
+          helper_zh: "数据库中仍存有的旧提示",
+        },
+      }));
+
+      expect(normalized.validationRules?.helper_en).toBeUndefined();
+      expect(normalized.validationRules?.helper_zh).toBeUndefined();
+    }
+  });
+
   it("localizes official nationality names while preserving official values", () => {
     const normalized = normalizeBilingualFormField(field({
       visaType: "VN_PRE_ARRIVAL",

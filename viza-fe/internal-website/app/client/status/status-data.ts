@@ -16,6 +16,7 @@ import {
   loadLiveSubmissionSummaries,
   type LiveSubmissionSummary,
 } from "@/lib/submission-live-status";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 export type StatusStepKey =
   | "payment"
@@ -903,7 +904,10 @@ function buildActions(
   steps: StatusStep[],
   resultFile: StatusFile | null,
 ): StatusAction[] {
-  const applicationHref = `/client/application?country=${encodeURIComponent(packageBase.country)}&visaType=${encodeURIComponent(packageBase.visaType)}`;
+  const applicationHref = buildApplicationLongFormHref({
+    country: packageBase.country,
+    visaType: packageBase.visaType,
+  });
   const actions: StatusAction[] = [];
 
   if (!application) {

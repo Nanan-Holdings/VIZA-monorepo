@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { Button } from "@/components/ui/button";
 import { CheckCircle2, AlertCircle, AlertTriangle, Pencil } from "lucide-react";
 import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
 import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 interface ReviewStepProps {
   applicationId: string;
@@ -22,6 +23,7 @@ interface ReviewStepProps {
   onComplete: (result: { confirmed: true }) => void;
   mode?: "submit" | "continue";
   continueLabel?: string;
+  showAction?: boolean;
 }
 
 interface ReviewRow {
@@ -87,38 +89,48 @@ function ReviewSummarySection({
   onEdit?: () => void;
 }) {
   return (
-    <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-heading text-[15px] font-semibold text-[#03346E]">{title}</h3>
+    <section>
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <h3 className="font-heading text-sm font-semibold text-brand-500">{title}</h3>
         {onEdit ? (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={onEdit}
-            className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-[#c9def6] bg-[#eef6ff] px-3 text-sm font-medium text-[#03346E] hover:bg-[#e2f0ff]"
+            className="h-8 w-8 shrink-0 justify-end p-0 text-brand-500 hover:bg-brand-50 hover:text-brand-600"
+            aria-label={`修改${title} / Edit ${title}`}
           >
             <Pencil className="h-4 w-4" />
-            修改
-          </button>
+          </Button>
         ) : null}
       </div>
-      <div className="mt-3 divide-y divide-[#eef1f5]">
-        {rows.map((row) => {
-          const value = displayValue(row.value);
-          const isEmpty = value === EMPTY_VALUE;
+      <Table className="table-fixed">
+        <TableBody>
+          {rows.map((row) => {
+            const value = displayValue(row.value);
+            const isEmpty = value === EMPTY_VALUE;
 
-          return (
-            <div
-              key={row.label}
-              className="grid gap-1 py-2.5 text-sm sm:grid-cols-[220px_minmax(0,1fr)] sm:gap-4"
-            >
-              <span className="text-[#697386]">{row.label}</span>
-              <span className={isEmpty ? "text-gray-400" : "font-medium text-[#24272f]"}>
-                {value}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+            return (
+              <TableRow key={row.label} className="hover:bg-transparent">
+                <th
+                  scope="row"
+                  className="w-[56%] px-0 py-2 text-left align-top text-sm font-medium text-muted-foreground"
+                >
+                  {row.label}
+                </th>
+                <TableCell
+                  className={isEmpty
+                    ? "px-0 py-2 text-right align-top text-sm font-medium text-red-600"
+                    : "px-0 py-2 text-right align-top text-sm font-medium text-foreground"}
+                >
+                  <span className="whitespace-pre-wrap break-words">{value}</span>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </section>
   );
 }
@@ -187,7 +199,7 @@ export function ValidationPanel({ applicationId, onProceed, fieldLabels }: Valid
     <div className="flex flex-col gap-3">
       {/* Errors */}
       {state === "done" && hasErrors && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-3">
           <div className="flex items-center gap-2 mb-2 text-red-700">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <p className="text-sm font-semibold">{t("review.validation.hasErrors")} / Application has errors</p>
@@ -202,7 +214,7 @@ export function ValidationPanel({ applicationId, onProceed, fieldLabels }: Valid
 
       {/* Warnings */}
       {state === "done" && hasWarnings && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-3">
           <div className="flex items-center gap-2 mb-2 text-amber-700">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <p className="text-sm font-semibold">{t("review.validation.hasWarnings")} / Warnings</p>
@@ -217,7 +229,7 @@ export function ValidationPanel({ applicationId, onProceed, fieldLabels }: Valid
 
       {/* All good */}
       {state === "done" && !hasErrors && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700">
+        <div className="flex items-center gap-2 rounded-lg border border-[#e5e7eb] bg-white p-3 text-[#166534]">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <p className="text-sm">{t("review.validation.allGood")} / Ready to submit</p>
         </div>
@@ -261,6 +273,7 @@ export function ReviewStep({
   onComplete,
   mode = "submit",
   continueLabel,
+  showAction = true,
 }: ReviewStepProps) {
   const t = useTranslations("applicationSteps");
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
@@ -297,44 +310,75 @@ export function ReviewStep({
     { label: "州 / State", value: data?.travel?.usAddressState },
     { label: "邮编 / ZIP code", value: data?.travel?.usAddressZip },
   ];
+  const splitRows = (rows: ReviewRow[]) => ({
+    completed: rows.filter((row) => displayValue(row.value) !== EMPTY_VALUE),
+    missing: rows.filter((row) => displayValue(row.value) === EMPTY_VALUE),
+  });
+  const personal = splitRows(personalRows);
+  const passport = splitRows(passportRows);
+  const travel = splitRows(travelRows);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-heading text-lg">{t("review.title")} / Review Your Application</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <ReviewSummarySection
-          title={`${t("review.personalInformation")} / Personal Information`}
-          rows={personalRows}
-          onEdit={onEdit ? () => onEdit("personal") : undefined}
-        />
-        <ReviewSummarySection
-          title={`${t("review.passportDetails")} / Passport Details`}
-          rows={passportRows}
-          onEdit={onEdit ? () => onEdit("passport") : undefined}
-        />
-        <ReviewSummarySection
-          title={`${t("review.travelInformation")} / Travel Information`}
-          rows={travelRows}
-          onEdit={onEdit ? () => onEdit("travel") : undefined}
-        />
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-0">
+        {personal.completed.length > 0 ? (
+          <ReviewSummarySection
+            title={t("review.personalInformation")}
+            rows={personal.completed}
+            onEdit={onEdit ? () => onEdit("personal") : undefined}
+          />
+        ) : null}
+        {passport.completed.length > 0 ? (
+          <ReviewSummarySection
+            title={t("review.passportDetails")}
+            rows={passport.completed}
+            onEdit={onEdit ? () => onEdit("passport") : undefined}
+          />
+        ) : null}
+        {travel.completed.length > 0 ? (
+          <ReviewSummarySection
+            title={t("review.travelInformation")}
+            rows={travel.completed}
+            onEdit={onEdit ? () => onEdit("travel") : undefined}
+          />
+        ) : null}
+        {personal.missing.length > 0 ? (
+          <ReviewSummarySection
+            title={`${t("review.personalInformation")} · ${t("review.missingInformation")}`}
+            rows={personal.missing}
+            onEdit={onEdit ? () => onEdit("personal") : undefined}
+          />
+        ) : null}
+        {passport.missing.length > 0 ? (
+          <ReviewSummarySection
+            title={`${t("review.passportDetails")} · ${t("review.missingInformation")}`}
+            rows={passport.missing}
+            onEdit={onEdit ? () => onEdit("passport") : undefined}
+          />
+        ) : null}
+        {travel.missing.length > 0 ? (
+          <ReviewSummarySection
+            title={`${t("review.travelInformation")} · ${t("review.missingInformation")}`}
+            rows={travel.missing}
+            onEdit={onEdit ? () => onEdit("travel") : undefined}
+          />
+        ) : null}
+      </div>
 
-        {mode === "submit" ? (
-          <>
-            <ValidationPanel applicationId={_applicationId} onProceed={() => setDisclaimerOpen(true)} />
-            <SubmissionDisclaimerDialog
-              open={disclaimerOpen}
-              onCancel={() => setDisclaimerOpen(false)}
-              onConfirm={() => onComplete({ confirmed: true })}
-            />
-          </>
-        ) : (
-          <BrandActionButton onClick={() => onComplete({ confirmed: true })}>
-            {actionLabel}
-          </BrandActionButton>
-        )}
-      </CardContent>
-    </Card>
+      {showAction && mode === "submit" ? (
+        <>
+          <ValidationPanel applicationId={_applicationId} onProceed={() => setDisclaimerOpen(true)} />
+          <SubmissionDisclaimerDialog
+            open={disclaimerOpen}
+            onCancel={() => setDisclaimerOpen(false)}
+            onConfirm={() => onComplete({ confirmed: true })}
+          />
+        </>
+      ) : showAction ? (
+        <BrandActionButton onClick={() => onComplete({ confirmed: true })}>
+          {actionLabel}
+        </BrandActionButton>
+      ) : null}
+    </div>
   );
 }

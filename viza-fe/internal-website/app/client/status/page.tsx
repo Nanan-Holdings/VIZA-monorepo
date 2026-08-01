@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import {
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   CircleAlert,
@@ -18,7 +19,6 @@ import {
   Receipt,
   Send,
   ShieldCheck,
-  Upload,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,12 @@ import {
   type StatusStepState,
 } from "./status-data";
 import { SmoothProgressBar } from "@/components/smooth-progress";
+import {
+  getPopularVisaDestinationByPackage,
+  getVisaDestinationKey,
+} from "@/lib/visa-destinations";
+import { AddDestinationSection } from "./add-destination-section";
+import { ApplicationsList, type ApplicationListItem, type ApplicationListTone } from "./applications-list";
 import { LiveManualActionCard } from "./live-manual-action-card";
 import { OfficialStatusAutoPoller } from "./official-status-auto-poller";
 import { OfficialStatusRefreshButton } from "./official-status-refresh-button";
@@ -115,6 +121,25 @@ const APPLICATION_TONE: Record<ClientStatusState, string> = {
   needs_attention: "border-amber-200 bg-amber-50 text-amber-800",
   approved: "border-emerald-200 bg-emerald-50 text-emerald-700",
   rejected: "border-rose-200 bg-rose-50 text-rose-700",
+};
+
+/**
+ * Row tone on the applications index. Mirrors the badge palette in
+ * `APPLICATION_TONE` — money and refusals read as blocking, missing inputs
+ * as a warning, everything else as ordinary progress.
+ */
+const LIST_TONE: Record<ClientStatusState, ApplicationListTone> = {
+  not_started: "brand",
+  needs_payment: "alert",
+  needs_consent: "warn",
+  in_progress: "brand",
+  needs_documents: "warn",
+  packet_pending: "brand",
+  external_pending: "brand",
+  submitted: "brand",
+  needs_attention: "warn",
+  approved: "success",
+  rejected: "alert",
 };
 
 const FILE_ICONS: Record<StatusFileKey, LucideIcon> = {
@@ -311,70 +336,6 @@ function StatusBadge({
     <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold", APPLICATION_TONE[toneState])}>
       {label ?? t(`states.${state}`)}
     </span>
-  );
-}
-
-function StatPanel({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
-  return (
-    <div className="rounded-[8px] border border-[#e7edf5] bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[13px] font-medium text-[#66758a]">{label}</p>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-500">
-          <Icon className="h-4 w-4" />
-        </span>
-      </div>
-      <p className="mt-3 font-heading text-[26px] font-medium leading-none text-[#26364a]">{value}</p>
-    </div>
-  );
-}
-
-function ApplicationCard({
-  application,
-  selected,
-  locale,
-  t,
-}: {
-  application: StatusApplication;
-  selected: boolean;
-  locale: string;
-  t: Awaited<ReturnType<typeof getTranslations>>;
-}) {
-  return (
-    <Link
-      href={getSelectionHref(application)}
-      className={cn(
-        "block rounded-[8px] border bg-white p-4 text-left shadow-sm transition hover:border-brand-200 hover:shadow-md",
-        selected ? "border-brand-300 ring-1 ring-brand-200" : "border-[#e7edf5]",
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="text-[30px] leading-none" aria-hidden="true">
-            {application.countryFlag}
-          </span>
-          <div className="min-w-0">
-            <h2 className="truncate font-heading text-[17px] font-medium text-[#26364a]">
-              {locale.startsWith("zh") ? application.countryNameZh : application.countryName}
-            </h2>
-            <p className="mt-1 truncate text-[13px] font-medium text-[#66758a]">
-              {locale.startsWith("zh") ? application.visaTypeLabelZh : application.visaTypeLabel}
-            </p>
-          </div>
-        </div>
-        <StatusBadge state={application.state} label={getStatusBadgeLabel(application, locale)} t={t} />
-      </div>
-
-      <SmoothProgressBar
-        displayedProgress={application.progressPercent}
-        label={t("progress")}
-        className="mt-4"
-      />
-
-      <div className="mt-4 flex items-center justify-between gap-3 text-[12px] text-[#66758a]">
-        <span>{t("updated")}</span>
-        <span className="font-semibold text-[#3d4b5f]">{formatDate(application.updatedAt ?? application.createdAt, locale)}</span>
-      </div>
-    </Link>
   );
 }
 
@@ -841,79 +802,71 @@ function DetailView({
   );
 }
 
-function Dashboard({
+function toApplicationListItem(
+  application: StatusApplication,
+  locale: string,
+  t: Awaited<ReturnType<typeof getTranslations>>,
+): ApplicationListItem {
+  const isZh = locale.startsWith("zh");
+  const primaryAction = application.actions.find((action) => action.primary);
+  const catalogueDestination = getPopularVisaDestinationByPackage(application.country, application.visaType);
+  const detailHref = getSelectionHref(application);
+  const singleRecordHref =
+    application.applicationRecords.length === 1
+      ? application.applicationRecords[0]?.detailHref
+      : null;
+
+  return {
+    key: getSelectionKey(application),
+    destinationKey: getVisaDestinationKey(application.country, application.visaType),
+    flag: application.countryFlag,
+    countryLabel: isZh ? application.countryNameZh : application.countryName,
+    visaLabel: isZh ? application.visaTypeLabelZh : application.visaTypeLabel,
+    stateLabel: getStatusBadgeLabel(application, locale) ?? t(`states.${application.state}`),
+    tone: LIST_TONE[application.state],
+    progressPercent: application.progressPercent,
+    detailHref,
+    // Skip the per-country record chooser when there is only one record.
+    // Countries with multiple records still need that intermediate choice.
+    continueHref:
+      application.applicationRecords.length > 1
+        ? detailHref
+        : singleRecordHref ?? primaryAction?.href ?? detailHref,
+    destinationId: catalogueDestination?.id ?? null,
+  };
+}
+
+function ApplicationsIndex({
   data,
-  selectedApplication,
   locale,
   t,
 }: {
   data: ClientStatusData;
-  selectedApplication: StatusApplication | null;
   locale: string;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
-  const fileCount = data.applications.reduce(
-    (count, application) =>
-      count +
-      (application.applicationRecords.length > 0
-        ? application.applicationRecords.filter((record) => Boolean(record.file)).length
-        : application.files.length),
-    0,
-  );
-  const nextActionCount = data.applications.reduce((count, application) => count + application.actions.filter((action) => action.primary).length, 0);
-  const averageProgress = data.applications.length > 0
-    ? Math.round(data.applications.reduce((sum, application) => sum + application.progressPercent, 0) / data.applications.length)
-    : 0;
+  const items = data.applications.map((application) => toApplicationListItem(application, locale, t));
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] pb-14">
-      <section className="pt-5 sm:pt-8">
-        <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6b7687]">{t("eyebrow")}</p>
-        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="font-heading text-[32px] font-medium leading-tight text-[#26364a] sm:text-[42px]">{t("title")}</h1>
-            <p className="mt-3 max-w-2xl text-[15px] leading-6 text-[#66758a]">{t("subtitle")}</p>
-          </div>
-          <Link
-            href="/client/home"
-            className="inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-full border border-[#dce5f0] bg-white px-4 py-2 text-[14px] font-semibold text-brand-500 transition hover:border-brand-300"
-          >
-            {t("chooseDestination")}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+    <div className="mx-auto w-full max-w-[1090px] pb-24 pt-5 sm:pt-8">
+      <h1 className="font-heading text-[32px] font-medium leading-tight tracking-[-0.96px] text-[#26364a]">
+        {t("index.title")}
+      </h1>
+      <p className="mt-2.5 max-w-[56ch] text-[16px] leading-6 text-[#66758a]">{t("index.subtitle")}</p>
+
+      <section className="mt-12">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+          <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("index.yourApplications")}</h2>
+          {items.length > 0 && (
+            <p className="text-[14px] text-[#8a94a6]">
+              {t("index.destinationCount", { count: items.length })}
+            </p>
+          )}
         </div>
+        {items.length === 0 ? <EmptyState t={t} /> : <ApplicationsList items={items} />}
       </section>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatPanel label={t("stats.applications")} value={String(data.applications.length)} icon={FileText} />
-        <StatPanel label={t("stats.averageProgress")} value={`${averageProgress}%`} icon={CheckCircle2} />
-        <StatPanel label={t("stats.nextActions")} value={String(nextActionCount)} icon={Upload} />
-        <StatPanel label={t("stats.files")} value={String(fileCount)} icon={Download} />
-      </div>
-
-      {data.applications.length === 0 ? (
-        <div className="mt-6">
-          <EmptyState t={t} />
-        </div>
-      ) : (
-        <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
-          <aside className="rounded-[8px] border border-[#d9e5f4] bg-[#fbfdff] p-4 shadow-sm sm:p-5">
-            <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("applicationsTitle")}</h2>
-            <div className="mt-4 space-y-3">
-              {data.applications.map((application) => (
-                <ApplicationCard
-                  key={getSelectionKey(application)}
-                  application={application}
-                  selected={selectedApplication ? application.countryKey === selectedApplication.countryKey : false}
-                  locale={locale}
-                  t={t}
-                />
-              ))}
-            </div>
-          </aside>
-          {selectedApplication && <DetailView application={selectedApplication} locale={locale} t={t} />}
-        </div>
-      )}
+      <AddDestinationSection startedKeys={items.map((item) => item.destinationKey)} />
     </div>
   );
 }
@@ -939,13 +892,35 @@ export default async function ClientStatusPage({ searchParams }: { searchParams?
         data.detailApplications.find((application) => application.packageId && application.packageId === selectedPackageId) ??
         null
       : null;
-  const selectedApplication =
-    detailApplication ??
-    data.applications.find((application) => normalizeCountryParam(application.countryKey) === selectedCountry) ??
-    data.applications.find((application) => application.applicationRecords.some((record) => record.id === selectedApplicationId)) ??
-    data.applications.find((application) => application.applicationRecords.some((record) => record.packageId === selectedPackageId)) ??
-    data.applications[0] ??
-    null;
+  // A selection param means "show me this application"; a bare /client/status
+  // is the merged applications index.
+  const hasSelection = Boolean(selectedApplicationId || selectedPackageId || selectedCountry);
+  const selectedApplication = hasSelection
+    ? detailApplication ??
+      data.applications.find((application) => normalizeCountryParam(application.countryKey) === selectedCountry) ??
+      data.applications.find((application) => application.applicationRecords.some((record) => record.id === selectedApplicationId)) ??
+      data.applications.find((application) => application.applicationRecords.some((record) => record.packageId === selectedPackageId)) ??
+      data.applications.find((application) => application.id === selectedApplicationId) ??
+      data.applications.find((application) => application.packageId === selectedPackageId) ??
+      null
+    : null;
 
-  return <Dashboard data={data} selectedApplication={selectedApplication} locale={locale} t={t} />;
+  if (!selectedApplication) {
+    return <ApplicationsIndex data={data} locale={locale} t={t} />;
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-[1180px] pb-14 pt-5 sm:pt-8">
+      <Link
+        href="/client/status"
+        className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-[#e6e6e6] bg-white px-4 py-2 text-[14px] font-medium text-brand-500 transition hover:border-brand-300"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        {t("index.backToApplications")}
+      </Link>
+      <div className="mt-4">
+        <DetailView application={selectedApplication} locale={locale} t={t} />
+      </div>
+    </div>
+  );
 }

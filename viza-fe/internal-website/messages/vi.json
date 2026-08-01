@@ -9,12 +9,15 @@
     "home": "[VI] Home",
     "application": "[VI] Application",
     "status": "[VI] Status",
-    "chat": "[VI] Chat",
+    "chat": "[VI] Concierge",
     "documents": "[VI] Documents",
     "settings": "[VI] Settings",
     "support": "[VI] Help",
     "visaConsultant": "[VI] Visa Consultant",
     "travelAgent": "[VI] Travel Agent",
+    "mockInterview": "[VI] Mock Interview",
+    "saving": "Đang lưu",
+    "saved": "Đã lưu",
     "inviteFriends": "[VI] Invite Friends"
   },
   "menu": {
@@ -49,9 +52,22 @@
     "percentComplete": "[VI] {pct}% complete",
     "quickActions": {
       "title": "[VI] Quick Actions",
-      "continueWithAI": "[VI] Continue with AI",
-      "uploadDocuments": "[VI] Upload Documents",
-      "viewApplication": "[VI] View Application"
+      "visaAI": "[VI] Open Visa AI",
+      "travelAI": "[VI] Open Travel AI",
+      "viewStatus": "[VI] View Application Status"
+    },
+    "activeVisa": {
+      "label": "[VI] Active visa",
+      "empty": "[VI] No active visa application",
+      "open": "[VI] Open application",
+      "choose": "[VI] Choose a visa"
+    },
+    "universalInfo": {
+      "title": "[VI] Profile readiness",
+      "subtitle": "[VI] Reusable details for this and future applications",
+      "saved": "[VI] {completed} of {total} details ready",
+      "fields": "[VI] Surname, given names, birthday, birthplace, passport, contact",
+      "edit": "[VI] Review profile"
     },
     "emptyApplication": {
       "noActiveApplication": "[VI] No active application",
@@ -660,6 +676,8 @@
       "accommodation": "[VI] Accommodation",
       "accommodationAddress": "[VI] Accommodation address",
       "reviewMessage": "[VI] Please review your details carefully before submitting.",
+      "missingInformation": "[VI] Missing information",
+      "notProvided": "[VI] Not provided",
       "confirmAndSubmit": "[VI] Confirm & Submit",
       "validation": {
         "failed": "[VI] Validation failed",
@@ -2708,14 +2726,19 @@
       "fallbackName": "[VI] VIZA applicant",
       "editDetails": "[VI] Edit details",
       "completion": "[VI] Reusable profile completion",
-      "completionHint": "[VI] Complete this once so VIZA can prefill repeated visa questions."
+      "completionHint": "[VI] Complete this once so VIZA can prefill repeated visa questions.",
+      "universalTitle": "Hồ sơ dùng chung",
+      "universalDescription": "Lưu thông tin cá nhân thường dùng một lần để hoàn thành các đơn xin thị thực sau này nhanh hơn.",
+      "complete": "Hoàn thành {percent}%",
+      "reviewProfile": "Xem hồ sơ dùng chung"
     },
     "quickSnapshot": {
-      "label": "[VI] Account snapshot",
-      "passport": "[VI] Passport",
-      "phone": "[VI] Phone",
-      "payment": "[VI] Payment",
-      "notSet": "[VI] Not set"
+      "label": "Tóm tắt tài khoản",
+      "email": "Email",
+      "passport": "Số hộ chiếu",
+      "phone": "Số điện thoại",
+      "payment": "Phương thức thanh toán",
+      "notSet": "Chưa thiết lập"
     },
     "sections": {
       "general": "[VI] General",

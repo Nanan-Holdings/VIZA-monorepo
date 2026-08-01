@@ -1,39 +1,27 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { Bot, CalendarDays, CheckIcon, ChevronDown, Globe, User } from "lucide-react";
-import { CircleFlag } from "react-circle-flags";
+import { User } from "lucide-react";
 import { countries } from "country-data-list";
 import { useLocale } from "next-intl";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { AiAssistButton } from "@/components/ui/ai-assist-button";
+import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
+import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+  ApplicationFormSelectContent,
+  ApplicationFormSelectItem,
+  ApplicationFormSelectTrigger,
+} from "@/components/ui/application-form-select";
+import { CountryDropdown } from "@/components/ui/country-dropdown";
 import {
-  InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn, matchesSearchText } from "@/lib/utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 
@@ -218,22 +206,14 @@ export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilo
   return (
     <div className="mt-2 flex w-full flex-col gap-2">
       <div className="flex items-center justify-end gap-2">
-        {config.required && (
-          <span className="text-[12px] font-medium text-[#03346E]">
-            {isZh ? "必填项" : "Required"}
-          </span>
-        )}
-        <button
-          type="button"
+        <AiAssistButton
+          label={`${open ? (isZh ? "收起 AI 帮助" : "Hide AI help") : (isZh ? "问 AI" : "Ask AI")}: ${config.label}`}
+          visibleLabel={open ? (isZh ? "收起 AI 帮助" : "Hide AI help") : (isZh ? "问 AI" : "Ask AI")}
           onClick={() => setOpen((current) => !current)}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#b8d3f3] bg-[#eef6ff] px-2.5 text-[12px] font-medium text-[#03346E] transition-colors hover:bg-[#e3f0ff]"
           aria-expanded={open}
-          aria-label={`${open ? (isZh ? "收起 AI 帮助" : "Hide AI help") : (isZh ? "问 AI" : "Ask AI")}: ${config.label}`}
           data-copilot-trigger={config.fieldName}
-        >
-          <Bot className="h-3.5 w-3.5" />
-          {open ? (isZh ? "收起 AI 帮助" : "Hide AI help") : (isZh ? "问 AI" : "Ask AI")}
-        </button>
+          iconClassName="h-3.5 w-3.5"
+        />
       </div>
       {open && (
         <FieldGuidancePanel
@@ -335,7 +315,7 @@ export function BilingualTextControl({
   onBlur?: () => void;
 }) {
   return (
-    <InputGroup className="h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E]">
+    <ApplicationFormInputGroup className="h-12" filled={Boolean(value)}>
       <InputGroupAddon align="inline-start">
         {icon ?? <User className="h-4 w-4 text-gray-400" />}
       </InputGroupAddon>
@@ -348,7 +328,7 @@ export function BilingualTextControl({
         required={required}
         className="h-12 text-[15px]"
       />
-    </InputGroup>
+    </ApplicationFormInputGroup>
   );
 }
 
@@ -369,19 +349,22 @@ export function BilingualOptionControl({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground">
+      <ApplicationFormSelectTrigger
+        className="h-12 text-[15px] data-[placeholder]:text-muted-foreground"
+        filled={Boolean(value)}
+      >
         <div className="flex min-w-0 items-center gap-2">
           {icon ? <span className="shrink-0 text-gray-400">{icon}</span> : null}
           <SelectValue placeholder={placeholder} />
         </div>
-      </SelectTrigger>
-      <SelectContent>
+      </ApplicationFormSelectTrigger>
+      <ApplicationFormSelectContent>
         {options.map((option) => (
-          <SelectItem key={`${side}-${option.code}`} value={option.code}>
+          <ApplicationFormSelectItem key={`${side}-${option.code}`} value={option.code}>
             {side === "zh" ? option.zh : option.en}
-          </SelectItem>
+          </ApplicationFormSelectItem>
         ))}
-      </SelectContent>
+      </ApplicationFormSelectContent>
     </Select>
   );
 }
@@ -391,7 +374,6 @@ export function BilingualCountryControl({
   side,
   placeholder,
   onChange,
-  showSecondaryLabel = true,
 }: {
   value: string;
   side: BilingualSide;
@@ -399,77 +381,13 @@ export function BilingualCountryControl({
   onChange: (value: string) => void;
   showSecondaryLabel?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const selectedOption = findBilingualOption(COUNTRY_OPTIONS, value);
-  const emptyText = side === "zh" ? "未找到国家" : "No country found.";
-  const searchPlaceholder = side === "zh" ? "搜索国家..." : "Search country...";
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="flex h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] bg-transparent px-3 text-[15px] font-normal shadow-xs hover:bg-transparent focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]">
-        {selectedOption ? (
-          <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full">
-              <CircleFlag countryCode={selectedOption.code.toLowerCase()} height={20} />
-            </span>
-            <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-              {side === "zh" ? selectedOption.zh : selectedOption.en}
-            </span>
-          </div>
-        ) : (
-          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-            <Globe className="h-4 w-4 shrink-0 text-gray-400" />
-            <span className="overflow-hidden text-ellipsis whitespace-nowrap">{placeholder}</span>
-          </div>
-        )}
-        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-      </PopoverTrigger>
-      <PopoverContent collisionPadding={10} side="bottom" className="min-w-[--radix-popper-anchor-width] p-0">
-        <Command
-          className="w-full"
-          filter={(commandValue, search, keywords) => {
-            return matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0;
-          }}
-        >
-          <CommandInput placeholder={searchPlaceholder} />
-          <CommandList className="max-h-[200px] sm:max-h-[270px]">
-            <CommandEmpty>{emptyText}</CommandEmpty>
-            <CommandGroup>
-              {COUNTRY_OPTIONS.map((option) => (
-                <CommandItem
-                  className="flex w-full items-center gap-2 [&_svg]:size-auto"
-                  key={`${side}-${option.code}`}
-                  value={option.code}
-                  keywords={[option.zh, option.en, option.code]}
-                  onSelect={() => {
-                    onChange(option.code);
-                    setOpen(false);
-                  }}
-                >
-                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full">
-                    <CircleFlag countryCode={option.code.toLowerCase()} height={20} />
-                  </span>
-                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                    {side === "zh" ? option.zh : option.en}
-                  </span>
-                  {showSecondaryLabel ? (
-                    <span className="hidden shrink-0 text-xs text-gray-400 sm:inline">
-                      {side === "zh" ? option.en : option.zh}
-                    </span>
-                  ) : null}
-                  <CheckIcon
-                    className={cn(
-                      "ml-auto !h-4 !w-4 shrink-0",
-                      selectedOption?.code === option.code ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <CountryDropdown
+      defaultValue={value}
+      placeholder={placeholder}
+      displayLocale={side}
+      onChange={(country) => onChange(country.alpha2)}
+    />
   );
 }
 
@@ -484,40 +402,13 @@ export function BilingualDateControl({
   placeholder: string;
   onChange: (value: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const selectedDate = value ? new Date(`${value}T00:00:00`) : undefined;
-  const displayValue = side === "zh" ? formatChineseDate(value) : formatOfficialDate(value);
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-12 w-full justify-start rounded-lg border-[#e8e8e8] bg-transparent text-left text-[15px] font-normal shadow-xs hover:bg-transparent focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]"
-        >
-          <CalendarDays className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
-          {displayValue || <span className="text-muted-foreground">{placeholder}</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          defaultMonth={selectedDate}
-          onSelect={(date) => {
-            if (!date) return;
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            onChange(`${year}-${month}-${day}`);
-            setOpen(false);
-          }}
-          captionLayout="dropdown"
-          startMonth={new Date(1920, 0)}
-          endMonth={new Date(2036, 11)}
-        />
-      </PopoverContent>
-    </Popover>
+    <ApplicationFormDatePicker
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      displayLocale={side}
+      displayFormat={side === "zh" ? "yyyy年M月d日" : "dd/MM/yyyy"}
+    />
   );
 }

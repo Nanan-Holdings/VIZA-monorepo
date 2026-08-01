@@ -76,6 +76,103 @@ const shortcutStep: WizardStep = {
   ],
 };
 
+const conditionalPanelStep: WizardStep = {
+  stepNumber: 6,
+  stepName: "Inviter in Japan",
+  fields: [
+    {
+      id: "field-has-inviter",
+      visaType: "JP_TOURIST",
+      fieldName: "has_inviter_in_japan",
+      label: "Do you have an inviter in Japan?",
+      fieldType: "radio",
+      required: true,
+      stepNumber: 6,
+      stepName: "Inviter in Japan",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: null,
+      options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-inviter-name",
+      visaType: "JP_TOURIST",
+      fieldName: "inviter_full_name",
+      label: "Inviter full name",
+      fieldType: "text",
+      required: true,
+      stepNumber: 6,
+      stepName: "Inviter in Japan",
+      displayOrder: 2,
+      placeholder: null,
+      validationRules: { block_group: "inviter" },
+      options: null,
+      conditionalLogic: { showIf: "has_inviter_in_japan === yes" },
+    },
+    {
+      id: "field-inviter-address",
+      visaType: "JP_TOURIST",
+      fieldName: "inviter_address",
+      label: "Inviter address",
+      fieldType: "text",
+      required: true,
+      stepNumber: 6,
+      stepName: "Inviter in Japan",
+      displayOrder: 3,
+      placeholder: null,
+      validationRules: { block_group: "inviter" },
+      options: null,
+      conditionalLogic: { showIf: "has_inviter_in_japan === yes" },
+    },
+    {
+      id: "field-has-special-request",
+      visaType: "JP_TOURIST",
+      fieldName: "has_special_request",
+      label: "Do you have a special request?",
+      fieldType: "radio",
+      required: true,
+      stepNumber: 6,
+      stepName: "Inviter in Japan",
+      displayOrder: 4,
+      placeholder: null,
+      validationRules: null,
+      options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-special-request",
+      visaType: "JP_TOURIST",
+      fieldName: "special_request_details",
+      label: "Special request details",
+      fieldType: "textarea",
+      required: true,
+      stepNumber: 6,
+      stepName: "Inviter in Japan",
+      displayOrder: 5,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: { showIf: "has_special_request === yes" },
+    },
+    {
+      id: "field-reference-note",
+      visaType: "JP_TOURIST",
+      fieldName: "reference_note",
+      label: "Reference note",
+      fieldType: "text",
+      required: false,
+      stepNumber: 6,
+      stepName: "Inviter in Japan",
+      displayOrder: 6,
+      placeholder: null,
+      validationRules: { block_group: "reference" },
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
 const purposeOfTripStep: WizardStep = {
   stepNumber: 3,
   stepName: "Travel Information",
@@ -96,6 +193,32 @@ const purposeOfTripStep: WizardStep = {
         { value: "A", text: "FOREIGN GOVERNMENT OFFICIAL (A)" },
         { value: "B", text: "TEMP. BUSINESS OR PLEASURE VISITOR (B)" },
         { value: "C", text: "ALIEN IN TRANSIT (C)" },
+      ],
+      conditionalLogic: null,
+    },
+  ],
+};
+
+const occupationStep: WizardStep = {
+  stepNumber: 4,
+  stepName: "Occupation",
+  fields: [
+    {
+      id: "field-current-profession",
+      visaType: "JP_TOURIST",
+      fieldName: "current_profession",
+      label: "Current profession or occupation",
+      fieldType: "select",
+      required: true,
+      stepNumber: 4,
+      stepName: "Occupation",
+      displayOrder: 1,
+      placeholder: "Select...",
+      validationRules: null,
+      options: [
+        { value: "employed", text: "Employed" },
+        { value: "self_employed", text: "Self-employed" },
+        { value: "student", text: "Student" },
       ],
       conditionalLogic: null,
     },
@@ -598,6 +721,98 @@ function renderWizardStep(config: WizardConfig<unknown>, index: number): ReactNo
 }
 
 describe("DynamicStepForm copilot format", () => {
+  it("hides the repeated continue action in the continuous form layout", () => {
+    render(
+      <DynamicStepForm
+        step={requiredTextStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        visaType="DS160"
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "continue" })).not.toBeInTheDocument();
+  });
+
+  it("marks a page-level missing field invalid only after the submit check", () => {
+    const { container, rerender } = render(
+      <DynamicStepForm
+        step={requiredTextStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        visaType="DS160"
+      />,
+    );
+
+    const field = container.querySelector<HTMLElement>('[data-application-field-name="surname"]');
+    expect(field).toHaveAttribute("data-validation-invalid", "false");
+    expect(screen.queryByText("必填项")).not.toBeInTheDocument();
+
+    rerender(
+      <DynamicStepForm
+        step={requiredTextStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        visaType="DS160"
+        invalidFieldNames={new Set(["surname"])}
+      />,
+    );
+
+    expect(field).toHaveAttribute("data-validation-invalid", "true");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field?.className).toContain("[&_.application-form-control]:!border-red-500");
+    expect(screen.queryByText("必填项")).not.toBeInTheDocument();
+  });
+
+  it("renders every visible conditional branch in the shared conditional fields panel", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={conditionalPanelStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        visaType="JP_TOURIST"
+      />,
+    );
+
+    expect(container.querySelectorAll(".application-conditional-fields-panel")).toHaveLength(0);
+    expect(container.querySelector('[data-copilot-trigger="reference_note"]')?.closest(
+      ".application-conditional-fields-panel",
+    )).toBeNull();
+
+    const inviterYes = container.querySelector<HTMLInputElement>(
+      'input[name="has_inviter_in_japan-en"][value="yes"]',
+    );
+    expect(inviterYes).not.toBeNull();
+    fireEvent.click(inviterYes!);
+
+    const inviterPanels = container.querySelectorAll(".application-conditional-fields-panel");
+    expect(inviterPanels).toHaveLength(1);
+    expect(inviterPanels[0]).toContainElement(
+      container.querySelector('[data-copilot-trigger="inviter_full_name"]'),
+    );
+    expect(inviterPanels[0]).toContainElement(
+      container.querySelector('[data-copilot-trigger="inviter_address"]'),
+    );
+
+    const specialRequestYes = container.querySelector<HTMLInputElement>(
+      'input[name="has_special_request-en"][value="yes"]',
+    );
+    expect(specialRequestYes).not.toBeNull();
+    fireEvent.click(specialRequestYes!);
+
+    const allPanels = container.querySelectorAll(".application-conditional-fields-panel");
+    expect(allPanels).toHaveLength(2);
+    expect(
+      container.querySelector('[data-copilot-trigger="special_request_details"]')?.closest(
+        ".application-conditional-fields-panel",
+      ),
+    ).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "addAnother" })).not.toBeInTheDocument();
+  });
+
   it("uses the unified Chinese copilot trigger format", () => {
     render(
       <DynamicStepForm
@@ -608,7 +823,7 @@ describe("DynamicStepForm copilot format", () => {
       />,
     );
 
-    expect(screen.getByText("必填项")).toBeInTheDocument();
+    expect(screen.queryByText("必填项")).not.toBeInTheDocument();
     expect(screen.queryByText("Required field")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ask AI" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Review tip" })).not.toBeInTheDocument();
@@ -618,7 +833,7 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.click(trigger);
 
-    expect(screen.getByRole("button", { name: "收起 AI 帮助" })).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByTestId("field-guidance-panel")).toBeInTheDocument();
   });
 
@@ -673,9 +888,173 @@ describe("DynamicStepForm copilot format", () => {
     expect(screen.getByTestId("field-guidance-panel")).toBeInTheDocument();
     expect(comboboxes.every((combobox) => combobox.disabled)).toBe(false);
 
-    fireEvent.click(screen.getByRole("button", { name: "收起 AI 帮助" }));
+    fireEvent.click(trigger);
     expect(screen.queryByTestId("field-guidance-panel")).not.toBeInTheDocument();
     expect(comboboxes.every((combobox) => combobox.disabled)).toBe(false);
+  });
+
+  it("canonicalizes a saved select label to its stored option value", async () => {
+    const onDraftChange = vi.fn();
+    const { container } = render(
+      <DynamicStepForm
+        step={occupationStep}
+        prefill={{ current_profession: "Employed" }}
+        onComplete={vi.fn()}
+        onDraftChange={onDraftChange}
+        visaType="JP_TOURIST"
+      />,
+    );
+
+    const dropdowns = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="combobox"]'));
+    expect(dropdowns).toHaveLength(2);
+    expect(dropdowns.every((dropdown) => dropdown.dataset.filled === "true")).toBe(true);
+    expect(dropdowns.some((dropdown) => dropdown.textContent?.includes("Employed"))).toBe(true);
+    await waitFor(() => expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({ current_profession: "employed" }),
+    ));
+  });
+
+  it("clears an invisible stale select value without showing an option error", async () => {
+    const onDraftChange = vi.fn();
+    const { container } = render(
+      <DynamicStepForm
+        step={occupationStep}
+        prefill={{ current_profession: "Software engineer" }}
+        onComplete={vi.fn()}
+        onDraftChange={onDraftChange}
+        visaType="JP_TOURIST"
+      />,
+    );
+
+    const dropdowns = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="combobox"]'));
+    expect(dropdowns).toHaveLength(2);
+    expect(dropdowns.every((dropdown) => !dropdown.disabled)).toBe(true);
+    expect(dropdowns.every((dropdown) => dropdown.dataset.filled === "false")).toBe(true);
+    expect(screen.queryByText("Choose one of the provided options")).not.toBeInTheDocument();
+    await waitFor(() => expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({ current_profession: "" }),
+    ));
+  });
+
+  it("keeps dropdowns and their AI trigger in the same active field scope", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={purposeOfTripStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+
+    const aiTrigger = container.querySelector<HTMLButtonElement>('[data-copilot-trigger="purpose_of_trip"]');
+    const field = aiTrigger?.closest<HTMLElement>(".application-form-field");
+    const dropdowns = field?.querySelectorAll<HTMLButtonElement>('[role="combobox"]');
+    const bilingualField = aiTrigger?.closest<HTMLElement>('[data-application-field-name="purpose_of_trip"]');
+    const bilingualDropdowns = bilingualField?.querySelectorAll<HTMLButtonElement>('[role="combobox"]');
+
+    expect(aiTrigger).toHaveClass("application-form-ai-trigger");
+    expect(aiTrigger).toHaveClass(
+      "border-0",
+      "bg-transparent",
+      "text-brand-500",
+      "hover:text-brand-700",
+      "rounded-full",
+    );
+    expect(aiTrigger).not.toHaveClass("hover:bg-brand-50");
+    expect(field).not.toBeNull();
+    expect(dropdowns).toHaveLength(1);
+    expect(Array.from(dropdowns ?? []).every((dropdown) => dropdown.classList.contains("application-form-control"))).toBe(true);
+    expect(bilingualDropdowns).toHaveLength(2);
+  });
+
+  it("reserves label space for the AI trigger without narrowing the form control", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={purposeOfTripStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+
+    const aiTrigger = container.querySelector('[data-copilot-trigger="purpose_of_trip"]');
+    const field = aiTrigger?.closest<HTMLElement>(".application-form-field");
+    const englishSide = aiTrigger?.closest<HTMLElement>('[data-guidance-label-space="true"]');
+    const label = englishSide?.querySelector(".application-form-question-label");
+    const labelAction = aiTrigger?.parentElement;
+    const control = englishSide?.querySelector(".application-form-control");
+
+    expect(field).not.toBeNull();
+    expect(englishSide).not.toBeNull();
+    expect(label).not.toBeNull();
+    expect(label).toHaveClass("pr-10");
+    expect(labelAction).toHaveClass(
+      "absolute",
+      "right-0",
+      "opacity-0",
+      "group-hover/field:opacity-100",
+      "group-focus-within/field:opacity-100",
+    );
+    expect(control).not.toBeNull();
+    expect(control).not.toHaveClass("pr-10");
+  });
+
+  it("preserves bottom-page height after removing a repeat instance until scrolling safely upward", () => {
+    let repeatGroupWasExpanded = false;
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.dataset.applicationScrollContainer === "true" ? 500 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.dataset.applicationScrollContainer === "true" ? 900 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const isMeasuredContent = this.dataset.scrollHeightContent === "true";
+      const repeatCount = isMeasuredContent
+        ? this.querySelectorAll('[data-repeat-group-instance="true"]').length
+        : 0;
+      if (repeatCount === 2) repeatGroupWasExpanded = true;
+      if (isMeasuredContent && repeatGroupWasExpanded && repeatCount === 1) {
+        const scrollContainer = this.closest<HTMLElement>('[data-application-scroll-container="true"]');
+        if (scrollContainer) scrollContainer.scrollTop = 300;
+      }
+      const height = isMeasuredContent ? 100 + repeatCount * 200 : 0;
+      return {
+        bottom: height,
+        height,
+        left: 0,
+        right: 0,
+        top: 0,
+        width: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      };
+    });
+
+    const { container } = render(
+      <div data-application-scroll-container="true" style={{ overflowY: "auto" }}>
+        <DynamicStepForm
+          step={purposeOfTripStep}
+          prefill={{}}
+          onComplete={vi.fn()}
+          visaType="DS160"
+        />
+      </div>,
+    );
+
+    const scrollContainer = container.firstElementChild as HTMLDivElement;
+    scrollContainer.scrollTop = 500;
+    fireEvent.click(screen.getByRole("button", { name: "addAnother" }));
+    const removeButtons = screen.getAllByRole("button", { name: "remove" });
+    fireEvent.click(removeButtons[1]);
+
+    const form = container.querySelector("form");
+    expect(form).toHaveStyle({ minHeight: "500px" });
+    expect(scrollContainer.scrollTop).toBe(500);
+
+    scrollContainer.scrollTop = 100;
+    fireEvent.scroll(scrollContainer);
+    expect(form).not.toHaveStyle({ minHeight: "500px" });
   });
 
   it("autofills bilingual values from universal profile and persists both display languages", () => {
@@ -1017,10 +1396,10 @@ describe("DynamicStepForm copilot format", () => {
     const issueDateTrigger = container.querySelector('[data-copilot-trigger="travel_document_issue_date"]');
     const expiryDateTrigger = container.querySelector('[data-copilot-trigger="travel_document_expiry_date"]');
 
-    expect(surnameTrigger?.parentElement).not.toHaveTextContent("到期日必须晚于签发日");
-    expect(birthDateTrigger?.parentElement).not.toHaveTextContent("到期日必须晚于签发日");
-    expect(issueDateTrigger?.parentElement).not.toHaveTextContent("到期日必须晚于签发日");
-    expect(expiryDateTrigger?.parentElement).toHaveTextContent("到期日必须晚于签发日");
+    expect(surnameTrigger?.closest('[data-application-field-name="surname"]')).not.toHaveTextContent("到期日必须晚于签发日");
+    expect(birthDateTrigger?.closest('[data-application-field-name="date_of_birth"]')).not.toHaveTextContent("到期日必须晚于签发日");
+    expect(issueDateTrigger?.closest('[data-application-field-name="travel_document_issue_date"]')).not.toHaveTextContent("到期日必须晚于签发日");
+    expect(expiryDateTrigger?.closest('[data-application-field-name="travel_document_expiry_date"]')).toHaveTextContent("到期日必须晚于签发日");
   });
 
   it("keeps Schengen option and placeholder language scoped to each side", () => {

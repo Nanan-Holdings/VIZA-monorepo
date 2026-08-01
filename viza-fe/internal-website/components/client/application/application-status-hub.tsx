@@ -25,6 +25,7 @@ import {
 } from "@/app/actions/application-lifecycle";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { cn } from "@/lib/utils";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 import { getFormVisaType } from "@/lib/visa-destinations";
 
 type HubMode = "overview" | "detail";
@@ -137,7 +138,10 @@ function getDetailHref(summary: ApplicationLifecycleSummary, basePath: string): 
 }
 
 function getFormHref(summary: Pick<ApplicationLifecycleSummary, "country" | "visaType">): string {
-  return `/client/application?country=${encodeURIComponent(summary.country)}&visaType=${encodeURIComponent(summary.visaType)}`;
+  return buildApplicationLongFormHref({
+    country: summary.country,
+    visaType: summary.visaType,
+  });
 }
 
 function formatDate(value: string | null, locale: string): string {
@@ -309,7 +313,7 @@ function ErrorState({ message }: { message: string }) {
   const t = useTranslations("application.statusHub");
 
   return (
-    <div className="rounded-[8px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+    <div className="rounded-[8px] border border-[#e5e7eb] bg-white px-5 py-4 text-sm text-[#71717a]">
       <p className="font-semibold">{t("loadError")}</p>
       <p className="mt-1">{message}</p>
     </div>
@@ -551,7 +555,7 @@ function DetailView({
                 {visaTypeLabel}
               </p>
               {summary.latestSubmission?.lastError && (
-                <p className="mt-3 rounded-[8px] border border-red-100 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+                <p className="mt-3 rounded-[8px] border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] text-[#71717a]">
                   {summary.latestSubmission.lastError}
                 </p>
               )}

@@ -31,10 +31,7 @@ describe("PassportOcrUpload", () => {
       />,
     );
 
-    expect(screen.getByText("JPG/JPEG")).toBeInTheDocument();
-    expect(screen.getByText("PNG")).toBeInTheDocument();
-    expect(screen.getByText("WebP")).toBeInTheDocument();
-    expect(screen.getByText("最大 2 MB")).toBeInTheDocument();
+    expect(screen.getByText(/JPG\/JPEG, PNG, WebP · 最大 2 MB/)).toBeInTheDocument();
     expect(screen.queryByText("PDF")).not.toBeInTheDocument();
     expect(screen.queryByText("最大 10 MB")).not.toBeInTheDocument();
   });

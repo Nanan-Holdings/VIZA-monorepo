@@ -10,8 +10,8 @@ import {
   Loader2,
   ImageIcon,
   Crop,
-  Bot,
 } from "lucide-react";
+import { AiAssistButton } from "@/components/ui/ai-assist-button";
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
@@ -231,9 +231,6 @@ export function PhotoUploadStep({
                 {t("prepareTitle")}
               </h3>
               <div className="mt-1 flex flex-wrap items-center gap-2">
-                <span className="text-[13px] font-medium text-[#03346E]">
-                  {isZh ? "必填项" : "Required"}
-                </span>
                 {!photoCopilotAnswer && (
                   <span className="text-[13px] font-medium text-[#03346E]">
                     {isZh ? "照片还未上传" : "Photo not uploaded yet"}
@@ -242,20 +239,17 @@ export function PhotoUploadStep({
               </div>
             </div>
           </div>
-          <button
-            type="button"
+          <AiAssistButton
+            label={buttonLabel}
+            visibleLabel={buttonLabel}
             onClick={(event) => {
               event.stopPropagation();
               setPhotoCopilotOpen((current) => !current);
             }}
-            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-[#b8d3f3] bg-[#eef6ff] px-2.5 text-[12px] font-medium text-[#03346E] transition-colors hover:bg-[#e3f0ff]"
             aria-expanded={photoCopilotOpen}
-            aria-label={buttonLabel}
             data-copilot-trigger={PHOTO_COPILOT_FIELD_NAME}
-          >
-            <Bot className="h-3.5 w-3.5" />
-            {buttonLabel}
-          </button>
+            iconClassName="h-3.5 w-3.5"
+          />
         </div>
         <p className="text-sm leading-relaxed text-gray-600">
           {guidance.instructions}

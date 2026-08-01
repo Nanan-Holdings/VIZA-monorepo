@@ -1,9 +1,13 @@
 ﻿"use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, CreditCard, Loader2, Check, ChevronDown, ShieldCheck } from "lucide-react";
+import { CreditCard, Loader2, Check, ChevronDown, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
+import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
+import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
+import { InputGroupInput } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
 import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
@@ -58,6 +62,7 @@ import {
   type UniversalProfileSnapshot,
 } from "@/lib/universal-profile-prefill";
 import { SubmissionStatusStep } from "../_components/result-cards/SubmissionStatusStep";
+import { UniversalProfileSyncCard } from "@/components/application-steps/universal-profile-sync-card";
 import {
   getTeamApplicationContext,
   markTeamCompanionReviewed,
@@ -171,6 +176,14 @@ interface VietnamOneTimePaymentCard {
   holderName: string;
 }
 
+type SubmitCheckState = "idle" | "checking" | "invalid";
+
+const OFFICIAL_PAYMENT_CARD_FIELD_NAMES = {
+  pan: "official_payment_card_number",
+  expiry: "official_payment_card_expiry",
+  cvv: "official_payment_card_cvv",
+} as const;
+
 interface VisibleDynamicStep {
   step: WizardStep;
   sourceIndex: number;
@@ -259,7 +272,7 @@ function collectDraftAnswers(drafts: Record<number, Record<string, string>>): Re
   );
 }
 
-const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "review", "team", "status"] as const;
+const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "team", "review"] as const;
 
 function getVisibleDynamicSteps(steps: WizardStep[], answers: Record<string, string>): VisibleDynamicStep[] {
   return steps
@@ -343,7 +356,7 @@ function VerticalStepSidebar({
   const activeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
 
   return (
-    <aside className="w-[360px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
+    <aside className="w-[360px] shrink-0 px-4 pt-4 hidden xl:flex xl:flex-col z-10 overflow-y-auto">
       <div className="relative">
       <div
         className="absolute top-4 bottom-0 border-l-2 border-dashed border-gray-200"
@@ -363,10 +376,10 @@ function VerticalStepSidebar({
                 void onStepClick(step.id);
               }}
               className={cn(
-                "rounded-xl border border-[#efefef] bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm",
+                "application-form-panel border bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer",
                 isSelected
-                  ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
-                  : "hover:border-gray-300",
+                  ? "application-form-sidebar-panel-selected ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                  : "hover:bg-gray-50",
               )}
             >
               {/* Circle */}
@@ -390,7 +403,7 @@ function VerticalStepSidebar({
                   className={cn(
                     "text-[15px]",
                     status === "in_progress" && "font-semibold text-[#03346E]",
-                    status === "complete" && "font-medium text-[#03346E]",
+                    status === "complete" && "font-medium text-gray-500",
                     status === "locked" && "font-medium text-gray-500"
                   )}
                 >
@@ -430,7 +443,7 @@ function MobileStepBar({
   const activeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
 
   return (
-    <div className="lg:hidden mb-6 bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+    <div className="xl:hidden mb-6 bg-white rounded-lg border border-gray-100 shadow-sm p-4">
       <div className="flex items-center gap-1">
         {steps.map((step, i) => {
           const status: StepStatus =
@@ -510,7 +523,7 @@ function GroupedStepSidebar({
   }, []);
 
   return (
-    <aside className="w-[380px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
+    <aside className="w-[380px] shrink-0 px-4 pt-4 hidden xl:flex xl:flex-col z-10 overflow-y-auto">
       <div className="space-y-3">
         {sections.map((section, sectionIndex) => {
           if (section.steps.length === 1) {
@@ -526,10 +539,10 @@ function GroupedStepSidebar({
                   void onStepClick(step.id);
                 }}
                 className={cn(
-                  "rounded-xl border border-[#efefef] bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm w-full",
+                  "application-form-panel border bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer w-full",
                   isSelected
-                    ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
-                    : "hover:border-gray-300",
+                    ? "application-form-sidebar-panel-selected ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                    : "hover:bg-gray-50",
                 )}
               >
                 <div
@@ -547,7 +560,7 @@ function GroupedStepSidebar({
                     className={cn(
                       "text-[15px]",
                       status === "in_progress" && "font-semibold text-[#03346E]",
-                      status === "complete" && "font-medium text-[#03346E]",
+                      status === "complete" && "font-medium text-gray-500",
                       status === "locked" && "font-medium text-gray-500"
                     )}
                   >
@@ -569,10 +582,10 @@ function GroupedStepSidebar({
             <section
               key={section.id}
               className={cn(
-                "rounded-xl border bg-white overflow-hidden transition-all duration-200",
+                "application-form-panel border bg-white overflow-hidden transition-all duration-200",
                 activeInSection
-                  ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
-                  : "border-[#efefef] hover:border-gray-300 hover:shadow-sm"
+                  ? "application-form-sidebar-panel-selected ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                  : "hover:bg-gray-50"
               )}
             >
               <button
@@ -600,7 +613,7 @@ function GroupedStepSidebar({
                     className={cn(
                       "text-[15px] leading-tight truncate",
                       activeInSection && "font-semibold text-[#03346E]",
-                      sectionComplete && !activeInSection && "font-medium text-[#03346E]",
+                      sectionComplete && !activeInSection && "font-medium text-gray-500",
                       !activeInSection && !sectionComplete && "font-medium text-gray-500"
                     )}
                   >
@@ -660,7 +673,7 @@ function GroupedStepSidebar({
                             className={cn(
                               "text-[14px] leading-snug min-w-0 flex-1 truncate",
                               status === "in_progress" && "font-semibold text-[#03346E]",
-                              status === "complete" && "font-medium text-[#03346E]",
+                              status === "complete" && "font-medium text-gray-600",
                               status === "locked" && "font-medium text-gray-600"
                             )}
                           >
@@ -723,7 +736,7 @@ function GroupedMobileStepBar({
   }, []);
 
   return (
-    <div className="lg:hidden mb-6 space-y-3">
+    <div className="xl:hidden mb-6 space-y-3">
       <div className="rounded-xl border border-[#efefef] bg-white p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -786,7 +799,7 @@ function GroupedMobileStepBar({
                     className={cn(
                       "text-[15px] leading-tight truncate",
                       status === "in_progress" && "font-semibold text-[#03346E]",
-                      status === "complete" && "font-medium text-[#03346E]",
+                      status === "complete" && "font-medium text-gray-500",
                       status === "locked" && "font-medium text-gray-500"
                     )}
                   >
@@ -838,7 +851,7 @@ function GroupedMobileStepBar({
                     className={cn(
                       "text-[15px] leading-tight truncate",
                       activeInSection && "font-semibold text-[#03346E]",
-                      sectionComplete && !activeInSection && "font-medium text-[#03346E]",
+                      sectionComplete && !activeInSection && "font-medium text-gray-500",
                       !activeInSection && !sectionComplete && "font-medium text-gray-500"
                     )}
                   >
@@ -898,7 +911,7 @@ function GroupedMobileStepBar({
                             className={cn(
                               "text-[14px] leading-snug min-w-0 flex-1 truncate",
                               status === "in_progress" && "font-semibold text-[#03346E]",
-                              status === "complete" && "font-medium text-[#03346E]",
+                              status === "complete" && "font-medium text-gray-600",
                               status === "locked" && "font-medium text-gray-600"
                             )}
                           >
@@ -926,7 +939,7 @@ function FinalConfirmationPanel({
   missingFields,
   requirementsLoading,
   submittingMode,
-  onEdit,
+  submitCheckState,
   onSubmit,
 }: {
   isZh: boolean;
@@ -936,30 +949,17 @@ function FinalConfirmationPanel({
   missingFields: MissingApplicationField[];
   requirementsLoading: boolean;
   submittingMode: SubmissionMode | null;
-  onEdit: StepClickHandler;
+  submitCheckState: SubmitCheckState;
   onSubmit: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => void | Promise<void>;
 }) {
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
   const [cardHolderName, setCardHolderName] = useState("");
-  const groupedMissing = useMemo(() => {
-    const groups = new Map<number, { stepName: string; fields: MissingApplicationField[] }>();
-    for (const item of missingFields) {
-      const existing = groups.get(item.stepId);
-      if (existing) {
-        existing.fields.push(item);
-      } else {
-        groups.set(item.stepId, { stepName: item.stepName, fields: [item] });
-      }
-    }
-    return Array.from(groups.entries()).map(([stepId, group]) => ({ stepId, ...group }));
-  }, [missingFields]);
-
   const hasMissing = missingFields.length > 0;
   const isSubmitting = submittingMode !== null;
-  const baseDisabled =
-    isSubmitting || (!forceDryRun && (hasMissing || requirementsLoading));
+  const isChecking = submitCheckState === "checking";
+  const validationActive = submitCheckState === "invalid";
   const hasLiveAssistedTarget = liveAssistedTarget !== null && !forceDryRun;
   const isFrance = liveAssistedTarget === "france";
   const isVietnam = liveAssistedTarget === "vietnam";
@@ -979,7 +979,6 @@ function FinalConfirmationPanel({
       cardExpiry.trim().length >= 4 &&
       cardCvv.replace(/\D/g, "").length >= 3
     );
-  const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget || !oneTimeOfficialPaymentCardReady;
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
     : requiresOneTimeOfficialPaymentCard && !oneTimeOfficialPaymentCardReady
@@ -1025,7 +1024,10 @@ function FinalConfirmationPanel({
       : null;
 
   const submitMode: SubmissionMode = hasLiveAssistedTarget ? "live_assisted" : "dry_run";
-  const submitDisabled = hasLiveAssistedTarget ? liveDisabled : baseDisabled;
+  // Missing answers are checked after the click so the final action never
+  // becomes an unexplained dead end. Only an in-flight check/submission locks
+  // the control against duplicate requests.
+  const submitDisabled = isSubmitting || isChecking;
   const officialPaymentCard: VietnamOneTimePaymentCard | undefined = requiresOneTimeOfficialPaymentCard
     ? {
         pan: cardNumber,
@@ -1083,60 +1085,27 @@ function FinalConfirmationPanel({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-[#d7e6fb] bg-[#f2f7ff] p-5">
-        <div className="flex gap-3">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#03346E]" />
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold text-[#0b2545]">
-              {isZh ? "最终确认" : "Final confirmation"}
-            </h3>
-            <p className="text-sm leading-relaxed text-[#3d5878]">
-              {hasMissing
+      <Alert variant={hasMissing ? "warning" : "info"}>
+        <AlertIcon variant={hasMissing ? "warning" : "info"} />
+        <AlertTitle>{isZh ? "最终确认" : "Final confirmation"}</AlertTitle>
+        <AlertDescription>
+          <p>
+            {isChecking
+              ? isZh
+                ? "正在检查整份申请中的所有必填项。"
+                : "Checking every required field in this application."
+              : hasMissing
+              ? isZh
+                ? "提交前还需要补齐信息。请使用上方缺失信息分区的编辑图标返回对应步骤，保存后再回到这里提交。"
+                : "Some information is still required. Use the edit icons in the missing-information sections above, save your changes, then return here to submit."
+              : requirementsLoading
                 ? isZh
-                  ? "提交前还需要补齐以下信息。请先编辑对应 tab，保存后再回到这里提交。"
-                  : "Some information is still required. Edit the listed tabs, save, then return here to submit."
-                : requirementsLoading
-                  ? isZh
-                    ? "正在检查支持材料和当前表单状态。完成后才可以提交。"
-                    : "Checking supporting documents and current form status. You can submit once this finishes."
-                : submitCopy}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {hasMissing && (
-        <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-5">
-          <h3 className="text-sm font-semibold text-red-800">
-            {isZh ? "缺失信息清单" : "Missing information"}
-          </h3>
-          <div className="space-y-3">
-            {groupedMissing.map((group) => (
-              <div key={group.stepId} className="rounded-lg border border-red-100 bg-white p-3">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-red-900">{group.stepName}</p>
-                  <button
-                    type="button"
-                    className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-800 hover:bg-red-50"
-                    onClick={() => {
-                      void onEdit(group.stepId);
-                    }}
-                  >
-                    {isZh ? "去编辑" : "Edit"}
-                  </button>
-                </div>
-                <ul className="space-y-1 text-sm text-red-700">
-                  {group.fields.map((item) => (
-                    <li key={`${item.stepId}-${item.fieldName}`}>
-                      {item.label}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                  ? "正在检查支持材料和当前表单状态。完成后才可以提交。"
+                  : "Checking supporting documents and current form status. You can submit once this finishes."
+              : submitCopy}
+          </p>
+        </AlertDescription>
+      </Alert>
 
       {requiresOneTimeOfficialPaymentCard && (
         <div className="space-y-3 rounded-xl border border-[#d7e6fb] bg-white p-5">
@@ -1154,48 +1123,83 @@ function FinalConfirmationPanel({
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="space-y-1 sm:col-span-2">
+            <label
+              className="space-y-1 sm:col-span-2"
+              data-application-field-name={OFFICIAL_PAYMENT_CARD_FIELD_NAMES.pan}
+            >
               <span className="text-xs text-gray-600">{isZh ? "银行卡号" : "Card number"}</span>
-              <input
-                value={cardNumber}
-                onChange={(event) => setCardNumber(event.target.value)}
-                autoComplete="cc-number"
-                inputMode="numeric"
-                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
-                placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
-              />
+              <ApplicationFormInputGroup
+                className={cn(
+                  "h-12 bg-white",
+                  validationActive && cardNumber.replace(/\D/g, "").length < 12 && "!border-red-500 !shadow-[0_0_0_1px_rgb(239_68_68)]",
+                )}
+                aria-invalid={validationActive && cardNumber.replace(/\D/g, "").length < 12 || undefined}
+              >
+                <InputGroupInput
+                  value={cardNumber}
+                  onChange={(event) => setCardNumber(event.target.value)}
+                  autoComplete="cc-number"
+                  inputMode="numeric"
+                  className="h-12 text-sm"
+                  placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
+                />
+              </ApplicationFormInputGroup>
             </label>
-            <label className="space-y-1">
+            <label
+              className="space-y-1"
+              data-application-field-name={OFFICIAL_PAYMENT_CARD_FIELD_NAMES.expiry}
+            >
               <span className="text-xs text-gray-600">{isZh ? "有效期" : "Expiry"}</span>
-              <input
-                value={cardExpiry}
-                onChange={(event) => setCardExpiry(event.target.value)}
-                autoComplete="cc-exp"
-                inputMode="numeric"
-                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
-                placeholder="MM/YY"
-              />
+              <ApplicationFormInputGroup
+                className={cn(
+                  "h-12 bg-white",
+                  validationActive && cardExpiry.trim().length < 4 && "!border-red-500 !shadow-[0_0_0_1px_rgb(239_68_68)]",
+                )}
+                aria-invalid={validationActive && cardExpiry.trim().length < 4 || undefined}
+              >
+                <InputGroupInput
+                  value={cardExpiry}
+                  onChange={(event) => setCardExpiry(event.target.value)}
+                  autoComplete="cc-exp"
+                  inputMode="numeric"
+                  className="h-12 text-sm"
+                  placeholder="MM/YY"
+                />
+              </ApplicationFormInputGroup>
             </label>
-            <label className="space-y-1">
+            <label
+              className="space-y-1"
+              data-application-field-name={OFFICIAL_PAYMENT_CARD_FIELD_NAMES.cvv}
+            >
               <span className="text-xs text-gray-600">CVV</span>
-              <input
-                value={cardCvv}
-                onChange={(event) => setCardCvv(event.target.value)}
-                autoComplete="cc-csc"
-                inputMode="numeric"
-                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
-                placeholder="CVV"
-              />
+              <ApplicationFormInputGroup
+                className={cn(
+                  "h-12 bg-white",
+                  validationActive && cardCvv.replace(/\D/g, "").length < 3 && "!border-red-500 !shadow-[0_0_0_1px_rgb(239_68_68)]",
+                )}
+                aria-invalid={validationActive && cardCvv.replace(/\D/g, "").length < 3 || undefined}
+              >
+                <InputGroupInput
+                  value={cardCvv}
+                  onChange={(event) => setCardCvv(event.target.value)}
+                  autoComplete="cc-csc"
+                  inputMode="numeric"
+                  className="h-12 text-sm"
+                  placeholder="CVV"
+                />
+              </ApplicationFormInputGroup>
             </label>
             <label className="space-y-1 sm:col-span-2">
               <span className="text-xs text-gray-600">{isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)"}</span>
-              <input
-                value={cardHolderName}
-                onChange={(event) => setCardHolderName(event.target.value)}
-                autoComplete="cc-name"
-                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
-                placeholder={isZh ? "不填则使用 VIZA" : "Defaults to VIZA"}
-              />
+              <ApplicationFormInputGroup className="h-12 bg-white">
+                <InputGroupInput
+                  value={cardHolderName}
+                  onChange={(event) => setCardHolderName(event.target.value)}
+                  autoComplete="cc-name"
+                  className="h-12 text-sm"
+                  placeholder={isZh ? "不填则使用 VIZA" : "Defaults to VIZA"}
+                />
+              </ApplicationFormInputGroup>
             </label>
           </div>
           {!oneTimeOfficialPaymentCardReady && (
@@ -1226,7 +1230,7 @@ function FinalConfirmationPanel({
         )}
         title={liveDisabledReason ?? undefined}
       >
-        {requirementsLoading ? (
+        {isChecking ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             {isZh ? "正在检查" : "Checking"}
@@ -1754,9 +1758,12 @@ export default function ApplicationPage() {
     submissionResultStatus: null,
   });
   const [saving, setSaving] = useState(false);
+  const [autosaving, setAutosaving] = useState(false);
+  const [autosaveFailed, setAutosaveFailed] = useState(false);
   const [submittingMode, setSubmittingMode] = useState<SubmissionMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitMissingFields, setSubmitMissingFields] = useState<MissingApplicationField[]>([]);
+  const [submitCheckState, setSubmitCheckState] = useState<SubmitCheckState>("idle");
   const [forceDryRun, setForceDryRun] = useState(false);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
@@ -1765,42 +1772,89 @@ export default function ApplicationPage() {
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
   const [documentCenterLoaded, setDocumentCenterLoaded] = useState(false);
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
+  const [contentAlignment, setContentAlignment] = useState(0);
   const initialStepResolvedRef = useRef(false);
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
   const draftVersionTimerRef = useRef<number | null>(null);
+  const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const autosaveRequestRef = useRef(0);
   const navigationSaveInFlightRef = useRef(false);
-  const mainScrollRef = useRef<HTMLElement | null>(null);
-  const activeStepPanelRef = useRef<HTMLDivElement | null>(null);
-  const scrollClampFrameRef = useRef<number | null>(null);
+  const applicationContentRef = useRef<HTMLElement | null>(null);
+  const stepPanelRefs = useRef(new Map<number, HTMLDivElement>());
 
-  const clampMainScrollToActivePanel = useCallback(() => {
-    const main = mainScrollRef.current;
-    const panel = activeStepPanelRef.current;
-    if (!main || !panel || main.scrollTop <= 0) return;
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("viza:live-save-status", {
+      detail: {
+        status: saving || autosaving || autosaveFailed ? "saving" : "saved",
+      },
+    }));
+  }, [autosaveFailed, autosaving, saving]);
 
-    const mainRect = main.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
-    const allowedBottomGap = 8;
-    const excessiveBlank = mainRect.bottom - allowedBottomGap - panelRect.bottom;
+  useEffect(() => () => {
+    window.dispatchEvent(new CustomEvent("viza:live-save-status", {
+      detail: { status: "saved" },
+    }));
+  }, []);
 
-    if (excessiveBlank > 0) {
-      main.scrollTop = Math.max(0, main.scrollTop - excessiveBlank);
+  const setStepPanelRef = useCallback((stepId: number, node: HTMLDivElement | null) => {
+    if (node) {
+      stepPanelRefs.current.set(stepId, node);
+    } else {
+      stepPanelRefs.current.delete(stepId);
     }
   }, []);
 
-  const handleMainScroll = useCallback(() => {
-    if (scrollClampFrameRef.current !== null) return;
-    scrollClampFrameRef.current = window.requestAnimationFrame(() => {
-      scrollClampFrameRef.current = null;
-      clampMainScrollToActivePanel();
-    });
-  }, [clampMainScrollToActivePanel]);
+  const scrollToStepPanel = useCallback((stepId: number, behavior: ScrollBehavior = "smooth") => {
+    setCurrentStep(stepId);
 
-  useEffect(() => {
-    return () => {
-      if (scrollClampFrameRef.current !== null) {
-        window.cancelAnimationFrame(scrollClampFrameRef.current);
+    // The target may have just become visible because a conditional step was
+    // added. Waiting one frame lets React commit it before we scroll.
+    window.requestAnimationFrame(() => {
+      const target = stepPanelRefs.current.get(stepId);
+      if (!target) return;
+
+      const firstPanel = Array.from(stepPanelRefs.current.values())
+        .sort((left, right) => left.offsetTop - right.offsetTop)[0];
+      if (target === firstPanel) {
+        if (window.matchMedia("(min-width: 1024px)").matches && applicationContentRef.current) {
+          applicationContentRef.current.scrollTo({ top: 0, behavior });
+        } else {
+          window.scrollTo({ top: 0, behavior });
+        }
+        return;
       }
+
+      target.scrollIntoView({ behavior, block: "start" });
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    const syncNavAlignment = () => {
+      const homeAnchor = Array.from(document.querySelectorAll<HTMLElement>("[data-nav-anchor='Home']"))
+        .find((element) => element.getBoundingClientRect().width > 0);
+      const content = applicationContentRef.current;
+      if (!homeAnchor || !content) return;
+
+      const homeLeft = homeAnchor.getBoundingClientRect().left;
+      setContentAlignment(Math.max(0, homeLeft - content.getBoundingClientRect().left));
+    };
+
+    syncNavAlignment();
+    const alignmentFrame = window.requestAnimationFrame(syncNavAlignment);
+    const alignmentTimer = window.setTimeout(syncNavAlignment, 100);
+    const alignmentObserver = new MutationObserver(syncNavAlignment);
+    alignmentObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-nav-anchor"],
+    });
+    window.addEventListener("resize", syncNavAlignment);
+    return () => {
+      window.cancelAnimationFrame(alignmentFrame);
+      window.clearTimeout(alignmentTimer);
+      alignmentObserver.disconnect();
+      window.removeEventListener("resize", syncNavAlignment);
     };
   }, []);
 
@@ -1840,25 +1894,15 @@ export default function ApplicationPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const main = mainScrollRef.current;
-    const panel = activeStepPanelRef.current;
-    if (!main || !panel) return;
-
-    const observer = new ResizeObserver(handleMainScroll);
-    observer.observe(main);
-    observer.observe(panel);
-    window.addEventListener("resize", handleMainScroll);
-    handleMainScroll();
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", handleMainScroll);
-    };
-  }, [currentStep, draftVersion, handleMainScroll]);
-
   const handleDynamicDraftChange = useCallback((stepId: number, data: Record<string, string>) => {
     dynamicDraftRef.current[stepId] = data;
+    const hasChangedValue = Object.entries(data).some(
+      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+    );
+    if (hasChangedValue) {
+      setAutosaveFailed(false);
+      setAutosaving(true);
+    }
     // Let a large official select close before recalculating outer step visibility.
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
     draftVersionTimerRef.current = window.setTimeout(() => {
@@ -1866,7 +1910,7 @@ export default function ApplicationPage() {
       setDraftVersion((version) => version + 1);
     }, 120);
     setSubmitMissingFields([]);
-  }, []);
+  }, [dynamicAnswers]);
 
   useEffect(() => () => {
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
@@ -1877,7 +1921,9 @@ export default function ApplicationPage() {
   const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
   const showDocumentStep = !isArrivalCardApplication || isPhilippinesEtravel;
-  const showTeamStep = !isCompanionFlow && !isArrivalCardApplication;
+  // Companion questions required by an official visa schema remain regular
+  // dynamic form steps. The standalone VIZA Team workflow is deferred.
+  const showTeamStep = false;
   const STEPS: StepDef[] = STEP_KEYS
     .filter((key) => showTeamStep || key !== "team")
     .map((key, id) => ({
@@ -1964,12 +2010,12 @@ export default function ApplicationPage() {
   const isZhInterface = locale.toLowerCase().startsWith("zh");
   // Indices for the extra steps appended after DB-driven form steps
   const documentStepIndex = dbSteps.length;
-  const reviewStepIndex = dbSteps.length + (showDocumentStep ? 1 : 0);
-  const teamStepIndex = reviewStepIndex + 1;
-  const statusStepIndex = reviewStepIndex + (showTeamStep ? 2 : 1);
-  const fallbackReviewStepIndex = 4;
-  const fallbackTeamStepIndex = 5;
-  const fallbackStatusStepIndex = showTeamStep ? 6 : 5;
+  const teamStepIndex = dbSteps.length + (showDocumentStep ? 1 : 0);
+  const reviewStepIndex = teamStepIndex + (showTeamStep ? 1 : 0);
+  const statusStepIndex = reviewStepIndex;
+  const fallbackTeamStepIndex = 4;
+  const fallbackReviewStepIndex = showTeamStep ? 5 : 4;
+  const fallbackStatusStepIndex = fallbackReviewStepIndex;
 
   const pendingDynamicDrafts = useMemo(
     () => {
@@ -2005,14 +2051,12 @@ export default function ApplicationPage() {
   const passportOcrInitialFileName =
     localPassportBioPageName ??
     passportBioPageDocument?.filename ??
-    (hasUniversalPassportPrefill
-      ? (isZhInterface ? "已从通用资料读取护照信息" : "Loaded from universal profile")
-      : null);
+    null;
   const passportOcrInitialUploaded = Boolean(
     localPassportBioPageName ||
-    passportBioPageDocument ||
-    hasUniversalPassportPrefill,
+    passportBioPageDocument,
   );
+  const showPassportOcrUpload = !hasUniversalPassportPrefill || passportOcrInitialUploaded;
 
   // Steps in DB source order — used only to build the grouped sections.
   // The displayed/navigated list (`effectiveSteps` below) is reordered to
@@ -2044,16 +2088,6 @@ export default function ApplicationPage() {
               },
             ]
           : []),
-        {
-          id: reviewStepIndex,
-          sourceName: "Review",
-          name: resolvedVisaType === "VN_PREARRIVAL_DECLARATION"
-            ? VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH.Review
-            : isPhilippinesEtravel && isZhInterface
-              ? "核对信息"
-            : tDyn.has("Review") ? tDyn("Review" as never) : isZhInterface ? "审核申请" : "Review Application",
-          description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
-        },
         ...(showTeamStep
           ? [
               {
@@ -2065,12 +2099,14 @@ export default function ApplicationPage() {
             ]
           : []),
         {
-          id: statusStepIndex,
-          sourceName: "Confirmation",
+          id: reviewStepIndex,
+          sourceName: "Review",
           name: resolvedVisaType === "VN_PREARRIVAL_DECLARATION"
-            ? VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH.Confirmation
-            : tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : isZhInterface ? "确认" : "Confirmation",
-          description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
+            ? VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH.Review
+            : isPhilippinesEtravel && isZhInterface
+              ? "核对信息"
+            : tDyn.has("Review") ? tDyn("Review" as never) : isZhInterface ? "审核申请" : "Review Application",
+          description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review, confirm, and submit your details",
         },
       ]
         : [...STEPS],
@@ -2079,7 +2115,6 @@ export default function ApplicationPage() {
       reviewStepIndex,
       showDocumentStep,
       showTeamStep,
-      statusStepIndex,
       STEPS,
       teamStepIndex,
       resolvedVisaType,
@@ -2188,6 +2223,17 @@ export default function ApplicationPage() {
   const confirmationMissingFields = forceDryRun
     ? visibleMissingFields.filter((item) => item.stepId !== documentStepIndex)
     : visibleMissingFields;
+  const invalidFieldNamesByStep = useMemo(() => {
+    const fieldsByStep = new Map<number, Set<string>>();
+    if (submitCheckState !== "invalid") return fieldsByStep;
+
+    for (const item of confirmationMissingFields) {
+      const fieldNames = fieldsByStep.get(item.stepId) ?? new Set<string>();
+      fieldNames.add(item.fieldName);
+      fieldsByStep.set(item.stepId, fieldNames);
+    }
+    return fieldsByStep;
+  }, [confirmationMissingFields, submitCheckState]);
   const showSubmissionStatusStep = shouldShowSubmissionStatusStep({
     submittedAt: appState.submittedAt,
     submissionResultStatus: appState.submissionResultStatus,
@@ -2205,6 +2251,8 @@ export default function ApplicationPage() {
     setCurrentStep(0);
     setCompletedUpTo(0);
     setDynamicAnswers({});
+    setSubmitCheckState("idle");
+    setSubmitMissingFields([]);
     initialStepResolvedRef.current = false;
     setAppState((prev) => ({
       ...prev,
@@ -2330,7 +2378,7 @@ export default function ApplicationPage() {
               (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
             submissionResult: (application?.submission_result as SubmissionResult | null) ?? null,
           });
-          setCurrentStep(shouldOpenConfirmation ? statusStepIndex : 0);
+          scrollToStepPanel(shouldOpenConfirmation ? statusStepIndex : 0, "auto");
           initialStepResolvedRef.current = true;
         }
 
@@ -2353,7 +2401,7 @@ export default function ApplicationPage() {
     } finally {
       setLoading(false);
     }
-  }, [dbSteps, explicitApplicationId, isZhInterface, preferExplicitPackage, resolvedCountry, resolvedVisaType, statusStepIndex, t]);
+  }, [dbSteps, explicitApplicationId, isZhInterface, preferExplicitPackage, resolvedCountry, resolvedVisaType, scrollToStepPanel, statusStepIndex, t]);
 
   useEffect(() => {
     if (!packageLoaded || isExplicitStatusView) return;
@@ -2376,7 +2424,7 @@ export default function ApplicationPage() {
       : useDynamic
         ? (effectiveSteps.find((s) => s.sourceName === "Review")?.id ?? reviewStepIndex)
         : fallbackReviewStepIndex;
-    setCurrentStep(targetId);
+    scrollToStepPanel(targetId, "auto");
     setCompletedUpTo((c) => Math.max(c, targetId));
     setReviewJumpHandled(true);
   }, [
@@ -2393,6 +2441,7 @@ export default function ApplicationPage() {
     jumpToConfirmation,
     teamStepIndex,
     statusStepIndex,
+    scrollToStepPanel,
     useDynamic,
   ]);
 
@@ -2402,13 +2451,13 @@ export default function ApplicationPage() {
 
     const fallbackStep = [...effectiveSteps].reverse().find((step) => step.id < currentStep) ?? effectiveSteps[0];
     if (fallbackStep && fallbackStep.id !== currentStep) {
-      setCurrentStep(fallbackStep.id);
+      scrollToStepPanel(fallbackStep.id, "auto");
       const fallbackIndex = effectiveSteps.findIndex((step) => step.id === fallbackStep.id);
       if (fallbackIndex >= 0) {
         setCompletedUpTo((current) => Math.min(current, fallbackIndex));
       }
     }
-  }, [currentStep, effectiveSteps, useDynamic]);
+  }, [currentStep, effectiveSteps, scrollToStepPanel, useDynamic]);
 
   // US-040: Supabase Realtime — re-fetch application data on application UPDATE.
   // Universal Profile is a non-overwriting autofill source: saved answers win,
@@ -2497,8 +2546,75 @@ export default function ApplicationPage() {
     setSubmitMissingFields([]);
   }, [dynamicAnswers, ensureWritableApplicationId]);
 
+  useEffect(() => {
+    if (!useDynamic || loading || draftVersion === 0) return;
+
+    if (saving) {
+      setAutosaving(false);
+      return;
+    }
+
+    const pendingDraft = collectDraftAnswers(dynamicDraftRef.current);
+    const hasChangedValue = Object.entries(pendingDraft).some(
+      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+    );
+
+    if (!hasChangedValue) {
+      setAutosaveFailed(false);
+      setAutosaving(false);
+      return;
+    }
+
+    const requestId = ++autosaveRequestRef.current;
+    setAutosaving(true);
+
+    const timer = window.setTimeout(() => {
+      const runAutosave = autosaveQueueRef.current.then(async () => {
+        const applicationId = await ensureWritableApplicationId();
+        const saveResult = await saveDynamicAnswers(applicationId, pendingDraft);
+        if (saveResult.error) throw new Error(saveResult.error);
+      });
+
+      autosaveQueueRef.current = runAutosave.then(
+        () => undefined,
+        () => undefined,
+      );
+
+      void runAutosave.then(
+        () => {
+          if (requestId !== autosaveRequestRef.current) return;
+          setDynamicAnswers((previous) => ({ ...previous, ...pendingDraft }));
+          setAutosaveFailed(false);
+          setAutosaving(false);
+        },
+        (err: unknown) => {
+          if (requestId !== autosaveRequestRef.current) return;
+          const message = recoverOrFormatServerActionError(
+            err,
+            t("errors.failedToSave"),
+            t("errors.stalePage"),
+          );
+          if (message) setError(message);
+          setAutosaveFailed(true);
+          setAutosaving(false);
+        },
+      );
+    }, 800);
+
+    return () => window.clearTimeout(timer);
+  }, [draftVersion, dynamicAnswers, ensureWritableApplicationId, loading, saving, t, useDynamic]);
+
+  useEffect(() => () => {
+    autosaveRequestRef.current += 1;
+  }, []);
+
   const handleStepNavigation = useCallback(async (targetStepId: number) => {
-    if (targetStepId === currentStep || navigationSaveInFlightRef.current) return;
+    if (navigationSaveInFlightRef.current) return;
+
+    // Jump immediately, then persist the section the user just left. The save
+    // is important, but it should never make sidebar navigation feel blocked.
+    scrollToStepPanel(targetStepId);
+    if (targetStepId === currentStep) return;
 
     const shouldAutosaveCurrentStep =
       useDynamic &&
@@ -2506,7 +2622,6 @@ export default function ApplicationPage() {
       Boolean(dbSteps[currentStep]);
 
     if (!shouldAutosaveCurrentStep) {
-      setCurrentStep(targetStepId);
       return;
     }
 
@@ -2516,7 +2631,9 @@ export default function ApplicationPage() {
 
     try {
       await saveDynamicDraftForStep(currentStep);
-      setCurrentStep(targetStepId);
+      // Saving can reveal or hide conditional fields above the destination.
+      // Re-anchor after that layout change so the requested panel stays put.
+      scrollToStepPanel(targetStepId);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -2528,7 +2645,7 @@ export default function ApplicationPage() {
       navigationSaveInFlightRef.current = false;
       setSaving(false);
     }
-  }, [currentStep, dbSteps, documentStepIndex, saveDynamicDraftForStep, t, useDynamic]);
+  }, [currentStep, dbSteps, documentStepIndex, saveDynamicDraftForStep, scrollToStepPanel, t, useDynamic]);
 
   const handlePersonalComplete = async (data: PersonalInfoData) => {
     setSaving(true);
@@ -2571,7 +2688,7 @@ export default function ApplicationPage() {
 
       setAppState((prev) => ({ ...prev, applicationId, personal: data }));
       setCompletedUpTo((c) => Math.max(c, 1));
-      setCurrentStep(1);
+      scrollToStepPanel(1);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -2617,7 +2734,7 @@ export default function ApplicationPage() {
 
       setAppState((prev) => ({ ...prev, applicationId, passport: data }));
       setCompletedUpTo((c) => Math.max(c, 2));
-      setCurrentStep(2);
+      scrollToStepPanel(2);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -2659,7 +2776,7 @@ export default function ApplicationPage() {
 
       setAppState((prev) => ({ ...prev, travel: data, applicationId }));
       setCompletedUpTo((c) => Math.max(c, 3));
-      setCurrentStep(3);
+      scrollToStepPanel(3);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -2703,7 +2820,7 @@ export default function ApplicationPage() {
       const currentStepPosition = getVisibleStepIndex(effectiveSteps, stepIndex);
       const nextStepId = getNextVisibleStepId(effectiveSteps, stepIndex);
       setCompletedUpTo((c) => Math.max(c, currentStepPosition + 1));
-      setCurrentStep(nextStepId ?? stepIndex);
+      scrollToStepPanel(nextStepId ?? stepIndex);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -2716,42 +2833,12 @@ export default function ApplicationPage() {
     }
   };
 
-  const handleDynamicDocumentsContinue = () => {
-    setSubmitMissingFields([]);
-    const documentStepPosition = getVisibleStepIndex(effectiveSteps, documentStepIndex);
-    setCompletedUpTo((c) => Math.max(c, documentStepPosition + 1));
-    setCurrentStep(reviewStepIndex);
-  };
-
-  const handleFallbackDocumentsContinue = () => {
-    setSubmitMissingFields([]);
-    setCompletedUpTo((c) => Math.max(c, 4));
-    setCurrentStep(4);
-  };
-
   const returnToTeam = useCallback(() => {
     const target = new URL(returnToParam ?? "/client/application/long-form", window.location.origin);
     target.searchParams.set("step", "team");
     target.searchParams.set("teamNotice", "companion_added");
     router.push(target.toString().replace(window.location.origin, ""));
   }, [returnToParam, router]);
-
-  const handleReviewContinueToTeam = useCallback(() => {
-    if (!showTeamStep) return;
-    const targetReviewStepIndex = useDynamic ? reviewStepIndex : fallbackReviewStepIndex;
-    const targetTeamStepIndex = useDynamic ? teamStepIndex : fallbackTeamStepIndex;
-    const reviewStepPosition = getVisibleStepIndex(effectiveSteps, targetReviewStepIndex);
-    setCompletedUpTo((c) => Math.max(c, reviewStepPosition + 1));
-    setCurrentStep(targetTeamStepIndex);
-  }, [
-    effectiveSteps,
-    fallbackReviewStepIndex,
-    fallbackTeamStepIndex,
-    reviewStepIndex,
-    showTeamStep,
-    teamStepIndex,
-    useDynamic,
-  ]);
 
   const handleCompanionReviewComplete = useCallback(async () => {
     setSaving(true);
@@ -2834,7 +2921,7 @@ export default function ApplicationPage() {
       const targetStatusStepIndex = useDynamic ? statusStepIndex : fallbackStatusStepIndex;
       const teamStepPosition = getVisibleStepIndex(effectiveSteps, targetTeamStepIndex);
       setCompletedUpTo((c) => Math.max(c, teamStepPosition + 1));
-      setCurrentStep(targetStatusStepIndex);
+      scrollToStepPanel(targetStatusStepIndex);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -2850,6 +2937,7 @@ export default function ApplicationPage() {
     fallbackStatusStepIndex,
     fallbackTeamStepIndex,
     saveAllDynamicDrafts,
+    scrollToStepPanel,
     statusStepIndex,
     t,
     teamStepIndex,
@@ -2903,7 +2991,7 @@ export default function ApplicationPage() {
         submissionResultStatus: prev.submissionResultStatus ?? "waiting",
         submissionResult: prev.submissionResult ?? null,
       }));
-      setCurrentStep(statusStepIndex);
+      scrollToStepPanel(statusStepIndex);
     }
     try {
       if (mode === "live_assisted" && !liveAssistedTarget) {
@@ -2930,10 +3018,10 @@ export default function ApplicationPage() {
       );
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
-        setCurrentStep(statusStepIndex);
+        scrollToStepPanel(statusStepIndex);
         throw new Error(isZhInterface
-          ? "请先补齐最终确认页列出的缺失信息。"
-          : "Please complete the missing information listed on the final confirmation step.");
+          ? "请先补齐审核申请页末尾列出的缺失信息。"
+          : "Please complete the missing information listed at the end of Review Application.");
       }
 
       const isJpTourist = resolvedVisaType === "JP_TOURIST";
@@ -3023,9 +3111,9 @@ export default function ApplicationPage() {
         }));
       }
       setSubmitMissingFields([]);
-      const completionPosition = getVisibleStepIndex(effectiveSteps, showTeamStep ? teamStepIndex : reviewStepIndex);
+      const completionPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
       setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
-      setCurrentStep(statusStepIndex);
+      scrollToStepPanel(statusStepIndex);
     } catch (err) {
       if (shouldShowArrivalSubmissionImmediately && isIgnorableRuntimeAbortError(err)) {
         // Supabase/Next can abort the client request after the queue write has
@@ -3033,7 +3121,7 @@ export default function ApplicationPage() {
         // status endpoint reconcile the durable queue instead of showing the
         // raw AbortSignal implementation message.
         setError(null);
-        setCurrentStep(statusStepIndex);
+        scrollToStepPanel(statusStepIndex);
         return;
       }
       if (shouldShowArrivalSubmissionImmediately) {
@@ -3089,10 +3177,10 @@ export default function ApplicationPage() {
         : [];
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
-        setCurrentStep(fallbackStatusStepIndex);
+        scrollToStepPanel(fallbackStatusStepIndex);
         throw new Error(isZhInterface
-          ? "请先补齐最终确认页列出的缺失信息。"
-          : "Please complete the missing information listed on the final confirmation step.");
+          ? "请先补齐审核申请页末尾列出的缺失信息。"
+          : "Please complete the missing information listed at the end of Review Application.");
       }
 
       // Persist the complete DS-160 answer set from hardcoded steps
@@ -3132,8 +3220,9 @@ export default function ApplicationPage() {
         confirmationNumber: submissionState.confirmationNumber,
       }));
       setSubmitMissingFields([]);
-      setCompletedUpTo((c) => Math.max(c, fallbackStatusStepIndex));
-      setCurrentStep(fallbackStatusStepIndex);
+      const completionPosition = getVisibleStepIndex(effectiveSteps, fallbackReviewStepIndex);
+      setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
+      scrollToStepPanel(fallbackStatusStepIndex);
     } catch (err) {
       const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));
       const message = recoverOrFormatServerActionError(
@@ -3148,6 +3237,98 @@ export default function ApplicationPage() {
       setSaving(false);
       setSubmittingMode(null);
     }
+  };
+
+  const focusFirstMissingField = (missingFields: MissingApplicationField[]) => {
+    const firstMissing = missingFields[0];
+    if (!firstMissing) return;
+
+    setCurrentStep(firstMissing.stepId);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const target = Array.from(
+          document.querySelectorAll<HTMLElement>("[data-application-field-name]"),
+        ).find((element) => element.dataset.applicationFieldName === firstMissing.fieldName);
+
+        if (!target) {
+          scrollToStepPanel(firstMissing.stepId);
+          return;
+        }
+
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        const focusTarget = target.querySelector<HTMLElement>(
+          'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), button:not([data-copilot-trigger]):not([disabled]), [role="combobox"]',
+        );
+        focusTarget?.focus({ preventScroll: true });
+      });
+    });
+  };
+
+  const checkAndSubmit = async (
+    submit: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => void | Promise<void>,
+    mode: SubmissionMode,
+    vietnamPaymentCard?: VietnamOneTimePaymentCard,
+  ) => {
+    if (saving || submitCheckState === "checking") return;
+
+    setSubmitCheckState("checking");
+    setError(null);
+
+    // Give React one paint to expose the page-wide checking state before the
+    // synchronous schema walk. No validation state is written to storage, so
+    // a refresh naturally returns the page to its normal state.
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+
+    if (showDocumentStep && appState.applicationId && !documentCenterLoaded) {
+      setSubmitCheckState("idle");
+      return;
+    }
+
+    const missing = useDynamic
+      ? getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot()).filter(
+          (item) => !forceDryRun || item.stepId !== documentStepIndex,
+        )
+      : [];
+
+    if (mode === "live_assisted" && liveAssistedTarget === "vietnam") {
+      if (!vietnamPaymentCard || vietnamPaymentCard.pan.replace(/\D/g, "").length < 12) {
+        missing.push({
+          stepId: reviewStepIndex,
+          stepName: isZhInterface ? "最终确认" : "Final confirmation",
+          fieldName: OFFICIAL_PAYMENT_CARD_FIELD_NAMES.pan,
+          label: isZhInterface ? "银行卡号" : "Card number",
+          reason: "required",
+        });
+      }
+      if (!vietnamPaymentCard || vietnamPaymentCard.expiry.trim().length < 4) {
+        missing.push({
+          stepId: reviewStepIndex,
+          stepName: isZhInterface ? "最终确认" : "Final confirmation",
+          fieldName: OFFICIAL_PAYMENT_CARD_FIELD_NAMES.expiry,
+          label: isZhInterface ? "有效期" : "Expiry",
+          reason: "required",
+        });
+      }
+      if (!vietnamPaymentCard || vietnamPaymentCard.cvv.replace(/\D/g, "").length < 3) {
+        missing.push({
+          stepId: reviewStepIndex,
+          stepName: isZhInterface ? "最终确认" : "Final confirmation",
+          fieldName: OFFICIAL_PAYMENT_CARD_FIELD_NAMES.cvv,
+          label: "CVV",
+          reason: "required",
+        });
+      }
+    }
+
+    setSubmitMissingFields(missing.filter((item) => !item.fieldName.startsWith("official_payment_card_")));
+    if (missing.length > 0) {
+      setSubmitCheckState("invalid");
+      focusFirstMissingField(missing);
+      return;
+    }
+
+    setSubmitCheckState("idle");
+    await submit(mode, vietnamPaymentCard);
   };
 
   const activeCountry = resolvedCountry;
@@ -3285,6 +3466,62 @@ export default function ApplicationPage() {
     );
   }, [hasPassportUploadField, passportOcrInitialUploaded, passportOcrInitialFileName]);
 
+  useEffect(() => {
+    if (isExplicitStatusView || loading || !packageLoaded || effectiveSteps.length === 0) return;
+
+    const main = applicationContentRef.current;
+    let frame: number | null = null;
+
+    const syncCurrentStepToScroll = () => {
+      frame = null;
+      const isDesktopScroll = window.matchMedia("(min-width: 1024px)").matches && Boolean(main);
+      const anchorTop = isDesktopScroll && main
+        ? main.getBoundingClientRect().top + 24
+        : 112;
+      const panels = effectiveSteps
+        .map((step) => ({ id: step.id, node: stepPanelRefs.current.get(step.id) }))
+        .filter((panel): panel is { id: number; node: HTMLDivElement } => Boolean(panel.node));
+
+      if (panels.length === 0) return;
+
+      const remainingScroll = isDesktopScroll && main
+        ? main.scrollHeight - main.scrollTop - main.clientHeight
+        : document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
+      let visibleStepId = panels[0].id;
+
+      if (remainingScroll <= 24) {
+        visibleStepId = panels[panels.length - 1].id;
+      } else {
+        for (const panel of panels) {
+          if (panel.node.getBoundingClientRect().top <= anchorTop) {
+            visibleStepId = panel.id;
+          } else {
+            break;
+          }
+        }
+      }
+
+      setCurrentStep((previous) => previous === visibleStepId ? previous : visibleStepId);
+    };
+
+    const scheduleSync = () => {
+      if (frame !== null) return;
+      frame = window.requestAnimationFrame(syncCurrentStepToScroll);
+    };
+
+    main?.addEventListener("scroll", scheduleSync, { passive: true });
+    window.addEventListener("scroll", scheduleSync, { passive: true });
+    window.addEventListener("resize", scheduleSync);
+    scheduleSync();
+
+    return () => {
+      main?.removeEventListener("scroll", scheduleSync);
+      window.removeEventListener("scroll", scheduleSync);
+      window.removeEventListener("resize", scheduleSync);
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+  }, [effectiveSteps, isExplicitStatusView, loading, packageLoaded]);
+
   if (isExplicitStatusView) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
@@ -3311,36 +3548,40 @@ export default function ApplicationPage() {
   const pageTitle = hasResolvedPackage
     ? getVisaPackageTitle(resolvedCountry, resolvedVisaType, locale)
     : t("title");
-  const isDocumentsStep = currentStep === (useDynamic ? documentStepIndex : 3);
 
   return (
-    <div className="flex min-h-screen pt-3 lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:overflow-hidden lg:overscroll-none">
-      {/* Left sidebar - desktop only */}
-      {useDynamic ? (
-        <GroupedStepSidebar
-          sections={groupedSections}
-          currentStep={currentStep}
-          completedStepIds={completedStepIds}
-          onStepClick={handleStepNavigation}
-        />
-      ) : (
-        <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedStepIds={completedStepIds} onStepClick={handleStepNavigation} />
-      )}
+    <div
+      className="flex min-h-screen flex-col pt-3 lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:overflow-hidden lg:overscroll-none xl:-mt-5 xl:h-[calc(100dvh-108px)] xl:pt-0"
+      data-submit-check-state={submitCheckState}
+    >
+      <div className="flex min-h-0 flex-1 lg:overflow-hidden lg:overscroll-none">
+        {/* Left sidebar - desktop only */}
+        {useDynamic ? (
+          <GroupedStepSidebar
+            sections={groupedSections}
+            currentStep={currentStep}
+            completedStepIds={completedStepIds}
+            onStepClick={handleStepNavigation}
+          />
+        ) : (
+          <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedStepIds={completedStepIds} onStepClick={handleStepNavigation} />
+        )}
 
-      {/* Main content area */}
-      <main
-        ref={mainScrollRef}
-        onScroll={handleMainScroll}
-        onWheelCapture={handleMainScroll}
-        onTouchMoveCapture={handleMainScroll}
-        className="min-w-0 flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"
-      >
-        <div
-          className={cn(
-            "mx-auto max-w-xl sm:max-w-2xl",
-            isDocumentsStep ? "md:max-w-5xl" : "md:max-w-3xl"
-          )}
+        {/* Main content area */}
+        <main
+          ref={applicationContentRef}
+          className="min-w-0 flex-1 pt-0 pb-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain xl:pt-4"
         >
+        <div
+          className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl"
+          style={{ marginLeft: `${contentAlignment}px` }}
+        >
+          <header className="mb-4 w-full sm:mb-5">
+            <h1 className="font-heading text-[28px] font-medium leading-[1.15] tracking-[-1px] text-[#3d3d3d] sm:text-[34px] sm:tracking-[-1.2px]">
+              {pageTitle}
+            </h1>
+          </header>
+
           {/* Mobile step indicator */}
           {useDynamic ? (
             <GroupedMobileStepBar
@@ -3353,14 +3594,6 @@ export default function ApplicationPage() {
           ) : (
             <MobileStepBar steps={effectiveSteps} currentStep={currentStep} completedStepIds={completedStepIds} onStepClick={handleStepNavigation} />
           )}
-
-          {/* Page header */}
-          <div className="mb-8 sm:mb-12">
-            <h1 className="font-heading font-medium leading-[1.15] text-[28px] tracking-[-1px] text-[#3d3d3d] sm:text-[34px] sm:tracking-[-1.2px] lg:text-[40px] lg:tracking-[-1.6px]">
-              {pageTitle}
-            </h1>
-          </div>
-
           {error &&
             !(
               showSubmissionStatusStep &&
@@ -3378,26 +3611,21 @@ export default function ApplicationPage() {
           )}
 
           {/* Step cards */}
-          <div className="flex flex-col gap-6 sm:gap-8 md:gap-10">
+          <div className="flex flex-col gap-5 sm:gap-6">
             {effectiveSteps.map((step) => {
-              const isActive = step.id === currentStep;
-
-              // Only render the active step — hide all others
-              if (!isActive) return null;
-
               return (
                 <div
                   key={step.id}
-                  ref={activeStepPanelRef}
-                  className="flex flex-col gap-4"
+                  id={`application-step-${step.id}`}
+                  ref={(node) => setStepPanelRef(step.id, node)}
+                  className="flex scroll-mt-28 flex-col gap-2 lg:scroll-mt-4"
                 >
-                  {/* Section heading - outside the panel */}
-                  <h2 className="font-heading text-[20px] sm:text-[24px] md:text-[28px] font-medium text-[#3d3d3d] tracking-[-0.5px] sm:tracking-[-0.7px]">
-                    {step.name}
-                  </h2>
                   {/* Panel card */}
-                  <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6 md:p-8">
-                    {step.id === firstFormStepId && activeVisaType !== "VN_PREARRIVAL_DECLARATION" && (
+                  <ApplicationFormPanel className="w-full p-4 sm:p-6 md:p-8">
+                    <h2 className="mb-5 font-heading text-[20px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[24px] sm:tracking-[-0.7px] md:text-[28px]">
+                      {step.name}
+                    </h2>
+                    {showPassportOcrUpload && step.id === firstFormStepId && activeVisaType !== "VN_PREARRIVAL_DECLARATION" && (
                       <PassportOcrUpload
                         applicationId={appState.applicationId}
                         className="mb-6"
@@ -3421,9 +3649,11 @@ export default function ApplicationPage() {
                             onComplete={(data) => handleDynamicStepComplete(step.id, data)}
                             onDraftChange={(data) => handleDynamicDraftChange(step.id, data)}
                             saving={saving}
+                            showContinueButton={false}
                             country={activeCountry}
                             visaType={activeVisaType}
                             externallyHandledFieldNames={passportUploadHandledFields}
+                            invalidFieldNames={invalidFieldNamesByStep.get(step.id)}
                           />
                         )}
 
@@ -3438,8 +3668,6 @@ export default function ApplicationPage() {
                               visaType={activeVisaType}
                               embedded
                               onDataChange={setDocumentCenterData}
-                              onContinue={handleDynamicDocumentsContinue}
-                              continueLabel={t("dynamicButtons.continue")}
                             />
                           ) : (
                             <div className="flex min-h-[240px] items-center justify-center">
@@ -3450,29 +3678,47 @@ export default function ApplicationPage() {
 
                         {/* Dynamic review step */}
                         {step.id === reviewStepIndex && appState.applicationId && (
-                          <DynamicReviewStep
-                            applicationId={appState.applicationId}
-                            dynamicAnswers={dynamicAnswers}
-                            dbSteps={dbSteps}
-                            photoPath={appState.photo}
-                            onEdit={(stepIdx) => setCurrentStep(stepIdx)}
-                            onPhotoEdit={() => setCurrentStep(showDocumentStep ? documentStepIndex : firstFormStepId)}
-                            onComplete={
-                              isCompanionFlow
-                                ? handleCompanionReviewComplete
-                                : showTeamStep
-                                  ? handleReviewContinueToTeam
-                                  : handleTeamConfirm
-                            }
-                            mode="continue"
-                            continueLabel={
-                              isCompanionFlow
-                                ? t("team.confirmCompanion")
-                                : showTeamStep
-                                  ? t("team.continueToTeam")
-                                  : t("dynamicButtons.continue")
-                            }
-                          />
+                          showSubmissionStatusStep ? (
+                            <SubmissionStatusStep
+                              applicationId={appState.applicationId}
+                              country={activeCountry}
+                              visaType={activeVisaType}
+                              status={appState.submissionResultStatus}
+                              result={appState.submissionResult}
+                              onResubmit={handleDynamicReviewComplete}
+                            />
+                          ) : (
+                            <div className="flex flex-col gap-6">
+                              <DynamicReviewStep
+                                applicationId={appState.applicationId}
+                                dynamicAnswers={dynamicAnswers}
+                                dbSteps={dbSteps}
+                                photoPath={appState.photo}
+                                onEdit={(stepIdx) => scrollToStepPanel(stepIdx)}
+                                onPhotoEdit={() => scrollToStepPanel(showDocumentStep ? documentStepIndex : firstFormStepId)}
+                                onComplete={isCompanionFlow ? handleCompanionReviewComplete : () => undefined}
+                                mode="continue"
+                                continueLabel={isCompanionFlow ? t("team.confirmCompanion") : undefined}
+                                showAction={isCompanionFlow}
+                              />
+                              {!isCompanionFlow ? (
+                                <UniversalProfileSyncCard applicationId={appState.applicationId} />
+                              ) : null}
+                              {!isCompanionFlow ? (
+                                <FinalConfirmationPanel
+                                  isZh={isZhInterface}
+                                  liveAssistedTarget={liveAssistedTarget}
+                                  liveAssistedEnabled={liveAssistedEnabled}
+                                  forceDryRun={forceDryRun}
+                                  missingFields={confirmationMissingFields}
+                                  requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
+                                  submittingMode={saving ? submittingMode ?? "dry_run" : null}
+                                  submitCheckState={submitCheckState}
+                                  onSubmit={(mode, paymentCard) => checkAndSubmit(handleDynamicReviewComplete, mode, paymentCard)}
+                                />
+                              ) : null}
+                            </div>
+                          )
                         )}
 
                         {/* Team management and final submit step */}
@@ -3489,31 +3735,6 @@ export default function ApplicationPage() {
                           />
                         )}
 
-                        {/* Status/confirmation step */}
-                        {step.id === statusStepIndex && (
-                          showSubmissionStatusStep ? (
-                            <SubmissionStatusStep
-                              applicationId={appState.applicationId}
-                              country={activeCountry}
-                              visaType={activeVisaType}
-                              status={appState.submissionResultStatus}
-                              result={appState.submissionResult}
-                              onResubmit={handleDynamicReviewComplete}
-                            />
-                          ) : (
-                            <FinalConfirmationPanel
-                              isZh={isZhInterface}
-                              liveAssistedTarget={liveAssistedTarget}
-                              liveAssistedEnabled={liveAssistedEnabled}
-                              forceDryRun={forceDryRun}
-                              missingFields={confirmationMissingFields}
-                              requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
-                              submittingMode={saving ? submittingMode ?? "dry_run" : null}
-                              onEdit={handleStepNavigation}
-                              onSubmit={handleDynamicReviewComplete}
-                            />
-                          )
-                        )}
                       </>
                     ) : (
                       /* Hardcoded B211A steps */
@@ -3552,33 +3773,12 @@ export default function ApplicationPage() {
                               visaType={activeVisaType}
                               embedded
                               onDataChange={setDocumentCenterData}
-                              onContinue={handleFallbackDocumentsContinue}
-                              continueLabel={t("dynamicButtons.continue")}
                             />
                           ) : (
                             <div className="flex min-h-[240px] items-center justify-center">
                               <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
                             </div>
                           )
-                        )}
-                        {step.id === 4 && (
-                          <ReviewStep
-                            applicationId={appState.applicationId ?? ""}
-                            data={appState}
-                            onEdit={(section) => {
-                              const sectionMap: Record<string, number> = {
-                                personal: 0, passport: 1, travel: 2, documents: 3,
-                              };
-                              setCurrentStep(sectionMap[section] ?? 0);
-                            }}
-                            onComplete={isCompanionFlow ? handleCompanionReviewComplete : handleReviewContinueToTeam}
-                            mode="continue"
-                            continueLabel={
-                              isCompanionFlow
-                                ? t("team.confirmCompanion")
-                                : t("team.continueToTeam")
-                            }
-                          />
                         )}
                         {step.id === fallbackTeamStepIndex && showTeamStep && (
                           <TeamStep
@@ -3592,7 +3792,7 @@ export default function ApplicationPage() {
                             initialNotice={initialTeamNotice ?? undefined}
                           />
                         )}
-                        {step.id === fallbackStatusStepIndex && (
+                        {step.id === fallbackReviewStepIndex && (
                           showSubmissionStatusStep ? (
                             <SubmissionStatusStep
                               applicationId={appState.applicationId}
@@ -3603,30 +3803,50 @@ export default function ApplicationPage() {
                               onResubmit={handleReviewComplete}
                             />
                           ) : (
-                            <FinalConfirmationPanel
-                              isZh={isZhInterface}
-                              liveAssistedTarget={liveAssistedTarget}
-                              liveAssistedEnabled={liveAssistedEnabled}
-                              forceDryRun={forceDryRun}
-                              missingFields={confirmationMissingFields}
-                              requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
-                              submittingMode={saving ? submittingMode ?? "dry_run" : null}
-                              onEdit={handleStepNavigation}
-                              onSubmit={handleReviewComplete}
-                            />
+                            <div className="flex flex-col gap-6">
+                              <ReviewStep
+                                applicationId={appState.applicationId ?? ""}
+                                data={appState}
+                                onEdit={(section) => {
+                                  const sectionMap: Record<string, number> = {
+                                    personal: 0, passport: 1, travel: 2, documents: 3,
+                                  };
+                                  scrollToStepPanel(sectionMap[section] ?? 0);
+                                }}
+                                onComplete={isCompanionFlow ? handleCompanionReviewComplete : () => undefined}
+                                mode="continue"
+                                continueLabel={isCompanionFlow ? t("team.confirmCompanion") : undefined}
+                                showAction={isCompanionFlow}
+                              />
+                              {!isCompanionFlow && appState.applicationId ? (
+                                <UniversalProfileSyncCard applicationId={appState.applicationId} />
+                              ) : null}
+                              {!isCompanionFlow ? (
+                                <FinalConfirmationPanel
+                                  isZh={isZhInterface}
+                                  liveAssistedTarget={liveAssistedTarget}
+                                  liveAssistedEnabled={liveAssistedEnabled}
+                                  forceDryRun={forceDryRun}
+                                  missingFields={confirmationMissingFields}
+                                  requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
+                                  submittingMode={saving ? submittingMode ?? "dry_run" : null}
+                                  submitCheckState={submitCheckState}
+                                  onSubmit={(mode, paymentCard) => checkAndSubmit(handleReviewComplete, mode, paymentCard)}
+                                />
+                              ) : null}
+                            </div>
                           )
                         )}
                       </>
                     )}
-                  </div>
+                  </ApplicationFormPanel>
                 </div>
               );
             })}
           </div>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
-
-

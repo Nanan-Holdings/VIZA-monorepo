@@ -24,6 +24,7 @@ import {
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { isCountryLaunched } from "@/lib/launched-countries";
 import type { DestinationApplicationProgress } from "@/lib/client/application-progress";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 export type { DestinationApplicationProgress };
 
@@ -72,19 +73,19 @@ export function PopularDestinationsSection({
       return;
     }
 
-    setPendingDestinationId(destination.id);
+    const href = buildApplicationLongFormHref({
+      country: destination.country,
+      visaType: destination.visaType,
+    });
 
+    setPendingDestinationId(destination.id);
+    router.push(href);
     startTransition(async () => {
       const result = await selectUserVisaDestination(destination.id);
       if (!result.success) {
         setSelectionError(result.error ?? t("selectError"));
         setPendingDestinationId(null);
-        return;
       }
-
-      router.push(
-        `/client/application?country=${encodeURIComponent(destination.country)}&visaType=${encodeURIComponent(destination.visaType)}`,
-      );
     });
   }
 
@@ -103,6 +104,12 @@ export function PopularDestinationsSection({
     const selected = isSelectedDestination(destination, selectedPackages) || Boolean(progress);
     const highlighted = selected && !isGroup;
     const loading = isPending && pendingDestinationId === destination.id;
+    const applicationHref = isGroup
+      ? null
+      : buildApplicationLongFormHref({
+          country: destination.country,
+          visaType: destination.visaType,
+        });
     const actionLabel = isGroup
       ? t("browseRegion")
       : progress
@@ -137,6 +144,12 @@ export function PopularDestinationsSection({
         key={destination.id}
         type="button"
         onClick={() => handleSelect(destination)}
+        onFocus={() => {
+          if (applicationHref) router.prefetch(applicationHref);
+        }}
+        onMouseEnter={() => {
+          if (applicationHref) router.prefetch(applicationHref);
+        }}
         disabled={loading || !launched}
         title={launched ? undefined : t("comingSoon")}
         aria-disabled={!launched}
@@ -229,7 +242,7 @@ export function PopularDestinationsSection({
       </div>
 
       {selectionError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-[#e5e7eb] bg-white px-4 py-3 text-sm text-[#71717a]">
           {selectionError}
         </div>
       )}

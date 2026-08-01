@@ -2,15 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Ban,
-  Camera,
   Check,
   CheckCircle2,
-  FileImage,
   FileText,
-  Loader2,
-  ShieldCheck,
-  Sun,
   UploadCloud,
   XCircle,
 } from "lucide-react";
@@ -67,6 +61,7 @@ export interface PassportOcrUploadProps {
   requirementKey?: string;
   title?: string;
   description?: string;
+  presentation?: "standard" | "supporting-card";
   onFieldsApplied?: (fields: UniversalProfileSnapshot) => void;
   onUploaded?: (fileName: string) => void;
 }
@@ -168,7 +163,7 @@ const PASSPORT_OCR_COPY = {
     uploadFile: "上传文件",
     takePhoto: "拍照",
     dropTitle: "将护照照片拖到这里",
-    dropSubtitle: "或点击选择文件，文件会加密传输",
+    dropSubtitle: "拖拽或点击上传",
     chooseFile: "选择文件",
     formatsLimit: "最大 10 MB",
     replaceFile: "重新上传",
@@ -197,14 +192,14 @@ const PASSPORT_OCR_COPY = {
     verifying: "Verifying extracted details...",
     ocrFallback: "Passport OCR could not read this file. Please upload a clearer passport bio page.",
     ocrNeedsReview: "Passport bio page is saved, but OCR could not read it yet. You can retry OCR later or fill the details manually.",
-    done: "Passport bio page uploaded successfully. Details were extracted and filled in for review.",
+    done: "Passport details filled. Review the fields below.",
     failed: "Upload or OCR failed. Please try again later.",
     dropLabel: "Drop file here, or click to upload",
     formats: "PDF, JPG, PNG, or WebP. Make sure all four corners are visible.",
     uploadFile: "Upload file",
     takePhoto: "Take a photo",
-    dropTitle: "Drop your passport photo here",
-    dropSubtitle: "Or click to browse. Your file is encrypted in transit.",
+    dropTitle: "Passport bio page",
+    dropSubtitle: "Drop or click to upload",
     chooseFile: "Choose file",
     formatsLimit: "Up to 10 MB",
     replaceFile: "Replace file",
@@ -214,12 +209,6 @@ const PASSPORT_OCR_COPY = {
     extractingDetails: "Extracting your details",
     verifyingAuthenticity: "Verifying authenticity",
     privacy: "Your scan is encrypted in transit and used only for extraction.",
-    tipCornersTitle: "All four corners visible",
-    tipCornersBody: "Frame the entire bio page including the bottom MRZ.",
-    tipLightTitle: "Bright, even lighting",
-    tipLightBody: "Avoid shadows from your hand or phone case.",
-    tipGlareTitle: "No glare or reflections",
-    tipGlareBody: "Tilt slightly if your seal is reflecting.",
   },
 } as const;
 
@@ -364,7 +353,7 @@ export function PassportOcrUpload({
   documentType = "passport_copy",
   requirementKey = documentType,
   title,
-  description,
+  presentation = "standard",
   onFieldsApplied,
   onUploaded,
 }: PassportOcrUploadProps) {
@@ -372,7 +361,6 @@ export function PassportOcrUpload({
   const isZh = isChineseLocale(locale);
   const copy = isZh ? PASSPORT_OCR_COPY.zh : PASSPORT_OCR_COPY.en;
   const resolvedTitle = title ?? copy.title;
-  const resolvedDescription = description ?? copy.description;
   const useVietnamOfficialImageRules = isVietnamOfficialImageContext(country, visaType);
   const uploadBadges = useVietnamOfficialImageRules ? VIETNAM_OFFICIAL_IMAGE_BADGES : GENERIC_UPLOAD_BADGES;
   const uploadLimitLabel = useVietnamOfficialImageRules
@@ -382,15 +370,17 @@ export function PassportOcrUpload({
     : copy.formatsLimit;
   const uploadAccept = useVietnamOfficialImageRules ? VIETNAM_OFFICIAL_IMAGE_ACCEPT : GENERIC_UPLOAD_ACCEPT;
   const inputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<UploadStatus>(initialUploaded ? "uploaded" : "idle");
   const [fileName, setFileName] = useState<string | null>(initialUploaded ? initialFileName ?? null : null);
   const [message, setMessage] = useState<string | null>(
-    initialUploaded ? copy.uploadedFromProfile : null,
+    null,
   );
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewKind, setPreviewKind] = useState<"image" | "document" | null>(initialUploaded ? "document" : null);
   const [isDragging, setIsDragging] = useState(false);
 
   const busy = status === "uploading" || status === "ocr" || status === "verifying";
+  const supportingCardPresentation = presentation === "supporting-card";
   const {
     displayedProgress,
     isVisuallyComplete,
@@ -413,8 +403,15 @@ export function PassportOcrUpload({
     if (!initialUploaded || busy) return;
     setStatus("uploaded");
     setFileName(initialFileName ?? null);
-    setMessage(copy.uploadedFromProfile);
-  }, [busy, copy.uploadedFromProfile, initialFileName, initialUploaded]);
+    setPreviewKind("document");
+    setMessage(null);
+  }, [busy, initialFileName, initialUploaded]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const handleFile = async (file: File) => {
     if (!applicationId) {
@@ -426,6 +423,11 @@ export function PassportOcrUpload({
     setStatus("uploading");
     setFileName(file.name);
     setMessage(copy.uploading);
+    setPreviewKind(file.type.startsWith("image/") ? "image" : "document");
+    setPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
+    });
     let uploadCompleted = false;
 
     try {
@@ -492,202 +494,120 @@ export function PassportOcrUpload({
   };
 
   return (
-    <section className={cn("rounded-xl border bg-white p-5 shadow-sm sm:p-8", className)}>
-      <header className="mb-7">
-        <h3 className="font-heading text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-          {resolvedTitle}
-        </h3>
-        <p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">{resolvedDescription}</p>
-        {fileName ? (
-          <p className="mt-3 inline-flex max-w-full items-center gap-2 truncate text-xs font-medium text-brand-600">
-            <FileText className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{fileName}</span>
-          </p>
-        ) : null}
-        {message ? (
-          <p
-            className={cn(
-              "mt-3 inline-flex items-center gap-2 text-sm",
-              status === "error"
-                ? "text-destructive"
-                : status === "needs_review"
-                  ? "text-amber-700"
-                  : status === "done" || status === "uploaded"
-                    ? "text-emerald-700"
-                    : "text-brand-600",
-            )}
-          >
-            {status === "done" || status === "uploaded" ? <CheckCircle2 className="h-4 w-4" /> : null}
-            {status === "error" || status === "needs_review" ? <XCircle className="h-4 w-4" /> : null}
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            <span>{message}</span>
-          </p>
-        ) : null}
-      </header>
-
+    <section
+      className={cn(
+        supportingCardPresentation
+          ? "bg-white"
+          : "rounded-lg border border-[#e8e8e8] bg-white p-3",
+        className
+      )}
+    >
       {busy || (status === "done" && !isVisuallyComplete) ? (
         <ScanProgressPanel stage={stageFromStatus(status)} copy={copy} displayedProgress={displayedProgress} />
       ) : status === "done" || status === "uploaded" || status === "needs_review" ? (
-        <div className="flex flex-col gap-5">
-          <div
-            className={cn(
-              "rounded-xl border p-5",
-              status === "needs_review" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50",
-            )}
-          >
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                <span
-                  className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white",
-                    status === "needs_review" ? "bg-amber-600" : "bg-emerald-600",
-                  )}
-                >
-                  {status === "needs_review" ? <XCircle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
-                </span>
-                <div className="min-w-0">
-                  <p className={cn("text-base font-semibold", status === "needs_review" ? "text-amber-900" : "text-emerald-900")}>
-                    {message ?? (status === "needs_review" ? copy.ocrNeedsReview : copy.uploadedFromProfile)}
-                  </p>
-                  {fileName ? (
-                    <p
-                      className={cn(
-                        "mt-1 flex max-w-full items-center gap-2 truncate text-sm",
-                        status === "needs_review" ? "text-amber-800" : "text-emerald-800",
-                      )}
-                    >
-                      <FileText className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{fileName}</span>
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => inputRef.current?.click()}
-                  className={cn(
-                    "inline-flex h-10 items-center gap-2 rounded-full border bg-white px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                    status === "needs_review"
-                      ? "border-amber-300 text-amber-800 hover:bg-amber-100"
-                      : "border-emerald-300 text-emerald-800 hover:bg-emerald-100",
-                  )}
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  {copy.replaceFile}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  className={cn(
-                    "inline-flex h-10 items-center gap-2 rounded-full border bg-white px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                    status === "needs_review"
-                      ? "border-amber-300 text-amber-800 hover:bg-amber-100"
-                      : "border-emerald-300 text-emerald-800 hover:bg-emerald-100",
-                  )}
-                >
-                  <Camera className="h-4 w-4" />
-                  {copy.replacePhoto}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 text-brand-500" />
-            {copy.privacy}
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className={cn(
+            "group flex w-full min-w-0 items-center text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30",
+            supportingCardPresentation
+              ? "min-h-24 gap-3 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 px-4 py-3 hover:border-emerald-400"
+              : "gap-4 rounded-md border border-[#efefef] bg-[#fcfcfc] p-3 hover:border-[#c7d5e8] hover:bg-white"
+          )}
+        >
+          {supportingCardPresentation ? (
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+          ) : (
+            <span className="relative flex h-24 w-36 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#e5e7eb] bg-white">
+              {previewUrl && previewKind === "image" ? (
+                <img
+                  src={previewUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <FileText className="h-7 w-7 text-[#8a94a3]" />
+              )}
+            </span>
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[14px] font-medium text-[#2f3a4a]">
+              {fileName ?? resolvedTitle}
+            </span>
+            {supportingCardPresentation && status !== "needs_review" ? (
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {isZh ? "点击即可替换文件" : "Click anywhere to replace this file"}
+              </span>
+            ) : null}
+            {message && status === "needs_review" ? (
+              <span
+                className={cn(
+                  "mt-1 flex items-center gap-1.5 text-[12px]",
+                  "text-amber-700",
+                )}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                <span className="truncate">{message}</span>
+              </span>
+            ) : null}
+          </span>
+          <UploadCloud className="h-4 w-4 shrink-0 text-[#8a94a3] opacity-0 transition group-hover:opacity-100" />
+        </button>
       ) : (
-        <div className="flex flex-col gap-5">
-          <div className="inline-flex w-fit rounded-full bg-muted p-1">
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-sm font-medium text-brand-500 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragOver={(event) => event.preventDefault()}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          className={cn(
+            supportingCardPresentation
+              ? "flex min-h-24 w-full items-center gap-3 rounded-lg border border-dashed px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30"
+              : "flex min-h-[128px] w-full flex-col items-center justify-center rounded-md border border-dashed bg-[#fcfcfc] px-4 py-5 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30",
+            isDragging
+              ? "border-brand-500 bg-brand-50"
+              : supportingCardPresentation
+                ? "border-brand-200 bg-brand-50/40 hover:border-brand-400 hover:bg-brand-50"
+                : "border-[#d8dee8] hover:border-[#9fb4d0] hover:bg-white"
+          )}
+        >
+          {supportingCardPresentation ? (
+            <UploadCloud className="h-5 w-5 shrink-0 text-brand-500" />
+          ) : (
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-brand-500 shadow-sm">
               <UploadCloud className="h-4 w-4" />
-              {copy.uploadFile}
-            </button>
-            <button
-              type="button"
-              onClick={() => cameraInputRef.current?.click()}
-              className="inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            </span>
+          )}
+          <span className={cn("min-w-0", !supportingCardPresentation && "contents")}>
+            <span
+              className={cn(
+                "block text-[14px] font-medium text-[#2f3a4a]",
+                !supportingCardPresentation && "mt-3"
+              )}
             >
-              <Camera className="h-4 w-4" />
-              {copy.takePhoto}
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            className={cn(
-              "flex min-h-[240px] flex-col items-center justify-center rounded-xl border-2 border-dashed bg-gradient-to-b from-slate-50 to-slate-100 px-6 py-10 text-center transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-              isDragging ? "border-brand-500 from-brand-50 to-brand-100" : "border-slate-300 hover:border-brand-500 hover:from-brand-50 hover:to-brand-100",
-            )}
-          >
-            <span className="flex h-16 w-16 items-center justify-center rounded-full border border-border bg-white text-brand-500 shadow-sm">
-              <FileImage className="h-7 w-7" />
+              {supportingCardPresentation ? copy.dropLabel : resolvedTitle}
             </span>
-            <span className="mt-5 text-lg font-medium text-foreground">{copy.dropTitle}</span>
-            <span className="mt-2 text-sm text-muted-foreground">{copy.dropSubtitle}</span>
-            <span className="mt-5 inline-flex h-10 items-center gap-2 rounded-full bg-brand-500 px-5 text-sm font-medium text-white">
-              <UploadCloud className="h-4 w-4" />
-              {copy.chooseFile}
+            <span
+              className={cn(
+                "block text-[#667085]",
+                supportingCardPresentation ? "mt-0.5 text-xs" : "mt-1 text-[12px]"
+              )}
+            >
+              {supportingCardPresentation
+                ? `${uploadBadges.join(", ")} · ${uploadLimitLabel}`
+                : copy.dropSubtitle}
             </span>
-            <span className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-              {uploadBadges.map((badge) => (
-                <span key={badge} className="rounded border bg-white px-2 py-1 font-medium">
-                  {badge}
-                </span>
-              ))}
-              <span>{uploadLimitLabel}</span>
-            </span>
-          </button>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="flex items-start gap-3 rounded-xl border bg-white p-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                <CheckCircle2 className="h-4 w-4" />
+            {!supportingCardPresentation ? (
+              <span className="mt-3 block text-[11px] font-medium text-[#8a94a3]">
+                {uploadBadges.join(", ")} · {uploadLimitLabel}
               </span>
-              <div>
-                <p className="text-sm font-medium text-foreground">{copy.tipCornersTitle}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{copy.tipCornersBody}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 rounded-xl border bg-white p-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-                <Sun className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-medium text-foreground">{copy.tipLightTitle}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{copy.tipLightBody}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 rounded-xl border bg-white p-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600">
-                <Ban className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-medium text-foreground">{copy.tipGlareTitle}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{copy.tipGlareBody}</p>
-              </div>
-            </div>
-          </div>
-
-          <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 text-brand-500" />
-            {copy.privacy}
-          </p>
-        </div>
+            ) : null}
+          </span>
+        </button>
       )}
 
       <input
@@ -695,18 +615,6 @@ export function PassportOcrUpload({
         type="file"
         className="hidden"
         accept={uploadAccept}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void handleFile(file);
-          event.target.value = "";
-        }}
-      />
-      <input
-        ref={cameraInputRef}
-        type="file"
-        className="hidden"
-        accept="image/*"
-        capture="environment"
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) void handleFile(file);

@@ -1,0 +1,222 @@
+"use client";
+
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Loader2, Search } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
+import { isChineseLocale } from "@/lib/i18n/locale";
+import { isCountryLaunched } from "@/lib/launched-countries";
+import { selectUserVisaDestination } from "@/app/actions/user-package";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
+import {
+  VISA_DESTINATION_COUNTRY_GROUPS,
+  VISA_DESTINATION_COUNTRY_REGIONS,
+  getVisaDestinationDescription,
+  getVisaDestinationKey,
+  getVisaDestinationRegionName,
+  getVisaDestinationVisaName,
+  matchesVisaDestinationSearch,
+  type PopularVisaDestination,
+  type VisaDestinationCountryGroup,
+} from "@/lib/visa-destinations";
+
+const ALL_REGIONS = "__all__";
+
+function matchesGroup(group: VisaDestinationCountryGroup, query: string): boolean {
+  if (!query) return true;
+  return group.destinations.some((destinationItem) =>
+    matchesVisaDestinationSearch(destinationItem, query),
+  );
+}
+
+export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }) {
+  const t = useTranslations("clientStatus.index");
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
+  const router = useRouter();
+
+  const [query, setQuery] = useState("");
+  const [region, setRegion] = useState<string>(ALL_REGIONS);
+  const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const started = useMemo(() => new Set(startedKeys), [startedKeys]);
+
+  const visibleGroups = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return VISA_DESTINATION_COUNTRY_GROUPS.filter(
+      (group) =>
+        (region === ALL_REGIONS || group.region === region) && matchesGroup(group, normalizedQuery),
+    );
+  }, [query, region]);
+
+  function handleSelect(destinationItem: PopularVisaDestination) {
+    setSelectionError(null);
+
+    // Group entries (Schengen) drill into their own picker before a form exists.
+    if (destinationItem.kind === "group" && destinationItem.href) {
+      router.push(destinationItem.href);
+      return;
+    }
+
+    setPendingDestinationId(destinationItem.id);
+    router.push(
+      buildApplicationLongFormHref({
+        country: destinationItem.country,
+        visaType: destinationItem.visaType,
+      }),
+    );
+    startTransition(async () => {
+      const result = await selectUserVisaDestination(destinationItem.id);
+      if (!result.success) {
+        setSelectionError(result.error ?? t("selectError"));
+        setPendingDestinationId(null);
+      }
+    });
+  }
+
+  return (
+    <section className="mt-12">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+        <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("addDestination")}</h2>
+        <p className="text-[14px] text-[#8a94a6]">{t("addDestinationHint")}</p>
+      </div>
+
+      <label className="relative mb-4 flex items-center">
+        <Search className="pointer-events-none absolute left-4 h-[18px] w-[18px] text-[#8a94a6]" />
+        <span className="sr-only">{t("searchLabel")}</span>
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t("searchPlaceholder")}
+          autoComplete="off"
+          className="h-[46px] w-full rounded-full border border-[#e8e8e8] bg-white pl-11 pr-4 text-[15px] text-[#26364a] outline-none transition placeholder:text-[#8a94a6] focus-visible:border-brand-500 focus-visible:ring-1 focus-visible:ring-brand-500"
+        />
+      </label>
+
+      <div className="mb-5 flex flex-wrap gap-2">
+        {[ALL_REGIONS, ...VISA_DESTINATION_COUNTRY_REGIONS].map((regionId) => {
+          const pressed = region === regionId;
+          return (
+            <button
+              key={regionId}
+              type="button"
+              aria-pressed={pressed}
+              onClick={() => setRegion(regionId)}
+              className={cn(
+                "inline-flex h-11 items-center rounded-full border px-[14px] text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:h-8",
+                pressed
+                  ? "border-brand-500 text-brand-500"
+                  : "border-[#e5e7eb] bg-white text-[#66758a] hover:bg-[#fbfbfb]",
+              )}
+            >
+              {regionId === ALL_REGIONS ? t("allRegions") : getVisaDestinationRegionName(regionId, locale)}
+            </button>
+          );
+        })}
+      </div>
+
+      {selectionError && (
+        <div
+          role="alert"
+          className="mb-4 rounded-xl border border-[#f4c7c3] bg-[#fff8f7] px-4 py-3 text-[14px] text-[#b42318]"
+        >
+          {selectionError}
+        </div>
+      )}
+
+      {visibleGroups.length === 0 ? (
+        <div className="rounded-2xl border border-[#efefef] bg-white p-10 text-center">
+          <p className="font-heading text-[17px] font-medium text-[#26364a]">{t("noResultsTitle")}</p>
+          <p className="mt-1.5 text-[14px] text-[#66758a]">{t("noResultsBody")}</p>
+        </div>
+      ) : (
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {visibleGroups.map((group) => (
+            <li
+              key={group.key}
+              className="flex flex-col gap-3.5 rounded-2xl border border-[#efefef] bg-white px-5 py-[18px]"
+            >
+              <div className="flex items-center gap-3">
+                <span aria-hidden="true" className="text-[24px] leading-8">
+                  {group.flag}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-heading text-[16px] font-medium text-[#26364a]">
+                    {isZh ? group.countryNameZh : group.countryName}
+                  </p>
+                  <p className="mt-px text-[12px] text-[#8a94a6]">
+                    {getVisaDestinationRegionName(group.region, locale)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                {group.destinations.map((destinationItem) => {
+                  const isGroup = destinationItem.kind === "group";
+                  const launched = isGroup || isCountryLaunched(destinationItem.country);
+                  const alreadyStarted =
+                    !isGroup &&
+                    started.has(
+                      getVisaDestinationKey(destinationItem.country, destinationItem.visaType),
+                    );
+                  const loading = isPending && pendingDestinationId === destinationItem.id;
+
+                  return (
+                    <button
+                      key={destinationItem.id}
+                      type="button"
+                      onClick={() => handleSelect(destinationItem)}
+                      disabled={loading || !launched}
+                      aria-disabled={!launched}
+                      title={launched ? undefined : t("comingSoon")}
+                      className={cn(
+                        "group flex min-h-11 items-center justify-between gap-3 border-t border-[#efefef] py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+                        !launched
+                          ? "cursor-not-allowed opacity-50"
+                          : loading
+                            ? "cursor-wait opacity-80"
+                            : "cursor-pointer",
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-[14px] font-medium text-[#26364a] transition group-hover:text-brand-500">
+                          {getVisaDestinationVisaName(destinationItem, locale)}
+                        </span>
+                        <span className="mt-0.5 block line-clamp-2 text-[12px] leading-4 text-[#66758a]">
+                          {getVisaDestinationDescription(destinationItem, locale)}
+                        </span>
+                      </span>
+                      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[13px] font-medium text-[#66758a] transition group-hover:text-brand-500">
+                        {loading ? (
+                          <>
+                            {t("starting")}
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </>
+                        ) : !launched ? (
+                          t("comingSoon")
+                        ) : alreadyStarted ? (
+                          t("added")
+                        ) : (
+                          <>
+                            {isGroup ? t("browse") : t("start")}
+                            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                          </>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="mt-5 text-[13px] italic text-[#8a94a6]">{t("governmentFeeNote")}</p>
+    </section>
+  );
+}

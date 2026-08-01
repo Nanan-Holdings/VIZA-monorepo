@@ -1,5 +1,6 @@
 import { countries } from "country-data-list";
 import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-translations";
+import { buildReusableAnswerPatch, type UniversalProfileAnswerRecord } from "@/lib/universal-profile-fields";
 
 interface CountryRecord {
   alpha2: string;
@@ -66,6 +67,7 @@ export interface UniversalProfileSnapshot {
   email?: string | null;
   phone?: string | null;
   wechat?: string | null;
+  reusable_answers?: UniversalProfileAnswerRecord[] | null;
 }
 
 export const UNIVERSAL_PROFILE_SELECT =
@@ -399,6 +401,8 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
   setAnswer(out, ["email", "email_address"], profile.email);
   setAnswer(out, ["phone", "phone_number", "primary_phone_number", "mobile_phone", "telephone_number"], profile.phone);
   setAnswer(out, ["wechat", "wechat_id"], profile.wechat);
+
+  Object.assign(out, buildReusableAnswerPatch(profile.reusable_answers ?? []));
 
   return out;
 }

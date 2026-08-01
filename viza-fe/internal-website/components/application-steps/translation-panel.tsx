@@ -232,7 +232,7 @@ export function TranslationPanel({ applicationId, originalData, translationStatu
   // Error / retry state
   if (error && !hasTranslations) {
     return (
-      <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 flex items-center gap-3">
+      <div className="mt-6 flex items-center gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4">
         <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
         <div className="flex-1">
           <p className="text-sm text-red-700">{error}</p>

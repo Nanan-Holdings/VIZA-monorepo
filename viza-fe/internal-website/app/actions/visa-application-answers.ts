@@ -10,6 +10,18 @@ import {
 import { auditPiiRead } from "@/lib/legal/audit-pii";
 import { buildUniversalProfileAnswerPatch, type UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 import { getCanonicalVisaDestinationCountry, getFormVisaType } from "@/lib/visa-destinations";
+import {
+  buildUniversalProfileFieldDefinitions,
+  canonicalizeUniversalProfileFieldName,
+  getUniversalProfileCategory,
+  isReusableUniversalProfileField,
+  splitUniversalProfileRepeatKey,
+  type UniversalProfileAnswerRecord,
+  type UniversalProfileFieldDefinition,
+} from "@/lib/universal-profile-fields";
+import { getChineseLabel, getEnglishLabel } from "@/lib/ds160-translations";
+import { normalizeBilingualFormField } from "@/lib/bilingual-schema-contract";
+import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/types/visa-form-fields";
 
 type ApplicationOwnerProfile = {
   id?: string | null;
@@ -17,9 +29,9 @@ type ApplicationOwnerProfile = {
   dependant_of_user_id?: string | null;
 };
 
-interface UniversalProfileSaveInput extends UniversalProfileSnapshot {
+type UniversalProfileSaveInput = Omit<UniversalProfileSnapshot, "reusable_answers"> & {
   wechat?: string | null;
-}
+};
 type UniversalProfileSaveField = keyof UniversalProfileSaveInput;
 type SeedableUniversalProfile = UniversalProfileSnapshot & {
   id?: string | null;
@@ -67,6 +79,28 @@ const UNIVERSAL_PROFILE_SAVE_FIELDS: UniversalProfileSaveField[] = [
   "phone",
   "wechat",
 ];
+const UNIVERSAL_PROFILE_SAVE_FIELD_SET = new Set<string>(UNIVERSAL_PROFILE_SAVE_FIELDS);
+
+const UNIVERSAL_TO_LEGACY_PROFILE_COLUMN: Record<string, UniversalProfileSaveField> = {
+  surname: "surname",
+  given_names: "given_names",
+  date_of_birth: "date_of_birth",
+  place_of_birth: "birth_city",
+  birth_country: "birth_country",
+  birth_province_or_state: "birth_province_or_state",
+  gender: "gender",
+  nationality: "nationality",
+  occupation: "occupation",
+  address: "address",
+  passport_number: "passport_number",
+  passport_issue_date: "passport_issue_date",
+  passport_expiry_date: "passport_expiry_date",
+  passport_issuing_country: "passport_issuing_country",
+  passport_issuing_authority: "passport_issuing_authority",
+  email: "email",
+  phone: "phone",
+  wechat: "wechat",
+};
 
 const PROFILE_SAVE_FALLBACK_COLUMNS = [
   "full_name_zh",
@@ -168,6 +202,102 @@ function isMissingSchemaFeatureError(error: SupabaseErrorLike, featureNames: str
     normalized.includes("does not exist") ||
     normalized.includes("relation")
   ) && featureNames.some((name) => normalized.includes(name.toLowerCase()));
+}
+
+interface UniversalProfileAnswerDbRow {
+  canonical_key: string;
+  value_text: string;
+  value_zh?: string | null;
+  value_en?: string | null;
+  label_zh?: string | null;
+  label_en?: string | null;
+  field_type?: UniversalProfileAnswerRecord["fieldType"] | null;
+  category?: UniversalProfileAnswerRecord["category"] | null;
+  source_application_id?: string | null;
+  source_visa_type?: string | null;
+  source_field_name?: string | null;
+  updated_at?: string | null;
+}
+
+function toUniversalProfileAnswerRecord(row: UniversalProfileAnswerDbRow): UniversalProfileAnswerRecord {
+  return {
+    canonicalKey: row.canonical_key,
+    value: row.value_text,
+    valueZh: row.value_zh,
+    valueEn: row.value_en,
+    labelZh: row.label_zh,
+    labelEn: row.label_en,
+    fieldType: row.field_type,
+    category: row.category,
+    sourceApplicationId: row.source_application_id,
+    sourceVisaType: row.source_visa_type,
+    sourceFieldName: row.source_field_name,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function loadReusableProfileAnswers(
+  adminClient: ReturnType<typeof createAdminClient>,
+  userId: string,
+) {
+  const { data, error } = await adminClient
+    .from("universal_profile_answers")
+    .select("canonical_key, value_text, value_zh, value_en, label_zh, label_en, field_type, category, source_application_id, source_visa_type, source_field_name, updated_at")
+    .eq("auth_user_id", userId)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    if (isMissingSchemaFeatureError(error, ["universal_profile_answers"])) {
+      return { answers: [] as UniversalProfileAnswerRecord[], schemaAvailable: false };
+    }
+    return { answers: [] as UniversalProfileAnswerRecord[], schemaAvailable: true, error: error.message };
+  }
+
+  return {
+    answers: ((data ?? []) as UniversalProfileAnswerDbRow[]).map(toUniversalProfileAnswerRecord),
+    schemaAvailable: true,
+  };
+}
+
+function groupUniversalSchemaRows(rows: VisaFormFieldDbRow[]) {
+  const stepMap = new Map<string, WizardStep>();
+  for (const row of rows) {
+    const key = `${row.visa_type}:${row.step_number}:${row.step_name ?? ""}`;
+    const step = stepMap.get(key) ?? {
+      stepNumber: row.step_number,
+      stepName: row.step_name || `Step ${row.step_number}`,
+      fields: [],
+    };
+    step.fields.push(normalizeBilingualFormField(dbRowToFormField(row)));
+    stepMap.set(key, step);
+  }
+  return Array.from(stepMap.values());
+}
+
+async function loadUniversalProfileSchemaDefinitions(
+  adminClient: ReturnType<typeof createAdminClient>,
+) {
+  const pageSize = 1_000;
+  const rows: VisaFormFieldDbRow[] = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await adminClient
+      .from("visa_form_fields")
+      .select("*")
+      .order("visa_type", { ascending: true })
+      .order("step_number", { ascending: true })
+      .order("display_order", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) return { fields: [] as UniversalProfileFieldDefinition[], error: error.message };
+    const page = (data ?? []) as VisaFormFieldDbRow[];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  return {
+    fields: buildUniversalProfileFieldDefinitions(groupUniversalSchemaRows(rows)),
+  };
 }
 
 async function loadApplicationOwnerProfile(
@@ -514,6 +644,288 @@ export async function saveUniversalProfileWithSharedAnswers(
   }
 }
 
+export async function loadUniversalProfileWorkspace(): Promise<{
+  profile?: UniversalProfileSnapshot;
+  fields: UniversalProfileFieldDefinition[];
+  answers: UniversalProfileAnswerRecord[];
+  schemaAvailable: boolean;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { fields: [], answers: [], schemaAvailable: true, error: "Not authenticated" };
+
+    const adminClient = createAdminClient();
+    const profileResult = await loadCurrentApplicantProfile(adminClient, user);
+    if (profileResult.error || !profileResult.profile?.id) {
+      return {
+        fields: [],
+        answers: [],
+        schemaAvailable: true,
+        error: profileResult.error ?? "Profile not found",
+      };
+    }
+
+    const [schemaResult, answerResult] = await Promise.all([
+      loadUniversalProfileSchemaDefinitions(adminClient),
+      loadReusableProfileAnswers(adminClient, user.id),
+    ]);
+    if (schemaResult.error) {
+      return {
+        profile: profileResult.profile,
+        fields: [],
+        answers: answerResult.answers,
+        schemaAvailable: answerResult.schemaAvailable,
+        error: schemaResult.error,
+      };
+    }
+    if (answerResult.error) {
+      return {
+        profile: profileResult.profile,
+        fields: schemaResult.fields,
+        answers: [],
+        schemaAvailable: answerResult.schemaAvailable,
+        error: answerResult.error,
+      };
+    }
+
+    const fieldsByKey = new Map(schemaResult.fields.map((field) => [field.canonicalKey, field]));
+    for (const answer of answerResult.answers) {
+      if (fieldsByKey.has(answer.canonicalKey)) continue;
+      fieldsByKey.set(answer.canonicalKey, {
+        id: `saved:${answer.canonicalKey}`,
+        visaType: answer.sourceVisaType ?? "UNIVERSAL_PROFILE",
+        fieldName: answer.canonicalKey,
+        canonicalKey: answer.canonicalKey,
+        label: answer.labelEn || answer.labelZh || answer.canonicalKey.replaceAll("_", " "),
+        fieldType: answer.fieldType ?? "text",
+        required: false,
+        stepNumber: 0,
+        stepName: answer.category ?? "Saved information",
+        displayOrder: 0,
+        placeholder: null,
+        validationRules: null,
+        options: null,
+        conditionalLogic: null,
+        category: answer.category ?? getUniversalProfileCategory(answer.canonicalKey),
+        sourceVisaTypes: answer.sourceVisaType ? [answer.sourceVisaType] : [],
+      });
+    }
+
+    await auditPiiRead(
+      "actions/visa-application-answers:loadUniversalProfileWorkspace",
+      profileResult.profile.id,
+      ["form_answers", "passport", "contact", "address"],
+      { purpose: "self_view" },
+    );
+
+    return {
+      profile: {
+        ...profileResult.profile,
+        reusable_answers: answerResult.answers,
+      },
+      fields: Array.from(fieldsByKey.values()),
+      answers: answerResult.answers,
+      schemaAvailable: answerResult.schemaAvailable,
+    };
+  } catch (err) {
+    return {
+      fields: [],
+      answers: [],
+      schemaAvailable: true,
+      error: err instanceof Error ? err.message : "Failed to load universal profile",
+    };
+  }
+}
+
+export async function saveUniversalProfileAnswerValues(input: {
+  answers: Array<{
+    canonicalKey: string;
+    value: string;
+    valueZh?: string | null;
+    valueEn?: string | null;
+  }>;
+}): Promise<{ savedCount?: number; deletedCount?: number; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
+    if (input.answers.length > 250) return { error: "Too many profile fields in one update" };
+
+    const adminClient = createAdminClient();
+    const profileResult = await loadCurrentApplicantProfile(adminClient, user);
+    if (profileResult.error || !profileResult.profile?.id) {
+      return { error: profileResult.error ?? "Profile not found" };
+    }
+
+    const [schemaResult, existingResult] = await Promise.all([
+      loadUniversalProfileSchemaDefinitions(adminClient),
+      loadReusableProfileAnswers(adminClient, user.id),
+    ]);
+    if (schemaResult.error) return { error: schemaResult.error };
+    if (!existingResult.schemaAvailable) return { error: "Universal Profile schema is not installed" };
+    if (existingResult.error) return { error: existingResult.error };
+
+    const definitions = new Map(schemaResult.fields.map((field) => [field.canonicalKey, field]));
+    const existingKeys = new Set(existingResult.answers.map((answer) => answer.canonicalKey));
+    const now = new Date().toISOString();
+    const upserts: Record<string, unknown>[] = [];
+    const deletes: string[] = [];
+
+    for (const answer of input.answers) {
+      const canonicalKey = canonicalizeUniversalProfileFieldName(answer.canonicalKey);
+      const definition = definitions.get(canonicalKey);
+      if (!definition && !existingKeys.has(canonicalKey)) continue;
+      const value = cleanOptional(answer.value);
+      if (!value) {
+        deletes.push(canonicalKey);
+        continue;
+      }
+      upserts.push({
+        applicant_id: profileResult.profile.id,
+        auth_user_id: user.id,
+        canonical_key: canonicalKey,
+        value_text: value,
+        value_zh: cleanOptional(answer.valueZh),
+        value_en: cleanOptional(answer.valueEn),
+        label_zh: definition ? getChineseLabel(definition.label) : null,
+        label_en: definition ? getEnglishLabel(definition.label) : null,
+        field_type: definition?.fieldType ?? "text",
+        category: definition?.category ?? getUniversalProfileCategory(canonicalKey),
+        source_field_name: definition?.fieldName ?? canonicalKey,
+        field_schema: definition ?? {},
+        updated_at: now,
+      });
+    }
+
+    if (deletes.length > 0) {
+      const { error } = await adminClient
+        .from("universal_profile_answers")
+        .delete()
+        .eq("auth_user_id", user.id)
+        .in("canonical_key", deletes);
+      if (error) return { error: error.message };
+    }
+    if (upserts.length > 0) {
+      const { error } = await adminClient
+        .from("universal_profile_answers")
+        .upsert(upserts, { onConflict: "auth_user_id,canonical_key" });
+      if (error) return { error: error.message };
+    }
+
+    return { savedCount: upserts.length, deletedCount: deletes.length };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to save universal profile" };
+  }
+}
+
+export async function syncApplicationAnswersToUniversalProfile(
+  applicationId: string,
+): Promise<{ savedCount?: number; skippedCount?: number; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
+
+    const adminClient = createAdminClient();
+    const { data: application, error: applicationError } = await adminClient
+      .from("applications")
+      .select("id, applicant_id, visa_type")
+      .eq("id", applicationId)
+      .maybeSingle();
+    if (applicationError) return { error: applicationError.message };
+    if (!application?.applicant_id) return { error: "Application not found" };
+
+    const ownerResult = await loadApplicationOwnerProfile(adminClient, application.applicant_id);
+    if (ownerResult.error) return { error: ownerResult.error };
+    if (!ownsApplication(ownerResult.profile, user.id)) return { error: "Unauthorized" };
+
+    const [{ data: schemaRows, error: schemaError }, { data: answerRows, error: answerError }] = await Promise.all([
+      adminClient.from("visa_form_fields").select("*").eq("visa_type", application.visa_type),
+      adminClient.from("visa_application_answers").select("field_name, value_text").eq("application_id", applicationId),
+    ]);
+    if (schemaError) return { error: schemaError.message };
+    if (answerError) return { error: answerError.message };
+
+    const fields = ((schemaRows ?? []) as VisaFormFieldDbRow[]).map((row) =>
+      normalizeBilingualFormField(dbRowToFormField(row)),
+    );
+    const fieldsByName = new Map(fields.map((field) => [field.fieldName, field]));
+    const answers = new Map(
+      ((answerRows ?? []) as Array<{ field_name: string; value_text: string | null }>)
+        .map((row) => [row.field_name, row.value_text?.trim() ?? ""] as const),
+    );
+    const now = new Date().toISOString();
+    const upserts: Record<string, unknown>[] = [];
+    const legacyProfilePatch: Record<string, string> = {};
+    let skippedCount = 0;
+
+    for (const [fieldName, value] of answers) {
+      if (!value || fieldName.endsWith("_zh") || fieldName.endsWith("_en") || fieldName.startsWith("__")) continue;
+      const { baseKey, repeatSuffix } = splitUniversalProfileRepeatKey(fieldName);
+      const field = fieldsByName.get(baseKey);
+      if (!field || !isReusableUniversalProfileField(field)) {
+        skippedCount += 1;
+        continue;
+      }
+      const canonicalKey = `${canonicalizeUniversalProfileFieldName(baseKey)}${repeatSuffix}`;
+      const legacyColumn = repeatSuffix ? null : UNIVERSAL_TO_LEGACY_PROFILE_COLUMN[canonicalKey];
+      if (legacyColumn) {
+        legacyProfilePatch[legacyColumn] = value;
+        const valueZh = cleanOptional(answers.get(`${fieldName}_zh`));
+        const valueEn = cleanOptional(answers.get(`${fieldName}_en`));
+        if (valueZh && UNIVERSAL_PROFILE_SAVE_FIELD_SET.has(`${legacyColumn}_zh`)) {
+          legacyProfilePatch[`${legacyColumn}_zh`] = valueZh;
+        }
+        if (valueEn && UNIVERSAL_PROFILE_SAVE_FIELD_SET.has(`${legacyColumn}_en`)) {
+          legacyProfilePatch[`${legacyColumn}_en`] = valueEn;
+        }
+      }
+      upserts.push({
+        applicant_id: application.applicant_id,
+        auth_user_id: user.id,
+        canonical_key: canonicalKey,
+        value_text: value,
+        value_zh: cleanOptional(answers.get(`${fieldName}_zh`)),
+        value_en: cleanOptional(answers.get(`${fieldName}_en`)),
+        label_zh: getChineseLabel(field.label),
+        label_en: getEnglishLabel(field.label),
+        field_type: field.fieldType,
+        category: getUniversalProfileCategory(canonicalKey, field.stepName ?? ""),
+        source_application_id: applicationId,
+        source_visa_type: application.visa_type,
+        source_field_name: fieldName,
+        field_schema: field,
+        updated_at: now,
+      });
+    }
+
+    if (upserts.length === 0) return { savedCount: 0, skippedCount };
+    const { error: upsertError } = await adminClient
+      .from("universal_profile_answers")
+      .upsert(upserts, { onConflict: "auth_user_id,canonical_key" });
+    if (upsertError) {
+      if (isMissingSchemaFeatureError(upsertError, ["universal_profile_answers"])) {
+        return { error: "Universal Profile schema is not installed" };
+      }
+      return { error: upsertError.message };
+    }
+
+    if (Object.keys(legacyProfilePatch).length > 0) {
+      const { error: profileUpdateError } = await adminClient
+        .from("applicant_profiles")
+        .update({ ...legacyProfilePatch, updated_at: now })
+        .eq("id", application.applicant_id);
+      if (profileUpdateError) return { error: profileUpdateError.message };
+    }
+
+    return { savedCount: upserts.length, skippedCount };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update universal profile" };
+  }
+}
+
 /**
  * Create a draft application for the current user if one doesn't exist.
  * Returns the application ID.
@@ -586,7 +998,13 @@ export async function ensureDraftApplication(
 
     if (appError) return { error: appError.message };
 
-    const seedError = await seedNewApplicationFromUniversalProfile(adminClient, newApp.id, profile.id, profile);
+    const reusableResult = await loadReusableProfileAnswers(adminClient, user.id);
+    if (reusableResult.error) return { error: reusableResult.error };
+    const seedProfile: SeedableUniversalProfile = {
+      ...profile,
+      reusable_answers: reusableResult.answers,
+    };
+    const seedError = await seedNewApplicationFromUniversalProfile(adminClient, newApp.id, profile.id, seedProfile);
     if (seedError) return { error: seedError };
 
     return { applicationId: newApp.id, created: true };
@@ -634,8 +1052,14 @@ export async function loadApplicationFormContext(
       ) ??
       (options.preferExplicit ? null : applications[0] ?? null);
 
+    const reusableResult = await loadReusableProfileAnswers(adminClient, user.id);
+    if (reusableResult.error) return { error: reusableResult.error };
+
     return {
-      profile,
+      profile: {
+        ...profile,
+        reusable_answers: reusableResult.answers,
+      },
       application,
     };
   } catch (err) {

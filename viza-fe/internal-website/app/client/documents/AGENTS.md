@@ -30,6 +30,8 @@ application flow.
   upload record upserts, and applicant-confirmed passport OCR persistence.
 - `document-center-client.tsx`: embeddable checklist UI, upload/re-upload
   controls, and the integrated Travel AI itinerary picker/upload entry.
+- `__tests__/document-center-client.test.tsx`: embedded application-step layout
+  coverage for the responsive document-card grids and direct file fields.
 
 ## Data Sources
 

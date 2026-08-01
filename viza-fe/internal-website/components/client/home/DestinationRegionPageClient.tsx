@@ -20,6 +20,7 @@ import {
   selectUserVisaDestination,
   type UserVisaPackage,
 } from "@/app/actions/user-package";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -78,8 +79,13 @@ export function DestinationRegionPageClient({
       return;
     }
 
-    setPendingDestinationId(destination.id);
+    const href = buildApplicationLongFormHref({
+      country: destination.country,
+      visaType: destination.visaType,
+    });
 
+    setPendingDestinationId(destination.id);
+    router.push(href);
     startTransition(async () => {
       try {
         const result = await selectUserVisaDestination(destination.id);
@@ -88,10 +94,6 @@ export function DestinationRegionPageClient({
           setPendingDestinationId(null);
           return;
         }
-
-        router.push(
-          `/client/application?country=${encodeURIComponent(destination.country)}&visaType=${encodeURIComponent(destination.visaType)}`,
-        );
       } catch {
         setSelectionError(isZh ? "服务器响应异常，请刷新页面后重试。" : "The server returned an unexpected response. Refresh the page and try again.");
         setPendingDestinationId(null);
@@ -144,6 +146,12 @@ export function DestinationRegionPageClient({
               const selected = isSelectedDestination(destination, initialSelectedPackages);
               const loading = isPending && pendingDestinationId === destination.id;
               const isGroup = destination.kind === "group";
+              const applicationHref = isGroup
+                ? null
+                : buildApplicationLongFormHref({
+                    country: destination.country,
+                    visaType: destination.visaType,
+                  });
               const actionLabel = isGroup
                 ? destinationMessages("chooseCategory")
                 : selected
@@ -159,6 +167,12 @@ export function DestinationRegionPageClient({
                   key={destination.id}
                   type="button"
                   onClick={() => handleSelect(destination)}
+                  onFocus={() => {
+                    if (applicationHref) router.prefetch(applicationHref);
+                  }}
+                  onMouseEnter={() => {
+                    if (applicationHref) router.prefetch(applicationHref);
+                  }}
                   disabled={loading}
                   className={[
                     "group flex min-h-[144px] flex-col justify-between rounded-[16px] border bg-white p-4 text-left transition sm:min-h-[164px] sm:p-5",

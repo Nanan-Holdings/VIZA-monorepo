@@ -71,7 +71,7 @@ describe("legacy application step copilot coverage", () => {
       "us_address_state",
       "us_address_zip",
     ]);
-    expect(screen.getAllByText("必填项").length).toBeGreaterThan(0);
+    expect(screen.queryByText("必填项")).not.toBeInTheDocument();
     expect(screen.queryByText("Required field")).not.toBeInTheDocument();
   });
 
@@ -173,7 +173,7 @@ describe("legacy application step copilot coverage", () => {
     );
     expect(trigger).toBeInTheDocument();
     expect(trigger).toHaveTextContent("问 AI");
-    expect(screen.getByText("必填项")).toBeInTheDocument();
+    expect(screen.queryByText("必填项")).not.toBeInTheDocument();
     expect(screen.queryByTestId("field-guidance-panel")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("browse"));

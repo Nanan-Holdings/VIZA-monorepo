@@ -58,7 +58,7 @@ export function LiveManualActionCard({
   }
 
   return (
-    <section id="live-action" className="rounded-[8px] border border-amber-200 bg-amber-50 p-5 shadow-sm">
+    <section id="live-action" className="rounded-[8px] border border-[#e5e7eb] bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-amber-900">

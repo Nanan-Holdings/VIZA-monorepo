@@ -17,6 +17,7 @@ import {
   Gift,
   Globe2,
   Headphones,
+  IdCard,
   KeyRound,
   Loader2,
   LockKeyhole,
@@ -31,6 +32,7 @@ import {
   TicketPercent,
   Trophy,
   Trash2,
+  Phone,
   UserRound,
   UsersRound,
   WalletCards,
@@ -39,7 +41,6 @@ import {
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { SmoothProgressBar } from "@/components/smooth-progress";
 import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
 import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
@@ -187,24 +188,6 @@ const rewardItems = [
 
 function isWalletMethod(method: PaymentMethodId): method is Exclude<PaymentMethodId, "bank_card"> {
   return method === "wechat_pay" || method === "alipay";
-}
-
-function initialsFromName(name: string, fallback: string) {
-  const source = name.trim() || fallback.trim();
-  if (!source) return "V";
-
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-
-  return source.slice(0, 2).toUpperCase();
-}
-
-function obfuscatePassport(value: string | null) {
-  if (!value) return null;
-  if (value.length <= 4) return value;
-  return `••${value.slice(-4)}`;
 }
 
 function SettingsRow({
@@ -484,7 +467,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     };
   }, [router]);
 
-  const displayName = profile?.full_name?.trim() || email || t("profile.fallbackName");
   const profileCompletion = useMemo(() => {
     const fields = [
       profile?.full_name,
@@ -1052,55 +1034,37 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
         onError={() => setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") })}
       />
       {view === "home" ? (
-      <section className="grid gap-5 pt-4 lg:grid-cols-[1.25fr_0.75fr]">
+      <section className="grid gap-5 pt-4 lg:grid-cols-[0.82fr_1.18fr]">
         <motion.div
-          className="overflow-hidden rounded-xl border bg-white shadow-sm"
+          className="self-start rounded-xl border bg-white p-5 shadow-sm sm:p-6"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
         >
-          <div className="h-24 bg-gradient-to-br from-brand-700 via-brand-500 to-brand-300" />
-          <div className="-mt-10 p-5 sm:p-6">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex items-end gap-4">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-brand-50 text-2xl font-semibold text-brand-700 shadow-sm">
-                  {initialsFromName(displayName, email)}
-                </div>
-                <div className="pb-1">
-                  <p className="text-2xl font-semibold text-foreground sm:text-3xl">
-                    {displayName}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">{email}</p>
-                </div>
-              </div>
-              <Button asChild className="h-11 rounded-full">
-                <Link href="/client/universal-info">
-                  {t("profile.editDetails")}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-
-            <div className="mt-6 rounded-lg border bg-brand-50/60 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-brand-900">
-                    {t("profile.completion")}
-                  </p>
-                  <p className="mt-1 text-sm text-brand-700">
-                    {t("profile.completionHint")}
-                  </p>
-                </div>
-              </div>
-              <SmoothProgressBar
-                displayedProgress={profileCompletion}
-                className="mt-3"
-                labelClassName="justify-end"
-                valueClassName="text-2xl font-semibold text-brand-700"
-                trackClassName="bg-white"
-              />
-            </div>
+          <div className="flex items-start justify-between gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+              <UserRound className="h-6 w-6" />
+            </span>
+            <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+              {t("profile.complete", { percent: profileCompletion })}
+            </span>
           </div>
+
+          <div className="mt-5">
+            <h2 className="font-heading text-2xl font-semibold text-foreground">
+              {t("profile.universalTitle")}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {t("profile.universalDescription")}
+            </p>
+          </div>
+
+          <Button asChild className="mt-6 h-11 w-full rounded-full">
+            <Link href="/client/universal-info">
+              {t("profile.reviewProfile")}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
         </motion.div>
 
         <motion.div
@@ -1109,25 +1073,45 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: 0.05 }}
         >
-          <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">
-            {t("quickSnapshot.label")}
-          </p>
-          <dl className="mt-4 space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-sm text-muted-foreground">{t("quickSnapshot.passport")}</dt>
-              <dd className="text-right text-sm font-semibold text-foreground">
-                {obfuscatePassport(profile?.passport_number ?? null) ?? t("quickSnapshot.notSet")}
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">
+              {t("quickSnapshot.label")}
+            </p>
+          </div>
+          <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+              <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <Mail className="h-4 w-4 text-brand-500" />
+                {t("quickSnapshot.email")}
+              </dt>
+              <dd className="mt-2 break-words text-sm font-semibold text-foreground">
+                {profile?.email || email || t("quickSnapshot.notSet")}
               </dd>
             </div>
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-sm text-muted-foreground">{t("quickSnapshot.phone")}</dt>
-              <dd className="text-right text-sm font-semibold text-foreground">
+            <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+              <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <Phone className="h-4 w-4 text-brand-500" />
+                {t("quickSnapshot.phone")}
+              </dt>
+              <dd className="mt-2 break-words text-sm font-semibold text-foreground">
                 {profile?.phone || t("quickSnapshot.notSet")}
               </dd>
             </div>
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-sm text-muted-foreground">{t("quickSnapshot.payment")}</dt>
-              <dd className="text-right text-sm font-semibold text-foreground">
+            <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+              <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <IdCard className="h-4 w-4 text-brand-500" />
+                {t("quickSnapshot.passport")}
+              </dt>
+              <dd className="mt-2 break-all text-sm font-semibold text-foreground">
+                {profile?.passport_number || t("quickSnapshot.notSet")}
+              </dd>
+            </div>
+            <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+              <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <CreditCard className="h-4 w-4 text-brand-500" />
+                {t("quickSnapshot.payment")}
+              </dt>
+              <dd className="mt-2 break-words text-sm font-semibold text-foreground">
                 {paymentSummary}
               </dd>
             </div>

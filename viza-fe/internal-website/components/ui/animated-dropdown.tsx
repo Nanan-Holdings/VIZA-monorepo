@@ -120,7 +120,7 @@ export function AnimatedDropdown({
                   placeholder={searchPlaceholder}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-transparent text-[16px] leading-[1.5] text-[#3d3d3d] placeholder:text-[#999] outline-none"
+                  className="w-full border-0 bg-transparent text-[16px] leading-[1.5] text-[#3d3d3d] placeholder:text-[#999] outline-none"
                 />
               </div>
             </div>

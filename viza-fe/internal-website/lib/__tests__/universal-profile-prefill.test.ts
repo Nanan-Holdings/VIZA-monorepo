@@ -118,4 +118,21 @@ describe("universal profile prefill", () => {
       city_state_of_residence_en: "Hunan",
     });
   });
+
+  it("hydrates expanded reusable answers collected from a previous country application", () => {
+    const patch = buildUniversalProfileAnswerPatch({
+      reusable_answers: [
+        { canonicalKey: "civil_status", value: "married" },
+        { canonicalKey: "father_surname", value: "LI" },
+        { canonicalKey: "employer_name", value: "VIZA PTE LTD" },
+      ],
+    });
+
+    expect(patch).toMatchObject({
+      civil_status: "married",
+      marital_status: "married",
+      father_surname: "LI",
+      employer_name: "VIZA PTE LTD",
+    });
+  });
 });
