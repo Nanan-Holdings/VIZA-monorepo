@@ -9,8 +9,8 @@ pages, and portal checkout links.
 ## Analytics And SEO
 
 - GTM is installed in `app/layout.tsx`; keep `NEXT_PUBLIC_GTM_ID` public-only.
-- Client-side conversion events use `lib/analytics.ts` and are collected by
-  `components/MarketingAnalytics.tsx`.
+- Client-side conversion events use `lib/analytics.ts`; global CTA clicks are
+  collected by the inline `marketing-click-tracking` script in `app/layout.tsx`.
 - Do not send passport values, emails, phone numbers, names, or checkout prefill
   payloads to analytics. Event metadata should stay coarse: event name, page,
   country slug, payment method, counts, and non-identifying status fields.
