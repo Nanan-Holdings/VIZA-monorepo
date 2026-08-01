@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "next-intl";
-import { isChineseLocale } from "@/lib/i18n/locale";
+import { isChineseLocale, toTravelAgentLocale } from "@/lib/i18n/locale";
 import {
   findTravelAttraction,
   getTravelAttractionsForCity,
@@ -1759,7 +1759,10 @@ function sanitizeDomId(input: string): string {
   return input.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
-async function loadGoogleMaps(apiKey: string): Promise<GoogleMapsNamespace> {
+async function loadGoogleMaps(
+  apiKey: string,
+  locale: string
+): Promise<GoogleMapsNamespace> {
   if (!apiKey) {
     throw new Error("Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
   }
@@ -1797,7 +1800,9 @@ async function loadGoogleMaps(apiKey: string): Promise<GoogleMapsNamespace> {
 
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&language=zh-CN&region=CN&v=weekly`;
+    const language = toTravelAgentLocale(locale);
+    const region = language === "zh-CN" ? "CN" : "US";
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&language=${language}&region=${region}&v=weekly`;
     script.async = true;
     script.defer = true;
     script.addEventListener("load", resolveMaps, { once: true });
@@ -1973,7 +1978,10 @@ export function TripRouteMap({
     void (async () => {
       if (!containerRef.current || mapRef.current) return;
       try {
-        const maps = await loadGoogleMaps(GOOGLE_MAPS_API_KEY);
+        const maps = await loadGoogleMaps(
+          GOOGLE_MAPS_API_KEY,
+          toTravelAgentLocale(locale)
+        );
         if (disposed || !containerRef.current) return;
 
         mapsRef.current = maps;
@@ -2132,7 +2140,7 @@ export function TripRouteMap({
       mapRef.current = null;
       mapsRef.current = null;
     };
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -2328,12 +2336,10 @@ export function TripRouteMap({
             infoElement.style.overflow = "visible";
             infoElement.style.padding = "0";
             infoElement.style.maxWidth = `${previewWidth}px`;
-            infoElement.style.pointerEvents = "none";
-            let chromeParent = infoElement.parentElement;
-            for (let level = 0; chromeParent && level < 3; level += 1) {
-              chromeParent.style.pointerEvents = "none";
-              chromeParent = chromeParent.parentElement;
-            }
+            // Keep Google's InfoWindow chrome interactive and visible. Do
+            // not hide its close control or make the native map chrome
+            // pointer-transparent around the custom card.
+            infoElement.style.pointerEvents = "auto";
 
             const contentElement =
               infoElement.querySelector<HTMLElement>(".gm-style-iw-d");
@@ -2341,14 +2347,7 @@ export function TripRouteMap({
               contentElement.style.overflow = "visible";
               contentElement.style.maxHeight = "none";
               contentElement.style.width = `${cardWidth}px`;
-              contentElement.style.pointerEvents = "none";
-            }
-
-            const defaultCloseButton = infoElement.querySelector<HTMLElement>(
-              ".gm-ui-hover-effect"
-            );
-            if (defaultCloseButton) {
-              defaultCloseButton.style.display = "none";
+              contentElement.style.pointerEvents = "auto";
             }
           };
 
@@ -2648,6 +2647,7 @@ export function TripRouteMap({
     animateRoute,
     isReady,
     isZh,
+    locale,
     pointKey,
     points,
     routeCoordinates,

@@ -6,6 +6,7 @@ import { ChevronLeft, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSimplifiedFormContext } from "@/lib/context/simplified-form-context";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 interface FieldValue {
   label: string;
@@ -110,7 +111,7 @@ export default function SimplifiedFormReviewPage() {
 
   const handleProceed = useCallback(() => {
     // Clear the context and proceed to the full application
-    router.push("/client/application?step=review");
+    router.push(buildApplicationLongFormHref({ step: "review" }));
   }, [router]);
 
   if (!formData) {

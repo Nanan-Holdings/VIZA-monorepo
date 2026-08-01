@@ -449,7 +449,7 @@ export default function OnboardingPage() {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            <div className="rounded-lg border border-[#e5e7eb] bg-white px-4 py-3 text-sm text-[#71717a]">
               <p className="text-sm">{error}</p>
             </div>
           )}

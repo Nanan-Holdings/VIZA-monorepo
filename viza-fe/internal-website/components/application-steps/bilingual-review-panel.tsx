@@ -4,6 +4,7 @@ import { AlertCircle, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { isChineseLocale } from "@/lib/i18n/locale";
 
 export interface ReviewRow {
@@ -18,6 +19,7 @@ export interface ReviewRow {
   warnings: string[];
   editable: boolean;
   editStepIndex?: number;
+  missing?: boolean;
 }
 
 interface BilingualReviewPanelProps {
@@ -58,34 +60,52 @@ function BilingualReviewRow({
 
   if (!isZh) {
     return (
-      <div className="border-b border-border/50 py-4 last:border-0">
-        <div className="min-w-0">
-          <p className="mb-2 text-sm font-semibold text-[#1f2f46]">{officialLabel}</p>
-          <div className="min-h-12 rounded-lg border border-[#d7e0ee] bg-white px-3 py-3 text-sm font-medium text-[#1f2f46]">
-            {row.officialValue}
-          </div>
-        </div>
-      </div>
+      <TableRow className="hover:bg-transparent">
+        <th
+          scope="row"
+          className="w-[56%] px-0 py-2 text-left align-top text-sm font-medium text-muted-foreground"
+        >
+          {officialLabel}
+        </th>
+        <TableCell
+          className={row.missing
+            ? "px-0 py-2 text-right align-top text-sm font-medium text-red-600"
+            : "px-0 py-2 text-right align-top text-sm font-medium text-foreground"}
+        >
+          <span className="whitespace-pre-wrap break-words">{row.officialValue}</span>
+        </TableCell>
+      </TableRow>
     );
   }
 
   return (
-    <div className="border-b border-border/50 py-4 last:border-0">
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="min-w-0">
-          <p className="mb-2 text-sm font-semibold text-[#1f2f46]">{sourceLabel}</p>
-          <div className="min-h-12 rounded-lg border border-[#e8e8e8] bg-white px-3 py-3 text-sm font-medium text-gray-800">
-            {row.sourceValue}
-          </div>
-        </div>
-        <div className="min-w-0">
-          <p className="mb-2 text-sm font-semibold text-[#1f2f46]">{officialLabel}</p>
-          <div className="min-h-12 rounded-lg border border-[#d7e0ee] bg-white px-3 py-3 text-sm font-medium text-[#1f2f46]">
-            {row.officialValue}
-          </div>
-        </div>
-      </div>
-    </div>
+    <TableRow className="hover:bg-transparent">
+      <th
+        scope="row"
+        className="w-[56%] px-0 py-2 text-left align-top font-normal"
+      >
+        <span className="block text-sm font-medium text-foreground">{sourceLabel}</span>
+        <span lang="en" className="mt-0.5 block text-sm leading-5 text-muted-foreground">
+          {officialLabel}
+        </span>
+      </th>
+      <TableCell className="px-0 py-2 text-right align-top">
+        <span className={row.missing
+          ? "block whitespace-pre-wrap break-words text-sm font-medium text-red-600"
+          : "block whitespace-pre-wrap break-words text-sm font-medium text-foreground"}
+        >
+          {row.sourceValue}
+        </span>
+        <span
+          lang="en"
+          className={row.missing
+            ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-red-600"
+            : "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-muted-foreground"}
+        >
+          {row.officialValue}
+        </span>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -106,16 +126,16 @@ export function BilingualReviewPanel({
     return (
       <div className="flex flex-col gap-3">
         <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-28 w-full" />
-        <Skeleton className="h-28 w-full" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-0">
       {error && (
-        <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="flex items-center gap-3 rounded-lg border border-[#e5e7eb] bg-white p-3">
           <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
           <p className="flex-1 text-sm text-amber-800">{error}</p>
           {onRetry && (
@@ -140,33 +160,35 @@ export function BilingualReviewPanel({
         </p>
       ) : (
         sections.map((section) => (
-          <div key={section.section} className="rounded-lg border border-border p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
+          <section key={section.section}>
+            <div className="flex min-h-8 items-center justify-between gap-3">
               <h3 className="font-heading text-sm font-semibold text-brand-500">
                 {section.section}
               </h3>
               {section.editStepIndex !== undefined && onEditSection ? (
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shrink-0 border-[#c9def6] bg-[#eef6ff] px-3 text-sm font-medium text-[#03346E] hover:bg-[#e2f0ff]"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 justify-end p-0 text-brand-500 hover:bg-brand-50 hover:text-brand-600"
                   onClick={() => onEditSection(section.editStepIndex!)}
+                  aria-label={isZh ? `修改${section.section}` : `Edit ${section.section}`}
                 >
-                  <Pencil className="mr-1 h-4 w-4" />
-                  {isZh ? "修改" : "Edit"}
+                  <Pencil className="h-4 w-4" />
                 </Button>
               ) : null}
             </div>
-            <div>
-              {section.rows.map((row) => (
-                <BilingualReviewRow
-                  key={row.fieldName}
-                  row={row}
-                />
-              ))}
-            </div>
-          </div>
+            <Table className="table-fixed">
+              <TableBody>
+                {section.rows.map((row) => (
+                  <BilingualReviewRow
+                    key={row.fieldName}
+                    row={row}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </section>
         ))
       )}
     </div>

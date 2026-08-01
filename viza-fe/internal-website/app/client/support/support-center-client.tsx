@@ -5,7 +5,6 @@ import { ChangeEvent, FormEvent, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
   ArrowRight,
-  Bot,
   CalendarClock,
   CheckCircle2,
   ClipboardList,
@@ -20,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createSupportTicket } from "@/app/actions/support";
+import { AiAssistIcon } from "@/components/ui/ai-assist-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -212,7 +212,7 @@ export function SupportCenterClient() {
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-white/20 bg-white/10 p-4">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-brand-500">
-              <Bot className="h-5 w-5" />
+              <AiAssistIcon className="h-5 w-5" />
             </span>
             <div className="space-y-1">
               <p className="font-semibold">{t("agent.cardTitle")}</p>
@@ -444,7 +444,7 @@ export function SupportCenterClient() {
                 <div className="flex-1 space-y-4 p-4 sm:p-6">
                   <div className="flex items-start gap-3">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                      <Bot className="h-4 w-4" />
+                      <AiAssistIcon />
                     </span>
                     <div className="max-w-3xl rounded-lg bg-muted px-4 py-3 text-sm leading-6 text-foreground">
                       {t("agent.greeting", { activity: selectedIssueTitle })}

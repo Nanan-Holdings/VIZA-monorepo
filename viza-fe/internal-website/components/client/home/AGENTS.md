@@ -4,9 +4,19 @@ Scope: this file applies to `viza-fe/internal-website/components/client/home/**`
 
 ## Purpose
 
-These components render the authenticated client home dashboard: plan entry,
-universal information progress, quick actions, destination browsing, application
-status cards, and recent activity.
+These components render the authenticated client home dashboard: the exact
+active visa package, universal information progress, quick actions, destination
+browsing, application status cards, and recent activity.
+
+## Dashboard Cards And Activity
+
+- `ActiveVisaCard.tsx` makes the exact localized visa package name the primary
+  home-card fact and links to that application's next step.
+- `UniversalInfoCard.tsx` shows reusable profile readiness without repeating a
+  field inventory or decorative icons.
+- `RecentActivitySection.tsx` uses the shared `.application-form-panel`
+  container and neutral black/gray row typography. Its generated editorial
+  thumbnails live under `public/images/home-activity/`.
 
 ## Destination Browsing
 

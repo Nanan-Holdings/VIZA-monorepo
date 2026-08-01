@@ -14,7 +14,14 @@ website state and externally ingested submission/result state.
 
 ## Key Responsibilities
 
-- Render `/client/status` as the canonical application status route.
+- Render `/client/status` as the canonical application status route. With no
+  selection param it is the merged **applications index**: the list of every
+  application (`applications-list.tsx`) plus the destination browser
+  (`add-destination-section.tsx`) that used to live at `/client/destinations`.
+  With `applicationId`, `packageId`, or `country` it renders the detail view.
+- Keep `/client/destinations` a redirect to this route. The regional pickers
+  under `/client/destinations/[region]` and `/client/destinations/schengen`
+  stay where they are — only the index merged.
 - Reuse `components/client/application/application-status-hub.tsx` where
   possible instead of building a second lifecycle UI.
 - Render live-assisted official-site checkpoints through

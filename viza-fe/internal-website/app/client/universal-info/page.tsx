@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { ArrowLeft, AtSign, CheckCircle2, CheckIcon, ChevronDown, Database, Loader2, MapPin, Phone, Save, ShieldCheck, User, WalletCards } from "lucide-react";
+import { ArrowLeft, AtSign, CheckCircle2, CheckIcon, ChevronDown, Database, Loader2, MapPin, Pencil, Phone, Save, ShieldCheck, User, WalletCards } from "lucide-react";
 import { CircleFlag } from "react-circle-flags";
 import { countries } from "country-data-list";
 import {
@@ -15,9 +15,9 @@ import {
   loadUniversalProfilePassportUploadStatus,
   loadUniversalProfileReusableDocumentStatuses,
 } from "@/app/client/documents/actions";
-import { SmoothProgressBar } from "@/components/smooth-progress";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { UniversalProfileDocumentsCarousel } from "@/components/client/universal-profile-documents-carousel";
+import { UniversalProfileExtendedEditor } from "@/components/client/universal-profile-extended-editor";
 import {
   BilingualCountryControl,
   BilingualDateControl,
@@ -90,17 +90,15 @@ interface UniversalProfileForm {
   wechat: string;
 }
 
-const BILINGUAL_PROFILE_FIELDS = [
-  "full_name",
-  "surname",
-  "given_names",
-  "place_of_birth",
-  "birth_province_or_state",
-  "birth_city",
-  "occupation",
-  "address",
-] as const;
-type BilingualProfileField = (typeof BILINGUAL_PROFILE_FIELDS)[number];
+type BilingualProfileField =
+  | "full_name"
+  | "surname"
+  | "given_names"
+  | "place_of_birth"
+  | "birth_province_or_state"
+  | "birth_city"
+  | "occupation"
+  | "address";
 type BilingualProfileColumn = `${BilingualProfileField}_zh` | `${BilingualProfileField}_en`;
 
 const TRANSLATABLE_PROFILE_FIELDS = ["birth_province_or_state", "birth_city", "occupation", "address"] as const;
@@ -143,7 +141,7 @@ interface PhoneNumberRule {
 
 type BilingualProfileState = Record<BilingualProfileField, BilingualTextValue>;
 type UniversalProfileRow = Partial<UniversalProfileForm> & Partial<Record<BilingualProfileColumn, string | null>>;
-type UniversalProfileDirtyField = keyof UniversalProfileSnapshot | "wechat";
+type UniversalProfileDirtyField = Exclude<keyof UniversalProfileSnapshot, "reusable_answers"> | "wechat";
 
 const EMPTY_FORM: UniversalProfileForm = {
   full_name: "",
@@ -184,26 +182,6 @@ const EMPTY_PASSPORT_UPLOAD: PassportUploadState = {
   status: null,
   updatedAt: null,
 };
-
-const PROFILE_FIELDS: Array<keyof UniversalProfileForm> = [
-  "surname",
-  "given_names",
-  "date_of_birth",
-  "birth_country",
-  "birth_province_or_state",
-  "birth_city",
-  "gender",
-  "nationality",
-  "occupation",
-  "address",
-  "passport_number",
-  "passport_issue_date",
-  "passport_expiry_date",
-  "passport_issuing_country",
-  "email",
-  "phone",
-  "wechat",
-];
 
 const GENDER_OPTIONS: BilingualOptionPair[] = [
   { code: "M", zh: "男", en: "Male" },
@@ -753,28 +731,60 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 function ProfileBilingualRow({
+  isZh,
+  fieldKey,
   zhLabel,
   enLabel,
+  sourceValue,
+  officialValue,
+  editing,
+  onEdit,
   zhControl,
   enControl,
   footer,
 }: {
+  isZh: boolean;
+  fieldKey: string;
   zhLabel: string;
   enLabel: string;
+  sourceValue: string;
+  officialValue: string;
+  editing: boolean;
+  onEdit: (fieldKey: string) => void;
   zhControl: React.ReactNode;
   enControl: React.ReactNode;
   footer?: React.ReactNode;
 }) {
+  const hasValue = Boolean(sourceValue.trim() || officialValue.trim());
+  if (hasValue && !editing) {
+    return (
+      <div className="flex min-w-0 items-start justify-between gap-4 px-0 py-3 sm:px-2">
+        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,56%)_minmax(0,44%)] gap-3">
+          <div className="min-w-0">
+            <span className="block text-sm font-medium text-foreground">{isZh ? zhLabel : enLabel}</span>
+            {isZh ? <span lang="en" className="mt-0.5 block text-sm leading-5 text-muted-foreground">{enLabel}</span> : null}
+          </div>
+          <div className="min-w-0 text-right">
+            <span className="block whitespace-pre-wrap break-words text-sm font-medium text-foreground">{isZh ? sourceValue || officialValue : officialValue || sourceValue}</span>
+            {isZh ? <span lang="en" className="mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-muted-foreground">{officialValue || sourceValue}</span> : null}
+          </div>
+        </div>
+        <button type="button" onClick={() => onEdit(fieldKey)} className="mt-0.5 shrink-0 text-brand-500 hover:text-brand-600" aria-label={isZh ? `修改${zhLabel}` : `Edit ${enLabel}`}>
+          <Pencil className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="grid min-w-0 gap-4 px-0 py-4 sm:px-2 md:grid-cols-2">
-      <div className="min-w-0">
+      {isZh ? <div className="min-w-0">
         <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">{zhLabel}</span>
         {zhControl}
-      </div>
-      <div className="min-w-0">
+      </div> : null}
+      {!isZh ? <div className="min-w-0 md:col-span-2">
         <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">{enLabel}</span>
         {enControl}
-      </div>
+      </div> : null}
       {footer ? <div className="min-w-0 md:col-span-2">{footer}</div> : null}
     </div>
   );
@@ -1045,25 +1055,23 @@ export default function UniversalInfoPage() {
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dirtyProfileFields, setDirtyProfileFields] = useState<Set<UniversalProfileDirtyField>>(() => new Set());
+  const [editingProfileFields, setEditingProfileFields] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("viza:live-save-status", {
+      detail: { status: isSaving ? "saving" : "saved" },
+    }));
+  }, [isSaving]);
+
+  useEffect(() => () => {
+    window.dispatchEvent(new CustomEvent("viza:live-save-status", {
+      detail: { status: "saved" },
+    }));
+  }, []);
 
   bilingualFormRef.current = bilingualForm;
   manualEnglishFieldsRef.current = manualEnglishFields;
 
-  const completedProfileFieldCount = useMemo(() => {
-    return PROFILE_FIELDS.filter((field) => {
-      if (BILINGUAL_PROFILE_FIELDS.includes(field as BilingualProfileField)) {
-        const bilingualValue = bilingualForm[field as BilingualProfileField];
-        return Boolean(bilingualValue.zh.trim() || bilingualValue.en.trim());
-      }
-      return Boolean(form[field].trim());
-    }).length;
-  }, [bilingualForm, form]);
-  const completedCount = completedProfileFieldCount
-    + (passportUpload.uploaded ? 1 : 0)
-    + (photoUpload.uploaded ? 1 : 0)
-    + (signatureUpload.uploaded ? 1 : 0);
-  const completionTotal = PROFILE_FIELDS.length + 3;
-  const completionPercent = Math.round((completedCount / completionTotal) * 100);
   const phoneParts = useMemo(
     () => splitPhoneValue(form.phone, phoneCountryCode),
     [form.phone, phoneCountryCode],
@@ -1640,6 +1648,7 @@ export default function UniversalInfoPage() {
         setBilingualForm(viewState.bilingualForm);
       }
       setDirtyProfileFields(new Set());
+      setEditingProfileFields(new Set());
       setMessage(
         isZh
           ? "已保存通用资料。"
@@ -1661,6 +1670,20 @@ export default function UniversalInfoPage() {
     }
   }
 
+  function editProfileField(fieldKey: string) {
+    setEditingProfileFields((current) => new Set(current).add(fieldKey));
+  }
+
+  function profileReviewProps(fieldKey: string, sourceValue: string, officialValue: string) {
+    return {
+      fieldKey,
+      sourceValue,
+      officialValue,
+      editing: editingProfileFields.has(fieldKey),
+      onEdit: editProfileField,
+    };
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-[#fcfcfc]">
@@ -1673,7 +1696,7 @@ export default function UniversalInfoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] pb-16 pt-8">
+    <div className="min-h-screen pb-16 pt-8">
       <main className="mx-auto flex w-full max-w-[1080px] flex-col gap-6">
         <Link
           href="/client/home"
@@ -1683,42 +1706,27 @@ export default function UniversalInfoPage() {
           {copy(isZh, "返回首页", "Back home")}
         </Link>
 
-        <section className="overflow-hidden rounded-[18px] border border-[#e7edf5] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
-          <div className="flex flex-col gap-5 border-b border-[#edf2f7] bg-[#f5f9ff] p-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-4">
-              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#03346E] text-white">
+        <div className="flex flex-col gap-6">
+          <section className="rounded-xl border border-[#efefef] bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-4">
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
                 <Database className="h-5 w-5" />
               </span>
-              <div>
-                <h1 className="font-heading text-[28px] font-medium leading-tight text-[#2f2f2f] sm:text-[34px]">
-                  {copy(isZh, "通用资料", "Universal profile")}
-                </h1>
-                <p className="mt-2 max-w-2xl text-[15px] leading-6 text-[#667085]">
-                  {copy(
-                    isZh,
-                    "保存你反复会填到的姓名、生日、出生地、护照和联系方式。以后进入相似签证表单时，系统会优先用这里的信息自动预填。",
-                    "Save the name, birthday, birthplace, passport, and contact details you reuse. Similar visa forms can use this profile for prefilling.",
-                  )}
-                </p>
-              </div>
+              <h1 className="font-heading text-[26px] font-medium leading-tight text-[#2f2f2f] sm:text-[34px]">
+                {copy(isZh, "通用资料", "Universal profile")}
+              </h1>
             </div>
-            <div className="min-w-[180px] rounded-[14px] border border-[#d7e3f2] bg-white p-4">
-              <SmoothProgressBar
-                displayedProgress={completionPercent}
-                label={copy(isZh, "完整度", "Completeness")}
-                labelClassName="text-[13px] font-medium text-[#526174]"
-                trackClassName="bg-[#edf2f7]"
-              />
-              <p className="mt-2 text-[12px] text-[#667085]">
-                {isZh
-                  ? `${completedCount}/${completionTotal} 项已保存`
-                  : `${completedCount}/${completionTotal} saved`}
-              </p>
-            </div>
-          </div>
+            <p className="mt-4 max-w-3xl text-[15px] leading-6 text-[#667085]">
+              {copy(
+                isZh,
+                "集中保存未来申请会重复使用的身份、家庭、护照、住址、工作教育和过往签证资料。每次申请完成后，可在审核页把新资料更新到这里。",
+                "Keep reusable identity, family, passport, address, work, education, and visa-history information in one place. Update it with new facts from each application's Review tab.",
+              )}
+            </p>
+          </section>
 
-          <div className="grid gap-0 divide-y divide-[#edf2f7]">
-            <section className="p-6">
+          <div className="contents">
+            <section className="contents">
               <UniversalProfileDocumentsCarousel
                 applicationId={passportOcrApplicationId}
                 passport={passportUpload}
@@ -1739,10 +1747,10 @@ export default function UniversalInfoPage() {
               />
             </section>
 
-            <section className="p-6">
+            <section className="rounded-xl border border-[#efefef] bg-white p-6 shadow-sm">
               <SectionTitle>{copy(isZh, "基本身份信息", "Basic identity information")}</SectionTitle>
               <div className="mt-3 divide-y divide-[#eef1f5]">
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("surname", bilingualForm.surname.zh, bilingualForm.surname.en)}
                   zhLabel="姓氏"
                   enLabel="Surname"
                   zhControl={
@@ -1764,7 +1772,7 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("given_names", bilingualForm.given_names.zh, bilingualForm.given_names.en)}
                   zhLabel="名字"
                   enLabel="Given names"
                   zhControl={
@@ -1786,7 +1794,7 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("date_of_birth", form.date_of_birth, form.date_of_birth)}
                   zhLabel="出生日期"
                   enLabel="Date of birth"
                   zhControl={
@@ -1806,7 +1814,7 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("birth_country", countryChineseName(form.birth_country), countryEnglishName(form.birth_country))}
                   zhLabel="出生国家"
                   enLabel="Country of birth"
                   zhControl={
@@ -1832,7 +1840,7 @@ export default function UniversalInfoPage() {
                     </div>
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("birth_province_or_state", bilingualForm.birth_province_or_state.zh, bilingualForm.birth_province_or_state.en)}
                   zhLabel="出生省/州"
                   enLabel="State/Province of birth"
                   zhControl={
@@ -1889,7 +1897,7 @@ export default function UniversalInfoPage() {
                     />
                   )}
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("birth_city", bilingualForm.birth_city.zh, bilingualForm.birth_city.en)}
                   zhLabel="出生城市"
                   enLabel="City of birth"
                   zhControl={
@@ -1946,7 +1954,7 @@ export default function UniversalInfoPage() {
                     />
                   )}
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("gender", findBilingualOption(GENDER_OPTIONS, form.gender)?.zh ?? form.gender, findBilingualOption(GENDER_OPTIONS, form.gender)?.en ?? form.gender)}
                   zhLabel="性别"
                   enLabel="Gender"
                   zhControl={
@@ -1970,7 +1978,7 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("nationality", countryChineseName(form.nationality), countryEnglishName(form.nationality))}
                   zhLabel="国籍"
                   enLabel="Nationality"
                   zhControl={
@@ -1992,7 +2000,7 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("occupation", bilingualForm.occupation.zh, bilingualForm.occupation.en)}
                   zhLabel="职业"
                   enLabel="Occupation"
                   zhControl={
@@ -2028,10 +2036,10 @@ export default function UniversalInfoPage() {
               </div>
             </section>
 
-            <section className="p-6">
+            <section className="rounded-xl border border-[#efefef] bg-white p-6 shadow-sm">
               <SectionTitle>{copy(isZh, "护照信息", "Passport information")}</SectionTitle>
               <div className="mt-3 divide-y divide-[#eef1f5]">
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("passport_number", form.passport_number, form.passport_number)}
                   zhLabel="护照号码"
                   enLabel="Passport number"
                   zhControl={
@@ -2053,7 +2061,7 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("passport_issuing_country", countryChineseName(form.passport_issuing_country), countryEnglishName(form.passport_issuing_country))}
                   zhLabel="签发国家"
                   enLabel="Issuing country"
                   zhControl={
@@ -2075,7 +2083,7 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("passport_issue_date", form.passport_issue_date, form.passport_issue_date)}
                   zhLabel="签发日期"
                   enLabel="Issue date"
                   zhControl={
@@ -2095,7 +2103,7 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("passport_expiry_date", form.passport_expiry_date, form.passport_expiry_date)}
                   zhLabel="有效期至"
                   enLabel="Expiry date"
                   zhControl={
@@ -2118,10 +2126,10 @@ export default function UniversalInfoPage() {
               </div>
             </section>
 
-            <section className="p-6">
+            <section className="rounded-xl border border-[#efefef] bg-white p-6 shadow-sm">
               <SectionTitle>{copy(isZh, "联系方式", "Contact information")}</SectionTitle>
               <div className="mt-3 divide-y divide-[#eef1f5]">
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("email", form.email, form.email)}
                   zhLabel="电子邮箱"
                   enLabel="Email"
                   zhControl={
@@ -2143,7 +2151,7 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("phone", form.phone, form.phone)}
                   zhLabel="手机号"
                   enLabel="Phone number"
                   zhControl={
@@ -2176,7 +2184,7 @@ export default function UniversalInfoPage() {
                     </p>
                   ) : null}
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("wechat", form.wechat, form.wechat)}
                   zhLabel="微信"
                   enLabel="WeChat"
                   zhControl={
@@ -2198,7 +2206,7 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <ProfileBilingualRow
+                <ProfileBilingualRow isZh={isZh} {...profileReviewProps("address", bilingualForm.address.zh, bilingualForm.address.en)}
                   zhLabel="常住地址"
                   enLabel="Residential address"
                   zhControl={
@@ -2233,7 +2241,9 @@ export default function UniversalInfoPage() {
             </section>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-[#edf2f7] bg-white p-6 sm:flex-row sm:items-center sm:justify-between">
+          <UniversalProfileExtendedEditor />
+
+          <section className="flex flex-col gap-3 rounded-xl border border-[#efefef] bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div className="min-h-6">
               {message && (
                 <p className="inline-flex items-center gap-2 text-[14px] font-medium text-green-700">
@@ -2259,8 +2269,8 @@ export default function UniversalInfoPage() {
               <Save className="h-4 w-4" />
               {copy(isZh, "保存通用资料", "Save profile")}
             </BrandActionButton>
-          </div>
-        </section>
+          </section>
+        </div>
       </main>
     </div>
   );

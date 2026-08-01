@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -8,9 +9,11 @@ import {
   CheckCircle2,
   Loader2,
   Plus,
+  Settings2,
   Trash2,
   UserRound,
 } from "lucide-react";
+import { BrandActionButton } from "@/components/client/brand-action-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,12 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -142,7 +139,6 @@ export function TeamStep({
   const [frequentTravelers, setFrequentTravelers] = useState<FrequentTravelerSummary[]>([]);
   const [notice, setNotice] = useState<TeamStepNotice | null>(initialNotice ?? null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"frequent" | "custom">("frequent");
   const [form, setForm] = useState<FrequentTravelerInput>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -153,6 +149,10 @@ export function TeamStep({
   const sortedFrequent = useMemo(
     () => [...frequentTravelers].sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")),
     [frequentTravelers],
+  );
+  const companionProfileIds = useMemo(
+    () => new Set(companions.map((companion) => companion.applicantId)),
+    [companions],
   );
 
   useEffect(() => {
@@ -264,11 +264,8 @@ export function TeamStep({
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <header className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold text-foreground sm:text-2xl">{t("title")}</h2>
-        <p className="text-sm text-muted-foreground sm:text-base">{t("subtitle")}</p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <p className="text-sm leading-6 text-muted-foreground sm:text-base">{t("subtitle")}</p>
 
       {notice ? (
         <div
@@ -284,15 +281,78 @@ export function TeamStep({
         </div>
       ) : null}
 
-      <div className="rounded-xl border bg-white p-4 shadow-sm sm:p-5">
+      <section className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">{t("savedProfilesTitle")}</h3>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{t("savedProfilesSubtitle")}</p>
+          </div>
+          <Link
+            href="/client/settings/travelers"
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-brand-500 px-4 text-sm font-medium text-brand-500 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+          >
+            <Settings2 className="h-4 w-4" />
+            {t("manageProfiles")}
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="flex min-h-24 items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            {t("loadingProfiles")}
+          </div>
+        ) : sortedFrequent.length > 0 ? (
+          <div className="divide-y border-y border-border/70">
+            {sortedFrequent.map((traveler) => {
+              const alreadyAdded = companionProfileIds.has(traveler.id);
+              return (
+                <button
+                  key={traveler.id}
+                  type="button"
+                  onClick={() => handleCreateFromTraveler(traveler.id)}
+                  className="flex w-full items-center gap-3 px-1 py-4 text-left transition-colors hover:bg-brand-50/60 disabled:cursor-default disabled:opacity-70 disabled:hover:bg-transparent"
+                  disabled={creating || alreadyAdded}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+                    <UserRound className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">{traveler.fullName}</span>
+                    <span className="mt-1 block truncate text-xs text-muted-foreground">
+                      {traveler.nationality || tTravelers("notSet")} · {obfuscatePassport(traveler.passportNumber) || tTravelers("notSet")}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-brand-500">
+                    {alreadyAdded ? t("profileAdded") : t("selectProfile")}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-muted/40 px-4 py-5 text-center">
+            <p className="text-sm text-muted-foreground">{t("dialog.noFrequent")}</p>
+            <Button
+              type="button"
+              variant="link"
+              className="mt-1 h-auto p-0 text-brand-500"
+              onClick={() => setDialogOpen(true)}
+            >
+              {t("addFirstProfile")}
+            </Button>
+          </div>
+        )}
+      </section>
+
+      <section className="border-t border-border/70 pt-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-base font-semibold text-foreground">{t("listTitle")}</h3>
             <p className="mt-1 text-sm text-muted-foreground">{t("listSubtitle")}</p>
           </div>
-          <Button type="button" className="h-10 rounded-full" onClick={() => setDialogOpen(true)}>
+          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4" />
-            {t("add")}
+            {t("addNew")}
           </Button>
         </div>
 
@@ -302,9 +362,9 @@ export function TeamStep({
             {t("loading")}
           </div>
         ) : hasCompanions ? (
-          <div className="mt-5 divide-y">
+          <div className="mt-5 divide-y border-y border-border/70">
             {companions.map((companion) => (
-              <div key={companion.applicationId} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div key={companion.applicationId} className="flex flex-col gap-3 px-1 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-50 text-brand-600">
                     <UserRound className="h-5 w-5" />
@@ -368,7 +428,7 @@ export function TeamStep({
             ))}
           </div>
         ) : (
-          <div className="mt-6 flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 px-4 py-6 text-center">
+          <div className="mt-5 flex flex-col items-center gap-3 bg-muted/40 px-4 py-6 text-center">
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600">
               <UserRound className="h-5 w-5" />
             </span>
@@ -378,21 +438,23 @@ export function TeamStep({
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-brand-100 bg-brand-50 p-4 text-sm text-brand-800">
+      <div className="flex flex-col gap-4 border-t border-border/70 pt-5">
         <div className="flex items-start gap-2">
-          <AlertCircle className="mt-0.5 h-4 w-4" />
-          <p>{t("hint")}</p>
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+          <p className="text-sm leading-6 text-muted-foreground">{t("hint")}</p>
         </div>
-        <Button
+        <BrandActionButton
           type="button"
-          className="h-11 rounded-full bg-brand-500 text-white hover:bg-brand-600"
+          className="w-full"
           onClick={onSubmit}
-          disabled={submitting || !applicationId}
+          disabled={!applicationId}
+          loading={submitting}
+          loadingText={t("submitting")}
         >
-          {submitting ? t("submitting") : submitLabel}
-        </Button>
+          {submitLabel}
+        </BrandActionButton>
       </div>
 
       <Dialog
@@ -414,69 +476,30 @@ export function TeamStep({
             </div>
           ) : null}
 
-          <Tabs value={activeTab} onValueChange={(next) => setActiveTab(next as "frequent" | "custom")}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="frequent">{t("dialog.tabs.frequent")}</TabsTrigger>
-              <TabsTrigger value="custom">{t("dialog.tabs.custom")}</TabsTrigger>
-            </TabsList>
+          <FrequentTravelerProfileFields value={form} onFieldChange={updateField} />
 
-            <TabsContent value="frequent" className="mt-4 space-y-3">
-              {sortedFrequent.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-                  {t("dialog.noFrequent")}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {sortedFrequent.map((traveler) => (
-                    <button
-                      key={traveler.id}
-                      type="button"
-                      onClick={() => handleCreateFromTraveler(traveler.id)}
-                      className="w-full rounded-lg border border-border/60 bg-white p-4 text-left transition hover:border-brand-200 hover:bg-brand-50"
-                      disabled={creating}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{traveler.fullName}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {traveler.nationality || tTravelers("notSet")} | {obfuscatePassport(traveler.passportNumber) || tTravelers("notSet")}
-                          </p>
-                        </div>
-                        <span className="text-xs font-semibold text-brand-500">{t("dialog.select")}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="custom" className="mt-4 space-y-4">
-              <FrequentTravelerProfileFields value={form} onFieldChange={updateField} />
-
-              <DialogFooter className="sm:justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-10 rounded-full"
-                  onClick={() => {
-                    resetForm();
-                    setDialogOpen(false);
-                  }}
-                >
-                  {t("dialog.cancel")}
-                </Button>
-                <Button
-                  type="button"
-                  className="h-10 rounded-full"
-                  onClick={handleCreateFromCustom}
-                  disabled={creating}
-                >
-                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {t("dialog.save")}
-                </Button>
-              </DialogFooter>
-            </TabsContent>
-          </Tabs>
+          <DialogFooter className="sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-full"
+              onClick={() => {
+                resetForm();
+                setDialogOpen(false);
+              }}
+            >
+              {t("dialog.cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="h-10 rounded-full"
+              onClick={handleCreateFromCustom}
+              disabled={creating}
+            >
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {t("dialog.save")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

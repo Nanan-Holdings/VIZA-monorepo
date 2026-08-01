@@ -364,13 +364,13 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     countryName: "Japan",
     countryNameZh: "日本",
     visaType: "short_term_tourism_evisa",
-    visaName: "Short-Term eVisa / Visit Japan Web",
-    visaNameZh: "短期电子签证 / Visit Japan Web",
+    visaName: "Tourist Visa (Short-Term Stay)",
+    visaNameZh: "短期停留旅游签证",
     description: "Japan eVISA or consular intake plus Visit Japan Web entry and customs preparation.",
     descriptionZh: "适合日本电子签证或领馆路径，并准备 Visit Japan Web 入境和海关资料。",
     flag: "🇯🇵",
     region: "Asia",
-    searchAliases: ["Japan eVISA", "Visit Japan Web", "VJW"],
+    searchAliases: ["Japan eVISA", "Visit Japan Web", "VJW", "JP_TOURIST"],
   }),
   destination({
     country: "jordan",
@@ -980,6 +980,51 @@ export const SEARCHABLE_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestin
   ...DESTINATION_REGION_GROUP_DESTINATIONS,
 ]);
 
+export type VisaDestinationCountryGroup = {
+  /** Internal country code, unique across the catalogue. */
+  key: string;
+  countryName: string;
+  countryNameZh: string;
+  flag: string;
+  region: string;
+  /** Visa categories offered for this country, in catalogue order. */
+  destinations: PopularVisaDestination[];
+};
+
+/**
+ * Country-level view of the catalogue: one entry per country with its visa
+ * categories nested. Used by the "add a destination" browser on
+ * `/client/status`, which shows a card per country rather than per package.
+ *
+ * The 29 Schengen main-destination countries collapse into the single
+ * `SCHENGEN_GROUP_DESTINATION` entry — picking Schengen drills into
+ * `/client/destinations/schengen` to choose the main destination first.
+ */
+export const VISA_DESTINATION_COUNTRY_GROUPS: VisaDestinationCountryGroup[] = (() => {
+  const groups = new Map<string, VisaDestinationCountryGroup>();
+  for (const destinationItem of [...NON_SCHENGEN_VISA_DESTINATIONS, SCHENGEN_GROUP_DESTINATION]) {
+    const existing = groups.get(destinationItem.country);
+    if (existing) {
+      existing.destinations.push(destinationItem);
+      continue;
+    }
+    groups.set(destinationItem.country, {
+      key: destinationItem.country,
+      countryName: destinationItem.countryName,
+      countryNameZh: destinationItem.countryNameZh,
+      flag: destinationItem.flag,
+      region: destinationItem.region,
+      destinations: [destinationItem],
+    });
+  }
+  return [...groups.values()].sort((a, b) => a.countryName.localeCompare(b.countryName, "en"));
+})();
+
+/** Regions that have at least one country card, in catalogue order. */
+export const VISA_DESTINATION_COUNTRY_REGIONS: string[] = [
+  ...new Set(VISA_DESTINATION_COUNTRY_GROUPS.map((group) => group.region)),
+].sort((a, b) => a.localeCompare(b, "en"));
+
 const COUNTRY_FLAGS = new Map(
   SELECTABLE_VISA_DESTINATIONS.map((destinationItem) => [
     destinationItem.country,
@@ -1014,7 +1059,8 @@ const VISA_TYPE_LABELS: Record<string, string> = {
   visitor_visa: "Visitor Visa",
   evisa_tourism: "Tourist eVisa",
   tourist_evisa: "Tourist eVisa",
-  short_term_tourism_evisa: "Short-Term Tourism eVisa",
+  short_term_tourism_evisa: "Tourist Visa (Short-Term Stay)",
+  JP_TOURIST: "Tourist Visa (Short-Term Stay)",
   regular_tourist_visa: "Tourist Visa",
   visa_exemption_or_evisa_tourism: "Tourism Entry / eVisa",
   tourist_visa_on_arrival: "Tourist Visa on Arrival",
@@ -1064,7 +1110,8 @@ const VISA_TYPE_LABELS_ZH: Record<string, string> = {
   visitor_visa: "访客签证",
   evisa_tourism: "旅游电子签证",
   tourist_evisa: "旅游电子签证",
-  short_term_tourism_evisa: "短期旅游电子签证",
+  short_term_tourism_evisa: "短期停留旅游签证",
+  JP_TOURIST: "短期停留旅游签证",
   regular_tourist_visa: "旅游签证",
   visa_exemption_or_evisa_tourism: "旅游入境 / 电子签证",
   tourist_visa_on_arrival: "旅游落地签",

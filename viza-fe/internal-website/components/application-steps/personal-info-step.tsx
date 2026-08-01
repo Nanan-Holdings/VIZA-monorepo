@@ -2,32 +2,18 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CalendarDays, CheckIcon, ChevronDown, Globe, MapPin, User } from "lucide-react";
-import { CircleFlag } from "react-circle-flags";
+import { MapPin, User } from "lucide-react";
 import { countries } from "country-data-list";
 import countryRegionData from "country-region-data/data.json";
 import { BrandActionButton } from "@/components/client/brand-action-button";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
+import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
+import { ApplicationSearchableSelect } from "@/components/ui/application-form-select";
+import { CountryDropdown } from "@/components/ui/country-dropdown";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn, matchesSearchText } from "@/lib/utils";
 import {
   BilingualFieldCopilot,
   getBilingualRowLabels,
@@ -350,18 +336,6 @@ function translateEnText(value: string) {
   return REVERSE_TRANSLATIONS[normalizeLookup(trimmed)] ?? trimmed;
 }
 
-function formatChineseDate(isoValue: string) {
-  if (!isoValue) return "";
-  const [year, month, day] = isoValue.split("-");
-  return `${year}年${Number(month)}月${Number(day)}日`;
-}
-
-function formatOfficialDate(isoValue: string) {
-  if (!isoValue) return "";
-  const [year, month, day] = isoValue.split("-");
-  return `${day}/${month}/${year}`;
-}
-
 function toInitialTextValue(field: TextFieldKey, value?: string): BilingualTextValue {
   const officialValue = value ?? "";
   if (!officialValue) return { zh: "", en: "" };
@@ -452,7 +426,7 @@ function TextControl({
   onChange: (value: string) => void;
 }) {
   return (
-    <InputGroup className="h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E]">
+    <ApplicationFormInputGroup className="h-12" filled={Boolean(value)}>
       <InputGroupAddon align="inline-start">
         <User className="h-4 w-4 text-gray-400" />
       </InputGroupAddon>
@@ -464,7 +438,7 @@ function TextControl({
         required={required}
         className="h-12 text-[15px]"
       />
-    </InputGroup>
+    </ApplicationFormInputGroup>
   );
 }
 
@@ -487,77 +461,24 @@ function OptionControl({
   icon?: ReactNode;
   onChange: (value: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const selectedOption = findOption(options, value);
   const resolvedSearchPlaceholder = searchPlaceholder ?? (side === "zh" ? "搜索选项..." : "Search options...");
   const resolvedEmptyText = emptyText ?? (side === "zh" ? "未找到选项" : "No option found.");
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        type="button"
-        className="flex h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] bg-transparent px-3 text-left text-[15px] font-normal shadow-xs hover:bg-transparent focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]"
-      >
-        <div
-          className={cn(
-            "flex min-w-0 items-center gap-2",
-            selectedOption ? "text-[#1f2f46]" : "text-muted-foreground",
-          )}
-        >
-          {icon ? <span className="shrink-0 text-gray-400">{icon}</span> : null}
-          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-            {selectedOption ? (side === "zh" ? selectedOption.zh : selectedOption.en) : placeholder}
-          </span>
-        </div>
-        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-      </PopoverTrigger>
-      <PopoverContent
-        collisionPadding={10}
-        side="bottom"
-        align="start"
-        className="min-w-[--radix-popper-anchor-width] p-0"
-      >
-        <Command
-          className="w-full"
-          filter={(commandValue, search, keywords) => {
-            return matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0;
-          }}
-        >
-          <CommandInput placeholder={resolvedSearchPlaceholder} />
-          <CommandList className="max-h-[200px] sm:max-h-[260px]">
-            <CommandEmpty>{resolvedEmptyText}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  className="flex w-full items-center gap-2 [&_svg]:size-auto"
-                  key={`${side}-${option.code}`}
-                  value={option.code}
-                  keywords={[option.zh, option.en, option.code]}
-                  onSelect={() => {
-                    onChange(option.code);
-                    setOpen(false);
-                  }}
-                >
-                  {icon ? <span className="shrink-0 text-gray-400">{icon}</span> : null}
-                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                    {side === "zh" ? option.zh : option.en}
-                  </span>
-                  <span className="hidden shrink-0 text-xs text-gray-400 sm:inline">
-                    {side === "zh" ? option.en : option.zh}
-                  </span>
-                  <CheckIcon
-                    className={cn(
-                      "ml-auto !h-4 !w-4 shrink-0",
-                      selectedOption?.code === option.code ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <ApplicationSearchableSelect
+      value={value}
+      onValueChange={onChange}
+      options={options.map((option) => ({
+        value: option.code,
+        text: side === "zh" ? option.zh : option.en,
+        searchText: `${option.zh} ${option.en}`,
+      }))}
+      placeholder={placeholder}
+      sideLocale={side}
+      searchPlaceholder={resolvedSearchPlaceholder}
+      emptyText={resolvedEmptyText}
+      leadingIcon={icon}
+    />
   );
 }
 
@@ -572,77 +493,13 @@ function CountryOptionControl({
   placeholder: string;
   onChange: (value: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const selectedOption = findOption(COUNTRY_OPTIONS, value);
-  const emptyText = side === "zh" ? "未找到国家" : "No country found.";
-  const searchPlaceholder = side === "zh" ? "搜索国家..." : "Search country...";
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        className="flex h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] bg-transparent px-3 text-[15px] font-normal shadow-xs hover:bg-transparent focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]"
-      >
-        {selectedOption ? (
-          <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full">
-              <CircleFlag countryCode={selectedOption.code.toLowerCase()} height={20} />
-            </span>
-            <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-              {side === "zh" ? selectedOption.zh : selectedOption.en}
-            </span>
-          </div>
-        ) : (
-          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-            <Globe className="h-4 w-4 shrink-0 text-gray-400" />
-            <span className="overflow-hidden text-ellipsis whitespace-nowrap">{placeholder}</span>
-          </div>
-        )}
-        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-      </PopoverTrigger>
-      <PopoverContent collisionPadding={10} side="bottom" className="min-w-[--radix-popper-anchor-width] p-0">
-        <Command
-          className="w-full"
-          filter={(commandValue, search, keywords) => {
-            return matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0;
-          }}
-        >
-          <CommandInput placeholder={searchPlaceholder} />
-          <CommandList className="max-h-[200px] sm:max-h-[270px]">
-            <CommandEmpty>{emptyText}</CommandEmpty>
-            <CommandGroup>
-              {COUNTRY_OPTIONS.map((option) => (
-                <CommandItem
-                  className="flex w-full items-center gap-2 [&_svg]:size-auto"
-                  key={`${side}-${option.code}`}
-                  value={option.code}
-                  keywords={[option.zh, option.en, option.code]}
-                  onSelect={() => {
-                    onChange(option.code);
-                    setOpen(false);
-                  }}
-                >
-                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full">
-                    <CircleFlag countryCode={option.code.toLowerCase()} height={20} />
-                  </span>
-                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                    {side === "zh" ? option.zh : option.en}
-                  </span>
-                  <span className="hidden shrink-0 text-xs text-gray-400 sm:inline">
-                    {side === "zh" ? option.en : option.zh}
-                  </span>
-                  <CheckIcon
-                    className={cn(
-                      "ml-auto !h-4 !w-4 shrink-0",
-                      selectedOption?.code === option.code ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <CountryDropdown
+      defaultValue={value}
+      placeholder={placeholder}
+      displayLocale={side}
+      onChange={(country) => onChange(country.alpha2)}
+    />
   );
 }
 
@@ -657,41 +514,14 @@ function BilingualDateControl({
   placeholder: string;
   onChange: (value: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const selectedDate = value ? new Date(`${value}T00:00:00`) : undefined;
-  const displayValue = side === "zh" ? formatChineseDate(value) : formatOfficialDate(value);
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-12 w-full justify-start rounded-lg border-[#e8e8e8] bg-transparent text-left text-[15px] font-normal shadow-xs hover:bg-transparent focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]"
-        >
-          <CalendarDays className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
-          {displayValue || <span className="text-muted-foreground">{placeholder}</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          defaultMonth={selectedDate}
-          onSelect={(date) => {
-            if (!date) return;
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            onChange(`${year}-${month}-${day}`);
-            setOpen(false);
-          }}
-          captionLayout="dropdown"
-          startMonth={new Date(1920, 0)}
-          endMonth={new Date(2036, 11)}
-        />
-      </PopoverContent>
-    </Popover>
+    <ApplicationFormDatePicker
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      displayLocale={side}
+      displayFormat={side === "zh" ? "yyyy年M月d日" : "dd/MM/yyyy"}
+    />
   );
 }
 

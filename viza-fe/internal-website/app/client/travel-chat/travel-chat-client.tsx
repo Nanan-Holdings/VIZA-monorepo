@@ -822,7 +822,7 @@ function createInitialTravelMessages(
         },
         {
           type: "destination_cards",
-          cards: createFeaturedDestinationCards(),
+          cards: createFeaturedDestinationCards(locale),
         },
         {
           type: "quick_replies",
@@ -1136,13 +1136,16 @@ function normalizeSavedGooglePlaces(
   }));
 }
 
-function createSessionTitle(messages: TravelChatMessage[]): string {
+function createSessionTitle(
+  messages: TravelChatMessage[],
+  locale: InterfaceLocale
+): string {
   const firstUserMessage = messages.find((message) => message.role === "user");
   const visibleText = firstUserMessage
     ? getVisibleMessageText(firstUserMessage).replace(/\s+/g, " ").trim()
     : "";
 
-  if (!visibleText) return "新的旅行对话";
+  if (!visibleText) return locale === "zh" ? "新的旅行对话" : "New travel chat";
   return visibleText.length > 22
     ? `${visibleText.slice(0, 22)}...`
     : visibleText;
@@ -1225,7 +1228,8 @@ function getLatestToolItineraryMessageId(
 }
 
 function normalizeTravelChatSession(
-  session: TravelChatSession
+  session: TravelChatSession,
+  locale: InterfaceLocale = "en"
 ): TravelChatSession {
   const manualTitle = session.customTitle ? session.title.trim() : "";
   const versions = (session.versions ?? [])
@@ -1290,7 +1294,7 @@ function normalizeTravelChatSession(
 
   return {
     ...session,
-    title: manualTitle || createSessionTitle(session.messages),
+    title: manualTitle || createSessionTitle(session.messages, locale),
     customTitle: Boolean(manualTitle),
     activeVersionId,
     versions: migratedVersions,
@@ -1398,7 +1402,7 @@ function parseTravelChatArchivePayload(
   if (Array.isArray(parsed.sessions)) {
     const sessions = parsed.sessions
       .filter(isTravelChatSession)
-      .map(normalizeTravelChatSession);
+      .map((session) => normalizeTravelChatSession(session, locale));
     return {
       version: TRAVEL_CHAT_ARCHIVE_VERSION,
       updatedAt:
@@ -3041,10 +3045,13 @@ function getCityContext(city: string) {
   return CITY_CONTEXT[key] ?? null;
 }
 
-function createFeaturedDestinationCards(): TravelDestinationCard[] {
+function createFeaturedDestinationCards(
+  locale: InterfaceLocale = "en"
+): TravelDestinationCard[] {
+  const isZh = locale === "zh";
   return FEATURED_DESTINATION_CITIES.map((city) => {
     const context = getCityContext(city);
-    const cityLabel = getLocalDisplayName(city);
+    const cityLabel = isZh ? getLocalDisplayName(city) : city;
     const country = context?.countryEn ?? city;
     return {
       type: "destination" as const,
@@ -3052,18 +3059,20 @@ function createFeaturedDestinationCards(): TravelDestinationCard[] {
       destination_id: `featured-${normalizeCityKey(city)}`,
       title: city,
       subtitle: context
-        ? `${context.countryEn} · featured city route`
-        : "Featured destination route",
+        ? `${isZh ? context.countryZh : context.countryEn} · ${isZh ? "精选城市路线" : "featured city route"}`
+        : isZh
+          ? "精选目的地路线"
+          : "Featured destination route",
       country,
       city,
       image_key: normalizeCityKey(city),
       highlights: [
-        "featured route",
-        context?.countryZh ?? "travel context",
-        "map-ready",
+        isZh ? "精选路线" : "featured route",
+        isZh ? context?.countryZh ?? "旅行目的地" : "travel context",
+        isZh ? "可查看地图" : "map-ready",
       ],
       suggested_days: context?.days ?? "3-5 days",
-      action_label: `加入计划：${cityLabel}`,
+      action_label: isZh ? `加入计划：${cityLabel}` : `Add ${cityLabel} to plan`,
       payload: {
         seed_country: country,
         seed_city: city,
@@ -5776,13 +5785,14 @@ export function TravelChatClient({
     ? formatGoogleAttribution(selectedGooglePlaceDisplay.attribution, isZh)
     : null;
   const travelHealthWarning = (() => {
+    const useChineseCopy = interfaceLocale === "zh";
     if (travelHealthError) {
-      return isZh
+      return useChineseCopy
         ? "暂时无法读取旅行服务状态，但你的旅行计划没有发生变化。"
         : "Travel service status is unavailable, but your trip has not changed.";
     }
     if (travelHealth && !travelHealth.llmReachable) {
-      return isZh
+      return useChineseCopy
         ? "旅行顾问暂时无法回复。你的输入会保留，旅行计划不会被修改。"
         : "The Travel Advisor cannot reply right now. Your input is kept and your trip will not be changed.";
     }
@@ -5790,7 +5800,7 @@ export function TravelChatClient({
       travelHealth?.services &&
       !travelHealth.services.sessionDatabase.reachable
     ) {
-      return isZh
+      return useChineseCopy
         ? "旅行会话数据库暂时不可用，当前计划无法安全保存。"
         : "The travel session database is unavailable, so this trip cannot be saved safely.";
     }

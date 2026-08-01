@@ -175,9 +175,9 @@ export function FileUploadCard({
     <Card
       className={`border-2 transition-colors ${
         status === "done"
-          ? "border-green-400 bg-green-50"
+          ? "border-[#16a34a] bg-white"
           : status === "error"
-            ? "border-red-300 bg-red-50"
+            ? "border-[hsl(0_72%_51%)] bg-white"
             : "border-dashed border-border hover:border-brand-400"
       }`}
     >

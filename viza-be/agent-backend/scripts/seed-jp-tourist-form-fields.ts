@@ -70,6 +70,7 @@ const REFUSED_OTHER = "refused_visa_other_country === yes";
 const HAS_CRIMINAL = "has_criminal_record === yes";
 const HAS_DEPORTED = "has_been_deported === yes";
 const HAS_OVERSTAYED = "has_overstayed_japan === yes";
+const HAS_DRUG_OR_TRAFFICKING_HISTORY = "has_drug_or_trafficking_history === yes";
 
 // ── Enum option tables ─────────────────────────────────────────────────────
 
@@ -138,6 +139,14 @@ const EXPENSE_BEARER_OPTIONS = [
   { value: "inviter", text: "Inviter in Japan" },
   { value: "family", text: "Family member" },
   { value: "other", text: "Other" },
+];
+
+const PROHIBITED_ACTIVITY_OPTIONS = [
+  { value: "drug_abuse", text: "Drug abuse" },
+  { value: "prostitution", text: "Prostitution" },
+  { value: "human_trafficking", text: "Human trafficking" },
+  { value: "smuggling", text: "Smuggling" },
+  { value: "illegal_weapons", text: "Possession of illegal weapons" },
 ];
 
 const FIELDS: FieldDef[] = [
@@ -233,24 +242,40 @@ const FIELDS: FieldDef[] = [
   { field_name: "prior_japan_visit_arrival_date", label: "Prior Japan visit — Arrival date", field_type: "date", required: true, step_number: 7, step_name: "Travel History", display_order: 2, conditional_logic: { showIf: VISITED_JAPAN_BEFORE }, validation_rules: { format: "DD/MM/YYYY", repeatable: true, repeat_group: "prior_japan_visits", max_items: 5 } },
   { field_name: "prior_japan_visit_departure_date", label: "Prior Japan visit — Departure date", field_type: "date", required: true, step_number: 7, step_name: "Travel History", display_order: 3, conditional_logic: { showIf: VISITED_JAPAN_BEFORE }, validation_rules: { format: "DD/MM/YYYY", repeatable: true, repeat_group: "prior_japan_visits" } },
   { field_name: "prior_japan_visit_purpose", label: "Prior Japan visit — Purpose", field_type: "text", required: true, step_number: 7, step_name: "Travel History", display_order: 4, conditional_logic: { showIf: VISITED_JAPAN_BEFORE }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "prior_japan_visits" } },
-  { field_name: "refused_visa_or_entry_japan", label: "Have you ever been refused a visa to, or denied entry into, Japan?", field_type: "radio", required: true, step_number: 7, step_name: "Travel History", display_order: 5, options: YES_NO },
+  { field_name: "refused_visa_or_entry_japan", label: "Have you ever been refused a visa to, or denied entry into, Japan?", field_type: "radio", required: true, step_number: 7, step_name: "Travel History", display_order: 5, options: YES_NO, validation_rules: { helper_en: "If you answer Yes, provide the date, place, reason, and outcome in the next field." } },
   { field_name: "refused_visa_japan_details", label: "Provide details (date, place, reason)", field_type: "textarea", required: true, step_number: 7, step_name: "Travel History", display_order: 6, conditional_logic: { showIf: REFUSED_JAPAN }, validation_rules: { maxLength: 1000 } },
-  { field_name: "refused_visa_other_country", label: "Have you ever been refused a visa to, or denied entry into, any other country?", field_type: "radio", required: true, step_number: 7, step_name: "Travel History", display_order: 7, options: YES_NO },
+  { field_name: "refused_visa_other_country", label: "Have you ever been refused a visa to, or denied entry into, any other country?", field_type: "radio", required: true, step_number: 7, step_name: "Travel History", display_order: 7, options: YES_NO, validation_rules: { helper_en: "If you answer Yes, provide the country, date, reason, and outcome in the next field." } },
   { field_name: "refused_visa_other_country_details", label: "Provide details (country, date, reason)", field_type: "textarea", required: true, step_number: 7, step_name: "Travel History", display_order: 8, conditional_logic: { showIf: REFUSED_OTHER }, validation_rules: { maxLength: 1000 } },
 
   // ═════════════════════════════════════════════════════════════════════════
   // STEP 8: Character & Declaration  (MOFA Form A items 33-37 + signature)
   // ═════════════════════════════════════════════════════════════════════════
   { field_name: "has_criminal_record", label: "Have you ever been convicted of a crime in any country?", field_type: "radio", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 1, options: YES_NO },
-  { field_name: "criminal_record_details", label: "Provide details (country, date, charge, sentence)", field_type: "textarea", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 2, conditional_logic: { showIf: HAS_CRIMINAL }, validation_rules: { maxLength: 1500 } },
-  { field_name: "has_been_deported", label: "Have you ever been deported from Japan or any other country?", field_type: "radio", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 3, options: YES_NO },
-  { field_name: "deportation_details", label: "Provide details (country, date, reason)", field_type: "textarea", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 4, conditional_logic: { showIf: HAS_DEPORTED }, validation_rules: { maxLength: 1500 } },
-  { field_name: "has_overstayed_japan", label: "Have you ever overstayed a visa or stayed in Japan illegally?", field_type: "radio", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 5, options: YES_NO },
-  { field_name: "overstay_details", label: "Provide details", field_type: "textarea", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 6, conditional_logic: { showIf: HAS_OVERSTAYED }, validation_rules: { maxLength: 1500 } },
-  { field_name: "has_drug_or_trafficking_history", label: "Have you ever been involved in drug abuse, prostitution, human trafficking, smuggling, or possession of illegal weapons?", field_type: "radio", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 7, options: YES_NO },
-  { field_name: "remarks_special_circumstances", label: "Remarks / Special Circumstances (optional)", field_type: "textarea", required: false, step_number: 8, step_name: "Character & Declaration", display_order: 8, validation_rules: { maxLength: 2000 } },
-  { field_name: "application_date", label: "Date of application", field_type: "date", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 9, placeholder: "DD/MM/YYYY", validation_rules: { format: "DD/MM/YYYY" } },
-  { field_name: "final_declaration", label: "I hereby declare that the statements made in this application are true and correct, and I understand that any false statement may result in refusal of the visa or denial of entry into Japan.", field_type: "checkbox", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 10, options: [{ value: "yes", text: "I agree" }] },
+  { field_name: "criminal_record_country", label: "Country / region", field_type: "country", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 2, conditional_logic: { showIf: HAS_CRIMINAL }, validation_rules: { label_zh: "犯罪记录发生国家/地区", source: "ISO3166-1", repeatable: true, repeat_group: "criminal_records", max_items: 5 } },
+  { field_name: "criminal_record_date", label: "Date", field_type: "date", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 3, conditional_logic: { showIf: HAS_CRIMINAL }, validation_rules: { label_zh: "犯罪记录日期", format: "DD/MM/YYYY", repeatable: true, repeat_group: "criminal_records" } },
+  { field_name: "criminal_record_details", label: "Offence / charge", field_type: "textarea", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 4, conditional_logic: { showIf: HAS_CRIMINAL }, validation_rules: { label_zh: "罪名 / 指控", maxLength: 750, repeatable: true, repeat_group: "criminal_records" } },
+  { field_name: "criminal_record_sentence", label: "Sentence / outcome", field_type: "textarea", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 5, conditional_logic: { showIf: HAS_CRIMINAL }, validation_rules: { label_zh: "判决 / 处理结果", maxLength: 750, repeatable: true, repeat_group: "criminal_records" } },
+
+  { field_name: "has_been_deported", label: "Have you ever been deported from Japan or any other country?", field_type: "radio", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 6, options: YES_NO },
+  { field_name: "deportation_country", label: "Country / region", field_type: "country", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 7, conditional_logic: { showIf: HAS_DEPORTED }, validation_rules: { label_zh: "遣返国家/地区", source: "ISO3166-1", repeatable: true, repeat_group: "deportations", max_items: 5 } },
+  { field_name: "deportation_date", label: "Date", field_type: "date", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 8, conditional_logic: { showIf: HAS_DEPORTED }, validation_rules: { label_zh: "遣返日期", format: "DD/MM/YYYY", repeatable: true, repeat_group: "deportations" } },
+  { field_name: "deportation_details", label: "Reason", field_type: "textarea", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 9, conditional_logic: { showIf: HAS_DEPORTED }, validation_rules: { label_zh: "遣返原因", maxLength: 750, repeatable: true, repeat_group: "deportations" } },
+  { field_name: "deportation_outcome", label: "Outcome", field_type: "textarea", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 10, conditional_logic: { showIf: HAS_DEPORTED }, validation_rules: { label_zh: "遣返处理结果", maxLength: 750, repeatable: true, repeat_group: "deportations" } },
+
+  { field_name: "has_overstayed_japan", label: "Have you ever overstayed a visa or stayed in Japan illegally?", field_type: "radio", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 11, options: YES_NO },
+  { field_name: "overstay_date", label: "Date the overstay began", field_type: "date", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 12, conditional_logic: { showIf: HAS_OVERSTAYED }, validation_rules: { label_zh: "逾期停留开始日期", format: "DD/MM/YYYY", repeatable: true, repeat_group: "japan_overstays", max_items: 5 } },
+  { field_name: "overstay_details", label: "Circumstances", field_type: "textarea", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 13, conditional_logic: { showIf: HAS_OVERSTAYED }, validation_rules: { label_zh: "相关情况", maxLength: 750, repeatable: true, repeat_group: "japan_overstays" } },
+  { field_name: "overstay_resolution", label: "Resolution / outcome", field_type: "textarea", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 14, conditional_logic: { showIf: HAS_OVERSTAYED }, validation_rules: { label_zh: "解决方式 / 处理结果", maxLength: 750, repeatable: true, repeat_group: "japan_overstays" } },
+
+  { field_name: "has_drug_or_trafficking_history", label: "Have you ever been involved in drug abuse, prostitution, human trafficking, smuggling, or possession of illegal weapons?", field_type: "radio", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 15, options: YES_NO },
+  { field_name: "prohibited_activity_type", label: "Activity", field_type: "select", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 16, conditional_logic: { showIf: HAS_DRUG_OR_TRAFFICKING_HISTORY }, options: PROHIBITED_ACTIVITY_OPTIONS, validation_rules: { label_zh: "涉及的活动", repeatable: true, repeat_group: "prohibited_activities", max_items: 5 } },
+  { field_name: "prohibited_activity_country", label: "Country / region", field_type: "country", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 17, conditional_logic: { showIf: HAS_DRUG_OR_TRAFFICKING_HISTORY }, validation_rules: { label_zh: "发生国家/地区", source: "ISO3166-1", repeatable: true, repeat_group: "prohibited_activities" } },
+  { field_name: "prohibited_activity_date", label: "Date", field_type: "date", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 18, conditional_logic: { showIf: HAS_DRUG_OR_TRAFFICKING_HISTORY }, validation_rules: { label_zh: "发生日期", format: "DD/MM/YYYY", repeatable: true, repeat_group: "prohibited_activities" } },
+  { field_name: "prohibited_activity_details", label: "Details / outcome", field_type: "textarea", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 19, conditional_logic: { showIf: HAS_DRUG_OR_TRAFFICKING_HISTORY }, validation_rules: { label_zh: "具体情况 / 处理结果", maxLength: 1500, repeatable: true, repeat_group: "prohibited_activities" } },
+
+  { field_name: "remarks_special_circumstances", label: "Remarks / Special Circumstances (optional)", field_type: "textarea", required: false, step_number: 8, step_name: "Character & Declaration", display_order: 20, validation_rules: { maxLength: 2000 } },
+  { field_name: "application_date", label: "Date of application", field_type: "date", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 21, placeholder: "DD/MM/YYYY", validation_rules: { format: "DD/MM/YYYY" } },
+  { field_name: "final_declaration", label: "I hereby declare that the statements made in this application are true and correct, and I understand that any false statement may result in refusal of the visa or denial of entry into Japan.", field_type: "checkbox", required: true, step_number: 8, step_name: "Character & Declaration", display_order: 22, options: [{ value: "yes", text: "I agree" }] },
 ];
 
 // ─── Seed Runner ──────────────────────────────────────────────────────────

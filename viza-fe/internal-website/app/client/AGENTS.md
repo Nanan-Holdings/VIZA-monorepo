@@ -70,7 +70,12 @@ applicant info, and help pages.
   portal through Browserbase, and displays redacted evidence. VFS login,
   verification, slot choice, payment, and final confirmation remain stopped in
   the Free Plan phase.
-- `universal-info/page.tsx`: reusable applicant profile editor.
+- `universal-info/page.tsx`: reusable applicant profile editor. Keep its major
+  categories as separate application-style cards; reusable passport, signature,
+  and portrait uploads live in
+  `components/client/universal-profile-documents-carousel.tsx`, while expanded
+  schema-backed categories live in
+  `components/client/universal-profile-extended-editor.tsx`.
 - `(auth)/*`: client login/register/signup pages.
 
 ## Ownership Boundaries

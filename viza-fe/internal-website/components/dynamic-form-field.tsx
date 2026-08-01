@@ -1,22 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Label } from "@/components/ui/label";
-import { DatePicker } from "@/components/ui/date-picker";
+import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
 import {
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import {
-  InputGroup,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { CountryDropdown } from "@/components/ui/country-dropdown";
 import { RegionSelect } from "@/components/ui/region-select";
 import {
@@ -25,15 +19,27 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useLocale, useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import { resolveLocalizedOptions, resolveLocalizedPlaceholder } from "@/lib/bilingual-schema-contract";
 import { cn } from "@/lib/utils";
+import {
+  ApplicationFormField,
+  ApplicationFormLabelAction,
+} from "@/components/ui/application-form-field";
+import {
+  ApplicationFormControlDisplay,
+  ApplicationFormInputGroup,
+} from "@/components/ui/application-form-input";
+import {
+  ApplicationFormSelectContent,
+  ApplicationFormSelectItem,
+  ApplicationFormSelectTrigger,
+  ApplicationSearchableMultiSelect,
+  ApplicationSearchableSelect,
+} from "@/components/ui/application-form-select";
+import { ApplicationFormTextarea } from "@/components/ui/application-form-textarea";
+import { ApplicationYesNoControl } from "@/components/ui/application-yes-no-control";
 
 const SEARCHABLE_SELECT_MIN_OPTIONS = 12;
 
@@ -126,6 +132,7 @@ interface DynamicFormFieldProps {
   forceWhiteBackground?: boolean;
   disabled?: boolean;
   displayLocale?: "zh" | "en";
+  labelAction?: ReactNode;
   onSearchQuery?: (query: string) => void;
   onLoadMore?: () => void;
   hasMore?: boolean;
@@ -148,42 +155,7 @@ function getHelperTextRule(field: VisaFormFieldRow, sideLocale: "zh" | "en"): st
   return typeof helper === "string" && helper.trim() ? helper.trim() : undefined;
 }
 
-function joinHelperText(...parts: Array<string | undefined>): string | undefined {
-  const filtered = parts.filter((part): part is string => Boolean(part?.trim()));
-  return filtered.length > 0 ? filtered.join("\n") : undefined;
-}
-
-function FieldWrapper({
-  label,
-  required,
-  sideLocale,
-  helperText,
-  children,
-}: {
-  label: string;
-  required: boolean;
-  sideLocale: "zh" | "en";
-  helperText?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-[14px] font-medium text-gray-700 tracking-[-0.2px]">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-        {!required && (
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[12px] font-medium text-gray-500">
-            {sideLocale === "zh" ? "选填" : "Optional"}
-          </span>
-        )}
-      </div>
-      {children}
-      {helperText ? <p className="text-[12px] leading-5 text-gray-500">{helperText}</p> : null}
-    </div>
-  );
-}
+const FieldWrapper = ApplicationFormField;
 
 function normaliseOptions(
   opts: VisaFormFieldRow["options"],
@@ -210,346 +182,6 @@ function normaliseOptions(
 
 function cleanOptionDisplayText(text: string): string {
   return text.replace(/^(?:选项|Option)\s*[:：]\s*/i, "").trim();
-}
-
-function normalizeSearchText(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/Đ/g, "D")
-    .replace(/đ/g, "d")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function SearchableSelectControl({
-  value,
-  onChange,
-  options,
-  placeholder,
-  disabled,
-  whiteControlClass,
-  sideLocale,
-  onSearchQuery,
-  onLoadMore,
-  hasMore,
-  loadingMore,
-  searching,
-  loadingText,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; text: string; searchText?: string }>;
-  placeholder: string;
-  disabled: boolean;
-  whiteControlClass: string;
-  sideLocale: "zh" | "en";
-  onSearchQuery?: (query: string) => void;
-  onLoadMore?: () => void;
-  hasMore?: boolean;
-  loadingMore?: boolean;
-  searching?: boolean;
-  loadingText?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [pendingQuery, setPendingQuery] = useState(false);
-  const onSearchQueryRef = useRef(onSearchQuery);
-  const selected = options.find((option) => option.value === value);
-  const normalizedQuery = normalizeSearchText(query);
-  const matchedOptions = useMemo(() => {
-    if (!normalizedQuery) return options;
-    return options
-      .filter((option) => {
-        const haystack = normalizeSearchText(`${option.text} ${option.value} ${option.searchText ?? ""}`);
-        return haystack.includes(normalizedQuery);
-      })
-      .sort((left, right) => {
-        const rank = (option: { value: string; text: string }) => {
-          const normalizedValue = normalizeSearchText(option.value);
-          const valueWithoutPlus = normalizedValue.replace(/^\+/, "");
-          const normalizedText = normalizeSearchText(option.text);
-          if (normalizedValue === normalizedQuery || valueWithoutPlus === normalizedQuery) return 0;
-          if (normalizedText.startsWith(normalizedQuery)) return 1;
-          if (normalizedText.includes(`(${normalizedQuery})`) || normalizedText.includes(`(+${normalizedQuery})`)) return 2;
-          return 3;
-        };
-        return rank(left) - rank(right);
-      });
-  }, [normalizedQuery, options]);
-  const searchPlaceholder = sideLocale === "zh"
-    ? "搜索中文、英文或官方选项..."
-    : "Search Chinese, English, or official option...";
-  const emptyText = sideLocale === "zh" ? "没有匹配选项" : "No matching options";
-
-  useEffect(() => {
-    onSearchQueryRef.current = onSearchQuery;
-  }, [onSearchQuery]);
-
-  useEffect(() => {
-    if (!open || !onSearchQueryRef.current) {
-      setPendingQuery(false);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      onSearchQueryRef.current?.(query);
-      setPendingQuery(false);
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [open, query]);
-
-  return (
-    <Popover
-      modal={false}
-      open={open}
-      onOpenChange={(nextOpen) => {
-        setOpen(nextOpen);
-        if (!nextOpen) {
-          setQuery("");
-          onSearchQueryRef.current?.("");
-        }
-      }}
-    >
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
-          className={cn(
-            "flex h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] px-3 text-left text-[15px] focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]",
-            whiteControlClass,
-            disabled ? "cursor-not-allowed opacity-70" : "hover:bg-gray-50",
-          )}
-        >
-          <span className={cn("truncate", !selected && "text-muted-foreground")}>
-            {selected?.text || placeholder}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={6}
-        collisionPadding={24}
-        className="w-[--radix-popover-trigger-width] overflow-hidden p-0"
-        style={{ maxHeight: "min(300px, calc(100vh - 180px))" }}
-      >
-        <div className="border-b p-2">
-          <div className="flex h-10 items-center gap-2 rounded-md border border-[#e8e8e8] px-3">
-            <Search className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
-            <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                if (onSearchQueryRef.current) setPendingQuery(true);
-              }}
-              placeholder={searchPlaceholder}
-              className="h-full min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-gray-400"
-              autoFocus
-            />
-          </div>
-        </div>
-        <div
-          className="overscroll-auto overflow-y-auto p-1"
-          style={{ maxHeight: "min(220px, calc(100vh - 270px))" }}
-          onScroll={(event) => {
-            if (!onLoadMore || !hasMore || searching || loadingMore || pendingQuery) return;
-            const target = event.currentTarget;
-            if (target.scrollHeight - target.scrollTop - target.clientHeight <= 48) {
-              onLoadMore();
-            }
-          }}
-        >
-          {(searching || pendingQuery) && matchedOptions.length === 0 ? (
-            <div className="px-3 py-3 text-[14px] text-gray-500">
-              {loadingText ?? (sideLocale === "zh" ? "正在加载官方选项..." : "Loading official options...")}
-            </div>
-          ) : matchedOptions.length === 0 ? (
-            <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
-          ) : (
-            <>
-              {matchedOptions.map((option, index) => (
-                <button
-                  key={`${option.value}-${option.text}-${index}`}
-                  type="button"
-                  className={cn(
-                    "flex min-h-10 w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-[14px] hover:bg-gray-100",
-                    value === option.value ? "bg-gray-100" : "",
-                  )}
-                  onClick={() => {
-                    onChange(option.value);
-                    setOpen(false);
-                    setQuery("");
-                  }}
-                >
-                  <Check
-                    className={cn("h-4 w-4 shrink-0 text-[#03346E]", value === option.value ? "opacity-100" : "opacity-0")}
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 break-words">{option.text}</span>
-                </button>
-              ))}
-              {loadingMore ? (
-                <div className="px-3 py-3 text-center text-[13px] text-gray-500">
-                  {sideLocale === "zh" ? "正在加载更多官网航班..." : "Loading more official flights..."}
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function parseMultiSelectValue(value: string): string[] {
-  return value.split(",").map((part) => part.trim()).filter(Boolean);
-}
-
-function SearchableMultiSelectControl({
-  value,
-  onChange,
-  options,
-  placeholder,
-  disabled,
-  whiteControlClass,
-  sideLocale,
-  exclusiveOption,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; text: string }>;
-  placeholder: string;
-  disabled: boolean;
-  whiteControlClass: string;
-  sideLocale: "zh" | "en";
-  exclusiveOption?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const selectedValues = useMemo(() => parseMultiSelectValue(value), [value]);
-  const selectedSet = useMemo(() => new Set(selectedValues.map((item) => item.toLowerCase())), [selectedValues]);
-  const selectedOptions = options.filter((option) => selectedSet.has(option.value.toLowerCase()));
-  const normalizedQuery = normalizeSearchText(query);
-  const matchedOptions = useMemo(() => {
-    if (!normalizedQuery) return options;
-    return options.filter((option) => normalizeSearchText(`${option.text} ${option.value}`).includes(normalizedQuery));
-  }, [normalizedQuery, options]);
-  const searchPlaceholder = sideLocale === "zh"
-    ? "搜索中文、英文或官方选项..."
-    : "Search Chinese, English, or official option...";
-  const emptyText = sideLocale === "zh" ? "没有匹配选项" : "No matching options";
-  const summary = selectedOptions.length > 0
-    ? selectedOptions.slice(0, 2).map((option) => option.text).join(", ") + (selectedOptions.length > 2 ? ` +${selectedOptions.length - 2}` : "")
-    : placeholder;
-
-  const toggleValue = (nextValue: string) => {
-    const normalized = nextValue.toLowerCase();
-    const normalizedExclusiveOption = exclusiveOption?.toLowerCase();
-    let nextValues: string[];
-    if (selectedSet.has(normalized)) {
-      nextValues = selectedValues.filter((item) => item.toLowerCase() !== normalized);
-    } else if (normalizedExclusiveOption && normalized === normalizedExclusiveOption) {
-      nextValues = [nextValue];
-    } else {
-      nextValues = [
-        ...selectedValues.filter((item) => item.toLowerCase() !== normalizedExclusiveOption),
-        nextValue,
-      ];
-    }
-    onChange(nextValues.join(","));
-  };
-
-  return (
-    <Popover
-      modal={false}
-      open={open}
-      onOpenChange={(nextOpen) => {
-        setOpen(nextOpen);
-        if (!nextOpen) setQuery("");
-      }}
-    >
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
-          className={cn(
-            "flex min-h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] px-3 py-2 text-left text-[15px] focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]",
-            whiteControlClass,
-            disabled ? "cursor-not-allowed opacity-70" : "hover:bg-gray-50",
-          )}
-        >
-          <span className={cn("line-clamp-2", selectedOptions.length === 0 && "text-muted-foreground")}>
-            {summary}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={6}
-        collisionPadding={24}
-        className="w-[--radix-popover-trigger-width] overflow-hidden p-0"
-        style={{ maxHeight: "min(320px, calc(100vh - 180px))" }}
-      >
-        <div className="border-b p-2">
-          <div className="flex h-10 items-center gap-2 rounded-md border border-[#e8e8e8] px-3">
-            <Search className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={searchPlaceholder}
-              className="h-full min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-gray-400"
-              autoFocus
-            />
-          </div>
-          {selectedOptions.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {selectedOptions.slice(0, 6).map((option) => (
-                <button
-                  type="button"
-                  key={option.value}
-                  className="rounded-full bg-[#edf4fb] px-2 py-1 text-xs text-[#03346E]"
-                  onClick={() => toggleValue(option.value)}
-                >
-                  {option.text}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-        <div
-          className="overscroll-auto overflow-y-auto p-1"
-          style={{ maxHeight: "min(200px, calc(100vh - 280px))" }}
-        >
-          {matchedOptions.length === 0 ? (
-            <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
-          ) : (
-            matchedOptions.map((option, index) => {
-              const checked = selectedSet.has(option.value.toLowerCase());
-              return (
-                <button
-                  key={`${option.value}-${option.text}-${index}`}
-                  type="button"
-                  className={cn(
-                    "flex min-h-10 w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-[14px] hover:bg-gray-100",
-                    checked ? "bg-gray-100" : "",
-                  )}
-                  onClick={() => toggleValue(option.value)}
-                >
-                  <Check
-                    className={cn("h-4 w-4 shrink-0 text-[#03346E]", checked ? "opacity-100" : "opacity-0")}
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 break-words">{option.text}</span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
 }
 
 function parseSsnSegments(raw: string): [string, string, string] {
@@ -645,6 +277,7 @@ export function DynamicFormField({
   forceWhiteBackground = false,
   disabled = false,
   displayLocale,
+  labelAction,
   onSearchQuery,
   onLoadMore,
   hasMore = false,
@@ -655,25 +288,25 @@ export function DynamicFormField({
   const t = useTranslations("applicationSteps");
   const locale = useLocale();
   const { label, fieldType, required, placeholder, options } = field;
-  const whiteControlClass = forceWhiteBackground ? "bg-white hover:bg-white" : "";
   const sideLocale = displayLocale ?? (locale.startsWith("zh") ? "zh" : "en");
   const selectFallback = sideLocale === "zh" ? "请选择..." : "Select...";
   const localizedPlaceholder = resolveLocalizedPlaceholder(field, sideLocale) ?? placeholder ?? undefined;
   const doNotKnowLabel = sideLocale === "zh" ? t("dynamicField.doNotKnow") : "Do not know";
   const doesNotApplyLabel = sideLocale === "zh" ? t("dynamicField.doesNotApply") : "Does not apply";
   const [dateModeByField, setDateModeByField] = useState<Record<string, "full" | "year">>({});
+  const [optimisticRadioValue, setOptimisticRadioValue] = useState(value);
   const maxLength = getMaxLengthRule(field);
   const configuredHelperText = getHelperTextRule(field, sideLocale);
   const normalizedSelectOptions = useMemo(
     () => fieldType === "select" ? normaliseOptions(options, sideLocale) : [],
     [fieldType, options, sideLocale],
   );
-  const lengthHelperText = maxLength
-    ? sideLocale === "zh"
-      ? `最多 ${maxLength} 个字符，当前 ${value.length}/${maxLength}`
-      : `Maximum ${maxLength} characters, currently ${value.length}/${maxLength}`
-    : undefined;
-  const helperText = joinHelperText(configuredHelperText, lengthHelperText);
+  const helperText = configuredHelperText;
+  const characterCount = maxLength ? `${value.length}/${maxLength}` : undefined;
+
+  useEffect(() => {
+    setOptimisticRadioValue(value);
+  }, [field.fieldName, value]);
 
   switch (fieldType) {
     case "date": {
@@ -689,20 +322,24 @@ export function DynamicFormField({
       const fullDateLabel = sideLocale === "zh" ? "完整日期" : "Full";
       const yearOnlyLabel = sideLocale === "zh" ? "只知道年份" : "Only year is known";
       const datePickerNode = !dateIsDoNotKnow && !dateIsDoesNotApply ? (
-        <DatePicker
+        <ApplicationFormDatePicker
           value={value}
           onChange={onChange}
           placeholder={localizedPlaceholder}
-          className={whiteControlClass}
+          forceWhiteBackground={forceWhiteBackground}
           displayLocale={sideLocale}
+          disabled={disabled}
         />
       ) : (
-        <div className={`h-12 rounded-lg border border-[#e8e8e8] flex items-center px-3 text-[15px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
+        <ApplicationFormControlDisplay className={`h-12 text-[15px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
           {dateIsDoNotKnow ? doNotKnowLabel : doesNotApplyLabel}
-        </div>
+        </ApplicationFormControlDisplay>
       );
       const dateInputNode = dateIsYearOnly ? (
-        <InputGroup className={whiteControlClass}>
+        <ApplicationFormInputGroup
+          filled={Boolean(value)}
+          forceWhiteBackground={forceWhiteBackground}
+        >
           <InputGroupInput
             value={value}
             onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 4))}
@@ -711,7 +348,7 @@ export function DynamicFormField({
             pattern="[0-9]{4}"
             disabled={disabled}
           />
-        </InputGroup>
+        </ApplicationFormInputGroup>
       ) : datePickerNode;
       const sideCheckbox = dateAllowDoNotKnow ? (
         <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
@@ -732,7 +369,7 @@ export function DynamicFormField({
       ) : null;
 
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           {dateAllowYearOnly && !dateIsDoNotKnow && !dateIsDoesNotApply && (
             <div className="mb-1 flex flex-wrap items-center gap-4 text-[13px] text-gray-700">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -781,12 +418,12 @@ export function DynamicFormField({
       const isUsState = source === "US_STATES";
       if (isCountry) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <CountryDropdown
               placeholder={localizedPlaceholder ?? selectFallback}
               defaultValue={value}
               onChange={(country) => onChange(country.name)}
-              className={whiteControlClass}
+              forceWhiteBackground={forceWhiteBackground}
               displayLocale={sideLocale}
               allowedCountryCodes={isSchengenMemberState ? SCHENGEN_MEMBER_ALPHA2_CODES : undefined}
             />
@@ -795,13 +432,14 @@ export function DynamicFormField({
       }
       if (isUsState) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <RegionSelect
               countryCode="US"
               placeholder={localizedPlaceholder ?? selectFallback}
               defaultValue={value}
               onChange={(region) => onChange(region.shortCode)}
-              className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass}`}
+              className="h-12 text-[15px] data-[placeholder]:text-muted-foreground"
+              forceWhiteBackground={forceWhiteBackground}
             />
           </FieldWrapper>
         );
@@ -814,29 +452,28 @@ export function DynamicFormField({
           ? "请先选择上级选项，或联系 VIZA 检查官方下拉列表。"
           : "Select the parent option first, or contact VIZA to check the official dropdown list.";
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
-            <div
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+            <ApplicationFormControlDisplay
               className={cn(
-                "flex min-h-12 items-center rounded-lg border border-red-200 px-3 text-[14px] leading-5 text-red-700",
-                forceWhiteBackground ? "bg-white" : "bg-red-50",
+                "min-h-12 bg-white text-[#71717a]",
               )}
               role="alert"
             >
               {dependentMessage}
-            </div>
+            </ApplicationFormControlDisplay>
           </FieldWrapper>
         );
       }
       if (usesRemoteSearch || opts.length >= SEARCHABLE_SELECT_MIN_OPTIONS) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
-            <SearchableSelectControl
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+            <ApplicationSearchableSelect
               value={value}
-              onChange={onChange}
+              onValueChange={onChange}
               options={opts}
               placeholder={localizedPlaceholder ?? selectFallback}
               disabled={disabled}
-              whiteControlClass={whiteControlClass}
+              forceWhiteBackground={forceWhiteBackground}
               sideLocale={sideLocale}
               onSearchQuery={onSearchQuery}
               onLoadMore={onLoadMore}
@@ -849,18 +486,22 @@ export function DynamicFormField({
         );
       }
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           <Select value={value} onValueChange={onChange} disabled={disabled}>
-            <SelectTrigger className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass} ${disabled ? "opacity-70 cursor-not-allowed" : ""}`}>
+            <ApplicationFormSelectTrigger
+              className={`h-12 text-[15px] data-[placeholder]:text-muted-foreground ${disabled ? "opacity-70 cursor-not-allowed" : ""}`}
+              filled={opts.some((option) => option.value === value)}
+              forceWhiteBackground={forceWhiteBackground}
+            >
               <SelectValue placeholder={localizedPlaceholder ?? selectFallback} />
-            </SelectTrigger>
-            <SelectContent>
+            </ApplicationFormSelectTrigger>
+            <ApplicationFormSelectContent>
               {opts.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value || "_empty"}>
+                <ApplicationFormSelectItem key={opt.value} value={opt.value || "_empty"}>
                   {opt.text}
-                </SelectItem>
+                </ApplicationFormSelectItem>
               ))}
-            </SelectContent>
+            </ApplicationFormSelectContent>
           </Select>
         </FieldWrapper>
       );
@@ -870,14 +511,14 @@ export function DynamicFormField({
       const opts = normaliseOptions(options, sideLocale);
       const rules = field.validationRules as { exclusive_option?: string } | null;
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
-          <SearchableMultiSelectControl
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          <ApplicationSearchableMultiSelect
             value={value}
-            onChange={onChange}
+            onValueChange={onChange}
             options={opts}
             placeholder={localizedPlaceholder ?? selectFallback}
             disabled={disabled}
-            whiteControlClass={whiteControlClass}
+            forceWhiteBackground={forceWhiteBackground}
             sideLocale={sideLocale}
             exclusiveOption={rules?.exclusive_option}
           />
@@ -887,14 +528,22 @@ export function DynamicFormField({
 
     case "textarea":
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
-          <Textarea
-            value={value}
-            onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
-            placeholder={localizedPlaceholder}
-            maxLength={maxLength}
-            className={`rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] ${whiteControlClass}`}
-          />
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          <div className="relative">
+            <ApplicationFormTextarea
+              value={value}
+              onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
+              placeholder={localizedPlaceholder}
+              maxLength={maxLength}
+              className="pb-7 text-[15px]"
+              forceWhiteBackground={forceWhiteBackground}
+            />
+            {characterCount ? (
+              <span className="pointer-events-none absolute bottom-2 right-3 text-[11px] leading-none text-gray-400">
+                {characterCount}
+              </span>
+            ) : null}
+          </div>
         </FieldWrapper>
       );
 
@@ -910,17 +559,26 @@ export function DynamicFormField({
           || normalisedValue === "on";
 
       return (
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
+        <div className="application-form-field group/field relative flex flex-col gap-2">
+          <div className="relative flex items-center gap-3">
             <Checkbox
               id={field.fieldName}
               checked={isChecked}
               onCheckedChange={(checked) => onChange(checked ? checkedValue : "")}
             />
-            <Label htmlFor={field.fieldName} className="text-[14px] font-medium text-gray-700 cursor-pointer">
+            <Label
+              htmlFor={field.fieldName}
+              className={cn(
+                "application-form-question-label cursor-pointer text-[14px] font-medium text-gray-700",
+                labelAction && "pr-10"
+              )}
+            >
               {label}
               {required && <span className="text-red-500 ml-1">*</span>}
             </Label>
+            {labelAction ? (
+              <ApplicationFormLabelAction>{labelAction}</ApplicationFormLabelAction>
+            ) : null}
           </div>
           {helperText ? <p className="whitespace-pre-line text-[12px] leading-5 text-gray-500">{helperText}</p> : null}
         </div>
@@ -929,10 +587,10 @@ export function DynamicFormField({
 
     case "file":
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
-          <div className={`h-12 rounded-lg border border-dashed border-[#e8e8e8] flex items-center justify-center text-[14px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          <ApplicationFormControlDisplay className={`h-12 justify-center border-dashed text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
             {t("upload")}: {label}
-          </div>
+          </ApplicationFormControlDisplay>
         </FieldWrapper>
       );
 
@@ -942,26 +600,26 @@ export function DynamicFormField({
         const isSchengenMemberState = usesSchengenMemberStateList(field);
         if (opts.length > 0) {
           return (
-            <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
-              <SearchableSelectControl
+            <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+              <ApplicationSearchableSelect
                 value={value}
-                onChange={onChange}
+                onValueChange={onChange}
                 options={opts}
                 placeholder={localizedPlaceholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
                 disabled={disabled}
-                whiteControlClass={whiteControlClass}
+                forceWhiteBackground={forceWhiteBackground}
                 sideLocale={sideLocale}
               />
             </FieldWrapper>
           );
         }
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <CountryDropdown
               placeholder={localizedPlaceholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
               defaultValue={value}
               onChange={(country) => onChange(country.name)}
-              className={whiteControlClass}
+              forceWhiteBackground={forceWhiteBackground}
               displayLocale={sideLocale}
               allowedCountryCodes={isSchengenMemberState ? SCHENGEN_MEMBER_ALPHA2_CODES : undefined}
             />
@@ -971,23 +629,45 @@ export function DynamicFormField({
 
     case "radio": {
       const opts = normaliseOptions(options, sideLocale);
+      const isSelectionToggle = opts.length === 2;
+      const selectedValue = isSelectionToggle ? optimisticRadioValue : value;
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
-          <div className={`flex ${opts.length <= 2 ? "flex-row gap-6" : "flex-col gap-2"}`}>
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          {isSelectionToggle ? (
+            <ApplicationYesNoControl
+              name={field.fieldName}
+              options={opts}
+              value={selectedValue}
+              disabled={disabled}
+              onValueChange={(nextValue) => {
+                setOptimisticRadioValue(nextValue);
+                onChange(nextValue);
+              }}
+            />
+          ) : (
+          <div className={cn("flex", opts.length < 2 ? "flex-row gap-6" : "flex-col gap-2")}>
             {opts.map((opt) => (
-              <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-[14px]">
+              <label
+                key={opt.value}
+                className={cn(
+                  "cursor-pointer text-[14px]",
+                  "flex items-center gap-2",
+                )}
+              >
                 <input
                   type="radio"
                   name={field.fieldName}
                   value={opt.value}
-                  checked={value === opt.value}
+                  checked={selectedValue === opt.value}
                   onChange={() => onChange(opt.value)}
+                  disabled={disabled}
                   className="accent-[#03346E]"
                 />
                 {opt.text}
               </label>
             ))}
           </div>
+          )}
         </FieldWrapper>
       );
     }
@@ -995,7 +675,7 @@ export function DynamicFormField({
     default: // text, number, email, tel, etc.
       if (isSsnField(field)) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <SsnSegmentedInput
               value={value}
               onChange={onChange}
@@ -1017,7 +697,11 @@ export function DynamicFormField({
         const hasSideCheckbox = allowDoNotKnow || allowDoesNotApply;
 
         const inputNode = (
-          <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""} ${(isOverridden || disabled) ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}>
+          <ApplicationFormInputGroup
+            className={`h-12 ${(isOverridden || disabled) ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}
+            filled={Boolean(value) && !isOverridden}
+            forceWhiteBackground={forceWhiteBackground}
+          >
             <InputGroupInput
               type={fieldType === "text" ? "text" : fieldType}
               placeholder={localizedPlaceholder}
@@ -1026,9 +710,14 @@ export function DynamicFormField({
               required={required && !isOverridden}
               disabled={isOverridden || disabled}
               maxLength={maxLength}
-              className="h-12 text-[15px]"
+              className={`h-12 text-[15px] ${characterCount ? "pr-14" : ""}`}
             />
-          </InputGroup>
+            {characterCount ? (
+              <span className="pointer-events-none absolute bottom-2 right-3 text-[11px] leading-none text-gray-400">
+                {characterCount}
+              </span>
+            ) : null}
+          </ApplicationFormInputGroup>
         );
 
         const sideCheckbox = allowDoNotKnow ? (
@@ -1050,7 +739,7 @@ export function DynamicFormField({
         ) : null;
 
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             {hasSideCheckbox ? (
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">{inputNode}</div>

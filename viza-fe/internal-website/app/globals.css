@@ -15,6 +15,22 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* Keep every portal surface scrollable without exposing native scrollbars. */
+html,
+body,
+* {
+  -ms-overflow-style: none !important; /* IE/Edge legacy */
+  scrollbar-width: none !important; /* Firefox */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important; /* Chrome/Safari */
+  width: 0 !important;
+  height: 0 !important;
+}
+
 /* Utility: hide scrollbars for horizontal scroll strips (scoped via class) */
 .ay-scrollbar-hide {
   -ms-overflow-style: none; /* IE/Edge legacy */
@@ -89,6 +105,16 @@ body {
     --border-hairline: #efefef;
     --border-input: #e8e8e8;
 
+    --application-control-height: 3rem;
+    --application-control-radius: 0.375rem;
+    --application-control-border-width: 1.5px;
+    --application-control-border-color: var(--border-input);
+    --application-control-focus-color: #03346e;
+    --application-control-filled-background: #f5f5f5;
+    --application-panel-radius: var(--radius-xl);
+    --application-panel-border-width: 2px;
+    --application-panel-border-color: var(--border-hairline);
+
     --radius-xl: 0.75rem;
     --radius-2xl: 16px;
     --radius-pill: 999px;
@@ -112,10 +138,6 @@ body {
     border-radius: 12px;
   }
 
-  html {
-    scrollbar-gutter: stable;
-  }
-
   * {
     @apply border-border;
   }
@@ -124,6 +146,74 @@ body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+.application-form-control {
+  box-sizing: border-box;
+  min-height: var(--application-control-height);
+  border-width: var(--application-control-border-width);
+  border-color: var(--application-control-border-color);
+  border-radius: var(--application-control-radius);
+}
+
+.application-form-control[data-filled="true"] {
+  background-color: var(--application-control-filled-background);
+}
+
+.application-form-control[data-filled="true"]:hover,
+.application-form-input[data-filled="true"]:focus-within,
+textarea.application-form-control[data-filled="true"]:focus,
+.application-form-control[data-filled="true"][data-state="open"],
+.application-form-control[data-force-white="true"] {
+  background-color: #ffffff;
+}
+
+.application-form-control:focus-visible,
+.application-form-input:focus-within,
+.application-form-control[data-state="open"] {
+  border-color: var(--application-control-focus-color);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--application-control-focus-color);
+}
+
+/* Radix select/popover triggers keep DOM focus after closing. Their active
+   border follows open state, not that retained focus. */
+.application-form-control[data-state="closed"] {
+  border-color: var(--application-control-border-color);
+  box-shadow: none !important;
+}
+
+/* Dropdown content is portalled outside its field row. Keep the row's AI
+   affordance visible while the corresponding control remains open. */
+.application-form-field:has(.application-form-control[data-state="open"])
+  .application-form-ai-trigger {
+  opacity: 1;
+}
+
+.application-form-control-pill {
+  border-radius: var(--radius-pill);
+}
+
+.application-form-control-pill:focus-within {
+  border-color: var(--application-control-border-color);
+  box-shadow: none;
+}
+
+.application-form-panel {
+  border-width: var(--application-panel-border-width);
+  border-color: var(--application-panel-border-color);
+  border-radius: var(--application-panel-radius);
+}
+
+.application-form-panel.application-form-sidebar-panel-selected {
+  border-width: 1px;
+  border-color: var(--application-control-focus-color);
+}
+
+.application-conditional-fields-panel {
+  border-width: var(--application-control-border-width);
+  border-color: var(--application-control-border-color);
+  border-radius: var(--application-control-radius);
 }
 
 /* Client portal typography tweaks */

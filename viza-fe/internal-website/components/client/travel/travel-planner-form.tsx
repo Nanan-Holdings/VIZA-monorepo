@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CircleFlag } from "react-circle-flags";
 import { toast } from "sonner";
+import { useLocale } from "next-intl";
 import {
   DEFAULT_CITY_DAYS,
   buildTravelStateFromMessages,
@@ -1009,6 +1010,8 @@ export function TravelPlannerForm({
     () => getFieldQuestionForState(travelState, missingField ?? "country"),
     [missingField, travelState]
   );
+  const locale = useLocale();
+  const isOptionalQuestion = missingField === "final_note";
 
   const [countries, setCountries] = useState<string[]>(travelState.countries);
   const [cities, setCities] = useState<string[]>(travelState.cities);
@@ -1935,8 +1938,28 @@ export function TravelPlannerForm({
       data-testid="travel-planner-form"
     >
       <div className="mb-3 rounded-xl border border-sky-100/80 bg-gradient-to-r from-sky-50 to-cyan-50/70 px-3 py-2.5">
-        <div className="text-sm font-semibold text-slate-900">旅行信息向导</div>
-        <div className="mt-0.5 text-xs text-slate-600">{fieldQuestion}</div>
+        <div className="text-sm font-semibold text-slate-900">
+          {locale.startsWith("zh") ? "旅行信息向导" : "Travel planner"}
+        </div>
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-600">
+          {!isOptionalQuestion && (
+            <span aria-hidden="true" className="font-semibold text-red-500">
+              *
+            </span>
+          )}
+          <span>{fieldQuestion}</span>
+          {isOptionalQuestion && (
+            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+              {locale.startsWith("zh")
+                ? "可选"
+                : locale.startsWith("vi")
+                ? "Tùy chọn"
+                : locale.startsWith("es")
+                ? "Opcional"
+                : "Optional"}
+            </span>
+          )}
+        </div>
       </div>
 
       {missingField === "country" && (

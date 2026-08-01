@@ -13,21 +13,28 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty";
-import { RecentActivitySection, type ActivityEvent } from "@/components/client/home/RecentActivitySection";
+import {
+  RecentActivitySection,
+  type ActivityEvent,
+} from "@/components/client/home/RecentActivitySection";
 
 // ─── 完美还原与保留的核心卡片组件 ───
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
-import { SubscriptionPlanCard } from "@/components/client/home/SubscriptionPlanCard";
+import { ActiveVisaCard } from "@/components/client/home/ActiveVisaCard";
 import { getClientHomeDashboardData } from "@/app/actions/client-home-dashboard";
 import {
   getDestinationDisplayNameForLocale,
   getFormVisaType,
   getVisaPackageTitle,
 } from "@/lib/visa-destinations";
-import { getCountryHeroTheme, heroGradientCss } from "@/lib/client/country-hero-theme";
+import {
+  getCountryHeroTheme,
+  heroGradientCss,
+} from "@/lib/client/country-hero-theme";
 import {
   getRecentApplicationFormHref,
+  buildApplicationLongFormHref,
   readApplicationFormTarget,
 } from "@/lib/client/recent-application-form";
 import {
@@ -102,6 +109,12 @@ interface UniversalInfoProgress {
   totalCount: number;
 }
 
+interface ActiveVisaSummary {
+  href: string;
+  status: string;
+  visaName: string;
+}
+
 const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
   "surname",
   "given_names",
@@ -122,7 +135,12 @@ const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
   "wechat",
 ];
 
-const PASSPORT_DOCUMENT_TYPES = new Set(["passport_copy", "passport_bio_page", "passport_scan", "passport"]);
+const PASSPORT_DOCUMENT_TYPES = new Set([
+  "passport_copy",
+  "passport_bio_page",
+  "passport_scan",
+  "passport",
+]);
 
 const MULTI_CATEGORY_APPLICATIONS = [
   { country: "vietnam", visaType: "evisa_tourism" },
@@ -133,7 +151,9 @@ const MULTI_CATEGORY_APPLICATIONS = [
   { country: "philippines", visaType: "PH_ETRAVEL_DEPARTURE_CARD" },
 ] as const;
 
-function getMultiCategoryCountry(country: string | null): "vietnam" | "indonesia" | "philippines" | null {
+function getMultiCategoryCountry(
+  country: string | null
+): "vietnam" | "indonesia" | "philippines" | null {
   switch (country?.trim().toLowerCase()) {
     case "vietnam":
     case "vn":
@@ -190,20 +210,32 @@ function parseLegacyName(value?: string | null) {
 function buildUniversalInfoProgress(
   profile: ApplicantProfileSummary | null,
   authEmail?: string | null,
-  hasPassportUpload = false,
+  hasPassportUpload = false
 ): UniversalInfoProgress {
   const legacyBirthplace = parseLegacyBirthplace(profile?.place_of_birth);
   const legacyName = parseLegacyName(profile?.full_name);
   const completedCount = UNIVERSAL_PROFILE_FIELDS.filter((field) => {
     if (field === "email" && !profile?.email && authEmail) return true;
-    if (field === "surname") return Boolean(profile?.surname?.trim() || legacyName.surname);
-    if (field === "given_names") return Boolean(profile?.given_names?.trim() || legacyName.givenNames);
-    if (field === "birth_country") return Boolean(profile?.birth_country?.trim() || legacyBirthplace.country);
+    if (field === "surname")
+      return Boolean(profile?.surname?.trim() || legacyName.surname);
+    if (field === "given_names")
+      return Boolean(profile?.given_names?.trim() || legacyName.givenNames);
+    if (field === "birth_country")
+      return Boolean(
+        profile?.birth_country?.trim() || legacyBirthplace.country
+      );
     if (field === "birth_province_or_state") {
-      return Boolean(profile?.birth_province_or_state?.trim() || legacyBirthplace.provinceOrState);
+      return Boolean(
+        profile?.birth_province_or_state?.trim() ||
+        legacyBirthplace.provinceOrState
+      );
     }
     if (field === "birth_city") {
-      return Boolean(profile?.birth_city?.trim() || legacyBirthplace.city || profile?.place_of_birth?.trim());
+      return Boolean(
+        profile?.birth_city?.trim() ||
+        legacyBirthplace.city ||
+        profile?.place_of_birth?.trim()
+      );
     }
     return Boolean(profile?.[field]?.trim());
   }).length;
@@ -225,13 +257,15 @@ export default function HomePage() {
   const [applicantName, setApplicantName] = useState<string | null>(null);
   // Country code of the current application, shown in the hero subtitle.
   const [heroCountry, setHeroCountry] = useState<string | null>(null);
+  const [activeVisa, setActiveVisa] = useState<ActiveVisaSummary | null>(null);
 
   // 核心业务状态
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
-  const [universalInfoProgress, setUniversalInfoProgress] = useState<UniversalInfoProgress>({
-    completedCount: 0,
-    totalCount: UNIVERSAL_PROFILE_FIELDS.length,
-  });
+  const [universalInfoProgress, setUniversalInfoProgress] =
+    useState<UniversalInfoProgress>({
+      completedCount: 0,
+      totalCount: UNIVERSAL_PROFILE_FIELDS.length,
+    });
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -250,7 +284,10 @@ export default function HomePage() {
 
       if (accessToken && refreshToken) {
         supabase.auth
-          .setSession({ access_token: accessToken, refresh_token: refreshToken })
+          .setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
           .then(({ data, error: authError }) => {
             if (authError) {
               setError(t("authError"));
@@ -274,13 +311,19 @@ export default function HomePage() {
     (
       appsList: ApplicationRow[],
       docsList: DocumentRow[],
-      paymentsList: PaymentRow[],
+      paymentsList: PaymentRow[]
     ): ActivityEvent[] => {
       const events: ActivityEvent[] = [];
-      const applicationsById = new Map(appsList.map((application) => [application.id, application]));
+      const applicationsById = new Map(
+        appsList.map((application) => [application.id, application])
+      );
 
       for (const application of appsList) {
-        const applicationName = getVisaPackageTitle(application.country, application.visa_type, locale);
+        const applicationName = getVisaPackageTitle(
+          application.country,
+          application.visa_type,
+          locale
+        );
         const href = getNextApplicationHref(application, paymentsList);
         if (application.submitted_at) {
           events.push({
@@ -311,7 +354,10 @@ export default function HomePage() {
           id: `doc-${doc.id}`,
           eventType: "document_upload",
           label: t("activity.documentUploaded", { docType: docLabel }),
-          sublabel: doc.status === "rejected" ? t("activity.documentRejected") : t("activity.documentReceived"),
+          sublabel:
+            doc.status === "rejected"
+              ? t("activity.documentRejected")
+              : t("activity.documentReceived"),
           timestamp: doc.updated_at,
           icon: doc.status === "rejected" ? "alert" : "upload",
           href: application
@@ -322,10 +368,13 @@ export default function HomePage() {
         });
       }
 
-      events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      events.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
       return events.slice(0, 5);
     },
-    [locale, t],
+    [locale, t]
   );
 
   const fetchData = useCallback(
@@ -356,12 +405,19 @@ export default function HomePage() {
         const authName = dashboard.authEmail?.split("@")[0] ?? null;
         if (!isLatestRequest()) return;
         setUniversalInfoProgress(
-          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, dashboard.authEmail),
+          buildUniversalInfoProgress(
+            profile as ApplicantProfileSummary | null,
+            dashboard.authEmail
+          )
         );
 
-        const profileTyped = profile as { id: string; full_name: string | null } | null;
+        const profileTyped = profile as {
+          id: string;
+          full_name: string | null;
+        } | null;
         if (!profileTyped) {
           if (authName) setApplicantName(authName);
+          setActiveVisa(null);
           setActivityEvents([]);
           return;
         }
@@ -370,24 +426,50 @@ export default function HomePage() {
 
         if (!isLatestRequest()) return;
         const loadedApplications = dashboard.applications as ApplicationRow[];
+        const loadedPayments = dashboard.payments as PaymentRow[];
 
         // Current application = last-visited form context, else newest application.
-        const formTarget = readApplicationFormTarget(getRecentApplicationFormHref());
+        const formTarget = readApplicationFormTarget(
+          getRecentApplicationFormHref()
+        );
         const currentApplication =
           loadedApplications.find((application) => {
-            if (formTarget?.applicationId) return application.id === formTarget.applicationId;
+            if (formTarget?.applicationId)
+              return application.id === formTarget.applicationId;
             if (!formTarget?.country || !formTarget.visaType) return false;
             return (
-              application.country.toLowerCase() === formTarget.country.toLowerCase() &&
+              application.country.toLowerCase() ===
+                formTarget.country.toLowerCase() &&
               getFormVisaType(application.visa_type).toLowerCase() ===
                 getFormVisaType(formTarget.visaType).toLowerCase()
             );
-          }) ?? loadedApplications[0] ?? null;
+          }) ??
+          loadedApplications[0] ??
+          null;
         setHeroCountry(currentApplication?.country ?? null);
+        setActiveVisa(
+          currentApplication
+            ? {
+                href: getNextApplicationHref(
+                  currentApplication,
+                  loadedPayments
+                ),
+                status: currentApplication.status,
+                visaName: getVisaPackageTitle(
+                  currentApplication.country,
+                  currentApplication.visa_type,
+                  locale
+                ),
+              }
+            : null
+        );
 
         if (loadedApplications.length === 0) {
           setUniversalInfoProgress(
-            buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, dashboard.authEmail),
+            buildUniversalInfoProgress(
+              profile as ApplicantProfileSummary | null,
+              dashboard.authEmail
+            )
           );
           setActivityEvents([]);
           return;
@@ -395,20 +477,33 @@ export default function HomePage() {
 
         if (!isLatestRequest()) return;
         const loadedDocuments = dashboard.documents as DocumentRow[];
-        const loadedPayments = dashboard.payments as PaymentRow[];
         const hasPassportUpload = loadedDocuments.some(
-          (document) => PASSPORT_DOCUMENT_TYPES.has(document.document_type) && document.status !== "missing",
+          (document) =>
+            PASSPORT_DOCUMENT_TYPES.has(document.document_type) &&
+            document.status !== "missing"
         );
         setUniversalInfoProgress(
-          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, dashboard.authEmail, hasPassportUpload),
+          buildUniversalInfoProgress(
+            profile as ApplicantProfileSummary | null,
+            dashboard.authEmail,
+            hasPassportUpload
+          )
         );
         // Recent activity is scoped to the current application only — other
         // applications are visible from /client/destinations.
-        const currentApplications = currentApplication ? [currentApplication] : [];
+        const currentApplications = currentApplication
+          ? [currentApplication]
+          : [];
         const currentDocuments = loadedDocuments.filter(
-          (document) => document.application_id === currentApplication?.id,
+          (document) => document.application_id === currentApplication?.id
         );
-        setActivityEvents(buildActivityEvents(currentApplications, currentDocuments, loadedPayments));
+        setActivityEvents(
+          buildActivityEvents(
+            currentApplications,
+            currentDocuments,
+            loadedPayments
+          )
+        );
       } catch (loadError) {
         if (!isLatestRequest()) return;
         if (isIgnorableDashboardLoadError(loadError)) {
@@ -423,10 +518,11 @@ export default function HomePage() {
         console.error("Failed to load client home dashboard", loadError);
         setError(t("dashboardError"));
       } finally {
-        if (showLoading && isLatestRequest() && !keepLoadingForRetry) setIsLoading(false);
+        if (showLoading && isLatestRequest() && !keepLoadingForRetry)
+          setIsLoading(false);
       }
     },
-    [buildActivityEvents, t],
+    [buildActivityEvents, locale, t]
   );
 
   useEffect(() => {
@@ -444,8 +540,16 @@ export default function HomePage() {
     void fetchData();
     const channel = supabase
       .channel("home-activity-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "application_documents" }, scheduleRefresh)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "applications" },
+        scheduleRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "application_documents" },
+        scheduleRefresh
+      )
       .subscribe();
 
     return () => {
@@ -458,8 +562,14 @@ export default function HomePage() {
   useEffect(() => {
     const handleScroll = () => {
       const isScrolled = window.scrollY > 320;
-      document.documentElement.style.setProperty("--nav-text-color", isScrolled ? "#000000" : "#ffffff");
-      document.documentElement.style.setProperty("--nav-stroke-color", isScrolled ? "#000000" : "#ffffff");
+      document.documentElement.style.setProperty(
+        "--nav-text-color",
+        isScrolled ? "#000000" : "#ffffff"
+      );
+      document.documentElement.style.setProperty(
+        "--nav-stroke-color",
+        isScrolled ? "#000000" : "#ffffff"
+      );
     };
 
     window.addEventListener("scroll", handleScroll);
@@ -474,7 +584,9 @@ export default function HomePage() {
   const heroTheme = getCountryHeroTheme(heroCountry);
   const multiCategoryCountry = getMultiCategoryCountry(heroCountry);
   const multiCategoryEntries = multiCategoryCountry
-    ? MULTI_CATEGORY_APPLICATIONS.filter((entry) => entry.country === multiCategoryCountry)
+    ? MULTI_CATEGORY_APPLICATIONS.filter(
+        (entry) => entry.country === multiCategoryCountry
+      )
     : [];
 
   const headingVariants = {
@@ -498,12 +610,19 @@ export default function HomePage() {
       }}
     >
       {/* Hero Background — gradient + graphic vary by the current country. */}
-      <div className="absolute top-0 left-0 right-0 h-[720px] xl:h-[538px] overflow-hidden z-0">
-        <div className="absolute inset-0" style={{ backgroundImage: heroGradientCss(heroTheme) }} />
+      <div className="absolute left-0 right-0 top-0 z-0 h-[1080px] overflow-hidden xl:h-[538px]">
+        <div
+          className="absolute inset-0"
+          style={{ backgroundImage: heroGradientCss(heroTheme) }}
+        />
         <div className="absolute inset-0 bg-[rgba(0,0,0,0.05)] mix-blend-hard-light" />
         {heroTheme.image && (
           <div className="absolute h-[900px] left-1/2 -translate-x-1/2 bottom-0 w-[600px] blur-sm">
-            <img alt="" className="w-full h-full object-contain object-bottom" src={heroTheme.image} />
+            <img
+              alt=""
+              className="w-full h-full object-contain object-bottom"
+              src={heroTheme.image}
+            />
           </div>
         )}
         <div className="absolute inset-0 bg-[rgba(0,0,0,0.08)]" />
@@ -519,12 +638,17 @@ export default function HomePage() {
           variants={headingVariants}
         >
           <p className="mb-0 text-[rgba(255,255,255,0.65)]">
-            {t("welcomeBack", { name: applicantName?.split(" ")[0] || "there" })}
+            {t("welcomeBack", {
+              name: applicantName?.split(" ")[0] || "there",
+            })}
           </p>
           <p>
             {heroCountry
               ? t("vizaApplicationForCountry", {
-                  country: getDestinationDisplayNameForLocale(heroCountry, locale),
+                  country: getDestinationDisplayNameForLocale(
+                    heroCountry,
+                    locale
+                  ),
                 })
               : t("vizaApplication")}
           </p>
@@ -538,7 +662,11 @@ export default function HomePage() {
           transition={{ delay: 0.1, duration: 0.5 }}
         >
           <div className="flex flex-col xl:flex-row gap-[16px] items-stretch w-full">
-            <SubscriptionPlanCard />
+            <ActiveVisaCard
+              href={activeVisa?.href ?? "/client/destinations"}
+              status={activeVisa?.status ?? null}
+              visaName={activeVisa?.visaName ?? null}
+            />
             <UniversalInfoCard {...universalInfoProgress} />
             <QuickActionsCard />
           </div>
@@ -550,18 +678,22 @@ export default function HomePage() {
               <h2 className="font-heading text-[22px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[26px]">
                 {t("applicationCategories")}
               </h2>
-              <p className="mt-1 text-[14px] leading-6 text-[#667085]">{t("applicationCategoriesHint")}</p>
+              <p className="mt-1 text-[14px] leading-6 text-[#667085]">
+                {t("applicationCategoriesHint")}
+              </p>
             </div>
             <p className="mt-5 text-[14px] font-semibold text-[#03346E]">
               {getDestinationDisplayNameForLocale(multiCategoryCountry, locale)}
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {multiCategoryEntries.map((entry) => {
-                const params = new URLSearchParams({ country: entry.country, visaType: entry.visaType });
                 return (
                   <Link
                     key={entry.visaType}
-                    href={`/client/application?${params.toString()}`}
+                    href={buildApplicationLongFormHref({
+                      country: entry.country,
+                      visaType: entry.visaType,
+                    })}
                     className="flex min-h-11 items-center rounded-lg border border-[#d7e1ef] px-3 py-2 text-[13px] font-medium leading-5 text-[#03346E] transition hover:border-[#03346E] hover:bg-[#eef3fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                   >
                     {getVisaPackageTitle(entry.country, entry.visaType, locale)}
