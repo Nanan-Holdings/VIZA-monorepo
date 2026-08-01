@@ -57,6 +57,8 @@ export function PayByCardButton({
   return (
     <a
       href={href}
+      data-country={country}
+      data-payment-method="card"
       className={`${base} bg-brand-500 text-white hover:bg-brand-400 transition-colors ${className ?? ""}`}
     >
       <CardGlyph />
