@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "generated_at": "bootstrap",
+    "official_option_source": "Thailand Immigration Bureau TDAC API audit",
+    "standardized_translation_source": "Curated Chinese geographic names plus deterministic Thai romanization",
+    "fallback_translation_source": "Repository-local tokenized Chinese phonetic transliteration (no runtime network)",
+    "province_count": 0,
+    "district_count": 0,
+    "subdistrict_count": 0,
+    "fallback_policy": "Use a parent-context key; retain curated names where available and transliterate every remaining official romanized name into Chinese with an administrative-level suffix."
+  },
+  "provinces": {},
+  "districts": {},
+  "subdistricts": {}
+}
