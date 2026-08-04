@@ -352,7 +352,8 @@ async def revise(data: TravelRevisionRequest):
     except asyncio.TimeoutError:
         print("Travel itinerary revision exceeded the endpoint deadline; preserving current version.")
         current = _sanitize_itinerary(payload.get("current_itinerary"), payload.get("state"))
-        return _openai_revision_unavailable("OpenAI 请求超时", current)
+        timeout_label = "OpenAI request timed out" if data.locale.lower().startswith("en") else "OpenAI 请求超时"
+        return _openai_revision_unavailable(timeout_label, current)
 
 
 @app.post("/chat")
@@ -364,8 +365,13 @@ async def chat(data: TravelChatRequest):
         )
     except asyncio.TimeoutError:
         print("Travel chat exceeded the endpoint deadline; returning a safe fallback.")
+        is_english = data.locale.lower().startswith("en")
         return TravelChatResponse(
-            reply="旅行对话暂时超时了。你可以稍后重试，或直接告诉我目的地和旅行天数。",
+            reply=(
+                "Travel chat timed out. Please try again, or tell me your destination and trip length."
+                if is_english
+                else "旅行对话暂时超时了。你可以稍后重试，或直接告诉我目的地和旅行天数。"
+            ),
             mode="collect_slots",
         )
 
