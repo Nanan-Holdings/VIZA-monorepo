@@ -4,6 +4,7 @@ import {
   buildVietnamBrowserAttempts,
   finalizeVietnamResultAfterRetries,
   isRetryableVietnamResult,
+  nextVietnamQueueAttemptCount,
 } from "../retry-policy.js";
 import type { FillVietnamResult } from "../run.js";
 
@@ -116,4 +117,23 @@ test("vn.retry-policy: preserves a genuine layout change after retries", () => {
   };
 
   assert.equal(finalizeVietnamResultAfterRetries(layoutResult, 3), layoutResult);
+});
+
+test("vn.retry-policy: exhausts a queue retry after consuming a one-time card", () => {
+  assert.equal(
+    nextVietnamQueueAttemptCount({
+      currentAttempts: 0,
+      officialPortalFailure: false,
+      consumedOneTimeCardAuthorization: true,
+    }),
+    3,
+  );
+  assert.equal(
+    nextVietnamQueueAttemptCount({
+      currentAttempts: 0,
+      officialPortalFailure: false,
+      consumedOneTimeCardAuthorization: false,
+    }),
+    1,
+  );
 });

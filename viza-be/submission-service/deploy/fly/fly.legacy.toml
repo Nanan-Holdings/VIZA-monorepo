@@ -23,6 +23,9 @@ kill_timeout = "5m"
   # one-time card handoff must terminate on this same single-memory worker.
   VN_CLOUD_CARD_SESSION_ENABLED = "true"
   VN_OFFICIAL_PAYMENT_AUTOPAY = "true"
+  # Fly has no X server. Vietnam must launch the bundled browser headlessly;
+  # interactive payment challenges are surfaced as explicit checkpoints.
+  VN_PLAYWRIGHT_HEADLESS = "true"
   # The Playwright Fly image only guarantees its bundled Chromium binary.
   # Retry that browser for transient launch/portal failures instead of falling
   # through to host-installed Edge/Chrome channels that do not exist here.

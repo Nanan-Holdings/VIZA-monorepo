@@ -76,6 +76,7 @@ test("Vietnam eVisa legacy worker retries only the bundled Fly browser", () => {
   );
 
   assert.match(legacyConfig, /VN_BROWSER_CHANNELS = "bundled"/);
+  assert.match(legacyConfig, /VN_PLAYWRIGHT_HEADLESS = "true"/);
   assert.doesNotMatch(legacyConfig, /VN_BROWSER_CHANNELS = ".*(?:msedge|chrome)/);
 });
 

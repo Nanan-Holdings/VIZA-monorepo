@@ -58,6 +58,20 @@ test("Vietnam live processing has a longer outage grace period than the generic 
   );
 });
 
+test("Vietnam retry rows release their database claim lease immediately", () => {
+  const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
+  const vietnamStart = source.indexOf("async function processVnItem");
+  const vietnamEnd = source.indexOf("async function loadAuAccount", vietnamStart);
+  assert.notEqual(vietnamStart, -1);
+  assert.notEqual(vietnamEnd, -1);
+
+  const vietnamBody = source.slice(vietnamStart, vietnamEnd);
+  assert.match(vietnamBody, /newStatus === retryPendingStatus/);
+  assert.match(vietnamBody, /locked_by: null, locked_until: null/);
+  assert.match(vietnamBody, /consumedOneTimeCardAuthorization/);
+  assert.match(vietnamBody, /payment_status: "failed"/);
+});
+
 test("stale timeout scanning covers interrupted Indonesia payment workers", () => {
   const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
   const statusesStart = source.indexOf("const STALE_QUEUE_STATUSES");
