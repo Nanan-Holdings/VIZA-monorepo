@@ -242,7 +242,7 @@ export const TDAC_YELLOW_FEVER_SHOW_IF = [
   `nationality in [${yellowFeverCountryListExpression}]`,
 ].join(" || ");
 
-const TDAC_PROVINCE_TRANSLATION_OPTIONS = [
+export const TDAC_PROVINCE_TRANSLATION_OPTIONS = [
   option("amnat_charoen", "安纳乍能府", "AMNAT CHAROEN"),
   option("ang_thong", "红统府", "ANG THONG"),
   option("bangkok", "曼谷", "BANGKOK"),
@@ -543,7 +543,7 @@ export const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY: Record<string, TdacOption
   ]),
 );
 
-const TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = {
+export const TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = {
   amnat_charoen: [option("mueang_amnat_charoen", "安纳乍能府直辖县", "MUEANG AMNAT CHAROEN")],
   bangkok: [
     option("pathum_wan", "巴吞旺区", "PATHUM WAN"),
@@ -558,7 +558,7 @@ const TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]
   surat_thani: [option("ko_samui", "苏梅岛县", "KO SAMUI"), option("mueang_surat_thani", "素叻他尼府直辖县", "MUEANG SURAT THANI")],
 };
 
-const TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT: Record<string, TdacOption[]> = {
+export const TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT: Record<string, TdacOption[]> = {
   mueang_amnat_charoen: [option("non_pho", "农坡", "NON PHO")],
   pathum_wan: [option("lumphini", "伦披尼", "LUMPHINI"), option("rong_mueang", "荣孟", "RONG MUEANG")],
   khlong_toei: [option("khlong_toei", "空堤", "KHLONG TOEI")],
