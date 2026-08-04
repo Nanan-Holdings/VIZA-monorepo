@@ -108,6 +108,19 @@ const translateBatch = (tokens: string[]): Record<string, string> => {
   return translations;
 };
 
+const translateBatchWithRecovery = (tokens: string[]): Record<string, string> => {
+  try {
+    return translateBatch(tokens);
+  } catch (error) {
+    if (tokens.length === 1) throw error;
+    const midpoint = Math.ceil(tokens.length / 2);
+    return {
+      ...translateBatchWithRecovery(tokens.slice(0, midpoint)),
+      ...translateBatchWithRecovery(tokens.slice(midpoint)),
+    };
+  }
+};
+
 const writeCache = (translations: Record<string, string>, tokenCount: number): void => {
   const sorted = Object.fromEntries(Object.entries(translations).sort(([left], [right]) => left.localeCompare(right)));
   const cache: TokenTranslationCache = {
@@ -128,7 +141,7 @@ const main = (): void => {
   const missing = tokens.filter((token) => !translations[token]);
   for (let index = 0; index < missing.length; index += BATCH_SIZE) {
     const batch = missing.slice(index, index + BATCH_SIZE);
-    Object.assign(translations, translateBatch(batch));
+    Object.assign(translations, translateBatchWithRecovery(batch));
     writeCache(translations, tokens.length);
     console.log(`Generated ${Math.min(index + batch.length, missing.length)}/${missing.length} missing TDAC tokens`);
   }
@@ -139,4 +152,3 @@ const main = (): void => {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }
-

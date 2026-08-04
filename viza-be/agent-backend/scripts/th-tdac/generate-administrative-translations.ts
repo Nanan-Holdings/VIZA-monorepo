@@ -237,7 +237,7 @@ const translateDistrictName = (
   if (explicitTranslation) return explicitTranslation;
 
   if (mueangPrefix && tdacOptionKey(mueangName) === provinceSlugWithoutPostfix) {
-    return `${provinceStem(provinceZh)}直辖县`;
+    return `${provinceStem(provinceZh)}府直辖县`;
   }
 
   const suffix = provinceSlug === "bangkok" || districtSlug.endsWith("khet") ? "区" : "县";
