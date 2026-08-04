@@ -9,7 +9,7 @@
       "visaType": "visitor_visa_or_exemption",
       "documentType": "requirements",
       "title": "Mexico Visitor Visa or Visa Exemption",
-      "sourceUrl": "https://www.gob.mx/inm/documentos/paises-y-regiones-que-requieren-visa-para-viajar-a-mexico",
+      "sourceUrl": "https://www.gob.mx/sre/acciones-y-programas/visas-para-extranjeros-8036",
       "chunks": [
         {
           "id": "mex_china_visitor_basic_route_zh",
@@ -61,7 +61,7 @@
       "visaType": "visitor_visa_or_exemption",
       "documentType": "form_requirements",
       "title": "Mexico Application Form and Document Intake Requirements",
-      "sourceUrl": "https://www.gob.mx/inm/documentos/paises-y-regiones-que-requieren-visa-para-viajar-a-mexico",
+      "sourceUrl": "https://www.gob.mx/sre/acciones-y-programas/visas-para-extranjeros-8036",
       "chunks": [
         {
           "id": "mexico_form_channel_and_scope",

@@ -154,6 +154,8 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `src/services/visa-knowledge.service.ts`
 - `src/services/visa-conversation-state.service.ts`
 - `src/config/visa-destination-registry.ts`
+- `src/config/visa-product-registry.ts`: canonical internal form and audited
+  official-redirect catalogue used by deterministic entry-rule recommendations.
 - `src/routes/*`
 - `scripts/ingest-country-visa-rag.ts`
 - `scripts/stage-visa-knowledge-supplements.ts`

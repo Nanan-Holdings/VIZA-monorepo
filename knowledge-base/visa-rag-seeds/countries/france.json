@@ -1,12 +1,12 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "france",
   "notes": "Country-level VIZA RAG seed for france. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
     {
       "slug": "france-tourism-private-stay",
       "country": "france",
-      "visaType": "schengen_short_stay_tourism",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
       "documentType": "requirements",
       "title": "France Tourism and Private Stay",
       "sourceUrl": "https://www.france-visas.gouv.fr/en/tourisme-et-sejour-prive",
@@ -52,7 +52,7 @@
     {
       "slug": "france-schengen-common-requirements",
       "country": "france",
-      "visaType": "schengen_short_stay_tourism",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
       "documentType": "requirements",
       "title": "Schengen Short-Stay Requirements for France",
       "sourceUrl": "https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en",
@@ -86,7 +86,7 @@
     {
       "slug": "france-form-requirements",
       "country": "france",
-      "visaType": "schengen_short_stay_tourism",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
       "documentType": "form_requirements",
       "title": "France Application Form and Document Intake Requirements",
       "sourceUrl": "https://home-affairs.ec.europa.eu/document/download/5fe79baa-2d46-4b65-84ec-ea2e9b5ab1d6_en?filename=Visa+Application+Form.pdf",
