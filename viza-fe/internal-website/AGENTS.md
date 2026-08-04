@@ -136,6 +136,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   Scheduled arrival-card work must keep its future `available_at` and must not
   wake compute early. Legacy, Indonesia and Korea sticky wake requests reserve
   database Machine slots and may preempt only an idle shared worker.
+  Production Fly app names are selected through `FLY_RUNNER_POOL_APP`,
+  `FLY_SUBMISSION_LEGACY_APP`, `FLY_RUNNER_INDONESIA_APP`, and
+  `FLY_RUNNER_SOUTH_KOREA_APP`; unset values retain the original app names for
+  rollback.
 - Local developer recovery for stalled official submission jobs is exposed
   through `app/api/applications/[id]/local-submission-worker/route.ts`; it is
   localhost-only and may only start the repository `viza-be/submission-service`

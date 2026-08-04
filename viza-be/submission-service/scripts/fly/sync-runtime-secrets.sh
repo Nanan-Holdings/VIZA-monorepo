@@ -73,7 +73,7 @@ case "$country" in
     capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY FV_EMAIL FV_PASSWORD)
     ;;
   legacy)
-    capability=(MDAC_BROWSER_API_ENDPOINT MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT TDAC_BROWSER_API_ENDPOINT BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY IMAP_HOST IMAP_PORT IMAP_EMAIL IMAP_PASSWORD FV_EMAIL FV_PASSWORD)
+    capability=(MDAC_BROWSER_API_ENDPOINT MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT TDAC_BROWSER_API_ENDPOINT BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY IMAP_HOST IMAP_PORT IMAP_EMAIL IMAP_PASSWORD FV_EMAIL FV_PASSWORD VIETNAM_CARD_SESSION_INTERNAL_TOKEN)
     ;;
   pool)
     capability=(
@@ -106,6 +106,11 @@ fi
 
 if [[ "$country" == "south_korea" && -z "${KR_SUBMISSION_INTERNAL_TOKEN:-}" ]]; then
   echo "Missing required South Korea submission internal token." >&2
+  exit 2
+fi
+
+if [[ "$country" == "legacy" && -z "${VIETNAM_CARD_SESSION_INTERNAL_TOKEN:-}" ]]; then
+  echo "Missing required Vietnam card-session internal token." >&2
   exit 2
 fi
 

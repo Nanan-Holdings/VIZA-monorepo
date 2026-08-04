@@ -8,6 +8,9 @@ decisions="${1:?path to autoscaler decisions JSON is required}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 countries="$root/deploy/fly/countries.json"
 fly_bin="$(command -v fly || command -v flyctl || true)"
+legacy_app="${FLY_SUBMISSION_LEGACY_APP:-viza-submission-legacy}"
+indonesia_app="${FLY_RUNNER_INDONESIA_APP:-viza-runner-indonesia}"
+south_korea_app="${FLY_RUNNER_SOUTH_KOREA_APP:-viza-runner-south-korea}"
 if [[ -z "$fly_bin" ]]; then
   echo "[autoscale] neither fly nor flyctl is installed" >&2
   exit 127
@@ -15,9 +18,9 @@ fi
 
 can_stop_safely() {
   local app="$1"
-  if [[ "$app" != "viza-submission-legacy" &&
-        "$app" != "viza-runner-indonesia" &&
-        "$app" != "viza-runner-south-korea" ]]; then
+  if [[ "$app" != "$legacy_app" &&
+        "$app" != "$indonesia_app" &&
+        "$app" != "$south_korea_app" ]]; then
     return 0
   fi
 

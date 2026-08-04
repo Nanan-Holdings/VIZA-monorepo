@@ -93,6 +93,36 @@ describe("ensureFlyMachineStarted", () => {
     );
   });
 
+  it("uses account-specific app names when production overrides are configured", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ id: "kr-machine-2", state: "stopped" }]), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    await expect(
+      ensureFlyMachineStarted("kr", {
+        env: {
+          FLY_SUBMISSION_ORG_TOKEN: "org-token",
+          FLY_RUNNER_SOUTH_KOREA_APP: "viza-prod-runner-south-korea",
+        },
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      app: "viza-prod-runner-south-korea",
+      state: "start_requested",
+    });
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "https://api.machines.dev/v1/apps/viza-prod-runner-south-korea/machines/kr-machine-2/start",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("does not issue a start request when a machine is already starting", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(JSON.stringify([{ id: "machine-1", state: "starting" }]), {
