@@ -77,6 +77,7 @@
     "statusLabels": {
       "draft": "[VI] Draft",
       "in_progress": "[VI] In Progress",
+      "processing": "[VI] Processing",
       "submitted": "[VI] Submitted",
       "approved": "[VI] Approved",
       "rejected": "[VI] Rejected"

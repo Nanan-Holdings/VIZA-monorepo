@@ -110,6 +110,7 @@
     "statusLabels": {
       "draft": "草稿",
       "in_progress": "进行中",
+      "processing": "处理中",
       "submitted": "已提交",
       "approved": "已批准",
       "rejected": "已拒绝"

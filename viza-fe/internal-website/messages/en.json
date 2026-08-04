@@ -110,6 +110,7 @@
     "statusLabels": {
       "draft": "Draft",
       "in_progress": "In Progress",
+      "processing": "Processing",
       "submitted": "Submitted",
       "approved": "Approved",
       "rejected": "Rejected"

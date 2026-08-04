@@ -69,3 +69,38 @@ test("Vietnam Pre-Arrival remains shared-pool only", () => {
   assert.doesNotMatch(wakeRouting, /viza-runner-vietnam/);
   assert.match(deployWorkflow, /deploy-pool\.sh/);
 });
+
+test("South Korea uses only its protected sticky deploy path", () => {
+  const config = readRepoFile(
+    "viza-be/submission-service/deploy/fly/fly.south-korea.toml",
+  );
+  const dedicatedDeploy = readRepoFile(
+    "viza-be/submission-service/scripts/fly/deploy-south-korea.sh",
+  );
+  const genericDeploy = readRepoFile(
+    "viza-be/submission-service/scripts/fly/deploy-country.sh",
+  );
+  const deployWorkflow = readRepoFile(
+    ".github/workflows/deploy-submission-service-fly.yml",
+  );
+  const secretSync = readRepoFile(
+    "viza-be/submission-service/scripts/fly/sync-runtime-secrets.sh",
+  );
+
+  assert.match(config, /app = "viza-runner-south-korea"/);
+  assert.match(config, /RUNNER_MACHINE_KIND = "south_korea"/);
+  assert.match(config, /SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "false"/);
+  assert.match(config, /SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"/);
+  assert.match(config, /auto_start_machines = false/);
+  assert.match(config, /max_machines_running = 1/);
+  assert.match(config, /memory_mb = 2048/);
+  assert.match(config, /cpus = 2/);
+  assert.match(config, /SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"/);
+  assert.match(dedicatedDeploy, /fly\.south-korea\.toml/);
+  assert.match(dedicatedDeploy, /\/deploy-ready/);
+  assert.match(dedicatedDeploy, /sync-runtime-secrets\.sh" "\$app" south_korea/);
+  assert.match(genericDeploy, /South Korea is a sticky session worker/);
+  assert.match(deployWorkflow, /deploy_south_korea_worker/);
+  assert.match(deployWorkflow, /deploy-south-korea\.sh/);
+  assert.match(secretSync, /Missing required South Korea submission internal token/);
+});

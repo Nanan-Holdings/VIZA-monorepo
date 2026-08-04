@@ -8,6 +8,11 @@ image="${2:?immutable image reference is required}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 config="$root/deploy/fly/countries.json"
 
+if [[ "$country" == "south_korea" ]]; then
+  echo "South Korea is a sticky session worker; use deploy-south-korea.sh instead of the generic country template." >&2
+  exit 2
+fi
+
 if ! jq -e --arg country "$country" '.countries | index($country)' "$config" >/dev/null; then
   echo "Unsupported Fly worker country: $country" >&2
   exit 2
