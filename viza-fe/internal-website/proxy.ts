@@ -5,9 +5,25 @@ import { getClientSessionFromRequest } from "@/lib/client-session";
 import { getImpersonationSessionFromRequest } from "@/lib/impersonation-session";
 import { normalizeSupabaseEnvValue } from "@/lib/supabase/env";
 import { createFetchWithTimeout } from "@/lib/supabase/fetch-with-timeout";
+import {
+  getAboutMeRedirectTarget,
+  isRetiredAboutMeRoute,
+} from "@/app/client/about-me-form/redirect-target";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // Retire the legacy health questionnaire at the earliest server boundary.
+  // Keeping this redirect in the proxy as well as the page prevents an old
+  // client bundle or layout transition from ever rendering the questionnaire.
+  if (isRetiredAboutMeRoute(pathname)) {
+    const target = getAboutMeRedirectTarget(
+      request.nextUrl.searchParams.getAll("returnTo"),
+    );
+    const response = NextResponse.redirect(new URL(target, request.url));
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    return response;
+  }
 
   // Handle /client/login, /client/signup, and /client/register pages (user auth portal)
   if (

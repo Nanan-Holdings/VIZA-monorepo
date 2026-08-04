@@ -32,7 +32,6 @@ type ClientSessionResponse = {
   userId?: string | null;
   sessionKind?: ClientSessionKind | null;
   sessionId?: string | null;
-  pendingFormRequestId?: string | null;
 };
 
 function getOrCreateTabId() {
@@ -151,7 +150,6 @@ function ClientLayoutContent({
       document.body.style.backgroundColor = previousBodyBackground;
     };
   }, [isReportPage]);
-  const isAboutMeForm = pathname.startsWith("/client/about-me-form");
   const isApplicationFlow =
     pathname === "/client/application" || pathname.startsWith("/client/application/");
 
@@ -239,12 +237,6 @@ function ClientLayoutContent({
         setSessionValid(true);
       }
 
-      if (result.pendingFormRequestId && !isAboutMeForm) {
-        const returnTo = encodeURIComponent(pathname);
-        router.replace(
-          `/client/about-me-form?requestId=${result.pendingFormRequestId}&returnTo=${returnTo}`
-        );
-      }
     } catch (error) {
       if (!isIgnorableClientSessionCheckError(error)) {
         console.error("Error checking session:", error);
@@ -257,18 +249,18 @@ function ClientLayoutContent({
       window.clearTimeout(timeoutId);
       isCheckingRef.current = false;
     }
-  }, [isAboutMeForm, pathname, router]);
+  }, [pathname, router]);
 
   // Run a single session validity check on mount; skip focus/visibility re-checks to avoid remounts
   useEffect(() => {
-    if (pathname.startsWith("/client/login") || pathname.startsWith("/client/signup") || pathname.startsWith("/client/register") || isAboutMeForm) {
+    if (pathname.startsWith("/client/login") || pathname.startsWith("/client/signup") || pathname.startsWith("/client/register")) {
       return;
     }
 
     if (sessionValid === null) {
       void checkSessionValidity();
     }
-  }, [pathname, isAboutMeForm, checkSessionValidity, sessionValid]);
+  }, [pathname, checkSessionValidity, sessionValid]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -303,10 +295,10 @@ function ClientLayoutContent({
     }
   }, [pathname]);
 
-  // Don't render layout wrapper for auth pages (login, signup) or about-me form (immersive)
+  // Don't render the client shell around auth pages.
   const isAuthPage =
     pathname.startsWith("/client/login") || pathname.startsWith("/client/signup") || pathname.startsWith("/client/register");
-  if (isAuthPage || isAboutMeForm) {
+  if (isAuthPage) {
     return (
       <div className="min-h-screen bg-white font-sans">
         <main>{children}</main>
