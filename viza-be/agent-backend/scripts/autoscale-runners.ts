@@ -21,7 +21,7 @@ interface PoolDepthRow {
 
 interface PoolScaleDecision {
   kind: "pool";
-  app: "viza-runner-pool";
+  app: string;
   desired: number;
   demand: number;
   stickySlots: number;
@@ -39,17 +39,24 @@ interface PoolScaleDecision {
 
 interface LegacyScaleDecision {
   kind: "legacy";
-  app: "viza-submission-legacy";
+  app: string;
   queued: number;
   desired: 0 | 1;
 }
 
 interface IndonesiaScaleDecision {
   kind: "indonesia";
-  app: "viza-runner-indonesia";
+  app: string;
   queued: number;
   desired: 0 | 1;
 }
+
+const RUNNER_POOL_APP =
+  process.env.FLY_RUNNER_POOL_APP?.trim() || "viza-runner-pool";
+const SUBMISSION_LEGACY_APP =
+  process.env.FLY_SUBMISSION_LEGACY_APP?.trim() || "viza-submission-legacy";
+const RUNNER_INDONESIA_APP =
+  process.env.FLY_RUNNER_INDONESIA_APP?.trim() || "viza-runner-indonesia";
 
 const LEGACY_CLAIMABLE_QUEUE_STATUSES = [
   "pending",
@@ -158,7 +165,7 @@ async function fetchPoolDecision(supabase: SupabaseClient): Promise<PoolScaleDec
   const demand = countries.reduce((total, row) => total + row.desired, 0);
   return {
     kind: "pool",
-    app: "viza-runner-pool",
+    app: RUNNER_POOL_APP,
     desired: Math.min(demand, Math.max(0, 10 - stickySlots)),
     demand,
     stickySlots,
@@ -271,13 +278,13 @@ async function main(): Promise<void> {
   await alertViolations(pool);
   const legacy: LegacyScaleDecision = {
     kind: "legacy",
-    app: "viza-submission-legacy",
+    app: SUBMISSION_LEGACY_APP,
     queued: legacyQueued,
     desired: legacyQueued > 0 ? 1 : 0,
   };
   const indonesia: IndonesiaScaleDecision = {
     kind: "indonesia",
-    app: "viza-runner-indonesia",
+    app: RUNNER_INDONESIA_APP,
     queued: indonesiaQueued,
     desired: indonesiaQueued > 0 ? 1 : 0,
   };

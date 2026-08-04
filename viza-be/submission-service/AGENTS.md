@@ -108,6 +108,10 @@ filling and one-shot submission for the applicant.
   stopping Machine IDs that own active
   jobs. These scripts require operator-provided Fly authentication and must
   never print or persist secret values.
+  The four retained production names may be overridden by
+  `FLY_RUNNER_POOL_APP`, `FLY_SUBMISSION_LEGACY_APP`,
+  `FLY_RUNNER_INDONESIA_APP`, and `FLY_RUNNER_SOUTH_KOREA_APP`; scripts retain
+  the original names when these variables are unset.
 - `src/submission-queue-claim.ts`: service-role RPC wrapper around
   `claim_submission_queue_batch`, which atomically claims legacy
   `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple

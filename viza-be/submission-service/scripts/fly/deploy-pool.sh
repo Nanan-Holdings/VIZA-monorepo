@@ -5,7 +5,7 @@ set -euo pipefail
 # Required: FLY_API_TOKEN, FLY_ORG and boot secrets.
 image="${1:?immutable image reference is required}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-app="viza-runner-pool"
+app="${FLY_RUNNER_POOL_APP:-viza-runner-pool}"
 
 if ! fly apps create "$app" --org "$FLY_ORG"; then
   fly status --app "$app" >/dev/null

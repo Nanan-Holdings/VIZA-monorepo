@@ -104,3 +104,25 @@ test("South Korea uses only its protected sticky deploy path", () => {
   assert.match(deployWorkflow, /deploy-south-korea\.sh/);
   assert.match(secretSync, /Missing required South Korea submission internal token/);
 });
+
+test("retained deployment scripts support fresh account-specific app names", () => {
+  const poolDeploy = readRepoFile(
+    "viza-be/submission-service/scripts/fly/deploy-pool.sh",
+  );
+  const legacyDeploy = readRepoFile(
+    "viza-be/submission-service/scripts/fly/deploy-legacy.sh",
+  );
+  const indonesiaDeploy = readRepoFile(
+    "viza-be/submission-service/scripts/fly/deploy-indonesia.sh",
+  );
+  const koreaDeploy = readRepoFile(
+    "viza-be/submission-service/scripts/fly/deploy-south-korea.sh",
+  );
+
+  assert.match(poolDeploy, /FLY_RUNNER_POOL_APP/);
+  assert.match(legacyDeploy, /FLY_SUBMISSION_LEGACY_APP/);
+  assert.match(indonesiaDeploy, /FLY_RUNNER_INDONESIA_APP/);
+  assert.match(koreaDeploy, /FLY_RUNNER_SOUTH_KOREA_APP/);
+  assert.match(legacyDeploy, /if has_retained_machine; then\s+require_deploy_ready/);
+  assert.match(legacyDeploy, /fly scale count 1/);
+});

@@ -4,7 +4,7 @@ set -euo pipefail
 # Required: FLY_API_TOKEN, FLY_ORG. Usage: deploy-legacy.sh <image>
 image="${1:?immutable image reference is required}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-app="viza-submission-legacy"
+app="${FLY_SUBMISSION_LEGACY_APP:-viza-submission-legacy}"
 deploy_ready_url="https://${app}.fly.dev/deploy-ready"
 
 require_deploy_ready() {
@@ -20,14 +20,21 @@ require_deploy_ready() {
   fi
 }
 
+has_retained_machine() {
+  fly machines list --app "$app" --json | jq -e 'length > 0' >/dev/null
+}
+
 if ! fly apps create "$app" --org "$FLY_ORG"; then
   # An existing app is normal on repeat deploys; any other create failure must
   # remain visible to the operator instead of being mistaken for an app lookup.
   fly status --app "$app" >/dev/null
 fi
 
-# Fail closed before staging secrets or replacing the only memory-backed worker.
-require_deploy_ready
+# A brand-new app has no process to query. Existing retained Machines always
+# fail closed before secret staging or replacement.
+if has_retained_machine; then
+  require_deploy_ready
+fi
 bash "$root/scripts/fly/sync-runtime-secrets.sh" "$app" "legacy"
 fly_image="registry.fly.io/$app:${image##*:}"
 docker pull "$image"
@@ -36,5 +43,8 @@ docker push "$fly_image"
 
 # Re-check immediately before replacement because image transfer may take long
 # enough for another queue item or card session to arrive.
-require_deploy_ready
+if has_retained_machine; then
+  require_deploy_ready
+fi
 fly deploy --app "$app" --config "$root/deploy/fly/fly.legacy.toml" --image "$fly_image" --strategy rolling
+fly scale count 1 --app "$app" --yes
