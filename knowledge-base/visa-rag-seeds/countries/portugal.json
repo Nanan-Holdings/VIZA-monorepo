@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "portugal",
   "notes": "Country-level VIZA RAG seed for portugal. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -9,7 +9,7 @@
       "visaType": "schengen_short_stay_tourism",
       "documentType": "requirements",
       "title": "Schengen Short-Stay Requirements for Portugal",
-      "sourceUrl": "https://vistos.mne.gov.pt/en/short-stay-visas-schengen/general-information/type-of-visa",
+      "sourceUrl": "https://www2.gov.pt/en/servicos/pedir-um-visto-schengen-de-curta-duracao",
       "chunks": [
         {
           "id": "prt_schengen_basic_route_zh",

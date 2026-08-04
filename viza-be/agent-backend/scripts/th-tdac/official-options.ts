@@ -543,6 +543,19 @@ export const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY: Record<string, TdacOption
   ]),
 );
 
+type TdacAdministrativeTranslationFile = {
+  provinces?: Record<string, string>;
+  districts?: Record<string, string>;
+  subdistricts?: Record<string, string>;
+};
+
+const tdacAdministrativeTranslations = JSON.parse(
+  readFileSync(
+    new URL("./administrative-translations.zh.json", import.meta.url),
+    "utf8",
+  ),
+) as TdacAdministrativeTranslationFile;
+
 export const TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = {
   amnat_charoen: [option("mueang_amnat_charoen", "安纳乍能府直辖县", "MUEANG AMNAT CHAROEN")],
   bangkok: [
@@ -576,17 +589,29 @@ export const TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT: Record<string, Td
 };
 
 const tdacDistrictTranslationZh = new Map<string, string>();
-for (const options of Object.values(TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE)) {
+for (const [province, options] of Object.entries(TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE)) {
   for (const item of options) {
-    tdacDistrictTranslationZh.set(item.official_label.toUpperCase(), item.label_zh);
+    tdacDistrictTranslationZh.set(
+      `${tdacOptionKey(province)}::${tdacOptionKey(item.official_label)}`,
+      item.label_zh,
+    );
   }
+}
+for (const [key, label] of Object.entries(tdacAdministrativeTranslations.districts ?? {})) {
+  tdacDistrictTranslationZh.set(key, label);
 }
 
 const tdacSubdistrictTranslationZh = new Map<string, string>();
-for (const options of Object.values(TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT)) {
+for (const [district, options] of Object.entries(TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT)) {
   for (const item of options) {
-    tdacSubdistrictTranslationZh.set(item.official_label.toUpperCase(), item.label_zh);
+    tdacSubdistrictTranslationZh.set(
+      `${tdacOptionKey(district)}::${tdacOptionKey(item.official_label)}`,
+      item.label_zh,
+    );
   }
+}
+for (const [key, label] of Object.entries(tdacAdministrativeTranslations.subdistricts ?? {})) {
+  tdacSubdistrictTranslationZh.set(key, label);
 }
 
 const tdacDistrictValue = (
@@ -612,14 +637,25 @@ export const TDAC_DISTRICT_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = O
     return [
       tdacOptionKey(province),
       districts.map((district) =>
-        option(
-          tdacDistrictValue(province, district, duplicateLabels),
-          tdacDistrictTranslationZh.get(district.label.toUpperCase()) ?? district.label,
-          duplicateLabels.has(district.label.toUpperCase()) && district.postcode
-            ? `${district.label} (${district.postcode})`
-            : district.label,
-          district.label,
-        )),
+        (() => {
+          const duplicateLabel = duplicateLabels.has(district.label.toUpperCase());
+          const cacheKey = [
+            tdacOptionKey(province),
+            tdacOptionKey(district.label),
+            ...(duplicateLabel ? [tdacOptionKey(district.postcode ?? "no_postcode")] : []),
+          ].join("::");
+          const contextManualKey = `${tdacOptionKey(province)}::${tdacOptionKey(district.label)}`;
+          return option(
+            tdacDistrictValue(province, district, duplicateLabels),
+            tdacDistrictTranslationZh.get(cacheKey) ??
+              tdacDistrictTranslationZh.get(contextManualKey) ??
+              district.label,
+            duplicateLabel && district.postcode
+              ? `${district.label} (${district.postcode})`
+              : district.label,
+            district.label,
+          );
+        })()),
     ];
   }),
 );
@@ -634,11 +670,27 @@ for (const [provinceDistrict, subdistricts] of Object.entries(
     tdacOptionKey(district),
     ...(postcode ? [postcode] : []),
   ].join("|");
+  const subdistrictOccurrences = new Map<string, number>();
   TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT[districtValue] = subdistricts.map((subdistrict) =>
-    option(
-      `${districtValue}|${tdacOptionKey(subdistrict)}`,
-      tdacSubdistrictTranslationZh.get(subdistrict.toUpperCase()) ?? subdistrict,
-      subdistrict,
-      subdistrict,
-    ));
+    (() => {
+      const normalizedSubdistrict = tdacOptionKey(subdistrict);
+      const occurrence = (subdistrictOccurrences.get(normalizedSubdistrict) ?? 0) + 1;
+      subdistrictOccurrences.set(normalizedSubdistrict, occurrence);
+      const cacheKey = [
+        tdacOptionKey(province),
+        tdacOptionKey(district),
+        ...(postcode ? [tdacOptionKey(postcode)] : []),
+        normalizedSubdistrict,
+        ...(occurrence > 1 ? [String(occurrence)] : []),
+      ].join("::");
+      const contextManualKey = `${tdacOptionKey(district)}::${tdacOptionKey(subdistrict)}`;
+      return option(
+        `${districtValue}|${tdacOptionKey(subdistrict)}`,
+        tdacSubdistrictTranslationZh.get(cacheKey) ??
+          tdacSubdistrictTranslationZh.get(contextManualKey) ??
+          subdistrict,
+        subdistrict,
+        subdistrict,
+      );
+    })());
 }

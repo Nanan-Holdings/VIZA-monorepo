@@ -59,7 +59,6 @@ const tokenTranslations: Record<string, string> = {
   KHIRI: "吉里",
   KO: "阁",
   KRABI: "甲米",
-  LAM: "南",
   LAMUNG: "拉蒙",
   LAMPANG: "南邦",
   LAM: "南",
@@ -123,6 +122,13 @@ const tokenTranslations: Record<string, string> = {
   YANG: "扬",
 };
 
+const districtPhraseTranslations: Record<string, string> = {
+  "nakhon_nayok::ban_na": "班纳县",
+  "nakhon_nayok::mueang_nakhon_nayok": "那空那育府直辖县",
+  "nakhon_nayok::ongkharak": "翁卡叻县",
+  "nakhon_nayok::pak_phli": "北披县",
+};
+
 const letterTranslations: Record<string, string> = {
   A: "阿",
   B: "布",
@@ -183,7 +189,8 @@ const subdistrictKey = (
   district: string,
   subdistrict: string,
   postcode?: string,
-): string => `${districtKey(province, district, postcode)}::${tdacOptionKey(subdistrict)}`;
+  occurrence = 1,
+): string => `${districtKey(province, district, postcode)}::${tdacOptionKey(subdistrict)}${occurrence > 1 ? `::${occurrence}` : ""}`;
 
 const translateToken = (token: string): string => {
   const normalized = token.toUpperCase();
@@ -209,6 +216,9 @@ const translateDistrictName = (
   const provinceSlugWithoutPostfix = tdacOptionKey(province.replace(/\s+PROVINCE$/i, ""));
   const mueangPrefix = /^MUEANG\s+/i.test(district);
   const mueangName = district.replace(/^MUEANG\s+/i, "");
+
+  const explicitTranslation = districtPhraseTranslations[`${provinceSlug}::${districtSlug}`];
+  if (explicitTranslation) return explicitTranslation;
 
   if (mueangPrefix && tdacOptionKey(mueangName) === provinceSlugWithoutPostfix) {
     return `${provinceStem(provinceZh)}直辖县`;
@@ -276,8 +286,12 @@ export const buildAdministrativeTranslationCache = (): AdministrativeTranslation
     TDAC_OFFICIAL_SUBDISTRICTS_BY_PROVINCE_DISTRICT,
   )) {
     const [province = "", district = "", postcode] = provinceDistrict.split("::");
+    const subdistrictOccurrences = new Map<string, number>();
     for (const subdistrict of officialSubdistricts) {
-      const key = subdistrictKey(province, district, subdistrict, postcode);
+      const normalizedSubdistrict = tdacOptionKey(subdistrict);
+      const occurrence = (subdistrictOccurrences.get(normalizedSubdistrict) ?? 0) + 1;
+      subdistrictOccurrences.set(normalizedSubdistrict, occurrence);
+      const key = subdistrictKey(province, district, subdistrict, postcode, occurrence);
       const manual = manualSubdistrictTranslations.get(
         `${tdacOptionKey(district)}::${tdacOptionKey(subdistrict)}`,
       );
@@ -290,7 +304,7 @@ export const buildAdministrativeTranslationCache = (): AdministrativeTranslation
     _meta: {
       generated_at: new Date().toISOString(),
       official_option_source: "Thailand Immigration Bureau TDAC API audit",
-      standardized_translation_source: "Curated Chinese geographic names from TDAC/CLDR-compatible usage",
+      standardized_translation_source: "Official TDAC English list plus verified common Chinese geographic names",
       fallback_translation_source: "Repository-local tokenized Chinese phonetic transliteration (no runtime network)",
       province_count: Object.keys(provinceTranslations).length,
       district_count: Object.keys(districts).length,
