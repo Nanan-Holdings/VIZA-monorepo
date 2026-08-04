@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveRunnerPoolFlow } from "@/lib/queue/flows";
+import {
+  resolveRunnerPoolFlow,
+  shouldUseSharedRunnerPool,
+} from "@/lib/queue/flows";
 
 describe("resolveRunnerPoolFlow", () => {
   it.each([
@@ -19,4 +22,22 @@ describe("resolveRunnerPoolFlow", () => {
     expect(resolveRunnerPoolFlow("indonesia", "ID_C1_TOURIST")).toBeNull();
     expect(resolveRunnerPoolFlow("indonesia", "ID_B1_EVOA")).toBeNull();
   });
+});
+
+describe("shouldUseSharedRunnerPool", () => {
+  it("keeps Vietnam e-Visa on legacy even when the pool migration gate is open", () => {
+    expect(shouldUseSharedRunnerPool("vn_evisa", true)).toBe(false);
+  });
+
+  it("keeps Vietnam pre-arrival pool-only while the global migration gate is closed", () => {
+    expect(shouldUseSharedRunnerPool("vn_prearrival", false)).toBe(true);
+  });
+
+  it.each(["sgac", "mdac", "tdac", "kr_eform"] as const)(
+    "uses the migration gate for %s",
+    (flowKey) => {
+      expect(shouldUseSharedRunnerPool(flowKey, false)).toBe(false);
+      expect(shouldUseSharedRunnerPool(flowKey, true)).toBe(true);
+    },
+  );
 });
