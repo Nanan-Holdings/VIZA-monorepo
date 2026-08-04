@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
   TDAC_OFFICIAL_DISTRICTS_BY_PROVINCE,
@@ -122,6 +122,21 @@ const tokenTranslations: Record<string, string> = {
   YANG: "扬",
 };
 
+type RomanizationTokenTranslationFile = {
+  translations?: Record<string, string>;
+};
+
+const romanizationTokenTranslations: Record<string, string> = (() => {
+  try {
+    const file = JSON.parse(
+      readFileSync(new URL("./romanization-token-translations.zh.json", import.meta.url), "utf8"),
+    ) as RomanizationTokenTranslationFile;
+    return file.translations ?? {};
+  } catch {
+    return {};
+  }
+})();
+
 const districtPhraseTranslations: Record<string, string> = {
   "nakhon_nayok::ban_na": "班纳县",
   "nakhon_nayok::mueang_nakhon_nayok": "那空那育府直辖县",
@@ -194,6 +209,7 @@ const subdistrictKey = (
 
 const translateToken = (token: string): string => {
   const normalized = token.toUpperCase();
+  if (romanizationTokenTranslations[normalized]) return romanizationTokenTranslations[normalized];
   if (tokenTranslations[normalized]) return tokenTranslations[normalized];
   return [...normalized].map((character) => letterTranslations[character] ?? "地").join("");
 };
@@ -304,8 +320,8 @@ export const buildAdministrativeTranslationCache = (): AdministrativeTranslation
     _meta: {
       generated_at: new Date().toISOString(),
       official_option_source: "Thailand Immigration Bureau TDAC API audit",
-      standardized_translation_source: "Official TDAC English list plus verified common Chinese geographic names",
-      fallback_translation_source: "Repository-local tokenized Chinese phonetic transliteration (no runtime network)",
+      standardized_translation_source: "Official TDAC English list plus verified common Chinese geographic names and the checked-in romanization token map",
+      fallback_translation_source: "Repository-local deterministic Chinese phonetic fallback (no runtime network)",
       province_count: Object.keys(provinceTranslations).length,
       district_count: Object.keys(districts).length,
       subdistrict_count: Object.keys(subdistricts).length,

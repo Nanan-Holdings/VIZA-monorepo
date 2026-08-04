@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "romania",
   "notes": "Country-level VIZA RAG seed for romania. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -9,7 +9,7 @@
       "visaType": "schengen_short_stay_tourism",
       "documentType": "requirements",
       "title": "Schengen Short-Stay Requirements for Romania",
-      "sourceUrl": "https://www.mae.ro/en/node/2035",
+      "sourceUrl": "https://eviza.mae.ro/ShortStayVisa",
       "chunks": [
         {
           "id": "rou_schengen_basic_route_zh",
