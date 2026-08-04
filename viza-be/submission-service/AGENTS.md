@@ -118,7 +118,11 @@ filling and one-shot submission for the applicant.
 - `src/inbox/forwarding-consent.ts`: shared applicant-level authorization
   lookup used by Vietnam Pre-Arrival and Indonesia canonical alias setup.
 - `src/__tests__/fly-topology-config.spec.ts`: static deployment contract for
-  shared-pool Vietnam routing and the one-CPU/2GB sticky Indonesia Machine.
+  shared-pool Vietnam routing plus the dedicated sticky Indonesia and South
+  Korea Machines. Korea deployments must use
+  `scripts/fly/deploy-south-korea.sh`, which explicitly starts the retained
+  Machine to check `/deploy-ready` before secret staging and replacement; the
+  generic country-template script must reject `south_korea`.
 - `src/ds160-live-config.ts`: DS-160 dry-run/live-assisted feature flags and
   startup safety validation. Dry-run is the default.
 - `src/france-live-config.ts`: France Schengen dry-run/live-assisted feature
@@ -466,11 +470,11 @@ filling and one-shot submission for the applicant.
   `INDONESIA_CARD_SESSION_INTERNAL_TOKEN` supplied as Fly/Vercel secrets.
 - `GET /deploy-ready` reports whether the worker is idle and holds no
   unconsumed Vietnam/Indonesia card session or protected Korea KVAC browser
-  session. `scripts/fly/deploy-legacy.sh` and `scripts/fly/deploy-indonesia.sh`
-  must fail closed unless this endpoint returns HTTP 200 both before secret
-  staging and immediately before a rolling deploy. Runtime secrets are staged
-  into that release so secret synchronization cannot independently restart the
-  single memory-backed worker.
+  session. `scripts/fly/deploy-legacy.sh`, `scripts/fly/deploy-indonesia.sh`,
+  and `scripts/fly/deploy-south-korea.sh` must fail closed unless this endpoint
+  returns HTTP 200 both before secret staging and immediately before a rolling
+  deploy. Runtime secrets are staged into that release so secret synchronization
+  cannot independently restart the single memory-backed worker.
 - `src/idle-exit-controller.ts`, `src/work-availability.ts`, and
   `src/scheduled-work.ts` own Fly scale-to-zero safety. A Fly worker may exit
   cleanly only after the configured idle grace, a second five-second

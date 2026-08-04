@@ -12,6 +12,7 @@ import {
 const STATUS_BADGE_CLASSES: Record<string, string> = {
   draft: "bg-gray-100/20 text-gray-200 border border-gray-200/30",
   in_progress: "bg-brand-400/20 text-brand-200 border border-brand-200/30",
+  processing: "bg-amber-100/20 text-amber-100 border border-amber-100/30",
   submitted: "bg-white/20 text-white border border-white/30",
   approved: "bg-green-100/20 text-green-200 border border-green-200/30",
   rejected: "bg-red-100/20 text-red-200 border border-red-200/30",

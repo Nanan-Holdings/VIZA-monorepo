@@ -26,6 +26,11 @@ on:
         required: true
         default: true
         type: boolean
+      deploy_south_korea_worker:
+        description: Deploy the one sticky South Korea SMS/appointment worker
+        required: true
+        default: true
+        type: boolean
       deploy_legacy_worker:
         description: Deploy the one legacy submission_queue worker
         required: true
@@ -60,6 +65,7 @@ jobs:
       INDONESIA_BROWSER_API_ENDPOINT: ${{ secrets.INDONESIA_BROWSER_API_ENDPOINT }}
       INDONESIA_BRIGHTDATA_BROWSER_API_ENDPOINT: ${{ secrets.INDONESIA_BRIGHTDATA_BROWSER_API_ENDPOINT }}
       INDONESIA_CARD_SESSION_INTERNAL_TOKEN: ${{ secrets.INDONESIA_CARD_SESSION_INTERNAL_TOKEN }}
+      KR_SUBMISSION_INTERNAL_TOKEN: ${{ secrets.KR_SUBMISSION_INTERNAL_TOKEN }}
       BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
       TWOCAPTCHA_API_KEY: ${{ secrets.TWOCAPTCHA_API_KEY }}
       IMAP_HOST: ${{ secrets.IMAP_HOST }}
@@ -107,6 +113,10 @@ jobs:
               countries=$(tr ',' '\n' <<< "${{ inputs.countries }}" | xargs -n1)
             fi
             while read -r country; do
+              if [[ "$country" == "south_korea" ]]; then
+                echo "Skipping South Korea in the generic country loop; the dedicated sticky deploy runs separately."
+                continue
+              fi
               bash viza-be/submission-service/scripts/fly/deploy-country.sh "$country" "$IMAGE"
             done <<< "$countries"
           fi
@@ -116,6 +126,9 @@ jobs:
       - name: Deploy sticky Indonesia worker
         if: ${{ inputs.deploy_indonesia_worker && !cancelled() }}
         run: bash viza-be/submission-service/scripts/fly/deploy-indonesia.sh "$IMAGE"
+      - name: Deploy sticky South Korea worker
+        if: ${{ inputs.deploy_south_korea_worker && !cancelled() }}
+        run: bash viza-be/submission-service/scripts/fly/deploy-south-korea.sh "$IMAGE"
       - name: Deploy legacy worker
         # Country workers and the legacy queue consumer are independent
         # production targets. A transient country /ready timeout must not skip

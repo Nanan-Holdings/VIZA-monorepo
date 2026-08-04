@@ -60,6 +60,9 @@ case "$country" in
       IMAP_PASSWORD
     )
     ;;
+  south_korea)
+    capability=(KR_SUBMISSION_INTERNAL_TOKEN)
+    ;;
   vietnam)
     capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)
     ;;
@@ -98,6 +101,11 @@ esac
 
 if [[ "$country" == "indonesia" && -z "${INDONESIA_CARD_SESSION_INTERNAL_TOKEN:-}" ]]; then
   echo "Missing required Indonesia card-session internal token." >&2
+  exit 2
+fi
+
+if [[ "$country" == "south_korea" && -z "${KR_SUBMISSION_INTERNAL_TOKEN:-}" ]]; then
+  echo "Missing required South Korea submission internal token." >&2
   exit 2
 fi
 
