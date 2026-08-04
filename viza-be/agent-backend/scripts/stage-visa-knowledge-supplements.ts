@@ -31,6 +31,7 @@ const seedDirectory = path.resolve(
   "../../../knowledge-base/visa-rag-seeds/countries"
 );
 const passportCountries = ["CHN", "SGP", "GBR", "USA", "CAN", "AUS", "NZL"];
+const serviceCountryNames = new Set<string>(VISA_SERVICE_COUNTRIES);
 const DS160_OFFICIAL_INFORMATION_URL =
   "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/forms/ds-160-online-nonimmigrant-visa-application.html";
 
@@ -197,18 +198,27 @@ async function loadActiveSupplements(): Promise<SourceDocument[]> {
     .eq("visa_knowledge_releases.status", "active")
     .in("document_type", ["photo_requirements", "form_fields"]);
   if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as SourceDocument[];
+  return ((data ?? []) as unknown as SourceDocument[]).filter(
+    (document) =>
+      document.document_type === "form_fields" ||
+      serviceCountryNames.has(document.country)
+  );
 }
 
 async function stageSupplement(
   releaseId: string,
-  document: SourceDocument
+  document: SourceDocument,
+  countrySeeds: Map<string, CountrySeed>
 ): Promise<{ chunks: number; generatedEmbeddings: number }> {
   const sourceKey =
     document.document_type === "photo_requirements"
       ? `photo:${document.country}:${document.visa_type}`
       : `ds160:${document.source_key || document.id}`;
   const now = new Date().toISOString();
+  const currentCountrySource = countrySeeds.get(document.country)?.documents[0]?.sourceUrl;
+  if (document.document_type === "photo_requirements" && !currentCountrySource) {
+    throw new Error(`Missing current country source for ${document.country} photo requirements`);
+  }
   const payload = {
     country: document.country,
     visa_type: document.visa_type,
@@ -217,7 +227,7 @@ async function stageSupplement(
     source_url:
       document.document_type === "form_fields"
         ? DS160_OFFICIAL_INFORMATION_URL
-        : document.source_url,
+        : currentCountrySource,
     source_key: sourceKey,
     ingestion_scope:
       document.document_type === "photo_requirements" ? "photo_seed" : "ds160_seed",
@@ -266,11 +276,12 @@ async function stageSupplement(
 async function main(): Promise<void> {
   await createEmbedding("VIZA staged supplement connectivity check");
   const releaseId = await getStagedReleaseId();
+  const countrySeeds = loadCountrySeeds();
   const supplements = await loadActiveSupplements();
   let chunkCount = 0;
   let generatedEmbeddingCount = 0;
   for (const document of supplements) {
-    const result = await stageSupplement(releaseId, document);
+    const result = await stageSupplement(releaseId, document, countrySeeds);
     chunkCount += result.chunks;
     generatedEmbeddingCount += result.generatedEmbeddings;
   }

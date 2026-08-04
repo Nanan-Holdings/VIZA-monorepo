@@ -2,7 +2,9 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { TH_TDAC_FORM_FIELDS } from "../../scripts/th-tdac/form-fields";
 import {
+  TDAC_OFFICIAL_DISTRICTS_BY_PROVINCE,
   TDAC_OFFICIAL_PROVINCE_LABELS,
+  TDAC_OFFICIAL_SUBDISTRICTS_BY_PROVINCE_DISTRICT,
   TDAC_OFFICIAL_TRANSPORT_LABELS_BY_MODE,
 } from "../../scripts/th-tdac/tdac-official-dropdowns.generated";
 import {
@@ -13,15 +15,45 @@ import {
   TDAC_RESIDENCE_COUNTRY_OPTIONS,
   TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY,
   TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT,
+  TDAC_PROVINCE_OPTIONS,
   TDAC_VISITED_COUNTRY_OPTIONS,
   TDAC_YELLOW_FEVER_COUNTRY_CODES,
   TDAC_YELLOW_FEVER_SHOW_IF,
 } from "../../scripts/th-tdac/official-options";
 
+const administrativeTranslations = JSON.parse(
+  readFileSync(
+    new URL("../../scripts/th-tdac/administrative-translations.zh.json", import.meta.url),
+    "utf8",
+  ),
+) as {
+  _meta?: {
+    province_count?: number;
+    district_count?: number;
+    subdistrict_count?: number;
+  };
+  provinces?: Record<string, string>;
+  districts?: Record<string, string>;
+  subdistricts?: Record<string, string>;
+};
+
 const seedSource = readFileSync(
   new URL("../../scripts/th-tdac/form-fields.ts", import.meta.url),
   "utf8",
 );
+
+const tdacTestOptionKey = (value: string): string => value
+  .trim()
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9]+/g, "_")
+  .replace(/^_+|_+$/g, "");
+
+const expectChineseLabel = (label: string, officialLabel: string): void => {
+  expect(label, officialLabel).toMatch(/[\u3400-\u9fff]/);
+  expect(label, officialLabel).not.toMatch(/[A-Za-z]/);
+};
 
 function fieldNames(): Set<string> {
   return new Set(TH_TDAC_FORM_FIELDS.map((field) => field.field_name));
@@ -156,6 +188,118 @@ describe("Thailand TDAC arrival-card schema seed", () => {
     for (const district of ayutthayaBangSai ?? []) {
       expect(TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT[district.value]?.length).toBeGreaterThan(0);
     }
+  });
+
+  test("covers every Thai administrative option with Chinese-only labels", () => {
+    const provinceOptions = TDAC_PROVINCE_OPTIONS;
+    const districtOptions = Object.values(TDAC_DISTRICT_OPTIONS_BY_PROVINCE).flat();
+    const subdistrictOptions = Object.values(TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT).flat();
+
+    expect(provinceOptions).toHaveLength(77);
+    expect(districtOptions).toHaveLength(927);
+    expect(subdistrictOptions).toHaveLength(7_439);
+    expect(administrativeTranslations._meta).toMatchObject({
+      province_count: 77,
+      district_count: 927,
+      subdistrict_count: 7_439,
+    });
+    expect(Object.keys(administrativeTranslations.provinces ?? {})).toHaveLength(77);
+    expect(Object.keys(administrativeTranslations.districts ?? {})).toHaveLength(927);
+    expect(Object.keys(administrativeTranslations.subdistricts ?? {})).toHaveLength(7_439);
+
+    for (const item of provinceOptions) {
+      expectChineseLabel(item.label_zh, item.official_label);
+      expect(item.label_zh).not.toBe(item.label_en);
+      expect(item.official_label).toBe(item.label_en);
+    }
+    for (const item of [...districtOptions, ...subdistrictOptions]) {
+      expectChineseLabel(item.label_zh, item.official_label);
+      expect(item.label_zh).not.toBe(item.label_en);
+      expect(item.official_label).toBe(
+        item.label_en.includes(" (") ? item.label_en.split(" (")[0] : item.label_en,
+      );
+    }
+
+    expect(Object.keys(administrativeTranslations.districts ?? {}).every(
+      (key) => key.split("::").length >= 2,
+    )).toBe(true);
+    expect(Object.keys(administrativeTranslations.subdistricts ?? {}).every(
+      (key) => key.split("::").length >= 3,
+    )).toBe(true);
+  });
+
+  test("preserves official Thai administrative values and English contracts", () => {
+    for (const [province, rawDistricts] of Object.entries(TDAC_OFFICIAL_DISTRICTS_BY_PROVINCE)) {
+      const provinceKey = tdacTestOptionKey(province);
+      const options = TDAC_DISTRICT_OPTIONS_BY_PROVINCE[provinceKey] ?? [];
+      const counts = new Map<string, number>();
+      for (const district of rawDistricts) {
+        const normalized = district.label.toUpperCase();
+        counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+      }
+      const seen = new Map<string, number>();
+      rawDistricts.forEach((district, index) => {
+        const item = options[index];
+        const normalized = district.label.toUpperCase();
+        const occurrence = (seen.get(normalized) ?? 0) + 1;
+        seen.set(normalized, occurrence);
+        expect(item.official_label).toBe(district.label);
+        expect(item.label_en).toBe(
+          counts.get(normalized)! > 1 && district.postcode
+            ? `${district.label} (${district.postcode})`
+            : district.label,
+        );
+        expect(item.value).toBe([
+          provinceKey,
+          tdacTestOptionKey(district.label),
+          ...(counts.get(normalized)! > 1 ? [district.postcode ?? "no_postcode"] : []),
+        ].join("|"));
+        expect(occurrence).toBeGreaterThan(0);
+      });
+    }
+
+    for (const [provinceDistrict, rawSubdistricts] of Object.entries(
+      TDAC_OFFICIAL_SUBDISTRICTS_BY_PROVINCE_DISTRICT,
+    )) {
+      const [province = "", district = "", postcode] = provinceDistrict.split("::");
+      const districtValue = [
+        tdacTestOptionKey(province),
+        tdacTestOptionKey(district),
+        ...(postcode ? [postcode] : []),
+      ].join("|");
+      const options = TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT[districtValue] ?? [];
+      rawSubdistricts.forEach((subdistrict, index) => {
+        const item = options[index];
+        expect(item.official_label).toBe(subdistrict);
+        expect(item.label_en).toBe(subdistrict);
+        expect(item.value).toBe(`${districtValue}|${tdacTestOptionKey(subdistrict)}`);
+      });
+    }
+  });
+
+  test("uses standard Chinese names for NAKHON NAYOK districts", () => {
+    expect(TDAC_DISTRICT_OPTIONS_BY_PROVINCE.nakhon_nayok).toEqual([
+      expect.objectContaining({
+        official_label: "BAN NA",
+        label_en: "BAN NA",
+        label_zh: "班纳县",
+      }),
+      expect.objectContaining({
+        official_label: "MUEANG NAKHON NAYOK",
+        label_en: "MUEANG NAKHON NAYOK",
+        label_zh: "那空那育府直辖县",
+      }),
+      expect.objectContaining({
+        official_label: "ONGKHARAK",
+        label_en: "ONGKHARAK",
+        label_zh: "翁卡叻县",
+      }),
+      expect.objectContaining({
+        official_label: "PAK PHLI",
+        label_en: "PAK PHLI",
+        label_zh: "北披县",
+      }),
+    ]);
   });
 
   test("localizes all official Anguilla and Hong Kong residence regions", () => {
