@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-30",
+  "version": "2026-08-04",
   "country": "malaysia",
   "notes": "Country-level VIZA RAG seed for malaysia. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [

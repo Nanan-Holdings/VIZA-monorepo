@@ -4,7 +4,25 @@ This directory is the source of truth for country-level visa RAG knowledge.
 
 Each file in `countries/*.json` owns one country's visitor/tourism visa knowledge and should evolve with that country's dedicated form-filling workflow. Keep country-specific rules, official source URLs, application-route notes, form-intake context, and future form-flow context in the same country seed instead of adding a shared multi-country seed.
 
-`countries/taiwan.json` is limited to `TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`: Chinese mainland passport holders resident in Singapore applying for tourism. It is not a Taiwan arrival-card or a generic visitor-visa seed.
+`countries/taiwan.json` keeps the conditional `TW_ENTRY_PERMIT` route for eligible mainland Chinese residents abroad separate from the official-only `TW_ARRIVAL_CARD` declaration.
+
+The 11-country reviewed product codes are intentionally stable and are not interchangeable with the old route aliases:
+
+- Indonesia: `ID_B1_EVOA`, `ID_C1_TOURIST`
+- Vietnam: `VN_E_VISA`, `VN_PREARRIVAL_DECLARATION`
+- Singapore: `SG_VISITOR_VISA`, `SG_ARRIVAL_CARD`
+- Malaysia: `MY_TOURIST_E_VISA`, `MY_MDAC_ARRIVAL_CARD`
+- Thailand: `TH_TOURIST_E_VISA`, `TH_TDAC_ARRIVAL_CARD`
+- South Korea: `KR_C39_SHORT_TERM_VISIT` (K-ETA remains an external travel-authorisation route)
+- United States: `DS160`
+- France: `EU_SCHENGEN_C_SHORT_STAY`
+- Philippines: `PH_TEMPORARY_VISITOR_VISA`, `PH_ETRAVEL_ARRIVAL_CARD`
+- United Kingdom: `UK_STANDARD_VISITOR`
+- Taiwan: `TW_ENTRY_PERMIT`; `TW_ARRIVAL_CARD` remains an official-only arrival-declaration route
+
+Visa, travel authorisation and arrival/departure declarations are separate
+products. A `form_requirements` document must exist independently for every
+internal product; an arrival declaration must never be presented as a visa.
 
 Every country seed should include exactly one `documentType: "form_requirements"`
 document for each supported `visaType`/product. Visa and arrival-card products

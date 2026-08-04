@@ -9,7 +9,7 @@
       "visaType": "visa_free_or_tourist_visa",
       "documentType": "requirements",
       "title": "United Arab Emirates Tourist and Visit Visa",
-      "sourceUrl": "https://u.ae/en/information-and-services/visa-and-emirates-id/tourist-visa",
+      "sourceUrl": "https://icp.gov.ae/en/services-details/?serviceid=64afe3c1035448005bd52e60",
       "chunks": [
         {
           "id": "are_china_visitor_basic_route_zh",
@@ -61,7 +61,7 @@
       "visaType": "visa_free_or_tourist_visa",
       "documentType": "form_requirements",
       "title": "United Arab Emirates Application Form and Document Intake Requirements",
-      "sourceUrl": "https://u.ae/en/information-and-services/visa-and-emirates-id/tourist-visa",
+      "sourceUrl": "https://icp.gov.ae/en/services-details/?serviceid=64afe3c1035448005bd52e60",
       "chunks": [
         {
           "id": "united_arab_emirates_form_channel_and_scope",

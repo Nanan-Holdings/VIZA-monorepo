@@ -18,6 +18,12 @@ import {
   type SupportedKnowledgeCountry,
 } from '../src/config/visa-destination-registry.js';
 import {
+  REVIEWED_MATRIX_DESTINATIONS,
+  REVIEWED_MATRIX_PASSPORTS,
+  REVIEWED_VISA_ENTRY_RULES,
+} from '../src/config/reviewed-visa-entry-rules.js';
+import { isAllowedOfficialProductUrl } from '../src/config/visa-product-registry.js';
+import {
   documentTypesForIntent,
   type VisaKnowledgeIntent,
 } from '../src/services/visa-knowledge.service.js';
@@ -143,7 +149,7 @@ function schengenCase(
     ],
     expected: {
       resolvedCountry: expectedCountry,
-      visaType: 'schengen_short_stay_tourism',
+      visaType: 'EU_SCHENGEN_C_SHORT_STAY',
       slots: { nationality: 'China', tripPurpose: 'tourism' },
       shouldAskClarification: false,
     },
@@ -251,7 +257,7 @@ const evalCases: EvalCase[] = [
     ],
     expected: {
       resolvedCountry: 'switzerland',
-      visaType: 'schengen_short_stay_tourism',
+      visaType: 'EU_SCHENGEN_C_SHORT_STAY',
       slots: { nationality: 'China', residenceCountry: 'Singapore', stayLengthDays: 7 },
       shouldAskClarification: true,
     },
@@ -264,7 +270,7 @@ const evalCases: EvalCase[] = [
       { role: 'assistant', content: '你在 France, Italy 各停留几天？' },
       { role: 'user', content: '2，5' },
     ],
-    expected: { resolvedCountry: 'italy', visaType: 'schengen_short_stay_tourism' },
+    expected: { resolvedCountry: 'italy', visaType: 'EU_SCHENGEN_C_SHORT_STAY' },
   },
   {
     id: 'CMP-003',
@@ -292,7 +298,7 @@ const evalCases: EvalCase[] = [
       { role: 'assistant', content: '你在 Norway, Iceland 各停留几天？' },
       { role: 'user', content: '4,3' },
     ],
-    expected: { resolvedCountry: 'norway', visaType: 'schengen_short_stay_tourism' },
+    expected: { resolvedCountry: 'norway', visaType: 'EU_SCHENGEN_C_SHORT_STAY' },
   },
   {
     id: 'CMP-006',
@@ -310,7 +316,7 @@ const evalCases: EvalCase[] = [
       { role: 'assistant', content: '1. nationality\n2. current residence\n3. stay length\n4. other Schengen countries besides Switzerland' },
       { role: 'user', content: '中国，中国，8天，Germany, Austria' },
     ],
-    expected: { resolvedCountry: 'switzerland', visaType: 'schengen_short_stay_tourism' },
+    expected: { resolvedCountry: 'switzerland', visaType: 'EU_SCHENGEN_C_SHORT_STAY' },
   },
   {
     id: 'CMP-008',
@@ -320,7 +326,7 @@ const evalCases: EvalCase[] = [
       { role: 'assistant', content: '你在 France, Spain 各停留几天？' },
       { role: 'user', content: '3;5' },
     ],
-    expected: { resolvedCountry: 'spain', visaType: 'schengen_short_stay_tourism' },
+    expected: { resolvedCountry: 'spain', visaType: 'EU_SCHENGEN_C_SHORT_STAY' },
   },
   {
     id: 'CMP-009',
@@ -329,7 +335,7 @@ const evalCases: EvalCase[] = [
       { role: 'assistant', content: '1. destination\n2. nationality\n3. purpose\n4. stay length' },
       { role: 'user', content: 'United States，中国，商务，6天' },
     ],
-    expected: { resolvedCountry: 'us', visaType: 'b1_b2' },
+    expected: { resolvedCountry: 'us', visaType: 'DS160' },
   },
   {
     id: 'CMP-010',
@@ -338,7 +344,7 @@ const evalCases: EvalCase[] = [
       { role: 'assistant', content: '1. destination\n2. nationality\n3. purpose\n4. stay length' },
       { role: 'user', content: 'United Kingdom，中国，旅游，9天' },
     ],
-    expected: { resolvedCountry: 'uk', visaType: 'standard_visitor' },
+    expected: { resolvedCountry: 'uk', visaType: 'UK_STANDARD_VISITOR' },
   },
 
   correctionCase('COR-001', 'japan', 'south_korea'),
@@ -411,16 +417,16 @@ const productQaCases: ProductQaCase[] = [
   { id: 'VIZA-002', input: '去韩国旅游签证一般多久能下来？', expected: { intent: 'fees_timing', resolvedCountry: 'south_korea' } },
   { id: 'VIZA-003', input: '我下周五飞日本，现在申请签证还来得及吗？', expected: { intent: 'fees_timing', resolvedCountry: 'japan', promptGuardrails: ['urgent', 'exact date'] } },
   { id: 'VIZA-004', input: '签证有效期一般多久？可以停留多久？', expected: { intent: 'fees_timing', promptGuardrails: ['visa validity', 'permitted stay duration'] } },
-  { id: 'VIZA-005', input: '申请美国旅游签证要面签吗？', expected: { intent: 'requirements', resolvedCountry: 'us', visaType: 'b1_b2' } },
+  { id: 'VIZA-005', input: '申请美国旅游签证要面签吗？', expected: { intent: 'requirements', resolvedCountry: 'us', visaType: 'DS160' } },
   { id: 'VIZA-006', input: '新加坡 PR 申请日本旅游签需要面签吗？', expected: { intent: 'requirements', resolvedCountry: 'japan', residenceCountry: 'Singapore', destinationExcludes: ['singapore'] } },
   { id: 'VIZA-007', input: '旅游签证需要准备什么材料？', expected: { intent: 'requirements', shouldAskClarification: true } },
   { id: 'VIZA-008', input: '去澳洲旅游签证申请费多少？', expected: { intent: 'fees_timing', resolvedCountry: 'australia' } },
   { id: 'VIZA-009', input: '申请英国签证需要银行流水吗？要几个月？', expected: { intent: 'requirements', resolvedCountry: 'uk' } },
   { id: 'VIZA-010', input: '我没有在职证明，可以申请旅游签吗？', expected: { intent: 'eligibility', shouldAskClarification: true } },
-  { id: 'VIZA-011', input: '学生申请申根旅游签要准备什么？', expected: { intent: 'requirements', visaType: 'schengen_short_stay_tourism' } },
+  { id: 'VIZA-011', input: '学生申请申根旅游签要准备什么？', expected: { intent: 'requirements', visaType: 'EU_SCHENGEN_C_SHORT_STAY' } },
   { id: 'VIZA-012', input: '我是自由职业者，申请日本签证怎么证明收入？', expected: { intent: 'requirements', resolvedCountry: 'japan' } },
   { id: 'VIZA-013', input: '商务签和旅游签有什么区别？', expected: { intent: 'route_recommendation', shouldAskClarification: true } },
-  { id: 'VIZA-014', input: '我去美国参加会议，应该申请旅游签还是商务签？', expected: { intent: 'route_recommendation', resolvedCountry: 'us', tripPurpose: 'business', visaType: 'b1_b2' } },
+  { id: 'VIZA-014', input: '我去美国参加会议，应该申请旅游签还是商务签？', expected: { intent: 'route_recommendation', resolvedCountry: 'us', tripPurpose: 'business', visaType: 'DS160' } },
   { id: 'VIZA-015', input: '去加拿大看朋友需要邀请函吗？', expected: { intent: 'requirements', resolvedCountry: 'canada', tripPurpose: 'family_visit' } },
   { id: 'VIZA-016', input: '我要去澳洲读书，学生签证需要什么材料？', expected: { intent: 'requirements', resolvedCountry: 'australia', tripPurpose: 'study', visaType: null } },
   { id: 'VIZA-017', input: '工作签证一般需要雇主提供什么？', expected: { intent: 'requirements', tripPurpose: 'work', visaType: null, shouldAskClarification: true } },
@@ -448,8 +454,8 @@ const productQaCases: ProductQaCase[] = [
     },
   },
   { id: 'VIZA-031', input: '我从新加坡出发去欧洲，申请申根签证要去哪个国家的大使馆？', expected: { intent: 'route_recommendation', residenceCountry: 'Singapore', shouldAskClarification: true } },
-  { id: 'VIZA-032', input: '我去法国 3 天、意大利 6 天、瑞士 2 天，申根签申请哪个国家？', expected: { intent: 'route_recommendation', resolvedCountry: 'italy', visaType: 'schengen_short_stay_tourism', stayLengthDays: 11 } },
-  { id: 'VIZA-033', input: '我去法国和德国各 5 天，从法国入境，申请哪个国家？', expected: { intent: 'route_recommendation', resolvedCountry: 'france', visaType: 'schengen_short_stay_tourism', stayLengthDays: 10 } },
+  { id: 'VIZA-032', input: '我去法国 3 天、意大利 6 天、瑞士 2 天，申根签申请哪个国家？', expected: { intent: 'route_recommendation', resolvedCountry: 'italy', visaType: 'EU_SCHENGEN_C_SHORT_STAY', stayLengthDays: 11 } },
+  { id: 'VIZA-033', input: '我去法国和德国各 5 天，从法国入境，申请哪个国家？', expected: { intent: 'route_recommendation', resolvedCountry: 'france', visaType: 'EU_SCHENGEN_C_SHORT_STAY', stayLengthDays: 10 } },
   { id: 'VIZA-034', input: '签证下来以后可以改酒店和机票吗？', expected: { intent: 'eligibility' } },
   { id: 'VIZA-035', input: '签证被批准了，但护照还没寄回来，怎么办？', expected: { intent: 'route_recommendation' } },
   { id: 'VIZA-036', input: '怎么查询签证进度？', expected: { intent: 'fees_timing' } },
@@ -467,7 +473,7 @@ const productQaCases: ProductQaCase[] = [
   { id: 'VIZA-048', input: '我想长期住在日本，有什么签证？', expected: { intent: 'route_recommendation', resolvedCountry: 'japan', tripPurpose: 'long_stay', visaType: null } },
   { id: 'VIZA-049', input: '帮我推荐最容易过的国家签证', expected: { intent: 'eligibility', promptGuardrails: ['Do not guarantee approval'] } },
   { id: 'VIZA-050', input: '你能保证我签证通过吗？', expected: { intent: 'eligibility', promptGuardrails: ['Do not guarantee approval'] } },
-  { id: 'VIZA-051', input: '申请美国旅游签证要不要面签？', expected: { intent: 'requirements', resolvedCountry: 'us', visaType: 'b1_b2' } },
+  { id: 'VIZA-051', input: '申请美国旅游签证要不要面签？', expected: { intent: 'requirements', resolvedCountry: 'us', visaType: 'DS160' } },
   { id: 'VIZA-052', input: '英国签证银行流水要几个月？', expected: { intent: 'requirements', resolvedCountry: 'uk' } },
   { id: 'VIZA-053', input: '我在韩国转机 8 小时，不出机场，需要过境签吗？', expected: { intent: 'requirements', resolvedCountry: 'south_korea', tripPurpose: 'transit', visaType: null, promptGuardrails: ['transit questions'] } },
   { id: 'VIZA-054', input: '伪造银行流水被拒签了，还能再申请吗？', expected: { intent: 'eligibility', promptGuardrails: ['forge', 'falsify', 'refusal history'] } },
@@ -1066,13 +1072,13 @@ function evaluateBranchTests(): BranchResult[] {
     ]),
 
     branch('VISA-001', 'visa_type_branch', () => [
-      expectEqual('generic Schengen visa type', resolveKnowledgeVisaType(null, '申根旅游签证'), 'schengen_short_stay_tourism'),
+        expectEqual('generic Schengen visa type', resolveKnowledgeVisaType(null, '申根旅游签证'), 'EU_SCHENGEN_C_SHORT_STAY'),
     ]),
     branch('VISA-002', 'visa_type_branch', () => [
-      expectEqual('US DS-160 branch', resolveKnowledgeVisaType('us', '我要填 DS-160'), 'b1_b2'),
+        expectEqual('US DS-160 branch', resolveKnowledgeVisaType('us', '我要填 DS-160'), 'DS160'),
     ]),
     branch('VISA-003', 'visa_type_branch', () => [
-      expectEqual('Vietnam eVisa branch', resolveKnowledgeVisaType('vietnam', '电子签证怎么申请'), 'evisa_tourism'),
+        expectEqual('Vietnam eVisa branch', resolveKnowledgeVisaType('vietnam', '电子签证怎么申请'), 'VN_E_VISA'),
     ]),
     branch('VISA-004', 'visa_type_branch', () => [
       expectEqual('work does not force visitor visa', resolveKnowledgeVisaType('us', '去美国工作90天'), null),
@@ -1181,7 +1187,7 @@ function evaluateBranchTests(): BranchResult[] {
       return [
         expectEqual('mixed itinerary keeps UK destination', state.destinationCountries.includes('uk'), true),
         expectEqual('mixed itinerary chooses longest Schengen stay', state.mainDestination, 'iceland'),
-        expectEqual('mixed itinerary visitor route is Schengen', state.recommendedVisaType, 'schengen_short_stay_tourism'),
+        expectEqual('mixed itinerary visitor route is Schengen', state.recommendedVisaType, 'EU_SCHENGEN_C_SHORT_STAY'),
       ];
     }),
 
@@ -1237,7 +1243,7 @@ function evaluateBranchTests(): BranchResult[] {
         expectEqual('correction replaces Canada with US', state.mainDestination, 'us'),
         expectEqual('old Canada removed in long conversation', state.destinationCountries.includes('canada'), false),
         expectEqual('US interview follow-up intent', inferVisaKnowledgeIntent(lastUserMessage, state.missingSlots), 'requirements'),
-        expectEqual('US visitor visa retained', state.recommendedVisaType, 'b1_b2'),
+        expectEqual('US visitor visa retained', state.recommendedVisaType, 'DS160'),
       ];
     }),
     branch('LONG-004', 'long_conversation_memory_branch', () => {
@@ -1358,7 +1364,7 @@ function evaluateBranchTests(): BranchResult[] {
       return [
         expectEqual('US destination retained across purpose correction', state.mainDestination, 'us'),
         expectEqual('US purpose corrected to business', state.tripPurpose, 'business'),
-        expectEqual('US B1/B2 retained for conference', state.recommendedVisaType, 'b1_b2'),
+        expectEqual('US B1/B2 retained for conference', state.recommendedVisaType, 'DS160'),
         expectEqual('interview follow-up uses requirements intent', inferVisaKnowledgeIntent(lastUserMessage, state.missingSlots), 'requirements'),
       ];
     }),
@@ -1560,7 +1566,7 @@ function evaluateBranchTests(): BranchResult[] {
       const invalid = evaluated.filter(
         (rule) =>
           rule &&
-          !['visa_exempt', 'visa_required', 'conditional', 'unknown'].includes(
+          !['visa_exempt', 'visa_required', 'conditional', 'unknown', 'not_applicable'].includes(
             rule.outcome
           )
       );
@@ -1571,6 +1577,157 @@ function evaluateBranchTests(): BranchResult[] {
           VISA_SERVICE_COUNTRIES.size * passports.length
         ),
         expectArrayEqual('matrix never invents an invalid outcome', invalid, []),
+      ];
+    }),
+    branch('ENTRY-RULE-REVIEWED-MATRIX-001', 'entry_rule_branch', () => {
+      const matrixKey = (destination: string, passport: string) =>
+        `${destination}:${passport}`;
+      const expectedKeys = new Set(
+        REVIEWED_MATRIX_DESTINATIONS.flatMap((destination) =>
+          REVIEWED_MATRIX_PASSPORTS.map((passport) => matrixKey(destination, passport))
+        )
+      );
+      const actualKeys = new Set(
+        REVIEWED_VISA_ENTRY_RULES.map((rule) =>
+          matrixKey(rule.destinationCountry, rule.passportCountryIso3)
+        )
+      );
+      const malformedProducts = REVIEWED_VISA_ENTRY_RULES.flatMap((rule) =>
+        rule.productRecommendations.filter((product) =>
+          product.provider === 'official'
+            ? !isAllowedOfficialProductUrl(product.url)
+            : !product.url.startsWith('/client/application?')
+        )
+      );
+      const conditionalWithoutInputs = REVIEWED_VISA_ENTRY_RULES.filter(
+        (rule) => rule.outcome === 'conditional' && rule.requiredInputs.length === 0
+      );
+      const unknownRows = REVIEWED_VISA_ENTRY_RULES.filter(
+        (rule) => rule.outcome === 'unknown'
+      );
+      const sgChina = resolveReviewedVisaEntryRule({
+        destinationCountry: 'singapore',
+        passportCountryIso3: 'CHN',
+        passportType: 'ordinary',
+        tripPurpose: 'tourism',
+        stayLengthDays: 10,
+      });
+      const sgChinaOverstay = resolveReviewedVisaEntryRule({
+        destinationCountry: 'singapore',
+        passportCountryIso3: 'CHN',
+        passportType: 'ordinary',
+        tripPurpose: 'tourism',
+        stayLengthDays: 31,
+      });
+      const phChina = REVIEWED_VISA_ENTRY_RULES.find(
+        (rule) => rule.destinationCountry === 'philippines' && rule.passportCountryIso3 === 'CHN'
+      );
+      const koreaSingapore = REVIEWED_VISA_ENTRY_RULES.find(
+        (rule) => rule.destinationCountry === 'south_korea' && rule.passportCountryIso3 === 'SGP'
+      );
+      const expectedOutcome: Record<string, Record<string, string>> = {
+        indonesia: { CHN: 'visa_required', SGP: 'visa_exempt', GBR: 'visa_required', USA: 'visa_required', CAN: 'visa_required', AUS: 'visa_required', NZL: 'visa_required' },
+        vietnam: { CHN: 'visa_required', SGP: 'visa_exempt', GBR: 'visa_exempt', USA: 'visa_required', CAN: 'visa_required', AUS: 'visa_required', NZL: 'visa_required' },
+        singapore: { CHN: 'visa_exempt', SGP: 'not_applicable', GBR: 'visa_exempt', USA: 'visa_exempt', CAN: 'visa_exempt', AUS: 'visa_exempt', NZL: 'visa_exempt' },
+        malaysia: { CHN: 'visa_exempt', SGP: 'visa_exempt', GBR: 'visa_exempt', USA: 'visa_exempt', CAN: 'visa_exempt', AUS: 'visa_exempt', NZL: 'visa_exempt' },
+        thailand: { CHN: 'visa_exempt', SGP: 'visa_exempt', GBR: 'visa_exempt', USA: 'visa_exempt', CAN: 'visa_exempt', AUS: 'visa_exempt', NZL: 'visa_exempt' },
+        south_korea: { CHN: 'visa_required', SGP: 'visa_exempt', GBR: 'visa_exempt', USA: 'visa_exempt', CAN: 'visa_exempt', AUS: 'visa_exempt', NZL: 'visa_exempt' },
+        us: { CHN: 'visa_required', SGP: 'visa_exempt', GBR: 'visa_exempt', USA: 'not_applicable', CAN: 'visa_exempt', AUS: 'visa_exempt', NZL: 'visa_exempt' },
+        france: { CHN: 'visa_required', SGP: 'visa_exempt', GBR: 'visa_exempt', USA: 'visa_exempt', CAN: 'visa_exempt', AUS: 'visa_exempt', NZL: 'visa_exempt' },
+        philippines: { CHN: 'visa_exempt', SGP: 'visa_exempt', GBR: 'visa_exempt', USA: 'visa_exempt', CAN: 'visa_exempt', AUS: 'visa_exempt', NZL: 'visa_exempt' },
+        uk: { CHN: 'visa_required', SGP: 'visa_exempt', GBR: 'not_applicable', USA: 'visa_exempt', CAN: 'visa_exempt', AUS: 'visa_exempt', NZL: 'visa_exempt' },
+        taiwan: { CHN: 'conditional', SGP: 'visa_exempt', GBR: 'visa_exempt', USA: 'visa_exempt', CAN: 'visa_exempt', AUS: 'visa_exempt', NZL: 'visa_exempt' },
+      };
+      const expectedMaxStay: Record<string, Record<string, number | null>> = {
+        indonesia: { CHN: 30, SGP: 30, GBR: 30, USA: 30, CAN: 30, AUS: 30, NZL: 30 },
+        vietnam: { CHN: 90, SGP: 30, GBR: 45, USA: 90, CAN: 90, AUS: 90, NZL: 90 },
+        singapore: { CHN: 30, SGP: null, GBR: 90, USA: 90, CAN: 90, AUS: 90, NZL: 90 },
+        malaysia: { CHN: 30, SGP: 30, GBR: 90, USA: 90, CAN: 90, AUS: 90, NZL: 90 },
+        thailand: { CHN: 60, SGP: 60, GBR: 60, USA: 60, CAN: 60, AUS: 60, NZL: 60 },
+        south_korea: { CHN: 90, SGP: 90, GBR: 90, USA: 90, CAN: 90, AUS: 90, NZL: 90 },
+        us: { CHN: null, SGP: 90, GBR: 90, USA: null, CAN: null, AUS: 90, NZL: 90 },
+        france: { CHN: 90, SGP: 90, GBR: 90, USA: 90, CAN: 90, AUS: 90, NZL: 90 },
+        philippines: { CHN: 14, SGP: 30, GBR: 30, USA: 30, CAN: 30, AUS: 30, NZL: 30 },
+        uk: { CHN: 180, SGP: 180, GBR: null, USA: 180, CAN: 180, AUS: 180, NZL: 180 },
+        taiwan: { CHN: null, SGP: 30, GBR: 90, USA: 90, CAN: 90, AUS: 90, NZL: 90 },
+      };
+      const expectedProducts: Record<string, Record<string, string[]>> = {
+        indonesia: { CHN: ['ID_B1_EVOA'], SGP: [], GBR: ['ID_B1_EVOA'], USA: ['ID_B1_EVOA'], CAN: ['ID_B1_EVOA'], AUS: ['ID_B1_EVOA'], NZL: ['ID_B1_EVOA'] },
+        vietnam: { CHN: ['VN_E_VISA'], SGP: ['VN_PREARRIVAL_DECLARATION'], GBR: ['VN_PREARRIVAL_DECLARATION'], USA: ['VN_E_VISA'], CAN: ['VN_E_VISA'], AUS: ['VN_E_VISA'], NZL: ['VN_E_VISA'] },
+        singapore: { CHN: ['SG_ARRIVAL_CARD'], SGP: [], GBR: ['SG_ARRIVAL_CARD'], USA: ['SG_ARRIVAL_CARD'], CAN: ['SG_ARRIVAL_CARD'], AUS: ['SG_ARRIVAL_CARD'], NZL: ['SG_ARRIVAL_CARD'] },
+        malaysia: { CHN: ['MY_MDAC_ARRIVAL_CARD'], SGP: [], GBR: ['MY_MDAC_ARRIVAL_CARD'], USA: ['MY_MDAC_ARRIVAL_CARD'], CAN: ['MY_MDAC_ARRIVAL_CARD'], AUS: ['MY_MDAC_ARRIVAL_CARD'], NZL: ['MY_MDAC_ARRIVAL_CARD'] },
+        thailand: { CHN: ['TH_TDAC_ARRIVAL_CARD'], SGP: ['TH_TDAC_ARRIVAL_CARD'], GBR: ['TH_TDAC_ARRIVAL_CARD'], USA: ['TH_TDAC_ARRIVAL_CARD'], CAN: ['TH_TDAC_ARRIVAL_CARD'], AUS: ['TH_TDAC_ARRIVAL_CARD'], NZL: ['TH_TDAC_ARRIVAL_CARD'] },
+        south_korea: { CHN: ['KR_C39_SHORT_TERM_VISIT'], SGP: [], GBR: [], USA: [], CAN: [], AUS: [], NZL: [] },
+        us: { CHN: ['DS160'], SGP: ['US_ESTA'], GBR: ['US_ESTA'], USA: [], CAN: [], AUS: ['US_ESTA'], NZL: ['US_ESTA'] },
+        france: { CHN: ['EU_SCHENGEN_C_SHORT_STAY'], SGP: [], GBR: [], USA: [], CAN: [], AUS: [], NZL: [] },
+        philippines: { CHN: ['PH_ETRAVEL_ARRIVAL_CARD'], SGP: ['PH_ETRAVEL_ARRIVAL_CARD'], GBR: ['PH_ETRAVEL_ARRIVAL_CARD'], USA: ['PH_ETRAVEL_ARRIVAL_CARD'], CAN: ['PH_ETRAVEL_ARRIVAL_CARD'], AUS: ['PH_ETRAVEL_ARRIVAL_CARD'], NZL: ['PH_ETRAVEL_ARRIVAL_CARD'] },
+        uk: { CHN: ['UK_STANDARD_VISITOR'], SGP: ['UK_ETA'], GBR: [], USA: ['UK_ETA'], CAN: ['UK_ETA'], AUS: ['UK_ETA'], NZL: ['UK_ETA'] },
+        taiwan: { CHN: ['TW_ENTRY_PERMIT'], SGP: ['TW_ARRIVAL_CARD'], GBR: ['TW_ARRIVAL_CARD'], USA: ['TW_ARRIVAL_CARD'], CAN: ['TW_ARRIVAL_CARD'], AUS: ['TW_ARRIVAL_CARD'], NZL: ['TW_ARRIVAL_CARD'] },
+      };
+      const expectedSourceByDestination: Record<string, string> = {
+        indonesia: 'https://evisa.imigrasi.go.id/web/home',
+        vietnam: 'https://evisa.xuatnhapcanh.gov.vn/trang-chu-ttdt',
+        singapore: 'https://www.ica.gov.sg/enter-transit-depart/entering-singapore/visa_requirements',
+        malaysia: 'https://www.imi.gov.my/index.php/en/pengumuman/malaysia-digital-arrival-card-mdac/',
+        thailand: 'https://image.mfa.go.th/mfa/0/SRBviAC5gs/Summary_of_Countries_and_Territories_entitled_for_Visa_Exemption_and_Visa_on_Arrival_to_Thailand_2024.pdf',
+        south_korea: 'https://www.visa.go.kr/openPage.do?LANG_TYPE=EN&MENU_ID=10105',
+        us: 'https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html',
+        france: 'https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en',
+        philippines: 'https://etravel.gov.ph/',
+        uk: 'https://www.gov.uk/check-eta',
+        taiwan: 'https://www.boca.gov.tw/cp-149-4486-7785a-2.html',
+      };
+      const expectedSourceOverrides: Record<string, string> = {
+        'philippines:CHN': 'https://chongqingpcg.dfa.gov.ph/example-pages/news-press-releases/1167-philippines-to-allow-visa-free-entry-for-14-days-for-chinese-nationals',
+        'taiwan:CHN': 'https://coa.immigration.gov.tw/coa-frontend/overseas-foreign-china',
+      };
+      const exactMatrixFailures: string[] = [];
+      for (const destination of REVIEWED_MATRIX_DESTINATIONS) {
+        for (const passport of REVIEWED_MATRIX_PASSPORTS) {
+          const reviewed = REVIEWED_VISA_ENTRY_RULES.find(
+            (rule) => rule.destinationCountry === destination && rule.passportCountryIso3 === passport
+          );
+          if (!reviewed) {
+            exactMatrixFailures.push(`${destination}/${passport}: missing`);
+            continue;
+          }
+          if (reviewed.outcome !== expectedOutcome[destination]?.[passport]) {
+            exactMatrixFailures.push(`${destination}/${passport}: outcome ${reviewed.outcome}`);
+          }
+          if (reviewed.maxStayDays !== expectedMaxStay[destination]?.[passport]) {
+            exactMatrixFailures.push(`${destination}/${passport}: maxStayDays ${reviewed.maxStayDays}`);
+          }
+          const actualProducts = reviewed.productRecommendations.map((product) => product.productCode);
+          if (JSON.stringify(actualProducts) !== JSON.stringify(expectedProducts[destination]?.[passport] ?? [])) {
+            exactMatrixFailures.push(`${destination}/${passport}: products ${JSON.stringify(actualProducts)}`);
+          }
+          const expectedSource =
+            expectedSourceOverrides[`${destination}:${passport}`] ??
+            expectedSourceByDestination[destination];
+          if (reviewed.sourceUrl !== expectedSource) {
+            exactMatrixFailures.push(`${destination}/${passport}: sourceUrl ${reviewed.sourceUrl}`);
+          }
+        }
+      }
+      return [
+        expectEqual('reviewed matrix has 77 rows', REVIEWED_VISA_ENTRY_RULES.length, 77),
+        expectEqual('reviewed matrix covers every destination/passport key', actualKeys.size, expectedKeys.size),
+        expectArrayEqual(
+          'reviewed matrix has no missing destination/passport key',
+          [...expectedKeys].filter((key) => !actualKeys.has(key)),
+          []
+        ),
+        expectArrayEqual('reviewed matrix has no unknown rows', unknownRows, []),
+        expectArrayEqual('conditional rows declare required inputs', conditionalWithoutInputs, []),
+        expectArrayEqual('all reviewed products use internal or allow-listed URLs', malformedProducts, []),
+        expectEqual('Singapore China rule remains exempt', sgChina?.outcome, 'visa_exempt'),
+        expectEqual('Singapore China rule remains capped at 30 days', sgChina?.maxStayDays, 30),
+        expectEqual('Singapore overstay becomes conditional', sgChinaOverstay?.outcome, 'conditional'),
+        expectEqual('Singapore overstay suppresses product recommendation', sgChinaOverstay?.productRecommendations.length, 0),
+        expectEqual('Philippines China pilot source is DFA', phChina?.sourceUrl.includes('dfa.gov.ph'), true),
+        expectEqual('Philippines China pilot lists designated ports', Array.isArray(phChina?.conditions.designated_ports), true),
+        expectEqual('Korea K-ETA is not default CTA during exemption review', koreaSingapore?.productRecommendations.length, 0),
+        expectArrayEqual('77 fixtures match reviewed outcome/stay/products/source shape', exactMatrixFailures, []),
       ];
     }),
     branch('ARRIVAL-VISA-ISOLATION-001', 'entry_rule_branch', () => [

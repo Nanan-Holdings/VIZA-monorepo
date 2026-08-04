@@ -1,12 +1,12 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "vietnam",
   "notes": "Country-level VIZA RAG seed for vietnam. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
     {
       "slug": "vietnam-official-evisa",
       "country": "vietnam",
-      "visaType": "evisa_tourism",
+      "visaType": "VN_E_VISA",
       "documentType": "requirements",
       "title": "Vietnam Official E-Visa",
       "sourceUrl": "https://evisa.xuatnhapcanh.gov.vn/trang-chu-ttdt",
@@ -54,7 +54,7 @@
     {
       "slug": "vietnam-form-requirements",
       "country": "vietnam",
-      "visaType": "evisa_tourism",
+      "visaType": "VN_E_VISA",
       "documentType": "form_requirements",
       "title": "Vietnam Application Form and Document Intake Requirements",
       "sourceUrl": "https://evisa.xuatnhapcanh.gov.vn/trang-chu-ttdt",
@@ -120,6 +120,68 @@
             "vietnam"
           ],
           "content": "Official-source field answer norms for vietnam.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://evisa.xuatnhapcanh.gov.vn/trang-chu-ttdt ; https://thithucdientu.gov.vn ; https://evisa.gov.vn\n\nIssue, expiry, and validity fields:\n- Vietnam E-visa is valid for maximum of 90 days, single or multiple entry.\n\nTravel plan and port fields:\n- Vietnam E-visa is valid for maximum of 90 days, single or multiple entry.\n- List of Ports that allowed foreigners enter and exit Vietnam by E-visa.\n- Not falling into the cases of suspension from entry prescribed in Article 21 of Law on foreigners' entry into, exit from, transit through, residence in Vietnam.\n\nAccommodation, host, and address fields:\n- They should send visa applications via the inviting or guaranteeing agencies and organizations to the competent agency of the Ministry of Foreign Affairs.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+        }
+      ]
+    },
+    {
+      "slug": "vietnam-prearrival-declaration-requirements",
+      "country": "vietnam",
+      "visaType": "VN_PREARRIVAL_DECLARATION",
+      "documentType": "requirements",
+      "title": "Vietnam Pre-Arrival Information Declaration",
+      "sourceUrl": "https://prearrival.immigration.gov.vn/",
+      "chunks": [
+        {
+          "id": "vnm_prearrival_official_scope",
+          "title": "Vietnam pre-arrival declaration scope",
+          "tags": ["vietnam", "pre-arrival", "arrival-declaration", "official-source"],
+          "content": "Vietnam's official Pre-Arrival Information portal is https://prearrival.immigration.gov.vn/. It is a separate traveller declaration workflow and is not a visa or an e-visa. VIZA must first determine whether the traveller's current nationality, purpose, route and entry date fall within the portal's required scope; do not infer a requirement from the existence of a visa application. If the portal requests visa credentials, copy them from the approved official visa and never invent a visa number."
+        },
+        {
+          "id": "vnm_prearrival_trip_and_identity",
+          "title": "Vietnam pre-arrival data and official options",
+          "tags": ["vietnam", "pre-arrival", "passport", "travel-plan", "official-options"],
+          "content": "When the official portal applies, the declaration uses passport and traveller identity details together with the trip, entry point, accommodation and contact information shown by the current official form. Preserve the portal's official option values for passport type, visa information, travel mode, port, flight and accommodation; Chinese labels are display-only. Stop and ask the user when a required official option or visa credential is unknown."
+        },
+        {
+          "id": "vnm_prearrival_not_a_visa",
+          "title": "Vietnam declaration is independent of the visa route",
+          "tags": ["vietnam", "pre-arrival", "visa-separation", "guardrail"],
+          "content": "A submitted pre-arrival declaration does not grant entry permission and does not replace a Vietnam E-visa, visa exemption or other immigration permission. Keep the VN_PREARRIVAL_DECLARATION package separate from VN_E_VISA and show two independent actions when both are required. Confirm current timing and applicability on the official portal before submission."
+        }
+      ]
+    },
+    {
+      "slug": "vietnam-prearrival-form-requirements",
+      "country": "vietnam",
+      "visaType": "VN_PREARRIVAL_DECLARATION",
+      "documentType": "form_requirements",
+      "title": "Vietnam Pre-Arrival Declaration Form Requirements",
+      "sourceUrl": "https://prearrival.immigration.gov.vn/",
+      "chunks": [
+        {
+          "id": "vietnam_prearrival_form_channel_and_scope",
+          "title": "Vietnam pre-arrival form channel and scope",
+          "tags": ["vietnam", "pre-arrival", "application-form", "form-requirements", "official-source"],
+          "content": "Use only the official Vietnam Immigration Pre-Arrival Information portal at https://prearrival.immigration.gov.vn/. This product is for the standalone arrival declaration and must not reuse the VN_E_VISA schema. The official portal controls whether the declaration is needed and which fields are visible; VIZA should route work, study, residence and other regulated purposes to a separate workflow."
+        },
+        {
+          "id": "vietnam_prearrival_form_fields_to_collect",
+          "title": "Vietnam pre-arrival fields to collect",
+          "tags": ["vietnam", "pre-arrival", "intake", "field-mapping"],
+          "content": "Collect only the fields currently required by the official portal: passport and identity data, contact and residence information, entry and travel details, Vietnam address/accommodation and any visa or permit information the portal asks for. Keep official dropdown values unchanged for submission. Detailed application answers belong on the dedicated form page, not in chat."
+        },
+        {
+          "id": "vietnam_prearrival_review_and_handoff",
+          "title": "Vietnam pre-arrival review and handoff",
+          "tags": ["vietnam", "pre-arrival", "review-before-submit", "official-source"],
+          "content": "Before submission, compare every identity value with the passport, every visa value with the approved official document when one is required, and every trip value with the itinerary. Do not report success until the official portal returns its confirmation or reference. If a required field or applicability condition cannot be verified, leave the declaration unresolved and direct the traveller to the official portal."
+        },
+        {
+          "id": "vietnam_prearrival_standard_passport_identity_field_rules",
+          "title": "Standard passport identity fields for Vietnam pre-arrival",
+          "tags": ["standard-fields", "passport", "identity-document", "official-source"],
+          "content": "Copy passport number, name, date of birth, sex, nationality, issue date, expiry date, issuing authority, place of issue and passport type from the applicant's passport or official identity document. Never infer these values from residence, destination or a prior e-visa application."
         }
       ]
     }

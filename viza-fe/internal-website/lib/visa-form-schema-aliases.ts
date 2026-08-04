@@ -5,6 +5,20 @@ const VIETNAM_COUNTRY_ALIASES = new Set([
   "越南",
 ]);
 
+const COUNTRY_ALIASES = {
+  france: new Set(["fr", "france", "法国"]),
+  indonesia: new Set(["id", "indonesia", "印尼", "印度尼西亚"]),
+  malaysia: new Set(["my", "malaysia", "马来西亚"]),
+  philippines: new Set(["ph", "philippines", "菲律宾"]),
+  singapore: new Set(["sg", "singapore", "新加坡"]),
+  south_korea: new Set(["kr", "korea", "south_korea", "韩国", "南韩"]),
+  taiwan: new Set(["tw", "taiwan", "台湾", "中国台湾", "中國台灣"]),
+  thailand: new Set(["th", "thailand", "泰国"]),
+  uk: new Set(["uk", "united_kingdom", "united kingdom", "英国"]),
+  us: new Set(["us", "usa", "united_states", "united states", "美国"]),
+  vietnam: VIETNAM_COUNTRY_ALIASES,
+} as const;
+
 const VIETNAM_E_VISA_ROUTE_ALIASES = new Set([
   "evisa_tourism",
   "e_visa_tourism",
@@ -24,22 +38,87 @@ const COUNTRY_SCOPED_SCHEMA_ALIASES: ReadonlyArray<{
   canonicalVisaType: string;
 }> = [
   {
-    countries: new Set(["sg", "singapore", "新加坡"]),
+    countries: COUNTRY_ALIASES.singapore,
     visaTypes: new Set(["sgac", "sg_arrival_card"]),
     canonicalVisaType: "SG_ARRIVAL_CARD",
   },
   {
-    countries: new Set(["my", "malaysia", "马来西亚"]),
+    countries: COUNTRY_ALIASES.singapore,
+    visaTypes: new Set(["sg_visitor_visa", "visitor_visa"]),
+    canonicalVisaType: "SG_VISITOR_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.malaysia,
     visaTypes: new Set(["mdac", "my_mdac", "my_mdac_arrival_card"]),
     canonicalVisaType: "MY_MDAC_ARRIVAL_CARD",
   },
   {
-    countries: new Set(["th", "thailand", "泰国"]),
+    countries: COUNTRY_ALIASES.malaysia,
+    visaTypes: new Set(["my_tourist_e_visa", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "MY_TOURIST_E_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.thailand,
     visaTypes: new Set(["tdac", "th_tdac", "th_tdac_arrival_card"]),
     canonicalVisaType: "TH_TDAC_ARRIVAL_CARD",
   },
   {
-    countries: VIETNAM_COUNTRY_ALIASES,
+    countries: COUNTRY_ALIASES.thailand,
+    visaTypes: new Set(["th_tourist_e_visa", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "TH_TOURIST_E_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.indonesia,
+    visaTypes: new Set(["id_b1_evoa", "b1_evoa", "b1_e_voa", "evoa"]),
+    canonicalVisaType: "ID_B1_EVOA",
+  },
+  {
+    countries: COUNTRY_ALIASES.indonesia,
+    visaTypes: new Set(["id_c1_tourist", "c1_tourist", "tourist_b211a", "b211a"]),
+    canonicalVisaType: "ID_C1_TOURIST",
+  },
+  {
+    countries: COUNTRY_ALIASES.philippines,
+    visaTypes: new Set(["ph_temporary_visitor_visa", "temporary_visitor_visa", "visa_free_14_days_or_evisa"]),
+    canonicalVisaType: "PH_TEMPORARY_VISITOR_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.philippines,
+    visaTypes: new Set(["ph_etravel_arrival_card", "etravel_arrival_card"]),
+    canonicalVisaType: "PH_ETRAVEL_ARRIVAL_CARD",
+  },
+  {
+    countries: COUNTRY_ALIASES.philippines,
+    visaTypes: new Set(["ph_etravel_departure_card", "etravel_departure_card"]),
+    canonicalVisaType: "PH_ETRAVEL_DEPARTURE_CARD",
+  },
+  {
+    countries: COUNTRY_ALIASES.south_korea,
+    visaTypes: new Set(["kr_c39_short_term_visit", "kr_c39", "c39", "c3_9", "c3_or_keta"]),
+    canonicalVisaType: "KR_C39_SHORT_TERM_VISIT",
+  },
+  {
+    countries: COUNTRY_ALIASES.taiwan,
+    visaTypes: new Set(["tw_entry_permit", "taiwan_entry_permit", "tw_overseas_cn_tourism_entry_permit"]),
+    canonicalVisaType: "TW_ENTRY_PERMIT",
+  },
+  {
+    countries: COUNTRY_ALIASES.uk,
+    visaTypes: new Set(["uk_standard_visitor", "standard_visitor"]),
+    canonicalVisaType: "UK_STANDARD_VISITOR",
+  },
+  {
+    countries: COUNTRY_ALIASES.us,
+    visaTypes: new Set(["ds160", "ds_160", "b1_b2", "b_1_b_2"]),
+    canonicalVisaType: "DS160",
+  },
+  {
+    countries: COUNTRY_ALIASES.france,
+    visaTypes: new Set(["eu_schengen_c_short_stay", "schengen_short_stay", "schengen_short_stay_tourism"]),
+    canonicalVisaType: "EU_SCHENGEN_C_SHORT_STAY",
+  },
+  {
+    countries: COUNTRY_ALIASES.vietnam,
     visaTypes: new Set([
       "prearrival_declaration",
       "vn_prearrival",
@@ -50,7 +129,7 @@ const COUNTRY_SCOPED_SCHEMA_ALIASES: ReadonlyArray<{
 ];
 
 function normalizeAliasInput(value: string | null | undefined): string {
-  return (value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return (value ?? "").trim().toLowerCase().replace(/[\s/-]+/g, "_");
 }
 
 export function resolveVisaFormSchemaVisaType(

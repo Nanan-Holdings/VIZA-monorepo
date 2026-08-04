@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-30",
+  "version": "2026-08-04",
   "country": "thailand",
   "notes": "Country-level VIZA RAG seed for thailand. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -34,7 +34,7 @@
             "onward-ticket",
             "funds"
           ],
-          "content": "Royal Thai Embassy guidance for the visa exemption scheme states that ordinary passport holders of eligible countries/territories can enter for tourism without a visa for a period not exceeding 60 days, subject to current official lists and entry checks. Travellers may be asked for proof of adequate funds, confirmed onward travel, accommodation, and passport validity. If the user's nationality is not eligible, recommend Thai e-Visa or a tourist visa route."
+          "content": "The latest currently published Thai consular eligibility list states that ordinary passport holders of eligible countries/territories can enter for tourism without a visa for a period not exceeding 60 days, subject to current official lists and entry checks. Thailand announced on 19 May 2026 that this 60-day scheme will be replaced after new Ministry of Interior notices are published in the Royal Gazette and take effect. Until those notices take effect, use the current published list, but recheck https://consular.mfa.go.th/th/content/20-5-69-0000 and the current consular eligibility list immediately before answering or travel. Travellers may be asked for proof of adequate funds, confirmed onward travel, accommodation, and passport validity. If the user's nationality is not eligible, recommend Thai e-Visa or a tourist visa route."
         },
         {
           "id": "tha_tourist_visa_when_needed",

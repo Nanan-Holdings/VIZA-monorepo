@@ -5,6 +5,10 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { VISA_SERVICE_COUNTRIES } from "../src/config/visa-destination-registry.js";
+import {
+  REVIEWED_VISA_ENTRY_RULE_MAP,
+  reviewedVisaEntryRuleKey,
+} from "../src/config/reviewed-visa-entry-rules.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,7 +74,8 @@ function sleep(delayMs: number): Promise<void> {
 
 async function createEmbedding(text: string): Promise<number[]> {
   let lastError: unknown;
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  const maxAttempts = 8;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const response = await fetch("https://api.openai.com/v1/embeddings", {
         method: "POST",
@@ -82,7 +87,7 @@ async function createEmbedding(text: string): Promise<number[]> {
           model: "text-embedding-3-small",
           input: text.slice(0, 8000),
         }),
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(45_000),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const body = (await response.json()) as {
@@ -95,11 +100,17 @@ async function createEmbedding(text: string): Promise<number[]> {
       return embedding;
     } catch (error) {
       lastError = error;
-      if (attempt < 4) await sleep(1_000 * 2 ** (attempt - 1));
+      if (attempt < maxAttempts) {
+        const delayMs = Math.min(1_000 * 2 ** (attempt - 1), 15_000);
+        process.stderr.write(
+          `Embedding connectivity check attempt ${attempt}/${maxAttempts} failed; retrying in ${delayMs}ms.\n`
+        );
+        await sleep(delayMs);
+      }
     }
   }
   throw new Error(
-    `Unable to create required embedding: ${
+    `Unable to create required embedding after ${maxAttempts} attempts: ${
       lastError instanceof Error ? lastError.message : String(lastError)
     }`
   );
@@ -138,36 +149,37 @@ async function stageEntryRules(releaseId: string): Promise<number> {
     if (!seed || !sourceUrl) throw new Error(`Missing official seed source for ${country}`);
 
     for (const passportCountry of passportCountries) {
-      const isSingaporeChina = country === "singapore" && passportCountry === "CHN";
-      const ruleKey = `${country}:${passportCountry}:ordinary:tourism:${seed.version}`;
-      const conditions = isSingaporeChina
-        ? {
-            sgac_window: "within 3 days before arrival, including arrival day",
-            excluded_purposes: ["work", "study", "journalism", "long_stay"],
-          }
-        : {
-            reason:
-              "Passport-specific eligibility has not yet been confirmed from an official source; the adviser must not infer an outcome.",
-          };
+      const reviewed = REVIEWED_VISA_ENTRY_RULE_MAP.get(
+        reviewedVisaEntryRuleKey(country, passportCountry, "ordinary", "tourism")
+      );
+      const isReviewed = Boolean(reviewed);
+      const conditions = reviewed?.conditions ?? {
+        reason:
+          "This country/passport combination is outside the first reviewed matrix; the adviser must not infer an outcome.",
+      };
+      const ruleKey = reviewed?.ruleKey ?? `${country}:${passportCountry}:ordinary:tourism:${seed.version}`;
       rows.push({
         rule_key: ruleKey,
         release_id: releaseId,
         status: "staged",
+        review_status: isReviewed ? "reviewed" : "placeholder",
         destination_country: country,
         passport_country_iso3: passportCountry,
         passport_type: "ordinary",
         trip_purpose: "tourism",
-        max_stay_days: isSingaporeChina ? 30 : null,
-        outcome: isSingaporeChina ? "visa_exempt" : "unknown",
-        visa_type: null,
-        arrival_card_types: isSingaporeChina ? ["SG_ARRIVAL_CARD"] : [],
+        max_stay_days: reviewed?.maxStayDays ?? null,
+        outcome: reviewed?.outcome ?? "unknown",
+        visa_type: reviewed?.visaType ?? null,
+        arrival_card_types: reviewed?.arrivalCardTypes ?? [],
+        required_inputs: reviewed?.requiredInputs ?? [],
+        product_recommendations: reviewed?.productRecommendations ?? [],
         conditions_json: conditions,
-        source_url: isSingaporeChina
-          ? "https://www.ica.gov.sg/news-and-publications/newsroom/media-release/mutual-30-day-visa-exemption-arrangement-between-singapore-and-the-people-s-republic-of-china"
-          : sourceUrl,
-        effective_from: isSingaporeChina ? "2024-02-09" : null,
-        verified_at: new Date(`${seed.version}T00:00:00.000Z`).toISOString(),
-        content_hash: hash({ ruleKey, conditions, sourceUrl }),
+        source_url: reviewed?.sourceUrl ?? sourceUrl,
+        effective_from: reviewed?.effectiveFrom ?? null,
+        effective_to: reviewed?.effectiveTo ?? null,
+        verified_at: reviewed?.verifiedAt ?? new Date(`${seed.version}T00:00:00.000Z`).toISOString(),
+        review_due_at: reviewed?.reviewDueAt ?? null,
+        content_hash: hash({ reviewed, ruleKey, conditions, sourceUrl }),
       });
     }
   }
@@ -177,6 +189,10 @@ async function stageEntryRules(releaseId: string): Promise<number> {
     .delete()
     .eq("release_id", releaseId);
   if (deleteError) throw new Error(deleteError.message);
+  const reviewedCount = rows.filter((row) => row.review_status === "reviewed").length;
+  if (reviewedCount !== 77) {
+    throw new Error(`Reviewed 11-country matrix must contain 77 rows; received ${reviewedCount}`);
+  }
   for (let offset = 0; offset < rows.length; offset += 100) {
     const { error } = await supabase.from("visa_entry_rules").insert(rows.slice(offset, offset + 100));
     if (error) throw new Error(error.message);

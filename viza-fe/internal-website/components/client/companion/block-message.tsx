@@ -38,6 +38,11 @@ export interface ApplicationBlockPayload {
   ctaLabel?: string;
   country?: string;
   visaType?: string | null;
+  productCode?: string;
+  productKind?: "visa" | "entry_permit" | "travel_authorization" | "arrival_declaration" | "departure_declaration";
+  provider?: "viza" | "official";
+  requirement?: "required" | "conditional" | "optional";
+  supportLevel?: "form_only" | "assisted_submission" | "automated" | "official_redirect";
 }
 
 interface BlockMessageProps {
@@ -52,6 +57,7 @@ export function BlockMessage({
   const locale = useLocale();
   const isZh = locale.toLowerCase().startsWith("zh");
   const isSingaporeArrivalCard = payload.visaType === "SG_ARRIVAL_CARD";
+  const isOfficialRedirect = payload.provider === "official";
   const redirectUrl = payload.redirectUrl ?? "/client/application";
   const title =
     isZh && isSingaporeArrivalCard ? "填写新加坡电子入境卡" : payload.title;
@@ -63,6 +69,25 @@ export function BlockMessage({
     isZh && isSingaporeArrivalCard
       ? "开始填写"
       : payload.ctaLabel ?? (isZh ? "打开申请表" : "Open application form");
+  const supportNote = isZh
+    ? payload.supportLevel === "form_only"
+      ? "VIZA 可协助整理和填写资料，暂不代替您向官方提交。"
+      : payload.supportLevel === "assisted_submission"
+        ? "VIZA 可协助填写并引导您完成后续办理。"
+        : payload.supportLevel === "automated"
+          ? "VIZA 可协助填写并按您的确认提交。"
+          : payload.supportLevel === "official_redirect"
+            ? "该手续暂未提供 VIZA 内部代填，将前往官方页面办理。"
+            : null
+    : payload.supportLevel === "form_only"
+      ? "VIZA can help prepare the form, but official submission is not automated."
+      : payload.supportLevel === "assisted_submission"
+        ? "VIZA can help prepare the form and guide the next steps."
+        : payload.supportLevel === "automated"
+          ? "VIZA can prepare and submit this after your confirmation."
+          : payload.supportLevel === "official_redirect"
+            ? "VIZA does not currently offer an internal form for this step; continue on the official website."
+            : null;
 
   return (
     <div className="flex gap-3">
@@ -76,6 +101,9 @@ export function BlockMessage({
           {description ? (
             <p className="mt-0.5 text-xs text-gray-500">{description}</p>
           ) : null}
+          {supportNote ? (
+            <p className="mt-1 text-xs text-gray-500">{supportNote}</p>
+          ) : null}
         </div>
 
         <div className="px-4 py-3">
@@ -85,6 +113,8 @@ export function BlockMessage({
               "bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700"
             )}
             href={redirectUrl}
+            rel={isOfficialRedirect ? "noopener noreferrer" : undefined}
+            target={isOfficialRedirect ? "_blank" : undefined}
           >
             {ctaLabel}
             <ArrowRight className="h-3.5 w-3.5" />

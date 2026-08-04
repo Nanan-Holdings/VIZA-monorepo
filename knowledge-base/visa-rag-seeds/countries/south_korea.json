@@ -1,14 +1,14 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "south_korea",
   "notes": "Country-level VIZA RAG seed for south_korea. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
     {
-      "slug": "south-korea-visa-c3-keta",
+      "slug": "south-korea-c39-visitor-visa",
       "country": "south_korea",
-      "visaType": "c3_or_keta",
+      "visaType": "KR_C39_SHORT_TERM_VISIT",
       "documentType": "requirements",
-      "title": "South Korea Short-Term Visit Visa and K-ETA",
+      "title": "South Korea C-3-9 Short-Term Visit Visa",
       "sourceUrl": "https://www.visa.go.kr/openPage.do?LANG_TYPE=EN&MENU_ID=10105",
       "chunks": [
         {
@@ -54,7 +54,7 @@
     {
       "slug": "south_korea-form-requirements",
       "country": "south_korea",
-      "visaType": "c3_or_keta",
+      "visaType": "KR_C39_SHORT_TERM_VISIT",
       "documentType": "form_requirements",
       "title": "South Korea Application Form and Document Intake Requirements",
       "sourceUrl": "https://www.visa.go.kr/openPage.do?LANG_TYPE=EN&MENU_ID=10105",

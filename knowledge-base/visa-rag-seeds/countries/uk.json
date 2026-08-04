@@ -1,12 +1,12 @@
 {
-  "version": "2026-05-24",
+  "version": "2026-08-04",
   "country": "uk",
   "notes": "Country-level VIZA RAG seed for the United Kingdom Standard Visitor route. Sources reviewed: GOV.UK Standard Visitor overview and application pages, GOV.UK visitor supporting documents guidance, GOV.UK outside-UK processing times, GOV.UK Appendix V Visitor rules, GOV.UK visa application centre finder, and the UKVI online application service language-selection entry. This seed is aligned with the existing UK_STANDARD_VISITOR form schema in viza-be/agent-backend/scripts/seed-uk-standard-visitor-form-fields.ts.",
   "documents": [
     {
       "slug": "uk-standard-visitor-overview",
       "country": "uk",
-      "visaType": "standard_visitor",
+      "visaType": "UK_STANDARD_VISITOR",
       "documentType": "requirements",
       "title": "UK Standard Visitor Visa Overview",
       "sourceUrl": "https://www.gov.uk/standard-visitor/overview",
@@ -58,7 +58,7 @@
     {
       "slug": "uk-standard-visitor-application",
       "country": "uk",
-      "visaType": "standard_visitor",
+      "visaType": "UK_STANDARD_VISITOR",
       "documentType": "process",
       "title": "UK Standard Visitor Application Process",
       "sourceUrl": "https://www.gov.uk/standard-visitor/apply-standard-visitor-visa",
@@ -116,7 +116,7 @@
     {
       "slug": "uk-standard-visitor-supporting-documents",
       "country": "uk",
-      "visaType": "standard_visitor",
+      "visaType": "UK_STANDARD_VISITOR",
       "documentType": "requirements",
       "title": "UK Standard Visitor Supporting Documents",
       "sourceUrl": "https://www.gov.uk/government/publications/visitor-visa-guide-to-supporting-documents/guide-to-supporting-documents-visiting-the-uk",
@@ -176,7 +176,7 @@
     {
       "slug": "uk-form-requirements",
       "country": "uk",
-      "visaType": "standard_visitor",
+      "visaType": "UK_STANDARD_VISITOR",
       "documentType": "form_requirements",
       "title": "United Kingdom Application Form and Document Intake Requirements",
       "sourceUrl": "https://www.gov.uk/standard-visitor/apply-standard-visitor-visa",

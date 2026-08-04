@@ -24,7 +24,11 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
-import { VN_COUNTRY_NAME_BY_ALPHA3 } from "../../submission-service/src/vietnam/country-options";
+import vietnamCountryOptions from "../../submission-service/src/vietnam/country-options.js";
+
+const { VN_COUNTRY_NAME_BY_ALPHA3 } = vietnamCountryOptions as unknown as {
+  VN_COUNTRY_NAME_BY_ALPHA3: Record<string, string>;
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

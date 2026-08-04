@@ -42,7 +42,9 @@ import {
 import {
   buildVisaEntryRulePrompt,
   resolveVisaEntryRule,
+  type VisaEntryRule,
 } from '../services/visa-entry-rule.service.js';
+import type { VisaProductRecommendation } from '../config/visa-product-registry.js';
 import { ChatCapacityError, ChatConcurrencyGate } from './chat-concurrency.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
@@ -384,7 +386,7 @@ export function resolveKnowledgeVisaType(
   ]);
 
   if (!country && includesAny(normalized, ['申根', 'schengen'])) {
-    return 'schengen_short_stay_tourism';
+    return 'EU_SCHENGEN_C_SHORT_STAY';
   }
 
   if (countrySupportsVisaType(country, applicationVisaType)) {
@@ -800,6 +802,71 @@ function buildUnsupportedServicePromptNote(
   ].join('\n');
 }
 
+function buildProductRecommendationBlock(
+  recommendation: VisaProductRecommendation,
+  locale: ResponseLocale
+): ApplicationBlockPayload {
+  const productName =
+    locale === 'zh' ? recommendation.displayNameZh : recommendation.displayNameEn;
+  const isOfficial = recommendation.provider === 'official';
+  return {
+    blockType: 'application_redirect',
+    title:
+      locale === 'zh'
+        ? `${isOfficial ? '前往官方页面办理' : '填写'}${productName}`
+        : `${isOfficial ? 'Continue to' : 'Open'} ${productName}`,
+    description:
+      locale === 'zh'
+        ? isOfficial
+          ? 'VIZA 暂未提供该手续的内部表单，请在政府官方网站继续办理。'
+          : '前往 VIZA 专用表单继续填写；聊天顾问不会在对话中收集详细申请字段。'
+        : isOfficial
+          ? 'VIZA does not currently provide an internal form for this step. Continue on the official government website.'
+          : 'Continue in the dedicated VIZA form. The chat adviser will not collect detailed application fields here.',
+    saveTarget: 'application_redirect',
+    fields: [],
+    redirectUrl: recommendation.url,
+    ctaLabel:
+      locale === 'zh'
+        ? isOfficial
+          ? '打开官方页面'
+          : '开始填写'
+        : isOfficial
+          ? 'Open official website'
+          : 'Open form',
+    country: recommendation.country,
+    visaType: recommendation.productCode,
+    productCode: recommendation.productCode,
+    productKind: recommendation.kind,
+    provider: recommendation.provider,
+    requirement: recommendation.requirement,
+    supportLevel: recommendation.supportLevel,
+  };
+}
+
+export function buildRuleProductRecommendationBlocks(
+  rule: VisaEntryRule | null,
+  locale: ResponseLocale = 'en'
+): ApplicationBlockPayload[] {
+  if (
+    !rule ||
+    rule.reviewStatus !== 'reviewed' ||
+    rule.outcome === 'conditional' ||
+    rule.outcome === 'unknown' ||
+    rule.outcome === 'not_applicable'
+  ) {
+    return [];
+  }
+
+  return rule.productRecommendations
+    .filter((recommendation) => recommendation.requirement === 'required')
+    .filter(
+      (recommendation) =>
+        !(rule.outcome === 'visa_exempt' && recommendation.kind === 'visa')
+    )
+    .map((recommendation) => buildProductRecommendationBlock(recommendation, locale));
+}
+
 function asksAboutVizaServiceCoverage(message: string): boolean {
   return /(VIZA|网站|平台|你们).{0,12}(支持|能办|可以办|已开通|有哪些国家|哪些国家)|(支持|能办|已开通).{0,12}(国家|地区|产品)/iu.test(
     message
@@ -843,25 +910,13 @@ function buildVizaServiceCapabilityPrompt(
 
 function shouldOfferApplicationRedirect(
   intent: VisaKnowledgeIntent,
-  visaType: string | null,
-  state: VisaConversationState,
-  message: string
+  rule: VisaEntryRule | null
 ): boolean {
-  if (intent === 'form_intake') return true;
-  if (visaType !== 'SG_ARRIVAL_CARD') return false;
-
-  const explicitlyAskedForArrivalCard = /(电子)?入境卡|入境申报|sgac|arrival card/iu.test(
-    message
-  );
-  const routeIsReady = Boolean(
-    state.mainDestination &&
-      state.nationality &&
-      state.tripPurpose &&
-      state.stayLengthDays
-  );
-  return (
-    (explicitlyAskedForArrivalCard || routeIsReady) &&
-    ['route_recommendation', 'eligibility', 'requirements'].includes(intent)
+  return Boolean(
+    rule &&
+      rule.reviewStatus === 'reviewed' &&
+      !['conditional', 'unknown', 'not_applicable'].includes(rule.outcome) &&
+      ['form_intake', 'route_recommendation', 'eligibility', 'requirements'].includes(intent)
   );
 }
 
@@ -1132,14 +1187,17 @@ export function registerVisaNamespace(nsp: Namespace): void {
           tripPurpose: conversationState.tripPurpose,
           stayLengthDays: conversationState.stayLengthDays,
         });
-        const knowledgeVisaType = resolveKnowledgeVisaType(
-          knowledgeCountry,
-          message,
-          entryRule?.visaType ??
-            conversationState.recommendedVisaType ??
-            appContext.application?.visa_type,
-          recentUserContext
-        );
+        const reviewedRuleProduct = entryRule?.productRecommendations.find(
+          (recommendation) => recommendation.requirement === 'required'
+        )?.productCode;
+        const knowledgeVisaType = entryRule
+          ? reviewedRuleProduct ?? entryRule.visaType
+          : resolveKnowledgeVisaType(
+              knowledgeCountry,
+              message,
+              conversationState.recommendedVisaType ?? appContext.application?.visa_type,
+              recentUserContext
+            );
         const knowledgeIntent = inferVisaKnowledgeIntent(
           message,
           conversationState.missingSlots
@@ -1181,16 +1239,9 @@ export function registerVisaNamespace(nsp: Namespace): void {
         const stateSummary = summarizeVisaConversationState(conversationState);
         const applicationRedirects = shouldOfferApplicationRedirect(
           knowledgeIntent,
-          knowledgeVisaType,
-          conversationState,
-          message
+          entryRule
         )
-          ? buildApplicationRedirectBlocks(
-              conversationState,
-              knowledgeCountry,
-              knowledgeVisaType ?? (knowledgeCountry ? getDefaultVisitorVisaType(knowledgeCountry) : null),
-              responseLocale
-            )
+          ? buildRuleProductRecommendationBlocks(entryRule, responseLocale)
           : [];
         for (const applicationRedirect of applicationRedirects) {
           try {
@@ -1305,6 +1356,11 @@ export function registerVisaNamespace(nsp: Namespace): void {
                   passportCountryIso3: conversationState.passportCountryIso3,
                   entryRuleOutcome: entryRule?.outcome ?? 'unknown',
                   visaType: knowledgeVisaType,
+                  recommendedProducts: applicationRedirects.map((block) => ({
+                    productCode: block.productCode,
+                    provider: block.provider,
+                    requirement: block.requirement,
+                  })),
                   intent: knowledgeIntent,
                   sourceKeys: knowledgeResult.chunks
                     .map((chunk) => chunk.sourceKey)

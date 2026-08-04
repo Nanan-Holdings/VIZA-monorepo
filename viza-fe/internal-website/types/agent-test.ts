@@ -188,6 +188,11 @@ export interface ApplicationBlockEvent {
     ctaLabel?: string;
     country?: string;
     visaType?: string | null;
+    productCode?: string;
+    productKind?: "visa" | "entry_permit" | "travel_authorization" | "arrival_declaration" | "departure_declaration";
+    provider?: "viza" | "official";
+    requirement?: "required" | "conditional" | "optional";
+    supportLevel?: "form_only" | "assisted_submission" | "automated" | "official_redirect";
   };
   timestamp: number;
 }
