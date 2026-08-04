@@ -7,7 +7,10 @@ import { compareFaces } from "@/lib/face/match";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import { enqueueRunnerPoolJob } from "@/lib/queue/enqueue";
-import { resolveRunnerPoolFlow } from "@/lib/queue/flows";
+import {
+  resolveRunnerPoolFlow,
+  shouldUseSharedRunnerPool,
+} from "@/lib/queue/flows";
 import {
   evaluateSgacSubmissionWindow,
   validateSgacTravelDates,
@@ -1664,8 +1667,10 @@ export async function POST(
   const useRunnerPool =
     mode === "live_assisted" &&
     poolFlow !== null &&
-    (process.env.RUNNER_POOL_MIGRATION_ENABLED === "true" ||
-      poolFlow === "vn_prearrival");
+    shouldUseSharedRunnerPool(
+      poolFlow,
+      process.env.RUNNER_POOL_MIGRATION_ENABLED === "true",
+    );
   const poolEnqueue = useRunnerPool
     ? await enqueueRunnerPoolJob(
         applicationId,
