@@ -70,6 +70,15 @@ test("Vietnam Pre-Arrival remains shared-pool only", () => {
   assert.match(deployWorkflow, /deploy-pool\.sh/);
 });
 
+test("Vietnam eVisa legacy worker retries only the bundled Fly browser", () => {
+  const legacyConfig = readRepoFile(
+    "viza-be/submission-service/deploy/fly/fly.legacy.toml",
+  );
+
+  assert.match(legacyConfig, /VN_BROWSER_CHANNELS = "bundled"/);
+  assert.doesNotMatch(legacyConfig, /VN_BROWSER_CHANNELS = ".*(?:msedge|chrome)/);
+});
+
 test("South Korea uses only its protected sticky deploy path", () => {
   const config = readRepoFile(
     "viza-be/submission-service/deploy/fly/fly.south-korea.toml",
