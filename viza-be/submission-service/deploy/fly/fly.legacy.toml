@@ -23,6 +23,10 @@ kill_timeout = "5m"
   # one-time card handoff must terminate on this same single-memory worker.
   VN_CLOUD_CARD_SESSION_ENABLED = "true"
   VN_OFFICIAL_PAYMENT_AUTOPAY = "true"
+  # The Playwright Fly image only guarantees its bundled Chromium binary.
+  # Retry that browser for transient launch/portal failures instead of falling
+  # through to host-installed Edge/Chrome channels that do not exist here.
+  VN_BROWSER_CHANNELS = "bundled"
   # Standard Chartered SC Mobile approval is valid for about 100 seconds.
   # Keep the same cloud browser alive long enough to observe the issuer result.
   VN_BANK_APP_3DS_WAIT_MS = "115000"
