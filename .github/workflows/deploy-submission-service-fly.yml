@@ -3,6 +3,10 @@ name: deploy-submission-service-fly
 env:
   # Must match the lowercase GHCR repository emitted by the image workflow.
   SUBMISSION_IMAGE_REPOSITORY: ghcr.io/nanan-holdings/viza-submission-service
+  FLY_RUNNER_POOL_APP: ${{ vars.FLY_RUNNER_POOL_APP }}
+  FLY_SUBMISSION_LEGACY_APP: ${{ vars.FLY_SUBMISSION_LEGACY_APP }}
+  FLY_RUNNER_INDONESIA_APP: ${{ vars.FLY_RUNNER_INDONESIA_APP }}
+  FLY_RUNNER_SOUTH_KOREA_APP: ${{ vars.FLY_RUNNER_SOUTH_KOREA_APP }}
 
 on:
   workflow_dispatch:

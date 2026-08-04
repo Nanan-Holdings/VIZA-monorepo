@@ -34,12 +34,25 @@ interface FlyMachineSummary {
   state: string;
 }
 
-const TARGET_APPS: Record<FlyWakeTarget, string> = {
+const DEFAULT_TARGET_APPS: Record<FlyWakeTarget, string> = {
   pool: "viza-runner-pool",
   legacy: "viza-submission-legacy",
   indonesia: "viza-runner-indonesia",
   south_korea: "viza-runner-south-korea",
 };
+
+function targetApps(env: WakeEnvironment): Record<FlyWakeTarget, string> {
+  return {
+    pool: env.FLY_RUNNER_POOL_APP?.trim() || DEFAULT_TARGET_APPS.pool,
+    legacy:
+      env.FLY_SUBMISSION_LEGACY_APP?.trim() || DEFAULT_TARGET_APPS.legacy,
+    indonesia:
+      env.FLY_RUNNER_INDONESIA_APP?.trim() || DEFAULT_TARGET_APPS.indonesia,
+    south_korea:
+      env.FLY_RUNNER_SOUTH_KOREA_APP?.trim() ||
+      DEFAULT_TARGET_APPS.south_korea,
+  };
+}
 
 const COUNTRY_ALIASES: Record<string, FlyWakeTarget> = {
   id: "indonesia",
@@ -171,7 +184,8 @@ async function reconcileCapacity(
   const config = flyApiConfig(env);
   if (!config) return { ok: false, target, reason: "not_configured" };
 
-  const app = TARGET_APPS[target];
+  const apps = targetApps(env);
+  const app = apps[target];
   const desiredLimit = target === "pool" ? 10 : 1;
   const desired = Math.max(0, Math.min(desiredLimit, Math.floor(rawDesired)));
   try {
@@ -215,7 +229,7 @@ async function reconcileCapacity(
       }
       if (reservation.evictedPoolMachineId) {
         const stopResponse = await flyRequest(
-          `${config.baseUrl}/apps/${TARGET_APPS.pool}/machines/${encodeURIComponent(reservation.evictedPoolMachineId)}/stop`,
+          `${config.baseUrl}/apps/${encodeURIComponent(apps.pool)}/machines/${encodeURIComponent(reservation.evictedPoolMachineId)}/stop`,
           config.token,
           fetchImpl,
           { method: "POST", body: "{}" },

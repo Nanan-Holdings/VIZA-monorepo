@@ -5,7 +5,7 @@ set -euo pipefail
 # appointment, or continuous browser session.
 image="${1:?immutable image reference is required}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-app="viza-runner-south-korea"
+app="${FLY_RUNNER_SOUTH_KOREA_APP:-viza-runner-south-korea}"
 deploy_ready_url="https://${app}.fly.dev/deploy-ready"
 
 has_retained_machine() {

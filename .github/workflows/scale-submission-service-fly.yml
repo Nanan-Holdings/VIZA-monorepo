@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+env:
+  FLY_RUNNER_POOL_APP: ${{ vars.FLY_RUNNER_POOL_APP }}
+  FLY_SUBMISSION_LEGACY_APP: ${{ vars.FLY_SUBMISSION_LEGACY_APP }}
+  FLY_RUNNER_INDONESIA_APP: ${{ vars.FLY_RUNNER_INDONESIA_APP }}
+  FLY_RUNNER_SOUTH_KOREA_APP: ${{ vars.FLY_RUNNER_SOUTH_KOREA_APP }}
+
 jobs:
   scale:
     if: github.event_name != 'schedule' || github.event.schedule != '17 * * * *'
@@ -49,9 +55,10 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Run one legacy maintenance window
         run: |
-          jq -n '[{kind:"legacy",app:"viza-submission-legacy",queued:0,desired:1}]' > "$RUNNER_TEMP/legacy-start.json"
+          legacy_app="${FLY_SUBMISSION_LEGACY_APP:-viza-submission-legacy}"
+          jq -n --arg app "$legacy_app" '[{kind:"legacy",app:$app,queued:0,desired:1}]' > "$RUNNER_TEMP/legacy-start.json"
           bash scripts/fly/scale-workers.sh "$RUNNER_TEMP/legacy-start.json"
           sleep 45
-          jq -n '[{kind:"legacy",app:"viza-submission-legacy",queued:0,desired:0}]' > "$RUNNER_TEMP/legacy-stop.json"
+          jq -n --arg app "$legacy_app" '[{kind:"legacy",app:$app,queued:0,desired:0}]' > "$RUNNER_TEMP/legacy-stop.json"
           bash scripts/fly/scale-workers.sh "$RUNNER_TEMP/legacy-stop.json"
         working-directory: viza-be/submission-service

@@ -5,7 +5,7 @@ set -euo pipefail
 # browser or unconsumed one-time card session.
 image="${1:?immutable image reference is required}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-app="viza-runner-indonesia"
+app="${FLY_RUNNER_INDONESIA_APP:-viza-runner-indonesia}"
 deploy_ready_url="https://${app}.fly.dev/deploy-ready"
 
 require_deploy_ready() {
@@ -44,6 +44,7 @@ fly deploy \
   --app "$app" \
   --config "$root/deploy/fly/fly.indonesia.toml" \
   --image "$fly_image" \
+  --env "SUBMISSION_SERVICE_WORKER_ID=$app" \
   --strategy rolling
 fly scale count 1 --app "$app" --yes
 
