@@ -15,13 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { svgPaths } from "@/components/client/constants";
 import { cn } from "@/lib/utils";
 import {
-  getApplicationLifecycleSummaries,
-  type ApplicationLifecycleSummary,
-} from "@/app/actions/application-lifecycle";
-import { getFormVisaType } from "@/lib/visa-destinations";
-import {
   buildApplicationFormHref,
-  buildApplicationLongFormHref,
   getRecentApplicationFormHref,
   readApplicationFormTarget,
   RECENT_APPLICATION_FORM_EVENT,
@@ -123,22 +117,6 @@ function hasApplicationIdentity(target: ApplicationFormTarget | null): target is
   return Boolean(target?.applicationId || (target?.country && target?.visaType));
 }
 
-function matchesApplicationTarget(
-  summary: ApplicationLifecycleSummary,
-  target: ApplicationFormTarget,
-): boolean {
-  if (target.applicationId) {
-    return summary.applicationId === target.applicationId;
-  }
-
-  if (!target.country || !target.visaType) return false;
-
-  return (
-    summary.country.toLowerCase() === target.country.toLowerCase() &&
-    summary.visaType.toLowerCase() === getFormVisaType(target.visaType).toLowerCase()
-  );
-}
-
 export function NavBar({
   activeTab,
   setActiveTab,
@@ -156,7 +134,6 @@ export function NavBar({
   const [mobileChatMenuOpen, setMobileChatMenuOpen] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [liveSaveStatus, setLiveSaveStatus] = useState<LiveSaveStatus>("saved");
-  const [applicationSummaries, setApplicationSummaries] = useState<ApplicationLifecycleSummary[]>([]);
   const [recentApplicationHref, setRecentApplicationHref] = useState<string | null>(null);
   const transitionDuration = 0.6;
   const showLiveSaveStatus =
@@ -211,23 +188,6 @@ export function NavBar({
       window.removeEventListener("storage", handleStorage);
     };
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadApplicationSummaries() {
-      const result = await getApplicationLifecycleSummaries();
-      if (!cancelled) {
-        setApplicationSummaries(result.summaries);
-      }
-    }
-
-    loadApplicationSummaries();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pathname, searchParams]);
 
   useEffect(() => {
     const readCssVar = (name: string, fallback: string) => {
@@ -286,22 +246,7 @@ export function NavBar({
     return hasApplicationIdentity(recentTarget) ? recentTarget : null;
   }, [pathname, recentApplicationHref, searchParams]);
 
-  const currentApplication = useMemo(() => {
-    if (currentApplicationTarget) {
-      return applicationSummaries.find((summary) =>
-        matchesApplicationTarget(summary, currentApplicationTarget)
-      ) ?? null;
-    }
-
-    return applicationSummaries[0] ?? null;
-  }, [applicationSummaries, currentApplicationTarget]);
-
-  const applicationMenuHref = currentApplicationTarget?.href ?? (currentApplication
-    ? buildApplicationLongFormHref({
-        country: currentApplication.country,
-        visaType: currentApplication.visaType,
-      })
-    : "/client/application");
+  const applicationMenuHref = currentApplicationTarget?.href ?? "/client/application";
 
   const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
   const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";

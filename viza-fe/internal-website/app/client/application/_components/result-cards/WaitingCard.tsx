@@ -221,13 +221,30 @@ export function WaitingCard({
   }, [activePhaseIdx, completeStatus, failedStatus, scheduledStatus, serverProgress, stage, waitingForUser]);
 
   useEffect(() => {
-    if (!applicationId || !isFrance) return;
+    if (!applicationId || !isFrance || officialAccount) return;
     let cancelled = false;
+    let timer: number | undefined;
+    let controller: AbortController | null = null;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void loadAccount(), delayMs);
+    };
 
     const loadAccount = async () => {
+      if (cancelled) return;
+      if (document.visibilityState !== "visible") {
+        schedule(30_000);
+        return;
+      }
+
+      controller = new AbortController();
+      const deadline = window.setTimeout(() => controller?.abort(), 5_000);
       try {
         const response = await fetch(`/api/applications/${applicationId}/france-visas-account`, {
           cache: "no-store",
+          signal: controller.signal,
         });
         const payload = (await response.json().catch(() => null)) as {
           account?: FvOfficialAccount | null;
@@ -239,16 +256,26 @@ export function WaitingCard({
         if (!cancelled) {
           setOfficialAccount(null);
         }
+      } finally {
+        window.clearTimeout(deadline);
+        controller = null;
+        schedule(10_000);
       }
     };
 
+    const pollWhenVisible = () => {
+      if (document.visibilityState === "visible") schedule(0);
+    };
+
     void loadAccount();
-    const timer = window.setInterval(loadAccount, 10_000);
+    document.addEventListener("visibilitychange", pollWhenVisible);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      controller?.abort();
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", pollWhenVisible);
     };
-  }, [applicationId, isFrance]);
+  }, [applicationId, isFrance, officialAccount]);
 
   const progressMessage = (() => {
     const localizedError = localizeProgressMessage(error, isZh);

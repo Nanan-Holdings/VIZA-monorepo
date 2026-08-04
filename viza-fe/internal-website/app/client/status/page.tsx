@@ -24,7 +24,6 @@ import {
 import { cn } from "@/lib/utils";
 import {
   getClientStatusData,
-  hasClientSession,
   isArrivalCardVisaType,
   type ClientStatusData,
   type ClientStatusState,
@@ -872,15 +871,13 @@ function ApplicationsIndex({
 }
 
 export default async function ClientStatusPage({ searchParams }: { searchParams?: SearchParams }) {
-  const hasSession = await hasClientSession();
-  if (!hasSession) redirect("/client/login");
-
   const params = searchParams ? await searchParams : {};
   const [t, locale, data] = await Promise.all([
     getTranslations("clientStatus"),
     getLocale(),
     getClientStatusData(),
   ]);
+  if (!data.authenticated) redirect("/client/login");
 
   const selectedApplicationId = getParam(params.applicationId);
   const selectedPackageId = getParam(params.packageId);

@@ -183,6 +183,7 @@ export interface StatusApplication {
 }
 
 export interface ClientStatusData {
+  authenticated: boolean;
   applications: StatusApplication[];
   detailApplications: StatusApplication[];
   partialData: boolean;
@@ -1424,20 +1425,19 @@ async function buildApplicationStatus({
   };
 }
 
-export async function hasClientSession(): Promise<boolean> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return Boolean(user);
-}
-
 export async function getClientStatusData(): Promise<ClientStatusData> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { applications: [], detailApplications: [], partialData: false };
+  if (!user) {
+    return {
+      authenticated: false,
+      applications: [],
+      detailApplications: [],
+      partialData: false,
+    };
+  }
 
   const adminClient = createAdminClient();
   let partialData = false;
@@ -1776,6 +1776,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   });
 
   return {
+    authenticated: true,
     applications: groupCountryApplications(statusApplications),
     detailApplications: statusApplications,
     partialData,

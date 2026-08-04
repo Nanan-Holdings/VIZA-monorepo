@@ -87,12 +87,20 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
       };
     }
 
-    const adminClient = createAdminClient();
-    const { data: profile, error: profileError } = await adminClient
-      .from("applicant_profiles")
-      .select(PROFILE_COLUMNS)
-      .eq("id", session.userId)
-      .maybeSingle();
+    const adminClient = createAdminClient({ requestTimeoutMs: 4_000 });
+    const [profileResult, applicationResult] = await Promise.all([
+      adminClient
+        .from("applicant_profiles")
+        .select(PROFILE_COLUMNS)
+        .eq("id", session.userId)
+        .maybeSingle(),
+      adminClient
+        .from("applications")
+        .select(APPLICATION_COLUMNS)
+        .eq("applicant_id", session.userId)
+        .order("created_at", { ascending: false }),
+    ]);
+    const { data: profile, error: profileError } = profileResult;
 
     if (profileError) {
       return {
@@ -118,11 +126,7 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
     }
     const homeProfile = profile as unknown as ClientHomeProfile;
 
-    const { data: applicationRows, error: applicationError } = await adminClient
-      .from("applications")
-      .select(APPLICATION_COLUMNS)
-      .eq("applicant_id", session.userId)
-      .order("created_at", { ascending: false });
+    const { data: applicationRows, error: applicationError } = applicationResult;
 
     if (applicationError) {
       return {
@@ -146,24 +150,10 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
     let payments: PaymentRow[] = [];
 
     if (applicationIds.length > 0) {
-      const { data: documentRows, error: documentError } = await adminClient
+      const documentRead = adminClient
         .from("application_documents")
         .select(DOCUMENT_COLUMNS)
         .in("application_id", applicationIds);
-
-      if (documentError) {
-        return {
-          authenticated: true,
-          authEmail: session.email,
-          profile: homeProfile,
-          applications,
-          documents: [],
-          payments: [],
-          error: documentError.message,
-        };
-      }
-
-      documents = (documentRows ?? []) as DocumentRow[];
 
       const paymentReads: Array<Promise<{ data: PaymentRow[] | null; error: { message: string } | null }>> = [
         adminClient
@@ -189,7 +179,25 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
         );
       }
 
-      const paymentResults = await Promise.all(paymentReads);
+      const [documentResult, paymentResults] = await Promise.all([
+        documentRead,
+        Promise.all(paymentReads),
+      ]);
+      const { data: documentRows, error: documentError } = documentResult;
+
+      if (documentError) {
+        return {
+          authenticated: true,
+          authEmail: session.email,
+          profile: homeProfile,
+          applications,
+          documents: [],
+          payments: [],
+          error: documentError.message,
+        };
+      }
+
+      documents = (documentRows ?? []) as DocumentRow[];
       const paymentError = paymentResults.find((result) => result.error)?.error;
       if (paymentError) {
         return {

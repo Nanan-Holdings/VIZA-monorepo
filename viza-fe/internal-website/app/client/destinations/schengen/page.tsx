@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
@@ -22,6 +22,25 @@ import {
 } from "@/app/actions/user-package";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
+const DESTINATION_SELECTION_UI_TIMEOUT_MS = 5_000;
+
+async function selectWithDeadline(destinationId: string) {
+  let timeout: number | undefined;
+  try {
+    return await Promise.race([
+      selectUserVisaDestination(destinationId),
+      new Promise<never>((_, reject) => {
+        timeout = window.setTimeout(
+          () => reject(new Error("destination_selection_timeout")),
+          DESTINATION_SELECTION_UI_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) window.clearTimeout(timeout);
+  }
+}
+
 function isSelectedDestination(
   destination: PopularVisaDestination,
   selectedPackages: UserVisaPackage[],
@@ -40,7 +59,6 @@ export default function SchengenDestinationsPage() {
   const [selectedPackages, setSelectedPackages] = useState<UserVisaPackage[]>([]);
   const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     let isMounted = true;
@@ -60,6 +78,7 @@ export default function SchengenDestinationsPage() {
   }, [searchQuery]);
 
   function handleSelect(destination: PopularVisaDestination) {
+    if (pendingDestinationId) return;
     setSelectionError(null);
     const href = buildApplicationLongFormHref({
       country: destination.country,
@@ -68,13 +87,18 @@ export default function SchengenDestinationsPage() {
     setPendingDestinationId(destination.id);
     router.push(href);
 
-    startTransition(async () => {
-      const result = await selectUserVisaDestination(destination.id);
-      if (!result.success) {
-        setSelectionError(result.error ?? (isZh ? "暂时无法选择该目的地，请重试。" : "Could not select this destination. Please try again."));
+    void (async () => {
+      try {
+        const result = await selectWithDeadline(destination.id);
+        if (!result.success) {
+          setSelectionError(result.error ?? (isZh ? "暂时无法选择该目的地，请重试。" : "Could not select this destination. Please try again."));
+        }
+      } catch {
+        setSelectionError(isZh ? "服务器响应较慢，请稍后重试。" : "The server is taking too long. Please try again shortly.");
+      } finally {
         setPendingDestinationId(null);
       }
-    });
+    })();
   }
 
   return (
@@ -122,7 +146,7 @@ export default function SchengenDestinationsPage() {
           <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
             {filteredDestinations.map((destination) => {
               const selected = isSelectedDestination(destination, selectedPackages);
-              const loading = isPending && pendingDestinationId === destination.id;
+              const loading = pendingDestinationId === destination.id;
               const applicationHref = buildApplicationLongFormHref({
                 country: destination.country,
                 visaType: destination.visaType,
