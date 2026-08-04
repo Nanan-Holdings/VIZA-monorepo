@@ -169,6 +169,85 @@ function vietnamDocsWithRequiredUploads(): DocumentCenterData {
 }
 
 describe("computeAllTabCompletion", () => {
+  test("derives TDAC transit status from same-day dates before validating accommodation", () => {
+    const tdacSteps: WizardStep[] = [
+      {
+        stepNumber: 1,
+        stepName: "Trip Information",
+        fields: [
+          { ...field("arrival_date"), visaType: "TH_TDAC_ARRIVAL_CARD" },
+          { ...field("departure_date"), visaType: "TH_TDAC_ARRIVAL_CARD" },
+        ],
+      },
+      {
+        stepNumber: 2,
+        stepName: "Accommodation Information",
+        fields: [
+          {
+            ...field("accommodation_type", { showIf: "is_transit_traveler !== yes" }),
+            visaType: "TH_TDAC_ARRIVAL_CARD",
+          },
+          {
+            ...field("province", { showIf: "is_transit_traveler !== yes" }),
+            visaType: "TH_TDAC_ARRIVAL_CARD",
+          },
+          {
+            ...field("address_in_thailand", { showIf: "is_transit_traveler !== yes" }),
+            visaType: "TH_TDAC_ARRIVAL_CARD",
+          },
+        ],
+      },
+    ];
+    const result = computeAllTabCompletion({
+      dbSteps: tdacSteps,
+      effectiveSteps: [{ id: 0, name: "Trip" }, { id: 1, name: "Accommodation" }],
+      answers: { arrival_date: "2026-08-08", departure_date: "2026-08-08" },
+      documentCenterData: null,
+      country: "thailand",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      documentStepId: 2,
+      reviewStepId: 2,
+      teamStepId: 3,
+      confirmationStepId: 3,
+      showDocumentStep: false,
+      showTeamStep: false,
+    });
+
+    expect(result.missingFields).toEqual([]);
+    expect(result.completedStepIds).toEqual([0, 1, 2]);
+  });
+
+  test("clears a stale TDAC transit answer when the departure date changes", () => {
+    const tdacAccommodationStep: WizardStep = {
+      stepNumber: 1,
+      stepName: "Accommodation Information",
+      fields: [{
+        ...field("accommodation_type", { showIf: "is_transit_traveler !== yes" }),
+        visaType: "TH_TDAC_ARRIVAL_CARD",
+      }],
+    };
+    const result = computeAllTabCompletion({
+      dbSteps: [tdacAccommodationStep],
+      effectiveSteps: [{ id: 0, name: "Accommodation" }],
+      answers: {
+        arrival_date: "2026-08-08",
+        departure_date: "2026-08-09",
+        is_transit_traveler: "yes",
+      },
+      documentCenterData: null,
+      country: "thailand",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      documentStepId: 1,
+      reviewStepId: 1,
+      teamStepId: 2,
+      confirmationStepId: 2,
+      showDocumentStep: false,
+      showTeamStep: false,
+    });
+
+    expect(result.missingFields.map((item) => item.fieldName)).toContain("accommodation_type");
+  });
+
   test("marks tabs complete from loaded saved answers without visited state", () => {
     const result = computeAllTabCompletion({
       dbSteps: steps,

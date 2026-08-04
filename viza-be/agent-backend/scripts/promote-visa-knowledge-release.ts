@@ -13,7 +13,7 @@ if (!releaseKey) {
   throw new Error('Usage: npm run promote:visa-rag -- <release-key>');
 }
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !key) throw new Error('Missing Supabase credentials');
 
@@ -38,29 +38,44 @@ async function verifyOfficialSources(): Promise<void> {
     .eq('release_id', (release as { id: string }).id);
   if (error) throw new Error(error.message);
 
+  const uniqueSources = new Map<string, string>();
   for (const document of documents ?? []) {
     const source = document as { source_key: string; source_url: string | null };
     if (!source.source_url) {
       throw new Error(`${source.source_key} has no official source URL`);
     }
-    let response = await fetch(source.source_url, {
-      method: 'HEAD',
-      redirect: 'follow',
-      signal: AbortSignal.timeout(15_000),
-    }).catch(() => null);
-    if (!response || response.status === 405 || response.status >= 500) {
-      response = await fetch(source.source_url, {
-        method: 'GET',
-        headers: { Range: 'bytes=0-1023' },
-        redirect: 'follow',
-        signal: AbortSignal.timeout(15_000),
-      }).catch(() => null);
+    if (!uniqueSources.has(source.source_url)) {
+      uniqueSources.set(source.source_url, source.source_key);
     }
-    if (!response || response.status >= 500) {
-      throw new Error(
-        `${source.source_key} official source is not reachable (${response?.status ?? 'network error'})`
-      );
-    }
+  }
+
+  const sources = Array.from(uniqueSources, ([source_url, source_key]) => ({
+    source_key,
+    source_url,
+  }));
+  for (let offset = 0; offset < sources.length; offset += 8) {
+    await Promise.all(
+      sources.slice(offset, offset + 8).map(async (source) => {
+        let response = await fetch(source.source_url, {
+          method: 'HEAD',
+          redirect: 'follow',
+          signal: AbortSignal.timeout(15_000),
+        }).catch(() => null);
+        if (!response || response.status === 405 || response.status >= 500) {
+          response = await fetch(source.source_url, {
+            method: 'GET',
+            headers: { Range: 'bytes=0-1023' },
+            redirect: 'follow',
+            signal: AbortSignal.timeout(15_000),
+          }).catch(() => null);
+        }
+        if (!response || response.status >= 500) {
+          throw new Error(
+            `${source.source_key} official source is not reachable (${response?.status ?? 'network error'})`
+          );
+        }
+      })
+    );
   }
 }
 

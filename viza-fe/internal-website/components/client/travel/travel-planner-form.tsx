@@ -18,13 +18,11 @@ import { toast } from "sonner";
 import { useLocale } from "next-intl";
 import {
   DEFAULT_CITY_DAYS,
-  buildTravelStateFromMessages,
   createTravelFormMessage,
   getFieldQuestionForState,
   getDefaultFlexibleDepartureDate,
   nextMissingField,
   toTravelPlanningPayload,
-  type ChatLikeMessage,
   type FlightLegResult,
   type HotelStayResult,
   type SelectedFlightOption,
@@ -32,10 +30,11 @@ import {
   type TravelFormPayload,
   type TravelPlanningPayload,
   type TravelDateFlexibility,
+  type TravelField,
+  type TravelState,
 } from "@/lib/travel/planner";
 import type {
   TravelChatInputMessage,
-  TravelChatMessage,
   TravelChatStatus,
 } from "@/lib/travel/chat-types";
 import { cn, matchesSearchText } from "@/lib/utils";
@@ -454,15 +453,6 @@ function SearchableMultiSelect({
       </PopoverContent>
     </Popover>
   );
-}
-
-function toChatLikeMessages(messages: TravelChatMessage[]): ChatLikeMessage[] {
-  return messages.map((message) => ({
-    role: message.role,
-    parts: message.parts
-      .filter((part) => part.type === "text")
-      .map((part) => ({ type: "text", text: part.text ?? "" })),
-  }));
 }
 
 function parsePositiveIntText(value: string): number | null {
@@ -977,25 +967,35 @@ function compactHotelOptionForMessage(
 
 export function TravelPlannerForm({
   isPrefetchingIpLocation = false,
-  messages,
+  missingField: requestedMissingField,
   prefetchedIpLocation = null,
   prefetchedIpLocationError = null,
   sendMessage,
+  stateSnapshot,
   status,
 }: {
   isPrefetchingIpLocation?: boolean;
-  messages: TravelChatMessage[];
+  /**
+   * The persisted coordinator state. The form must render from this snapshot
+   * rather than replaying chat messages, which may be incomplete or stale.
+   */
+  stateSnapshot: TravelState;
+  /**
+   * The field attached to the planner_form part. When supplied, this is
+   * intentionally frozen for that form instance even if the snapshot's next
+   * field changes while the message is still visible.
+   */
+  missingField?: TravelField | null;
   prefetchedIpLocation?: IpLocation | null;
   prefetchedIpLocationError?: string | null;
   sendMessage: (message: TravelChatInputMessage) => void;
   status: TravelChatStatus;
 }) {
-  const travelState = useMemo(
-    () => buildTravelStateFromMessages(toChatLikeMessages(messages)),
-    [messages]
-  );
-
-  const missingField = nextMissingField(travelState);
+  const travelState = stateSnapshot;
+  const missingField =
+    requestedMissingField === undefined
+      ? nextMissingField(travelState)
+      : requestedMissingField;
   const planningPayload = useMemo(
     () => toTravelPlanningPayload(travelState),
     [travelState]
@@ -1229,13 +1229,21 @@ export function TravelPlannerForm({
 
   useEffect(() => {
     if (missingField !== "origin") return;
-    if (!ipLocation || ipEndpointDefaultAppliedRef.current) return;
-    if (
+    const hasPersistedEndpoint = Boolean(
       travelState.origin_country ||
       travelState.origin_city ||
       travelState.return_country ||
       travelState.return_city
-    ) {
+    );
+    const hasDraftEndpoint = Boolean(
+      originCountry || originCity || returnCountry || returnCity
+    );
+
+    // IP lookup is only a suggestion. Never replace a persisted endpoint or
+    // a value the applicant has already entered locally; the explicit
+    // confirmation button below is the only path that submits the suggestion.
+    if (!ipLocation || ipEndpointDefaultAppliedRef.current) return;
+    if (hasPersistedEndpoint || hasDraftEndpoint) {
       ipEndpointDefaultAppliedRef.current = true;
       return;
     }
@@ -1252,6 +1260,10 @@ export function TravelPlannerForm({
     travelState.origin_country,
     travelState.return_city,
     travelState.return_country,
+    originCity,
+    originCountry,
+    returnCity,
+    returnCountry,
   ]);
 
   useEffect(() => {

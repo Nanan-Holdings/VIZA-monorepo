@@ -2,6 +2,7 @@
 import { requireAdmin } from "@/lib/rbac";
 import type { Database } from "@/types/database";
 import { normalizeSupabaseEnvValue } from "./env";
+import { createFetchWithTimeout } from "./fetch-with-timeout";
 
 type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];
 
@@ -13,7 +14,7 @@ type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];
  * - Never expose to client
  * - Always verify permissions before using
  */
-export function createAdminClient() {
+export function createAdminClient(options: { requestTimeoutMs?: number } = {}) {
   const supabaseUrl = normalizeSupabaseEnvValue(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     "NEXT_PUBLIC_SUPABASE_URL"
@@ -28,6 +29,9 @@ export function createAdminClient() {
       autoRefreshToken: false,
       persistSession: false,
     },
+    ...(options.requestTimeoutMs
+      ? { global: { fetch: createFetchWithTimeout(options.requestTimeoutMs) } }
+      : {}),
   });
 }
 

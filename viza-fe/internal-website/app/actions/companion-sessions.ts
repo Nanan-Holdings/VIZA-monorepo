@@ -144,7 +144,7 @@ async function getAuthenticatedUserId(): Promise<string | null> {
 // =============================================================================
 
 /**
- * Get user's sessions (max 10, ordered by created_at DESC)
+ * Get user's sessions (max 10, ordered by latest activity)
  * Includes first message preview for sidebar display
  */
 export async function getUserSessions(userId: string): Promise<Session[]> {
@@ -163,6 +163,7 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
       .from("visa_chat_sessions")
       .select("*")
       .eq("applicant_id", userId)
+      .order("updated_at", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(30);
 

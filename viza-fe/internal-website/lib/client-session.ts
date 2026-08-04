@@ -100,13 +100,15 @@ export function chooseApplicantProfileForAuthSession({
  * Get applicant session from Supabase Auth.
  * Finds or creates an applicant_profiles record for the authenticated user.
  */
-export async function getUserFromSupabaseSession(): Promise<ClientSession | null> {
+export async function getUserFromSupabaseSession(
+  options: { requestTimeoutMs?: number } = {}
+): Promise<ClientSession | null> {
   try {
-    const supabase = await createClient();
+    const supabase = await createClient(options);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !user.email) return null;
 
-    const adminClient = createAdminClient();
+    const adminClient = createAdminClient(options);
 
     // Try by auth_user_id first
     let { data: profile } = await adminClient

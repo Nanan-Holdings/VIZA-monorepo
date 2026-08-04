@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import re
@@ -5,7 +6,7 @@ from pathlib import Path
 from typing import Any, Literal, Optional
 
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from rag import TravelKnowledgeMatch, retrieve_travel_knowledge
@@ -13,7 +14,21 @@ from rag import TravelKnowledgeMatch, retrieve_travel_knowledge
 load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
 
 api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
-client = OpenAI(api_key=api_key) if api_key else None
+try:
+    OPENAI_TIMEOUT_SECONDS = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "45"))
+except (TypeError, ValueError):
+    OPENAI_TIMEOUT_SECONDS = 45.0
+if OPENAI_TIMEOUT_SECONDS <= 0:
+    OPENAI_TIMEOUT_SECONDS = 45.0
+client = (
+    AsyncOpenAI(
+        api_key=api_key,
+        timeout=OPENAI_TIMEOUT_SECONDS,
+        max_retries=0,
+    )
+    if api_key
+    else None
+)
 OPENAI_TRAVEL_CHAT_MODEL = os.getenv("OPENAI_TRAVEL_CHAT_MODEL", "gpt-4o-mini")
 
 
@@ -418,7 +433,7 @@ def _recent_openai_messages(messages: list[TravelChatMessage]) -> list[dict[str,
     ]
 
 
-def _generate_openai_chat_response(
+async def _generate_openai_chat_response(
     request: TravelChatRequest,
     user_text: str,
     matches: list[TravelKnowledgeMatch],
@@ -456,17 +471,20 @@ def _generate_openai_chat_response(
     }
 
     try:
-        completion = client.chat.completions.create(
-            model=OPENAI_TRAVEL_CHAT_MODEL,
-            temperature=0.2,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": json.dumps(user_payload, ensure_ascii=False),
-                },
-            ],
+        completion = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=OPENAI_TRAVEL_CHAT_MODEL,
+                temperature=0.2,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user",
+                        "content": json.dumps(user_payload, ensure_ascii=False),
+                    },
+                ],
+            ),
+            timeout=OPENAI_TIMEOUT_SECONDS,
         )
         content = completion.choices[0].message.content or ""
         parsed = _extract_json_object(content)
@@ -505,7 +523,7 @@ def _generate_openai_chat_response(
     )
 
 
-def generate_chat_response(request: TravelChatRequest) -> TravelChatResponse:
+async def generate_chat_response(request: TravelChatRequest) -> TravelChatResponse:
     user_text = _latest_user_text(request.messages)
     normalized = user_text.lower()
     include_defaults = _should_include_default_rag(user_text)
@@ -514,7 +532,7 @@ def generate_chat_response(request: TravelChatRequest) -> TravelChatResponse:
     sources = [_to_source(match) for match in matches]
 
     if user_text:
-        openai_response = _generate_openai_chat_response(request, user_text, matches)
+        openai_response = await _generate_openai_chat_response(request, user_text, matches)
         if openai_response:
             return openai_response
 

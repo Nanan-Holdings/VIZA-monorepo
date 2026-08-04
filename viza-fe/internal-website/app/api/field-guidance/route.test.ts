@@ -29,7 +29,7 @@ describe("POST /api/field-guidance", () => {
     vi.unstubAllGlobals();
   });
 
-  it("adds local option explanations for passport type choices when services are unavailable", async () => {
+  it("adds local option explanations for passport type choices after the user asks", async () => {
     vi.stubEnv("OPENAI_API_KEY", "");
     vi.stubGlobal(
       "fetch",
@@ -48,6 +48,7 @@ describe("POST /api/field-guidance", () => {
           field: passportTypeField,
           answer: "",
           allAnswers: {},
+          question: "普通护照、外交护照和公务护照有什么区别？",
         }),
       }),
     );
@@ -107,6 +108,7 @@ describe("POST /api/field-guidance", () => {
           field: passportTypeField,
           answer: "",
           allAnswers: {},
+          question: "我应该选哪一种护照？",
         }),
       }),
     );
@@ -114,5 +116,31 @@ describe("POST /api/field-guidance", () => {
 
     expect(payload.aiUsed).toBe(true);
     expect(payload.guidance.optionExplanations).toEqual([]);
+  });
+
+  it("returns local dropdown guidance without calling AI when there is no question", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new Request("http://localhost/api/field-guidance", {
+        method: "POST",
+        body: JSON.stringify({
+          visaType: "DS160",
+          country: "US",
+          locale: "zh",
+          field: passportTypeField,
+          answer: "ordinary",
+          allAnswers: {},
+        }),
+      }),
+    );
+    const payload = (await response.json()) as FieldGuidanceResponse;
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(payload.aiUsed).toBe(false);
+    expect(payload.guidance.examples).toEqual([]);
+    expect(payload.guidance.optionExplanations).toEqual([]);
+    expect(payload.guidance.summary).toContain("下拉列表");
   });
 });

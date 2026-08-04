@@ -67,6 +67,20 @@ function normalizeAnswer(value: string | null | undefined): string {
   return text(value).toLowerCase();
 }
 
+function withDerivedTdacTransitAnswer(
+  answers: Record<string, string>,
+  visaType?: string | null,
+): Record<string, string> {
+  if (normalizeAnswer(visaType) !== "th_tdac_arrival_card") return answers;
+  const arrivalDate = text(answers.arrival_date);
+  const departureDate = text(answers.departure_date);
+  if (!arrivalDate || !departureDate) return answers;
+  return {
+    ...answers,
+    is_transit_traveler: arrivalDate === departureDate ? "yes" : "",
+  };
+}
+
 export function isUsDs160(country?: string | null, visaType?: string | null): boolean {
   const normalizedCountry = normalizeAnswer(country).replace(/[\s-]+/g, "_");
   const normalizedVisa = normalizeAnswer(visaType).replace(/[\s-]+/g, "_");
@@ -227,17 +241,18 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
   const showDocumentStep = input.showDocumentStep ?? true;
   const documentsLoaded = input.documentsLoaded ?? true;
   const documentStepComplete = !showDocumentStep || documentsComplete(input.documentCenterData);
+  const completionAnswers = withDerivedTdacTransitAnswer(input.answers, input.visaType);
 
   input.dbSteps.forEach((step, index) => {
     const stepId = dynamicStepIds[index] ?? index;
     const stepName = input.effectiveSteps.find((candidate) => candidate.id === stepId)?.name ?? step.stepName;
-    const missing = missingForDynamicStep(step, stepId, stepName, input.answers);
+    const missing = missingForDynamicStep(step, stepId, stepName, completionAnswers);
     missingFields.push(...missing);
     if (missing.length === 0) completed.add(stepId);
   });
 
   const ds160Missing = isUsDs160(input.country, input.visaType)
-    ? getDs160CeacMissingFields(input.dbSteps, dynamicStepIds, input.answers)
+    ? getDs160CeacMissingFields(input.dbSteps, dynamicStepIds, completionAnswers)
     : [];
   missingFields.push(...ds160Missing);
   for (const item of ds160Missing) completed.delete(item.stepId);

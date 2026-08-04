@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, FileText } from "lucide-react";
+import { useLocale } from "next-intl";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -48,8 +49,20 @@ interface BlockMessageProps {
 export function BlockMessage({
   payload,
 }: BlockMessageProps) {
+  const locale = useLocale();
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const isSingaporeArrivalCard = payload.visaType === "SG_ARRIVAL_CARD";
   const redirectUrl = payload.redirectUrl ?? "/client/application";
-  const ctaLabel = payload.ctaLabel ?? "Open application form";
+  const title =
+    isZh && isSingaporeArrivalCard ? "填写新加坡电子入境卡" : payload.title;
+  const description =
+    isZh && isSingaporeArrivalCard
+      ? "前往 VIZA 的新加坡专用表单继续填写。聊天顾问会保留当前行程信息。"
+      : payload.description;
+  const ctaLabel =
+    isZh && isSingaporeArrivalCard
+      ? "开始填写"
+      : payload.ctaLabel ?? (isZh ? "打开申请表" : "Open application form");
 
   return (
     <div className="flex gap-3">
@@ -59,9 +72,9 @@ export function BlockMessage({
 
       <div className="max-w-sm flex-1 overflow-hidden rounded-xl rounded-tl-md border border-gray-100 bg-white shadow-sm">
         <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
-          <p className="text-sm font-medium text-gray-800">{payload.title}</p>
-          {payload.description ? (
-            <p className="mt-0.5 text-xs text-gray-500">{payload.description}</p>
+          <p className="text-sm font-medium text-gray-800">{title}</p>
+          {description ? (
+            <p className="mt-0.5 text-xs text-gray-500">{description}</p>
           ) : null}
         </div>
 

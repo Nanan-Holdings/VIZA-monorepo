@@ -149,6 +149,9 @@ The current internal automation migrations are:
   of the generic pool, adds the sticky Indonesia Machine slot/claim RPC,
   excludes Indonesia from legacy and pool claims, and prevents new simplified
   Indonesia `runner_job` inserts.
+- `0131_client_bootstrap_concurrency.sql`: adds the service-only first-login
+  request table and atomic bootstrap/destination-selection RPCs so client
+  navigation does not depend on check-then-insert request chains.
 
 ## Guardrails
 

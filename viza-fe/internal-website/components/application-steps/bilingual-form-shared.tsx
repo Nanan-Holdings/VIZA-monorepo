@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
+import { type FieldGuidanceChatMessage } from "@/types/field-guidance";
 
 export type BilingualSide = "zh" | "en";
 
@@ -185,6 +186,7 @@ export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilo
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const [open, setOpen] = useState(false);
+  const [conversation, setConversation] = useState<FieldGuidanceChatMessage[]>([]);
   const resolvedVisaType = config.visaType ?? config.allAnswers.visa_type ?? "unknown";
   const resolvedCountry = config.country ?? config.allAnswers.destination_country ?? null;
   const field: VisaFormFieldRow = {
@@ -223,6 +225,8 @@ export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilo
           field={field}
           answer={config.value}
           allAnswers={config.allAnswers}
+          initialConversation={conversation}
+          onConversationChange={setConversation}
           onClose={() => setOpen(false)}
         />
       )}

@@ -110,7 +110,10 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-import { POST as postTravelChat } from "@/app/api/travel/chat/route";
+import {
+  GET as getTravelChat,
+  POST as postTravelChat,
+} from "@/app/api/travel/chat/route";
 import { createInitialTravelState } from "@/lib/travel/planner";
 
 function request(
@@ -203,6 +206,39 @@ function modelTurn(text: string) {
       reply: "两人短途旅行可以先按 8,000–15,000 元总预算参考，机票旺季需要再上调；这只是建议，我不会替你记录。",
     };
   }
+  if (text === "广州出发，2个人去东京玩4天，预算8000，回广州") {
+    const operation = (
+      path: string,
+      valueText: string | null,
+      valueNumber: number | null,
+      evidence: string
+    ) => ({
+      op: path === "cities" ? "add" : "set",
+      path,
+      value_text: valueText,
+      value_number: valueNumber,
+      value_boolean: null,
+      explicit: true,
+      evidence,
+    });
+    return {
+      ...base,
+      intent: "record_facts",
+      operations: [
+        operation("cities", "东京", null, "东京"),
+        operation("travel_days", null, 4, "4天"),
+        operation("travelers", null, 2, "2个人"),
+        operation("budget", null, 8000, "预算8000"),
+        operation("origin_city", "广州", null, "广州出发"),
+        operation("return_city", "广州", null, "回广州"),
+      ],
+    };
+  }
+  if (text === "直接生成行程") {
+    // The coordinator must honor the user's explicit command even if the
+    // model under-classifies this otherwise-correct response.
+    return { ...base, intent: "record_facts", reply: "好，我来生成行程。" };
+  }
   return base;
 }
 
@@ -264,6 +300,28 @@ describe("Travel Agent server coordinator", () => {
     expect(body.state.cities).toEqual([]);
     expect(body.state.countries).toEqual([]);
     expect(body.applied_operations).toEqual([]);
+    expect(body.ui_action).toBe("collect_field");
+    expect(body.next_missing_field).toBe("country");
+  });
+
+  it("restores the canonical server state without creating a second state source", async () => {
+    testState.session.state_json = {
+      ...createInitialTravelState(),
+      countries: ["日本"],
+      country: "日本",
+      cities: ["东京"],
+    };
+    testState.session.state_version = 7;
+
+    const response = await getTravelChat(
+      new Request("http://127.0.0.1:3000/api/travel/chat?sessionId=session-1")
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.exists).toBe(true);
+    expect(body.state.cities).toEqual(["东京"]);
+    expect(body.state_version).toBe(7);
   });
 
   it("adds and removes Tokyo only from explicit commands", async () => {
@@ -292,6 +350,53 @@ describe("Travel Agent server coordinator", () => {
 
     expect(testState.openAIRequests[1].previous_response_id).toBe("resp-1");
     expect(testState.openAIRequests[2].previous_response_id).toBe("resp-2");
+  });
+
+  it("extracts multiple explicit facts in one turn and keeps Tokyo canonical", async () => {
+    const response = await postTravelChat(
+      request("广州出发，2个人去东京玩4天，预算8000，回广州", "multi")
+    );
+    const body = await response.json();
+
+    expect(body.state.cities).toContain("东京");
+    expect(body.state.countries).toContain("日本");
+    expect(body.state.travel_days).toBe(4);
+    expect(body.state.city_days).toEqual({ 东京: 4 });
+    expect(body.state.travelers).toBe(2);
+    expect(body.state.budget).toBe(8000);
+    expect(body.state.origin_country).toBe("中国");
+    expect(body.state.origin_city).toBe("广州");
+    expect(body.state.return_country).toBe("中国");
+    expect(body.state.return_city).toBe("广州");
+  });
+
+  it("deterministically returns an itinerary UI action for an explicit request when state is complete", async () => {
+    testState.session.state_json = {
+      ...createInitialTravelState(),
+      country: "日本",
+      countries: ["日本"],
+      cities: ["东京"],
+      city_days: { 东京: 4 },
+      destination_confirmed: true,
+      departure_date: "2026-10-29",
+      date_flexibility: "fixed",
+      travel_days: 4,
+      travelers: 2,
+      budget: 8000,
+      origin_country: "中国",
+      origin_city: "广州",
+      return_country: "中国",
+      return_city: "广州",
+      travel_order: ["东京"],
+      final_note: "",
+    };
+
+    const body = await (
+      await postTravelChat(request("直接生成行程", "generate"))
+    ).json();
+    expect(body.next_missing_field).toBeNull();
+    expect(body.ui_action).toBe("generate_itinerary");
+    expect(body.cards).toEqual([]);
   });
 
   it("returns the stored response for a repeated message id without a second model call", async () => {

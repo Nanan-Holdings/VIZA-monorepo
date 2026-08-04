@@ -9,6 +9,7 @@ import {
   buildSystemPrompt,
   normalizeResponseLocale,
   type ApplicationBlockPayload,
+  type ResponseLocale,
 } from '../agent/index.js';
 import {
   retrieveVisaKnowledge,
@@ -17,6 +18,8 @@ import {
 } from '../services/visa-knowledge.service.js';
 import {
   COUNTRY_DISPLAY_NAMES,
+  VISA_DESTINATION_REGISTRY,
+  VISA_SERVICE_COUNTRIES,
   countrySupportsVisaType,
   detectKnowledgeCountries,
   detectKnowledgeCountriesInOrder,
@@ -614,10 +617,6 @@ export function inferVisaKnowledgeIntent(
   return 'route_recommendation';
 }
 
-function isFormIntakeRequest(intent: VisaKnowledgeIntent): boolean {
-  return intent === 'form_intake';
-}
-
 const APPLICATION_COUNTRY_PARAM_OVERRIDES: Partial<Record<SupportedKnowledgeCountry, string>> = {
   us: 'united_states',
   uk: 'united_kingdom',
@@ -632,6 +631,46 @@ const APPLICATION_VISA_TYPE_PARAM_OVERRIDES: Record<string, string> = {
   mo_visit_visa: 'MO_VISIT_VISA',
   unified_evisa: 'RU_E_VISA',
 };
+
+const ARRIVAL_CARD_FORM_ROUTES: Partial<Record<SupportedKnowledgeCountry, string>> = {
+  malaysia: '/client/application?country=malaysia&visaType=MY_MDAC_ARRIVAL_CARD',
+  philippines: '/client/application?country=philippines&visaType=PH_ETRAVEL_ARRIVAL_CARD',
+  singapore: '/client/application?country=singapore&visaType=SG_ARRIVAL_CARD',
+  thailand: '/client/application?country=thailand&visaType=TH_TDAC_ARRIVAL_CARD',
+};
+
+const PRODUCT_DISPLAY_NAMES_ZH: Record<string, string> = {
+  SG_ARRIVAL_CARD: '新加坡电子入境卡',
+  SG_VISITOR_VISA: '新加坡入境签证',
+  MY_MDAC_ARRIVAL_CARD: '马来西亚电子入境卡',
+  MY_TOURIST_E_VISA: '马来西亚旅游电子签证',
+  TH_TDAC_ARRIVAL_CARD: '泰国电子入境卡',
+  TH_TOURIST_E_VISA: '泰国旅游电子签证',
+  PH_ETRAVEL_ARRIVAL_CARD: '菲律宾电子入境申报',
+  PH_TEMPORARY_VISITOR_VISA: '菲律宾临时访客签证',
+  VN_PREARRIVAL_DECLARATION: '越南入境前申报',
+  evisa_tourism: '旅游电子签证',
+  schengen_short_stay_tourism: '申根短期旅游签证',
+};
+
+function localizedCountryName(
+  country: SupportedKnowledgeCountry,
+  locale: ResponseLocale
+): string {
+  if (locale === 'en') return COUNTRY_DISPLAY_NAMES[country];
+  if (country === 'india') return '印度';
+  return (
+    VISA_DESTINATION_REGISTRY[country].aliases.find((alias) =>
+      /[\u3400-\u9fff]/u.test(alias)
+    ) ?? COUNTRY_DISPLAY_NAMES[country]
+  );
+}
+
+function localizedProductName(visaType: string | null, locale: ResponseLocale): string {
+  if (!visaType) return locale === 'zh' ? '旅行申请' : 'travel application';
+  if (locale === 'en') return visaType;
+  return PRODUCT_DISPLAY_NAMES_ZH[visaType] ?? '访客或旅游申请';
+}
 
 export function buildApplicationFormUrl(
   country: SupportedKnowledgeCountry,
@@ -650,20 +689,27 @@ export function buildApplicationFormUrl(
 
 function buildApplicationRedirectBlock(
   country: SupportedKnowledgeCountry | null,
-  visaType: string | null
+  visaType: string | null,
+  locale: ResponseLocale
 ): ApplicationBlockPayload | null {
   if (!country) return null;
 
-  const displayCountry = COUNTRY_DISPLAY_NAMES[country];
+  const displayCountry = localizedCountryName(country, locale);
+  const productName = localizedProductName(visaType, locale);
   return {
     blockType: 'application_redirect',
-    title: `Open ${displayCountry} application form`,
+    title:
+      locale === 'zh'
+        ? `填写${productName}`
+        : `Open ${displayCountry} application form`,
     description:
-      'Continue on the dedicated form page. VIZA chat will keep guidance here and will not collect form fields in chat.',
+      locale === 'zh'
+        ? `前往 VIZA 的${displayCountry}专用表单继续填写。聊天顾问会保留当前行程信息，不会在聊天中重复收集详细表单字段。`
+        : 'Continue on the dedicated form page. VIZA chat will keep guidance here and will not collect form fields in chat.',
     saveTarget: 'application_redirect',
     fields: [],
     redirectUrl: buildApplicationFormUrl(country, visaType),
-    ctaLabel: 'Open form',
+    ctaLabel: locale === 'zh' ? '开始填写' : 'Open form',
     country,
     visaType,
   };
@@ -694,7 +740,8 @@ function getSchengenMainCountry(
 export function buildApplicationRedirectBlocks(
   state: VisaConversationState,
   primaryCountry: SupportedKnowledgeCountry | null,
-  primaryVisaType: string | null
+  primaryVisaType: string | null,
+  locale: ResponseLocale = 'en'
 ): ApplicationBlockPayload[] {
   const countries: SupportedKnowledgeCountry[] = [];
   if (primaryCountry) countries.push(primaryCountry);
@@ -714,7 +761,7 @@ export function buildApplicationRedirectBlocks(
         country === primaryCountry
           ? primaryVisaType
           : getDefaultVisitorVisaType(country);
-      return buildApplicationRedirectBlock(country, visaType);
+      return buildApplicationRedirectBlock(country, visaType, locale);
     })
     .filter((block): block is ApplicationBlockPayload => Boolean(block));
 }
@@ -734,16 +781,82 @@ function buildUnsupportedServicePromptNote(
   ].join('\n');
 }
 
+function asksAboutVizaServiceCoverage(message: string): boolean {
+  return /(VIZA|网站|平台|你们).{0,12}(支持|能办|可以办|已开通|有哪些国家|哪些国家)|(支持|能办|已开通).{0,12}(国家|地区|产品)/iu.test(
+    message
+  );
+}
+
+function buildVizaServiceCapabilityPrompt(
+  message: string,
+  country: SupportedKnowledgeCountry | null,
+  locale: ResponseLocale
+): string | null {
+  const lines = [
+    'VIZA platform capability knowledge (this is product availability, not an immigration-policy claim):',
+  ];
+
+  if (country && isVisaServiceSupportedCountry(country)) {
+    const config = VISA_DESTINATION_REGISTRY[country];
+    lines.push(
+      `${localizedCountryName(country, locale)} is currently supported by VIZA. Available product workflows: ${config.supportedVisaTypes
+        .map((visaType) => localizedProductName(visaType, locale))
+        .join(', ')}.`
+    );
+    if (ARRIVAL_CARD_FORM_ROUTES[country]) {
+      lines.push(`Dedicated arrival declaration form route: ${ARRIVAL_CARD_FORM_ROUTES[country]}.`);
+    }
+  }
+
+  if (asksAboutVizaServiceCoverage(message)) {
+    lines.push(
+      `Currently open VIZA destinations/regions: ${Array.from(VISA_SERVICE_COUNTRIES)
+        .map((supportedCountry) => localizedCountryName(supportedCountry, locale))
+        .join(', ')}.`
+    );
+    lines.push(
+      'Explain that product support and visa eligibility are different: availability comes from this catalogue, while eligibility must still use the deterministic passport/destination rule.'
+    );
+  }
+
+  return lines.length > 1 ? lines.join('\n') : null;
+}
+
+function shouldOfferApplicationRedirect(
+  intent: VisaKnowledgeIntent,
+  visaType: string | null,
+  state: VisaConversationState,
+  message: string
+): boolean {
+  if (intent === 'form_intake') return true;
+  if (visaType !== 'SG_ARRIVAL_CARD') return false;
+
+  const explicitlyAskedForArrivalCard = /(电子)?入境卡|入境申报|sgac|arrival card/iu.test(
+    message
+  );
+  const routeIsReady = Boolean(
+    state.mainDestination &&
+      state.nationality &&
+      state.tripPurpose &&
+      state.stayLengthDays
+  );
+  return (
+    (explicitlyAskedForArrivalCard || routeIsReady) &&
+    ['route_recommendation', 'eligibility', 'requirements'].includes(intent)
+  );
+}
+
 function buildApplicationRedirectPromptNote(
   blocks: ApplicationBlockPayload[],
-  state: VisaConversationState
+  state: VisaConversationState,
+  locale: ResponseLocale
 ): string | null {
   if (blocks.length === 0) return null;
 
   const blockLines = blocks
     .map(
       (block) =>
-        `${COUNTRY_DISPLAY_NAMES[block.country as SupportedKnowledgeCountry]}: ${block.visaType ?? 'visitor route'} form link ${block.redirectUrl}`
+        `${localizedCountryName(block.country as SupportedKnowledgeCountry, locale)}: ${localizedProductName(block.visaType ?? null, locale)} form link ${block.redirectUrl}`
     )
     .join('\n');
   const nonSchengenDestinations = state.destinationCountries.filter(
@@ -757,8 +870,12 @@ function buildApplicationRedirectPromptNote(
       : null;
 
   return [
-    'Application form redirect button(s) have already been sent in this turn.',
-    'Mention the relevant form link(s) directly in the text so the user can locate them even if the CTA card is not visible after copying the chat.',
+    locale === 'zh'
+      ? '本轮已经向用户发送了中文申请入口卡片。'
+      : 'Application form redirect button(s) have already been sent in this turn.',
+    locale === 'zh'
+      ? '正文使用中文产品名称提示用户点击下方入口即可；不要输出英文产品名或内部产品代码。'
+      : 'Mention the relevant form link(s) directly in the text so the user can locate them even if the CTA card is not visible after copying the chat.',
     blockLines,
     nonSchengenNote,
     'Provide a rough overview of requirements and timing from retrieved knowledge. Do not ask the user to fill an inline chat form.',
@@ -1010,21 +1127,27 @@ export function registerVisaNamespace(nsp: Namespace): void {
               matchCount: 5,
             });
         const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
+        const responseLocale = normalizeResponseLocale(request.locale);
         const entryRulePrompt =
           entryRule ||
           knowledgeIntent === 'eligibility' ||
           knowledgeIntent === 'route_recommendation' ||
           knowledgeIntent === 'form_intake'
-            ? buildVisaEntryRulePrompt(entryRule)
+            ? buildVisaEntryRulePrompt(entryRule, responseLocale)
             : '';
         const statePrompt = buildVisaConversationStatePrompt(conversationState);
         const stateSummary = summarizeVisaConversationState(conversationState);
-        const responseLocale = normalizeResponseLocale(request.locale);
-        const applicationRedirects = isFormIntakeRequest(knowledgeIntent)
+        const applicationRedirects = shouldOfferApplicationRedirect(
+          knowledgeIntent,
+          knowledgeVisaType,
+          conversationState,
+          message
+        )
           ? buildApplicationRedirectBlocks(
               conversationState,
               knowledgeCountry,
-              knowledgeVisaType ?? (knowledgeCountry ? getDefaultVisitorVisaType(knowledgeCountry) : null)
+              knowledgeVisaType ?? (knowledgeCountry ? getDefaultVisitorVisaType(knowledgeCountry) : null),
+              responseLocale
             )
           : [];
         for (const applicationRedirect of applicationRedirects) {
@@ -1040,10 +1163,16 @@ export function registerVisaNamespace(nsp: Namespace): void {
         }
         const applicationRedirectNote = buildApplicationRedirectPromptNote(
           applicationRedirects,
-          conversationState
+          conversationState,
+          responseLocale
         );
         const unsupportedServiceNote = buildUnsupportedServicePromptNote(
           unsupportedServiceCountries
+        );
+        const serviceCapabilityNote = buildVizaServiceCapabilityPrompt(
+          message,
+          knowledgeCountry,
+          responseLocale
         );
         const dynamicSystemPrompt = buildSystemPrompt(
           appContext,
@@ -1053,6 +1182,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
             entryRulePrompt,
             applicationRedirectNote,
             unsupportedServiceNote,
+            serviceCapabilityNote,
           ]
             .filter((note): note is string => Boolean(note))
             .join('\n\n') || undefined,

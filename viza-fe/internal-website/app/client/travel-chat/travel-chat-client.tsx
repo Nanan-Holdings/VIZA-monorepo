@@ -72,6 +72,7 @@ import {
   type SelectedFlightOption,
   type SelectedHotelOption,
   type TravelState,
+  type TravelField,
 } from "@/lib/travel/planner";
 import {
   LOCALE_COOKIE,
@@ -168,6 +169,12 @@ type TravelAgentChatResponse = {
   cards?: TravelDestinationCard[];
   state?: TravelState;
   state_version?: number;
+  next_missing_field?: TravelField | null;
+  ui_action?:
+    | "none"
+    | "collect_field"
+    | "generate_itinerary"
+    | "revise_itinerary";
   applied_operations?: unknown[];
   pending_confirmation?: boolean;
   sources?: Array<{ id?: string; title?: string; type?: string }>;
@@ -257,6 +264,7 @@ type TravelChatSession = {
   activeVersionId?: string;
   versions?: TravelTripVersion[];
   savedGooglePlaces?: TravelGooglePlaceItineraryItem[];
+  savedAttractions?: TravelSavedAttraction[];
   stateSnapshot?: TravelState;
   stateVersion?: number;
   legacyDestinationReview?: string[];
@@ -271,6 +279,21 @@ type TravelGooglePlaceItineraryItem = {
   order: number;
   userNote?: string;
   customTitle?: string;
+  addedAt: string;
+};
+
+type TravelSavedAttraction = {
+  id: string;
+  source: "google" | "curated";
+  pointId: string;
+  placeId?: string;
+  label: string;
+  city?: string;
+  subtitle?: string;
+  imageSrc?: string;
+  lat?: number;
+  lng?: number;
+  order: number;
   addedAt: string;
 };
 
@@ -842,6 +865,7 @@ function createTravelChatSession(locale: InterfaceLocale): TravelChatSession {
     messages: createInitialTravelMessages(locale),
     versions: [],
     savedGooglePlaces: [],
+    savedAttractions: [],
     stateSnapshot: createInitialTravelState(),
     stateVersion: 0,
     legacyDestinationReview: [],
@@ -1036,6 +1060,9 @@ function isTravelChatSession(value: unknown): value is TravelChatSession {
     (value.savedGooglePlaces === undefined ||
       (Array.isArray(value.savedGooglePlaces) &&
         value.savedGooglePlaces.every(isTravelGooglePlaceItineraryItem))) &&
+    (value.savedAttractions === undefined ||
+      (Array.isArray(value.savedAttractions) &&
+        value.savedAttractions.every(isTravelSavedAttraction))) &&
     (value.stateSnapshot === undefined ||
       isTravelStateLike(value.stateSnapshot)) &&
     (value.stateVersion === undefined ||
@@ -1134,6 +1161,54 @@ function normalizeSavedGooglePlaces(
     ...item,
     order: Number.isFinite(item.order) ? item.order : index,
   }));
+}
+
+function isTravelSavedAttraction(value: unknown): value is TravelSavedAttraction {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    (value.source === "google" || value.source === "curated") &&
+    typeof value.pointId === "string" &&
+    (value.placeId === undefined || typeof value.placeId === "string") &&
+    typeof value.label === "string" &&
+    (value.city === undefined || typeof value.city === "string") &&
+    (value.subtitle === undefined || typeof value.subtitle === "string") &&
+    (value.imageSrc === undefined || typeof value.imageSrc === "string") &&
+    (value.lat === undefined || typeof value.lat === "number") &&
+    (value.lng === undefined || typeof value.lng === "number") &&
+    typeof value.order === "number" &&
+    typeof value.addedAt === "string"
+  );
+}
+
+function normalizeSavedAttractions(
+  value: unknown,
+  legacyGooglePlaces: TravelGooglePlaceItineraryItem[]
+): TravelSavedAttraction[] {
+  const byId = new Map<string, TravelSavedAttraction>();
+  if (Array.isArray(value)) {
+    value.filter(isTravelSavedAttraction).forEach((item, index) => {
+      byId.set(item.id, {
+        ...item,
+        order: Number.isFinite(item.order) ? item.order : index,
+      });
+    });
+  }
+  legacyGooglePlaces.forEach((item) => {
+    const id = `google:${item.placeId}`;
+    if (byId.has(id)) return;
+    byId.set(id, {
+      id,
+      source: "google",
+      pointId: getGooglePlaceTargetId(item.placeId),
+      placeId: item.placeId,
+      label: item.customTitle || item.placeId,
+      city: item.city,
+      order: item.order,
+      addedAt: item.addedAt,
+    });
+  });
+  return Array.from(byId.values()).sort((left, right) => left.order - right.order);
 }
 
 function createSessionTitle(
@@ -1291,6 +1366,9 @@ function normalizeTravelChatSession(
         selected_flights: [],
         selected_hotels: [],
       };
+  const savedGooglePlaces = normalizeSavedGooglePlaces(
+    session.savedGooglePlaces
+  );
 
   return {
     ...session,
@@ -1298,7 +1376,11 @@ function normalizeTravelChatSession(
     customTitle: Boolean(manualTitle),
     activeVersionId,
     versions: migratedVersions,
-    savedGooglePlaces: normalizeSavedGooglePlaces(session.savedGooglePlaces),
+    savedGooglePlaces,
+    savedAttractions: normalizeSavedAttractions(
+      session.savedAttractions,
+      savedGooglePlaces
+    ),
     stateSnapshot,
     stateVersion: session.stateVersion ?? 0,
     legacyDestinationReview,
@@ -2607,6 +2689,18 @@ function createAssistantMessageFromAgentResponse(
     });
   }
 
+  if (
+    response.ui_action === "collect_field" &&
+    response.next_missing_field &&
+    typeof response.state_version === "number"
+  ) {
+    parts.push({
+      type: "planner_form",
+      field: response.next_missing_field,
+      stateVersion: response.state_version,
+    });
+  }
+
   return {
     id: createMessageId(),
     role: "assistant",
@@ -3392,6 +3486,9 @@ export function TravelChatClient({
   const [activeSessionId, setActiveSessionId] = useState(() => sessions[0].id);
   const [archiveLoadedKey, setArchiveLoadedKey] = useState<string | null>(null);
   const [remoteArchiveHydratedKey, setRemoteArchiveHydratedKey] = useState<
+    string | null
+  >(null);
+  const [canonicalStateHydratedKey, setCanonicalStateHydratedKey] = useState<
     string | null
   >(null);
   const [status, setStatus] = useState<TravelChatStatus>("ready");
@@ -4315,17 +4412,14 @@ export function TravelChatClient({
   );
 
   const activePlannerFormMessageId = useMemo(() => {
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const message = messages[index];
-      if (
-        message.role === "assistant" &&
-        message.parts.some((part) => part.type === "planner_form")
-      ) {
-        return message.id;
-      }
-    }
-
-    return null;
+    const latestAssistantMessage = [...messages]
+      .reverse()
+      .find((message) => message.role === "assistant");
+    return latestAssistantMessage?.parts.some(
+      (part) => part.type === "planner_form"
+    )
+      ? latestAssistantMessage.id
+      : null;
   }, [messages]);
 
   const selectedCityTargets = useMemo(
@@ -4592,9 +4686,54 @@ export function TravelChatClient({
         })),
     [allMapTargets]
   );
+  const selectedMapItems = useMemo<TripMapPoint[]>(() => {
+    const selected = new Map<string, TripMapPoint>();
+    const selectedCityIds = new Set(selectedCityTargets.map((point) => point.id));
+    mapPoints.forEach((point) => {
+      if (point.kind === "city" && selectedCityIds.has(point.id)) {
+        selected.set(point.id, point);
+      }
+    });
+
+    const savedAttractions = normalizeSavedAttractions(
+      activeSession?.savedAttractions,
+      normalizeSavedGooglePlaces(activeSession?.savedGooglePlaces)
+    );
+    savedAttractions.forEach((item) => {
+      const existing = mapPoints.find(
+        (point) =>
+          point.id === item.pointId ||
+          (item.placeId && point.placeId === item.placeId)
+      );
+      if (existing) {
+        selected.set(existing.id, existing);
+        return;
+      }
+      if (typeof item.lat !== "number" || typeof item.lng !== "number") return;
+      selected.set(item.pointId, {
+        id: item.pointId,
+        kind: "hotspot",
+        label: item.label,
+        subtitle: item.subtitle ?? item.city ?? "",
+        imageSrc: item.imageSrc || TRAVEL_PLACE_FALLBACK_IMAGE,
+        lat: item.lat,
+        lng: item.lng,
+        city: item.city,
+        source: item.source === "google" ? "google" : undefined,
+        placeId: item.placeId,
+      });
+    });
+    return Array.from(selected.values());
+  }, [
+    activeSession?.savedAttractions,
+    activeSession?.savedGooglePlaces,
+    mapPoints,
+    selectedCityTargets,
+  ]);
 
   useEffect(() => {
     setRemoteArchiveHydratedKey(null);
+    setCanonicalStateHydratedKey(null);
     const localArchive = readArchivedTravelArchive(archiveKey, interfaceLocale);
     let nextSessions = localArchive.sessions;
     let nextActiveSessionId = localArchive.sessions[0].id;
@@ -4691,6 +4830,68 @@ export function TravelChatClient({
   }, [applicationId, archiveKey, interfaceLocale]);
 
   useEffect(() => {
+    if (remoteArchiveHydratedKey !== archiveKey) return;
+
+    let disposed = false;
+    const sessionIds = sessionsRef.current.map((session) => session.id);
+    void Promise.all(
+      sessionIds.map(async (sessionId) => {
+        const response = await fetch(
+          `/api/travel/chat?${new URLSearchParams({ sessionId }).toString()}`,
+          { method: "GET" }
+        );
+        if (!response.ok) return null;
+        const payload = (await response.json().catch(() => null)) as unknown;
+        if (
+          !isRecord(payload) ||
+          payload.exists !== true ||
+          !isTravelStateLike(payload.state) ||
+          typeof payload.state_version !== "number"
+        ) {
+          return null;
+        }
+        return {
+          sessionId,
+          state: payload.state,
+          stateVersion: payload.state_version,
+        };
+      })
+    )
+      .then((canonicalSessions) => {
+        if (disposed) return;
+        const bySessionId = new Map(
+          canonicalSessions
+            .filter((item) => item !== null)
+            .map((item) => [item.sessionId, item])
+        );
+        setSessions((currentSessions) => {
+          const nextSessions = currentSessions.map((session) => {
+            const canonical = bySessionId.get(session.id);
+            return canonical
+              ? {
+                  ...session,
+                  stateSnapshot: canonical.state,
+                  stateVersion: canonical.stateVersion,
+                }
+              : session;
+          });
+          sessionsRef.current = nextSessions;
+          return nextSessions;
+        });
+      })
+      .catch((error) => {
+        console.warn("[travel-chat] canonical state hydration skipped", error);
+      })
+      .finally(() => {
+        if (!disposed) setCanonicalStateHydratedKey(archiveKey);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [archiveKey, remoteArchiveHydratedKey]);
+
+  useEffect(() => {
     let disposed = false;
     setIsPrefetchingIpLocation(true);
     setPrefetchedIpLocationError(null);
@@ -4735,6 +4936,7 @@ export function TravelChatClient({
   useEffect(() => {
     if (archiveLoadedKey !== archiveKey) return;
     if (remoteArchiveHydratedKey !== archiveKey) return;
+    if (canonicalStateHydratedKey !== archiveKey) return;
 
     const mapState: TravelChatArchiveMapState = {
       activeMapTargetId,
@@ -4766,6 +4968,7 @@ export function TravelChatClient({
     applicationId,
     archiveKey,
     archiveLoadedKey,
+    canonicalStateHydratedKey,
     googleCityCoordinates,
     mapModeSessionIds,
     remoteArchiveHydratedKey,
@@ -4951,9 +5154,6 @@ export function TravelChatClient({
             interfaceLocale
           );
           let createdVersion: TravelTripVersion | null = null;
-          const existingItinerary = sessionSnapshot
-            ? getTravelItineraryFromMessages(sessionSnapshot.messages)
-            : [];
           const sessionVersions = sessionSnapshot?.versions ?? [];
           const currentVersion =
             sessionVersions.find(
@@ -4961,9 +5161,14 @@ export function TravelChatClient({
             ) ??
             sessionVersions[sessionVersions.length - 1] ??
             null;
+          const existingItinerary =
+            currentVersion?.itinerary ??
+            (sessionSnapshot
+              ? getTravelItineraryFromMessages(sessionSnapshot.messages)
+              : []);
 
           if (
-            result.mode === "modify_itinerary" &&
+            result.ui_action === "revise_itinerary" &&
             existingItinerary.length > 0
           ) {
             const revisionResponse = await fetch(
@@ -5030,7 +5235,10 @@ export function TravelChatClient({
             }
           } else {
             const itineraryPayload = toTravelPayload(result.state);
-            if (itineraryPayload && existingItinerary.length === 0) {
+            if (
+              result.ui_action === "generate_itinerary" &&
+              itineraryPayload
+            ) {
               const itineraryResponse = await fetch("/api/travel/itinerary", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -5084,6 +5292,7 @@ export function TravelChatClient({
                 itinerary,
                 travelState: result.state,
                 versionNumber: sessionVersions.length + 1,
+                parentVersionId: currentVersion?.id,
                 sourceMessageId: assistantMessage.id,
                 userPrompt: latestVisibleUserText,
                 editSummary:
@@ -5114,6 +5323,9 @@ export function TravelChatClient({
               updatedAt: new Date().toISOString(),
             };
           });
+          if (createdVersion) {
+            setSessionMapMode(sessionId, false);
+          }
           return;
         }
 
@@ -5343,7 +5555,11 @@ export function TravelChatClient({
                 role: "assistant",
                 parts: [
                   { type: "text", text: followUp },
-                  { type: "planner_form" },
+                  {
+                    type: "planner_form",
+                    field,
+                    stateVersion: sessionSnapshot?.stateVersion ?? 0,
+                  },
                 ],
               },
             ]);
@@ -5553,22 +5769,50 @@ export function TravelChatClient({
         const existingPlaces = normalizeSavedGooglePlaces(
           session.savedGooglePlaces
         );
-        if (existingPlaces.some((item) => item.placeId === card.id)) {
-          return session;
-        }
+        const existingAttractions = normalizeSavedAttractions(
+          session.savedAttractions,
+          existingPlaces
+        );
+        const attractionId = `google:${card.id}`;
+        const alreadySaved = existingAttractions.some(
+          (item) => item.id === attractionId
+        );
 
         return {
           ...session,
-          savedGooglePlaces: [
-            ...existingPlaces,
-            {
-              source: "google" as const,
-              placeId: card.id,
-              city: googlePlacesCity ?? undefined,
-              order: existingPlaces.length,
-              addedAt: new Date().toISOString(),
-            },
-          ],
+          savedGooglePlaces: existingPlaces.some(
+            (item) => item.placeId === card.id
+          )
+            ? existingPlaces
+            : [
+                ...existingPlaces,
+                {
+                  source: "google" as const,
+                  placeId: card.id,
+                  city: googlePlacesCity ?? undefined,
+                  order: existingPlaces.length,
+                  addedAt: new Date().toISOString(),
+                },
+              ],
+          savedAttractions: alreadySaved
+            ? existingAttractions
+            : [
+                ...existingAttractions,
+                {
+                  id: attractionId,
+                  source: "google" as const,
+                  pointId: getGooglePlaceTargetId(card.id),
+                  placeId: card.id,
+                  label: card.title,
+                  city: googlePlacesCity ?? undefined,
+                  subtitle: card.subtitle,
+                  imageSrc: card.imageUrl,
+                  lat: card.location?.lat,
+                  lng: card.location?.lng,
+                  order: existingAttractions.length,
+                  addedAt: new Date().toISOString(),
+                },
+              ],
           updatedAt: new Date().toISOString(),
         };
       });
@@ -5610,8 +5854,6 @@ export function TravelChatClient({
 
   const handleAddDestinationFromMap = useCallback(
     (point: TripMapPoint) => {
-      if (!canAddDestinationFromMap) return;
-
       if (point.source === "google" && point.placeId) {
         const placeId = point.placeId;
         const card = googlePlaceCards.find((item) => item.id === point.placeId);
@@ -5624,19 +5866,80 @@ export function TravelChatClient({
           const existingPlaces = normalizeSavedGooglePlaces(
             session.savedGooglePlaces
           );
-          if (existingPlaces.some((item) => item.placeId === placeId)) {
-            return session;
-          }
+          const existingAttractions = normalizeSavedAttractions(
+            session.savedAttractions,
+            existingPlaces
+          );
+          const attractionId = `google:${placeId}`;
 
           return {
             ...session,
-            savedGooglePlaces: [
-              ...existingPlaces,
+            savedGooglePlaces: existingPlaces.some(
+              (item) => item.placeId === placeId
+            )
+              ? existingPlaces
+              : [
+                  ...existingPlaces,
+                  {
+                    source: "google" as const,
+                    placeId,
+                    city: point.city,
+                    order: existingPlaces.length,
+                    addedAt: new Date().toISOString(),
+                  },
+                ],
+            savedAttractions: existingAttractions.some(
+              (item) => item.id === attractionId
+            )
+              ? existingAttractions
+              : [
+                  ...existingAttractions,
+                  {
+                    id: attractionId,
+                    source: "google" as const,
+                    pointId: point.id,
+                    placeId,
+                    label: point.label,
+                    city: point.city,
+                    subtitle: point.subtitle,
+                    imageSrc: point.imageSrc,
+                    lat: point.lat,
+                    lng: point.lng,
+                    order: existingAttractions.length,
+                    addedAt: new Date().toISOString(),
+                  },
+                ],
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        return;
+      }
+
+      if (point.kind === "hotspot" || point.kind === "hotel") {
+        updateTravelSession(activeSessionId, (session) => {
+          const existingAttractions = normalizeSavedAttractions(
+            session.savedAttractions,
+            normalizeSavedGooglePlaces(session.savedGooglePlaces)
+          );
+          const attractionId = `curated:${point.id}`;
+          if (existingAttractions.some((item) => item.id === attractionId)) {
+            return session;
+          }
+          return {
+            ...session,
+            savedAttractions: [
+              ...existingAttractions,
               {
-                source: "google" as const,
-                placeId,
+                id: attractionId,
+                source: "curated" as const,
+                pointId: point.id,
+                label: point.label,
                 city: point.city,
-                order: existingPlaces.length,
+                subtitle: point.subtitle,
+                imageSrc: point.imageSrc,
+                lat: point.lat,
+                lng: point.lng,
+                order: existingAttractions.length,
                 addedAt: new Date().toISOString(),
               },
             ],
@@ -5645,6 +5948,12 @@ export function TravelChatClient({
         });
         return;
       }
+
+      // Attraction saves are local, idempotent session updates and must not be
+      // swallowed by a transient chat request/health status change while the
+      // already-visible hover card is being clicked. Only city additions send
+      // a new user message, so keep the readiness guard scoped to that path.
+      if (!canAddDestinationFromMap) return;
 
       const targetCity = (point.city ?? point.label).trim();
       if (!targetCity) return;
@@ -5662,10 +5971,7 @@ export function TravelChatClient({
       });
       if (!payload) return;
 
-      sendMessage({
-        role: "user",
-        parts: [{ type: "text", text: createTravelFormMessage(payload) }],
-      });
+      sendFreeTextMessage(`我想去${targetCity}`);
     },
     [
       activeSessionId,
@@ -5673,7 +5979,7 @@ export function TravelChatClient({
       googlePlaceCards,
       handleAddGooglePlaceToItinerary,
       missingField,
-      sendMessage,
+      sendFreeTextMessage,
       travelState,
       updateTravelSession,
     ]
@@ -6643,12 +6949,13 @@ export function TravelChatClient({
                         const quickReplies = message.parts
                           .filter((part) => part.type === "quick_replies")
                           .flatMap((part) => part.quick_replies);
+                        const plannerFormPart = message.parts.find(
+                          (part) => part.type === "planner_form"
+                        );
                         const showPlannerForm =
                           message.id === activePlannerFormMessageId &&
-                          message.parts.some(
-                            (part) => part.type === "planner_form"
-                          ) &&
-                          Boolean(missingField);
+                          Boolean(plannerFormPart) &&
+                          Boolean(plannerFormPart?.field ?? missingField);
                         if (
                           !visibleText &&
                           destinationCards.length === 0 &&
@@ -6850,7 +7157,9 @@ export function TravelChatClient({
                                       isPrefetchingIpLocation={
                                         isPrefetchingIpLocation
                                       }
-                                      messages={messages}
+                                      missingField={
+                                        plannerFormPart?.field ?? missingField
+                                      }
                                       prefetchedIpLocation={
                                         prefetchedIpLocation
                                       }
@@ -6858,6 +7167,7 @@ export function TravelChatClient({
                                         prefetchedIpLocationError
                                       }
                                       sendMessage={sendMessage}
+                                      stateSnapshot={travelState}
                                       status={status}
                                     />
                                   </div>
@@ -6946,6 +7256,7 @@ export function TravelChatClient({
                 onPointSelect={handleMapPointSelect}
                 points={mapPoints}
                 routeCoordinates={displayRouteCoordinates}
+                selectedPoints={selectedMapItems}
               />
             )}
           </div>
