@@ -17,6 +17,23 @@ export const RUNNER_POOL_FLOW_KEYS = [
 
 export type RunnerPoolFlowKey = (typeof RUNNER_POOL_FLOW_KEYS)[number];
 
+/**
+ * Production placement policy for typed runner flows.
+ *
+ * Vietnam e-Visa must stay on the sticky legacy worker because the official
+ * application, card handoff, payment and 3DS continuation share one browser
+ * session. Vietnam pre-arrival is already pool-only; the remaining flows are
+ * controlled by the migration gate.
+ */
+export function shouldUseSharedRunnerPool(
+  flowKey: RunnerPoolFlowKey,
+  migrationEnabled: boolean,
+): boolean {
+  if (flowKey === "vn_evisa") return false;
+  if (flowKey === "vn_prearrival") return true;
+  return migrationEnabled;
+}
+
 export function resolveRunnerPoolFlow(
   country: string | null | undefined,
   visaType: string | null | undefined,

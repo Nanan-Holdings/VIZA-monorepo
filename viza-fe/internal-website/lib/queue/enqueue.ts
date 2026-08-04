@@ -6,9 +6,15 @@ import {
 import { assertKnownCountry } from "@/lib/queue/countries";
 import {
   resolveRunnerPoolFlow,
+  shouldUseSharedRunnerPool,
   type RunnerPoolFlowKey,
 } from "@/lib/queue/flows";
-import { isIndonesiaEVisaApplication } from "@/lib/submission-queue";
+import {
+  isIndonesiaEVisaApplication,
+  isVietnamEVisaApplication,
+  queueProviderForApplication,
+  queueStatusForApplication,
+} from "@/lib/submission-queue";
 
 /**
  * Producers for shared-pool and sticky submission runners.
@@ -206,7 +212,41 @@ export async function enqueueRunnerJob(
     }
     return result;
   }
-  if ((poolMigrationEnabled() || flowKey === "vn_prearrival") && flowKey) {
+  if (isVietnamEVisaApplication(normalizedCountry, visaType)) {
+    const status = queueStatusForApplication(normalizedCountry, visaType, "live_assisted");
+    const provider = queueProviderForApplication(normalizedCountry, visaType, "live_assisted");
+    const result = await withAdmin(
+      "system",
+      "lib/queue:enqueue-vietnam-sticky",
+      async (admin) => {
+        const { data, error } = await admin.rpc("enqueue_submission_retry", {
+          p_application_id: applicationId,
+          p_status: status,
+          p_mode: "live_assisted",
+          p_provider: provider,
+          p_current_stage: "queued_for_vietnam_sticky_worker",
+        });
+        if (error) throw new Error(`Vietnam sticky enqueue: ${error.message}`);
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row?.queue_id) {
+          throw new Error("Vietnam sticky enqueue returned no queue id");
+        }
+        return {
+          id: String(row.queue_id),
+          created: !row.reused_existing,
+        };
+      },
+    );
+    const wake = await ensureFlyMachineStarted("legacy");
+    if (!wake.ok && wake.reason !== "not_configured") {
+      console.warn("[vietnam] Sticky Fly wake failed; reconciler will recover.", {
+        jobId: result.id.slice(0, 8),
+        reason: wake.reason,
+      });
+    }
+    return result;
+  }
+  if (flowKey && shouldUseSharedRunnerPool(flowKey, poolMigrationEnabled())) {
     const result = await enqueueRunnerPoolJob(applicationId, normalizedCountry, flowKey, opts);
     return { id: result.id, created: result.created };
   }
