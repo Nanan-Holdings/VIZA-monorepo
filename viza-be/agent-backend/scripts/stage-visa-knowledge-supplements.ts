@@ -31,6 +31,8 @@ const seedDirectory = path.resolve(
   "../../../knowledge-base/visa-rag-seeds/countries"
 );
 const passportCountries = ["CHN", "SGP", "GBR", "USA", "CAN", "AUS", "NZL"];
+const DS160_OFFICIAL_INFORMATION_URL =
+  "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/forms/ds-160-online-nonimmigrant-visa-application.html";
 
 type SourceChunk = {
   content: string;
@@ -212,7 +214,10 @@ async function stageSupplement(
     visa_type: document.visa_type,
     document_type: document.document_type,
     title: document.title,
-    source_url: document.source_url,
+    source_url:
+      document.document_type === "form_fields"
+        ? DS160_OFFICIAL_INFORMATION_URL
+        : document.source_url,
     source_key: sourceKey,
     ingestion_scope:
       document.document_type === "photo_requirements" ? "photo_seed" : "ds160_seed",

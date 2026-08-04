@@ -20,6 +20,9 @@ reports, and workflow documentation for VIZA.
 - `travel-agent-development-guide.md`: Travel AI guide.
 - `TRAVEL_AGENT_QA.md`: Travel Agent QA findings, smoke prompts,
   destination-index runbook, and known limitations.
+- `infra/1000-user-concurrency-roadmap.md`: measured concurrency assumptions,
+  current code baseline, and the infrastructure scaling sequence for a
+  1,000-session target; recommendations only, not applied configuration.
 - `internal-automation/**`: VIZA website automation lifecycle, module plans,
   payment/consent/document/packet/status boundaries, and process assignment
   notes.
