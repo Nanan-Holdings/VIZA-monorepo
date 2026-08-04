@@ -3,6 +3,19 @@ import type { FillVietnamResult } from "./run";
 export type VietnamBrowserChannel = "msedge" | "chrome" | undefined;
 export const MAX_VIETNAM_PORTAL_ATTEMPTS = 3;
 
+export function nextVietnamQueueAttemptCount(input: {
+  currentAttempts: number;
+  officialPortalFailure: boolean;
+  consumedOneTimeCardAuthorization: boolean;
+  maxAttempts?: number;
+}): number {
+  const maxAttempts = Math.max(1, input.maxAttempts ?? MAX_VIETNAM_PORTAL_ATTEMPTS);
+  if (input.officialPortalFailure || input.consumedOneTimeCardAuthorization) {
+    return maxAttempts;
+  }
+  return Math.min(input.currentAttempts + 1, maxAttempts);
+}
+
 export function buildVietnamBrowserAttempts(
   rawChannels = "bundled,msedge,chrome",
   maxAttempts = MAX_VIETNAM_PORTAL_ATTEMPTS,
