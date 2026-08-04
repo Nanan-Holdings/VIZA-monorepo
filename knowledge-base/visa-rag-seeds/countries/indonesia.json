@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "indonesia",
   "notes": "Country-level VIZA RAG seed for indonesia. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -43,7 +43,7 @@
       "visaType": "tourist_b211a",
       "documentType": "requirements",
       "title": "Indonesia e-VOA and Visa on Arrival for Short Visits",
-      "sourceUrl": "https://indonesianembassy.de/visa/online-application/visa-on-arrival/",
+      "sourceUrl": "https://evisa.imigrasi.go.id/web/home",
       "chunks": [
         {
           "id": "idn_voa_short_tourism_china",
