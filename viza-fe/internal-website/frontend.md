@@ -146,7 +146,7 @@ Don't rewrite a primitive from scratch.
 navbar.tsx, animated-menu.tsx, language-selector.tsx,
 auth-language-switcher.tsx, help-article.tsx, static-article.tsx,
 sex-prompt-modal.tsx, invite-history.tsx,
-about-me/, companion/, constants/, home/
+companion/, constants/, home/
 ```
 
 When building a new `/client` feature, prefer putting composite components in `components/client/<feature>/`. Page files in `app/client/<route>/page.tsx` should be thin — mostly data fetching + layout — and compose from here.

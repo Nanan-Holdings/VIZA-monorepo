@@ -116,6 +116,20 @@ export function classifyIndonesiaPortalSnapshot(
   if (/\/(pay|payment|checkout|invoice|billing|otp)/i.test(snapshot.url)) {
     return "payment_required";
   }
+  if (
+    /\/step_3\b/i.test(snapshot.url) &&
+    (
+      text.includes("waiting for payment") ||
+      text.includes("make a payment") ||
+      text.includes("payment information") ||
+      text.includes("billing code") ||
+      text.includes("print invoice") ||
+      text.includes("menunggu pembayaran") ||
+      text.includes("belum bayar")
+    )
+  ) {
+    return "payment_required";
+  }
   if (text.includes("/step_1")) {
     return "official_application_started";
   }

@@ -21,8 +21,6 @@ import {
   PanelLeft,
   Pencil,
   RefreshCw,
-  Route,
-  Sparkles,
   Star,
   Trash2,
   X,
@@ -53,7 +51,6 @@ import {
   TripRouteMap,
   type TripMapPoint,
 } from "@/components/client/travel/trip-route-map";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -106,13 +103,6 @@ import type { TravelGoogleEnrichedDestination } from "@/lib/travel/google-places
 type TravelChatClientProps = {
   applicationId?: string | null;
   embedded?: boolean;
-};
-
-type ProgressItem = {
-  id: string;
-  label: string;
-  done: boolean;
-  detail: string;
 };
 
 type MapTarget = {
@@ -3204,16 +3194,6 @@ function buildMapIntro(
   return `${label}路线总览。建议把同区域景点聚在同一天，减少折返，提高游玩效率。`;
 }
 
-function formatMapTargetDisplayName(
-  target: MapTarget | null | undefined,
-  isZh: boolean
-): string {
-  if (!target) return isZh ? "旅行地图" : "Travel map";
-  const label = getLocalDisplayName(target.label);
-  if (!target.localName || target.localName === label) return label;
-  return `${label} · ${target.localName}`;
-}
-
 function hashString(value: string): number {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -3387,81 +3367,6 @@ function getHotspotsForCity(city: string): string[] {
   const matched = HOTSPOTS_BY_CITY[key];
   if (matched && matched.length) return matched;
   return FALLBACK_HOTSPOTS;
-}
-
-function buildProgressItems(
-  state: ReturnType<typeof buildTravelStateFromMessages>,
-  isZh: boolean
-): ProgressItem[] {
-  return [
-    {
-      id: "destinations",
-      label: isZh ? "目的地" : "Destinations",
-      done: state.cities.length > 0,
-      detail: state.cities.length
-        ? isZh
-          ? `已选 ${state.cities.length} 个城市`
-          : `${state.cities.length} cities selected`
-        : isZh
-          ? "等待中"
-          : "Waiting",
-    },
-    {
-      id: "dates",
-      label: isZh ? "日期天数" : "Dates and length",
-      done: Boolean(state.departure_date && state.travel_days),
-      detail:
-        state.departure_date && state.travel_days
-          ? `${state.date_flexibility === "flexible" ? (isZh ? "灵活出行" : "Flexible dates") : isZh ? "指定日期" : "Fixed date"} · ${state.departure_date} · ${state.travel_days} ${isZh ? "天" : "days"}`
-          : isZh
-            ? "等待中"
-            : "Waiting",
-    },
-    {
-      id: "transport",
-      label: isZh ? "路线顺序" : "Route order",
-      done:
-        state.cities.length > 0 &&
-        state.travel_order.length === state.cities.length,
-      detail:
-        state.cities.length > 0 &&
-        state.travel_order.length === state.cities.length
-          ? isZh
-            ? `已连接 ${state.travel_order.length} 站`
-            : `${state.travel_order.length} stops connected`
-          : isZh
-            ? "等待中"
-            : "Waiting",
-    },
-    {
-      id: "stay",
-      label: isZh ? "航班酒店" : "Flights and hotels",
-      done: Boolean(
-        state.origin_city && state.return_city && state.cities.length
-      ),
-      detail:
-        state.origin_city && state.return_city && state.cities.length
-          ? isZh
-            ? "已生成默认项，可在行程里编辑"
-            : "Defaults generated; editable in the itinerary"
-          : isZh
-            ? "等待中"
-            : "Waiting",
-    },
-    {
-      id: "final",
-      label: isZh ? "整体进度" : "Overall progress",
-      done: Boolean(state.travel_days && state.travelers && state.budget),
-      detail:
-        state.travel_days && state.travelers && state.budget
-          ? isZh
-            ? "规划参数已齐全"
-            : "Planning details complete"
-          : isZh
-            ? "等待中"
-            : "Waiting",
-    },
-  ];
 }
 
 export function TravelChatClient({
@@ -3721,13 +3626,6 @@ export function TravelChatClient({
       ? order
       : displayTravelState.cities;
   }, [displayTravelState.cities, displayTravelState.travel_order]);
-  const displayOrderedCityLabels = useMemo(
-    () =>
-      displayOrderedCities.map((city) =>
-        getDisplayPlaceName(city, interfaceLocale)
-      ),
-    [displayOrderedCities, interfaceLocale]
-  );
   const selectedCityFocusKey = useMemo(
     () => travelState.cities.map((city) => normalizeCityKey(city)).join("|"),
     [travelState.cities]
@@ -3803,22 +3701,6 @@ export function TravelChatClient({
     displayTravelState.selected_hotels,
     shouldShowCitySuggestions,
   ]);
-
-  const progressItems = useMemo(
-    () => buildProgressItems(displayTravelState, isZh),
-    [displayTravelState, isZh]
-  );
-  const completedProgressCount = useMemo(
-    () => progressItems.filter((item) => item.done).length,
-    [progressItems]
-  );
-  const progressPercent = useMemo(
-    () =>
-      progressItems.length > 0
-        ? Math.round((completedProgressCount / progressItems.length) * 100)
-        : 0,
-    [completedProgressCount, progressItems.length]
-  );
 
   useEffect(() => {
     const pendingItems = googleGeocodeItems.filter((item) => {
@@ -4015,13 +3897,14 @@ export function TravelChatClient({
         canonicalCities[canonicalCities.length - 1] ||
         "Destination";
       const [routeStartLat, routeStartLng] = canonicalRouteCoordinates[0];
+      const routeLabel = isZh ? "行程路线" : "Route Overview";
       targets.push({
         id: "route-overview",
         kind: "route",
-        label: "Route Overview",
+        label: routeLabel,
         subtitle: `${originLabel} → ${returnLabel}`,
         localName: `${getLocalDisplayName(originLabel)} → ${getLocalDisplayName(returnLabel)}`,
-        intro: buildMapIntro("route", "Route Overview", canonicalCities[0]),
+        intro: buildMapIntro("route", routeLabel, canonicalCities[0]),
         imageSrc: getCityImage(originLabel),
         lat: routeStartLat,
         lng: routeStartLng,
@@ -4039,7 +3922,14 @@ export function TravelChatClient({
         id: `city-${normalizeCityKey(city)}-${index}`,
         kind: "city",
         label: city,
-        subtitle: days ? `${days} days stay` : "Destination selected",
+        subtitle:
+          isZh
+            ? days
+              ? `停留 ${days} 天`
+              : "已选择目的地"
+            : days
+              ? `${days} days stay`
+              : "Destination selected",
         localName: getLocalDisplayName(city),
         intro: buildMapIntro("city", city, city),
         countryLabel: context
@@ -4070,7 +3960,7 @@ export function TravelChatClient({
         id: `hotel-${hotel.stay_index}-${normalizeCityKey(city)}`,
         kind: "hotel",
         label: hotelName,
-        subtitle: `Hotel in ${city}`,
+        subtitle: isZh ? `${city}酒店` : `Hotel in ${city}`,
         localName: getLocalDisplayName(city),
         intro: buildMapIntro("hotel", hotelName, city),
         countryLabel: (() => {
@@ -4097,6 +3987,7 @@ export function TravelChatClient({
     displayRouteCoordinates,
     displayTravelState,
     googleCityCoordinates,
+    isZh,
   ]);
 
   const activeBaseTarget = useMemo(
@@ -4329,7 +4220,10 @@ export function TravelChatClient({
         id: `hotspot-${activeCityForHotspots}-${index}`,
         kind: "hotspot" as const,
         label: spot,
-        subtitle: `Hotspot in ${activeCityForHotspots}`,
+        subtitle:
+          isZh
+            ? `${activeCityForHotspots}热门景点`
+            : `Hotspot in ${activeCityForHotspots}`,
         localName: getLocalDisplayName(activeCityForHotspots),
         intro: attraction?.description ?? buildMapIntro("hotspot", spot, activeCityForHotspots),
         countryLabel: (() => {
@@ -4352,6 +4246,7 @@ export function TravelChatClient({
     activeCityForHotspots,
     googleCityCoordinates,
     hasDestinationSelection,
+    isZh,
     selectedCityKeys,
   ]);
 
@@ -4427,10 +4322,6 @@ export function TravelChatClient({
     [baseMapTargets]
   );
 
-  const selectedHotelTargets = useMemo(
-    () => baseMapTargets.filter((target) => target.kind === "hotel"),
-    [baseMapTargets]
-  );
   const hasFinalItinerary = displayItinerary.length > 0;
   const showFinalItinerary =
     hasFinalItinerary && !mapModeSessionIds.includes(activeSessionId);
@@ -6334,97 +6225,6 @@ export function TravelChatClient({
           <Card className="h-full min-h-0 overflow-hidden rounded-xl border-slate-200/80 bg-white/95 shadow-[0_14px_45px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-2xl">
             <CardContent className="h-full p-0">
               <div className="flex h-full min-h-0 flex-col bg-white">
-                <div
-                  className="shrink-0 border-b border-slate-200 bg-white/95 px-3 py-2 pl-11 shadow-sm sm:px-4 sm:py-3 md:px-6 md:pl-12"
-                  data-testid="travel-map-summary"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        <Sparkles className="h-3 w-3 text-blue-600" />
-                        {showFinalItinerary
-                          ? isZh
-                            ? "行程焦点"
-                            : "Itinerary focus"
-                          : isZh
-                            ? "地图焦点"
-                            : "Map focus"}
-                      </p>
-                      <p className="truncate text-sm font-semibold text-slate-900">
-                        {showFinalItinerary
-                          ? isZh
-                            ? `${displayItinerary.length}天${displayOrderedCityLabels.join("、") || "定制"}行程`
-                            : `${displayItinerary.length}-day ${displayOrderedCityLabels.join(", ") || "custom"} itinerary`
-                          : formatMapTargetDisplayName(activeMapTarget, isZh)}
-                      </p>
-                    </div>
-                    <Badge className="shrink-0 bg-cyan-100 text-cyan-800 hover:bg-cyan-100">
-                      {progressPercent}%
-                    </Badge>
-                  </div>
-
-                  <div
-                    aria-label={isZh ? "旅行地图完成度" : "Travel map completion"}
-                    aria-valuemax={100}
-                    aria-valuemin={0}
-                    aria-valuenow={progressPercent}
-                    className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"
-                    role="progressbar"
-                  >
-                    <div
-                      className="h-full rounded-full bg-[#03346E]"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                    <Badge variant="outline">
-                      {status === "submitted" || status === "streaming"
-                        ? isZh
-                          ? "规划中"
-                          : "Planning"
-                        : isZh
-                          ? "就绪"
-                          : "Ready"}
-                    </Badge>
-                    <span>
-                      {isZh ? "已完成" : "Completed"} {completedProgressCount}/
-                      {progressItems.length}
-                    </span>
-                    {selectedCityTargets.length > 0 && (
-                      <span className="truncate">
-                        {isZh ? "城市：" : "Cities: "}{" "}
-                        {selectedCityTargets
-                          .slice(0, 3)
-                          .map((target) => target.localName ?? target.label)
-                          .join(isZh ? "、" : ", ")}
-                      </span>
-                    )}
-                    {selectedHotelTargets.length > 0 && (
-                      <span className="truncate">
-                        {isZh ? "酒店：" : "Hotels: "}{" "}
-                        {selectedHotelTargets
-                          .slice(0, 2)
-                          .map((target) => target.label)
-                          .join(isZh ? "、" : ", ")}
-                      </span>
-                    )}
-                    {displayRouteCoordinates.length >= 2 && (
-                      <button
-                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 transition-colors ${
-                          activeMapTarget?.id === "route-overview"
-                            ? "border-blue-300 bg-blue-50 text-blue-700"
-                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                        }`}
-                        onClick={() => setActiveMapTargetId("route-overview")}
-                        type="button"
-                      >
-                        <Route className="h-3 w-3" />
-                        {isZh ? "路线" : "Route"}
-                      </button>
-                    )}
-                  </div>
-                </div>
                 <div className="relative min-h-0 flex-1">
                   <div
                     ref={scrollRailRef}

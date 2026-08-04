@@ -51,7 +51,7 @@ const defaultData: OnboardingData = {
 };
 
 // ---------------------------------------------------------------------------
-// Progress bar (matches about-me-form QuizProgress style)
+// Progress bar
 // ---------------------------------------------------------------------------
 
 function OnboardingProgress({ currentStepIndex }: { currentStepIndex: number }) {

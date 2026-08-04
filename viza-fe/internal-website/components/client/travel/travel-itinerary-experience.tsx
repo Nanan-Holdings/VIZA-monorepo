@@ -18,7 +18,6 @@ import {
   MapPin,
   MapPinned,
   Pause,
-  Pencil,
   Plane,
   Play,
   Plus,
@@ -140,6 +139,7 @@ type ResourceOptionsSheetState =
       kind: "hotel";
       stay: HotelStayResult;
       stayIndex: number;
+      dayIndex: number;
     };
 
 type TravelItineraryExperienceProps = {
@@ -439,7 +439,7 @@ const TRAVEL_ITINERARY_COPY = {
     durationPending: "时长待确认",
     hotelFallback: "精选酒店",
     fourStarApplied: "已应用 4 星酒店偏好，可继续编辑替换",
-    nights: "晚上",
+    nights: "晚",
     contactPhone: "联系方式",
     from: "来自",
     hotelFallbackApi: "API 酒店",
@@ -1582,8 +1582,14 @@ function buildFallbackHotelStaysForDisplay(
   const stays: HotelStayResult[] = [];
   let elapsedDays = 0;
 
-  cities.forEach((city) => {
-    const nights = Math.max(1, travelState.city_days[city] ?? 1);
+  cities.forEach((city, index) => {
+    const cityDayCount = Math.max(1, travelState.city_days[city] ?? 1);
+    const nights =
+      index === cities.length - 1 ? Math.max(0, cityDayCount - 1) : cityDayCount;
+    if (nights === 0) {
+      elapsedDays += cityDayCount;
+      return;
+    }
     stays.push({
       city,
       check_in: toIsoDate(addDays(startDate, elapsedDays)),
@@ -1592,7 +1598,7 @@ function buildFallbackHotelStaysForDisplay(
       adults: travelState.travelers ?? undefined,
       options: [],
     });
-    elapsedDays += nights;
+    elapsedDays += cityDayCount;
   });
 
   return stays;
@@ -2220,21 +2226,6 @@ function getFlightDisplayPrice(
   return `${currencyLabel}${price}`;
 }
 
-function findHotelStayForCity(
-  stays: HotelStayResult[],
-  city: string
-): { stay: HotelStayResult; stayIndex: number } | null {
-  const cityKey = normalizeLookupKey(city);
-  const stayIndex = stays.findIndex(
-    (stay) => normalizeLookupKey(stay.city) === cityKey
-  );
-  if (stayIndex < 0) return null;
-  return {
-    stay: stays[stayIndex],
-    stayIndex: stayIndex + 1,
-  };
-}
-
 function getSelectedFlightForLeg(
   flights: SelectedFlightOption[],
   legIndex: number
@@ -2245,11 +2236,29 @@ function getSelectedFlightForLeg(
   );
 }
 
-function getSelectedHotelForStay(
+function getSelectedHotelForDay(
   hotels: SelectedHotelOption[],
-  stayIndex: number
+  stayIndex: number,
+  dayNumber: number,
+  city: string
 ): SelectedHotelOption | null {
-  return hotels.find((hotel) => hotel.stay_index === stayIndex) ?? null;
+  const cityKey = normalizeLookupKey(city);
+  return (
+    hotels.find(
+      (hotel) =>
+        hotel.stay_index === stayIndex && hotel.day_index === dayNumber
+    ) ??
+    hotels.find(
+      (hotel) =>
+        hotel.stay_index === stayIndex && hotel.day_index === undefined
+    ) ??
+    hotels.find(
+      (hotel) =>
+        hotel.day_index === undefined &&
+        normalizeLookupKey(hotel.city) === cityKey
+    ) ??
+    null
+  );
 }
 
 function getFlightLegEntriesForDay(
@@ -2322,20 +2331,59 @@ function getHotelStayEntriesForDay(
 ): Array<{
   stay: HotelStayResult;
   stayIndex: number;
+  dayIndex: number;
   selectedHotel: SelectedHotelOption | null;
 }> {
+  if (dayNumber >= totalDays) return [];
+
+  const tripStart = parseIsoDate(getDepartureDate(travelState));
+  const dayDate = tripStart ? addDays(tripStart, dayNumber - 1) : null;
   const knownStayIndexes = new Set<number>();
-  const entries = stays.map((stay, index) => {
+  const entries = stays.flatMap((stay, index) => {
     const stayIndex = index + 1;
     knownStayIndexes.add(stayIndex);
-    const selectedHotel =
-      getSelectedHotelForStay(selectedHotels, stayIndex) ??
-      findHotelForCity(selectedHotels, stay.city);
-    return { stay, stayIndex, selectedHotel };
+    const checkIn = parseIsoDate(stay.check_in);
+    const checkOut = parseIsoDate(stay.check_out);
+    if (
+      !dayDate ||
+      !checkIn ||
+      !checkOut ||
+      dayDate < checkIn ||
+      dayDate >= checkOut
+    ) {
+      return [];
+    }
+
+    const dailyStay: HotelStayResult = {
+      ...stay,
+      check_in: toIsoDate(dayDate),
+      check_out: toIsoDate(addDays(dayDate, 1)),
+      nights: 1,
+    };
+    const selectedHotelSource = getSelectedHotelForDay(
+      selectedHotels,
+      stayIndex,
+      dayNumber,
+      stay.city
+    );
+    const selectedHotel = selectedHotelSource
+      ? {
+          ...selectedHotelSource,
+          check_in: dailyStay.check_in,
+          check_out: dailyStay.check_out,
+          nights: 1,
+        }
+      : null;
+    return [{ stay: dailyStay, stayIndex, dayIndex: dayNumber, selectedHotel }];
   });
 
   selectedHotels.forEach((hotel) => {
-    if (knownStayIndexes.has(hotel.stay_index)) return;
+    if (
+      knownStayIndexes.has(hotel.stay_index) ||
+      hotel.day_index !== dayNumber
+    ) {
+      return;
+    }
     entries.push({
       stay: {
         city: hotel.city,
@@ -2345,19 +2393,12 @@ function getHotelStayEntriesForDay(
         options: [hotel.option],
       },
       stayIndex: hotel.stay_index,
+      dayIndex: dayNumber,
       selectedHotel: hotel,
     });
   });
 
-  return entries
-    .filter(({ stay, selectedHotel }) => {
-      const resourceDate = selectedHotel?.check_in ?? stay.check_in;
-      return (
-        getDisplayDayNumberForDate(resourceDate, travelState, totalDays) ===
-        dayNumber
-      );
-    })
-    .sort((first, second) => first.stayIndex - second.stayIndex);
+  return entries.sort((first, second) => first.stayIndex - second.stayIndex);
 }
 
 function createSelectedFlightFromOption(
@@ -2380,11 +2421,13 @@ function createSelectedFlightFromOption(
 function createSelectedHotelFromOption(
   stay: HotelStayResult,
   stayIndex: number,
+  dayIndex: number,
   option: HotelOptionResult,
   optionIndex: number
 ): SelectedHotelOption {
   return {
     stay_index: stayIndex,
+    day_index: dayIndex,
     city: stay.city,
     check_in: stay.check_in,
     check_out: stay.check_out,
@@ -2748,7 +2791,19 @@ function buildDayTimelineItems(
     dayNumber,
     totalDays
   );
-  const hotel = findHotelForCity(hotels, day.city);
+  const cityKey = normalizeLookupKey(day.city);
+  const hotel =
+    hotels.find(
+      (entry) =>
+        entry.day_index === dayNumber &&
+        normalizeLookupKey(entry.city) === cityKey
+    ) ??
+    hotels.find(
+      (entry) =>
+        entry.day_index === undefined &&
+        normalizeLookupKey(entry.city) === cityKey
+    ) ??
+    null;
   const hotelLabel = hotel
     ? getHotelNameForLanguage(hotel.option, hotel.city, language)
     : `${getCityLabel(day.city, language)} ${copy.hotelFallback}`;
@@ -2806,12 +2861,15 @@ function buildDayTimelineItems(
         getTravelTextForLanguage(day.food[0], language, "") ||
         `${getCityLabel(day.city, language)} ${copy.localDinner}`,
     },
-    {
+  ];
+
+  if (dayNumber < totalDays) {
+    items.push({
       time: HOTEL_SLOT_TIME,
       label: copy.lodging,
       value: hotelLabel,
-    },
-  ];
+    });
+  }
 
   return items.sort(
     (first, second) =>
@@ -3694,7 +3752,7 @@ export function TravelItineraryExperience({
     useState<TravelExportLanguage>("zh");
   const [detailResourceTab, setDetailResourceTab] =
     useState<DetailResourceTab>("attractions");
-  const [customizeDayEditor, setCustomizeDayEditor] = useState(false);
+  const customizeDayEditor = true;
   const [activityTimesByDay, setActivityTimesByDay] =
     useState<ActivityTimesByDay>({});
   const [apiFlightLegs, setApiFlightLegs] = useState<FlightLegResult[]>([]);
@@ -3888,23 +3946,6 @@ export function TravelItineraryExperience({
       ) ?? segments[0],
     [activeCityKey, segments]
   );
-  const activeDaySegment = useMemo(() => {
-    if (!activeDay) return activeSegment;
-    const activeDayNumber = getDayNumber(activeDay);
-    return (
-      segments.find(
-        (segment) =>
-          activeDayNumber >= segment.dayStart &&
-          activeDayNumber <= segment.dayEnd
-      ) ??
-      segments.find(
-        (segment) =>
-          normalizeLookupKey(segment.city) ===
-          normalizeLookupKey(activeDay.city)
-      ) ??
-      activeSegment
-    );
-  }, [activeDay, activeSegment, segments]);
   const activeCityDays = useMemo(
     () =>
       activeSegment ? getSegmentDays(editableItinerary, activeSegment) : [],
@@ -4016,17 +4057,26 @@ export function TravelItineraryExperience({
   );
   const activeDayHotelStay = useMemo(
     () =>
-      activeDaySegment
-        ? findHotelStayForCity(displayHotelStays, activeDaySegment.city)
+      activeDay
+        ? (getHotelStayEntriesForDay(
+            displayHotelStays,
+            effectiveSelectedHotels,
+            effectiveTravelState,
+            getDayNumber(activeDay),
+            editableItinerary.length
+          )[0] ?? null)
         : null,
-    [activeDaySegment, displayHotelStays]
+    [
+      activeDay,
+      displayHotelStays,
+      editableItinerary.length,
+      effectiveSelectedHotels,
+      effectiveTravelState,
+    ]
   );
   const activeDayHotel = useMemo(
-    () =>
-      activeDaySegment
-        ? findHotelForCity(effectiveSelectedHotels, activeDaySegment.city)
-        : null,
-    [activeDaySegment, effectiveSelectedHotels]
+    () => activeDayHotelStay?.selectedHotel ?? null,
+    [activeDayHotelStay]
   );
   const attractionGeocodeItems = useMemo(() => {
     const city = activeDay?.city ?? activeSegment?.city ?? "";
@@ -4138,7 +4188,6 @@ export function TravelItineraryExperience({
     setLocalTravelStatePatch(null);
     setActivityTimesByDay({});
     setDetailResourceTab("attractions");
-    setCustomizeDayEditor(false);
   }, [
     activeVersionId,
     editableItinerarySignature,
@@ -4326,7 +4375,6 @@ export function TravelItineraryExperience({
 
   useEffect(() => {
     setDetailResourceTab("attractions");
-    setCustomizeDayEditor(false);
   }, [activeDayIndex, detailOpen]);
 
   useEffect(() => {
@@ -4659,19 +4707,29 @@ export function TravelItineraryExperience({
     (
       stay: HotelStayResult,
       stayIndex: number,
+      dayIndex: number,
       option: HotelOptionResult,
       optionIndex: number
     ) => {
       const nextHotel = createSelectedHotelFromOption(
         stay,
         stayIndex,
+        dayIndex,
         option,
         optionIndex
       );
       const seed = localSelectedHotels ?? effectiveSelectedHotels;
-      const withoutStay = seed.filter((hotel) => hotel.stay_index !== stayIndex);
+      const withoutStay = seed.filter(
+        (hotel) =>
+          !(
+            hotel.stay_index === stayIndex && hotel.day_index === dayIndex
+          )
+      );
       const nextHotels = [...withoutStay, nextHotel].sort(
-        (first, second) => first.stay_index - second.stay_index
+        (first, second) =>
+          (first.day_index ?? Number.MAX_SAFE_INTEGER) -
+            (second.day_index ?? Number.MAX_SAFE_INTEGER) ||
+          first.stay_index - second.stay_index
       );
       setLocalSelectedHotels(nextHotels);
       onItineraryChange?.({
@@ -4686,7 +4744,7 @@ export function TravelItineraryExperience({
         reason: "hotel_selection",
       });
       toast.success(
-        isZh ? "已更新这段住宿。" : "This hotel stay has been updated."
+        isZh ? `已更新第 ${dayIndex} 天的住宿。` : `Day ${dayIndex} hotel updated.`
       );
     },
     [
@@ -5141,6 +5199,11 @@ export function TravelItineraryExperience({
                 ) || copy.apiFlight}{" "}
                 {getFlightNumber(selectedFlight)}
               </span>
+              {selectedFlight.option.provider === "api-default" ? (
+                <span className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                  {isZh ? "实时供应商暂未返回 · 备用估算" : "Live provider unavailable · estimate"}
+                </span>
+              ) : null}
             </span>
             <span className="shrink-0 rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
               {getFlightDisplayPrice(selectedFlight, interfaceLocale)}
@@ -5204,10 +5267,12 @@ export function TravelItineraryExperience({
   const renderHotelResourceCard = ({
     stay,
     stayIndex,
+    dayIndex,
     selectedHotel,
   }: {
     stay: HotelStayResult;
     stayIndex: number;
+    dayIndex: number;
     selectedHotel: SelectedHotelOption | null;
   }) => {
     const stayLabel = `${getCityLabel(stay.city, interfaceLocale)} · ${formatMonthDay(
@@ -5222,7 +5287,12 @@ export function TravelItineraryExperience({
           data-testid={`travel-itinerary-day-hotel-card-${stayIndex}`}
           key={`day-hotel-${stayIndex}`}
           onClick={() =>
-            setResourceOptionsSheet({ kind: "hotel", stay, stayIndex })
+            setResourceOptionsSheet({
+              kind: "hotel",
+              stay,
+              stayIndex,
+              dayIndex,
+            })
           }
           type="button"
         >
@@ -5306,7 +5376,11 @@ export function TravelItineraryExperience({
     if (!resourceOptionsSheet) return null;
 
     if (resourceOptionsSheet.kind === "flight") {
-      const { leg, legIndex } = resourceOptionsSheet;
+      const { leg: openedLeg, legIndex } = resourceOptionsSheet;
+      // The sheet can be opened before the async flight request finishes.
+      // Resolve the current leg on every render so newly loaded API options
+      // replace the fallback object captured by the click handler.
+      const leg = displayFlightLegs[legIndex - 1] ?? openedLeg;
       const selectedFlight = getSelectedFlightForLeg(
         effectiveTravelState.selected_flights,
         legIndex
@@ -5398,6 +5472,11 @@ export function TravelItineraryExperience({
                               : `${option.stops} ${copy.transfer}`
                             : copy.stopsPending}
                       </span>
+                      {option.provider === "api-default" ? (
+                        <span className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                          {isZh ? "备用估算，非实时票价" : "Estimate, not live fare"}
+                        </span>
+                      ) : null}
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
                       <span className="rounded-full bg-[#efe5ff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
@@ -5418,15 +5497,21 @@ export function TravelItineraryExperience({
       );
     }
 
-    const { stay, stayIndex } = resourceOptionsSheet;
-    const selectedHotel = getSelectedHotelForStay(
+    const { stay, stayIndex, dayIndex } = resourceOptionsSheet;
+    const liveStay = displayHotelStays[stayIndex - 1];
+    const resolvedStay: HotelStayResult = liveStay
+      ? { ...liveStay, check_in: stay.check_in, check_out: stay.check_out, nights: 1 }
+      : stay;
+    const selectedHotel = getSelectedHotelForDay(
       effectiveTravelState.selected_hotels,
-      stayIndex
+      stayIndex,
+      dayIndex,
+      resolvedStay.city
     );
-    const stayLabel = `${getCityLabel(stay.city, interfaceLocale)} · ${formatMonthDay(
-      stay.check_in,
+    const stayLabel = `${getCityLabel(resolvedStay.city, interfaceLocale)} · ${formatMonthDay(
+      resolvedStay.check_in,
       interfaceLocale
-    )} - ${formatMonthDay(stay.check_out, interfaceLocale)}`;
+    )} - ${formatMonthDay(resolvedStay.check_out, interfaceLocale)}`;
 
     return (
       <>
@@ -5442,15 +5527,15 @@ export function TravelItineraryExperience({
           <p className="text-sm font-semibold text-[#756a7b]">
             {copy.hotelOptionsSheetHint}
           </p>
-          {apiHotelStatus === "loading" && !stay.options.length
+          {apiHotelStatus === "loading" && !resolvedStay.options.length
             ? renderLoadingResourceCard("hotel", stayLabel)
             : null}
-          {apiHotelStatus === "error" && !stay.options.length
+          {apiHotelStatus === "error" && !resolvedStay.options.length
             ? renderErrorResourceCard("hotel", stayLabel)
             : null}
           {apiHotelStatus !== "loading" &&
           apiHotelStatus !== "error" &&
-          !stay.options.length ? (
+          !resolvedStay.options.length ? (
             <article className="rounded-[22px] border border-[#eadfff] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(32,20,43,0.08)]">
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] text-[#6f40cc]">
@@ -5467,7 +5552,7 @@ export function TravelItineraryExperience({
               </div>
             </article>
           ) : null}
-          {stay.options.map((option, optionIndex) => {
+          {resolvedStay.options.map((option, optionIndex) => {
             const displayOptionIndex = optionIndex + 1;
             const selected =
               selectedHotel?.option_index === displayOptionIndex ||
@@ -5492,8 +5577,9 @@ export function TravelItineraryExperience({
                 )}`}
                 onClick={() => {
                   selectHotelOption(
-                    stay,
+                    resolvedStay,
                     stayIndex,
+                    dayIndex,
                     option,
                     displayOptionIndex
                   );
@@ -5506,14 +5592,14 @@ export function TravelItineraryExperience({
                     <span className="block truncate text-base font-bold text-[#2d1635]">
                       {getHotelNameForLanguage(
                         option,
-                        stay.city,
+                        resolvedStay.city,
                         interfaceLocale
                       )}
                     </span>
                     <span className="mt-1 line-clamp-2 block text-xs font-semibold text-[#756a7b]">
                       {getHotelAddressForLanguage(
                         option,
-                        stay.city,
+                        resolvedStay.city,
                         interfaceLocale
                       )}{" "}
                       · {getHotelContactLabel(option, interfaceLocale)}
@@ -6150,13 +6236,13 @@ export function TravelItineraryExperience({
             </DialogDescription>
           </DialogHeader>
           <div className="grid h-full min-h-0 bg-white lg:grid-cols-[minmax(420px,0.92fr)_minmax(520px,1.08fr)]">
-            <section className="flex min-h-0 flex-col border-r border-slate-200">
-              <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-5">
-                <div className="flex items-center gap-3 text-sm font-semibold text-[#756a7b]">
+            <section className="flex min-h-0 flex-col border-r border-[#d9e5f2]">
+              <div className="shrink-0 border-b border-[#d9e5f2] bg-white px-6 py-5">
+                <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
                   <Route className="h-4 w-4" />
                   <span>{isZh ? "行程计划" : "Trip plan"}</span>
                   <ChevronRight className="h-4 w-4" />
-                  <span className="text-[#2d1635]">
+                  <span className="text-[#03346E]">
                     {isZh ? "行程" : "Itinerary"}
                   </span>
                 </div>
@@ -6166,8 +6252,8 @@ export function TravelItineraryExperience({
                       className={cn(
                         "shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-colors",
                         index === activeDayIndex
-                          ? "bg-[#d9c2ff] text-[#2d1635]"
-                          : "text-[#756a7b] hover:bg-slate-100"
+                          ? "bg-[#03346E] text-white shadow-sm"
+                          : "text-slate-500 hover:bg-[#eef5fb] hover:text-[#03346E]"
                       )}
                       key={`tab-${day.day}-${index}`}
                       onClick={() => setActiveDayIndex(index)}
@@ -6179,33 +6265,21 @@ export function TravelItineraryExperience({
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto bg-[#faf9f7] px-6 py-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="min-h-0 flex-1 overflow-y-auto bg-[#f5f8fc] px-6 py-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {activeDay ? (
                   <div className="space-y-5">
                     <div>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-3">
-                          <h3 className="text-2xl font-bold text-[#2d1635]">
+                          <h3 className="text-2xl font-bold text-[#0f2747]">
                             {getCityLabel(activeDay.city, interfaceLocale)}
                           </h3>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[#efe5ff] px-2.5 py-1 text-sm font-bold text-[#6f40cc]">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#eaf2fb] px-2.5 py-1 text-sm font-bold text-[#03346E]">
                             <Clock3 className="h-4 w-4" />
                             {activeDay.cost}
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Button
-                            className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
-                            onClick={() =>
-                              setCustomizeDayEditor((current) => !current)
-                            }
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            <Pencil className="h-4 w-4" />
-                            {isZh ? "自定义" : "Customize"}
-                          </Button>
                           <Button
                             className="rounded-full border-[#f2c7d0] text-[#b42348] hover:bg-[#fff1f3]"
                             onClick={() => removeItineraryDay(activeDayIndex)}
@@ -6218,7 +6292,7 @@ export function TravelItineraryExperience({
                           </Button>
                         </div>
                       </div>
-                      <p className="mt-2 text-base text-[#5f5166]">
+                      <p className="mt-2 text-base text-slate-600">
                         {summarizeDay(activeDay, interfaceLocale)}
                       </p>
                     </div>
@@ -6226,26 +6300,27 @@ export function TravelItineraryExperience({
                     <div className="grid gap-2 sm:grid-cols-2">
                       {activeDayTimeline.map((item) => (
                         <div
-                          className="rounded-2xl border border-[#eadfff] bg-white px-4 py-3"
+                          className="rounded-2xl border border-[#d9e5f2] bg-white px-4 py-3 shadow-[0_8px_24px_rgba(3,52,110,0.06)]"
                           key={`detail-timeline-${item.time}-${item.label}`}
                         >
-                          <p className="text-xs font-bold text-[#8d5df7]">
+                          <p className="text-xs font-bold text-[#1d65a6]">
                             {item.time} · {item.label}
                           </p>
-                          <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#2d1635]">
+                          <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#0f2747]">
                             {item.value}
                           </p>
                         </div>
                       ))}
                     </div>
 
-                    <div className="rounded-2xl border border-[#eadfff] bg-white px-4 py-3">
+                    {activeDayIndex < editableItinerary.length - 1 ? (
+                    <div className="rounded-2xl border border-[#d9e5f2] bg-white px-4 py-3 shadow-[0_8px_24px_rgba(3,52,110,0.06)]">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-xs font-semibold text-[#8d8391]">
                             {isZh ? "当晚酒店" : "Tonight's hotel"}
                           </p>
-                          <p className="mt-1 truncate text-sm font-bold text-[#2d1635]">
+                          <p className="mt-1 truncate text-sm font-bold text-[#0f2747]">
                             {activeDayHotel
                               ? getHotelNameForLanguage(
                                   activeDayHotel.option,
@@ -6283,7 +6358,7 @@ export function TravelItineraryExperience({
                           ) : null}
                         </div>
                         <Button
-                          className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                          className="rounded-full border-[#b8cde3] text-[#03346E] hover:bg-[#eef5fb]"
                           onClick={() => setDetailResourceTab("hotels")}
                           size="sm"
                           type="button"
@@ -6299,8 +6374,9 @@ export function TravelItineraryExperience({
                         </Button>
                       </div>
                     </div>
+                    ) : null}
 
-                    <div className="grid grid-cols-3 gap-2 rounded-[22px] bg-[#efe5ff] p-1">
+                    <div className="grid grid-cols-3 gap-2 rounded-[22px] bg-[#eaf2fb] p-1">
                       {(
                         [
                           ["attractions", copy.attraction],
@@ -6312,8 +6388,8 @@ export function TravelItineraryExperience({
                           className={cn(
                             "rounded-[18px] px-3 py-2 text-sm font-bold transition-colors",
                             detailResourceTab === tab
-                              ? "bg-white text-[#2d1635] shadow-sm"
-                              : "text-[#6f40cc] hover:bg-white/55"
+                              ? "bg-white text-[#03346E] shadow-sm"
+                              : "text-[#52657a] hover:bg-white/70 hover:text-[#03346E]"
                           )}
                           key={`detail-resource-tab-${tab}`}
                           onClick={() => setDetailResourceTab(tab)}
@@ -6324,38 +6400,6 @@ export function TravelItineraryExperience({
                       ))}
                     </div>
 
-                    {customizeDayEditor ? (
-                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#eadfff] bg-white p-4 text-sm font-semibold text-[#5f5166]">
-                        <span>
-                          {isZh
-                            ? "自定义模式已开启。常规修改优先通过下面的候选卡片完成；只有需要临时补充时再手动输入。"
-                            : "Custom mode is on. Prefer the option cards below for normal edits; type manually only for temporary additions."}
-                        </span>
-                        <span className="flex gap-2">
-                          <Button
-                            className="h-8 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
-                            onClick={() => addItineraryActivity(activeDayIndex)}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            <Plus className="h-4 w-4" />
-                            {copy.attraction}
-                          </Button>
-                          <Button
-                            className="h-8 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
-                            onClick={() => addItineraryFood(activeDayIndex)}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            <Plus className="h-4 w-4" />
-                            {copy.dining}
-                          </Button>
-                        </span>
-                      </div>
-                    ) : null}
-
                     {detailResourceTab === "attractions" ? (
                       <>
                         {activeDayAttractionChoices.length ? (
@@ -6365,10 +6409,22 @@ export function TravelItineraryExperience({
                                 <MapPinned className="h-4 w-4 text-[#6f40cc]" />
                                 {isZh ? "景点库" : "Attraction library"}
                               </p>
-                              <span className="text-xs font-semibold text-[#8d8391]">
-                                {isZh
-                                  ? "点击加入当天行程"
-                                  : "Click to add to this day"}
+                              <span className="flex items-center gap-2">
+                                <span className="hidden text-xs font-semibold text-slate-500 sm:inline">
+                                  {isZh
+                                    ? "点击候选卡加入当天"
+                                    : "Click a card to add it"}
+                                </span>
+                                <Button
+                                  className="h-8 rounded-full border-[#b8cde3] text-[#03346E] hover:bg-[#eef5fb]"
+                                  onClick={() => addItineraryActivity(activeDayIndex)}
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  {isZh ? "添加景点" : "Add attraction"}
+                                </Button>
                               </span>
                             </div>
                             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -6725,18 +6781,19 @@ export function TravelItineraryExperience({
                             {renderHotelResourceCard({
                               stay: activeDayHotelStay.stay,
                               stayIndex: activeDayHotelStay.stayIndex,
-                              selectedHotel:
-                                getSelectedHotelForStay(
-                                  effectiveTravelState.selected_hotels,
-                                  activeDayHotelStay.stayIndex
-                                ) ?? activeDayHotel,
+                              dayIndex: activeDayHotelStay.dayIndex,
+                              selectedHotel: activeDayHotel,
                             })}
                           </div>
                         ) : (
                           <div className="rounded-2xl border border-[#eadfff] bg-white p-5 text-sm font-semibold text-[#5f5166]">
-                            {isZh
-                              ? "这个城市暂时没有 API 酒店候选。系统会继续保留当前行程。"
-                              : "No API hotel options are available for this city yet. The current itinerary will stay in place."}
+                            {activeDayIndex >= editableItinerary.length - 1
+                              ? isZh
+                                ? "最后一天是返程日，不需要额外安排住宿。"
+                                : "The final day is the return day, so no extra hotel night is needed."
+                              : isZh
+                                ? "这个城市暂时没有酒店候选。系统会继续保留当前行程。"
+                                : "No hotel options are available for this city yet. The current itinerary will stay in place."}
                           </div>
                         )}
                       </div>

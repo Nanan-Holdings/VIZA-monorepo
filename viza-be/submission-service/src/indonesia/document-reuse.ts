@@ -43,8 +43,11 @@ export function isPlausibleIndonesiaDocument(
 export function selectIndonesiaSubmissionDocuments<T extends IndonesiaApplicantDocument>(
   currentDocuments: readonly T[],
   siblingDocuments: readonly T[],
+  options: { allowCurrentApplicationTestDocuments?: boolean } = {},
 ): T[] {
-  const safeCurrent = currentDocuments.filter(isPlausibleIndonesiaDocument);
+  const safeCurrent = options.allowCurrentApplicationTestDocuments
+    ? currentDocuments.filter((document) => Boolean(document.storage_path?.trim()))
+    : currentDocuments.filter(isPlausibleIndonesiaDocument);
   const safeUniversalSiblings = siblingDocuments.filter(
     (document) => isUniversalIndonesiaApplicantDocument(document) && isPlausibleIndonesiaDocument(document),
   );

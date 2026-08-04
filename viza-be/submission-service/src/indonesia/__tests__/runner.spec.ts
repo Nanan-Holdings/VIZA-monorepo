@@ -15,6 +15,8 @@ import {
   isIndonesiaApplicationDetailOtpChallenge,
   isExpiredIndonesiaApplicationText,
   isIndonesiaPortalAccountOtpChallenge,
+  isIndonesiaStepOneLegacyFallbackEnabled,
+  isIndonesiaStepThreePassportReviewComplete,
   normalizeIndonesiaMobilePhone,
   normalizeIndonesiaPostalCode,
   normalizeIndonesiaPaymentWaitState,
@@ -285,6 +287,15 @@ test("classifies Indonesia portal login and registration gates", () => {
   );
   assert.equal(
     classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}web/application_add/visa/step_3`,
+      title: "Indonesia eVisa",
+      text: "Waiting For Payment Make a Payment Payment Information",
+    }),
+    "payment_required",
+    "step 3 payment evidence must win over the generic application-form URL",
+  );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
       url: `${INDONESIA_C1_PORTAL_URL}web/application/abc/detail`,
       title: "Visa Application",
       text: "Waiting For Payment Make a Payment Payment Information OTP Code",
@@ -381,6 +392,54 @@ test("does not bypass Indonesia official step 1 submit by default", () => {
   assert.equal(shouldDirectNavigateIndonesiaStepOne(""), false);
   assert.equal(shouldDirectNavigateIndonesiaStepOne("false"), false);
   assert.equal(shouldDirectNavigateIndonesiaStepOne("true"), true);
+});
+
+test("keeps Indonesia legacy step 1 form fallbacks explicitly disabled by default", () => {
+  assert.equal(isIndonesiaStepOneLegacyFallbackEnabled(undefined), false);
+  assert.equal(isIndonesiaStepOneLegacyFallbackEnabled(""), false);
+  assert.equal(isIndonesiaStepOneLegacyFallbackEnabled("false"), false);
+  assert.equal(isIndonesiaStepOneLegacyFallbackEnabled("TRUE"), true);
+});
+
+test("requires passport review evidence and declarations before Indonesia step 3 can submit", () => {
+  assert.equal(isIndonesiaStepThreePassportReviewComplete({
+    bodyText: "Personal Information Passport P123 4567 Declaration",
+    expectedPassportNumber: "P1234567",
+    checkboxCount: 2,
+  }), true);
+  assert.equal(isIndonesiaStepThreePassportReviewComplete({
+    bodyText: "Personal Information Passport",
+    expectedPassportNumber: "P1234567",
+    checkboxCount: 2,
+  }), false);
+  assert.equal(isIndonesiaStepThreePassportReviewComplete({
+    bodyText: "Personal Information Passport P1234567",
+    expectedPassportNumber: "P1234567",
+    checkboxCount: 0,
+  }), false);
+});
+
+test("tries Indonesia official step 1 AJAX persistence before any legacy form fallback", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const start = source.indexOf("async function continueFromApplicationStepOne");
+  const end = source.indexOf("async function fillIndonesiaStayAndSupportFieldsIfPresent", start);
+  const stepOneSource = source.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.ok(
+    stepOneSource.indexOf("submitIndonesiaStepOneOfficialAjax") <
+      stepOneSource.indexOf("submitIndonesiaStepOneFormFallback"),
+  );
+  assert.match(stepOneSource, /isIndonesiaStepOneLegacyFallbackEnabled/);
+  assert.match(stepOneSource, /indonesia_step_1_passport_upload_not_ready/);
+});
+
+test("blocks Indonesia payment handoff when step 3 review evidence is incomplete", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  assert.match(
+    source,
+    /input\.userPaymentHandoff\?\.enabled\s*&&\s*!stepThreeReviewIncomplete/,
+  );
+  assert.match(source, /indonesia_payment_blocked_by_incomplete_step_3_review/);
 });
 
 test("does not auto-submit bank payment OTP with email OTP automation", () => {

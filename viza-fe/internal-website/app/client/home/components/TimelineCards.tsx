@@ -168,28 +168,6 @@ interface TaskCardConfig {
 }
 
 const TASK_CONFIG: Record<TimelineTaskId, TaskCardConfig> = {
-  complete_questionnaire: {
-    title: "Complete your profile",
-    image: "/figma-assets/frame-profile.png",
-    pending: {
-      subtitle: (meta) =>
-        meta?.skipped
-          ? "You skipped this — finish when you're ready"
-          : "Answer a few questions about yourself",
-      badge: "Start",
-      href: "/client/about-me-form",
-    },
-    locked: {
-      subtitle: "Not available",
-      badge: "Locked",
-    },
-    done: {
-      subtitle: () => "Profile completed",
-      badge: "View",
-      href: "/client/settings",
-    },
-  },
-
   measure_profile_data: {
     title: "Measure your profile_data",
     image: "/figma-assets/frame-timeline-profile_data.png",
@@ -365,7 +343,9 @@ export function TimelineCards({
 }: TimelineCardsProps) {
   // TODO: Temporarily hide these steps until they're ready
   const visibleTasks = tasks.filter(
-    (t) => t.id !== "measure_profile_data" && t.id !== "read_action_plan"
+    (t) =>
+      t.id !== "measure_profile_data" &&
+      t.id !== "read_action_plan"
   );
 
   // Pending tasks come before locked ones in Next Steps

@@ -114,7 +114,79 @@ import {
   GET as getTravelChat,
   POST as postTravelChat,
 } from "@/app/api/travel/chat/route";
-import { createInitialTravelState } from "@/lib/travel/planner";
+import { GET as getIpLocation } from "@/app/api/travel/ip-location/route";
+import {
+  createInitialTravelState,
+  createTravelFormMessage,
+} from "@/lib/travel/planner";
+
+describe("Travel form display language", () => {
+  it("uses the established Chinese city name for form-generated endpoint messages", () => {
+    expect(
+      createTravelFormMessage({
+        origin_country: "美国",
+        origin_city: "Los Angeles",
+        return_country: "美国",
+        return_city: "Los Angeles",
+      })
+    ).toBe("出发和返程城市都设为 美国 洛杉矶。");
+  });
+});
+
+describe("Travel IP origin suggestion", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("uses edge geolocation headers without contacting a third party", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await getIpLocation(
+      new Request("http://127.0.0.1:3000/api/travel/ip-location", {
+        headers: {
+          "x-vercel-ip-city": "Los%20Angeles",
+          "x-vercel-ip-country": "US",
+        },
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      city: "Los Angeles",
+      country: "United States",
+      countryCode: "US",
+      source: "edge-headers",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts the first valid provider instead of waiting for failed providers serially", async () => {
+    const fetchMock = vi.fn(async (url: RequestInfo | URL) => {
+      if (String(url).includes("geolocation-db.com")) {
+        return Response.json({
+          city: "Los Angeles",
+          country_name: "United States",
+          country_code: "US",
+        });
+      }
+      return new Response("unavailable", { status: 503 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await getIpLocation(
+      new Request("http://127.0.0.1:3000/api/travel/ip-location")
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.city).toBe("Los Angeles");
+    expect(body.country).toBe("United States");
+    expect(body.source).toBe("geolocation-db");
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+  });
+});
 
 function request(
   text: string,
@@ -238,6 +310,13 @@ function modelTurn(text: string) {
     // The coordinator must honor the user's explicit command even if the
     // model under-classifies this otherwise-correct response.
     return { ...base, intent: "record_facts", reply: "好，我来生成行程。" };
+  }
+  if (text === "请直接生成行程") {
+    return {
+      ...base,
+      intent: "generate_itinerary",
+      reply: "第 1 天先去一个我临时编出来的地方，第 2 天继续游览。",
+    };
   }
   return base;
 }
@@ -397,6 +476,19 @@ describe("Travel Agent server coordinator", () => {
     expect(body.next_missing_field).toBeNull();
     expect(body.ui_action).toBe("generate_itinerary");
     expect(body.cards).toEqual([]);
+  });
+
+  it("does not invent a textual itinerary while required fields are missing", async () => {
+    const body = await (
+      await postTravelChat(request("请直接生成行程", "generate-incomplete"))
+    ).json();
+
+    expect(body.next_missing_field).toBe("country");
+    expect(body.ui_action).toBe("collect_field");
+    expect(body.reply).toBe(
+      "可以。先告诉我想去哪个国家或地区，补齐后我就为你生成完整行程。"
+    );
+    expect(body.reply).not.toContain("第 1 天");
   });
 
   it("returns the stored response for a repeated message id without a second model call", async () => {

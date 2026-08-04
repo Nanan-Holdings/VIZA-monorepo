@@ -20,6 +20,7 @@ import type { Json } from "@/types/database";
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const TRAVEL_AGENT_MODEL = "gpt-5.6-sol";
 const TRAVEL_AGENT_FALLBACK_MODEL = "gpt-5.5";
+const TRAVEL_AGENT_OPENAI_TIMEOUT_MS = 60_000;
 const MAX_USER_TEXT_LENGTH = 8_000;
 let activeTravelAgentModel = TRAVEL_AGENT_MODEL;
 
@@ -377,6 +378,9 @@ function systemPrompt(locale: InterfaceLocale): string {
   return [
     "You are VIZA's Travel Advisor and the only intent coordinator for every user utterance.",
     `Reply in ${locale === "zh" ? "natural Simplified Chinese" : "natural English"}.`,
+    locale === "zh"
+      ? "Every user-facing sentence, question, recommendation, quick reply, country name, and city name must be Chinese. Use established Chinese place names (for example 洛杉矶, not Los Angeles); retain foreign text only when it is an official proper name with no normal Chinese translation."
+      : "Keep every user-facing field in English unless an official proper name has no English form.",
     "Sound warm, calm, concise, and human. Answer the user's real question first. Ask at most one essential follow-up question.",
     "Never mention schemas, state machines, payloads, enrichment, model calls, databases, or internal tools.",
     "Use the full conversation context. Resolve short replies such as '没有' and '推荐一下' against the immediately preceding question.",
@@ -444,14 +448,19 @@ async function callOpenAI(args: {
           },
         },
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(
+        Number.parseInt(
+          process.env.TRAVEL_AGENT_OPENAI_TIMEOUT_MS ?? "",
+          10
+        ) || TRAVEL_AGENT_OPENAI_TIMEOUT_MS
+      ),
     });
 
   let response = await requestModel(activeTravelAgentModel);
   if (!response.ok && activeTravelAgentModel === TRAVEL_AGENT_MODEL) {
     const primaryDetail = await response.text();
     if (
-      response.status === 403 &&
+      (response.status === 403 || response.status === 404) &&
       primaryDetail.includes("model_not_found")
     ) {
       activeTravelAgentModel =
@@ -696,6 +705,31 @@ function getUiAction(
   if (intent === "generate_itinerary") return "generate_itinerary";
   if (intent === "modify_itinerary") return "revise_itinerary";
   return "none";
+}
+
+function incompleteItineraryReply(
+  locale: InterfaceLocale,
+  nextField: TravelField
+): string {
+  if (locale === "en") {
+    return "Absolutely. I need one more detail before I can generate the itinerary.";
+  }
+
+  const prompts: Record<TravelField, string> = {
+    country: "先告诉我想去哪个国家或地区",
+    cities: "先告诉我想去哪些城市",
+    destination_confirmation: "先确认一下目的地是否就这些",
+    departure_date: "先确认出发日期",
+    travel_days: "先确认这次旅行一共几天",
+    travelers: "先确认一共有几位旅行者",
+    budget: "先确认这次旅行的总预算",
+    origin: "先确认出发和返程城市",
+    travel_order: "先确认城市游览顺序",
+    flight_selection: "先确认航班安排",
+    hotel_selection: "先确认酒店安排",
+    final_note: "最后确认一下补充要求",
+  };
+  return `可以。${prompts[nextField]}，补齐后我就为你生成完整行程。`;
 }
 
 function resolveExplicitItineraryIntent(
@@ -1060,9 +1094,13 @@ export async function POST(request: Request) {
     const allowRecommendationCards =
       effectiveIntent === "recommend_destinations" &&
       (mutation.state.cities.length === 0 || explicitlyRequestedRecommendations);
+    const coordinatedReply =
+      effectiveIntent === "generate_itinerary" && nextField
+        ? incompleteItineraryReply(input.locale, nextField)
+        : openAI.result.reply;
     const nextVersion = session.state_version + 1;
     const responseBody = {
-      reply: openAI.result.reply,
+      reply: coordinatedReply,
       mode: effectiveIntent,
       cards: allowRecommendationCards
         ? recommendationCards(openAI.result.recommendations, input.text)
@@ -1084,7 +1122,7 @@ export async function POST(request: Request) {
         p_external_message_id: input.messageId,
         p_expected_state_version: input.expectedStateVersion,
         p_user_content: input.text,
-        p_assistant_content: openAI.result.reply,
+        p_assistant_content: coordinatedReply,
         p_state_json: toJson(mutation.state),
         p_memory_summary: openAI.result.memorySummary,
         p_openai_response_id: openAI.id,

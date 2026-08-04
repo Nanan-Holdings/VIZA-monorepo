@@ -26,7 +26,7 @@ privacy/data-rights controls.
 - `applicant_profiles`
 - `applicant_profiles.dependant_of_user_id` for common/frequent travelers
 - `data_privacy_requests`
-- Existing settings/about-me actions
+- Existing settings and applicant profile actions
 
 ## Local Files
 

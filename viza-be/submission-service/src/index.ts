@@ -1200,7 +1200,10 @@ async function loadReusableApplicantDocuments(
       ...doc,
       file_name: doc.file_name ?? doc.filename ?? null,
     }));
-  return selectIndonesiaSubmissionDocuments(currentDocuments, normalizedSiblingDocuments);
+  return selectIndonesiaSubmissionDocuments(currentDocuments, normalizedSiblingDocuments, {
+    allowCurrentApplicationTestDocuments:
+      process.env.INDONESIA_DOCUMENT_PREFLIGHT_TEST_OVERRIDE === "true",
+  });
 }
 
 function firstLocalDocumentPathMatching(

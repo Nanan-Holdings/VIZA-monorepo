@@ -1,6 +1,9 @@
 # viza-cms specific ignores
 # (Most patterns inherited from root .gitignore)
 
+# Next.js/Turbopack runtime output (including image and incremental caches)
+.next/
+
 # Migration scripts — progress and logs
 scripts/.migration-progress.json
 scripts/.env.migration

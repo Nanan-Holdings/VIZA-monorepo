@@ -265,7 +265,7 @@ export function AboutYouTab() {
                 <SectionHeading title={section.title} />
                 <motion.button
                   type="button"
-                  onClick={() => router.push("/client/about-me-form")}
+                  onClick={() => router.push("/client/universal-info")}
                   className="flex items-center gap-2 rounded-full border-2 border-[#c1785d] px-4 py-2 text-[14px] font-medium text-[#c1785d] shadow-[0_10px_30px_rgba(0,0,0,0.04)] transition-all duration-200 hover:bg-[#c1785d0d] sm:px-6 sm:py-3 sm:text-base"
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
