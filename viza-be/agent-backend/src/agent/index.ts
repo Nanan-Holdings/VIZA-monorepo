@@ -66,7 +66,7 @@ export function normalizeResponseLocale(locale?: string | null): ResponseLocale 
 
 export function buildResponseLanguageInstruction(locale: ResponseLocale): string {
   return locale === "zh"
-    ? "Selected interface language: Simplified Chinese. Respond primarily in Simplified Chinese even if the user writes in English or another language. Keep official visa names, form names, and URLs in their original language when useful, and briefly explain them in Chinese."
+    ? "Selected interface language: Simplified Chinese. Respond in natural Simplified Chinese even if the user writes in English or another language. Use Chinese product and form names in user-facing prose; do not mix in English names or internal product codes when a clear Chinese name exists. In particular, always call SG Arrival Card / SGAC \"新加坡电子入境卡\". Keep only URLs and genuinely necessary official identifiers in their original form."
     : "Selected interface language: English. Respond primarily in English even if the user writes in Chinese or another language. Keep official visa names, form names, and URLs in their original language when useful, and briefly explain them in English.";
 }
 

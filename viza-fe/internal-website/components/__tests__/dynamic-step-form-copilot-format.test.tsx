@@ -535,6 +535,32 @@ const tdacResidenceStep: WizardStep = {
   ],
 };
 
+const tdacAccommodationStep: WizardStep = {
+  stepNumber: 3,
+  stepName: "Accommodation Information",
+  fields: [
+    {
+      id: "field-transit-traveler",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      fieldName: "is_transit_traveler",
+      label: "I am a transit passenger, I don't stay in Thailand.",
+      fieldType: "checkbox",
+      required: false,
+      stepNumber: 3,
+      stepName: "Accommodation Information",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: {
+        label_zh: "我是过境旅客，不在泰国停留",
+        auto_when_arrival_departure_same_day: true,
+        locked_unless_arrival_departure_same_day: true,
+      },
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
 const documentDateConsistencyStep: WizardStep = {
   stepNumber: 3,
   stepName: "Travel Document & Identity",
@@ -1153,6 +1179,53 @@ describe("DynamicStepForm copilot format", () => {
       country_territory_of_residence: "CHN",
       city_state_of_residence: "HUNAN",
     });
+  });
+
+  it("recalculates TDAC transit status when saved cross-step dates arrive after mount", async () => {
+    vi.stubGlobal("ResizeObserver", class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    });
+    const onDraftChange = vi.fn();
+    const { rerender } = render(
+      <DynamicStepForm
+        step={tdacAccommodationStep}
+        prefill={{}}
+        onDraftChange={onDraftChange}
+        onComplete={vi.fn()}
+        visaType="TH_TDAC_ARRIVAL_CARD"
+      />,
+    );
+
+    const transitCheckbox = screen.getAllByRole("checkbox")[0]!;
+    expect(transitCheckbox).not.toBeChecked();
+
+    rerender(
+      <DynamicStepForm
+        step={tdacAccommodationStep}
+        prefill={{ arrival_date: "2026-08-08", departure_date: "2026-08-08" }}
+        onDraftChange={onDraftChange}
+        onComplete={vi.fn()}
+        visaType="TH_TDAC_ARRIVAL_CARD"
+      />,
+    );
+
+    await waitFor(() => expect(transitCheckbox).toBeChecked());
+    expect(onDraftChange).toHaveBeenLastCalledWith({ is_transit_traveler: "yes" });
+
+    rerender(
+      <DynamicStepForm
+        step={tdacAccommodationStep}
+        prefill={{ arrival_date: "2026-08-08", departure_date: "2026-08-09" }}
+        onDraftChange={onDraftChange}
+        onComplete={vi.fn()}
+        visaType="TH_TDAC_ARRIVAL_CARD"
+      />,
+    );
+
+    await waitFor(() => expect(transitCheckbox).not.toBeChecked());
+    expect(onDraftChange).toHaveBeenLastCalledWith({ is_transit_traveler: "" });
   });
 
   it("uses the server translation fallback when local sync leaves Chinese in the English field", async () => {

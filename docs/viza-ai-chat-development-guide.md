@@ -396,3 +396,22 @@ separate from visas.
 History queries must order newest-first, limit to the latest 50 rows, and then
 reverse the result before model use. The browser retains 24 recent turns only
 as a database-failure fallback.
+
+### 2026-08-04 Singapore handoff and memory reliability
+
+- Chinese VIZA responses call `SG_ARRIVAL_CARD` “新加坡电子入境卡”. The
+  product remains an arrival declaration, not a visa, and stays separate from
+  `SG_VISITOR_VISA`.
+- Once the Singapore route is explicit or destination, passport, purpose and
+  stay are known, the backend emits a locale-aware `application_redirect` CTA
+  to `/client/application?country=singapore&visaType=SG_ARRIVAL_CARD`. Chat
+  never collects the detailed declaration fields.
+- The Singapore RAG seed contains a VIZA product-capability chunk with the
+  supported product boundary and exact chat handoff URL. It must pass dry-run
+  ingestion and enter a staged knowledge release before promotion.
+- Session memory load/save uses the backend Supabase service client rather
+  than the optional direct Postgres connection. This preserves optimistic
+  `memory_revision` updates when the deployment cannot resolve the database
+  direct host, and successful saves continue to emit `visa_memory_updated`.
+- The frontend reveals streamed text at a steady character cadence and waits
+  for the reveal queue to drain before finalizing `response_complete`.

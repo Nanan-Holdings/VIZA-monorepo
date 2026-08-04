@@ -25,6 +25,7 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 - `travel-planner-form.tsx`: step form UI and structured payload emission
 - `travel-itinerary-panel.tsx`: itinerary render/export
 - `trip-route-map.tsx`: map route, markers, hover preview, map-to-form handoff
+- `trip-route-map.test.ts`: regression coverage for shared marker-anchor and hover-pointer geometry.
 
 ## Guardrails
 

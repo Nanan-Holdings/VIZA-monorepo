@@ -23,6 +23,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { type VisaFormFieldOption, type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
+import { type FieldGuidanceChatMessage } from "@/types/field-guidance";
 import {
   getChinesePlaceholder,
   getEnglishPlaceholder,
@@ -2479,6 +2480,9 @@ export function DynamicStepForm({
   const locale = useLocale();
   const isChineseInterface = isChineseLocale(locale);
   const [activeGuidanceKey, setActiveGuidanceKey] = useState<string | null>(null);
+  const [guidanceConversations, setGuidanceConversations] = useState<
+    Record<string, FieldGuidanceChatMessage[]>
+  >({});
   const formContentRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
   const previousContentHeightRef = useRef(0);
@@ -3262,6 +3266,25 @@ export function DynamicStepForm({
       }
     }
 
+    // TDAC arrival/departure dates live on the preceding trip step. When the
+    // user navigates immediately, this accommodation step can mount before
+    // that step's draft finishes saving. Once the full prefill catches up,
+    // copy the two cross-step inputs so transit status is recalculated here.
+    if (visaType === "TH_TDAC_ARRIVAL_CARD") {
+      const currentStepFieldNames = new Set(step.fields.map((field) => field.fieldName));
+      for (const fieldName of ["arrival_date", "departure_date"] as const) {
+        const prefillValue = prefill[fieldName]?.trim();
+        if (
+          !currentStepFieldNames.has(fieldName) &&
+          prefillValue !== undefined &&
+          nextValues[fieldName] !== prefillValue
+        ) {
+          nextValues[fieldName] = prefillValue;
+          valuesChanged = true;
+        }
+      }
+    }
+
     const normalizedStepValues = normalizeTdacStepValues(step.fields, nextValues, visaType);
     const normalizedNextValues = isVnPrearrivalStep
       ? restoreVnPrearrivalHotelHierarchy(normalizedStepValues)
@@ -3975,6 +3998,13 @@ export function DynamicStepForm({
               field={guidanceField}
               answer={values[valueKey] ?? ""}
               allAnswers={values}
+              initialConversation={guidanceConversations[valueKey]}
+              onConversationChange={(messages) => {
+                setGuidanceConversations((current) => ({
+                  ...current,
+                  [valueKey]: messages,
+                }));
+              }}
               onClose={() => setActiveGuidanceKey(null)}
             />
           </div>

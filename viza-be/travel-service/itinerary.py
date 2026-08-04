@@ -1,14 +1,29 @@
+import asyncio
 import json
 import os
 import re
 from pathlib import Path
-from openai import OpenAI
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
 
 api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
-client = OpenAI(api_key=api_key) if api_key else None
+try:
+    OPENAI_TIMEOUT_SECONDS = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "45"))
+except (TypeError, ValueError):
+    OPENAI_TIMEOUT_SECONDS = 45.0
+if OPENAI_TIMEOUT_SECONDS <= 0:
+    OPENAI_TIMEOUT_SECONDS = 45.0
+client = (
+    AsyncOpenAI(
+        api_key=api_key,
+        timeout=OPENAI_TIMEOUT_SECONDS,
+        max_retries=0,
+    )
+    if api_key
+    else None
+)
 
 
 CITY_ALIASES = {
@@ -1155,7 +1170,7 @@ def _openai_revision_unavailable(reason, current):
     )
 
 
-def revise_itinerary(request):
+async def revise_itinerary(request):
     state = request.get("state") if isinstance(request.get("state"), dict) else {}
     current_itinerary = request.get("current_itinerary")
     prompt_text = str(request.get("user_prompt") or "").strip()
@@ -1216,21 +1231,24 @@ reply 字段必须是自然中文纯文本，不能包含 Markdown 标题、列�
 """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.2,
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "你是严格的 JSON schema 输出器。只能输出一个 JSON object。"
-                        "reply 字段必须是给用户看的中文纯文本，不能包含 Markdown、代码块或 JSON。"
-                        "不要把局部修改扩散到未被用户提到的城市、酒店、航班或天数。"
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0.2,
+                response_format={"type": "json_object"},
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "你是严格的 JSON schema 输出器。只能输出一个 JSON object。"
+                            "reply 字段必须是给用户看的中文纯文本，不能包含 Markdown、代码块或 JSON。"
+                            "不要把局部修改扩散到未被用户提到的城市、酒店、航班或天数。"
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+            ),
+            timeout=OPENAI_TIMEOUT_SECONDS,
         )
         text = response.choices[0].message.content
     except Exception as exc:
@@ -1329,7 +1347,7 @@ def _format_attached_files(state):
     return "\n".join(lines) if lines else "无"
 
 
-def generate_itinerary(state):
+async def generate_itinerary(state):
     if client is None:
         print("OPENAI_API_KEY 未配置，使用 fallback itinerary。")
         return _fallback_itinerary(state)
@@ -1424,24 +1442,27 @@ def generate_itinerary(state):
 """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.4,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "你只输出 JSON 数组，不要 Markdown 或代码块。所有景点必须是具体地名，"
-                        "不能使用泛泛的旅行活动描述。"
-                        + (
-                            " All user-facing itinerary text must be English."
-                            if is_english
-                            else ""
-                        )
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0.4,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "你只输出 JSON 数组，不要 Markdown 或代码块。所有景点必须是具体地名，"
+                            "不能使用泛泛的旅行活动描述。"
+                            + (
+                                " All user-facing itinerary text must be English."
+                                if is_english
+                                else ""
+                            )
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+            ),
+            timeout=OPENAI_TIMEOUT_SECONDS,
         )
         text = response.choices[0].message.content
     except Exception as exc:

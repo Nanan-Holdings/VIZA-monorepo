@@ -1,12 +1,16 @@
+import asyncio
 import os
 from datetime import date
 
-import httpx
+from typing import Any
+
+from tools.http_client import REQUEST_TIMEOUT, request_json
 
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_BOOKING_HOST", "booking-com15.p.rapidapi.com").strip()
 RAPIDAPI_BASE_URL = os.getenv("RAPIDAPI_BOOKING_BASE_URL", f"https://{RAPIDAPI_HOST}").strip().rstrip("/")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "").strip()
-REQUEST_TIMEOUT = httpx.Timeout(20.0)
+# Kept as a module-level alias for callers that imported the old timeout name.
+RAPIDAPI_TIMEOUT = REQUEST_TIMEOUT
 
 
 def _headers():
@@ -19,30 +23,23 @@ def _headers():
     }
 
 
-def _request_json(path: str, params: dict):
+async def _request_json(path: str, params: dict[str, Any]):
     headers = _headers()
     if not headers:
         return None
 
-    try:
-        response = httpx.get(
-            f"{RAPIDAPI_BASE_URL}{path}",
-            params=params,
-            headers=headers,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        return response.json()
-    except Exception as exc:
-        print(f"RapidAPI flight request failed ({path}):", exc)
-        return None
+    return await request_json(
+        f"{RAPIDAPI_BASE_URL}{path}",
+        params=params,
+        headers=headers,
+    )
 
 
-def _resolve_destination_id(query: str):
+async def _resolve_destination_id(query: str):
     if not query:
         return None
 
-    payload = _request_json("/api/v1/flights/searchDestination", {"query": query})
+    payload = await _request_json("/api/v1/flights/searchDestination", {"query": query})
     if not payload or payload.get("status") is not True:
         return None
 
@@ -207,7 +204,7 @@ def _airport_label(airport_obj):
     return None
 
 
-def search_flights(
+async def search_flights(
     origin_city,
     destination_city,
     departure_date=None,
@@ -221,12 +218,14 @@ def search_flights(
     departure_date = departure_date or date.today().isoformat()
     adults = max(int(adults or 1), 1)
 
-    from_id = _resolve_destination_id(origin_city)
-    to_id = _resolve_destination_id(destination_city)
+    from_id, to_id = await asyncio.gather(
+        _resolve_destination_id(origin_city),
+        _resolve_destination_id(destination_city),
+    )
     if not from_id or not to_id:
         return _fallback_flights(origin_city, destination_city, departure_date)
 
-    payload = _request_json(
+    payload = await _request_json(
         "/api/v1/flights/searchFlights",
         {
             "fromId": from_id,

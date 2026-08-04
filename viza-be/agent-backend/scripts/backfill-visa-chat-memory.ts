@@ -14,6 +14,8 @@ if (!url || !key) throw new Error('Missing Supabase credentials');
 const supabase = createClient(url, key, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
+const repairIncomplete = process.argv.includes('--repair-incomplete');
+const dryRun = process.argv.includes('--dry-run');
 
 const {
   createEmptyVisaConversationState,
@@ -30,6 +32,7 @@ async function main(): Promise<void> {
   if (error) throw new Error(error.message);
 
   let updated = 0;
+  let skipped = 0;
   for (const session of sessions ?? []) {
     const row = session as {
       id: string;
@@ -37,11 +40,13 @@ async function main(): Promise<void> {
       memory_json: unknown;
       memory_revision: number | string | null;
     };
-    if (
+    const hasExistingMemory = Boolean(
       row.memory_json &&
       typeof row.memory_json === 'object' &&
       Object.keys(row.memory_json as object).length > 0
-    ) {
+    );
+    if (hasExistingMemory && !repairIncomplete) {
+      skipped += 1;
       continue;
     }
 
@@ -88,20 +93,46 @@ async function main(): Promise<void> {
       });
     }
 
+    if (hasExistingMemory && repairIncomplete) {
+      const existing = normalizeVisaConversationState(
+        row.memory_json as Partial<typeof state>
+      );
+      const memoryScore = (value: typeof state): number =>
+        Number(Boolean(value.passportCountryIso3 || value.nationality)) +
+        Number(Boolean(value.residenceCountry)) +
+        Number(Boolean(value.destinationCountries.length || value.mainDestination)) +
+        Number(Boolean(value.tripPurpose)) +
+        Number(Boolean(value.stayLengthDays)) +
+        Number(Boolean(value.firstEntryCountry)) +
+        Object.keys(value.schengenDaySplit).length;
+      if (memoryScore(state) <= memoryScore(existing)) {
+        skipped += 1;
+        continue;
+      }
+    }
+
     const revision = Number(row.memory_revision ?? 0) + 1;
+    if (dryRun) {
+      updated += 1;
+      continue;
+    }
+    const now = new Date().toISOString();
     const { error: updateError } = await supabase
       .from('visa_chat_sessions')
       .update({
         memory_json: state,
         memory_revision: revision,
-        memory_updated_at: new Date().toISOString(),
+        memory_updated_at: now,
+        updated_at: now,
       })
       .eq('id', row.id)
       .eq('memory_revision', Number(row.memory_revision ?? 0));
     if (updateError) throw new Error(updateError.message);
     updated += 1;
   }
-  console.log(`Backfilled ${updated} visa chat sessions`);
+  console.log(
+    `${dryRun ? 'Would backfill' : 'Backfilled'} ${updated} visa chat sessions; skipped ${skipped}`
+  );
 }
 
 await main();

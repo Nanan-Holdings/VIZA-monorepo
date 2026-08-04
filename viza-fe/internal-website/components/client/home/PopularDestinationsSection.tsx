@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -27,6 +27,25 @@ import type { DestinationApplicationProgress } from "@/lib/client/application-pr
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 export type { DestinationApplicationProgress };
+
+const DESTINATION_SELECTION_UI_TIMEOUT_MS = 5_000;
+
+async function withUiDeadline<T>(operation: Promise<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error("destination_selection_timeout")),
+          DESTINATION_SELECTION_UI_TIMEOUT_MS
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -56,7 +75,7 @@ export function PopularDestinationsSection({
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const isPending = pendingDestinationId !== null;
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const searchResults = normalizedSearch
     ? SEARCHABLE_VISA_DESTINATIONS.filter((destination) =>
@@ -80,13 +99,18 @@ export function PopularDestinationsSection({
 
     setPendingDestinationId(destination.id);
     router.push(href);
-    startTransition(async () => {
-      const result = await selectUserVisaDestination(destination.id);
-      if (!result.success) {
-        setSelectionError(result.error ?? t("selectError"));
+    void (async () => {
+      try {
+        const result = await withUiDeadline(selectUserVisaDestination(destination.id));
+        if (!result.success) {
+          setSelectionError(result.error ?? t("selectError"));
+        }
+      } catch {
+        setSelectionError(t("selectError"));
+      } finally {
         setPendingDestinationId(null);
       }
-    });
+    })();
   }
 
   function renderDestinationCard(destination: PopularVisaDestination) {
@@ -150,7 +174,7 @@ export function PopularDestinationsSection({
         onMouseEnter={() => {
           if (applicationHref) router.prefetch(applicationHref);
         }}
-        disabled={loading || !launched}
+        disabled={isPending || !launched}
         title={launched ? undefined : t("comingSoon")}
         aria-disabled={!launched}
         className={[
@@ -158,7 +182,11 @@ export function PopularDestinationsSection({
           highlighted
             ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
             : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
-          !launched ? "cursor-not-allowed opacity-50" : loading ? "cursor-wait opacity-80" : "cursor-pointer",
+          !launched || (isPending && !loading)
+            ? "cursor-not-allowed opacity-50"
+            : loading
+              ? "cursor-wait opacity-80"
+              : "cursor-pointer",
         ].join(" ")}
       >
         <div className="flex items-start justify-between gap-3">

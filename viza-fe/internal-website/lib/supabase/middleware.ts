@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAdminEmailAllowed } from "@/lib/admin-access";
 import { normalizeSupabaseEnvValue } from "./env";
+import { createFetchWithTimeout } from "./fetch-with-timeout";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -18,6 +19,9 @@ export async function updateSession(request: NextRequest) {
       "NEXT_PUBLIC_SUPABASE_ANON_KEY"
     ),
     {
+      global: {
+        fetch: createFetchWithTimeout(2_500),
+      },
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -37,14 +41,6 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // IMPORTANT: Avoid writing any logic between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const pathname = request.nextUrl.pathname;
 
   // Note: /client routes are handled by separate JWT session middleware
@@ -54,26 +50,31 @@ export async function updateSession(request: NextRequest) {
   const isAdminLogin = pathname === "/admin/login";
   const isProtectedPath = pathname.startsWith("/admin") && !isAdminLogin;
 
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const userId = typeof claims?.sub === "string" ? claims.sub : null;
+  const userEmail = typeof claims?.email === "string" ? claims.email : null;
+
   // Protect authenticated routes - redirect to login if not authenticated
-  if (!user && isProtectedPath) {
+  if (!userId && isProtectedPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/login";
     return NextResponse.redirect(url);
   }
 
   // Role-based routing for authenticated users
-  if (user) {
+  if (userId) {
     // Fetch user role from database
     const { data: userData } = await supabase
       .from("users")
       .select("role")
-      .eq("id", user.id)
+      .eq("id", userId)
       .is("deleted_at", null)
       .single();
 
     const userRole = userData?.role;
     const hasAdminAccess =
-      userRole === "admin" && isAdminEmailAllowed(user.email);
+      userRole === "admin" && isAdminEmailAllowed(userEmail);
 
     // Block users with no role in the `users` table from accessing any protected path.
     if (!userRole && isProtectedPath) {
