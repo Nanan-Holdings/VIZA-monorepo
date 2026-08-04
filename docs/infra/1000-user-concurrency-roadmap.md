@@ -33,6 +33,35 @@ contains the database indexes, uniqueness constraints, and atomic RPCs. It was
 applied to production on 2026-08-04; compatible code fallbacks remain in place
 for degraded database connectivity.
 
+## Zero-cost optimizations completed
+
+The following changes require no paid plan or additional service:
+
+- Removed the Home dashboard's per-user, whole-table Realtime subscription;
+  Home now refreshes only on initial load or when a visible tab returns with
+  data older than 30 seconds.
+- Deduplicated overlapping Home loads and reduced its database critical path by
+  running independent profile/application and document/payment reads in
+  parallel.
+- Removed the navbar's eager application-lifecycle read, which previously ran
+  Auth plus up to six database queries on every client route change.
+- Narrowed Next.js proxy matching to authenticated client/admin/auth routes, so
+  public pages and unrelated APIs do not invoke authentication middleware.
+- Removed duplicate Auth reads from the status and help pages and skipped the
+  package lookup when an application URL already contains an explicit visa
+  type.
+- Paused polling in background tabs, stopped completed payment/account polling,
+  replaced overlapping intervals with completion-based timers, added request
+  deadlines/backoff, and guaranteed destination-button pending state cleanup.
+- Reused one OpenAI client per backend replica, disabled hidden SDK retries,
+  added a streaming deadline and disconnect cancellation, and bounded active
+  and queued Socket.IO chat turns with per-connection duplicate suppression.
+
+These changes reduce request amplification and protect latency fairness. They
+do not change the Free-plan hard quotas of Supabase Realtime, database compute,
+or third-party AI APIs; exceeding a provider quota will still require reducing
+feature demand or changing capacity later.
+
 ## Observed topology risks
 
 The observed services are geographically split: Vercel functions were served

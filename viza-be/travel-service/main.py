@@ -245,7 +245,17 @@ def _build_flight_legs(data: TravelRequest):
         else:
             prior_cities = cities[:index]
 
-        departure_day = _departure_date_for_leg(start_date, city_days, prior_cities)
+        if index == len(route) - 2:
+            # A four-day trip starting on Oct 4 returns on Oct 7, not Oct 8.
+            # City-day totals are inclusive of the departure day.
+            total_trip_days = data.travel_days or sum(city_days.values())
+            departure_day = (
+                start_date + timedelta(days=max(total_trip_days - 1, 0))
+            ).isoformat()
+        else:
+            departure_day = _departure_date_for_leg(
+                start_date, city_days, prior_cities
+            )
 
         legs.append(
             {
@@ -269,8 +279,15 @@ def _build_hotel_stays(data: TravelRequest):
     stays = []
     elapsed_days = 0
 
-    for city in cities:
-        nights = city_days.get(city, 1)
+    for index, city in enumerate(cities):
+        city_day_count = city_days.get(city, 1)
+        # The final itinerary day is the departure/return day, so it must not
+        # create an extra hotel night. Earlier city segments still keep their
+        # full night count because the traveller moves on the following day.
+        nights = city_day_count - 1 if index == len(cities) - 1 else city_day_count
+        if nights <= 0:
+            elapsed_days += city_day_count
+            continue
         check_in = (start_date + timedelta(days=elapsed_days)).isoformat()
         check_out = (start_date + timedelta(days=elapsed_days + nights)).isoformat()
         stays.append(
@@ -282,7 +299,7 @@ def _build_hotel_stays(data: TravelRequest):
                 "adults": data.travelers,
             }
         )
-        elapsed_days += nights
+        elapsed_days += city_day_count
 
     return stays
 

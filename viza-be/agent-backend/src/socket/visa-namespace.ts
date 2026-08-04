@@ -43,8 +43,27 @@ import {
   buildVisaEntryRulePrompt,
   resolveVisaEntryRule,
 } from '../services/visa-entry-rule.service.js';
+import { ChatCapacityError, ChatConcurrencyGate } from './chat-concurrency.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
+
+function boundedPositiveInteger(name: string, fallback: number, max: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
+}
+
+let chatConcurrencyGate: ChatConcurrencyGate | null = null;
+
+function getChatConcurrencyGate(): ChatConcurrencyGate {
+  if (!chatConcurrencyGate) {
+    chatConcurrencyGate = new ChatConcurrencyGate(
+      boundedPositiveInteger('VISA_CHAT_MAX_CONCURRENCY', 16, 100),
+      boundedPositiveInteger('VISA_CHAT_MAX_QUEUE', 64, 1_000),
+      boundedPositiveInteger('VISA_CHAT_QUEUE_TIMEOUT_MS', 8_000, 60_000)
+    );
+  }
+  return chatConcurrencyGate;
+}
 
 async function saveVisibleVisaChatMessage(
   sessionId: string,
@@ -908,6 +927,8 @@ async function emitAndSaveApplicationBlock(
  */
 export function registerVisaNamespace(nsp: Namespace): void {
   nsp.on('connection', (socket: Socket) => {
+    let chatRequestInFlight = false;
+
     logger.info('Client connected to /visa', {
       socketId: socket.id,
       transport: socket.conn.transport.name,
@@ -922,6 +943,26 @@ export function registerVisaNamespace(nsp: Namespace): void {
     // ---- visa_chat_message --------------------------------------------------
     socket.on('visa_chat_message', async (request: VisaChatRequest) => {
       const { user_id, session_id, message } = request;
+      const responseLocale = normalizeResponseLocale(request.locale);
+
+      if (chatRequestInFlight) {
+        socket.emit('error', {
+          type: 'error',
+          message:
+            responseLocale === 'zh'
+              ? '上一条消息仍在处理中，请稍候。'
+              : 'Your previous message is still being processed. Please wait.',
+          code: 'CHAT_IN_PROGRESS',
+          timestamp: Date.now(),
+        });
+        return;
+      }
+
+      chatRequestInFlight = true;
+      const requestController = new AbortController();
+      const abortOnDisconnect = () => requestController.abort();
+      socket.once('disconnect', abortOnDisconnect);
+      let releaseCapacity: (() => void) | null = null;
 
       logger.info('Received visa_chat_message', {
         userId: user_id,
@@ -933,6 +974,8 @@ export function registerVisaNamespace(nsp: Namespace): void {
       const startTime = Date.now();
 
       try {
+        releaseCapacity = await getChatConcurrencyGate().acquire(requestController.signal);
+
         // 1. Save user message to DB (non-fatal)
         try {
           await saveVisibleVisaChatMessage(session_id, 'user', message);
@@ -1127,7 +1170,6 @@ export function registerVisaNamespace(nsp: Namespace): void {
               matchCount: 5,
             });
         const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
-        const responseLocale = normalizeResponseLocale(request.locale);
         const entryRulePrompt =
           entryRule ||
           knowledgeIntent === 'eligibility' ||
@@ -1303,9 +1345,31 @@ export function registerVisaNamespace(nsp: Namespace): void {
               });
             },
           },
-          dynamicSystemPrompt
+          dynamicSystemPrompt,
+          requestController.signal
         );
       } catch (err) {
+        if (err instanceof ChatCapacityError) {
+          if (err.code !== 'ABORTED') {
+            socket.emit('error', {
+              type: 'error',
+              message:
+                responseLocale === 'zh'
+                  ? '当前咨询人数较多，请稍后再试。'
+                  : 'The assistant is busy right now. Please try again shortly.',
+              code: 'CHAT_BUSY',
+              timestamp: Date.now(),
+            });
+          }
+          logger.warn('Visa chat request rejected by concurrency gate', undefined, {
+            userId: user_id,
+            sessionId: session_id,
+            reason: err.code,
+            ...getChatConcurrencyGate().getStats(),
+          });
+          return;
+        }
+
         logger.error('Error handling visa_chat_message', err as Error, {
           userId: user_id,
           sessionId: session_id,
@@ -1317,6 +1381,10 @@ export function registerVisaNamespace(nsp: Namespace): void {
           code: 'AGENT_ERROR',
           timestamp: Date.now(),
         });
+      } finally {
+        releaseCapacity?.();
+        chatRequestInFlight = false;
+        socket.off('disconnect', abortOnDisconnect);
       }
     });
 

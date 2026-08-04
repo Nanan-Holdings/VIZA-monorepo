@@ -161,12 +161,30 @@ export function VnResultCard({
   }, [jobId, result.manualAction]);
 
   useEffect(() => {
-    if (!applicationId || !isPaymentCheckpoint) return;
+    if (!applicationId || !isPaymentCheckpoint || paymentPaid) return;
     let cancelled = false;
+    let timer: number | undefined;
+    let controller: AbortController | null = null;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void loadPaymentStatus(), delayMs);
+    };
+
     const loadPaymentStatus = async () => {
+      if (cancelled) return;
+      if (document.visibilityState !== "visible") {
+        schedule(15_000);
+        return;
+      }
+
+      controller = new AbortController();
+      const deadline = window.setTimeout(() => controller?.abort(), 5_000);
       try {
         const response = await fetch(`/api/applications/${applicationId}/official-fee/status`, {
           cache: "no-store",
+          signal: controller.signal,
         });
         const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
         if (!response.ok) {
@@ -186,14 +204,24 @@ export function VnResultCard({
         }
       } catch (error) {
         if (!cancelled) setPaymentError(error instanceof Error ? error.message : String(error));
+      } finally {
+        window.clearTimeout(deadline);
+        controller = null;
+        schedule(5_000);
       }
     };
 
+    const pollWhenVisible = () => {
+      if (document.visibilityState === "visible") schedule(0);
+    };
+
     void loadPaymentStatus();
-    const timer = window.setInterval(loadPaymentStatus, paymentPaid ? 15000 : 5000);
+    document.addEventListener("visibilitychange", pollWhenVisible);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      controller?.abort();
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", pollWhenVisible);
     };
   }, [applicationId, isPaymentCheckpoint, paymentPaid]);
 

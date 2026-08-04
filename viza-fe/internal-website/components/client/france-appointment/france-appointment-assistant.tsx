@@ -310,10 +310,39 @@ export function FranceAppointmentAssistant({
 
   useEffect(() => {
     if (!job || TERMINAL_STATUSES.has(job.status)) return undefined;
-    const timer = window.setInterval(() => {
-      void getFranceAppointmentStatus(applicationId).then(setSnapshot).catch(() => undefined);
-    }, 7000);
-    return () => window.clearInterval(timer);
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void poll(), delayMs);
+    };
+    const poll = async () => {
+      if (document.visibilityState !== "visible") {
+        schedule(30_000);
+        return;
+      }
+      try {
+        const next = await getFranceAppointmentStatus(applicationId);
+        if (!cancelled) setSnapshot(next);
+      } catch {
+        // Keep the last persisted snapshot and retry with the normal cadence.
+      } finally {
+        schedule(7_000);
+      }
+    };
+    const pollWhenVisible = () => {
+      if (document.visibilityState === "visible") schedule(0);
+    };
+
+    schedule(7_000);
+    document.addEventListener("visibilitychange", pollWhenVisible);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", pollWhenVisible);
+    };
   }, [applicationId, job]);
 
   const runAction = async (

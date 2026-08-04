@@ -271,6 +271,8 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const latestLoadRequestId = useRef(0);
+  const dashboardLoadInFlightRef = useRef(false);
+  const lastDashboardLoadAtRef = useRef(0);
 
   // Handle magic link auth callback
   useEffect(() => {
@@ -385,6 +387,8 @@ export default function HomePage() {
       showLoading?: boolean;
       retryOnAbort?: boolean;
     } = {}) => {
+      if (dashboardLoadInFlightRef.current) return;
+      dashboardLoadInFlightRef.current = true;
       const requestId = latestLoadRequestId.current + 1;
       latestLoadRequestId.current = requestId;
       const isLatestRequest = () => latestLoadRequestId.current === requestId;
@@ -394,6 +398,7 @@ export default function HomePage() {
 
       try {
         const dashboard = await getClientHomeDashboardData();
+        lastDashboardLoadAtRef.current = Date.now();
         if (!dashboard.authenticated) {
           if (showLoading && isLatestRequest()) setIsLoading(false);
           return;
@@ -518,6 +523,7 @@ export default function HomePage() {
         console.error("Failed to load client home dashboard", loadError);
         setError(t("dashboardError"));
       } finally {
+        dashboardLoadInFlightRef.current = false;
         if (showLoading && isLatestRequest() && !keepLoadingForRetry)
           setIsLoading(false);
       }
@@ -527,34 +533,19 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!authChecked) return;
-    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-    const supabase = createClient();
-
-    const scheduleRefresh = () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => {
-        void fetchData({ showLoading: false });
-      }, 350);
+    const refreshIfStale = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastDashboardLoadAtRef.current < 30_000) return;
+      void fetchData({ showLoading: false });
     };
 
     void fetchData();
-    const channel = supabase
-      .channel("home-activity-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "applications" },
-        scheduleRefresh
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "application_documents" },
-        scheduleRefresh
-      )
-      .subscribe();
+    window.addEventListener("focus", refreshIfStale);
+    document.addEventListener("visibilitychange", refreshIfStale);
 
     return () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      void supabase.removeChannel(channel);
+      window.removeEventListener("focus", refreshIfStale);
+      document.removeEventListener("visibilitychange", refreshIfStale);
     };
   }, [authChecked, fetchData]);
 

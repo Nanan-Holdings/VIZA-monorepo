@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+// eslint-disable-next-line no-restricted-imports -- Server Component: user auth is verified before the service-role read is scoped to that user's applicant profile.
 import { withAdmin } from "@/lib/auth/with-admin";
 import { loadAllHelpArticles, type LoadedArticle } from "@/lib/help";
 import { HelpClient } from "./help-client";
@@ -12,17 +13,12 @@ interface ApplicationLite {
   visa_type: string;
 }
 
-async function loadApplicantApplications(): Promise<ApplicationLite[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+async function loadApplicantApplications(authUserId: string): Promise<ApplicationLite[]> {
   return withAdmin("system", "client/help/articles:apps", async (admin) => {
     const { data: profile } = await admin
       .from("applicant_profiles")
       .select("id")
-      .eq("auth_user_id", user.id)
+      .eq("auth_user_id", authUserId)
       .maybeSingle();
     if (!profile) return [];
     const { data } = await admin
@@ -41,7 +37,7 @@ export default async function HelpArticlesPage() {
   if (!user) redirect("/client/login");
 
   const articles: LoadedArticle[] = loadAllHelpArticles();
-  const applications = await loadApplicantApplications();
+  const applications = await loadApplicantApplications(user.id);
   const activeKeys = new Set(
     applications.map((a) => `${a.country}|${a.visa_type}`),
   );
