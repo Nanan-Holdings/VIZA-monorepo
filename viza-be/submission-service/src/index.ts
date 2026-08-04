@@ -122,6 +122,7 @@ import {
   shouldPersistVietnamProgressStage,
   type VietnamProgressStage,
 } from "./vietnam/progress";
+import { nextVietnamQueueAttemptCount } from "./vietnam/retry-policy";
 import {
   fillVisitor600Application,
   NationalityIneligibleError,
@@ -4324,6 +4325,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   const finalScreenshotPath = captureScreenshot ? path.join(diagnosticsDir, "final.png") : undefined;
   const now = new Date().toISOString();
   const currentVnProgressStage = { value: "starting" as string | null };
+  let consumedOneTimeCardAuthorization = false;
 
   await updateVnQueueRow(
     item.id,
@@ -4396,6 +4398,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       }
     }
     const queueAuthorizedOneTimeCard = Boolean(oneTimeFixedCard);
+    consumedOneTimeCardAuthorization = queueAuthorizedOneTimeCard;
     if (queueAuthorizedOneTimeCard) {
       officialFeeFallbackAuthorized = true;
       console.log(
@@ -4639,7 +4642,12 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       result.checkpoint === "white_screen" ||
       result.checkpoint === "network_blocked" ||
       result.checkpoint === "portal_error";
-    const newAttempts = officialPortalFailure ? MAX_ATTEMPTS : item.attempts + 1;
+    const newAttempts = nextVietnamQueueAttemptCount({
+      currentAttempts: item.attempts,
+      officialPortalFailure,
+      consumedOneTimeCardAuthorization,
+      maxAttempts: MAX_ATTEMPTS,
+    });
     const newStatus = newAttempts >= MAX_ATTEMPTS
       ? (liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed")
       : retryPendingStatus;
@@ -4654,10 +4662,14 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         official_status: "official_portal_error",
         error_code: errorCode,
         error_message: errorMsg,
+        ...(consumedOneTimeCardAuthorization ? { payment_status: "failed" } : {}),
         current_stage: result.checkpoint ?? "failed",
         official_portal_url: result.url,
         official_trace_url: tracePath ?? null,
         heartbeat_at: failedAt,
+        ...(newStatus === retryPendingStatus
+          ? { locked_by: null, locked_until: null }
+          : {}),
         updated_at: failedAt,
       },
       {
@@ -4674,7 +4686,12 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     console.error(`[vn] Run ${runId} failed at ${result.failedStep}: ${errorMsg}`);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    const newAttempts = item.attempts + 1;
+    const newAttempts = nextVietnamQueueAttemptCount({
+      currentAttempts: item.attempts,
+      officialPortalFailure: false,
+      consumedOneTimeCardAuthorization,
+      maxAttempts: MAX_ATTEMPTS,
+    });
     const newStatus = newAttempts >= MAX_ATTEMPTS
       ? (liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed")
       : retryPendingStatus;
@@ -4688,9 +4705,13 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         official_status: "official_portal_error",
         error_code: "vietnam_unhandled_error",
         error_message: errorMsg,
+        ...(consumedOneTimeCardAuthorization ? { payment_status: "failed" } : {}),
         current_stage: "failed",
         official_trace_url: tracePath ?? null,
         heartbeat_at: failedAt,
+        ...(newStatus === retryPendingStatus
+          ? { locked_by: null, locked_until: null }
+          : {}),
         updated_at: failedAt,
       },
       {
