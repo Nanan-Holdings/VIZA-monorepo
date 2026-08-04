@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -22,6 +22,24 @@ import {
 } from "@/lib/visa-destinations";
 
 const ALL_REGIONS = "__all__";
+const DESTINATION_SELECTION_UI_TIMEOUT_MS = 5_000;
+
+async function selectWithDeadline(destinationId: string) {
+  let timeout: number | undefined;
+  try {
+    return await Promise.race([
+      selectUserVisaDestination(destinationId),
+      new Promise<never>((_, reject) => {
+        timeout = window.setTimeout(
+          () => reject(new Error("destination_selection_timeout")),
+          DESTINATION_SELECTION_UI_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) window.clearTimeout(timeout);
+  }
+}
 
 function matchesGroup(group: VisaDestinationCountryGroup, query: string): boolean {
   if (!query) return true;
@@ -40,7 +58,6 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
   const [region, setRegion] = useState<string>(ALL_REGIONS);
   const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
 
   const started = useMemo(() => new Set(startedKeys), [startedKeys]);
 
@@ -53,6 +70,7 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
   }, [query, region]);
 
   function handleSelect(destinationItem: PopularVisaDestination) {
+    if (pendingDestinationId) return;
     setSelectionError(null);
 
     // Group entries (Schengen) drill into their own picker before a form exists.
@@ -68,13 +86,16 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
         visaType: destinationItem.visaType,
       }),
     );
-    startTransition(async () => {
-      const result = await selectUserVisaDestination(destinationItem.id);
-      if (!result.success) {
-        setSelectionError(result.error ?? t("selectError"));
+    void (async () => {
+      try {
+        const result = await selectWithDeadline(destinationItem.id);
+        if (!result.success) setSelectionError(result.error ?? t("selectError"));
+      } catch {
+        setSelectionError(t("selectError"));
+      } finally {
         setPendingDestinationId(null);
       }
-    });
+    })();
   }
 
   return (
@@ -163,7 +184,7 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
                     started.has(
                       getVisaDestinationKey(destinationItem.country, destinationItem.visaType),
                     );
-                  const loading = isPending && pendingDestinationId === destinationItem.id;
+                  const loading = pendingDestinationId === destinationItem.id;
 
                   return (
                     <button

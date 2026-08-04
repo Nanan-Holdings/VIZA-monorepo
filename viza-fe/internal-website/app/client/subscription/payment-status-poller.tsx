@@ -20,24 +20,62 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
 
   useEffect(() => {
     let cancelled = false;
+    let inFlight = false;
+    let timer: number | undefined;
+    let currentController: AbortController | null = null;
+    let consecutiveFailures = 0;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void poll(), delayMs);
+    };
 
     async function poll() {
+      if (cancelled || inFlight) return;
+      if (document.visibilityState !== "visible") {
+        schedule(15_000);
+        return;
+      }
+
+      inFlight = true;
+      const controller = new AbortController();
+      currentController = controller;
+      const timeout = window.setTimeout(() => controller.abort(), 5_000);
       try {
         const response = await fetch(`/api/payments/status/${paymentId}`, {
           cache: "no-store",
+          signal: controller.signal,
         });
+        if (!response.ok) throw new Error(`Payment status failed: ${response.status}`);
         const payload = (await response.json()) as { status?: PollStatus };
-        if (!cancelled && payload.status) setStatus(payload.status);
+        if (cancelled) return;
+        consecutiveFailures = 0;
+        if (payload.status) setStatus(payload.status);
+        if (!payload.status || payload.status === "pending") schedule(3_000);
       } catch {
-        if (!cancelled) setStatus("pending");
+        if (cancelled) return;
+        setStatus("pending");
+        consecutiveFailures += 1;
+        schedule(Math.min(3_000 * 2 ** consecutiveFailures, 30_000));
+      } finally {
+        window.clearTimeout(timeout);
+        if (currentController === controller) currentController = null;
+        inFlight = false;
       }
     }
 
-    poll();
-    const timer = window.setInterval(poll, 3000);
+    const pollWhenVisible = () => {
+      if (document.visibilityState === "visible") schedule(0);
+    };
+
+    void poll();
+    document.addEventListener("visibilitychange", pollWhenVisible);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      currentController?.abort();
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", pollWhenVisible);
     };
   }, [paymentId]);
 

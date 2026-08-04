@@ -17,11 +17,17 @@ export function OfficialStatusAutoPoller({
   useEffect(() => {
     if (!enabled || !applicationId) return;
     const refreshTimer = window.setInterval(() => {
-      router.refresh();
+      if (document.visibilityState === "visible") router.refresh();
     }, pageRefreshMs);
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
       window.clearInterval(refreshTimer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [applicationId, enabled, pageRefreshMs, router]);
 

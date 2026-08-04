@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
@@ -21,6 +21,25 @@ import {
   type UserVisaPackage,
 } from "@/app/actions/user-package";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
+
+const DESTINATION_SELECTION_UI_TIMEOUT_MS = 5_000;
+
+async function selectWithDeadline(destinationId: string) {
+  let timeout: number | undefined;
+  try {
+    return await Promise.race([
+      selectUserVisaDestination(destinationId),
+      new Promise<never>((_, reject) => {
+        timeout = window.setTimeout(
+          () => reject(new Error("destination_selection_timeout")),
+          DESTINATION_SELECTION_UI_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) window.clearTimeout(timeout);
+  }
+}
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -63,7 +82,6 @@ export function DestinationRegionPageClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
 
   const filteredDestinations = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -72,6 +90,7 @@ export function DestinationRegionPageClient({
   }, [destinations, searchQuery]);
 
   function handleSelect(destination: PopularVisaDestination) {
+    if (pendingDestinationId) return;
     setSelectionError(null);
 
     if (destination.kind === "group" && destination.href) {
@@ -86,19 +105,18 @@ export function DestinationRegionPageClient({
 
     setPendingDestinationId(destination.id);
     router.push(href);
-    startTransition(async () => {
+    void (async () => {
       try {
-        const result = await selectUserVisaDestination(destination.id);
+        const result = await selectWithDeadline(destination.id);
         if (!result.success) {
           setSelectionError(result.error ?? (isZh ? "暂时无法选择该目的地，请重试。" : "Could not select this destination. Please try again."));
-          setPendingDestinationId(null);
-          return;
         }
       } catch {
-        setSelectionError(isZh ? "服务器响应异常，请刷新页面后重试。" : "The server returned an unexpected response. Refresh the page and try again.");
+        setSelectionError(isZh ? "服务器响应较慢，请稍后重试。" : "The server is taking too long. Please try again shortly.");
+      } finally {
         setPendingDestinationId(null);
       }
-    });
+    })();
   }
 
   return (
@@ -144,7 +162,7 @@ export function DestinationRegionPageClient({
           <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
             {filteredDestinations.map((destination) => {
               const selected = isSelectedDestination(destination, initialSelectedPackages);
-              const loading = isPending && pendingDestinationId === destination.id;
+              const loading = pendingDestinationId === destination.id;
               const isGroup = destination.kind === "group";
               const applicationHref = isGroup
                 ? null

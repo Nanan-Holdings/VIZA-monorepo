@@ -1698,13 +1698,18 @@ export default function ApplicationPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const packagePromise = getUserVisaPackage().catch((error) => {
-      attemptStaleServerActionReload(error);
-      return null;
-    });
-    void packagePromise.then((pkg) => {
-      if (!cancelled && pkg) setVisaPackage(pkg);
-    });
+    const packagePromise: Promise<UserVisaPackage | null> =
+      explicitVisaType || isExplicitStatusView
+        ? Promise.resolve(null)
+        : getUserVisaPackage().catch((error) => {
+            attemptStaleServerActionReload(error);
+            return null;
+          });
+    if (!explicitVisaType && !isExplicitStatusView) {
+      void packagePromise.then((pkg) => {
+        if (!cancelled && pkg) setVisaPackage(pkg);
+      });
+    }
 
     // A persisted submission/payment status view does not need the complete
     // form schema. Loading that schema can be slow (or temporarily unavailable)

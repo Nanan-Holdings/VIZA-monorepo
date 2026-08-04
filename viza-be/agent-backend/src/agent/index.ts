@@ -4,8 +4,27 @@ import { getSupabaseClient } from "../db/supabase-client.js";
 
 const logger = new Logger({ serviceName: "VisaAgent" });
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini";
+function positiveIntegerEnv(name: string, fallback: number, max: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
+}
+
+let cachedOpenAIClient: OpenAI | null = null;
+let cachedOpenAIKey: string | null = null;
+
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || apiKey === 'your_openai_api_key_here') return null;
+  if (cachedOpenAIClient && cachedOpenAIKey === apiKey) return cachedOpenAIClient;
+
+  cachedOpenAIKey = apiKey;
+  cachedOpenAIClient = new OpenAI({
+    apiKey,
+    maxRetries: 0,
+    timeout: positiveIntegerEnv('OPENAI_REQUEST_TIMEOUT_MS', 60_000, 120_000),
+  });
+  return cachedOpenAIClient;
+}
 
 export const BASE_SYSTEM_PROMPT = `You are VIZA, a friendly and knowledgeable AI assistant that helps people understand and prepare visa applications for supported destinations. You are not limited to Indonesia.
 
@@ -311,12 +330,11 @@ interface ChatMessage {
 export async function streamChat(
   messages: ChatMessage[],
   callbacks: StreamCallbacks,
-  systemPrompt?: string
+  systemPrompt?: string,
+  signal?: AbortSignal
 ): Promise<void> {
-  if (
-    !OPENAI_API_KEY ||
-    OPENAI_API_KEY === "your_openai_api_key_here"
-  ) {
+  const client = getOpenAIClient();
+  if (!client) {
     const fallback =
       "I'm sorry, the AI service is not configured yet. Please contact support.";
     callbacks.onToken(fallback);
@@ -324,18 +342,24 @@ export async function streamChat(
     return;
   }
 
-  const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+  const controller = new AbortController();
+  const abortFromCaller = () => controller.abort(signal?.reason);
+  signal?.addEventListener('abort', abortFromCaller, { once: true });
+  const streamDeadline = setTimeout(
+    () => controller.abort(new Error('OpenAI stream deadline exceeded')),
+    positiveIntegerEnv('OPENAI_STREAM_DEADLINE_MS', 75_000, 180_000)
+  );
 
   try {
     const stream = await client.chat.completions.create({
-      model: OPENAI_CHAT_MODEL,
+      model: process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini",
       max_tokens: 1024,
       stream: true,
       messages: [
         { role: "system", content: systemPrompt ?? BASE_SYSTEM_PROMPT },
         ...messages,
       ],
-    });
+    }, { signal: controller.signal });
 
     let fullResponse = "";
     const toolsUsed: string[] = [];
@@ -351,5 +375,8 @@ export async function streamChat(
   } catch (err) {
     logger.error("Streaming error", err as Error);
     callbacks.onError(err as Error);
+  } finally {
+    clearTimeout(streamDeadline);
+    signal?.removeEventListener('abort', abortFromCaller);
   }
 }
