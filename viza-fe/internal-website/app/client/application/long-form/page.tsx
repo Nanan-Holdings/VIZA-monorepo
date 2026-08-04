@@ -3691,7 +3691,7 @@ export default function ApplicationPage() {
                             <div className="flex flex-col gap-6">
                               <DynamicReviewStep
                                 applicationId={appState.applicationId}
-                                dynamicAnswers={dynamicAnswers}
+                                dynamicAnswers={dynamicAnswerSnapshot}
                                 dbSteps={dbSteps}
                                 photoPath={appState.photo}
                                 onEdit={(stepIdx) => scrollToStepPanel(stepIdx)}

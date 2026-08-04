@@ -1,6 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { visaChatMessages, visaChatSessions } from '../db/schema.js';
+import { getSupabaseClient } from '../db/supabase-client.js';
 import {
   COUNTRY_DISPLAY_NAMES,
   detectKnowledgeCountriesInOrder,
@@ -733,6 +731,23 @@ export function updateVisaConversationState(
     };
   }
 
+  const currentMessageFields: Array<keyof VisaConversationStatePatch> = [
+    'destinationCountries',
+    'mainDestination',
+    'residenceCountry',
+    'tripPurpose',
+    'stayLengthDays',
+    'schengenDaySplit',
+    'firstEntryCountry',
+  ];
+  const nextFieldSources = { ...merged.fieldSources };
+  for (const field of currentMessageFields) {
+    if (directPatch[field] !== undefined || compactPatch[field] !== undefined) {
+      nextFieldSources[field] = 'current_message';
+    }
+  }
+  merged.fieldSources = nextFieldSources;
+
   merged.mainDestination = resolveMainDestination(merged);
   merged.recommendedVisaType = shouldUseVisitorRoute(merged)
     ? getDefaultVisitorVisaType(merged.mainDestination)
@@ -802,38 +817,38 @@ export interface PersistedVisaConversationState {
 export async function loadVisaConversationState(
   sessionId: string
 ): Promise<PersistedVisaConversationState> {
-  const sessions = await db
-    .select({
-      memoryJson: visaChatSessions.memoryJson,
-      memoryRevision: visaChatSessions.memoryRevision,
-    })
-    .from(visaChatSessions)
-    .where(eq(visaChatSessions.id, sessionId))
-    .limit(1);
-  const session = sessions[0];
-  const memory = session?.memoryJson as Partial<VisaConversationState> | undefined;
+  const supabase = getSupabaseClient();
+  const { data: session, error: sessionError } = await supabase
+    .from('visa_chat_sessions')
+    .select('memory_json, memory_revision')
+    .eq('id', sessionId)
+    .maybeSingle();
+  if (sessionError) throw sessionError;
+
+  const memory = session?.memory_json as Partial<VisaConversationState> | undefined;
   if (memory && Object.keys(memory).length > 0) {
     return {
       state: normalizeVisaConversationState(memory),
-      revision: Number(session.memoryRevision ?? 0),
+      revision: Number(session?.memory_revision ?? 0),
     };
   }
 
-  const rows = await db
-    .select({ content: visaChatMessages.content })
-    .from(visaChatMessages)
-    .where(eq(visaChatMessages.sessionId, sessionId))
-    .orderBy(desc(visaChatMessages.createdAt))
+  const { data: rows, error: messagesError } = await supabase
+    .from('visa_chat_messages')
+    .select('content')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: false })
     .limit(120);
+  if (messagesError) throw messagesError;
 
-  const latest = rows
+  const latest = (rows ?? [])
     .map((row) => parseVisaConversationStateMarker(row.content))
     .filter((state): state is VisaConversationState => state !== null)
     .at(0);
 
   return {
     state: latest ?? createEmptyVisaConversationState(),
-    revision: Number(session?.memoryRevision ?? 0),
+    revision: Number(session?.memory_revision ?? 0),
   };
 }
 
@@ -842,25 +857,25 @@ export async function saveVisaConversationState(
   state: VisaConversationState,
   expectedRevision: number
 ): Promise<number> {
+  const supabase = getSupabaseClient();
   const nextRevision = expectedRevision + 1;
-  const updated = await db
-    .update(visaChatSessions)
-    .set({
-      memoryJson: normalizeVisaConversationState(state),
-      memoryRevision: nextRevision,
-      memoryUpdatedAt: new Date(),
-      updatedAt: new Date(),
+  const now = new Date().toISOString();
+  const { data: updated, error } = await supabase
+    .from('visa_chat_sessions')
+    .update({
+      memory_json: normalizeVisaConversationState(state),
+      memory_revision: nextRevision,
+      memory_updated_at: now,
+      updated_at: now,
     })
-    .where(
-      and(
-        eq(visaChatSessions.id, sessionId),
-        eq(visaChatSessions.memoryRevision, expectedRevision)
-      )
-    )
-    .returning({ revision: visaChatSessions.memoryRevision });
+    .eq('id', sessionId)
+    .eq('memory_revision', expectedRevision)
+    .select('memory_revision')
+    .maybeSingle();
+  if (error) throw error;
 
-  if (!updated[0]) {
+  if (!updated) {
     throw new Error('VISA_MEMORY_REVISION_CONFLICT');
   }
-  return Number(updated[0].revision);
+  return Number(updated.memory_revision);
 }

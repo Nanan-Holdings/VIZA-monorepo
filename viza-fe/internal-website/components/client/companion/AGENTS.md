@@ -13,6 +13,8 @@ connection state, block rendering, and scroll controls.
 - `chat-input.tsx`: composer and send interaction.
 - `chat-message.tsx`: user/assistant message rendering and plain-text handling.
 - `block-message.tsx`: application redirect/action payload rendering.
+- `__tests__/block-message.test.tsx`: Chinese localization and exact redirect
+  contract for persisted Singapore electronic arrival-card CTA payloads.
 - `session-sidebar.tsx` and `continuous-sidebar.tsx`: chat/session navigation.
 - `connection-status.tsx`: socket status display.
 - `thinking-indicator.tsx`, `scroll-to-bottom-fab.tsx`, date/history boundary

@@ -29,26 +29,6 @@ class SupabaseAuthUnavailableError extends Error {
   }
 }
 
-function withSupabaseTimeout<T>(operation: Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new SupabaseAuthUnavailableError()),
-      SUPABASE_AUTH_TIMEOUT_MS
-    );
-
-    operation.then(
-      (value) => {
-        clearTimeout(timeout);
-        resolve(value);
-      },
-      (error: unknown) => {
-        clearTimeout(timeout);
-        reject(error);
-      }
-    );
-  });
-}
-
 function isSupabaseUnavailable(error: unknown): boolean {
   if (error instanceof SupabaseAuthUnavailableError) return true;
   if (!(error instanceof Error)) return false;
@@ -90,15 +70,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabase = await createClient();
+    const supabase = await createClient({
+      requestTimeoutMs: SUPABASE_AUTH_TIMEOUT_MS,
+    });
 
     if (operation === "password") {
       const password = readString(payload.password);
       if (!password) return jsonError("Please enter a password");
 
-      const { error } = await withSupabaseTimeout(
-        supabase.auth.signInWithPassword({ email, password })
-      );
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       return error
         ? isSupabaseUnavailable(error)
           ? providerUnavailableResponse()
@@ -107,12 +87,10 @@ export async function POST(request: Request) {
     }
 
     if (operation === "send_otp") {
-      const { error } = await withSupabaseTimeout(
-        supabase.auth.signInWithOtp({
-          email,
-          options: { shouldCreateUser: false },
-        })
-      );
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      });
       return error
         ? isSupabaseUnavailable(error)
           ? providerUnavailableResponse()
@@ -124,9 +102,7 @@ export async function POST(request: Request) {
       const token = readString(payload.token);
       if (!/^\d{6,8}$/.test(token)) return jsonError("Please enter a valid verification code");
 
-      const { error } = await withSupabaseTimeout(
-        supabase.auth.verifyOtp({ email, token, type: "email" })
-      );
+      const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
       return error
         ? isSupabaseUnavailable(error)
           ? providerUnavailableResponse()

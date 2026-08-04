@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { runFaceMatch, type FaceMatchActionResult } from "@/app/actions/face-match";
 import type { VisaFormFieldRow } from "@/types/visa-form-fields";
+import type { FieldGuidanceChatMessage } from "@/types/field-guidance";
 import {
   loadDocumentCenterData,
   type ApplicationDocument,
@@ -712,6 +713,9 @@ function RequirementRow({
 
   const hasRejectedDocument = isRejectedStatus(document?.status ?? "");
   const [guidanceOpen, setGuidanceOpen] = useState(false);
+  const [guidanceConversation, setGuidanceConversation] = useState<
+    FieldGuidanceChatMessage[]
+  >([]);
   const guidanceField: VisaFormFieldRow = {
     id: `document-${requirement.key}`,
     visaType,
@@ -761,6 +765,8 @@ function RequirementRow({
                   field={guidanceField}
                   answer={document?.filename ?? ""}
                   allAnswers={{ [requirement.key]: document?.filename ?? "" }}
+                  initialConversation={guidanceConversation}
+                  onConversationChange={setGuidanceConversation}
                   onClose={() => setGuidanceOpen(false)}
                 />
               </div>

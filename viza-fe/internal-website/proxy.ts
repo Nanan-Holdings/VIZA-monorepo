@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import { getImpersonationSessionFromRequest } from "@/lib/impersonation-session";
 import { normalizeSupabaseEnvValue } from "@/lib/supabase/env";
+import { createFetchWithTimeout } from "@/lib/supabase/fetch-with-timeout";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -50,8 +51,13 @@ export async function proxy(request: NextRequest) {
     return handleClientRoutes(request, pathname);
   }
 
-  // For all other routes, use Supabase auth middleware
-  return await updateSession(request);
+  // Public pages do not need an auth network round-trip. Admin is the only
+  // remaining route family protected by the Supabase admin middleware.
+  if (pathname.startsWith("/admin")) {
+    return await updateSession(request);
+  }
+
+  return NextResponse.next();
 }
 
 /**
@@ -120,6 +126,9 @@ async function getSupabaseUserSession(request: NextRequest): Promise<{
         "NEXT_PUBLIC_SUPABASE_ANON_KEY"
       ),
       {
+        global: {
+          fetch: createFetchWithTimeout(2_500),
+        },
         cookies: {
           getAll() {
             return request.cookies.getAll();
@@ -136,20 +145,18 @@ async function getSupabaseUserSession(request: NextRequest): Promise<{
       }
     );
 
-    const { data: { user } } = await Promise.race([
-      supabase.auth.getUser(),
-      new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("supabase_session_timeout")), 2_500);
-      }),
-    ]);
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const claims = claimsData?.claims;
 
-    if (!user || !user.email) {
+    const userId = typeof claims?.sub === "string" ? claims.sub : null;
+    const email = typeof claims?.email === "string" ? claims.email : null;
+    if (!userId || !email) {
       return null;
     }
 
     return {
-      userId: user.id,
-      email: user.email,
+      userId,
+      email,
     };
   } catch {
     return null;

@@ -225,6 +225,7 @@ function explainGenericOption(
 }
 
 function buildOptionExplanations(request: FieldGuidanceRequest): FieldGuidanceOptionExplanation[] {
+  if (!request.question?.trim()) return [];
   if (!["select", "radio", "multi_select", "checkbox"].includes(request.field.fieldType)) return [];
   const options = normalizeOptions(request.field.options, getLocale(request));
   if (options.length === 0) return [];
@@ -234,6 +235,30 @@ function buildOptionExplanations(request: FieldGuidanceRequest): FieldGuidanceOp
     label: option.text || option.value,
     description: explainKnownOption(request, option) ?? explainGenericOption(request, option),
   }));
+}
+
+function withoutDropdownExamples(
+  request: FieldGuidanceRequest,
+  response: FieldGuidanceResponse,
+): FieldGuidanceResponse {
+  if (!["select", "multi_select", "country"].includes(request.field.fieldType)) {
+    return response;
+  }
+
+  return {
+    ...response,
+    guidance: {
+      ...response.guidance,
+      examples: [],
+    },
+  };
+}
+
+function finalizeGuidance(
+  request: FieldGuidanceRequest,
+  response: FieldGuidanceResponse,
+): FieldGuidanceResponse {
+  return withoutDropdownExamples(request, withOptionExplanations(request, response));
 }
 
 function withOptionExplanations(
@@ -343,14 +368,13 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
   const label = resolveLocalizedFieldLabel(normalized, locale) || field.fieldName || (locale === "zh" ? "当前字段" : "this field");
   const fieldName = field.fieldName.toLowerCase();
   const fieldType = field.fieldType;
-  const options = normalizeOptions(field.options, locale);
-  const selectedExamples = options.slice(0, 3).map((option) => option.text || option.value);
   const answer = request.answer?.trim() ?? "";
   const isMissingRequired = Boolean(field.required && !answer);
+  const isDropdown = ["select", "multi_select", "country"].includes(fieldType);
 
   const examples =
-    selectedExamples.length > 0
-      ? selectedExamples
+    isDropdown
+      ? []
       : isPassportIssuingAuthorityField(request)
         ? locale === "zh"
           ? [
@@ -404,9 +428,13 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
           ? locale === "zh"
             ? "请按护照资料页上的 Authority/签发机关原文填写，不要根据领取城市或办理城市推断。"
             : "Copy the Authority or issuing authority exactly as printed on the passport biodata page; do not infer it from the pickup or application city."
-        : locale === "zh"
-          ? "AI 暂时不可用，以下是本地填写规则。请先按当前字段、官方选项和证件信息填写。"
-          : "AI guidance is temporarily unavailable, so VIZA is showing local rule-based guidance for this field.",
+        : isDropdown
+          ? locale === "zh"
+            ? "请根据题目要求和你的官方材料，从下拉列表提供的选项中选择。"
+            : "Choose from the provided dropdown options according to the field and your official documents."
+          : locale === "zh"
+            ? "请按当前字段含义填写，并确保答案与官方证件、支持材料和其他答案一致。"
+            : "Answer according to the field meaning and keep it consistent with official documents and related answers.",
       examples,
       optionExplanations: buildOptionExplanations(request),
       hints: [
@@ -534,6 +562,10 @@ function buildDirectOpenAiPrompt(request: FieldGuidanceRequest, base: FieldGuida
     .slice(0, 12)
     .map(([key, value]) => `${key}: ${value}`)
     .join("\n");
+  const conversationHistory = (request.history ?? [])
+    .slice(-8)
+    .map((message) => `${message.role}: ${message.content.slice(0, 800)}`)
+    .join("\n");
 
   return [
     `Locale: ${locale}`,
@@ -544,6 +576,7 @@ function buildDirectOpenAiPrompt(request: FieldGuidanceRequest, base: FieldGuida
     `Required: ${request.field.required ? "yes" : "no"}`,
     `Current value: ${currentValue}`,
     relatedAnswers ? `Related filled answers:\n${relatedAnswers}` : "Related filled answers: none",
+    conversationHistory ? `Conversation history:\n${conversationHistory}` : "Conversation history: none",
     options ? `Official options:\n${options}` : "Official options: none",
     `Local rules to consider:\n${JSON.stringify(localRules)}`,
     isStandardIdentityField(request)
@@ -661,7 +694,7 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
       cached: false,
     };
 
-    return sanitizeChineseResponse(request, withOptionExplanations(request, guidance));
+    return sanitizeChineseResponse(request, finalizeGuidance(request, guidance));
   } catch {
     return null;
   } finally {
@@ -727,7 +760,7 @@ async function forwardToBackend(requestBody: FieldGuidanceRequest): Promise<Fiel
 
     const payload = (await response.json()) as FieldGuidanceResponse;
     if (payload.reply) payload.reply = stripMarkdown(payload.reply);
-    return sanitizeChineseResponse(requestBody, withOptionExplanations(requestBody, payload));
+    return sanitizeChineseResponse(requestBody, finalizeGuidance(requestBody, payload));
   } finally {
     clearTimeout(timeout);
   }
@@ -748,10 +781,17 @@ export async function POST(request: Request) {
 
   requestBody = normalizeGuidanceRequest(requestBody);
 
+  if (!requestBody.question?.trim()) {
+    return Response.json(finalizeGuidance(
+      requestBody,
+      makeFallbackGuidance(requestBody, "local field guidance"),
+    ));
+  }
+
   try {
     const guidance = await forwardToBackend(requestBody);
     if (guidance.aiUsed) {
-      return Response.json(withOptionExplanations(requestBody, guidance));
+      return Response.json(finalizeGuidance(requestBody, guidance));
     }
 
     const directGuidance = await generateDirectOpenAiGuidance(requestBody);
@@ -759,7 +799,7 @@ export async function POST(request: Request) {
       return Response.json(directGuidance);
     }
 
-    return Response.json(withOptionExplanations(requestBody, guidance));
+    return Response.json(finalizeGuidance(requestBody, guidance));
   } catch (error) {
     const directGuidance = await generateDirectOpenAiGuidance(requestBody);
     if (directGuidance) {
@@ -767,6 +807,6 @@ export async function POST(request: Request) {
     }
 
     const reason = error instanceof Error ? error.message : "AI guidance service unavailable.";
-    return Response.json(withOptionExplanations(requestBody, makeFallbackGuidance(requestBody, reason)));
+    return Response.json(finalizeGuidance(requestBody, makeFallbackGuidance(requestBody, reason)));
   }
 }

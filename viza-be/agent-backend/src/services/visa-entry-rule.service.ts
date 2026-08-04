@@ -173,7 +173,10 @@ export async function resolveVisaEntryRule(
   return resolveReviewedVisaEntryRule(query);
 }
 
-export function buildVisaEntryRulePrompt(rule: VisaEntryRule | null): string {
+export function buildVisaEntryRulePrompt(
+  rule: VisaEntryRule | null,
+  locale: 'en' | 'zh' = 'en'
+): string {
   if (!rule) {
     return [
       'Deterministic entry-rule result: unknown.',
@@ -186,9 +189,13 @@ export function buildVisaEntryRulePrompt(rule: VisaEntryRule | null): string {
     rule.ruleKey === SINGAPORE_CHINA_ORDINARY_RULE.ruleKey &&
     rule.outcome === 'visa_exempt'
   ) {
+    const policyLead =
+      locale === 'zh'
+        ? '持中国普通护照以旅游目的赴新加坡，按当前规则可免签停留不超过30天；仍须在抵达新加坡前3天内（含抵达当天）提交新加坡电子入境卡。新加坡电子入境卡是独立的入境申报，不是签证。'
+        : 'PRC ordinary-passport holders travelling to Singapore for tourism are visa-exempt for stays of up to 30 days under the current rule. They must still submit the SG Arrival Card within the 3 days before arriving in Singapore, including the arrival day. The SG Arrival Card is a separate entry declaration, not a visa.';
     return [
       'MANDATORY POLICY LEAD (copy exactly as the first paragraph):',
-      '持中国普通护照以旅游目的赴新加坡，按当前规则可免签停留不超过30天；仍须在抵达新加坡前3天内（含抵达当天）提交SG Arrival Card。SGAC是独立的入境申报，不是签证。',
+      policyLead,
       `Official source: ${rule.sourceUrl}`,
       'Never route this traveller to SG_VISITOR_VISA.',
     ].join('\n');

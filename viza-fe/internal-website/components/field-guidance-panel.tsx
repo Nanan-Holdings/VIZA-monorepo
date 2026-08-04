@@ -43,7 +43,152 @@ interface FieldGuidancePanelProps {
   field: VisaFormFieldRow;
   answer: string;
   allAnswers: Record<string, string>;
+  initialConversation?: FieldGuidanceChatMessage[];
+  onConversationChange?: (messages: FieldGuidanceChatMessage[]) => void;
   onClose: () => void;
+}
+
+const DROPDOWN_FIELD_TYPES = new Set<VisaFormFieldRow["fieldType"]>([
+  "select",
+  "multi_select",
+  "country",
+]);
+
+function includesAny(value: string, candidates: readonly string[]): boolean {
+  return candidates.some((candidate) => value.includes(candidate));
+}
+
+function isPhotoField(field: VisaFormFieldRow): boolean {
+  const searchText = `${field.fieldName} ${field.label} ${field.stepName ?? ""}`.toLowerCase();
+  return field.fieldType === "file" && includesAny(searchText, [
+    "photo",
+    "photograph",
+    "portrait",
+    "照片",
+    "证件照",
+  ]);
+}
+
+function isPassportAuthorityField(field: VisaFormFieldRow): boolean {
+  const searchText = `${field.fieldName} ${field.label}`.toLowerCase();
+  return includesAny(searchText, [
+    "issuing_authority",
+    "issuing authority",
+    "签发机关",
+  ]);
+}
+
+function getLocalExamples(field: VisaFormFieldRow, isZh: boolean): string[] {
+  if (DROPDOWN_FIELD_TYPES.has(field.fieldType)) return [];
+
+  const searchText = `${field.fieldName} ${field.label}`.toLowerCase();
+  if (isPhotoField(field)) {
+    return [isZh ? "近期、清晰、正面、背景纯净的证件照" : "A recent, clear, front-facing photo with a plain background"];
+  }
+  if (isPassportAuthorityField(field)) {
+    return [
+      "National Immigration Administration, PRC",
+      "MPS Exit & Entry Administration",
+    ];
+  }
+  if (field.fieldType === "date" || searchText.includes("date") || searchText.includes("日期")) {
+    return [isZh ? "护照日期：09 MAR 1996 → 09/03/1996" : "Passport date: 09 MAR 1996 → 09/03/1996"];
+  }
+  if (includesAny(searchText, ["surname", "family name", "姓氏"])) {
+    return [isZh ? "护照姓氏：LI → LI" : "Passport surname: LI → LI"];
+  }
+  if (includesAny(searchText, ["given", "first name", "名字"])) {
+    return [isZh ? "护照名字：XIAOMING → XIAOMING" : "Passport given name: XIAOMING → XIAOMING"];
+  }
+  if (includesAny(searchText, ["passport_number", "passport number", "document number", "证件号码", "护照号码"])) {
+    return [isZh ? "护照号码：EM7429107 → EM7429107" : "Passport number: EM7429107 → EM7429107"];
+  }
+  if (includesAny(searchText, ["email", "e-mail", "邮箱"])) {
+    return ["name@example.com"];
+  }
+  if (includesAny(searchText, ["phone", "telephone", "mobile", "电话", "手机号"])) {
+    return ["+86 138 0000 0000"];
+  }
+  if (includesAny(searchText, ["address", "street", "地址"])) {
+    return [isZh ? "官方文件地址：12 Example Road, Beijing, China" : "Official-document address: 12 Example Road, Beijing, China"];
+  }
+  if (field.fieldType === "textarea") {
+    return [
+      isZh
+        ? "请简要说明与材料一致的日期、地点和相关人员。"
+        : "Briefly explain the dates, places, and people consistently with your documents.",
+    ];
+  }
+  return [
+    isZh
+      ? "请按护照、身份证明或官方文件上的原文填写。"
+      : "Use the wording exactly as shown on your passport or official document.",
+  ];
+}
+
+function buildLocalGuidance(
+  field: VisaFormFieldRow,
+  answer: string,
+  isZh: boolean,
+): FieldGuidanceResponse {
+  const isDropdown = DROPDOWN_FIELD_TYPES.has(field.fieldType);
+  const summary = isPhotoField(field)
+    ? isZh
+      ? "请按当前目的地的官方照片规格上传清晰、完整且未经不当修改的照片。"
+      : "Upload a clear, complete image that follows the destination's official photo requirements."
+    : isPassportAuthorityField(field)
+      ? isZh
+        ? "请按护照资料页上的 Authority/签发机关原文填写，不要根据领取或办理城市推断。"
+        : "Copy the Authority exactly as printed on the passport biodata page; do not infer it from the pickup or application city."
+      : isDropdown
+        ? isZh
+          ? "请根据题目要求和你的官方材料，从下拉列表提供的选项中选择。"
+          : "Choose from the provided dropdown options according to the field and your official documents."
+        : isZh
+          ? "请按题目含义填写，并确保答案与护照、官方材料及其他表格答案一致。"
+          : "Answer according to the field meaning and keep it consistent with official documents and related answers.";
+
+  const formatHint = isDropdown
+    ? isZh
+      ? "请从官方下拉选项中选择，不要自行改写选项名称。"
+      : "Choose an official dropdown option instead of rewriting its label."
+    : field.fieldType === "date"
+      ? isZh
+        ? "请核对日、月、年顺序，并使用页面日期选择器。"
+        : "Check the day, month, and year order and use the date picker."
+      : isZh
+        ? "如证件已有英文或罗马化拼写，请以证件原文为准。"
+        : "Use the English or romanized spelling printed on the document when available.";
+
+  return {
+    guidance: {
+      title: isZh ? `${field.label}填写帮助` : `${field.label} guidance`,
+      summary,
+      examples: getLocalExamples(field, isZh),
+      optionExplanations: [],
+      hints: [
+        field.required
+          ? isZh ? "此项为必填项。" : "This field is required."
+          : isZh ? "请仅在适用于你的情况下填写。" : "Complete this only when it applies to you.",
+      ],
+      officialWarnings: [
+        isZh
+          ? "本地提示只用于辅助填写；最终请以官方表单和证件信息为准。"
+          : "This local guidance is only a filling aid; follow the official form and documents.",
+      ],
+      formatHints: [formatHint],
+    },
+    validation: {
+      severity: field.required && !answer.trim() ? "warning" : "ok",
+      messages: field.required && !answer.trim()
+        ? [isZh ? "这是必填项，请填写后再继续。" : "This required field still needs an answer."]
+        : [],
+    },
+    sources: [],
+    confidence: "medium",
+    aiUsed: false,
+    cached: true,
+  };
 }
 
 function makeMessageId(prefix: string): string {
@@ -258,17 +403,31 @@ export function FieldGuidancePanel({
   field,
   answer,
   allAnswers,
+  initialConversation = [],
+  onConversationChange,
   onClose,
 }: FieldGuidancePanelProps) {
-  const [data, setData] = useState<FieldGuidanceResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const [data, setData] = useState<FieldGuidanceResponse>(() =>
+    buildLocalGuidance(field, answer, isZh),
+  );
   const [error, setError] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() =>
+    initialConversation.map((message) => ({
+      ...message,
+      id: makeMessageId(message.role),
+    })),
+  );
   const [questionLoading, setQuestionLoading] = useState(false);
   const askInputRef = useRef<HTMLTextAreaElement>(null);
+  const failedRequestRef = useRef<{
+    question: string;
+    history: FieldGuidanceChatMessage[];
+  } | null>(null);
+  const onConversationChangeRef = useRef(onConversationChange);
+  onConversationChangeRef.current = onConversationChange;
 
-  const isZh = locale.toLowerCase().startsWith("zh");
   const labels = useMemo(
     () => ({
       eyebrow: isZh ? "字段填写帮助" : "Field guidance",
@@ -285,25 +444,22 @@ export function FieldGuidancePanel({
     [isZh],
   );
   // The popover re-renders on every scroll/reposition, which hands us fresh
-  // `field`/`allAnswers` object identities. Read them through a ref so the
-  // fetch callback stays stable and the panel only loads once per field.
+  // `field`/`allAnswers` object identities. Read them through a ref so a
+  // follow-up always uses the latest field state without recreating callbacks.
   const requestRef = useRef({ visaType, country, locale, field, answer, allAnswers });
   requestRef.current = { visaType, country, locale, field, answer, allAnswers };
 
   const fetchGuidance = useCallback(
-    async (nextQuestion?: string, history?: FieldGuidanceChatMessage[]) => {
-      if (nextQuestion) {
-        setQuestionLoading(true);
-        setData((current) => current ? { ...current, reply: undefined } : current);
-      } else {
-        setLoading(true);
-      }
+    async (nextQuestion: string, history: FieldGuidanceChatMessage[]) => {
+      setQuestionLoading(true);
+      setData((current) => ({ ...current, reply: undefined }));
       setError(null);
+      failedRequestRef.current = null;
 
       const requestBody: FieldGuidanceRequest = {
         ...requestRef.current,
         question: nextQuestion,
-        history: history && history.length > 0 ? history : undefined,
+        history: history.length > 0 ? history : undefined,
       };
 
       try {
@@ -316,19 +472,17 @@ export function FieldGuidancePanel({
         if (!res.ok) throw new Error(`Guidance service returned ${res.status}`);
         const nextData = (await res.json()) as FieldGuidanceResponse;
         setData(nextData);
-        if (nextQuestion) {
-          const reply = nextData.reply?.trim();
-          if (reply) {
-            setMessages((current) => [
-              ...current,
-              { id: makeMessageId("assistant"), role: "assistant", content: reply },
-            ]);
-          }
+        const reply = nextData.reply?.trim();
+        if (reply) {
+          setMessages((current) => [
+            ...current,
+            { id: makeMessageId("assistant"), role: "assistant", content: reply },
+          ]);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load field guidance");
+        failedRequestRef.current = { question: nextQuestion, history };
       } finally {
-        setLoading(false);
         setQuestionLoading(false);
       }
     },
@@ -336,8 +490,10 @@ export function FieldGuidancePanel({
   );
 
   useEffect(() => {
-    void fetchGuidance();
-  }, [fetchGuidance, field.fieldName, visaType, country, locale]);
+    onConversationChangeRef.current?.(
+      messages.map(({ role, content }) => ({ role, content })),
+    );
+  }, [messages]);
 
   useLayoutEffect(() => {
     const input = askInputRef.current;
@@ -375,18 +531,20 @@ export function FieldGuidancePanel({
   );
 
   const examples = useMemo(
-    () => (data?.guidance.examples ?? []).slice(0, MAX_VISIBLE_EXAMPLES).map(parseExample),
-    [data?.guidance.examples],
+    () => DROPDOWN_FIELD_TYPES.has(field.fieldType)
+      ? []
+      : data.guidance.examples.slice(0, MAX_VISIBLE_EXAMPLES).map(parseExample),
+    [data.guidance.examples, field.fieldType],
   );
-  const optionExplanations = data?.guidance.optionExplanations ?? [];
+  const optionExplanations = data.guidance.optionExplanations ?? [];
   const notes = useMemo(
     () => [
-      ...(data?.guidance.formatHints ?? []).slice(0, 1),
-      ...(data?.guidance.hints ?? []).slice(0, 1),
+      ...data.guidance.formatHints.slice(0, 1),
+      ...data.guidance.hints.slice(0, 1),
     ],
-    [data?.guidance.formatHints, data?.guidance.hints],
+    [data.guidance.formatHints, data.guidance.hints],
   );
-  const warnings = (data?.guidance.officialWarnings ?? []).slice(0, 1);
+  const warnings = data.guidance.officialWarnings.slice(0, 1);
   const hasChatHistory = messages.length > 0 || questionLoading;
 
   return (
@@ -399,7 +557,7 @@ export function FieldGuidancePanel({
         <div className="min-w-0 flex-1">
           <Eyebrow>{labels.eyebrow}</Eyebrow>
           <h3 className="mt-1 break-words text-[15px] font-medium leading-tight tracking-[-0.4px] text-[#3d3d3d]">
-            {field.label || data?.guidance.title}
+            {field.label || data.guidance.title}
           </h3>
         </div>
         <button
@@ -412,20 +570,18 @@ export function FieldGuidancePanel({
         </button>
       </div>
 
-      {loading && (
-        <div className="flex items-center gap-2 px-4 py-4 text-[11px] text-black/45">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          {labels.loading}
-        </div>
-      )}
-
-      {error && !loading && (
+      {error && (
         <div className="flex items-center gap-2 px-4 py-4 text-[11px] text-black/45">
           <AlertCircle className="h-3.5 w-3.5 shrink-0 text-[#989898]" />
           <span className="min-w-0 break-words">{error}</span>
           <button
             type="button"
-            onClick={() => void fetchGuidance()}
+            onClick={() => {
+              const failedRequest = failedRequestRef.current;
+              if (failedRequest) {
+                void fetchGuidance(failedRequest.question, failedRequest.history);
+              }
+            }}
             className="ml-auto shrink-0 text-[11px] font-medium text-brand-500 underline-offset-2 hover:underline"
           >
             {labels.retry}
@@ -433,22 +589,20 @@ export function FieldGuidancePanel({
         </div>
       )}
 
-      {data && !loading && (
-        <>
-          <p className="min-w-0 text-pretty break-words px-4 py-4 text-[13px] leading-[1.5] text-[#3d3d3d]">
-            {renderAnswer(data.guidance.summary)}
-          </p>
+      <>
+        <p className="min-w-0 text-pretty break-words px-4 py-4 text-[13px] leading-[1.5] text-[#3d3d3d]">
+          {renderAnswer(data.guidance.summary)}
+        </p>
 
-          <ExampleCard caption={labels.examples} examples={examples} />
+        <ExampleCard caption={labels.examples} examples={examples} />
 
-          <OptionExplanationList
-            title={labels.optionExplanations}
-            items={optionExplanations}
-          />
+        <OptionExplanationList
+          title={labels.optionExplanations}
+          items={optionExplanations}
+        />
 
-          <NoteList notes={notes} warnings={warnings} />
-        </>
-      )}
+        <NoteList notes={notes} warnings={warnings} />
+      </>
 
       {hasChatHistory && (
         <div className="flex max-h-[224px] flex-col gap-2.5 overflow-y-auto border-t border-[#efefef] px-4 py-3">
@@ -478,7 +632,7 @@ export function FieldGuidancePanel({
               <div className="min-w-0 rounded-xl rounded-tl-sm bg-[#fafafa] px-3 py-2 text-[11px] leading-4">
                 <span className="inline-flex items-center gap-1.5 text-black/45">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  {isZh ? "正在回答..." : "Replying..."}
+                  {labels.loading}
                 </span>
               </div>
             </div>

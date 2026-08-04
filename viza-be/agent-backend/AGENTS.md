@@ -23,6 +23,7 @@ explicitly reintroduces another provider.
 - RAG retrieval: `src/services/visa-knowledge.service.ts`,
   `src/config/visa-destination-registry.ts`, and `visa_chunks`.
 - Versioned RAG publishing: `scripts/ingest-country-visa-rag.ts`,
+  `scripts/stage-visa-knowledge-supplements.ts`,
   `scripts/promote-visa-knowledge-release.ts`, and
   `visa_knowledge_releases`.
 - Conversation state: `src/services/visa-conversation-state.service.ts`.
@@ -155,6 +156,7 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `src/config/visa-destination-registry.ts`
 - `src/routes/*`
 - `scripts/ingest-country-visa-rag.ts`
+- `scripts/stage-visa-knowledge-supplements.ts`
 - `scripts/enrich-field-answer-norms-rag.ts`
 - `scripts/ingest-photo-requirements-rag.ts`
 - `scripts/import-geonames-destinations.ts`

@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "cambodia",
   "notes": "Country-level VIZA RAG seed for cambodia. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -9,7 +9,7 @@
       "visaType": "tourist_evisa",
       "documentType": "requirements",
       "title": "Cambodia Tourist eVisa",
-      "sourceUrl": "https://www.evisa.gov.kh/",
+      "sourceUrl": "https://www.cambodiaembassyuk.org/visa-cosular-services/apply-e-visa/",
       "chunks": [
         {
           "id": "khm_china_evisa_basic_route_zh",
@@ -57,7 +57,7 @@
       "visaType": "tourist_evisa",
       "documentType": "form_requirements",
       "title": "Cambodia Application Form and Document Intake Requirements",
-      "sourceUrl": "https://www.evisa.gov.kh/",
+      "sourceUrl": "https://www.cambodiaembassyuk.org/visa-cosular-services/apply-e-visa/",
       "chunks": [
         {
           "id": "cambodia_form_channel_and_scope",

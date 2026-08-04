@@ -1294,7 +1294,7 @@ function evaluateBranchTests(): BranchResult[] {
         expectEqual('English input resolves Japan', state.mainDestination, 'japan'),
         expectEqual('English input keeps Singapore residence', state.residenceCountry, 'Singapore'),
         expectEqual('English input keeps Chinese passport', state.nationality, 'China'),
-        expectEqual('Chinese UI prompt still requires Chinese answer', prompt.includes('Respond primarily in Simplified Chinese even if the user writes in English'), true),
+        expectEqual('Chinese UI prompt still requires Chinese answer', prompt.includes('Respond in natural Simplified Chinese even if the user writes in English'), true),
       ];
     }),
     branch('LONG-007', 'long_conversation_memory_branch', () => {
@@ -1456,7 +1456,7 @@ function evaluateBranchTests(): BranchResult[] {
       expectEqual('missing locale defaults to en', normalizeResponseLocale(undefined), 'en'),
       expectEqual(
         'zh instruction ignores latest user language',
-        buildResponseLanguageInstruction('zh').includes('Respond primarily in Simplified Chinese even if the user writes in English'),
+        buildResponseLanguageInstruction('zh').includes('Respond in natural Simplified Chinese even if the user writes in English'),
         true
       ),
       expectEqual(
@@ -1506,13 +1506,41 @@ function evaluateBranchTests(): BranchResult[] {
         tripPurpose: 'tourism',
         stayLengthDays: 10,
       });
-      const prompt = buildVisaEntryRulePrompt(rule);
+      const prompt = buildVisaEntryRulePrompt(rule, 'zh');
+      const englishPrompt = buildVisaEntryRulePrompt(rule, 'en');
       return [
         expectEqual('PRC ordinary passport tourism is visa exempt', rule?.outcome, 'visa_exempt'),
         expectEqual('SGAC remains a separate product', rule?.arrivalCardTypes.includes('SG_ARRIVAL_CARD'), true),
         expectEqual('visitor visa is not selected', rule?.visaType, null),
         expectEqual('arrival timing says before arrival', prompt.includes('抵达新加坡前3天内'), true),
         expectEqual('arrival timing does not say before departure', prompt.includes('出发前3天'), false),
+        expectEqual('Chinese rule uses the Chinese product name', prompt.includes('新加坡电子入境卡'), true),
+        expectEqual('Chinese rule does not leak the English product name', prompt.includes('SG Arrival Card'), false),
+        expectEqual('English rule keeps the official English product name', englishPrompt.includes('SG Arrival Card'), true),
+      ];
+    }),
+    branch('SGAC-MEMORY-REDIRECT-001', 'entry_rule_branch', () => {
+      const prior = updateVisaConversationState(null, [], '我是中国普通护照');
+      const state = updateVisaConversationState(
+        prior,
+        [{ role: 'user', content: '我是中国普通护照' }],
+        '我想去新加坡玩5天'
+      );
+      const blocks = buildApplicationRedirectBlocks(
+        state,
+        state.mainDestination,
+        state.recommendedVisaType,
+        'zh'
+      );
+      const block = blocks[0];
+      return [
+        expectEqual('compact Singapore request updates destination memory', state.mainDestination, 'singapore'),
+        expectEqual('compact Singapore request updates purpose memory', state.tripPurpose, 'tourism'),
+        expectEqual('compact Singapore request updates stay memory', state.stayLengthDays, 5),
+        expectEqual('Singapore memory preserves passport', state.passportCountryIso3, 'CHN'),
+        expectEqual('Singapore arrival-card direct route', block?.redirectUrl, '/client/application?country=singapore&visaType=SG_ARRIVAL_CARD'),
+        expectEqual('Singapore arrival-card CTA is Chinese', block?.title, '填写新加坡电子入境卡'),
+        expectEqual('Singapore arrival-card action is Chinese', block?.ctaLabel, '开始填写'),
       ];
     }),
     branch('ENTRY-RULE-MATRIX-001', 'entry_rule_branch', () => {

@@ -37,9 +37,35 @@ type TripRouteMapProps = {
   activePointId?: string | null;
   onPointSelect?: (id: string) => void;
   onAddDestination?: (point: TripMapPoint) => void;
+  /**
+   * Items that should be surfaced in the compact map strip. Items may be
+   * point ids, point-like descriptors, or full TripMapPoint objects. They are
+   * resolved against `points`, so the strip never invents destinations.
+   */
+  selectedItems?: TripMapSelectionItem[];
+  /** Convenience alias for callers that already have the selected points. */
+  selectedPoints?: TripMapPoint[];
+  /** Convenience alias for callers that only keep selected point ids. */
+  selectedPointIds?: string[];
   animateRoute?: boolean;
   className?: string;
 };
+
+export type TripMapSelectionItem =
+  | TripMapPoint
+  | string
+  | {
+      id?: string;
+      pointId?: string;
+      city?: string;
+      label?: string;
+      name?: string;
+      kind?: TripMapPoint["kind"] | "attraction";
+      type?: TripMapPoint["kind"] | "attraction";
+    };
+
+/** Backwards-compatible singular name for map integrations. */
+export type TripMapSelectedItem = TripMapSelectionItem;
 
 type GoogleLatLngLiteral = {
   lat: number;
@@ -108,21 +134,6 @@ type GoogleMapInstance = {
   addListener: (eventName: string, handler: () => void) => GoogleMarkerListener;
 };
 
-type GoogleInfoWindowInstance = {
-  setContent: (content: string) => void;
-  setOptions: (options: {
-    disableAutoPan?: boolean;
-    maxWidth?: number;
-    pixelOffset?: unknown;
-  }) => void;
-  open: (options: {
-    map: GoogleMapInstance;
-    anchor?: GoogleMarkerInstance;
-    shouldFocus?: boolean;
-  }) => void;
-  close: () => void;
-};
-
 type GoogleLatLngBoundsInstance = {
   extend: (point: GoogleLatLngLiteral) => void;
 };
@@ -179,10 +190,6 @@ type GoogleMapsNamespace = {
     optimized?: boolean;
     zIndex?: number;
   }) => GoogleMarkerInstance;
-  InfoWindow: new (options?: {
-    content?: string;
-    disableAutoPan?: boolean;
-  }) => GoogleInfoWindowInstance;
   Polyline: new (options: {
     path: GoogleLatLngLiteral[];
     map?: GoogleMapInstance | null;
@@ -1077,15 +1084,146 @@ function toScreenPixel(
   };
 }
 
+function getSelectionItemDescriptor(
+  item: TripMapSelectionItem
+): {
+  id?: string;
+  city?: string;
+  label?: string;
+  kind?: TripMapPoint["kind"] | "attraction";
+} {
+  if (typeof item === "string") return { id: item };
+  return {
+    id: "pointId" in item ? item.pointId ?? item.id : item.id,
+    city: item.city,
+    label: "name" in item ? item.name ?? item.label : item.label,
+    kind: "type" in item ? item.type ?? item.kind : item.kind,
+  };
+}
+
+function resolveSelectedMapPoints(
+  points: TripMapPoint[],
+  selectedItems: TripMapSelectionItem[] | undefined,
+  selectedPoints: TripMapPoint[] | undefined,
+  selectedPointIds: string[] | undefined
+): TripMapPoint[] {
+  const requests: TripMapSelectionItem[] = [
+    ...(selectedItems ?? []),
+    ...(selectedPoints ?? []),
+    ...(selectedPointIds ?? []),
+  ];
+  if (!requests.length) return [];
+
+  const selected: TripMapPoint[] = [];
+  const selectedIds = new Set<string>();
+  const normalizedPointName = (point: TripMapPoint) =>
+    new Set(
+      [
+        point.id,
+        point.label,
+        point.localName,
+        point.city,
+        getPointDisplayName(point),
+      ]
+        .map(normalizeLookupKey)
+        .filter(Boolean)
+    );
+
+  requests.forEach((request) => {
+    const descriptor = getSelectionItemDescriptor(request);
+    const directId = descriptor.id?.trim();
+    const point = directId
+      ? points.find((candidate) => candidate.id === directId)
+      : undefined;
+    const normalizedLabel = normalizeLookupKey(descriptor.label);
+    const normalizedCity = normalizeLookupKey(descriptor.city);
+    const fallbackPoint =
+      point ??
+      points.find((candidate) => {
+        if (candidate.kind === "hotel") return false;
+        const names = normalizedPointName(candidate);
+        const labelMatches = normalizedLabel && names.has(normalizedLabel);
+        const cityMatches = normalizedCity && names.has(normalizedCity);
+        if (descriptor.kind === "city") {
+          return Boolean(cityMatches || labelMatches) && candidate.kind === "city";
+        }
+        return Boolean(labelMatches || cityMatches);
+      });
+
+    if (!fallbackPoint || fallbackPoint.kind === "hotel") return;
+    if (selectedIds.has(fallbackPoint.id)) return;
+    selectedIds.add(fallbackPoint.id);
+    selected.push(fallbackPoint);
+  });
+
+  return selected;
+}
+
+export type TripMapHoverCardPlacement = {
+  left: number;
+  top: number;
+  pointerX: number;
+  pointerY: number;
+  opensBelow: boolean;
+};
+
+/**
+ * Calculate a clamped card position while retaining the exact map-pixel
+ * marker coordinate for the pointer tip. This is intentionally pure so the
+ * placement contract can be checked without a Google Maps runtime.
+ */
+export function calculateTripMapHoverCardPlacement(
+  marker: { x: number; y: number },
+  mapWidth: number,
+  mapHeight: number,
+  cardWidth: number,
+  cardHeight: number,
+  safeMargin = 12,
+  pointerGap = 10
+): TripMapHoverCardPlacement {
+  const safeWidth = Math.max(1, mapWidth);
+  const safeHeight = Math.max(1, mapHeight);
+  const safeCardWidth = Math.max(1, cardWidth);
+  const safeCardHeight = Math.max(1, cardHeight);
+  const maxLeft = Math.max(safeMargin, safeWidth - safeCardWidth - safeMargin);
+  const left = clamp(
+    marker.x - safeCardWidth / 2,
+    safeMargin,
+    maxLeft
+  );
+  const availableAbove = marker.y - safeMargin;
+  const availableBelow = safeHeight - marker.y - safeMargin;
+  const opensBelow =
+    availableAbove < safeCardHeight + pointerGap && availableBelow > availableAbove;
+  const maxTop = Math.max(
+    safeMargin,
+    safeHeight - safeCardHeight - safeMargin
+  );
+  const preferredTop = opensBelow
+    ? marker.y + pointerGap
+    : marker.y - safeCardHeight - pointerGap;
+  const top = clamp(preferredTop, safeMargin, maxTop);
+
+  return {
+    left,
+    top,
+    pointerX: marker.x - left,
+    pointerY: marker.y - top,
+    opensBelow,
+  };
+}
+
 function getPointPriority(
   point: TripMapPoint,
-  activePointId: string | null
+  activePointId: string | null,
+  selectedPointIds?: ReadonlySet<string>
 ): number {
   if (point.id === activePointId) return 0;
-  if (point.kind === "city") return 1;
-  if (point.kind === "hotel") return 2;
-  if (point.kind === "hotspot") return 3;
-  return 4;
+  if (selectedPointIds?.has(point.id)) return 1;
+  if (point.kind === "city") return 2;
+  if (point.kind === "hotel") return 3;
+  if (point.kind === "hotspot") return 4;
+  return 5;
 }
 
 function getDeclutteredPoints(
@@ -1095,7 +1233,8 @@ function getDeclutteredPoints(
   mapWidth: number,
   mapHeight: number,
   iconSize: number,
-  activePointId: string | null
+  activePointId: string | null,
+  selectedPointIds?: ReadonlySet<string>
 ): TripMapPoint[] {
   if (points.length <= 1) return points;
 
@@ -1112,7 +1251,7 @@ function getDeclutteredPoints(
         mapWidth,
         mapHeight
       ),
-      priority: getPointPriority(point, activePointId),
+      priority: getPointPriority(point, activePointId, selectedPointIds),
     }))
     .sort((a, b) => a.priority - b.priority || a.index - b.index);
 
@@ -1120,6 +1259,7 @@ function getDeclutteredPoints(
   rankedPoints.forEach((candidate) => {
     const shouldKeep =
       candidate.point.id === activePointId ||
+      selectedPointIds?.has(candidate.point.id) ||
       accepted.every((entry) => {
         const dx = entry.screen.x - candidate.screen.x;
         const dy = entry.screen.y - candidate.screen.y;
@@ -1161,7 +1301,7 @@ function drawRoundedRectPath(
   ctx.closePath();
 }
 
-function createBubbleMarkerDimensions(iconSize: number, isActive: boolean) {
+export function createBubbleMarkerDimensions(iconSize: number, isActive: boolean) {
   const bodySize = isActive ? Math.round(iconSize * 1.08) : iconSize;
   const tailHeight = Math.round(bodySize * 0.26);
   const width = bodySize + 10;
@@ -1171,6 +1311,11 @@ function createBubbleMarkerDimensions(iconSize: number, isActive: boolean) {
   const borderRadius = Math.round(bodySize * 0.24);
   const tailHalf = Math.max(6, Math.round(bodySize * 0.11));
   const bubbleBottom = bodySize + 6;
+  // Keep one source of truth for the canvas tail and Google's marker anchor.
+  // The old anchor used `height - 2`, while the drawn tip ended four pixels
+  // above the canvas bottom, which made every native pointer appear offset.
+  const tipX = Math.round(width / 2);
+  const tipY = bubbleBottom + tailHeight;
 
   return {
     bodySize,
@@ -1182,6 +1327,8 @@ function createBubbleMarkerDimensions(iconSize: number, isActive: boolean) {
     borderRadius,
     tailHalf,
     bubbleBottom,
+    tipX,
+    tipY,
   };
 }
 
@@ -1197,9 +1344,9 @@ function createBubblePath(
     dims.bodySize + 4,
     dims.borderRadius + 3
   );
-  ctx.moveTo(Math.round(dims.width / 2) - dims.tailHalf, dims.bubbleBottom);
-  ctx.lineTo(Math.round(dims.width / 2) + dims.tailHalf, dims.bubbleBottom);
-  ctx.lineTo(Math.round(dims.width / 2), dims.bubbleBottom + dims.tailHeight);
+  ctx.moveTo(dims.tipX - dims.tailHalf, dims.bubbleBottom);
+  ctx.lineTo(dims.tipX + dims.tailHalf, dims.bubbleBottom);
+  ctx.lineTo(dims.tipX, dims.tipY);
   ctx.closePath();
 }
 
@@ -1322,9 +1469,9 @@ async function createBubbleMarkerDataUrl(
     ctx.restore();
 
     ctx.beginPath();
-    ctx.moveTo(Math.round(dims.width / 2) - dims.tailHalf, dims.bubbleBottom);
-    ctx.lineTo(Math.round(dims.width / 2) + dims.tailHalf, dims.bubbleBottom);
-    ctx.lineTo(Math.round(dims.width / 2), dims.bubbleBottom + dims.tailHeight);
+    ctx.moveTo(dims.tipX - dims.tailHalf, dims.bubbleBottom);
+    ctx.lineTo(dims.tipX + dims.tailHalf, dims.bubbleBottom);
+    ctx.lineTo(dims.tipX, dims.tipY);
     ctx.closePath();
     ctx.fillStyle = "#ffffff";
     ctx.fill();
@@ -1364,8 +1511,8 @@ function buildMarkerIcon(
   return {
     url: markerDataUrl,
     scaledSize: new maps.Size(dims.width, dims.height),
-    anchor: new maps.Point(Math.round(dims.width / 2), dims.height - 2),
-    labelOrigin: new maps.Point(Math.round(dims.width / 2), dims.height + 11),
+    anchor: new maps.Point(dims.tipX, dims.tipY),
+    labelOrigin: new maps.Point(dims.tipX, dims.height + 11),
   };
 }
 
@@ -1646,6 +1793,7 @@ function buildHoverCardHtml(
     imageElementId?: string;
     dotIdPrefix?: string;
     galleryImages?: string[];
+    imageIndex?: number;
   }
 ): string {
   const title = getPointDisplayName(point);
@@ -1664,7 +1812,8 @@ function buildHoverCardHtml(
     options?.galleryImages && options.galleryImages.length > 0
       ? options.galleryImages
       : [resolveMarkerImageUrl(point.imageSrc)];
-  const imageUrl = galleryImages[0] ?? "";
+  const imageIndex = clamp(options?.imageIndex ?? 0, 0, Math.max(galleryImages.length - 1, 0));
+  const imageUrl = galleryImages[imageIndex] ?? galleryImages[0] ?? "";
   const cardWidth = options?.cardWidth ?? 420;
   const imageHeight = options?.imageHeight ?? 260;
   const compact = options?.compact ?? false;
@@ -1701,7 +1850,7 @@ function buildHoverCardHtml(
         ${galleryImages
           .map(
             (_, index) =>
-              `<span ${dotIdPrefix ? `id="${dotIdPrefix}-${index}"` : ""} style="height:5px;width:5px;border-radius:999px;background:rgba(255,255,255,${index === 0 ? ".96" : ".62"});"></span>`
+              `<span ${dotIdPrefix ? `id="${dotIdPrefix}-${index}"` : ""} style="height:5px;width:5px;border-radius:999px;background:rgba(255,255,255,${index === imageIndex ? ".96" : ".62"});"></span>`
           )
           .join("")}
       </div>
@@ -1826,6 +1975,9 @@ export function TripRouteMap({
   activePointId,
   onPointSelect,
   onAddDestination,
+  selectedItems,
+  selectedPoints,
+  selectedPointIds,
   animateRoute,
   className,
 }: TripRouteMapProps) {
@@ -1834,7 +1986,6 @@ export function TripRouteMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<GoogleMapInstance | null>(null);
   const mapsRef = useRef<GoogleMapsNamespace | null>(null);
-  const hoverInfoRef = useRef<GoogleInfoWindowInstance | null>(null);
   const markersRef = useRef<
     Array<{
       marker: GoogleMarkerInstance;
@@ -1848,15 +1999,29 @@ export function TripRouteMap({
   const animatedRouteLineRef = useRef<GooglePolylineInstance | null>(null);
   const routeAnimationFrameRef = useRef<number | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const hoverCardRef = useRef<HTMLDivElement | null>(null);
+  const hoverCloseTimerRef = useRef<number | null>(null);
+  const hoverViewportFrameRef = useRef<number | null>(null);
   const fittedOnceRef = useRef(false);
   const fitKeyRef = useRef<string>("");
   const onAddDestinationRef = useRef(onAddDestination);
   const onPointSelectRef = useRef(onPointSelect);
   const activePointIdRef = useRef(activePointId ?? null);
+  const selectedPointIdsRef = useRef<ReadonlySet<string>>(new Set());
+  const hoverPointIdRef = useRef<string | null>(null);
+  const hoverPinnedRef = useRef(false);
   const markerVisualVersionRef = useRef(0);
   const refreshMarkerVisualsRef = useRef<() => void>(() => {});
   const [isReady, setIsReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [hoverPointId, setHoverPointId] = useState<string | null>(null);
+  const [hoverPinned, setHoverPinned] = useState(false);
+  const [hoverGalleryIndex, setHoverGalleryIndex] = useState(0);
+  const [hoverCardMeasuredSize, setHoverCardMeasuredSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [, setHoverViewportVersion] = useState(0);
   const [detailPointId, setDetailPointId] = useState<string | null>(null);
   const [expandedDetailSectionId, setExpandedDetailSectionId] =
     useState<DetailSectionId | null>(null);
@@ -1870,6 +2035,25 @@ export function TripRouteMap({
   const routeKey = useMemo(
     () => routeCoordinates.map(([lat, lng]) => `${lat},${lng}`).join("|"),
     [routeCoordinates]
+  );
+
+  const resolvedSelectedPoints = useMemo(
+    () =>
+      resolveSelectedMapPoints(
+        points,
+        selectedItems,
+        selectedPoints,
+        selectedPointIds
+      ),
+    [points, selectedItems, selectedPointIds, selectedPoints]
+  );
+  const resolvedSelectedPointIds = useMemo(
+    () => new Set(resolvedSelectedPoints.map((point) => point.id)),
+    [resolvedSelectedPoints]
+  );
+  const selectedPointKey = useMemo(
+    () => resolvedSelectedPoints.map((point) => point.id).join("|"),
+    [resolvedSelectedPoints]
   );
 
   const activeFocusKey = useMemo(() => {
@@ -1896,6 +2080,70 @@ export function TripRouteMap({
     ? formatGooglePointAttribution(detailPoint, isZh)
     : null;
 
+  const hoverPoint = useMemo(
+    () => points.find((point) => point.id === hoverPointId) ?? null,
+    [hoverPointId, points]
+  );
+  const hoverCardConfig = (() => {
+    const currentWidth = containerRef.current?.clientWidth ?? 1200;
+    const currentHeight = containerRef.current?.clientHeight ?? 800;
+    const compact = currentWidth < 980 || currentHeight < 680;
+    const cardWidth = clamp(
+      compact ? 238 : 294,
+      220,
+      Math.max(220, currentWidth - 56)
+    );
+    const imageHeight = compact ? 168 : 217;
+    const estimatedCardHeight = imageHeight + (compact ? 190 : 220);
+    return { currentWidth, currentHeight, compact, cardWidth, imageHeight, estimatedCardHeight };
+  })();
+  const hoverGalleryImages = useMemo(
+    () => (hoverPoint ? getPointGalleryImages(hoverPoint).map(resolveMarkerImageUrl) : []),
+    [hoverPoint]
+  );
+  const hoverCardIds = useMemo(() => {
+    if (!hoverPoint) return null;
+    const safePointId = sanitizeDomId(hoverPoint.id);
+    return {
+      previousPhotoButtonId: `trip-map-hover-photo-prev-${safePointId}`,
+      photoButtonId: `trip-map-hover-photo-${safePointId}`,
+      summaryButtonId: `trip-map-hover-summary-${safePointId}`,
+      imageElementId: `trip-map-hover-image-${safePointId}`,
+      dotIdPrefix: `trip-map-hover-dot-${safePointId}`,
+      addButtonId: `trip-map-hover-add-${safePointId}`,
+    };
+  }, [hoverPoint]);
+  const hoverCardHtml = useMemo(() => {
+    if (!hoverPoint || !hoverCardIds) return "";
+    const title = getPointDisplayName(hoverPoint);
+    return buildHoverCardHtml(
+      hoverPoint,
+      onAddDestination ? hoverCardIds.addButtonId : null,
+      isZh ? `加入我的计划：${title}` : `Add to my plan: ${title}`,
+      isZh,
+      {
+        cardWidth: hoverCardConfig.cardWidth,
+        imageHeight: hoverCardConfig.imageHeight,
+        compact: hoverCardConfig.compact,
+        previousPhotoButtonId: hoverCardIds.previousPhotoButtonId,
+        photoButtonId: hoverCardIds.photoButtonId,
+        summaryButtonId: hoverCardIds.summaryButtonId,
+        imageElementId: hoverCardIds.imageElementId,
+        dotIdPrefix: hoverCardIds.dotIdPrefix,
+        galleryImages: hoverGalleryImages,
+        imageIndex: hoverGalleryIndex,
+      }
+    );
+  }, [
+    hoverCardConfig,
+    hoverCardIds,
+    hoverGalleryImages,
+    hoverGalleryIndex,
+    hoverPoint,
+    isZh,
+    onAddDestination,
+  ]);
+
   useEffect(() => {
     onAddDestinationRef.current = onAddDestination;
   }, [onAddDestination]);
@@ -1907,6 +2155,178 @@ export function TripRouteMap({
   useEffect(() => {
     activePointIdRef.current = activePointId ?? null;
   }, [activePointId]);
+
+  useEffect(() => {
+    selectedPointIdsRef.current = resolvedSelectedPointIds;
+  }, [resolvedSelectedPointIds]);
+
+  useEffect(() => {
+    hoverPointIdRef.current = hoverPointId;
+  }, [hoverPointId]);
+
+  useEffect(() => {
+    hoverPinnedRef.current = hoverPinned;
+  }, [hoverPinned]);
+
+  const clearHoverCloseTimer = useCallback(() => {
+    if (hoverCloseTimerRef.current === null) return;
+    window.clearTimeout(hoverCloseTimerRef.current);
+    hoverCloseTimerRef.current = null;
+  }, []);
+
+  const clearHoverPreview = useCallback(() => {
+    clearHoverCloseTimer();
+    hoverPointIdRef.current = null;
+    hoverPinnedRef.current = false;
+    setHoverPointId(null);
+    setHoverPinned(false);
+  }, [clearHoverCloseTimer]);
+
+  const openHoverPreview = useCallback(
+    (point: TripMapPoint, pinned = false) => {
+      clearHoverCloseTimer();
+      hoverPointIdRef.current = point.id;
+      hoverPinnedRef.current = pinned;
+      setHoverGalleryIndex(0);
+      setHoverPointId(point.id);
+      setHoverPinned(pinned);
+    },
+    [clearHoverCloseTimer]
+  );
+
+  const scheduleHoverClose = useCallback(
+    (pointId: string, delay = 180) => {
+      clearHoverCloseTimer();
+      hoverCloseTimerRef.current = window.setTimeout(() => {
+        hoverCloseTimerRef.current = null;
+        if (
+          hoverPointIdRef.current === pointId &&
+          !hoverPinnedRef.current
+        ) {
+          clearHoverPreview();
+        }
+      }, delay);
+    },
+    [clearHoverCloseTimer, clearHoverPreview]
+  );
+
+  const scheduleHoverViewportRefresh = useCallback(() => {
+    if (hoverViewportFrameRef.current !== null) return;
+    hoverViewportFrameRef.current = window.requestAnimationFrame(() => {
+      hoverViewportFrameRef.current = null;
+      setHoverViewportVersion((version) => version + 1);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!hoverPointId) return;
+    if (!hoverPoint) clearHoverPreview();
+  }, [clearHoverPreview, hoverPoint, hoverPointId]);
+
+  useEffect(() => {
+    setHoverCardMeasuredSize(null);
+  }, [hoverCardConfig.cardWidth, hoverCardConfig.imageHeight, hoverPointId]);
+
+  useEffect(() => {
+    const card = hoverCardRef.current;
+    if (!card || !hoverPoint || !hoverCardIds) return;
+
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const button = target?.closest("button");
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (button.id === hoverCardIds.previousPhotoButtonId) {
+        const imageCount = Math.max(hoverGalleryImages.length, 1);
+        setHoverGalleryIndex((index) => (index - 1 + imageCount) % imageCount);
+        return;
+      }
+      if (button.id === hoverCardIds.photoButtonId) {
+        const imageCount = Math.max(hoverGalleryImages.length, 1);
+        setHoverGalleryIndex((index) => (index + 1) % imageCount);
+        return;
+      }
+      if (button.id === hoverCardIds.summaryButtonId) {
+        setDetailPointId(hoverPoint.id);
+        clearHoverPreview();
+        return;
+      }
+      if (button.id === hoverCardIds.addButtonId) {
+        onAddDestinationRef.current?.(hoverPoint);
+        clearHoverPreview();
+      }
+    };
+    card.addEventListener("click", handleClick);
+    return () => card.removeEventListener("click", handleClick);
+  }, [
+    clearHoverPreview,
+    hoverCardIds,
+    hoverGalleryImages.length,
+    hoverPoint,
+  ]);
+
+  useEffect(() => {
+    const card = hoverCardRef.current;
+    if (!card || !hoverPoint) return;
+
+    const updateMeasuredSize = () => {
+      const rect = card.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      setHoverCardMeasuredSize((previous) => {
+        if (
+          previous &&
+          Math.abs(previous.width - rect.width) < 0.5 &&
+          Math.abs(previous.height - rect.height) < 0.5
+        ) {
+          return previous;
+        }
+        return { width: rect.width, height: rect.height };
+      });
+    };
+
+    updateMeasuredSize();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateMeasuredSize);
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, [hoverCardHtml, hoverPoint]);
+
+  const hoverPlacement = (() => {
+    if (!hoverPoint) return null;
+    const map = mapRef.current;
+    const currentWidth = containerRef.current?.clientWidth ?? hoverCardConfig.currentWidth;
+    const currentHeight = containerRef.current?.clientHeight ?? hoverCardConfig.currentHeight;
+    const currentZoom = map?.getZoom() ?? DEFAULT_ZOOM;
+    const centerValue = map?.getCenter();
+    const center = centerValue
+      ? { lat: centerValue.lat(), lng: centerValue.lng() }
+      : DEFAULT_CENTER;
+    const marker = toScreenPixel(
+      hoverPoint.lat,
+      hoverPoint.lng,
+      center,
+      currentZoom,
+      currentWidth,
+      currentHeight
+    );
+    const cardWidth = hoverCardMeasuredSize?.width ?? hoverCardConfig.cardWidth;
+    const cardHeight = hoverCardMeasuredSize?.height ?? hoverCardConfig.estimatedCardHeight;
+    return {
+      ...calculateTripMapHoverCardPlacement(
+        marker,
+        currentWidth,
+        currentHeight,
+        cardWidth,
+        cardHeight
+      ),
+      markerX: marker.x,
+      markerY: marker.y,
+      cardWidth,
+      cardHeight,
+    };
+  })();
 
   const refreshMarkerVisuals = useCallback(() => {
     const maps = mapsRef.current;
@@ -1925,6 +2345,7 @@ export function TripRouteMap({
 
     markersRef.current.forEach(({ marker, point }) => {
       const isActive = point.id === activePointIdRef.current;
+      const isSelected = selectedPointIdsRef.current.has(point.id);
       const fallbackMarkerUrl = createSolidBubbleMarkerDataUrl(
         point,
         iconSize,
@@ -1934,7 +2355,7 @@ export function TripRouteMap({
         buildMarkerIcon(maps, point, isActive, iconSize, fallbackMarkerUrl)
       );
       marker.setLabel(undefined);
-      marker.setZIndex(isActive ? 1000 : 100);
+      marker.setZIndex(isActive ? 1000 : isSelected ? 900 : 100);
 
       void getBubbleMarkerDataUrl(point, iconSize, isActive).then(
         (markerDataUrl) => {
@@ -2001,13 +2422,9 @@ export function TripRouteMap({
           restriction: VERTICAL_MAP_RESTRICTION,
         });
 
-        hoverInfoRef.current = new maps.InfoWindow({
-          disableAutoPan: false,
-        });
-
         mapRef.current = map;
         map.addListener("click", () => {
-          hoverInfoRef.current?.close();
+          clearHoverPreview();
         });
         let centerClampRunning = false;
         let appliedMinZoom = initialMinZoom;
@@ -2043,7 +2460,6 @@ export function TripRouteMap({
         };
 
         const scheduleMarkerVisualRefresh = () => {
-          hoverInfoRef.current?.close();
           if (markerRefreshFrameId !== null) return;
 
           markerRefreshFrameId = window.requestAnimationFrame(() => {
@@ -2052,7 +2468,7 @@ export function TripRouteMap({
           });
         };
         const scheduleMapResize = () => {
-          hoverInfoRef.current?.close();
+          scheduleHoverViewportRefresh();
           if (markerRefreshFrameId !== null) return;
 
           markerRefreshFrameId = window.requestAnimationFrame(() => {
@@ -2067,14 +2483,25 @@ export function TripRouteMap({
           map.addListener("zoom_changed", () => {
             clampMapCenterLatitude();
             scheduleMarkerVisualRefresh();
+            scheduleHoverViewportRefresh();
           }),
-          map.addListener("dragstart", () => {
-            hoverInfoRef.current?.close();
+          map.addListener("dragstart", scheduleHoverViewportRefresh),
+          map.addListener("drag", () => {
+            clampMapCenterLatitude();
+            scheduleHoverViewportRefresh();
           }),
-          map.addListener("drag", clampMapCenterLatitude),
-          map.addListener("bounds_changed", clampMapCenterLatitude),
-          map.addListener("center_changed", clampMapCenterLatitude),
-          map.addListener("idle", clampMapCenterLatitude),
+          map.addListener("bounds_changed", () => {
+            clampMapCenterLatitude();
+            scheduleHoverViewportRefresh();
+          }),
+          map.addListener("center_changed", () => {
+            clampMapCenterLatitude();
+            scheduleHoverViewportRefresh();
+          }),
+          map.addListener("idle", () => {
+            clampMapCenterLatitude();
+            scheduleHoverViewportRefresh();
+          }),
         ];
 
         if (containerRef.current && typeof ResizeObserver !== "undefined") {
@@ -2122,11 +2549,13 @@ export function TripRouteMap({
         window.cancelAnimationFrame(markerRefreshFrameId);
         markerRefreshFrameId = null;
       }
-
-      if (hoverInfoRef.current) {
-        hoverInfoRef.current.close();
-        hoverInfoRef.current = null;
+      if (hoverViewportFrameRef.current !== null) {
+        window.cancelAnimationFrame(hoverViewportFrameRef.current);
+        hoverViewportFrameRef.current = null;
       }
+      clearHoverCloseTimer();
+      hoverPointIdRef.current = null;
+      hoverPinnedRef.current = false;
 
       if (routeAnimationFrameRef.current !== null) {
         window.cancelAnimationFrame(routeAnimationFrameRef.current);
@@ -2140,14 +2569,18 @@ export function TripRouteMap({
       mapRef.current = null;
       mapsRef.current = null;
     };
-  }, [locale]);
+  }, [
+    clearHoverCloseTimer,
+    clearHoverPreview,
+    locale,
+    scheduleHoverViewportRefresh,
+  ]);
 
   useEffect(() => {
     if (!isReady) return;
     const map = mapRef.current;
     const maps = mapsRef.current;
-    const hoverInfo = hoverInfoRef.current;
-    if (!map || !maps || !hoverInfo) return;
+    if (!map || !maps) return;
 
     markersRef.current.forEach(({ marker, listeners }) => {
       listeners.forEach((listener) => listener.remove());
@@ -2174,11 +2607,13 @@ export function TripRouteMap({
       mapWidth,
       mapHeight,
       iconSize,
-      currentActivePointId
+      currentActivePointId,
+      resolvedSelectedPointIds
     );
 
     visiblePoints.forEach((point) => {
       const isActive = point.id === currentActivePointId;
+      const isSelected = resolvedSelectedPointIds.has(point.id);
       const markerDimensions = createBubbleMarkerDimensions(iconSize, isActive);
       const fallbackMarkerUrl = createSolidBubbleMarkerDataUrl(
         point,
@@ -2201,275 +2636,13 @@ export function TripRouteMap({
           type: "rect",
         },
         optimized: false,
-        zIndex: isActive ? 1000 : 100,
+        zIndex: isActive ? 1000 : isSelected ? 900 : 100,
       });
 
-      let previewPinned = false;
-      let closePreviewTimer: number | null = null;
       let reopenPreviewTimer: number | null = null;
-      const clearPreviewCloseTimer = () => {
-        if (closePreviewTimer === null) return;
-        window.clearTimeout(closePreviewTimer);
-        closePreviewTimer = null;
-      };
-      const schedulePreviewClose = (delay = 140) => {
-        clearPreviewCloseTimer();
-        closePreviewTimer = window.setTimeout(() => {
-          closePreviewTimer = null;
-          hoverInfo.close();
-        }, delay);
-      };
-
       const openPreview = (pinned = false) => {
         if (effectDisposed) return;
-        previewPinned = pinned;
-        clearPreviewCloseTimer();
-        const safePointId = sanitizeDomId(point.id);
-        const buttonId = `trip-map-add-${safePointId}`;
-        const previousPhotoButtonId = `trip-map-photo-prev-${safePointId}`;
-        const photoButtonId = `trip-map-photo-${safePointId}`;
-        const summaryButtonId = `trip-map-summary-${safePointId}`;
-        const imageElementId = `trip-map-image-${safePointId}`;
-        const dotIdPrefix = `trip-map-dot-${safePointId}`;
-        const galleryImages = getPointGalleryImages(point).map(
-          resolveMarkerImageUrl
-        );
-        const cityForPlan = getPointDisplayName(point);
-        const currentWidth = containerRef.current?.clientWidth ?? mapWidth;
-        const currentHeight = containerRef.current?.clientHeight ?? mapHeight;
-        const currentZoom = map.getZoom() ?? zoom;
-        const currentCenterValue = map.getCenter();
-        const currentCenter = currentCenterValue
-          ? { lat: currentCenterValue.lat(), lng: currentCenterValue.lng() }
-          : DEFAULT_CENTER;
-        const pixelPoint = toScreenPixel(
-          point.lat,
-          point.lng,
-          currentCenter,
-          currentZoom,
-          currentWidth,
-          currentHeight
-        );
-        const compact = currentWidth < 980 || currentHeight < 680;
-        const cardWidth = clamp(
-          compact ? 238 : 294,
-          220,
-          Math.max(220, currentWidth - 56)
-        );
-        const previewWidth = cardWidth;
-        const imageHeight = compact ? 168 : 217;
-        const estimatedCardHeight = imageHeight + (compact ? 190 : 220);
-
-        let offsetX = 0;
-        if (pixelPoint.x < currentWidth * 0.45) {
-          offsetX = Math.round(cardWidth * 0.2);
-        } else if (pixelPoint.x > currentWidth * 0.55) {
-          offsetX = -Math.round(cardWidth * 0.2);
-        }
-
-        let offsetY =
-          pixelPoint.y < estimatedCardHeight + 28
-            ? Math.round(estimatedCardHeight * 0.72)
-            : -12;
-
-        const safeMargin = 12;
-        const predictedLeft = pixelPoint.x - previewWidth / 2 + offsetX;
-        const predictedRight = predictedLeft + previewWidth;
-        const predictedTop = pixelPoint.y - estimatedCardHeight + offsetY;
-        const predictedBottom = predictedTop + estimatedCardHeight;
-
-        if (predictedLeft < safeMargin) {
-          offsetX += Math.round(safeMargin - predictedLeft);
-        } else if (predictedRight > currentWidth - safeMargin) {
-          offsetX -= Math.round(predictedRight - (currentWidth - safeMargin));
-        }
-
-        if (predictedTop < safeMargin) {
-          offsetY += Math.round(safeMargin - predictedTop);
-        } else if (predictedBottom > currentHeight - safeMargin) {
-          offsetY -= Math.round(predictedBottom - (currentHeight - safeMargin));
-        }
-
-        hoverInfo.setOptions({
-          disableAutoPan: true,
-          maxWidth: previewWidth,
-          pixelOffset: new maps.Size(offsetX, offsetY),
-        });
-        hoverInfo.setContent(
-          buildHoverCardHtml(
-            point,
-            onAddDestinationRef.current ? buttonId : null,
-            isZh
-              ? `加入我的计划：${cityForPlan}`
-              : `Add to my plan: ${cityForPlan}`,
-            isZh,
-            {
-              cardWidth,
-              imageHeight,
-              compact,
-              previousPhotoButtonId,
-              photoButtonId,
-              summaryButtonId,
-              imageElementId,
-              dotIdPrefix,
-              galleryImages,
-            }
-          )
-        );
-        hoverInfo.open({
-          map,
-          anchor: marker,
-          shouldFocus: false,
-        });
-
-        maps.event.addListenerOnce(hoverInfo as unknown, "domready", () => {
-          const polishPreviewChrome = () => {
-            const mapElement = containerRef.current;
-            const infoElement = mapElement?.querySelector<HTMLElement>(
-              ".gm-style-iw.gm-style-iw-c"
-            );
-            if (!infoElement) return;
-
-            infoElement.style.background = "transparent";
-            infoElement.style.boxShadow = "none";
-            infoElement.style.borderRadius = "12px";
-            infoElement.style.overflow = "visible";
-            infoElement.style.padding = "0";
-            infoElement.style.maxWidth = `${previewWidth}px`;
-            // Keep Google's InfoWindow chrome interactive and visible. Do
-            // not hide its close control or make the native map chrome
-            // pointer-transparent around the custom card.
-            infoElement.style.pointerEvents = "auto";
-
-            const contentElement =
-              infoElement.querySelector<HTMLElement>(".gm-style-iw-d");
-            if (contentElement) {
-              contentElement.style.overflow = "visible";
-              contentElement.style.maxHeight = "none";
-              contentElement.style.width = `${cardWidth}px`;
-              contentElement.style.pointerEvents = "auto";
-            }
-          };
-
-          const keepPreviewInsideMap = () => {
-            polishPreviewChrome();
-
-            const mapElement = containerRef.current;
-            const infoElement = mapElement?.querySelector<HTMLElement>(
-              ".gm-style-iw.gm-style-iw-c"
-            );
-            if (!mapElement || !infoElement) return;
-
-            const mapRect = mapElement.getBoundingClientRect();
-            const infoRect = infoElement.getBoundingClientRect();
-            const margin = 8;
-            let nextOffsetX = offsetX;
-            let nextOffsetY = offsetY;
-
-            if (infoRect.left < mapRect.left + margin) {
-              nextOffsetX += Math.round(mapRect.left + margin - infoRect.left);
-            } else if (infoRect.right > mapRect.right - margin) {
-              nextOffsetX -= Math.round(
-                infoRect.right - (mapRect.right - margin)
-              );
-            }
-
-            if (infoRect.top < mapRect.top + margin) {
-              nextOffsetY += Math.round(mapRect.top + margin - infoRect.top);
-            } else if (infoRect.bottom > mapRect.bottom - margin) {
-              nextOffsetY -= Math.round(
-                infoRect.bottom - (mapRect.bottom - margin)
-              );
-            }
-
-            if (nextOffsetX !== offsetX || nextOffsetY !== offsetY) {
-              offsetX = nextOffsetX;
-              offsetY = nextOffsetY;
-              hoverInfo.setOptions({
-                disableAutoPan: true,
-                maxWidth: previewWidth,
-                pixelOffset: new maps.Size(offsetX, offsetY),
-              });
-              window.requestAnimationFrame(polishPreviewChrome);
-            }
-          };
-
-          window.requestAnimationFrame(() => {
-            keepPreviewInsideMap();
-            window.requestAnimationFrame(keepPreviewInsideMap);
-          });
-
-          const cardElement = containerRef.current?.querySelector<HTMLElement>(
-            '[data-viza-trip-hover-card="true"]'
-          );
-          cardElement?.addEventListener("mouseenter", clearPreviewCloseTimer);
-          cardElement?.addEventListener("mouseleave", () => {
-            if (!previewPinned) schedulePreviewClose(80);
-          });
-
-          const openDetail = (event: MouseEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
-            setDetailPointId(point.id);
-            hoverInfo.close();
-          };
-          let imageIndex = 0;
-          const updatePreviewImage = () => {
-            const imageElement = document.getElementById(
-              imageElementId
-            ) as HTMLImageElement | null;
-            if (imageElement) {
-              imageElement.src =
-                galleryImages[imageIndex] ?? galleryImages[0] ?? "";
-            }
-            galleryImages.forEach((_, index) => {
-              const dotElement = document.getElementById(
-                `${dotIdPrefix}-${index}`
-              );
-              if (dotElement) {
-                dotElement.style.background = `rgba(255,255,255,${
-                  index === imageIndex ? ".96" : ".62"
-                })`;
-              }
-            });
-          };
-          document
-            .getElementById(previousPhotoButtonId)
-            ?.addEventListener("click", (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              const imageCount = Math.max(galleryImages.length, 1);
-              imageIndex = (imageIndex - 1 + imageCount) % imageCount;
-              updatePreviewImage();
-            });
-          document
-            .getElementById(photoButtonId)
-            ?.addEventListener("click", (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              imageIndex = (imageIndex + 1) % Math.max(galleryImages.length, 1);
-              updatePreviewImage();
-            });
-          document
-            .getElementById(summaryButtonId)
-            ?.addEventListener("click", openDetail, { once: true });
-
-          const addDestination = onAddDestinationRef.current;
-          if (addDestination) {
-            const button = document.getElementById(buttonId);
-            if (!button) return;
-            button.addEventListener(
-              "click",
-              (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                addDestination(point);
-                hoverInfo.close();
-              },
-              { once: true }
-            );
-          }
-        });
+        openHoverPreview(point, pinned);
       };
       const openPinnedPreview = () => {
         if (reopenPreviewTimer !== null) {
@@ -2494,7 +2667,7 @@ export function TripRouteMap({
         }),
         marker.addListener("mouseover", () => openPreview(false)),
         marker.addListener("mouseout", () => {
-          if (!previewPinned) schedulePreviewClose(220);
+          if (!hoverPinnedRef.current) scheduleHoverClose(point.id, 220);
         }),
       ];
 
@@ -2652,12 +2825,22 @@ export function TripRouteMap({
     points,
     routeCoordinates,
     routeKey,
+    resolvedSelectedPointIds,
+    selectedPointKey,
+    scheduleHoverClose,
+    openHoverPreview,
   ]);
 
   useEffect(() => {
     if (!isReady) return;
     refreshMarkerVisuals();
-  }, [activePointId, isReady, pointKey, refreshMarkerVisuals]);
+  }, [
+    activePointId,
+    isReady,
+    pointKey,
+    refreshMarkerVisuals,
+    selectedPointKey,
+  ]);
 
   const activeFocusKeyRef = useRef("");
 
@@ -2689,7 +2872,6 @@ export function TripRouteMap({
       }
     };
 
-    hoverInfoRef.current?.close();
     focusMap();
     const focusAfterFitBounds = window.setTimeout(focusMap, 340);
 
@@ -2729,6 +2911,98 @@ export function TripRouteMap({
   return (
     <div className={`relative ${className ?? ""}`} data-testid="trip-route-map">
       <div className="h-full w-full" ref={containerRef} />
+      {resolvedSelectedPoints.length ? (
+        <div
+          className="pointer-events-auto absolute inset-x-3 top-3 z-20 flex max-w-[calc(100%-24px)] items-center gap-2 overflow-x-auto rounded-2xl border border-white/80 bg-white/92 p-2 shadow-[0_12px_30px_rgba(15,23,42,0.16)] backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          data-testid="trip-map-selected-strip"
+          onMouseEnter={clearHoverCloseTimer}
+          onMouseLeave={() => {
+            if (hoverPointIdRef.current && !hoverPinnedRef.current) {
+              scheduleHoverClose(hoverPointIdRef.current, 120);
+            }
+          }}
+        >
+          {resolvedSelectedPoints.map((point) => {
+            const isActive = point.id === activePointId;
+            return (
+              <button
+                aria-current={isActive ? "true" : undefined}
+                className={`group flex min-w-0 shrink-0 items-center gap-2 rounded-xl border px-2.5 py-1.5 text-left transition-all ${
+                  isActive
+                    ? "border-blue-300 bg-blue-50 text-blue-800 shadow-sm"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-blue-50/70"
+                }`}
+                data-testid={`trip-map-selected-item-${sanitizeDomId(point.id)}`}
+                onClick={() => {
+                  onPointSelectRef.current?.(point.id);
+                  openHoverPreview(point, true);
+                }}
+                onFocus={() => {
+                  onPointSelectRef.current?.(point.id);
+                  openHoverPreview(point, false);
+                }}
+                onMouseEnter={() => {
+                  onPointSelectRef.current?.(point.id);
+                  openHoverPreview(point, false);
+                }}
+                onMouseLeave={() => {
+                  if (!hoverPinnedRef.current) scheduleHoverClose(point.id, 120);
+                }}
+                type="button"
+              >
+                <span
+                  className="h-7 w-7 shrink-0 rounded-lg bg-cover bg-center ring-1 ring-slate-200"
+                  style={{
+                    backgroundImage: `url(${resolveMarkerImageUrl(point.imageSrc)})`,
+                  }}
+                />
+                <span className="max-w-36 truncate text-xs font-semibold">
+                  {getPointDisplayName(point)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      {hoverPoint && hoverPlacement && hoverCardHtml ? (
+        <div
+          className="absolute z-[25]"
+          data-testid="trip-map-hover-overlay"
+          onMouseEnter={clearHoverCloseTimer}
+          onMouseLeave={() => {
+            if (!hoverPinnedRef.current) scheduleHoverClose(hoverPoint.id, 100);
+          }}
+          ref={hoverCardRef}
+          style={{
+            left: hoverPlacement.left,
+            pointerEvents: "auto",
+            top: hoverPlacement.top,
+            width: hoverPlacement.cardWidth,
+          }}
+        >
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute left-0 top-0 overflow-visible"
+            data-testid="trip-map-hover-pointer"
+            height={Math.max(hoverPlacement.cardHeight, hoverPlacement.pointerY) + 2}
+            style={{ width: hoverPlacement.cardWidth }}
+          >
+            <polygon
+              fill="#ffffff"
+              points={
+                hoverPlacement.opensBelow
+                  ? `${hoverPlacement.pointerX - 10},0 ${hoverPlacement.pointerX + 10},0 ${hoverPlacement.pointerX},${hoverPlacement.pointerY}`
+                  : `${hoverPlacement.pointerX - 10},${hoverPlacement.cardHeight} ${hoverPlacement.pointerX + 10},${hoverPlacement.cardHeight} ${hoverPlacement.pointerX},${hoverPlacement.pointerY}`
+              }
+            />
+          </svg>
+          <div
+            className="relative"
+            dangerouslySetInnerHTML={{ __html: hoverCardHtml }}
+            data-testid="trip-map-hover-card"
+          />
+        </div>
+      ) : null}
       {detailPoint ? (
         <div
           className="pointer-events-none absolute inset-y-0 right-0 z-30 flex w-full justify-end bg-transparent"

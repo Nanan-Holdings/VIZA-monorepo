@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Pencil, Save, Trash2, UserRoundCheck, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { countries } from "country-data-list";
 import type {
   VisaChatMemory,
   VisaChatMemorySnapshot,
 } from "@/app/actions/companion-sessions";
+import { getDestinationDisplayNameForLocale } from "@/lib/visa-destinations";
 
 export type EditableMemory = Pick<
   VisaChatMemory,
@@ -25,6 +27,43 @@ interface VisaMemorySummaryProps {
   onSave: (value: EditableMemory) => Promise<void>;
   onClear: () => Promise<void>;
   onSavePassport: (value: EditableMemory) => Promise<void>;
+}
+
+interface CountryRecord {
+  alpha2: string;
+  alpha3: string;
+  name: string;
+}
+
+const countryRecords = countries.all as CountryRecord[];
+
+function normalizeLookupValue(value: string): string {
+  return value.trim().toLowerCase().replace(/[_-]+/g, " ");
+}
+
+function localizeCountryValue(value: string | null, locale: string): string | null {
+  if (!value) return null;
+
+  const lookup = normalizeLookupValue(value);
+  const country = countryRecords.find(
+    (entry) =>
+      entry.alpha2.toLowerCase() === lookup ||
+      entry.alpha3.toLowerCase() === lookup ||
+      entry.name.toLowerCase() === lookup
+  );
+
+  if (country) {
+    try {
+      return (
+        new Intl.DisplayNames([locale], { type: "region" }).of(country.alpha2) ??
+        country.name
+      );
+    } catch {
+      return country.name;
+    }
+  }
+
+  return getDestinationDisplayNameForLocale(value, locale);
 }
 
 function editableMemory(state: VisaChatMemory): EditableMemory {
@@ -47,6 +86,7 @@ export function VisaMemorySummary({
   onSavePassport,
 }: VisaMemorySummaryProps) {
   const t = useTranslations("chat");
+  const locale = useLocale();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<EditableMemory | null>(
@@ -61,15 +101,54 @@ export function VisaMemorySummary({
 
   if (!snapshot || !draft) return null;
 
+  const localizePurpose = (value: string | null): string | null => {
+    if (!value) return null;
+
+    switch (normalizeLookupValue(value)) {
+      case "tourism":
+      case "tourist":
+      case "holiday":
+        return t("memoryPurposeTourism");
+      case "business":
+        return t("memoryPurposeBusiness");
+      case "family visit":
+      case "family":
+        return t("memoryPurposeFamilyVisit");
+      case "visit":
+      case "visiting friends":
+        return t("memoryPurposeVisit");
+      case "transit":
+        return t("memoryPurposeTransit");
+      case "study":
+        return t("memoryPurposeStudy");
+      case "work":
+        return t("memoryPurposeWork");
+      case "medical":
+      case "medical treatment":
+        return t("memoryPurposeMedical");
+      default:
+        return value;
+    }
+  };
+
   const chips = [
-    [t("memoryPassport"), snapshot.state.passportCountryIso3],
-    [t("memoryResidence"), snapshot.state.residenceCountry],
+    [
+      t("memoryPassport"),
+      localizeCountryValue(snapshot.state.passportCountryIso3, locale),
+    ],
+    [
+      t("memoryResidence"),
+      localizeCountryValue(snapshot.state.residenceCountry, locale),
+    ],
     [
       t("memoryDestination"),
-      snapshot.state.destinationCountries.join(", ") ||
-        snapshot.state.mainDestination,
+      snapshot.state.destinationCountries
+        .map((country) => localizeCountryValue(country, locale))
+        .filter((country): country is string => Boolean(country))
+        .join(locale.toLowerCase().startsWith("zh") ? "、" : ", ") ||
+        localizeCountryValue(snapshot.state.mainDestination, locale),
     ],
-    [t("memoryPurpose"), snapshot.state.tripPurpose],
+    [t("memoryPurpose"), localizePurpose(snapshot.state.tripPurpose)],
     [
       t("memoryDays"),
       snapshot.state.stayLengthDays

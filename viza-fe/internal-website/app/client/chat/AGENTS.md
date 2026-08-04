@@ -31,6 +31,8 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 - `chat-client.tsx`: main client UI; owns tab switching, Socket.IO connection, streaming state, scroll behavior, and embedded Travel AI.
 - `visa-memory-summary.tsx`: editable per-chat passport/trip memory summary;
   profile persistence requires a separate explicit confirmation.
+- `visa-memory-summary.test.tsx`: verifies that canonical passport, destination,
+  and trip-purpose values render in the selected interface language.
 - `components/client/companion/chat-input.tsx`: shared bottom composer used by the VIZA AI chat surface.
 - `components/client/companion/chat-message.tsx`: shared message renderer for user and agent bubbles/text.
 - `components/client/companion/block-message.tsx`: renders application redirect CTA payloads. It must not render inline application form fields in VIZA chat.
@@ -42,7 +44,7 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 3. Do not hardcode AI answers in the frontend; assistant text should come from persisted history or streamed backend output.
 4. Keep Travel AI changes inside the Travel module unless the chat tab integration itself changes.
 5. Keep `/client/chat` on the light visual palette. Do not move the `VIZA AI / Travel AI` tab controls when changing the process/session panel.
-6. The VIZA process/session panel defaults to collapsed. On desktop, opening it should render a floating left panel that does not move the centered AI output or the `VIZA AI / Travel AI` tab controls; on mobile, it opens as a drawer.
+6. The VIZA process/session panel defaults to collapsed. On desktop, opening it should render a fixed, full-height left navigation layer that does not move the centered AI output or the `VIZA AI / Travel AI` tab controls; on mobile, it opens as a drawer. The expand/collapse control must keep the same vertical screen position in both states.
 7. Treat `components/client/companion/**` as shared UI. Check other imports before changing props or styles.
 8. Preserve queued-message behavior while an assistant response is streaming.
 9. Keep application redirect blocks type-safe. VIZA chat should redirect to `/client/application` for form filling instead of collecting fields inline.

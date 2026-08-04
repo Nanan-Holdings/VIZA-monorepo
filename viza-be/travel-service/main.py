@@ -1,5 +1,8 @@
+import asyncio
 import calendar
-import calendar
+import inspect
+import os
+from contextlib import asynccontextmanager
 from datetime import date, timedelta
 from typing import Any, Optional
 
@@ -10,14 +13,67 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 
-from itinerary import generate_itinerary, revise_itinerary
-from agent import TravelChatRequest, generate_chat_response
+from itinerary import (
+    _fallback_itinerary,
+    _openai_revision_unavailable,
+    _sanitize_itinerary,
+    generate_itinerary,
+    revise_itinerary,
+)
+from agent import TravelChatRequest, TravelChatResponse, generate_chat_response
 from export_doc import export_to_word
 from export_pdf import export_to_pdf
-from tools.flights import search_flights
-from tools.hotels import search_hotels
+from tools.flights import _fallback_flights, search_flights
+from tools.hotels import _fallback_hotels, search_hotels
+from tools.http_client import close_http_client, get_http_client
 
-app = FastAPI()
+
+def _positive_env_int(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def _positive_env_float(name: str, default: float) -> float:
+    try:
+        value = float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+EXTERNAL_SEARCH_CONCURRENCY = _positive_env_int("TRAVEL_SEARCH_CONCURRENCY", 4)
+EXTERNAL_SEARCH_DEADLINE_SECONDS = _positive_env_float(
+    "TRAVEL_SEARCH_DEADLINE_SECONDS", 30.0
+)
+OPENAI_ENDPOINT_DEADLINE_SECONDS = _positive_env_float(
+    "TRAVEL_OPENAI_ENDPOINT_DEADLINE_SECONDS", 50.0
+)
+_search_semaphore: asyncio.Semaphore | None = None
+_search_semaphore_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _get_search_semaphore() -> asyncio.Semaphore:
+    global _search_semaphore, _search_semaphore_loop
+    running_loop = asyncio.get_running_loop()
+    if _search_semaphore is None or _search_semaphore_loop is not running_loop:
+        _search_semaphore = asyncio.Semaphore(EXTERNAL_SEARCH_CONCURRENCY)
+        _search_semaphore_loop = running_loop
+    return _search_semaphore
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await get_http_client()
+    try:
+        yield
+    finally:
+        await close_http_client()
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -235,31 +291,100 @@ def _cleanup_file(file_path: str):
     Path(file_path).unlink(missing_ok=True)
 
 
+async def _run_external_search(search_fn, kwargs: dict[str, Any], fallback):
+    """Run one provider search with bounded concurrency and a hard deadline."""
+
+    try:
+        async with _get_search_semaphore():
+            result = search_fn(**kwargs)
+            if inspect.isawaitable(result):
+                result = await asyncio.wait_for(
+                    result,
+                    timeout=EXTERNAL_SEARCH_DEADLINE_SECONDS,
+                )
+            return result if result is not None else fallback()
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        print("Travel provider search failed, using fallback:", exc)
+        return fallback()
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "travel-service"}
+
+
+@app.get("/ready")
+async def ready():
+    try:
+        await get_http_client()
+    except Exception as exc:
+        return {"status": "not_ready", "service": "travel-service", "error": str(exc)}
+    return {"status": "ready", "service": "travel-service"}
+
+
 @app.post("/generate")
-def generate(data: TravelRequest):
-    itinerary = generate_itinerary(_travel_payload(data))
+async def generate(data: TravelRequest):
+    payload = _travel_payload(data)
+    try:
+        itinerary = await asyncio.wait_for(
+            generate_itinerary(payload),
+            timeout=OPENAI_ENDPOINT_DEADLINE_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        print("Travel itinerary generation exceeded the endpoint deadline; using fallback.")
+        itinerary = _fallback_itinerary(payload)
     return {"reply": itinerary}
 
 
 @app.post("/revise-itinerary")
-def revise(data: TravelRevisionRequest):
+async def revise(data: TravelRevisionRequest):
     if hasattr(data, "model_dump"):
         payload = data.model_dump()
     else:
         payload = data.dict()
-    return revise_itinerary(payload)
+    try:
+        return await asyncio.wait_for(
+            revise_itinerary(payload),
+            timeout=OPENAI_ENDPOINT_DEADLINE_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        print("Travel itinerary revision exceeded the endpoint deadline; preserving current version.")
+        current = _sanitize_itinerary(payload.get("current_itinerary"), payload.get("state"))
+        return _openai_revision_unavailable("OpenAI 请求超时", current)
 
 
 @app.post("/chat")
-def chat(data: TravelChatRequest):
-    return generate_chat_response(data)
+async def chat(data: TravelChatRequest):
+    try:
+        return await asyncio.wait_for(
+            generate_chat_response(data),
+            timeout=OPENAI_ENDPOINT_DEADLINE_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        print("Travel chat exceeded the endpoint deadline; returning a safe fallback.")
+        return TravelChatResponse(
+            reply="旅行对话暂时超时了。你可以稍后重试，或直接告诉我目的地和旅行天数。",
+            mode="collect_slots",
+        )
 
 
 @app.post("/download-word")
-def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
+async def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
     payload = _travel_payload(data)
-    itinerary = data.itinerary or generate_itinerary(payload)
-    file_path = export_to_word(itinerary, payload)
+    if data.itinerary:
+        itinerary = data.itinerary
+    else:
+        try:
+            itinerary = await asyncio.wait_for(
+                generate_itinerary(payload),
+                timeout=OPENAI_ENDPOINT_DEADLINE_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            print("Travel itinerary generation exceeded the endpoint deadline; using fallback.")
+            itinerary = _fallback_itinerary(payload)
+    file_path = await asyncio.to_thread(export_to_word, itinerary, payload)
     background_tasks.add_task(_cleanup_file, file_path)
 
     return FileResponse(
@@ -270,10 +395,20 @@ def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
 
 
 @app.post("/download-pdf")
-def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
+async def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
     payload = _travel_payload(data)
-    itinerary = data.itinerary or generate_itinerary(payload)
-    file_path = export_to_pdf(itinerary, payload)
+    if data.itinerary:
+        itinerary = data.itinerary
+    else:
+        try:
+            itinerary = await asyncio.wait_for(
+                generate_itinerary(payload),
+                timeout=OPENAI_ENDPOINT_DEADLINE_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            print("Travel itinerary generation exceeded the endpoint deadline; using fallback.")
+            itinerary = _fallback_itinerary(payload)
+    file_path = await asyncio.to_thread(export_to_pdf, itinerary, payload)
     background_tasks.add_task(_cleanup_file, file_path)
 
     return FileResponse(
@@ -284,42 +419,59 @@ def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
 
 
 @app.post("/flight-options")
-def flight_options(data: TravelRequest):
+async def flight_options(data: TravelRequest):
     legs = _build_flight_legs(data)
-    results = []
-
-    for leg in legs:
-        options = search_flights(
-            origin_city=leg["from"],
-            destination_city=leg["to"],
-            departure_date=leg["departure_date"],
-            adults=leg["adults"],
-        )
-
-        results.append(
+    result_tasks = [
+        _run_external_search(
+            search_flights,
             {
-                "from": leg["from"],
-                "to": leg["to"],
+                "origin_city": leg["from"],
+                "destination_city": leg["to"],
                 "departure_date": leg["departure_date"],
-                "options": options,
-            }
+                "adults": leg["adults"],
+            },
+            lambda leg=leg: _fallback_flights(
+                leg["from"],
+                leg["to"],
+                leg["departure_date"],
+            ),
         )
+        for leg in legs
+    ]
+    options_by_leg = await asyncio.gather(*result_tasks)
+    results = [
+        {
+            "from": leg["from"],
+            "to": leg["to"],
+            "departure_date": leg["departure_date"],
+            "options": options,
+        }
+        for leg, options in zip(legs, options_by_leg)
+    ]
 
     return {"legs": results}
 
 
 @app.post("/hotel-options")
-def hotel_options(data: TravelRequest):
+async def hotel_options(data: TravelRequest):
     stays = _build_hotel_stays(data)
-    results = []
-
-    for stay in stays:
-        options = search_hotels(
-            destination=stay["city"],
-            check_in_date=stay["check_in"],
-            check_out_date=stay["check_out"],
-            adults=stay["adults"],
+    result_tasks = [
+        _run_external_search(
+            search_hotels,
+            {
+                "destination": stay["city"],
+                "check_in_date": stay["check_in"],
+                "check_out_date": stay["check_out"],
+                "adults": stay["adults"],
+            },
+            lambda stay=stay: _fallback_hotels(stay["city"], adults=stay["adults"]),
         )
-        results.append({**stay, "options": options})
+        for stay in stays
+    ]
+    options_by_stay = await asyncio.gather(*result_tasks)
+    results = [
+        {**stay, "options": options}
+        for stay, options in zip(stays, options_by_stay)
+    ]
 
     return {"stays": results}

@@ -1237,6 +1237,23 @@ export const userPackages = pgTable("user_packages", {
 export type UserPackage = typeof userPackages.$inferSelect;
 export type NewUserPackage = typeof userPackages.$inferInsert;
 
+export const userFormRequests = pgTable("user_form_requests", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	userId: uuid("user_id").notNull(),
+	formType: text("form_type").notNull().default("about_me"),
+	triggeredBy: text("triggered_by").notNull().default("system"),
+	triggeredByUserId: uuid("triggered_by_user_id"),
+	status: text("status").notNull().default("pending"),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+	completedAt: timestamp("completed_at", { withTimezone: true }),
+	skippedAt: timestamp("skipped_at", { withTimezone: true }),
+	dueDate: timestamp("due_date", { withTimezone: true }),
+	notes: text("notes"),
+});
+
+export type UserFormRequest = typeof userFormRequests.$inferSelect;
+export type NewUserFormRequest = typeof userFormRequests.$inferInsert;
+
 // =============================================================================
 // VISA APPLICATION ANSWERS
 // Generic key-value answer storage for dynamic visa forms

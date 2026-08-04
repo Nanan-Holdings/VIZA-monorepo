@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-30",
+  "version": "2026-08-04",
   "country": "singapore",
   "notes": "Country-level VIZA RAG seed for singapore. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -22,7 +22,7 @@
             "entry-visa",
             "sgac"
           ],
-          "content": "自2024年2月9日起，中华人民共和国签发的普通护照持有人赴新加坡短期停留不超过30天免办入境签证。工作、新闻报道等须事先批准的活动不适用；其他中国旅行证件仍须按ICA规则核验签证。SG Arrival Card是独立入境申报，不是签证，最终获准停留期以入境后的e-Pass为准。"
+          "content": "自2024年2月9日起，中华人民共和国签发的普通护照持有人赴新加坡短期停留不超过30天免办入境签证。工作、新闻报道等须事先批准的活动不适用；其他中国旅行证件仍须按ICA规则核验签证。新加坡电子入境卡是独立入境申报，不是签证，最终获准停留期以入境后的电子访问准证为准。"
         },
         {
           "id": "sgp_ica_visa_not_pass",
@@ -47,6 +47,17 @@
             "health-declaration"
           ],
           "content": "ICA requires travellers to submit the SG Arrival Card with electronic health declaration within 3 days before arriving in Singapore, including the day of arrival. VIZA AI should tell users to use official ICA/e-service channels and avoid paid lookalike SGAC websites where possible. SGAC does not replace a visa for visa-required passport holders."
+        },
+        {
+          "id": "singapore_viza_product_capability",
+          "title": "VIZA 新加坡产品支持范围",
+          "tags": [
+            "singapore",
+            "viza-service",
+            "product-capability",
+            "application-route"
+          ],
+          "content": "VIZA 当前支持新加坡电子入境卡的资料填写与提交准备，聊天入口为 /client/application?country=singapore&visaType=SG_ARRIVAL_CARD。VIZA 也将新加坡入境签证作为独立产品处理；只有确定性资格规则判定旅客需要签证时，才可推荐入境签证产品。不得把电子入境卡描述成签证，也不得把中国普通护照短期旅游免签旅客路由到新加坡入境签证。"
         }
       ]
     },

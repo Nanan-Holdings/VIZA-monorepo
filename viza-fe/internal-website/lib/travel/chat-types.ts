@@ -53,6 +53,8 @@ export type TravelChatQuickRepliesPart = {
 
 export type TravelChatPlannerFormPart = {
   type: "planner_form";
+  field: TravelField;
+  stateVersion: number;
 };
 
 export type TravelChatToolItineraryDay = {
@@ -87,3 +89,4 @@ export type TravelChatInputMessage = {
 };
 
 export type TravelChatStatus = "ready" | "submitted" | "streaming";
+import type { TravelField } from "@/lib/travel/planner";

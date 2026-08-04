@@ -14,6 +14,7 @@ import type {
   TravelDestinationCard,
   TravelQuickReply,
 } from "@/lib/travel/chat-types";
+import { nextMissingField, type TravelField } from "@/lib/travel/planner";
 import type { Json } from "@/types/database";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
@@ -31,8 +32,15 @@ type TravelAgentIntent =
   | "remove_destination"
   | "confirm_action"
   | "reject_action"
+  | "generate_itinerary"
   | "modify_itinerary"
   | "clarify";
+
+type TravelAgentUiAction =
+  | "none"
+  | "collect_field"
+  | "generate_itinerary"
+  | "revise_itinerary";
 
 type TravelAgentModelResult = {
   intent: TravelAgentIntent;
@@ -182,6 +190,7 @@ function parseModelResult(value: unknown): TravelAgentModelResult | null {
     "remove_destination",
     "confirm_action",
     "reject_action",
+    "generate_itinerary",
     "modify_itinerary",
     "clarify",
   ]);
@@ -280,6 +289,7 @@ function outputSchema() {
           "remove_destination",
           "confirm_action",
           "reject_action",
+          "generate_itinerary",
           "modify_itinerary",
           "clarify",
         ],
@@ -374,8 +384,11 @@ function systemPrompt(locale: InterfaceLocale): string {
     "Only emit an explicit=true operation when the user directly stated that fact or command in this turn.",
     "A direct command such as '我想去东京' selects Tokyo. A direct command such as '我不要去东京' removes Tokyo.",
     "Questions such as '多少预算合适' and requests such as '推荐一下预算' are advice requests: answer them and emit NO budget operation.",
+    "When the user explicitly asks you to create, arrange, generate, or show an itinerary, use intent generate_itinerary. Do not recommend a new destination when the current state already has one.",
+    "The UI will collect the next required field after your answer. Do not append a second unrelated follow-up question when you are recording facts or requesting an itinerary.",
     "If you infer a potentially useful change, emit it with explicit=false so it can wait for confirmation. Never claim it was applied.",
     "Use add/remove for cities and countries; set for scalar facts; unset to clear one fact; reset only when the user explicitly asks to restart everything.",
+    "For travel_order, use set with value_text containing every selected city in order, separated by Chinese commas. Set final_note to an empty string when the user explicitly says there are no extra notes.",
     "Do not create a destination from a full sentence, a question, or a broad region. Put display suggestions in recommendations.",
     "Keep memory_summary to a compact factual summary of the conversation. Do not store secrets or speculative facts.",
     "Only put a stable preference in preference_updates when the user explicitly states it this turn. Supported preferences are interests, pace, dietary needs, accommodation, transport, and things to avoid.",
@@ -431,6 +444,7 @@ async function callOpenAI(args: {
           },
         },
       }),
+      signal: AbortSignal.timeout(15_000),
     });
 
   let response = await requestModel(activeTravelAgentModel);
@@ -487,7 +501,9 @@ function explicitDestinationCommand(
     return false;
   }
   if (operation.op === "add") {
-    return /(我想去|我要去|想去|加入|添加|选择|选|就去|目的地)/u.test(text);
+    return /(我想去|我要去|想去|加入|添加|选择|选|就去|目的地|\d+\s*(?:个)?人[^。！？]*去)/u.test(
+      text
+    );
   }
   if (operation.op === "remove") {
     return /(不要|不去|删除|移除|取消|撤销|去掉)/u.test(text);
@@ -531,7 +547,18 @@ function validateExplicitOperations(
     if (operation.path === "travelers") {
       return {
         ...operation,
-        explicit: /\d+\s*(人|位|traveler|people|person)/iu.test(text),
+        explicit: /\d+\s*(?:个)?(人|位|traveler|people|person)/iu.test(text),
+      };
+    }
+    if (operation.path === "travel_order") {
+      const mentioned = (operation.valueText ?? "")
+        .split(/\s*(?:、|,|，|->|→|再到|然后到|再|然后)\s*/u)
+        .filter(Boolean);
+      return {
+        ...operation,
+        explicit:
+          mentioned.length > 0 &&
+          mentioned.every((city) => text.includes(city)),
       };
     }
     return {
@@ -643,6 +670,84 @@ async function ensureSession(
     throw new Error(error.message);
   }
   return data as TravelAgentSessionRow;
+}
+
+async function readSession(
+  userId: string,
+  sessionId: string
+): Promise<TravelAgentSessionRow | null> {
+  const { data, error } = await createAdminClient()
+    .from("travel_agent_sessions")
+    .select(
+      "id, state_json, state_version, memory_summary, openai_previous_response_id, pending_actions_json"
+    )
+    .eq("id", sessionId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data as TravelAgentSessionRow | null;
+}
+
+function getUiAction(
+  intent: TravelAgentIntent,
+  nextField: TravelField | null
+): TravelAgentUiAction {
+  if (nextField) return "collect_field";
+  if (intent === "generate_itinerary") return "generate_itinerary";
+  if (intent === "modify_itinerary") return "revise_itinerary";
+  return "none";
+}
+
+function resolveExplicitItineraryIntent(
+  text: string,
+  modelIntent: TravelAgentIntent
+): TravelAgentIntent {
+  const asksToRevise =
+    /(?:修改|调整|改(?:一下|一版)?|优化|重排).{0,18}(?:行程|路线|itinerary)|(?:revise|modify|change|adjust|rework).{0,24}(?:itinerary|trip|route)/iu.test(
+      text
+    );
+  if (asksToRevise) return "modify_itinerary";
+
+  const asksToGenerate =
+    /(?:生成|安排|规划|制定|做|给我|来).{0,24}(?:行程|路线|itinerary)|(?:generate|create|make|build|plan|show).{0,24}(?:itinerary|trip itinerary|travel plan)/iu.test(
+      text
+    );
+  return asksToGenerate ? "generate_itinerary" : modelIntent;
+}
+
+export async function GET(request: Request) {
+  const auth = await getTravelUserSession();
+  if (!auth) {
+    return Response.json({ error: "Unauthorized", code: "session_expired" }, { status: 401 });
+  }
+
+  const sessionId = new URL(request.url).searchParams.get("sessionId")?.trim();
+  if (!sessionId || sessionId.length > 160) {
+    return Response.json({ error: "sessionId is required." }, { status: 400 });
+  }
+
+  try {
+    const session = await readSession(auth.userId, sessionId);
+    const state = coerceTravelState(session?.state_json ?? null);
+    return Response.json(
+      {
+        exists: Boolean(session),
+        state,
+        state_version: session?.state_version ?? 0,
+        next_missing_field: nextMissingField(state),
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("[travel-chat] canonical state read failure", error);
+    return Response.json(
+      {
+        error: "Travel session state is temporarily unavailable.",
+        code: "travel_session_unavailable",
+      },
+      { status: 503 }
+    );
+  }
 }
 
 async function loadRecentHistory(
@@ -807,6 +912,7 @@ export async function POST(request: Request) {
     }
 
     const pendingActions = parsePendingActions(session.pending_actions_json);
+    const currentState = coerceTravelState(session.state_json);
     const [history, preferences] = await Promise.all([
       loadRecentHistory(auth.userId, input.sessionId),
       loadPreferences(auth.userId),
@@ -816,7 +922,7 @@ export async function POST(request: Request) {
       openAI = await callOpenAI({
         text: input.text,
         locale: input.locale,
-        state: coerceTravelState(session.state_json),
+        state: currentState,
         memorySummary: session.memory_summary,
         preferences,
         pendingActions,
@@ -850,6 +956,87 @@ export async function POST(request: Request) {
       const item = resolveDestinationOperation(operation, input.locale);
       return item ? [item] : [];
     });
+    for (const operation of [...resolved]) {
+      if (
+        operation.op !== "add" ||
+        operation.path !== "cities" ||
+        !operation.explicit ||
+        !operation.valueText
+      ) {
+        continue;
+      }
+      const destination = resolveLocalDestinationText(operation.valueText);
+      const country =
+        destination.status === "resolved"
+          ? (input.locale === "zh"
+              ? destination.destinations[0]?.countryNameZh ??
+                destination.destinations[0]?.countryName
+              : destination.destinations[0]?.countryNameEn ??
+                destination.destinations[0]?.countryName
+            )?.trim()
+          : "";
+      if (
+        country &&
+        !resolved.some(
+          (item) =>
+            item.op === "add" &&
+            item.path === "countries" &&
+            item.valueText?.toLocaleLowerCase() === country.toLocaleLowerCase()
+        )
+      ) {
+        resolved.push({
+          ...operation,
+          path: "countries",
+          valueText: country,
+        });
+      }
+    }
+    for (const pair of [
+      { cityPath: "origin_city", countryPath: "origin_country" },
+      { cityPath: "return_city", countryPath: "return_country" },
+    ] as const) {
+      const cityOperation = [...resolved]
+        .reverse()
+        .find(
+          (item) =>
+            item.op === "set" &&
+            item.path === pair.cityPath &&
+            item.explicit &&
+            item.valueText
+        );
+      const city = cityOperation?.valueText?.trim() || currentState[pair.cityPath];
+      const alreadyHasCountry = Boolean(
+        resolved.some(
+          (item) =>
+            item.op === "set" &&
+            item.path === pair.countryPath &&
+            item.explicit &&
+            item.valueText
+        ) || currentState[pair.countryPath]
+      );
+      if (!city || alreadyHasCountry) continue;
+
+      const destination = resolveLocalDestinationText(city);
+      const country =
+        destination.status === "resolved"
+          ? (input.locale === "zh"
+              ? destination.destinations[0]?.countryNameZh ??
+                destination.destinations[0]?.countryName
+              : destination.destinations[0]?.countryNameEn ??
+                destination.destinations[0]?.countryName
+            )?.trim()
+          : "";
+      if (!country) continue;
+      resolved.push({
+        op: "set",
+        path: pair.countryPath,
+        valueText: country,
+        valueNumber: null,
+        valueBoolean: null,
+        explicit: true,
+        evidence: cityOperation?.evidence || city,
+      });
+    }
     const explicitOperations = resolved.filter((operation) => operation.explicit);
     const nextPendingActions =
       openAI.result.intent === "reject_action" ||
@@ -860,14 +1047,31 @@ export async function POST(request: Request) {
       session.state_json,
       explicitOperations
     );
+    const effectiveIntent = resolveExplicitItineraryIntent(
+      input.text,
+      openAI.result.intent
+    );
+    const nextField = nextMissingField(mutation.state);
+    const uiAction = getUiAction(effectiveIntent, nextField);
+    const explicitlyRequestedRecommendations =
+      /(推荐|建议|还有|其他|别的|替代|换一个|recommend|suggest|alternative|other)/iu.test(
+        input.text
+      );
+    const allowRecommendationCards =
+      effectiveIntent === "recommend_destinations" &&
+      (mutation.state.cities.length === 0 || explicitlyRequestedRecommendations);
     const nextVersion = session.state_version + 1;
     const responseBody = {
       reply: openAI.result.reply,
-      mode: openAI.result.intent,
-      cards: recommendationCards(openAI.result.recommendations, input.text),
+      mode: effectiveIntent,
+      cards: allowRecommendationCards
+        ? recommendationCards(openAI.result.recommendations, input.text)
+        : [],
       quick_replies: openAI.result.quickReplies,
       state: mutation.state,
       state_version: nextVersion,
+      next_missing_field: nextField,
+      ui_action: uiAction,
       applied_operations: mutation.applied,
       pending_confirmation: nextPendingActions.length > 0,
     };

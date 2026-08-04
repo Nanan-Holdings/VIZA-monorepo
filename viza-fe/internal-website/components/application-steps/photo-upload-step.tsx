@@ -25,6 +25,7 @@ import {
 import { getPhotoGuidance } from "@/lib/photo-guidance";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
+import { type FieldGuidanceChatMessage } from "@/types/field-guidance";
 import { PhotoCropTool } from "./photo-crop-tool";
 
 type Screen = "upload" | "quality_check" | "confirm";
@@ -81,6 +82,9 @@ export function PhotoUploadStep({
   );
   const [error, setError] = useState<string | null>(null);
   const [photoCopilotOpen, setPhotoCopilotOpen] = useState(false);
+  const [photoCopilotConversation, setPhotoCopilotConversation] = useState<
+    FieldGuidanceChatMessage[]
+  >([]);
 
   const fieldGuidanceVisaType = normalizePhotoVisaType(visaType);
   const photoGuidanceField = useMemo<VisaFormFieldRow>(
@@ -266,6 +270,8 @@ export function PhotoUploadStep({
               field={photoGuidanceField}
               answer={photoCopilotAnswer}
               allAnswers={photoAllAnswers}
+              initialConversation={photoCopilotConversation}
+              onConversationChange={setPhotoCopilotConversation}
               onClose={() => setPhotoCopilotOpen(false)}
             />
           </div>

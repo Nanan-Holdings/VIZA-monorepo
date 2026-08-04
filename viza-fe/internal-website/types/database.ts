@@ -2398,15 +2398,7 @@ export type Database = {
           triggered_by?: string
           triggered_by_user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_form_requests_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_goals: {
         Row: {

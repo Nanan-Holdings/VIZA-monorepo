@@ -45,7 +45,7 @@ export async function getPendingFormRequests(): Promise<{
     return { success: false, error: "Unauthorized" };
   }
 
-  const adminClient = createAdminClient();
+  const adminClient = createAdminClient({ requestTimeoutMs: 5_000 });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (adminClient as any)
@@ -214,22 +214,24 @@ export async function hasPendingFormRequest(
   userId: string,
   formType: FormType = "about_me"
 ): Promise<boolean> {
-  const adminClient = createAdminClient();
+  const adminClient = createAdminClient({ requestTimeoutMs: 5_000 });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { count, error } = await (adminClient as any)
+  const { data, error } = await (adminClient as any)
     .from("user_form_requests")
-    .select("*", { count: "exact", head: true })
+    .select("id")
     .eq("user_id", userId)
     .eq("form_type", formType)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     console.error("Error checking pending form requests:", error);
     return false;
   }
 
-  return (count || 0) > 0;
+  return Boolean(data);
 }
 
 /**
@@ -240,22 +242,24 @@ export async function hasCompletedForm(
   userId: string,
   formType: FormType = "about_me"
 ): Promise<boolean> {
-  const adminClient = createAdminClient();
+  const adminClient = createAdminClient({ requestTimeoutMs: 5_000 });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { count, error } = await (adminClient as any)
+  const { data, error } = await (adminClient as any)
     .from("user_form_requests")
-    .select("*", { count: "exact", head: true })
+    .select("id")
     .eq("user_id", userId)
     .eq("form_type", formType)
-    .eq("status", "completed");
+    .eq("status", "completed")
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     console.error("Error checking completed form requests:", error);
     return false;
   }
 
-  return (count || 0) > 0;
+  return Boolean(data);
 }
 
 /**
@@ -270,31 +274,24 @@ export async function createFirstLoginFormRequestIfNeeded(
   requestId?: string;
   error?: string;
 }> {
-  // Check if there's already a pending request
-  const hasPending = await hasPendingFormRequest(userId, "about_me");
-  if (hasPending) {
-    return { success: true, created: false };
+  const adminClient = createAdminClient({ requestTimeoutMs: 5_000 });
+  // Migration 0131 replaces three serial check/check/insert requests with one
+  // concurrency-safe operation.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (adminClient as any).rpc(
+    "ensure_first_login_form_request",
+    { p_user_id: userId }
+  );
+
+  if (error) {
+    return { success: false, created: false, error: error.message };
   }
 
-  // Check if user has ever completed the form
-  const hasCompleted = await hasCompletedForm(userId, "about_me");
-  if (hasCompleted) {
-    // User has filled the form before, no need for first-login request
-    return { success: true, created: false };
-  }
-
-  // Create a system-triggered form request
-  const result = await createFormRequest(userId, {
-    formType: "about_me",
-    triggeredBy: "system",
-    notes: "First login - please complete your profile",
-  });
-
-  if (!result.success) {
-    return { success: false, created: false, error: result.error };
-  }
-
-  return { success: true, created: true, requestId: result.data?.id };
+  return {
+    success: true,
+    created: false,
+    requestId: typeof data === "string" ? data : undefined,
+  };
 }
 
 /**
