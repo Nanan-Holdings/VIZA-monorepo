@@ -1,5 +1,14 @@
 import { getSupabaseClient } from '../db/supabase-client.js';
 import { Logger } from '../utils/logger.js';
+import {
+  REVIEWED_VISA_ENTRY_RULE_MAP,
+  reviewedVisaEntryRuleKey,
+  type ReviewedVisaEntryRuleSeed,
+} from '../config/reviewed-visa-entry-rules.js';
+import {
+  getVisaProduct,
+  type VisaProductRecommendation,
+} from '../config/visa-product-registry.js';
 
 const logger = new Logger({ serviceName: 'VisaEntryRuleService' });
 
@@ -7,7 +16,8 @@ export type VisaEntryOutcome =
   | 'visa_exempt'
   | 'visa_required'
   | 'conditional'
-  | 'unknown';
+  | 'unknown'
+  | 'not_applicable';
 
 export interface VisaEntryRule {
   ruleKey: string;
@@ -19,10 +29,15 @@ export interface VisaEntryRule {
   outcome: VisaEntryOutcome;
   visaType: string | null;
   arrivalCardTypes: string[];
+  requiredInputs: string[];
+  productRecommendations: VisaProductRecommendation[];
   conditions: Record<string, unknown>;
   sourceUrl: string;
   effectiveFrom: string | null;
+  effectiveTo: string | null;
   verifiedAt: string;
+  reviewDueAt: string | null;
+  reviewStatus: 'reviewed' | 'placeholder' | null;
 }
 
 export interface VisaEntryRuleQuery {
@@ -43,6 +58,8 @@ const SINGAPORE_CHINA_ORDINARY_RULE: VisaEntryRule = {
   outcome: 'visa_exempt',
   visaType: null,
   arrivalCardTypes: ['SG_ARRIVAL_CARD'],
+  requiredInputs: [],
+  productRecommendations: [],
   conditions: {
     permittedPurposes: ['tourism', 'business', 'family_visit', 'transit'],
     excludedPurposes: ['work', 'study', 'journalism', 'long_stay'],
@@ -51,7 +68,10 @@ const SINGAPORE_CHINA_ORDINARY_RULE: VisaEntryRule = {
   sourceUrl:
     'https://www.ica.gov.sg/news-and-publications/newsroom/media-release/mutual-30-day-visa-exemption-arrangement-between-singapore-and-the-people-s-republic-of-china',
   effectiveFrom: '2024-02-09',
+  effectiveTo: null,
   verifiedAt: '2026-07-30T00:00:00.000Z',
+  reviewDueAt: '2026-10-31',
+  reviewStatus: 'reviewed',
 };
 
 function isSingaporeChinaOrdinaryExemption(
@@ -71,9 +91,67 @@ function isSingaporeChinaOrdinaryExemption(
 export function resolveReviewedVisaEntryRule(
   query: VisaEntryRuleQuery
 ): VisaEntryRule | null {
-  return isSingaporeChinaOrdinaryExemption(query)
-    ? SINGAPORE_CHINA_ORDINARY_RULE
-    : null;
+  if (!query.destinationCountry || !query.passportCountryIso3 || !query.passportType) {
+    return null;
+  }
+  if (isSingaporeChinaOrdinaryExemption(query)) {
+    const reviewed = REVIEWED_VISA_ENTRY_RULE_MAP.get(
+      reviewedVisaEntryRuleKey(
+        query.destinationCountry,
+        query.passportCountryIso3,
+        query.passportType,
+        query.tripPurpose ?? 'tourism'
+      )
+    );
+    return reviewed ? mapReviewedSeed(reviewed) : SINGAPORE_CHINA_ORDINARY_RULE;
+  }
+
+  const reviewed = REVIEWED_VISA_ENTRY_RULE_MAP.get(
+    reviewedVisaEntryRuleKey(
+      query.destinationCountry,
+      query.passportCountryIso3,
+      query.passportType,
+      query.tripPurpose ?? 'tourism'
+    )
+  );
+  return reviewed ? applyStayLength(reviewed, query.stayLengthDays) : null;
+}
+
+function mapReviewedSeed(seed: ReviewedVisaEntryRuleSeed): VisaEntryRule {
+  return {
+    ...seed,
+    reviewStatus: 'reviewed',
+  };
+}
+
+function applyStayLength(
+  seed: ReviewedVisaEntryRuleSeed,
+  stayLengthDays: number | null
+): VisaEntryRule {
+  const rule = mapReviewedSeed(seed);
+  if (
+    rule.maxStayDays === null ||
+    stayLengthDays === null ||
+    stayLengthDays <= rule.maxStayDays ||
+    rule.outcome === 'not_applicable'
+  ) {
+    return rule;
+  }
+
+  return {
+    ...rule,
+    outcome: 'conditional',
+    visaType: null,
+    arrivalCardTypes: [],
+    requiredInputs: Array.from(
+      new Set([...rule.requiredInputs, 'stayLengthDays'])
+    ),
+    productRecommendations: [],
+    conditions: {
+      ...rule.conditions,
+      reason: `The requested stay exceeds the reviewed ${rule.maxStayDays}-day route; a longer-stay or different-purpose route must be confirmed.`,
+    },
+  };
 }
 
 function mapRule(row: Record<string, unknown>): VisaEntryRule | null {
@@ -82,7 +160,8 @@ function mapRule(row: Record<string, unknown>): VisaEntryRule | null {
     outcome !== 'visa_exempt' &&
     outcome !== 'visa_required' &&
     outcome !== 'conditional' &&
-    outcome !== 'unknown'
+    outcome !== 'unknown' &&
+    outcome !== 'not_applicable'
   ) {
     return null;
   }
@@ -112,6 +191,14 @@ function mapRule(row: Record<string, unknown>): VisaEntryRule | null {
           (value): value is string => typeof value === 'string'
         )
       : [],
+    requiredInputs: Array.isArray(row.required_inputs)
+      ? row.required_inputs.filter(
+          (value): value is string => typeof value === 'string'
+        )
+      : [],
+    productRecommendations: Array.isArray(row.product_recommendations)
+      ? row.product_recommendations.filter(isProductRecommendation)
+      : [],
     conditions:
       typeof row.conditions_json === 'object' && row.conditions_json !== null
         ? (row.conditions_json as Record<string, unknown>)
@@ -119,8 +206,30 @@ function mapRule(row: Record<string, unknown>): VisaEntryRule | null {
     sourceUrl: row.source_url,
     effectiveFrom:
       typeof row.effective_from === 'string' ? row.effective_from : null,
+    effectiveTo:
+      typeof row.effective_to === 'string' ? row.effective_to : null,
     verifiedAt: row.verified_at,
+    reviewDueAt:
+      typeof row.review_due_at === 'string' ? row.review_due_at : null,
+    reviewStatus:
+      row.review_status === 'reviewed' || row.review_status === 'placeholder'
+        ? row.review_status
+        : null,
   };
+}
+
+function isProductRecommendation(value: unknown): value is VisaProductRecommendation {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<VisaProductRecommendation>;
+  return (
+    typeof candidate.productCode === 'string' &&
+    typeof candidate.country === 'string' &&
+    typeof candidate.kind === 'string' &&
+    typeof candidate.provider === 'string' &&
+    typeof candidate.supportLevel === 'string' &&
+    typeof candidate.requirement === 'string' &&
+    typeof candidate.url === 'string'
+  );
 }
 
 export async function resolveVisaEntryRule(
@@ -139,7 +248,7 @@ export async function resolveVisaEntryRule(
     const { data, error } = await supabase
       .from('visa_entry_rules')
       .select(
-        'rule_key, destination_country, passport_country_iso3, passport_type, trip_purpose, max_stay_days, outcome, visa_type, arrival_card_types, conditions_json, source_url, effective_from, verified_at, visa_knowledge_releases!inner(status)'
+        'rule_key, destination_country, passport_country_iso3, passport_type, trip_purpose, max_stay_days, outcome, review_status, visa_type, arrival_card_types, required_inputs, product_recommendations, conditions_json, source_url, effective_from, effective_to, verified_at, review_due_at, visa_knowledge_releases!inner(status)'
       )
       .eq('destination_country', query.destinationCountry)
       .eq('passport_country_iso3', query.passportCountryIso3)
@@ -155,11 +264,26 @@ export async function resolveVisaEntryRule(
       const rule = mapRule(data as Record<string, unknown>);
       if (rule) {
         if (
+          rule.reviewStatus !== 'reviewed' ||
+          rule.outcome === 'unknown'
+        ) {
+          return resolveReviewedVisaEntryRule(query);
+        }
+        if (
           rule.maxStayDays !== null &&
           query.stayLengthDays !== null &&
           query.stayLengthDays > rule.maxStayDays
         ) {
-          return { ...rule, outcome: 'conditional' };
+          return {
+            ...rule,
+            outcome: 'conditional',
+            visaType: null,
+            arrivalCardTypes: [],
+            requiredInputs: Array.from(
+              new Set([...rule.requiredInputs, 'stayLengthDays'])
+            ),
+            productRecommendations: [],
+          };
         }
         return rule;
       }
@@ -185,9 +309,20 @@ export function buildVisaEntryRulePrompt(
     ].join('\n');
   }
 
+  if (rule.outcome === 'not_applicable') {
+    return [
+      'Deterministic entry-rule result: not applicable.',
+      'The traveller holds the destination country passport; this visitor matrix does not apply.',
+    ].join('\n');
+  }
+
   if (
-    rule.ruleKey === SINGAPORE_CHINA_ORDINARY_RULE.ruleKey &&
-    rule.outcome === 'visa_exempt'
+    rule.destinationCountry === 'singapore' &&
+    rule.passportCountryIso3 === 'CHN' &&
+    rule.passportType === 'ordinary' &&
+    rule.tripPurpose === 'tourism' &&
+    rule.outcome === 'visa_exempt' &&
+    rule.maxStayDays === 30
   ) {
     const policyLead =
       locale === 'zh'
@@ -201,11 +336,33 @@ export function buildVisaEntryRulePrompt(
     ].join('\n');
   }
 
+  const productName = (productCode: string | null): string => {
+    if (!productCode) return locale === 'zh' ? '无' : 'none';
+    const product = getVisaProduct(productCode);
+    return locale === 'zh' ? product?.displayNameZh ?? '待确认产品' : product?.displayNameEn ?? productCode;
+  };
+  const recommendationNames = rule.productRecommendations.map((product) =>
+    locale === 'zh' ? product.displayNameZh : product.productCode
+  );
+  if (locale === 'zh') {
+    return [
+      `确定性入境结论：${rule.outcome}`,
+      `本规则覆盖的最长停留：${rule.maxStayDays ?? '未指定'}天`,
+      `签证产品：${productName(rule.visaType)}`,
+      `独立入境申报：${rule.arrivalCardTypes.length > 0 ? rule.arrivalCardTypes.map(productName).join('、') : '无'}`,
+      `作出推荐前仍需确认：${rule.requiredInputs.join('、') || '无'}`,
+      `可用产品：${recommendationNames.join('、') || '无'}`,
+      `官方来源：${rule.sourceUrl}`,
+      '确定性规则控制资格结论；RAG 只能补充材料、流程和注意事项，不得推翻该结论。',
+    ].join('\n');
+  }
   return [
     `Deterministic entry-rule outcome: ${rule.outcome}`,
     `Maximum covered stay: ${rule.maxStayDays ?? 'not specified'} days`,
-    `Visa product: ${rule.visaType ?? 'none'}`,
+    `Visa product: ${productName(rule.visaType)}`,
     `Separate arrival-card products: ${rule.arrivalCardTypes.join(', ') || 'none'}`,
+    `Required inputs before a recommendation: ${rule.requiredInputs.join(', ') || 'none'}`,
+    `Product recommendations: ${recommendationNames.join(', ') || 'none'}`,
     `Official source: ${rule.sourceUrl}`,
     'This deterministic result controls the eligibility conclusion. RAG may only add materials, process, and caveats.',
   ].join('\n');

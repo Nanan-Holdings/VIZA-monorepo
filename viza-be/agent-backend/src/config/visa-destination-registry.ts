@@ -71,7 +71,97 @@ export interface VisaDestinationConfig {
   formIntakeSchemaKey: string;
 }
 
-const SCHENGEN_VISITOR_TYPE = 'schengen_short_stay_tourism';
+/**
+ * Product aliases are deliberately country-scoped.  A route such as
+ * `evisa_tourism` is used by several older country pages, but it must never
+ * resolve to the Vietnam schema (or any other country schema) without the
+ * destination context.
+ */
+const VISA_TYPE_ALIASES: Partial<
+  Record<SupportedKnowledgeCountry, Readonly<Record<string, string>>>
+> = {
+  france: {
+    eu_schengen_c_short_stay: 'EU_SCHENGEN_C_SHORT_STAY',
+    schengen_short_stay: 'EU_SCHENGEN_C_SHORT_STAY',
+    schengen_short_stay_tourism: 'EU_SCHENGEN_C_SHORT_STAY',
+  },
+  indonesia: {
+    b1_evoa: 'ID_B1_EVOA',
+    id_b1_evoa: 'ID_B1_EVOA',
+    b211a: 'ID_C1_TOURIST',
+    tourist_b211a: 'ID_C1_TOURIST',
+    id_c1_tourist: 'ID_C1_TOURIST',
+    c1_tourist: 'ID_C1_TOURIST',
+  },
+  malaysia: {
+    mdac: 'MY_MDAC_ARRIVAL_CARD',
+    my_mdac: 'MY_MDAC_ARRIVAL_CARD',
+    my_mdac_arrival_card: 'MY_MDAC_ARRIVAL_CARD',
+    my_tourist_e_visa: 'MY_TOURIST_E_VISA',
+    tourist_evisa: 'MY_TOURIST_E_VISA',
+    tourist_e_visa: 'MY_TOURIST_E_VISA',
+  },
+  philippines: {
+    ph_etravel_arrival_card: 'PH_ETRAVEL_ARRIVAL_CARD',
+    ph_etravel_departure_card: 'PH_ETRAVEL_DEPARTURE_CARD',
+    ph_temporary_visitor_visa: 'PH_TEMPORARY_VISITOR_VISA',
+    temporary_visitor_visa: 'PH_TEMPORARY_VISITOR_VISA',
+    visa_free_14_days_or_evisa: 'PH_TEMPORARY_VISITOR_VISA',
+  },
+  singapore: {
+    sgac: 'SG_ARRIVAL_CARD',
+    sg_arrival_card: 'SG_ARRIVAL_CARD',
+    sg_visitor_visa: 'SG_VISITOR_VISA',
+    visitor_visa: 'SG_VISITOR_VISA',
+  },
+  south_korea: {
+    c3_or_keta: 'KR_C39_SHORT_TERM_VISIT',
+    c3_9: 'KR_C39_SHORT_TERM_VISIT',
+    c39: 'KR_C39_SHORT_TERM_VISIT',
+    kr_c39: 'KR_C39_SHORT_TERM_VISIT',
+    kr_c39_short_term_visit: 'KR_C39_SHORT_TERM_VISIT',
+  },
+  taiwan: {
+    tw_entry_permit: 'TW_ENTRY_PERMIT',
+    tw_overseas_cn_tourism_entry_permit: 'TW_ENTRY_PERMIT',
+    taiwan_entry_permit: 'TW_ENTRY_PERMIT',
+  },
+  thailand: {
+    tdac: 'TH_TDAC_ARRIVAL_CARD',
+    th_tdac: 'TH_TDAC_ARRIVAL_CARD',
+    th_tdac_arrival_card: 'TH_TDAC_ARRIVAL_CARD',
+    th_tourist_e_visa: 'TH_TOURIST_E_VISA',
+    tourist_evisa: 'TH_TOURIST_E_VISA',
+    tourist_e_visa: 'TH_TOURIST_E_VISA',
+  },
+  uk: {
+    standard_visitor: 'UK_STANDARD_VISITOR',
+    uk_standard_visitor: 'UK_STANDARD_VISITOR',
+  },
+  us: {
+    b1_b2: 'DS160',
+    b_1_b_2: 'DS160',
+    ds160: 'DS160',
+    ds_160: 'DS160',
+  },
+  vietnam: {
+    evisa_tourism: 'VN_E_VISA',
+    e_visa_tourism: 'VN_E_VISA',
+    tourist_evisa: 'VN_E_VISA',
+    tourist_e_visa: 'VN_E_VISA',
+    vn_evisa: 'VN_E_VISA',
+    vn_e_visa: 'VN_E_VISA',
+    prearrival_declaration: 'VN_PREARRIVAL_DECLARATION',
+    vn_prearrival: 'VN_PREARRIVAL_DECLARATION',
+    vn_prearrival_declaration: 'VN_PREARRIVAL_DECLARATION',
+  },
+};
+
+function normalizeVisaTypeAlias(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s/-]+/g, '_');
+}
+
+const SCHENGEN_VISITOR_TYPE = 'EU_SCHENGEN_C_SHORT_STAY';
 
 function destination(
   country: SupportedKnowledgeCountry,
@@ -110,14 +200,19 @@ export const VISA_DESTINATION_REGISTRY: Record<
   egypt: destination('egypt', 'Egypt', ['埃及', 'egypt', 'cairo', 'luxor', '开罗', '卢克索'], 'evisa_tourism'),
   estonia: destination('estonia', 'Estonia', ['爱沙尼亚', 'estonia', 'tallinn', '塔林'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   finland: destination('finland', 'Finland', ['芬兰', 'finland', 'helsinki', '赫尔辛基'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
-  france: destination('france', 'France', ['法国', 'france', 'paris', '巴黎'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
+  france: destination('france', 'France', ['法国', 'france', 'paris', '巴黎'], 'EU_SCHENGEN_C_SHORT_STAY', {
+    isSchengen: true,
+    schemaKey: 'EU_SCHENGEN_C_SHORT_STAY',
+  }),
   germany: destination('germany', 'Germany', ['德国', 'germany', 'berlin', 'munich', 'frankfurt', '柏林', '慕尼黑', '法兰克福'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   greece: destination('greece', 'Greece', ['希腊', 'greece', 'athens', 'santorini', '雅典', '圣托里尼'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   hong_kong: destination('hong_kong', 'Hong Kong', ['香港', 'hong kong', 'hksar', 'hong kong sar', 'hk visit visa', 'hk visa'], 'hk_visit_visa'),
   hungary: destination('hungary', 'Hungary', ['匈牙利', 'hungary', 'budapest', '布达佩斯'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   iceland: destination('iceland', 'Iceland', ['冰岛', 'iceland', 'reykjavik', '雷克雅未克'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   india: destination('india', 'India', ['india', 'delhi', 'mumbai', 'new delhi', '新德里', '孟买'], 'regular_tourist_visa'),
-  indonesia: destination('indonesia', 'Indonesia', ['印尼', '印度尼西亚', 'indonesia', 'bali', '巴厘岛'], 'tourist_b211a'),
+  indonesia: destination('indonesia', 'Indonesia', ['印尼', '印度尼西亚', 'indonesia', 'bali', '巴厘岛'], 'ID_C1_TOURIST', {
+    supportedVisaTypes: ['ID_B1_EVOA', 'ID_C1_TOURIST'],
+  }),
   italy: destination('italy', 'Italy', ['意大利', 'italy', 'rome', 'milan', 'venice', '罗马', '米兰', '威尼斯'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   japan: destination('japan', 'Japan', ['日本', 'japan', 'tokyo', 'osaka', 'kyoto', '东京', '大阪', '京都', 'japan evisa'], 'short_term_tourism_evisa'),
   laos: destination('laos', 'Laos', ['老挝', 'laos', 'vientiane', 'luang prabang', '万象', '琅勃拉邦'], 'tourist_evisa'),
@@ -138,7 +233,7 @@ export const VISA_DESTINATION_REGISTRY: Record<
   new_zealand: destination('new_zealand', 'New Zealand', ['新西兰', 'new zealand', 'auckland', 'queenstown', '奥克兰', '皇后镇'], 'visitor_visa'),
   norway: destination('norway', 'Norway', ['挪威', 'norway', 'oslo', 'bergen', '奥斯陆', '卑尔根'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   philippines: destination('philippines', 'Philippines', ['菲律宾', 'philippines', 'manila', 'cebu', '马尼拉', '宿务', 'etravel', 'philippines etravel', 'philippines arrival card'], 'PH_ETRAVEL_ARRIVAL_CARD', {
-    supportedVisaTypes: ['PH_ETRAVEL_ARRIVAL_CARD', 'PH_TEMPORARY_VISITOR_VISA', 'visa_free_14_days_or_evisa'],
+    supportedVisaTypes: ['PH_ETRAVEL_ARRIVAL_CARD', 'PH_ETRAVEL_DEPARTURE_CARD', 'PH_TEMPORARY_VISITOR_VISA'],
   }),
   poland: destination('poland', 'Poland', ['波兰', 'poland', 'warsaw', 'krakow', '华沙', '克拉科夫'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   portugal: destination('portugal', 'Portugal', ['葡萄牙', 'portugal', 'lisbon', 'porto', '里斯本', '波尔图'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
@@ -152,7 +247,7 @@ export const VISA_DESTINATION_REGISTRY: Record<
   slovakia: destination('slovakia', 'Slovakia', ['斯洛伐克', 'slovakia', 'bratislava', '布拉迪斯拉发'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   slovenia: destination('slovenia', 'Slovenia', ['斯洛文尼亚', 'slovenia', 'ljubljana', '卢布尔雅那'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   south_africa: destination('south_africa', 'South Africa', ['南非', 'south africa', 'cape town', 'johannesburg', '开普敦', '约翰内斯堡'], 'visitor_visa_tourism'),
-  south_korea: destination('south_korea', 'South Korea', ['韩国', '南韩', 'south korea', 'korea', 'seoul', '首尔', 'k-eta', 'keta'], 'c3_or_keta'),
+  south_korea: destination('south_korea', 'South Korea', ['韩国', '南韩', 'south korea', 'korea', 'seoul', '首尔', 'k-eta', 'keta'], 'KR_C39_SHORT_TERM_VISIT'),
   spain: destination('spain', 'Spain', ['西班牙', 'spain', 'madrid', 'barcelona', '马德里', '巴塞罗那'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   sri_lanka: destination('sri_lanka', 'Sri Lanka', ['斯里兰卡', 'sri lanka', 'colombo', '科伦坡'], 'eta_tourism'),
   switzerland: destination('switzerland', 'Switzerland', ['瑞士', 'switzerland', 'swiss', 'zurich', 'geneva', '苏黎世', '日内瓦'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
@@ -160,12 +255,16 @@ export const VISA_DESTINATION_REGISTRY: Record<
   thailand: destination('thailand', 'Thailand', ['泰国', 'thailand', 'bangkok', 'phuket', 'chiang mai', '曼谷', '普吉', '清迈', 'tdac', 'thailand digital arrival card'], 'TH_TDAC_ARRIVAL_CARD', {
     supportedVisaTypes: ['TH_TDAC_ARRIVAL_CARD', 'TH_TOURIST_E_VISA'],
   }),
-  taiwan: destination('taiwan', 'Taiwan', ['台湾', '中國台灣', '中国台湾', 'taiwan', 'taipei', '台北', '入台证', '入臺證', 'taiwan entry permit'], 'TW_ENTRY_PERMIT'),
+  taiwan: destination('taiwan', 'Taiwan', ['台湾', '中國台灣', '中国台湾', 'taiwan', 'taipei', '台北', '入台证', '入臺證', 'taiwan entry permit'], 'TW_ENTRY_PERMIT', {
+    supportedVisaTypes: ['TW_ENTRY_PERMIT'],
+  }),
   turkey: destination('turkey', 'Turkiye', ['土耳其', 'turkey', 'turkiye', 'istanbul', '伊斯坦布尔'], 'evisa_tourism_business'),
-  uk: destination('uk', 'United Kingdom', ['英国', '英签', 'united kingdom', 'britain', 'england', 'london', '伦敦'], 'standard_visitor'),
+  uk: destination('uk', 'United Kingdom', ['英国', '英签', 'united kingdom', 'britain', 'england', 'london', '伦敦'], 'UK_STANDARD_VISITOR'),
   united_arab_emirates: destination('united_arab_emirates', 'United Arab Emirates', ['阿联酋', '迪拜', '阿布扎比', 'uae', 'united arab emirates', 'dubai', 'abu dhabi'], 'visa_free_or_tourist_visa'),
-  us: destination('us', 'United States', ['美国', '美签', 'united states', 'u.s.', 'usa', 'us visa', 'b1/b2', 'b-1/b-2', 'ds-160', 'ds160'], 'b1_b2'),
-  vietnam: destination('vietnam', 'Vietnam', ['越南', 'vietnam', 'hanoi', '河内', 'ho chi minh', 'saigon', '胡志明'], 'evisa_tourism'),
+  us: destination('us', 'United States', ['美国', '美签', 'united states', 'u.s.', 'usa', 'us visa', 'b1/b2', 'b-1/b-2', 'ds-160', 'ds160'], 'DS160'),
+  vietnam: destination('vietnam', 'Vietnam', ['越南', 'vietnam', 'hanoi', '河内', 'ho chi minh', 'saigon', '胡志明'], 'VN_E_VISA', {
+    supportedVisaTypes: ['VN_E_VISA', 'VN_PREARRIVAL_DECLARATION'],
+  }),
 };
 
 export const COUNTRY_DISPLAY_NAMES: Record<SupportedKnowledgeCountry, string> =
@@ -268,6 +367,18 @@ export function getDefaultVisitorVisaType(
   return country ? VISA_DESTINATION_REGISTRY[country]?.defaultVisitorVisaType ?? null : null;
 }
 
+/** Resolve a country-scoped legacy route parameter to its canonical product. */
+export function canonicalVisaType(
+  country: SupportedKnowledgeCountry | null,
+  visaType: string | null | undefined
+): string | null {
+  if (!visaType) return null;
+  if (!country) return visaType;
+
+  const aliases = VISA_TYPE_ALIASES[country];
+  return aliases?.[normalizeVisaTypeAlias(visaType)] ?? visaType;
+}
+
 export function isSchengenKnowledgeCountry(
   country: SupportedKnowledgeCountry | null
 ): boolean {
@@ -279,7 +390,11 @@ export function countrySupportsVisaType(
   visaType?: string | null
 ): boolean {
   if (!country || !visaType) return false;
-  return VISA_DESTINATION_REGISTRY[country].supportedVisaTypes.includes(visaType);
+  const canonical = canonicalVisaType(country, visaType);
+  return VISA_DESTINATION_REGISTRY[country].supportedVisaTypes.some(
+    (supportedVisaType) =>
+      normalizeVisaTypeAlias(supportedVisaType) === normalizeVisaTypeAlias(canonical ?? '')
+  );
 }
 
 export function includesAnyText(value: string, terms: string[]): boolean {

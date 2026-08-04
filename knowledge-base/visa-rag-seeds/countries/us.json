@@ -1,12 +1,12 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "us",
   "notes": "Country-level VIZA RAG seed for us. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
     {
       "slug": "us-visitor-visa-overview",
       "country": "us",
-      "visaType": "b1_b2",
+      "visaType": "DS160",
       "documentType": "requirements",
       "title": "U.S. Visitor Visa B-1/B-2 Overview",
       "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html",
@@ -69,7 +69,7 @@
     {
       "slug": "us-visitor-visa-application-process",
       "country": "us",
-      "visaType": "b1_b2",
+      "visaType": "DS160",
       "documentType": "process",
       "title": "U.S. Visitor Visa Application Process",
       "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html",
@@ -115,7 +115,7 @@
     {
       "slug": "us-visitor-visa-documents",
       "country": "us",
-      "visaType": "b1_b2",
+      "visaType": "DS160",
       "documentType": "requirements",
       "title": "U.S. Visitor Visa Required and Supporting Documents",
       "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html",
@@ -162,7 +162,7 @@
     {
       "slug": "us-ds160",
       "country": "us",
-      "visaType": "b1_b2",
+      "visaType": "DS160",
       "documentType": "form_fields",
       "title": "DS-160 Online Nonimmigrant Visa Application",
       "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/forms/ds-160-online-nonimmigrant-visa-application.html",
@@ -206,7 +206,7 @@
     {
       "slug": "us-vwp-esta",
       "country": "us",
-      "visaType": "b1_b2",
+      "visaType": "DS160",
       "documentType": "faq",
       "title": "Visa Waiver Program and ESTA",
       "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visa-waiver-program.html",
@@ -254,7 +254,7 @@
     {
       "slug": "us-visa-wait-times",
       "country": "us",
-      "visaType": "b1_b2",
+      "visaType": "DS160",
       "documentType": "process",
       "title": "U.S. Visa Appointment Wait Times",
       "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/wait-times.html",
@@ -299,7 +299,7 @@
     {
       "slug": "us-china-evus",
       "country": "us",
-      "visaType": "b1_b2",
+      "visaType": "DS160",
       "documentType": "faq",
       "title": "EVUS for Chinese Citizens with 10-Year B Visas",
       "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html",
@@ -323,7 +323,7 @@
     {
       "slug": "us-form-requirements",
       "country": "us",
-      "visaType": "b1_b2",
+      "visaType": "DS160",
       "documentType": "form_requirements",
       "title": "United States Application Form and Document Intake Requirements",
       "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/forms/ds-160-online-nonimmigrant-visa-application.html",

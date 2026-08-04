@@ -152,6 +152,12 @@ The current internal automation migrations are:
 - `0131_client_bootstrap_concurrency.sql`: adds the service-only first-login
   request table and atomic bootstrap/destination-selection RPCs so client
   navigation does not depend on check-then-insert request chains.
+- `0132_reviewed_entry_rules_and_product_recommendations.sql`: adds reviewed
+  rule evidence, policy expiry/review metadata, structured product
+  recommendations, the `not_applicable` outcome, and the 77-row publication
+  gate for the first audited passport matrix.
+- `0133_harden_visa_knowledge_promotion.sql`: removes inherited anonymous and
+  signed-in execution grants from knowledge promotion and keeps it service-only.
 
 ## Guardrails
 

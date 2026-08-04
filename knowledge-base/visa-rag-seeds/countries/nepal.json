@@ -9,7 +9,7 @@
       "visaType": "tourist_visa_on_arrival",
       "documentType": "requirements",
       "title": "Nepal Tourist Visa on Arrival",
-      "sourceUrl": "https://tia.immigration.gov.np/en/post/on-arrival-tourist-visa",
+      "sourceUrl": "https://nepaliport.immigration.gov.np/on-arrival/tourist-visa",
       "chunks": [
         {
           "id": "npl_china_voa_basic_route_zh",

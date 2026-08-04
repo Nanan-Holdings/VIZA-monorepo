@@ -28,52 +28,68 @@ describe("Vietnam Pre-Arrival declaration schema seed", () => {
     const fieldNames = new Set(extractFieldNames());
 
     for (const requiredField of [
-      "official_free_acknowledgement",
-      "prearrival_window_acknowledgement",
-      "health_declaration_status",
-      "full_name",
+      "expected_arrival_date",
+      "passport_type",
+      "gender",
+      "surname",
+      "given_name",
       "date_of_birth",
-      "sex",
       "nationality",
-      "email_address",
+      "alias_email_address",
       "phone_country_code",
       "phone_number",
       "passport_number",
-      "passport_issue_date",
       "passport_expiry_date",
-      "entry_permission_type",
-      "arrival_date",
-      "transport_mode",
-      "flight_or_transport_number",
-      "entry_port",
-      "country_boarded",
-      "purpose_of_entry",
-      "address_in_vietnam",
-      "province_city",
-      "is_group_submission",
+      "visa_information_acknowledgement",
+      "visa_type",
+      "visa_number",
+      "visa_issue_date",
+      "visa_expiry_date",
+      "visa_issued_place",
+      "departure_country_before_arrival",
+      "purpose_of_travel",
+      "mode_of_travel",
+      "flight_number",
+      "custom_flight_number",
+      "border_gate_airport",
+      "vehicle_identification_number",
+      "land_border_gate",
+      "sea_port",
+      "accommodation_type",
+      "province_city_of_hotel",
+      "ward_commune_of_hotel",
+      "hotel_accommodation_address",
+      "custom_hotel_accommodation_address",
+      "accommodation_address",
+      "workplace_information",
+      "departure_date_from_vietnam",
       "final_declaration",
     ]) {
       expect(fieldNames.has(requiredField), `${requiredField} missing`).toBe(true);
     }
   });
 
-  test("models the official 72-hour pre-arrival window and health declaration inactive default", () => {
+  test("models the official 72-hour pre-arrival window without inventing health fields", () => {
     const fields = new Map(VN_PREARRIVAL_FORM_FIELDS.map((field) => [field.field_name, field]));
 
-    expect(fields.get("prearrival_window_acknowledgement")?.validation_rules?.submission_window_hours).toBe(72);
-    expect(fields.get("arrival_date")?.validation_rules?.submission_window_hours).toBe(72);
-    expect(fields.get("health_declaration_status")?.validation_rules?.default).toBe("inactive");
-    expect(fields.get("health_declaration_status")?.options?.some((option) => option.value === "inactive")).toBe(true);
+    expect(fields.get("expected_arrival_date")?.validation_rules).toMatchObject({
+      submission_window_hours: 72,
+      max_days_from_today: 2,
+      official_control: "radio_date_window",
+    });
+    expect(fields.has("arrival_date")).toBe(false);
+    expect(fields.has("prearrival_window_acknowledgement")).toBe(false);
+    expect(fields.has("health_declaration_status")).toBe(false);
   });
 
   test("keeps official options bilingual while preserving runner-facing values", () => {
     const fields = new Map(VN_PREARRIVAL_FORM_FIELDS.map((field) => [field.field_name, field.options ?? []]));
 
-    expect(fields.get("entry_port")?.some((option) => option.value === "tan_son_nhat_int_airport")).toBe(true);
-    expect(fields.get("transport_mode")?.some((option) => option.value === "air")).toBe(true);
-    expect(fields.get("entry_permission_type")?.some((option) => option.value === "evisa")).toBe(true);
+    expect(fields.get("border_gate_airport")?.some((option) => option.value === "SGN")).toBe(true);
+    expect(fields.get("mode_of_travel")?.some((option) => option.value === "air")).toBe(true);
+    expect(fields.get("visa_type")?.some((option) => option.value === "EV")).toBe(true);
 
-    for (const fieldName of ["entry_port", "transport_mode", "entry_permission_type", "purpose_of_entry"]) {
+    for (const fieldName of ["border_gate_airport", "mode_of_travel", "visa_type", "purpose_of_travel"]) {
       for (const option of fields.get(fieldName) ?? []) {
         expect(option.label_en || option.text).toBeTruthy();
         expect(option.label_zh, `${fieldName}: ${option.value}`).toMatch(/[\u3400-\u9fff]/);

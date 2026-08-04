@@ -134,6 +134,12 @@ describe("arrival card destination labels", () => {
     expect(vietnamFeatured?.countryCount).toBe(2);
   });
 
+  test("Vietnam e-Visa schema alias keeps the application title localized", () => {
+    expect(getVisaTypeDisplayName("VN_E_VISA")).toBe("e-Visa");
+    expect(getVisaTypeDisplayNameZh("VN_E_VISA")).toBe("电子签证");
+    expect(getVisaPackageTitleZh("vietnam", "VN_E_VISA")).toBe("越南电子签证");
+  });
+
   test("South Korea C-3-9 search card is clickable as paper/KVAC assisted flow", () => {
     const southKorea = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "south_korea");
     expect(southKorea?.visaType).toBe("KR_C39_SHORT_TERM_VISIT");
