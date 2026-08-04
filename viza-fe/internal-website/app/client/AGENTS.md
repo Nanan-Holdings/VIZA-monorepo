@@ -11,8 +11,12 @@ applicant info, and help pages.
 
 ## Key Flows
 
-- `layout.tsx`: client shell, nav, session validation, impersonation mismatch
-  handling, first-login form request redirect.
+- `layout.tsx`: client shell, nav, session validation, and impersonation
+  mismatch handling. Client session checks must not create onboarding records
+  or redirect applicants away from their requested route.
+- `about-me-form/`: compatibility redirect for retired health-questionnaire
+  links. It may return only to a safe internal `/client/*` route and must never
+  render or reintroduce the old Profile/Habits/Diet/Recovery questionnaire.
 - `home/page.tsx`: dashboard (hero, subscription entry, universal information
   summary, recent activity). Destination selection moved to
   `destinations/page.tsx`.
@@ -152,7 +156,6 @@ accessible component state.
 - `viza-fe/internal-website/lib/france-appointment/AGENTS.md`
 - `viza-fe/internal-website/lib/korea-c39/*`
 - `viza-fe/internal-website/app/actions/client-auth.ts`
-- `viza-fe/internal-website/app/actions/form-requests.ts`
 - `viza-fe/internal-website/lib/auth/get-authenticated-user.ts`
 - `viza-fe/internal-website/messages/en.json`
 - `viza-fe/internal-website/messages/zh.json`
