@@ -75,6 +75,30 @@ test("rejects obvious foreign arrival-card files and smoke placeholders", () => 
   );
 });
 
+test("explicit test override accepts only current-application files", () => {
+  const currentArrivalCard = {
+    id: "current-test-file",
+    document_type: "return_ticket",
+    file_name: "sg-arrival-card.pdf",
+    storage_path: "current/return_ticket/sg-arrival-card.pdf",
+  };
+  const siblingArrivalCard = {
+    id: "sibling-test-file",
+    document_type: "return_ticket",
+    file_name: "sg-arrival-card.pdf",
+    storage_path: "sibling/return_ticket/sg-arrival-card.pdf",
+  };
+
+  assert.deepEqual(
+    selectIndonesiaSubmissionDocuments(
+      [currentArrivalCard],
+      [siblingArrivalCard],
+      { allowCurrentApplicationTestDocuments: true },
+    ).map((document) => document.id),
+    ["current-test-file"],
+  );
+});
+
 test("allocates B1 and C1 document requirements before card consumption", () => {
   const common = {
     passportImagePath: "passport.jpg",

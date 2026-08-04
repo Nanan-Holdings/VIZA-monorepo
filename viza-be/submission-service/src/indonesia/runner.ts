@@ -18,7 +18,6 @@ import {
   actionForIndonesiaPortalState,
   classifyIndonesiaPortalSnapshot,
   hasIndonesiaOfficialSuccessEvidence,
-  shouldDirectNavigateIndonesiaStepOne,
   type IndonesiaPortalStateId,
 } from "./portal-state";
 
@@ -776,6 +775,22 @@ export function normalizeIndonesiaPostalCode(value: string | null | undefined): 
   return digits && /^\d{5}$/.test(digits) ? digits : null;
 }
 
+export function isIndonesiaStepOneLegacyFallbackEnabled(value: string | null | undefined): boolean {
+  return value?.trim().toLowerCase() === "true";
+}
+
+export function isIndonesiaStepThreePassportReviewComplete(input: {
+  bodyText: string;
+  expectedPassportNumber: string | null | undefined;
+  checkboxCount: number;
+}): boolean {
+  const expectedPassportNumber = input.expectedPassportNumber?.replace(/[^a-z0-9]/gi, "").toUpperCase() ?? "";
+  const normalizedBodyText = input.bodyText.replace(/[^a-z0-9]/gi, "").toUpperCase();
+  return expectedPassportNumber.length >= 5 &&
+    normalizedBodyText.includes(expectedPassportNumber) &&
+    input.checkboxCount > 0;
+}
+
 function officialSafeText(value: string | null | undefined, fallback: string | null = null): string | null {
   const source = clean(value) ?? fallback;
   if (!source) return null;
@@ -956,38 +971,6 @@ async function waitForAnyUploadValue(
   return ready;
 }
 
-async function syncUploadHiddenFallback(
-  page: Page,
-  fileSelectors: string[],
-  hiddenSelectors: string[],
-  diagnostics: string[],
-  label: string,
-): Promise<boolean> {
-  const changed = await page
-    .evaluate(({ nextFileSelectors, nextHiddenSelectors }) => {
-      const fileInputs = nextFileSelectors
-        .map((selector) => document.querySelector<HTMLInputElement>(selector))
-        .filter((input): input is HTMLInputElement => Boolean(input));
-      const fileName = fileInputs
-        .map((input) => input.files?.[0]?.name || input.value.split(/[/\\]/).pop() || "")
-        .find((value) => value.trim());
-      if (!fileName) return 0;
-      let count = 0;
-      for (const selector of nextHiddenSelectors) {
-        const input = document.querySelector<HTMLInputElement>(selector);
-        if (!input || input.value.trim() || input.type === "file") continue;
-        input.value = fileName;
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-        count += 1;
-      }
-      return count;
-    }, { nextFileSelectors: fileSelectors, nextHiddenSelectors: hiddenSelectors })
-    .catch(() => 0);
-  diagnostics.push(`${label}_hidden_fallback_${changed > 0 ? `set_${changed}` : "skipped"}`);
-  return changed > 0;
-}
-
 async function assignBrowserFileToInputs(
   page: Page,
   filePath: string,
@@ -1094,21 +1077,7 @@ async function completeIndonesiaPassportBiodataUpload(
     diagnostics,
     "indonesia_step_1_passport_upload",
   );
-  await syncUploadHiddenFallback(
-    page,
-    ["#passport-attachment", "#initial_file", "#attachment-crop", "#attachment"],
-    ready
-      ? ["#attachment-files", "#path_passport", "#path_upload", "#passport_file"]
-      : ["#path_attachment", "#path_attachment_crop", "#attachment-files", "#path_passport", "#path_upload", "#passport_file"],
-    diagnostics,
-    "indonesia_step_1_passport_upload",
-  );
-  return ready || await waitForAnyUploadValue(
-    page,
-    ["#path_attachment", "#path_attachment_crop", "#attachment-files", "#path_passport", "#path_upload", "#passport_file"],
-    diagnostics,
-    "indonesia_step_1_passport_upload_after_fallback",
-  );
+  return ready;
 }
 
 async function waitForIndonesiaMrzScannerReady(
@@ -1928,7 +1897,15 @@ async function continueFromApplicationStepOne(
     url: page.url(),
     title: await page.title().catch(() => null),
   });
-  await completeIndonesiaPassportBiodataUpload(page, passportPath, diagnostics);
+  const passportUploadReady = await completeIndonesiaPassportBiodataUpload(page, passportPath, diagnostics);
+  if (!passportUploadReady) {
+    diagnostics.push("indonesia_step_1_passport_upload_not_ready");
+    await input.onStage?.("step_1_passport_upload_not_ready", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    return false;
+  }
   if (hasIndonesiaPassportInvalidDataDiagnostic(diagnostics)) {
     await input.onStage?.("step_1_passport_scan_invalid_data", {
       url: page.url(),
@@ -1936,7 +1913,15 @@ async function continueFromApplicationStepOne(
     });
     return false;
   }
-  await waitForIndonesiaMrzScannerReady(page, input, diagnostics);
+  const mrzScannerReady = await waitForIndonesiaMrzScannerReady(page, input, diagnostics);
+  if (!mrzScannerReady) {
+    diagnostics.push("indonesia_step_1_mrz_not_ready");
+    await input.onStage?.("step_1_mrz_not_ready", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    return false;
+  }
   if (hasIndonesiaPassportInvalidDataDiagnostic(diagnostics)) {
     await input.onStage?.("step_1_passport_scan_invalid_data", {
       url: page.url(),
@@ -1949,22 +1934,22 @@ async function continueFromApplicationStepOne(
     url: page.url(),
     title: await page.title().catch(() => null),
   });
-  await setFilesWithFallbackSelectors(
+  const photoAssigned = await setFilesWithFallbackSelectors(
     page,
     application.photoImagePath,
     ["#picture", "#photo", "#photo_attachment"],
     ["photo", "foto", "applicant_photo", "profile_photo"],
   );
   const photoUploadReady = await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_step_1_photo_upload", 12_000);
-  if (!photoUploadReady) {
-    await syncUploadHiddenFallback(
-      page,
-      ["#picture", "#photo", "#photo_attachment"],
-      ["#path_photo"],
-      diagnostics,
-      "indonesia_step_1_photo_upload",
-    );
+  if (!photoAssigned) {
+    diagnostics.push("indonesia_step_1_photo_upload_not_ready");
+    await input.onStage?.("step_1_photo_upload_not_ready", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    return false;
   }
+  diagnostics.push(`indonesia_step_1_photo_file_assigned hidden=${photoUploadReady ? "ready" : "not_ready"}`);
   await snapshotUploadInputs(
     page,
     ["#picture", "#path_photo"],
@@ -1984,41 +1969,53 @@ async function continueFromApplicationStepOne(
       url: page.url(),
       title: await page.title().catch(() => null),
     });
-    if (shouldDirectNavigateIndonesiaStepOne(process.env.INDONESIA_STEP_1_DIRECT_TO_STEP_2)) {
-      await navigateIndonesiaApplicationStep(page, 2, diagnostics, "indonesia_step_1_next_direct_step_2");
-      await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
-      await page.waitForTimeout(2_000);
-      await dismissIndonesiaDialogs(page, diagnostics);
-    } else {
-      await clickIndonesiaStepOneNext(page, next, diagnostics);
-      await input.onStage?.("step_1_waiting_for_next", {
-        url: page.url(),
-        title: await page.title().catch(() => null),
-      });
-      const advancedAfterPrimaryClick = await waitForIndonesiaStepOneAdvance(page, 12_000);
-      diagnostics.push(
-        advancedAfterPrimaryClick
-          ? "indonesia_step_1_primary_next_advanced"
-          : "indonesia_step_1_primary_next_no_navigation",
-      );
-      await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
-      await page.waitForTimeout(1_000);
-      await dismissIndonesiaDialogs(page, diagnostics);
+    await clickIndonesiaStepOneNext(page, next, diagnostics);
+    await input.onStage?.("step_1_waiting_for_next", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    const advancedAfterPrimaryClick = await waitForIndonesiaStepOneAdvance(page, 20_000);
+    diagnostics.push(
+      advancedAfterPrimaryClick
+        ? "indonesia_step_1_primary_next_advanced"
+        : "indonesia_step_1_primary_next_no_navigation",
+    );
+    await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+    await page.waitForTimeout(1_000);
+    await dismissIndonesiaDialogs(page, diagnostics);
+
+    if (/\/step_1\b/i.test(page.url())) {
+      const invalidControls = await visibleInvalidControlNames(page);
+      if (invalidControls.length === 0 && !await hasVisibleIndonesiaSweetAlert(page)) {
+        await input.onStage?.("step_1_retrying_official_save", {
+          url: page.url(),
+          title: await page.title().catch(() => null),
+        });
+        await submitIndonesiaStepOneOfficialAjax(page, input, diagnostics);
+        await waitForIndonesiaStepOneAdvance(page, 30_000);
+        await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+        await page.waitForTimeout(2_000);
+        await dismissIndonesiaDialogs(page, diagnostics);
+      }
     }
-    const shouldUseStepOneFallbacks = async (): Promise<boolean> => {
+
+    const shouldUseLegacyStepOneFallbacks = async (): Promise<boolean> => {
       if (!/\/step_1\b/i.test(page.url())) return false;
+      if (!isIndonesiaStepOneLegacyFallbackEnabled(process.env.INDONESIA_STEP_1_USE_LEGACY_FALLBACKS)) {
+        diagnostics.push("indonesia_step_1_legacy_fallbacks_disabled");
+        return false;
+      }
       if (await hasVisibleIndonesiaSweetAlert(page)) {
         diagnostics.push("indonesia_step_1_submit_fallbacks_blocked_by_dialog");
         return false;
       }
-      if (process.env.INDONESIA_STEP_1_USE_LEGACY_FALLBACKS === "true") return true;
       const invalidControls = await visibleInvalidControlNames(page);
       if (invalidControls.length > 0) return false;
-      diagnostics.push("indonesia_step_1_no_visible_validation_trying_fallbacks");
+      diagnostics.push("indonesia_step_1_legacy_fallbacks_explicitly_enabled");
       return true;
     };
 
-    if (await shouldUseStepOneFallbacks()) {
+    if (await shouldUseLegacyStepOneFallbacks()) {
       await input.onStage?.("step_1_retrying_submit", {
         url: page.url(),
         title: await page.title().catch(() => null),
@@ -2034,16 +2031,9 @@ async function continueFromApplicationStepOne(
         await waitForIndonesiaStepOneAdvance(page, 10_000);
       }
     }
-    if (await shouldUseStepOneFallbacks()) {
+    if (await shouldUseLegacyStepOneFallbacks()) {
       await submitIndonesiaStepOneFormFallback(page, diagnostics);
       await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 15_000 }).catch(() => undefined);
-      await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
-      await page.waitForTimeout(3_000);
-      await dismissIndonesiaDialogs(page, diagnostics);
-    }
-    if (await shouldUseStepOneFallbacks()) {
-      await submitIndonesiaStepOneOfficialAjax(page, input, diagnostics);
-      await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 20_000 }).catch(() => undefined);
       await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
       await page.waitForTimeout(3_000);
       await dismissIndonesiaDialogs(page, diagnostics);
@@ -2170,6 +2160,13 @@ async function clickIndonesiaStepOneNext(
     return;
   }
   diagnostics.push("indonesia_step_1_next_click_failed");
+}
+
+function hasIndonesiaStepThreeReviewIncompleteDiagnostic(diagnostics: string[]): boolean {
+  return diagnostics.some((entry) =>
+    entry === "indonesia_step_3_review_passport_missing" ||
+    entry === "indonesia_step_3_review_incomplete",
+  );
 }
 
 function indonesiaStepTwoValidationSummary(diagnostics: string[]): string | null {
@@ -3155,6 +3152,23 @@ async function continueFromApplicationStepThree(
   await dismissIndonesiaDialogs(page, diagnostics);
   const checkboxes = page.locator('input[type="checkbox"]');
   const count = await checkboxes.count().catch(() => 0);
+  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  const expectedPassportNumber = input.application?.passportNumber ?? input.registration?.passportNumber;
+  if (!isIndonesiaStepThreePassportReviewComplete({ bodyText, expectedPassportNumber, checkboxCount: count })) {
+    diagnostics.push(
+      expectedPassportNumber && !bodyText.replace(/[^a-z0-9]/gi, "").toUpperCase().includes(
+        expectedPassportNumber.replace(/[^a-z0-9]/gi, "").toUpperCase(),
+      )
+        ? "indonesia_step_3_review_passport_missing"
+        : "indonesia_step_3_review_incomplete",
+    );
+    await captureApplicationStepArtifact(page, input, diagnostics, 3);
+    await input.onStage?.("step_3_review_incomplete", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    return false;
+  }
   for (let index = 0; index < count; index += 1) {
     const checkbox = checkboxes.nth(index);
     if (await checkbox.isVisible({ timeout: 1_000 }).catch(() => false)) {
@@ -3191,7 +3205,20 @@ async function continueFromApplicationStepThree(
         await acceptIndonesiaExistingApplicationCancellationWarning(page, diagnostics);
       }
     } else {
-      await captureApplicationStepArtifact(page, input, diagnostics, 3);
+      const applicationListControl = page
+        .getByRole("link", { name: /my applications?|applications?|track application/i })
+        .or(page.getByRole("button", { name: /my applications?|applications?|track application/i }))
+        .or(page.locator('a[href*="/applications/"][href*="/list"]'))
+        .first();
+      if (await applicationListControl.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await applicationListControl.click({ timeout: 10_000 });
+        await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+        await page.waitForTimeout(2_000);
+        diagnostics.push("indonesia_step_3_application_list_recovery_clicked");
+      } else {
+        diagnostics.push("indonesia_step_3_application_list_recovery_not_found");
+        await captureApplicationStepArtifact(page, input, diagnostics, 3);
+      }
     }
   }
   if (/\/(?:web|front)\/applications\/.+\/list\b/i.test(page.url())) {
@@ -4647,7 +4674,12 @@ export async function probeIndonesiaPortal(
 
     let evidencePdf: Buffer | undefined;
     let officialReference: string | undefined;
-    if ((state === "payment_required" || state === "payment_otp_required") && input.userPaymentHandoff?.enabled) {
+    const stepThreeReviewIncomplete = hasIndonesiaStepThreeReviewIncompleteDiagnostic(session.diagnostics);
+    if (
+      (state === "payment_required" || state === "payment_otp_required") &&
+      input.userPaymentHandoff?.enabled &&
+      !stepThreeReviewIncomplete
+    ) {
       let paymentPage = await resolveActiveIndonesiaPaymentPage(page, session.diagnostics);
       const openedPaymentPage = await continueFromIndonesiaPaymentSelection(paymentPage, session.diagnostics);
       if (openedPaymentPage) {
@@ -4665,6 +4697,8 @@ export async function probeIndonesiaPortal(
       state = paymentResult.state;
       evidencePdf = paymentResult.evidencePdf;
       officialReference = paymentResult.officialReference;
+    } else if (stepThreeReviewIncomplete && (state === "payment_required" || state === "payment_otp_required")) {
+      session.diagnostics.push("indonesia_payment_blocked_by_incomplete_step_3_review");
     }
 
     const passportInvalidDataBlocked = hasIndonesiaPassportInvalidDataDiagnostic(session.diagnostics);
@@ -4709,6 +4743,13 @@ export async function probeIndonesiaPortal(
           instruction:
             `The Indonesia official portal kept the application on step 2 after submit. Blocking controls: ${stepTwoValidationSummary}.`,
           implementationStatus: "partial" as const,
+        }
+      : stepThreeReviewIncomplete
+      ? {
+          actionType: "official_step_3_review_incomplete",
+          instruction:
+            "The Indonesia official portal did not persist the passport/personal-information review data from step 1. No government-fee payment was submitted. Repair the official passport upload/save path before retrying.",
+          implementationStatus: "blocked" as const,
         }
       : passportInvalidDataBlocked
       ? {

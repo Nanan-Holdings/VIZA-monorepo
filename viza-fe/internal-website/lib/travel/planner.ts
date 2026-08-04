@@ -1,3 +1,5 @@
+import { getCuratedCityLabel } from "@/lib/travel/locations";
+
 export const FORM_PAYLOAD_PREFIX = "__TRAVEL_FORM__:";
 export const DEFAULT_CITY_DAYS = 2;
 
@@ -93,6 +95,8 @@ export type SelectedFlightOption = {
 
 export type SelectedHotelOption = {
   stay_index: number;
+  /** One-based itinerary day for a per-night hotel override. */
+  day_index?: number;
   city: string;
   check_in: string;
   check_out: string;
@@ -250,7 +254,8 @@ function normalizeString(value: unknown): string | null {
 
 function formatEndpointDisplay(country: string, city: string): string {
   const normalizedCountry = country.trim();
-  const normalizedCity = city.trim();
+  const rawCity = city.trim();
+  const normalizedCity = getCuratedCityLabel(rawCity, "zh") ?? rawCity;
   if (!normalizedCountry) return normalizedCity || "-";
   if (!normalizedCity) return normalizedCountry || "-";
   return normalizedCountry === normalizedCity
@@ -490,12 +495,13 @@ function normalizeHotelOption(value: unknown): HotelOptionResult | null {
 
 function normalizeSelectedHotels(value: unknown): SelectedHotelOption[] {
   if (!Array.isArray(value)) return [];
-  const byIndex = new Map<number, SelectedHotelOption>();
+  const byIndex = new Map<string, SelectedHotelOption>();
 
   for (const rawEntry of value) {
     if (!rawEntry || typeof rawEntry !== "object") continue;
     const entry = rawEntry as Record<string, unknown>;
     const stayIndex = normalizePositiveInt(entry.stay_index);
+    const dayIndex = normalizePositiveInt(entry.day_index);
     const optionIndex = normalizePositiveInt(entry.option_index);
     if (stayIndex === null || optionIndex === null) continue;
 
@@ -506,8 +512,9 @@ function normalizeSelectedHotels(value: unknown): SelectedHotelOption[] {
     const option = normalizeHotelOption(entry.option);
     if (!city || !checkIn || !checkOut || nights === null || !option) continue;
 
-    byIndex.set(stayIndex, {
+    byIndex.set(`${stayIndex}:${dayIndex ?? "stay"}`, {
       stay_index: stayIndex,
+      ...(dayIndex === null ? {} : { day_index: dayIndex }),
       city,
       check_in: checkIn,
       check_out: checkOut,
@@ -517,7 +524,12 @@ function normalizeSelectedHotels(value: unknown): SelectedHotelOption[] {
     });
   }
 
-  return Array.from(byIndex.values()).sort((a, b) => a.stay_index - b.stay_index);
+  return Array.from(byIndex.values()).sort(
+    (a, b) =>
+      (a.day_index ?? Number.MAX_SAFE_INTEGER) -
+        (b.day_index ?? Number.MAX_SAFE_INTEGER) ||
+      a.stay_index - b.stay_index
+  );
 }
 
 export function createInitialTravelState(): TravelState {

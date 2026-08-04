@@ -297,19 +297,27 @@ export async function GET(request: Request) {
   ];
   const errors: string[] = [];
 
-  for (const provider of providerCandidates) {
-    try {
-      const payload = await fetchJsonWithTimeout(provider.url);
-      const location = provider.coerce(payload);
-      if (location) {
-        return Response.json(location);
-      }
-      errors.push(`${provider.source}: empty location`);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "request failed";
-      errors.push(`${provider.source}: ${message}`);
-    }
+  try {
+    const location = await Promise.any(
+      providerCandidates.map(async (provider) => {
+        try {
+          const payload = await fetchJsonWithTimeout(provider.url);
+          const result = provider.coerce(payload);
+          if (!result) {
+            throw new Error("empty location");
+          }
+          return result;
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "request failed";
+          errors.push(`${provider.source}: ${message}`);
+          throw error;
+        }
+      })
+    );
+    return Response.json(location);
+  } catch {
+    // All providers failed. The caller will fall back to manual city entry.
   }
 
   return Response.json(

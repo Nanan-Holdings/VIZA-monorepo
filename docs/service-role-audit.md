@@ -50,7 +50,6 @@ every place we currently use it.
 | `app/actions/application-journey.ts` | server action | impersonation | Same pattern as visa-application-answers. |
 | `app/actions/companion-sessions.ts` | server action | system | Companion-mode session bookkeeping. |
 | `app/actions/ds160-normalize.ts` | server action | system | Normalises DS-160 answers across applicants. |
-| `app/actions/form-requests.ts` | server action | admin | Admin/staff bulk operations. |
 | `app/actions/settings.ts` | server action | admin | Admin settings panel. |
 | `app/actions/submit-signature.ts` | server action | impersonation | Records signature for an impersonated applicant. |
 

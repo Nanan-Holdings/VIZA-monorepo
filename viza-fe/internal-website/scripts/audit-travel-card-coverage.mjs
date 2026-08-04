@@ -52,16 +52,36 @@ function hasCityKey(item, city) {
 
 function localAssetExists(imageSrc) {
   if (typeof imageSrc !== "string" || !imageSrc.startsWith("/")) return true;
+  // Travel binaries were moved to the public Supabase Storage bucket. The
+  // Next.js /travel/* rewrite serves these paths in deployed environments,
+  // even though the files are intentionally absent from the checkout.
+  if (imageSrc.startsWith("/travel/")) return true;
   return fs.existsSync(path.join(publicRoot, imageSrc));
 }
 
 const dropdownCities = readDropdownCities();
 const data = JSON.parse(fs.readFileSync(cardDataPath, "utf8"));
+const coverageCities = [
+  ...dropdownCities,
+  ...data.cities.map((item) => ({
+    en:
+      item.cityKeys?.find((key) => /[A-Za-z]/.test(key)) ?? item.cityLabel,
+    zh: item.cityLabel,
+    aliases: item.cityKeys ?? [],
+  })),
+].reduce((cities, city) => {
+  const key = normalize(city.en);
+  if (!key || cities.some((existing) => normalize(existing.en) === key)) {
+    return cities;
+  }
+  cities.push(city);
+  return cities;
+}, []);
 
 const missingCityCards = dropdownCities.filter(
   (city) => !data.cities.some((item) => hasCityKey(item, city))
 );
-const missingAttractions = dropdownCities.filter(
+const missingAttractions = coverageCities.filter(
   (city) =>
     data.attractions.filter((item) => hasCityKey(item, city)).length <
     minAttractions
@@ -69,12 +89,25 @@ const missingAttractions = dropdownCities.filter(
 const missingSources = [...data.cities, ...data.attractions].filter(
   (item) => typeof item.sourceUrl !== "string" || !item.sourceUrl.trim()
 );
+const missingDescriptions = data.attractions.filter(
+  (item) => typeof item.description !== "string" || !item.description.trim()
+);
+const invalidCoordinates = data.attractions.filter(
+  (item) =>
+    !Number.isFinite(item.lat) ||
+    item.lat < -90 ||
+    item.lat > 90 ||
+    !Number.isFinite(item.lng) ||
+    item.lng < -180 ||
+    item.lng > 180
+);
 const missingLocalAssets = [...data.cities, ...data.attractions].filter(
   (item) => !localAssetExists(item.imageSrc)
 );
 
 const report = {
   dropdownCities: dropdownCities.length,
+  coverageCities: coverageCities.length,
   cityCards: data.cities.length,
   attractions: data.attractions.length,
   minAttractions,
@@ -84,6 +117,8 @@ const report = {
     count: data.attractions.filter((item) => hasCityKey(item, city)).length,
   })),
   missingSources: missingSources.map((item) => item.name ?? item.cityLabel),
+  missingDescriptions: missingDescriptions.map((item) => item.name ?? item.cityLabel),
+  invalidCoordinates: invalidCoordinates.map((item) => item.name ?? item.cityLabel),
   missingLocalAssets: missingLocalAssets.map((item) => ({
     label: item.name ?? item.cityLabel,
     imageSrc: item.imageSrc,
@@ -97,6 +132,8 @@ if (
   (report.missingCityCards.length ||
     report.missingAttractions.length ||
     report.missingSources.length ||
+    report.missingDescriptions.length ||
+    report.invalidCoordinates.length ||
     report.missingLocalAssets.length)
 ) {
   process.exitCode = 1;
