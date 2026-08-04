@@ -80,6 +80,9 @@ function hasCoordinates(destination: TravelDestinationContract): boolean {
 
 function localAssetExists(imageUrl: string | null | undefined): boolean {
   if (!imageUrl?.startsWith("/")) return Boolean(imageUrl);
+  // /travel/* assets are served by the public Supabase Storage rewrite; the
+  // binaries are intentionally not checked into public/.
+  if (imageUrl.startsWith("/travel/")) return true;
   const publicPath = path.resolve(process.cwd(), "public", imageUrl.slice(1));
   return fs.existsSync(publicPath);
 }

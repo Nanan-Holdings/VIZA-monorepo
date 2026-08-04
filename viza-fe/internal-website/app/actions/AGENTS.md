@@ -26,10 +26,9 @@ application lifecycle state.
 - `internal-automation/**`: trusted mutations and reads for payment, consent,
   document readiness, packet lifecycle, status events, notifications, and
   admin/customer status summaries.
-- `settings.ts`, `user-profile.ts`, `about-me-sync.ts`: applicant profile data.
+- `settings.ts`, `user-profile.ts`: applicant profile data.
 - `client-settings.ts`: client settings privacy requests and frequent traveler
   CRUD backed by applicant profiles.
-- `form-requests.ts`: first-login/about-me form request flow.
 - `support.ts`, `admin-cs.ts`, `support-storage.ts`: applicant support
   ticket submission, admin P2 support inbox reads/replies, and the temporary
   Storage fallback used when a Supabase project has not applied

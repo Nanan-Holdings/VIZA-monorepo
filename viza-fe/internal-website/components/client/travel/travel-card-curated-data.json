@@ -3125,7 +3125,8 @@
       "lat": 11.744,
       "lng": 120.202,
       "imageSrc": "/travel/attractions/palawan-big-lagoon-el-nido.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:El_Nido_Palawan_Big_Lagoon.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:El_Nido_Palawan_Big_Lagoon.jpg",
+      "description": "爱妮岛石灰岩群中的碧蓝泻湖，适合乘船或皮划艇探索礁石和隐秘水道。"
     },
     {
       "cityKeys": [
@@ -3161,7 +3162,8 @@
       "lat": 11.953,
       "lng": 120.226,
       "imageSrc": "/travel/attractions/palawan-kayangan-lake.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kayangan_Lake%2C_Coron_-_Palawan.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kayangan_Lake%2C_Coron_-_Palawan.jpg",
+      "description": "科隆岛代表性的清澈山湖，适合浮潜、游泳和登高俯瞰湖湾。"
     },
     {
       "cityKeys": [
@@ -3178,7 +3180,8 @@
       "lat": 11.938,
       "lng": 120.233,
       "imageSrc": "/travel/attractions/palawan-coron-island.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coron_Island%2C_Palawan%2C_Philippines.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coron_Island%2C_Palawan%2C_Philippines.jpg",
+      "description": "科隆群岛的石灰岩海岛，适合安排跳岛、沉船潜水和海湾观景。"
     },
     {
       "cityKeys": [
@@ -3195,7 +3198,8 @@
       "lat": 11.321,
       "lng": 119.427,
       "imageSrc": "/travel/attractions/palawan-nacpan-beach.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nacpan_Beach%2C_El_Nido%2C_Philippines_(36958342541).jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nacpan_Beach%2C_El_Nido%2C_Philippines_(36958342541).jpg",
+      "description": "爱妮岛北部的长海滩，沙滩开阔、海岸线平缓，适合半日放松和看日落。"
     },
     {
       "cityKeys": [
@@ -3653,6 +3657,78 @@
       ],
       "lat": 48.862642,
       "lng": 2.302235
+    },
+    {
+      "cityKeys": [
+        "Paris",
+        "巴黎",
+        "paris"
+      ],
+      "cityLabel": "巴黎",
+      "name": "圣礼拜堂",
+      "location": "Sainte-Chapelle",
+      "imageSrc": "/travel/attractions/paris-notre-dame-de-paris.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sainte-Chapelle",
+      "description": "西岱岛上的哥特式王室礼拜堂，以彩绘玻璃闻名，适合和巴黎圣母院安排在同一条步行线上。",
+      "aliases": [
+        "Sainte-Chapelle"
+      ],
+      "lat": 48.8554,
+      "lng": 2.345
+    },
+    {
+      "cityKeys": [
+        "Paris",
+        "巴黎",
+        "paris"
+      ],
+      "cityLabel": "巴黎",
+      "name": "橘园美术馆",
+      "location": "Musée de l'Orangerie",
+      "imageSrc": "/travel/attractions/paris-musee-d-orsay.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Mus%C3%A9e_de_l%27Orangerie",
+      "description": "杜伊勒里花园内的印象派美术馆，莫奈《睡莲》展厅适合预留安静的参观时段。",
+      "aliases": [
+        "Musée de l'Orangerie"
+      ],
+      "lat": 48.8638,
+      "lng": 2.3226
+    },
+    {
+      "cityKeys": [
+        "Paris",
+        "巴黎",
+        "paris"
+      ],
+      "cityLabel": "巴黎",
+      "name": "巴黎先贤祠",
+      "location": "Panthéon",
+      "imageSrc": "/travel/attractions/paris-ile-de-la-cite.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Panth%C3%A9on",
+      "description": "拉丁区新古典主义地标，穹顶和法国名人纪念墓室适合与卢森堡公园串联。",
+      "aliases": [
+        "Panthéon"
+      ],
+      "lat": 48.8462,
+      "lng": 2.3464
+    },
+    {
+      "cityKeys": [
+        "Paris",
+        "巴黎",
+        "paris"
+      ],
+      "cityLabel": "巴黎",
+      "name": "卢森堡公园",
+      "location": "Jardin du Luxembourg",
+      "imageSrc": "/travel/attractions/paris-ile-de-la-cite.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Jardin_du_Luxembourg",
+      "description": "左岸大型历史花园，适合在博物馆或拉丁区行程间安排散步和休息。",
+      "aliases": [
+        "Jardin du Luxembourg"
+      ],
+      "lat": 48.8462,
+      "lng": 2.3372
     },
     {
       "cityKeys": [
@@ -4827,6 +4903,108 @@
       ],
       "lat": 43.7233,
       "lng": 10.3944
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "name": "圣马泰奥国家博物馆",
+      "location": "Museo Nazionale di San Matteo",
+      "imageSrc": "/travel/attractions/pisa-pisa-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Museo_Nazionale_di_San_Matteo",
+      "description": "阿诺河畔的宗教艺术博物馆，收藏中世纪至文艺复兴时期的托斯卡纳作品。",
+      "aliases": [
+        "Museo Nazionale di San Matteo"
+      ],
+      "lat": 43.7178,
+      "lng": 10.4009
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "name": "蓝宫",
+      "location": "Palazzo Blu",
+      "imageSrc": "/travel/attractions/pisa-pisa-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Palazzo_Blu",
+      "description": "比萨市中心阿诺河畔的艺术与文化展馆，适合从奇迹广场步行前往。",
+      "aliases": [
+        "Palazzo Blu"
+      ],
+      "lat": 43.7164,
+      "lng": 10.4008
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "name": "圣玛丽亚德拉斯皮纳教堂",
+      "location": "Santa Maria della Spina",
+      "imageSrc": "/travel/attractions/pisa-pisa-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Santa_Maria_della_Spina",
+      "description": "阿诺河边精巧的哥特式小教堂，适合沿河散步时顺路停留。",
+      "aliases": [
+        "Santa Maria della Spina"
+      ],
+      "lat": 43.7157,
+      "lng": 10.3958
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "name": "骑士广场",
+      "location": "Piazza dei Cavalieri",
+      "imageSrc": "/travel/attractions/pisa-piazza-dei-miracoli.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Piazza_dei_Cavalieri",
+      "description": "比萨历史中心的文艺复兴广场，周边建筑集中，适合与市中心步行线连游。",
+      "aliases": [
+        "Piazza dei Cavalieri"
+      ],
+      "lat": 43.7188,
+      "lng": 10.4007
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "name": "卡罗瓦纳宫",
+      "location": "Palazzo della Carovana",
+      "imageSrc": "/travel/attractions/pisa-pisa-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Palazzo_della_Carovana",
+      "description": "骑士广场上的华丽立面建筑，现为比萨高等师范学校主楼。",
+      "aliases": [
+        "Palazzo della Carovana"
+      ],
+      "lat": 43.7192,
+      "lng": 10.4007
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "name": "斯科托花园",
+      "location": "Giardino Scotto",
+      "imageSrc": "/travel/attractions/pisa-piazza-dei-miracoli.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Giardino_Scotto",
+      "description": "由城墙遗址环抱的城市公园，适合在参观古迹后安排轻松休息。",
+      "aliases": [
+        "Giardino Scotto"
+      ],
+      "lat": 43.7113,
+      "lng": 10.4053
     },
     {
       "cityKeys": [
@@ -6534,7 +6712,8 @@
       "lat": 7.064,
       "lng": 125.608,
       "imageSrc": "/travel/attractions/davao-museo-dabawenyo.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Museo_Dabawenyo_Durian_Skin_Artwork.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Museo_Dabawenyo_Durian_Skin_Artwork.jpg",
+      "description": "达沃市博物馆，以当地民族文化、历史和艺术展览为主，适合安排室内半日行程。"
     },
     {
       "cityKeys": [
@@ -6551,7 +6730,8 @@
       "lat": 7.093,
       "lng": 125.598,
       "imageSrc": "/travel/attractions/davao-davao-crocodile-park.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Davao_Crocodile_Park_01.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Davao_Crocodile_Park_01.jpg",
+      "description": "达沃鳄鱼公园兼具野生动物展示和家庭体验，适合与市区景点组合游览。"
     },
     {
       "cityKeys": [
@@ -6568,7 +6748,8 @@
       "lat": 7.189,
       "lng": 125.421,
       "imageSrc": "/travel/attractions/davao-philippine-eagle-center.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Haliastur_indus_-Philippine_Eagle_Center%2C_Davao_City%2C_Philippines_-upper_body-8a.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Haliastur_indus_-Philippine_Eagle_Center%2C_Davao_City%2C_Philippines_-upper_body-8a.jpg",
+      "description": "菲律宾鹰中心致力于猛禽保育，适合了解国鸟和雨林生态。"
     },
     {
       "cityKeys": [
@@ -6585,7 +6766,8 @@
       "lat": 7.079,
       "lng": 125.626,
       "imageSrc": "/travel/attractions/davao-jack-s-ridge.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Official WikiNights Event in Davao City, Conducted at Jack%E2%80%99s Ridge (003).jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Official WikiNights Event in Davao City, Conducted at Jack%E2%80%99s Ridge (003).jpg",
+      "description": "杰克山脊是俯瞰达沃湾和城市夜景的山坡休闲区，适合傍晚用餐看景。"
     },
     {
       "cityKeys": [
@@ -6659,7 +6841,8 @@
       "lat": 7.029,
       "lng": 125.498,
       "imageSrc": "/travel/attractions/davao-eden-nature-park.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Eden_Nature_Park_panorama.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Eden_Nature_Park_panorama.jpg",
+      "description": "山地生态度假公园，拥有花园、森林步道和观景点，适合安排半日到一日。"
     },
     {
       "cityKeys": [
@@ -6902,7 +7085,8 @@
       "lat": 35.8533,
       "lng": 128.5636,
       "imageSrc": "/travel/attractions/daegu-83-tower.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:11%EA%B2%BD_83%ED%83%80%EC%9B%8C.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:11%EA%B2%BD_83%ED%83%80%EC%9B%8C.jpg",
+      "description": "大邱地标观景塔，可从高处欣赏市区全景，适合傍晚和夜间登塔。"
     },
     {
       "cityKeys": [
@@ -6957,7 +7141,8 @@
       "lat": 35.828,
       "lng": 128.675,
       "imageSrc": "/travel/attractions/daegu-daegu-art-museum.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Daegu_Art_Museum.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Daegu_Art_Museum.jpg",
+      "description": "大邱美术馆以现代与当代艺术展览为主，适合在前山或寿城湖行程间安排。"
     },
     {
       "cityKeys": [
@@ -6974,7 +7159,8 @@
       "lat": 35.801,
       "lng": 128.52,
       "imageSrc": "/travel/attractions/daegu-daegu-arboretum.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Daegucactushouse.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Daegucactushouse.jpg",
+      "description": "大邱树木园由旧垃圾填埋场改造而成，四季植物景观适合轻松散步。"
     },
     {
       "cityKeys": [
@@ -6991,7 +7177,8 @@
       "lat": 35.869,
       "lng": 128.59,
       "imageSrc": "/travel/attractions/daegu-daegu-yangnyeongsi-museum-of-oriental-medicine.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Yangnyeongsi_Oriental_Medicine_Museum_(Daegu)_20221126_001.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Yangnyeongsi_Oriental_Medicine_Museum_(Daegu)_20221126_001.jpg",
+      "description": "大邱药令市韩医药博物馆介绍传统药材与医学文化，适合结合药令市场参观。"
     },
     {
       "cityKeys": [
@@ -7027,7 +7214,8 @@
       "lat": 35.8288,
       "lng": 128.6177,
       "imageSrc": "/travel/attractions/daegu-suseong-lake.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Suseong_lake_daegu_korea.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Suseong_lake_daegu_korea.jpg",
+      "description": "寿城池是大邱市区受欢迎的湖畔休闲区，适合散步、看喷泉和夜景。"
     },
     {
       "cityKeys": [
@@ -9128,7 +9316,8 @@
       "lat": 10.2176,
       "lng": 103.9594,
       "imageSrc": "/travel/attractions/phu-quoc-dinh-cau-temple.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dinh_C%E1%BA%ADu_%E1%BB%9F_Ph%C3%BA_Qu%E1%BB%91c.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dinh_C%E1%BA%ADu_%E1%BB%9F_Ph%C3%BA_Qu%E1%BB%91c.jpg",
+      "description": "富国岛夜市附近的海角小庙，适合在傍晚看海上日落并顺路逛当地餐饮街。"
     },
     {
       "cityKeys": [
@@ -9145,7 +9334,8 @@
       "lat": 10.337,
       "lng": 103.858,
       "imageSrc": "/travel/attractions/phu-quoc-grand-world-phu-quoc.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Simulation_of_a_parade_of_the_Nguyen_royal_soldiers_at_Grand_World_Phu_Quoc%2C_Vietnam.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Simulation_of_a_parade_of_the_Nguyen_royal_soldiers_at_Grand_World_Phu_Quoc%2C_Vietnam.jpg",
+      "description": "富国大世界是北岛的综合娱乐街区，适合夜间看演出、逛水城和安排亲子活动。"
     },
     {
       "cityKeys": [
@@ -9219,7 +9409,8 @@
       "lat": 10.3378,
       "lng": 103.855,
       "imageSrc": "/travel/attractions/phu-quoc-vinwonders-phu-quoc.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:VinWonders_Phu_Quoc_from_ferris_wheel.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:VinWonders_Phu_Quoc_from_ferris_wheel.jpg",
+      "description": "富国岛大型主题乐园，适合水上设施、游乐项目和家庭一日游。"
     },
     {
       "cityKeys": [
@@ -9236,7 +9427,8 @@
       "lat": 10.012,
       "lng": 104.004,
       "imageSrc": "/travel/attractions/phu-quoc-hon-thom-cable-car.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:H%C3%B2n_Th%C6%A1m_cable_car_pylon.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:H%C3%B2n_Th%C6%A1m_cable_car_pylon.jpg",
+      "description": "连接富国岛南部与香岛的跨海缆车，沿途可俯瞰海湾和群岛景色。"
     },
     {
       "cityKeys": [
@@ -9253,7 +9445,8 @@
       "lat": 10.179,
       "lng": 103.965,
       "imageSrc": "/travel/attractions/phu-quoc-long-beach-phu-quoc.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Phu-Quoc-Long-Beach.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Phu-Quoc-Long-Beach.jpg",
+      "description": "富国岛西岸的长海滩，适合游泳、沙滩散步和观赏日落。"
     },
     {
       "cityKeys": [
@@ -9288,7 +9481,8 @@
       "lat": 10.057,
       "lng": 104.036,
       "imageSrc": "/travel/attractions/phu-quoc-sao-beach.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Phu_quoc_plage_sao.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Phu_quoc_plage_sao.jpg",
+      "description": "富国岛东南岸的白沙海滩，海水清浅，适合安排半日海边休闲。"
     },
     {
       "cityKeys": [
@@ -10271,7 +10465,8 @@
       "lat": 47.562,
       "lng": 13.649,
       "imageSrc": "/travel/attractions/hallstatt-hallstatt-ossuary.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Karner_der_katholischen_Kirche_Hallstatt.JPG"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Karner_der_katholischen_Kirche_Hallstatt.JPG",
+      "description": "圣弥额尔教堂旁的小型人骨堂，展示当地独特的墓葬与民俗传统。"
     },
     {
       "cityKeys": [
@@ -10288,7 +10483,8 @@
       "lat": 47.562,
       "lng": 13.646,
       "imageSrc": "/travel/attractions/hallstatt-hallstatt-skywalk.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hallstatt_from_above.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hallstatt_from_above.jpg",
+      "description": "盐山上的观景平台，可俯瞰哈尔施塔特湖、村镇屋顶和周围阿尔卑斯山景。"
     },
     {
       "cityKeys": [
@@ -10324,7 +10520,8 @@
       "lat": 47.559,
       "lng": 13.644,
       "imageSrc": "/travel/attractions/hallstatt-hallstatt-salt-mine.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hallstatt_Salt_mine_Halit_1i.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hallstatt_Salt_mine_Halit_1i.jpg",
+      "description": "世界历史悠久的盐矿之一，可乘缆车上山并体验矿井隧道和盐湖展览。"
     },
     {
       "cityKeys": [
@@ -10360,7 +10557,8 @@
       "lat": 47.56,
       "lng": 13.67,
       "imageSrc": "/travel/attractions/hallstatt-waldbachstrub-waterfall.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:De_Waldbachstrub_waterval_bij_Hallstatt_Waldbachstrub_bei_Hallstatt_(titel_op_object)_Salzkammergut_(serietitel_op_object)%2C_RP-F-F12616.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:De_Waldbachstrub_waterval_bij_Hallstatt_Waldbachstrub_bei_Hallstatt_(titel_op_object)_Salzkammergut_(serietitel_op_object)%2C_RP-F-F12616.jpg",
+      "description": "哈尔施塔特附近森林中的分级瀑布，适合沿步道徒步并感受湖区山林景观。"
     },
     {
       "cityKeys": [
@@ -15273,7 +15471,8 @@
       "lat": 36.17,
       "lng": -115.144,
       "imageSrc": "/travel/attractions/las-vegas-fremont-street-experience.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fremont_Street_Experience_canopy_of_lights.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fremont_Street_Experience_canopy_of_lights.jpg",
+      "description": "旧城区的步行街和穹顶灯光秀，适合夜间散步并体验拉斯维加斯早期城市氛围。"
     },
     {
       "cityKeys": [
@@ -15328,7 +15527,8 @@
       "lat": 36.082,
       "lng": -115.173,
       "imageSrc": "/travel/attractions/las-vegas-welcome-to-fabulous-las-vegas-sign.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Welcome_to_Fabulous_Las_Vegas_sign_in_2021.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Welcome_to_Fabulous_Las_Vegas_sign_in_2021.jpg",
+      "description": "拉斯维加斯大道南端的经典拍照地标，适合白天短暂停留留念。"
     },
     {
       "cityKeys": [
@@ -15345,7 +15545,8 @@
       "lat": 36.176,
       "lng": -115.135,
       "imageSrc": "/travel/attractions/las-vegas-neon-museum.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Neon_Museum_Las_Vegas_walkway.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Neon_Museum_Las_Vegas_walkway.jpg",
+      "description": "收藏老式赌场霓虹招牌的户外博物馆，适合了解城市娱乐业历史。"
     },
     {
       "cityKeys": [
@@ -15400,7 +15601,8 @@
       "lat": 36.12,
       "lng": -115.161,
       "imageSrc": "/travel/attractions/las-vegas-sphere-las-vegas.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sphere_-_Las_Vegas_(53685825749).jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sphere_-_Las_Vegas_(53685825749).jpg",
+      "description": "拉斯维加斯大道东侧的沉浸式球形场馆，外立面灯光和演出体验都很有辨识度。"
     },
     {
       "cityKeys": [
@@ -20485,6 +20687,108 @@
     },
     {
       "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "name": "特列季亚科夫画廊",
+      "location": "Tretyakov Gallery",
+      "imageSrc": "/travel/attractions/moscow-moscow-kremlin.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Tretyakov_Gallery",
+      "description": "俄罗斯艺术收藏重镇，适合用半天了解从古代圣像到近现代绘画的发展。",
+      "aliases": [
+        "Tretyakov Gallery"
+      ],
+      "lat": 55.7415,
+      "lng": 37.6208
+    },
+    {
+      "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "name": "莫斯科大剧院",
+      "location": "Bolshoi Theatre",
+      "imageSrc": "/travel/attractions/moscow-red-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Bolshoi_Theatre",
+      "description": "莫斯科古典芭蕾与歌剧地标，演出季可提前订票，白天也值得欣赏外观。",
+      "aliases": [
+        "Bolshoi Theatre"
+      ],
+      "lat": 55.7601,
+      "lng": 37.6186
+    },
+    {
+      "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "name": "高尔基公园",
+      "location": "Gorky Park",
+      "imageSrc": "/travel/attractions/moscow-arbat-street.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Gorky_Park_(Moscow)",
+      "description": "莫斯科河畔的大型城市公园，适合散步、骑行和在博物馆行程间放松。",
+      "aliases": [
+        "Gorky Park"
+      ],
+      "lat": 55.7317,
+      "lng": 37.6032
+    },
+    {
+      "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "name": "新圣女修道院",
+      "location": "Novodevichy Convent",
+      "imageSrc": "/travel/attractions/moscow-saint-basil-s-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Novodevichy_Convent",
+      "description": "莫斯科河畔的历史修道院建筑群，适合与新圣女公墓和湖区一起游览。",
+      "aliases": [
+        "Novodevichy Convent"
+      ],
+      "lat": 55.7269,
+      "lng": 37.5538
+    },
+    {
+      "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "name": "基督救世主大教堂",
+      "location": "Cathedral of Christ the Saviour",
+      "imageSrc": "/travel/attractions/moscow-saint-basil-s-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Cathedral_of_Christ_the_Saviour",
+      "description": "莫斯科河畔的东正教主教座堂，金色穹顶和河岸视角适合安排在市中心步行线。",
+      "aliases": [
+        "Cathedral of Christ the Saviour"
+      ],
+      "lat": 55.7447,
+      "lng": 37.6056
+    },
+    {
+      "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "name": "麻雀山观景台",
+      "location": "Sparrow Hills",
+      "imageSrc": "/travel/attractions/moscow-moscow-kremlin.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sparrow_Hills",
+      "description": "俯瞰莫斯科市区和卢日尼基体育场的高地观景点，晴天适合日落前后前往。",
+      "aliases": [
+        "Sparrow Hills"
+      ],
+      "lat": 55.7103,
+      "lng": 37.5425
+    },
+    {
+      "cityKeys": [
         "melbourne",
         "墨尔本"
       ],
@@ -23844,7 +24148,8 @@
       "lat": 25.32,
       "lng": 55.375,
       "imageSrc": "/travel/attractions/sharjah-al-qasba-sharjah.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Al-Qasba%2C_Sharjah_-_panoramio.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Al-Qasba%2C_Sharjah_-_panoramio.jpg",
+      "description": "沙迦运河休闲区，设有餐厅、步道和摩天轮，适合傍晚散步。"
     },
     {
       "cityKeys": [
@@ -23861,7 +24166,8 @@
       "lat": 25.322,
       "lng": 55.377,
       "imageSrc": "/travel/attractions/sharjah-al-majaz-waterfront.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Al_Majaz_Waterfront%2C_Sharjah_UAE.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Al_Majaz_Waterfront%2C_Sharjah_UAE.jpg",
+      "description": "阿尔马贾兹海滨沿湖展开，适合看喷泉、城市天际线和夜间灯光。"
     },
     {
       "cityKeys": [
@@ -23878,7 +24184,8 @@
       "lat": 25.348,
       "lng": 55.39,
       "imageSrc": "/travel/attractions/sharjah-king-faisal-mosque-sharjah.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:King_Faisal_mosque_Sharjah.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:King_Faisal_mosque_Sharjah.jpg",
+      "description": "沙迦市中心的大型清真寺，外观宏伟，适合与文化广场和博物馆路线结合。"
     },
     {
       "cityKeys": [
@@ -23952,7 +24259,8 @@
       "lat": 25.337,
       "lng": 55.376,
       "imageSrc": "/travel/attractions/sharjah-sharjah-aquarium.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sharjah_Aquarium_-_panoramio.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sharjah_Aquarium_-_panoramio.jpg",
+      "description": "阿联酋首座公营海洋馆，展示海湾生态，适合家庭和亲子行程。"
     },
     {
       "cityKeys": [
@@ -23988,7 +24296,8 @@
       "lat": 25.357,
       "lng": 55.382,
       "imageSrc": "/travel/attractions/sharjah-sharjah-heritage-museum.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sharjah_Heritage.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sharjah_Heritage.jpg",
+      "description": "老城传统宅院中的文化博物馆，适合了解沙迦民居、手工艺和生活方式。"
     },
     {
       "cityKeys": [
@@ -24799,7 +25108,8 @@
       "lat": 36.364,
       "lng": 25.477,
       "imageSrc": "/travel/attractions/santorini-ancient-thera.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ancient_Thera_on_Messa_Vouno_seen_from_Perissa_-_Santorini_-_Greece_-_01.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ancient_Thera_on_Messa_Vouno_seen_from_Perissa_-_Santorini_-_Greece_-_01.jpg",
+      "description": "圣托里尼南部山顶的古代城市遗址，适合在海滩和火山景观之外安排历史探索。"
     },
     {
       "cityKeys": [
@@ -24854,7 +25164,8 @@
       "lat": 36.432,
       "lng": 25.422,
       "imageSrc": "/travel/attractions/santorini-skaros-rock.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Skaros_Rock_Santorini.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Skaros_Rock_Santorini.jpg",
+      "description": "伊莫洛维里附近伸入海面的火山岩岬角，适合沿步道徒步并欣赏爱琴海日落。"
     },
     {
       "cityKeys": [
@@ -25921,7 +26232,8 @@
       "lat": 20.236,
       "lng": -87.463,
       "imageSrc": "/travel/attractions/tulum-cenote-calavera.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Cenote_Calavera.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Cenote_Calavera.jpg",
+      "description": "图卢姆附近的圆形天坑，设有天然洞口和清澈地下水，适合短途浮潜体验。"
     },
     {
       "cityKeys": [
@@ -25957,7 +26269,8 @@
       "lat": 20.324,
       "lng": -87.391,
       "imageSrc": "/travel/attractions/tulum-cenote-dos-ojos.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Cenote Dos Ojos, M%C3%A9xico - panoramio.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Cenote Dos Ojos, M%C3%A9xico - panoramio.jpg",
+      "description": "由两个相连水潭组成的著名天坑系统，水下能见度高，适合浮潜或潜水。"
     },
     {
       "cityKeys": [
@@ -27231,7 +27544,8 @@
       "lat": -54.787,
       "lng": -68.377,
       "imageSrc": "/travel/attractions/ushuaia-martial-glacier.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:UshuaiaGlaciar.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:UshuaiaGlaciar.jpg",
+      "description": "乌斯怀亚近郊的山地冰川，可乘缆车或步道登高俯瞰比格尔海峡。"
     },
     {
       "cityKeys": [
@@ -27267,7 +27581,8 @@
       "lat": -54.806,
       "lng": -68.302,
       "imageSrc": "/travel/attractions/ushuaia-maritime-museum-of-ushuaia.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ushuaia-museu-maritimo.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ushuaia-museu-maritimo.jpg",
+      "description": "设于旧监狱建筑内的海事博物馆，介绍火地岛航海、探险和监狱历史。"
     },
     {
       "cityKeys": [
@@ -27973,6 +28288,108 @@
       ],
       "lat": 21.262,
       "lng": -157.805
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "name": "纳帕利海岸",
+      "location": "Nā Pali Coast",
+      "imageSrc": "/travel/attractions/hawaii-haleakala-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/N%C4%81_Pali_Coast",
+      "description": "可爱岛西北岸的悬崖海岸线，适合乘船、皮划艇或从卡拉劳步道远眺。",
+      "aliases": [
+        "Nā Pali Coast"
+      ],
+      "lat": 22.209,
+      "lng": -159.598
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "name": "夏威夷火山国家公园",
+      "location": "Hawaiʻi Volcanoes National Park",
+      "imageSrc": "/travel/attractions/hawaii-haleakala-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hawai%CA%BBi_Volcanoes_National_Park",
+      "description": "大岛火山景观核心，火山口、熔岩地貌和雨林步道适合安排整日探索。",
+      "aliases": [
+        "Hawaiʻi Volcanoes National Park"
+      ],
+      "lat": 19.4194,
+      "lng": -155.2885
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "name": "恐龙湾",
+      "location": "Hanauma Bay",
+      "imageSrc": "/travel/attractions/hawaii-waikiki.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hanauma_Bay",
+      "description": "欧胡岛火山口形成的浅湾，适合预约入场后浮潜观赏珊瑚和热带鱼。",
+      "aliases": [
+        "Hanauma Bay"
+      ],
+      "lat": 21.269,
+      "lng": -157.693
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "name": "库洛阿牧场",
+      "location": "Kualoa Ranch",
+      "imageSrc": "/travel/attractions/hawaii-haleakala-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kualoa_Ranch",
+      "description": "欧胡岛东岸山谷牧场，可参加电影取景地、越野和海岸观景等主题活动。",
+      "aliases": [
+        "Kualoa Ranch"
+      ],
+      "lat": 21.5206,
+      "lng": -157.8376
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "name": "伊奥拉尼宫",
+      "location": "ʻIolani Palace",
+      "imageSrc": "/travel/attractions/hawaii-pearl-harbor.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/%CA%BBIolani_Palace",
+      "description": "檀香山市中心的美国王宫遗址，适合与卡美哈美哈国王雕像和市区历史线同游。",
+      "aliases": [
+        "ʻIolani Palace"
+      ],
+      "lat": 21.3069,
+      "lng": -157.8583
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "name": "马诺阿瀑布",
+      "location": "Manoa Falls",
+      "imageSrc": "/travel/attractions/hawaii-haleakala-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Manoa_Falls",
+      "description": "檀香山近郊雨林步道终点的瀑布，适合在天气稳定时安排半日徒步。",
+      "aliases": [
+        "Manoa Falls"
+      ],
+      "lat": 21.3329,
+      "lng": -157.8028
     },
     {
       "cityKeys": [
@@ -30600,7 +31017,8 @@
       "lat": 11.977,
       "lng": 121.914,
       "imageSrc": "/travel/attractions/boracay-balinghai-beach.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Balinghai_Beach.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Balinghai_Beach.jpg",
+      "description": "长滩岛北部的小型海湾，海水清澈安静，适合浮潜和避开主海滩人流。"
     },
     {
       "cityKeys": [
@@ -30655,7 +31073,8 @@
       "lat": 11.976,
       "lng": 121.913,
       "imageSrc": "/travel/attractions/boracay-diniwid-beach.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sunset_at_Diniwid_Beach%2C_Boracay_Island.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sunset_at_Diniwid_Beach%2C_Boracay_Island.jpg",
+      "description": "长滩岛西北端的宁静海滩，适合看日落、海边散步和安排轻松下午。"
     },
     {
       "cityKeys": [
@@ -30710,7 +31129,8 @@
       "lat": 11.995,
       "lng": 121.916,
       "imageSrc": "/travel/attractions/boracay-puka-shell-beach.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Puka_Beach_Boracay_Philippines.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Puka_Beach_Boracay_Philippines.jpg",
+      "description": "以珊瑚碎片和贝壳闻名的北部长滩，海风较强，适合半日海岸休闲。"
     },
     {
       "cityKeys": [
@@ -30727,7 +31147,8 @@
       "lat": 11.921,
       "lng": 121.931,
       "imageSrc": "/travel/attractions/boracay-crystal-cove-island.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Boracay_Crystal_Cove.jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Boracay_Crystal_Cove.jpg",
+      "description": "长滩岛附近的跳岛景点，设有海蚀洞和观景步道，适合搭船半日游。"
     },
     {
       "cityKeys": [
@@ -30763,7 +31184,8 @@
       "lat": 11.985,
       "lng": 121.928,
       "imageSrc": "/travel/attractions/boracay-ilig-iligan-beach.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Viewing_Turtle_island_from_Ilig-Iligan_beach_(52261865792).jpg"
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Viewing_Turtle_island_from_Ilig-Iligan_beach_(52261865792).jpg",
+      "description": "长滩岛东侧较安静的海湾，适合浮潜、看海龟岛远景和享受自然海岸。"
     },
     {
       "cityKeys": [
@@ -31276,8 +31698,8 @@
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gate_of_Huogongdian_(20180222180148).jpg",
       "description": "坡子街和火宫殿适合安排臭豆腐、小吃和老长沙夜市体验。",
       "aliases": [
-        "Pozi Street",
         "Huogongdian",
+        "Pozi Street",
         "Fire God Palace",
         "臭豆腐",
         "长沙臭豆腐"

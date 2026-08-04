@@ -353,7 +353,9 @@ export async function runIndonesiaLiveSubmission(
       actionInstructions: probe.instruction,
       implementationStatus: probe.implementationStatus,
       operatorDiagnostics: probe.diagnostics.slice(-30),
-      message: probe.state === "payment_failed" || probe.actionType === "official_step_2_validation_blocked"
+      message: probe.state === "payment_failed" ||
+        probe.actionType === "official_step_2_validation_blocked" ||
+        probe.actionType === "official_step_3_review_incomplete"
         ? probe.instruction
         : `${normalized.provider} reached Indonesia official portal state ${probe.state}.`,
     };
