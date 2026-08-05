@@ -32,3 +32,10 @@ export function shouldShowSubmissionStatusStep(input: {
   if (input.submissionResult) return true;
   return Boolean(input.submissionResultStatus);
 }
+
+export function shouldShowReviewAlongsideSubmissionStatus(input: {
+  submissionResultStatus?: SubmissionResultStatus | null;
+}): boolean {
+  const normalized = (input.submissionResultStatus ?? "").trim().toLowerCase();
+  return normalized === "failed" || normalized === "stalled";
+}

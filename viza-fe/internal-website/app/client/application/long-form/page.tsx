@@ -76,7 +76,10 @@ import {
   getContiguousCompletedCount,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
-import { shouldShowSubmissionStatusStep } from "@/lib/application-submission-display";
+import {
+  shouldShowReviewAlongsideSubmissionStatus,
+  shouldShowSubmissionStatusStep,
+} from "@/lib/application-submission-display";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import {
   attemptStaleServerActionReload,
@@ -2244,6 +2247,9 @@ export default function ApplicationPage() {
     submissionResultStatus: appState.submissionResultStatus,
     submissionResult: appState.submissionResult,
   });
+  const showReviewAlongsideSubmissionStatus = shouldShowReviewAlongsideSubmissionStatus({
+    submissionResultStatus: appState.submissionResultStatus,
+  });
 
   useEffect(() => {
     if (loading || effectiveSteps.length === 0) return;
@@ -3684,14 +3690,29 @@ export default function ApplicationPage() {
                         {/* Dynamic review step */}
                         {step.id === reviewStepIndex && appState.applicationId && (
                           showSubmissionStatusStep ? (
-                            <SubmissionStatusStep
-                              applicationId={appState.applicationId}
-                              country={activeCountry}
-                              visaType={activeVisaType}
-                              status={appState.submissionResultStatus}
-                              result={appState.submissionResult}
-                              onResubmit={handleDynamicReviewComplete}
-                            />
+                            <div className="flex flex-col gap-6">
+                              {showReviewAlongsideSubmissionStatus ? (
+                                <DynamicReviewStep
+                                  applicationId={appState.applicationId}
+                                  dynamicAnswers={dynamicAnswerSnapshot}
+                                  dbSteps={dbSteps}
+                                  photoPath={appState.photo}
+                                  onEdit={(stepIdx) => scrollToStepPanel(stepIdx)}
+                                  onPhotoEdit={() => scrollToStepPanel(showDocumentStep ? documentStepIndex : firstFormStepId)}
+                                  onComplete={() => undefined}
+                                  mode="continue"
+                                  showAction={false}
+                                />
+                              ) : null}
+                              <SubmissionStatusStep
+                                applicationId={appState.applicationId}
+                                country={activeCountry}
+                                visaType={activeVisaType}
+                                status={appState.submissionResultStatus}
+                                result={appState.submissionResult}
+                                onResubmit={handleDynamicReviewComplete}
+                              />
+                            </div>
                           ) : (
                             <div className="flex flex-col gap-6">
                               <DynamicReviewStep
@@ -3799,14 +3820,31 @@ export default function ApplicationPage() {
                         )}
                         {step.id === fallbackReviewStepIndex && (
                           showSubmissionStatusStep ? (
-                            <SubmissionStatusStep
-                              applicationId={appState.applicationId}
-                              country={activeCountry}
-                              visaType={activeVisaType}
-                              status={appState.submissionResultStatus}
-                              result={appState.submissionResult}
-                              onResubmit={handleReviewComplete}
-                            />
+                            <div className="flex flex-col gap-6">
+                              {showReviewAlongsideSubmissionStatus ? (
+                                <ReviewStep
+                                  applicationId={appState.applicationId ?? ""}
+                                  data={appState}
+                                  onEdit={(section) => {
+                                    const sectionMap: Record<string, number> = {
+                                      personal: 0, passport: 1, travel: 2, documents: 3,
+                                    };
+                                    scrollToStepPanel(sectionMap[section] ?? 0);
+                                  }}
+                                  onComplete={() => undefined}
+                                  mode="continue"
+                                  showAction={false}
+                                />
+                              ) : null}
+                              <SubmissionStatusStep
+                                applicationId={appState.applicationId}
+                                country={activeCountry}
+                                visaType={activeVisaType}
+                                status={appState.submissionResultStatus}
+                                result={appState.submissionResult}
+                                onResubmit={handleReviewComplete}
+                              />
+                            </div>
                           ) : (
                             <div className="flex flex-col gap-6">
                               <ReviewStep
