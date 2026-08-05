@@ -144,7 +144,9 @@ return to the relevant form step.
 ## Submission Status
 
 After submission, Review Application switches to the application status and
-confirmation result. The current module prepares and records application
+confirmation result. Failed or stalled submissions keep the read-only review
+summary visible above the retry status so applicants can verify saved answers
+before submitting again. The current module prepares and records application
 progress; final external government submission may still depend on backend
 automation coverage for that country.
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   hasDurableTerminalSubmissionResult,
+  shouldShowReviewAlongsideSubmissionStatus,
   shouldShowSubmissionStatusStep,
 } from "@/lib/application-submission-display";
 
@@ -61,4 +62,28 @@ describe("hasDurableTerminalSubmissionResult", () => {
       }),
     ).toBe(false);
   });
+});
+
+describe("shouldShowReviewAlongsideSubmissionStatus", () => {
+  it.each(["failed", "stalled"] as const)(
+    "keeps the read-only review visible for a %s retry state",
+    (submissionResultStatus) => {
+      expect(
+        shouldShowReviewAlongsideSubmissionStatus({
+          submissionResultStatus,
+        }),
+      ).toBe(true);
+    },
+  );
+
+  it.each(["waiting", "processing", "completed"] as const)(
+    "keeps the status-only view for %s",
+    (submissionResultStatus) => {
+      expect(
+        shouldShowReviewAlongsideSubmissionStatus({
+          submissionResultStatus,
+        }),
+      ).toBe(false);
+    },
+  );
 });
