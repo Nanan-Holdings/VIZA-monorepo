@@ -50,6 +50,7 @@ import {
   classifyVietnamPortalSnapshot,
   isAutoAcknowledgeableVietnamPortalState,
   readVietnamPortalSnapshot,
+  shouldTryVietnamFallbackLanding,
   waitForVietnamPortalCheckpoint,
   type VietnamPortalSnapshot,
   type VietnamPortalStateId,
@@ -853,7 +854,7 @@ async function reachVietnamFormCheckpoint(
     await page.reload({ waitUntil: "domcontentloaded", timeout: Math.min(options.stepTimeoutMs, 45_000) }).catch(() => undefined);
     state = await readState();
   }
-  if ((state === "white_screen" || state === "network_blocked") && bases.length > 1) {
+  if (shouldTryVietnamFallbackLanding(state) && bases.length > 1) {
     attemptedFallback = true;
     state = await openBase(bases[1]);
   }
