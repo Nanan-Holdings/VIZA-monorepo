@@ -14,6 +14,7 @@ import {
   MapPin,
   ShieldCheck,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -284,15 +285,15 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
         )}
 
         {liveAssisted && !officialConfirmed && result.manualAction && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-            <div className="flex items-center gap-2 text-xs font-medium text-amber-700">
-              <AlertTriangle className="h-4 w-4" />
+          <Alert variant="warning">
+            <AlertIcon variant="warning" />
+            <AlertTitle>
               {isZh ? "官网检查点" : "Manual checkpoint"}: {formatStatus(result.manualAction.type)}
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-amber-900">
-              {result.manualAction.instructions}
-            </p>
-          </div>
+            </AlertTitle>
+            <AlertDescription>
+              <p>{result.manualAction.instructions}</p>
+            </AlertDescription>
+          </Alert>
         )}
 
         {liveAssisted && (officialAccount || accountError) && (

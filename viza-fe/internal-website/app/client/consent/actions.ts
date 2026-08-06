@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 import {
   AGENCY_AUTHORISATION_DOCUMENT,
   AGENCY_SIGNATURE_TYPE,
@@ -36,12 +37,11 @@ interface AuditMetadata {
 }
 
 function applicationHref(application: Pick<ApplicationRow, "id" | "country" | "visa_type">): string {
-  const params = new URLSearchParams({
+  return buildApplicationLongFormHref({
     applicationId: application.id,
     country: application.country,
     visaType: application.visa_type,
   });
-  return `/client/application?${params.toString()}`;
 }
 
 function documentsHref(applicationId: string): string {

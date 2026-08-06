@@ -12,7 +12,6 @@ import { AnimatedTabPill } from "@/components/ui/animated-tab-pill";
 import { NavDropdown, type NavDropdownItem } from "@/components/client/nav-dropdown";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
-import { svgPaths } from "@/components/client/constants";
 import { cn } from "@/lib/utils";
 import {
   buildApplicationFormHref,
@@ -65,6 +64,7 @@ const chatAgentOptions = [
 type LiveSaveStatus = "saving" | "saved";
 
 const LIVE_SAVE_STATUS_EVENT = "viza:live-save-status";
+const MENU_ICON_PATH = "M5.33333 6.66667H26.6667M5.33333 16H26.6667M5.33333 25.3333H26.6667";
 
 function LiveSaveStatusIcon({
   color,
@@ -381,7 +381,7 @@ export function NavBar({
                   >
                     <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
                       <motion.path
-                        d={svgPaths.p2cedaac0}
+                        d={MENU_ICON_PATH}
                         style={{ stroke: "var(--nav-stroke-color)" }}
                         strokeWidth="2"
                         strokeLinecap="round"
@@ -405,7 +405,7 @@ export function NavBar({
                 transition={{ duration: transitionDuration, ease: "easeInOut" }}
               >
                 <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
-                  <motion.path d={svgPaths.p2cedaac0} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
+                  <motion.path d={MENU_ICON_PATH} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </motion.button>
             )}
@@ -475,7 +475,7 @@ export function NavBar({
                 <PopoverTrigger asChild>
                   <motion.button className="w-9 h-9 flex items-center justify-center cursor-pointer" type="button">
                     <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none">
-                      <motion.path d={svgPaths.p2cedaac0} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
+                      <motion.path d={MENU_ICON_PATH} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
                     </svg>
                   </motion.button>
                 </PopoverTrigger>
@@ -491,7 +491,7 @@ export function NavBar({
             ) : (
               <motion.button className="w-9 h-9 flex items-center justify-center" type="button">
                 <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none">
-                  <motion.path d={svgPaths.p2cedaac0} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
+                  <motion.path d={MENU_ICON_PATH} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </motion.button>
             )}

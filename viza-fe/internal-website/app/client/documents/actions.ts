@@ -339,7 +339,7 @@ const VIETNAM_E_VISA_REQUIREMENTS: DocumentRequirement[] = [
     labelZh: "旅行行程（可选）",
     description: "Optional VIZA review aid. Vietnam official e-Visa intake does not require this upload by default.",
     required: false,
-    sortOrder: 30,
+    sortOrder: 40,
     accept: [".pdf", ".doc", ".docx", ".json"],
     source: "fallback",
   },
@@ -461,6 +461,18 @@ const INDONESIA_C1_TOURIST_REQUIREMENTS: DocumentRequirement[] = [
     source: "fallback",
   },
   {
+    key: "return_ticket",
+    documentType: "return_ticket",
+    labelEn: "Return or onward ticket",
+    labelZh: "返程或续程机票",
+    description:
+      "Official C1 requirement: return ticket or onward ticket to continue the journey to another country. PDF format.",
+    required: true,
+    sortOrder: 30,
+    accept: [".pdf"],
+    source: "fallback",
+  },
+  {
     key: "bank_statement",
     documentType: "bank_statement",
     labelEn: "Personal bank statement with minimum USD 2,000 or equivalent",
@@ -468,7 +480,7 @@ const INDONESIA_C1_TOURIST_REQUIREMENTS: DocumentRequirement[] = [
     description:
       "Official C1 requirement: personal bank statement for the last 3 months showing the applicant name, statement period, and account balance, with a minimum amount of USD 2,000 or equivalent. PDF format only.",
     required: true,
-    sortOrder: 30,
+    sortOrder: 40,
     accept: [".pdf"],
     source: "fallback",
   },

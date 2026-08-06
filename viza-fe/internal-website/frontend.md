@@ -145,8 +145,7 @@ Don't rewrite a primitive from scratch.
 ```
 navbar.tsx, animated-menu.tsx, language-selector.tsx,
 auth-language-switcher.tsx, help-article.tsx, static-article.tsx,
-sex-prompt-modal.tsx, invite-history.tsx,
-companion/, constants/, home/
+invite-history.tsx, companion/, home/
 ```
 
 When building a new `/client` feature, prefer putting composite components in `components/client/<feature>/`. Page files in `app/client/<route>/page.tsx` should be thin — mostly data fetching + layout — and compose from here.
@@ -164,7 +163,8 @@ These components ship a richer behavior than any "design system" specimen. Reuse
 |---|---|---|
 | `CountryDropdown` | `components/ui/country-dropdown.tsx` | Locale-aware names via `Intl.DisplayNames`, real flag rendering via `react-circle-flags`, cmdk-powered fuzzy search, brand-tinted focus ring. |
 | `DatePicker` | `components/ui/date-picker.tsx` | zhCN/enUS locale, `YYYY-MM-DD` string contract, dropdown caption layout, 1920–2036 range. |
-| `FileUploadCard` | `components/application-steps/file-upload-card.tsx` | Wired to Supabase Storage with auth-scoped paths and idle/uploading/done/error states. The drop-zone visuals in the design system are pure mockups — they have no upload pipeline. |
+| `DocumentUploadField` | `components/ui/document-upload-field.tsx` | **The one upload surface.** Implements the published `preview/components-document-upload.html` card — drop field, uploaded-file preview, status dot/label/meta, rejection reason. Every document field renders this: the passport step at the top of each wizard, the document centre checklist, the Universal Profile, and `FileUploadCard`. Never hand-roll another drop zone. Slot it into `SupportingDocumentCard`, which supplies the card chrome, title and description. |
+| `FileUploadCard` | `components/application-steps/file-upload-card.tsx` | Wired to Supabase Storage with auth-scoped paths and idle/uploading/done/error states, plus the passport OCR trigger. Renders `DocumentUploadField` for its visuals. |
 | `LanguageSelector` | `components/client/language-selector.tsx` | Theme-aware globe stroke via `--nav-stroke-color`. Built on top of `AnimatedDropdown`. |
 | `AnimatedDropdown` | `components/ui/animated-dropdown.tsx` | The popover-with-search-and-staggered-list pattern. Use this for any future searchable dropdown. |
 | `AnimatedTabPill` | `components/ui/animated-tab-pill.tsx` | The navbar's text-tab + mobile pill-row pattern. Use the `text` variant for inline tab strips and `pill` for scrollable pill rows. |

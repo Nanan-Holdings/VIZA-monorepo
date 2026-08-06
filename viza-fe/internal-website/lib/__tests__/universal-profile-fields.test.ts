@@ -9,6 +9,8 @@ import {
 describe("universal profile field catalog", () => {
   it("canonicalizes country-specific aliases without losing repeat suffixes", () => {
     expect(canonicalizeUniversalProfileFieldName("travel_document_number")).toBe("passport_number");
+    expect(canonicalizeUniversalProfileFieldName("passport_no")).toBe("passport_number");
+    expect(canonicalizeUniversalProfileFieldName("spouse_dob")).toBe("spouse_date_of_birth");
     expect(canonicalizeUniversalProfileFieldName("other_nationality__2")).toBe("other_nationality__2");
   });
 
@@ -17,6 +19,8 @@ describe("universal profile field catalog", () => {
     expect(isReusableUniversalProfileField({ fieldName: "father_surname", fieldType: "text", stepName: "Family" })).toBe(true);
     expect(isReusableUniversalProfileField({ fieldName: "previous_visit_date_arrived", fieldType: "date", stepName: "Previous Travel" })).toBe(true);
     expect(isReusableUniversalProfileField({ fieldName: "intended_arrival_date", fieldType: "date", stepName: "Trip Details" })).toBe(false);
+    expect(isReusableUniversalProfileField({ fieldName: "event_organizer", fieldType: "text", stepName: "Trip Details" })).toBe(false);
+    expect(isReusableUniversalProfileField({ fieldName: "dependant_date_of_birth", fieldType: "date", stepName: "Other applicants" })).toBe(false);
     expect(isReusableUniversalProfileField({ fieldName: "declaration_truthfulness", fieldType: "radio", stepName: "Declaration" })).toBe(false);
   });
 

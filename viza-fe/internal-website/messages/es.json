@@ -394,89 +394,6 @@
       "submitting": "[ES] Submitting…"
     }
   },
-  "services": {
-    "title": "[ES] Services",
-    "scheduled": "[ES] Scheduled",
-    "yourHistory": "[ES] Your history",
-    "reschedule": "[ES] Reschedule",
-    "cancel": "[ES] Cancel",
-    "cancelling": "[ES] Cancelling...",
-    "cannotReschedule": "[ES] Cannot reschedule within 24 hours",
-    "comingSoon": "[ES] Coming Soon",
-    "noScheduledServices": "[ES] No scheduled services",
-    "noScheduledDescription": "[ES] You don't have any upcoming services. Browse our recommended tests below to get started.",
-    "noServiceHistory": "[ES] No service history",
-    "noHistoryDescription": "[ES] You haven't completed any services yet. Your history will appear here.",
-    "cancelDialog": {
-      "title": "[ES] Cancel scheduled service?",
-      "keep": "[ES] Keep"
-    },
-    "recommended": {
-      "heading": "[ES] Recommended for you",
-      "subheading": "[ES] Our top test recommendations"
-    },
-    "personalized": {
-      "heading": "[ES] Personalized recommendations",
-      "subheading": "[ES] Tests based on your profile and health data"
-    },
-    "upcoming": {
-      "heading": "[ES] Upcoming tests",
-      "subheading": "[ES] New tests we're working on"
-    },
-    "marketplace": {
-      "supplement": {
-        "title": "[ES] Supplement Marketplace",
-        "description": "[ES] Insider prices on 300+ curated longevity products"
-      },
-      "service": {
-        "title": "[ES] Service Marketplace",
-        "description": "[ES] Access to curated RX's like documents or peptides"
-      }
-    },
-    "cards": {
-      "bloodPanel": {
-        "title": "[ES] Blood Panel",
-        "description": "[ES] 40+ metrics tested in a fully comprehensive blood panel.",
-        "cta": "[ES] Included in your plan"
-      },
-      "advancedBloodPanel": {
-        "title": "[ES] Advanced Blood Panel",
-        "description": "[ES] 130+ metrics tested in a fully comprehensive blood panel.",
-        "cta": "[ES] Get Started",
-        "badge": "[ES] Recommended"
-      },
-      "glp1": {
-        "title": "[ES] GLP-1 Treatment",
-        "description": "[ES] You may be a candidate for GLP-1 service. See how it could help you.",
-        "cta": "[ES] Get Started"
-      },
-      "allergyTesting": {
-        "title": "[ES] Food & Environmental Allergy Testing",
-        "description": "[ES] Determine your specific food and environmental allergies.",
-        "cta": "[ES] Coming Soon"
-      },
-      "cancerTest": {
-        "title": "[ES] Grail Galleri Multi Cancer Test",
-        "description": "[ES] Get ahead of your cancer risk with this comprehensive test. Detects over 100 types of cancer.",
-        "cta": "[ES] Coming Soon"
-      },
-      "dexaScan": {
-        "title": "[ES] DEXA Bone Density Scan",
-        "description": "[ES] Measure your bone density and risk of osteoporosis.",
-        "cta": "[ES] Coming Soon"
-      },
-      "gutMicrobiome": {
-        "title": "[ES] Gut Microbiome Testing",
-        "description": "[ES] Analyze your gut microbiome to understand your digestive health.",
-        "cta": "[ES] Coming Soon"
-      },
-      "toxicology": {
-        "title": "[ES] Environmental Toxicology Testing",
-        "description": "[ES] Analyze your environmental toxins and exposure.",
-        "cta": "[ES] Coming Soon"
-      }
-    }
-  },
   "application": {
     "title": "[ES] Indonesia Tourist Visa B211A",
     "saving": "[ES] Saving...",
@@ -1717,11 +1634,11 @@
       "1": "[ES] Contact",
       "2": "[ES] Passport",
       "3": "[ES] Travel",
-      "usStay": "[ES] U.S. stay",
-      "usContact": "[ES] U.S. Contact",
       "4": "[ES] Family",
       "5": "[ES] Background",
-      "6": "[ES] Work & education"
+      "6": "[ES] Work & education",
+      "usStay": "[ES] U.S. stay",
+      "usContact": "[ES] U.S. Contact"
     },
     "common": {
       "continue": "[ES] Continue",
@@ -3082,8 +2999,8 @@
         "description": "[ES] Invite friends and track your rewards."
       },
       "payments": {
-        "title": "[ES] Payments & Credits",
-        "description": "[ES] View transactions, credits, and receipts."
+        "title": "Pagos y puntos",
+        "description": "Consulta transacciones, puntos y recibos."
       }
     },
     "guides": {
@@ -3092,13 +3009,7 @@
         "title": "[ES] Getting started",
         "completeProfile": "[ES] Complete your profile",
         "addPayment": "[ES] Add a payment method",
-        "exploreServices": "[ES] Explore services"
-      },
-      "usingCredits": {
-        "title": "[ES] Using your credits",
-        "whereApply": "[ES] Where credits apply",
-        "expiration": "[ES] Expiration rules",
-        "troubleshooting": "[ES] Troubleshooting"
+        "exploreServices": "Explorar VIZA"
       },
       "privacy": {
         "title": "[ES] Privacy & security",
@@ -3113,21 +3024,9 @@
         "question": "[ES] How do I reset my password?",
         "answer": "[ES] Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately."
       },
-      "seeCredits": {
-        "question": "[ES] Where can I see my credits?",
-        "answer": "[ES] Credits appear in the Billing section of your Settings page and are also displayed at checkout before you confirm a purchase."
-      },
       "referrals": {
-        "question": "[ES] How do referrals work?",
-        "answer": "[ES] Share your unique referral link from the Refer Your Friends page. When a friend signs up and completes their first purchase, you both receive ₱9,999 in credits to use on VIZA services."
-      },
-      "bookBloodTest": {
-        "question": "[ES] How do I book a blood test?",
-        "answer": "[ES] Navigate to the Services tab and select the blood panel that matches your goals. Follow the booking flow to choose a date and time. You can view and manage upcoming bookings in the Scheduled tab."
-      },
-      "labResults": {
-        "question": "[ES] When will I receive my results?",
-        "answer": "[ES] Results are typically available within 3–5 business days after your blood draw. You'll receive a notification when your report is ready, and you can view it in the Data tab."
+        "question": "¿Cómo funcionan las recomendaciones?",
+        "answer": "Comparte tu enlace de recomendación desde la página Recomienda a tus amigos. Las recompensas disponibles aparecerán en Points Center cuando se cumplan los requisitos."
       },
       "updateInfo": {
         "question": "[ES] How do I update my personal information?",
@@ -3137,13 +3036,9 @@
         "question": "[ES] How do I add or update a payment method?",
         "answer": "[ES] Billing and payment method management are currently handled offline. Please contact our support team to update your billing details."
       },
-      "cancelReschedule": {
-        "question": "[ES] Can I cancel or reschedule a booked service?",
-        "answer": "[ES] Yes. Open the Services tab and go to Scheduled bookings. Select the booking you want to manage and follow the prompts to reschedule or cancel."
-      },
       "dataPrivate": {
-        "question": "[ES] Is my health data private?",
-        "answer": "[ES] Yes. Your health data is stored securely and is only accessible to you and your assigned visa team. We never sell personal health information to third parties."
+        "question": "¿Son privados los datos de mi solicitud?",
+        "answer": "Los datos de tu solicitud están protegidos y solo pueden acceder a ellos tú, el personal autorizado de VIZA y los proveedores necesarios para prestar el servicio de visado solicitado."
       },
       "contactSupport": {
         "question": "[ES] How do I contact support?",
@@ -3328,146 +3223,6 @@
       "egypt": "[ES] Egypt",
       "pisa": "[ES] Pisa",
       "singapore": "[ES] Singapore"
-    }
-  },
-  "terms": {
-    "title": "[ES] Terms of Service",
-    "subtitle": "[ES] The rules and guidelines that govern your use of our platform.",
-    "sections": {
-      "acceptance": {
-        "title": "[ES] Acceptance of terms",
-        "p1": "[ES] By accessing or using the VIZA platform, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.",
-        "p2": "[ES] These terms apply to all users of the platform, including users, registered members, and any visitors who access our services."
-      },
-      "services": {
-        "title": "[ES] Our services",
-        "intro": "[ES] VIZA provides a visa services platform that connects users with licensed visa professionals for consultations, lab bookings, health assessments, and related wellness services.",
-        "item1": "[ES] Online visa consultations with licensed consultants.",
-        "item2": "[ES] Blood panel bookings and lab result delivery.",
-        "item3": "[ES] Supplement and product purchases through the Services marketplace.",
-        "item4": "[ES] Personalized action plans and health recommendations.",
-        "item5": "[ES] Concierge support for your health journey.",
-        "disclaimer": "[ES] Our platform is not a substitute for emergency visa care. If you are experiencing a visa emergency, please contact your local emergency services immediately."
-      },
-      "eligibility": {
-        "title": "[ES] Eligibility",
-        "intro": "[ES] To use our services, you must:",
-        "item1": "[ES] Be at least 18 years of age, or have parental or guardian consent.",
-        "item2": "[ES] Provide accurate, current, and complete information when registering.",
-        "item3": "[ES] Maintain the security of your account credentials.",
-        "item4": "[ES] Reside in a location where our services are available."
-      },
-      "responsibilities": {
-        "title": "[ES] User responsibilities",
-        "intro": "[ES] When using our platform, you agree to:",
-        "item1": "[ES] Provide truthful and complete health information during consultations and questionnaires.",
-        "item2": "[ES] Follow visa advice provided by our licensed professionals responsibly.",
-        "item3": "[ES] Not share your account credentials with any other person.",
-        "item4": "[ES] Not use the platform for any unlawful or unauthorized purpose.",
-        "item5": "[ES] Notify us promptly if you suspect any unauthorized access to your account."
-      },
-      "visa": {
-        "title": "[ES] Visa disclaimer",
-        "p1": "[ES] The visa services on our platform are provided by independently licensed physicians and visa services professionals. VIZA facilitates access to these professionals but does not itself practice medicine.",
-        "p2": "[ES] Health information provided through our platform is for informational purposes and does not replace professional visa advice, diagnosis, or service. Always seek the advice of your physician or other qualified health provider with any questions you may have."
-      },
-      "payments": {
-        "title": "[ES] Payments and credits",
-        "p1": "[ES] By making a purchase on our platform, you authorize us to charge your selected payment method for the applicable fees. All prices are shown in Philippine Pesos (PHP).",
-        "p2": "[ES] Credits earned through referrals or promotions have no cash value and cannot be transferred.",
-        "p3": "[ES] Refunds are subject to our Refund Policy and applicable Philippine consumer protection laws.",
-        "p4": "[ES] Subscription fees (if any) are billed in advance and are non-refundable except as required by law."
-      },
-      "ip": {
-        "title": "[ES] Intellectual property",
-        "p1": "[ES] All content, features, and functionality on the VIZA platform—including text, graphics, logos, and software—are the exclusive property of VIZA and are protected by applicable intellectual property laws. You may not reproduce, distribute, or create derivative works without our express written permission."
-      },
-      "liability": {
-        "title": "[ES] Limitation of liability",
-        "p1": "[ES] To the fullest extent permitted by law, VIZA shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, our services. Our total liability to you for any claim arising under these terms shall not exceed the amount you paid us in the twelve months prior to the claim."
-      },
-      "termination": {
-        "title": "[ES] Termination",
-        "p1": "[ES] We reserve the right to suspend or terminate your access to the platform at our discretion, without notice, for conduct that we believe violates these Terms of Service or is harmful to other users, us, or third parties.",
-        "p2": "[ES] You may close your account at any time by contacting our support team. Termination does not affect any rights or obligations that arose prior to the termination date."
-      },
-      "changes": {
-        "title": "[ES] Changes to these terms",
-        "p1": "[ES] We may update these Terms of Service from time to time. We will notify you of material changes by posting the updated terms on this page. Continued use of our platform after changes take effect constitutes your acceptance of the revised terms."
-      },
-      "law": {
-        "title": "[ES] Governing law",
-        "p1": "[ES] These Terms of Service are governed by and construed in accordance with the laws of the Republic of the Philippines. Any disputes arising under these terms shall be subject to the exclusive jurisdiction of the courts of the Philippines."
-      },
-      "contact": {
-        "title": "[ES] Contact us",
-        "p1": "[ES] If you have any questions about these Terms of Service, please contact us through the Concierge section of your VIZA account or email us at legal@viza.it.com."
-      }
-    }
-  },
-  "privacy": {
-    "title": "[ES] Privacy Policy",
-    "subtitle": "[ES] How we collect, use, and protect your personal information.",
-    "sections": {
-      "introduction": {
-        "title": "[ES] Introduction",
-        "p1": "[ES] VIZA ('we', 'our', or 'us') is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform and related services.",
-        "p2": "[ES] By accessing or using our services, you agree to the collection and use of information in accordance with this policy. Please read it carefully before using our platform."
-      },
-      "collect": {
-        "title": "[ES] Information we collect",
-        "intro": "[ES] We collect information that you provide directly to us and information generated through your use of our services.",
-        "item1": "[ES] Personal identifiers such as your name, email address, phone number, and date of birth.",
-        "item2": "[ES] Health and visa information including results, profile data, visa history, allergies, and current documents.",
-        "item3": "[ES] Payment information processed securely through our payment providers.",
-        "item4": "[ES] Communications between you and our visa team, including consultation notes and messages.",
-        "item5": "[ES] Device and usage data such as IP address, browser type, and pages visited."
-      },
-      "use": {
-        "title": "[ES] How we use your information",
-        "intro": "[ES] We use the information we collect to deliver and improve our services, including:",
-        "item1": "[ES] Providing visa services consultations, lab bookings, and service services.",
-        "item2": "[ES] Communicating with you about your health, appointments, and orders.",
-        "item3": "[ES] Processing payments and fulfilling orders through our platform.",
-        "item4": "[ES] Improving the accuracy and quality of our health assessments.",
-        "item5": "[ES] Complying with applicable laws, regulations, and visa standards.",
-        "noSell": "[ES] We never sell your personal or health information to third parties for marketing purposes."
-      },
-      "sharing": {
-        "title": "[ES] Sharing your information",
-        "intro": "[ES] We may share your information only in the following limited circumstances:",
-        "item1": "[ES] With licensed visa professionals involved in your care.",
-        "item2": "[ES] With trusted service providers (e.g., labs, pharmacies) necessary to fulfill your orders.",
-        "item3": "[ES] With payment processors to complete transactions securely.",
-        "item4": "[ES] When required by law, court order, or applicable regulation.",
-        "item5": "[ES] With your explicit consent for any other purpose."
-      },
-      "security": {
-        "title": "[ES] Data security",
-        "p1": "[ES] We implement industry-standard security measures to protect your information from unauthorized access, alteration, disclosure, or destruction. These include encryption in transit and at rest, role-based access controls, and regular security reviews.",
-        "p2": "[ES] While we take all reasonable precautions, no method of transmission over the internet is 100% secure. We encourage you to protect your account credentials and notify us immediately if you suspect unauthorized access."
-      },
-      "rights": {
-        "title": "[ES] Your rights",
-        "intro": "[ES] You have the following rights regarding your personal information:",
-        "access": "[ES] Access: Request a copy of the personal information we hold about you.",
-        "correction": "[ES] Correction: Request that inaccurate or incomplete information be corrected.",
-        "deletion": "[ES] Deletion: Request deletion of your personal information, subject to legal and visa record retention obligations.",
-        "portability": "[ES] Portability: Request your data in a machine-readable format where applicable.",
-        "withdrawal": "[ES] Withdrawal of consent: Withdraw consent for non-essential data processing at any time."
-      },
-      "retention": {
-        "title": "[ES] Data retention",
-        "p1": "[ES] We retain your personal and health information for as long as necessary to provide our services and comply with applicable laws. Visa records may be retained for a minimum period as required by Philippine visa regulations."
-      },
-      "changes": {
-        "title": "[ES] Changes to this policy",
-        "p1": "[ES] We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy on this page and updating the effective date. We encourage you to review this policy periodically."
-      },
-      "contact": {
-        "title": "[ES] Contact us",
-        "p1": "[ES] If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.it.com."
-      }
     }
   }
 }

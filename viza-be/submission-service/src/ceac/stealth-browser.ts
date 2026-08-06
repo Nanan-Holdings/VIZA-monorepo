@@ -189,6 +189,8 @@ export async function launchStealthBrowser(
   const launchOpts: Parameters<typeof playwrightChromium.launch>[0] = {
     headless: options.headless ?? true,
   };
+  const configuredChannel = process.env.PLAYWRIGHT_CHANNEL?.trim();
+  if (configuredChannel && configuredChannel !== "bundled") launchOpts.channel = configuredChannel;
   if (hardening === "france-visas") {
     launchOpts.args = [...FV_LAUNCH_ARGS];
   }

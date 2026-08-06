@@ -7,7 +7,10 @@ import { userSignOut } from "@/app/actions/client-auth";
 import { useTranslations } from "next-intl";
 import clsx from "clsx";
 import { SimplifiedFormProvider } from "@/lib/context/simplified-form-context";
-import { isIgnorableClientSessionCheckError } from "./session-check-errors";
+import {
+  isIgnorableClientSessionCheckError,
+  parseClientSessionResponse,
+} from "./session-check-errors";
 
 // sessionStorage keys for tracking the session this browser tab has verified.
 // Browsers can copy sessionStorage into target=_blank tabs, so every stored
@@ -190,7 +193,7 @@ function ClientLayoutContent({
         throw new Error("Failed to check session");
       }
 
-      const result = (await response.json()) as ClientSessionResponse;
+      const result = (await parseClientSessionResponse(response)) as ClientSessionResponse;
 
       if (!result.valid) {
         // No valid session — redirect to login instead of showing invalidated state.

@@ -3,11 +3,30 @@ import {
   assessIndonesiaAccommodationAddress,
   normalizeIndonesiaPostalCode,
   parseIndonesiaPostalDirectoryResponse,
+  selectBestIndonesiaPostalLocation,
 } from "@/lib/indonesia-postal-code";
 
 export const dynamic = "force-dynamic";
 
 const POSTAL_DIRECTORY_URL = "https://carikodepos.id/api/postal-codes";
+
+function getAddressDirectoryTerms(address: string): string[] {
+  return address
+    .split(",")
+    .map((part) => part.trim().replace(/^(?:kec(?:amatan)?\.?|kab(?:upaten)?\.?)\s+/i, ""))
+    .filter((part) => part.length >= 3 && part.length <= 40)
+    .filter((part) => !/^(?:jl\.?|jalan|indonesia)\b|\d{5}/i.test(part))
+    .slice(0, 3);
+}
+
+async function fetchPostalDirectory(search: string): Promise<unknown> {
+  const upstream = await fetch(`${POSTAL_DIRECTORY_URL}?search=${encodeURIComponent(search)}`, {
+    headers: { Accept: "application/json" },
+    next: { revalidate: 86_400 },
+  });
+  if (!upstream.ok) throw new Error(`Postal directory returned ${upstream.status}`);
+  return upstream.json();
+}
 
 export async function GET(request: NextRequest) {
   const postalCode = normalizeIndonesiaPostalCode(request.nextUrl.searchParams.get("postalCode"));
@@ -25,13 +44,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const upstream = await fetch(`${POSTAL_DIRECTORY_URL}?search=${encodeURIComponent(postalCode)}`, {
-      headers: { Accept: "application/json" },
-      next: { revalidate: 86_400 },
-    });
-    if (!upstream.ok) throw new Error(`Postal directory returned ${upstream.status}`);
-
-    const location = parseIndonesiaPostalDirectoryResponse(await upstream.json(), postalCode);
+    const payloads = await Promise.all([
+      fetchPostalDirectory(postalCode),
+      ...getAddressDirectoryTerms(address).map(fetchPostalDirectory),
+    ]);
+    const candidates = payloads
+      .map((payload) => parseIndonesiaPostalDirectoryResponse(payload, postalCode, address))
+      .filter((location) => location !== null);
+    const uniqueCandidates = [...new Map(candidates.map((location) => [
+      [location.province, location.city, location.district, location.village].join("|"),
+      location,
+    ])).values()];
+    const location = selectBestIndonesiaPostalLocation(uniqueCandidates, address);
     if (!location) {
       return NextResponse.json(
         {

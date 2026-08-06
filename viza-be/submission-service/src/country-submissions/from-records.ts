@@ -421,6 +421,9 @@ export function buildCountrySubmissionApplication(
       normalizedCountry === "united_states") &&
     (normalizedVisaType === "ds160" || normalizedVisaType === "us_b1_b2");
   if (isUsDs160) {
+    setIfMissing(normalizedAnswers, "has_specific_travel_plans", [
+      answers.has_specific_plans,
+    ]);
     // The portal's canonical DS-160 field is `intended_length_of_stay`,
     // while the cloud provider validates the CEAC numeric control name.
     setIfMissing(normalizedAnswers, "intended_length_of_stay_value", [
@@ -451,6 +454,19 @@ export function buildCountrySubmissionApplication(
       answers.purpose_of_travel,
       answers.purpose_of_visit,
       application.purpose,
+    ]);
+    setIfMissing(normalizedAnswers, "place_of_birth_country", [
+      answers.country_of_birth,
+      answers.nationality,
+      profile.nationality,
+    ]);
+    setIfMissing(normalizedAnswers, "place_of_residence", [
+      answers.residence_city,
+      answers.place_of_residence_city,
+    ]);
+    setIfMissing(normalizedAnswers, "accommodation_name", [
+      answers.hotel_name,
+      application.accommodation_name,
     ]);
   }
 
