@@ -59,6 +59,10 @@ import type { VietnamProgressStage } from "./progress";
 import { installVietnamPublicApiProxy } from "./public-api-proxy";
 import {
   buildVietnamBrowserAttempts,
+  computeVietnamPortalRetryDelayMs,
+  DEFAULT_VIETNAM_PORTAL_ATTEMPTS,
+  DEFAULT_VIETNAM_PORTAL_RETRY_BACKOFF_MS,
+  DEFAULT_VIETNAM_PORTAL_RETRY_MAX_BACKOFF_MS,
   finalizeVietnamResultAfterRetries,
   isRetryableVietnamResult,
   MAX_VIETNAM_PORTAL_ATTEMPTS,
@@ -89,6 +93,7 @@ export interface FillVietnamOptions {
   /** Full browser-session retries for intermittent official-portal failures. */
   maxPortalAttempts?: number;
   retryBackoffMs?: number;
+  retryMaxBackoffMs?: number;
   browserChannels?: string;
   /** Internal/current Playwright browser channel. Undefined uses bundled Chromium. */
   browserChannel?: VietnamBrowserChannel;
@@ -204,10 +209,17 @@ export async function fillVietnamApplication(
 
   const maxAttempts = Math.min(
     options.maxPortalAttempts ??
-      readPositiveInt(process.env.VN_PORTAL_MAX_ATTEMPTS, MAX_VIETNAM_PORTAL_ATTEMPTS),
+      readPositiveInt(process.env.VN_PORTAL_MAX_ATTEMPTS, DEFAULT_VIETNAM_PORTAL_ATTEMPTS),
     MAX_VIETNAM_PORTAL_ATTEMPTS,
   );
-  const retryBackoffMs = options.retryBackoffMs ?? readPositiveInt(process.env.VN_PORTAL_RETRY_BACKOFF_MS, 5_000);
+  const retryBackoffMs = options.retryBackoffMs ?? readPositiveInt(
+    process.env.VN_PORTAL_RETRY_BACKOFF_MS,
+    DEFAULT_VIETNAM_PORTAL_RETRY_BACKOFF_MS,
+  );
+  const retryMaxBackoffMs = options.retryMaxBackoffMs ?? readPositiveInt(
+    process.env.VN_PORTAL_RETRY_MAX_BACKOFF_MS,
+    DEFAULT_VIETNAM_PORTAL_RETRY_MAX_BACKOFF_MS,
+  );
   const channels = options.browserChannel
     ? [options.browserChannel]
     : buildVietnamBrowserAttempts(
@@ -233,7 +245,11 @@ export async function fillVietnamApplication(
     }
 
     await options.onProgress?.(`portal_retry:${attempt + 1}`);
-    await sleep(Math.min(retryBackoffMs * 2 ** index, 30_000));
+    await sleep(computeVietnamPortalRetryDelayMs({
+      completedAttempts: attempt,
+      baseDelayMs: retryBackoffMs,
+      maxDelayMs: retryMaxBackoffMs,
+    }));
   }
 
   return lastResult ?? {
