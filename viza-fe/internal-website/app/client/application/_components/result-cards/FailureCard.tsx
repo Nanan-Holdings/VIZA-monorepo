@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
 import { AlertTriangle, CreditCard, ExternalLink, Eye, EyeOff, RotateCw } from "lucide-react";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
@@ -535,25 +536,32 @@ export function FailureCard({
               </label>
             </div>
             {!cardReady && (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                {isZh
-                  ? indonesiaPaymentFailure
-                    ? "请填写银行卡号、有效期、CVV 和银行卡上的持卡人姓名后再提交。"
-                    : "请填写银行卡号、有效期和 CVV 后再提交。"
-                  : indonesiaPaymentFailure
-                    ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
-                    : "Enter the card number, expiry, and CVV before submitting."}
-              </p>
+              <Alert variant="warning">
+                <AlertIcon variant="warning" />
+                <AlertTitle>{isZh ? "银行卡信息未填写完整" : "Card details incomplete"}</AlertTitle>
+                <AlertDescription>
+                  <p>
+                    {isZh
+                      ? indonesiaPaymentFailure
+                        ? "请填写银行卡号、有效期、CVV 和银行卡上的持卡人姓名后再提交。"
+                        : "请填写银行卡号、有效期和 CVV 后再提交。"
+                      : indonesiaPaymentFailure
+                        ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
+                        : "Enter the card number, expiry, and CVV before submitting."}
+                  </p>
+                </AlertDescription>
+              </Alert>
             )}
           </div>
         )}
         {retryFailure && (
-          <div
-            role="alert"
-            className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-relaxed text-red-800"
-          >
-            {retryFailure}
-          </div>
+          <Alert variant="destructive">
+            <AlertIcon variant="destructive" />
+            <AlertTitle>{isZh ? "重试失败" : "Retry failed"}</AlertTitle>
+            <AlertDescription>
+              <p>{retryFailure}</p>
+            </AlertDescription>
+          </Alert>
         )}
         {applicationId && onRetry && (
           <div className={workerPickupError || modes.length <= 1 ? "grid gap-2" : "grid gap-2 sm:grid-cols-2"}>
