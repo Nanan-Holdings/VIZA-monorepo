@@ -60,11 +60,41 @@ export interface VietnamPortalSnapshot {
   mainRequestFailed: boolean;
 }
 
+export interface VietnamReviewActionCandidate {
+  domIndex: number;
+  label: string;
+  isPrimary: boolean;
+  type: string;
+  top: number;
+}
+
 const REGISTRATION_CODE_PATTERN =
   /(?:mã hồ sơ|ma ho so|registration\s*(?:code|number)|application\s*(?:code|number)|electronic\s+document\s+code)[:\s#-]*([A-Z0-9]{8,})/i;
 
 function normalizeText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function vietnamReviewActionPriority(candidate: VietnamReviewActionCandidate): number {
+  const label = normalizeText(candidate.label).toLocaleLowerCase("vi");
+  let priority = /^(next|continue|tiếp tục)$/.test(label) ? 300 : 100;
+  if (candidate.isPrimary) priority += 20;
+  if (candidate.type.toLowerCase() === "submit") priority += 5;
+  return priority;
+}
+
+export function chooseVietnamReviewAction(
+  candidates: readonly VietnamReviewActionCandidate[],
+): VietnamReviewActionCandidate | null {
+  return [...candidates]
+    .filter((candidate) => /^(next|save|continue|tiếp tục|lưu)$/i.test(normalizeText(candidate.label)))
+    .sort((left, right) => {
+      const priorityDifference =
+        vietnamReviewActionPriority(right) - vietnamReviewActionPriority(left);
+      if (priorityDifference !== 0) return priorityDifference;
+      if (right.top !== left.top) return right.top - left.top;
+      return right.domIndex - left.domIndex;
+    })[0] ?? null;
 }
 
 export function extractVietnamRegistrationCode(text: string): string | null {

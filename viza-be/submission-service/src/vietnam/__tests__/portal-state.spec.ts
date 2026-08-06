@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  chooseVietnamReviewAction,
   classifyVietnamPortalSnapshot,
   checkpointForVietnamPortalState,
   extractVietnamRegistrationCode,
@@ -8,6 +9,27 @@ import {
   shouldTryVietnamFallbackLanding,
   type VietnamPortalSnapshot,
 } from "../portal-state";
+
+test("Vietnam review action: Next outranks a later primary Save button", () => {
+  assert.deepEqual(
+    chooseVietnamReviewAction([
+      { domIndex: 4, label: "Next", isPrimary: false, type: "button", top: 800 },
+      { domIndex: 9, label: "Save", isPrimary: true, type: "submit", top: 900 },
+    ]),
+    { domIndex: 4, label: "Next", isPrimary: false, type: "button", top: 800 },
+  );
+});
+
+test("Vietnam review action: accepts localized Continue and ignores unrelated controls", () => {
+  assert.deepEqual(
+    chooseVietnamReviewAction([
+      { domIndex: 1, label: "Cancel", isPrimary: true, type: "button", top: 700 },
+      { domIndex: 2, label: "Lưu", isPrimary: true, type: "button", top: 710 },
+      { domIndex: 3, label: "Tiếp tục", isPrimary: false, type: "button", top: 705 },
+    ]),
+    { domIndex: 3, label: "Tiếp tục", isPrimary: false, type: "button", top: 705 },
+  );
+});
 
 function snapshot(overrides: Partial<VietnamPortalSnapshot>): VietnamPortalSnapshot {
   return {
