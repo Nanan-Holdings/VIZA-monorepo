@@ -1,7 +1,11 @@
 import type { FillVietnamResult } from "./run";
 
 export type VietnamBrowserChannel = "msedge" | "chrome" | undefined;
-export const MAX_VIETNAM_PORTAL_ATTEMPTS = 3;
+export const DEFAULT_VIETNAM_PORTAL_ATTEMPTS = 5;
+export const MAX_VIETNAM_PORTAL_ATTEMPTS = 6;
+export const MAX_VIETNAM_QUEUE_ATTEMPTS = 3;
+export const DEFAULT_VIETNAM_PORTAL_RETRY_BACKOFF_MS = 5_000;
+export const DEFAULT_VIETNAM_PORTAL_RETRY_MAX_BACKOFF_MS = 60_000;
 
 export function nextVietnamQueueAttemptCount(input: {
   currentAttempts: number;
@@ -9,7 +13,7 @@ export function nextVietnamQueueAttemptCount(input: {
   consumedOneTimeCardAuthorization: boolean;
   maxAttempts?: number;
 }): number {
-  const maxAttempts = Math.max(1, input.maxAttempts ?? MAX_VIETNAM_PORTAL_ATTEMPTS);
+  const maxAttempts = Math.max(1, input.maxAttempts ?? MAX_VIETNAM_QUEUE_ATTEMPTS);
   if (input.officialPortalFailure || input.consumedOneTimeCardAuthorization) {
     return maxAttempts;
   }
@@ -18,7 +22,7 @@ export function nextVietnamQueueAttemptCount(input: {
 
 export function buildVietnamBrowserAttempts(
   rawChannels = "bundled,msedge,chrome",
-  maxAttempts = MAX_VIETNAM_PORTAL_ATTEMPTS,
+  maxAttempts = DEFAULT_VIETNAM_PORTAL_ATTEMPTS,
 ): VietnamBrowserChannel[] {
   const channels = rawChannels
     .split(",")
@@ -47,7 +51,34 @@ export function buildVietnamBrowserAttempts(
   );
 }
 
+export function computeVietnamPortalRetryDelayMs(input: {
+  completedAttempts: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+  jitterRatio?: number;
+  randomValue?: number;
+}): number {
+  const completedAttempts = Math.max(1, Math.floor(input.completedAttempts));
+  const baseDelayMs = Math.max(
+    250,
+    Math.floor(input.baseDelayMs ?? DEFAULT_VIETNAM_PORTAL_RETRY_BACKOFF_MS),
+  );
+  const maxDelayMs = Math.max(
+    baseDelayMs,
+    Math.floor(input.maxDelayMs ?? DEFAULT_VIETNAM_PORTAL_RETRY_MAX_BACKOFF_MS),
+  );
+  const jitterRatio = Math.min(0.5, Math.max(0, input.jitterRatio ?? 0.2));
+  const randomValue = Math.min(1, Math.max(0, input.randomValue ?? Math.random()));
+  const exponentialDelay = Math.min(
+    maxDelayMs,
+    baseDelayMs * 2 ** (completedAttempts - 1),
+  );
+  const jitterMultiplier = 1 - jitterRatio + randomValue * jitterRatio * 2;
+  return Math.max(250, Math.round(exponentialDelay * jitterMultiplier));
+}
+
 export function isRetryableVietnamResult(result: FillVietnamResult): boolean {
+  if (hasReachedVietnamNoRetryBoundary(result)) return false;
   if (result.status === "action_required") {
     return result.actionType === "layout_changed" || result.actionType === "official_portal_error";
   }
@@ -63,6 +94,19 @@ export function isRetryableVietnamResult(result: FillVietnamResult): boolean {
     result.checkpoint === "portal_error" ||
     result.checkpoint === "layout_changed"
   );
+}
+
+function hasReachedVietnamNoRetryBoundary(result: FillVietnamResult): boolean {
+  const checkpoint = "checkpoint" in result ? result.checkpoint : undefined;
+  if (
+    checkpoint === "payment_page_visible" ||
+    checkpoint === "final_submit_visible" ||
+    checkpoint === "registration_code_visible"
+  ) {
+    return true;
+  }
+  if (result.status !== "failed") return false;
+  return /payment|3ds|otp|bank|receipt|registration/i.test(result.failedStep);
 }
 
 export function finalizeVietnamResultAfterRetries(
