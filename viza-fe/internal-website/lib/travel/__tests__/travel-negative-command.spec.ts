@@ -116,6 +116,9 @@ import {
 } from "@/app/api/travel/chat/route";
 import { GET as getIpLocation } from "@/app/api/travel/ip-location/route";
 import {
+  applyTravelStateOperations,
+} from "@/lib/travel/conversation-state";
+import {
   createInitialTravelState,
   createTravelFormMessage,
 } from "@/lib/travel/planner";
@@ -129,7 +132,24 @@ describe("Travel form display language", () => {
         return_country: "美国",
         return_city: "Los Angeles",
       })
-    ).toBe("出发和返程城市都设为 美国 洛杉矶。");
+    ).toBe("出发地设为 美国｜洛杉矶；返程地设为 美国｜洛杉矶。");
+  });
+
+  it("treats flexible travel as a complete date choice", () => {
+    const result = applyTravelStateOperations(createInitialTravelState(), [
+      {
+        op: "set",
+        path: "date_flexibility",
+        valueText: "flexible",
+        valueNumber: null,
+        valueBoolean: null,
+        explicit: true,
+        evidence: "灵活出行",
+      },
+    ]);
+
+    expect(result.state.date_flexibility).toBe("flexible");
+    expect(result.state.departure_date).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
   });
 });
 
@@ -306,6 +326,53 @@ function modelTurn(text: string) {
       ],
     };
   }
+  if (text === "出行日期先按灵活出行：2026-10-05（默认两个月后）。") {
+    return {
+      ...base,
+      intent: "record_facts",
+      reply: "好的，暂按灵活出行安排，参考出发日期为2026年10月5日。",
+      operations: [
+        {
+          op: "set",
+          path: "departure_date",
+          value_text: "2026-10-05",
+          value_number: null,
+          value_boolean: null,
+          explicit: true,
+          // Reproduces the production failure: semantically equal, but not a
+          // byte-for-byte substring of the user's ISO-formatted message.
+          evidence: "2026年10月5日",
+        },
+        {
+          op: "set",
+          path: "date_flexibility",
+          value_text: "flexible",
+          value_number: null,
+          value_boolean: null,
+          explicit: true,
+          evidence: "保持灵活",
+        },
+      ],
+    };
+  }
+  if (text === "出发和返程城市都设为 日本 Koto-ku。") {
+    return {
+      ...base,
+      intent: "record_facts",
+      reply: "好的，已记录从 Koto-ku 出发并返回。",
+      operations: [
+        {
+          op: "set",
+          path: "origin_city",
+          value_text: "Koto-ku",
+          value_number: null,
+          value_boolean: null,
+          explicit: true,
+          evidence: "从 Koto-ku 出发",
+        },
+      ],
+    };
+  }
   if (text === "直接生成行程") {
     // The coordinator must honor the user's explicit command even if the
     // model under-classifies this otherwise-correct response.
@@ -375,6 +442,7 @@ describe("Travel Agent server coordinator", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(testState.openAIRequests[0].model).toBe("gpt-5.6-luna");
     expect(body.cards.length).toBeGreaterThan(0);
     expect(body.state.cities).toEqual([]);
     expect(body.state.countries).toEqual([]);
@@ -447,6 +515,94 @@ describe("Travel Agent server coordinator", () => {
     expect(body.state.origin_city).toBe("广州");
     expect(body.state.return_country).toBe("中国");
     expect(body.state.return_city).toBe("广州");
+  });
+
+  it("commits a planner-card departure date despite model evidence formatting differences", async () => {
+    testState.session.state_json = {
+      ...createInitialTravelState(),
+      countries: ["美国"],
+      country: "美国",
+      cities: ["旧金山"],
+      destination_confirmed: true,
+    };
+
+    const response = await postTravelChat(
+      request(
+        "出行日期先按灵活出行：2026-10-05（默认两个月后）。",
+        "departure-date"
+      )
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.state.departure_date).toBe("2026-10-05");
+    expect(body.state.date_flexibility).toBe("flexible");
+    expect(body.next_missing_field).toBe("travel_days");
+    expect(body.applied_operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "departure_date", explicit: true }),
+        expect.objectContaining({ path: "date_flexibility", explicit: true }),
+      ])
+    );
+  });
+
+  it("commits all IP endpoint fields from the visible planner-card message", async () => {
+    testState.session.state_json = {
+      ...createInitialTravelState(),
+      countries: ["美国"],
+      country: "美国",
+      cities: ["旧金山"],
+      city_days: { 旧金山: 2 },
+      destination_confirmed: true,
+      departure_date: "2026-10-05",
+      date_flexibility: "flexible",
+      travel_days: 2,
+      travelers: 2,
+      budget: 4800,
+    };
+
+    const response = await postTravelChat(
+      request("出发和返程城市都设为 日本 Koto-ku。", "ip-endpoints")
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.state.origin_country).toBe("日本");
+    expect(body.state.origin_city).toBe("Koto-ku");
+    expect(body.state.return_country).toBe("日本");
+    expect(body.state.return_city).toBe("Koto-ku");
+    expect(body.next_missing_field).toBe("travel_order");
+  });
+
+  it("commits an empty final note and advances to itinerary generation", async () => {
+    testState.session.state_json = {
+      ...createInitialTravelState(),
+      countries: ["美国"],
+      country: "美国",
+      cities: ["旧金山"],
+      city_days: { 旧金山: 2 },
+      destination_confirmed: true,
+      departure_date: "2026-10-05",
+      date_flexibility: "flexible",
+      travel_days: 2,
+      travelers: 2,
+      budget: 4800,
+      origin_country: "日本",
+      origin_city: "Koto-ku",
+      return_country: "日本",
+      return_city: "Koto-ku",
+      travel_order: ["旧金山"],
+    };
+
+    const response = await postTravelChat(
+      request("我没有额外备注，直接生成行程。", "final-note")
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.state.final_note).toBe("");
+    expect(body.next_missing_field).toBeNull();
+    expect(body.ui_action).toBe("generate_itinerary");
   });
 
   it("deterministically returns an itinerary UI action for an explicit request when state is complete", async () => {

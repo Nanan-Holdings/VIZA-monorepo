@@ -3,6 +3,7 @@ import test from "node:test";
 import type { SubmissionPayload } from "../../country-submissions/types";
 import { evaluateVietnamPrearrivalSubmissionWindow } from "../date-window";
 import {
+  reconcileHotelDependentControlFailures,
   VnPrearrivalPortalValidationError,
   VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
   VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
@@ -273,4 +274,17 @@ test("evaluates Vietnam Pre-Arrival 72-hour submission window", () => {
     evaluateVietnamPrearrivalSubmissionWindow("2026-07-05", now).status,
     "past",
   );
+});
+
+test("uses an exact official hotel selection to prove its dependent province and ward", () => {
+  const failures = [
+    "province_city_of_hotel",
+    "ward_commune_of_hotel",
+    "departure_date_from_vietnam",
+  ];
+  assert.deepEqual(
+    reconcileHotelDependentControlFailures(failures, true),
+    ["departure_date_from_vietnam"],
+  );
+  assert.deepEqual(reconcileHotelDependentControlFailures(failures, false), failures);
 });

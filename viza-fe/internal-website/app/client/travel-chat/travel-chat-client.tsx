@@ -606,6 +606,8 @@ const PLACE_TEXT_REPLACEMENTS = [
   ["Changsha", "长沙"],
   ["Hunan", "湖南"],
   ["Japan", "日本"],
+  ["Koto-ku", "东京江东区"],
+  ["Koto ku", "东京江东区"],
   ["Singapore", "新加坡"],
   ["Australia", "澳大利亚"],
   ["France", "法国"],
@@ -4758,7 +4760,8 @@ export function TravelChatClient({
         setSessions((currentSessions) => {
           const nextSessions = currentSessions.map((session) => {
             const canonical = bySessionId.get(session.id);
-            return canonical
+            return canonical &&
+              canonical.stateVersion >= (session.stateVersion ?? 0)
               ? {
                   ...session,
                   stateSnapshot: canonical.state,
@@ -6743,6 +6746,10 @@ export function TravelChatClient({
                       ) : null}
                       {messages.map((message) => {
                         const visibleText = getVisibleMessageText(message);
+                        const localizedVisibleText =
+                          message.role === "assistant"
+                            ? localizeTravelText(visibleText, interfaceLocale)
+                            : visibleText;
                         const destinationCards = message.parts
                           .filter((part) => part.type === "destination_cards")
                           .flatMap((part) => part.cards);
@@ -6767,9 +6774,9 @@ export function TravelChatClient({
 
                         return (
                           <div className="w-full" key={message.id}>
-                            {visibleText && (
+                            {localizedVisibleText && (
                               <ChatMessage
-                                content={visibleText}
+                                content={localizedVisibleText}
                                 role={
                                   message.role === "user" ? "user" : "agent"
                                 }

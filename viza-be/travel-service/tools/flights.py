@@ -132,7 +132,9 @@ def _fallback_airlines(origin_city, destination_city):
         return [("Singapore Airlines", "SQ"), ("Scoot", "TR")]
     if any(value in route_text for value in ("paris", "lyon", "marseille", "nice", "法国", "巴黎", "里昂", "马赛", "尼斯")):
         return [("Air France", "AF"), ("Transavia France", "TO")]
-    return [("VIZA API Flight", "VZ"), ("VIZA Economy Flight", "VA")]
+    # A fallback result is an estimate, not a real carrier quote. Never expose
+    # internal provider/product labels as if they were airline names.
+    return [("待确认航司", None), ("待确认航司", None)]
 
 
 def _fallback_flights(origin_city, destination_city, departure_date):
@@ -149,7 +151,11 @@ def _fallback_flights(origin_city, destination_city, departure_date):
             "to": destination_city,
             "duration": "6h 30m",
             "stops": 0,
-            "flight_number": _stable_route_number(origin_city, destination_city, airlines[0][1]),
+            "flight_number": (
+                _stable_route_number(origin_city, destination_city, airlines[0][1])
+                if airlines[0][1]
+                else None
+            ),
             "departure_airport": origin_city,
             "arrival_airport": destination_city,
             "cabin_class": "ECONOMY",
@@ -165,7 +171,11 @@ def _fallback_flights(origin_city, destination_city, departure_date):
             "to": destination_city,
             "duration": "5h 50m",
             "stops": 0,
-            "flight_number": _stable_route_number(origin_city, destination_city, airlines[1][1]),
+            "flight_number": (
+                _stable_route_number(origin_city, destination_city, airlines[1][1])
+                if airlines[1][1]
+                else None
+            ),
             "departure_airport": origin_city,
             "arrival_airport": destination_city,
             "cabin_class": "ECONOMY",
@@ -260,7 +270,7 @@ async def search_flights(
 
         departure_time = first_segment.get("departureTime") or departure_date
         arrival_time = first_segment.get("arrivalTime")
-        carrier_name = "Unknown Airline"
+        carrier_name = "待确认航司"
         departure_airport = _airport_label(first_segment.get("departureAirport"))
         arrival_airport = _airport_label(first_segment.get("arrivalAirport"))
         duration = _format_duration(first_segment.get("totalTime"))
