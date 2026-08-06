@@ -186,9 +186,8 @@ function getChineseShareName(
   )?.[1];
   const localized = exact ?? source;
   if (localized && !/[A-Za-z]/.test(localized)) return localized;
-  return kind === "attraction"
-    ? `${getLocalCityLabel(city)}当地景点`
-    : `${getLocalCityLabel(city)}本地餐厅`;
+  if (localized) return localized;
+  return kind === "attraction" ? value : `${getLocalCityLabel(city)}本地餐厅`;
 }
 
 function getChineseShareAirline(value: string): string {

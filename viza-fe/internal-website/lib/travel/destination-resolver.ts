@@ -2589,7 +2589,7 @@ export function toTravelDestinationChatCard(
     destination.countryName ?? destination.region ?? (isZh ? "旅行地点" : "travel context"),
     attractionCount >= 3
       ? isZh
-        ? `${attractionCount}张当地景点卡片`
+        ? `包含 ${attractionCount} 个具体景点`
         : `${attractionCount} local attraction cards`
       : isZh
         ? "地点资料待补充"

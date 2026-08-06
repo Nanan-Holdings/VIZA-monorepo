@@ -9,6 +9,8 @@ interface ScrollToBottomFabProps {
   onClick: () => void;
   hasNewMessage?: boolean;
   className?: string;
+  label?: string;
+  newMessageLabel?: string;
 }
 
 /**
@@ -20,7 +22,10 @@ export function ScrollToBottomFab({
   onClick,
   hasNewMessage = false,
   className,
+  label = "Scroll to bottom",
+  newMessageLabel = "New message",
 }: ScrollToBottomFabProps) {
+  const visibleLabel = hasNewMessage ? newMessageLabel : label;
   return (
     <AnimatePresence>
       {show && (
@@ -38,11 +43,11 @@ export function ScrollToBottomFab({
             "focus:outline-none focus:ring-2 focus:ring-[#c1785d] focus:ring-offset-2",
             className
           )}
-          aria-label={hasNewMessage ? "New message - scroll to bottom" : "Scroll to bottom"}
+          aria-label={visibleLabel}
         >
           <ChevronDown className="w-5 h-5 text-gray-600" />
           <span className="text-base font-medium text-gray-700">
-            {hasNewMessage ? "New message" : "Scroll to bottom"}
+            {visibleLabel}
           </span>
           {hasNewMessage && (
             <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[#c1785d] rounded-full animate-pulse" />

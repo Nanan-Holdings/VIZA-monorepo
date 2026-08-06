@@ -750,18 +750,37 @@ function coerceFlightLegs(raw: unknown): FlightLegResult[] {
       typeof leg.departure_date === "string" ? leg.departure_date : null;
     if (!from || !to || !departureDate) continue;
 
-    const options = Array.isArray(leg.options)
+    const rawOptions = Array.isArray(leg.options)
       ? leg.options.filter(
           (option): option is NonNullable<FlightLegResult["options"][number]> =>
             Boolean(option && typeof option === "object")
         )
       : [];
+    const options = rawOptions.filter(
+      (option) =>
+        option.estimated !== true && option.provider_status !== "unavailable"
+    );
 
     legs.push({
       from,
       to,
       departure_date: departureDate,
       options,
+      provider_unavailable:
+        (typeof leg.provider_unavailable === "boolean"
+          ? leg.provider_unavailable
+          : undefined) ??
+        rawOptions.some(
+          (option) =>
+            option.estimated === true ||
+            option.provider_status === "unavailable"
+        ),
+      estimated:
+        typeof leg.estimated === "boolean" ? leg.estimated : undefined,
+      provider_message:
+        typeof leg.provider_message === "string"
+          ? leg.provider_message
+          : undefined,
     });
   }
 
@@ -2802,6 +2821,11 @@ export function TravelPlannerForm({
                   placeholder="选择航班或跳过"
                   value={selectedValue}
                 />
+                {leg.provider_unavailable && leg.provider_message && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                    {leg.provider_message}
+                  </div>
+                )}
                 {selectedValue === "skip" && (
                   <div className="rounded-md border border-border/40 bg-muted/20 p-2 text-xs text-muted-foreground">
                     该航段已选择跳过。
@@ -2865,8 +2889,7 @@ export function TravelPlannerForm({
               busy ||
               isLoadingFlights ||
               Boolean(flightLoadError) ||
-              flightLegsForSelection.length === 0 ||
-              flightLegsForSelection.some((leg) => leg.options.length === 0)
+              flightLegsForSelection.length === 0
             }
             onClick={() => {
               const selected_flights: SelectedFlightOption[] = [];
