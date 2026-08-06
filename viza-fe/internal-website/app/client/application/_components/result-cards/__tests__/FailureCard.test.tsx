@@ -169,7 +169,7 @@ describe("FailureCard", () => {
     fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
     expect(screen.getByRole("button", { name: /提交/u })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: /提交/u }));
-    expect(screen.getByRole("alert")).toHaveTextContent("持卡人姓名");
+    expect(screen.getByText("重试失败").closest('[role="alert"]')).toHaveTextContent("持卡人姓名");
     expect(screen.getByLabelText("持卡人姓名（必填，按银行卡）")).toHaveFocus();
 
     fireEvent.change(screen.getByLabelText("持卡人姓名（必填，按银行卡）"), {
@@ -269,7 +269,7 @@ describe("FailureCard", () => {
     expect(submitButton).toBeEnabled();
     fireEvent.click(submitButton);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("请填写银行卡号、有效期和 CVV");
+    expect(screen.getByText("重试失败").closest('[role="alert"]')).toHaveTextContent("请填写银行卡号、有效期和 CVV");
     expect(screen.getByLabelText("银行卡号")).toHaveFocus();
     expect(onRetry).not.toHaveBeenCalled();
   });
