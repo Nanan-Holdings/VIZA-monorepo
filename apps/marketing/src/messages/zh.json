@@ -1,0 +1,44 @@
+{
+  "nav": {
+    "home": "首页",
+    "features": "功能",
+    "pricing": "价格",
+    "about": "关于我们",
+    "contact": "联系我们",
+    "getStarted": "开始使用"
+  },
+  "hero": {
+    "badge": "全新上线",
+    "title": "让签证申请更简单",
+    "subtitle": "VIZA 帮助您轻松管理签证申请流程，节省时间，减少烦恼",
+    "cta": "免费开始",
+    "ctaSecondary": "了解更多"
+  },
+  "features": {
+    "title": "为什么选择 VIZA",
+    "subtitle": "我们提供全方位的签证申请管理解决方案",
+    "items": {
+      "fast": { "title": "快速高效", "desc": "自动化流程让申请速度提升 10 倍" },
+      "secure": { "title": "安全可靠", "desc": "银行级别的数据加密保护您的隐私" },
+      "smart": { "title": "智能提醒", "desc": "自动追踪申请进度，及时推送重要通知" },
+      "global": { "title": "全球覆盖", "desc": "支持 190+ 个国家和地区的签证申请" }
+    }
+  },
+  "pricing": {
+    "title": "简单透明的定价",
+    "subtitle": "没有隐藏费用，按需选择适合您的方案",
+    "monthly": "月付",
+    "annual": "年付",
+    "save": "省 20%",
+    "plans": {
+      "starter": { "name": "入门版", "price": "免费", "desc": "适合个人用户", "cta": "免费开始" },
+      "pro": { "name": "专业版", "price": "¥99", "desc": "适合小型团队", "cta": "开始试用" },
+      "enterprise": { "name": "企业版", "price": "联系我们", "desc": "适合大型企业", "cta": "联系销售" }
+    }
+  },
+  "footer": {
+    "rights": "版权所有",
+    "privacy": "隐私政策",
+    "terms": "服务条款"
+  }
+}
