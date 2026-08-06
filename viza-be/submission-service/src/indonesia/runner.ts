@@ -1080,6 +1080,39 @@ async function completeIndonesiaPassportBiodataUpload(
   return ready;
 }
 
+async function invokeIndonesiaOfficialPhotoUpload(
+  page: Page,
+  diagnostics: string[],
+  label: string,
+): Promise<boolean> {
+  const handler = await page
+    .evaluate(() => {
+      const input = document.querySelector<HTMLInputElement>("#picture");
+      if (!input?.files?.length) return "file_missing";
+
+      const officialWindow = window as Window & {
+        uploadPhoto?: (field: HTMLInputElement) => unknown;
+        onFileChange?: (field: HTMLInputElement) => unknown;
+      };
+      if (typeof officialWindow.uploadPhoto === "function") {
+        officialWindow.uploadPhoto(input);
+        return "uploadPhoto";
+      }
+      if (typeof officialWindow.onFileChange === "function") {
+        officialWindow.onFileChange(input);
+        return "onFileChange";
+      }
+      return "handler_missing";
+    })
+    .catch(() => "invoke_failed");
+
+  diagnostics.push(`${label}_official_handler_${handler}`);
+  if (handler === "file_missing" || handler === "handler_missing" || handler === "invoke_failed") {
+    return false;
+  }
+  return waitForHiddenValue(page, "#path_photo", diagnostics, label, 35_000);
+}
+
 async function waitForIndonesiaMrzScannerReady(
   page: Page,
   input: IndonesiaPortalProbeInput,
@@ -1755,8 +1788,24 @@ async function fillForeignerAccountRegistration(
   await setFilesIfPresent(page, "#attachment", registration.passportImagePath);
   await setFilesIfPresent(page, "#initial_file", registration.passportImagePath);
   await waitForHiddenValue(page, "#path_attachment", diagnostics, "indonesia_account_passport_upload");
-  await setFilesIfPresent(page, "#picture", registration.photoImagePath);
-  await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_account_photo_upload");
+  const registrationPhotoAssigned = await setFilesIfPresent(page, "#picture", registration.photoImagePath);
+  let registrationPhotoReady = await waitForHiddenValue(
+    page,
+    "#path_photo",
+    diagnostics,
+    "indonesia_account_photo_upload",
+  );
+  if (registrationPhotoAssigned && !registrationPhotoReady) {
+    registrationPhotoReady = await invokeIndonesiaOfficialPhotoUpload(
+      page,
+      diagnostics,
+      "indonesia_account_photo_upload_retry",
+    );
+  }
+  if (!registrationPhotoAssigned || !registrationPhotoReady) {
+    diagnostics.push("indonesia_account_photo_upload_not_ready");
+    return false;
+  }
 
   await fillIfPresent(page, "#full_name", officialSafeText(registration.fullName));
   const gender = page.locator(genderSelector(registration.gender)).first();
@@ -1940,8 +1989,23 @@ async function continueFromApplicationStepOne(
     ["#picture", "#photo", "#photo_attachment"],
     ["photo", "foto", "applicant_photo", "profile_photo"],
   );
-  const photoUploadReady = await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_step_1_photo_upload", 12_000);
+  let photoUploadReady = await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_step_1_photo_upload", 12_000);
   if (!photoAssigned) {
+    diagnostics.push("indonesia_step_1_photo_upload_not_ready");
+    await input.onStage?.("step_1_photo_upload_not_ready", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    return false;
+  }
+  if (!photoUploadReady) {
+    photoUploadReady = await invokeIndonesiaOfficialPhotoUpload(
+      page,
+      diagnostics,
+      "indonesia_step_1_photo_upload_retry",
+    );
+  }
+  if (!photoUploadReady) {
     diagnostics.push("indonesia_step_1_photo_upload_not_ready");
     await input.onStage?.("step_1_photo_upload_not_ready", {
       url: page.url(),

@@ -21,6 +21,10 @@ export type TravelDateFlexibility = "flexible" | "fixed";
 
 export type FlightOptionResult = {
   provider?: string;
+  estimated?: boolean;
+  provider_status?: string;
+  provider_reason?: string;
+  provider_message?: string;
   airline?: string;
   price?: string;
   currency?: string;
@@ -72,6 +76,9 @@ export type FlightLegResult = {
   to: string;
   departure_date: string;
   options: FlightOptionResult[];
+  provider_unavailable?: boolean;
+  estimated?: boolean;
+  provider_message?: string;
 };
 
 export type HotelStayResult = {

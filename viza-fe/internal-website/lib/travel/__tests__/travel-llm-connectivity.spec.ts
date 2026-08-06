@@ -26,7 +26,7 @@ describe("travel service health boundaries", () => {
     const payload = await (await getTravelHealth()).json();
     expect(payload.ok).toBe(true);
     expect(payload.services).toEqual({
-      openai: { configured: true, reachable: true },
+      openai: { configured: true, reachable: true, probed: true },
       travelService: { configured: true, reachable: false },
       sessionDatabase: { configured: true, reachable: true },
       places: { configured: true, reachable: true },
@@ -74,5 +74,31 @@ describe("travel service health boundaries", () => {
     expect(databaseRequest?.[1]).toMatchObject({
       signal: expect.any(AbortSignal),
     });
+  });
+
+  it("does not contact OpenAI during the passive page-load health check", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+    vi.stubEnv("TRAVEL_BACKEND_URL", "http://travel-service.test");
+    const fetchMock = vi.fn(
+      async (_url: RequestInfo | URL, _init?: RequestInit) =>
+        new Response("", { status: 200 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await getTravelHealth(
+      new Request("http://127.0.0.1:3000/api/travel/health?probe=passive")
+    );
+    const payload = await response.json();
+
+    expect(payload.services.openai).toEqual({
+      configured: true,
+      reachable: true,
+      probed: false,
+    });
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).includes("api.openai.com")
+      )
+    ).toBe(false);
   });
 });

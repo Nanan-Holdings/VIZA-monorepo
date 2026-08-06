@@ -468,6 +468,27 @@ async def flight_options(data: TravelRequest):
             "to": leg["to"],
             "departure_date": leg["departure_date"],
             "options": options,
+            # Provider failures are returned explicitly. The frontend can keep
+            # rendering an estimate for layout continuity, but must not treat it
+            # as a live, bookable offer.
+            "provider_unavailable": any(
+                bool(option.get("provider_status") == "unavailable")
+                for option in options
+                if isinstance(option, dict)
+            ),
+            "estimated": any(
+                bool(option.get("estimated"))
+                for option in options
+                if isinstance(option, dict)
+            ),
+            "provider_message": next(
+                (
+                    option.get("provider_message")
+                    for option in options
+                    if isinstance(option, dict) and option.get("provider_message")
+                ),
+                None,
+            ),
         }
         for leg, options in zip(legs, options_by_leg)
     ]

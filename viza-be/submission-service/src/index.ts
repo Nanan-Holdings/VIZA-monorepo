@@ -115,6 +115,7 @@ import {
 } from "./vietnam/card-session.js";
 import {
   consumeIndonesiaCardSession,
+  discardIndonesiaCardSession,
   hasIndonesiaCardSessions,
 } from "./indonesia/card-session.js";
 import {
@@ -1200,10 +1201,7 @@ async function loadReusableApplicantDocuments(
       ...doc,
       file_name: doc.file_name ?? doc.filename ?? null,
     }));
-  return selectIndonesiaSubmissionDocuments(currentDocuments, normalizedSiblingDocuments, {
-    allowCurrentApplicationTestDocuments:
-      process.env.INDONESIA_DOCUMENT_PREFLIGHT_TEST_OVERRIDE === "true",
-  });
+  return selectIndonesiaSubmissionDocuments(currentDocuments, normalizedSiblingDocuments);
 }
 
 function firstLocalDocumentPathMatching(
@@ -6944,15 +6942,21 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     ]);
     const missingDocuments = missingIndonesiaRequiredDocumentPaths({
       isB1,
+      documentTravelType:
+        answers.document_travel_id ??
+        answers.document_type ??
+        answers.travel_document_type ??
+        answers.passport_type,
       passportImagePath,
       photoImagePath,
       returnTicketPath,
       bankStatementPath,
     });
     if (missingDocuments.length > 0) {
+      const cardSessionDiscarded = discardIndonesiaCardSession(item.application_id);
       const message =
-        `Indonesia ${isB1 ? "B1" : "C1"} submission needs valid applicant documents before payment: ` +
-        `${missingDocuments.join(", ")}. Obvious foreign arrival-card/annex files and test placeholders are not accepted.`;
+        `Indonesia ${isB1 ? "B1" : "C1"} submission needs the following applicant documents before payment: ` +
+        `${missingDocuments.join(", ")}.`;
       const documentResult: GenericSubmissionResult = {
         country: "GENERIC",
         targetCountry: "ID",
@@ -6999,7 +7003,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       }
       console.warn(
         `[indonesia] Required documents blocked before card consume application=${redactIdentifier(item.application_id)} ` +
-        `missing=${missingDocuments.join(",")}`,
+        `missing=${missingDocuments.join(",")} cardSessionDiscarded=${cardSessionDiscarded}`,
       );
       return;
     }
@@ -7134,12 +7138,8 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       passportImagePath,
       photoImagePath,
       returnTicketPath,
-      bankStatementPath: bankStatementPath && /\.pdf$/i.test(bankStatementPath)
-        ? bankStatementPath
-        : undefined,
-      passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
-        ? passportSupportPath
-        : undefined,
+      bankStatementPath,
+      passportSupportPath,
       profile: {
         fullName: profile.full_name,
         gender: profile.gender,

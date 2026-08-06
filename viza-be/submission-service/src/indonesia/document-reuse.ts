@@ -15,9 +15,6 @@ const UNIVERSAL_DOCUMENT_TYPES = new Set([
   "applicant_photo",
 ]);
 
-const OBVIOUS_FOREIGN_ARTIFACT =
-  /arrival[-_\s]?card|\bsgac\b|\bmdac\b|\btdac\b|korea[-_\s]?annex|annex[-_\s]?17/i;
-
 /** Passport and portrait files may be reused for the same applicant. */
 export function isUniversalIndonesiaApplicantDocument(
   document: Pick<IndonesiaApplicantDocument, "document_type">,
@@ -26,28 +23,22 @@ export function isUniversalIndonesiaApplicantDocument(
 }
 
 /**
- * Reject test placeholders and obviously foreign artifacts even when a row was
- * mislabeled as an Indonesia itinerary, return ticket, or bank statement.
+ * Indonesia preflight only checks that a document has a stored object. File
+ * names and storage-path names are not official eligibility requirements and
+ * must not cause a required-document failure before the official portal sees
+ * the upload.
  */
 export function isPlausibleIndonesiaDocument(
   document: Pick<IndonesiaApplicantDocument, "document_type" | "storage_path" | "file_name">,
 ): boolean {
-  const storagePath = document.storage_path?.trim() ?? "";
-  if (!storagePath || /^test\//i.test(storagePath)) return false;
-
-  const type = document.document_type.trim().toLowerCase();
-  if (!["travel_itinerary", "return_ticket", "bank_statement"].includes(type)) return true;
-  return !OBVIOUS_FOREIGN_ARTIFACT.test(`${document.file_name ?? ""} ${storagePath}`);
+  return Boolean(document.storage_path?.trim());
 }
 
 export function selectIndonesiaSubmissionDocuments<T extends IndonesiaApplicantDocument>(
   currentDocuments: readonly T[],
   siblingDocuments: readonly T[],
-  options: { allowCurrentApplicationTestDocuments?: boolean } = {},
 ): T[] {
-  const safeCurrent = options.allowCurrentApplicationTestDocuments
-    ? currentDocuments.filter((document) => Boolean(document.storage_path?.trim()))
-    : currentDocuments.filter(isPlausibleIndonesiaDocument);
+  const safeCurrent = currentDocuments.filter(isPlausibleIndonesiaDocument);
   const safeUniversalSiblings = siblingDocuments.filter(
     (document) => isUniversalIndonesiaApplicantDocument(document) && isPlausibleIndonesiaDocument(document),
   );
@@ -56,6 +47,7 @@ export function selectIndonesiaSubmissionDocuments<T extends IndonesiaApplicantD
 
 export function missingIndonesiaRequiredDocumentPaths(input: {
   isB1: boolean;
+  documentTravelType?: string | null;
   passportImagePath?: string;
   photoImagePath?: string;
   returnTicketPath?: string;
@@ -64,11 +56,30 @@ export function missingIndonesiaRequiredDocumentPaths(input: {
   const missing: string[] = [];
   if (!input.passportImagePath) missing.push("passport_copy");
   if (!input.photoImagePath) missing.push("photo");
-  if (!input.returnTicketPath || !/\.pdf$/i.test(input.returnTicketPath)) missing.push("return_ticket");
-  if (!input.isB1 && (!input.bankStatementPath || !/\.pdf$/i.test(input.bankStatementPath))) {
+  if (requiresIndonesiaReturnTicket(input.isB1, input.documentTravelType) && !input.returnTicketPath) {
+    missing.push("return_ticket");
+  }
+  if (!input.isB1 && !input.bankStatementPath) {
     missing.push("bank_statement");
   }
   return missing;
+}
+
+/**
+ * B1 e-VOA always requires a return/onward ticket. For C1, the Immigration
+ * Directorate lists that ticket only for stateless applicants and holders of
+ * non-national travel documents; ordinary, diplomatic, and service passports
+ * do not inherit the B1 requirement.
+ */
+export function requiresIndonesiaReturnTicket(
+  isB1: boolean,
+  documentTravelType?: string | null,
+): boolean {
+  if (isB1) return true;
+  const normalized = documentTravelType?.trim().toLowerCase() ?? "";
+  return /temporary|emergency|titre|certificate of identity|laissez|travel document|non[-\s]?national|refugee|stateless/.test(
+    normalized,
+  );
 }
 
 /**

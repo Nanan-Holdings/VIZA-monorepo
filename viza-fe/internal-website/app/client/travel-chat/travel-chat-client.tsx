@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { useLocale } from "next-intl";
 import {
   type PointerEvent as ReactPointerEvent,
@@ -29,10 +30,7 @@ import { ChatInput } from "@/components/client/companion/chat-input";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { ThinkingIndicator } from "@/components/client/companion/thinking-indicator";
-import {
-  TravelItineraryExperience,
-  type TravelItineraryStateUpdate,
-} from "@/components/client/travel/travel-itinerary-experience";
+import type { TravelItineraryStateUpdate } from "@/components/client/travel/travel-itinerary-experience";
 import {
   TRAVEL_ITINERARY_SHARE_PARAM,
   createTravelShareMessages,
@@ -45,12 +43,10 @@ import { TravelPlannerForm } from "@/components/client/travel/travel-planner-for
 import {
   findTravelAttraction,
   getTravelAttractionNamesForCity,
+  getTravelCityCoordinates as getCuratedTravelCityCoordinates,
   getTravelCityImage,
 } from "@/components/client/travel/travel-attraction-knowledge";
-import {
-  TripRouteMap,
-  type TripMapPoint,
-} from "@/components/client/travel/trip-route-map";
+import type { TripMapPoint } from "@/components/client/travel/trip-route-map";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,6 +95,28 @@ import {
   type TravelPlaceDetails,
 } from "@/lib/travel/google-places";
 import type { TravelGoogleEnrichedDestination } from "@/lib/travel/google-places-enrichment-types";
+
+const TravelItineraryExperience = dynamic(
+  () =>
+    import("@/components/client/travel/travel-itinerary-experience").then(
+      (module) => module.TravelItineraryExperience
+    ),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-full min-h-[420px] w-full" />,
+  }
+);
+
+const TripRouteMap = dynamic(
+  () =>
+    import("@/components/client/travel/trip-route-map").then(
+      (module) => module.TripRouteMap
+    ),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-full min-h-[420px] w-full" />,
+  }
+);
 
 type TravelChatClientProps = {
   applicationId?: string | null;
@@ -458,13 +476,6 @@ const HOTSPOTS_BY_CITY: Record<string, string[]> = {
   hawaii: ["威基基海滩", "钻石山", "珍珠港", "哈雷阿卡拉国家公园"],
 };
 
-const FALLBACK_HOTSPOTS = [
-  "Old Town",
-  "Night Market",
-  "Historic Landmark",
-  "Local Food Street",
-];
-
 const FEATURED_DESTINATION_CITIES = [
   "Tokyo",
   "Singapore",
@@ -478,7 +489,18 @@ const FEATURED_DESTINATION_CITIES = [
   "Bali",
 ] as const;
 
-const WORLD_CITY_SUGGESTIONS = FEATURED_DESTINATION_CITIES;
+const FEATURED_CITY_COORDINATES: Record<string, [number, number]> = {
+  tokyo: [35.6762, 139.6503],
+  singapore: [1.3521, 103.8198],
+  sydney: [-33.8688, 151.2093],
+  london: [51.5074, -0.1278],
+  paris: [48.8566, 2.3522],
+  newyork: [40.7128, -74.006],
+  beijing: [39.9042, 116.4074],
+  sanfrancisco: [37.7749, -122.4194],
+  dubai: [25.2048, 55.2708],
+  bali: [-8.4095, 115.1889],
+};
 
 const LOCAL_NAME_BY_KEY: Record<string, string> = {
   japan: "日本",
@@ -1294,6 +1316,30 @@ function getLatestToolItineraryMessageId(
   return undefined;
 }
 
+function limitArchivedDestinationCards(
+  messages: TravelChatMessage[],
+  sessionId: string
+): TravelChatMessage[] {
+  return messages.map((message, messageIndex) => ({
+    ...message,
+    parts: message.parts.map((part, partIndex) => {
+      if (part.type !== "destination_cards" || part.cards.length <= 2) {
+        return part;
+      }
+      const start =
+        hashString(`${sessionId}:${messageIndex}:${partIndex}`) %
+        part.cards.length;
+      return {
+        ...part,
+        cards: [
+          part.cards[start],
+          part.cards[(start + Math.max(1, Math.floor(part.cards.length / 2))) % part.cards.length],
+        ].filter((card): card is TravelDestinationCard => Boolean(card)),
+      };
+    }),
+  }));
+}
+
 function normalizeTravelChatSession(
   session: TravelChatSession,
   locale: InterfaceLocale = "en"
@@ -1364,6 +1410,7 @@ function normalizeTravelChatSession(
 
   return {
     ...session,
+    messages: limitArchivedDestinationCards(session.messages, session.id),
     title: manualTitle || createSessionTitle(session.messages, locale),
     customTitle: Boolean(manualTitle),
     activeVersionId,
@@ -3131,14 +3178,24 @@ function getCityContext(city: string) {
   return CITY_CONTEXT[key] ?? null;
 }
 
+function pickRandomFeaturedCities(count: number): string[] {
+  const pool = [...FEATURED_DESTINATION_CITIES];
+  for (let index = pool.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]];
+  }
+  return pool.slice(0, Math.max(0, Math.min(count, pool.length)));
+}
+
 function createFeaturedDestinationCards(
   locale: InterfaceLocale = "en"
 ): TravelDestinationCard[] {
   const isZh = locale === "zh";
-  return FEATURED_DESTINATION_CITIES.map((city) => {
+  return pickRandomFeaturedCities(2).map((city) => {
     const context = getCityContext(city);
     const cityLabel = isZh ? getLocalDisplayName(city) : city;
     const country = context?.countryEn ?? city;
+    const coordinate = FEATURED_CITY_COORDINATES[normalizeCityKey(city)];
     return {
       type: "destination" as const,
       id: `featured-${normalizeCityKey(city)}`,
@@ -3158,6 +3215,9 @@ function createFeaturedDestinationCards(
         isZh ? "可查看地图" : "map-ready",
       ],
       suggested_days: context?.days ?? "3-5 days",
+      map_marker: coordinate
+        ? { lat: coordinate[0], lng: coordinate[1] }
+        : undefined,
       action_label: isZh ? `加入计划：${cityLabel}` : `Add ${cityLabel} to plan`,
       payload: {
         seed_country: country,
@@ -3247,7 +3307,10 @@ function getGoogleCityCoordinates(
   lookup: Record<string, GoogleGeocodeCoordinate>
 ): [number, number] | null {
   const key = normalizeCityKey(city);
-  return getGoogleCoordinateByKey(key, lookup);
+  return (
+    getGoogleCoordinateByKey(key, lookup) ??
+    getCuratedTravelCityCoordinates(city)
+  );
 }
 
 function getGoogleCoordinateByKey(
@@ -3368,7 +3431,7 @@ function getHotspotsForCity(city: string): string[] {
   const key = normalizeCityKey(city);
   const matched = HOTSPOTS_BY_CITY[key];
   if (matched && matched.length) return matched;
-  return FALLBACK_HOTSPOTS;
+  return [];
 }
 
 export function TravelChatClient({
@@ -3449,6 +3512,7 @@ export function TravelChatClient({
   const lastAutoScrolledMessageIdRef = useRef<string | null>(null);
   const selectedCityFocusKeyRef = useRef("");
   const failedGeocodeKeysRef = useRef<Set<string>>(new Set());
+  const inFlightGeocodeKeysRef = useRef<Set<string>>(new Set());
   const [scrollThumb, setScrollThumb] = useState<ScrollThumbState>({
     top: 0,
     height: 0,
@@ -3461,32 +3525,34 @@ export function TravelChatClient({
 
   useEffect(() => {
     const controller = new AbortController();
-
-    void (async () => {
-      try {
-        const response = await fetch("/api/travel/health", {
-          method: "GET",
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        const payload = (await response.json().catch(() => null)) as
-          | TravelHealthResponse
-          | null;
-        if (!response.ok || !payload) {
-          throw new Error("travel_health_unavailable");
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetch("/api/travel/health?probe=passive", {
+            method: "GET",
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          const payload = (await response.json().catch(() => null)) as
+            | TravelHealthResponse
+            | null;
+          if (!response.ok || !payload) {
+            throw new Error("travel_health_unavailable");
+          }
+          setTravelHealth(payload);
+          setTravelHealthError("");
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          setTravelHealth(null);
+          setTravelHealthError(
+            error instanceof Error ? error.message : "travel_health_unavailable"
+          );
         }
-        setTravelHealth(payload);
-        setTravelHealthError("");
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        setTravelHealth(null);
-        setTravelHealthError(
-          error instanceof Error ? error.message : "travel_health_unavailable"
-        );
-      }
-    })();
+      })();
+    }, 1_500);
 
     return () => {
+      window.clearTimeout(timeoutId);
       controller.abort();
     };
   }, []);
@@ -3671,19 +3737,25 @@ export function TravelChatClient({
     const addCity = (city: string | null | undefined) => {
       const trimmedCity = city?.trim();
       if (!trimmedCity) return;
+      if (getCuratedTravelCityCoordinates(trimmedCity)) return;
       addItem(buildGoogleGeocodeItem(trimmedCity));
     };
     const addHotspotsForCity = (city: string | null | undefined) => {
       const trimmedCity = city?.trim();
       if (!trimmedCity) return;
       getHotspotsForCity(trimmedCity).forEach((hotspot) => {
+        const attraction = findTravelAttraction(trimmedCity, hotspot);
+        if (
+          attraction &&
+          Number.isFinite(attraction.lat) &&
+          Number.isFinite(attraction.lng)
+        ) {
+          return;
+        }
         addItem(buildGoogleHotspotGeocodeItem(trimmedCity, hotspot));
       });
     };
 
-    if (shouldShowCitySuggestions) {
-      WORLD_CITY_SUGGESTIONS.forEach(addCity);
-    }
     routeCityNames.forEach(addCity);
     displayItineraryRouteCityNames.forEach(addCity);
     orderedCities.forEach(addCity);
@@ -3701,16 +3773,21 @@ export function TravelChatClient({
     routeCityNames,
     travelState.selected_hotels,
     displayTravelState.selected_hotels,
-    shouldShowCitySuggestions,
   ]);
 
   useEffect(() => {
     const pendingItems = googleGeocodeItems.filter((item) => {
       if (googleCityCoordinates[item.key]) return false;
-      return !failedGeocodeKeysRef.current.has(item.key);
+      return (
+        !failedGeocodeKeysRef.current.has(item.key) &&
+        !inFlightGeocodeKeysRef.current.has(item.key)
+      );
     });
 
     if (pendingItems.length === 0) return;
+    pendingItems.forEach((item) =>
+      inFlightGeocodeKeysRef.current.add(item.key)
+    );
 
     let disposed = false;
 
@@ -3763,6 +3840,10 @@ export function TravelChatClient({
       } catch {
         pendingItems.forEach((item) =>
           failedGeocodeKeysRef.current.add(item.key)
+        );
+      } finally {
+        pendingItems.forEach((item) =>
+          inFlightGeocodeKeysRef.current.delete(item.key)
         );
       }
     })();
@@ -3846,36 +3927,8 @@ export function TravelChatClient({
       });
     });
 
-    WORLD_CITY_SUGGESTIONS.filter(
-      (city) => !selectedCityKeys.has(normalizeCityKey(city))
-    ).forEach((city) => {
-      const coordinate = getGoogleCityCoordinates(city, googleCityCoordinates);
-      if (!coordinate) return;
-      const key = normalizeCityKey(city);
-      if (seenTargetKeys.has(key)) return;
-      seenTargetKeys.add(key);
-      const [lat, lng] = coordinate;
-      const context = getCityContext(city);
-      targets.push({
-        id: `city-suggestion-${normalizeCityKey(city)}`,
-        kind: "city",
-        label: city,
-        subtitle: "城市候选",
-        localName: getLocalDisplayName(city),
-        intro: buildMapIntro("city", city, city),
-        countryLabel: context
-          ? `${context.countryZh} (${context.countryEn})`
-          : undefined,
-        recommendedDays: context?.days,
-        imageSrc: getCityImage(city),
-        lat,
-        lng,
-        city,
-      });
-    });
     return targets;
   }, [
-    googleCityCoordinates,
     interfaceLocale,
     messages,
     selectedCityKeys,
@@ -4726,13 +4779,13 @@ export function TravelChatClient({
     if (remoteArchiveHydratedKey !== archiveKey) return;
 
     let disposed = false;
-    const sessionIds = sessionsRef.current.map((session) => session.id);
-    void Promise.all(
-      sessionIds.map(async (sessionId) => {
-        const response = await fetch(
-          `/api/travel/chat?${new URLSearchParams({ sessionId }).toString()}`,
-          { method: "GET" }
-        );
+    const sessionId = activeSessionId;
+    setCanonicalStateHydratedKey(null);
+    void fetch(
+      `/api/travel/chat?${new URLSearchParams({ sessionId }).toString()}`,
+      { method: "GET" }
+    )
+      .then(async (response) => {
         if (!response.ok) return null;
         const payload = (await response.json().catch(() => null)) as unknown;
         if (
@@ -4749,26 +4802,19 @@ export function TravelChatClient({
           stateVersion: payload.state_version,
         };
       })
-    )
-      .then((canonicalSessions) => {
-        if (disposed) return;
-        const bySessionId = new Map(
-          canonicalSessions
-            .filter((item) => item !== null)
-            .map((item) => [item.sessionId, item])
-        );
+      .then((canonical) => {
+        if (disposed || !canonical) return;
         setSessions((currentSessions) => {
-          const nextSessions = currentSessions.map((session) => {
-            const canonical = bySessionId.get(session.id);
-            return canonical &&
-              canonical.stateVersion >= (session.stateVersion ?? 0)
+          const nextSessions = currentSessions.map((session) =>
+            session.id === canonical.sessionId &&
+            canonical.stateVersion >= (session.stateVersion ?? 0)
               ? {
                   ...session,
                   stateSnapshot: canonical.state,
                   stateVersion: canonical.stateVersion,
                 }
-              : session;
-          });
+              : session
+          );
           sessionsRef.current = nextSessions;
           return nextSessions;
         });
@@ -4783,9 +4829,14 @@ export function TravelChatClient({
     return () => {
       disposed = true;
     };
-  }, [archiveKey, remoteArchiveHydratedKey]);
+  }, [activeSessionId, archiveKey, remoteArchiveHydratedKey]);
 
   useEffect(() => {
+    if (missingField !== "origin" || prefetchedIpLocation) {
+      setIsPrefetchingIpLocation(false);
+      return;
+    }
+
     let disposed = false;
     setIsPrefetchingIpLocation(true);
     setPrefetchedIpLocationError(null);
@@ -4825,7 +4876,7 @@ export function TravelChatClient({
     return () => {
       disposed = true;
     };
-  }, []);
+  }, [missingField, prefetchedIpLocation]);
 
   useEffect(() => {
     if (archiveLoadedKey !== archiveKey) return;
@@ -7003,6 +7054,8 @@ export function TravelChatClient({
                   <ScrollToBottomFab
                     className="-top-20 right-2"
                     hasNewMessage={false}
+                    label={isZh ? "回到底部" : "Scroll to bottom"}
+                    newMessageLabel={isZh ? "有新消息" : "New message"}
                     onClick={() => scrollConversationToBottom("smooth")}
                     show={showScrollToBottom}
                   />

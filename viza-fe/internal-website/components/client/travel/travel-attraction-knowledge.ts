@@ -1,4 +1,7 @@
 import curatedTravelCardData from "./travel-card-curated-data.json";
+import curatedTravelCardLocalization01 from "./travel-card-curated-localization-01.json";
+import curatedTravelCardLocalization02 from "./travel-card-curated-localization-02.json";
+import curatedTravelCardLocalization03 from "./travel-card-curated-localization-03.json";
 
 export type TravelAttractionKnowledgeItem = {
   cityKeys: string[];
@@ -27,6 +30,11 @@ type CuratedTravelCardData = {
 
 const CURATED_TRAVEL_CARD_DATA =
   curatedTravelCardData as CuratedTravelCardData;
+const CURATED_TRAVEL_CARD_LOCALIZATION = {
+  ...curatedTravelCardLocalization01,
+  ...curatedTravelCardLocalization02,
+  ...curatedTravelCardLocalization03,
+} as Record<string, { nameZh?: string; descriptionZh?: string }>;
 
 export function normalizeTravelKnowledgeKey(value: string | null | undefined): string {
   return String(value ?? "")
@@ -557,13 +565,6 @@ export const TRAVEL_ATTRACTION_KNOWLEDGE: TravelAttractionKnowledgeItem[] = [
   },
 ];
 
-function itemMatchesCity(item: TravelAttractionKnowledgeItem, city: string): boolean {
-  const cityKey = normalizeTravelKnowledgeKey(city);
-  return item.cityKeys.some(
-    (key) => normalizeTravelKnowledgeKey(key) === cityKey
-  );
-}
-
 function cityMatchesCity(item: TravelCityCardKnowledgeItem, city: string): boolean {
   const cityKey = normalizeTravelKnowledgeKey(city);
   return item.cityKeys.some(
@@ -571,10 +572,72 @@ function cityMatchesCity(item: TravelCityCardKnowledgeItem, city: string): boole
   );
 }
 
-function getCombinedTravelAttractions(): TravelAttractionKnowledgeItem[] {
+function buildSpecificAttractionDescription(
+  item: TravelAttractionKnowledgeItem,
+  name: string
+): string {
+  const source = [item.name, item.location, item.sourceUrl]
+    .join(" ")
+    .toLowerCase();
+  let category = "城市文化与观光地点";
+  if (/museum|gallery|博物馆|美术馆|展览/.test(source)) {
+    category = "博物馆或美术馆";
+  } else if (
+    /temple|shrine|church|mosque|cathedral|basilica|monastery|pura|寺|庙|教堂|清真寺|礼拜堂/.test(
+      source
+    )
+  ) {
+    category = "宗教与历史建筑";
+  } else if (/park|garden|square|公园|花园|广场|植物园/.test(source)) {
+    category = "公园或城市公共空间";
+  } else if (
+    /bridge|tower|monument|palace|castle|fort|gate|stadium|building|塔|桥|宫|城堡|堡|纪念碑|大厦/.test(
+      source
+    )
+  ) {
+    category = "城市地标与建筑";
+  } else if (
+    /beach|island|lake|waterfall|mount|bay|海滩|海岛|湖|瀑布|山|海湾/.test(
+      source
+    )
+  ) {
+    category = "自然景观";
+  } else if (/market|mall|bazaar|marketplace|市场|商场|购物/.test(source)) {
+    category = "市集与商业街区";
+  }
+  return `${name}位于${item.cityLabel}，是一处${category}，适合参观并了解当地文化。`;
+}
+
+function localizeCuratedAttraction(
+  item: TravelAttractionKnowledgeItem
+): TravelAttractionKnowledgeItem {
+  const localization =
+    CURATED_TRAVEL_CARD_LOCALIZATION[`${item.cityLabel}::${item.name}`];
+  const localizedName = localization?.nameZh?.trim() || item.name;
+  const originalDescription = item.description?.trim();
+  const description =
+    localization?.descriptionZh?.trim() ||
+    (originalDescription &&
+    !/(?:代表性景点|当地推荐景点|local attraction|placeholder)/i.test(
+      originalDescription
+    )
+      ? originalDescription
+      : buildSpecificAttractionDescription(item, localizedName));
+
+  return {
+    ...item,
+    name: localizedName,
+    aliases: Array.from(
+      new Set([item.name, ...(item.aliases ?? [])].filter(Boolean))
+    ),
+    description,
+  };
+}
+
+function buildCombinedTravelAttractions(): TravelAttractionKnowledgeItem[] {
   const seen = new Set<string>();
   return [
-    ...CURATED_TRAVEL_CARD_DATA.attractions,
+    ...CURATED_TRAVEL_CARD_DATA.attractions.map(localizeCuratedAttraction),
     ...TRAVEL_ATTRACTION_KNOWLEDGE,
   ].filter((item) => {
     const key = `${normalizeTravelKnowledgeKey(item.cityLabel)}:${normalizeTravelKnowledgeKey(
@@ -585,6 +648,25 @@ function getCombinedTravelAttractions(): TravelAttractionKnowledgeItem[] {
     return true;
   });
 }
+
+const COMBINED_TRAVEL_ATTRACTIONS = buildCombinedTravelAttractions();
+const TRAVEL_ATTRACTIONS_BY_CITY = (() => {
+  const result = new Map<string, TravelAttractionKnowledgeItem[]>();
+  COMBINED_TRAVEL_ATTRACTIONS.forEach((item) => {
+    const cityKeys = new Set(
+      [...item.cityKeys, item.cityLabel]
+        .map(normalizeTravelKnowledgeKey)
+        .filter(Boolean)
+    );
+    cityKeys.forEach((normalized) => {
+      if (!normalized) return;
+      const entries = result.get(normalized) ?? [];
+      entries.push(item);
+      result.set(normalized, entries);
+    });
+  });
+  return result;
+})();
 
 export function getTravelCityCard(
   city: string
@@ -603,13 +685,29 @@ export function getTravelCityImage(city: string): string | null {
 export function getTravelAttractionsForCity(
   city: string
 ): TravelAttractionKnowledgeItem[] {
-  return getCombinedTravelAttractions().filter((item) =>
-    itemMatchesCity(item, city)
-  );
+  return TRAVEL_ATTRACTIONS_BY_CITY.get(normalizeTravelKnowledgeKey(city)) ?? [];
 }
 
 export function getTravelAttractionNamesForCity(city: string): string[] {
   return getTravelAttractionsForCity(city).map((item) => item.name);
+}
+
+export function getTravelCityCoordinates(
+  city: string
+): [number, number] | null {
+  const attractions = getTravelAttractionsForCity(city).filter(
+    (item) => Number.isFinite(item.lat) && Number.isFinite(item.lng)
+  );
+  if (attractions.length === 0) return null;
+
+  const [latitudeTotal, longitudeTotal] = attractions.reduce(
+    ([latTotal, lngTotal], item) => [latTotal + item.lat, lngTotal + item.lng],
+    [0, 0]
+  );
+  return [
+    latitudeTotal / attractions.length,
+    longitudeTotal / attractions.length,
+  ];
 }
 
 export function findTravelAttraction(

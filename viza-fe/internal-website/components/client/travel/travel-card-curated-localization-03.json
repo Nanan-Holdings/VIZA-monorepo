@@ -1,0 +1,668 @@
+{
+"米兰::Galleria Vittorio Emanuele II": {
+    "nameZh": "维托里奥·埃马努埃莱二世拱廊"
+  },
+  "米兰::Milan Cathedral": {
+    "nameZh": "米兰大教堂"
+  },
+  "米兰::Museo Nazionale Scienza e Tecnologia Leonardo da Vinci": {
+    "nameZh": "国家科学技术博物馆 列奥纳多·达·芬奇"
+  },
+  "米兰::Royal Palace of Milan": {
+    "nameZh": "米兰皇宫"
+  },
+  "名古屋::JR中央大厦": {
+    "nameZh": "中央大厦"
+  },
+  "名古屋::Mode学园螺旋塔": {
+    "nameZh": "学园螺旋塔"
+  },
+  "墨尔本::Premier Tower": {
+    "nameZh": "尊贵大厦"
+  },
+  "墨尔本::Sts. Peter and Paul Cathedral, Melbourne": {
+    "nameZh": "墨尔本圣彼得和圣保罗大教堂"
+  },
+  "墨西哥城::Greater Mexico City": {
+    "nameZh": "大墨西哥城"
+  },
+  "墨西哥城::Leon Trotsky House Museum": {
+    "nameZh": "列昂·托洛茨基故居博物馆"
+  },
+  "墨西哥城::Museo Nacional de Arte": {
+    "nameZh": "国家艺术博物馆"
+  },
+  "墨西哥城::Museum of Light, Mexico City": {
+    "nameZh": "墨西哥城光之博物馆"
+  },
+  "慕尼黑::Alte Pinakothek": {
+    "nameZh": "老绘画陈列馆"
+  },
+  "慕尼黑::Deutsches Museum": {
+    "nameZh": "德国博物馆"
+  },
+  "慕尼黑::Frauenkirche, Munich": {
+    "nameZh": "慕尼黑圣母教堂"
+  },
+  "慕尼黑::Königsplatz, Munich": {
+    "nameZh": "慕尼黑国王广场"
+  },
+  "慕尼黑::Munich Residenz": {
+    "nameZh": "慕尼黑住所"
+  },
+  "慕尼黑::New Town Hall (Munich)": {
+    "nameZh": "慕尼黑新市政厅"
+  },
+  "那霸::Okinawa Prefectural Peace Memorial Museum": {
+    "nameZh": "冲绳县和平纪念博物馆"
+  },
+  "那不勒斯::Gesù Nuovo": {
+    "nameZh": "新耶稣"
+  },
+  "那不勒斯::Royal Palace of Naples": {
+    "nameZh": "那不勒斯王宫"
+  },
+  "那不勒斯::Teatro di San Carlo": {
+    "nameZh": "圣卡洛剧院"
+  },
+  "尼斯::Chemin des Révoires": {
+    "nameZh": "再见之路"
+  },
+  "珀斯::Museum of Perth": {
+    "nameZh": "珀斯博物馆"
+  },
+  "珀斯::Palace Hotel, Perth": {
+    "nameZh": "珀斯皇宫酒店"
+  },
+  "珀斯::Perth Mint": {
+    "nameZh": "珀斯铸币厂"
+  },
+  "珀斯::Perth Mosque": {
+    "nameZh": "珀斯清真寺"
+  },
+  "珀斯::Perth Water": {
+    "nameZh": "珀斯水务"
+  },
+  "珀斯::Wesley Church, Perth": {
+    "nameZh": "珀斯卫斯理教堂"
+  },
+  "珀斯::Western Australian Museum": {
+    "nameZh": "西澳大利亚博物馆"
+  },
+  "普吉::Ko Khai Nok": {
+    "nameZh": "普吉?????"
+  },
+  "普吉::Ko Ta Pu": {
+    "nameZh": "詹姆斯·邦德岛"
+  },
+  "普吉::Wat Khao Rang Samakkhitham": {
+    "nameZh": "瓦考钱源"
+  },
+  "普吉::Wat Ko Sire": {
+    "nameZh": "什么父亲"
+  },
+  "普吉::Wat Mongkhon Nimit": {
+    "nameZh": "瓦蒙坤尼米特"
+  },
+  "普吉::Wat Suwan Khiri Khet": {
+    "nameZh": "瓦苏万基里凯特"
+  },
+  "清迈::Sacred Heart Cathedral": {
+    "nameZh": "圣心大教堂"
+  },
+  "清迈::Three Kings Monument, Chiang Mai": {
+    "nameZh": "清迈三王纪念碑"
+  },
+  "庆州::Gyeongju World": {
+    "nameZh": "庆州世界"
+  },
+  "日内瓦::International Red Cross and Red Crescent Museum": {
+    "nameZh": "国际红十字与红新月博物馆"
+  },
+  "日内瓦::Jet d'Eau": {
+    "nameZh": "水射流"
+  },
+  "日内瓦::Lake Geneva": {
+    "nameZh": "日内瓦湖"
+  },
+  "日内瓦::Musée d'Art et d'Histoire (Geneva)": {
+    "nameZh": "日内瓦艺术与历史博物馆"
+  },
+  "日内瓦::Natural History Museum of Geneva": {
+    "nameZh": "日内瓦自然历史博物馆"
+  },
+  "日内瓦::Palace of Nations": {
+    "nameZh": "万国宫"
+  },
+  "日惹::Dharma Wiratama Museum": {
+    "nameZh": "达摩维拉塔玛博物馆"
+  },
+  "日惹::Fort Vredeburg": {
+    "nameZh": "弗雷德堡堡"
+  },
+  "日惹::Sonobudoyo Museum": {
+    "nameZh": "园武堂博物馆"
+  },
+  "日惹::Taman Sari": {
+    "nameZh": "塔曼萨里"
+  },
+  "萨尔茨堡::Fuscher Ache": {
+    "nameZh": "福舍尔痛"
+  },
+  "萨尔茨堡::Haslachmühle": {
+    "nameZh": "哈斯拉赫米勒"
+  },
+  "萨尔茨堡::Hellbrunn Palace": {
+    "nameZh": "海尔布伦宫"
+  },
+  "萨尔茨堡::Hohenwerfen Castle": {
+    "nameZh": "霍亨韦尔芬城堡"
+  },
+  "萨尔茨堡::Mirabell Palace": {
+    "nameZh": "米拉贝尔宫"
+  },
+  "萨尔茨堡::Mozart's birthplace": {
+    "nameZh": "莫扎特的出生地"
+  },
+  "萨尔茨堡::Museum der Moderne Salzburg": {
+    "nameZh": "萨尔茨堡现代艺术博物馆"
+  },
+  "萨尔茨堡::Salzburg Cathedral": {
+    "nameZh": "萨尔茨堡大教堂"
+  },
+  "萨尔茨堡::Schloss Leopoldskron": {
+    "nameZh": "利奥波德斯克隆宫"
+  },
+  "萨尔茨堡::Tanzmeisterhaus Salzburg": {
+    "nameZh": "萨尔茨堡舞蹈大师之家"
+  },
+  "萨尔瓦多::Archbishop's Palace of Salvador": {
+    "nameZh": "萨尔瓦多大主教宫"
+  },
+  "萨尔瓦多::São Marcelo Fort": {
+    "nameZh": "圣马塞洛堡"
+  },
+  "塞萨洛尼基::Aristotelous Square": {
+    "nameZh": "亚里士多德方阵"
+  },
+  "塞萨洛尼基::Atatürk Museum (Thessaloniki)": {
+    "nameZh": "阿塔图尔克博物馆（塞萨洛尼基）"
+  },
+  "塞萨洛尼基::Hagia Sophia, Thessaloniki": {
+    "nameZh": "圣索菲亚大教堂，塞萨洛尼基"
+  },
+  "塞萨洛尼基::Hamza Bey Mosque": {
+    "nameZh": "哈姆扎贝伊清真寺"
+  },
+  "塞萨洛尼基::Jewish Museum of Thessaloniki": {
+    "nameZh": "塞萨洛尼基犹太博物馆"
+  },
+  "塞维利亚::Alameda de Hércules": {
+    "nameZh": "赫拉克勒斯大道"
+  },
+  "塞维利亚::Archeological Museum of Seville": {
+    "nameZh": "塞维利亚考古博物馆"
+  },
+  "塞维利亚::Museum of Fine Arts of Seville": {
+    "nameZh": "塞维利亚美术博物馆"
+  },
+  "塞维利亚::Plaza de España, Seville": {
+    "nameZh": "塞维利亚西班牙广场"
+  },
+  "塞维利亚::Plaza Nueva, Seville": {
+    "nameZh": "塞维利亚新广场"
+  },
+  "塞维利亚::Santa María Magdalena, Seville": {
+    "nameZh": "圣玛丽玛格达琳教堂，塞维利亚"
+  },
+  "沙姆沙伊赫::Baron Resort Sharm El Sheikh": {
+    "nameZh": "沙姆沙伊赫巴伦度假村"
+  },
+  "沙姆沙伊赫::Heavenly Cathedral": {
+    "nameZh": "天国大教堂"
+  },
+  "沙姆沙伊赫::Pickalbatros Laguna Vista Hotel Sharm El Sheikh": {
+    "nameZh": "皮卡尔巴特罗斯拉古纳维斯塔酒店 沙姆沙伊赫"
+  },
+  "沙姆沙伊赫::Rixos Premium Seagate": {
+    "nameZh": "希捷"
+  },
+  "沙姆沙伊赫::SUNRISE Remal Beach Resort": {
+    "nameZh": "日出雷马尔海滩度假村"
+  },
+  "沙姆沙伊赫::V Hotel Sharm El Sheikh": {
+    "nameZh": "沙姆沙伊赫?????"
+  },
+  "圣保罗::Pinacoteca do Estado de São Paulo": {
+    "nameZh": "圣保罗州美术馆"
+  },
+  "圣保罗::São Paulo Cathedral": {
+    "nameZh": "圣保罗大教堂"
+  },
+  "圣保罗::São Paulo Museum of Art": {
+    "nameZh": "圣保罗艺术博物馆"
+  },
+  "圣保罗::Teatro São Pedro (São Paulo)": {
+    "nameZh": "圣佩德罗剧院（圣保罗）"
+  },
+  "圣托里尼::Minoan eruption": {
+    "nameZh": "米诺斯火山喷发"
+  },
+  "圣托里尼::Museum of Prehistoric Thera": {
+    "nameZh": "史前锡拉博物馆"
+  },
+  "圣托里尼::Red Beach (Santorini)": {
+    "nameZh": "红沙滩（圣托里尼）"
+  },
+  "圣托里尼::Santorini Cable Car": {
+    "nameZh": "圣托里尼缆车"
+  },
+  "泗水::Balai Pemuda": {
+    "nameZh": "青年中心"
+  },
+  "泗水::Church of the Birth of Our Lady, Surabaya": {
+    "nameZh": "泗水圣母诞辰教堂"
+  },
+  "泗水::Hotel Majapahit": {
+    "nameZh": "马贾帕希特酒店"
+  },
+  "泗水::Mpu Tantular Museum": {
+    "nameZh": "姆普坦图拉博物馆"
+  },
+  "泗水::Pakuwon Mall": {
+    "nameZh": "帕库旺购物中心"
+  },
+  "苏黎世::Chinese Garden, Zurich": {
+    "nameZh": "苏黎世中国花园"
+  },
+  "苏黎世::Ganymed (Zurich)": {
+    "nameZh": "木卫三（苏黎世）"
+  },
+  "苏黎世::Kunsthaus Zürich": {
+    "nameZh": "苏黎世美术馆"
+  },
+  "苏黎世::Lindenhof hill": {
+    "nameZh": "林登霍夫山"
+  },
+  "苏黎世::Museum of Design, Zurich": {
+    "nameZh": "苏黎世设计博物馆"
+  },
+  "苏黎世::Quaianlagen (Zurich)": {
+    "nameZh": "（苏黎世）"
+  },
+  "苏黎世::Swiss National Museum": {
+    "nameZh": "瑞士国家博物馆"
+  },
+  "苏黎世::Winterthur": {
+    "nameZh": "温特图尔"
+  },
+  "苏黎世::Zurich Opera House": {
+    "nameZh": "苏黎世歌剧院"
+  },
+  "苏黎世::Zurich Tram Museum": {
+    "nameZh": "苏黎世电车博物馆"
+  },
+  "苏梅岛::CentralFestival Samui": {
+    "nameZh": "苏梅岛中央节日店"
+  },
+  "苏梅岛::Hat Khanom–Mu Ko Thale Tai National Park": {
+    "nameZh": "哈特卡农-穆科塔勒泰国家公园"
+  },
+  "苏梅岛::Than Sadet – Ko Pha-ngan National Park": {
+    "nameZh": "– 帕岸岛国家公园"
+  },
+  "苏梅岛::Wat Bo Phuttaram": {
+    "nameZh": "瓦波普塔拉姆"
+  },
+  "苏梅岛::Wat Khao Tham": {
+    "nameZh": "瓦考塔姆"
+  },
+  "苏梅岛::Wat Na Phra Lan": {
+    "nameZh": "素贴寺"
+  },
+  "苏梅岛::Wat Phra Yai": {
+    "nameZh": "帕亚寺"
+  },
+  "苏梅岛::Wat Plai Laem": {
+    "nameZh": "不要玩莱姆"
+  },
+  "宿务::Ayala Malls Central Bloc": {
+    "nameZh": "阿亚拉购物中心中央区"
+  },
+  "宿务::Cebu Taoist Temple": {
+    "nameZh": "宿务道教寺庙"
+  },
+  "宿务::Gaisano Mall of Cebu": {
+    "nameZh": "宿务盖萨诺购物中心"
+  },
+  "宿务::Matilda L. Bradford Memorial Church": {
+    "nameZh": "玛蒂尔达··布拉德福德纪念教堂"
+  },
+  "宿务::Museo Sugbo": {
+    "nameZh": "宿务博物馆"
+  },
+  "宿务::SM City Cebu": {
+    "nameZh": "宿务购物中心"
+  },
+  "图卢姆::Cenote Nohoch Nah Chich": {
+    "nameZh": "诺霍奇纳奇奇天坑"
+  },
+  "图卢姆::Xel-Ha Park": {
+    "nameZh": "- 公园"
+  },
+  "图卢姆::Xelha": {
+    "nameZh": "谢尔哈"
+  },
+  "瓦伦西亚::Church of Santos Juanes, Valencia": {
+    "nameZh": "瓦伦西亚圣约翰教堂"
+  },
+  "瓦伦西亚::González Martí National Museum of Ceramics and Decorative Arts": {
+    "nameZh": "冈萨雷斯·马蒂国家陶瓷和装饰艺术博物馆"
+  },
+  "瓦伦西亚::Mercado Central, Valencia": {
+    "nameZh": "瓦伦西亚中央市场"
+  },
+  "瓦伦西亚::Museu de Belles Arts de València": {
+    "nameZh": "瓦伦西亚美术博物馆"
+  },
+  "瓦伦西亚::San Nicolás, Valencia": {
+    "nameZh": "圣尼古拉斯，瓦伦西亚"
+  },
+  "瓦伦西亚::Valencia Cathedral": {
+    "nameZh": "瓦伦西亚大教堂"
+  },
+  "万隆::万隆Trans Studio乐园": {
+    "nameZh": "万隆 乐园"
+  },
+  "万隆::Bandung Cathedral": {
+    "nameZh": "万隆大教堂"
+  },
+  "万隆::Grand Mosque of Bandung": {
+    "nameZh": "万隆大清真寺"
+  },
+  "万隆::Savoy Homann Bidakara Hotel": {
+    "nameZh": "萨沃伊·霍曼·比达卡拉酒店"
+  },
+  "万隆::Sri Baduga Museum": {
+    "nameZh": "斯里巴杜加博物馆"
+  },
+  "威尼斯::Museo Correr": {
+    "nameZh": "科雷尔博物馆"
+  },
+  "威尼斯::Rialto Bridge": {
+    "nameZh": "里亚托桥"
+  },
+  "维也纳::Albertina": {
+    "nameZh": "阿尔贝蒂娜"
+  },
+  "维也纳::Belvedere, Vienna": {
+    "nameZh": "维也纳美景宫"
+  },
+  "维也纳::Jewish Museum Vienna": {
+    "nameZh": "维也纳犹太博物馆"
+  },
+  "维也纳::Kunsthistorisches Museum": {
+    "nameZh": "艺术史博物馆"
+  },
+  "维也纳::Leopoldstadt": {
+    "nameZh": "利奥波德施塔特"
+  },
+  "维也纳::Museum of Applied Arts, Vienna": {
+    "nameZh": "维也纳应用艺术博物馆"
+  },
+  "维也纳::Palace": {
+    "nameZh": "宫殿"
+  },
+  "维也纳::St. Stephen's Cathedral, Vienna": {
+    "nameZh": "维也纳圣斯蒂芬大教堂"
+  },
+  "维也纳::Vienna Museum": {
+    "nameZh": "维也纳博物馆"
+  },
+  "维也纳::Wiener Riesenrad": {
+    "nameZh": "维也纳巨型摩天轮"
+  },
+  "乌得勒支::Castle": {
+    "nameZh": "城堡"
+  },
+  "乌得勒支::DierenPark Amersfoort": {
+    "nameZh": "阿默斯福特动物园"
+  },
+  "乌得勒支::Dom Tower of Utrecht": {
+    "nameZh": "乌得勒支大教堂塔"
+  },
+  "乌得勒支::Museum Speelklok": {
+    "nameZh": "博物馆"
+  },
+  "乌得勒支::Netherlands": {
+    "nameZh": "荷兰"
+  },
+  "乌得勒支::Pyramid of Austerlitz": {
+    "nameZh": "奥斯特里茨金字塔"
+  },
+  "乌得勒支::Railway Museum (Netherlands)": {
+    "nameZh": "荷兰铁路博物馆"
+  },
+  "乌得勒支::Soestdijk Palace": {
+    "nameZh": "苏斯特迪克宫"
+  },
+  "乌得勒支::Sonnenborgh Observatory": {
+    "nameZh": "索嫩伯格天文台"
+  },
+  "乌得勒支::Utrecht Caravaggism": {
+    "nameZh": "乌得勒支卡拉瓦乔主义"
+  },
+  "乌斯怀亚::Bridges Islands": {
+    "nameZh": "布里奇斯岛"
+  },
+  "乌斯怀亚::Plaza Islas Malvinas, Ushuaia": {
+    "nameZh": "乌斯怀亚马尔维纳斯群岛广场"
+  },
+  "乌斯怀亚::Ushuaia Prison": {
+    "nameZh": "乌斯怀亚监狱"
+  },
+  "乌斯怀亚::Zeballos Lighthouse": {
+    "nameZh": "泽巴洛斯灯塔"
+  },
+  "西雅图::Central Waterfront, Seattle": {
+    "nameZh": "西雅图中央滨水区"
+  },
+  "西雅图::EMP博物馆": {
+    "nameZh": "博物馆"
+  },
+  "西雅图::Original Starbucks": {
+    "nameZh": "原味星巴克"
+  },
+  "西雅图::Seattle Art Museum": {
+    "nameZh": "西雅图艺术博物馆"
+  },
+  "西雅图::Space Needle": {
+    "nameZh": "太空针塔"
+  },
+  "西雅图::T-Mobile球场": {
+    "nameZh": "-球场"
+  },
+  "悉尼::岩石区 The Rocks": {
+    "nameZh": "岩石区"
+  },
+  "悉尼::Hyde Park Barracks": {
+    "nameZh": "海德公园兵营"
+  },
+  "岘港::Camp Horn": {
+    "nameZh": "霍恩营地"
+  },
+  "岘港::Hill 327": {
+    "nameZh": "327号山"
+  },
+  "岘港::Nguyen Tri Phuong Bridge": {
+    "nameZh": "阮知方桥"
+  },
+  "岘港::Nguyen Van Troi Bridge": {
+    "nameZh": "阮文追桥"
+  },
+  "岘港::Zone 5 Military Museum": {
+    "nameZh": "第五区军事博物馆"
+  },
+  "新加坡::MERLION PARK": {
+    "nameZh": "鱼尾狮公园"
+  },
+  "新山::An-Nur Kotaraya Mosque": {
+    "nameZh": "安努尔·科塔拉亚清真寺"
+  },
+  "新山::Johor Zoo": {
+    "nameZh": "柔佛动物园"
+  },
+  "芽庄::InterContinental Nha Trang": {
+    "nameZh": "芽庄洲际酒店"
+  },
+  "芽庄::Novotel Nha Trang": {
+    "nameZh": "芽庄诺富特酒店"
+  },
+  "芽庄::Tran Phu Bridge": {
+    "nameZh": "陈富桥"
+  },
+  "芽庄::Xom Bong Bridge": {
+    "nameZh": "芽庄?????"
+  },
+  "芽庄::Yersin Museum": {
+    "nameZh": "耶尔辛博物馆"
+  },
+  "雅典::Acropolis Museum": {
+    "nameZh": "雅典卫城博物馆"
+  },
+  "雅典::Acropolis of Athens": {
+    "nameZh": "雅典卫城"
+  },
+  "雅典::Ancient Agora of Athens": {
+    "nameZh": "古雅典集市"
+  },
+  "雅典::Athens City Museum": {
+    "nameZh": "雅典城市博物馆"
+  },
+  "雅典::Athens War Museum": {
+    "nameZh": "雅典战争博物馆"
+  },
+  "雅典::Monastiraki": {
+    "nameZh": "莫纳斯提拉基"
+  },
+  "雅典::National Archaeological Museum, Athens": {
+    "nameZh": "雅典国家考古博物馆"
+  },
+  "雅典::Numismatic Museum of Athens": {
+    "nameZh": "雅典钱币博物馆"
+  },
+  "雅典::Thiseio": {
+    "nameZh": "雅典?????"
+  },
+  "雅加达::Cut Mutiah Mosque": {
+    "nameZh": "库特穆提亚清真寺"
+  },
+  "雅加达::Textile Museum": {
+    "nameZh": "纺织博物馆"
+  },
+  "伊兹密尔::Agora of Smyrna": {
+    "nameZh": "现居士麦那"
+  },
+  "伊兹密尔::İzmir Archaeological Museum": {
+    "nameZh": "伊兹密尔考古博物馆"
+  },
+  "伊兹密尔::İzmir Clock Tower": {
+    "nameZh": "伊兹密尔钟楼"
+  },
+  "伊兹密尔::İzmir Ethnography Museum": {
+    "nameZh": "伊兹密尔民族博物馆"
+  },
+  "伊兹密尔::Konak Square": {
+    "nameZh": "科纳克广场"
+  },
+  "伊兹密尔::Saint Polycarp Church": {
+    "nameZh": "圣波利卡普教堂"
+  },
+  "因斯布鲁克::Court Church": {
+    "nameZh": "法院教堂"
+  },
+  "因斯布鲁克::Hofburg, Innsbruck": {
+    "nameZh": "霍夫堡，因斯布鲁克"
+  },
+  "因斯布鲁克::Hofgarten, Innsbruck": {
+    "nameZh": "霍夫花园，因斯布鲁克"
+  },
+  "因斯布鲁克::Kufstein": {
+    "nameZh": "库夫斯坦"
+  },
+  "因斯布鲁克::OlympiaWorld Innsbruck": {
+    "nameZh": "因斯布鲁克奥林匹亚世界"
+  },
+  "因斯布鲁克::Swarovski Kristallwelten": {
+    "nameZh": "施华洛世奇水晶世界"
+  },
+  "因斯布鲁克::Tiroler MuseumsBahnen": {
+    "nameZh": "蒂罗尔博物馆铁路"
+  },
+  "因斯布鲁克::Tyrol Panorama Museum": {
+    "nameZh": "蒂罗尔全景博物馆"
+  },
+  "因斯布鲁克::Tyrolean State Theatre": {
+    "nameZh": "蒂罗尔国家剧院"
+  },
+  "因特拉肯::Alps": {
+    "nameZh": "阿尔卑斯山"
+  },
+  "因特拉肯::Blonay–Chamby Museum Railway": {
+    "nameZh": "布洛奈-尚比博物馆铁路"
+  },
+  "因特拉肯::Former Monastery Buildings": {
+    "nameZh": "前修道院建筑"
+  },
+  "因特拉肯::Grindelwald": {
+    "nameZh": "格林德沃"
+  },
+  "因特拉肯::Harderbahn": {
+    "nameZh": "哈德班"
+  },
+  "因特拉肯::Jungfraujoch": {
+    "nameZh": "少女峰"
+  },
+  "因特拉肯::Kunsthaus Interlaken": {
+    "nameZh": "因特拉肯美术馆"
+  },
+  "因特拉肯::Matten bei Interlaken": {
+    "nameZh": "马滕（）位于因特拉肯附近"
+  },
+  "因特拉肯::Museum of Timekeeping and Mechanical Musical Instruments": {
+    "nameZh": "计时和机械乐器博物馆"
+  },
+  "因特拉肯::Reichenbach Falls": {
+    "nameZh": "赖兴巴赫瀑布"
+  },
+  "札幌::JR塔大楼": {
+    "nameZh": "塔大楼"
+  },
+  "斋浦尔::Albert Hall Museum": {
+    "nameZh": "阿尔伯特音乐厅博物馆"
+  },
+  "斋浦尔::Bissau Palace Hotel, Jaipur": {
+    "nameZh": "斋浦尔比绍宫酒店"
+  },
+  "斋浦尔::Garh Ganesh Temple": {
+    "nameZh": "加尔加内什神庙"
+  },
+  "斋浦尔::Jaipur Zoo": {
+    "nameZh": "斋浦尔动物园"
+  },
+  "芝加哥::Art Institute of Chicago": {
+    "nameZh": "芝加哥艺术学院"
+  },
+  "芝加哥::Chicago Children's Museum": {
+    "nameZh": "芝加哥儿童博物馆"
+  },
+  "芝加哥::Chicago Theatre": {
+    "nameZh": "芝加哥剧院"
+  },
+  "芝加哥::Museum of Contemporary Art Chicago": {
+    "nameZh": "芝加哥当代艺术博物馆"
+  },
+  "长沙::IFS国金中心": {
+    "nameZh": "国金中心"
+  }
+}

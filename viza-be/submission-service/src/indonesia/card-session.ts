@@ -89,6 +89,13 @@ export function consumeIndonesiaCardSession(applicationId: string, referenceTime
   return session.card;
 }
 
+/** Delete an unused card without returning its sensitive contents. */
+export function discardIndonesiaCardSession(applicationId: string, referenceTimeMs = nowMs()): boolean {
+  const normalized = normalizeApplicationId(applicationId);
+  cleanupExpired(referenceTimeMs);
+  return sessions.delete(normalized);
+}
+
 export function hasIndonesiaCardSessions(referenceTimeMs = nowMs()): boolean {
   cleanupExpired(referenceTimeMs);
   return sessions.size > 0;

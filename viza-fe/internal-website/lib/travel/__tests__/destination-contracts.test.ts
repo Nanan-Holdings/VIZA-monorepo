@@ -131,6 +131,28 @@ describe("local-first destination contracts", () => {
     }
   });
 
+  it("keeps every curated attraction card localized and specific", () => {
+    const genericCopy = /(?:代表性景点|适合加入当地观光动线|当地推荐景点|local attraction|placeholder)/i;
+
+    for (const destination of getDropdownDestinationContracts()) {
+      for (const attraction of destination.attractions) {
+        expect(attraction.nameZh, `${destination.nameEn}:${attraction.nameEn}`).toMatch(
+          /[\u3400-\u9fff]/
+        );
+        expect(attraction.nameZh, `${destination.nameEn}:${attraction.nameEn}`).not.toMatch(
+          /[A-Za-z]/
+        );
+        expect(
+          attraction.descriptionZh,
+          `${destination.nameEn}:${attraction.nameEn}`
+        ).not.toMatch(genericCopy);
+        expect(attraction.image?.verified, `${destination.nameEn}:${attraction.nameEn}`).toBe(
+          true
+        );
+      }
+    }
+  });
+
   it("covers Changsha itinerary landmarks and food matching from the shared attraction layer", () => {
     const destination = findDropdownDestinationContract("Changsha");
     expect(destination?.attractions.length).toBeGreaterThanOrEqual(10);

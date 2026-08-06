@@ -5,6 +5,7 @@ const HEALTH_TIMEOUT_MS = 2_500;
 type ServiceHealth = {
   configured: boolean;
   reachable: boolean;
+  probed?: boolean;
 };
 
 async function boundedFetch(
@@ -27,14 +28,17 @@ async function boundedFetch(
   }
 }
 
-async function checkOpenAI(): Promise<ServiceHealth> {
+async function checkOpenAI(activeProbe: boolean): Promise<ServiceHealth> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return { configured: false, reachable: false };
+  if (!activeProbe) {
+    return { configured: true, reachable: true, probed: false };
+  }
   const reachable = await boundedFetch(
     "https://api.openai.com/v1/models",
     { method: "GET", headers: { Authorization: `Bearer ${apiKey}` } }
   );
-  return { configured: true, reachable };
+  return { configured: true, reachable, probed: true };
 }
 
 async function checkTravelService(): Promise<ServiceHealth> {
@@ -72,9 +76,12 @@ function placesHealth(): ServiceHealth {
   return { configured, reachable: configured };
 }
 
-export async function GET() {
+export async function GET(request?: Request) {
+  const activeOpenAIProbe =
+    request == null ||
+    new URL(request.url).searchParams.get("probe") === "active";
   const [openai, travelService, sessionDatabase] = await Promise.all([
-    checkOpenAI(),
+    checkOpenAI(activeOpenAIProbe),
     checkTravelService(),
     checkSessionDatabase(),
   ]);

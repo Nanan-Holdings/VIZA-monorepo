@@ -1,0 +1,668 @@
+{
+"阿布扎比::Abu Dhabi Mall": {
+    "nameZh": "阿布扎比购物中心"
+  },
+  "阿布扎比::Corniche": {
+    "nameZh": "滨海大道"
+  },
+  "阿布扎比::Khalidiyah Mall": {
+    "nameZh": "哈利迪亚购物中心"
+  },
+  "阿布扎比::Sheikh Zayed Bridge": {
+    "nameZh": "谢赫扎耶德桥"
+  },
+  "阿布扎比::Wahat Al Karama": {
+    "nameZh": "瓦哈特·卡拉马"
+  },
+  "阿布扎比::Yas Waterworld Abu Dhabi": {
+    "nameZh": "阿布扎比亚斯水世界"
+  },
+  "阿德莱德::Adelaide Central Market": {
+    "nameZh": "阿德莱德中央市场"
+  },
+  "阿德莱德::Adelaide Gaol": {
+    "nameZh": "阿德莱德监狱"
+  },
+  "阿德莱德::Adelaide Holocaust Museum and Andrew Steiner Education Centre": {
+    "nameZh": "阿德莱德大屠杀博物馆和安德鲁·施泰纳教育中心"
+  },
+  "阿德莱德::Adelaide Zoo": {
+    "nameZh": "阿德莱德动物园"
+  },
+  "阿德莱德::Hindmarsh Square": {
+    "nameZh": "欣德马什广场"
+  },
+  "阿德莱德::Holy Trinity Church, Adelaide": {
+    "nameZh": "阿德莱德圣三一教堂"
+  },
+  "阿德莱德::Queen's Theatre": {
+    "nameZh": "女王剧院"
+  },
+  "阿德莱德::Whitmore Square": {
+    "nameZh": "惠特莫尔广场"
+  },
+  "阿姆斯特丹::Amsterdam Museum": {
+    "nameZh": "阿姆斯特丹博物馆"
+  },
+  "阿姆斯特丹::Amsterdam Tulip Museum": {
+    "nameZh": "阿姆斯特丹郁金香博物馆"
+  },
+  "阿姆斯特丹::Canals of Amsterdam": {
+    "nameZh": "阿姆斯特丹运河"
+  },
+  "阿姆斯特丹::Palace": {
+    "nameZh": "宫殿"
+  },
+  "阿姆斯特丹::Rijksmuseum": {
+    "nameZh": "国立博物馆"
+  },
+  "阿姆斯特丹::Royal Palace of Amsterdam": {
+    "nameZh": "阿姆斯特丹王宫"
+  },
+  "阿姆斯特丹::Sexmuseum Amsterdam": {
+    "nameZh": "阿姆斯特丹性博物馆"
+  },
+  "阿姆斯特丹::Stedelijk Museum Amsterdam": {
+    "nameZh": "阿姆斯特丹市立博物馆"
+  },
+  "阿姆斯特丹::STRAAT Museum": {
+    "nameZh": "街头博物馆"
+  },
+  "阿姆斯特丹::Torture Museum, Amsterdam": {
+    "nameZh": "阿姆斯特丹酷刑博物馆"
+  },
+  "阿斯旺::International Museum of Nubia": {
+    "nameZh": "努比亚国际博物馆"
+  },
+  "阿斯旺::Mövenpick Resort Aswan": {
+    "nameZh": "阿斯旺瑞享度假酒店"
+  },
+  "阿斯旺::Philae Hotel": {
+    "nameZh": "菲莱酒店"
+  },
+  "阿斯旺::Pyramisa Island Aswan": {
+    "nameZh": "阿斯旺?????"
+  },
+  "阿斯旺::Temple of Isis": {
+    "nameZh": "伊西斯神庙"
+  },
+  "爱丁堡::Edinburgh Castle": {
+    "nameZh": "爱丁堡城堡"
+  },
+  "爱丁堡::Holyrood Palace": {
+    "nameZh": "荷里路德宫"
+  },
+  "爱丁堡::Museum of Childhood (Edinburgh)": {
+    "nameZh": "儿童博物馆（爱丁堡）"
+  },
+  "爱丁堡::The Meadows, Edinburgh": {
+    "nameZh": "爱丁堡草地公园"
+  },
+  "安卡拉::Maltepe Mosque": {
+    "nameZh": "马尔特佩清真寺"
+  },
+  "安卡拉::Melike Hatun Mosque": {
+    "nameZh": "梅利克·哈顿清真寺"
+  },
+  "安塔利亚::Antalya Clock Tower": {
+    "nameZh": "安塔利亚钟楼"
+  },
+  "安塔利亚::Arapsu Bridge": {
+    "nameZh": "阿拉普苏桥"
+  },
+  "安塔利亚::Hidirlik Tower": {
+    "nameZh": "希迪尔利克塔"
+  },
+  "安塔利亚::Karaalioğlu Park": {
+    "nameZh": "卡拉利奥卢公园"
+  },
+  "安塔利亚::Murat Paşa Mosque": {
+    "nameZh": "穆拉特帕夏清真寺"
+  },
+  "安塔利亚::Tekeli Mehmet Paşa Mosque": {
+    "nameZh": "泰克利·穆罕默德·帕夏清真寺"
+  },
+  "奥克兰::Auckland Art Gallery": {
+    "nameZh": "奥克兰美术馆"
+  },
+  "奥克兰::Auckland CBD": {
+    "nameZh": "奥克兰中央商务区"
+  },
+  "奥克兰::Auckland Domain": {
+    "nameZh": "奥克兰公园"
+  },
+  "奥克兰::Crowne Plaza Auckland": {
+    "nameZh": "奥克兰皇冠假日酒店"
+  },
+  "奥克兰::JW Marriott Auckland": {
+    "nameZh": "奥克兰?????"
+  },
+  "奥克兰::Old Arts Building": {
+    "nameZh": "旧艺术大楼"
+  },
+  "奥克兰::Rydges Auckland": {
+    "nameZh": "奥克兰瑞吉酒店"
+  },
+  "奥克兰::Sky Tower (Auckland)": {
+    "nameZh": "天空塔（奥克兰）"
+  },
+  "巴拉望::Museum of Palawan": {
+    "nameZh": "巴拉望博物馆"
+  },
+  "巴拉望::Plaza Cuartel": {
+    "nameZh": "兵营广场"
+  },
+  "巴厘岛::Gedong Kirtya": {
+    "nameZh": "基尔蒂亚大厦"
+  },
+  "巴厘岛::Pura Ulun Danu Tamblingan": {
+    "nameZh": "坦布林根寺"
+  },
+  "巴黎::Army Museum (Paris)": {
+    "nameZh": "陆军博物馆（巴黎）"
+  },
+  "巴黎::Île de la Cité": {
+    "nameZh": "西岱岛"
+  },
+  "巴黎::Louvre": {
+    "nameZh": "卢浮宫"
+  },
+  "巴黎::National Museum of Natural History, France": {
+    "nameZh": "法国国家自然历史博物馆"
+  },
+  "巴黎::Notre-Dame de Paris": {
+    "nameZh": "巴黎圣母院"
+  },
+  "巴黎::Paris Sewer Museum": {
+    "nameZh": "巴黎下水道博物馆"
+  },
+  "巴塞罗那::Barcelona Cathedral": {
+    "nameZh": "巴塞罗那大教堂"
+  },
+  "巴塞罗那::Gothic Quarter, Barcelona": {
+    "nameZh": "巴塞罗那哥特区"
+  },
+  "巴塞罗那::Museu Picasso": {
+    "nameZh": "毕加索博物馆"
+  },
+  "巴塞罗那::Museum of the History of Barcelona": {
+    "nameZh": "巴塞罗那历史博物馆"
+  },
+  "巴塞罗那::Park Güell": {
+    "nameZh": "古埃尔公园"
+  },
+  "巴塞罗那::Santa Maria del Mar, Barcelona": {
+    "nameZh": "巴塞罗那?????"
+  },
+  "巴西利亚::Brasília Planetarium": {
+    "nameZh": "巴西利亚天文馆"
+  },
+  "巴西利亚::Cathedral of Brasília": {
+    "nameZh": "巴西利亚大教堂"
+  },
+  "巴西利亚::Conjunto Nacional (Brasília)": {
+    "nameZh": "国家联合体（巴西利亚）"
+  },
+  "巴西利亚::Juscelino Kubitschek bridge": {
+    "nameZh": "尤斯切利诺·库比契克桥"
+  },
+  "芭提雅::All Saints church": {
+    "nameZh": "诸圣教堂"
+  },
+  "芭提雅::Khao Kheow Open Zoo": {
+    "nameZh": "考凯奥开放式动物园"
+  },
+  "芭提雅::Mike Shopping Mall": {
+    "nameZh": "迈克购物中心"
+  },
+  "芭提雅::Wat Chong Lom Na Kluea": {
+    "nameZh": "芭提雅?????"
+  },
+  "芭提雅::Wat Phothi Samphan": {
+    "nameZh": "瓦普提桑潘"
+  },
+  "芭提雅::Wat Yansangwararam": {
+    "nameZh": "瓦扬桑瓦拉兰"
+  },
+  "柏林::Berlin Cathedral": {
+    "nameZh": "柏林大教堂"
+  },
+  "柏林::Berlin Palace": {
+    "nameZh": "柏林宫"
+  },
+  "柏林::Checkpoint Charlie": {
+    "nameZh": "查理检查站"
+  },
+  "柏林::Egyptian Museum of Berlin": {
+    "nameZh": "柏林埃及博物馆"
+  },
+  "柏林::Fernsehturm Berlin": {
+    "nameZh": "柏林电视塔"
+  },
+  "柏林::Jewish Museum Berlin": {
+    "nameZh": "柏林犹太博物馆"
+  },
+  "柏林::Museum für Naturkunde Berlin": {
+    "nameZh": "柏林自然历史博物馆"
+  },
+  "柏林::Museum Island": {
+    "nameZh": "博物馆岛"
+  },
+  "柏林::National Historic Landmark": {
+    "nameZh": "国家历史地标"
+  },
+  "柏林::Pergamon Museum": {
+    "nameZh": "佩加蒙博物馆"
+  },
+  "班加罗尔::Bengaluru Fort": {
+    "nameZh": "班加罗尔堡"
+  },
+  "班加罗尔::Dharmaraya Swamy Temple": {
+    "nameZh": "达摩罗耶斯瓦米神庙"
+  },
+  "班加罗尔::Dodda Ganeshana Gudi": {
+    "nameZh": "多达·加内沙纳·古迪"
+  },
+  "班加罗尔::Gavi Gangadhareshwara Temple": {
+    "nameZh": "加维·甘加达雷什瓦拉神庙"
+  },
+  "班加罗尔::Halasuru Someshwara Temple, Bangalore": {
+    "nameZh": "班加罗尔哈拉苏鲁萨梅什瓦拉寺"
+  },
+  "班加罗尔::Lalbagh Botanical Garden, Bangalore": {
+    "nameZh": "班加罗尔拉尔巴格植物园"
+  },
+  "班加罗尔::Masjid-e-Bilal": {
+    "nameZh": "比拉尔清真寺"
+  },
+  "班加罗尔::Visvesvaraya Industrial and Technological Museum": {
+    "nameZh": "维斯韦斯瓦拉亚工业技术博物馆"
+  },
+  "槟城::Dham庙": {
+    "nameZh": "达姆庙"
+  },
+  "槟城::Lebuh Aceh Mosque": {
+    "nameZh": "亚齐清真寺路"
+  },
+  "槟城::Sri Mahamariamman Temple, Penang": {
+    "nameZh": "槟城斯里玛哈玛丽安曼兴都庙"
+  },
+  "波尔多::Bordeaux Cathedral": {
+    "nameZh": "波尔多大教堂"
+  },
+  "波尔多::Grand Théâtre de Bordeaux": {
+    "nameZh": "波尔多大剧院"
+  },
+  "波尔多::Musée d'Aquitaine": {
+    "nameZh": "阿基坦博物馆"
+  },
+  "波尔多::Musée des Beaux-Arts de Bordeaux": {
+    "nameZh": "波尔多美术博物馆"
+  },
+  "波尔多::Pont Jacques-Chaban-Delmas": {
+    "nameZh": "雅克·沙邦·德尔马斯桥"
+  },
+  "波尔多::Tour Pey-Berland": {
+    "nameZh": "佩伯兰之旅"
+  },
+  "波尔图::Maria Pia Bridge": {
+    "nameZh": "玛丽亚·皮亚桥"
+  },
+  "波尔图::Miragaia": {
+    "nameZh": "米拉加亚"
+  },
+  "波尔图::Rua da Junqueira": {
+    "nameZh": "琼奎拉街"
+  },
+  "波尔图::Soares dos Reis National Museum": {
+    "nameZh": "苏亚雷斯·杜斯雷斯国家博物馆"
+  },
+  "伯明翰::Barber Institute of Fine Arts": {
+    "nameZh": "巴伯美术学院"
+  },
+  "伯明翰::Birmingham Museum and Art Gallery": {
+    "nameZh": "伯明翰博物馆和美术馆"
+  },
+  "伯明翰::Darul Barakaat Mosque": {
+    "nameZh": "没有必要为清真寺祈福。"
+  },
+  "伯明翰::Mac, Birmingham": {
+    "nameZh": "麦克，伯明翰"
+  },
+  "伯明翰::Mailbox Birmingham": {
+    "nameZh": "伯明翰邮箱"
+  },
+  "伯明翰::Shree Geeta Bhawan": {
+    "nameZh": "伯明翰?????"
+  },
+  "伯明翰::Wheel of Birmingham": {
+    "nameZh": "伯明翰之轮"
+  },
+  "布里斯班::Albert Street Uniting Church": {
+    "nameZh": "阿尔伯特街联合教会"
+  },
+  "布里斯班::Aurora Tower": {
+    "nameZh": "极光塔"
+  },
+  "布里斯班::Gallery of Modern Art, Brisbane": {
+    "nameZh": "布里斯班现代艺术馆"
+  },
+  "布里斯班::Goodwill Bridge": {
+    "nameZh": "善意桥"
+  },
+  "布里斯班::Howard Smith Wharves": {
+    "nameZh": "霍华德史密斯码头"
+  },
+  "布里斯班::Museum of Brisbane": {
+    "nameZh": "布里斯班博物馆"
+  },
+  "布里斯班::Uptown": {
+    "nameZh": "上城区"
+  },
+  "布里斯托::Bristol Bridge": {
+    "nameZh": "布里斯托尔桥"
+  },
+  "布里斯托::Bristol Old Vic": {
+    "nameZh": "布里斯托老维克"
+  },
+  "布里斯托::Bristol Zoo": {
+    "nameZh": "布里斯托尔动物园"
+  },
+  "布里斯托::Clifton Cathedral": {
+    "nameZh": "克利夫顿大教堂"
+  },
+  "布里斯托::M Shed": {
+    "nameZh": "布里斯托历史博物馆"
+  },
+  "布里斯托::Temple Church, Bristol": {
+    "nameZh": "布里斯托尔圣殿教堂"
+  },
+  "布里斯托::University of Bristol Theatre Collection": {
+    "nameZh": "布里斯托大学戏剧收藏"
+  },
+  "布宜诺斯艾利斯::Buenos Aires Metropolitan Cathedral": {
+    "nameZh": "布宜诺斯艾利斯大都会大教堂"
+  },
+  "布宜诺斯艾利斯::Cabildo of Buenos Aires": {
+    "nameZh": "布宜诺斯艾利斯市议会"
+  },
+  "布宜诺斯艾利斯::Café Tortoni": {
+    "nameZh": "托尔托尼咖啡"
+  },
+  "布宜诺斯艾利斯::Obelisco de Buenos Aires": {
+    "nameZh": "布宜诺斯艾利斯方尖碑"
+  },
+  "布宜诺斯艾利斯::San Telmo, Buenos Aires": {
+    "nameZh": "圣特尔莫，布宜诺斯艾利斯"
+  },
+  "达沃::Davao River Bridge": {
+    "nameZh": "达沃河大桥"
+  },
+  "达沃::Monfort Bat Sanctuary": {
+    "nameZh": "蒙福特蝙蝠保护区"
+  },
+  "大阪::阿倍野Harukas": {
+    "nameZh": "阿倍野遥"
+  },
+  "迪拜::HHHR大厦": {
+    "nameZh": "大厦"
+  },
+  "东京::Mode学园虫茧大厦": {
+    "nameZh": "学园虫茧大厦"
+  },
+  "都柏林::Malahide Castle": {
+    "nameZh": "马拉海德城堡"
+  },
+  "都柏林::River Poddle": {
+    "nameZh": "波德尔河"
+  },
+  "都柏林::Spire of Dublin": {
+    "nameZh": "都柏林尖塔"
+  },
+  "都柏林::Temple Bar, Dublin": {
+    "nameZh": "都柏林圣殿酒吧区"
+  },
+  "多伦多::Art Gallery of Ontario": {
+    "nameZh": "安大略美术馆"
+  },
+  "多伦多::Museum of Contemporary Art Toronto Canada": {
+    "nameZh": "加拿大多伦多当代艺术博物馆"
+  },
+  "多伦多::Roundhouse Park": {
+    "nameZh": "圆形屋公园"
+  },
+  "多伦多::Toronto Eaton Centre": {
+    "nameZh": "多伦多伊顿中心"
+  },
+  "法兰克福::Caricatura Museum Frankfurt": {
+    "nameZh": "法兰克福漫画博物馆"
+  },
+  "法兰克福::Goethe House": {
+    "nameZh": "歌德之家"
+  },
+  "法兰克福::Historical Museum, Frankfurt": {
+    "nameZh": "法兰克福历史博物馆"
+  },
+  "法兰克福::New Frankfurt Old Town": {
+    "nameZh": "新法兰克福老城"
+  },
+  "法兰克福::Oper Frankfurt": {
+    "nameZh": "法兰克福歌剧院"
+  },
+  "法兰克福::Waldstadion (Frankfurt)": {
+    "nameZh": "瓦尔德体育场（法兰克福）"
+  },
+  "法鲁::Algarve": {
+    "nameZh": "阿尔加维"
+  },
+  "法鲁::Barreta Island": {
+    "nameZh": "巴雷塔岛"
+  },
+  "法鲁::Ermida de Nossa Senhora da Esperança": {
+    "nameZh": "希望圣母小堂"
+  },
+  "法鲁::Estoi Palace": {
+    "nameZh": "埃斯托伊宫"
+  },
+  "法鲁::Igreja de São Pedro, matriz de São Pedro": {
+    "nameZh": "圣彼得教堂，圣彼得教区教堂"
+  },
+  "法鲁::Igreja e Convento da Ordem Terceira de São Francisco": {
+    "nameZh": "圣方济各第三会教堂和修道院"
+  },
+  "法鲁::Ria Formosa": {
+    "nameZh": "福尔摩沙河"
+  },
+  "法鲁::Teatro Lethes, Faro": {
+    "nameZh": "莱特斯剧院，法罗"
+  },
+  "法鲁::Vilamoura": {
+    "nameZh": "维拉摩拉"
+  },
+  "非斯::Al-Bayda Mosque": {
+    "nameZh": "阿尔贝达清真寺"
+  },
+  "非斯::Al-Diwan Mosque": {
+    "nameZh": "迪万清真寺"
+  },
+  "非斯::Bou Jeloud Mosque": {
+    "nameZh": "布杰卢德清真寺"
+  },
+  "非斯::Lalla Jemaa El-Zehar Mosque": {
+    "nameZh": "拉拉·杰马·埃尔-泽哈尔清真寺"
+  },
+  "弗洛里亚诺波利斯::Colombo Salles Bridge": {
+    "nameZh": "科伦坡萨勒斯桥"
+  },
+  "弗洛里亚诺波利斯::Florianópolis Museum": {
+    "nameZh": "弗洛里亚诺波利斯博物馆"
+  },
+  "弗洛里亚诺波利斯::Hercilio Luz Bridge": {
+    "nameZh": "埃尔西利奥·卢斯桥"
+  },
+  "弗洛里亚诺波利斯::Palácio Cruz e Sousa": {
+    "nameZh": "克鲁兹·索萨宫"
+  },
+  "弗洛里亚诺波利斯::Santa Catarina Art Museum": {
+    "nameZh": "圣卡塔琳娜艺术博物馆"
+  },
+  "弗洛里亚诺波利斯::Santa Catarina's Historical Museum": {
+    "nameZh": "圣卡塔琳娜历史博物馆"
+  },
+  "佛罗伦萨::Bargello": {
+    "nameZh": "巴杰罗"
+  },
+  "佛罗伦萨::Florence Cathedral": {
+    "nameZh": "佛罗伦萨大教堂"
+  },
+  "福冈::Sōfuku-ji Temple": {
+    "nameZh": "宗福寺"
+  },
+  "釜山::海云台 I'Park": {
+    "nameZh": "海云台 '"
+  },
+  "釜山::Oryukdo": {
+    "nameZh": "兰花"
+  },
+  "富国岛::Dương Đông Lighthouse": {
+    "nameZh": "阳东灯塔"
+  },
+  "富国岛::Sao 海滩": {
+    "nameZh": "海滩"
+  },
+  "戈尔韦::Cathedral of Our Lady Assumed into Heaven and St Nicholas, Galway": {
+    "nameZh": "戈尔韦圣母升天及圣尼古拉斯主教座堂"
+  },
+  "戈尔韦::Eamonn Deacy Park": {
+    "nameZh": "埃蒙·迪西公园"
+  },
+  "戈尔韦::Galway City Museum": {
+    "nameZh": "戈尔韦市博物馆"
+  },
+  "戈尔韦::monument to Christopher Columbus": {
+    "nameZh": "克里斯托弗·哥伦布纪念碑"
+  },
+  "戈尔韦::Pálás cinema": {
+    "nameZh": "电影宫"
+  },
+  "戈尔韦::Spanish Arch": {
+    "nameZh": "西班牙拱门"
+  },
+  "戈尔韦::The Spanish Arch": {
+    "nameZh": "西班牙拱门"
+  },
+  "戈尔韦::Town Hall Theatre": {
+    "nameZh": "市政厅剧院"
+  },
+  "哥打京那巴鲁::Malaysia Monument": {
+    "nameZh": "马来西亚纪念碑"
+  },
+  "哥打京那巴鲁::Sacred Heart Cathedral, Kota Kinabalu": {
+    "nameZh": "圣心主教座堂，亚庇"
+  },
+  "瓜达拉哈拉::Antimonumenta": {
+    "nameZh": "反纪念碑"
+  },
+  "瓜达拉哈拉::Guadalajara Cathedral": {
+    "nameZh": "瓜达拉哈拉大教堂"
+  },
+  "瓜达拉哈拉::Guadalajara Zoo": {
+    "nameZh": "瓜达拉哈拉动物园"
+  },
+  "瓜达拉哈拉::Rotonda de los Jaliscienses Ilustres": {
+    "nameZh": "显赫的贾利斯人圆形大厅"
+  },
+  "瓜达拉哈拉::Roundabout of the disappeared": {
+    "nameZh": "消失者的环岛"
+  },
+  "瓜达拉哈拉::Teatro Diana": {
+    "nameZh": "戴安娜剧院"
+  },
+  "瓜达拉哈拉::Templo de Jesús María": {
+    "nameZh": "耶稣圣殿玛利亚"
+  },
+  "瓜达拉哈拉::Templo de Nuestra Señora del Carmen": {
+    "nameZh": "加尔默罗山圣母堂"
+  },
+  "瓜达拉哈拉::Templo de Santa Teresa de Jesús": {
+    "nameZh": "圣特蕾莎耶稣圣殿"
+  },
+  "瓜达拉哈拉::Zapopan": {
+    "nameZh": "萨波潘"
+  },
+  "果阿::Archaeological Museum and Portrait Gallery": {
+    "nameZh": "考古博物馆和肖像画廊"
+  },
+  "果阿::Fort of São Tiago of Banastarim": {
+    "nameZh": "巴纳斯塔林圣蒂亚戈堡"
+  },
+  "果阿::Goa Science Centre": {
+    "nameZh": "果阿科学中心"
+  },
+  "果阿::Goa State Museum": {
+    "nameZh": "果阿邦立博物馆"
+  },
+  "果阿::Our Lady of the Immaculate Conception Church": {
+    "nameZh": "圣母无染原罪堂"
+  },
+  "果阿::Shanta Durga Temple": {
+    "nameZh": "香塔杜尔迦神庙"
+  },
+  "果阿::The Taj Exotica Hotel & Resort": {
+    "nameZh": "泰姬异域酒店及度假村"
+  },
+  "哈尔施塔特::Dachstein glacier": {
+    "nameZh": "达赫斯坦冰川"
+  },
+  "哈尔施塔特::Ebensee am Traunsee": {
+    "nameZh": "特劳恩湖畔的埃本塞"
+  },
+  "海牙::Buitenhof (The Hague)": {
+    "nameZh": "布伊滕霍夫（海牙）"
+  },
+  "海牙::Fotomuseum Den Haag": {
+    "nameZh": "海牙摄影博物馆"
+  },
+  "海牙::Grote or Sint-Jacobskerk (The Hague)": {
+    "nameZh": "海牙大雅各教堂或圣雅各教堂"
+  },
+  "海牙::International Court of Justice": {
+    "nameZh": "国际法院"
+  },
+  "海牙::Kunstmuseum Den Haag": {
+    "nameZh": "海牙艺术博物馆"
+  },
+  "海牙::Madurodam": {
+    "nameZh": "马德罗丹"
+  },
+  "海牙::Miniature park": {
+    "nameZh": "微缩公园"
+  },
+  "海牙::Palace": {
+    "nameZh": "宫殿"
+  },
+  "海牙::Peace Palace": {
+    "nameZh": "和平宫"
+  },
+  "海牙::Plein, The Hague": {
+    "nameZh": "海牙普莱因"
+  },
+  "汉堡::Bombing of Hamburg in World War II": {
+    "nameZh": "二战期间汉堡遭轰炸"
+  },
+  "汉堡::Hamburger Kunsthalle": {
+    "nameZh": "汉堡美术馆"
+  },
+  "汉堡::Rathausmarkt": {
+    "nameZh": "市政厅市场"
+  },
+  "汉堡::Speicherstadt": {
+    "nameZh": "施佩希尔施塔特"
+  },
+  "汉堡::St. Michael's Church, Hamburg": {
+    "nameZh": "汉堡圣米迦勒教堂"
+  },
+  "汉堡::St. Nicholas Church, Hamburg": {
+    "nameZh": "汉堡圣尼古拉斯教堂"
+  }
+}

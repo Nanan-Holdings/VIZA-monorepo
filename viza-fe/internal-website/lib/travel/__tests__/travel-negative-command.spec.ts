@@ -443,7 +443,7 @@ describe("Travel Agent server coordinator", () => {
 
     expect(response.status).toBe(200);
     expect(testState.openAIRequests[0].model).toBe("gpt-5.6-luna");
-    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.cards).toHaveLength(2);
     expect(body.state.cities).toEqual([]);
     expect(body.state.countries).toEqual([]);
     expect(body.applied_operations).toEqual([]);

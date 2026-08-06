@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   clearIndonesiaCardSessions,
   consumeIndonesiaCardSession,
+  discardIndonesiaCardSession,
   hasIndonesiaCardSessions,
   peekIndonesiaCardSession,
   putIndonesiaCardSession,
@@ -45,6 +46,24 @@ test("id.card-session: consume returns the card once and deletes it", () => {
   const card = consumeIndonesiaCardSession("app_456", 2_001);
   assert.equal(card?.cvv, "999");
   assert.equal(consumeIndonesiaCardSession("app_456", 2_002), null);
+});
+
+test("id.card-session: discard deletes an unused card without exposing it", () => {
+  clearIndonesiaCardSessions();
+  putIndonesiaCardSession({
+    applicationId: "app_discard",
+    referenceTimeMs: 2_000,
+    card: {
+      pan: "5555555555554444",
+      expiry: "01/2031",
+      cvv: "999",
+      holderName: "CARD HOLDER",
+    },
+  });
+
+  assert.equal(discardIndonesiaCardSession("app_discard", 2_001), true);
+  assert.equal(peekIndonesiaCardSession("app_discard", 2_002), null);
+  assert.equal(discardIndonesiaCardSession("app_discard", 2_003), false);
 });
 
 test("id.card-session: expired sessions are unavailable", () => {
