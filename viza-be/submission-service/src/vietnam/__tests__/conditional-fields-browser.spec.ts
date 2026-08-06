@@ -827,6 +827,44 @@ test("vn.conditional-fields browser: scopes an id-less Vietnamese nationality ra
   }
 });
 
+test("vn.conditional-fields browser: scopes current id-less Vietnamese question copy", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const cases = [
+    [
+      "basic_ttcnDaDungHcKhacVaoVn",
+      "other-passports",
+      "Người đề nghị cấp thị thực điện tử đã từng sử dụng hộ chiếu khác để nhập cảnh Việt Nam hay không?",
+    ],
+    [
+      "basic_ttcdCoCqTcCaNhanLienHe",
+      "contact",
+      "Cơ quan, tổ chức, cá nhân dự kiến liên hệ khi vào Việt Nam",
+    ],
+    ["basic_ttcdCoThanNhan", "relative", "Người đề nghị cấp thị thực điện tử có người thân đang ở Việt Nam hay không?"],
+  ] as const;
+  try {
+    await page.setContent(cases.map(([, name, question]) => `
+      <div class="pt-5 border-b">
+        <div class="ant-col ant-col-24 flex justify-between pb-5">
+          <div>${question}</div>
+          <div class="ant-radio-group">
+            <label class="ant-radio-wrapper"><input type="radio" name="${name}" value="yes" /><span>Có</span></label>
+            <label class="ant-radio-wrapper"><input type="radio" name="${name}" value="no" /><span>Không</span></label>
+          </div>
+        </div>
+      </div>
+    `).join(""));
+
+    for (const [domId, name] of cases) {
+      await pickRadio(page, domId, "No");
+      assert.equal(await page.locator(`input[name="${name}"][value="no"]`).isChecked(), true, domId);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 function renderIdlessQuestion(question: string, tableId: string): string {
   return `
     <div class="pt-5 border-b" data-question="${tableId}">
