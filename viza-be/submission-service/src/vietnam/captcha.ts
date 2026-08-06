@@ -65,7 +65,10 @@ function readPositiveIntEnv(name: string, fallback: number): number {
 export function getVietnamCaptchaTimeoutMs(timeoutMs?: number): number {
   const configured = readPositiveIntEnv("VN_CAPTCHA_TIMEOUT_MS", DEFAULT_VN_CAPTCHA_TIMEOUT_MS);
   if (!Number.isFinite(timeoutMs ?? NaN) || (timeoutMs ?? 0) <= 0) return configured;
-  return Math.max(timeoutMs ?? configured, configured);
+  // Callers pass the remaining step/flow budget. Treat the environment value
+  // as the normal solver ceiling, never as a floor that silently expands a
+  // smaller caller deadline (120s used to become 180s here).
+  return Math.min(timeoutMs ?? configured, configured);
 }
 
 export function shouldSolveVietnamCaptcha(): boolean {
@@ -144,7 +147,11 @@ export async function solveVietnamImageCaptcha(
   const { input, image } = controls;
 
   let lastReason = "unknown CAPTCHA error";
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  // The owning portal flow already refreshes and retries rejected/stale
+  // challenges. Default to one provider task here so retries are not
+  // multiplied by another hidden three-attempt loop.
+  const maxSolverAttempts = readPositiveIntEnv("VN_CAPTCHA_SOLVER_ATTEMPTS", 1);
+  for (let attempt = 1; attempt <= maxSolverAttempts; attempt++) {
     try {
       const imageBuffer = await image.screenshot({ timeout: Math.min(solveTimeoutMs, 30_000) });
       const challengeFingerprint = fingerprintVietnamCaptchaImage(imageBuffer);
@@ -180,7 +187,7 @@ export async function solveVietnamImageCaptcha(
       };
     } catch (error) {
       lastReason = describeVietnamCaptchaError(error);
-      if (!isVietnamCaptchaFailureRetryable(lastReason) || attempt === 3) {
+      if (!isVietnamCaptchaFailureRetryable(lastReason) || attempt === maxSolverAttempts) {
         break;
       }
       if (/ERROR_CAPTCHA_UNSOLVABLE|unsolvable/i.test(lastReason)) {
@@ -213,7 +220,11 @@ export async function submitVietnamCaptchaAnswer(
     page,
     Math.min(timeoutMs, CAPTCHA_INPUT_WAIT_MS),
   );
-  if (!controls) return false;
+  if (!controls) {
+    const diagnostics = await describeVietnamCaptchaDom(page);
+    console.warn(`[vn] CAPTCHA submit input not found. ${diagnostics}`);
+    return false;
+  }
   const inputBox = await controls.input.boundingBox().catch(() => null);
   const candidates = controls.root.locator(
     "button, input[type='submit'], input[type='button'], [role='button'], a",
@@ -275,6 +286,9 @@ export async function submitVietnamCaptchaAnswer(
         .then(() => true)
         .catch(() => false);
   await page.waitForTimeout(Math.min(timeoutMs, 5_000));
+  if (!clicked && !domClicked && !enterSubmitted) {
+    console.warn(`[vn] CAPTCHA submit control was not activated (candidates=${count}, matched=${Boolean(best)}).`);
+  }
   return clicked || domClicked || enterSubmitted;
 }
 
@@ -463,11 +477,21 @@ async function locateVietnamCaptchaInputControls(
       const exactInput = await firstUsableInput(root.locator(CAPTCHA_INPUT_SELECTOR));
       if (exactInput) return { root, input: exactInput };
 
-      if (!(await rootHasVisibleCaptchaDialog(root))) continue;
+      // The review checkpoint currently renders an inline generic text input:
+      // it has no captcha-related name/id/placeholder and is not inside a
+      // dialog. The solve path can find it from the adjacent CAPTCHA image,
+      // but the old submit path could not re-resolve it after filling, so every
+      // otherwise-successful 2captcha answer was discarded without a click.
+      const challengeVisible =
+        Boolean(await firstVisible(root.locator(CAPTCHA_IMAGE_SELECTOR))) ||
+        await rootHasVisibleCaptchaDialog(root);
+      if (!challengeVisible) continue;
       const genericInput = await firstUsableInput(
         root.locator("input:not([type]), input[type='text'], input[type='search'], textarea"),
       );
-      if (genericInput) return { root, input: genericInput };
+      if (!genericInput) continue;
+      const image = await locateVietnamCaptchaImage(root, genericInput);
+      if (image) return { root, input: genericInput };
     }
     if (Date.now() < deadline) await page.waitForTimeout(250);
   } while (Date.now() < deadline);
