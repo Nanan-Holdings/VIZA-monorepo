@@ -18,8 +18,10 @@ import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
 import {
   captureVietnamCaptchaFingerprint,
+  isVietnamCaptchaFailureRetryable,
   reportRejectedVietnamCaptcha,
   solveVietnamImageCaptcha,
+  submitVietnamCaptchaAnswer,
   waitForVietnamCaptchaRefresh,
   type VietnamCaptchaSolveOutcome,
 } from "./captcha";
@@ -467,8 +469,9 @@ async function fillVietnamApplicationOnce(
     lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
     const reviewState = classifyVietnamPortalSnapshot(lastSnapshot);
     let stateAfterCaptcha = reviewState;
+    let lastReviewCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
     if (stateAfterCaptcha === "captcha_visible") {
-      const maxReviewCaptchaAttempts = readPositiveInt(process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS, 3);
+      const maxReviewCaptchaAttempts = readPositiveInt(process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS, 5);
       for (let attempt = 1; attempt <= maxReviewCaptchaAttempts && stateAfterCaptcha === "captcha_visible"; attempt++) {
         if (attempt > 1) {
           await refreshVietnamReviewCaptcha(page);
@@ -478,6 +481,7 @@ async function fillVietnamApplicationOnce(
         const captchaOutcome = await solveVietnamImageCaptcha(page, Math.min(stepTimeoutMs, 120_000));
         captchaSolves.push(captchaOutcome);
         if (!captchaOutcome.solved) {
+          lastReviewCaptchaReason = captchaOutcome.reason ?? "unknown CAPTCHA error";
           const recoverySnapshot = await readVietnamPortalSnapshot(
             page,
             failedRequests.length,
@@ -490,20 +494,12 @@ async function fillVietnamApplicationOnce(
               break;
             }
           }
-          return {
-            status: "action_required",
-            runId,
-            actionType: "captcha_required",
-            checkpoint: "captcha_visible",
-            instruction:
-              `The official Vietnam e-Visa portal is showing a CAPTCHA, but automatic solving failed: ${captchaOutcome.reason ?? "unknown CAPTCHA error"}`,
-            url: page.url(),
-            diagnostics: diagnostics(),
-          };
+          if (!isVietnamCaptchaFailureRetryable(captchaOutcome.reason)) break;
+          continue;
         }
         await emitProgress("captcha_submitted");
         const captchaSubmitted = await withTimeout(
-          submitReviewCaptchaAndWait(page, stepTimeoutMs),
+          submitVietnamCaptchaAnswer(page, Math.min(stepTimeoutMs, 10_000)),
           Math.min(stepTimeoutMs, 55_000),
           false,
         );
@@ -531,7 +527,10 @@ async function fillVietnamApplicationOnce(
         lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
         if (captchaSubmitted && stateAfterCaptcha === "captcha_visible") {
+          lastReviewCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
           await reportRejectedVietnamCaptcha(captchaOutcome);
+        } else if (!captchaSubmitted && stateAfterCaptcha === "captcha_visible") {
+          lastReviewCaptchaReason = "VIZA could not activate the official CAPTCHA verification control.";
         }
       }
     }
@@ -556,12 +555,14 @@ async function fillVietnamApplicationOnce(
     }
     if (stateAfterCaptcha === "captcha_visible" && !registrationCode) {
       return {
-        status: "action_required",
+        status: "failed",
         runId,
-        actionType: "captcha_required",
+        failedStep: "captcha_visible",
+        error: {
+          code: "captcha_automatic_failed",
+          message: `Automatic Vietnam CAPTCHA processing exhausted its retry budget: ${lastReviewCaptchaReason}`,
+        },
         checkpoint: "captcha_visible",
-        instruction:
-          "The official Vietnam e-Visa portal stayed on the security-code step after the CAPTCHA answer was submitted. Retry with a refreshed CAPTCHA or complete the security code manually.",
         url: page.url(),
         diagnostics: diagnostics(),
       };
@@ -941,39 +942,61 @@ async function reachVietnamFormCheckpoint(
     }
 
     if (state === "captcha_visible") {
-      await options.onStage("captcha_solving");
-      const outcome = await solveVietnamImageCaptcha(page, Math.min(options.stepTimeoutMs, 120_000));
-      options.onCaptchaSolved(outcome);
-      if (!outcome.solved) {
+      const maxCaptchaAttempts = readPositiveInt(process.env.VN_CAPTCHA_MAX_ATTEMPTS, 5);
+      let lastCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
+      for (let attempt = 1; attempt <= maxCaptchaAttempts && state === "captcha_visible"; attempt++) {
+        if (attempt > 1) {
+          await refreshVietnamReviewCaptcha(page).catch(() => false);
+          await page.waitForTimeout(750);
+        }
+        await options.onStage("captcha_solving");
+        const outcome = await solveVietnamImageCaptcha(page, Math.min(options.stepTimeoutMs, 120_000));
+        options.onCaptchaSolved(outcome);
+        if (!outcome.solved) {
+          lastCaptchaReason = outcome.reason ?? "unknown CAPTCHA error";
+          if (!isVietnamCaptchaFailureRetryable(outcome.reason)) break;
+          continue;
+        }
+
+        await options.onStage("captcha_submitted");
+        const submitted = await submitVietnamCaptchaAnswer(page, Math.min(options.stepTimeoutMs, 10_000));
+        const checkpoint = await waitForVietnamPortalCheckpoint(
+          page,
+          [
+            "form_ready",
+            "note_modal_required",
+            "captcha_required",
+            "upload_required",
+            "payment_required",
+            "final_submit_required",
+            "official_portal_error",
+            "layout_changed",
+          ],
+          {
+            timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
+            failedRequestCount: options.failedRequestCount,
+            mainRequestFailed: options.mainRequestFailed,
+            onSnapshot: options.onSnapshot,
+          },
+        );
+        state = checkpoint.state;
+        await options.onStage(`official_checkpoint:${state}`);
+        if (state === "captcha_visible") {
+          lastCaptchaReason = submitted
+            ? "The official portal rejected the automatic CAPTCHA answer."
+            : "VIZA could not activate the official CAPTCHA verification control.";
+          await reportRejectedVietnamCaptcha(outcome);
+        }
+      }
+
+      if (state === "captcha_visible") {
         return {
-          kind: "action_required",
-          actionType: "captcha_required",
+          kind: "failed",
           checkpoint: state,
-          instruction:
-            `The official Vietnam e-Visa portal is showing a CAPTCHA, but automatic solving failed: ${outcome.reason ?? "unknown CAPTCHA error"}`,
+          errorCode: "captcha_automatic_failed",
+          reason: `Automatic Vietnam CAPTCHA processing exhausted its retry budget: ${lastCaptchaReason}`,
         };
       }
-      await options.onStage("captcha_submitted");
-      const checkpoint = await waitForVietnamPortalCheckpoint(
-        page,
-        [
-          "form_ready",
-          "note_modal_required",
-          "upload_required",
-          "payment_required",
-          "final_submit_required",
-          "official_portal_error",
-          "layout_changed",
-        ],
-        {
-          timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
-          failedRequestCount: options.failedRequestCount,
-          mainRequestFailed: options.mainRequestFailed,
-          onSnapshot: options.onSnapshot,
-        },
-      );
-      state = checkpoint.state;
-      await options.onStage(`official_checkpoint:${state}`);
       continue;
     }
 
@@ -1581,56 +1604,6 @@ async function advanceToReview(page: Page, timeoutMs: number): Promise<void> {
   if (!clicked) return;
   await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 30_000) }).catch(() => undefined);
   await page.waitForTimeout(2_000);
-}
-
-async function submitReviewCaptchaAndWait(page: Page, timeoutMs: number): Promise<boolean> {
-  const target = await page
-    .evaluate(() => {
-      const visible = (element: Element | null): element is HTMLElement => {
-        if (!element) return false;
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-      };
-      const captchaInput = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
-        .filter(visible)
-        .find((input) => /captcha|security code|mã xác nhận|ma xac nhan/i.test(`${input.placeholder} ${input.name} ${input.id} ${input.className}`));
-      const inputRect = captchaInput?.getBoundingClientRect();
-      const candidates = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-        .filter(visible)
-        .filter((button) => !button.disabled && button.getAttribute("aria-disabled") !== "true")
-        .filter((button) => /^(next|continue|tiếp tục)$/i.test((button.innerText || button.textContent || "").replace(/\s+/g, " ").trim()))
-        .map((button) => {
-          const rect = button.getBoundingClientRect();
-          const distance = inputRect
-            ? Math.abs(rect.top - inputRect.bottom) + Math.abs(rect.left - inputRect.left)
-            : rect.top;
-          return { button, distance };
-        })
-        .sort((left, right) => left.distance - right.distance);
-      const button = candidates[0]?.button;
-      if (!button) return null;
-      button.scrollIntoView({ block: "center" });
-      const rect = button.getBoundingClientRect();
-      return {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
-    })
-    .catch(() => null);
-  if (target) {
-    await page.mouse.click(target.x, target.y).catch(async () => {
-      await page.evaluate(({ x, y }) => {
-        const element = document.elementFromPoint(x, y) as HTMLElement | null;
-        element?.click();
-      }, target);
-    });
-  }
-  // The Vietnam portal often keeps analytics/API requests open after the
-  // security-code submit. Waiting for networkidle can pin the worker at
-  // captcha_submitted even when the page has already advanced to payment.
-  await page.waitForTimeout(Math.min(timeoutMs, 5_000));
-  return Boolean(target);
 }
 
 async function refreshVietnamReviewCaptcha(page: Page): Promise<boolean> {

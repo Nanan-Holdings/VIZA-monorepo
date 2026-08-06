@@ -1952,6 +1952,8 @@ export default function ApplicationPage() {
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
   const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
   const isIndonesiaEVisa = isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType);
+  const preserveIndonesiaReview =
+    isIndonesiaEVisa || isIndonesiaEVisaApplication(explicitCountry, requestedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
@@ -2249,6 +2251,10 @@ export default function ApplicationPage() {
   });
   const showReviewAlongsideSubmissionStatus = shouldShowReviewAlongsideSubmissionStatus({
     submissionResultStatus: appState.submissionResultStatus,
+    // Indonesia B1/C1 can remain at a payment/account checkpoint for an
+    // extended period. Keep the saved application review visible beside the
+    // live status so an applicant can always audit what VIZA is using.
+    preserveReview: preserveIndonesiaReview,
   });
 
   useEffect(() => {
@@ -3690,7 +3696,10 @@ export default function ApplicationPage() {
                         {/* Dynamic review step */}
                         {step.id === reviewStepIndex && appState.applicationId && (
                           showSubmissionStatusStep ? (
-                            <div className="flex flex-col gap-6">
+                            <div
+                              className="flex flex-col gap-6"
+                              data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
+                            >
                               {showReviewAlongsideSubmissionStatus ? (
                                 <DynamicReviewStep
                                   applicationId={appState.applicationId}
@@ -3820,7 +3829,10 @@ export default function ApplicationPage() {
                         )}
                         {step.id === fallbackReviewStepIndex && (
                           showSubmissionStatusStep ? (
-                            <div className="flex flex-col gap-6">
+                            <div
+                              className="flex flex-col gap-6"
+                              data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
+                            >
                               {showReviewAlongsideSubmissionStatus ? (
                                 <ReviewStep
                                   applicationId={appState.applicationId ?? ""}

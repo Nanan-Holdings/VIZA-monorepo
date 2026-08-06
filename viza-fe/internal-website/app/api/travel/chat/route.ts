@@ -18,7 +18,7 @@ import { nextMissingField, type TravelField } from "@/lib/travel/planner";
 import type { Json } from "@/types/database";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-const TRAVEL_AGENT_MODEL = "gpt-5.6-sol";
+const TRAVEL_AGENT_MODEL = "gpt-5.6-luna";
 const TRAVEL_AGENT_FALLBACK_MODEL = "gpt-5.5";
 const TRAVEL_AGENT_OPENAI_TIMEOUT_MS = 60_000;
 const MAX_USER_TEXT_LENGTH = 8_000;
@@ -579,6 +579,236 @@ function validateExplicitOperations(
   });
 }
 
+function parseExplicitDepartureDate(text: string): string | null {
+  const match = text.match(
+    /(?:^|\D)(\d{4})\s*(?:-|\/|\.|年)\s*(\d{1,2})\s*(?:-|\/|\.|月)\s*(\d{1,2})(?:\s*日)?(?:\D|$)/u
+  );
+  if (!match) return null;
+
+  const year = Number.parseInt(match[1], 10);
+  const month = Number.parseInt(match[2], 10);
+  const day = Number.parseInt(match[3], 10);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month - 1 ||
+    candidate.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return `${year.toString().padStart(4, "0")}-${month
+    .toString()
+    .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+}
+
+/**
+ * Planner cards submit visible natural-language user messages through the same
+ * OpenAI coordinator as free text. Date values in those messages are also
+ * normalized deterministically after the model call so harmless formatting
+ * differences in model evidence (2026-10-05 vs 2026年10月5日) cannot turn an
+ * explicit card confirmation into an uncommitted pending action.
+ */
+function stabilizeExplicitDateOperations(
+  text: string,
+  operations: TravelStateOperation[]
+): TravelStateOperation[] {
+  const explicitlySetsDate =
+    /(?:出行|出发|启程)日期\s*(?:先按|是|为|设为|定在)|灵活出行|(?:departure|travel|start)\s+date\s*(?:is|to|as)|(?:depart|leave)\s+on/iu.test(
+      text
+    );
+  const departureDate = explicitlySetsDate
+    ? parseExplicitDepartureDate(text)
+    : null;
+  if (!departureDate) return operations;
+
+  const flexibility = /灵活出行|日期[^。！？]{0,16}灵活|flexible/iu.test(text)
+    ? "flexible"
+    : /指定日期|固定日期|date\s*(?:is|to|as)|depart|leave/iu.test(text)
+      ? "fixed"
+      : null;
+  const next = operations.filter(
+    (operation) =>
+      operation.path !== "departure_date" &&
+      (flexibility === null || operation.path !== "date_flexibility")
+  );
+  next.push({
+    op: "set",
+    path: "departure_date",
+    valueText: departureDate,
+    valueNumber: null,
+    valueBoolean: null,
+    explicit: true,
+    evidence: departureDate,
+  });
+  if (flexibility) {
+    next.push({
+      op: "set",
+      path: "date_flexibility",
+      valueText: flexibility,
+      valueNumber: null,
+      valueBoolean: null,
+      explicit: true,
+      evidence: flexibility === "flexible" ? "灵活出行" : departureDate,
+    });
+  }
+  return next;
+}
+
+function stabilizeExplicitEndpointOperations(
+  text: string,
+  operations: TravelStateOperation[]
+): TravelStateOperation[] {
+  const explicitPair = text.match(
+    /出发地(?:设为|：)\s*([^｜；。]+)｜([^；。]+)；\s*返程地(?:设为|：)\s*([^｜；。]+)｜([^；。]+)[。.]?/u
+  );
+  const legacySameEndpoint = text.match(
+    /出发和返程城市都设为\s+(\S+)\s+(.+?)[。.]?$/u
+  );
+  const values = explicitPair
+    ? {
+        originCountry: explicitPair[1].trim(),
+        originCity: explicitPair[2].trim(),
+        returnCountry: explicitPair[3].trim(),
+        returnCity: explicitPair[4].trim(),
+      }
+    : legacySameEndpoint
+      ? {
+          originCountry: legacySameEndpoint[1].trim(),
+          originCity: legacySameEndpoint[2].trim(),
+          returnCountry: legacySameEndpoint[1].trim(),
+          returnCity: legacySameEndpoint[2].trim(),
+        }
+      : null;
+  if (!values) return operations;
+
+  const endpointPaths = new Set([
+    "origin_country",
+    "origin_city",
+    "return_country",
+    "return_city",
+  ]);
+  const next = operations.filter(
+    (operation) => !endpointPaths.has(operation.path)
+  );
+  for (const [path, valueText] of [
+    ["origin_country", values.originCountry],
+    ["origin_city", values.originCity],
+    ["return_country", values.returnCountry],
+    ["return_city", values.returnCity],
+  ] as const) {
+    next.push({
+      op: "set",
+      path,
+      valueText,
+      valueNumber: null,
+      valueBoolean: null,
+      explicit: true,
+      evidence: valueText,
+    });
+  }
+  return next;
+}
+
+function replaceExplicitOperation(
+  operations: TravelStateOperation[],
+  operation: TravelStateOperation
+): TravelStateOperation[] {
+  return [
+    ...operations.filter((item) => item.path !== operation.path),
+    operation,
+  ];
+}
+
+function stabilizeExplicitPlannerOperations(
+  text: string,
+  operations: TravelStateOperation[]
+): TravelStateOperation[] {
+  let next = operations;
+  const setNumber = (
+    path: "travel_days" | "travelers" | "budget",
+    value: string,
+    evidence: string
+  ) => {
+    const valueNumber = Number.parseInt(value, 10);
+    if (!Number.isInteger(valueNumber) || valueNumber <= 0) return;
+    next = replaceExplicitOperation(next, {
+      op: "set",
+      path,
+      valueText: null,
+      valueNumber,
+      valueBoolean: null,
+      explicit: true,
+      evidence,
+    });
+  };
+
+  const days = text.match(
+    /(?:出行天数是|天数先灵活，?\s*暂按)\s*(\d+)\s*天/u
+  );
+  if (days) setNumber("travel_days", days[1], days[0]);
+  const travelers = text.match(
+    /(?:出行人数是|人数先灵活，?\s*暂按)\s*(\d+)\s*(?:个)?人/u
+  );
+  if (travelers) setNumber("travelers", travelers[1], travelers[0]);
+  const budget = text.match(
+    /(?:预算是|预算先灵活，?\s*暂按)\s*(\d+)\s*(?:RMB|人民币|元)/iu
+  );
+  if (budget) setNumber("budget", budget[1], budget[0]);
+
+  if (/^目的地就这些，继续规划后面的行程信息。?$/u.test(text)) {
+    next = replaceExplicitOperation(next, {
+      op: "set",
+      path: "destination_confirmed",
+      valueText: null,
+      valueNumber: null,
+      valueBoolean: true,
+      explicit: true,
+      evidence: "目的地就这些",
+    });
+  }
+
+  const travelOrder = text.match(/^游玩顺序：(.+?)[。.]?$/u);
+  if (travelOrder) {
+    next = replaceExplicitOperation(next, {
+      op: "set",
+      path: "travel_order",
+      valueText: travelOrder[1].replace(/\s*→\s*/gu, "、"),
+      valueNumber: null,
+      valueBoolean: null,
+      explicit: true,
+      evidence: travelOrder[0],
+    });
+  }
+
+  if (/^我没有额外备注，直接生成行程。?$/u.test(text)) {
+    next = replaceExplicitOperation(next, {
+      op: "set",
+      path: "final_note",
+      valueText: "",
+      valueNumber: null,
+      valueBoolean: null,
+      explicit: true,
+      evidence: "没有额外备注",
+    });
+  } else {
+    const finalNote = text.match(/^备注：(.+)$/u);
+    if (finalNote) {
+      next = replaceExplicitOperation(next, {
+        op: "set",
+        path: "final_note",
+        valueText: finalNote[1].trim(),
+        valueNumber: null,
+        valueBoolean: null,
+        explicit: true,
+        evidence: finalNote[0],
+      });
+    }
+  }
+
+  return next;
+}
+
 function resolveDestinationOperation(
   operation: TravelStateOperation,
   locale: InterfaceLocale
@@ -607,7 +837,8 @@ function resolveDestinationOperation(
 
 function recommendationCards(
   recommendations: string[],
-  userText: string
+  userText: string,
+  locale: InterfaceLocale
 ): TravelDestinationCard[] {
   const seen = new Set<string>();
   return recommendations.flatMap((recommendation) => {
@@ -619,7 +850,7 @@ function recommendationCards(
       seen.add(key);
       return [
         {
-          ...toTravelDestinationChatCard(destination, userText),
+          ...toTravelDestinationChatCard(destination, userText, locale),
           selection_state: "recommendation" as const,
         },
       ];
@@ -980,11 +1211,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const validated = validateExplicitOperations(
+    const validated = stabilizeExplicitPlannerOperations(
       input.text,
-      openAI.result.intent,
-      openAI.result.operations,
-      pendingActions
+      stabilizeExplicitEndpointOperations(
+        input.text,
+        stabilizeExplicitDateOperations(
+          input.text,
+          validateExplicitOperations(
+            input.text,
+            openAI.result.intent,
+            openAI.result.operations,
+            pendingActions
+          )
+        )
+      )
     );
     const resolved = validated.flatMap((operation) => {
       const item = resolveDestinationOperation(operation, input.locale);
@@ -1103,7 +1343,7 @@ export async function POST(request: Request) {
       reply: coordinatedReply,
       mode: effectiveIntent,
       cards: allowRecommendationCards
-        ? recommendationCards(openAI.result.recommendations, input.text)
+        ? recommendationCards(openAI.result.recommendations, input.text, input.locale)
         : [],
       quick_replies: openAI.result.quickReplies,
       state: mutation.state,

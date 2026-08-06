@@ -53,6 +53,16 @@ export class VnPrearrivalPortalValidationError extends Error {
   }
 }
 
+export function reconcileHotelDependentControlFailures(
+  missingControls: string[],
+  exactOfficialHotelSelected: boolean,
+): string[] {
+  if (!exactOfficialHotelSelected) return [...missingControls];
+  return missingControls.filter(
+    (field) => field !== "province_city_of_hotel" && field !== "ward_commune_of_hotel",
+  );
+}
+
 export function routeVnPrearrivalEmailAnswers(
   answers: Record<string, string>,
   aliasEmailAddress: string,

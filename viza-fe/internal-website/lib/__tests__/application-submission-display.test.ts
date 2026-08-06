@@ -65,6 +65,18 @@ describe("hasDurableTerminalSubmissionResult", () => {
 });
 
 describe("shouldShowReviewAlongsideSubmissionStatus", () => {
+  it.each(["waiting", "processing", "action_required", "completed"] as const)(
+    "keeps the Indonesia B1/C1 review visible while the submission is %s",
+    (submissionResultStatus) => {
+      expect(
+        shouldShowReviewAlongsideSubmissionStatus({
+          submissionResultStatus,
+          preserveReview: true,
+        }),
+      ).toBe(true);
+    },
+  );
+
   it.each(["failed", "stalled"] as const)(
     "keeps the read-only review visible for a %s retry state",
     (submissionResultStatus) => {

@@ -68,17 +68,17 @@ def _normalize_dates(check_in_date, check_out_date):
 
 
 def _fallback_hotels(destination, adults=1):
-    city_name = str(destination or "Destination").strip() or "Destination"
+    city_name = str(destination or "目的地").strip() or "目的地"
     return [
         {
             "provider": "api-default",
             "city": destination,
-            "name": f"{city_name} Central Hotel",
+            "name": f"{city_name}市中心酒店",
             "price_per_night": "120.00",
             "currency": "USD",
             "rating": 4.5,
             "adults": adults,
-            "address": f"1 Central Avenue, {city_name}",
+            "address": f"{city_name}市中心区域",
             "contact_phone": "+1 555 010 1200",
             "check_in_time": "15:00",
             "check_out_time": "11:00",
@@ -86,12 +86,12 @@ def _fallback_hotels(destination, adults=1):
         {
             "provider": "api-default",
             "city": destination,
-            "name": f"{city_name} Comfort Stay",
+            "name": f"{city_name}舒适酒店",
             "price_per_night": "60.00",
             "currency": "USD",
             "rating": 3.8,
             "adults": adults,
-            "address": f"88 Station Road, {city_name}",
+            "address": f"{city_name}车站附近",
             "contact_phone": "+1 555 010 0600",
             "check_in_time": "15:00",
             "check_out_time": "11:00",
@@ -270,7 +270,7 @@ async def search_hotels(
         if not isinstance(property_data, dict):
             property_data = {}
 
-        name = property_data.get("name") or entry.get("accessibilityLabel") or "Unknown hotel"
+        name = property_data.get("name") or entry.get("accessibilityLabel") or "酒店名称待确认"
         review_score = property_data.get("reviewScore")
 
         gross_price, gross_currency = _extract_price_value(

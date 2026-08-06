@@ -83,7 +83,7 @@
 
 - `viza-fe/internal-website/app/api/travel/chat/route.ts`
   Travel 对话唯一协调器；使用 Structured Outputs、`previous_response_id`、
-  消息幂等和乐观状态版本。`gpt-5.6-sol` 为首选；当 OpenAI 明确返回当前项目
+  消息幂等和乐观状态版本。`gpt-5.6-luna` 为首选；当 OpenAI 明确返回当前项目
   无模型权限时，可使用 `TRAVEL_AGENT_OPENAI_FALLBACK_MODEL`。
 
 - `viza-fe/internal-website/app/api/travel/sessions/route.ts`

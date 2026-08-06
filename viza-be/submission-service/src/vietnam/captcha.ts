@@ -36,12 +36,16 @@ const CAPTCHA_INPUT_SELECTOR = [
   "input[placeholder*='ma xac nhan' i]",
 ].join(", ");
 
+const CAPTCHA_SUBMIT_LABEL_PATTERN =
+  /\b(next|continue|submit|verify|confirm|send|ok)\b|tiếp tục|xác nhận|gửi|nộp|đồng ý/i;
+
 const DEFAULT_VN_CAPTCHA_TIMEOUT_MS = 180_000;
 const CAPTCHA_INPUT_WAIT_MS = 15_000;
 
 type CaptchaRoot = Page | Frame;
 
 interface VietnamCaptchaControls {
+  root: CaptchaRoot;
   input: Locator;
   image: Locator;
 }
@@ -85,6 +89,15 @@ export function isVietnamCaptchaSolveCurrent(
   currentFingerprint: string | null,
 ): boolean {
   return Boolean(currentFingerprint && solvedFingerprint === currentFingerprint);
+}
+
+export function normalizeVietnamCaptchaAnswer(value: string): string {
+  return value.replace(/\s+/g, "").trim();
+}
+
+export function isVietnamCaptchaFailureRetryable(reason: string | undefined): boolean {
+  if (!reason) return true;
+  return !/TWOCAPTCHA_API_KEY is missing|zero balance|solving is disabled/i.test(reason);
 }
 
 export async function reportRejectedVietnamCaptcha(
@@ -141,7 +154,11 @@ export async function solveVietnamImageCaptcha(
         lastReason = "Vietnam CAPTCHA changed while 2captcha was solving; discarded the stale answer.";
         continue;
       }
-      const answer = result.text.trim();
+      const answer = normalizeVietnamCaptchaAnswer(result.text);
+      if (!answer) {
+        lastReason = "2captcha returned an empty Vietnam CAPTCHA answer.";
+        continue;
+      }
       await currentControls?.input.fill(answer, { timeout: 10_000 });
       const persistedAnswer = await currentControls?.input.inputValue({ timeout: 5_000 }).catch(() => "");
       if (persistedAnswer !== answer) {
@@ -158,10 +175,12 @@ export async function solveVietnamImageCaptcha(
       };
     } catch (error) {
       lastReason = describeVietnamCaptchaError(error);
-      if (!/ERROR_CAPTCHA_UNSOLVABLE|unsolvable/i.test(lastReason) || attempt === 3) {
+      if (!isVietnamCaptchaFailureRetryable(lastReason) || attempt === 3) {
         break;
       }
-      await refreshVietnamCaptcha(input).catch(() => undefined);
+      if (/ERROR_CAPTCHA_UNSOLVABLE|unsolvable/i.test(lastReason)) {
+        await refreshVietnamCaptcha(input).catch(() => undefined);
+      }
       await page.waitForTimeout(1_000);
     }
   }
@@ -169,6 +188,70 @@ export async function solveVietnamImageCaptcha(
     solved: false,
     reason: lastReason,
   };
+}
+
+/**
+ * Submit the currently-filled CAPTCHA from the same DOM/frame as the input.
+ * The official portal has used several labels for this control over time, so
+ * prefer a nearby enabled submit/verification control and fall back to the
+ * owning form or Enter. This is only called after portal-state detection has
+ * positively identified a visible CAPTCHA.
+ */
+export async function submitVietnamCaptchaAnswer(
+  page: Page,
+  timeoutMs = 10_000,
+): Promise<boolean> {
+  const controls = await locateVietnamCaptchaControls(page, Math.min(timeoutMs, CAPTCHA_INPUT_WAIT_MS));
+  if (!controls) return false;
+  const inputBox = await controls.input.boundingBox().catch(() => null);
+  const candidates = controls.root.locator(
+    "button, input[type='submit'], input[type='button'], [role='button'], a",
+  );
+  const count = Math.min(await candidates.count().catch(() => 0), 80);
+  let best: { locator: Locator; score: number } | null = null;
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    const [visible, enabled, box] = await Promise.all([
+      candidate.isVisible().catch(() => false),
+      candidate.isEnabled().catch(() => false),
+      candidate.boundingBox().catch(() => null),
+    ]);
+    if (!visible || !enabled || !box) continue;
+    const [text, value, ariaLabel, title, tagName, type] = await Promise.all([
+      candidate.innerText({ timeout: 1_000 }).catch(() => ""),
+      candidate.getAttribute("value").catch(() => null),
+      candidate.getAttribute("aria-label").catch(() => null),
+      candidate.getAttribute("title").catch(() => null),
+      candidate.evaluate((element) => element.tagName.toLowerCase()).catch(() => ""),
+      candidate.getAttribute("type").catch(() => null),
+    ]);
+    const label = `${text} ${value ?? ""} ${ariaLabel ?? ""} ${title ?? ""}`.replace(/\s+/g, " ").trim();
+    const nativeSubmit =
+      (tagName === "button" && (type === null || type.toLowerCase() === "submit")) ||
+      (tagName === "input" && type?.toLowerCase() === "submit");
+    if (!CAPTCHA_SUBMIT_LABEL_PATTERN.test(label) && !nativeSubmit) continue;
+    const distance = inputBox
+      ? Math.abs(box.y + box.height / 2 - (inputBox.y + inputBox.height / 2)) * 2 +
+        Math.abs(box.x - (inputBox.x + inputBox.width))
+      : box.y;
+    const score = distance + (CAPTCHA_SUBMIT_LABEL_PATTERN.test(label) ? -1_000 : -500);
+    if (!best || score < best.score) best = { locator: candidate, score };
+  }
+
+  const clicked = best
+    ? await best.locator
+        .click({ timeout: Math.min(timeoutMs, 5_000) })
+        .then(() => true)
+        .catch(() => false)
+    : false;
+  const enterSubmitted = clicked
+    ? false
+    : await controls.input
+        .press("Enter", { timeout: Math.min(timeoutMs, 5_000) })
+        .then(() => true)
+        .catch(() => false);
+  await page.waitForTimeout(Math.min(timeoutMs, 5_000));
+  return clicked || enterSubmitted;
 }
 
 export async function captureVietnamCaptchaFingerprint(
@@ -264,7 +347,7 @@ async function locateVietnamCaptchaControls(page: Page, waitMs: number): Promise
       const exactInput = await firstUsableInput(root.locator(CAPTCHA_INPUT_SELECTOR));
       if (exactInput) {
         const image = await locateVietnamCaptchaImage(root, exactInput);
-        if (image) return { input: exactInput, image };
+        if (image) return { root, input: exactInput, image };
       }
 
       const challengeVisible =
@@ -277,7 +360,7 @@ async function locateVietnamCaptchaControls(page: Page, waitMs: number): Promise
       );
       if (!genericInput) continue;
       const image = await locateVietnamCaptchaImage(root, genericInput);
-      if (image) return { input: genericInput, image };
+      if (image) return { root, input: genericInput, image };
     }
     if (Date.now() < deadline) await page.waitForTimeout(250);
   } while (Date.now() < deadline);

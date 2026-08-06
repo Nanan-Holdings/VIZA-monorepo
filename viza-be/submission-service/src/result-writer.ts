@@ -18,6 +18,7 @@ export async function writeSubmissionResult(
   const { error } = await supabase
     .from("applications")
     .update({
+      ...(status === "submitted" ? { status: "submitted" } : {}),
       submission_result: result as unknown as Record<string, unknown>,
       submission_result_status: status,
       submission_result_updated_at: new Date().toISOString(),

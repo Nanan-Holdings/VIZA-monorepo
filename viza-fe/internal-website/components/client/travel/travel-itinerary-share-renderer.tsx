@@ -23,6 +23,7 @@ import {
   type TravelItineryShareRow,
   type TravelItinerarySharePayload,
 } from "@/components/client/travel/travel-itinerary-data";
+import { findTravelAttraction } from "@/components/client/travel/travel-attraction-knowledge";
 import type {
   ItineraryDay,
   SelectedFlightOption,
@@ -116,6 +117,37 @@ const LOCAL_CITY_LABELS: Record<string, string> = {
   seoul: "首尔",
   bangkok: "曼谷",
   hongkong: "香港",
+  kotoku: "东京江东区",
+  koto: "东京江东区",
+};
+
+const LOCAL_SHARE_TEXT: Record<string, string> = {
+  "boudin bakery": "博丁酸面包店",
+  "scoma's restaurant": "斯科马海鲜餐厅",
+  "scoma's": "斯科马海鲜餐厅",
+  "fisherman's wharf restaurant": "渔人码头餐厅",
+  "fisherman's wharf": "渔人码头",
+  "the rocks": "岩石区",
+  "bondi beach and bondi to coogee coastal walk": "邦迪海滩至库吉海岸步道",
+  "teamlab planets tokyo toyosu": "丰洲森大厦数字艺术美术馆",
+  iconsiam: "暹罗天地",
+};
+
+const LOCAL_SHARE_AIRLINES: Record<string, string> = {
+  "viza api flight": "待确认航司",
+  "viza economy flight": "待确认航司",
+  "unknown airline": "待确认航司",
+  "air france": "法国航空",
+  "transavia france": "法国泛航",
+  "singapore airlines": "新加坡航空",
+  scoot: "酷航",
+  "air china": "中国国际航空",
+  "china eastern airlines": "中国东方航空",
+  "united airlines": "美国联合航空",
+  "american airlines": "美国航空",
+  "delta air lines": "达美航空",
+  "all nippon airways": "全日空航空",
+  "japan airlines": "日本航空",
 };
 
 function normalizeLookupKey(value: string): string {
@@ -132,11 +164,85 @@ function hashString(value: string): number {
 }
 
 function getLocalCityLabel(city: string): string {
-  return LOCAL_CITY_LABELS[normalizeLookupKey(city)] ?? city;
+  const localized = LOCAL_CITY_LABELS[normalizeLookupKey(city)];
+  if (localized) return localized;
+  return /[A-Za-z]/.test(city) ? "待确认城市" : city;
 }
 
 function getDisplayCityLabel(city: string, locale: "zh" | "en"): string {
   return locale === "zh" ? getLocalCityLabel(city) : city;
+}
+
+function getChineseShareName(
+  city: string,
+  value: string,
+  kind: "attraction" | "dining"
+): string {
+  const raw = value.trim();
+  const known = kind === "attraction" ? findTravelAttraction(city, raw) : null;
+  const source = known?.name ?? raw;
+  const exact = Object.entries(LOCAL_SHARE_TEXT).find(
+    ([candidate]) => normalizeLookupKey(candidate) === normalizeLookupKey(source)
+  )?.[1];
+  const localized = exact ?? source;
+  if (localized && !/[A-Za-z]/.test(localized)) return localized;
+  return kind === "attraction"
+    ? `${getLocalCityLabel(city)}当地景点`
+    : `${getLocalCityLabel(city)}本地餐厅`;
+}
+
+function getChineseShareAirline(value: string): string {
+  const source = value
+    .replace(/\b[A-Z]{1,3}\d{2,4}\b/g, "")
+    .trim();
+  const exact = Object.entries(LOCAL_SHARE_AIRLINES).find(([candidate]) =>
+    normalizeLookupKey(source).includes(normalizeLookupKey(candidate))
+  )?.[1];
+  if (exact) return exact;
+  return /[A-Za-z]/.test(source) ? "待确认航司" : source || "待确认航司";
+}
+
+function localizeShareRows(
+  rows: TravelItineryShareRow[],
+  locale: "zh" | "en"
+): TravelItineryShareRow[] {
+  if (locale === "en") return rows;
+  return rows.map((row) => {
+    const route = row.route
+      .replace(/Koto-ku/gi, "东京江东区")
+      .replace(/San Francisco/gi, "旧金山")
+      .replace(/Tokyo/gi, "东京")
+      .replace(/Paris/gi, "巴黎");
+    if (/航班|flight/i.test(row.type)) {
+      return {
+        ...row,
+        route,
+        name: getChineseShareAirline(row.name),
+        details: row.details
+          .replace(/Koto-ku/gi, "东京江东区")
+          .replace(/\bECONOMY\b/gi, "经济舱")
+          .replace(/(\d+)\s*h\s*(\d+)\s*m/gi, "$1小时$2分钟"),
+      };
+    }
+    if (/景点|attraction/i.test(row.type)) {
+      return {
+        ...row,
+        route,
+        name: getChineseShareName(route, row.name, "attraction"),
+      };
+    }
+    if (/餐饮|dining/i.test(row.type)) {
+      return {
+        ...row,
+        route,
+        name: getChineseShareName(route, row.name, "dining"),
+      };
+    }
+    if (/酒店|hotel/i.test(row.type) && /[A-Za-z]/.test(row.name)) {
+      return { ...row, route, name: `${route.split("→").at(-1)?.trim() ?? "目的地"}酒店` };
+    }
+    return { ...row, route };
+  });
 }
 
 function getCityImage(city: string, seed = "share"): string {
@@ -179,13 +285,21 @@ function buildRowsFromItinerary(
   return itinerary.flatMap((day) => {
     const rows: TravelItineryShareRow[] = [];
     const city = getDisplayCityLabel(day.city, locale);
-    const firstActivity =
+    const firstActivityRaw =
       day.activities[0] ??
       (locale === "zh" ? `${city}城市地标` : `${city} city landmark`);
-    const secondActivity =
+    const secondActivityRaw =
       day.activities[1] ??
       day.activities[0] ??
       (locale === "zh" ? `${city}街区体验` : `${city} neighborhood experience`);
+    const firstActivity =
+      locale === "zh"
+        ? getChineseShareName(day.city, firstActivityRaw, "attraction")
+        : firstActivityRaw;
+    const secondActivity =
+      locale === "zh"
+        ? getChineseShareName(day.city, secondActivityRaw, "attraction")
+        : secondActivityRaw;
 
     rows.push({
       time: locale === "zh" ? "09:00 上午" : "09:00 Morning",
@@ -206,9 +320,14 @@ function buildRowsFromItinerary(
         type: locale === "zh" ? "餐饮" : "Dining",
         date: formatDayTab(day, locale),
         route: city,
-        name: day.food[0],
+        name:
+          locale === "zh"
+            ? getChineseShareName(day.city, day.food[0], "dining")
+            : day.food[0],
         details:
-          locale === "zh" ? `午餐：${day.food[0]}。` : `Lunch: ${day.food[0]}.`,
+          locale === "zh"
+            ? `午餐：${getChineseShareName(day.city, day.food[0], "dining")}。`
+            : `Lunch: ${day.food[0]}.`,
         contact: "-",
       });
     }
@@ -232,9 +351,14 @@ function buildRowsFromItinerary(
         type: locale === "zh" ? "餐饮" : "Dining",
         date: formatDayTab(day, locale),
         route: city,
-        name: day.food[1],
+        name:
+          locale === "zh"
+            ? getChineseShareName(day.city, day.food[1], "dining")
+            : day.food[1],
         details:
-          locale === "zh" ? `晚餐：${day.food[1]}。` : `Dinner: ${day.food[1]}.`,
+          locale === "zh"
+            ? `晚餐：${getChineseShareName(day.city, day.food[1], "dining")}。`
+            : `Dinner: ${day.food[1]}.`,
         contact: "-",
       });
     }
@@ -353,10 +477,12 @@ export function TravelItineraryShareRenderer() {
   }, [interfaceLocale]);
 
   const rows = useMemo(
-    () =>
-      payload?.itineryRows?.length
+    () => {
+      const sourceRows = payload?.itineryRows?.length
         ? payload.itineryRows
-        : buildRowsFromItinerary(payload?.itinerary ?? [], interfaceLocale),
+        : buildRowsFromItinerary(payload?.itinerary ?? [], interfaceLocale);
+      return localizeShareRows(sourceRows, interfaceLocale);
+    },
     [interfaceLocale, payload]
   );
   const cities = useMemo(() => (payload ? getCities(payload) : []), [payload]);
@@ -638,7 +764,11 @@ export function TravelItineraryShareRenderer() {
             >
               <div className="relative h-36 overflow-hidden rounded-[22px] bg-slate-200 md:h-full">
                 <Image
-                  alt={`${day.city} day ${day.day}`}
+                  alt={
+                    isZh
+                      ? `${getLocalCityLabel(day.city)}第${day.day}天`
+                      : `${day.city} day ${day.day}`
+                  }
                   className="h-full w-full object-cover"
                   height={220}
                   src={getCityImage(day.city, `day-${day.day}`)}
@@ -651,7 +781,14 @@ export function TravelItineraryShareRenderer() {
                   {getDisplayCityLabel(day.city, interfaceLocale)} · {day.cost}
                 </p>
                 <h3 className="mt-2 text-2xl font-bold">
-                  {day.activities.slice(0, 2).join(" · ")}
+                  {day.activities
+                    .slice(0, 2)
+                    .map((activity) =>
+                      isZh
+                        ? getChineseShareName(day.city, activity, "attraction")
+                        : activity
+                    )
+                    .join(" · ")}
                 </h3>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {day.activities.map((activity) => (
@@ -659,14 +796,23 @@ export function TravelItineraryShareRenderer() {
                       className="rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]"
                       key={`${day.day}-${activity}`}
                     >
-                      {activity}
+                      {isZh
+                        ? getChineseShareName(day.city, activity, "attraction")
+                        : activity}
                     </span>
                   ))}
                 </div>
                 {day.food.length ? (
                   <p className="mt-4 text-sm font-semibold text-[#756a7b]">
                     {isZh ? "餐饮：" : "Dining: "}
-                    {joinList(day.food, interfaceLocale)}
+                    {joinList(
+                      isZh
+                        ? day.food.map((food) =>
+                            getChineseShareName(day.city, food, "dining")
+                          )
+                        : day.food,
+                      interfaceLocale
+                    )}
                   </p>
                 ) : null}
               </div>

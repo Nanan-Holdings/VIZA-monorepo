@@ -1,12 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { chromium } from "@playwright/test";
 import {
   describeVietnamCaptchaError,
   fingerprintVietnamCaptchaImage,
   getVietnamCaptchaTimeoutMs,
+  isVietnamCaptchaFailureRetryable,
   isVietnamCaptchaSolveCurrent,
+  normalizeVietnamCaptchaAnswer,
   reportRejectedVietnamCaptcha,
   shouldSolveVietnamCaptcha,
+  submitVietnamCaptchaAnswer,
 } from "../captcha.js";
 import { TwoCaptchaConfigError, TwoCaptchaZeroBalanceError } from "../../captcha/two-captcha.js";
 
@@ -55,6 +59,42 @@ test("vn.captcha: fingerprints distinguish refreshed challenges", () => {
   assert.equal(isVietnamCaptchaSolveCurrent(first, same), true);
   assert.equal(isVietnamCaptchaSolveCurrent(first, refreshed), false);
   assert.equal(isVietnamCaptchaSolveCurrent(first, null), false);
+});
+
+test("vn.captcha: normalizes whitespace and distinguishes terminal solver failures", () => {
+  assert.equal(normalizeVietnamCaptchaAnswer(" A 1 b 2 \n"), "A1b2");
+  assert.equal(isVietnamCaptchaFailureRetryable("2captcha network error: reset"), true);
+  assert.equal(isVietnamCaptchaFailureRetryable("Vietnam CAPTCHA changed while solving"), true);
+  assert.equal(
+    isVietnamCaptchaFailureRetryable("TWOCAPTCHA_API_KEY is missing; cannot solve the official portal CAPTCHA."),
+    false,
+  );
+  assert.equal(isVietnamCaptchaFailureRetryable("2captcha account has zero balance"), false);
+});
+
+test("vn.captcha: submits a localized verification button near the CAPTCHA", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <form id="captcha-form">
+        <img id="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <input id="security-captcha" name="captcha" value="AB12" />
+        <button type="button" id="unrelated">Back</button>
+        <button type="button" id="verify" onclick="document.body.dataset.captchaSubmitted='yes'">Xác nhận</button>
+      </form>
+    `);
+
+    await page.locator("#captcha-image").waitFor({ state: "visible" });
+    assert.equal(
+      await page.locator("#verify").evaluate((element) => /xác nhận/i.test(element.textContent ?? "")),
+      true,
+    );
+    assert.equal(await submitVietnamCaptchaAnswer(page, 100), true);
+    assert.equal(await page.locator("body").getAttribute("data-captcha-submitted"), "yes");
+  } finally {
+    await browser.close();
+  }
 });
 
 test("vn.captcha: reports only a rejected solved task", async () => {
