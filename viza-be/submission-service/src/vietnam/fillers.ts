@@ -27,15 +27,24 @@ const VN_IDLESS_RADIO_QUESTIONS: Record<string, string[]> = {
   ],
   basic_ttcnDaDungHcKhacVaoVn: [
     "Have you ever used any other passports to enter into Viet Nam?",
+    "Người đề nghị cấp thị thực điện tử đã từng sử dụng hộ chiếu khác để nhập cảnh Việt Nam hay không?",
+    "hộ chiếu khác",
     "dùng hộ chiếu khác",
   ],
   basic_ttcnViPhamPl: ["Violation of the Vietnamese laws/regulations (if any)", "Vi phạm pháp luật Việt Nam"],
   basic_ttcdCoCqTcCaNhanLienHe: [
     "Agency/Organization/Individual that the applicant plans to contact when enter into Viet Nam?",
+    "Cơ quan, tổ chức, cá nhân dự kiến liên hệ khi vào Việt Nam",
+    "Cơ quan, tổ chức, cá nhân dự kiến liên hệ",
     "Cơ quan/Tổ chức/Cá nhân",
   ],
   basic_ttcdDaDenVn: ["Have you been to Viet Nam in the last 01 year?", "đến Việt Nam trong 01 năm"],
-  basic_ttcdCoThanNhan: ["Do you have relatives who currently reside in Viet Nam?", "thân nhân hiện đang ở Việt Nam"],
+  basic_ttcdCoThanNhan: [
+    "Do you have relatives who currently reside in Viet Nam?",
+    "có người thân đang ở Việt Nam hay không?",
+    "người thân đang ở Việt Nam",
+    "thân nhân hiện đang ở Việt Nam",
+  ],
 };
 
 const VN_PORTAL_OPTION_ALIASES: Record<string, string[]> = {
