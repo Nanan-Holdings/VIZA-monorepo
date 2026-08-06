@@ -453,6 +453,8 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   operahouse: "悉尼歌剧院",
   sydneyoperahouse: "悉尼歌剧院",
   colosseum: "罗马斗兽场",
+  kotoku: "东京江东区",
+  koto: "东京江东区",
 };
 const DETAIL_SECTION_META: Record<
   DetailSectionId,
@@ -523,16 +525,16 @@ const CITY_DETAIL_SAMPLES_BY_KEY: Record<
       tags: ["海鲜", "咖啡", "早午餐"],
     },
     stay: {
-      items: ["Circular Quay", "Darling Harbour", "Surry Hills", "Bondi"],
-      tip: "第一次来选 Circular Quay 或 Darling Harbour，步行可达核心景点。",
+      items: ["环形码头", "达令港", "萨里山", "邦迪"],
+      tip: "第一次来选环形码头或达令港，步行可达核心景点。",
       tags: ["海港", "市中心", "海滩"],
     },
     nightlife: {
       items: [
-        "Darling Harbour",
-        "The Rocks 酒吧",
+        "达令港",
+        "岩石区酒吧",
         "歌剧院夜景",
-        "Surry Hills 小酒馆",
+        "萨里山小酒馆",
       ],
       tip: "海港夜景和晚餐可以连起来，夜间回程也方便。",
       tags: ["海港夜景", "酒吧", "音乐"],
@@ -545,17 +547,17 @@ const CITY_DETAIL_SAMPLES_BY_KEY: Record<
       tags: ["历史", "博物馆", "河岸"],
     },
     food: {
-      items: ["英式早餐", "炸鱼薯条", "下午茶", "Borough Market"],
+      items: ["英式早餐", "炸鱼薯条", "下午茶", "博罗市场"],
       tip: "下午茶提前预约，市集更适合安排午餐或轻食。",
       tags: ["下午茶", "市集", "经典"],
     },
     stay: {
-      items: ["Westminster", "Covent Garden", "South Bank", "King's Cross"],
-      tip: "想省通勤选 Covent Garden 或 South Bank，交通和餐饮密度高。",
+      items: ["威斯敏斯特", "科文特花园", "南岸", "国王十字"],
+      tip: "想省通勤选科文特花园或南岸，交通和餐饮密度高。",
       tags: ["地铁", "剧院", "河岸"],
     },
     nightlife: {
-      items: ["West End 音乐剧", "Soho 酒吧", "泰晤士河夜景", "Sky Garden"],
+      items: ["西区音乐剧", "苏豪区酒吧", "泰晤士河夜景", "空中花园"],
       tip: "音乐剧和晚餐要留足入场时间，热门场次提前订。",
       tags: ["剧院", "酒吧", "夜景"],
     },
@@ -594,12 +596,12 @@ const CITY_DETAIL_SAMPLES_BY_KEY: Record<
       tags: ["街头小吃", "甜品", "经典"],
     },
     stay: {
-      items: ["Midtown", "Chelsea", "Long Island City", "Williamsburg"],
-      tip: "想省通勤住 Midtown，想控制预算可看 Long Island City。",
+      items: ["曼哈顿中城", "切尔西", "长岛市", "威廉斯堡"],
+      tip: "想省通勤住曼哈顿中城，想控制预算可看长岛市。",
       tags: ["地铁", "市中心", "预算"],
     },
     nightlife: {
-      items: ["百老汇夜场", "DUMBO 夜景", "爵士俱乐部", "屋顶酒吧"],
+      items: ["百老汇夜场", "丹波区夜景", "爵士俱乐部", "屋顶酒吧"],
       tip: "百老汇和屋顶酒吧都建议提前订，避免临时排队。",
       tags: ["演出", "酒吧", "夜景"],
     },
@@ -634,16 +636,16 @@ const CITY_DETAIL_SAMPLES_BY_KEY: Record<
     },
     food: {
       items: ["酸面包", "海鲜浓汤", "墨西哥卷饼", "精品咖啡"],
-      tip: "渔人码头吃海鲜，Mission 区适合找卷饼和咖啡。",
+      tip: "渔人码头吃海鲜，米慎区适合找卷饼和咖啡。",
       tags: ["海鲜", "咖啡", "街区"],
     },
     stay: {
-      items: ["Union Square", "Fisherman's Wharf", "SoMa", "Nob Hill"],
-      tip: "第一次来住 Union Square 更好移动，海景需求看 Fisherman's Wharf。",
+      items: ["联合广场", "渔人码头", "市场南区", "诺布山"],
+      tip: "第一次来住联合广场更好移动，海景需求看渔人码头。",
       tags: ["市中心", "海湾", "交通"],
     },
     nightlife: {
-      items: ["北滩酒吧", "Mission 夜生活", "海湾夜景", "爵士现场"],
+      items: ["北滩酒吧", "米慎区夜生活", "海湾夜景", "爵士现场"],
       tip: "夜间跨区移动建议提前规划交通，保持路线简短。",
       tags: ["酒吧", "音乐", "夜景"],
     },
@@ -865,14 +867,24 @@ function getPointDisplayName(point: TripMapPoint): string {
   if (point.kind !== "city") {
     const labelLocalName = getLocalNameFromValue(point.label);
     if (labelLocalName) return labelLocalName;
+    const attractionName = findTravelAttraction(
+      point.city ?? point.localName ?? "",
+      point.label
+    )?.name;
+    if (attractionName && !/[A-Za-z]/.test(attractionName)) {
+      return attractionName;
+    }
     const label = point.label.trim();
-    if (label) return label;
-    return point.localName ?? point.city ?? point.subtitle;
+    if (label && !/[A-Za-z]/.test(label)) return label;
+    return "当地景点";
   }
 
   const cityLocalName = getLocalNameFromValue(point.city);
   if (cityLocalName) return cityLocalName;
-  if (point.city) return point.localName ?? point.city;
+  if (point.city) {
+    const candidate = point.localName ?? point.city;
+    return /[A-Za-z]/.test(candidate) ? "待确认城市" : candidate;
+  }
   const labelLocalName = getLocalNameFromValue(point.label);
   if (labelLocalName) return labelLocalName;
   if (point.kind === "city" && point.localName) return point.localName;
@@ -883,7 +895,7 @@ function getPointDisplayName(point: TripMapPoint): string {
   ) {
     return point.localName;
   }
-  return point.label;
+  return /[A-Za-z]/.test(point.label) ? "待确认城市" : point.label;
 }
 
 function formatChineseDuration(duration: string | undefined): string {
@@ -1561,15 +1573,17 @@ function getPointDisplayLocation(point: TripMapPoint): string {
   if (point.subtitle.includes(" in ")) {
     const subtitleLocation =
       point.subtitle.split(" in ").at(-1)?.trim() || point.subtitle;
-    return getLocalNameFromValue(subtitleLocation) ?? subtitleLocation;
+    const localized = getLocalNameFromValue(subtitleLocation);
+    if (localized) return localized;
+    return /[A-Za-z]/.test(subtitleLocation) ? "位置待确认" : subtitleLocation;
   }
-  return (
+  const location =
     getLocalNameFromValue(point.city) ??
     getLocalNameFromValue(point.subtitle) ??
     point.localName ??
     point.city ??
-    point.subtitle
-  );
+    point.subtitle;
+  return /[A-Za-z]/.test(location) ? "位置待确认" : location;
 }
 
 function getPointAttractions(point: TripMapPoint): string {

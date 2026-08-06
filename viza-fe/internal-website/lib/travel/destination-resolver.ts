@@ -2550,8 +2550,10 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
 
 export function toTravelDestinationChatCard(
   destination: TravelDestinationSearchResult,
-  rawText = ""
+  rawText = "",
+  locale: "zh" | "en" = "en"
 ): TravelDestinationCard {
+  const isZh = locale === "zh";
   const candidatePayload = buildTravelCandidatePayload([destination], rawText);
   const localContract = findDropdownDestinationContract(
     destination.nameEn ?? destination.displayName ?? destination.canonicalName
@@ -2574,28 +2576,48 @@ export function toTravelDestinationChatCard(
     : "placeholder";
   const highlights = [
     sourceStatus === "llm_generated"
-      ? "place information pending"
+      ? isZh
+        ? "地点资料待补充"
+        : "place information pending"
       : destination.placeType
-        ? `${destination.placeType} route`
-        : "travel route",
-    destination.countryName ?? destination.region ?? "travel context",
+        ? isZh
+          ? "城市游览路线"
+          : `${destination.placeType} route`
+        : isZh
+          ? "旅行路线"
+          : "travel route",
+    destination.countryName ?? destination.region ?? (isZh ? "旅行地点" : "travel context"),
     attractionCount >= 3
-      ? `${attractionCount} local attraction cards`
-      : "place data pending",
+      ? isZh
+        ? `${attractionCount}张当地景点卡片`
+        : `${attractionCount} local attraction cards`
+      : isZh
+        ? "地点资料待补充"
+        : "place data pending",
     destination.latitude !== null && destination.longitude !== null
-      ? "map-ready"
-      : "coordinate fallback ready",
+      ? isZh
+        ? "地图位置已就绪"
+        : "map-ready"
+      : isZh
+        ? "地图位置待确认"
+        : "coordinate fallback ready",
   ];
+
+  const localizedTitle = isZh
+    ? destination.nameZh ?? localContract?.nameZh ?? destination.displayName
+    : destination.nameEn ?? localContract?.nameEn ?? destination.displayName;
 
   return {
     type: "destination" as const,
     id: destination.id,
     destination_id: destination.id,
-    title: destination.displayName,
+    title: localizedTitle,
     subtitle:
       destination.countryName || destination.region
-        ? `${destination.countryName ?? destination.region} · ${destination.placeType ?? "destination"}`
-        : "Place information is being enriched.",
+        ? `${destination.countryName ?? destination.region} · ${isZh ? "城市" : destination.placeType ?? "destination"}`
+        : isZh
+          ? "正在补充地点资料。"
+          : "Place information is being enriched.",
     country: destination.countryName ?? destination.displayName,
     city: destination.city ?? destination.displayName,
     image_key: destination.imageKey ?? null,
@@ -2618,9 +2640,11 @@ export function toTravelDestinationChatCard(
     highlights,
     suggested_days:
       typeof candidatePayload.travel_days === "number"
-        ? `${candidatePayload.travel_days} days`
+        ? isZh
+          ? `${candidatePayload.travel_days}天`
+          : `${candidatePayload.travel_days} days`
         : null,
-    action_label: "加入计划",
+    action_label: isZh ? "加入计划" : "Add to plan",
     payload: candidatePayload,
   };
 }

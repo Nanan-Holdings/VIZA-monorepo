@@ -1,5 +1,6 @@
 import {
   createInitialTravelState,
+  getDefaultFlexibleDepartureDate,
   type TravelDateFlexibility,
   type TravelState,
 } from "./planner";
@@ -296,6 +297,14 @@ export function applyTravelStateOperations(
         continue;
       }
       state.date_flexibility = operation.valueText;
+      if (operation.valueText === "flexible") {
+        // Flexible travel is a complete date choice, not an instruction to
+        // keep asking for a date. Mirror applyFormPayload so a model that
+        // emits only the flexibility operation still advances the planner.
+        state.departure_date ??= getDefaultFlexibleDepartureDate();
+      }
+      state.selected_flights = [];
+      state.selected_hotels = [];
     } else if (path === "travel_order") {
       const order = parseTravelOrder(operation.valueText ?? "", state.cities);
       if (!order.length) {

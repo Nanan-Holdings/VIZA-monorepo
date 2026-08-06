@@ -252,17 +252,6 @@ function normalizeString(value: unknown): string | null {
   return normalized ? normalized : null;
 }
 
-function formatEndpointDisplay(country: string, city: string): string {
-  const normalizedCountry = country.trim();
-  const rawCity = city.trim();
-  const normalizedCity = getCuratedCityLabel(rawCity, "zh") ?? rawCity;
-  if (!normalizedCountry) return normalizedCity || "-";
-  if (!normalizedCity) return normalizedCountry || "-";
-  return normalizedCountry === normalizedCity
-    ? normalizedCity
-    : `${normalizedCountry} ${normalizedCity}`;
-}
-
 function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
@@ -689,14 +678,9 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
     const originCity = display?.origin_city ?? payload.origin_city ?? "-";
     const returnCountry = display?.return_country ?? payload.return_country ?? "-";
     const returnCity = display?.return_city ?? payload.return_city ?? "-";
-    const originLabel = formatEndpointDisplay(originCountry, originCity);
-    const returnLabel = formatEndpointDisplay(returnCountry, returnCity);
-
-    if (originLabel === returnLabel) {
-      return `出发和返程城市都设为 ${originLabel}。`.trim();
-    }
-
-    return `出发地：${originLabel}；返程地：${returnLabel}。`.trim();
+    const localizedOriginCity = getCuratedCityLabel(originCity, "zh") ?? originCity;
+    const localizedReturnCity = getCuratedCityLabel(returnCity, "zh") ?? returnCity;
+    return `出发地设为 ${originCountry}｜${localizedOriginCity}；返程地设为 ${returnCountry}｜${localizedReturnCity}。`.trim();
   }
   if (payload.travel_order?.length) {
     const travelOrder = display?.travel_order?.length

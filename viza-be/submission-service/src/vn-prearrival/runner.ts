@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { pipeline } from "node:stream/promises";
 import type { Locator, Page } from "@playwright/test";
 import bundledOfficialStaticCatalog from "./data/official-static-options.json";
 import {
@@ -10,6 +11,7 @@ import {
 import {
   matchesOfficialDialingCodeOption,
   officialLocalPhoneNumber,
+  reconcileHotelDependentControlFailures,
   VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
   type VnPrearrivalPortalPayload,
 } from "./normalize";
@@ -963,7 +965,11 @@ async function downloadConfirmationPdf(page: Page, dir: string, logs: string[]):
       downloadButton.click(),
     ]);
     const filePath = path.join(dir, "vietnam-prearrival-confirmation.pdf");
-    await download.saveAs(filePath);
+    const stream = await download.createReadStream();
+    if (!stream) {
+      throw new Error("official confirmation PDF download stream was unavailable");
+    }
+    await pipeline(stream, fs.createWriteStream(filePath));
     logs.push("vn_prearrival_pdf_downloaded");
     return filePath;
   } catch (error) {
@@ -1207,7 +1213,7 @@ export async function runVietnamPrearrivalPortalSubmission(
       );
     }
 
-    const missingControls: string[] = [];
+    let missingControls: string[] = [];
     if (!(await selectExpectedArrivalDate(page, payload.expectedArrivalDate))) {
       missingControls.push("expected_arrival_date");
     }
@@ -1380,14 +1386,13 @@ export async function runVietnamPrearrivalPortalSubmission(
           missingControls.push(field);
         }
       }
-      if (
-        !(await selectDependentOfficialOption(
+      const accommodationSelected = await selectDependentOfficialOption(
           page,
           [/accommodation address/i, /địa chỉ/i],
           accommodationLabel,
           payload.usesCustomHotelAccommodationAddress ? "Other" : payload.accommodationAddress,
-        ))
-      ) {
+        );
+      if (!accommodationSelected) {
         missingControls.push("accommodation_address");
       } else if (
         payload.usesCustomHotelAccommodationAddress
@@ -1395,6 +1400,14 @@ export async function runVietnamPrearrivalPortalSubmission(
       ) {
         missingControls.push("custom_hotel_accommodation_address");
       }
+      const reconciledMissingControls = reconcileHotelDependentControlFailures(
+        missingControls,
+        accommodationSelected && !payload.usesCustomHotelAccommodationAddress,
+      );
+      if (reconciledMissingControls.length !== missingControls.length) {
+        logs.push("vn_prearrival_hotel_dependencies_verified_by_catalog_accommodation");
+      }
+      missingControls = reconciledMissingControls;
     } else if (!(await fillNearLabel(page, [/accommodation address/i, /địa chỉ/i], payload.accommodationAddress))) {
       missingControls.push("accommodation_address");
     }
