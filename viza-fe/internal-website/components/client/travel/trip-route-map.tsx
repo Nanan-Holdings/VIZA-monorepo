@@ -875,8 +875,11 @@ function getPointDisplayName(point: TripMapPoint): string {
       return attractionName;
     }
     const label = point.label.trim();
-    if (label && !/[A-Za-z]/.test(label)) return label;
-    return "当地景点";
+    // A real provider name is more truthful than a generic invented label. The
+    // curated catalogue resolves known aliases to Chinese above; unknown names
+    // stay intact so the UI never turns an actual place into “当地景点”.
+    if (label) return label;
+    return point.localName?.trim() || point.subtitle.trim();
   }
 
   const cityLocalName = getLocalNameFromValue(point.city);

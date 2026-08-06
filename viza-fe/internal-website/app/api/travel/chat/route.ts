@@ -231,7 +231,7 @@ function parseModelResult(value: unknown): TravelAgentModelResult | null {
     intent: value.intent as TravelAgentIntent,
     reply: value.reply.trim(),
     operations: operations as TravelStateOperation[],
-    recommendations: recommendations.slice(0, 4),
+    recommendations: recommendations.slice(0, 2),
     quickReplies: quickReplies.slice(0, 4),
     memorySummary: value.memory_summary.trim().slice(0, 4_000),
     preferenceUpdates: value.preference_updates.flatMap((item) => {
@@ -329,7 +329,7 @@ function outputSchema() {
       },
       recommendations: {
         type: "array",
-        maxItems: 4,
+        maxItems: 2,
         items: { type: "string" },
       },
       quick_replies: {
@@ -385,6 +385,7 @@ function systemPrompt(locale: InterfaceLocale): string {
     "Never mention schemas, state machines, payloads, enrichment, model calls, databases, or internal tools.",
     "Use the full conversation context. Resolve short replies such as '没有' and '推荐一下' against the immediately preceding question.",
     "Recommendations are display-only. If the user says they do not know where to go, recommend options but emit NO destination operation.",
+    "When recommending destinations, return exactly two distinct options.",
     "Only emit an explicit=true operation when the user directly stated that fact or command in this turn.",
     "A direct command such as '我想去东京' selects Tokyo. A direct command such as '我不要去东京' removes Tokyo.",
     "Questions such as '多少预算合适' and requests such as '推荐一下预算' are advice requests: answer them and emit NO budget operation.",
@@ -855,7 +856,7 @@ function recommendationCards(
         },
       ];
     });
-  });
+  }).slice(0, 2);
 }
 
 function parsePendingActions(value: unknown): TravelStateOperation[] {

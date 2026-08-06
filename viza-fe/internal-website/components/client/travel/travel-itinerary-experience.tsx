@@ -1061,8 +1061,13 @@ function isRealGooglePhoto(
   );
 }
 
-function isPlacesPhotoProxySrc(value: string | null | undefined): boolean {
-  return typeof value === "string" && value.startsWith("/api/places/photo?");
+function shouldBypassTravelImageOptimizer(
+  value: string | null | undefined
+): boolean {
+  return (
+    typeof value === "string" &&
+    (value.startsWith("/api/places/photo?") || /^https?:\/\//i.test(value))
+  );
 }
 
 function getDestinationEnrichmentFromPatch(
@@ -1245,7 +1250,10 @@ function getAttractionNameForLanguage(
   if (localizedFallback && !containsLatinLetters(localizedFallback)) {
     return localizedFallback;
   }
-  return `${getLocalCityLabel(city)}当地景点`;
+  // Preserve the provider's specific place name when it is not in the local
+  // translation catalogue. A concrete original name is preferable to a
+  // misleading generic attraction placeholder.
+  return preferredName?.trim() || localizedFallback || fallback;
 }
 
 function getDiningNameForLanguage(
@@ -2219,6 +2227,14 @@ function buildAttractionGeocodeItems(
       const key = getAttractionCoordinateKey(city, name);
       if (!name || seen.has(key)) return false;
       seen.add(key);
+      const attraction = findTravelAttraction(city, name);
+      if (
+        attraction &&
+        Number.isFinite(attraction.lat) &&
+        Number.isFinite(attraction.lng)
+      ) {
+        return false;
+      }
       return true;
     })
     .slice(0, 14)
@@ -3659,6 +3675,14 @@ function numberField(
   return undefined;
 }
 
+function booleanField(
+  record: Record<string, unknown>,
+  key: string
+): boolean | undefined {
+  const value = record[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
 function coerceFlightOption(value: unknown): FlightOptionResult {
   const record = asRecord(value);
   if (!record) return {};
@@ -3666,6 +3690,10 @@ function coerceFlightOption(value: unknown): FlightOptionResult {
   const stops = numberField(record, "stops");
   return {
     provider: stringField(record, "provider"),
+    estimated: booleanField(record, "estimated"),
+    provider_status: stringField(record, "provider_status"),
+    provider_reason: stringField(record, "provider_reason"),
+    provider_message: stringField(record, "provider_message"),
     airline: stringField(record, "airline"),
     price: stringField(record, "price"),
     currency: stringField(record, "currency"),
@@ -3739,7 +3767,7 @@ function coerceApiFlightLegs(payload: unknown): FlightLegResult[] {
   const rawLegs = Array.isArray(record?.legs) ? record.legs : [];
 
   return rawLegs
-    .map((rawLeg) => {
+    .map((rawLeg): FlightLegResult | null => {
       const leg = asRecord(rawLeg);
       if (!leg) return null;
       const from = stringField(leg, "from");
@@ -3747,14 +3775,27 @@ function coerceApiFlightLegs(payload: unknown): FlightLegResult[] {
       const departureDate = stringField(leg, "departure_date");
       if (!from || !to || !departureDate) return null;
 
-      const options = Array.isArray(leg.options)
+      const rawOptions = Array.isArray(leg.options)
         ? leg.options.map(coerceFlightOption)
         : [];
+      const options = rawOptions.filter(
+        (option) =>
+          option.estimated !== true && option.provider_status !== "unavailable"
+      );
       return {
         from,
         to,
         departure_date: departureDate,
         options,
+        provider_unavailable:
+          booleanField(leg, "provider_unavailable") ??
+          rawOptions.some(
+            (option) =>
+              option.estimated === true ||
+              option.provider_status === "unavailable"
+          ),
+        estimated: booleanField(leg, "estimated"),
+        provider_message: stringField(leg, "provider_message"),
       };
     })
     .filter((leg): leg is FlightLegResult => leg !== null);
@@ -3796,7 +3837,13 @@ function selectApiDefaultFlights(
   return legs
     .map((leg, index): SelectedFlightOption | null => {
       const option = leg.options[0];
-      if (!option) return null;
+      if (
+        !option ||
+        option.estimated === true ||
+        option.provider_status === "unavailable"
+      ) {
+        return null;
+      }
       return {
         leg_index: index + 1,
         from: leg.from,
@@ -3972,6 +4019,7 @@ export function TravelItineraryExperience({
   const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const failedAttractionGeocodeKeysRef = useRef<Set<string>>(new Set());
+  const inFlightAttractionGeocodeKeysRef = useRef<Set<string>>(new Set());
 
   const apiOptionsPayload = useMemo(
     () => buildApiOptionsPayload(travelState, orderedCities),
@@ -4268,6 +4316,11 @@ export function TravelItineraryExperience({
     [activeDayHotelStay]
   );
   const attractionGeocodeItems = useMemo(() => {
+    // The itinerary overview already has curated coordinates and deterministic
+    // local fallbacks. Only geocode unknown activities after the user opens a
+    // map/detail surface; background geocoding made the idle page wait on a
+    // slow external service without improving the visible overview.
+    if (!detailOpen && !fullMapOpen) return [];
     const city = activeDay?.city ?? activeSegment?.city ?? "";
     if (!city) return [];
     const activeNames = activeDay
@@ -4277,7 +4330,14 @@ export function TravelItineraryExperience({
         ]
       : activeCityDays.flatMap((day) => day.activities);
     return buildAttractionGeocodeItems(city, activeNames);
-  }, [activeDay, activeDayAttractionChoices, activeCityDays, activeSegment]);
+  }, [
+    activeDay,
+    activeDayAttractionChoices,
+    activeCityDays,
+    activeSegment,
+    detailOpen,
+    fullMapOpen,
+  ]);
   const detailMapPoints = activeDayMapPoints.length
     ? activeDayMapPoints
     : cityFocusedMapPoints;
@@ -4493,10 +4553,16 @@ export function TravelItineraryExperience({
   useEffect(() => {
     const pendingItems = attractionGeocodeItems.filter((item) => {
       if (googleAttractionCoordinates[item.key]) return false;
-      return !failedAttractionGeocodeKeysRef.current.has(item.key);
+      return (
+        !failedAttractionGeocodeKeysRef.current.has(item.key) &&
+        !inFlightAttractionGeocodeKeysRef.current.has(item.key)
+      );
     });
 
     if (pendingItems.length === 0) return;
+    pendingItems.forEach((item) =>
+      inFlightAttractionGeocodeKeysRef.current.add(item.key)
+    );
 
     let disposed = false;
 
@@ -4549,6 +4615,10 @@ export function TravelItineraryExperience({
       } catch {
         pendingItems.forEach((item) =>
           failedAttractionGeocodeKeysRef.current.add(item.key)
+        );
+      } finally {
+        pendingItems.forEach((item) =>
+          inFlightAttractionGeocodeKeysRef.current.delete(item.key)
         );
       }
     })();
@@ -5342,7 +5412,7 @@ export function TravelItineraryExperience({
         </span>
       </div>
       <p className="mt-2 text-sm font-semibold leading-relaxed text-[#5f5166]">
-        {copy.publicTransportDescription}
+        {leg.provider_message || copy.publicTransportDescription}
       </p>
     </article>
   );
@@ -5841,7 +5911,7 @@ export function TravelItineraryExperience({
                   height={360}
                   priority={false}
                   src={heroImage}
-                  unoptimized={isPlacesPhotoProxySrc(heroImage)}
+                  unoptimized={shouldBypassTravelImageOptimizer(heroImage)}
                   width={480}
                 />
                 <div className="absolute inset-0 bg-black/18" />
@@ -6237,7 +6307,7 @@ export function TravelItineraryExperience({
                               className="h-full w-full object-cover"
                               height={420}
                               src={galleryImages[0] ?? segment.imageSrc}
-                              unoptimized={isPlacesPhotoProxySrc(
+                              unoptimized={shouldBypassTravelImageOptimizer(
                                 galleryImages[0] ?? segment.imageSrc
                               )}
                               width={760}
@@ -6257,7 +6327,9 @@ export function TravelItineraryExperience({
                                   className="h-full w-full object-cover"
                                   height={240}
                                   src={imageSrc}
-                                  unoptimized={isPlacesPhotoProxySrc(imageSrc)}
+                                  unoptimized={shouldBypassTravelImageOptimizer(
+                                    imageSrc
+                                  )}
                                   width={320}
                                 />
                               </div>
@@ -6316,7 +6388,7 @@ export function TravelItineraryExperience({
                                     safeDayIndex,
                                     segment.enrichment
                                   )}
-                                  unoptimized={isPlacesPhotoProxySrc(
+                                  unoptimized={shouldBypassTravelImageOptimizer(
                                     getDayImage(
                                       day,
                                       safeDayIndex,
@@ -6649,7 +6721,7 @@ export function TravelItineraryExperience({
                                       className="h-full w-full object-cover"
                                       height={140}
                                       src={attraction.imageSrc}
-                                      unoptimized={isPlacesPhotoProxySrc(
+                                      unoptimized={shouldBypassTravelImageOptimizer(
                                         attraction.imageSrc
                                       )}
                                       width={140}
@@ -6725,7 +6797,7 @@ export function TravelItineraryExperience({
                                     className="h-full w-full object-cover"
                                     height={120}
                                     src={activeActivityImageSrc}
-                                    unoptimized={isPlacesPhotoProxySrc(
+                                    unoptimized={shouldBypassTravelImageOptimizer(
                                       activeActivityImageSrc
                                     )}
                                     width={140}

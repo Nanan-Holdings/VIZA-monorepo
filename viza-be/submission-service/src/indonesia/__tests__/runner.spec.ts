@@ -431,6 +431,8 @@ test("tries Indonesia official step 1 AJAX persistence before any legacy form fa
   );
   assert.match(stepOneSource, /isIndonesiaStepOneLegacyFallbackEnabled/);
   assert.match(stepOneSource, /indonesia_step_1_passport_upload_not_ready/);
+  assert.match(stepOneSource, /invokeIndonesiaOfficialPhotoUpload/);
+  assert.match(stepOneSource, /if \(!photoUploadReady\)/);
 });
 
 test("blocks Indonesia payment handoff when step 3 review evidence is incomplete", () => {

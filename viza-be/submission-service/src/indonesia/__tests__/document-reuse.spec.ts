@@ -5,6 +5,7 @@ import {
   isPlausibleIndonesiaDocument,
   missingIndonesiaRequiredDocumentPaths,
   prioritizeCurrentApplicationDocuments,
+  requiresIndonesiaReturnTicket,
   selectIndonesiaSubmissionDocuments,
 } from "../document-reuse.js";
 
@@ -56,14 +57,14 @@ test("only reuses universal passport and portrait documents from sibling applica
   assert.deepEqual(selected.map((document) => document.id), ["passport", "photo"]);
 });
 
-test("rejects obvious foreign arrival-card files and smoke placeholders", () => {
+test("does not reject Indonesia documents based on file or storage-path names", () => {
   assert.equal(
     isPlausibleIndonesiaDocument({
       document_type: "return_ticket",
       file_name: "sg-arrival-card-X0264C6369.pdf",
       storage_path: "app/return_ticket/sg-arrival-card-X0264C6369.pdf",
     }),
-    false,
+    true,
   );
   assert.equal(
     isPlausibleIndonesiaDocument({
@@ -71,11 +72,11 @@ test("rejects obvious foreign arrival-card files and smoke placeholders", () => 
       file_name: "bank_statement.pdf",
       storage_path: "test/app/bank_statement.pdf",
     }),
-    false,
+    true,
   );
 });
 
-test("explicit test override accepts only current-application files", () => {
+test("accepts current-application files regardless of name without reusing non-universal sibling files", () => {
   const currentArrivalCard = {
     id: "current-test-file",
     document_type: "return_ticket",
@@ -93,7 +94,6 @@ test("explicit test override accepts only current-application files", () => {
     selectIndonesiaSubmissionDocuments(
       [currentArrivalCard],
       [siblingArrivalCard],
-      { allowCurrentApplicationTestDocuments: true },
     ).map((document) => document.id),
     ["current-test-file"],
   );
@@ -114,4 +114,40 @@ test("allocates B1 and C1 document requirements before card consumption", () => 
     missingIndonesiaRequiredDocumentPaths({ isB1: true, passportImagePath: "passport.jpg", photoImagePath: "photo.jpg" }),
     ["return_ticket"],
   );
+  assert.deepEqual(
+    missingIndonesiaRequiredDocumentPaths({
+      isB1: false,
+      passportImagePath: "passport-without-extension",
+      photoImagePath: "portrait-without-extension",
+      bankStatementPath: "bank-statement-without-extension",
+    }),
+    [],
+  );
+  assert.deepEqual(
+    missingIndonesiaRequiredDocumentPaths({
+      isB1: false,
+      documentTravelType: "Passport",
+      passportImagePath: "passport.jpg",
+      photoImagePath: "photo.jpg",
+      bankStatementPath: "bank.pdf",
+    }),
+    [],
+  );
+  assert.deepEqual(
+    missingIndonesiaRequiredDocumentPaths({
+      isB1: false,
+      documentTravelType: "Emergency Passport",
+      passportImagePath: "passport.jpg",
+      photoImagePath: "photo.jpg",
+      bankStatementPath: "bank.pdf",
+    }),
+    ["return_ticket"],
+  );
+});
+
+test("limits the C1 ticket requirement to non-national travel documents", () => {
+  assert.equal(requiresIndonesiaReturnTicket(false, "Passport"), false);
+  assert.equal(requiresIndonesiaReturnTicket(false, "Diplomatic Passport"), false);
+  assert.equal(requiresIndonesiaReturnTicket(false, "Certificate of Identity"), true);
+  assert.equal(requiresIndonesiaReturnTicket(true, "Passport"), true);
 });
