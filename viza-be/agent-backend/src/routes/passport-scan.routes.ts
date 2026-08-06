@@ -14,7 +14,7 @@
  */
 
 import { Router } from "express";
-import OpenAI from "openai";
+import { createOpenAiClient } from "../utils/openai-client.js";
 import { Logger } from "../utils/logger.js";
 import { maskPII } from "../utils/phi-masker.js";
 
@@ -137,7 +137,7 @@ passportScanRouter.post("/extract", async (req, res) => {
       return;
     }
 
-    const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+    const client = createOpenAiClient(OPENAI_API_KEY);
 
     const start = Date.now();
     const response = await client.responses.create({

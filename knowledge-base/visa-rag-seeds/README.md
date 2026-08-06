@@ -38,7 +38,10 @@ uses this chunk for standard-answer questions such as passport issuing
 authority, place of issue, passport type, nationality, passport dates, and
 other identity fields where the correct answer must come from the passport,
 official identity document, MRZ, or official dropdown options rather than a
-free-form guess.
+free-form guess. The chunk must treat issuing country, place of issue, and
+issuing authority as distinct fields. Authority names must never be used as
+place-of-issue examples, and a country should be entered only when the official
+field asks for an issuing country or provides a country-only selector.
 
 Country seeds may also carry an `official_field_answer_norms` chunk inside the
 same `form_requirements` document. Generate or refresh this chunk with

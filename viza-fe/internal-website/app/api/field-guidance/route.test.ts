@@ -23,6 +23,16 @@ const passportTypeField = {
   conditionalLogic: null,
 };
 
+const passportPlaceOfIssueField = {
+  ...passportTypeField,
+  id: "field-passport-place-of-issue",
+  visaType: "JP_TOURIST",
+  fieldName: "passport_place_of_issue",
+  label: "Place of issue",
+  fieldType: "text",
+  options: null,
+};
+
 describe("POST /api/field-guidance", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -54,7 +64,7 @@ describe("POST /api/field-guidance", () => {
     );
     const payload = (await response.json()) as FieldGuidanceResponse;
 
-    expect(payload.guidance.optionExplanations).toHaveLength(3);
+    expect(payload.guidance.optionExplanations).toHaveLength(2);
     expect(payload.guidance.optionExplanations).toEqual([
       expect.objectContaining({
         value: "ordinary",
@@ -65,11 +75,6 @@ describe("POST /api/field-guidance", () => {
         value: "diplomatic",
         label: "外交护照",
         description: expect.stringContaining("外交"),
-      }),
-      expect.objectContaining({
-        value: "official",
-        label: "公务护照",
-        description: expect.stringContaining("公务"),
       }),
     ]);
   });
@@ -142,5 +147,35 @@ describe("POST /api/field-guidance", () => {
     expect(payload.guidance.examples).toEqual([]);
     expect(payload.guidance.optionExplanations).toEqual([]);
     expect(payload.guidance.summary).toContain("下拉列表");
+  });
+
+  it("keeps place of issue separate from issuing authority in local guidance", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("backend unavailable");
+      }),
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/field-guidance", {
+        method: "POST",
+        body: JSON.stringify({
+          visaType: "JP_TOURIST",
+          country: "japan",
+          locale: "en",
+          field: passportPlaceOfIssueField,
+          answer: "",
+          allAnswers: {},
+        }),
+      }),
+    );
+    const payload = (await response.json()) as FieldGuidanceResponse;
+    const renderedGuidance = JSON.stringify(payload.guidance);
+
+    expect(payload.guidance.summary).toContain("location");
+    expect(renderedGuidance).not.toContain("National Immigration Administration, PRC");
+    expect(renderedGuidance).not.toContain("MPS Exit & Entry Administration");
   });
 });

@@ -116,7 +116,7 @@ export function RecentActivitySection({ events }: Props) {
 
   return (
     <div className="w-full max-w-[1090px] pb-[80px]">
-      <ApplicationFormPanel className="w-full divide-y divide-[#efefef] overflow-hidden p-0">
+      <div className="flex w-full flex-col gap-3">
         {events.map((event, i) => (
           <motion.div
             key={event.id}
@@ -124,10 +124,12 @@ export function RecentActivitySection({ events }: Props) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.05 * i, duration: 0.4 }}
           >
-            <ActivityRow event={event} />
+            <ApplicationFormPanel className="w-full overflow-hidden rounded-xl p-0">
+              <ActivityRow event={event} />
+            </ApplicationFormPanel>
           </motion.div>
         ))}
-      </ApplicationFormPanel>
+      </div>
     </div>
   );
 }

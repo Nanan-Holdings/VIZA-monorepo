@@ -12,6 +12,7 @@ import {
   Crop,
 } from "lucide-react";
 import { AiAssistButton } from "@/components/ui/ai-assist-button";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
@@ -408,37 +409,33 @@ export function PhotoUploadStep({
             <p className="text-sm text-green-700">{t("passed")}</p>
           </div>
         ) : (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex flex-col gap-2">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700 font-medium">{t("failed")}</p>
-            </div>
-            <div className="ml-8">
-              <p className="text-xs text-red-600 font-medium mb-1">
-                {t("reasonsTitle")}
-              </p>
-              <ul className="flex flex-col gap-1">
+          <Alert variant="destructive">
+            <AlertIcon variant="destructive" />
+            <AlertTitle>{t("failed")}</AlertTitle>
+            <AlertDescription>
+              <p className="font-medium">{t("reasonsTitle")}</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
                 {allIssues.map((reason) => (
-                  <li key={reason} className="text-xs text-red-600">
-                    &bull; {t(`failures.${reason}`)}
-                  </li>
+                  <li key={reason}>{t(`failures.${reason}`)}</li>
                 ))}
               </ul>
-            </div>
-          </div>
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Warnings (when passed but has soft warnings) */}
         {passed && validationResult.warnings.length > 0 && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <ul className="flex flex-col gap-1">
-              {validationResult.warnings.map((reason) => (
-                <li key={reason} className="text-xs text-amber-700">
-                  &bull; {t(`failures.${reason}`)}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <Alert variant="warning">
+            <AlertIcon variant="warning" />
+            <AlertTitle>{t("reasonsTitle")}</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc space-y-1 pl-5">
+                {validationResult.warnings.map((reason) => (
+                  <li key={reason}>{t(`failures.${reason}`)}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
         )}
 
         {error && <p className="text-xs text-red-500">{error}</p>}

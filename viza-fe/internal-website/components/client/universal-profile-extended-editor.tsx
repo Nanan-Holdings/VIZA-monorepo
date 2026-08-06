@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Database, Loader2, Pencil, Save, Search } from "lucide-react";
+import { CheckCircle2, Loader2, Pencil, Save } from "lucide-react";
 import { useLocale } from "next-intl";
 import {
   loadUniversalProfileWorkspace,
@@ -13,6 +13,7 @@ import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
 import { ApplicationFormField } from "@/components/ui/application-form-field";
 import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
+import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import {
   ApplicationSearchableMultiSelect,
   ApplicationSearchableSelect,
@@ -64,6 +65,14 @@ const CATEGORY_COPY: Record<UniversalProfileCategory, { zh: string; en: string; 
   immigration_history: { zh: "旅行与签证记录", en: "Travel and visa history", descriptionZh: "既往旅行、签证、拒签和居留身份。", descriptionEn: "Previous travel, visas, refusals, and residence status." },
   background: { zh: "背景资料", en: "Background", descriptionZh: "未来申请可能重复询问的健康、安全和合规事实。", descriptionEn: "Health, security, and compliance facts reused by future applications." },
 };
+
+const HISTORY_STARTER_PATTERN = /(?:ever_refused|visa_refused|has_been_refused|deported|overstay|has_overstayed|has_visited|visited_|travelled_|previous_.*visa|has_schengen_visits|has_us_canada|has_other_country|refusal_)/i;
+
+function isDefaultProfileField(field: UniversalProfileFieldDefinition) {
+  if (field.sourceVisaTypes.length >= 2) return true;
+  if (field.category === "background") return true;
+  return field.category === "immigration_history" && HISTORY_STARTER_PATTERN.test(field.canonicalKey);
+}
 
 function optionValue(option: VisaFormFieldOption) {
   return typeof option === "string" ? option : option.value;
@@ -136,7 +145,7 @@ function buildDraft(answer?: UniversalProfileAnswerRecord): DraftValue {
   };
 }
 
-export function UniversalProfileExtendedEditor() {
+export function UniversalProfileExtendedEditor({ category }: { category: UniversalProfileCategory }) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const [fields, setFields] = useState<UniversalProfileFieldDefinition[]>([]);
@@ -144,8 +153,8 @@ export function UniversalProfileExtendedEditor() {
   const [coreValues, setCoreValues] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, DraftValue>>({});
   const [editingCategories, setEditingCategories] = useState<Set<UniversalProfileCategory>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<UniversalProfileCategory>>(new Set());
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
-  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingCategory, setSavingCategory] = useState<UniversalProfileCategory | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -189,14 +198,13 @@ export function UniversalProfileExtendedEditor() {
     ...coreValues,
     ...Object.fromEntries(Object.entries(drafts).map(([key, draft]) => [key, draft.value])),
   }), [coreValues, drafts]);
-  const searchableFields = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+  const visibleFields = useMemo(() => {
     return fields.filter((field) => {
+      if (field.category !== category) return false;
       if (!evaluateShowIf(field, currentValues, fields)) return false;
-      if (!normalizedQuery) return true;
-      return `${field.canonicalKey} ${getChineseLabel(field.label)} ${getEnglishLabel(field.label)}`.toLowerCase().includes(normalizedQuery);
+      return true;
     });
-  }, [currentValues, fields, query]);
+  }, [category, currentValues, fields]);
 
 
   function updateDraft(key: string, next: DraftValue) {
@@ -263,99 +271,100 @@ export function UniversalProfileExtendedEditor() {
   }
 
   if (loading) {
-    return <section className="flex min-h-52 items-center justify-center gap-3 rounded-xl border border-[#efefef] bg-white p-6 text-sm text-muted-foreground shadow-sm"><Loader2 className="h-5 w-5 animate-spin text-brand-500" />{isZh ? "正在加载完整资料库..." : "Loading your complete profile..."}</section>;
+    return <ApplicationFormPanel className="flex min-h-52 items-center justify-center gap-3 p-6 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-brand-500" />{isZh ? "正在加载此分类..." : "Loading this category..."}</ApplicationFormPanel>;
   }
 
+  const allCategoryFields = visibleFields;
+  if (allCategoryFields.length === 0) return null;
+  const categoryExpanded = expandedCategories.has(category);
+  const categoryFields = allCategoryFields.filter((field) => (
+    categoryExpanded ||
+    Boolean(answerMap.get(field.canonicalKey)?.value.trim()) ||
+    isDefaultProfileField(field)
+  ));
+  const hiddenFieldCount = allCategoryFields.length - categoryFields.length;
+  const categoryInfo = CATEGORY_COPY[category];
+  const categoryIndex = UNIVERSAL_PROFILE_CATEGORIES.indexOf(category);
+  const editing = editingCategories.has(category);
+  const savedFields = categoryFields.filter((field) => Boolean(answerMap.get(field.canonicalKey)?.value.trim()) && !editing);
+  const editableFields = categoryFields.filter((field) => editing || !answerMap.get(field.canonicalKey)?.value.trim());
+  const rows: ReviewRow[] = savedFields.map((field) => {
+    const answer = answerMap.get(field.canonicalKey)!;
+    return {
+      section: isZh ? "已保存资料" : "Saved information",
+      fieldName: field.canonicalKey,
+      label: field.label,
+      sourceLabel: getChineseLabel(field.label),
+      officialLabel: getEnglishLabel(field.label),
+      sourceValue: displayValue(field, answer.valueZh || answer.value, "zh"),
+      officialValue: displayValue(field, answer.valueEn || answer.value, "en"),
+      badges: [], warnings: [], editable: true, editStepIndex: categoryIndex,
+    };
+  });
+
   return (
-    <div className="space-y-6">
-      <section className="rounded-xl border border-[#efefef] bg-white p-6 shadow-sm">
+    <ApplicationFormPanel className="scroll-mt-28 p-4 sm:p-6 md:p-8">
+      <div className="flex min-h-8 items-center justify-between gap-3">
         <div>
-          <div>
-            <div className="flex items-center gap-2 text-brand-500"><Database className="h-5 w-5" /><h2 className="font-heading text-lg font-semibold">{isZh ? "完整通用资料" : "Complete Universal Profile"}</h2></div>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              {isZh
-                ? "这里汇总所有国家表格中可在未来申请复用的资料。已保存内容采用“审核申请”格式显示；未填写内容直接显示申请表输入框。"
-                : "This combines reusable information found across country application schemas. Saved facts use the Review Application layout; missing facts remain normal application inputs."}
-            </p>
-          </div>
+          <h2 className="font-heading text-[20px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[24px]">
+            {isZh ? categoryInfo.zh : categoryInfo.en}
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {isZh ? categoryInfo.descriptionZh : categoryInfo.descriptionEn}
+          </p>
         </div>
-
-        <div className="relative mt-5 max-w-xl">
-          <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-          <ApplicationFormInputGroup forceWhiteBackground>
-            <InputGroupInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder={isZh ? "搜索字段，例如：父亲、雇主、拒签" : "Search fields, for example: father, employer, refusal"} className="pl-9" />
-          </ApplicationFormInputGroup>
-        </div>
-
-        {!schemaAvailable ? <p role="alert" className="mt-4 text-sm font-medium text-amber-700">{isZh ? "完整资料表尚未安装数据库迁移；现有基础资料仍可正常使用。" : "The expanded profile migration is not installed yet. Existing core profile data still works."}</p> : null}
-        {error ? <p role="alert" className="mt-4 text-sm font-medium text-red-600">{error}</p> : null}
-        {message ? <p role="status" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-emerald-700"><CheckCircle2 className="h-4 w-4" />{message}</p> : null}
-      </section>
-
-      <div className="space-y-6">
-        {UNIVERSAL_PROFILE_CATEGORIES.map((category, categoryIndex) => {
-          const categoryFields = searchableFields.filter((field) => field.category === category);
-          if (categoryFields.length === 0) return null;
-          const categoryInfo = CATEGORY_COPY[category];
-          const editing = editingCategories.has(category);
-          const savedFields = categoryFields.filter((field) => Boolean(answerMap.get(field.canonicalKey)?.value.trim()) && !editing);
-          const editableFields = categoryFields.filter((field) => editing || !answerMap.get(field.canonicalKey)?.value.trim());
-          const rows: ReviewRow[] = savedFields.map((field) => {
-            const answer = answerMap.get(field.canonicalKey)!;
-            return {
-              section: isZh ? categoryInfo.zh : categoryInfo.en,
-              fieldName: field.canonicalKey,
-              label: field.label,
-              sourceLabel: getChineseLabel(field.label),
-              officialLabel: getEnglishLabel(field.label),
-              sourceValue: displayValue(field, answer.valueZh || answer.value, "zh"),
-              officialValue: displayValue(field, answer.valueEn || answer.value, "en"),
-              badges: [], warnings: [], editable: true, editStepIndex: categoryIndex,
-            };
-          });
-
-          return (
-            <section key={category} className="scroll-mt-28 rounded-xl border border-[#efefef] bg-white p-6 shadow-sm">
-              {savedFields.length > 0 ? (
-                <BilingualReviewPanel rows={rows} onEditSection={() => setEditingCategories((current) => new Set(current).add(category))} />
-              ) : (
-                <div className="flex min-h-8 items-center justify-between gap-3">
-                  <div><h3 className="font-heading text-sm font-semibold text-brand-500">{isZh ? categoryInfo.zh : categoryInfo.en}</h3><p className="mt-1 text-sm text-muted-foreground">{isZh ? categoryInfo.descriptionZh : categoryInfo.descriptionEn}</p></div>
-                  {editing ? <Pencil className="h-4 w-4 text-brand-500" /> : null}
-                </div>
-              )}
-
-              {editableFields.length > 0 ? (
-                <div className="mt-3 divide-y divide-[#eef1f5]">
-                  {editableFields.map((field) => {
-                    const draft = drafts[field.canonicalKey] ?? buildDraft();
-                    return (
-                      <div key={field.canonicalKey} className="grid gap-4 py-4 md:grid-cols-2">
-                        {isZh ? (
-                          <ApplicationFormField label={getChineseLabel(field.label)} required={false}>
-                            <FieldControl field={field} side="zh" draft={draft} onChange={(next) => updateDraft(field.canonicalKey, next)} />
-                          </ApplicationFormField>
-                        ) : null}
-                        <ApplicationFormField label={getEnglishLabel(field.label)} required={false} className={isZh ? undefined : "md:col-span-2"}>
-                          <FieldControl field={field} side="en" draft={draft} onChange={(next) => updateDraft(field.canonicalKey, next)} />
-                        </ApplicationFormField>
-                      </div>
-                    );
-                  })}
-                  {categoryFields.some((field) => dirtyKeys.has(field.canonicalKey)) ? (
-                    <div className="flex justify-end pt-4">
-                      <BrandActionButton type="button" onClick={() => saveCategory(category)} disabled={savingCategory !== null}>
-                        {savingCategory === category ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        {savingCategory === category ? isZh ? "保存中" : "Saving" : isZh ? "保存此部分" : "Save section"}
-                      </BrandActionButton>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </section>
-          );
-        })}
+        {editing ? <Pencil className="h-4 w-4 shrink-0 text-brand-500" /> : null}
       </div>
-    </div>
+
+      {!schemaAvailable ? <p role="alert" className="mt-4 text-sm font-medium text-amber-700">{isZh ? "完整资料表尚未安装数据库迁移；现有基础资料仍可正常使用。" : "The expanded profile migration is not installed yet. Existing core profile data still works."}</p> : null}
+      {error ? <p role="alert" className="mt-4 text-sm font-medium text-red-600">{error}</p> : null}
+      {message ? <p role="status" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-emerald-700"><CheckCircle2 className="h-4 w-4" />{message}</p> : null}
+
+      {savedFields.length > 0 ? (
+        <div className="mt-5 [&_tr]:border-0">
+          <BilingualReviewPanel rows={rows} onEditSection={() => setEditingCategories((current) => new Set(current).add(category))} />
+        </div>
+      ) : null}
+
+      {editableFields.length > 0 ? (
+        <div className="mt-5 flex flex-col gap-6">
+          {editableFields.map((field) => {
+            const draft = drafts[field.canonicalKey] ?? buildDraft();
+            return (
+              <div key={field.canonicalKey} className="grid gap-4 md:grid-cols-2">
+                {isZh ? (
+                  <ApplicationFormField label={getChineseLabel(field.label)} required={false}>
+                    <FieldControl field={field} side="zh" draft={draft} onChange={(next) => updateDraft(field.canonicalKey, next)} />
+                  </ApplicationFormField>
+                ) : null}
+                <ApplicationFormField label={getEnglishLabel(field.label)} required={false} className={isZh ? undefined : "md:col-span-2"}>
+                  <FieldControl field={field} side="en" draft={draft} onChange={(next) => updateDraft(field.canonicalKey, next)} />
+                </ApplicationFormField>
+              </div>
+            );
+          })}
+          {categoryFields.some((field) => dirtyKeys.has(field.canonicalKey)) ? (
+            <div className="flex justify-end pt-1">
+              <BrandActionButton type="button" onClick={() => saveCategory(category)} disabled={savingCategory !== null}>
+                {savingCategory === category ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {savingCategory === category ? isZh ? "保存中" : "Saving" : isZh ? "保存此部分" : "Save section"}
+              </BrandActionButton>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {hiddenFieldCount > 0 ? (
+        <div className="mt-6 flex justify-center border-t border-[#eef1f5] pt-5">
+          <BrandActionButton
+            type="button"
+            variant="secondary"
+            onClick={() => setExpandedCategories((current) => new Set(current).add(category))}
+          >
+            {isZh ? `显示全部可选字段（另有 ${hiddenFieldCount} 项）` : `Show all optional fields (${hiddenFieldCount} more)`}
+          </BrandActionButton>
+        </div>
+      ) : null}
+    </ApplicationFormPanel>
   );
 }

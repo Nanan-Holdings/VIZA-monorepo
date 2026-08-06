@@ -1414,7 +1414,7 @@ function deriveHelperZh(field: FieldLike, labelZh: string, labelEn: string): str
   if (suppressHelper(field)) return null;
 
   const existing = getRuleText(field, ["helper_zh", "zh_helper", "description_zh"]);
-  if (existing && hasCjk(existing)) return existing;
+  if (existing && hasCjk(existing)) return clean(existing) === clean(labelZh) ? null : existing;
 
   const fieldName = normalizeFieldName(field.fieldName);
   const text = `${fieldName} ${labelEn}`;
@@ -1446,21 +1446,24 @@ function deriveHelperZh(field: FieldLike, labelZh: string, labelEn: string): str
     return "请按照上一题或本题要求填写国家/地区、日期、地点、原因和结果等具体情况。";
   }
 
-  if (labelZh.length > 60) return labelZh;
-  return `请完整阅读并确认该官方题目含义：${labelZh}`;
+  // The full question is already rendered as the field label. Do not create a
+  // generic helper that repeats it; only distinct, actionable guidance belongs
+  // beneath the control.
+  return null;
 }
 
 function deriveHelperEn(field: FieldLike, labelEn: string): string | null {
   if (suppressHelper(field)) return null;
 
   const existing = getRuleText(field, ["helper_en", "en_helper", "description_en"]);
-  if (existing && !hasCjk(existing)) return existing;
+  if (existing && !hasCjk(existing)) return clean(existing) === clean(labelEn) ? null : existing;
 
   const direct = HELPER_EN_BY_FIELD_NAME[normalizeFieldName(field.fieldName)];
   if (direct) return direct;
 
-  if (!needsHelper(field, labelEn)) return null;
-  return labelEn;
+  // Do not manufacture a helper by copying the question. Only curated or
+  // schema-supplied explanatory text belongs beneath the control.
+  return null;
 }
 
 function optionText(option: VisaFormFieldOption): string {
@@ -1569,10 +1572,10 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
   const helperEn = deriveHelperEn(field, labelEn);
   const validationRules = { ...(field.validationRules ?? {}) };
 
-  if (suppressHelper(field)) {
-    for (const key of ["helper_zh", "zh_helper", "description_zh", "helper_en", "en_helper", "description_en"]) {
-      delete validationRules[key];
-    }
+  // Canonicalize all helper aliases after deriving them. This also removes a
+  // stale helper whose only content was a copy of the field label.
+  for (const key of ["helper_zh", "zh_helper", "description_zh", "helper_en", "en_helper", "description_en"]) {
+    delete validationRules[key];
   }
 
   return {

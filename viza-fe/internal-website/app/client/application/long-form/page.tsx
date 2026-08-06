@@ -10,6 +10,7 @@ import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import { InputGroupInput } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
+import { countries } from "country-data-list";
 import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
 import {
   loadDocumentCenterData,
@@ -1050,41 +1051,6 @@ function FinalConfirmationPanel({
       : hasLiveAssistedTarget
         ? "Click Submit to create a real official-site submission job. VIZA fills the official form and shows progress and official evidence here."
         : "Click Submit to create the background submission job and show progress here.";
-  const liveSafetyCopy = isFrance
-    ? (isZh
-        ? "France-Visas 提交会使用 VIZA 保存的答案、官方账号和必要的注册验证码处理来创建/更新官网申请；付款、预约或官网风控如果出现，会作为后续状态展示。"
-        : "France-Visas submission uses saved VIZA answers, the official account, and registration CAPTCHA handling when needed to create/update the official application. Payment, appointment, or portal risk checks are surfaced as follow-up status.")
-    : isVietnam
-      ? (isZh
-          ? "越南 e-Visa 会打开官网并使用已保存答案填写；验证码、付款或官网风控会作为后续状态展示。"
-          : "Vietnam e-Visa opens the official portal and uses saved answers to fill it. CAPTCHA, payment, or portal risk checks are surfaced as follow-up status.")
-      : isVietnamPrearrival
-        ? (isZh
-            ? "提交后会创建越南入境前申报官方提交任务，使用已保存答案填写官网表单，并在本页显示进度、确认编号、PDF 和二维码。"
-            : "Submitting creates a Vietnam Pre-Arrival official-submission task using your saved answers. Progress, the confirmation number, PDF, and QR code appear here.")
-      : isSgac
-        ? (isZh
-            ? "提交后会创建 SG Arrival Card 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、确认/参考号和 ICA 响应摘要。"
-            : "Submitting creates an SG Arrival Card official-submission task. This page shows the submission in progress and, when the backend succeeds, displays submitted=true, the confirmation/reference number, and the ICA response summary.")
-        : isMdac
-          ? (isZh
-              ? "提交后会创建 Malaysia MDAC 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方参考号和确认文件。"
-              : "Submitting creates a Malaysia MDAC official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official reference, and confirmation evidence.")
-          : isTdac
-            ? (isZh
-                ? "提交后会创建 Thailand TDAC 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方参考号和确认文件。"
-                : "Submitting creates a Thailand TDAC official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official reference, and confirmation evidence.")
-            : isPhEtravel
-              ? (isZh
-                  ? "提交后会创建 Philippines eTravel 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方 QR / 参考号和确认证据。"
-                  : "Submitting creates a Philippines eTravel official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official QR/reference, and confirmation evidence.")
-              : isIndonesia
-                ? (isZh
-                    ? "提交后会创建 Indonesia e-Visa 官方提交任务；VIZA 会使用托管账号填写官网表单，并把流程推进到官方付款页。"
-                    : "Submitting creates an Indonesia e-Visa official-submission task. VIZA uses the managed account to fill the official portal and advance to the official payment page.")
-              : (isZh
-                  ? "提交会打开 CEAC 官网并使用已保存答案填写；验证码、风控或最终签名提交会作为后续状态展示。"
-                  : "Submission opens CEAC and uses saved answers to fill it. CAPTCHA, risk checks, or final signature submission are surfaced as follow-up status.");
 
   return (
     <div className="space-y-6">
@@ -1206,11 +1172,17 @@ function FinalConfirmationPanel({
             </label>
           </div>
           {!oneTimeOfficialPaymentCardReady && (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              {isZh
-                ? "请填写银行卡号、有效期和 CVV 后再提交。"
-                : "Enter the card number, expiry, and CVV before submitting."}
-            </p>
+            <Alert variant="warning">
+              <AlertIcon variant="warning" />
+              <AlertTitle>{isZh ? "银行卡信息未填写完整" : "Card details incomplete"}</AlertTitle>
+              <AlertDescription>
+                <p>
+                  {isZh
+                    ? "请填写银行卡号、有效期和 CVV 后再提交。"
+                    : "Enter the card number, expiry, and CVV before submitting."}
+                </p>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       )}
@@ -1251,11 +1223,15 @@ function FinalConfirmationPanel({
         )}
       </button>
 
-      {hasLiveAssistedTarget && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
-          {liveDisabledReason ?? liveSafetyCopy}
-        </div>
-      )}
+      {hasLiveAssistedTarget && liveDisabledReason ? (
+        <Alert variant="warning">
+          <AlertIcon variant="warning" />
+          <AlertTitle>{isZh ? "暂时无法提交" : "Cannot submit yet"}</AlertTitle>
+          <AlertDescription>
+            <p>{liveDisabledReason}</p>
+          </AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   );
 }
@@ -1565,6 +1541,12 @@ const SGAC_NATIONALITY_PROFILE_ALIASES: Record<string, string> = {
   中国籍: "CHINESE",
 };
 
+const COUNTRY_ALPHA3_TO_ALPHA2 = new Map(
+  (countries.all as Array<{ alpha2: string; alpha3: string; status: string }>)
+    .filter((country) => country.status !== "deleted")
+    .map((country) => [country.alpha3.toLowerCase(), country.alpha2.toUpperCase()]),
+);
+
 function normalizeComparableValue(value: string): string {
   return value
     .normalize("NFKC")
@@ -1584,6 +1566,8 @@ function getFieldOptionValueMatch(field: WizardStep["fields"][number], rawValue:
       : null;
   const candidates = new Set([normalized]);
   if (aliasValue) candidates.add(normalizeComparableValue(aliasValue));
+  const alpha2 = COUNTRY_ALPHA3_TO_ALPHA2.get(normalized);
+  if (alpha2) candidates.add(normalizeComparableValue(alpha2));
 
   for (const option of field.options) {
     if (typeof option === "string") {

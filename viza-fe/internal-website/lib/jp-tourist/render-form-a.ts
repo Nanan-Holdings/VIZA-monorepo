@@ -395,17 +395,65 @@ function buildRemarks(answers: AnswerMap): string {
 function buildYesDetails(answers: AnswerMap): string {
   const a = (k: string) => (answers[k] ?? "").toString().trim();
   const parts: string[] = [];
-  if (a("has_criminal_record") === "yes" && a("criminal_record_details")) {
-    parts.push(`[Criminal record] ${a("criminal_record_details")}`);
+
+  const repeatRows = (
+    columns: Array<{ field: string; label: string }>,
+  ): string[] => {
+    const rows: string[] = [];
+    for (let index = 1; index <= 5; index++) {
+      const suffix = index === 1 ? "" : `__${index}`;
+      const cells = columns
+        .map(({ field, label }) => {
+          const value = a(`${field}${suffix}`);
+          return value ? `${label}: ${value}` : "";
+        })
+        .filter(Boolean);
+      if (cells.length) rows.push(cells.join(", "));
+    }
+    return rows;
+  };
+
+  if (a("has_criminal_record") === "yes") {
+    const rows = repeatRows([
+      { field: "criminal_record_country", label: "Country/region" },
+      { field: "criminal_record_date", label: "Date" },
+      { field: "criminal_record_details", label: "Offence/charge" },
+      { field: "criminal_record_sentence", label: "Sentence/outcome" },
+    ]);
+    if (rows.length) parts.push(`[Criminal record] ${rows.join("; ")}`);
   }
-  if (a("has_been_deported") === "yes" && a("deportation_details")) {
-    parts.push(`[Deported / removed] ${a("deportation_details")}`);
+
+  if (a("has_been_deported") === "yes") {
+    const rows = repeatRows([
+      { field: "deportation_country", label: "Country/region" },
+      { field: "deportation_date", label: "Date" },
+      { field: "deportation_details", label: "Reason" },
+      { field: "deportation_outcome", label: "Outcome" },
+    ]);
+    if (rows.length) parts.push(`[Deported / removed] ${rows.join("; ")}`);
   }
-  if (a("has_overstayed_japan") === "yes" && a("overstay_details")) {
-    parts.push(`[Overstay in Japan] ${a("overstay_details")}`);
+
+  if (a("has_overstayed_japan") === "yes") {
+    const rows = repeatRows([
+      { field: "overstay_date", label: "Start date" },
+      { field: "overstay_details", label: "Circumstances" },
+      { field: "overstay_resolution", label: "Resolution/outcome" },
+    ]);
+    if (rows.length) parts.push(`[Overstay in Japan] ${rows.join("; ")}`);
   }
+
   if (a("has_drug_or_trafficking_history") === "yes") {
-    parts.push("[Drug / prostitution / trafficking — please review specific question above]");
+    const rows = repeatRows([
+      { field: "prohibited_activity_type", label: "Activity" },
+      { field: "prohibited_activity_country", label: "Country/region" },
+      { field: "prohibited_activity_date", label: "Date" },
+      { field: "prohibited_activity_details", label: "Details/outcome" },
+    ]);
+    parts.push(
+      rows.length
+        ? `[Drug / prostitution / trafficking / smuggling / illegal weapons] ${rows.join("; ")}`
+        : "[Drug / prostitution / trafficking / smuggling / illegal weapons — details required]",
+    );
   }
   return parts.join(" — ");
 }

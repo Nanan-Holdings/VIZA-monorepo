@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (result.kind === "paid") {
-    runPostPaidSideEffects(result.orderId, "card");
+    await runPostPaidSideEffects(result.orderId, "stripe", `evt_sim_${orderId.slice(0, 8)}`);
   }
 
   return NextResponse.json({ result });

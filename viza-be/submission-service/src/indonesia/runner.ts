@@ -1761,7 +1761,7 @@ async function continueFromAccountGate(
   return true;
 }
 
-async function fillForeignerAccountRegistration(
+export async function fillForeignerAccountRegistration(
   page: Page,
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],

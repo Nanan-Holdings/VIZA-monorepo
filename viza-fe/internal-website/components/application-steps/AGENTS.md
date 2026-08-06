@@ -47,7 +47,7 @@ review, bilingual review helpers, and status confirmation.
 - Country-specific photo copy should come from `lib/photo-guidance.ts` or RAG
   source data, not hardcoded generic text.
 - Review steps must stay read-only. Editing belongs in form steps.
-- Preserve the bilingual two-column contract when changing shared form rows.
+- Preserve the bilingual two-column contract when changing shared form rows. Indonesia C1/eVOA is the approved locale-only exception and must show just the selected interface language while retaining the official submission value internally.
 
 ## Validation
 

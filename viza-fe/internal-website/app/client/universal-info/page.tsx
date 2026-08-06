@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { ArrowLeft, AtSign, CheckCircle2, CheckIcon, ChevronDown, Database, Loader2, MapPin, Pencil, Phone, Save, ShieldCheck, User, WalletCards } from "lucide-react";
+import { ArrowLeft, AtSign, BookOpen, BriefcaseBusiness, CheckCircle2, CheckIcon, ChevronDown, ContactRound, Database, FileText, HeartHandshake, History, IdCard, Loader2, MapPin, Pencil, Phone, Save, ShieldCheck, User, WalletCards, type LucideIcon } from "lucide-react";
 import { CircleFlag } from "react-circle-flags";
 import { countries } from "country-data-list";
 import {
@@ -47,6 +47,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import {
   getBirthCityOptions,
   getBirthProvinceOptions,
@@ -67,6 +68,7 @@ import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import { withRuntimeAbortRetry } from "@/lib/runtime-abort-retry";
 import { cn, matchesSearchText } from "@/lib/utils";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
+import type { UniversalProfileCategory } from "@/lib/universal-profile-fields";
 
 interface UniversalProfileForm {
   full_name: string;
@@ -142,6 +144,27 @@ interface PhoneNumberRule {
 type BilingualProfileState = Record<BilingualProfileField, BilingualTextValue>;
 type UniversalProfileRow = Partial<UniversalProfileForm> & Partial<Record<BilingualProfileColumn, string | null>>;
 type UniversalProfileDirtyField = Exclude<keyof UniversalProfileSnapshot, "reusable_answers"> | "wechat";
+type UniversalProfileSectionKey = "documents" | UniversalProfileCategory;
+
+interface UniversalProfileSectionDefinition {
+  key: UniversalProfileSectionKey;
+  icon: LucideIcon;
+  zh: string;
+  en: string;
+  descriptionZh: string;
+  descriptionEn: string;
+}
+
+const UNIVERSAL_PROFILE_SECTIONS: UniversalProfileSectionDefinition[] = [
+  { key: "identity", icon: IdCard, zh: "身份与国籍", en: "Identity and nationality", descriptionZh: "姓名、出生信息与国籍", descriptionEn: "Names, birth details, and nationality" },
+  { key: "contact", icon: ContactRound, zh: "住址与联系方式", en: "Address and contact", descriptionZh: "地址、电话、邮箱与社交账号", descriptionEn: "Addresses, phones, email, and social accounts" },
+  { key: "travel_documents", icon: FileText, zh: "旅行证件", en: "Travel documents", descriptionZh: "护照、身份证件与签发信息", descriptionEn: "Passports, identity documents, and issue details" },
+  { key: "documents", icon: Database, zh: "支持材料", en: "Supporting documents", descriptionZh: "护照资料页、证件照与签名", descriptionEn: "Passport bio page, portrait, and signature" },
+  { key: "family", icon: HeartHandshake, zh: "家庭成员", en: "Family", descriptionZh: "父母、配偶与家庭资料", descriptionEn: "Parents, spouse, and family details" },
+  { key: "work_education", icon: BriefcaseBusiness, zh: "工作与教育", en: "Work and education", descriptionZh: "职业、雇主与教育经历", descriptionEn: "Occupation, employers, and education" },
+  { key: "immigration_history", icon: History, zh: "旅行与签证记录", en: "Travel and visa history", descriptionZh: "既往旅行、签证与拒签记录", descriptionEn: "Previous travel, visas, and refusals" },
+  { key: "background", icon: BookOpen, zh: "背景资料", en: "Background", descriptionZh: "健康、安全与合规事实", descriptionEn: "Health, security, and compliance facts" },
+];
 
 const EMPTY_FORM: UniversalProfileForm = {
   full_name: "",
@@ -724,9 +747,86 @@ function updateMirroredValue(value: string) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-heading text-[22px] font-medium text-brand-500">
+    <h2 className="font-heading text-[20px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[24px]">
       {children}
     </h2>
+  );
+}
+
+function UniversalProfileCategoryNavigation({
+  activeSection,
+  isZh,
+  onSelect,
+}: {
+  activeSection: UniversalProfileSectionKey;
+  isZh: boolean;
+  onSelect: (section: UniversalProfileSectionKey) => void;
+}) {
+  return (
+    <>
+      <aside className="hidden w-[340px] shrink-0 px-4 xl:block">
+        <nav aria-label={copy(isZh, "通用资料分类", "Universal profile categories")} className="space-y-3">
+          {UNIVERSAL_PROFILE_SECTIONS.map((section, index) => {
+            const Icon = section.icon;
+            const selected = section.key === activeSection;
+            return (
+              <button
+                key={section.key}
+                type="button"
+                onClick={() => onSelect(section.key)}
+                aria-current={selected ? "step" : undefined}
+                className={cn(
+                  "application-form-panel flex w-full cursor-pointer items-center gap-4 border bg-white px-5 py-4 text-left transition-all duration-200",
+                  selected
+                    ? "application-form-sidebar-panel-selected border-[#03346E] ring-[1.5px] ring-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                    : "hover:bg-gray-50",
+                )}
+              >
+                <span className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors",
+                  selected ? "border-[#03346E] bg-[#03346E] text-white" : "border-gray-200 bg-white text-gray-500",
+                )}>
+                  {selected ? <Icon className="h-4 w-4" /> : index + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className={cn("block text-[15px] font-medium", selected ? "font-semibold text-[#03346E]" : "text-gray-600")}>
+                    {isZh ? section.zh : section.en}
+                  </span>
+                  <span className={cn("mt-0.5 block text-[13px] leading-relaxed", selected ? "text-[#03346E]/60" : "text-gray-400")}>
+                    {isZh ? section.descriptionZh : section.descriptionEn}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+
+      <nav
+        aria-label={copy(isZh, "通用资料分类", "Universal profile categories")}
+        className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 xl:hidden"
+      >
+        {UNIVERSAL_PROFILE_SECTIONS.map((section) => {
+          const Icon = section.icon;
+          const selected = section.key === activeSection;
+          return (
+            <button
+              key={section.key}
+              type="button"
+              onClick={() => onSelect(section.key)}
+              aria-current={selected ? "step" : undefined}
+              className={cn(
+                "application-form-panel flex shrink-0 items-center gap-2 border bg-white px-3 py-2.5 text-sm font-medium",
+                selected ? "application-form-sidebar-panel-selected border-brand-500 text-brand-500 ring-1 ring-brand-500" : "text-gray-600",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {isZh ? section.zh : section.en}
+            </button>
+          );
+        })}
+      </nav>
+    </>
   );
 }
 
@@ -758,7 +858,7 @@ function ProfileBilingualRow({
   const hasValue = Boolean(sourceValue.trim() || officialValue.trim());
   if (hasValue && !editing) {
     return (
-      <div className="flex min-w-0 items-start justify-between gap-4 px-0 py-3 sm:px-2">
+      <div className="flex min-w-0 items-start justify-between gap-4 px-0 py-1 sm:px-2">
         <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,56%)_minmax(0,44%)] gap-3">
           <div className="min-w-0">
             <span className="block text-sm font-medium text-foreground">{isZh ? zhLabel : enLabel}</span>
@@ -776,7 +876,7 @@ function ProfileBilingualRow({
     );
   }
   return (
-    <div className="grid min-w-0 gap-4 px-0 py-4 sm:px-2 md:grid-cols-2">
+    <div className="grid min-w-0 gap-4 px-0 py-1 sm:px-2 md:grid-cols-2">
       {isZh ? <div className="min-w-0">
         <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">{zhLabel}</span>
         {zhControl}
@@ -1056,6 +1156,7 @@ export default function UniversalInfoPage() {
   const [error, setError] = useState<string | null>(null);
   const [dirtyProfileFields, setDirtyProfileFields] = useState<Set<UniversalProfileDirtyField>>(() => new Set());
   const [editingProfileFields, setEditingProfileFields] = useState<Set<string>>(() => new Set());
+  const [activeSection, setActiveSection] = useState<UniversalProfileSectionKey>("identity");
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("viza:live-save-status", {
@@ -1140,6 +1241,17 @@ export default function UniversalInfoPage() {
           );
         }
 
+        // Core profile fields are already available. Render them immediately
+        // instead of blocking the whole page on ancillary draft/document
+        // lookups, which may take longer in a cold local runtime.
+        const viewState = buildProfileViewState(typedProfile, user.email ?? "");
+        setForm(viewState.form);
+        setPhoneCountryCode(viewState.phoneCountryCode);
+        setBilingualForm(viewState.bilingualForm);
+        setDirtyProfileFields(new Set());
+        setManualEnglishFields({});
+        setIsLoading(false);
+
         const [draftResult, reusableDocumentsResult] = await Promise.all([
           ensureDraftApplication("us", "b1_b2", { preferExplicit: true }),
           loadUniversalProfileReusableDocumentStatuses(),
@@ -1161,13 +1273,6 @@ export default function UniversalInfoPage() {
           }
         }
 
-        const viewState = buildProfileViewState(typedProfile, user.email ?? "");
-        setForm(viewState.form);
-        setPhoneCountryCode(viewState.phoneCountryCode);
-        setBilingualForm(viewState.bilingualForm);
-        setDirtyProfileFields(new Set());
-        setManualEnglishFields({});
-        setIsLoading(false);
       });
     }
 
@@ -1696,8 +1801,8 @@ export default function UniversalInfoPage() {
   }
 
   return (
-    <div className="min-h-screen pb-16 pt-8">
-      <main className="mx-auto flex w-full max-w-[1080px] flex-col gap-6">
+    <div className="min-h-screen pb-16 pt-6">
+      <main className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 sm:px-6">
         <Link
           href="/client/home"
           className="inline-flex w-fit items-center gap-2 rounded-full border border-[#e6e6e6] bg-white px-4 py-2 text-[14px] font-medium text-[#03346E] transition hover:border-[#03346E]"
@@ -1706,27 +1811,29 @@ export default function UniversalInfoPage() {
           {copy(isZh, "返回首页", "Back home")}
         </Link>
 
-        <div className="flex flex-col gap-6">
-          <section className="rounded-xl border border-[#efefef] bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-4">
-              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                <Database className="h-5 w-5" />
-              </span>
-              <h1 className="font-heading text-[26px] font-medium leading-tight text-[#2f2f2f] sm:text-[34px]">
-                {copy(isZh, "通用资料", "Universal profile")}
-              </h1>
-            </div>
-            <p className="mt-4 max-w-3xl text-[15px] leading-6 text-[#667085]">
-              {copy(
-                isZh,
-                "集中保存未来申请会重复使用的身份、家庭、护照、住址、工作教育和过往签证资料。每次申请完成后，可在审核页把新资料更新到这里。",
-                "Keep reusable identity, family, passport, address, work, education, and visa-history information in one place. Update it with new facts from each application's Review tab.",
-              )}
-            </p>
-          </section>
+        <header className="max-w-3xl">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+              <Database className="h-5 w-5" />
+            </span>
+            <h1 className="font-heading text-[28px] font-medium leading-[1.15] tracking-[-1px] text-[#3d3d3d] sm:text-[34px]">
+              {copy(isZh, "通用资料", "Universal profile")}
+            </h1>
+          </div>
+          <p className="mt-3 text-[15px] leading-6 text-[#667085]">
+            {copy(
+              isZh,
+              "按分类维护未来申请会重复使用的资料。每次只显示一个分类，已保存内容会用于之后的签证申请。",
+              "Maintain reusable information by category. Only one category is shown at a time, and saved details can be reused in future visa applications.",
+            )}
+          </p>
+        </header>
 
-          <div className="contents">
-            <section className="contents">
+        <div className="flex min-w-0 flex-col items-start gap-6 xl:flex-row">
+          <UniversalProfileCategoryNavigation activeSection={activeSection} isZh={isZh} onSelect={setActiveSection} />
+
+          <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6">
+            {activeSection === "documents" ? (
               <UniversalProfileDocumentsCarousel
                 applicationId={passportOcrApplicationId}
                 passport={passportUpload}
@@ -1745,11 +1852,12 @@ export default function UniversalInfoPage() {
                   if (type === "signature") setSignatureUpload(nextState);
                 }}
               />
-            </section>
+            ) : null}
 
-            <section className="rounded-xl border border-[#efefef] bg-white p-6 shadow-sm">
+            {activeSection === "identity" ? (
+            <ApplicationFormPanel className="p-4 sm:p-6 md:p-8">
               <SectionTitle>{copy(isZh, "基本身份信息", "Basic identity information")}</SectionTitle>
-              <div className="mt-3 divide-y divide-[#eef1f5]">
+              <div className="mt-5 flex flex-col gap-5">
                 <ProfileBilingualRow isZh={isZh} {...profileReviewProps("surname", bilingualForm.surname.zh, bilingualForm.surname.en)}
                   zhLabel="姓氏"
                   enLabel="Surname"
@@ -2034,11 +2142,13 @@ export default function UniversalInfoPage() {
                   )}
                 />
               </div>
-            </section>
+            </ApplicationFormPanel>
+            ) : null}
 
-            <section className="rounded-xl border border-[#efefef] bg-white p-6 shadow-sm">
+            {activeSection === "travel_documents" ? (
+            <ApplicationFormPanel className="p-4 sm:p-6 md:p-8">
               <SectionTitle>{copy(isZh, "护照信息", "Passport information")}</SectionTitle>
-              <div className="mt-3 divide-y divide-[#eef1f5]">
+              <div className="mt-5 flex flex-col gap-5">
                 <ProfileBilingualRow isZh={isZh} {...profileReviewProps("passport_number", form.passport_number, form.passport_number)}
                   zhLabel="护照号码"
                   enLabel="Passport number"
@@ -2124,11 +2234,13 @@ export default function UniversalInfoPage() {
                   }
                 />
               </div>
-            </section>
+            </ApplicationFormPanel>
+            ) : null}
 
-            <section className="rounded-xl border border-[#efefef] bg-white p-6 shadow-sm">
+            {activeSection === "contact" ? (
+            <ApplicationFormPanel className="p-4 sm:p-6 md:p-8">
               <SectionTitle>{copy(isZh, "联系方式", "Contact information")}</SectionTitle>
-              <div className="mt-3 divide-y divide-[#eef1f5]">
+              <div className="mt-5 flex flex-col gap-5">
                 <ProfileBilingualRow isZh={isZh} {...profileReviewProps("email", form.email, form.email)}
                   zhLabel="电子邮箱"
                   enLabel="Email"
@@ -2238,12 +2350,13 @@ export default function UniversalInfoPage() {
                   )}
                 />
               </div>
-            </section>
-          </div>
+            </ApplicationFormPanel>
+            ) : null}
 
-          <UniversalProfileExtendedEditor />
+          {activeSection !== "documents" ? <UniversalProfileExtendedEditor category={activeSection} /> : null}
 
-          <section className="flex flex-col gap-3 rounded-xl border border-[#efefef] bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          {activeSection === "identity" || activeSection === "contact" || activeSection === "travel_documents" ? (
+          <ApplicationFormPanel className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <div className="min-h-6">
               {message && (
                 <p className="inline-flex items-center gap-2 text-[14px] font-medium text-green-700">
@@ -2269,7 +2382,9 @@ export default function UniversalInfoPage() {
               <Save className="h-4 w-4" />
               {copy(isZh, "保存通用资料", "Save profile")}
             </BrandActionButton>
-          </section>
+          </ApplicationFormPanel>
+          ) : null}
+          </div>
         </div>
       </main>
     </div>

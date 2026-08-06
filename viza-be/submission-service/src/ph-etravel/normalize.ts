@@ -357,8 +357,16 @@ export function normalizePhEtravelPortalPayload(
       missing,
     ),
     nationality: requireFirstText([answers.nationality, payload.personal.nationality], "nationality", missing),
-    countryOfBirth: requireFirstText([answers.country_of_birth], "country_of_birth", missing),
-    countryOfResidence: requireFirstText([answers.country_of_residence], "country_of_residence", missing),
+    countryOfBirth: requireFirstText(
+      [answers.country_of_birth, answers.place_of_birth_country, payload.personal.nationality],
+      "country_of_birth",
+      missing,
+    ),
+    countryOfResidence: requireFirstText(
+      [answers.country_of_residence, answers.residence_country],
+      "country_of_residence",
+      missing,
+    ),
     residenceAddressLine1: firstText([
       answers.residence_address_line1,
       answers.residential_address,
@@ -385,7 +393,11 @@ export function normalizePhEtravelPortalPayload(
         answers.home_address_line2,
       ]),
     ].filter(Boolean).join(", ") || null,
-    occupation: requireFirstText([answers.occupation, payload.personal.occupation], "occupation", missing),
+    occupation: requireFirstText(
+      [answers.occupation, answers.current_occupation, payload.personal.occupation],
+      "occupation",
+      missing,
+    ),
     dateOfBirth: requireFirstText([answers.date_of_birth, payload.personal.dateOfBirth], "date_of_birth", missing),
     sex: requireFirstText([answers.sex, payload.personal.gender], "sex", missing),
     emailAddress: requireFirstText([answers.email_address, payload.personal.email], "email_address", missing),
@@ -451,7 +463,7 @@ export function normalizePhEtravelPortalPayload(
       ? requireFirstText([answers.destination_transit_airport], "destination_transit_airport", missing)
       : null,
     destinationCountry: isDeparture
-      ? requireFirstText([answers.destination_country], "destination_country", missing)
+      ? requireFirstText([answers.destination_country, answers.next_destination_country], "destination_country", missing)
       : isTransitDestination
         ? requireFirstText([answers.destination_country], "destination_country", missing)
         : null,

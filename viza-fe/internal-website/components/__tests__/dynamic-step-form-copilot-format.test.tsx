@@ -173,6 +173,107 @@ const conditionalPanelStep: WizardStep = {
   ],
 };
 
+const multiOptionConditionalPanelStep: WizardStep = {
+  stepNumber: 11,
+  stepName: "Financial Support",
+  fields: [
+    {
+      id: "field-cost-covered-by",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      fieldName: "cost_covered_by",
+      label: "Who will cover the cost of travelling and living during your stay?",
+      fieldType: "select",
+      required: true,
+      stepNumber: 11,
+      stepName: "Financial Support",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: null,
+      options: [
+        { value: "self", text: "Myself" },
+        { value: "sponsor", text: "A sponsor" },
+        { value: "both", text: "Both myself and a sponsor" },
+      ],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-self-cash",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      fieldName: "self_means_cash",
+      label: "Self: cash",
+      fieldType: "radio",
+      required: true,
+      stepNumber: 11,
+      stepName: "Financial Support",
+      displayOrder: 2,
+      placeholder: null,
+      validationRules: null,
+      options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+      conditionalLogic: { showIf: "cost_covered_by === self || cost_covered_by === both" },
+    },
+    {
+      id: "field-self-other",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      fieldName: "self_means_other",
+      label: "Self: other means of support",
+      fieldType: "radio",
+      required: true,
+      stepNumber: 11,
+      stepName: "Financial Support",
+      displayOrder: 3,
+      placeholder: null,
+      validationRules: null,
+      options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+      conditionalLogic: { showIf: "cost_covered_by === self || cost_covered_by === both" },
+    },
+    {
+      id: "field-self-other-explain",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      fieldName: "self_means_other_explain",
+      label: "Please describe the other means of support",
+      fieldType: "text",
+      required: true,
+      stepNumber: 11,
+      stepName: "Financial Support",
+      displayOrder: 4,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: { showIf: "self_means_other === yes" },
+    },
+    {
+      id: "field-sponsor-name",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      fieldName: "sponsor_name",
+      label: "Sponsor name",
+      fieldType: "text",
+      required: true,
+      stepNumber: 11,
+      stepName: "Financial Support",
+      displayOrder: 5,
+      placeholder: null,
+      validationRules: { block_group: "sponsor_details" },
+      options: null,
+      conditionalLogic: { showIf: "cost_covered_by === sponsor || cost_covered_by === both" },
+    },
+    {
+      id: "field-sponsor-address",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      fieldName: "sponsor_address",
+      label: "Sponsor address",
+      fieldType: "text",
+      required: false,
+      stepNumber: 11,
+      stepName: "Financial Support",
+      displayOrder: 6,
+      placeholder: null,
+      validationRules: { block_group: "sponsor_details" },
+      options: null,
+      conditionalLogic: { showIf: "cost_covered_by === sponsor || cost_covered_by === both" },
+    },
+  ],
+};
+
 const purposeOfTripStep: WizardStep = {
   stepNumber: 3,
   stepName: "Travel Information",
@@ -747,6 +848,32 @@ function renderWizardStep(config: WizardConfig<unknown>, index: number): ReactNo
 }
 
 describe("DynamicStepForm copilot format", () => {
+  it("shows only Chinese fields for the Indonesia C1 form in Chinese mode", () => {
+    const onComplete = vi.fn();
+    const { container } = render(
+      <DynamicStepForm
+        step={requiredTextStep}
+        prefill={{ surname: "ZHANG", surname_zh: "张", surname_en: "ZHANG" }}
+        onComplete={onComplete}
+        country="indonesia"
+        visaType="ID_C1_TOURIST"
+      />,
+    );
+
+    expect(screen.getByText("姓氏")).toBeInTheDocument();
+    expect(screen.queryByText("Surname")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    expect(screen.getByRole("textbox")).toHaveValue("张");
+    expect(container.querySelector('[data-copilot-trigger="surname"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "continue" }));
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
+      surname: "ZHANG",
+      surname_zh: "张",
+      surname_en: "ZHANG",
+    }));
+  });
+
   it("hides the repeated continue action in the continuous form layout", () => {
     render(
       <DynamicStepForm
@@ -837,6 +964,51 @@ describe("DynamicStepForm copilot format", () => {
       ),
     ).not.toBeNull();
     expect(screen.queryByRole("button", { name: "addAnother" })).not.toBeInTheDocument();
+  });
+
+  it("keeps every active branch of a multi-option dropdown inside one conditional panel", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={multiOptionConditionalPanelStep}
+        prefill={{
+          cost_covered_by: "both",
+          self_means_other: "yes",
+        }}
+        onComplete={vi.fn()}
+        country="france"
+        visaType="EU_SCHENGEN_C_SHORT_STAY"
+      />,
+    );
+
+    const panels = container.querySelectorAll(
+      '[data-conditional-controller="cost_covered_by"]',
+    );
+    expect(panels).toHaveLength(1);
+    expect(panels[0]).toHaveClass("-mt-1");
+    expect(panels[0]).not.toHaveClass("-mt-2");
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="self_means_cash"]'),
+    );
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="self_means_other_explain"]'),
+    );
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="sponsor_name"]'),
+    );
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="sponsor_address"]'),
+    );
+    for (const fieldName of [
+      "self_means_cash",
+      "self_means_other",
+      "self_means_other_explain",
+      "sponsor_name",
+      "sponsor_address",
+    ]) {
+      expect(panels[0]).toContainElement(
+        container.querySelector(`[data-copilot-trigger="${fieldName}"]`),
+      );
+    }
   });
 
   it("uses the unified Chinese copilot trigger format", () => {
@@ -1511,6 +1683,53 @@ describe("DynamicStepForm copilot format", () => {
     expect(getChineseLabel("Place of application", "place_of_application")).toBe("申请提交地点");
     expect(getChineseLabel(visConsentLabel, "declaration_vis_consent")).toContain("我知悉并同意");
     expect(getChineseLabel(visConsentLabel, "declaration_vis_consent")).not.toBe("声明");
+  });
+
+  it("renders declaration labels once even when legacy helpers duplicate them", () => {
+    const officialLabel =
+      "I am aware that I have the right to obtain, in any of the Member States, notification of the data relating to me recorded in the VIS and of the Member State which transmitted the data, and to request that data relating to me which are inaccurate be corrected and that data relating to me processed unlawfully be deleted.";
+    const chineseLabel =
+      "我知悉，本人有权在任何成员国获知 VIS 中记录的本人相关数据以及传输该数据的成员国；并有权要求更正不准确的本人数据，或删除被非法处理的本人数据。";
+    const step: WizardStep = {
+      stepNumber: 12,
+      stepName: "Declaration",
+      fields: [{
+        id: "field-declaration-data-rights-awareness",
+        visaType: "EU_SCHENGEN_C_SHORT_STAY",
+        fieldName: "declaration_data_rights_awareness",
+        label: officialLabel,
+        fieldType: "radio",
+        required: true,
+        stepNumber: 12,
+        stepName: "Declaration",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: {
+          label_zh: chineseLabel,
+          label_en: officialLabel,
+          helper_zh: `  ${chineseLabel}  `,
+          helper_en: `  ${officialLabel}  `,
+        },
+        options: [
+          { value: "yes", text: "Yes" },
+          { value: "no", text: "No" },
+        ],
+        conditionalLogic: null,
+      }],
+    };
+
+    render(
+      <DynamicStepForm
+        step={step}
+        prefill={{}}
+        onComplete={vi.fn()}
+        country="france"
+        visaType="EU_SCHENGEN_C_SHORT_STAY"
+      />,
+    );
+
+    expect(screen.getAllByText(chineseLabel)).toHaveLength(1);
+    expect(screen.getAllByText(officialLabel)).toHaveLength(1);
   });
 
   it("defaults France Schengen main destination and localizes country names per side", async () => {

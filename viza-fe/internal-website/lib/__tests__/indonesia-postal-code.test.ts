@@ -33,6 +33,31 @@ describe("Indonesia postal-code validation", () => {
       province: "DKI JAKARTA",
     });
   });
+
+  it("uses the accommodation address to disambiguate villages sharing a postal code", () => {
+    const location = parseIndonesiaPostalDirectoryResponse({
+      data: {
+        postalCodes: [
+          {
+            code: "80351",
+            village: { name: "Mengwi" },
+            district: { name: "Mengwi" },
+            city: { name: "KAB. BADUNG" },
+            province: { name: "BALI" },
+          },
+          {
+            code: "80351",
+            village: { name: "Pererenan" },
+            district: { name: "Mengwi" },
+            city: { name: "KAB. BADUNG" },
+            province: { name: "BALI" },
+          },
+        ],
+      },
+    }, "80351", "Jl. Munduk Tengah No.19a, Pererenan, Kec. Mengwi, Kabupaten Badung, Bali");
+
+    expect(location?.village).toBe("Pererenan");
+  });
 });
 
 describe("Indonesia accommodation address validation", () => {

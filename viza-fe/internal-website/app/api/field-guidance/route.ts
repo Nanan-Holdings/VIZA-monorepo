@@ -15,7 +15,12 @@ const AGENT_BACKEND_URL =
   process.env.AGENT_BACKEND_URL ?? process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:3002";
 const FIELD_GUIDANCE_TIMEOUT_MS = 12000;
 const DIRECT_OPENAI_TIMEOUT_MS = 16000;
-const MAX_OPTION_EXPLANATIONS = 3;
+const MAX_OPTION_EXPLANATIONS = 2;
+// Any OpenAI-compatible provider (DeepSeek, a gateway, a local proxy) can serve
+// this path; leave OPENAI_BASE_URL unset for api.openai.com.
+const DIRECT_OPENAI_BASE_URL = (
+  process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1"
+).replace(/\/+$/, "");
 const DIRECT_OPENAI_MODEL =
   process.env.OPENAI_FIELD_GUIDANCE_MODEL ??
   process.env.OPENAI_CHAT_MODEL ??
@@ -26,8 +31,9 @@ const STANDARD_IDENTITY_FIELD_CONTEXT = [
   "Standard identity-field RAG for visa form copilot:",
   "Passport number, name, date of birth, sex, nationality, passport issue date, passport expiry date, issuing country, issuing authority, place of issue, and passport type are standard-answer fields.",
   "For these fields, the answer must come from the passport biodata page, MRZ, official document, or the official dropdown options. Do not infer a value from the application country, pickup city, residence city, travel plan, or translation memory.",
-  "For passport issuing authority / issuing authority / 签发机关 / 签发地点字段: first ask the user to check the exact Authority or Issuing authority text printed on the passport. If the user has a Chinese ordinary passport, newer passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, copy that printed text exactly.",
-  "If the user says they obtained the passport in a city such as Chongqing, do not answer that the issuing authority is Chongqing Public Security Bureau unless the passport itself prints that wording. A pickup or application city may be relevant only to a separate place-of-issue field, and even then the passport text controls.",
+  "Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another.",
+  "For place of issue / 签发地点, copy the location printed for that field on the passport or use the official form's required location option. Enter a country only when the field explicitly asks for Country of issue / Issuing country or provides a country-only selector.",
+  "For passport issuing authority / issuing authority / 签发机关, copy the exact Authority or Issuing authority text printed on the passport. National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers.",
   "For passport type / document type, ordinary personal tourist passports are usually Ordinary / Regular / Normal passport. Diplomatic, official, service, special, travel document, refugee, or other should be selected only when the passport or travel document explicitly says so.",
 ].join("\n");
 
@@ -142,8 +148,13 @@ function isPassportIssuingAuthorityField(request: FieldGuidanceRequest): boolean
     "issuing authority",
     "authority",
     "签发机关",
-    "签发地点",
   ].some((needle) => searchText.includes(needle));
+}
+
+function isPassportPlaceOfIssueField(request: FieldGuidanceRequest): boolean {
+  const searchText = fieldSearchText(request);
+  return ["passport_place_of_issue", "place of issue", "签发地点"].some((needle) => searchText.includes(needle)) &&
+    !["passport_issuing_authority", "issuing authority", "签发机关", "authority"].some((needle) => searchText.includes(needle));
 }
 
 function explainKnownOption(
@@ -375,6 +386,10 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
   const examples =
     isDropdown
       ? []
+      : isPassportPlaceOfIssueField(request)
+        ? locale === "zh"
+          ? ["CHONGQING（仅当护照签发地点如此显示）", "按护照资料页 Place of issue/签发地点原文填写"]
+          : ["CHONGQING (only if printed as Place of issue)", "Use the passport's exact Place of issue value"]
       : isPassportIssuingAuthorityField(request)
         ? locale === "zh"
           ? [
@@ -424,7 +439,11 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
     guidance: {
       title: locale === "zh" ? `${label} 填写帮助` : `${label} guidance`,
       summary:
-        isPassportIssuingAuthorityField(request)
+        isPassportPlaceOfIssueField(request)
+          ? locale === "zh"
+            ? "请按护照资料页的 Place of issue/签发地点原文填写；这是地点，不是签发机关。"
+            : "Copy the passport's exact Place of issue value; this is a location, not the issuing authority."
+        : isPassportIssuingAuthorityField(request)
           ? locale === "zh"
             ? "请按护照资料页上的 Authority/签发机关原文填写，不要根据领取城市或办理城市推断。"
             : "Copy the Authority or issuing authority exactly as printed on the passport biodata page; do not infer it from the pickup or application city."
@@ -438,7 +457,13 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
       examples,
       optionExplanations: buildOptionExplanations(request),
       hints: [
-        ...(isStandardIdentityField(request)
+        ...(isPassportPlaceOfIssueField(request)
+          ? [
+              locale === "zh"
+                ? "只有字段明确要求签发国家或提供国家下拉框时才填国家。"
+                : "Enter a country only when the field asks for Country of issue or provides a country-only selector.",
+            ]
+          : isStandardIdentityField(request)
           ? [
               locale === "zh"
                 ? "这是标准证件字段，请优先照抄护照资料页、机读区或官方下拉选项。"
@@ -459,7 +484,11 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
         : [locale === "zh" ? "当前字段格式可继续核对。" : "This field can be reviewed before continuing."],
     },
     reply: request.question
-      ? isPassportIssuingAuthorityField(request)
+      ? isPassportPlaceOfIssueField(request)
+        ? locale === "zh"
+          ? "请按护照资料页的 Place of issue/签发地点原文填写。这是地点字段，不要填写国家移民管理局或公安部出入境管理局；只有字段明确要求签发国家或提供国家下拉框时才填国家。"
+          : "Copy the passport's exact Place of issue value. This is a location field, so do not enter National Immigration Administration or MPS Exit & Entry Administration; enter a country only when the form explicitly asks for Country of issue or provides a country-only selector."
+      : isPassportIssuingAuthorityField(request)
         ? locale === "zh"
           ? "这个字段不要按办理城市推断。请看护照资料页上的“签发机关/Authority”原文：如果写的是“中华人民共和国国家移民管理局”或 “National Immigration Administration, PRC”，就照这个填写；如果旧护照写的是“公安部出入境管理局”或 “MPS Exit & Entry Administration”，也照护照原文填写。只有单独问“签发地点/Place of issue”且护照上对应位置写重庆时，才填重庆或 CHONGQING。"
           : "Do not infer this from the city where the passport was collected. Copy the printed Authority or Issuing authority from the passport biodata page. Use Chongqing only for a separate place-of-issue field if the passport itself shows that place."
@@ -596,7 +625,7 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
   const timeout = setTimeout(() => controller.abort(), DIRECT_OPENAI_TIMEOUT_MS);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await fetch(`${DIRECT_OPENAI_BASE_URL}/responses`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -604,11 +633,11 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
       },
       body: JSON.stringify({
         model: DIRECT_OPENAI_MODEL,
-        max_output_tokens: 900,
+        max_output_tokens: 500,
         instructions:
           locale === "zh"
-            ? "你是 VIZA 表单字段 Copilot。只根据当前字段元数据、当前选项、用户当前答案、相关已填答案和 Standard identity-field RAG 提供填写帮助。必须使用简体中文；官方选项、代码、姓名、日期可以保留英文原文。不要编造官方要求；不确定时说明请以官方表单和证件为准。标准证件字段必须以护照资料页、机读区或官方证件原文为准，不得根据领取城市推断签发机关。选项说明最多返回 3 条，只选择与当前答案或用户追问直接相关的选项；没有足够依据时返回空数组，禁止随意解释下拉列表开头的选项。不要说 AI 不可用，因为你正在生成 AI 帮助。返回严格 JSON，不要 Markdown。"
-            : "You are the VIZA form field copilot. Use only the current field metadata, official options, current answer, related filled answers, and Standard identity-field RAG. Do not invent official requirements; when unsure, say to follow the official form and documents. Standard identity fields must come from the passport biodata page, MRZ, or official document; never infer an issuing authority from a pickup city. Return at most 3 option explanations, limited to options directly relevant to the current answer or follow-up question. Return an empty array when the evidence is insufficient; never explain arbitrary options from the start of a dropdown. Do not say AI is unavailable because you are generating AI guidance now. Return strict JSON, no Markdown.",
+            ? "你是 VIZA 表单字段 Copilot。只根据当前字段元数据、当前选项、用户当前答案、相关已填答案和 Standard identity-field RAG 提供填写帮助。必须使用简体中文；官方选项、代码、姓名、日期可以保留英文原文。不要编造官方要求；不确定时说明请以官方表单和证件为准。标准证件字段必须以护照资料页、机读区或官方证件原文为准。签发国家、签发地点和签发机关是不同字段；绝不能把签发机关名称作为签发地点示例。输出是紧凑卡片：summary 只写一句可执行的话（不超过 60 个汉字）；examples 最多 2 个简短值；formatHints、hints、officialWarnings 各最多 1 条且每条不超过 30 个汉字；optionExplanations 最多 2 条、每条说明不超过 30 个汉字。没有必要内容时返回空数组。不要重复字段名称、来源、置信度或免责声明。不要说 AI 不可用，因为你正在生成 AI 帮助。返回严格 JSON，不要 Markdown。"
+            : "You are the VIZA form field copilot. Use only the current field metadata, official options, current answer, related filled answers, and Standard identity-field RAG. Do not invent official requirements; when unsure, say to follow the official form and documents. Standard identity fields must come from the passport biodata page, MRZ, or official document. Treat issuing country, place of issue, and issuing authority as distinct fields; never suggest authority names as place-of-issue answers. Produce a compact card: summary is one actionable sentence (max 140 characters); examples has at most 2 short values; formatHints, hints, and officialWarnings have at most 1 item each, no more than 80 characters each; optionExplanations has at most 2 directly relevant items, with descriptions no more than 80 characters. Use empty arrays when a section adds no value. Do not repeat the field name, sources, confidence, or generic disclaimers. Do not say AI is unavailable because you are generating AI guidance now. Return strict JSON, no Markdown.",
         input: buildDirectOpenAiPrompt(request, base),
         text: {
           format: {
@@ -659,7 +688,15 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
       cache: "no-store",
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      // Silent failures here surface to the user as "AI guidance is temporarily
+      // unavailable", which is indistinguishable from a bad key or a bad model id.
+      const detail = (await response.text().catch(() => "")).slice(0, 200);
+      console.warn(
+        `[field-guidance] direct OpenAI call failed: ${response.status} (model ${DIRECT_OPENAI_MODEL}) ${detail}`,
+      );
+      return null;
+    }
     const payload = (await response.json()) as OpenAiResponsePayload;
     const outputText = extractOpenAiOutputText(payload);
     const parsed = parseJsonObject(outputText);
@@ -677,14 +714,14 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
           : locale === "zh"
             ? "请根据当前字段、官方选项和证件信息核对填写。"
             : "Check this field against the current options and your official documents.",
-        examples: asStringArray(parsed.examples, base.guidance.examples, 4),
+        examples: asStringArray(parsed.examples, base.guidance.examples, 2),
         optionExplanations: parseOptionExplanations(
           parsed.optionExplanations,
           base.guidance.optionExplanations ?? [],
         ),
-        hints: asStringArray(parsed.hints, base.guidance.hints, 5),
-        officialWarnings: asStringArray(parsed.officialWarnings, base.guidance.officialWarnings, 4),
-        formatHints: asStringArray(parsed.formatHints, base.guidance.formatHints, 4),
+        hints: asStringArray(parsed.hints, base.guidance.hints, 1),
+        officialWarnings: asStringArray(parsed.officialWarnings, base.guidance.officialWarnings, 1),
+        formatHints: asStringArray(parsed.formatHints, base.guidance.formatHints, 1),
       },
       validation: base.validation,
       reply: request.question && !isUnavailableText(reply) ? (reply ?? base.reply) : undefined,
@@ -695,7 +732,10 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
     };
 
     return sanitizeChineseResponse(request, finalizeGuidance(request, guidance));
-  } catch {
+  } catch (error) {
+    console.warn(
+      `[field-guidance] direct OpenAI call errored: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   } finally {
     clearTimeout(timeout);

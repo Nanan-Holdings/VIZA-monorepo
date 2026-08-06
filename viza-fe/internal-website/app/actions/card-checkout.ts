@@ -9,6 +9,7 @@ import {
 import { isFreePackage, pricingFor } from "@/lib/pricing";
 import { completeFreeOrder } from "@/lib/checkout/free-order";
 import { createCheckoutSession } from "@/lib/stripe/client";
+import { stripeCheckoutPaymentMethodsFor } from "@/lib/payments/method-availability";
 import {
   getPhotonPayClient,
   getPhotonPaySiteId,
@@ -333,6 +334,10 @@ export async function startCardCheckout(
       applicationId,
       orderId,
       customerEmail: email,
+      paymentMethodTypes: stripeCheckoutPaymentMethodsFor(
+        input.country,
+        input.visaType,
+      ),
       guestCheckout: true,
       successUrl,
       cancelUrl,

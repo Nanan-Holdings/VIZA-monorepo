@@ -57,13 +57,30 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.
+- Reusable navbar dropdown styling lives in
+  `components/client/nav-dropdown.tsx`; use it for future top-nav popover
+  menus so the hamburger, language, and assistant dropdowns stay visually
+  aligned.
 - Reusable passport, portrait, and electronic-signature metadata is stored in
   the server-only `universal_profile_documents` table created by
   `supabase/migrations/20260721030018_create_universal_profile_documents.sql`;
   application document requirements may map their country-specific photo and
   signature aliases to these canonical profile materials.
+- Expanded reusable applicant facts are stored in the server-only,
+  field-keyed `universal_profile_answers` table created by
+  `supabase/migrations/20260801193500_create_universal_profile_answers.sql`.
+  Review-tab sync is explicit, excludes trip/payment/declaration/secret data,
+  and future forms consume it only as non-overwriting prefill.
 - Commercial and agency payment records are stored in `payment_records`,
   created by `supabase/migrations/*create_payment_records.sql`.
+- Durable paid-order provisioning is owned by
+  `lib/checkout/payment-provisioning.ts` and
+  `app/api/payment-provisioning/worker/route.ts`; it creates the optional
+  government-fee reservation before runner enqueue.
+- Treasury evidence is owned by `lib/treasury/reconciliation.ts`,
+  `app/api/stripe/payout-webhook/route.ts`, and
+  `app/api/webhooks/photonpay/funding/route.ts`. These routes record verified,
+  redacted provider evidence only; they never configure payouts or issue cards.
 - Customer support ticket storage for `/client/support` and `/admin/support`
   is created by `supabase/migrations/*create_support_ticket_queue.sql`.
 - VIZA AI chat under `app/client/chat/**` and
@@ -119,6 +136,15 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `scripts/qa-travel-agent-prompts.ts`.
 - Supabase remote schema verification through
   `scripts/verify-supabase-schema.ts`.
+- Multi-country application schema QA draft creation through
+  `scripts/create-application-schema-qa-drafts.ts`. It creates fresh dry-run
+  drafts for every live non-Indonesia schema, seeds them from the selected
+  applicant's Universal Profile, and fails when the live catalog has drifted.
+- Required-field QA auditing for those drafts through
+  `scripts/audit-application-schema-qa.ts`. It evaluates the same conditional
+  rules and runtime Vietnam/Thailand schema augmentations used by the form.
+- Deterministic local-only required-field fixtures for those tagged drafts use
+  `scripts/fill-application-schema-qa-drafts.ts`; it refuses non-QA applications.
 - Targeted VIZA-only Supabase migration through
   `scripts/migrate-viza-required.ts`.
 - Live-assisted official submission status summaries are loaded through
@@ -308,6 +334,9 @@ Smoke URLs:
 - `components/client/*`
 - `components/client/passport-ocr-upload.tsx`
 - `components/client/universal-profile-documents-carousel.tsx`
+- `components/client/universal-profile-extended-editor.tsx`: schema-driven
+  Universal Profile sections; saved values use the Review Application layout
+  and missing reusable fields use standard application controls.
 - `components/client/us-appointment/*`
 - `components/client/japan-appointment/*`
 - `components/client/korea-appointment/*`
@@ -340,6 +369,8 @@ Smoke URLs:
 - `lib/i18n/locale.ts`
 - `lib/frequent-traveler-profile.ts`
 - `lib/universal-profile-prefill.ts`
+- `lib/universal-profile-fields.ts`: reusable-field classification, canonical
+  aliases, category grouping, and future-application answer expansion.
 - `lib/translation/*`
 - `lib/passport/*`
 - `lib/submission-queue.ts`

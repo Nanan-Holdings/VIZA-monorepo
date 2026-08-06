@@ -90,6 +90,9 @@ export async function startCeacSession(
     } else {
       browser = await chromium.launch({
         headless,
+        ...(process.env.PLAYWRIGHT_CHANNEL?.trim() && process.env.PLAYWRIGHT_CHANNEL !== "bundled"
+          ? { channel: process.env.PLAYWRIGHT_CHANNEL.trim() }
+          : {}),
       });
       context = await browser.newContext({
         acceptDownloads,
@@ -281,4 +284,3 @@ function readStartCaptchaTimeoutMs(): number {
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 180_000;
 }
-
