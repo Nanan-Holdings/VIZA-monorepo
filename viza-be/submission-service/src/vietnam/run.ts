@@ -490,14 +490,26 @@ async function fillVietnamApplicationOnce(
     let stateAfterCaptcha = reviewState;
     let lastReviewCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
     if (stateAfterCaptcha === "captcha_visible") {
-      const maxReviewCaptchaAttempts = readPositiveInt(process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS, 5);
-      for (let attempt = 1; attempt <= maxReviewCaptchaAttempts && stateAfterCaptcha === "captcha_visible"; attempt++) {
+      const maxReviewCaptchaAttempts = readPositiveInt(process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS, 3);
+      const reviewCaptchaDeadline =
+        Date.now() + readPositiveInt(process.env.VN_CAPTCHA_TOTAL_BUDGET_MS, 180_000);
+      for (
+        let attempt = 1;
+        attempt <= maxReviewCaptchaAttempts &&
+          stateAfterCaptcha === "captcha_visible" &&
+          Date.now() < reviewCaptchaDeadline;
+        attempt++
+      ) {
+        console.log(`[vn] Review CAPTCHA attempt ${attempt}/${maxReviewCaptchaAttempts}.`);
         if (attempt > 1) {
           await refreshVietnamReviewCaptcha(page);
           await page.waitForTimeout(1_000);
         }
         await emitProgress("captcha_solving");
-        const captchaOutcome = await solveVietnamImageCaptcha(page, Math.min(stepTimeoutMs, 120_000));
+        const captchaOutcome = await solveVietnamImageCaptcha(
+          page,
+          remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, Math.min(stepTimeoutMs, 120_000)),
+        );
         captchaSolves.push(captchaOutcome);
         if (!captchaOutcome.solved) {
           lastReviewCaptchaReason = captchaOutcome.reason ?? "unknown CAPTCHA error";
@@ -518,11 +530,18 @@ async function fillVietnamApplicationOnce(
         }
         await emitProgress("captcha_submitted");
         const captchaSubmitted = await withTimeout(
-          submitVietnamCaptchaAnswer(page, Math.min(stepTimeoutMs, 10_000)),
-          Math.min(stepTimeoutMs, 55_000),
+          submitVietnamCaptchaAnswer(
+            page,
+            remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, Math.min(stepTimeoutMs, 10_000)),
+          ),
+          remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, Math.min(stepTimeoutMs, 55_000)),
           false,
         );
-        const codeAfterCaptcha = await withTimeout(captureRegistrationCode(page), 8_000, null);
+        const codeAfterCaptcha = await withTimeout(
+          captureRegistrationCode(page),
+          remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, 8_000),
+          null,
+        );
         if (codeAfterCaptcha) {
           console.log(`[vn] Run ${runId} captured registration code after review CAPTCHA.`);
           const confirmed = await withTimeout(
@@ -551,6 +570,9 @@ async function fillVietnamApplicationOnce(
         } else if (!captchaSubmitted && stateAfterCaptcha === "captcha_visible") {
           lastReviewCaptchaReason = "VIZA could not activate the official CAPTCHA verification control.";
         }
+      }
+      if (stateAfterCaptcha === "captcha_visible" && Date.now() >= reviewCaptchaDeadline) {
+        lastReviewCaptchaReason = "Vietnam CAPTCHA processing exceeded its total time budget.";
       }
     }
     let registrationCode = await withTimeout(captureRegistrationCode(page), 15_000, null);
@@ -961,15 +983,25 @@ async function reachVietnamFormCheckpoint(
     }
 
     if (state === "captcha_visible") {
-      const maxCaptchaAttempts = readPositiveInt(process.env.VN_CAPTCHA_MAX_ATTEMPTS, 5);
+      const maxCaptchaAttempts = readPositiveInt(process.env.VN_CAPTCHA_MAX_ATTEMPTS, 3);
+      const captchaDeadline =
+        Date.now() + readPositiveInt(process.env.VN_CAPTCHA_TOTAL_BUDGET_MS, 180_000);
       let lastCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
-      for (let attempt = 1; attempt <= maxCaptchaAttempts && state === "captcha_visible"; attempt++) {
+      for (
+        let attempt = 1;
+        attempt <= maxCaptchaAttempts && state === "captcha_visible" && Date.now() < captchaDeadline;
+        attempt++
+      ) {
+        console.log(`[vn] Portal CAPTCHA attempt ${attempt}/${maxCaptchaAttempts}.`);
         if (attempt > 1) {
           await refreshVietnamReviewCaptcha(page).catch(() => false);
           await page.waitForTimeout(750);
         }
         await options.onStage("captcha_solving");
-        const outcome = await solveVietnamImageCaptcha(page, Math.min(options.stepTimeoutMs, 120_000));
+        const outcome = await solveVietnamImageCaptcha(
+          page,
+          remainingVietnamCaptchaBudgetMs(captchaDeadline, Math.min(options.stepTimeoutMs, 120_000)),
+        );
         options.onCaptchaSolved(outcome);
         if (!outcome.solved) {
           lastCaptchaReason = outcome.reason ?? "unknown CAPTCHA error";
@@ -978,7 +1010,10 @@ async function reachVietnamFormCheckpoint(
         }
 
         await options.onStage("captcha_submitted");
-        const submitted = await submitVietnamCaptchaAnswer(page, Math.min(options.stepTimeoutMs, 10_000));
+        const submitted = await submitVietnamCaptchaAnswer(
+          page,
+          remainingVietnamCaptchaBudgetMs(captchaDeadline, Math.min(options.stepTimeoutMs, 10_000)),
+        );
         const checkpoint = await waitForVietnamPortalCheckpoint(
           page,
           [
@@ -992,7 +1027,10 @@ async function reachVietnamFormCheckpoint(
             "layout_changed",
           ],
           {
-            timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
+            timeoutMs: remainingVietnamCaptchaBudgetMs(
+              captchaDeadline,
+              Math.min(options.stepTimeoutMs, 30_000),
+            ),
             failedRequestCount: options.failedRequestCount,
             mainRequestFailed: options.mainRequestFailed,
             onSnapshot: options.onSnapshot,
@@ -1006,6 +1044,10 @@ async function reachVietnamFormCheckpoint(
             : "VIZA could not activate the official CAPTCHA verification control.";
           await reportRejectedVietnamCaptcha(outcome);
         }
+      }
+
+      if (state === "captcha_visible" && Date.now() >= captchaDeadline) {
+        lastCaptchaReason = "Vietnam CAPTCHA processing exceeded its total time budget.";
       }
 
       if (state === "captcha_visible") {
@@ -1839,6 +1881,10 @@ function readPositiveInt(rawValue: string | undefined, fallback: number): number
   if (!rawValue) return fallback;
   const parsed = Number.parseInt(rawValue, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function remainingVietnamCaptchaBudgetMs(deadlineMs: number, capMs: number): number {
+  return Math.max(1, Math.min(capMs, deadlineMs - Date.now()));
 }
 
 function suffixArtifactPath(filePath: string | undefined, attempt: number): string | undefined {
