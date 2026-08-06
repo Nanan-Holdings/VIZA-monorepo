@@ -316,7 +316,7 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
     { domId, matchTexts, searchTerms, timeoutMs: Math.max(1, deadline - Date.now()) },
   );
   if (!result.ok) {
-    const retry = await pickSelectWithPlaywright(page, domId, matchTexts, searchTerms, optionIndex, deadline);
+    const retry = await pickSelectWithPlaywright(page, domId, matchTexts, optionIndex, deadline);
     if (retry.ok) {
       await settle(page);
       return;
@@ -381,7 +381,6 @@ async function pickSelectWithPlaywright(
   page: Page,
   domId: string,
   matchTexts: string[],
-  searchTerms: string[],
   optionIndex: number | null,
   deadline: number,
 ): Promise<{ ok: boolean; reason?: string; candidates: string[] }> {
@@ -417,7 +416,11 @@ async function pickSelectWithPlaywright(
       return { ok: true, candidates };
     }
   }
-  for (const searchTerm of searchTerms.slice(0, 4)) {
+  // Preserve one exact term per localized alias. Taking the first generic
+  // prefixes can fill the whole fallback budget before Vietnamese labels are
+  // ever tried (for example Single-entry -> Một lần).
+  const fallbackSearchTerms = matchTexts.slice(0, 4);
+  for (const searchTerm of fallbackSearchTerms) {
     if (Date.now() >= deadline) {
       return { ok: false, reason: "select_field_timeout", candidates: [] };
     }
@@ -456,7 +459,7 @@ async function pickSelectWithPlaywright(
       await page.waitForTimeout(300);
       candidates = await readVisibleSelectCandidates(page);
     }
-    if (searchTerm === searchTerms[searchTerms.length - 1]) {
+    if (searchTerm === fallbackSearchTerms[fallbackSearchTerms.length - 1]) {
       return { ok: false, reason: "playwright_selection_not_confirmed", candidates };
     }
   }
