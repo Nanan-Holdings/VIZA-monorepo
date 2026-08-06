@@ -88,8 +88,11 @@ const NATIONALITY_LABELS = buildCountryOptionLabels({
   chinese: "China",
 });
 const PASSPORT_TYPE_LABELS = {
+  ordinary: "Ordinary passport",
   ordinary_passport: "Ordinary passport",
+  diplomatic: "Diplomatic passport",
   diplomatic_passport: "Diplomatic passport",
+  official: "Official passport",
   official_passport: "Official passport",
   other: "Other",
 };

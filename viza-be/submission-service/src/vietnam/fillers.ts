@@ -20,7 +20,11 @@ const SETTLE_MS = 200;
 const MIN_SELECT_MATCH_SCORE = 88;
 const DEFAULT_SELECT_FIELD_TIMEOUT_MS = 45_000;
 const VN_IDLESS_RADIO_QUESTIONS: Record<string, string[]> = {
-  basic_ttcnCoQtKhac: ["Do you have multiple nationalities?", "Có quốc tịch khác"],
+  basic_ttcnCoQtKhac: [
+    "Do you have multiple nationalities?",
+    "Người đề nghị cấp thị thực điện tử có mang nhiều quốc tịch hay không?",
+    "Có quốc tịch khác",
+  ],
   basic_ttcnDaDungHcKhacVaoVn: [
     "Have you ever used any other passports to enter into Viet Nam?",
     "dùng hộ chiếu khác",
@@ -40,7 +44,9 @@ const VN_PORTAL_OPTION_ALIASES: Record<string, string[]> = {
   m: ["M", "Male", "Nam"],
   f: ["F", "Female", "Nữ"],
   "ordinary passport": ["Ordinary passport", "Hộ chiếu phổ thông", "Phổ thông"],
+  ordinary: ["Ordinary", "Ordinary passport", "Hộ chiếu phổ thông", "Phổ thông"],
   "diplomatic passport": ["Diplomatic passport", "Hộ chiếu ngoại giao", "Ngoại giao"],
+  diplomatic: ["Diplomatic", "Diplomatic passport", "Hộ chiếu ngoại giao", "Ngoại giao"],
   "official passport": ["Official passport", "Hộ chiếu công vụ", "Công vụ"],
   other: ["Other", "Others", "Khác"],
   others: ["Others", "Other", "Khác"],
