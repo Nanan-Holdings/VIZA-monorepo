@@ -175,33 +175,25 @@ test("vn.step-fill: country dropdown values normalize to official option text", 
   assert.equal(getVnCountrySearchTextForOptionText("China"), "Trung Quốc");
   assert.equal(getVnCountrySearchTextForOptionText("Hungary"), "Hung-ga-ri");
   assert.equal(getVnCountrySearchTextForOptionText("Panama"), "Pa-na-ma");
-  assert.deepEqual(buildAntSelectSearchTerms("China").slice(0, 6), [
+  assert.deepEqual(buildAntSelectSearchTerms("China"), [
     "China",
     "Chin",
-    "Chi",
-    "Ch",
-    "C",
     "Trung Quốc",
+    "Trung",
+    "Trun",
+    "",
   ]);
-  assert.deepEqual(buildAntSelectSearchTerms("Hungary").slice(0, 7), [
+  assert.deepEqual(buildAntSelectSearchTerms("Hungary"), [
     "Hungary",
-    "Hungar",
-    "Hunga",
     "Hung",
-    "Hun",
-    "Hu",
-    "H",
+    "Hung-ga-ri",
+    "",
   ]);
   assert.deepEqual(buildAntSelectSearchTerms("Panama"), [
     "Panama",
-    "Panam",
     "Pana",
-    "Pan",
-    "Pa",
-    "P",
     "Pa-na-ma",
-    "Pa-na-m",
-    "Pa-na",
+    "Pa",
     "Pa-n",
     "",
   ]);
