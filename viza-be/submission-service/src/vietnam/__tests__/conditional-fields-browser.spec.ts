@@ -796,6 +796,37 @@ test("vn.conditional-fields browser: selects Vietnamese country and radio labels
   }
 });
 
+test("vn.conditional-fields browser: scopes an id-less Vietnamese nationality radio", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div class="pt-5 border-b">
+        <div class="ant-col ant-col-24 flex justify-between pb-5">
+          <div>Unrelated question</div>
+          <div class="ant-radio-group"><label class="ant-radio-wrapper"><input type="radio" name="unrelated" value="no" /><span>Không</span></label></div>
+        </div>
+      </div>
+      <div class="pt-5 border-b">
+        <div class="ant-col ant-col-24 flex justify-between pb-5">
+          <div>Người đề nghị cấp thị thực điện tử có mang nhiều quốc tịch hay không?</div>
+          <div class="ant-radio-group">
+            <label class="ant-radio-wrapper"><input type="radio" name="nationalities" value="yes" /><span>Có</span></label>
+            <label class="ant-radio-wrapper"><input type="radio" name="nationalities" value="no" /><span>Không</span></label>
+          </div>
+        </div>
+      </div>
+    `);
+
+    await pickRadio(page, "basic_ttcnCoQtKhac", "No");
+
+    assert.equal(await page.locator('input[name="nationalities"][value="no"]').isChecked(), true);
+    assert.equal(await page.locator('input[name="unrelated"]').isChecked(), false);
+  } finally {
+    await browser.close();
+  }
+});
+
 function renderIdlessQuestion(question: string, tableId: string): string {
   return `
     <div class="pt-5 border-b" data-question="${tableId}">
