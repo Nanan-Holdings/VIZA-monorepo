@@ -47,6 +47,7 @@ import {
   type VietnamFixedCard,
 } from "./fixed-card-payment";
 import {
+  chooseVietnamReviewAction,
   classifyVietnamPortalSnapshot,
   isAutoAcknowledgeableVietnamPortalState,
   readVietnamPortalSnapshot,
@@ -484,7 +485,7 @@ async function fillVietnamApplicationOnce(
     // Click the form's primary "Save" / "Next" button to advance to the
     // pre-pay review screen. Never click anything matching VN_STOP_BUTTON_PATTERNS.
     await emitProgress("advancing_to_review");
-    await advanceToReview(page, stepTimeoutMs);
+    const reviewAdvance = await advanceVietnamToReview(page, stepTimeoutMs);
     lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
     const reviewState = classifyVietnamPortalSnapshot(lastSnapshot);
     let stateAfterCaptcha = reviewState;
@@ -617,6 +618,19 @@ async function fillVietnamApplicationOnce(
           reason: `Official Vietnam e-Visa portal validation blocked submission: ${validationErrors
             .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
             .join("; ")}`,
+          checkpoint: stateAfterCaptcha,
+          url: page.url(),
+          diagnostics: diagnostics(),
+        };
+      }
+      if (!reviewAdvance.advanced) {
+        return {
+          status: "scaffolded_pending_walk",
+          runId,
+          reason:
+            `Official Vietnam e-Visa portal did not advance after VIZA clicked ` +
+            `the ${reviewAdvance.clickedLabel ?? "review"} action. The application remains saved, ` +
+            "and VIZA stopped without repeating the action to avoid a duplicate official submission.",
           checkpoint: stateAfterCaptcha,
           url: page.url(),
           diagnostics: diagnostics(),
@@ -1614,7 +1628,15 @@ function cssEscape(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, (char) => `\\${char}`);
 }
 
-async function advanceToReview(page: Page, timeoutMs: number): Promise<void> {
+interface VietnamReviewAdvanceResult {
+  advanced: boolean;
+  clickedLabel: string | null;
+}
+
+export async function advanceVietnamToReview(
+  page: Page,
+  timeoutMs: number,
+): Promise<VietnamReviewAdvanceResult> {
   // Click the primary form action (typically "Save" / "Tiếp tục") but only if
   // its label does NOT match one of the stop patterns. If the dominant
   // action is already a Pay/Submit button, leave the page where it is —
@@ -1641,7 +1663,7 @@ async function advanceToReview(page: Page, timeoutMs: number): Promise<void> {
   });
   await page.waitForTimeout(300);
 
-  const clicked = await page.evaluate((stopPatterns) => {
+  const candidates = await page.evaluate((stopPatterns) => {
     const visible = (element: Element | null): element is HTMLElement => {
       if (!element) return false;
       const style = window.getComputedStyle(element);
@@ -1649,22 +1671,54 @@ async function advanceToReview(page: Page, timeoutMs: number): Promise<void> {
       return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
     };
     const stopRegexes = stopPatterns.map((pattern) => new RegExp(pattern, "i"));
-    const candidates = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .filter(visible)
-      .filter((button) => !button.disabled && button.getAttribute("aria-disabled") !== "true")
-      .filter((button) => {
+    return Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .map((button, domIndex) => ({ button, domIndex }))
+      .filter(({ button }) => visible(button))
+      .filter(({ button }) => !button.disabled && button.getAttribute("aria-disabled") !== "true")
+      .map(({ button, domIndex }) => {
         const text = (button.innerText || button.textContent || "").replace(/\s+/g, " ").trim();
-        return /^(next|save|continue|tiếp tục|lưu)$/i.test(text) && !stopRegexes.some((rx) => rx.test(text));
-      });
-    const button = candidates[candidates.length - 1];
-    if (!button) return false;
-    button.scrollIntoView({ block: "center" });
-    button.click();
-    return true;
+        const rect = button.getBoundingClientRect();
+        return {
+          domIndex,
+          label: text,
+          isPrimary: /(?:^|\s)ant-btn-primary(?:\s|$)/.test(button.className),
+          type: button.type,
+          top: rect.top,
+          stopped: stopRegexes.some((rx) => rx.test(text)),
+        };
+      })
+      .filter((candidate) => !candidate.stopped)
+      .map(({ stopped: _stopped, ...candidate }) => candidate);
   }, VN_STOP_BUTTON_PATTERNS.map((rx) => rx.source));
-  if (!clicked) return;
-  await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 30_000) }).catch(() => undefined);
-  await page.waitForTimeout(2_000);
+  const selected = chooseVietnamReviewAction(candidates);
+  if (!selected) {
+    console.warn("[vn] No safe review action was available after filling the application form.");
+    return { advanced: false, clickedLabel: null };
+  }
+
+  console.log(`[vn] Clicking review action: ${selected.label}.`);
+  const initialUrl = page.url();
+  const button = page.locator("button").nth(selected.domIndex);
+  await button.scrollIntoViewIfNeeded({ timeout: Math.min(timeoutMs, 10_000) });
+  await button.click({ timeout: Math.min(timeoutMs, 15_000) });
+
+  const deadline = Date.now() + Math.min(timeoutMs, 30_000);
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(500);
+    const snapshot = await readVietnamPortalSnapshot(page).catch(() => null);
+    if (!snapshot) continue;
+    if (
+      snapshot.url !== initialUrl ||
+      classifyVietnamPortalSnapshot(snapshot) !== "application_form_visible"
+    ) {
+      return { advanced: true, clickedLabel: selected.label };
+    }
+    const errors = await readVietnamValidationErrors(page).catch(() => []);
+    if (errors.length > 0) break;
+  }
+
+  console.warn(`[vn] Review action ${selected.label} did not produce an observable portal transition.`);
+  return { advanced: false, clickedLabel: selected.label };
 }
 
 async function refreshVietnamReviewCaptcha(page: Page): Promise<boolean> {
