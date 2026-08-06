@@ -255,14 +255,89 @@ export async function submitVietnamCaptchaAnswer(
         .then(() => true)
         .catch(() => false)
     : false;
-  const enterSubmitted = clicked
+  // Vue can replace the input/button nodes between the controlled-input fill
+  // and Playwright's click. Re-resolve both nodes inside one browser task so a
+  // late Ant dialog redraw cannot leave us holding a detached locator. The
+  // fallback is intentionally scoped to the input's dialog/form and excludes
+  // destructive navigation controls before considering proximity.
+  const domClicked = clicked
+    ? false
+    : await dispatchVietnamCaptchaSubmitFallback(controls.root).catch((error) => {
+        console.warn(
+          `[vn] CAPTCHA DOM submit fallback failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return false;
+      });
+  const enterSubmitted = clicked || domClicked
     ? false
     : await controls.input
         .press("Enter", { timeout: Math.min(timeoutMs, 5_000) })
         .then(() => true)
         .catch(() => false);
   await page.waitForTimeout(Math.min(timeoutMs, 5_000));
-  return clicked || enterSubmitted;
+  return clicked || domClicked || enterSubmitted;
+}
+
+async function dispatchVietnamCaptchaSubmitFallback(root: CaptchaRoot): Promise<boolean> {
+  // tsx/esbuild can preserve its `__name` helper inside functions serialized
+  // into Playwright's page context. Mirror the select filler bootstrap so the
+  // fallback works in both tests and the production bundle.
+  await root.evaluate("window.__name = window.__name || ((fn) => fn)");
+  return root.evaluate((inputSelector) => {
+    const visible = (element: Element | null): element is HTMLElement => {
+      if (!(element instanceof HTMLElement)) return false;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(inputSelector));
+    const input = inputs.find((candidate) => visible(candidate) && !candidate.disabled && !candidate.readOnly);
+    if (!input) return false;
+
+    const scope =
+      input.closest<HTMLElement>("[role='dialog'], .ant-modal, .MuiDialog-root, .MuiModal-root, form") ??
+      document.body;
+    const inputRect = input.getBoundingClientRect();
+    const positive =
+      /\b(next|continue|submit|verify|confirm|send|check|ok)\b|tiếp tục|xác nhận|kiểm tra|kiểm chứng|hoàn tất|hoàn thành|gửi|nộp|đồng ý|duyệt/i;
+    const negative = /\b(back|cancel|close|refresh|reload|previous)\b|quay lại|hủy|đóng|làm mới/i;
+    const candidates = Array.from(
+      scope.querySelectorAll<HTMLElement>("button, input[type='submit'], input[type='button'], [role='button'], a"),
+    )
+      .filter((candidate) => visible(candidate) && !candidate.hasAttribute("disabled"))
+      .map((candidate) => {
+        const rect = candidate.getBoundingClientRect();
+        const label = `${candidate.textContent ?? ""} ${candidate.getAttribute("value") ?? ""} ${candidate.getAttribute("aria-label") ?? ""} ${candidate.getAttribute("title") ?? ""}`
+          .replace(/\s+/g, " ")
+          .trim();
+        const nativeSubmit =
+          (candidate.tagName.toLowerCase() === "button" &&
+            (!candidate.getAttribute("type") || candidate.getAttribute("type")?.toLowerCase() === "submit")) ||
+          (candidate.tagName.toLowerCase() === "input" && candidate.getAttribute("type")?.toLowerCase() === "submit");
+        const distance =
+          Math.abs(rect.y + rect.height / 2 - (inputRect.y + inputRect.height / 2)) * 2 +
+          Math.abs(rect.x - (inputRect.x + inputRect.width));
+        const score = distance + (positive.test(label) ? -1_000 : nativeSubmit ? -500 : 0);
+        return { candidate, label, nativeSubmit, distance, score };
+      })
+      .filter(({ label, nativeSubmit, distance }) => !negative.test(label) && (positive.test(label) || nativeSubmit || distance < 500))
+      .sort((left, right) => left.score - right.score);
+    const target = candidates[0]?.candidate;
+    if (target) {
+      // `HTMLElement.click()` preserves the framework's native click handler
+      // even when the previous Playwright locator was detached by a redraw.
+      // Do not also dispatch a synthetic click sequence: that can invoke the
+      // verification handler twice on portals that retain the same node.
+      target.click();
+      return true;
+    }
+
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter", code: "Enter" }));
+    input.dispatchEvent(new KeyboardEvent("keypress", { bubbles: true, cancelable: true, key: "Enter", code: "Enter" }));
+    input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, cancelable: true, key: "Enter", code: "Enter" }));
+    return true;
+  }, CAPTCHA_INPUT_SELECTOR);
 }
 
 export async function captureVietnamCaptchaFingerprint(
