@@ -206,6 +206,8 @@ test("vn.step-fill: portal controls accept Vietnamese visible aliases", () => {
   assert.ok(buildAntSelectMatchTexts("No").includes("Không"));
   assert.ok(buildAntSelectMatchTexts("Single-entry").includes("Một lần"));
   assert.ok(buildAntSelectMatchTexts("Ordinary passport").includes("Hộ chiếu phổ thông"));
+  assert.ok(buildAntSelectMatchTexts("ordinary").includes("Phổ thông"));
+  assert.equal(getVnPortalOptionText("passport_type", "official"), "Official passport");
 });
 
 test("vn.step-fill: select field timeout is bounded", () => {
