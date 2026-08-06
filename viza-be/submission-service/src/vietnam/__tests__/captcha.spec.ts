@@ -97,6 +97,28 @@ test("vn.captcha: submits a localized verification button near the CAPTCHA", asy
   }
 });
 
+test("vn.captcha: submits after the official dialog redraw hides the solved CAPTCHA image", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div role="dialog">
+        <img id="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <input id="security-captcha" name="captcha" value="AB12" />
+        <button type="button" id="verify" onclick="document.body.dataset.captchaSubmitted='yes'">Kiểm tra</button>
+      </div>
+    `);
+    await page.locator("#captcha-image").evaluate((element) => {
+      (element as HTMLElement).style.display = "none";
+    });
+
+    assert.equal(await submitVietnamCaptchaAnswer(page, 100), true);
+    assert.equal(await page.locator("body").getAttribute("data-captcha-submitted"), "yes");
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.captcha: reports only a rejected solved task", async () => {
   const reported: string[] = [];
   const reporter = async (solveId: string) => {
