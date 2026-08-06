@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  buildAntSelectMatchTexts,
   buildAntSelectSearchTerms,
   buildAntSelectOptionRegex,
+  getVietnamSelectFieldTimeoutMs,
   isAcceptableAntSelectMatch,
   rankAntSelectCandidates,
   resolveStepPlan,
@@ -197,6 +199,20 @@ test("vn.step-fill: country dropdown values normalize to official option text", 
     "Pa-n",
     "",
   ]);
+});
+
+test("vn.step-fill: portal controls accept Vietnamese visible aliases", () => {
+  assert.deepEqual(buildAntSelectMatchTexts("China"), ["China", "Trung Quốc"]);
+  assert.ok(buildAntSelectMatchTexts("No").includes("Không"));
+  assert.ok(buildAntSelectMatchTexts("Single-entry").includes("Một lần"));
+  assert.ok(buildAntSelectMatchTexts("Ordinary passport").includes("Hộ chiếu phổ thông"));
+});
+
+test("vn.step-fill: select field timeout is bounded", () => {
+  assert.equal(getVietnamSelectFieldTimeoutMs(undefined), 45_000);
+  assert.equal(getVietnamSelectFieldTimeoutMs("100"), 1_000);
+  assert.equal(getVietnamSelectFieldTimeoutMs("90000"), 60_000);
+  assert.equal(getVietnamSelectFieldTimeoutMs("invalid"), 45_000);
 });
 
 test("vn.step-fill: every official country code maps both ways and matches the frontend source", () => {

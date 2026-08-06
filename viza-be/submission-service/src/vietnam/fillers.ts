@@ -11,7 +11,6 @@
 import type { Page } from "@playwright/test";
 import type { VnFieldType, VnFieldMapping } from "./field-mappings.js";
 import {
-  getVnCountryAlpha3ForOptionText,
   getVnCountryOptionIndex,
   getVnCountrySearchTextForOptionText,
 } from "./field-mappings.js";
@@ -19,13 +18,49 @@ import {
 const SHORT_TIMEOUT = 5_000;
 const SETTLE_MS = 200;
 const MIN_SELECT_MATCH_SCORE = 88;
-const VN_IDLESS_RADIO_QUESTIONS: Record<string, string> = {
-  basic_ttcnCoQtKhac: "Do you have multiple nationalities?",
-  basic_ttcnDaDungHcKhacVaoVn: "Have you ever used any other passports to enter into Viet Nam?",
-  basic_ttcnViPhamPl: "Violation of the Vietnamese laws/regulations (if any)",
-  basic_ttcdCoCqTcCaNhanLienHe: "Agency/Organization/Individual that the applicant plans to contact when enter into Viet Nam?",
-  basic_ttcdDaDenVn: "Have you been to Viet Nam in the last 01 year?",
-  basic_ttcdCoThanNhan: "Do you have relatives who currently reside in Viet Nam?",
+const DEFAULT_SELECT_FIELD_TIMEOUT_MS = 45_000;
+const VN_IDLESS_RADIO_QUESTIONS: Record<string, string[]> = {
+  basic_ttcnCoQtKhac: ["Do you have multiple nationalities?", "Có quốc tịch khác"],
+  basic_ttcnDaDungHcKhacVaoVn: [
+    "Have you ever used any other passports to enter into Viet Nam?",
+    "dùng hộ chiếu khác",
+  ],
+  basic_ttcnViPhamPl: ["Violation of the Vietnamese laws/regulations (if any)", "Vi phạm pháp luật Việt Nam"],
+  basic_ttcdCoCqTcCaNhanLienHe: [
+    "Agency/Organization/Individual that the applicant plans to contact when enter into Viet Nam?",
+    "Cơ quan/Tổ chức/Cá nhân",
+  ],
+  basic_ttcdDaDenVn: ["Have you been to Viet Nam in the last 01 year?", "đến Việt Nam trong 01 năm"],
+  basic_ttcdCoThanNhan: ["Do you have relatives who currently reside in Viet Nam?", "thân nhân hiện đang ở Việt Nam"],
+};
+
+const VN_PORTAL_OPTION_ALIASES: Record<string, string[]> = {
+  yes: ["Yes", "Có"],
+  no: ["No", "Không"],
+  m: ["M", "Male", "Nam"],
+  f: ["F", "Female", "Nữ"],
+  "ordinary passport": ["Ordinary passport", "Hộ chiếu phổ thông", "Phổ thông"],
+  "diplomatic passport": ["Diplomatic passport", "Hộ chiếu ngoại giao", "Ngoại giao"],
+  "official passport": ["Official passport", "Hộ chiếu công vụ", "Công vụ"],
+  other: ["Other", "Others", "Khác"],
+  others: ["Others", "Other", "Khác"],
+  "single entry": ["Single-entry", "Single entry", "Một lần", "Nhập cảnh một lần"],
+  "multiple entry": ["Multiple-entry", "Multiple entry", "Nhiều lần", "Nhập cảnh nhiều lần"],
+  tourist: ["Tourist", "Tourism", "Du lịch"],
+  "visiting relatives": ["Visiting relatives", "Thăm thân"],
+  working: ["Working", "Lao động"],
+  business: ["Business", "Công tác", "Thương mại"],
+  businessman: ["Businessman", "Doanh nhân"],
+  employee: ["Employee", "Nhân viên"],
+  official: ["Official", "Công chức"],
+  retired: ["Retired", "Nghỉ hưu"],
+  student: ["Student", "Sinh viên"],
+  unemployed: ["Unemployed", "Không nghề nghiệp"],
+  personal: ["Personal", "Cá nhân"],
+  company: ["Company", "Công ty"],
+  cash: ["Cash", "Tiền mặt"],
+  "credit card": ["Credit card", "Thẻ tín dụng"],
+  "traveller s cheques": ["Traveller's cheques", "Traveler's cheques", "Séc du lịch"],
 };
 
 async function settle(page: Page): Promise<void> {
@@ -53,17 +88,20 @@ export async function fillText(page: Page, domId: string, value: string): Promis
  */
 export async function pickSelect(page: Page, domId: string, optionText: string): Promise<void> {
   const searchTerms = buildAntSelectSearchTerms(optionText);
+  const matchTexts = buildAntSelectMatchTexts(optionText);
   const optionIndex = getVnCountryOptionIndex(optionText);
+  const deadline = Date.now() + getVietnamSelectFieldTimeoutMs();
   await page.evaluate("window.__name = window.__name || ((fn) => fn)");
   if (optionIndex !== null) {
-    const indexed = await pickKnownCountryByIndex(page, domId, optionText, optionIndex);
+    const indexed = await pickKnownCountryByIndex(page, domId, matchTexts, optionIndex, deadline);
     if (indexed.ok) {
       await settle(page);
       return;
     }
   }
   const result = await page.evaluate(
-    async ({ domId, optionText, searchTerms }) => {
+    async ({ domId, matchTexts, searchTerms, timeoutMs }) => {
+      const operationDeadline = Date.now() + timeoutMs;
       const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
       const normalize = (value: string) =>
         value
@@ -73,22 +111,26 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
           .replace(/[^a-z0-9]+/g, " ")
           .trim();
       const rank = (texts: string[]) => {
-        const target = normalize(optionText);
-        const targetTokens = target.split(" ").filter((token) => token.length > 1);
         return texts
           .map((text, index) => {
             const candidate = normalize(text);
             let score = -1;
-            if (candidate && target) {
-              if (candidate === target) score = 100;
-              else if (candidate.startsWith(target) || target.startsWith(candidate)) score = 92;
-              else if (candidate.includes(target) || target.includes(candidate)) score = 86;
-              else {
-                const candidateTokens = candidate.split(" ").filter((token) => token.length > 1);
-                const overlap = targetTokens.filter((token) => candidateTokens.includes(token)).length;
-                if (targetTokens.length > 0 && overlap === targetTokens.length) score = 88;
-                else if (overlap >= 2) score = 70 + overlap * 5;
-                else if (overlap === 1 && targetTokens.length === 1) score = 72;
+            for (const matchText of matchTexts) {
+              const target = normalize(matchText);
+              const targetTokens = target.split(" ").filter((token) => token.length > 1);
+              if (candidate && target) {
+                if (candidate === target) score = Math.max(score, 100);
+                else if (target.length > 1 && (candidate.startsWith(target) || target.startsWith(candidate))) {
+                  score = Math.max(score, 92);
+                } else if (target.length > 1 && (candidate.includes(target) || target.includes(candidate))) {
+                  score = Math.max(score, 86);
+                } else {
+                  const candidateTokens = candidate.split(" ").filter((token) => token.length > 1);
+                  const overlap = targetTokens.filter((token) => candidateTokens.includes(token)).length;
+                  if (targetTokens.length > 0 && overlap === targetTokens.length) score = Math.max(score, 88);
+                  else if (overlap >= 2) score = Math.max(score, 70 + overlap * 5);
+                  else if (overlap === 1 && targetTokens.length === 1) score = Math.max(score, 72);
+                }
               }
             }
             return { index, text, score };
@@ -223,23 +265,12 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         }
         await sleep(900);
       };
-      const submitWithKeyboard = async () => {
-        input.focus();
-        input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
-        input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
-        await sleep(100);
-        input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter", code: "Enter", keyCode: 13 }));
-        input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Enter", code: "Enter", keyCode: 13 }));
-        await sleep(500);
-        input.blur();
-        input.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
-      };
-
       await open();
       let optionList = await waitForOptions(1_800);
       let best = rank(optionList.map((option) => option.text))[0];
       if (!best || best.score < 88) {
         for (const searchTerm of searchTerms) {
+          if (Date.now() >= operationDeadline) break;
           await search(searchTerm);
           optionList = await waitForOptions(900);
           best = rank(optionList.map((option) => option.text))[0];
@@ -247,19 +278,6 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         }
       }
       if (!best || best.score < 88) {
-        for (const searchTerm of searchTerms) {
-          await search(searchTerm);
-          await submitWithKeyboard();
-          const keyboardText = currentSelectText(select);
-          const keyboardScore = rank([keyboardText])[0]?.score ?? -1;
-          if (keyboardScore >= 88) {
-            return {
-              ok: true,
-              reason: undefined,
-              candidates: [keyboardText],
-            };
-          }
-        }
         return {
           ok: false,
           reason: "option_not_found",
@@ -280,10 +298,10 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         candidates: confirmed ? [selected.text] : [selected.text, currentText],
       };
     },
-    { domId, optionText, searchTerms },
+    { domId, matchTexts, searchTerms, timeoutMs: Math.max(1, deadline - Date.now()) },
   );
   if (!result.ok) {
-    const retry = await pickSelectWithPlaywright(page, domId, optionText, searchTerms, optionIndex);
+    const retry = await pickSelectWithPlaywright(page, domId, matchTexts, searchTerms, optionIndex, deadline);
     if (retry.ok) {
       await settle(page);
       return;
@@ -300,11 +318,21 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
   await settle(page);
 }
 
+export function getVietnamSelectFieldTimeoutMs(
+  rawValue: string | undefined = process.env.VN_SELECT_FIELD_TIMEOUT_MS,
+): number {
+  if (!rawValue) return DEFAULT_SELECT_FIELD_TIMEOUT_MS;
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_SELECT_FIELD_TIMEOUT_MS;
+  return Math.max(1_000, Math.min(parsed, 60_000));
+}
+
 async function pickKnownCountryByIndex(
   page: Page,
   domId: string,
-  optionText: string,
+  matchTexts: string[],
   optionIndex: number,
+  deadline: number,
 ): Promise<{ ok: boolean; candidates: string[] }> {
   const input = page.locator(`#${cssEscape(domId)}`).first();
   const select = input.locator(
@@ -323,13 +351,13 @@ async function pickKnownCountryByIndex(
   await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
   await openFullSelectListForIndexedScroll(page, domId);
   let candidates = await readVisibleSelectCandidates(page);
-  const indexed = await scrollToIndexedSelectOption(page, optionText, optionIndex);
+  const indexed = await scrollToIndexedSelectOption(page, matchTexts, optionIndex, deadline);
   if (indexed.candidates.length > candidates.length) {
     candidates = indexed.candidates;
   }
   await page.waitForTimeout(300);
   return {
-    ok: indexed.ok && (await selectDisplayMatches(page, domId, optionText)),
+    ok: indexed.ok && (await selectDisplayMatches(page, domId, matchTexts)),
     candidates,
   };
 }
@@ -337,9 +365,10 @@ async function pickKnownCountryByIndex(
 async function pickSelectWithPlaywright(
   page: Page,
   domId: string,
-  optionText: string,
+  matchTexts: string[],
   searchTerms: string[],
   optionIndex: number | null,
+  deadline: number,
 ): Promise<{ ok: boolean; reason?: string; candidates: string[] }> {
   const input = page.locator(`#${cssEscape(domId)}`).first();
   const select = input.locator(
@@ -364,27 +393,19 @@ async function pickSelectWithPlaywright(
   if (optionIndex !== null) {
     await openFullSelectListForIndexedScroll(page, domId);
     let candidates = await readVisibleSelectCandidates(page);
-    const indexed = await scrollToIndexedSelectOption(page, optionText, optionIndex);
+    const indexed = await scrollToIndexedSelectOption(page, matchTexts, optionIndex, deadline);
     if (indexed.candidates.length > candidates.length) {
       candidates = indexed.candidates;
     }
     await page.waitForTimeout(500);
-    if (indexed.ok && (await selectDisplayMatches(page, domId, optionText))) {
+    if (indexed.ok && (await selectDisplayMatches(page, domId, matchTexts))) {
       return { ok: true, candidates };
     }
-
-    // A country list can contain more than 200 virtualized options. Sending
-    // one Playwright ArrowDown command per option over remote CDP can consume
-    // most of a Browserbase session. Direct indexed scrolling above normally
-    // renders the target in a few calls; keep keyboard traversal only as the
-    // compatibility fallback for portals whose virtual-list geometry changed.
-    const keyboardIndexed = await selectIndexedOptionWithKeyboard(page, domId, optionText, optionIndex);
-    if (keyboardIndexed.candidates.length > candidates.length) {
-      candidates = keyboardIndexed.candidates;
-    }
-    if (keyboardIndexed.ok) return { ok: true, candidates };
   }
-  for (const searchTerm of searchTerms) {
+  for (const searchTerm of searchTerms.slice(0, 4)) {
+    if (Date.now() >= deadline) {
+      return { ok: false, reason: "select_field_timeout", candidates: [] };
+    }
     await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
     await page.waitForTimeout(150);
     await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
@@ -395,25 +416,24 @@ async function pickSelectWithPlaywright(
     await page.waitForTimeout(700);
 
     let candidates = await readVisibleSelectCandidates(page);
+    const exactPattern = new RegExp(
+      `^\\s*(?:${matchTexts.map((text) => escapeRegex(text)).join("|")})\\s*$`,
+      "i",
+    );
     const exactOption = page
       .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option")
-      .filter({ hasText: new RegExp(`^\\s*${escapeRegex(optionText)}\\s*$`, "i") })
+      .filter({ hasText: exactPattern })
       .first();
     if ((await exactOption.count()) > 0) {
       await exactOption.click({ timeout: SHORT_TIMEOUT, force: true });
     } else {
-      const indexed = optionIndex === null ? { ok: false, candidates: [] } : await scrollToIndexedSelectOption(page, optionText, optionIndex);
-      const scrolled = indexed.ok ? indexed : await wheelAndClickSelectOption(page, optionText);
-      if (scrolled.candidates.length > candidates.length) {
-        candidates = scrolled.candidates;
-      }
-      if (!scrolled.ok) {
-        await page.keyboard.press("ArrowDown").catch(() => undefined);
-        await page.keyboard.press("Enter").catch(() => undefined);
-      }
+      const indexed = optionIndex === null
+        ? { ok: false, candidates: [] }
+        : await scrollToIndexedSelectOption(page, matchTexts, optionIndex, deadline);
+      if (indexed.candidates.length > candidates.length) candidates = indexed.candidates;
     }
     await page.waitForTimeout(500);
-    const confirmed = await selectDisplayMatches(page, domId, optionText);
+    const confirmed = await selectDisplayMatches(page, domId, matchTexts);
     if (confirmed) return { ok: true, candidates };
 
     if (candidates.length === 0) {
@@ -426,32 +446,6 @@ async function pickSelectWithPlaywright(
     }
   }
   return { ok: false, reason: "playwright_selection_not_confirmed", candidates: [] };
-}
-
-async function selectIndexedOptionWithKeyboard(
-  page: Page,
-  domId: string,
-  optionText: string,
-  optionIndex: number,
-): Promise<{ ok: boolean; candidates: string[] }> {
-  await openFullSelectListForIndexedScroll(page, domId);
-  const candidates = await readVisibleSelectCandidates(page);
-  const input = page.locator(`#${cssEscape(domId)}`).first();
-  await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
-  await page.keyboard.press("Home").catch(() => undefined);
-  await page.waitForTimeout(80);
-  for (let step = 0; step <= optionIndex; step += 1) {
-    await page.keyboard.press("ArrowDown").catch(() => undefined);
-    if (step % 20 === 19) {
-      await page.waitForTimeout(20);
-    }
-  }
-  await page.keyboard.press("Enter").catch(() => undefined);
-  await page.waitForTimeout(650);
-  if (await selectDisplayMatches(page, domId, optionText)) {
-    return { ok: true, candidates };
-  }
-  return { ok: false, candidates };
 }
 
 async function openFullSelectListForIndexedScroll(page: Page, domId: string): Promise<void> {
@@ -485,12 +479,14 @@ async function openFullSelectListForIndexedScroll(page: Page, domId: string): Pr
 
 async function scrollToIndexedSelectOption(
   page: Page,
-  optionText: string,
+  matchTexts: string[],
   optionIndex: number,
+  deadline: number,
 ): Promise<{ ok: boolean; candidates: string[] }> {
   const seen: string[] = [];
   const itemHeights = [32, 34, 36, 38, 40, 42, 44, 46, 48];
   for (const itemHeight of itemHeights) {
+    if (Date.now() >= deadline) break;
     await page.evaluate(
       ({ index, itemHeight }) => {
         const visible = (element: HTMLElement) => {
@@ -517,93 +513,20 @@ async function scrollToIndexedSelectOption(
       { index: optionIndex, itemHeight },
     ).catch(() => undefined);
     await page.waitForTimeout(260);
-    const clicked = await clickVisibleSelectOptionIfPresent(page, optionText);
+    const clicked = await clickVisibleSelectOptionIfPresent(page, matchTexts);
     for (const candidate of clicked.candidates) {
       if (!seen.includes(candidate)) seen.push(candidate);
     }
     if (clicked.ok) return { ok: true, candidates: seen };
   }
   return { ok: false, candidates: seen.slice(0, 40) };
-}
-
-async function wheelAndClickSelectOption(
-  page: Page,
-  optionText: string,
-): Promise<{ ok: boolean; candidates: string[] }> {
-  const seen: string[] = [];
-  for (let step = 0; step < 160; step++) {
-    const clicked = await clickVisibleSelectOptionIfPresent(page, optionText);
-    for (const candidate of clicked.candidates) {
-      if (!seen.includes(candidate)) seen.push(candidate);
-    }
-    if (clicked.ok) return { ok: true, candidates: seen };
-
-    const box = await page.evaluate(() => {
-      const visible = (element: HTMLElement) => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return (
-          style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          !element.classList.contains("ant-select-dropdown-hidden") &&
-          rect.width > 0 &&
-          rect.height > 0
-        );
-      };
-      const panel = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
-        .filter(visible)
-        .find((dropdown) => dropdown.querySelector(".ant-select-item-option, [role='option']"));
-      if (!panel) return null;
-      const target = panel.querySelector<HTMLElement>(".rc-virtual-list-holder") ?? panel;
-      const rect = target.getBoundingClientRect();
-      return {
-        x: Math.max(1, rect.left + rect.width / 2),
-        y: Math.max(1, rect.top + Math.min(rect.height / 2, 120)),
-      };
-    });
-    if (!box) break;
-    await dispatchWheelOnVisibleSelect(page, 480);
-    await page.mouse.move(box.x, box.y).catch(() => undefined);
-    await page.mouse.wheel(0, 360).catch(() => undefined);
-    if (step % 5 === 4) {
-      await page.keyboard.press("PageDown").catch(() => undefined);
-    } else {
-      await page.keyboard.press("ArrowDown").catch(() => undefined);
-    }
-    await page.waitForTimeout(80);
-  }
-  return { ok: false, candidates: seen.slice(0, 40) };
-}
-
-async function dispatchWheelOnVisibleSelect(page: Page, deltaY: number): Promise<void> {
-  await page.evaluate((delta) => {
-    const visible = (element: HTMLElement) => {
-      const style = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return (
-        style.display !== "none" &&
-        style.visibility !== "hidden" &&
-        !element.classList.contains("ant-select-dropdown-hidden") &&
-        rect.width > 0 &&
-        rect.height > 0
-      );
-    };
-    const panel = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
-      .filter(visible)
-      .find((dropdown) => dropdown.querySelector(".ant-select-item-option, [role='option']"));
-    const holder = panel?.querySelector<HTMLElement>(".rc-virtual-list-holder");
-    if (!holder) return;
-    holder.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: delta }));
-    holder.scrollTop += delta;
-    holder.dispatchEvent(new Event("scroll", { bubbles: true }));
-  }, deltaY).catch(() => undefined);
 }
 
 async function clickVisibleSelectOptionIfPresent(
   page: Page,
-  optionText: string,
+  matchTexts: string[],
 ): Promise<{ ok: boolean; candidates: string[] }> {
-  return page.evaluate(async ({ optionText: expected }) => {
+  return page.evaluate(async ({ matchTexts: expectedTexts }) => {
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     const normalize = (value: string) =>
       value
@@ -646,7 +569,7 @@ async function clickVisibleSelectOptionIfPresent(
       .filter((item) => item.text && !item.option.classList.contains("ant-select-item-option-disabled"));
     for (const item of items) {
       if (!candidates.includes(item.text)) candidates.push(item.text);
-      if (normalize(item.text) === normalize(expected)) {
+      if (expectedTexts.some((expected) => normalize(item.text) === normalize(expected))) {
         item.option.scrollIntoView({ block: "nearest" });
         await sleep(80);
         dispatchRealClick(item.content);
@@ -654,12 +577,12 @@ async function clickVisibleSelectOptionIfPresent(
       }
     }
     return { ok: false, candidates };
-  }, { optionText });
+  }, { matchTexts });
 }
 
-async function selectDisplayMatches(page: Page, domId: string, optionText: string): Promise<boolean> {
+async function selectDisplayMatches(page: Page, domId: string, matchTexts: string[]): Promise<boolean> {
   return page.evaluate(
-    ({ domId: id, optionText: expected }) => {
+    ({ domId: id, matchTexts: expectedTexts }) => {
       const normalize = (value: string) =>
         value
           .normalize("NFD")
@@ -677,9 +600,13 @@ async function selectDisplayMatches(page: Page, domId: string, optionText: strin
       ]
         .filter(Boolean)
         .join(" ");
-      return normalize(text) === normalize(expected) || normalize(text).includes(normalize(expected));
+      return expectedTexts.some((expected) => {
+        const normalizedExpected = normalize(expected);
+        return normalize(text) === normalizedExpected ||
+          (normalizedExpected.length > 1 && normalize(text).includes(normalizedExpected));
+      });
     },
-    { domId, optionText },
+    { domId, matchTexts },
   );
 }
 
@@ -720,11 +647,11 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
   const target = page.locator(`#${cssEscape(domId)}`).first();
   const formItem = target.locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-form-item ')][1]");
   const radioGroup = target.locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-radio-group ')][1]");
-  const questionText = VN_IDLESS_RADIO_QUESTIONS[domId];
-  const idlessQuestionRoot = questionText
+  const questionTexts = VN_IDLESS_RADIO_QUESTIONS[domId];
+  const idlessQuestionRoot = questionTexts
     ? page
         .locator(".pt-5.border-b, .ant-row.ant-form-item, .ant-col.ant-col-24.flex.justify-between.pb-5")
-        .filter({ hasText: new RegExp(escapeRegex(questionText), "i") })
+        .filter({ hasText: new RegExp(questionTexts.map(escapeRegex).join("|"), "i") })
         .first()
     : null;
   const root =
@@ -735,7 +662,8 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
         : idlessQuestionRoot && (await idlessQuestionRoot.count()) > 0
           ? idlessQuestionRoot
           : page.locator("body");
-  const exactText = new RegExp(`^\\s*${escapeRegex(optionText)}\\s*$`, "i");
+  const matchTexts = buildAntSelectMatchTexts(optionText);
+  const exactText = new RegExp(`^\\s*(?:${matchTexts.map(escapeRegex).join("|")})\\s*$`, "i");
   const option = root
     .locator(".ant-radio-wrapper, label.ant-radio-button-wrapper, label")
     .filter({ hasText: exactText })
@@ -833,11 +761,20 @@ function escapeRegex(value: string): string {
 
 export function buildAntSelectSearchTerms(optionText: string): string[] {
   const terms = new Set<string>();
-  const officialSearchText = getVnCountrySearchTextForOptionText(optionText);
-  addBoundedAntSelectSearchTerms(terms, optionText);
-  addBoundedAntSelectSearchTerms(terms, officialSearchText);
+  for (const matchText of buildAntSelectMatchTexts(optionText)) {
+    addBoundedAntSelectSearchTerms(terms, matchText);
+  }
   terms.add("");
   return Array.from(terms);
+}
+
+export function buildAntSelectMatchTexts(optionText: string): string[] {
+  const matchTexts = new Set<string>([optionText.trim()]);
+  const aliases = VN_PORTAL_OPTION_ALIASES[normalizeAntSelectText(optionText)];
+  for (const alias of aliases ?? []) matchTexts.add(alias);
+  const officialSearchText = getVnCountrySearchTextForOptionText(optionText);
+  if (officialSearchText) matchTexts.add(officialSearchText);
+  return Array.from(matchTexts).filter(Boolean);
 }
 
 /**
