@@ -50,7 +50,11 @@ export interface VnFieldFallbackRecord {
 }
 
 const YES_NO_LABELS = { yes: "Yes", no: "No", true: "Yes", false: "No" };
-const SEX_LABELS = { male: "Male", m: "Male", female: "Female", f: "Female" };
+// The current official fallback portal renders the compact values `M` / `F`,
+// while older portal builds rendered `Male` / `Female`. The select matcher
+// treats the compact value as a prefix-equivalent match, so using `M` / `F`
+// works on both versions and avoids an expensive failed-search path.
+const SEX_LABELS = { male: "M", m: "M", female: "F", f: "F" };
 const COUNTRY_NAME_BY_NORMALIZED = Object.fromEntries(
   Object.values(VN_COUNTRY_NAME_BY_ALPHA3).map((name) => [normalizeCountryLookupKey(name), name]),
 );

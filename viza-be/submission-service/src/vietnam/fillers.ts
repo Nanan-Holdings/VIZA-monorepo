@@ -834,17 +834,29 @@ function escapeRegex(value: string): string {
 export function buildAntSelectSearchTerms(optionText: string): string[] {
   const terms = new Set<string>();
   const officialSearchText = getVnCountrySearchTextForOptionText(optionText);
-  addProgressiveAntSelectSearchTerms(terms, optionText);
-  addProgressiveAntSelectSearchTerms(terms, officialSearchText);
+  addBoundedAntSelectSearchTerms(terms, optionText);
+  addBoundedAntSelectSearchTerms(terms, officialSearchText);
   terms.add("");
   return Array.from(terms);
 }
 
-function addProgressiveAntSelectSearchTerms(terms: Set<string>, value: string | null): void {
+/**
+ * Keep official-select searches deliberately small. The previous strategy
+ * generated every character prefix and replayed the full Ant virtual-list
+ * interaction for each one. Long country names could therefore spend tens
+ * of minutes in a single field on the fallback portal.
+ */
+function addBoundedAntSelectSearchTerms(terms: Set<string>, value: string | null): void {
   const trimmed = value?.trim() ?? "";
-  for (let length = trimmed.length; length >= 1; length -= 1) {
-    const term = trimmed.slice(0, length).replace(/[^A-Za-z0-9]+$/g, "");
-    if (term) terms.add(term);
+  if (!trimmed) return;
+  terms.add(trimmed);
+
+  const firstWord = trimmed.split(/[\s-]+/u).find(Boolean) ?? "";
+  if (firstWord && firstWord !== trimmed) terms.add(firstWord);
+
+  const compactPrefix = trimmed.slice(0, Math.min(4, trimmed.length)).replace(/[^A-Za-z0-9]+$/g, "");
+  if (compactPrefix && compactPrefix !== trimmed && compactPrefix !== firstWord) {
+    terms.add(compactPrefix);
   }
 }
 

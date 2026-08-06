@@ -431,12 +431,14 @@ async function fillVietnamApplicationOnce(
         continue;
       }
       try {
+        console.log(`[vn] filling field ${fieldName} (${mapping.type})`);
         await fillByType(page, fieldName, mapping.type, mapping.domId, value);
         if (fieldName === "intended_province_city") {
           await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
         }
         filled += await fillVietnamConditionalRepeatGroups(page, input.answers, fieldName);
         filled++;
+        console.log(`[vn] filled field ${fieldName}`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         validationErrors.push({
