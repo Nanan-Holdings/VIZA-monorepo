@@ -62,6 +62,10 @@ const PLAN: MigrationPlanItem[] = [
     fileName: "20260625_vn_evisa_photo_face_rules.sql",
     purpose: "Vietnam e-Visa official photo size, face-match, and passport validity guardrails",
   },
+  {
+    fileName: "20260801193500_create_universal_profile_answers.sql",
+    purpose: "Field-keyed Universal Profile answers, provenance, and future-application reuse",
+  },
 ];
 
 function isDirectRun(): boolean {

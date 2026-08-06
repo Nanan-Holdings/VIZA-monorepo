@@ -302,9 +302,12 @@ function isTextLikeField(field: VisaFormFieldRow): boolean {
 }
 
 function usesBilingualTextPair(field: VisaFormFieldRow): boolean {
-  // Postal codes are structured identifiers. Translating them can replace a
-  // valid numeric value with a place name and breaks the official lookup.
-  return isTextLikeField(field) && field.fieldName !== "postal_code";
+  // Structured identifiers must render in both columns from one canonical
+  // value. Keeping separate zh/en copies lets stale phone, email, passport,
+  // and similar values overwrite a user's correction during draft refreshes.
+  return isTextLikeField(field)
+    && field.fieldName !== "postal_code"
+    && !isMachineTranslationSensitiveField(field);
 }
 
 function hasChineseText(value: string): boolean {
@@ -1114,11 +1117,21 @@ function normalizeFixedChoiceStepValues(
 function parsePhoneParts(rawPhone: string | null | undefined) {
   const value = rawPhone?.trim();
   if (!value) return { countryCode: "", localNumber: "" };
-  const plusMatch = value.match(/^\+(\d{1,4})[\s-]*(.*)$/);
-  if (plusMatch) {
+  if (value.startsWith("+")) {
+    const digits = value.replace(/\D/g, "");
+    const countryCode = getPhoneCountryCodeOptions()
+      .map((option) => typeof option === "string" ? option : option.value)
+      .filter((optionValue) => optionValue.startsWith("+") && digits.startsWith(optionValue.slice(1)))
+      .sort((left, right) => right.length - left.length)[0] ?? "";
+    if (countryCode) {
+      return {
+        countryCode,
+        localNumber: digits.slice(countryCode.length - 1),
+      };
+    }
     return {
-      countryCode: plusMatch[1] ?? "",
-      localNumber: (plusMatch[2] ?? "").replace(/[^\d\s-]/g, "").trim(),
+      countryCode: "",
+      localNumber: digits,
     };
   }
   return { countryCode: "", localNumber: value.replace(/[^\d\s-]/g, "").trim() };
@@ -1261,6 +1274,21 @@ function normalizeTdacStepValues(
       }
       const canonical = findCanonicalOptionValue(field.options, currentValue);
       if (canonical) next[field.fieldName] = canonical;
+    }
+    return next;
+  }
+  if (resolvedVisaType === "ID_C1_TOURIST" || resolvedVisaType === "ID_B1_EVOA") {
+    const next = { ...fixedChoiceValues };
+    const sourcePhone = next.phone || next.phone_number || next.primary_phone_number || next.mobile_phone || next.telephone_number;
+    const parsedPhone = parsePhoneParts(sourcePhone);
+    const parsedMobile = parsePhoneParts(next.mobile_phone);
+    if (!next.phone_country_code?.trim()) {
+      next.phone_country_code = parsedMobile.countryCode || parsedPhone.countryCode;
+    }
+    if (parsedMobile.localNumber) {
+      next.mobile_phone = parsedMobile.localNumber;
+    } else if (parsedPhone.localNumber) {
+      next.mobile_phone = parsedPhone.localNumber;
     }
     return next;
   }
@@ -2361,6 +2389,67 @@ function hasConditionalVisibility(field: VisaFormFieldRow): boolean {
   return Boolean((field.conditionalLogic as { showIf?: string } | null)?.showIf);
 }
 
+function getConditionalDependencies(field: VisaFormFieldRow): string[] {
+  const dependencies = new Set<string>();
+  const showIf = (field.conditionalLogic as { showIf?: string } | null)?.showIf;
+  if (showIf) {
+    const atoms = showIf.matchAll(
+      /(?:^|\|\||&&)\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:===|!==|not\s+in\b|in\b|contains_any\b)/g,
+    );
+    for (const atom of atoms) dependencies.add(atom[1]);
+  }
+
+  const rules = field.validationRules as {
+    dependent_on?: string;
+    depends_on?: string;
+    dependsOn?: string;
+  } | null;
+  for (const dependency of [rules?.dependent_on, rules?.depends_on, rules?.dependsOn]) {
+    if (dependency) dependencies.add(dependency);
+  }
+
+  return [...dependencies];
+}
+
+function getMultiOptionConditionalRoot(
+  field: VisaFormFieldRow,
+  allFields: VisaFormFieldRow[],
+): string | null {
+  if (!hasConditionalDependency(field)) return null;
+
+  const fieldsByName = new Map(allFields.map((candidate) => [candidate.fieldName, candidate]));
+  const roots = new Set<string>();
+  const visited = new Set<string>();
+
+  const visit = (fieldName: string) => {
+    if (visited.has(fieldName)) return;
+    visited.add(fieldName);
+
+    const dependencyField = fieldsByName.get(fieldName);
+    if (!dependencyField) return;
+    const dependencies = getConditionalDependencies(dependencyField);
+    if (dependencies.length === 0) {
+      roots.add(fieldName);
+      return;
+    }
+    dependencies.forEach(visit);
+  };
+
+  getConditionalDependencies(field).forEach(visit);
+  if (roots.size !== 1) return null;
+
+  const rootFieldName = [...roots][0];
+  const rootField = fieldsByName.get(rootFieldName);
+  if (rootField?.fieldType !== "select") return null;
+
+  const optionValues = new Set(
+    (rootField.options ?? []).map((option) =>
+      typeof option === "string" ? option : option.value,
+    ),
+  );
+  return optionValues.size > 2 ? rootFieldName : null;
+}
+
 function findVerticalScrollContainer(element: HTMLElement): HTMLElement | null {
   let parent = element.parentElement;
   while (parent) {
@@ -3377,6 +3466,22 @@ export function DynamicStepForm({
     return map;
   }, [step.fields]);
 
+  const multiOptionConditionalGroups = useMemo(() => {
+    const fieldToRoot: Record<string, string> = {};
+    const fieldsByRoot: Record<string, VisaFormFieldRow[]> = {};
+
+    for (const field of step.fields) {
+      if (getRepeatGroup(field)) continue;
+      const root = getMultiOptionConditionalRoot(field, step.fields);
+      if (!root) continue;
+      fieldToRoot[field.fieldName] = root;
+      if (!fieldsByRoot[root]) fieldsByRoot[root] = [];
+      fieldsByRoot[root].push(field);
+    }
+
+    return { fieldToRoot, fieldsByRoot };
+  }, [step.fields]);
+
   // Find all fields whose visibility depends on a given parent field.
   const getDependentFields = useCallback(
     (parentFieldName: string): string[] => {
@@ -3895,7 +4000,11 @@ export function DynamicStepForm({
             forceWhiteBackground={forceWhiteBackground}
             disabled={lt24Disabled || tdacTransitCheckboxLocked || isVnPrearrivalReadOnly}
             displayLocale={side}
-            labelAction={side === "en" ? guidancePopover : undefined}
+            labelAction={
+              side === "en" || (isIndonesiaOfficialEVisa && isChineseInterface && side === "zh")
+                ? guidancePopover
+                : undefined
+            }
             onSearchQuery={
               isKoreaAddressSearchSelect
                 ? setKoreaAddressSearchQuery
@@ -4012,7 +4121,8 @@ export function DynamicStepForm({
       </Popover>
     );
 
-    if (!isChineseInterface) {
+    if (!isChineseInterface || isIndonesiaOfficialEVisa) {
+      const displaySide: BilingualSide = isChineseInterface ? "zh" : "en";
       return (
         <div
           key={valueKey}
@@ -4022,25 +4132,42 @@ export function DynamicStepForm({
           className={cn(
             "application-form-field group/field relative py-1.5 transition-colors",
             panelOpen ? "bg-[#fbfdff]" : "",
-            submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500",
+            submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
           )}
         >
           <div className="min-w-0">
-            {renderSide("en")}
+            {renderSide(displaySide)}
           </div>
           {(showVnPrearrivalEvisaHelp ||
             (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved") ||
+            (isTextLike && isChineseInterface) ||
             showIssue) && (
-            <div className="mt-2 flex items-center justify-end gap-2">
-              {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
-              {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
-                <span className="text-[13px] font-medium text-emerald-700">{indonesiaPostalLookup.summaryEn}</span>
-              )}
-              {showIssue && (
-                <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
-                  {issue.message}
-                </span>
-              )}
+            <div className="mt-2 flex min-w-0 flex-col items-end gap-2">
+              {isTextLike && isChineseInterface ? (
+                <DynamicFieldRealtimeTranslation
+                  field={field}
+                  valueKey={valueKey}
+                  pair={pair}
+                  enabled={!lt24Disabled && canRequestRealtimeTranslation(field, pair)}
+                  isChineseInterface={isChineseInterface}
+                  targetWasManuallyEdited={targetWasManuallyEdited}
+                  onApplyTranslation={applyRealtimeTranslation}
+                  onResetManualEdit={resetManualEnglishValue}
+                />
+              ) : null}
+              <div className="flex items-center justify-end gap-2">
+                {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
+                {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
+                  <span className="text-[13px] font-medium text-emerald-700">
+                    {isChineseInterface ? indonesiaPostalLookup.summaryZh : indonesiaPostalLookup.summaryEn}
+                  </span>
+                )}
+                {showIssue && (
+                  <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
+                    {issue.message}
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -4056,7 +4183,7 @@ export function DynamicStepForm({
         className={cn(
           "application-form-field group/field relative py-1.5 transition-colors",
           panelOpen ? "bg-[#fbfdff]" : "",
-          submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500",
+          submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
         )}
       >
         <div className="grid min-w-0 gap-3 md:grid-cols-2">
@@ -4102,6 +4229,7 @@ export function DynamicStepForm({
   const renderedGroups = new Set<string>();
   const renderedInlineGroups = new Set<string>();
   const renderedBlockGroups = new Set<string>();
+  const renderedMultiOptionConditionalGroups = new Set<string>();
 
   return (
     <form
@@ -4130,6 +4258,43 @@ export function DynamicStepForm({
 
         // Non-repeatable field
         if (!group) {
+          const multiOptionRoot = multiOptionConditionalGroups.fieldToRoot[field.fieldName];
+          if (multiOptionRoot) {
+            if (renderedMultiOptionConditionalGroups.has(multiOptionRoot)) return null;
+            renderedMultiOptionConditionalGroups.add(multiOptionRoot);
+
+            const visibleConditionalFields = (
+              multiOptionConditionalGroups.fieldsByRoot[multiOptionRoot] ?? []
+            ).filter(
+              (candidate) =>
+                !externallyHandled.has(candidate.fieldName) &&
+                !isIndonesiaPostalAutoFillField(candidate) &&
+                (evaluateShowIf(candidate, values, step.fields) ||
+                  isDisabledByLT24(candidate, candidate.fieldName, values, step.fields)) &&
+                !isGatedByUnansweredToggle(candidate),
+            );
+            if (visibleConditionalFields.length === 0) return null;
+
+            return (
+              <ApplicationConditionalFieldsPanel
+                key={`multi-option-conditional-${multiOptionRoot}`}
+                className="-mt-1"
+                data-conditional-controller={multiOptionRoot}
+              >
+                {groupFieldsInline(visibleConditionalFields).map((item) => {
+                  if (Array.isArray(item)) {
+                    return (
+                      <div key={item.map((candidate) => candidate.fieldName).join("-")} className="grid gap-2">
+                        {item.map((candidate) => renderField(candidate, candidate.fieldName, true))}
+                      </div>
+                    );
+                  }
+                  return renderField(item, item.fieldName, true);
+                })}
+              </ApplicationConditionalFieldsPanel>
+            );
+          }
+
           // Block group: wrap a consecutive set of non-repeatable fields in a
           // container box, rendered once for the group.
           const bg = getBlockGroup(field);

@@ -17,9 +17,9 @@ export default function DataUsagePage() {
               type: "list",
               items: [
                 "Personal information: name, date of birth, phone number, and address.",
-                "Personal data: lab results, profile_data, questionnaire responses, and visa history.",
+                "Application data: passport details, visa history, form answers, supporting documents, and consent records.",
                 "Usage data: pages visited, features used, and session activity to improve the platform.",
-                "Commerce data: order history and payment records for purchases made through our commerce providers.",
+                "Transaction data: payment status, invoices, refunds, and subscription records.",
               ],
             },
           ],
@@ -30,10 +30,10 @@ export default function DataUsagePage() {
             {
               type: "list",
               items: [
-                "To generate personalized personalized insights and reports.",
-                "To enable your assigned visa team to review results and provide guidance.",
-                "To process purchases and manage service fulfillment.",
-                "To send booking reminders and important account notifications.",
+                "To prepare, review, and manage your visa applications.",
+                "To let authorized visa staff review application materials and provide support.",
+                "To process payments and track application service fulfillment.",
+                "To send application, document, payment, and status notifications.",
               ],
             },
             {
@@ -47,7 +47,7 @@ export default function DataUsagePage() {
           content: [
             {
               type: "paragraph",
-              text: "Some platform functions rely on trusted third-party providers, such as booking and commerce tools, to complete transactions and appointments.",
+              text: "Some platform functions rely on trusted third-party providers for payments, document processing, communications, and official application submission.",
             },
             {
               type: "paragraph",

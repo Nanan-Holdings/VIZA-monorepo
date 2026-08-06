@@ -3,6 +3,14 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { AlertTriangle, CheckCircle2, CreditCard, ExternalLink, FileCheck2, Loader2, Mail, ShieldCheck } from "lucide-react";
+import {
+  Alert,
+  AlertAction,
+  AlertActions,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -496,48 +504,51 @@ export function VnResultCard({
             )}
 
             {paymentError && (
-              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {paymentError}
-              </p>
+              <Alert variant="destructive">
+                <AlertIcon variant="destructive" />
+                <AlertTitle>{isZh ? "付款未完成" : "Payment did not complete"}</AlertTitle>
+                <AlertDescription>
+                  <p>{paymentError}</p>
+                </AlertDescription>
+              </Alert>
             )}
           </div>
         )}
 
         {result.manualAction && (!isPaymentCheckpoint || needsBankConfirmation) && (
-          <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
-            <div className="text-xs font-medium text-amber-700">{isZh ? "需要人工操作" : "Manual action"}</div>
-            {needsBankConfirmation && (
-              <p className="rounded-md border border-amber-200 bg-white px-3 py-2 text-sm leading-relaxed text-amber-900">
-                {isZh
-                  ? "Fly 云端浏览器已到达 VNPAY / 银行 3DS 验证。请在银行 App 中批准本次付款；VIZA 会保持云端会话并自动继续，不会在本机打开官网窗口。"
-                  : "The Fly cloud browser reached VNPAY / bank 3DS. Approve the payment in your banking app; VIZA keeps the cloud session alive and continues automatically without opening the official portal locally."}
+          <Alert variant="warning">
+            <AlertIcon variant="warning" />
+            <AlertTitle>{isZh ? "需要人工操作" : "Manual action"}</AlertTitle>
+            <AlertDescription>
+              {needsBankConfirmation && (
+                <p>
+                  {isZh
+                    ? "Fly 云端浏览器已到达 VNPAY / 银行 3DS 验证。请在银行 App 中批准本次付款；VIZA 会保持云端会话并自动继续，不会在本机打开官网窗口。"
+                    : "The Fly cloud browser reached VNPAY / bank 3DS. Approve the payment in your banking app; VIZA keeps the cloud session alive and continues automatically without opening the official portal locally."}
+                </p>
+              )}
+              <p className={needsBankConfirmation ? "mt-2" : undefined}>
+                {result.manualAction.instructions}
               </p>
-            )}
-            <p className="mt-2 text-sm text-foreground">{result.manualAction.instructions}</p>
-            {manualAction?.screenshotUrl && (
-              <div className="rounded-md border border-amber-200 bg-white px-3 py-2">
-                <div className="text-xs text-amber-700">{isZh ? "证据截图" : "Screenshot"}</div>
-                <div className="mt-0.5 break-all font-mono text-xs text-foreground">
+              {manualAction?.screenshotUrl && (
+                <p className="mt-2 break-all font-mono text-xs">
+                  {isZh ? "证据截图：" : "Screenshot: "}
                   {manualAction.screenshotUrl}
-                </div>
-              </div>
-            )}
-            {manualAction && (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full bg-white"
-                onClick={completeManualAction}
-                disabled={completing}
-              >
-                {completing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isZh ? "我已在官网完成，继续" : "I completed this on the official page, continue"}
-              </Button>
-            )}
-            {actionError && (
-              <p className="text-sm text-red-700">{actionError}</p>
-            )}
-          </div>
+                </p>
+              )}
+              {manualAction && (
+                <AlertActions>
+                  <AlertAction onClick={completeManualAction} disabled={completing}>
+                    {completing && <Loader2 className="animate-spin" />}
+                    {isZh ? "我已在官网完成，继续" : "I completed this on the official page, continue"}
+                  </AlertAction>
+                </AlertActions>
+              )}
+              {actionError && (
+                <p className="mt-2 font-medium !text-[hsl(0_72%_35%)]">{actionError}</p>
+              )}
+            </AlertDescription>
+          </Alert>
         )}
 
         {result.noticeText && (

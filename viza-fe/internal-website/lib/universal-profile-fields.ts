@@ -39,16 +39,20 @@ const CANONICAL_ALIASES: Record<string, string> = {
   first_name: "given_names",
   given_name: "given_names",
   givennames: "given_names",
+  given_names_en: "given_names",
+  family_name_en: "surname",
   full_name_native_alphabet: "full_name_native_alphabet",
   dob: "date_of_birth",
   birth_date: "date_of_birth",
   city_of_birth: "place_of_birth",
   birth_city: "place_of_birth",
   place_of_birth_city: "place_of_birth",
+  town_of_birth: "place_of_birth",
   state_of_birth: "birth_province_or_state",
   birth_state: "birth_province_or_state",
   birth_province: "birth_province_or_state",
   place_of_birth_province: "birth_province_or_state",
+  state_or_province_of_birth: "birth_province_or_state",
   country_of_birth: "birth_country",
   place_of_birth_country: "birth_country",
   sex: "gender",
@@ -86,6 +90,7 @@ const CANONICAL_ALIASES: Record<string, string> = {
   home_address_postcode: "residence_postal_code",
   home_address_postal_code: "residence_postal_code",
   residential_address_postcode: "residence_postal_code",
+  passport_no: "passport_number",
   passportnumber: "passport_number",
   travel_document_number: "passport_number",
   passport_document_type: "travel_document_type",
@@ -104,6 +109,15 @@ const CANONICAL_ALIASES: Record<string, string> = {
   passport_country_of_issue: "passport_issuing_country",
   travel_document_issuing_country: "passport_issuing_country",
   issued_by_country: "passport_issuing_country",
+  passport_issuance_city: "passport_place_of_issue",
+  place_of_issue: "passport_place_of_issue",
+  other_passport_no: "other_passport_number",
+  other_passport_expiry: "other_passport_expiry_date",
+  spouse_dob: "spouse_date_of_birth",
+  kin_spouse_date_of_birth: "spouse_date_of_birth",
+  kin_father_date_of_birth: "father_date_of_birth",
+  kin_mother_date_of_birth: "mother_date_of_birth",
+  mobile_number: "phone",
   email_address: "email",
   primary_phone: "phone",
   phone_number: "phone",
@@ -130,6 +144,11 @@ const OUTPUT_COMPATIBILITY_ALIASES: Record<string, string[]> = {
 };
 
 const APPLICATION_SPECIFIC_PATTERN = new RegExp([
+  "(?:^|_)(?:purpose|intended|planned|expected|requested)(?:_|$)",
+  "(?:^|_)(?:visit|stay|trip|journey|itinerary|destination)(?:_|$)",
+  "(?:^|_)(?:expense|expenses|cost|funding|funder|payer|paying|means)(?:_|$)",
+  "(?:^|_)(?:event|ceremony|treatment|transit|onward|booking)(?:_|$)",
+  "(?:^|_)(?:application|embassy|consulate|office|permit|stream)(?:_|$)",
   "purpose_(?:of_)?(?:journey|trip|visit)",
   "(?:^|_)(?:arrival|departure|entry|exit|flight|airline|port|border)(?:_|$)",
   "(?:^|_)(?:trip|journey|itinerary|destination)(?:_|$)",
@@ -158,6 +177,7 @@ const APPLICATION_SPECIFIC_PATTERN = new RegExp([
 
 const HISTORY_EXCEPTION_PATTERN = /(?:previous|prior|history|has_been|last_visa|visa_lost|visa_cancelled|visa_revoked|refus|drivers_license|immigrant_petition|former_spouse|lost_passport)/i;
 const SENSITIVE_EPHEMERAL_PATTERN = /(?:password|otp|cvv|card_number|payment|captcha|session|token|secret)/i;
+const NON_APPLICANT_SUBJECT_PATTERN = /(?:^|_)(?:accompanying|dependant|inviter|inviting|sponsor|assistant|agent|authorised_recipient|parental_authority|eu_family|emergency_contact|medical_facility|organ_donor|tour_operator|filler)(?:_|$)/i;
 
 function normalizeFieldName(fieldName: string) {
   return fieldName.trim().replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/[^a-zA-Z0-9_]+/g, "_").toLowerCase();
@@ -192,11 +212,11 @@ export function getUniversalProfileCategory(
 ): UniversalProfileCategory {
   const searchable = `${canonicalizeUniversalProfileFieldName(fieldName)} ${stepName}`.toLowerCase();
   if (/(passport|travel_document|national_id|identity document)/.test(searchable)) return "travel_documents";
-  if (/(address|phone|email|wechat|social_media|contact|residence|postal|postcode)/.test(searchable)) return "contact";
   if (/(father|mother|parent|spouse|partner|marital|civil_status|family|guardian|relative)/.test(searchable)) return "family";
   if (/(occupation|employ|job|salary|income|school|education|university|college|study|training|language|military)/.test(searchable)) return "work_education";
   if (/(previous|prior|history|visa_|refus|immigrant|permanent_resident|travelled|visited|lost_passport)/.test(searchable)) return "immigration_history";
   if (/(security|criminal|disease|health|arrest|violation|traffick|terror|background)/.test(searchable)) return "background";
+  if (/(address|phone|email|wechat|social_media|contact|residence|postal|postcode)/.test(searchable)) return "contact";
   return "identity";
 }
 
@@ -207,6 +227,7 @@ export function isReusableUniversalProfileField(
   if (!normalized || normalized.startsWith("__")) return false;
   if (field.fieldType === "file") return false;
   if (SENSITIVE_EPHEMERAL_PATTERN.test(normalized)) return false;
+  if (NON_APPLICANT_SUBJECT_PATTERN.test(normalized)) return false;
   if (APPLICATION_SPECIFIC_PATTERN.test(normalized) && !HISTORY_EXCEPTION_PATTERN.test(normalized)) return false;
   return true;
 }

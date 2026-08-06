@@ -97,6 +97,7 @@ Read the nearest source before making changes:
 - Application forms: `docs/application/DG.md`
 - VIZA AI chat: `docs/viza-ai-chat-development-guide.md`
 - Travel AI: `docs/travel-agent-development-guide.md`
+- Payment architecture: `architecture.payment`
 - Website internal automation: `docs/internal-automation/AGENTS.md`
 - Visa schema process: `docs/visa-schema-playbook.md`
 - RAG seeds: `knowledge-base/visa-rag-seeds/README.md`

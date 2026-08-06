@@ -10,7 +10,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import OpenAI from "openai";
+import { createOpenAiClient } from "../utils/openai-client.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
 
@@ -178,7 +178,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
   if (OPENAI_API_KEY && OPENAI_API_KEY !== "your_openai_api_key_here") {
     try {
       const knowledgeContext = await getKnowledgeContext(supabase);
-      const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+      const client = createOpenAiClient(OPENAI_API_KEY);
 
       const appSummary = JSON.stringify({
         full_name: applicant.full_name,

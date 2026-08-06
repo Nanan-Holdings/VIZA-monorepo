@@ -228,6 +228,30 @@ export const universalProfileDocuments = pgTable("universal_profile_documents", 
 	sourceApplicationIdx: index("universal_profile_documents_source_app_idx").on(table.sourceApplicationId),
 }));
 
+export const universalProfileAnswers = pgTable("universal_profile_answers", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicantId: uuid("applicant_id").notNull(),
+	authUserId: uuid("auth_user_id").notNull(),
+	canonicalKey: text("canonical_key").notNull(),
+	valueText: text("value_text").notNull(),
+	valueZh: text("value_zh"),
+	valueEn: text("value_en"),
+	labelZh: text("label_zh"),
+	labelEn: text("label_en"),
+	fieldType: text("field_type").default("text").notNull(),
+	category: text("category").default("identity").notNull(),
+	sourceApplicationId: uuid("source_application_id"),
+	sourceVisaType: text("source_visa_type"),
+	sourceFieldName: text("source_field_name"),
+	fieldSchema: jsonb("field_schema").default({}).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	userKeyIdx: uniqueIndex("universal_profile_answers_user_key_idx").on(table.authUserId, table.canonicalKey),
+	applicantIdx: index("universal_profile_answers_applicant_idx").on(table.applicantId),
+	sourceApplicationIdx: index("universal_profile_answers_source_app_idx").on(table.sourceApplicationId),
+}));
+
 export const officialApplicationTracking = pgTable("official_application_tracking", {
 	applicationId: uuid("application_id").primaryKey(),
 	applicantId: uuid("applicant_id").notNull(),
@@ -2487,4 +2511,3 @@ export const applicationGroup = pgTable("application_group", {
 
 export type ApplicationGroup = typeof applicationGroup.$inferSelect;
 export type NewApplicationGroup = typeof applicationGroup.$inferInsert;
-

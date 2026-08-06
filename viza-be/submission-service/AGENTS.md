@@ -200,6 +200,20 @@ filling and one-shot submission for the applicant.
   Japan/Singapore registration form, fills clearly synthetic placeholder data
   through the same production selector helper, verifies the rendered values,
   masks evidence, and exits without clicking Continue or creating an account.
+- `scripts/run-indonesia-visible-qa.ts`: headed local QA runner for one
+  authorized Indonesia C1 application. It signs into the local VIZA form with
+  a one-time test session, uploads the operator-approved local documents, and
+  can fill the public official WNA registration page with the production
+  selector helper. It never clicks VIZA Submit or the official Register button,
+  and it deliberately omits official-site file uploads because those endpoints
+  may retain files before registration is submitted.
+- `scripts/run-active-schema-dry-run-qa.ts`: concurrently loads the newest
+  operator-marked dry-run application for every active schema and runs the
+  country-provider validation/dry-run boundary without enqueueing or opening an
+  official portal.
+- `scripts/run-arrival-card-pre-submit-qa.ts`: concurrently opens the six
+  supported arrival-card portals from tagged QA drafts, disables external
+  CAPTCHA/cloud-browser services, and always stops before final submission.
 - `scripts/run-japan-vfs-placeholder-account.ts`: explicit operator-only
   Browserbase-proxy smoke that creates one clearly marked placeholder VFS
   account for a supplied local test application, consumes managed-alias

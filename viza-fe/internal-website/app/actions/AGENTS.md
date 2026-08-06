@@ -26,7 +26,6 @@ application lifecycle state.
 - `internal-automation/**`: trusted mutations and reads for payment, consent,
   document readiness, packet lifecycle, status events, notifications, and
   admin/customer status summaries.
-- `settings.ts`, `user-profile.ts`: applicant profile data.
 - `client-settings.ts`: client settings privacy requests and frequent traveler
   CRUD backed by applicant profiles.
 - `support.ts`, `admin-cs.ts`, `support-storage.ts`: applicant support

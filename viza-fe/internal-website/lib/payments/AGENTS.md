@@ -13,6 +13,8 @@ This module holds shared payment-domain helpers used by client and API routes.
 - `commercial-session.ts`: resolves the current client portal applicant session
   for commercial subscription payment records.
 - `refund-rules.ts`: refund eligibility helpers for existing payment records.
+- `method-availability.ts`: package/currency policy for direct wallets and
+  Stripe Checkout Alipay/WeChat Pay method selection.
 
 ## Guardrails
 

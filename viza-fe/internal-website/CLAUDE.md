@@ -656,7 +656,6 @@ scheduled → ready → in_progress → completed
 - **Start/End dates** - Date pickers
 - **Notes** - Optional additional instructions
 
-**service Workflow** (`app/actions/services.ts`):
 
 1. Creates local order with `RX-{timestamp}` ID and `status: pending_approval`
 2. Creates service record with Shopify product/variant IDs in `plan_json`
@@ -750,8 +749,6 @@ Allows authorized admins to view the client portal (`/client/*`) as any user for
 
 **Impersonation-Aware Actions** (check impersonation cookie first):
 - `/lib/auth/get-authenticated-user.ts` - Shared helper
-- `/app/actions/client-lab-reports.ts` - Uses admin API endpoints for impersonation to bypass user role check
-- `/app/actions/user-profile.ts`, `/app/actions/profile data.ts`, `/app/actions/action-plans.ts`
 
 **Database Tables**: `impersonation_allowed_users`, `impersonation_tokens`, `impersonation_audit_log`
 
@@ -814,7 +811,6 @@ admin-website/
 ├── app/
 │   ├── actions/
 │   │   ├── auth.ts                      # signIn/signOut server actions
-│   │   └── services.ts             # service workflow
 │   ├── api/
 │   │   └── shopify/
 │   │       ├── sync/                    # Shopify sync API (GET status, POST trigger)
@@ -1212,28 +1208,6 @@ const supabase = createBrowserClient(
 2. Client component calls `signOut()` server action
 3. Server clears Supabase session
 4. Redirects to `/login`
-
----
-
-## 🏥 service Workflow
-
-### Admin Side
-
-1. Opens user detail (`/admin-v2/users/[id]`)
-2. Clicks "service document" button
-3. Fills form: item name, dosage, schedule, dates, notes
-4. Submits → Server action creates:
-   - Treatment record
-   - document record with details
-   - Order record with `RX-{timestamp}` ID
-5. Page refreshes, service appears in timeline
-
-### Staff Side
-
-1. Opens orders tab (`/staff/orders`)
-2. Sees new order with "service" badge
-3. Can view details, process order
-4. Order has user linked automatically
 
 ---
 
@@ -1748,7 +1722,6 @@ link. Guest rails set it `true`; authenticated rails leave it `false`.
 | `lib/impersonation-session.ts`                 | Impersonation cookie utilities (JWT signing)          |
 | `app/auth/impersonate-callback/route.ts`       | Impersonation token validation + cookie creation      |
 | `app/manage/impersonate/page.tsx`              | User impersonation UI                              |
-| `app/actions/services.ts`                 | service workflow + Shopify draft orders          |
 | `app/actions/consultations.ts`                 | Begin/end/cancel/decision actions (uses admin client) |
 | `app/actions/user-health.ts`                | User health summary + consultation order           |
 | `app/actions/calcom-sync.ts`                   | Cal.com sync server actions                           |

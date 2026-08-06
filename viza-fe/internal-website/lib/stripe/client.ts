@@ -7,6 +7,7 @@
  */
 
 import { createHmac, timingSafeEqual } from "node:crypto";
+import type { StripeCheckoutPaymentMethod } from "@/lib/payments/method-availability";
 
 const STRIPE_API = "https://api.stripe.com/v1";
 
@@ -85,6 +86,8 @@ export interface CreateCheckoutInput {
   applicationId: string;
   orderId: string;
   customerEmail?: string;
+  /** Explicit one-time Checkout methods selected by the package policy. */
+  paymentMethodTypes?: readonly StripeCheckoutPaymentMethod[];
   /**
    * Tags the session as an unauthenticated marketing-funnel checkout.
    * Adds `metadata[guest_checkout]=1` so the webhook can route it to the
@@ -149,6 +152,15 @@ export async function createCheckoutSession(
     "metadata[order_id]": input.orderId,
     "metadata[application_id]": input.applicationId,
   };
+  for (const [index, paymentMethod] of (
+    input.paymentMethodTypes ?? ["card"]
+  ).entries()) {
+    form[`payment_method_types[${index}]`] = paymentMethod;
+  }
+  if (input.paymentMethodTypes?.includes("wechat_pay")) {
+    // Stripe-hosted Checkout is a web client, not a native iOS/Android flow.
+    form["payment_method_options[wechat_pay][client]"] = "web";
+  }
   if (input.guestCheckout) {
     form["metadata[guest_checkout]"] = "1";
   }
