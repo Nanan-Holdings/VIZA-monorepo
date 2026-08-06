@@ -169,7 +169,7 @@ describe("FailureCard", () => {
     fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
     expect(screen.getByRole("button", { name: /提交/u })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: /提交/u }));
-    expect(screen.getByRole("alert")).toHaveTextContent("持卡人姓名");
+    expect(screen.getByText("重试失败").closest('[role="alert"]')).toHaveTextContent("持卡人姓名");
     expect(screen.getByLabelText("持卡人姓名（必填，按银行卡）")).toHaveFocus();
 
     fireEvent.change(screen.getByLabelText("持卡人姓名（必填，按银行卡）"), {
@@ -187,7 +187,7 @@ describe("FailureCard", () => {
     });
   });
 
-  it("shows a visible retry error after the loading state when submission startup fails", async () => {
+  it("shows a visible retry error and keeps the in-memory card after startup fails", async () => {
     let rejectRetry: ((reason?: unknown) => void) | undefined;
     const onRetry = vi.fn().mockImplementation(() => new Promise<void>((_resolve, reject) => {
       rejectRetry = reject;
@@ -213,10 +213,42 @@ describe("FailureCard", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("越南云端付款会话暂时不可用");
     await waitFor(() => {
-      expect(screen.getByLabelText("银行卡号")).toHaveValue("");
-      expect(screen.getByLabelText("有效期")).toHaveValue("");
-      expect(screen.getByLabelText("CVV")).toHaveValue("");
+      expect(screen.getByLabelText("银行卡号")).toHaveValue("4111111111111111");
+      expect(screen.getByLabelText("有效期")).toHaveValue("12/30");
+      expect(screen.getByLabelText("CVV")).toHaveValue("123");
       expect(screen.getByRole("button", { name: /提交/u })).toBeEnabled();
+    });
+  });
+
+  it("submits native browser-autofilled card values even without React change events", async () => {
+    const onRetry = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <FailureCard
+        applicationId="app-vn"
+        errorMessage="Official Vietnam e-Visa portal validation blocked submission."
+        retryModes={[{ mode: "live_assisted", label: "提交" }]}
+        onRetry={onRetry}
+        requiresVietnamPaymentCard
+      />,
+    );
+
+    const cardNumber = screen.getByLabelText("银行卡号") as HTMLInputElement;
+    const cardExpiry = screen.getByLabelText("有效期") as HTMLInputElement;
+    const cardCvv = screen.getByLabelText("CVV") as HTMLInputElement;
+    cardNumber.value = "4111111111111111";
+    cardExpiry.value = "12/30";
+    cardCvv.value = "123";
+
+    fireEvent.click(screen.getByRole("button", { name: /提交/u }));
+
+    await waitFor(() => {
+      expect(onRetry).toHaveBeenCalledWith("live_assisted", {
+        pan: "4111111111111111",
+        expiry: "12/30",
+        cvv: "123",
+        holderName: "",
+      });
     });
   });
 
@@ -237,7 +269,7 @@ describe("FailureCard", () => {
     expect(submitButton).toBeEnabled();
     fireEvent.click(submitButton);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("请填写银行卡号、有效期和 CVV");
+    expect(screen.getByText("重试失败").closest('[role="alert"]')).toHaveTextContent("请填写银行卡号、有效期和 CVV");
     expect(screen.getByLabelText("银行卡号")).toHaveFocus();
     expect(onRetry).not.toHaveBeenCalled();
   });

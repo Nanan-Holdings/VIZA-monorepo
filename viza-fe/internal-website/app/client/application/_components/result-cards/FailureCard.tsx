@@ -266,14 +266,6 @@ export function FailureCard({
       cardCvv.replace(/\D/g, "").length >= 3 &&
       (!indonesiaPaymentFailure || cardHolderName.trim().length >= 2)
     );
-  const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = requiresPaymentCard
-    ? {
-        pan: cardNumber,
-        expiry: cardExpiry,
-        cvv: cardCvv,
-        holderName: cardHolderName,
-      }
-    : undefined;
 
   useEffect(() => {
     if (!applicationId || !showFranceAccount) return;
@@ -305,7 +297,29 @@ export function FailureCard({
 
   const handleRetry = async (mode: SubmissionMode) => {
     if (!onRetry || retryingMode !== null) return;
-    if (!cardReady) {
+    // Browser autofill and some password-manager/automation integrations can
+    // update a controlled input's native value without dispatching React's
+    // onChange event. Read the live DOM value at the explicit submit boundary
+    // so a visibly complete card form is not rejected as empty.
+    const paymentCard: VietnamOneTimePaymentCard | undefined = requiresPaymentCard
+      ? {
+          pan: cardNumberRef.current?.value ?? cardNumber,
+          expiry: cardExpiryRef.current?.value ?? cardExpiry,
+          cvv: cardCvvRef.current?.value ?? cardCvv,
+          holderName: cardHolderNameRef.current?.value ?? cardHolderName,
+        }
+      : undefined;
+    const paymentCardReady =
+      !requiresPaymentCard ||
+      Boolean(
+        paymentCard &&
+        paymentCard.pan.replace(/\D/g, "").length >= 12 &&
+        paymentCard.expiry.trim().length >= 4 &&
+        paymentCard.cvv.replace(/\D/g, "").length >= 3 &&
+        (!indonesiaPaymentFailure || paymentCard.holderName.trim().length >= 2),
+      );
+
+    if (!paymentCardReady) {
       setRetryFailure(
         isZh
           ? indonesiaPaymentFailure
@@ -315,11 +329,11 @@ export function FailureCard({
             ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
             : "Enter the card number, expiry, and CVV before submitting.",
       );
-      if (cardNumber.replace(/\D/g, "").length < 12) {
+      if ((paymentCard?.pan ?? "").replace(/\D/g, "").length < 12) {
         cardNumberRef.current?.focus();
-      } else if (cardExpiry.trim().length < 4) {
+      } else if ((paymentCard?.expiry ?? "").trim().length < 4) {
         cardExpiryRef.current?.focus();
-      } else if (cardCvv.replace(/\D/g, "").length < 3) {
+      } else if ((paymentCard?.cvv ?? "").replace(/\D/g, "").length < 3) {
         cardCvvRef.current?.focus();
       } else {
         cardHolderNameRef.current?.focus();
@@ -329,9 +343,12 @@ export function FailureCard({
     setRetryFailure(null);
     setRetryingMode(mode);
     try {
-      await onRetry(mode, vietnamPaymentCard);
+      await onRetry(mode, paymentCard);
       if (requiresPaymentCard) {
+        setCardNumber("");
+        setCardExpiry("");
         setCardCvv("");
+        setCardHolderName("");
       }
     } catch (error) {
       setRetryFailure(
@@ -342,12 +359,6 @@ export function FailureCard({
             : "The submission job could not be started. Please try again.",
       );
     } finally {
-      if (requiresPaymentCard) {
-        setCardNumber("");
-        setCardExpiry("");
-        setCardCvv("");
-        setCardHolderName("");
-      }
       setRetryingMode(null);
     }
   };
