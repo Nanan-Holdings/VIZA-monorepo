@@ -5,6 +5,7 @@ import {
   checkpointForVietnamPortalState,
   extractVietnamRegistrationCode,
   isAutoAcknowledgeableVietnamPortalState,
+  shouldTryVietnamFallbackLanding,
   type VietnamPortalSnapshot,
 } from "../portal-state";
 
@@ -82,6 +83,19 @@ test("Vietnam portal state: white screen is explicit terminal state", () => {
   }));
 
   assert.equal(state, "white_screen");
+});
+
+test("Vietnam portal state: nginx HTTP-to-HTTPS 400 is an official portal error", () => {
+  const state = classifyVietnamPortalSnapshot(snapshot({
+    title: "400 The plain HTTP request was sent to HTTPS port",
+    bodyText: "400 Bad Request The plain HTTP request was sent to HTTPS port nginx",
+    buttonTexts: [],
+    linkHrefs: [],
+    hasApplyEntry: false,
+  }));
+
+  assert.equal(state, "portal_error");
+  assert.equal(shouldTryVietnamFallbackLanding(state), true);
 });
 
 test("Vietnam portal state: asset 502 Error page is a portal error, not a layout change", () => {

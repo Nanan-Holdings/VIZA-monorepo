@@ -91,7 +91,8 @@ export function classifyVietnamPortalSnapshot(snapshot: VietnamPortalSnapshot): 
     return "portal_error";
   }
   if (
-    /\b(maintenance|temporarily unavailable|service unavailable|access denied|forbidden|bad gateway|gateway timeout|internal server error)\b/i.test(text)
+    /\b(maintenance|temporarily unavailable|service unavailable|access denied|forbidden|bad gateway|gateway timeout|internal server error)\b/i.test(text) ||
+    /plain http request was sent to https port/i.test(`${lowerTitle} ${lowerText}`)
   ) {
     return "portal_error";
   }
@@ -271,6 +272,15 @@ export function checkpointForVietnamPortalState(
 
 export function isAutoAcknowledgeableVietnamPortalState(state: VietnamPortalStateId): boolean {
   return state === "note_modal_visible";
+}
+
+export function shouldTryVietnamFallbackLanding(state: VietnamPortalStateId): boolean {
+  return (
+    state === "white_screen" ||
+    state === "network_blocked" ||
+    state === "portal_error" ||
+    state === "layout_changed"
+  );
 }
 
 export async function waitForVietnamPortalCheckpoint(
