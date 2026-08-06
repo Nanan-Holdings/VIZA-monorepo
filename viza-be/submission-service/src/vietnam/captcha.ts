@@ -37,7 +37,7 @@ const CAPTCHA_INPUT_SELECTOR = [
 ].join(", ");
 
 const CAPTCHA_SUBMIT_LABEL_PATTERN =
-  /\b(next|continue|submit|verify|confirm|send|ok)\b|tiếp tục|xác nhận|gửi|nộp|đồng ý/i;
+  /\b(next|continue|submit|verify|confirm|send|check|ok)\b|tiếp tục|xác nhận|kiểm tra|kiểm chứng|hoàn tất|hoàn thành|gửi|nộp|đồng ý/i;
 
 const DEFAULT_VN_CAPTCHA_TIMEOUT_MS = 180_000;
 const CAPTCHA_INPUT_WAIT_MS = 15_000;
@@ -48,6 +48,11 @@ interface VietnamCaptchaControls {
   root: CaptchaRoot;
   input: Locator;
   image: Locator;
+}
+
+interface VietnamCaptchaInputControls {
+  root: CaptchaRoot;
+  input: Locator;
 }
 
 function readPositiveIntEnv(name: string, fallback: number): number {
@@ -201,7 +206,13 @@ export async function submitVietnamCaptchaAnswer(
   page: Page,
   timeoutMs = 10_000,
 ): Promise<boolean> {
-  const controls = await locateVietnamCaptchaControls(page, Math.min(timeoutMs, CAPTCHA_INPUT_WAIT_MS));
+  // Filling the controlled CAPTCHA input can cause the official Vue/Ant dialog
+  // to redraw or briefly hide the image. Submission only needs the still-live
+  // input and its frame, so do not require the image to remain visible here.
+  const controls = await locateVietnamCaptchaInputControls(
+    page,
+    Math.min(timeoutMs, CAPTCHA_INPUT_WAIT_MS),
+  );
   if (!controls) return false;
   const inputBox = await controls.input.boundingBox().catch(() => null);
   const candidates = controls.root.locator(
@@ -361,6 +372,27 @@ async function locateVietnamCaptchaControls(page: Page, waitMs: number): Promise
       if (!genericInput) continue;
       const image = await locateVietnamCaptchaImage(root, genericInput);
       if (image) return { root, input: genericInput, image };
+    }
+    if (Date.now() < deadline) await page.waitForTimeout(250);
+  } while (Date.now() < deadline);
+  return null;
+}
+
+async function locateVietnamCaptchaInputControls(
+  page: Page,
+  waitMs: number,
+): Promise<VietnamCaptchaInputControls | null> {
+  const deadline = Date.now() + waitMs;
+  do {
+    for (const root of [page, ...page.frames().filter((frame) => frame !== page.mainFrame())]) {
+      const exactInput = await firstUsableInput(root.locator(CAPTCHA_INPUT_SELECTOR));
+      if (exactInput) return { root, input: exactInput };
+
+      if (!(await rootHasVisibleCaptchaDialog(root))) continue;
+      const genericInput = await firstUsableInput(
+        root.locator("input:not([type]), input[type='text'], input[type='search'], textarea"),
+      );
+      if (genericInput) return { root, input: genericInput };
     }
     if (Date.now() < deadline) await page.waitForTimeout(250);
   } while (Date.now() < deadline);
