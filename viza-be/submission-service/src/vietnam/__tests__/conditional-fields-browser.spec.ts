@@ -744,6 +744,58 @@ test("vn.conditional-fields browser: selects Panama from a virtualized official 
   }
 });
 
+test("vn.conditional-fields browser: selects Vietnamese country and radio labels", { timeout: 15_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <!doctype html>
+      <html>
+        <body>
+          ${renderAntSelect("basic_ttcnMaQt", ["Trung Quốc"])}
+          <div class="ant-form-item">
+            <div id="basic_ttcnCoQtKhac" class="ant-radio-group">
+              <label class="ant-radio-wrapper">
+                <span class="ant-radio"><input type="radio" name="other-nationality" value="yes" /></span>
+                <span>Có</span>
+              </label>
+              <label class="ant-radio-wrapper">
+                <span class="ant-radio"><input type="radio" name="other-nationality" value="no" /></span>
+                <span>Không</span>
+              </label>
+            </div>
+          </div>
+          <script>
+            const input = document.getElementById("basic_ttcnMaQt");
+            const select = input.closest(".ant-select");
+            const dropdown = document.getElementById(input.getAttribute("aria-controls")).closest(".ant-select-dropdown");
+            const display = select.querySelector(".ant-select-selection-item");
+            const show = () => dropdown.classList.remove("ant-select-dropdown-hidden");
+            select.querySelector(".ant-select-selector").addEventListener("click", show);
+            select.querySelector(".ant-select-selector").addEventListener("mousedown", show);
+            input.addEventListener("focus", show);
+            dropdown.querySelectorAll(".ant-select-item-option").forEach((option) => {
+              option.addEventListener("click", () => {
+                display.textContent = option.textContent.trim();
+                display.setAttribute("title", option.textContent.trim());
+                dropdown.classList.add("ant-select-dropdown-hidden");
+              });
+            });
+          </script>
+        </body>
+      </html>
+    `);
+
+    await pickSelect(page, "basic_ttcnMaQt", "China");
+    await pickRadio(page, "basic_ttcnCoQtKhac", "No");
+
+    assert.equal((await page.locator(".ant-select-selection-item").innerText()).trim(), "Trung Quốc");
+    assert.equal(await page.locator('input[name="other-nationality"][value="no"]').isChecked(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
 function renderIdlessQuestion(question: string, tableId: string): string {
   return `
     <div class="pt-5 border-b" data-question="${tableId}">
