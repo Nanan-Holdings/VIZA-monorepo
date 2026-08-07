@@ -13,6 +13,10 @@ Scope: this file applies to `lib/form-assistant/**`.
 - Short affirmative/negative replies such as `有`、`没有`、`yes` and `no`
   must resolve deterministically against the single current yes/no field before
   model extraction, so a concise answer always advances the conversation.
+- Unambiguous relative or localized dates such as `明天`, `tomorrow`, and
+  `8月7号` must be normalized against the product time zone before model
+  extraction. Localized option labels may map to reviewed exact option values;
+  ambiguous dates or options must still be confirmed.
 - Keep document extraction policies pure and deterministic. They may classify
   document types and allowlisted field categories, but must not read storage,
   call an AI provider, or persist applicant answers.
