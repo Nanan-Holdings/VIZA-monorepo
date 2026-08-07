@@ -474,10 +474,11 @@
         "required": "必填",
         "optional": "选填"
       },
-      "filled": {
-        "title": "已使用你确认的信息填写",
-        "latest": "已填写：{label}",
-        "summary": "已通过助手填写 {count} 项"
+      "filledNotice": {
+        "message": "已填入{label}：{value}",
+        "undo": "撤回",
+        "undoing": "正在撤回...",
+        "undoFailed": "无法撤回，因为该内容可能已经被修改。"
       },
       "validation": {
         "title": "答案检查",
