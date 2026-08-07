@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { Camera, CheckCircle2, FileSignature, FileText, Loader2, UploadCloud } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useLocale } from "next-intl";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import { AiAssistButton, AiAssistIcon } from "@/components/ui/ai-assist-button";
+import { DocumentUploadField } from "@/components/ui/document-upload-field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SupportingDocumentCard } from "@/components/ui/supporting-document-card";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { isChineseLocale } from "@/lib/i18n/locale";
-import { cn } from "@/lib/utils";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 
 export interface ReusableDocumentState {
@@ -33,7 +32,6 @@ interface CompactUploadProps {
   documentType: "electronic_signature" | "photo";
   initialState: ReusableDocumentState;
   accept: string;
-  icon: ReactNode;
   title: string;
   description: string;
   securityNote: string;
@@ -91,7 +89,6 @@ function CompactProfileUpload({
   documentType,
   initialState,
   accept,
-  icon,
   title,
   description,
   securityNote,
@@ -103,10 +100,8 @@ function CompactProfileUpload({
   formatsLabel,
   onUploaded,
 }: CompactUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState(initialState);
   const [uploading, setUploading] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
@@ -145,16 +140,8 @@ function CompactProfileUpload({
     }
   }
 
-  function handleDrop(event: DragEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    setIsDragging(false);
-    const file = event.dataTransfer.files?.[0];
-    if (file) void upload(file);
-  }
-
   return (
     <SupportingDocumentCard
-      icon={icon}
       title={title}
       description={description}
       headerLayout="stacked"
@@ -164,77 +151,45 @@ function CompactProfileUpload({
         </ReusableDocumentHelp>
       }
     >
-      <section>
-        {state.uploaded && !uploading ? (
-          <button
-            type="button"
-            disabled={!applicationId}
-            onClick={() => inputRef.current?.click()}
-            className="group flex min-h-24 w-full min-w-0 items-center gap-3 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 px-4 py-3 text-left transition hover:border-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[14px] font-medium text-[#2f3a4a]">
-                {state.fileName ?? uploadedLabel}
-              </span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">{replaceLabel}</span>
-            </span>
-            <UploadCloud className="h-4 w-4 shrink-0 text-[#8a94a3] opacity-0 transition group-hover:opacity-100" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={!applicationId || uploading}
-            onClick={() => inputRef.current?.click()}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            className={cn(
-              "flex min-h-24 w-full items-center gap-3 rounded-lg border border-dashed px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30 disabled:cursor-not-allowed disabled:opacity-60",
-              isDragging
-                ? "border-brand-500 bg-brand-50"
-                : "border-brand-200 bg-brand-50/40 hover:border-brand-400 hover:bg-brand-50"
-            )}
-          >
-            {uploading ? (
-              <Loader2 className="h-5 w-5 shrink-0 animate-spin text-brand-500" />
-            ) : (
-              <UploadCloud className="h-5 w-5 shrink-0 text-brand-500" />
-            )}
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium text-foreground">
-                {!applicationId
+      <DocumentUploadField
+        status={
+          uploading
+            ? "uploading"
+            : error
+              ? "rejected"
+              : state.uploaded
+                ? "attached"
+                : "optional"
+        }
+        statusLabel={
+          uploading
+            ? uploadingLabel
+            : error
+              ? uploadFailedLabel
+              : state.uploaded
+                ? isZh
+                  ? "已存入通用资料"
+                  : "Saved to your profile"
+                : !applicationId
                   ? preparingLabel
-                  : uploading
-                    ? uploadingLabel
-                    : isZh
-                      ? "拖放文件到这里，或点击选择"
-                      : "Drop a file here, or click to choose"}
-              </span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">
-                {formatsLabel} · {isZh ? "最大 10 MB" : "Up to 10 MB"}
-              </span>
-            </span>
-          </button>
-        )}
-      </section>
-      <input
-        ref={inputRef}
-        type="file"
-        className="hidden"
+                  : isZh
+                    ? "未上传"
+                    : "Not uploaded"
+        }
+        file={
+          state.uploaded && !uploading
+            ? { name: state.fileName ?? uploadedLabel, kind: "image" }
+            : null
+        }
+        reason={error}
+        dropLabel={isZh ? "拖放文件到这里，或点击选择" : "Drop file or browse"}
+        acceptHint={`${formatsLabel} · ${isZh ? "最大 10 MB" : "Up to 10 MB"}`}
+        removeLabel={replaceLabel}
         accept={accept}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) void upload(file);
-        }}
+        disabled={!applicationId}
+        inputAriaLabel={title}
+        onFileSelected={(file) => void upload(file)}
       />
-
-      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
     </SupportingDocumentCard>
   );
 }
@@ -253,7 +208,7 @@ export function UniversalProfileDocumentsCarousel({
   return (
     <section
       aria-label={isZh ? "支持材料" : "Supporting documents"}
-      className="rounded-xl border border-[#efefef] bg-white p-6 shadow-sm"
+      className="rounded-xl border border-[#efefef] bg-white p-6"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -267,9 +222,8 @@ export function UniversalProfileDocumentsCarousel({
         </span>
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
+      <div className="mt-5 grid items-start gap-4 md:grid-cols-2">
         <SupportingDocumentCard
-          icon={<FileText className="h-5 w-5" />}
           title={isZh ? "护照资料页" : "Passport bio page"}
           description={
             isZh
@@ -301,7 +255,6 @@ export function UniversalProfileDocumentsCarousel({
           documentType="electronic_signature"
           initialState={signature}
           accept=".png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf"
-          icon={<FileSignature className="h-5 w-5" />}
           title={isZh ? "电子签名" : "E-signature"}
           description={isZh ? "上传清晰的手写签名图片或 PDF；需要签名材料时可直接选用。" : "Upload a clear handwritten signature image or PDF for forms that require a signature file."}
           securityNote={isZh ? "签名保存在你的私有材料空间，仅在你确认使用时接入具体申请。" : "Your signature stays in private storage and is attached to an application only when you choose to use it."}
@@ -318,7 +271,6 @@ export function UniversalProfileDocumentsCarousel({
           documentType="photo"
           initialState={photo}
           accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-          icon={<Camera className="h-5 w-5" />}
           title={isZh ? "证件照" : "Passport-size photo"}
           description={isZh ? "上传近期正面证件照。具体申请仍会按目的地规则检查尺寸、背景和文件大小。" : "Upload a recent front-facing portrait. Each application will still check destination-specific size, background, and file limits."}
           securityNote={isZh ? "表单会优先提供这张照片；若目的地标准不同，你仍可为该申请单独更换。" : "Forms will offer this photo first; you can still replace it for an application with different requirements."}

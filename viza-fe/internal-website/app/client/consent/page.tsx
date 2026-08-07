@@ -23,6 +23,7 @@ import {
   getVisaTypeDisplayName,
   getVisaTypeDisplayNameZh,
 } from "@/lib/visa-destinations";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 export const dynamic = "force-dynamic";
 
@@ -99,12 +100,11 @@ function mapApplication(row: ApplicationRow): ConsentApplication {
 }
 
 function buildApplicationHref(application: ConsentApplication): string {
-  const params = new URLSearchParams({
+  return buildApplicationLongFormHref({
     applicationId: application.id,
     country: application.country,
     visaType: application.visaType,
   });
-  return `/client/application?${params.toString()}`;
 }
 
 function buildDocumentsHref(applicationId: string): string {

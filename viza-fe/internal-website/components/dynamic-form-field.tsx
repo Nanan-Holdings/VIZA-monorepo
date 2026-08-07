@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Label } from "@/components/ui/label";
 import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
+import { ApplicationCheckbox, ApplicationRadio } from "@/components/ui/application-checkbox";
 import {
   Select,
   SelectValue,
@@ -10,7 +10,6 @@ import {
 import {
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { Checkbox } from "@/components/ui/checkbox";
 import { CountryDropdown } from "@/components/ui/country-dropdown";
 import { RegionSelect } from "@/components/ui/region-select";
 import {
@@ -149,10 +148,18 @@ function getMaxLengthRule(field: VisaFormFieldRow): number | undefined {
     : undefined;
 }
 
+function normalizeComparableText(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
 function getHelperTextRule(field: VisaFormFieldRow, sideLocale: "zh" | "en"): string | undefined {
   const rules = field.validationRules as LengthRules | null;
   const helper = sideLocale === "zh" ? rules?.helper_zh : rules?.helper_en;
-  return typeof helper === "string" && helper.trim() ? helper.trim() : undefined;
+  if (typeof helper !== "string" || !helper.trim()) return undefined;
+
+  const normalizedHelper = normalizeComparableText(helper);
+  const normalizedLabel = normalizeComparableText(field.label);
+  return normalizedHelper === normalizedLabel ? undefined : helper.trim();
 }
 
 const FieldWrapper = ApplicationFormField;
@@ -351,51 +358,45 @@ export function DynamicFormField({
         </ApplicationFormInputGroup>
       ) : datePickerNode;
       const sideCheckbox = dateAllowDoNotKnow ? (
-        <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
-          <Checkbox
-            checked={dateIsDoNotKnow}
-            onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
-          />
-          {doNotKnowLabel}
-        </label>
+        <ApplicationCheckbox
+          checked={dateIsDoNotKnow}
+          label={doNotKnowLabel}
+          className="shrink-0 whitespace-nowrap text-[13px] text-gray-500"
+          onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
+        />
       ) : dateAllowDoesNotApply ? (
-        <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
-          <Checkbox
-            checked={dateIsDoesNotApply}
-            onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
-          />
-          {doesNotApplyLabel}
-        </label>
+        <ApplicationCheckbox
+          checked={dateIsDoesNotApply}
+          label={doesNotApplyLabel}
+          className="shrink-0 whitespace-nowrap text-[13px] text-gray-500"
+          onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
+        />
       ) : null;
 
       return (
         <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           {dateAllowYearOnly && !dateIsDoNotKnow && !dateIsDoesNotApply && (
             <div className="mb-1 flex flex-wrap items-center gap-4 text-[13px] text-gray-700">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  className="h-4 w-4 accent-[#004080]"
-                  checked={!dateIsYearOnly}
-                  onChange={() => {
-                    setDateModeByField((prev) => ({ ...prev, [field.fieldName]: "full" }));
-                    if (/^\d{4}$/.test(value.trim())) onChange("");
-                  }}
-                />
-                {fullDateLabel}
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  className="h-4 w-4 accent-[#004080]"
-                  checked={dateIsYearOnly}
-                  onChange={() => {
-                    setDateModeByField((prev) => ({ ...prev, [field.fieldName]: "year" }));
-                    onChange(extractYearFromDateValue(value));
-                  }}
-                />
-                {yearOnlyLabel}
-              </label>
+              <ApplicationRadio
+                name={`${field.fieldName}-date-mode`}
+                checked={!dateIsYearOnly}
+                label={fullDateLabel}
+                className="text-[13px] text-gray-700"
+                onCheckedChange={() => {
+                  setDateModeByField((prev) => ({ ...prev, [field.fieldName]: "full" }));
+                  if (/^\d{4}$/.test(value.trim())) onChange("");
+                }}
+              />
+              <ApplicationRadio
+                name={`${field.fieldName}-date-mode`}
+                checked={dateIsYearOnly}
+                label={yearOnlyLabel}
+                className="text-[13px] text-gray-700"
+                onCheckedChange={() => {
+                  setDateModeByField((prev) => ({ ...prev, [field.fieldName]: "year" }));
+                  onChange(extractYearFromDateValue(value));
+                }}
+              />
             </div>
           )}
           {dateHasSideCheckbox ? (
@@ -560,27 +561,21 @@ export function DynamicFormField({
 
       return (
         <div className="application-form-field group/field relative flex flex-col gap-2">
-          <div className="relative flex items-center gap-3">
-            <Checkbox
+          <div className="relative">
+            <ApplicationCheckbox
               id={field.fieldName}
               checked={isChecked}
+              disabled={disabled}
+              required={required}
+              label={label}
+              description={helperText}
+              className={cn("application-form-question-label", labelAction && "pr-10")}
               onCheckedChange={(checked) => onChange(checked ? checkedValue : "")}
             />
-            <Label
-              htmlFor={field.fieldName}
-              className={cn(
-                "application-form-question-label cursor-pointer text-[14px] font-medium text-gray-700",
-                labelAction && "pr-10"
-              )}
-            >
-              {label}
-              {required && <span className="text-red-500 ml-1">*</span>}
-            </Label>
             {labelAction ? (
               <ApplicationFormLabelAction>{labelAction}</ApplicationFormLabelAction>
             ) : null}
           </div>
-          {helperText ? <p className="whitespace-pre-line text-[12px] leading-5 text-gray-500">{helperText}</p> : null}
         </div>
       );
       }
@@ -647,24 +642,16 @@ export function DynamicFormField({
           ) : (
           <div className={cn("flex", opts.length < 2 ? "flex-row gap-6" : "flex-col gap-2")}>
             {opts.map((opt) => (
-              <label
+              <ApplicationRadio
                 key={opt.value}
-                className={cn(
-                  "cursor-pointer text-[14px]",
-                  "flex items-center gap-2",
-                )}
-              >
-                <input
-                  type="radio"
-                  name={field.fieldName}
-                  value={opt.value}
-                  checked={selectedValue === opt.value}
-                  onChange={() => onChange(opt.value)}
-                  disabled={disabled}
-                  className="accent-[#03346E]"
-                />
-                {opt.text}
-              </label>
+                name={field.fieldName}
+                value={opt.value}
+                checked={selectedValue === opt.value}
+                label={opt.text}
+                disabled={disabled}
+                className="flex"
+                onCheckedChange={() => onChange(opt.value)}
+              />
             ))}
           </div>
           )}
@@ -721,21 +708,19 @@ export function DynamicFormField({
         );
 
         const sideCheckbox = allowDoNotKnow ? (
-          <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
-            <Checkbox
-              checked={isDoNotKnow}
-              onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
-            />
-            {doNotKnowLabel}
-          </label>
+          <ApplicationCheckbox
+            checked={isDoNotKnow}
+            label={doNotKnowLabel}
+            className="shrink-0 whitespace-nowrap text-[13px] text-gray-500"
+            onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
+          />
         ) : allowDoesNotApply ? (
-          <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
-            <Checkbox
-              checked={isDoesNotApply}
-              onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
-            />
-            {doesNotApplyLabel}
-          </label>
+          <ApplicationCheckbox
+            checked={isDoesNotApply}
+            label={doesNotApplyLabel}
+            className="shrink-0 whitespace-nowrap text-[13px] text-gray-500"
+            onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
+          />
         ) : null;
 
         return (

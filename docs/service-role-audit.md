@@ -43,14 +43,11 @@ every place we currently use it.
 | `app/actions/auth.ts` | server action | system | Sign-in flow — must read role mapping before a session exists. |
 | `app/actions/client-auth.ts` | server action | system | Client-portal sign-in / signup. |
 | `app/actions/password-reset.ts` | server action | system | Triggers Supabase Auth admin reset. |
-| `app/actions/user-profile.ts` | server action | admin / impersonation | Multiple actions; each verifies caller via `getAuthenticatedUser()` before writing. |
 | `app/actions/user-package.ts` | server action | admin | Admin assigns visa packages to applicants. |
-| `app/actions/user-timeline.ts` | server action | admin | Admin reads cross-user timeline. |
 | `app/actions/visa-application-answers.ts` | server action | impersonation | Allows admin-impersonating-applicant to read/write answers; impersonation cookie is the auth boundary. |
 | `app/actions/application-journey.ts` | server action | impersonation | Same pattern as visa-application-answers. |
 | `app/actions/companion-sessions.ts` | server action | system | Companion-mode session bookkeeping. |
 | `app/actions/ds160-normalize.ts` | server action | system | Normalises DS-160 answers across applicants. |
-| `app/actions/settings.ts` | server action | admin | Admin settings panel. |
 | `app/actions/submit-signature.ts` | server action | impersonation | Records signature for an impersonated applicant. |
 
 ## Backend services

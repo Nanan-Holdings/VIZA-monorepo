@@ -84,7 +84,11 @@ export function normalizeMdacPortalPayload(payload: SubmissionPayload): MdacPort
       missing,
     ),
     nationality: requireFirstText([answers.nationality, personal.nationality], "answers.nationality", missing),
-    placeOfBirth: requireText(answers, "place_of_birth", missing),
+    placeOfBirth: requireFirstText(
+      [answers.place_of_birth_country, answers.country_of_birth, answers.place_of_birth, personal.nationality],
+      "answers.place_of_birth",
+      missing,
+    ),
     dateOfBirth: requireFirstText([answers.date_of_birth, personal.dateOfBirth], "answers.date_of_birth", missing),
     sex: requireFirstText([answers.sex, personal.gender], "answers.sex", missing),
     emailAddress: requireFirstText([answers.email_address, personal.email], "answers.email_address", missing),
@@ -99,7 +103,7 @@ export function normalizeMdacPortalPayload(payload: SubmissionPayload): MdacPort
     accommodationType: requireText(answers, "accommodation_type", missing),
     addressInMalaysia: requireText(answers, "address_in_malaysia", missing),
     city: requireText(answers, "city", missing),
-    state: requireText(answers, "state", missing),
+    state: requireFirstText([answers.state, answers.accommodation_state], "answers.state", missing),
     postcode: requireText(answers, "postcode", missing),
   };
 

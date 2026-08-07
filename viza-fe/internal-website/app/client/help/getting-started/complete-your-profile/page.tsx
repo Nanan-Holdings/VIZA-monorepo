@@ -8,14 +8,14 @@ export default function CompleteYourProfilePage() {
   return (
     <HelpArticle
       title="Complete your profile"
-      subtitle="Keep your information accurate so we can personalize your experience."
+      subtitle="Keep reusable applicant information accurate across your visa applications."
       sections={[
         {
           heading: "Why your profile matters",
           content: [
             {
               type: "paragraph",
-              text: "An accurate profile helps your visa team provide better recommendations and ensures your lab results are interpreted correctly for your age, sex, and personal history.",
+              text: "Your Universal Information profile stores applicant details that can be reused across visa applications. Keeping it accurate reduces duplicate entry and helps prevent inconsistencies in official forms.",
             },
           ],
         },
@@ -25,15 +25,15 @@ export default function CompleteYourProfilePage() {
             {
               type: "list",
               items: [
-                "Open the app and tap Settings in the navigation menu.",
-                "Select the Profile tab at the top of the Settings page.",
-                "Fill in your full name, date of birth, phone number, and address.",
-                "Tap Save to apply your changes.",
+                "Open Settings from the navigation menu.",
+                "Select Open Universal Information.",
+                "Review your identity, contact, passport, travel, and background details.",
+                "Save each section after making changes.",
               ],
             },
             {
               type: "tip",
-              text: "Your date of birth is used to calculate reference ranges for your lab results. Make sure it is correct before your first blood test.",
+              text: "Enter names, dates, and passport details exactly as they appear on your travel documents.",
             },
           ],
         },
@@ -43,10 +43,10 @@ export default function CompleteYourProfilePage() {
             {
               type: "list",
               items: [
-                "Full name — used to address you and on visa documents.",
-                "Date of birth — used to calibrate lab result reference ranges.",
-                "Phone number — used for appointment reminders and urgent notifications.",
-                "Address — used for any home-delivery services you order.",
+                "Identity information, including your legal name, birth details, nationality, and gender.",
+                "Contact information, including your email, phone number, and current address.",
+                "Passport details and reusable supporting documents.",
+                "Travel, family, education, employment, and background details used by visa forms.",
               ],
             },
           ],

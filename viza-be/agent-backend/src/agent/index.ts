@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { createOpenAiClient } from "../utils/openai-client.js";
 import { Logger } from "../utils/logger.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 
@@ -9,17 +9,16 @@ function positiveIntegerEnv(name: string, fallback: number, max: number): number
   return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
 }
 
-let cachedOpenAIClient: OpenAI | null = null;
+let cachedOpenAIClient: ReturnType<typeof createOpenAiClient> | null = null;
 let cachedOpenAIKey: string | null = null;
 
-function getOpenAIClient(): OpenAI | null {
+function getOpenAIClient(): ReturnType<typeof createOpenAiClient> | null {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || apiKey === 'your_openai_api_key_here') return null;
   if (cachedOpenAIClient && cachedOpenAIKey === apiKey) return cachedOpenAIClient;
 
   cachedOpenAIKey = apiKey;
-  cachedOpenAIClient = new OpenAI({
-    apiKey,
+  cachedOpenAIClient = createOpenAiClient(apiKey, {
     maxRetries: 0,
     timeout: positiveIntegerEnv('OPENAI_REQUEST_TIMEOUT_MS', 60_000, 120_000),
   });

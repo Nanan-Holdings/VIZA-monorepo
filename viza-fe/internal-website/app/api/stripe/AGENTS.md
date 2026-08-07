@@ -21,6 +21,9 @@ ingestion.
   Stripe Checkout sessions for a user's own application and agency fee only.
 - `webhook/route.ts`: signature-verified `POST /api/stripe/webhook` for
   Checkout, PaymentIntent, charge, refund, and invoice events.
+- `payout-webhook/route.ts`: separately configured, signature-verified Stripe
+  payout evidence receiver. It records redacted payout state only; it never
+  configures or initiates payouts.
 - `_shared.ts`: server-only Stripe/Supabase helpers for payment-record
   idempotency, application advancement, and event/notification inserts.
 
@@ -29,6 +32,10 @@ ingestion.
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `NEXT_PUBLIC_APP_URL`
+
+Stripe Dashboard must have Alipay and WeChat Pay enabled for the account before
+eligible one-time Checkout sessions can use them. The application sends
+`wechat_pay.client=web`; it does not configure account capabilities.
 
 ## Guardrails
 

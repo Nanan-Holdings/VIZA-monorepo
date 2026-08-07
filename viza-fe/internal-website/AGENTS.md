@@ -66,6 +66,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   are stored in `form_assistant_sessions` and `form_assistant_messages` by
   `supabase/migrations/20260806155039_form_assistant_sessions.sql`; raw voice
   recordings are ephemeral and never persisted.
+- Expanded reusable applicant facts are stored in the server-only,
+  field-keyed `universal_profile_answers` table created by
+  `supabase/migrations/20260801193500_create_universal_profile_answers.sql`.
+  Review-tab sync is explicit, excludes trip/payment/declaration/secret data,
+  and future forms consume it only as non-overwriting prefill.
 - Commercial and agency payment records are stored in `payment_records`,
   created by `supabase/migrations/*create_payment_records.sql`.
 - Customer support ticket storage for `/client/support` and `/admin/support`
