@@ -2,7 +2,6 @@
 import { ChatClient } from "./chat-client";
 import {
   getSessionMessages,
-  getSessionMemory,
   getLatestApplicationSummary,
   getUserSessions,
 } from "@/app/actions/companion-sessions";
@@ -37,9 +36,6 @@ export default async function ChatPage() {
   const initialMessages = activeSession
     ? await getSessionMessages(activeSession.id, userId)
     : [];
-  const initialMemory = activeSession
-    ? await getSessionMemory(activeSession.id, userId)
-    : null;
   const latestApplication = await getLatestApplicationSummary(userId);
 
   return (
@@ -48,7 +44,6 @@ export default async function ChatPage() {
       initialSessions={sessions}
       initialSessionId={activeSession?.id ?? null}
       initialMessages={initialMessages}
-      initialMemory={initialMemory}
       travelApplicationId={latestApplication.id}
       travelApplicationStatus={latestApplication.status}
     />

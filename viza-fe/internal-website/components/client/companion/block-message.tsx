@@ -63,7 +63,7 @@ export function BlockMessage({
     isZh && isSingaporeArrivalCard ? "填写新加坡电子入境卡" : payload.title;
   const description =
     isZh && isSingaporeArrivalCard
-      ? "前往 VIZA 的新加坡专用表单继续填写。聊天顾问会保留当前行程信息。"
+      ? "前往 VIZA 的新加坡专用表单继续填写。"
       : payload.description;
   const ctaLabel =
     isZh && isSingaporeArrivalCard
