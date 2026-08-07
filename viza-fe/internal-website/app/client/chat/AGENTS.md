@@ -29,10 +29,8 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 
 - `page.tsx`: server route entry; resolves the user, creates/loads the chat session, and passes latest application context.
 - `chat-client.tsx`: main client UI; owns tab switching, Socket.IO connection, streaming state, scroll behavior, and embedded Travel AI.
-- `visa-memory-summary.tsx`: editable per-chat passport/trip memory summary;
-  profile persistence requires a separate explicit confirmation.
-- `visa-memory-summary.test.tsx`: verifies that canonical passport, destination,
-  and trip-purpose values render in the selected interface language.
+- `legacy-application-blocks.ts`: upgrades pre-block historical Singapore
+  arrival-card handoffs into the same VIZA form card used by current messages.
 - `components/client/companion/chat-input.tsx`: shared bottom composer used by the VIZA AI chat surface.
 - `components/client/companion/chat-message.tsx`: shared message renderer for user and agent bubbles/text.
 - `components/client/companion/block-message.tsx`: renders application redirect CTA payloads. It must not render inline application form fields in VIZA chat.
@@ -60,6 +58,8 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 19. Keep VIZA process switching durable. The active process is stored in `sessionStorage["viza_chat_session_id"]`; switching must call `getSessionMessages(sessionId, userId)`, queued offline messages must carry their target `sessionId`, and rename must expose an obvious Save / Cancel action before reporting the feature complete. User and assistant messages must be persisted through `ensureSessionMessage()` as a Supabase-side fallback, because Socket.IO responses can succeed even when agent-backend DB persistence is unavailable. Persisted `role='block'` rows must be loaded from `block_data` and rendered with `BlockMessage`; never degrade application redirect CTAs into plain assistant text.
 20. VIZA AI's main response language must follow the selected interface locale from the language selector, not the user's latest message language. `chat-client.tsx` sends `locale` on `visa_chat_message`; keep that contract aligned with `viza-be/agent-backend/src/socket/visa-namespace.ts` and `viza-be/agent-backend/src/agent/index.ts`.
 21. Mixed Schengen + non-Schengen itineraries must preserve separate routes. For example, France + Iceland + UK should choose the correct Schengen main destination from Schengen day counts while still reminding the user that the UK needs a separate visitor visa/application link.
+22. Structured session state may continue to support backend reasoning, but `/client/chat` must not render a user-facing memory summary or memory editor.
+23. Historical assistant messages that contain a Singapore arrival-card application link but no persisted block must render one deduplicated VIZA `SG_ARRIVAL_CARD` application card; suppress the prose link because the card owns the CTA.
 
 ## Session Model
 

@@ -16,7 +16,7 @@ function normalizePlainTextContent(content: string): string {
     // Drop any model-generated fallback sentence that leaks an internal route
     // or product code instead of duplicating it in assistant prose.
     .replace(
-      /[^。！？\n]*(?:form\s*link|\/client\/application(?:\/long-form)?\?[^\s。！？\n]*|visaType=[A-Z0-9_]+|SG_?ARRIVAL_?CARD)[^。！？\n]*[。！？]?/giu,
+      /[^。！？\n]*(?:form\s*link|\/client\/application(?:\/long-form)?\?[^\s。！？\n]*|visaType=[A-Z0-9_]+|SG_?ARRIVAL_?CARD|https?:\/\/(?:www\.)?ica\.gov\.sg\/[^\s。！？\n]*sg-arrival-card[^\s。！？\n]*)[^。！？\n]*[。！？]?/giu,
       ""
     )
     .replace(/```[\s\S]*?```/g, (block) => {
