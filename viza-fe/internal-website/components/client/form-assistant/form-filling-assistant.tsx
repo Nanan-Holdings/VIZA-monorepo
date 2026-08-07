@@ -8,9 +8,11 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { AlertCircle, CheckCircle2, Mic, Send, Sparkles, Square, TriangleAlert } from "lucide-react";
+import { AlertCircle, ArrowUp, CheckCircle2, Mic, Sparkles, Square, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ChatMessage } from "@/components/client/companion/chat-message";
+import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,14 +60,13 @@ export interface FormFillingAssistantProps {
   progress: { completed: number; total: number };
   messages: FormAssistantMessage[];
   missingFields: FormAssistantMissingField[];
-  aiFilledFieldNames: string[];
+  aiFilledFieldLabels: string[];
   loading?: boolean;
   validationResult?: FormAssistantValidationResult | null;
   onSend: (text: string) => void | Promise<void>;
   onTranscribe: (file: File) => FormAssistantTranscription | Promise<FormAssistantTranscription>;
   onValidate: () => void | Promise<void>;
   onAcknowledgeWarnings: () => void | Promise<void>;
-  onGoToField: (fieldName: string) => void;
   onGoToReview: () => void;
   className?: string;
 }
@@ -104,21 +105,19 @@ export function FormFillingAssistant({
   progress,
   messages,
   missingFields,
-  aiFilledFieldNames,
+  aiFilledFieldLabels,
   loading = false,
   validationResult = null,
   onSend,
   onTranscribe,
   onValidate,
   onAcknowledgeWarnings,
-  onGoToField,
   onGoToReview,
   className,
 }: FormFillingAssistantProps) {
   const t = useTranslations("application.formAssistant");
   const idPrefix = useId().replace(/:/g, "-");
   const titleId = `form-assistant-${idPrefix}-title`;
-  const missingTitleId = `form-assistant-${idPrefix}-missing-title`;
   const filledTitleId = `form-assistant-${idPrefix}-filled-title`;
   const validationTitleId = `form-assistant-${idPrefix}-validation-title`;
   const composerStorageKey = `viza:form-assistant:composer:${applicationId}`;
@@ -136,6 +135,10 @@ export function FormFillingAssistant({
   const intervalRef = useRef<number | null>(null);
   const cancelRequestedRef = useRef(false);
   const mountedRef = useRef(true);
+  const conversationRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const shouldFollowLatestRef = useRef(true);
+  const [showScrollToLatest, setShowScrollToLatest] = useState(false);
   const resolvedIsZh = isZh ?? locale.toLowerCase().startsWith("zh");
 
   const clearRecordingTimers = useCallback(() => {
@@ -313,6 +316,34 @@ export function FormFillingAssistant({
     }
   }, [composerStorageKey, draft]);
 
+  useEffect(() => {
+    const composer = composerRef.current;
+    if (!composer) return;
+    composer.style.height = "auto";
+    composer.style.height = `${Math.min(composer.scrollHeight, 168)}px`;
+  }, [draft]);
+
+  const scrollConversationToLatest = useCallback(() => {
+    const conversation = conversationRef.current;
+    if (!conversation) return;
+    conversation.scrollTop = conversation.scrollHeight;
+    shouldFollowLatestRef.current = true;
+    setShowScrollToLatest(false);
+  }, []);
+
+  const handleConversationScroll = useCallback(() => {
+    const conversation = conversationRef.current;
+    if (!conversation) return;
+    const distanceFromBottom = conversation.scrollHeight - conversation.scrollTop - conversation.clientHeight;
+    const isNearBottom = distanceFromBottom <= 64;
+    shouldFollowLatestRef.current = isNearBottom;
+    setShowScrollToLatest(!isNearBottom);
+  }, []);
+
+  useEffect(() => {
+    if (shouldFollowLatestRef.current) scrollConversationToLatest();
+  }, [loading, messages, scrollConversationToLatest]);
+
   const handleSend = useCallback(() => {
     const trimmed = draft.trim();
     if (!trimmed || loading || recordingState !== "idle") return;
@@ -395,78 +426,59 @@ export function FormFillingAssistant({
       </CardHeader>
 
       <CardContent className="space-y-5 p-5 sm:p-6">
-        <div className="max-h-80 space-y-3 overflow-y-auto pr-1" role="log" aria-live="polite" aria-label={t("conversationLabel")}>
-          {messages.length === 0 ? (
-            <p className="rounded-lg bg-brand-50/70 px-4 py-3 text-sm leading-6 text-brand-700">{t("emptyConversation")}</p>
-          ) : (
-            messages.map((message) => (
-              <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
-                <p
-                  className={cn(
-                    "max-w-[90%] whitespace-pre-wrap rounded-xl px-4 py-3 text-sm leading-6",
-                    message.role === "user" ? "rounded-br-sm bg-brand-500 text-white" : "rounded-bl-sm bg-muted text-foreground",
-                  )}
-                >
-                  {message.content}
-                </p>
+        <div className="relative mx-auto w-full max-w-[760px]">
+          <div
+            ref={conversationRef}
+            className="max-h-[28rem] min-h-32 space-y-8 overflow-y-auto overscroll-y-contain py-2 pr-2"
+            role="log"
+            aria-live="polite"
+            aria-label={t("conversationLabel")}
+            tabIndex={0}
+            onScroll={handleConversationScroll}
+          >
+            {messages.length === 0 ? (
+              <ChatMessage role="agent" content={t("emptyConversation")} density="compact" />
+            ) : (
+              messages.map((message) => (
+                <ChatMessage
+                  key={message.id}
+                  role={message.role === "user" ? "user" : "agent"}
+                  content={message.content}
+                  density="compact"
+                />
+              ))
+            )}
+            {loading ? (
+              <div className="flex gap-1" aria-label={t("thinking")} aria-live="polite">
+                {[0, 150, 300].map((delay) => (
+                  <span
+                    key={delay}
+                    className="h-2 w-2 animate-bounce rounded-full bg-brand-500"
+                    style={{ animationDelay: `${delay}ms` }}
+                    aria-hidden="true"
+                  />
+                ))}
               </div>
-            ))
-          )}
-          {loading ? (
-            <p className="text-sm text-muted-foreground" aria-live="polite">
-              {t("thinking")}
-            </p>
-          ) : null}
+            ) : null}
+          </div>
+          <ScrollToBottomFab
+            show={showScrollToLatest}
+            onClick={scrollConversationToLatest}
+            label={t("scrollToLatest")}
+            className="bottom-3 left-1/2 -translate-x-1/2 px-4 py-2"
+          />
         </div>
 
-        {missingFields.length > 0 ? (
-          <section className="rounded-lg border border-amber-200 bg-amber-50/60 p-4" aria-labelledby={missingTitleId}>
-            <div className="mb-3 flex items-center gap-2">
-              <TriangleAlert className="h-4 w-4 text-amber-700" aria-hidden="true" />
-              <h3 id={missingTitleId} className="text-sm font-semibold text-amber-900">
-                {t("missing.title")}
-              </h3>
-            </div>
-            <ul className="space-y-1.5">
-              {missingFields.map((field) => (
-                <li key={field.fieldName}>
-                  <Button
-                    className="min-h-11 w-full justify-between px-2 text-left text-sm font-normal text-amber-900 hover:bg-amber-100"
-                    variant="ghost"
-                    onClick={() => onGoToField(field.fieldName)}
-                  >
-                    <span>{field.label}</span>
-                    <span className="ml-3 shrink-0 text-xs text-amber-700">
-                      {field.required === false ? t("missing.optional") : t("missing.required")}
-                    </span>
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {aiFilledFieldNames.length > 0 ? (
-          <section className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4" aria-labelledby={filledTitleId}>
-            <div className="mb-3 flex items-center gap-2">
+        {aiFilledFieldLabels.length > 0 ? (
+          <section className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3" aria-labelledby={filledTitleId}>
+            <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />
               <h3 id={filledTitleId} className="text-sm font-semibold text-emerald-900">
-                {t("filled.title")}
+                {aiFilledFieldLabels.length === 1
+                  ? t("filled.latest", { label: aiFilledFieldLabels[0] })
+                  : t("filled.summary", { count: aiFilledFieldLabels.length })}
               </h3>
             </div>
-            <ul className="flex flex-wrap gap-2">
-              {aiFilledFieldNames.map((fieldName) => (
-                <li key={fieldName}>
-                  <button
-                    type="button"
-                    className="min-h-11 rounded-full border border-emerald-300 bg-white px-3 text-left text-sm text-emerald-900 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
-                    onClick={() => onGoToField(fieldName)}
-                  >
-                    {fieldName}
-                  </button>
-                </li>
-              ))}
-            </ul>
           </section>
         ) : null}
 
@@ -484,13 +496,7 @@ export function FormFillingAssistant({
                 <ul className="space-y-1">
                   {errors.map((issue, index) => (
                     <li key={issue.id ?? `${issue.fieldName ?? "error"}-${index}`}>
-                      {issue.fieldName ? (
-                        <Button variant="link" className="h-auto min-h-11 justify-start p-0 text-left text-sm font-normal text-red-800" onClick={() => onGoToField(issue.fieldName ?? "")}>
-                          {issue.message}
-                        </Button>
-                      ) : (
-                        <p className="text-sm leading-6 text-red-800">{issue.message}</p>
-                      )}
+                      <p className="text-sm leading-6 text-red-800">{issue.message}</p>
                     </li>
                   ))}
                 </ul>
@@ -505,13 +511,7 @@ export function FormFillingAssistant({
                 <ul className="space-y-1">
                   {warnings.map((issue, index) => (
                     <li key={issue.id ?? `${issue.fieldName ?? "warning"}-${index}`}>
-                      {issue.fieldName ? (
-                        <Button variant="link" className="h-auto min-h-11 justify-start p-0 text-left text-sm font-normal text-amber-900" onClick={() => onGoToField(issue.fieldName ?? "")}>
-                          {issue.message}
-                        </Button>
-                      ) : (
-                        <p className="text-sm leading-6 text-amber-900">{issue.message}</p>
-                      )}
+                      <p className="text-sm leading-6 text-amber-900">{issue.message}</p>
                     </li>
                   ))}
                 </ul>
@@ -529,25 +529,26 @@ export function FormFillingAssistant({
           </p>
         ) : null}
 
-        <div className="space-y-3">
-          <div className="rounded-xl border border-input bg-white p-3 shadow-xs focus-within:border-brand-500">
+        <div className="mx-auto w-full max-w-[760px]">
+          <div className="flex items-end gap-2 rounded-[26px] border border-gray-200 bg-white px-3 py-2 shadow-sm transition-all duration-200 hover:border-gray-300 focus-within:border-brand-500">
             <Textarea
+              ref={composerRef}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleComposerKeyDown}
               placeholder={t("composer.placeholder")}
               aria-label={t("composer.label")}
               disabled={loading || recordingState === "transcribing"}
-              rows={3}
-              className="min-h-20 resize-y border-0 px-1 py-1 text-base shadow-none focus-visible:ring-0"
+              rows={1}
+              className="min-h-11 max-h-[168px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-base leading-7 shadow-none outline-none placeholder:text-gray-400 focus-visible:ring-0"
             />
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex shrink-0 items-center gap-2 pb-1">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Button
                   type="button"
                   variant={recordingState === "recording" ? "destructive" : "outline"}
                   size="icon"
-                  className="h-11 w-11 rounded-full"
+                  className="h-11 w-11 rounded-full border-gray-200"
                   aria-label={recordingState === "recording" ? t("composer.stopRecording") : t("composer.startRecording")}
                   aria-pressed={recordingState === "recording"}
                   onClick={() => (recordingState === "recording" ? stopRecording() : void startRecording())}
@@ -577,15 +578,15 @@ export function FormFillingAssistant({
                 onClick={handleSend}
                 disabled={!draft.trim() || loading || recordingState !== "idle"}
               >
-                <Send className="h-4 w-4" />
+                <ArrowUp className="h-5 w-5" strokeWidth={2.5} />
               </Button>
             </div>
           </div>
-          <p className="text-xs leading-5 text-muted-foreground">{t("composer.hint")}</p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
-          {canGoToReview ? (
+        {missingFields.length === 0 && progress.total > 0 && !loading ? (
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
+            {canGoToReview ? (
             <BrandActionButton onClick={onGoToReview} disabled={loading}>
               {t("actions.goToReview")}
             </BrandActionButton>
@@ -597,8 +598,9 @@ export function FormFillingAssistant({
             <BrandActionButton variant="secondary" onClick={() => void onValidate()} loading={loading} loadingText={t("actions.checking")}>
               {validationResult ? t("actions.checkAgain") : t("actions.checkAnswers")}
             </BrandActionButton>
-          )}
-        </div>
+            )}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

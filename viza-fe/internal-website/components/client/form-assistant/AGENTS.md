@@ -14,6 +14,26 @@ server mutations or navigation.
 - Keep form-assistant state rendering and browser microphone lifecycle here;
   keep application loading, API calls, field patching, persistence, and review
   navigation in the parent route or client data layer.
+- Render the complete persisted conversation in a bounded, keyboard-focusable
+  scroll region. Follow new messages only while the applicant is near the
+  bottom, and expose a jump-to-latest control after they scroll upward. Keep
+  the current answer inside the assistant composer; do not render a bulk
+  missing-field list or controls that jump away from the assistant. Show
+  final-check controls only after required fields are complete; review
+  navigation remains final-check gated.
+- The parent route must optimistically append an explicitly sent user message
+  before awaiting the assistant API. Roll it back on failure so the composer
+  can restore the text and show a retry error.
+- Keep the composer visually compact: centered, bounded in width, single-line
+  at rest, and internally scrollable as longer answers grow.
+- Reuse the shared VIZA Agent conversation treatment from
+  `components/client/companion`: assistant replies are plain text, applicant
+  replies use the navy bubble, the composer uses the 760px rounded pill with
+  an upward-arrow send action, and the shared scroll-to-bottom affordance is
+  used for history navigation. Voice remains an additional composer action.
+- Keep the composer free of redundant keyboard-hint text and hide final-check
+  controls while assistant state is loading. AI provenance summaries must use
+  localized schema labels and must never expose canonical field keys.
 - Voice recordings are temporary browser data. Stop all media tracks when a
   recording is cancelled, reaches its limit, or the component unmounts. The
   component must place returned transcription into the composer only; sending

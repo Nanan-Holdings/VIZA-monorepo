@@ -461,11 +461,12 @@
     "edit": "Edit",
     "formAssistant": {
       "title": "Form filling assistant",
-      "description": "I will check what is already complete, ask only for missing details, and help you review your answers before you continue.",
+      "description": "I check what is already complete and ask one question at a time. Answer here by text or voice.",
       "badge": "AI assistant",
       "progressLabel": "Application completion",
       "progress": "{completed} of {total} fields complete",
       "conversationLabel": "Form filling assistant conversation",
+      "scrollToLatest": "Jump to latest message",
       "emptyConversation": "Tell me what you would like to add, or answer the questions I ask. You can also use the microphone to dictate your answer.",
       "thinking": "Checking your application...",
       "missing": {
@@ -474,7 +475,9 @@
         "optional": "Optional"
       },
       "filled": {
-        "title": "Filled with your confirmed information"
+        "title": "Filled with your confirmed information",
+        "latest": "Completed: {label}",
+        "summary": "{count, plural, one {# field completed with the assistant} other {# fields completed with the assistant}}"
       },
       "validation": {
         "title": "Answer check",

@@ -461,11 +461,12 @@
     "edit": "编辑",
     "formAssistant": {
       "title": "表单填写助手",
-      "description": "我会先检查已经填写的内容，只询问缺少的信息，并在继续前帮助你检查答案。",
+      "description": "我会检查已有内容，每次只问一个问题。你可以直接在这里用文字或语音回答。",
       "badge": "AI 助手",
       "progressLabel": "申请填写进度",
       "progress": "已完成 {completed} / {total} 个项目",
       "conversationLabel": "表单填写助手对话",
+      "scrollToLatest": "跳到最新消息",
       "emptyConversation": "告诉我你想补充的内容，或回答我提出的问题。你也可以使用麦克风口述答案。",
       "thinking": "正在检查你的申请...",
       "missing": {
@@ -474,7 +475,9 @@
         "optional": "选填"
       },
       "filled": {
-        "title": "已使用你确认的信息填写"
+        "title": "已使用你确认的信息填写",
+        "latest": "已填写：{label}",
+        "summary": "已通过助手填写 {count} 项"
       },
       "validation": {
         "title": "答案检查",

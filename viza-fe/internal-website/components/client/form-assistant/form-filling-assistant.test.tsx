@@ -14,12 +14,11 @@ function renderAssistant(overrides: Partial<FormFillingAssistantProps> = {}) {
     progress: { completed: 2, total: 5 },
     messages: [{ id: "assistant-1", role: "assistant", content: "What is your passport number?" }],
     missingFields: [{ fieldName: "passport_number", label: "Passport number", required: true }],
-    aiFilledFieldNames: ["given_name"],
+    aiFilledFieldLabels: ["Given name"],
     onSend: vi.fn(),
     onTranscribe: vi.fn().mockResolvedValue("A1234567"),
     onValidate: vi.fn(),
     onAcknowledgeWarnings: vi.fn(),
-    onGoToField: vi.fn(),
     onGoToReview: vi.fn(),
     ...overrides,
   };
@@ -52,17 +51,104 @@ describe("FormFillingAssistant", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the expanded assistant with missing and AI-filled field summaries", () => {
-    const { props } = renderAssistant();
+  it("keeps missing fields inside the conversation instead of rendering a jump list", () => {
+    renderAssistant();
 
     expect(screen.getByRole("region", { name: "Form filling assistant" })).toBeInTheDocument();
     expect(screen.getByText("Form filling assistant")).toBeInTheDocument();
-    expect(screen.getByText("Details still needed")).toBeInTheDocument();
-    expect(screen.getByText("Filled with your confirmed information")).toBeInTheDocument();
+    expect(screen.queryByText("Details still needed")).not.toBeInTheDocument();
+    expect(screen.getByText("Completed: Given name")).toBeInTheDocument();
+    expect(screen.queryByText("given_name")).not.toBeInTheDocument();
     expect(screen.getByText("2 of 5 fields complete")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Passport number/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Check my answers" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Press Enter to send/)).not.toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: /Passport number/ }));
-    expect(props.onGoToField).toHaveBeenCalledWith("passport_number");
+  it("does not render a loading answer-check action before assistant state is ready", () => {
+    renderAssistant({
+      loading: true,
+      progress: { completed: 0, total: 0 },
+      missingFields: [],
+      aiFilledFieldLabels: [],
+    });
+
+    expect(screen.queryByRole("button", { name: "Checking answers..." })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Check my answers" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the full conversation history available", () => {
+    renderAssistant({
+      messages: [
+        { id: "old-assistant", role: "assistant", content: "Old question" },
+        { id: "old-user", role: "user", content: "Old answer" },
+        { id: "current-assistant", role: "assistant", content: "Current question" },
+      ],
+    });
+
+    expect(screen.getByText("Old question")).toBeInTheDocument();
+    expect(screen.getByText("Old answer")).toBeInTheDocument();
+    expect(screen.getByText("Current question")).toBeInTheDocument();
+  });
+
+  it("allows scrolling upward and jumping back to the latest message", () => {
+    renderAssistant({
+      messages: Array.from({ length: 8 }, (_, index) => ({
+        id: `message-${index}`,
+        role: index % 2 === 0 ? "assistant" as const : "user" as const,
+        content: `Message ${index + 1}`,
+      })),
+    });
+
+    const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
+    Object.defineProperties(conversation, {
+      clientHeight: { configurable: true, value: 200 },
+      scrollHeight: { configurable: true, value: 800 },
+      scrollTop: { configurable: true, value: 100, writable: true },
+    });
+    fireEvent.scroll(conversation);
+
+    fireEvent.click(screen.getByRole("button", { name: "Jump to latest message" }));
+    expect(conversation.scrollTop).toBe(800);
+  });
+
+  it("uses a compact single-line composer at rest", () => {
+    renderAssistant();
+
+    const composer = screen.getByRole("textbox", { name: "Message for the form filling assistant" });
+    expect(composer).toHaveAttribute("rows", "1");
+    expect(composer.closest(".max-w-\\[760px\\]")).toBeInTheDocument();
+  });
+
+  it("uses the shared VIZA Agent message treatment", () => {
+    renderAssistant({
+      messages: [
+        { id: "assistant", role: "assistant", content: "Current question" },
+        { id: "user", role: "user", content: "Current answer" },
+      ],
+    });
+
+    expect(screen.getByText("Current question").closest(".text-gray-700")).toBeInTheDocument();
+    expect(screen.getByText("Current answer").parentElement).toHaveClass("bg-brand-500");
+  });
+
+  it("offers final checking only after required fields are complete", () => {
+    const { props, rerender } = renderAssistant({ missingFields: [] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Check my answers" }));
+    expect(props.onValidate).toHaveBeenCalledOnce();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <FormFillingAssistant
+          {...props}
+          missingFields={[]}
+          validationResult={{ errors: [], warnings: [], warningsAcknowledged: true }}
+        />
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue to review" }));
+    expect(props.onGoToReview).toHaveBeenCalledOnce();
   });
 
   it("sends only explicit text submissions", () => {
