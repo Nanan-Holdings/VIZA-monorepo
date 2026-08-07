@@ -487,7 +487,7 @@
       },
       "composer": {
         "label": "Message for the form filling assistant",
-        "placeholder": "Type an answer or ask for help...",
+        "placeholder": "Answer the current question here...",
         "hint": "Press Enter to send, or Shift+Enter for a new line. Voice recordings are transcribed for your review before sending.",
         "startRecording": "Start voice input",
         "stopRecording": "Stop voice input",

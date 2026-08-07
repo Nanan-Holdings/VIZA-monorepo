@@ -1231,7 +1231,7 @@ function ArrivalCardPreparedResultCard({
   } | null>(null);
   const isMalaysia = country === "malaysia";
   const productName = isMalaysia ? "Malaysia Digital Arrival Card (MDAC)" : "Thailand Digital Arrival Card (TDAC)";
-  const productNameZh = isMalaysia ? "马来西亚 MDAC 数字入境卡" : "泰国 TDAC 数字入境卡";
+  const productNameZh = isMalaysia ? "马来西亚数字入境卡" : "泰国数字入境卡";
   const submitLive = useCallback(async () => {
     if (!applicationId || submitting || queuedSubmission) return;
     setSubmitting(true);

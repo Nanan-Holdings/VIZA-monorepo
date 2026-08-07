@@ -31,6 +31,7 @@ export interface IndonesiaPortalProbeInput {
   accountEmail?: string | null;
   accountPassword?: string | null;
   accountRecoveryEnabled?: boolean;
+  allowFreshAccountRegistration?: boolean;
   accountRecoveryPassword?: string | null;
   onAccountPasswordReset?: (password: string) => Promise<void>;
   accountPasswordNeedsPersistence?: boolean;
@@ -1617,7 +1618,7 @@ async function waitForIndonesiaVerificationLink(
         );
       },
       Math.max(10_000, timeoutMs),
-      { since, pollIntervalMs: 3_000, newestFirst: true },
+      { since, pollIntervalMs: 3_000, newestFirst: true, aliasOverride: alias },
     );
     const link = extractIndonesiaVerificationUrlFromEmail(message);
     if (!link) {
@@ -1699,7 +1700,7 @@ async function waitForIndonesiaPasswordResetLink(
           extractIndonesiaPasswordResetUrlFromEmail(candidate) !== null;
       },
       Math.max(10_000, timeoutMs),
-      { since: requestedAt, pollIntervalMs: 3_000, newestFirst: true },
+      { since: requestedAt, pollIntervalMs: 3_000, newestFirst: true, aliasOverride: alias },
     );
     const link = extractIndonesiaPasswordResetUrlFromEmail(message);
     if (link) {
@@ -2151,6 +2152,11 @@ async function recoverIndonesiaOfficialAccount(
   }
   await passwordControls.nth(0).fill(nextPassword);
   await passwordControls.nth(1).fill(nextPassword);
+  // The official page enables `Send` only from a delegated `keyup` handler.
+  // Playwright `fill()` updates the controls and emits `input`/`change`, but
+  // does not emit that keyup. A harmless End key keeps the value unchanged
+  // while asking the official validator to re-check both filled controls.
+  await passwordControls.nth(1).press("End");
   await solveIndonesiaRecaptchaIfPresent(page, diagnostics, "password_reset_confirm").catch(
     (error: unknown) => {
       diagnostics.push(
@@ -2159,14 +2165,27 @@ async function recoverIndonesiaOfficialAccount(
       return false;
     },
   );
-  const resetSubmit = passwordControls
+  const resetSubmitInForm = passwordControls
     .first()
     .locator("xpath=ancestor::form[1]")
     .locator("button[type='submit'], input[type='submit']")
     .filter({ visible: true })
     .first();
+  // The current change-password page renders the password controls and its
+  // visible `Send` button outside the form reported by the DOM `form` property.
+  // Prefer a submit control scoped to the password form, but fall back to the
+  // page-level official action instead of stopping on that invalid nesting.
+  const resetSubmit = resetSubmitInForm
+    .or(page.getByRole("button", { name: /^(?:send|reset password|change password|submit)$/i }))
+    .or(page.locator("button[type='submit']:visible, input[type='submit']:visible"))
+    .first();
   if (!await resetSubmit.isVisible({ timeout: 5_000 }).catch(() => false)) {
     diagnostics.push("indonesia_account_password_reset_confirm_submit_not_found");
+    return "failed";
+  }
+  if (!await resetSubmit.isEnabled().catch(() => false)) {
+    diagnostics.push("indonesia_account_password_reset_confirm_submit_disabled");
+    await captureRegistrationArtifact(page, input, diagnostics);
     return "failed";
   }
   await resetSubmit.click({ timeout: 15_000 });
@@ -2204,6 +2223,7 @@ async function continueFromAccountGate(
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
   preferLegacyAccountResume = false,
+  onFreshAccountRegistration?: () => void,
 ): Promise<boolean> {
   const legacyResumeAttempted = shouldPreferLegacyIndonesiaAccountResume({
     hasSavedApplicationUrl: preferLegacyAccountResume,
@@ -2253,12 +2273,24 @@ async function continueFromAccountGate(
     input.accountPasswordNeedsPersistence = true;
     diagnostics.push("indonesia_account_registration_started_after_missing_reset_account");
   }
-  if (legacyResumeAttempted && !registrationAfterMissingRecoveryAccount) {
+  if (
+    legacyResumeAttempted &&
+    !registrationAfterMissingRecoveryAccount &&
+    !input.allowFreshAccountRegistration
+  ) {
     // A saved draft tied to archived credentials cannot be resumed by silently
     // registering the canonical alias again. A duplicate registration either
     // returns `Email already used` or creates an unrelated official account.
     diagnostics.push("indonesia_official_account_recovery_required");
     return false;
+  }
+  if (
+    legacyResumeAttempted &&
+    !registrationAfterMissingRecoveryAccount &&
+    input.allowFreshAccountRegistration
+  ) {
+    diagnostics.push("indonesia_fresh_managed_account_registration_started_after_legacy_resume_failed");
+    onFreshAccountRegistration?.();
   }
   const createAccountLink = page
     .getByRole("link", { name: /create account|register|sign up|daftar|buat akun/i })
@@ -2338,9 +2370,51 @@ export async function fillForeignerAccountRegistration(
     "#document_travel_id",
     new RegExp(`^${(registration.documentTravelType ?? "Passport").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
   ).catch(() => undefined);
-  await setFilesIfPresent(page, "#attachment", registration.passportImagePath);
+  const registrationPassportAssigned = await setFilesIfPresent(
+    page,
+    "#attachment",
+    registration.passportImagePath,
+  );
   await setFilesIfPresent(page, "#initial_file", registration.passportImagePath);
-  await waitForHiddenValue(page, "#path_attachment", diagnostics, "indonesia_account_passport_upload");
+  let registrationPassportReady = await waitForHiddenValue(
+    page,
+    "#path_attachment",
+    diagnostics,
+    "indonesia_account_passport_upload",
+  );
+  let registrationPassportCropReady = await waitForHiddenValue(
+    page,
+    "#path_attachment_crop",
+    diagnostics,
+    "indonesia_account_passport_crop_upload",
+  );
+  if (
+    registrationPassportAssigned &&
+    (!registrationPassportReady || !registrationPassportCropReady) &&
+    registration.passportImagePath
+  ) {
+    await completeIndonesiaPassportBiodataUpload(
+      page,
+      registration.passportImagePath,
+      diagnostics,
+    );
+    registrationPassportReady = await waitForHiddenValue(
+      page,
+      "#path_attachment",
+      diagnostics,
+      "indonesia_account_passport_upload_retry",
+    );
+    registrationPassportCropReady = await waitForHiddenValue(
+      page,
+      "#path_attachment_crop",
+      diagnostics,
+      "indonesia_account_passport_crop_upload_retry",
+    );
+  }
+  if (!registrationPassportAssigned || !registrationPassportReady || !registrationPassportCropReady) {
+    diagnostics.push("indonesia_account_passport_upload_paths_not_ready");
+    return false;
+  }
   const registrationPhotoAssigned = await setFilesIfPresent(page, "#picture", registration.photoImagePath);
   let registrationPhotoReady = await waitForHiddenValue(
     page,
@@ -2407,6 +2481,66 @@ export async function fillForeignerAccountRegistration(
   await fillIfPresent(page, "#confirm_email", input.accountEmail);
   await fillIfPresent(page, "#password", input.accountPassword);
   await fillIfPresent(page, "#confirm_password", input.accountPassword);
+  await page.locator("#username").first().dispatchEvent("blur").catch(() => undefined);
+  await page.waitForTimeout(1_500);
+
+  const emailAvailability = await page.request
+    .get(
+      new URL(
+        `/front/check-emails?q=${encodeURIComponent(input.accountEmail)}`,
+        page.url(),
+      ).toString(),
+      { timeout: 15_000 },
+    )
+    .then(async (response) => ({
+      status: response.status(),
+      result: (await response.text().catch(() => "")).replace(/^"|"$/g, "").trim().toUpperCase(),
+    }))
+    .catch(() => null);
+  diagnostics.push(
+    `indonesia_account_registration_email_preflight status=${emailAvailability?.status ?? "unavailable"} ` +
+      `result=${emailAvailability?.result === "OK" || emailAvailability?.result === "KO" ? emailAvailability.result : "unknown"}`,
+  );
+  if (emailAvailability?.result === "KO") {
+    diagnostics.push("indonesia_account_registration_email_already_exists_stop_before_post");
+    return false;
+  }
+
+  const preSubmit = await page
+    .evaluate(() => {
+      const input = (selector: string) => document.querySelector<HTMLInputElement>(selector);
+      const select = (selector: string) => document.querySelector<HTMLSelectElement>(selector);
+      const username = input("#username");
+      const confirmEmail = input("#confirm_email");
+      const password = input("#password");
+      const confirmPassword = input("#confirm_password");
+      const pathAttachment = input("#path_attachment");
+      const pathAttachmentCrop = input("#path_attachment_crop");
+      const pathPhoto = input("#path_photo");
+      const form = document.querySelector<HTMLFormElement>("#register-form");
+      return {
+        formValid: form?.checkValidity() ?? false,
+        emailEqual: username?.value === confirmEmail?.value,
+        emailLengths: [username?.value.length ?? 0, confirmEmail?.value.length ?? 0],
+        emailValid: [username?.validity.valid ?? false, confirmEmail?.validity.valid ?? false],
+        passwordEqual: password?.value === confirmPassword?.value,
+        passwordLengths: [password?.value.length ?? 0, confirmPassword?.value.length ?? 0],
+        passwordValid: [password?.validity.valid ?? false, confirmPassword?.validity.valid ?? false],
+        uploadPathsReady: [pathAttachment, pathAttachmentCrop, pathPhoto].map((control) =>
+          Boolean(control?.value.trim()),
+        ),
+        selected: {
+          documentTravel: Boolean(select("#document_travel_id")?.value),
+          phoneCode: Boolean(select("#phone_code")?.value),
+          country: Boolean(select("#country_id")?.value),
+          gender: Boolean(document.querySelector<HTMLInputElement>("input[name='gender']:checked")?.value),
+        },
+      };
+    })
+    .catch(() => null);
+  diagnostics.push(
+    `indonesia_account_registration_pre_submit ${JSON.stringify(preSubmit)}`.slice(0, 700),
+  );
   diagnostics.push("indonesia_account_registration_form_filled");
 
   const shouldSubmit = process.env.INDONESIA_ACCOUNT_REGISTRATION_SUBMIT !== "false";
@@ -2443,6 +2577,18 @@ export async function fillForeignerAccountRegistration(
       diagnostics.push(
         `indonesia_account_registration_response status=${registrationResponse.status()} path=${responsePath}`,
       );
+      const redirectLocation = registrationResponse.headers()["location"];
+      if (redirectLocation) {
+        try {
+          const redirectUrl = new URL(redirectLocation, registrationResponse.url());
+          diagnostics.push(
+            `indonesia_account_registration_redirect path=${redirectUrl.pathname} ` +
+              `queryKeys=${Array.from(redirectUrl.searchParams.keys()).sort().join(",") || "none"}`,
+          );
+        } catch {
+          diagnostics.push("indonesia_account_registration_redirect invalid");
+        }
+      }
       const contentType = registrationResponse.headers()["content-type"] ?? "unknown";
       const responseText = await registrationResponse.text().catch(() => "");
       if (/json|text/i.test(contentType) && responseText) {
@@ -2467,6 +2613,16 @@ export async function fillForeignerAccountRegistration(
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(4_000);
     diagnostics.push("indonesia_account_registration_submitted");
+    const registrationDialog = await page
+      .evaluate(() => {
+        const title = document.querySelector<HTMLElement>(".swal2-title")?.innerText ?? "";
+        const message = document.querySelector<HTMLElement>(".swal2-html-container")?.innerText ?? "";
+        return `${title} ${message}`.replace(/\s+/g, " ").trim().slice(0, 300);
+      })
+      .catch(() => "");
+    if (registrationDialog) {
+      diagnostics.push(`indonesia_account_registration_dialog ${registrationDialog}`);
+    }
     const visibleErrors = await page
       .evaluate(() =>
         Array.from(document.querySelectorAll<HTMLElement>(".invalid-feedback, .text-danger, .alert, .swal2-container, .error"))
@@ -4342,7 +4498,7 @@ async function waitForIndonesiaOtpCode(
         );
       },
       Math.max(10_000, timeoutMs),
-      { since, pollIntervalMs: 3_000, newestFirst: true },
+      { since, pollIntervalMs: 3_000, newestFirst: true, aliasOverride: alias },
     );
     const code = extractIndonesiaOtpCode(message);
     if (!code) return null;
@@ -5430,6 +5586,10 @@ export async function probeIndonesiaPortal(
           input,
           session.diagnostics,
           Boolean(savedApplicationUrl),
+          () => {
+            savedApplicationUrl = null;
+            session.diagnostics.push("indonesia_stale_saved_application_url_discarded_for_fresh_account");
+          },
         );
         if (
           advanced &&

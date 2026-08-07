@@ -276,6 +276,7 @@ export async function runIndonesiaLiveSubmission(
       accountEmail: managedEmail,
       accountPassword: managedPassword,
       accountRecoveryEnabled: input.managedAccountReusable,
+      allowFreshAccountRegistration: input.managedAccountReusable === false,
       accountRecoveryPassword: input.accountRecoveryPassword,
       onAccountPasswordReset: input.onAccountPasswordReset,
       legacyAccountEmail: input.legacyManagedAccountEmail,

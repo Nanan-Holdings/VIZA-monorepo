@@ -6881,6 +6881,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     });
   }, 60_000);
 
+  let consumedOneTimeCardAuthorization = false;
   try {
     const vaultOpts = {
       actor: "submission-service:indonesia",
@@ -7029,6 +7030,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       readBooleanEnv("ID_LOCAL_CARD_SESSION_ENABLED", false) ||
         readBooleanEnv("ID_CLOUD_CARD_SESSION_ENABLED", false),
     );
+    consumedOneTimeCardAuthorization = Boolean(oneTimeIndonesiaCard);
     console.log(
       `[indonesia] One-time card session ${oneTimeIndonesiaCard ? "consumed" : "unavailable"} application=${redactIdentifier(item.application_id)}`,
     );
@@ -7352,8 +7354,15 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       );
       return;
     }
-    const newAttempts = item.attempts + 1;
+    // A one-time card authorization is removed from memory as soon as this
+    // worker claims it. Never put that row back into an automatic pending
+    // state after an unhandled error: a later worker cannot safely reproduce
+    // the same run without the user explicitly entering the card again.
+    const newAttempts = consumedOneTimeCardAuthorization
+      ? MAX_ATTEMPTS
+      : item.attempts + 1;
     const newStatus = newAttempts >= MAX_ATTEMPTS ? failedStatus : pendingStatus;
+    const failedAt = new Date().toISOString();
     await supabase
       .from("submission_queue")
       .update({
@@ -7362,8 +7371,18 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         last_error: errorMsg,
         error_code: "indonesia_live_worker_error",
         error_message: errorMsg,
+        ...(consumedOneTimeCardAuthorization
+          ? {
+              payment_status: "failed",
+              manual_action_status: "payment_failed",
+              locked_by: null,
+              locked_at: null,
+              locked_until: null,
+            }
+          : {}),
         current_stage: "failed",
-        updated_at: new Date().toISOString(),
+        heartbeat_at: failedAt,
+        updated_at: failedAt,
       })
       .eq("id", item.id);
     if (newAttempts >= MAX_ATTEMPTS) {
