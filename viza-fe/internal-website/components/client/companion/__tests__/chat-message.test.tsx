@@ -91,6 +91,25 @@ describe("ChatMessage", () => {
     expect(screen.queryByRole("link", { name: "example" })).not.toBeInTheDocument();
   });
 
+  it("removes internal application navigation when a form card owns the CTA", () => {
+    render(
+      <ChatMessage
+        role="agent"
+        content={
+          "持中国普通护照赴新加坡旅游5天可免签。\n请点击以下链接填写：新加坡电子入境卡 form link /client/application?country=singapore&visaType=SGARRIVALCARD。"
+        }
+        timestamp={Date.now()}
+      />
+    );
+
+    expect(
+      screen.getByText("持中国普通护照赴新加坡旅游5天可免签。")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/form link/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\/client\/application/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/SGARRIVALCARD/)).not.toBeInTheDocument();
+  });
+
   it("renders inline code markers as plain text", () => {
     const { container } = render(
       <ChatMessage role="agent" content="Use `npm install` to install" timestamp={Date.now()} />
