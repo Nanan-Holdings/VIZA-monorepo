@@ -53,6 +53,18 @@ export type FormAssistantTranscription =
       durationMs?: number;
     };
 
+export interface FormAssistantFillNoticeItem {
+  fieldName: string;
+  label: string;
+  value: string;
+  displayValue: string;
+}
+
+export interface FormAssistantFillNotice {
+  id: string;
+  items: FormAssistantFillNoticeItem[];
+}
+
 export interface FormFillingAssistantProps {
   applicationId: string;
   locale: string;
@@ -60,13 +72,15 @@ export interface FormFillingAssistantProps {
   progress: { completed: number; total: number };
   messages: FormAssistantMessage[];
   missingFields: FormAssistantMissingField[];
-  aiFilledFieldLabels: string[];
+  fillNotice?: FormAssistantFillNotice | null;
   loading?: boolean;
   validationResult?: FormAssistantValidationResult | null;
   onSend: (text: string) => void | Promise<void>;
   onTranscribe: (file: File) => FormAssistantTranscription | Promise<FormAssistantTranscription>;
   onValidate: () => void | Promise<void>;
   onAcknowledgeWarnings: () => void | Promise<void>;
+  onUndoFill: (items: FormAssistantFillNoticeItem[]) => void | Promise<void>;
+  onDismissFillNotice: () => void;
   onGoToReview: () => void;
   className?: string;
 }
@@ -105,20 +119,21 @@ export function FormFillingAssistant({
   progress,
   messages,
   missingFields,
-  aiFilledFieldLabels,
+  fillNotice = null,
   loading = false,
   validationResult = null,
   onSend,
   onTranscribe,
   onValidate,
   onAcknowledgeWarnings,
+  onUndoFill,
+  onDismissFillNotice,
   onGoToReview,
   className,
 }: FormFillingAssistantProps) {
   const t = useTranslations("application.formAssistant");
   const idPrefix = useId().replace(/:/g, "-");
   const titleId = `form-assistant-${idPrefix}-title`;
-  const filledTitleId = `form-assistant-${idPrefix}-filled-title`;
   const validationTitleId = `form-assistant-${idPrefix}-validation-title`;
   const composerStorageKey = `viza:form-assistant:composer:${applicationId}`;
   const [draft, setDraft] = useState(() => {
@@ -128,6 +143,8 @@ export function FormFillingAssistant({
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [undoingFill, setUndoingFill] = useState(false);
+  const [undoFillError, setUndoFillError] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -317,6 +334,13 @@ export function FormFillingAssistant({
   }, [composerStorageKey, draft]);
 
   useEffect(() => {
+    setUndoFillError(null);
+    if (!fillNotice) return;
+    const timeout = window.setTimeout(onDismissFillNotice, 10_000);
+    return () => window.clearTimeout(timeout);
+  }, [fillNotice, onDismissFillNotice]);
+
+  useEffect(() => {
     const composer = composerRef.current;
     if (!composer) return;
     composer.style.height = "auto";
@@ -371,6 +395,20 @@ export function FormFillingAssistant({
     },
     [draft, handleSend],
   );
+
+  const handleUndoFill = useCallback(async () => {
+    if (!fillNotice || undoingFill) return;
+    setUndoingFill(true);
+    setUndoFillError(null);
+    try {
+      await onUndoFill(fillNotice.items);
+      onDismissFillNotice();
+    } catch {
+      setUndoFillError(t("filledNotice.undoFailed"));
+    } finally {
+      if (mountedRef.current) setUndoingFill(false);
+    }
+  }, [fillNotice, onDismissFillNotice, onUndoFill, t, undoingFill]);
 
   const completed = Math.max(0, Math.min(progress.completed, progress.total));
   const progressPercent = progress.total > 0 ? Math.round((completed / progress.total) * 100) : 0;
@@ -469,16 +507,34 @@ export function FormFillingAssistant({
           />
         </div>
 
-        {aiFilledFieldLabels.length > 0 ? (
-          <section className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3" aria-labelledby={filledTitleId}>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />
-              <h3 id={filledTitleId} className="text-sm font-semibold text-emerald-900">
-                {aiFilledFieldLabels.length === 1
-                  ? t("filled.latest", { label: aiFilledFieldLabels[0] })
-                  : t("filled.summary", { count: aiFilledFieldLabels.length })}
-              </h3>
+        {fillNotice ? (
+          <section
+            className="rounded-xl border border-brand-100 bg-brand-50/50 px-4 py-3 text-brand-700 shadow-sm"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden="true" />
+                <div className="space-y-1">
+                  {fillNotice.items.map((item) => (
+                    <p key={item.fieldName} className="text-sm leading-5">
+                      {t("filledNotice.message", { label: item.label, value: item.displayValue })}
+                    </p>
+                  ))}
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-9 px-3 text-sm font-medium text-brand-600 hover:bg-brand-100 hover:text-brand-700"
+                onClick={() => void handleUndoFill()}
+                disabled={undoingFill}
+              >
+                {undoingFill ? t("filledNotice.undoing") : t("filledNotice.undo")}
+              </Button>
             </div>
+            {undoFillError ? <p className="mt-2 text-sm text-red-700" role="alert">{undoFillError}</p> : null}
           </section>
         ) : null}
 
