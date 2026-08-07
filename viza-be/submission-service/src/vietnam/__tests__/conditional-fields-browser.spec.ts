@@ -11,7 +11,11 @@ import {
 import { pickRadio, pickSelect, tickCheckbox } from "../fillers.js";
 import { VN_COUNTRY_OPTION_ORDER } from "../country-options.js";
 import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
-import { collectVietnamReviewActionCandidates, uploadVietnamFile } from "../run.js";
+import {
+  collectVietnamReviewActionCandidates,
+  isVietnamUploadResponseAccepted,
+  uploadVietnamFile,
+} from "../run.js";
 
 test("vn.conditional-fields browser: clicking Yes fills the revealed prior-visit table", async () => {
   const browser = await chromium.launch({ headless: true });
@@ -771,6 +775,44 @@ test("vn.conditional-fields browser: scans a localized virtual list for a saved 
   }
 });
 
+test("vn.conditional-fields browser: commits an async Ant select through an exact keyboard alias", { timeout: 60_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div class="ant-select">
+        <div class="ant-select-selector">
+          <span class="ant-select-selection-item" title=""></span>
+          <input id="basic_hcLoai" role="combobox" aria-controls="passport-options" />
+        </div>
+      </div>
+      <div id="passport-options" role="listbox"></div>
+      <script>
+        const input = document.getElementById("basic_hcLoai");
+        const display = document.querySelector(".ant-select-selection-item");
+        input.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter") return;
+          const normalized = input.value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+          if (normalized === "ho chieu pho thong") {
+            display.textContent = "Hộ chiếu phổ thông";
+            display.setAttribute("title", "Hộ chiếu phổ thông");
+            input.value = "";
+          }
+        });
+      </script>
+    `);
+
+    await pickSelect(page, "basic_hcLoai", "Ordinary passport");
+
+    assert.equal(
+      (await page.locator(".ant-select-selection-item").innerText()).trim(),
+      "Hộ chiếu phổ thông",
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.conditional-fields browser: selects Vietnamese country and radio labels", { timeout: 15_000 }, async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
@@ -1144,6 +1186,66 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
     </script>
   `;
 }
+
+test("vn.upload response: accepts explicit official JSON success and rejects semantic failure", () => {
+  assert.equal(
+    isVietnamUploadResponseAccepted(
+      200,
+      "application/json; charset=utf-8",
+      JSON.stringify({ success: true, data: { fileId: "fixture-id" } }),
+    ),
+    true,
+  );
+  assert.equal(
+    isVietnamUploadResponseAccepted(
+      200,
+      "application/json",
+      JSON.stringify({ success: false, error: "invalid_upload" }),
+    ),
+    false,
+  );
+  assert.equal(isVietnamUploadResponseAccepted(200, "text/html", "ok"), null);
+});
+
+test("vn.upload browser: official JSON success is accepted when the portal replaces its preview node", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
+  const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-api-accepted-"));
+  const filePath = join(tempDir, "portrait.jpg");
+  writeFileSync(filePath, Buffer.from("synthetic-image-fixture"));
+  try {
+    await page.route(uploadUrl, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ success: true, data: { fileId: "fixture-id" } }),
+      }),
+    );
+    await page.setContent(`
+      <div class="ant-form-item">
+        <label>Portrait photography</label>
+        <div class="ant-upload-wrapper">
+          <input id="basic_anhMat" type="file" />
+        </div>
+      </div>
+      <script>
+        document.querySelector('#basic_anhMat').addEventListener('change', async (event) => {
+          const body = new FormData();
+          body.append('file', event.target.files[0]);
+          await fetch('${uploadUrl}', { method: 'POST', body });
+        });
+      </script>
+    `);
+
+    await uploadVietnamFile(page, "basic_anhMat", filePath, "portrait_photo");
+    assert.equal(await page.locator(".ant-upload-list-item-done").count(), 0);
+  } finally {
+    await browser.close();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
 
 test("vn.upload browser: official 4xx is never accepted from local input preview", async () => {
   const browser = await chromium.launch({ headless: true });

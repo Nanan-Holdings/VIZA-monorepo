@@ -8,7 +8,7 @@
  * pattern for each component.
  */
 
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { VnFieldType, VnFieldMapping } from "./field-mappings.js";
 import {
   getVnCountryOptionIndex,
@@ -129,6 +129,25 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
       return;
     }
   } else {
+    const input = page.locator(`#${cssEscape(domId)}`).first();
+    const select = input.locator(
+      "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-select ')][1]",
+    );
+    const selector = select.locator(".ant-select-selector").first();
+    if ((await input.count()) > 0 && (await selector.count()) > 0) {
+      const keyboard = await pickSelectWithKeyboardAliases(
+        page,
+        domId,
+        input,
+        selector,
+        matchTexts,
+        Math.min(deadline, Date.now() + 10_000),
+      );
+      if (keyboard.ok) {
+        await settle(page);
+        return;
+      }
+    }
     // Wards and border gates are long virtual lists without a stable index.
     // Scan the localized list before replaying typed searches, because the
     // Vietnamese portal often returns no results for an English label.
@@ -342,7 +361,18 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
     { domId, matchTexts, searchTerms, timeoutMs: Math.max(1, deadline - Date.now()) },
   );
   if (!result.ok) {
-    const retry = await pickSelectWithPlaywright(page, domId, matchTexts, optionIndex, deadline);
+    // The in-page strategy may consume the normal field deadline while an
+    // async Ant dropdown is still rendering an empty virtual list. Reserve a
+    // short, bounded Playwright recovery window so exact localized aliases can
+    // still be committed with ArrowDown/Enter and verified from the display.
+    const recoveryDeadline = Math.max(deadline, Date.now() + 12_000);
+    const retry = await pickSelectWithPlaywright(
+      page,
+      domId,
+      matchTexts,
+      optionIndex,
+      recoveryDeadline,
+    );
     if (retry.ok) {
       await settle(page);
       return;
@@ -430,6 +460,18 @@ async function pickSelectWithPlaywright(
   await page.waitForTimeout(250);
   await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
   await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  // Try the portal's native keyboard commit first. The current production
+  // build can keep its virtual option DOM empty even though typing an exact
+  // Vietnamese alias and pressing Enter commits the value internally.
+  const earlyKeyboardFallback = await pickSelectWithKeyboardAliases(
+    page,
+    domId,
+    input,
+    selector,
+    matchTexts,
+    Math.min(deadline, Date.now() + 10_000),
+  );
+  if (earlyKeyboardFallback.ok) return earlyKeyboardFallback;
   if (optionIndex !== null) {
     await openFullSelectListForIndexedScroll(page, domId);
     let candidates = await readVisibleSelectCandidates(page);
@@ -499,16 +541,90 @@ async function pickSelectWithPlaywright(
       candidates = await readVisibleSelectCandidates(page);
     }
     if (searchTerm === fallbackSearchTerms[fallbackSearchTerms.length - 1]) {
-      return {
-        ok: false,
-        reason: "playwright_selection_not_confirmed",
-        candidates: [...scannedCandidates, ...candidates].filter(
-          (candidate, index, allCandidates) => allCandidates.indexOf(candidate) === index,
-        ),
-      };
+      for (const candidate of candidates) {
+        if (!scannedCandidates.includes(candidate)) scannedCandidates.push(candidate);
+      }
+      break;
     }
   }
-  return { ok: false, reason: "playwright_selection_not_confirmed", candidates: scannedCandidates };
+  const keyboardFallback = await pickSelectWithKeyboardAliases(
+    page,
+    domId,
+    input,
+    selector,
+    matchTexts,
+    deadline,
+  );
+  if (keyboardFallback.ok) return keyboardFallback;
+  return {
+    ok: false,
+    reason: keyboardFallback.reason ?? "playwright_selection_not_confirmed",
+    candidates: [...scannedCandidates, ...keyboardFallback.candidates].filter(
+      (candidate, index, candidates) => candidate && candidates.indexOf(candidate) === index,
+    ),
+  };
+}
+
+async function pickSelectWithKeyboardAliases(
+  page: Page,
+  domId: string,
+  input: Locator,
+  selector: Locator,
+  matchTexts: string[],
+  deadline: number,
+): Promise<{ ok: boolean; reason?: string; candidates: string[] }> {
+  const seen: string[] = [];
+  for (const searchTerm of matchTexts) {
+    if (!searchTerm || Date.now() >= deadline) break;
+    await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+    await page.waitForTimeout(150);
+    await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+    await input.fill(searchTerm, { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+    await page.waitForTimeout(domId === "basic_hcLoai" ? 1_500 : 900);
+
+    const ownedCandidates = await readOwnedSelectCandidates(page, domId);
+    for (const candidate of ownedCandidates) {
+      if (!seen.includes(candidate)) seen.push(candidate);
+    }
+    await input.press("ArrowDown", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+    await page.waitForTimeout(150);
+    await input.press("Enter", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+    await page.waitForTimeout(600);
+    if (await selectDisplayMatches(page, domId, matchTexts)) {
+      return { ok: true, candidates: seen };
+    }
+    await input.press("Escape", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  }
+  return {
+    ok: false,
+    reason: Date.now() >= deadline ? "select_field_timeout" : "keyboard_selection_not_confirmed",
+    candidates: seen,
+  };
+}
+
+async function readOwnedSelectCandidates(page: Page, domId: string): Promise<string[]> {
+  return page.evaluate((id) => {
+    const input = document.querySelector<HTMLInputElement>(`#${CSS.escape(id)}`);
+    if (!input) return [];
+    const roots = [input.getAttribute("aria-controls"), input.getAttribute("aria-owns")]
+      .filter(Boolean)
+      .map((controlId) => document.getElementById(controlId as string))
+      .filter((root): root is HTMLElement => Boolean(root));
+    return roots
+      .flatMap((root) =>
+        Array.from(root.querySelectorAll<HTMLElement>("[role='option'], .ant-select-item-option")),
+      )
+      .map((option) => {
+        const content = option.querySelector<HTMLElement>(".ant-select-item-option-content") ?? option;
+        return (option.getAttribute("title") || content.innerText || content.textContent || "")
+          .replace(/\s+/g, " ")
+          .trim();
+      })
+      .filter((candidate, index, candidates) =>
+        Boolean(candidate) && candidates.indexOf(candidate) === index,
+      )
+      .slice(0, 20);
+  }, domId).catch(() => []);
 }
 
 async function scrollSelectOptionByText(
