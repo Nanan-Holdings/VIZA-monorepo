@@ -168,6 +168,35 @@ test("vn.captcha: refresh selection stays bounded with many unrelated controls",
   }
 });
 
+test("vn.captcha: id-less challenge excludes the nearby refresh SVG", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <section role="dialog" aria-label="Captcha verification" style="position:relative;width:500px;height:220px">
+        <span>Captcha verification</span>
+        <img id="official-challenge" style="position:absolute;left:120px;top:30px;width:140px;height:44px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='44'%3E%3Crect width='140' height='44' fill='white'/%3E%3Ctext x='20' y='30'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <input id="generic-security-input" type="text" style="position:absolute;left:120px;top:100px;width:220px;height:36px" />
+        <button type="button" style="position:absolute;left:350px;top:100px;width:40px;height:36px">
+          <svg data-icon="sync" width="32" height="28"><circle cx="16" cy="14" r="10" /></svg>
+        </button>
+      </section>
+    `);
+    const expectedImage = await page.locator("#official-challenge").screenshot();
+    let receivedExpectedImage = false;
+    const outcome = await solveVietnamImageCaptcha(page, 1_000, async (image) => {
+      receivedExpectedImage = image.equals(expectedImage);
+      return { text: "AB12", solveId: "task-idless", durationMs: 10 };
+    });
+
+    assert.equal(outcome.solved, true);
+    assert.equal(receivedExpectedImage, true);
+    assert.equal(await page.locator("#generic-security-input").inputValue(), "AB12");
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.captcha: provider retries are not multiplied inside one portal attempt", async () => {
   const previous = process.env.VN_CAPTCHA_SOLVER_ATTEMPTS;
   delete process.env.VN_CAPTCHA_SOLVER_ATTEMPTS;
