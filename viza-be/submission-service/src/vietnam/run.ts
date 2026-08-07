@@ -18,6 +18,8 @@ import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
 import {
   captureVietnamCaptchaFingerprint,
+  DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
+  DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
   isVietnamCaptchaFailureRetryable,
   reportRejectedVietnamCaptcha,
   solveVietnamImageCaptcha,
@@ -491,9 +493,15 @@ async function fillVietnamApplicationOnce(
     let stateAfterCaptcha = reviewState;
     let lastReviewCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
     if (stateAfterCaptcha === "captcha_visible") {
-      const maxReviewCaptchaAttempts = readPositiveInt(process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS, 3);
+      const maxReviewCaptchaAttempts = readPositiveInt(
+        process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS,
+        DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
+      );
       const reviewCaptchaDeadline =
-        Date.now() + readPositiveInt(process.env.VN_CAPTCHA_TOTAL_BUDGET_MS, 180_000);
+        Date.now() + readPositiveInt(
+          process.env.VN_CAPTCHA_TOTAL_BUDGET_MS,
+          DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
+        );
       for (
         let attempt = 1;
         attempt <= maxReviewCaptchaAttempts &&
@@ -997,9 +1005,15 @@ async function reachVietnamFormCheckpoint(
     }
 
     if (state === "captcha_visible") {
-      const maxCaptchaAttempts = readPositiveInt(process.env.VN_CAPTCHA_MAX_ATTEMPTS, 3);
+      const maxCaptchaAttempts = readPositiveInt(
+        process.env.VN_CAPTCHA_MAX_ATTEMPTS,
+        DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
+      );
       const captchaDeadline =
-        Date.now() + readPositiveInt(process.env.VN_CAPTCHA_TOTAL_BUDGET_MS, 180_000);
+        Date.now() + readPositiveInt(
+          process.env.VN_CAPTCHA_TOTAL_BUDGET_MS,
+          DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
+        );
       let lastCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
       for (
         let attempt = 1;
