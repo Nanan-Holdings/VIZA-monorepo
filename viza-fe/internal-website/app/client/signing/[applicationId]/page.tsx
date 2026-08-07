@@ -25,6 +25,7 @@ import {
   type SigningContext,
 } from "@/app/actions/submit-signature";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { getAuDeclarationText, getSigningText } from "../signing-copy";
 
 // AU declaration field keys + labelKeys mirrored from
 // viza-fe/internal-website/components/client/wizards/au/config.ts. Kept inline
@@ -76,6 +77,13 @@ export default function SigningPage() {
   const tAu = useTranslations("simplifiedForm.au");
   const t = useTranslations("client.signing");
   const isZh = isChineseLocale(useLocale());
+  const text = (key: string) => getSigningText(isZh, key, t(key));
+  const auText = (key: string) =>
+    getAuDeclarationText(
+      isZh,
+      key.replace(/^declarations\./, ""),
+      tAu(key),
+    );
 
   const [state, setState] = React.useState<
     | { stage: "loading" }
@@ -99,7 +107,11 @@ export default function SigningPage() {
       if (!res.context.isAuVisitor600) {
         setState({
           stage: "error",
-          message: t("notAuApplication"),
+          message: getSigningText(
+            isZh,
+            "notAuApplication",
+            t("notAuApplication"),
+          ),
         });
         return;
       }
@@ -108,7 +120,7 @@ export default function SigningPage() {
     return () => {
       cancelled = true;
     };
-  }, [applicationId, t]);
+  }, [applicationId, isZh, t]);
 
   const onSubmit = async () => {
     if (state.stage !== "ready" || !blob) return;
@@ -137,7 +149,7 @@ export default function SigningPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-brand-500" />
-        <p className="text-lg text-muted-foreground">{t("loading")}</p>
+        <p className="text-lg text-muted-foreground">{text("loading")}</p>
       </div>
     );
   }
@@ -150,7 +162,7 @@ export default function SigningPage() {
             <EmptyMedia variant="icon">
               <AlertTriangle />
             </EmptyMedia>
-            <EmptyTitle>{t("errorTitle")}</EmptyTitle>
+            <EmptyTitle>{text("errorTitle")}</EmptyTitle>
             <EmptyDescription>{state.message}</EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -166,11 +178,11 @@ export default function SigningPage() {
             <EmptyMedia variant="icon">
               <CheckCircle2 className="text-brand-500" />
             </EmptyMedia>
-            <EmptyTitle>{t("alreadySignedTitle")}</EmptyTitle>
-            <EmptyDescription>{t("alreadySignedBody")}</EmptyDescription>
+            <EmptyTitle>{text("alreadySignedTitle")}</EmptyTitle>
+            <EmptyDescription>{text("alreadySignedBody")}</EmptyDescription>
           </EmptyHeader>
           <BrandActionButton onClick={() => router.push("/client/home")}>
-            {t("backToHome")}
+            {text("backToHome")}
           </BrandActionButton>
         </Empty>
       </div>
@@ -190,11 +202,11 @@ export default function SigningPage() {
             <EmptyMedia variant="icon">
               <CheckCircle2 className="text-brand-500" />
             </EmptyMedia>
-            <EmptyTitle>{t("submittedTitle")}</EmptyTitle>
-            <EmptyDescription>{t("submittedBody")}</EmptyDescription>
+            <EmptyTitle>{text("submittedTitle")}</EmptyTitle>
+            <EmptyDescription>{text("submittedBody")}</EmptyDescription>
           </EmptyHeader>
           <BrandActionButton onClick={() => router.push("/client/home")}>
-            {t("backToHome")}
+            {text("backToHome")}
           </BrandActionButton>
         </Empty>
       </motion.div>
@@ -202,9 +214,9 @@ export default function SigningPage() {
   }
 
   const ctx = state.context;
-  const health = buildItems(AU_HEALTH, ctx.declarationAnswers, tAu);
-  const character = buildItems(AU_CHARACTER, ctx.declarationAnswers, tAu);
-  const finalItems = buildItems(AU_FINAL, ctx.declarationAnswers, tAu);
+  const health = buildItems(AU_HEALTH, ctx.declarationAnswers, auText);
+  const character = buildItems(AU_CHARACTER, ctx.declarationAnswers, auText);
+  const finalItems = buildItems(AU_FINAL, ctx.declarationAnswers, auText);
 
   return (
     <motion.div
@@ -215,38 +227,38 @@ export default function SigningPage() {
     >
       <header className="space-y-2">
         <h1 className="font-heading font-medium text-[28px] xl:text-[30px] text-foreground tracking-[-0.9px]">
-          {t("pageTitle")}
+          {text("pageTitle")}
         </h1>
-        <p className="text-[15px] text-muted-foreground leading-relaxed">{t("pageSubtitle")}</p>
+        <p className="text-[15px] text-muted-foreground leading-relaxed">{text("pageSubtitle")}</p>
       </header>
 
       <DeclarationPreview
         health={health}
         character={character}
         final={finalItems}
-        healthHeading={t("healthHeading")}
-        characterHeading={t("characterHeading")}
-        finalHeading={t("finalHeading")}
-        yesLabel={t("yes")}
-        noLabel={t("no")}
-        unanswered={t("unanswered")}
+        healthHeading={text("healthHeading")}
+        characterHeading={text("characterHeading")}
+        finalHeading={text("finalHeading")}
+        yesLabel={text("yes")}
+        noLabel={text("no")}
+        unanswered={text("unanswered")}
       />
 
       <section className="space-y-3">
         <h2 className="font-heading font-medium text-[20px] text-foreground tracking-[-0.6px]">
-          {t("signHeading")}
+          {text("signHeading")}
         </h2>
-        <p className="text-[14px] text-muted-foreground">{t("signSubtitle")}</p>
+        <p className="text-[14px] text-muted-foreground">{text("signSubtitle")}</p>
         <SignaturePad
           onChange={setBlob}
-          ariaLabel={t("padAriaLabel")}
-          clearLabel={t("clear")}
+          ariaLabel={text("padAriaLabel")}
+          clearLabel={text("clear")}
           disabled={state.stage === "submitting"}
         />
         {ctx.hasReusableSignature && (
           <div className="rounded-xl border border-brand-100 bg-brand-50 p-4">
             <p className="text-sm text-muted-foreground">
-              {isZh ? "通用资料中已有电子签名，你也可以直接用于本次申请。" : "A reusable e-signature is saved in your universal profile and can be used for this application."}
+              {text("reusableSignatureNotice")}
             </p>
             <BrandActionButton
               variant="secondary"
@@ -254,7 +266,7 @@ export default function SigningPage() {
               onClick={onSubmitSavedSignature}
               disabled={state.stage === "submitting"}
             >
-              {isZh ? "使用通用签名" : "Use saved signature"}
+              {text("useSavedSignature")}
             </BrandActionButton>
           </div>
         )}
@@ -265,9 +277,9 @@ export default function SigningPage() {
           onClick={onSubmit}
           disabled={!blob}
           loading={state.stage === "submitting"}
-          loadingText={t("submitting")}
+          loadingText={text("submitting")}
         >
-          {t("submit")}
+          {text("submit")}
         </BrandActionButton>
       </div>
     </motion.div>

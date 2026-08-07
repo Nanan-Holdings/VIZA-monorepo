@@ -80,6 +80,10 @@ applicant info, and help pages.
   `components/client/universal-profile-documents-carousel.tsx`, while expanded
   schema-backed categories live in
   `components/client/universal-profile-extended-editor.tsx`.
+- `onboarding/copy.ts`, `account/notifications/copy.ts`, and
+  `signing/signing-copy.ts`: route-scoped English/Chinese display copy for
+  standalone applicant forms; keep stored values and submission payloads
+  language-neutral.
 - `(auth)/*`: client login/register/signup pages.
 
 ## Ownership Boundaries
@@ -143,6 +147,9 @@ accessible component state.
 - `viza-fe/internal-website/app/client/support/AGENTS.md`
 - `viza-fe/internal-website/app/client/chat/chat-client.tsx`
 - `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`
+- `viza-fe/internal-website/app/client/onboarding/copy.ts`
+- `viza-fe/internal-website/app/client/account/notifications/copy.ts`
+- `viza-fe/internal-website/app/client/signing/signing-copy.ts`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/us-appointment/page.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/korea-appointment/page.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/korea-appointment/rules/page.tsx`
