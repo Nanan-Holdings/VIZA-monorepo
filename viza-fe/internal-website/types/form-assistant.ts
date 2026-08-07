@@ -68,3 +68,19 @@ export interface FormAssistantTranscriptionResponse {
   detectedLanguage?: string;
   durationMs?: number;
 }
+
+export interface FormAssistantUndoPatch {
+  fieldName: string;
+  value: string;
+}
+
+export interface FormAssistantUndoResult {
+  fieldName: string;
+  restoredValue: string | null;
+  restoredSource: string | null;
+}
+
+export interface FormAssistantUndoResponse {
+  restored: FormAssistantUndoResult[];
+  skippedConflicts: string[];
+}

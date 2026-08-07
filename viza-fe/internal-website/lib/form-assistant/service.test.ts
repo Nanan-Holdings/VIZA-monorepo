@@ -3,7 +3,11 @@ import type { VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
 
 vi.mock("server-only", () => ({}));
 
-import { buildAssistantState, parseDirectYesNoAnswer } from "./service";
+import {
+  buildAssistantState,
+  parseDirectCurrentFieldAnswer,
+  parseDirectYesNoAnswer,
+} from "./service";
 
 function field(fieldName: string, label: string, labelZh: string, required = true): VisaFormFieldRow {
   return {
@@ -109,5 +113,62 @@ describe("parseDirectYesNoAnswer", () => {
   it("does not guess when a response is not a direct yes-or-no answer", () => {
     expect(parseDirectYesNoAnswer("我需要确认一下行程", yellowFeverField)).toBeNull();
     expect(parseDirectYesNoAnswer("没有发热，但是有咳嗽", yellowFeverField)).toBeNull();
+  });
+});
+
+describe("parseDirectCurrentFieldAnswer", () => {
+  const arrivalDateField: VisaFormFieldRow = {
+    ...field("arrival_date", "Arrival date", "抵达日期"),
+    fieldType: "date",
+  };
+  const modeOfTravelField: VisaFormFieldRow = {
+    ...field("mode_of_travel", "Mode of travel", "交通方式"),
+    fieldType: "select",
+    options: [
+      { value: "air", text: "Air", label_zh: "航空", label_en: "Air" },
+      { value: "land", text: "Land", label_zh: "陆路", label_en: "Land" },
+      { value: "sea", text: "Sea", label_zh: "海路", label_en: "Sea" },
+    ],
+  };
+
+  it.each([
+    ["明天", "2026-08-08"],
+    ["我明天抵达", "2026-08-08"],
+    ["tomorrow", "2026-08-08"],
+    ["后天", "2026-08-09"],
+    ["3天后", "2026-08-10"],
+    ["8月7号", "2026-08-07"],
+    ["我是8月7日抵达", "2026-08-07"],
+    ["2026年8月12日", "2026-08-12"],
+  ])("normalizes the natural-language date %s", (answer, expected) => {
+    expect(parseDirectCurrentFieldAnswer(answer, arrivalDateField, {
+      now: new Date("2026-08-07T10:30:00.000Z"),
+      timeZone: "Asia/Singapore",
+    })).toEqual({
+      fieldName: "arrival_date",
+      value: expected,
+      confidence: "high",
+      modelSource: "deterministic",
+    });
+  });
+
+  it("does not guess when relative dates conflict", () => {
+    expect(parseDirectCurrentFieldAnswer("明天或者后天", arrivalDateField, {
+      now: new Date("2026-08-07T00:00:00.000Z"),
+      timeZone: "Asia/Singapore",
+    })).toBeNull();
+  });
+
+  it.each([
+    ["航空", "air"],
+    ["Air", "air"],
+    ["海路", "sea"],
+  ])("maps the localized option %s to its official value", (answer, expected) => {
+    expect(parseDirectCurrentFieldAnswer(answer, modeOfTravelField)).toEqual({
+      fieldName: "mode_of_travel",
+      value: expected,
+      confidence: "high",
+      modelSource: "deterministic",
+    });
   });
 });

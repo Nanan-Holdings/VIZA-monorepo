@@ -285,6 +285,13 @@ Sessions and sent messages are stored in `form_assistant_sessions` and
 `form_assistant_messages`; raw microphone audio is memory-only and only the
 user-confirmed transcript is saved as a message.
 
+Natural-language answers are normalized into official form values. For SGAC,
+relative dates use `Asia/Singapore` as the reference time zone, localized date
+phrases are converted to `YYYY-MM-DD`, and Chinese/English option labels map to
+the exact official option value. A successful write shows a localized notice
+with the field value and a conflict-safe Undo action; the notice disappears
+after 10 seconds.
+
 The server recalculates visible missing fields on every turn. It reads saved
 application answers first, asks for at most five relevant missing fields, and
 only applies high-confidence values that match the active schema. Assistant

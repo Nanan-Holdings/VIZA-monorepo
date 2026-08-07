@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../messages/en.json";
@@ -14,11 +14,16 @@ function renderAssistant(overrides: Partial<FormFillingAssistantProps> = {}) {
     progress: { completed: 2, total: 5 },
     messages: [{ id: "assistant-1", role: "assistant", content: "What is your passport number?" }],
     missingFields: [{ fieldName: "passport_number", label: "Passport number", required: true }],
-    aiFilledFieldLabels: ["Given name"],
+    fillNotice: {
+      id: "notice-1",
+      items: [{ fieldName: "given_name", label: "Given name", value: "Chen", displayValue: "Chen" }],
+    },
     onSend: vi.fn(),
     onTranscribe: vi.fn().mockResolvedValue("A1234567"),
     onValidate: vi.fn(),
     onAcknowledgeWarnings: vi.fn(),
+    onUndoFill: vi.fn(),
+    onDismissFillNotice: vi.fn(),
     onGoToReview: vi.fn(),
     ...overrides,
   };
@@ -49,6 +54,7 @@ describe("FormFillingAssistant", () => {
       writable: true,
     });
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("keeps missing fields inside the conversation instead of rendering a jump list", () => {
@@ -57,7 +63,7 @@ describe("FormFillingAssistant", () => {
     expect(screen.getByRole("region", { name: "Form filling assistant" })).toBeInTheDocument();
     expect(screen.getByText("Form filling assistant")).toBeInTheDocument();
     expect(screen.queryByText("Details still needed")).not.toBeInTheDocument();
-    expect(screen.getByText("Completed: Given name")).toBeInTheDocument();
+    expect(screen.getByText("Filled Given name: Chen")).toBeInTheDocument();
     expect(screen.queryByText("given_name")).not.toBeInTheDocument();
     expect(screen.getByText("2 of 5 fields complete")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Passport number/ })).not.toBeInTheDocument();
@@ -70,7 +76,7 @@ describe("FormFillingAssistant", () => {
       loading: true,
       progress: { completed: 0, total: 0 },
       missingFields: [],
-      aiFilledFieldLabels: [],
+      fillNotice: null,
     });
 
     expect(screen.queryByRole("button", { name: "Checking answers..." })).not.toBeInTheDocument();
@@ -130,6 +136,27 @@ describe("FormFillingAssistant", () => {
 
     expect(screen.getByText("Current question").closest(".text-gray-700")).toBeInTheDocument();
     expect(screen.getByText("Current answer").parentElement).toHaveClass("bg-brand-500");
+  });
+
+  it("offers a real undo action for a recent fill", async () => {
+    const { props } = renderAssistant();
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+
+    await waitFor(() => expect(props.onUndoFill).toHaveBeenCalledWith([
+      { fieldName: "given_name", label: "Given name", value: "Chen", displayValue: "Chen" },
+    ]));
+    expect(props.onDismissFillNotice).toHaveBeenCalled();
+  });
+
+  it("dismisses the fill notice after ten seconds", () => {
+    vi.useFakeTimers();
+    const { props } = renderAssistant();
+
+    act(() => vi.advanceTimersByTime(9_999));
+    expect(props.onDismissFillNotice).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+    expect(props.onDismissFillNotice).toHaveBeenCalledOnce();
   });
 
   it("offers final checking only after required fields are complete", () => {
