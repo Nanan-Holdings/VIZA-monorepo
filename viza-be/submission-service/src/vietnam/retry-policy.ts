@@ -86,6 +86,11 @@ export function isRetryableVietnamResult(result: FillVietnamResult): boolean {
 
   const message = typeof result.error?.message === "string" ? result.error.message : "";
   const code = typeof result.error?.code === "string" ? result.error.code : "";
+  // CAPTCHA already has its own bounded refresh/solve loop. A provider timeout
+  // in that error message must not be mistaken for a browser/navigation
+  // timeout, otherwise the runner refills the entire official application up
+  // to five more times before returning the same checkpoint.
+  if (code === "captcha_automatic_failed") return false;
   return (
     /target page, context or browser has been closed|execution context was destroyed|navigation|timeout|net::err_/i.test(message) ||
     /^official_portal/i.test(code) ||
