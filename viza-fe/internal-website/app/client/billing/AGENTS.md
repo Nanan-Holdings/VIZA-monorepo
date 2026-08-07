@@ -31,6 +31,8 @@ requests, refund eligibility, and government-fee display notes.
 - `data.ts`: billing-only server reads through authenticated applicant context.
 - `actions.ts`: billing-local server mutations such as invoice requests.
 - `invoice-request-form.tsx`: client dialog for request-based invoice intake.
+- `copy.ts`: route-scoped English/Chinese billing, invoice, refund, and status
+  copy shared by the server page, client form, and locale-aware actions.
 
 ## Guardrails
 
