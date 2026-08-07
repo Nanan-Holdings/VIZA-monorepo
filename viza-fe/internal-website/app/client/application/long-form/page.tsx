@@ -62,6 +62,7 @@ import type {
   FormAssistantValidationResponse,
   FormAssistantTranscriptionResponse,
 } from "@/types/form-assistant";
+import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
 import {
   buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
@@ -218,7 +219,7 @@ const ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   "Stay in Malaysia": "在马来西亚停留",
   "Stay in Thailand": "在泰国停留",
   "Health Declaration": "健康申报",
-  "eTravel Scope": "eTravel 范围",
+  "eTravel Scope": "电子旅行申报范围",
   "Customs Declaration": "海关申报",
   "Declaration": "声明确认",
 };
@@ -261,7 +262,7 @@ const VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
 };
 
 const KOREA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
-  "Official e-Form Route": "官方 e-Form 路线",
+  "Official e-Form Route": "官方电子表单路线",
   "Personal Details": "个人信息",
   Passport: "护照",
   "Contact Details": "联系方式",
@@ -1777,6 +1778,10 @@ export default function ApplicationPage() {
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
   const [contentAlignment, setContentAlignment] = useState(0);
   const initialStepResolvedRef = useRef(false);
+  const formAssistantDraftBootstrapRef = useRef<{
+    key: string;
+    promise: ReturnType<typeof ensureDraftApplication>;
+  } | null>(null);
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
   const draftVersionTimerRef = useRef<number | null>(null);
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -1975,14 +1980,18 @@ export default function ApplicationPage() {
       })
       .then((state) => {
         if (controller.signal.aborted) return;
-        const messages = state.messages.length > 0
-          ? state.messages
-          : [{
-              id: `assistant-initial-${state.sessionId}`,
-              role: "assistant" as const,
-              content: state.assistantMessage,
-              createdAt: new Date().toISOString(),
-            }];
+        const persistedMessages = state.messages.at(-1)?.role === "assistant"
+          ? state.messages.slice(0, -1)
+          : state.messages;
+        const messages = [
+          ...persistedMessages,
+          {
+            id: `assistant-current-${state.sessionId}`,
+            role: "assistant" as const,
+            content: state.assistantMessage,
+            createdAt: new Date().toISOString(),
+          },
+        ];
         setFormAssistantState({ ...state, messages });
         setAiFilledFieldNames(state.aiFilledFieldNames);
       })
@@ -2066,6 +2075,18 @@ export default function ApplicationPage() {
   const tDyn = useTranslations("application.dynamicSteps");
   const tApp = useTranslations("application");
   const isZhInterface = locale.toLowerCase().startsWith("zh");
+  const aiFilledFieldLabels = useMemo(() => {
+    const fields = dbSteps.flatMap((step) => step.fields);
+    return aiFilledFieldNames.flatMap((fieldName) => {
+      const field = fields.find((candidate) => candidate.fieldName === fieldName);
+      if (!field) return [];
+      if (isZhInterface) {
+        const chineseLabel = field.validationRules?.label_zh;
+        if (typeof chineseLabel === "string" && chineseLabel.trim()) return [chineseLabel.trim()];
+      }
+      return [field.label];
+    });
+  }, [aiFilledFieldNames, dbSteps, isZhInterface]);
   // Indices for the extra steps appended after DB-driven form steps
   const documentStepIndex = dbSteps.length;
   const teamStepIndex = dbSteps.length + (showDocumentStep ? 1 : 0);
@@ -2358,6 +2379,34 @@ export default function ApplicationPage() {
         application = (context.application as LoadedApplication | null) ?? null;
       }
 
+      if (shouldBootstrapFormAssistantDraft({
+        applicationId: application?.id,
+        country: resolvedCountry,
+        visaType: resolvedVisaType,
+      })) {
+        const bootstrapKey = `${resolvedCountry}:${resolvedVisaType}`;
+        if (formAssistantDraftBootstrapRef.current?.key !== bootstrapKey) {
+          formAssistantDraftBootstrapRef.current = {
+            key: bootstrapKey,
+            promise: ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+              preferExplicit: preferExplicitPackage,
+            }),
+          };
+        }
+        const draftResult = await formAssistantDraftBootstrapRef.current.promise;
+        if (draftResult.error || !draftResult.applicationId) {
+          formAssistantDraftBootstrapRef.current = null;
+          throw new Error(draftResult.error ?? t("errors.noApplicationFound"));
+        }
+        application = {
+          ...(application ?? {}),
+          id: draftResult.applicationId,
+          country: resolvedCountry,
+          visa_type: resolvedVisaType,
+          status: "draft",
+        };
+      }
+
       if (application?.id && preferExplicitPackage) {
         const applicationCountry = getCanonicalVisaDestinationCountry(application.country ?? "");
         const routeCountry = getCanonicalVisaDestinationCountry(resolvedCountry);
@@ -2614,8 +2663,17 @@ export default function ApplicationPage() {
   const handleFormAssistantSend = useCallback(async (text: string) => {
     const applicationId = appState.applicationId;
     if (!applicationId) throw new Error(t("errors.noApplicationFound"));
+    const optimisticMessageId = `user-pending-${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
     setFormAssistantBusy(true);
     setFormAssistantValidation(null);
+    setFormAssistantState((current) => current ? {
+      ...current,
+      messages: [
+        ...current.messages,
+        { id: optimisticMessageId, role: "user", content: text, createdAt: now },
+      ],
+    } : current);
     try {
       await saveAllDynamicDrafts();
       const response = await fetch(`/api/applications/${applicationId}/form-assistant/turn`, {
@@ -2650,13 +2708,11 @@ export default function ApplicationPage() {
           ...payload.appliedPatches.map((item) => item.fieldName),
         ])));
       }
-      const now = new Date().toISOString();
       setFormAssistantState((current) => current ? {
         ...current,
         ...payload,
         messages: [
           ...current.messages,
-          { id: `user-${crypto.randomUUID()}`, role: "user", content: text, createdAt: now },
           { id: `assistant-${crypto.randomUUID()}`, role: "assistant", content: payload.assistantMessage, createdAt: now },
         ],
         aiFilledFieldNames: Array.from(new Set([
@@ -2664,6 +2720,12 @@ export default function ApplicationPage() {
           ...payload.appliedPatches.map((item) => item.fieldName),
         ])),
       } : current);
+    } catch (sendError) {
+      setFormAssistantState((current) => current ? {
+        ...current,
+        messages: current.messages.filter((message) => message.id !== optimisticMessageId),
+      } : current);
+      throw sendError;
     } finally {
       setFormAssistantBusy(false);
     }
@@ -2723,13 +2785,6 @@ export default function ApplicationPage() {
       setFormAssistantBusy(false);
     }
   }, [appState.applicationId, formAssistantValidation]);
-
-  const handleFormAssistantGoToField = useCallback((fieldName: string) => {
-    const stepIndex = dbSteps.findIndex((step) =>
-      step.fields.some((field) => field.fieldName === fieldName),
-    );
-    if (stepIndex >= 0) scrollToStepPanel(stepIndex);
-  }, [dbSteps, scrollToStepPanel]);
 
   const handleFormAssistantGoToReview = useCallback(() => {
     if (!formAssistantValidation?.canReview) return;
@@ -3789,7 +3844,7 @@ export default function ApplicationPage() {
                 required: true,
                 section: field.stepName,
               }))}
-              aiFilledFieldNames={aiFilledFieldNames}
+              aiFilledFieldLabels={aiFilledFieldLabels}
               loading={formAssistantBusy}
               validationResult={formAssistantValidation ? {
                 errors: formAssistantValidation.errors.map((issue) => ({
@@ -3808,7 +3863,6 @@ export default function ApplicationPage() {
               onTranscribe={handleFormAssistantTranscribe}
               onValidate={handleFormAssistantValidate}
               onAcknowledgeWarnings={handleFormAssistantAcknowledgeWarnings}
-              onGoToField={handleFormAssistantGoToField}
               onGoToReview={handleFormAssistantGoToReview}
               className="mb-5"
             />
