@@ -3441,7 +3441,7 @@ function toCoordinate(value: string | number | undefined): number | null {
 }
 
 function getHotspotsForCity(city: string): string[] {
-  const curatedHotspots = getTravelAttractionNamesForCity(city).slice(0, 10);
+  const curatedHotspots = getTravelAttractionNamesForCity(city);
   if (curatedHotspots.length) return curatedHotspots;
 
   const key = normalizeCityKey(city);
