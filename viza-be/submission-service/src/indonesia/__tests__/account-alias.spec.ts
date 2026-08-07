@@ -4,6 +4,18 @@ import test from "node:test";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role";
 
+test("generates Indonesia portal passwords within the official 8-12 character policy", async () => {
+  const { generateIndonesiaPortalPassword } = await import("../account-alias.js");
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const password = generateIndonesiaPortalPassword();
+    assert.equal(password.length, 12);
+    assert.match(password, /[A-Z]/);
+    assert.match(password, /[a-z]/);
+    assert.match(password, /[0-9]/);
+    assert.match(password, /[!@#$*?]/);
+  }
+});
+
 test("Indonesia B1/C1 reuses one canonical applicant alias account", async () => {
   const { resolveIndonesiaAliasMigration } = await import("../account-alias.js");
   const result = resolveIndonesiaAliasMigration({

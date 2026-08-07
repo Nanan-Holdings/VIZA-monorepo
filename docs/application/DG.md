@@ -113,6 +113,7 @@ Shared form components:
 - `viza-fe/internal-website/components/dynamic-step-form.tsx`
 - `viza-fe/internal-website/components/dynamic-form-field.tsx`
 - `viza-fe/internal-website/components/field-guidance-panel.tsx`
+- `viza-fe/internal-website/components/client/form-assistant/form-filling-assistant.tsx`
 - `viza-fe/internal-website/components/application-steps/photo-upload-step.tsx`
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 
@@ -268,6 +269,40 @@ RAG retrieval:
 - It calls Supabase RPC `match_visa_chunks` for pgvector similarity search.
 - If embeddings are unavailable or retrieval fails, it falls back to filtered rows from `visa_chunks`.
 - Intent determines preferred document types, for example `form_requirements` and `photo_requirements` for form intake.
+
+## Form-filling assistant (SGAC pilot)
+
+`SG_ARRIVAL_CARD` is the initial allowlisted product for the application-level
+form-filling assistant. The assistant is rendered after the page title and
+before the step navigation. The ordinary bilingual form remains editable at
+all times.
+
+The authenticated routes live under
+`/api/applications/[id]/form-assistant`: state/session GET, conversational
+turns, audio transcription, deterministic validation, warning acknowledgement,
+and owned-document extraction. Every route verifies application ownership.
+Sessions and sent messages are stored in `form_assistant_sessions` and
+`form_assistant_messages`; raw microphone audio is memory-only and only the
+user-confirmed transcript is saved as a message.
+
+The server recalculates visible missing fields on every turn. It reads saved
+application answers first, asks for at most five relevant missing fields, and
+only applies high-confidence values that match the active schema. Assistant
+writes use `source=form_assistant` plus provenance in `source_metadata`.
+Manual form saves use `source=user_form`, clear earlier AI provenance, and win
+concurrent conflicts. The assistant never writes Universal Profile data.
+
+SGAC has an empty document-requirement manifest, so its assistant does not ask
+for uploads. The country-neutral document extraction policy is deny-by-default
+and limits each document type to approved field categories. Documents are read
+only from the application's private Storage record; external URLs are not
+accepted.
+
+Final checking combines schema-required/conditional rules, exact options,
+patterns and date consistency. SGAC also checks arrival/departure ordering,
+passport validity at arrival, and surfaces ICA's three-day submission window
+as an acknowledgeable warning. Passing this check only navigates to the
+existing read-only Review step; it never triggers official submission.
 
 ## RAG Source Content
 

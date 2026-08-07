@@ -30,6 +30,12 @@ export interface IndonesiaPortalProbeInput {
   applicantId?: string | null;
   accountEmail?: string | null;
   accountPassword?: string | null;
+  accountRecoveryEnabled?: boolean;
+  accountRecoveryPassword?: string | null;
+  onAccountPasswordReset?: (password: string) => Promise<void>;
+  accountPasswordNeedsPersistence?: boolean;
+  legacyAccountEmail?: string | null;
+  legacyAccountPassword?: string | null;
   registration?: IndonesiaAccountRegistrationInput;
   application?: IndonesiaApplicationFormInput;
   headless?: boolean;
@@ -782,12 +788,14 @@ export function isIndonesiaStepOneLegacyFallbackEnabled(value: string | null | u
 export function isIndonesiaStepThreePassportReviewComplete(input: {
   bodyText: string;
   expectedPassportNumber: string | null | undefined;
+  reviewPassportNumber?: string | null | undefined;
   checkboxCount: number;
 }): boolean {
   const expectedPassportNumber = input.expectedPassportNumber?.replace(/[^a-z0-9]/gi, "").toUpperCase() ?? "";
   const normalizedBodyText = input.bodyText.replace(/[^a-z0-9]/gi, "").toUpperCase();
+  const reviewPassportNumber = input.reviewPassportNumber?.replace(/[^a-z0-9]/gi, "").toUpperCase() ?? "";
   return expectedPassportNumber.length >= 5 &&
-    normalizedBodyText.includes(expectedPassportNumber) &&
+    (normalizedBodyText.includes(expectedPassportNumber) || reviewPassportNumber === expectedPassportNumber) &&
     input.checkboxCount > 0;
 }
 
@@ -1082,11 +1090,12 @@ async function completeIndonesiaPassportBiodataUpload(
 
 async function invokeIndonesiaOfficialPhotoUpload(
   page: Page,
+  photoPath: string,
   diagnostics: string[],
   label: string,
 ): Promise<boolean> {
   const handler = await page
-    .evaluate(() => {
+    .evaluate(async () => {
       const input = document.querySelector<HTMLInputElement>("#picture");
       if (!input?.files?.length) return "file_missing";
 
@@ -1094,13 +1103,17 @@ async function invokeIndonesiaOfficialPhotoUpload(
         uploadPhoto?: (field: HTMLInputElement) => unknown;
         onFileChange?: (field: HTMLInputElement) => unknown;
       };
+      if (typeof officialWindow.onFileChange === "function") {
+        return Promise.race([
+          Promise.resolve(officialWindow.onFileChange(input)).then(() => "onFileChange"),
+          new Promise<string>((resolve) => {
+            window.setTimeout(() => resolve("onFileChange_timeout"), 30_000);
+          }),
+        ]);
+      }
       if (typeof officialWindow.uploadPhoto === "function") {
         officialWindow.uploadPhoto(input);
         return "uploadPhoto";
-      }
-      if (typeof officialWindow.onFileChange === "function") {
-        officialWindow.onFileChange(input);
-        return "onFileChange";
       }
       return "handler_missing";
     })
@@ -1110,7 +1123,152 @@ async function invokeIndonesiaOfficialPhotoUpload(
   if (handler === "file_missing" || handler === "handler_missing" || handler === "invoke_failed") {
     return false;
   }
-  return waitForHiddenValue(page, "#path_photo", diagnostics, label, 35_000);
+  const faceValidatedUploadReady = await waitForHiddenValue(
+    page,
+    "#path_photo",
+    diagnostics,
+    `${label}_face_validated`,
+    12_000,
+  );
+  if (faceValidatedUploadReady) return true;
+
+  const directUpload = await attemptIndonesiaOfficialPhotoDirectUpload(page, photoPath);
+  diagnostics.push(
+    `${label}_official_direct_upload channel=${directUpload.channel} ok=${directUpload.ok ? "true" : "false"} status=${directUpload.status} files=${directUpload.filePath ? "present" : "missing"}${directUpload.error ? ` error=${directUpload.error}` : ""}`,
+  );
+  if (directUpload.filePath) {
+    await page.locator("#path_photo").evaluate((element, officialPath) => {
+      const input = element as HTMLInputElement;
+      input.value = officialPath;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, directUpload.filePath).catch(() => undefined);
+  }
+  if (directUpload.ok && await waitForHiddenValue(page, "#path_photo", diagnostics, `${label}_direct_upload`, 5_000)) {
+    return true;
+  }
+
+  const rawUploadResponse = page.waitForResponse(
+    (response) => /upload[-_]?photo|upload-photo/i.test(response.url()),
+    { timeout: 35_000 },
+  ).then(async (response) => {
+    const payload = await response.json().catch(() => null) as { files?: unknown; error?: unknown } | null;
+    return {
+      status: response.status(),
+      filePath: typeof payload?.files === "string" ? payload.files : null,
+      error: typeof payload?.error === "string" ? payload.error.slice(0, 160) : null,
+    };
+  }).catch(() => null);
+  const rawUploadFallback = await page.evaluate(() => {
+    const input = document.querySelector<HTMLInputElement>("#picture");
+    const officialWindow = window as Window & {
+      uploadPhoto?: (field: HTMLInputElement) => unknown;
+    };
+    if (!input?.files?.length) return "file_missing";
+    if (typeof officialWindow.uploadPhoto !== "function") return "handler_missing";
+    officialWindow.uploadPhoto(input);
+    return "uploadPhoto";
+  }).catch(() => "invoke_failed");
+  diagnostics.push(`${label}_official_raw_fallback_${rawUploadFallback}`);
+  if (rawUploadFallback !== "uploadPhoto") return false;
+  const uploadResponse = await rawUploadResponse;
+  diagnostics.push(
+    uploadResponse
+      ? `${label}_official_raw_response status=${uploadResponse.status} files=${uploadResponse.filePath ? "present" : "missing"}${uploadResponse.error ? ` error=${uploadResponse.error}` : ""}`
+      : `${label}_official_raw_response_not_observed`,
+  );
+  if (uploadResponse?.filePath) {
+    await page.locator("#path_photo").evaluate((element, officialPath) => {
+      const input = element as HTMLInputElement;
+      if (!input.value.trim()) {
+        input.value = officialPath;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }, uploadResponse.filePath).catch(() => undefined);
+  }
+  const rawFallbackReady = await waitForHiddenValue(
+    page,
+    "#path_photo",
+    diagnostics,
+    `${label}_raw_fallback`,
+    35_000,
+  );
+  if (rawFallbackReady) return true;
+  return false;
+}
+
+async function attemptIndonesiaOfficialPhotoDirectUpload(
+  page: Page,
+  photoPath: string,
+): Promise<{ ok: boolean; status: number; filePath: string | null; error: string | null; channel: "page" | "api_request" }> {
+  const pageResult = await page.evaluate(async () => {
+    const form = document.querySelector<HTMLFormElement>("#form") ?? document.querySelector<HTMLFormElement>("form");
+    const input = document.querySelector<HTMLInputElement>("#picture");
+    if (!form || !input?.files?.length) {
+      return { ok: false, status: 0, filePath: null, error: "form_or_file_missing" };
+    }
+    try {
+      const response = await fetch(new URL("/front/upload-photo", window.location.origin), {
+        method: "POST",
+        body: new FormData(form),
+        credentials: "same-origin",
+        signal: AbortSignal.timeout(20_000),
+      });
+      const payload = await response.json().catch(() => null) as { files?: unknown; error?: unknown } | null;
+      const filePath = typeof payload?.files === "string" ? payload.files : null;
+      return {
+        ok: response.ok && Boolean(filePath),
+        status: response.status,
+        filePath,
+        error: typeof payload?.error === "string" ? payload.error.slice(0, 160) : null,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        status: 0,
+        filePath: null,
+        error: error instanceof Error ? error.message.slice(0, 160) : String(error).slice(0, 160),
+      };
+    }
+  }).catch(() => ({ ok: false, status: 0, filePath: null, error: "evaluate_failed" }));
+  if (pageResult.ok) return { ...pageResult, channel: "page" };
+
+  const csrfToken = await page.locator("input[name='csrf_token']").inputValue().catch(() => "");
+  const ext = path.extname(photoPath).toLowerCase();
+  const mimeType = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+  try {
+    const response = await page.context().request.post(
+      new URL("/front/upload-photo", page.url()).toString(),
+      {
+        multipart: {
+          csrf_token: csrfToken,
+          picture: { name: path.basename(photoPath), mimeType, buffer: fs.readFileSync(photoPath) },
+          file: "[object FileList]",
+        },
+        headers: { Referer: page.url() },
+        failOnStatusCode: false,
+        timeout: 45_000,
+      },
+    );
+    const payload = await response.json().catch(() => null) as { files?: unknown; error?: unknown } | null;
+    const filePath = typeof payload?.files === "string" ? payload.files : null;
+    return {
+      ok: response.ok() && Boolean(filePath),
+      status: response.status(),
+      filePath,
+      error: typeof payload?.error === "string" ? payload.error.slice(0, 160) : pageResult.error,
+      channel: "api_request",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      filePath: null,
+      error: error instanceof Error ? error.message.slice(0, 160) : String(error).slice(0, 160),
+      channel: "api_request",
+    };
+  }
 }
 
 async function waitForIndonesiaMrzScannerReady(
@@ -1491,6 +1649,79 @@ async function waitForIndonesiaVerificationLink(
   return null;
 }
 
+export function extractIndonesiaPasswordResetUrlFromEmail(message: {
+  html?: string | null;
+  text?: string | null;
+}): URL | null {
+  const haystacks = [message.html ?? "", message.text ?? ""]
+    .flatMap((value) => [value, decodeQuotedPrintable(value)])
+    .map((value) =>
+      value
+        .replace(/&amp;/gi, "&")
+        .replace(/&#x3D;/gi, "=")
+        .replace(/&equals;/gi, "="),
+    );
+  for (const haystack of haystacks) {
+    const matches = haystack.match(/https?:\/\/[^\s"'<>]+/gi) ?? [];
+    for (const match of matches) {
+      const candidate = match.replace(/[),.;\]]+$/g, "").trim();
+      if (!/evisa\.imigrasi\.go\.id/i.test(candidate)) continue;
+      if (!/forgot|reset|password|token/i.test(candidate)) continue;
+      try {
+        return new URL(candidate);
+      } catch {
+        // Continue scanning.
+      }
+    }
+  }
+  return null;
+}
+
+async function waitForIndonesiaPasswordResetLink(
+  applicantId: string,
+  accountEmail: string,
+  requestedAt: string,
+  diagnostics: string[],
+): Promise<URL | null> {
+  const alias = accountEmail.trim().toLowerCase();
+  const timeoutMs = Number(process.env.INDONESIA_PASSWORD_RESET_TIMEOUT_MS ?? "180000");
+  try {
+    const message = await inbox.waitForMessage(
+      applicantId,
+      (candidate) => {
+        const addressedToAlias = candidate.to_addr.trim().toLowerCase() === alias;
+        const haystack =
+          `${candidate.from_addr ?? ""} ${candidate.subject ?? ""} ` +
+          `${candidate.text ?? ""} ${candidate.html ?? ""}`;
+        return addressedToAlias &&
+          /evisa\.imigrasi\.go\.id|notif\.imigrasi\.go\.id/i.test(haystack) &&
+          /forgot|reset|password|token/i.test(haystack) &&
+          extractIndonesiaPasswordResetUrlFromEmail(candidate) !== null;
+      },
+      Math.max(10_000, timeoutMs),
+      { since: requestedAt, pollIntervalMs: 3_000, newestFirst: true },
+    );
+    const link = extractIndonesiaPasswordResetUrlFromEmail(message);
+    if (link) {
+      diagnostics.push(`indonesia_account_password_reset_link_found received_at=${message.received_at}`);
+      return link;
+    }
+  } catch (error) {
+    if (error instanceof InboxDomainUnroutableError) {
+      diagnostics.push("indonesia_account_password_reset_inbox_unroutable");
+      return null;
+    }
+    if (!(error instanceof InboxTimeoutError)) {
+      diagnostics.push(
+        `indonesia_account_password_reset_lookup_failed ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+  diagnostics.push("indonesia_account_password_reset_email_timeout");
+  return null;
+}
+
 async function continueFromVisaSelection(
   page: Page,
   input: IndonesiaPortalProbeInput,
@@ -1530,12 +1761,25 @@ async function continueFromVisaSelection(
       return false;
     });
   if (!parentSelected) return false;
-  const activitySelected = await selectNativeOptionByText(page, "#selectActivity", new RegExp(`^${INDONESIA_TOURISM_ACTIVITY.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"))
+  let activitySelected = await selectNativeOptionByText(page, "#selectActivity", new RegExp(`^${INDONESIA_TOURISM_ACTIVITY.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"), 45_000)
     .then(() => true)
     .catch((error: unknown) => {
       diagnostics.push(`indonesia_visa_selection_activity_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
       return false;
     });
+  if (!activitySelected) {
+    await page.locator("#selectParentActivity").dispatchEvent("change").catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    activitySelected = await selectNativeOptionByText(
+      page,
+      "#selectActivity",
+      new RegExp(`^${INDONESIA_TOURISM_ACTIVITY.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      45_000,
+    ).then(() => true).catch((error: unknown) => {
+      diagnostics.push(`indonesia_visa_selection_activity_retry_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+      return false;
+    });
+  }
   if (!activitySelected) return false;
   const visaLabel = await selectNativeOptionByText(
     page,
@@ -1601,18 +1845,24 @@ async function continueFromAccountLogin(
   const email = clean(input.accountEmail);
   const password = clean(input.accountPassword);
   if (!email || !password) return false;
-  const loginVisible = await page
+  const loginControl = page
     .locator("input[type='email'], input[name='username'], #username, #email, input[name='email']")
-    .first()
-    .isVisible({ timeout: 3_000 })
+    .first();
+  const passwordControl = page.locator("input[type='password'], #password").first();
+  const loginVisible = await loginControl
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .then(() => true)
     .catch(() => false);
-  const passwordVisible = await page
-    .locator("input[type='password'], #password")
-    .first()
-    .isVisible({ timeout: 3_000 })
+  const passwordVisible = await passwordControl
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .then(() => true)
     .catch(() => false);
   const text = await page.locator("body").innerText({ timeout: 3_000 }).catch(() => "");
   if (!loginVisible || !passwordVisible || !/login|log in|sign in|masuk|email|username/i.test(text)) {
+    diagnostics.push(
+      `indonesia_account_login_controls_not_ready login=${loginVisible ? "visible" : "missing"} password=${passwordVisible ? "visible" : "missing"}`,
+    );
+    await captureRegistrationArtifact(page, input, diagnostics);
     return false;
   }
 
@@ -1663,7 +1913,7 @@ async function continueFromAccountLogin(
   if (/\/front\/login/i.test(page.url())) {
     if (await continueFromIndonesiaOtpPage(page, input, diagnostics)) {
       diagnostics.push("indonesia_account_login_otp_submitted");
-      return true;
+      return persistRecoveredIndonesiaPasswordIfNeeded(input, diagnostics);
     }
     const solvedRetryCaptcha = await solveIndonesiaRecaptchaIfPresent(page, diagnostics, "login_retry").catch((error: unknown) => {
       diagnostics.push(`indonesia_recaptcha_login_retry_failed ${error instanceof Error ? error.message : String(error)}`);
@@ -1676,11 +1926,11 @@ async function continueFromAccountLogin(
         await page.waitForTimeout(3_000);
         if (!/\/front\/login/i.test(page.url())) {
           diagnostics.push("indonesia_account_login_submitted_after_recaptcha_retry");
-          return true;
+          return persistRecoveredIndonesiaPasswordIfNeeded(input, diagnostics);
         }
         if (await continueFromIndonesiaOtpPage(page, input, diagnostics)) {
           diagnostics.push("indonesia_account_login_otp_submitted_after_recaptcha_retry");
-          return true;
+          return persistRecoveredIndonesiaPasswordIfNeeded(input, diagnostics);
         }
       }
     }
@@ -1710,16 +1960,305 @@ async function continueFromAccountLogin(
     return false;
   }
   diagnostics.push("indonesia_account_login_submitted");
-  return true;
+  return persistRecoveredIndonesiaPasswordIfNeeded(input, diagnostics);
+}
+
+async function persistRecoveredIndonesiaPasswordIfNeeded(
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<boolean> {
+  if (!input.accountPasswordNeedsPersistence) return true;
+  const password = clean(input.accountPassword);
+  if (!password || !input.onAccountPasswordReset) {
+    diagnostics.push("indonesia_account_password_persistence_configuration_missing");
+    return false;
+  }
+  try {
+    await input.onAccountPasswordReset(password);
+    input.accountPasswordNeedsPersistence = false;
+    diagnostics.push("indonesia_account_password_persisted_after_verified_login");
+    return true;
+  } catch (error) {
+    diagnostics.push(
+      `indonesia_account_password_reset_vault_write_failed ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return false;
+  }
+}
+
+export function shouldRegisterIndonesiaAccountAfterPasswordResetFeedback(
+  messages: string[],
+): boolean {
+  return messages.some((message) =>
+    /failed[\s\S]*if email is registered[\s\S]*password recovery instructions/i.test(message),
+  );
+}
+
+type IndonesiaAccountRecoveryResult = "completed" | "register" | "failed" | "unavailable";
+
+async function recoverIndonesiaOfficialAccount(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<IndonesiaAccountRecoveryResult> {
+  if (!input.accountRecoveryEnabled) return "unavailable";
+  const applicantId = clean(input.applicantId);
+  const accountEmail = clean(input.accountEmail);
+  const nextPassword = clean(input.accountRecoveryPassword);
+  if (!applicantId || !accountEmail || !nextPassword || !input.onAccountPasswordReset) {
+    diagnostics.push("indonesia_account_password_reset_configuration_missing");
+    return "failed";
+  }
+  if (
+    nextPassword.length < 8 ||
+    nextPassword.length > 12 ||
+    !/[A-Z]/.test(nextPassword) ||
+    !/[a-z]/.test(nextPassword) ||
+    !/[0-9]/.test(nextPassword) ||
+    !/[^A-Za-z0-9]/.test(nextPassword)
+  ) {
+    diagnostics.push("indonesia_account_password_reset_candidate_invalid");
+    return "failed";
+  }
+
+  await dismissIndonesiaDialogs(page, diagnostics);
+  const forgotPasswordLink = page
+    .getByRole("link", { name: /forgot password|lupa kata sandi|reset password/i })
+    .or(page.locator('a[href*="forgot_password"]:visible, a[href*="forgot-password"]:visible'))
+    .first();
+  if (!await forgotPasswordLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    diagnostics.push("indonesia_account_password_reset_entry_not_found");
+    return "failed";
+  }
+  const forgotHref = await forgotPasswordLink.getAttribute("href").catch(() => null);
+  if (!forgotHref) {
+    diagnostics.push("indonesia_account_password_reset_entry_missing_href");
+    return "failed";
+  }
+  const forgotUrl = new URL(forgotHref, page.url());
+  if (
+    forgotUrl.hostname.toLowerCase() !== "evisa.imigrasi.go.id" ||
+    !/forgot[_-]?password/i.test(forgotUrl.pathname)
+  ) {
+    diagnostics.push("indonesia_account_password_reset_entry_untrusted");
+    return "failed";
+  }
+
+  await page.goto(forgotUrl.toString(), {
+    waitUntil: "domcontentloaded",
+    timeout: input.timeoutMs ?? 60_000,
+  });
+  const emailControl = page
+    .locator("#email, input[name='email'], input[type='email']")
+    .filter({ visible: true })
+    .first();
+  if (!await emailControl.isVisible({ timeout: 15_000 }).catch(() => false)) {
+    diagnostics.push("indonesia_account_password_reset_email_control_not_ready");
+    await captureRegistrationArtifact(page, input, diagnostics);
+    return "failed";
+  }
+  await emailControl.fill(accountEmail);
+  await solveIndonesiaRecaptchaIfPresent(page, diagnostics, "password_reset_request").catch(
+    (error: unknown) => {
+      diagnostics.push(
+        `indonesia_recaptcha_password_reset_request_failed ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return false;
+    },
+  );
+  const requestedAt = new Date().toISOString();
+  const requestSubmit = emailControl
+    .locator("xpath=ancestor::form[1]")
+    .locator("button[type='submit'], input[type='submit']")
+    .filter({ visible: true })
+    .first();
+  if (!await requestSubmit.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    diagnostics.push("indonesia_account_password_reset_request_submit_not_found");
+    return "failed";
+  }
+  await requestSubmit.click({ timeout: 15_000 });
+  diagnostics.push("indonesia_account_password_reset_requested");
+  await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+  await page.waitForTimeout(2_000);
+  const requestFeedback = await page
+    .evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLElement>(
+        ".invalid-feedback, .text-danger, .alert, .swal2-container, .error, .help-block",
+      ))
+        .filter((element) => {
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0;
+        })
+        .map((element) =>
+          (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim(),
+        )
+        .filter(Boolean)
+        .slice(0, 6),
+    )
+    .catch(() => []);
+  if (requestFeedback.length > 0) {
+    diagnostics.push(
+      `indonesia_account_password_reset_feedback ${requestFeedback.join(" | ").slice(0, 400)}`,
+    );
+  }
+  await captureRegistrationArtifact(page, input, diagnostics);
+  const accountMayBeMissing = shouldRegisterIndonesiaAccountAfterPasswordResetFeedback(
+    requestFeedback,
+  );
+  if (requestFeedback.some((message) =>
+    /email.+(?:not found|not registered|invalid)|account.+(?:not found|not registered)|captcha.+(?:invalid|required|failed)/i.test(message)
+  )) {
+    diagnostics.push("indonesia_account_password_reset_request_rejected");
+    return "failed";
+  }
+
+  const resetLink = await waitForIndonesiaPasswordResetLink(
+    applicantId,
+    accountEmail,
+    requestedAt,
+    diagnostics,
+  );
+  if (!resetLink) {
+    if (accountMayBeMissing) {
+      diagnostics.push("indonesia_account_password_reset_missing_account_try_registration");
+      return "register";
+    }
+    return "failed";
+  }
+  if (resetLink.hostname.toLowerCase() !== "evisa.imigrasi.go.id") {
+    diagnostics.push("indonesia_account_password_reset_link_untrusted");
+    return "failed";
+  }
+  await page.goto(resetLink.toString(), {
+    waitUntil: "domcontentloaded",
+    timeout: input.timeoutMs ?? 60_000,
+  });
+  const passwordControls = page.locator("input[type='password']:visible");
+  if (!await passwordControls.first().isVisible({ timeout: 15_000 }).catch(() => false)) {
+    diagnostics.push("indonesia_account_password_reset_controls_not_ready");
+    await captureRegistrationArtifact(page, input, diagnostics);
+    return "failed";
+  }
+  const passwordCount = await passwordControls.count();
+  if (passwordCount < 2) {
+    diagnostics.push(`indonesia_account_password_reset_controls_incomplete count=${passwordCount}`);
+    await captureRegistrationArtifact(page, input, diagnostics);
+    return "failed";
+  }
+  await passwordControls.nth(0).fill(nextPassword);
+  await passwordControls.nth(1).fill(nextPassword);
+  await solveIndonesiaRecaptchaIfPresent(page, diagnostics, "password_reset_confirm").catch(
+    (error: unknown) => {
+      diagnostics.push(
+        `indonesia_recaptcha_password_reset_confirm_failed ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return false;
+    },
+  );
+  const resetSubmit = passwordControls
+    .first()
+    .locator("xpath=ancestor::form[1]")
+    .locator("button[type='submit'], input[type='submit']")
+    .filter({ visible: true })
+    .first();
+  if (!await resetSubmit.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    diagnostics.push("indonesia_account_password_reset_confirm_submit_not_found");
+    return "failed";
+  }
+  await resetSubmit.click({ timeout: 15_000 });
+  diagnostics.push("indonesia_account_password_reset_submitted");
+  await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+  await page.waitForTimeout(2_000);
+
+  if (!await reopenIndonesiaAccountLogin(page, input, diagnostics)) {
+    diagnostics.push("indonesia_account_password_reset_login_reopen_failed");
+    return "failed";
+  }
+  const verified = await continueFromAccountLogin(
+    page,
+    { ...input, accountPassword: nextPassword },
+    diagnostics,
+  );
+  if (!verified) {
+    diagnostics.push("indonesia_account_password_reset_login_verification_failed");
+    return "failed";
+  }
+  try {
+    await input.onAccountPasswordReset(nextPassword);
+  } catch (error) {
+    diagnostics.push(
+      `indonesia_account_password_reset_vault_write_failed ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return "failed";
+  }
+  diagnostics.push("indonesia_account_password_reset_completed");
+  return "completed";
 }
 
 async function continueFromAccountGate(
   page: Page,
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
+  preferLegacyAccountResume = false,
 ): Promise<boolean> {
+  const legacyResumeAttempted = shouldPreferLegacyIndonesiaAccountResume({
+    hasSavedApplicationUrl: preferLegacyAccountResume,
+    legacyAccountEmail: input.legacyAccountEmail,
+    legacyAccountPassword: input.legacyAccountPassword,
+  });
+  if (legacyResumeAttempted) {
+    diagnostics.push("indonesia_legacy_account_resume_started");
+    const legacyLoginCompleted = await continueFromAccountLogin(
+      page,
+      {
+        ...input,
+        accountEmail: input.legacyAccountEmail,
+        accountPassword: input.legacyAccountPassword,
+      },
+      diagnostics,
+    );
+    if (legacyLoginCompleted) {
+      diagnostics.push("indonesia_legacy_account_resume_completed");
+      return true;
+    }
+    diagnostics.push("indonesia_legacy_account_resume_failed_try_current_account");
+    await dismissIndonesiaDialogs(page, diagnostics);
+    if (!await reopenIndonesiaAccountLogin(page, input, diagnostics)) {
+      diagnostics.push("indonesia_official_account_recovery_required");
+      return false;
+    }
+    diagnostics.push("indonesia_current_account_fresh_login_started");
+  }
   if (await continueFromAccountLogin(page, input, diagnostics)) {
     return true;
+  }
+  const recovery = await recoverIndonesiaOfficialAccount(page, input, diagnostics);
+  if (recovery === "completed") return true;
+  if (recovery === "failed") {
+    diagnostics.push("indonesia_official_account_recovery_required");
+    return false;
+  }
+  const registrationAfterMissingRecoveryAccount = recovery === "register";
+  if (registrationAfterMissingRecoveryAccount) {
+    const registrationPassword = clean(input.accountRecoveryPassword);
+    if (!registrationPassword || !await reopenIndonesiaAccountLogin(page, input, diagnostics)) {
+      diagnostics.push("indonesia_official_account_recovery_required");
+      return false;
+    }
+    input.accountPassword = registrationPassword;
+    input.accountPasswordNeedsPersistence = true;
+    diagnostics.push("indonesia_account_registration_started_after_missing_reset_account");
+  }
+  if (legacyResumeAttempted && !registrationAfterMissingRecoveryAccount) {
+    // A saved draft tied to archived credentials cannot be resumed by silently
+    // registering the canonical alias again. A duplicate registration either
+    // returns `Email already used` or creates an unrelated official account.
+    diagnostics.push("indonesia_official_account_recovery_required");
+    return false;
   }
   const createAccountLink = page
     .getByRole("link", { name: /create account|register|sign up|daftar|buat akun/i })
@@ -1761,6 +2300,20 @@ async function continueFromAccountGate(
   return true;
 }
 
+export function shouldPreferLegacyIndonesiaAccountResume(input: {
+  hasSavedApplicationUrl: boolean;
+  legacyAccountEmail: string | null | undefined;
+  legacyAccountPassword: string | null | undefined;
+}): boolean {
+  return input.hasSavedApplicationUrl &&
+    Boolean(clean(input.legacyAccountEmail)) &&
+    Boolean(clean(input.legacyAccountPassword));
+}
+
+export function shouldResumeSavedIndonesiaApplicationAfterAccountGate(currentUrl: string): boolean {
+  return !/\/front\/register(?:\/|$)/i.test(currentUrl);
+}
+
 async function fillForeignerAccountRegistration(
   page: Page,
   input: IndonesiaPortalProbeInput,
@@ -1798,6 +2351,7 @@ async function fillForeignerAccountRegistration(
   if (registrationPhotoAssigned && !registrationPhotoReady) {
     registrationPhotoReady = await invokeIndonesiaOfficialPhotoUpload(
       page,
+      registration.photoImagePath ?? "",
       diagnostics,
       "indonesia_account_photo_upload_retry",
     );
@@ -1863,7 +2417,53 @@ async function fillForeignerAccountRegistration(
       diagnostics.push(`indonesia_recaptcha_account_registration_failed ${error instanceof Error ? error.message : String(error)}`);
       return false;
     });
+    const registrationResponsePromise = page.waitForResponse(
+      (response) => {
+        try {
+          const url = new URL(response.url());
+          return response.request().method() === "POST" &&
+            url.hostname.toLowerCase() === "evisa.imigrasi.go.id" &&
+            /\/front\/register(?:\/wna)?\b/i.test(url.pathname);
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 30_000 },
+    ).catch(() => null);
     await submit.click({ timeout: 15_000 });
+    const registrationResponse = await registrationResponsePromise;
+    if (registrationResponse) {
+      const responsePath = (() => {
+        try {
+          return new URL(registrationResponse.url()).pathname;
+        } catch {
+          return "unknown";
+        }
+      })();
+      diagnostics.push(
+        `indonesia_account_registration_response status=${registrationResponse.status()} path=${responsePath}`,
+      );
+      const contentType = registrationResponse.headers()["content-type"] ?? "unknown";
+      const responseText = await registrationResponse.text().catch(() => "");
+      if (/json|text/i.test(contentType) && responseText) {
+        const redacted = responseText
+          .replace(new RegExp(input.accountEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), "[managed-alias]")
+          .replace(/https?:\/\/[^\s"'<>]+/gi, "[url]")
+          .replace(/\b[A-Za-z0-9_-]{32,}\b/g, "[token]")
+          .replace(/\s+/g, " ")
+          .trim();
+        const messageMatch = redacted.match(
+          /.{0,100}(?:failed|error|invalid|already|captcha|required|success|berhasil|gagal).{0,220}/i,
+        );
+        if (messageMatch) {
+          diagnostics.push(
+            `indonesia_account_registration_response_message ${messageMatch[0].slice(0, 340)}`,
+          );
+        }
+      }
+    } else {
+      diagnostics.push("indonesia_account_registration_response_not_observed");
+    }
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(4_000);
     diagnostics.push("indonesia_account_registration_submitted");
@@ -1897,6 +2497,24 @@ async function fillForeignerAccountRegistration(
     if (invalidControls.length > 0) {
       diagnostics.push(`indonesia_account_registration_invalid_controls ${invalidControls.join(", ")}`);
     }
+    const invalidRequiredControls = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+          "input[required], select[required], textarea[required]",
+        ))
+          .filter((control) => !control.validity.valid)
+          .map((control) => ({
+            id: control.id || control.getAttribute("name") || control.tagName.toLowerCase(),
+            type: control instanceof HTMLInputElement ? control.type : control.tagName.toLowerCase(),
+            valueLength: String(control.value ?? "").length,
+            message: control.validationMessage.replace(/\s+/g, " ").slice(0, 120),
+          }))
+          .slice(0, 12),
+      )
+      .catch(() => []);
+    diagnostics.push(
+      `indonesia_account_registration_required_invalid ${JSON.stringify(invalidRequiredControls)}`.slice(0, 700),
+    );
     if (/\/front\/register\/wna/i.test(page.url())) {
       await captureRegistrationArtifact(page, input, diagnostics);
     }
@@ -1978,6 +2596,18 @@ async function continueFromApplicationStepOne(
     });
     return false;
   }
+  const applicantPassportFieldsReady = await fillIndonesiaApplicantAndPassportFieldsIfPresent(
+    page,
+    input,
+    diagnostics,
+  );
+  if (!applicantPassportFieldsReady) {
+    await input.onStage?.("step_1_applicant_passport_fields_not_ready", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    return false;
+  }
 
   await input.onStage?.("step_1_uploading_photo", {
     url: page.url(),
@@ -2001,6 +2631,7 @@ async function continueFromApplicationStepOne(
   if (!photoUploadReady) {
     photoUploadReady = await invokeIndonesiaOfficialPhotoUpload(
       page,
+      application.photoImagePath,
       diagnostics,
       "indonesia_step_1_photo_upload_retry",
     );
@@ -2157,11 +2788,62 @@ async function fillIndonesiaStayAndSupportFieldsIfPresent(
   touched = await fillIfPresent(page, "#email", input.accountEmail ?? application.email) || touched;
   touched = await fillIfPresent(page, "#email_confirmation", input.accountEmail ?? application.email) || touched;
   touched = await setFilesIfPresent(page, "#attachment-return_ticket", application.returnTicketPath) || touched;
+  const passportSupportPath = application.passportSupportPath ?? await makeImagePdf(
+    page,
+    application.passportImagePath,
+    diagnostics,
+  );
+  touched = await setFilesIfPresent(page, "#support-paspor", passportSupportPath) || touched;
   if (!isIndonesiaB1Input(input)) {
     touched = await setFilesIfPresent(page, "#attachment-C1-1", application.bankStatementPath) || touched;
   }
   if (touched) diagnostics.push(`${label}_stay_support_fields_filled`);
   return touched;
+}
+
+async function fillIndonesiaApplicantAndPassportFieldsIfPresent(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<boolean> {
+  const application = input.application;
+  if (!application) return false;
+
+  await fillIfPresent(page, "#full_name", application.fullName);
+  const gender = page.locator(genderSelector(application.gender)).first();
+  if (await gender.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await gender.check({ timeout: 5_000 }).catch(() => undefined);
+  }
+  await fillIfPresent(page, "#birth_place", application.birthPlace);
+  await setDateValue(page, "#birthday", application.dateOfBirth);
+  await fillIfPresent(page, "#mobile_phone", normalizeIndonesiaMobilePhone(application.mobilePhone));
+  await selectNativeOptionByText(
+    page,
+    "#document_travel_id",
+    documentTravelTypePattern(application.documentTravelType),
+  ).catch(() => undefined);
+  await fillIfPresent(page, "#number", application.passportNumber);
+  await setDateValue(page, "#release_date", application.passportIssueDate);
+  await setDateValue(page, "#expired_date", application.passportExpiryDate);
+  await fillIfPresent(
+    page,
+    "#release_place",
+    application.passportIssuingCountry ?? application.passportIssuePlace ?? application.passportCountry,
+  );
+
+  const missing = await page.evaluate(() => {
+    const requiredSelectors = ["#full_name", "#birth_place", "#birthday", "#number", "#expired_date", "#release_place"];
+    const empty = requiredSelectors.filter((selector) => {
+      const control = document.querySelector<HTMLInputElement>(selector);
+      return control && !control.value.trim();
+    });
+    if (document.querySelector("input[name='gender']") && !document.querySelector("input[name='gender']:checked")) {
+      empty.push("gender");
+    }
+    return empty;
+  }).catch(() => ["field_check_failed"]);
+  diagnostics.push(`indonesia_step_1_applicant_passport_fields_${missing.length === 0 ? "ready" : `missing ${missing.join(",")}`}`);
+  return missing.length === 0;
 }
 
 function hasIndonesiaStepOneValidationBlock(diagnostics: string[]): boolean {
@@ -2866,8 +3548,19 @@ function isReusableIndonesiaApplicationUrl(value: string | null | undefined): va
     /pay|payment|checkout/i.test(cleanUrl);
 }
 
+export function isIndonesiaSavedUrlSelectionEcho(value: string | null | undefined): boolean {
+  const normalized = clean(value)?.toLowerCase() ?? "";
+  return /^indonesia_existing_application_(?:saved_url_selected|redirecting_to_saved_url)\b/.test(normalized);
+}
+
+export const INDONESIA_SAVED_PORTAL_URL_HISTORY_LIMIT = 100;
+
 function collectIndonesiaPortalUrls(value: unknown, urls: string[] = []): string[] {
   if (typeof value === "string") {
+    // These diagnostics only repeat a URL chosen by an earlier run. Treating
+    // them as fresh evidence creates a feedback loop that can keep reviving an
+    // expired application even after a newer application reached payment.
+    if (isIndonesiaSavedUrlSelectionEcho(value)) return urls;
     const embedded = value.match(/https:\/\/evisa\.imigrasi\.go\.id\/[^\s"'<>]+/gi) ?? [];
     for (const candidate of embedded.length > 0 ? embedded : [value]) {
       const normalized = candidate.replace(/[).,;]+$/g, "");
@@ -2954,9 +3647,12 @@ async function findSavedIndonesiaApplicationUrl(
     .from("submission_queue")
     .select("official_portal_url, vn_result_payload, error_message, last_error, updated_at")
     .eq("application_id", applicationId)
-    .in("provider", ["indonesia_c1_live", "indonesia_b1_evoa_live"])
+    .eq("provider", input.provider)
     .order("updated_at", { ascending: false })
-    .limit(20);
+    // A heavily retried application can accumulate more than 20 terminal rows.
+    // Keep enough history to reach the last direct application/payment evidence
+    // after excluding saved-URL selection echoes from newer attempts.
+    .limit(INDONESIA_SAVED_PORTAL_URL_HISTORY_LIMIT);
   if (queue.error) {
     diagnostics.push(`indonesia_existing_application_queue_lookup_failed ${queue.error.message}`);
   } else {
@@ -3218,11 +3914,24 @@ async function continueFromApplicationStepThree(
   const count = await checkboxes.count().catch(() => 0);
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   const expectedPassportNumber = input.application?.passportNumber ?? input.registration?.passportNumber;
-  if (!isIndonesiaStepThreePassportReviewComplete({ bodyText, expectedPassportNumber, checkboxCount: count })) {
+  const reviewPassportNumber = await page
+    .locator("#number, input[name='passport_number']")
+    .first()
+    .inputValue({ timeout: 2_000 })
+    .catch(() => null);
+  if (!isIndonesiaStepThreePassportReviewComplete({
+    bodyText,
+    expectedPassportNumber,
+    reviewPassportNumber,
+    checkboxCount: count,
+  })) {
     diagnostics.push(
-      expectedPassportNumber && !bodyText.replace(/[^a-z0-9]/gi, "").toUpperCase().includes(
-        expectedPassportNumber.replace(/[^a-z0-9]/gi, "").toUpperCase(),
-      )
+      expectedPassportNumber &&
+        !bodyText.replace(/[^a-z0-9]/gi, "").toUpperCase().includes(
+          expectedPassportNumber.replace(/[^a-z0-9]/gi, "").toUpperCase(),
+        ) &&
+        reviewPassportNumber?.replace(/[^a-z0-9]/gi, "").toUpperCase() !==
+          expectedPassportNumber.replace(/[^a-z0-9]/gi, "").toUpperCase()
         ? "indonesia_step_3_review_passport_missing"
         : "indonesia_step_3_review_incomplete",
     );
@@ -3814,16 +4523,23 @@ async function reopenIndonesiaAccountLogin(
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
 ): Promise<boolean> {
-  let loginUrl: string;
-  try {
-    loginUrl = new URL("/front/login", page.url() || input.portalUrl).toString();
-  } catch {
-    diagnostics.push("indonesia_account_otp_login_recovery_url_failed");
-    return false;
-  }
   diagnostics.push("indonesia_account_otp_unresolved_reopening_login");
-  const navigated = await page
-    .goto(loginUrl, {
+  // The official portal keeps a pending OTP identity in its server session.
+  // Merely navigating back to /front/login can therefore render the OTP page
+  // again with hidden username/password controls. Start the canonical-account
+  // retry with a clean official-portal cookie session instead.
+  const cookiesCleared = await page.context().clearCookies()
+    .then(() => true)
+    .catch((error: unknown) => {
+      diagnostics.push(
+        `indonesia_account_login_cookie_reset_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180),
+      );
+      return false;
+    });
+  if (!cookiesCleared) return false;
+  diagnostics.push("indonesia_account_login_cookie_session_reset");
+  const portalOpened = await page
+    .goto(input.portalUrl, {
       waitUntil: "domcontentloaded",
       timeout: input.timeoutMs ?? 60_000,
     })
@@ -3834,7 +4550,34 @@ async function reopenIndonesiaAccountLogin(
       );
       return false;
     });
-  if (!navigated) return false;
+  if (!portalOpened) return false;
+  await page.waitForTimeout(1_500);
+  const loginEntry = page.locator('a[href*="/front/login"]:visible').first();
+  if (!await loginEntry.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    diagnostics.push("indonesia_account_login_entry_not_found_after_session_reset");
+    await captureRegistrationArtifact(page, input, diagnostics);
+    return false;
+  }
+  const loginHref = await loginEntry.getAttribute("href").catch(() => null);
+  if (!loginHref) {
+    diagnostics.push("indonesia_account_login_entry_missing_href_after_session_reset");
+    return false;
+  }
+  const loginUrl = new URL(loginHref, page.url()).toString();
+  const loginOpened = await page
+    .goto(loginUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: input.timeoutMs ?? 60_000,
+    })
+    .then(() => true)
+    .catch((error: unknown) => {
+      diagnostics.push(
+        `indonesia_account_login_entry_open_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180),
+      );
+      return false;
+    });
+  if (!loginOpened) return false;
+  diagnostics.push("indonesia_account_login_entry_opened_after_session_reset");
   await page.waitForTimeout(1_500);
   await dismissIndonesiaDialogs(page, diagnostics);
   return true;
@@ -4531,10 +5274,25 @@ export async function probeIndonesiaPortal(
     if (savedApplicationUrl) {
       session.diagnostics.push("indonesia_starting_from_saved_application_url");
     }
-    await page.goto(startUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: input.timeoutMs ?? 60_000,
-    });
+    try {
+      await page.goto(startUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: input.timeoutMs ?? 60_000,
+      });
+    } catch (error) {
+      if (!savedApplicationUrl) throw error;
+      session.diagnostics.push(
+        `indonesia_saved_application_initial_navigation_failed ${
+          error instanceof Error ? error.message : String(error)
+        }`.slice(0, 180),
+      );
+      savedApplicationUrl = null;
+      await page.goto(input.portalUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: input.timeoutMs ?? 60_000,
+      });
+      session.diagnostics.push("indonesia_saved_application_initial_navigation_recovered_from_portal_root");
+    }
     await page.waitForTimeout(1500);
     let title = await page.title().catch(() => null);
     let text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
@@ -4656,7 +5414,9 @@ export async function probeIndonesiaPortal(
             .or(page.getByRole("button", { name: /^apply$/i }))
             .first();
           if (await applyControl.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await applyControl.click({ timeout: 10_000 });
+            await applyControl.click({ timeout: 10_000, noWaitAfter: true });
+            await page.waitForURL(/\/(?:web|front)\/visa-selection/i, { timeout: 30_000 })
+              .catch(() => undefined);
             await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
             await page.waitForTimeout(1500);
             advanced = true;
@@ -4665,8 +5425,17 @@ export async function probeIndonesiaPortal(
       } else if (state === "visa_selection_visible" || /\/(?:web|front)\/visa-selection/i.test(url)) {
         advanced = await continueFromVisaSelection(page, input, session.diagnostics);
       } else if (state === "login_required" || state === "registration_required") {
-        advanced = await continueFromAccountGate(page, input, session.diagnostics);
-        if (advanced && savedApplicationUrl) {
+        advanced = await continueFromAccountGate(
+          page,
+          input,
+          session.diagnostics,
+          Boolean(savedApplicationUrl),
+        );
+        if (
+          advanced &&
+          savedApplicationUrl &&
+          shouldResumeSavedIndonesiaApplicationAfterAccountGate(page.url())
+        ) {
           session.diagnostics.push("indonesia_login_completed_returning_to_saved_url");
           await page.goto(savedApplicationUrl, { waitUntil: "domcontentloaded", timeout: input.timeoutMs ?? 60_000 })
             .catch(() => undefined);
@@ -4787,11 +5556,21 @@ export async function probeIndonesiaPortal(
 
     const paymentResultUnknown =
       hasUnconfirmedIndonesiaPaymentResult(session.diagnostics);
+    const accountRecoveryRequired = session.diagnostics.includes(
+      "indonesia_official_account_recovery_required",
+    );
     const action = paymentResultUnknown
       ? {
           actionType: "official_fee_payment_result_unknown",
           instruction:
             "The Indonesia payment result could not be confirmed. Reconcile this application on the official portal before authorizing or submitting another card payment.",
+          implementationStatus: "blocked" as const,
+        }
+      : accountRecoveryRequired
+      ? {
+          actionType: "official_account_recovery_required",
+          instruction:
+            "The Indonesia official portal rejected both the archived draft account and a fresh login with the current managed account. VIZA stopped before duplicate registration or government-fee payment. Recover or verify the official account credentials before retrying.",
           implementationStatus: "blocked" as const,
         }
       : postalValidationBlocked

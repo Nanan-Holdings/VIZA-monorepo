@@ -38,6 +38,7 @@ import {
 } from "@/components/dynamic-step-form";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
+import { FormFillingAssistant } from "@/components/client/form-assistant";
 import {
   saveDynamicAnswers,
   ensureDraftApplication,
@@ -54,6 +55,12 @@ import type {
   SubmissionResult,
   SubmissionResultStatus,
 } from "@/lib/submission-result";
+import type {
+  FormAssistantState,
+  FormAssistantTurnResponse,
+  FormAssistantValidationResponse,
+  FormAssistantTranscriptionResponse,
+} from "@/types/form-assistant";
 import {
   buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
@@ -1775,6 +1782,10 @@ export default function ApplicationPage() {
   const [forceDryRun, setForceDryRun] = useState(false);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
+  const [formAssistantState, setFormAssistantState] = useState<FormAssistantState | null>(null);
+  const [formAssistantBusy, setFormAssistantBusy] = useState(false);
+  const [formAssistantValidation, setFormAssistantValidation] = useState<FormAssistantValidationResponse | null>(null);
+  const [aiFilledFieldNames, setAiFilledFieldNames] = useState<string[]>([]);
   const [draftVersion, setDraftVersion] = useState(0);
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
@@ -1904,10 +1915,21 @@ export default function ApplicationPage() {
 
   const handleDynamicDraftChange = useCallback((stepId: number, data: Record<string, string>) => {
     dynamicDraftRef.current[stepId] = data;
+    const manuallyChangedAiFields = new Set(
+      Object.entries(data)
+        .filter(([fieldName, value]) =>
+          aiFilledFieldNames.includes(fieldName) && (dynamicAnswers[fieldName] ?? "") !== value,
+        )
+        .map(([fieldName]) => fieldName),
+    );
+    if (manuallyChangedAiFields.size > 0) {
+      setAiFilledFieldNames((current) => current.filter((fieldName) => !manuallyChangedAiFields.has(fieldName)));
+    }
     const hasChangedValue = Object.entries(data).some(
       ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
     );
     if (hasChangedValue) {
+      setFormAssistantValidation(null);
       setAutosaveFailed(false);
       setAutosaving(true);
     }
@@ -1918,7 +1940,7 @@ export default function ApplicationPage() {
       setDraftVersion((version) => version + 1);
     }, 120);
     setSubmitMissingFields([]);
-  }, [dynamicAnswers]);
+  }, [aiFilledFieldNames, dynamicAnswers]);
 
   useEffect(() => () => {
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
@@ -1948,6 +1970,48 @@ export default function ApplicationPage() {
   const isVietnamEVisa = isVietnamEVisaApplication(resolvedCountry, resolvedVisaType);
   const isVietnamPrearrival = isVietnamPrearrivalApplication(resolvedCountry, resolvedVisaType);
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
+  const showFormFillingAssistant = isSgArrivalCard && Boolean(appState.applicationId);
+
+  useEffect(() => {
+    const applicationId = appState.applicationId;
+    if (!isSgArrivalCard || !applicationId) {
+      setFormAssistantState(null);
+      setAiFilledFieldNames([]);
+      return;
+    }
+    const controller = new AbortController();
+    setFormAssistantBusy(true);
+    fetch(`/api/applications/${applicationId}/form-assistant?locale=${encodeURIComponent(locale)}`, {
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Form assistant returned ${response.status}`);
+        return response.json() as Promise<FormAssistantState>;
+      })
+      .then((state) => {
+        if (controller.signal.aborted) return;
+        const messages = state.messages.length > 0
+          ? state.messages
+          : [{
+              id: `assistant-initial-${state.sessionId}`,
+              role: "assistant" as const,
+              content: state.assistantMessage,
+              createdAt: new Date().toISOString(),
+            }];
+        setFormAssistantState({ ...state, messages });
+        setAiFilledFieldNames(state.aiFilledFieldNames);
+      })
+      .catch((assistantError) => {
+        if (!controller.signal.aborted) {
+          console.warn("Unable to load form assistant", assistantError);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setFormAssistantBusy(false);
+      });
+    return () => controller.abort();
+  }, [appState.applicationId, isSgArrivalCard, locale]);
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
   const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
@@ -2562,6 +2626,134 @@ export default function ApplicationPage() {
     setDynamicAnswers((prev) => ({ ...prev, ...mergedDraft }));
     setSubmitMissingFields([]);
   }, [dynamicAnswers, ensureWritableApplicationId]);
+
+  const handleFormAssistantSend = useCallback(async (text: string) => {
+    const applicationId = appState.applicationId;
+    if (!applicationId) throw new Error(t("errors.noApplicationFound"));
+    setFormAssistantBusy(true);
+    setFormAssistantValidation(null);
+    try {
+      await saveAllDynamicDrafts();
+      const response = await fetch(`/api/applications/${applicationId}/form-assistant/turn`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          locale,
+          inputMode: "text",
+          idempotencyKey: crypto.randomUUID(),
+        }),
+      });
+      const payload = await response.json() as FormAssistantTurnResponse & { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Form assistant request failed");
+
+      if (payload.appliedPatches.length > 0) {
+        const patch = Object.fromEntries(payload.appliedPatches.map((item) => [item.fieldName, item.value]));
+        for (const item of payload.appliedPatches) {
+          const stepIndex = dbSteps.findIndex((step) =>
+            step.fields.some((field) => field.fieldName === item.fieldName),
+          );
+          if (stepIndex >= 0) {
+            dynamicDraftRef.current[stepIndex] = {
+              ...(dynamicDraftRef.current[stepIndex] ?? {}),
+              [item.fieldName]: item.value,
+            };
+          }
+        }
+        setDynamicAnswers((current) => ({ ...current, ...patch }));
+        setAiFilledFieldNames((current) => Array.from(new Set([
+          ...current,
+          ...payload.appliedPatches.map((item) => item.fieldName),
+        ])));
+      }
+      const now = new Date().toISOString();
+      setFormAssistantState((current) => current ? {
+        ...current,
+        ...payload,
+        messages: [
+          ...current.messages,
+          { id: `user-${crypto.randomUUID()}`, role: "user", content: text, createdAt: now },
+          { id: `assistant-${crypto.randomUUID()}`, role: "assistant", content: payload.assistantMessage, createdAt: now },
+        ],
+        aiFilledFieldNames: Array.from(new Set([
+          ...current.aiFilledFieldNames,
+          ...payload.appliedPatches.map((item) => item.fieldName),
+        ])),
+      } : current);
+    } finally {
+      setFormAssistantBusy(false);
+    }
+  }, [appState.applicationId, dbSteps, locale, saveAllDynamicDrafts, t]);
+
+  const handleFormAssistantTranscribe = useCallback(async (file: File): Promise<FormAssistantTranscriptionResponse> => {
+    const applicationId = appState.applicationId;
+    if (!applicationId) throw new Error(t("errors.noApplicationFound"));
+    const formData = new FormData();
+    formData.append("audio", file);
+    formData.append("language", locale);
+    const response = await fetch(`/api/applications/${applicationId}/form-assistant/transcribe`, {
+      method: "POST",
+      body: formData,
+    });
+    const payload = await response.json() as FormAssistantTranscriptionResponse & { error?: string };
+    if (!response.ok) throw new Error(payload.error ?? "Transcription failed");
+    return payload;
+  }, [appState.applicationId, locale, t]);
+
+  const handleFormAssistantValidate = useCallback(async () => {
+    const applicationId = appState.applicationId;
+    if (!applicationId) throw new Error(t("errors.noApplicationFound"));
+    setFormAssistantBusy(true);
+    try {
+      await saveAllDynamicDrafts();
+      const response = await fetch(`/api/applications/${applicationId}/form-assistant/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale }),
+      });
+      const payload = await response.json() as FormAssistantValidationResponse & { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Validation failed");
+      setFormAssistantValidation(payload);
+    } finally {
+      setFormAssistantBusy(false);
+    }
+  }, [appState.applicationId, locale, saveAllDynamicDrafts, t]);
+
+  const handleFormAssistantAcknowledgeWarnings = useCallback(async () => {
+    const applicationId = appState.applicationId;
+    if (!applicationId || !formAssistantValidation) return;
+    setFormAssistantBusy(true);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/form-assistant/acknowledge-warnings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          validationId: formAssistantValidation.validationId,
+          warningCodes: formAssistantValidation.warnings.map((warning) => warning.code),
+        }),
+      });
+      const payload = await response.json() as { canReview?: boolean; error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Warning acknowledgement failed");
+      setFormAssistantValidation((current) => current ? { ...current, canReview: true } : current);
+    } finally {
+      setFormAssistantBusy(false);
+    }
+  }, [appState.applicationId, formAssistantValidation]);
+
+  const handleFormAssistantGoToField = useCallback((fieldName: string) => {
+    const stepIndex = dbSteps.findIndex((step) =>
+      step.fields.some((field) => field.fieldName === fieldName),
+    );
+    if (stepIndex >= 0) scrollToStepPanel(stepIndex);
+  }, [dbSteps, scrollToStepPanel]);
+
+  const handleFormAssistantGoToReview = useCallback(() => {
+    if (!formAssistantValidation?.canReview) return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("step", "review");
+    router.replace(`?${next.toString()}`, { scroll: false });
+    scrollToStepPanel(reviewStepIndex);
+  }, [formAssistantValidation?.canReview, reviewStepIndex, router, scrollToStepPanel, searchParams]);
 
   useEffect(() => {
     if (!useDynamic || loading || draftVersion === 0) return;
@@ -3599,6 +3791,45 @@ export default function ApplicationPage() {
             </h1>
           </header>
 
+          {showFormFillingAssistant ? (
+            <FormFillingAssistant
+              key={appState.applicationId}
+              applicationId={appState.applicationId!}
+              locale={locale}
+              isZh={isZhInterface}
+              progress={formAssistantState?.progress ?? { completed: 0, total: 0 }}
+              messages={formAssistantState?.messages ?? []}
+              missingFields={(formAssistantState?.missingFields ?? []).map((field) => ({
+                fieldName: field.fieldName,
+                label: field.label,
+                required: true,
+                section: field.stepName,
+              }))}
+              aiFilledFieldNames={aiFilledFieldNames}
+              loading={formAssistantBusy}
+              validationResult={formAssistantValidation ? {
+                errors: formAssistantValidation.errors.map((issue) => ({
+                  id: issue.code,
+                  fieldName: issue.fieldNames[0],
+                  message: issue.message,
+                })),
+                warnings: formAssistantValidation.warnings.map((issue) => ({
+                  id: issue.code,
+                  fieldName: issue.fieldNames[0],
+                  message: issue.message,
+                })),
+                warningsAcknowledged: formAssistantValidation.canReview,
+              } : null}
+              onSend={handleFormAssistantSend}
+              onTranscribe={handleFormAssistantTranscribe}
+              onValidate={handleFormAssistantValidate}
+              onAcknowledgeWarnings={handleFormAssistantAcknowledgeWarnings}
+              onGoToField={handleFormAssistantGoToField}
+              onGoToReview={handleFormAssistantGoToReview}
+              className="mb-5"
+            />
+          ) : null}
+
           {/* Mobile step indicator */}
           {useDynamic ? (
             <GroupedMobileStepBar
@@ -3671,6 +3902,7 @@ export default function ApplicationPage() {
                             visaType={activeVisaType}
                             externallyHandledFieldNames={passportUploadHandledFields}
                             invalidFieldNames={invalidFieldNamesByStep.get(step.id)}
+                            aiFilledFieldNames={new Set(aiFilledFieldNames)}
                           />
                         )}
 
