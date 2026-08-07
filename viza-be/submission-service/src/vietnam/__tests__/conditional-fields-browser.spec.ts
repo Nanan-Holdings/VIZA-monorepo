@@ -1255,6 +1255,7 @@ test("vn.upload browser: a verified PNG downloaded as .bin is uploaded with an a
 
     await uploadVietnamFile(page, "basic_anhMat", filePath, "portrait_photo");
     assert.match(multipartBody, /filename="portrait_photo-vietnam-upload\.jpg"/);
+    assert.match(multipartBody, /Content-Type: image\/jpeg/i);
     assert.equal(
       vietnamMultipartContainsFilename(
         Buffer.from(multipartBody, "latin1"),
