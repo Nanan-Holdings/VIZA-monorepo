@@ -57,8 +57,8 @@ describe("buildAssistantState", () => {
       locale: "zh",
     });
 
-    expect(state.assistantMessage).toContain("抵达日期");
-    expect(state.assistantMessage).not.toContain("离开新加坡日期");
+    expect(state.assistantMessage).toContain("计划哪一天抵达新加坡");
+    expect(state.assistantMessage).not.toContain("离开新加坡");
     expect(state.missingFields).toHaveLength(2);
   });
 
@@ -76,8 +76,30 @@ describe("buildAssistantState", () => {
       locale: "en",
     });
 
-    expect(state.assistantMessage).toContain("Arrival date");
-    expect(state.assistantMessage).not.toContain("Departure date");
+    expect(state.assistantMessage).toContain("arrive in Singapore");
+    expect(state.assistantMessage).not.toContain("leave Singapore");
+  });
+
+  it("asks select questions in warm, conversational language", () => {
+    const modeField: VisaFormFieldRow = {
+      ...field("mode_of_travel", "Mode of travel", "交通方式"),
+      fieldType: "select",
+      options: [
+        { value: "air", text: "Air", label_zh: "航空" },
+        { value: "land", text: "Land", label_zh: "陆路" },
+        { value: "sea", text: "Sea", label_zh: "海路" },
+      ],
+    };
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      steps: [{ stepNumber: 1, stepName: "Trip details", fields: [modeField] }],
+      answers: {},
+      messages: [],
+      locale: "zh",
+    });
+
+    expect(state.assistantMessage).toBe("你准备通过什么交通方式前往新加坡？是航空、陆路还是海路？");
+    expect(state.assistantMessage).not.toContain("我们一次填写一项");
   });
 });
 
@@ -130,6 +152,34 @@ describe("parseDirectCurrentFieldAnswer", () => {
       { value: "sea", text: "Sea", label_zh: "海路", label_en: "Sea" },
     ],
   };
+  const lastCityField: VisaFormFieldRow = {
+    ...field(
+      "last_city_or_port_before_singapore",
+      "Last city or port before Singapore",
+      "抵达新加坡前最后登程城市 / 港口",
+    ),
+    fieldType: "select",
+    options: [
+      ...Array.from({ length: 299 }, (_, index) => ({
+        value: `PLACE_${index}`,
+        text: `PLACE ${index}`,
+        label_zh: `地点 ${index}`,
+        label_en: `PLACE ${index}`,
+      })),
+      {
+        value: "CHINA, HUNAN, CHANGSHA",
+        text: "CHINA, HUNAN, CHANGSHA",
+        label_zh: "中国，湖南，长沙",
+        label_en: "CHINA, HUNAN, CHANGSHA",
+      },
+      {
+        value: "CHINA, HUNAN, OTHERS IN HUNAN PROVINCE",
+        text: "CHINA, HUNAN, OTHERS IN HUNAN PROVINCE",
+        label_zh: "中国，湖南，湖南省其他地区",
+        label_en: "CHINA, HUNAN, OTHERS IN HUNAN PROVINCE",
+      },
+    ],
+  };
 
   it.each([
     ["明天", "2026-08-08"],
@@ -170,5 +220,21 @@ describe("parseDirectCurrentFieldAnswer", () => {
       confidence: "high",
       modelSource: "deterministic",
     });
+  });
+
+  it.each(["长沙", "我从长沙搭飞机前往新加坡", "Changsha", "I will fly from Changsha"])(
+    "maps the natural-language city answer %s beyond the model option slice",
+    (answer) => {
+      expect(parseDirectCurrentFieldAnswer(answer, lastCityField)).toEqual({
+        fieldName: "last_city_or_port_before_singapore",
+        value: "CHINA, HUNAN, CHANGSHA",
+        confidence: "high",
+        modelSource: "deterministic",
+      });
+    },
+  );
+
+  it("does not guess when a province matches multiple official city options", () => {
+    expect(parseDirectCurrentFieldAnswer("湖南", lastCityField)).toBeNull();
   });
 });
