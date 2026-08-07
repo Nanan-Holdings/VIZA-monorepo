@@ -15,6 +15,7 @@ import {
   collectVietnamReviewActionCandidates,
   isVietnamUploadResponseAccepted,
   uploadVietnamFile,
+  vietnamMultipartContainsFilename,
 } from "../run.js";
 
 test("vn.conditional-fields browser: clicking Yes fills the revealed prior-visit table", async () => {
@@ -1225,11 +1226,14 @@ test("vn.upload browser: a verified PNG downloaded as .bin is uploaded with an a
   try {
     await page.route(uploadUrl, (route) => {
       multipartBody = route.request().postDataBuffer()?.toString("latin1") ?? "";
+      const isDistractor = multipartBody.includes('filename="unrelated.jpg"');
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         headers: { "access-control-allow-origin": "*" },
-        body: JSON.stringify({ code: "200", message: "Thành công", data: { url: "/fixture.png" } }),
+        body: isDistractor
+          ? JSON.stringify({ code: "400", message: "unrelated upload rejected", data: null })
+          : JSON.stringify({ code: "200", message: "Thành công", data: { url: "/fixture.jpg" } }),
       });
     });
     await page.setContent(`
@@ -1239,6 +1243,9 @@ test("vn.upload browser: a verified PNG downloaded as .bin is uploaded with an a
       </div>
       <script>
         document.querySelector('#basic_anhMat').addEventListener('change', async (event) => {
+          const distractor = new FormData();
+          distractor.append('file', new File(['not-an-image'], 'unrelated.jpg', { type: 'image/jpeg' }));
+          await fetch('${uploadUrl}', { method: 'POST', body: distractor });
           const body = new FormData();
           body.append('file', event.target.files[0]);
           await fetch('${uploadUrl}', { method: 'POST', body });
@@ -1247,7 +1254,14 @@ test("vn.upload browser: a verified PNG downloaded as .bin is uploaded with an a
     `);
 
     await uploadVietnamFile(page, "basic_anhMat", filePath, "portrait_photo");
-    assert.match(multipartBody, /filename="portrait_photo-vietnam-upload\.png"/);
+    assert.match(multipartBody, /filename="portrait_photo-vietnam-upload\.jpg"/);
+    assert.equal(
+      vietnamMultipartContainsFilename(
+        Buffer.from(multipartBody, "latin1"),
+        "portrait_photo-vietnam-upload.jpg",
+      ),
+      true,
+    );
   } finally {
     await browser.close();
     rmSync(tempDir, { recursive: true, force: true });
@@ -1293,6 +1307,7 @@ test("vn.upload browser: official JSON success is accepted when the portal repla
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
 test("vn.upload browser: official 4xx is never accepted from local input preview", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();

@@ -1577,9 +1577,14 @@ export async function uploadVietnamFile(
       : (await byId.count().catch(() => 0)) > 0
         ? byId
         : page.locator('input[type="file"]').nth(uploadIndex);
+  const expectedUploadFilename = path.basename(uploadPath);
   const officialUploadResponse = page.waitForResponse(
     (response) =>
-      isVietnamPublicUploadRequest(response.request().method(), response.url()),
+      isVietnamPublicUploadRequest(response.request().method(), response.url()) &&
+      vietnamMultipartContainsFilename(
+        response.request().postDataBuffer(),
+        expectedUploadFilename,
+      ),
     { timeout: 30_000 },
   );
   await fileInput.setInputFiles(uploadPath, { timeout: 20_000 });
@@ -1598,6 +1603,10 @@ export async function uploadVietnamFile(
     responseBody,
   );
   if (responseAccepted === false) {
+    const diagnostic = summarizeVietnamUploadResponse(responseBody);
+    console.warn(
+      `[vn] official upload rejected field=${fieldName} code=${diagnostic.code} message=${diagnostic.message}`,
+    );
     throw new Error("official_document_upload_rejected_payload");
   }
   if (responseAccepted === true) return;
@@ -1609,6 +1618,37 @@ export async function uploadVietnamFile(
   // merely because the local file input contains a File object.
   if (!previewAccepted) {
     throw new Error("official_document_upload_preview_missing");
+  }
+}
+
+export function vietnamMultipartContainsFilename(
+  body: Buffer | null,
+  expectedFilename: string,
+): boolean {
+  if (!body || !expectedFilename) return false;
+  const multipartHeaders = body.subarray(0, Math.min(body.length, 16_384)).toString("latin1");
+  const quotedFilenames = Array.from(
+    multipartHeaders.matchAll(/filename="([^"]+)"/gi),
+    (match) => match[1],
+  );
+  return quotedFilenames.some((filename) => path.basename(filename) === expectedFilename);
+}
+
+function summarizeVietnamUploadResponse(rawBody: string): { code: string; message: string } {
+  try {
+    const payload = JSON.parse(rawBody) as Record<string, unknown>;
+    const code = String(payload.code ?? payload.status ?? "unknown")
+      .replace(/[^a-z0-9_-]/gi, "")
+      .slice(0, 24) || "unknown";
+    const message = String(payload.message ?? payload.error ?? "rejected")
+      .replace(/[\r\n\t]+/g, " ")
+      .replace(/https?:\/\/\S+/gi, "[url]")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 160) || "rejected";
+    return { code, message };
+  } catch {
+    return { code: "unknown", message: "unparseable_response" };
   }
 }
 
@@ -1666,27 +1706,6 @@ async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName
     throw new Error("official_document_upload_unsupported_file_type");
   }
 
-  if (stat.size <= maxBytes && detectedType !== "webp") {
-    const expectedExtension = detectedType === "png" ? ".png" : ".jpg";
-    const currentExtension = path.extname(localPath).toLowerCase();
-    const currentExtensionMatches =
-      detectedType === "png"
-        ? currentExtension === ".png"
-        : currentExtension === ".jpg" || currentExtension === ".jpeg";
-    if (currentExtensionMatches) return localPath;
-
-    // Supabase documents can have a null filename and are then downloaded as
-    // `<document_type>.bin`. The official portal validates the multipart
-    // filename instead of only inspecting the bytes, so give verified JPEG or
-    // PNG content a deterministic accepted extension before setInputFiles().
-    const normalizedPath = path.join(
-      path.dirname(localPath),
-      `${fieldName}-vietnam-upload${expectedExtension}`,
-    );
-    fs.copyFileSync(localPath, normalizedPath);
-    return normalizedPath;
-  }
-
   const sourceBase64 = source.toString("base64");
   const mimeType =
     detectedType === "png"
@@ -1694,6 +1713,7 @@ async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName
       : detectedType === "webp"
         ? "image/webp"
         : "image/jpeg";
+  await page.evaluate("window.__name = window.__name || ((fn) => fn)");
   const compressed = await page.evaluate(
     async ({ sourceBase64, mimeType, maxBytes, fieldName }) => {
       const loadImage = (src: string) =>
@@ -1711,6 +1731,8 @@ async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName
       canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
       const context = canvas.getContext("2d");
       if (!context) throw new Error("canvas_context_unavailable");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
       for (const quality of [0.86, 0.78, 0.7, 0.62, 0.54, 0.46]) {
         const dataUrl = canvas.toDataURL("image/jpeg", quality);
@@ -1726,7 +1748,7 @@ async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName
   );
   const outputPath = path.join(
     path.dirname(localPath),
-    `${path.basename(localPath, path.extname(localPath))}-vietnam-upload.jpg`,
+    `${fieldName}-vietnam-upload.jpg`,
   );
   fs.writeFileSync(outputPath, Buffer.from(compressed.base64, "base64"));
   console.log(
