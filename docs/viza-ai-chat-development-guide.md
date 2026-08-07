@@ -23,6 +23,9 @@
 - `viza-fe/internal-website/components/client/companion/block-message.tsx`  
   AI 发出 application redirect block 时，渲染跳转到 `/client/application` 的 CTA。VIZA chat 不在对话里收集申请表字段。
 
+- `viza-fe/internal-website/app/client/chat/legacy-application-blocks.ts`
+  兼容早期只保存文字申请链接、没有保存 `role='block'` 的历史消息；识别到旧的新加坡电子入境卡办理链接时，补成 VIZA 表单卡片并去重。
+
 - `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`  
   `Travel AI` tab 嵌入的旅行规划主组件。
 
@@ -381,6 +384,9 @@ VIZA chat now uses two independent persisted layers:
 - `visa_chat_sessions.memory_json` stores versioned per-chat passport and trip
   state. `memory_revision` is required for optimistic concurrency; user edits
   and streamed assistant updates must emit/consume `visa_memory_updated`.
+- The authenticated chat page no longer renders or loads the editable memory
+  summary. Structured state remains backend-only context and ordinary chat
+  history is unchanged.
 - Confirmed account identity remains in `applicant_profiles`. A new chat may
   initialize passport nationality from the profile, but trip destination,
   purpose, days and Schengen routing are never copied from an old chat.
