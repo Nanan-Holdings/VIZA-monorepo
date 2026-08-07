@@ -60,8 +60,8 @@ export const VN_PREARRIVAL_FORM_FIELDS: VnPrearrivalFieldDef[] = [
   { field_name: "passport_number", label: "Passport Number", field_type: "text", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 3, validation_rules: rules("护照号码", { official: true, maxLength: 32 }) },
   { field_name: "passport_expiry_date", label: "Date of Expiry (DD/MM/YYYY)", field_type: "date", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 4, validation_rules: rules("护照有效期至（DD/MM/YYYY）", { official: true }) },
   { field_name: "gender", label: "Gender", field_type: "radio", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 5, options: VN_PREARRIVAL_GENDER_OPTIONS, validation_rules: rules("性别", { official: true }) },
-  { field_name: "surname", label: "Surname", field_type: "text", required: false, step_number: 1, step_name: PASSENGER_STEP, display_order: 6, validation_rules: rules("姓", { official: true, maxLength: 80 }) },
-  { field_name: "given_name", label: "Given Name", field_type: "text", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 7, validation_rules: rules("名", { official: true, maxLength: 80 }) },
+  { field_name: "surname", label: "Surname", field_type: "text", required: false, step_number: 1, step_name: PASSENGER_STEP, display_order: 6, validation_rules: rules("姓氏（按护照）", { official: true, maxLength: 80 }) },
+  { field_name: "given_name", label: "Given Name", field_type: "text", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 7, validation_rules: rules("名字（按护照）", { official: true, maxLength: 80 }) },
   { field_name: "date_of_birth", label: "Date of Birth (DD/MM/YYYY)", field_type: "date", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 8, validation_rules: rules("出生日期（DD/MM/YYYY）", { official: true }) },
   { field_name: "nationality", label: "Nationality", field_type: "country", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 9, validation_rules: rules("国籍", { official: true, official_source: "prearrival_category:nationality" }) },
   { field_name: "phone_country_code", label: "Country Code", field_type: "select", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 10, validation_rules: rules("电话国家 / 地区代码", { official: true, official_source: "prearrival_category:country_code", remote_search: true }) },
@@ -92,11 +92,11 @@ export const VN_PREARRIVAL_FORM_FIELDS: VnPrearrivalFieldDef[] = [
     validation_rules: rules("我已阅读并理解此信息", {
       official: true,
       official_gate: "visa_information",
-      helper_zh: "提供您的越南签证信息（如适用）。注意：所选签证类型决定您允许入境的期限。重要提示：请输入签证编号以便机场使用该服务。",
+      helper_zh: "请提供越南签证信息（如适用）。所选签证类型决定允许入境的期限；请填写签证编号，以便在机场使用该服务。",
       helper_en: "Provide details of your Vietnam visa (if applicable). Note: The selected visa type determines your permitted entry period. Important: Please enter your visa number to enable the service at the airport.",
     }),
   },
-  { field_name: "visa_type", label: "Visa Type / Purpose", field_type: "select", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 14, options: VN_PREARRIVAL_VISA_TYPE_OPTIONS, validation_rules: rules("签证类型 / 目的", { official: true, official_source: "prearrival_category:visa_type" }) },
+  { field_name: "visa_type", label: "Visa Type / Purpose", field_type: "select", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 14, options: VN_PREARRIVAL_VISA_TYPE_OPTIONS, validation_rules: rules("签证类型/入境目的", { official: true, official_source: "prearrival_category:visa_type" }) },
   {
     field_name: "visa_number",
     label: "Number",
@@ -106,7 +106,7 @@ export const VN_PREARRIVAL_FORM_FIELDS: VnPrearrivalFieldDef[] = [
     step_name: PASSENGER_STEP,
     display_order: 15,
     conditional_logic: showIf(VISA_CREDENTIALS_REQUIRED_EXPRESSION),
-    validation_rules: rules("编号", {
+    validation_rules: rules("签证号码/编号", {
       official: true,
       maxLength: 64,
       required_unless: VISA_CREDENTIALS_OPTIONAL_EXPRESSION,
@@ -153,7 +153,7 @@ export const VN_PREARRIVAL_FORM_FIELDS: VnPrearrivalFieldDef[] = [
     validation_rules: rules("手动填写航班号", {
       official: true,
       maxLength: 40,
-      helper_zh: "仅当官网航班列表中没有你的航班时填写。",
+      helper_zh: "仅当官方航班列表中找不到您的航班时填写。",
       helper_en: "Enter this only when your flight is not available in the official list.",
     }),
   },
@@ -176,7 +176,7 @@ export const VN_PREARRIVAL_FORM_FIELDS: VnPrearrivalFieldDef[] = [
       editable_when_value: "other",
     }),
   },
-  { field_name: "vehicle_identification_number", label: "Vehicle identification number", field_type: "text", required: true, step_number: 2, step_name: TRIP_STEP, display_order: 7, conditional_logic: showIf("mode_of_travel !== air"), validation_rules: rules("交通工具识别编号", { official: true, maxLength: 40 }) },
+  { field_name: "vehicle_identification_number", label: "Vehicle identification number", field_type: "text", required: true, step_number: 2, step_name: TRIP_STEP, display_order: 7, conditional_logic: showIf("mode_of_travel !== air"), validation_rules: rules("车辆/船舶识别编号", { official: true, maxLength: 40 }) },
   { field_name: "land_border_gate", label: "Border Gate", field_type: "select", required: true, step_number: 2, step_name: TRIP_STEP, display_order: 8, options: VN_PREARRIVAL_BORDER_GATE_OPTIONS, conditional_logic: showIf("mode_of_travel === land"), validation_rules: rules("陆路口岸", { official: true, official_source: "prearrival_category:border_gate" }) },
   { field_name: "sea_port", label: "Border Gate", field_type: "select", required: true, step_number: 2, step_name: TRIP_STEP, display_order: 9, options: VN_PREARRIVAL_PORT_OPTIONS, conditional_logic: showIf("mode_of_travel === sea"), validation_rules: rules("海港口岸", { official: true, official_source: "prearrival_category:port" }) },
   { field_name: "accommodation_type", label: "Type of Accommodation in Vietnam", field_type: "radio", required: true, step_number: 2, step_name: TRIP_STEP, display_order: 10, options: VN_PREARRIVAL_ACCOMMODATION_OPTIONS, validation_rules: rules("在越南住宿类型", { official: true }) },
@@ -196,7 +196,7 @@ export const VN_PREARRIVAL_FORM_FIELDS: VnPrearrivalFieldDef[] = [
     validation_rules: rules("其他住宿地址", {
       official: true,
       maxLength: 300,
-      helper_zh: "仅当官网酒店列表中没有你的住宿地址时填写。",
+      helper_zh: "仅当官方酒店列表中找不到您的住宿地址时填写。",
       helper_en: "Enter this only when your accommodation is not available in the official hotel list.",
     }),
   },
@@ -212,6 +212,6 @@ export const VN_PREARRIVAL_FORM_FIELDS: VnPrearrivalFieldDef[] = [
     step_number: 3,
     step_name: REVIEW_STEP,
     display_order: 1,
-    validation_rules: rules("我确认信息正确", { official: true }),
+    validation_rules: rules("我确认以上信息真实、准确且完整", { official: true }),
   },
 ];
