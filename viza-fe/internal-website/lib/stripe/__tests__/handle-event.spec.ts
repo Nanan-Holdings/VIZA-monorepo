@@ -106,6 +106,25 @@ test("checkout.session.completed without payment_status=paid is ignored", async 
   assert.equal(updates.length, 0);
 });
 
+test("a delayed paid event does not revive a refunded order", async () => {
+  const { client, updates, selectStubs } = fakeAdmin();
+  selectStubs.set("order|id=ord_123", { status: "refunded" });
+  const result = await applyStripeEvent(client as never, {
+    id: "evt_delayed_paid",
+    type: "checkout.session.completed",
+    data: {
+      object: {
+        id: "cs_test_abc",
+        payment_status: "paid",
+        payment_intent: "pi_test_xyz",
+        metadata: { order_id: "ord_123" },
+      },
+    },
+  });
+  assert.deepEqual(result, { kind: "ignored", type: "checkout.session.completed" });
+  assert.equal(updates.length, 0);
+});
+
 test("charge.refunded marks order refunded", async () => {
   const { client, updates, selectStubs } = fakeAdmin();
   selectStubs.set(

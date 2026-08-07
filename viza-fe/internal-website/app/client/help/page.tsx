@@ -74,14 +74,6 @@ function GuidesSection() {
       ],
     },
     {
-      title: t("guides.usingCredits.title"),
-      items: [
-        { label: t("guides.usingCredits.whereApply"), href: "/client/help/using-your-credits/where-credits-apply" },
-        { label: t("guides.usingCredits.expiration"), href: "/client/help/using-your-credits/expiration-rules" },
-        { label: t("guides.usingCredits.troubleshooting"), href: "/client/help/using-your-credits/troubleshooting" },
-      ],
-    },
-    {
       title: t("guides.privacy.title"),
       items: [
         { label: t("guides.privacy.dataUsage"), href: "/client/help/privacy-and-security/data-usage" },
@@ -141,7 +133,7 @@ function FAQSection() {
   const t = useTranslations("help");
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
-  const FAQ_KEYS = ["resetPassword", "seeCredits", "referrals", "bookBloodTest", "labResults", "updateInfo", "updatePayment", "cancelReschedule", "dataPrivate", "contactSupport"] as const;
+  const FAQ_KEYS = ["resetPassword", "referrals", "updateInfo", "updatePayment", "dataPrivate", "contactSupport"] as const;
   const faqs = FAQ_KEYS.map(key => ({
     question: t(`faqs.${key}.question`),
     answer: t(`faqs.${key}.answer`),

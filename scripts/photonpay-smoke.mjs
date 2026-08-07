@@ -12,7 +12,7 @@
  * Usage:
  *   PHOTONPAY_APP_ID=... PHOTONPAY_APP_SECRET=... \
  *   PHOTONPAY_PRIVATE_KEY_PATH=.secrets/photonpay/merchant_private_pkcs8.pem \
- *   node scripts/photonpay-smoke.mjs [--env sandbox|prod]
+ *   node scripts/photonpay-smoke.mjs [--env uat|sandbox|prod]
  *
  * Exits 0 when everything passes, 1 otherwise.
  */
@@ -20,20 +20,15 @@ import { readFileSync } from 'node:fs';
 import { createSign } from 'node:crypto';
 
 const ENVS = {
-  // Test environment as of 2026-07-24: no merchant IP allowlist, accounts and
-  // history carried over from the retired x-api1.uat.photontech.cc host.
+  // UAT host documented in PhotonPay's current API documentation.
+  uat: 'https://x-api1.uat.photontech.cc',
+  // Retained for environments that explicitly provide this separate sandbox host.
   sandbox: 'https://x-api.sandbox.photontech.cc',
   prod: 'https://x-api.photonpay.com',
 };
 
-/** Hosts PhotonPay has decommissioned — fail loudly instead of hanging. */
-const RETIRED = {
-  uat: 'https://x-api1.uat.photontech.cc (retired 2026-07-24 — use --env sandbox)',
-};
-
 // Accept both `--env x` and `--env=x`. Matching only the spaced form would let
-// `--env=uat` fall through to the default and quietly skip the RETIRED guard
-// below — a silent wrong-environment run is exactly what that guard exists for.
+// `--env=uat` fall through to the default and silently test the wrong host.
 // Default to sandbox: an accidental bare run must not talk to production.
 const envArg = (() => {
   const args = process.argv.slice(2);
@@ -42,10 +37,6 @@ const envArg = (() => {
   const inline = args[i].startsWith('--env=') ? args[i].slice('--env='.length) : args[i + 1];
   return (inline ?? '').trim() || 'sandbox';
 })();
-if (RETIRED[envArg]) {
-  console.error(`--env "${envArg}" points at a decommissioned host: ${RETIRED[envArg]}`);
-  process.exit(1);
-}
 const BASE = ENVS[envArg];
 if (!BASE) {
   console.error(`Unknown --env "${envArg}" (use ${Object.keys(ENVS).join('|')})`);

@@ -12,6 +12,14 @@ import type {
   UkSubmissionResult,
   VnSubmissionResult,
 } from "@/lib/submission-result";
+import {
+  Alert,
+  AlertAction,
+  AlertActions,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1097,97 +1105,99 @@ function GenericResultCard({
         )}
 
         {liveError && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {liveError}
-          </div>
+          <Alert variant="destructive">
+            <AlertIcon variant="destructive" />
+            <AlertTitle>{isZh ? "提交未完成" : "Submission did not complete"}</AlertTitle>
+            <AlertDescription>
+              <p>{liveError}</p>
+            </AlertDescription>
+          </Alert>
         )}
 
         {actionRequired && result.actionType && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-            <div className="text-xs text-amber-700">{isZh ? "检查点" : "Checkpoint"}</div>
-            <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
-              {localizeActionText(result.actionType, isZh) ?? result.actionType}
-            </div>
-          </div>
+          <Alert variant="warning">
+            <AlertIcon variant="warning" />
+            <AlertTitle>{isZh ? "检查点" : "Checkpoint"}</AlertTitle>
+            <AlertDescription>
+              <p className="font-mono">
+                {localizeActionText(result.actionType, isZh) ?? result.actionType}
+              </p>
+            </AlertDescription>
+          </Alert>
         )}
 
         {officialManualAction && (
-          <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-              <div>
-                <div className="text-sm font-medium text-amber-900">
-                  {isFranceAction
-                    ? (isZh ? "需要你完成 France-Visas 官网操作" : "France-Visas official action required")
-                    : (isZh ? "需要你完成 CEAC 官网验证" : "CEAC official verification required")}
-                </div>
-                <p className="mt-1 text-sm leading-relaxed text-amber-900">
-                  {localizeActionText(manualAction?.instruction, isZh) ??
-                    localizeActionText(result.actionInstructions, isZh) ??
-                    manualAction?.instruction ??
-                    result.actionInstructions ??
-                    (isFranceAction
-                      ? (isZh
-                          ? "请在 France-Visas 官方页面完成登录、验证码或邮箱验证，然后回到这里继续。"
-                          : "Complete login, CAPTCHA, or email verification on the official France-Visas page, then return here to continue.")
-                      : (isZh
-                          ? "请在打开的 CEAC 官方页面完成地点选择或 CAPTCHA，然后回到这里继续。"
-                          : "Complete the location or CAPTCHA checkpoint on the official CEAC page, then return here to continue."))}
-                </p>
-              </div>
-            </div>
-
-            {manualAction?.screenshotUrl && (
-              <div className="rounded-md border border-amber-200 bg-white px-3 py-2">
-                <div className="text-xs text-amber-700">{isZh ? "安全截图" : "Safe screenshot"}</div>
-                <div className="mt-0.5 break-all font-mono text-xs text-foreground">
-                  {manualAction.screenshotUrl}
-                </div>
-              </div>
-            )}
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button asChild variant="outline" className="bg-white">
-                <a
-                  href={
-                    isFranceAction
-                      ? "https://application-form.france-visas.gouv.fr/fv-fo-dde/"
-                      : "https://ceac.state.gov/genniv/"
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {isFranceAction
-                    ? (isZh ? "打开 France-Visas 官网" : "Open France-Visas")
-                    : (isZh ? "打开 CEAC 官网" : "Open CEAC")}
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
-              <Button
-                type="button"
-                onClick={completeManualAction}
-                disabled={!manualAction || completingManualAction}
-              >
-                {completingManualAction ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                )}
-                {isZh ? "我已完成，继续" : "I completed it, continue"}
-              </Button>
-            </div>
-
-            {!jobId && (
-              <p className="text-xs text-amber-800">
-                {isZh
-                  ? "正在同步当前 live job，请稍后刷新状态。"
-                  : "The current live job is still syncing. Refresh this status shortly."}
+          <Alert variant="warning">
+            <AlertIcon variant="warning" />
+            <AlertTitle>
+              {isFranceAction
+                ? (isZh ? "需要你完成 France-Visas 官网操作" : "France-Visas official action required")
+                : (isZh ? "需要你完成 CEAC 官网验证" : "CEAC official verification required")}
+            </AlertTitle>
+            <AlertDescription>
+              <p>
+                {localizeActionText(manualAction?.instruction, isZh) ??
+                  localizeActionText(result.actionInstructions, isZh) ??
+                  manualAction?.instruction ??
+                  result.actionInstructions ??
+                  (isFranceAction
+                    ? (isZh
+                        ? "请在 France-Visas 官方页面完成登录、验证码或邮箱验证，然后回到这里继续。"
+                        : "Complete login, CAPTCHA, or email verification on the official France-Visas page, then return here to continue.")
+                    : (isZh
+                        ? "请在打开的 CEAC 官方页面完成地点选择或 CAPTCHA，然后回到这里继续。"
+                        : "Complete the location or CAPTCHA checkpoint on the official CEAC page, then return here to continue."))}
               </p>
-            )}
-            {manualActionError && (
-              <p className="text-sm text-red-700">{manualActionError}</p>
-            )}
-          </div>
+
+              {manualAction?.screenshotUrl && (
+                <p className="mt-2 break-all font-mono text-xs">
+                  {isZh ? "安全截图：" : "Safe screenshot: "}
+                  {manualAction.screenshotUrl}
+                </p>
+              )}
+
+              <AlertActions>
+                <AlertAction
+                  onClick={completeManualAction}
+                  disabled={!manualAction || completingManualAction}
+                >
+                  {completingManualAction ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <ShieldCheck />
+                  )}
+                  {isZh ? "我已完成，继续" : "I completed it, continue"}
+                </AlertAction>
+                <AlertAction asChild variant="secondary">
+                  <a
+                    href={
+                      isFranceAction
+                        ? "https://application-form.france-visas.gouv.fr/fv-fo-dde/"
+                        : "https://ceac.state.gov/genniv/"
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {isFranceAction
+                      ? (isZh ? "打开 France-Visas 官网" : "Open France-Visas")
+                      : (isZh ? "打开 CEAC 官网" : "Open CEAC")}
+                    <ExternalLink />
+                  </a>
+                </AlertAction>
+              </AlertActions>
+
+              {!jobId && (
+                <p className="mt-2 text-xs">
+                  {isZh
+                    ? "正在同步当前 live job，请稍后刷新状态。"
+                    : "The current live job is still syncing. Refresh this status shortly."}
+                </p>
+              )}
+              {manualActionError && (
+                <p className="mt-2 font-medium !text-[hsl(0_72%_35%)]">{manualActionError}</p>
+              )}
+            </AlertDescription>
+          </Alert>
         )}
 
         {unsupported && (

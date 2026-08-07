@@ -59,7 +59,10 @@ async function handleGuestCheckoutSession(
       data: { object: session as unknown as Record<string, unknown> },
     });
     if (result.kind === "paid") {
-      runPostPaidSideEffects(result.orderId, "card");
+      await runPostPaidSideEffects(result.orderId, "stripe", event.id, {
+        checkout_session_id: session.id,
+        payment_intent_id: session.payment_intent ?? null,
+      });
     }
   }
   return true;
@@ -242,26 +245,22 @@ async function finalizePaidRecord(
     }
   })();
 
-  // 5. 彻底重构：弃用 .then().catch() 链，改用独立的 async IIFE 执行块，100% 解决 .catch 报错问题
+  // 5. Runner enqueue is durable in runner_job. Await it so a transient
+  // failure causes the verified provider webhook to retry instead of losing
+  // the critical post-payment handoff.
   const appId = record.application_id;
   if (appId) {
-    (async () => {
-      try {
-        const { data: app } = await adminClient
-          .from("applications")
-          .select("country")
-          .eq("id", appId)
-          .maybeSingle();
+    const { data: app } = await adminClient
+      .from("applications")
+      .select("country")
+      .eq("id", appId)
+      .maybeSingle();
 
-        if (app?.country) {
-          await enqueueRunnerJob(appId, app.country, {
-            correlationId: `stripe:${record.id}`,
-          });
-        }
-      } catch (err: any) {
-        console.error("[queue] asynchronous enqueueRunnerJob execution collapsed:", err);
-      }
-    })();
+    if (app?.country) {
+      await enqueueRunnerJob(appId, app.country, {
+        correlationId: `stripe:${record.id}`,
+      });
+    }
   }
 }
 

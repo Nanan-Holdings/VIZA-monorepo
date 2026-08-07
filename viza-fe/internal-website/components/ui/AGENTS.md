@@ -77,6 +77,9 @@ Smoke at least one route that uses the changed primitive.
   `application-form-controls.tsx` remains a compatibility re-export only.
 - `supporting-document-card.tsx`: shared visual shell for individual document
   upload cards; upload behavior remains owned by the consuming feature.
+- `document-upload-field.tsx` and `document-pdf-preview.tsx`: canonical upload
+  surface plus its client-only first-page PDF renderer. Local file object URLs
+  must remain lifecycle-owned and revoked by the upload field.
 - `ai-assist-button.tsx`: shared AI help trigger and icon used by application
   fields, supporting-document cards, and Universal Profile cards. Its circular
   `field` variant stays transparent on hover while its icon stroke changes from

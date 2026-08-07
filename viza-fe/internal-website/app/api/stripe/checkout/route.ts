@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getUserFromSupabaseSession } from "@/lib/client-session";
+import { stripeCheckoutPaymentMethodsFor } from "@/lib/payments/method-availability";
 import {
   AGENCY_FEE_TYPE,
   PAYMENT_RECORD_SELECT,
@@ -255,6 +256,10 @@ export async function POST(request: NextRequest) {
       packageRow,
     });
     const appBaseUrl = getAppBaseUrl(request);
+    const stripePaymentMethods = stripeCheckoutPaymentMethodsFor(
+      application.country,
+      application.visa_type,
+    );
 
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -276,6 +281,10 @@ export async function POST(request: NextRequest) {
       ],
       success_url: checkoutReturnUrl(appBaseUrl, application.id, "success"),
       cancel_url: checkoutReturnUrl(appBaseUrl, application.id, "cancelled"),
+      payment_method_types: stripePaymentMethods,
+      payment_method_options: stripePaymentMethods.includes("wechat_pay")
+        ? { wechat_pay: { client: "web" } }
+        : undefined,
       client_reference_id: application.id,
       metadata,
       payment_intent_data: { metadata },

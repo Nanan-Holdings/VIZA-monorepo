@@ -3,15 +3,14 @@
 import { withAdmin } from "@/lib/auth/with-admin";
 import { sendEmail } from "@/lib/email/resend";
 import { renderTemplate, type TemplateLocale } from "@/lib/notify/templates";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Post-payment account provisioning + magic-link mail.
  *
- * Invoked (fire-and-forget) from every guest-checkout rail once an order
- * flips to `paid` — WeChat Pay Native (`/api/wechat-pay/notify`) and the
- * guest card rail (`/api/stripe/webhook`, guest branch), both via
- * `lib/checkout/post-paid.ts`. Side-effect only — never throws into the
- * webhook caller (matching the Stripe receipt mailer).
+ * Invoked by the durable payment-provisioning worker after a verified order
+ * flips to `paid` — WeChat Pay Native and the guest card rail both use the
+ * shared retryable path in `lib/checkout/post-paid.ts`.
  *
  *   1. Resolve order → applicant_profiles → email + locale + app meta.
  *   2. auth.admin.createUser({email_confirm:true}) if no user exists, and
@@ -104,13 +103,33 @@ function siteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.viza.it.com";
 }
 
+export interface ProvisionedAccount {
+  authUserId: string;
+  applicantId: string;
+  applicationId: string;
+  country: string;
+  visaType: string;
+}
+
 export async function provisionAccountAndMagicLink(
   orderId: string,
-): Promise<void> {
-  await withAdmin(
+): Promise<ProvisionedAccount> {
+  return withAdmin(
     "system",
     "actions/wechat-provisioning:run",
-    async (admin) => {
+    (admin) => ensureAccountAndMagicLinkWithAdmin(admin, orderId),
+  );
+}
+
+/**
+ * The durable payment worker supplies its already-authorized service-role
+ * client so account provisioning is one retryable step instead of a detached
+ * side effect. The legacy wrapper above remains for non-worker callers.
+ */
+export async function ensureAccountAndMagicLinkWithAdmin(
+  admin: SupabaseClient,
+  orderId: string,
+): Promise<ProvisionedAccount> {
       const { data: order, error: orderErr } = await admin
         .from("order")
         .select("id, applicant_id, application_id, guest_checkout")
@@ -133,16 +152,10 @@ export async function provisionAccountAndMagicLink(
           .maybeSingle<AppLite>(),
       ]);
       if (!profile || !profile.email) {
-        console.warn(
-          `[wechat-provisioning] order ${orderId} has no email — skipping`,
-        );
-        return;
+        throw new Error(`[wechat-provisioning] order ${orderId} has no email`);
       }
       if (!app) {
-        console.warn(
-          `[wechat-provisioning] order ${orderId} missing application`,
-        );
-        return;
+        throw new Error(`[wechat-provisioning] order ${orderId} missing application`);
       }
 
       // 1. Find or create the auth user. We bind auth_user_id regardless
@@ -169,13 +182,14 @@ export async function provisionAccountAndMagicLink(
           authUserId = created.user.id;
         }
 
-        await admin
+        const { error: bindError } = await admin
           .from("applicant_profiles")
           .update({
             auth_user_id: authUserId,
             updated_at: new Date().toISOString(),
           })
           .eq("id", profile.id);
+        if (bindError) throw new Error(`bind applicant profile: ${bindError.message}`);
       }
 
       // 2. Login-link mail is for guest checkouts only. An authenticated
@@ -183,7 +197,13 @@ export async function provisionAccountAndMagicLink(
       //    so re-mailing a magic link would be noise (and a phishing-shaped
       //    pattern). Bail after binding the auth user above.
       if (!order.guest_checkout) {
-        return;
+        return {
+          authUserId,
+          applicantId: profile.id,
+          applicationId: app.id,
+          country: app.country,
+          visaType: app.visa_type,
+        };
       }
 
       // 3. Generate magic-link.
@@ -224,6 +244,12 @@ export async function provisionAccountAndMagicLink(
         text: rendered.text,
         html: rendered.html,
       });
-    },
-  );
+
+      return {
+        authUserId,
+        applicantId: profile.id,
+        applicationId: app.id,
+        country: app.country,
+        visaType: app.visa_type,
+      };
 }

@@ -117,7 +117,11 @@ export const runUsHalt: RunOne = async (applicationId, jobId) => {
   const { profile } = await loadProfileAndApp(applicationId);
   const answers = await loadFieldAnswers(applicationId);
 
-  const session = await startCeacSession({ headless: true, acceptDownloads: true, runId });
+  const session = await startCeacSession({
+    headless: process.env.CEAC_PLAYWRIGHT_HEADLESS !== "false",
+    acceptDownloads: true,
+    runId,
+  });
   try {
     const tracker = createRecoveryTracker({ runId });
     await recordBootstrapCheckpoint(session.page, { sink: tracker, runId });
@@ -212,7 +216,7 @@ export const runUkHalt: RunOne = async (applicationId, jobId) => {
       email: account.row.email,
       answers,
     },
-    { headless: true, runId },
+    { headless: process.env.UK_PLAYWRIGHT_HEADLESS !== "false", runId },
   );
   if (result.status === "stopped_at_pay" || result.status === "halted_before_pay") {
     // Persist the portal handoff so the client UkResultCard can show the

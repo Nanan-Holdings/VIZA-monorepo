@@ -25,6 +25,7 @@ describe("universal profile prefill", () => {
       passport_issue_date: "2024-01-01",
       passport_expiry_date: "2034-01-01",
       passport_issuing_country: "China",
+      passport_place_of_issue: "Singapore",
       phone: "+86 13312345678",
       email: "xiaoming.li@example.com",
     });
@@ -40,7 +41,9 @@ describe("universal profile prefill", () => {
       given_names_zh: "晓明",
       given_names_en: "Xiaoming",
       date_of_birth: "1998-03-15",
+      birthday: "1998-03-15",
       birth_city: "Changsha",
+      birth_place: "Changsha",
       birth_city_zh: "长沙",
       birth_city_en: "Changsha",
       birth_province: "Hunan",
@@ -49,14 +52,13 @@ describe("universal profile prefill", () => {
       country_of_birth: "China",
       sex: "male",
       nationality_country: "China",
-      city_state_of_residence: "Hunan",
-      city_state_of_residence_zh: "湖南",
-      city_state_of_residence_en: "Hunan",
       passport_number: "E12345678",
       passport_issuance_date: "2024-01-01",
       passport_expiration_date: "2034-01-01",
       passport_issuing_country: "China",
+      passport_place_of_issue: "Singapore",
       phone: "+86 13312345678",
+      primary_phone: "+86 13312345678",
       email: "xiaoming.li@example.com",
     });
   });
@@ -105,17 +107,29 @@ describe("universal profile prefill", () => {
     });
   });
 
-  it("maps reusable residence details to TDAC residence fields", () => {
+  it("does not reuse birthplace as residence when residence details are missing", () => {
     const patch = buildUniversalProfileAnswerPatch({
       nationality: "China",
       birth_province_or_state_zh: "湖南",
       birth_province_or_state_en: "Hunan",
     });
 
+    expect(patch).not.toHaveProperty("city_state_of_residence");
+    expect(patch).not.toHaveProperty("home_address_city");
+  });
+
+  it("keeps passport issuing country, place, and authority separate", () => {
+    const patch = buildUniversalProfileAnswerPatch({
+      passport_issuing_country: "CHN",
+      passport_place_of_issue: "Singapore",
+      passport_issuing_authority: "Embassy of the P.R. China in Singapore",
+    });
+
     expect(patch).toMatchObject({
-      city_state_of_residence: "Hunan",
-      city_state_of_residence_zh: "湖南",
-      city_state_of_residence_en: "Hunan",
+      passport_issuing_country: "CHN",
+      passport_place_of_issue: "Singapore",
+      passport_issuance_city: "Singapore",
+      passport_issuing_authority: "Embassy of the P.R. China in Singapore",
     });
   });
 
@@ -125,6 +139,7 @@ describe("universal profile prefill", () => {
         { canonicalKey: "civil_status", value: "married" },
         { canonicalKey: "father_surname", value: "LI" },
         { canonicalKey: "employer_name", value: "VIZA PTE LTD" },
+        { canonicalKey: "passport_place_of_issue", value: "SINGAPORE" },
       ],
     });
 
@@ -133,6 +148,8 @@ describe("universal profile prefill", () => {
       marital_status: "married",
       father_surname: "LI",
       employer_name: "VIZA PTE LTD",
+      passport_place_of_issue: "SINGAPORE",
+      passport_issuance_city: "SINGAPORE",
     });
   });
 });

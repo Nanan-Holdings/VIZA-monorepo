@@ -258,6 +258,37 @@ async function verifyProfileSchema(client: PgClient): Promise<CheckResult> {
   );
 }
 
+async function verifyExpandedUniversalProfile(client: PgClient): Promise<CheckResult> {
+  if (!(await tableExists(client, "public", "universal_profile_answers"))) {
+    return fail("Expanded Universal Profile", "universal_profile_answers does not exist.", {
+      missing: ["universal_profile_answers"],
+      suggestedMigration:
+        "supabase/migrations/20260801193500_create_universal_profile_answers.sql",
+    });
+  }
+
+  const columns = await tableColumns(client, "public", "universal_profile_answers");
+  const required = [
+    "applicant_id",
+    "auth_user_id",
+    "canonical_key",
+    "value_text",
+    "value_zh",
+    "value_en",
+    "source_application_id",
+    "source_visa_type",
+    "field_schema",
+  ];
+  const missing = required.filter((column) => !columns.has(column));
+  return missing.length > 0
+    ? fail("Expanded Universal Profile", "Reusable profile columns are missing.", {
+        missing,
+        suggestedMigration:
+          "supabase/migrations/20260801193500_create_universal_profile_answers.sql",
+      })
+    : pass("Expanded Universal Profile", "Field-keyed reusable profile storage is installed.");
+}
+
 async function verifySubmissionQueue(client: PgClient): Promise<CheckResult> {
   if (!(await tableExists(client, "public", "submission_queue"))) {
     return fail("submission_queue table", "submission_queue does not exist.", {
@@ -433,6 +464,7 @@ export async function runVerification(): Promise<boolean> {
     await client.connect();
     checks.push(...(await verifyConnection(client)));
     checks.push(await verifyProfileSchema(client));
+    checks.push(await verifyExpandedUniversalProfile(client));
     checks.push(await verifySubmissionQueue(client));
     checks.push(
       await verifyTables(

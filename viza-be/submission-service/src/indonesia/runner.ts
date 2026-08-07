@@ -2314,7 +2314,7 @@ export function shouldResumeSavedIndonesiaApplicationAfterAccountGate(currentUrl
   return !/\/front\/register(?:\/|$)/i.test(currentUrl);
 }
 
-async function fillForeignerAccountRegistration(
+export async function fillForeignerAccountRegistration(
   page: Page,
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],

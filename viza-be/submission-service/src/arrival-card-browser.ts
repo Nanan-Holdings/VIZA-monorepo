@@ -72,7 +72,9 @@ export function resolveArrivalCardLocalCdpEndpoint(prefix: ArrivalCardBrowserPre
  * the system Chrome channel.
  */
 export function resolveArrivalCardLaunchChannel(prefix: ArrivalCardBrowserPrefix): string | undefined {
-  const configuredChannel = process.env[`${prefix}_PLAYWRIGHT_CHANNEL`]?.trim();
+  const configuredChannel =
+    process.env[`${prefix}_PLAYWRIGHT_CHANNEL`]?.trim() ||
+    process.env.ARRIVAL_CARD_PLAYWRIGHT_CHANNEL?.trim();
   return configuredChannel && configuredChannel !== "bundled" ? configuredChannel : undefined;
 }
 

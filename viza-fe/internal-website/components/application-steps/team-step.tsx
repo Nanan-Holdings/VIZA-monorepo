@@ -14,6 +14,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -471,9 +472,13 @@ export function TeamStep({
           </DialogHeader>
 
           {dialogError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {dialogError}
-            </div>
+            <Alert variant="destructive">
+              <AlertIcon variant="destructive" />
+              <AlertTitle>{t("dialog.errorTitle")}</AlertTitle>
+              <AlertDescription>
+                <p>{dialogError}</p>
+              </AlertDescription>
+            </Alert>
           ) : null}
 
           <FrequentTravelerProfileFields value={form} onFieldChange={updateField} />
