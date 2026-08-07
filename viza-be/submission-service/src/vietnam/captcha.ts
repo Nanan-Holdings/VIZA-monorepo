@@ -272,49 +272,74 @@ export async function refreshVietnamCaptchaChallenge(
     await controls.image.screenshot({ timeout: Math.min(timeoutMs, 10_000) }),
   );
   await controls.input.fill("").catch(() => undefined);
-  const [inputBox, imageBox] = await Promise.all([
-    controls.input.boundingBox().catch(() => null),
-    controls.image.boundingBox().catch(() => null),
-  ]);
-  const candidates = controls.root.locator(
-    "button, [role='button'], a, img, svg, .anticon, [class*='refresh' i], [class*='sync' i]",
-  );
-  const count = Math.min(await candidates.count().catch(() => 0), 80);
-  let best: { locator: Locator; score: number } | null = null;
-  for (let index = 0; index < count; index += 1) {
-    const candidate = candidates.nth(index);
-    const [visible, box] = await Promise.all([
-      candidate.isVisible().catch(() => false),
-      candidate.boundingBox().catch(() => null),
-    ]);
-    if (!visible || !box) continue;
-    const metadata = await candidate
-      .evaluate(
-        (element) =>
-          `${element.textContent ?? ""} ${element.getAttribute("aria-label") ?? ""} ` +
-          `${element.getAttribute("title") ?? ""} ${element.getAttribute("class") ?? ""} ` +
-          `${element.getAttribute("src") ?? ""}`,
-      )
-      .catch(() => "");
-    const strongRefresh = /reload|refresh|sync|redo|anticon-sync/i.test(metadata);
-    const captchaTarget = /captcha/i.test(metadata);
-    if (!strongRefresh && !captchaTarget) continue;
-    const distanceToInput = inputBox
-      ? Math.abs(box.x - (inputBox.x + inputBox.width)) +
-        Math.abs(box.y + box.height / 2 - (inputBox.y + inputBox.height / 2)) * 2
-      : 0;
-    const distanceToImage = imageBox
-      ? Math.abs(box.x - (imageBox.x + imageBox.width)) +
-        Math.abs(box.y + box.height / 2 - (imageBox.y + imageBox.height / 2)) * 2
-      : 0;
-    const score = Math.min(distanceToInput, distanceToImage) + (strongRefresh ? -2_000 : -500);
-    if (!best || score < best.score) best = { locator: candidate, score };
-  }
-  if (!best) return false;
-  const clicked = await best.locator
-    .click({ timeout: Math.min(timeoutMs, 5_000) })
-    .then(() => true)
-    .catch(() => false);
+  // Rank and click candidates in one browser-context operation. The old
+  // implementation made several Playwright round trips for each of up to 80
+  // elements; on the production review page that could spend more than two
+  // minutes here and exhaust the whole CAPTCHA budget before another solver
+  // task even started.
+  await controls.root.evaluate("window.__name = window.__name || ((fn) => fn)");
+  const clicked = await controls.input
+    .evaluate((currentInput, captchaImageSelector) => {
+      const isVisible = (element: Element | null): element is HTMLElement | SVGElement => {
+        if (!element) return false;
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 8 && rect.height > 8;
+      };
+      const metadataFor = (element: Element) =>
+        `${element.textContent ?? ""} ${element.getAttribute("aria-label") ?? ""} ` +
+        `${element.getAttribute("title") ?? ""} ${element.getAttribute("class") ?? ""} ` +
+        `${element.getAttribute("src") ?? ""} ${element.getAttribute("data-icon") ?? ""}`;
+      const inputRect = currentInput.getBoundingClientRect();
+      const imageRects = Array.from(document.querySelectorAll(captchaImageSelector))
+        .filter(isVisible)
+        .map((element) => element.getBoundingClientRect());
+      const ranked = new Map<Element, { target: Element; score: number }>();
+      const candidates = Array.from(
+        document.querySelectorAll(
+          "button, [role='button'], a, img, svg, [data-icon], .anticon, [class*='refresh' i], [class*='sync' i]",
+        ),
+      );
+      for (const candidate of candidates) {
+        if (!isVisible(candidate)) continue;
+        const candidateMetadata = metadataFor(candidate);
+        const strongRefresh = /reload|refresh|sync|redo|rotate|anticon-sync/i.test(candidateMetadata);
+        const captchaTarget = /captcha/i.test(candidateMetadata);
+        if (!strongRefresh && !captchaTarget) continue;
+        const target = candidate.closest("button, [role='button'], a") ?? candidate;
+        if (!isVisible(target)) continue;
+        const rect = target.getBoundingClientRect();
+        const distanceToInput =
+          Math.abs(rect.x - (inputRect.x + inputRect.width)) +
+          Math.abs(rect.y + rect.height / 2 - (inputRect.y + inputRect.height / 2)) * 2;
+        const distanceToImage = imageRects.length
+          ? Math.min(
+              ...imageRects.map(
+                (imageRect) =>
+                  Math.abs(rect.x - (imageRect.x + imageRect.width)) +
+                  Math.abs(rect.y + rect.height / 2 - (imageRect.y + imageRect.height / 2)) * 2,
+              ),
+            )
+          : distanceToInput;
+        const score = Math.min(distanceToInput, distanceToImage) + (strongRefresh ? -2_000 : -500);
+        const existing = ranked.get(target);
+        if (!existing || score < existing.score) ranked.set(target, { target, score });
+      }
+      const target = [...ranked.values()].sort((left, right) => left.score - right.score)[0]?.target;
+      if (!target) return false;
+      if (target instanceof HTMLElement) {
+        target.click();
+      } else {
+        target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+      }
+      return true;
+    }, CAPTCHA_IMAGE_SELECTOR)
+    .catch((error) => {
+      console.warn(
+        `[vn] CAPTCHA refresh candidate selection failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return false;
+    });
   if (!clicked) return false;
   return waitForVietnamCaptchaRefresh(page, previousFingerprint, timeoutMs);
 }
