@@ -6,6 +6,8 @@ const mockOn = vi.fn();
 const mockOff = vi.fn();
 const mockEmit = vi.fn();
 const mockDisconnect = vi.fn();
+const mockManagerOn = vi.fn();
+const mockManagerOff = vi.fn();
 
 const mockSocket = {
   on: mockOn,
@@ -13,7 +15,12 @@ const mockSocket = {
   emit: mockEmit,
   disconnect: mockDisconnect,
   connected: false,
+  active: true,
   id: "test-socket-id",
+  io: {
+    on: mockManagerOn,
+    off: mockManagerOff,
+  },
 };
 
 vi.mock("socket.io-client", () => ({
@@ -27,6 +34,7 @@ describe("useAgentSocket", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSocket.connected = false;
+    mockSocket.active = true;
   });
 
   afterEach(() => {
@@ -170,6 +178,64 @@ describe("useAgentSocket", () => {
     expect(mockOn).toHaveBeenCalledWith("escalation", expect.any(Function));
     expect(mockOn).toHaveBeenCalledWith("response_complete", expect.any(Function));
     expect(mockOn).toHaveBeenCalledWith("error", expect.any(Function));
+    expect(mockManagerOn).toHaveBeenCalledWith(
+      "reconnect_attempt",
+      expect.any(Function)
+    );
+    expect(mockManagerOn).toHaveBeenCalledWith(
+      "reconnect_failed",
+      expect.any(Function)
+    );
+  });
+
+  it("keeps the connecting state while Socket.IO can retry a cold start", async () => {
+    const { result } = renderHook(() =>
+      useAgentSocket({
+        serverUrl: "http://localhost:3002",
+        userId: "user-1",
+        sessionId: "session-1",
+      })
+    );
+
+    await act(async () => {
+      result.current.connect();
+    });
+
+    const connectErrorHandler = mockOn.mock.calls.find(
+      ([eventName]) => eventName === "connect_error"
+    )?.[1] as ((error: Error) => void) | undefined;
+
+    expect(connectErrorHandler).toBeDefined();
+    await act(async () => {
+      connectErrorHandler?.(new Error("transport timeout"));
+    });
+
+    expect(result.current.status).toBe("connecting");
+  });
+
+  it("reports an error only after automatic reconnection is exhausted", async () => {
+    const { result } = renderHook(() =>
+      useAgentSocket({
+        serverUrl: "http://localhost:3002",
+        userId: "user-1",
+        sessionId: "session-1",
+      })
+    );
+
+    await act(async () => {
+      result.current.connect();
+    });
+
+    const reconnectFailedHandler = mockManagerOn.mock.calls.find(
+      ([eventName]) => eventName === "reconnect_failed"
+    )?.[1] as (() => void) | undefined;
+
+    expect(reconnectFailedHandler).toBeDefined();
+    await act(async () => {
+      reconnectFailedHandler?.();
+    });
+
+    expect(result.current.status).toBe("error");
   });
 
   it("does not send message when not connected", async () => {

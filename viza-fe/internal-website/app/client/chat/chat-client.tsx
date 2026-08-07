@@ -140,6 +140,7 @@ const AGENT_BACKEND_URL =
 
 const CHARACTER_REVEAL_INTERVAL = 18;
 const ACTIVE_VIZA_SESSION_STORAGE_KEY = "viza_chat_session_id";
+const CONNECTION_TOAST_ID = "viza-agent-connection";
 
 type ChatAgentMode = "viza" | "travel";
 
@@ -829,7 +830,10 @@ export function ChatClient({
       transports: ["polling", "websocket"],
       upgrade: true,
       reconnection: true,
-      reconnectionAttempts: 10,
+      // Render can need more than a minute to wake a sleeping instance. Keep
+      // retrying long enough for that cold start instead of abandoning the
+      // chat connection while the service is still coming online.
+      reconnectionAttempts: 20,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 30000,
       timeout: 20000,
@@ -839,19 +843,31 @@ export function ChatClient({
 
     socket.on("connect", () => {
       setStatus("connected");
+      toast.dismiss(CONNECTION_TOAST_ID);
       addLog("connected", { socketId: socket.id });
       socket.emit("join_room", `user:${userId}`);
     });
 
     socket.on("disconnect", (reason) => {
-      setStatus("disconnected");
+      setStatus(socket.active ? "connecting" : "disconnected");
       addLog("disconnected", { reason });
       flushTokenBuffer();
     });
 
     socket.on("connect_error", (error) => {
-      setStatus("error");
+      // `active` means Socket.IO will automatically retry. A failed polling
+      // attempt during a backend cold start is therefore still "connecting",
+      // not a terminal connection error.
+      setStatus(socket.active ? "connecting" : "error");
       addLog("error", { message: error.message, type: "connect_error" });
+    });
+
+    socket.io.on("reconnect_attempt", () => {
+      setStatus("connecting");
+    });
+
+    socket.io.on("reconnect_failed", () => {
+      setStatus("error");
     });
 
     socket.on("token", (event: TokenEvent) => {
@@ -1306,8 +1322,9 @@ export function ChatClient({
 
   useEffect(() => {
     if (status === "error") {
-      toast.error(t("connectionReconnecting"));
+      toast.error(t("connectionUnavailable"), { id: CONNECTION_TOAST_ID });
     } else if (status === "connected" && pendingMessages.length > 0) {
+      toast.dismiss(CONNECTION_TOAST_ID);
       for (const pending of pendingMessages) {
         socketSendMessage(pending.message, pending.sessionId);
       }
