@@ -845,7 +845,8 @@ function createVersionId(): string {
 }
 
 function createInitialTravelMessages(
-  locale: InterfaceLocale
+  locale: InterfaceLocale,
+  featuredSeed?: string
 ): TravelChatMessage[] {
   const isZh = locale === "zh";
   return [
@@ -859,7 +860,7 @@ function createInitialTravelMessages(
         },
         {
           type: "destination_cards",
-          cards: createFeaturedDestinationCards(locale),
+          cards: createFeaturedDestinationCards(locale, featuredSeed),
         },
         {
           type: "quick_replies",
@@ -872,11 +873,14 @@ function createInitialTravelMessages(
   ];
 }
 
-function createTravelChatSession(locale: InterfaceLocale): TravelChatSession {
+function createTravelChatSession(
+  locale: InterfaceLocale,
+  featuredSeed?: string
+): TravelChatSession {
   return {
     id: createSessionId(),
     title: locale === "zh" ? "新的旅行对话" : "New travel chat",
-    messages: createInitialTravelMessages(locale),
+    messages: createInitialTravelMessages(locale, featuredSeed),
     versions: [],
     savedGooglePlaces: [],
     savedAttractions: [],
@@ -3178,20 +3182,32 @@ function getCityContext(city: string) {
   return CITY_CONTEXT[key] ?? null;
 }
 
-function pickRandomFeaturedCities(count: number): string[] {
+function createSeededRandom(seed: string): () => number {
+  let state = hashString(seed) || 1;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let value = Math.imul(state ^ (state >>> 15), 1 | state);
+    value ^= value + Math.imul(value ^ (value >>> 7), 61 | value);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function pickRandomFeaturedCities(count: number, seed?: string): string[] {
   const pool = [...FEATURED_DESTINATION_CITIES];
+  const random = seed ? createSeededRandom(seed) : Math.random;
   for (let index = pool.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const swapIndex = Math.floor(random() * (index + 1));
     [pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]];
   }
   return pool.slice(0, Math.max(0, Math.min(count, pool.length)));
 }
 
 function createFeaturedDestinationCards(
-  locale: InterfaceLocale = "en"
+  locale: InterfaceLocale = "en",
+  seed?: string
 ): TravelDestinationCard[] {
   const isZh = locale === "zh";
-  return pickRandomFeaturedCities(2).map((city) => {
+  return pickRandomFeaturedCities(2, seed).map((city) => {
     const context = getCityContext(city);
     const cityLabel = isZh ? getLocalDisplayName(city) : city;
     const country = context?.countryEn ?? city;
@@ -3450,7 +3466,10 @@ export function TravelChatClient({
     [applicationId]
   );
   const [sessions, setSessions] = useState<TravelChatSession[]>(() => [
-    createTravelChatSession(interfaceLocale),
+    createTravelChatSession(
+      interfaceLocale,
+      `initial:${applicationId ?? "no-application"}:${interfaceLocale}`
+    ),
   ]);
   const sessionsRef = useRef<TravelChatSession[]>(sessions);
   const [activeSessionId, setActiveSessionId] = useState(() => sessions[0].id);
