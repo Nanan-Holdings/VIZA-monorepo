@@ -146,7 +146,17 @@ describe("FormFillingAssistant", () => {
     await waitFor(() => expect(props.onUndoFill).toHaveBeenCalledWith([
       { fieldName: "given_name", label: "Given name", value: "Chen", displayValue: "Chen" },
     ]));
-    expect(props.onDismissFillNotice).toHaveBeenCalled();
+    expect(props.onDismissFillNotice).toHaveBeenCalledWith("notice-1");
+  });
+
+  it("shows the recent fill as a viewport-level notice", () => {
+    renderAssistant();
+
+    const notice = screen.getByTestId("form-assistant-fill-notice");
+    expect(notice).toHaveClass("fixed", "z-[80]");
+    expect(notice).toHaveAttribute("aria-atomic", "true");
+    expect(notice).toHaveTextContent("Filled Given name: Chen");
+    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
   });
 
   it("dismisses the fill notice after ten seconds", () => {
@@ -156,7 +166,35 @@ describe("FormFillingAssistant", () => {
     act(() => vi.advanceTimersByTime(9_999));
     expect(props.onDismissFillNotice).not.toHaveBeenCalled();
     act(() => vi.advanceTimersByTime(1));
-    expect(props.onDismissFillNotice).toHaveBeenCalledOnce();
+    expect(props.onDismissFillNotice).toHaveBeenCalledExactlyOnceWith("notice-1");
+  });
+
+  it("starts a fresh ten-second window for a newer fill notice", () => {
+    vi.useFakeTimers();
+    const { props, rerender } = renderAssistant();
+
+    act(() => vi.advanceTimersByTime(9_999));
+    rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <FormFillingAssistant
+          {...props}
+          fillNotice={{
+            id: "notice-2",
+            items: [{
+              fieldName: "surname",
+              label: "Surname",
+              value: "Tan",
+              displayValue: "Tan",
+            }],
+          }}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(props.onDismissFillNotice).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(9_999));
+    expect(props.onDismissFillNotice).toHaveBeenCalledExactlyOnceWith("notice-2");
   });
 
   it("offers final checking only after required fields are complete", () => {

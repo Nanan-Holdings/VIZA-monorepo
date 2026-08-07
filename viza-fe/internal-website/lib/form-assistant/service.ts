@@ -137,17 +137,25 @@ function optionValue(option: VisaFormFieldOption): string {
 }
 
 function optionAliases(option: VisaFormFieldOption): string[] {
-  if (typeof option === "string") return [option];
-  return Array.from(new Set([
-    option.value,
-    option.text,
-    option.label_zh,
-    option.label_en,
-    option.official_label,
-    option.searchText,
-    option.code,
-    option.airport,
-  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0)));
+  const values = typeof option === "string"
+    ? [option]
+    : [
+        option.value,
+        option.text,
+        option.label_zh,
+        option.label_en,
+        option.official_label,
+        option.searchText,
+        option.code,
+        option.airport,
+      ];
+  const aliases = values.filter(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+  const segments = aliases.flatMap((value) =>
+    value.split(/[,，|]/).map((segment) => segment.trim()).filter(Boolean),
+  );
+  return Array.from(new Set([...aliases, ...segments]));
 }
 
 function normalizedNaturalLanguageValue(value: string): string {
@@ -155,6 +163,49 @@ function normalizedNaturalLanguageValue(value: string): string {
     .trim()
     .toLocaleLowerCase()
     .replace(/[。！？!?，,；;：:'"“”‘’()（）\s/_-]/g, "");
+}
+
+function naturalLanguageContainsAlias(text: string, alias: string): boolean {
+  const normalizedAlias = normalizedNaturalLanguageValue(alias);
+  if (!normalizedAlias) return false;
+  if (/\p{Script=Han}/u.test(alias)) {
+    return normalizedAlias.length >= 2 && normalizedNaturalLanguageValue(text).includes(normalizedAlias);
+  }
+  const words = (value: string) => value
+    .toLocaleLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
+    .trim();
+  const textWords = words(text);
+  const aliasWords = words(alias);
+  return aliasWords.length >= 3 && ` ${textWords} `.includes(` ${aliasWords} `);
+}
+
+function matchingOptionsForAnswer(
+  text: string,
+  options: VisaFormFieldOption[],
+): VisaFormFieldOption[] {
+  const normalized = normalizedNaturalLanguageValue(text);
+  const exactMatches = options.filter((option) =>
+    optionAliases(option).some((alias) => normalizedNaturalLanguageValue(alias) === normalized),
+  );
+  if (exactMatches.length > 0) return exactMatches;
+  return options.filter((option) =>
+    optionAliases(option).some((alias) => naturalLanguageContainsAlias(text, alias)),
+  );
+}
+
+function relevantOptionsForMessage(
+  options: VisaFormFieldOption[],
+  message: string,
+  limit = 250,
+): VisaFormFieldOption[] {
+  const mentioned = matchingOptionsForAnswer(message, options);
+  if (mentioned.length === 0) return options.slice(0, limit);
+  const mentionedValues = new Set(mentioned.map(optionValue));
+  return [
+    ...mentioned,
+    ...options.filter((option) => !mentionedValues.has(optionValue(option))),
+  ].slice(0, limit);
 }
 
 function isoDateInTimeZone(now: Date, timeZone: string): string {
@@ -244,10 +295,7 @@ export function parseDirectCurrentFieldAnswer(
   }
 
   if (field.options?.length) {
-    const normalized = normalizedNaturalLanguageValue(text);
-    const matches = field.options.filter((option) =>
-      optionAliases(option).some((alias) => normalizedNaturalLanguageValue(alias) === normalized),
-    );
+    const matches = matchingOptionsForAnswer(text, field.options);
     if (matches.length === 1) {
       return {
         fieldName: field.fieldName,
@@ -258,6 +306,174 @@ export function parseDirectCurrentFieldAnswer(
     }
   }
   return null;
+}
+
+const FRIENDLY_FIELD_QUESTIONS: Record<string, { zh: string; en: string }> = {
+  full_name: {
+    zh: "先确认一下，你护照上的英文全名是什么？请按护照原样告诉我。",
+    en: "First, what is your full name exactly as it appears in your passport?",
+  },
+  passport_number: {
+    zh: "请告诉我你的护照号码。发送前可以再核对一下字母和数字。",
+    en: "What is your passport number? Please double-check the letters and numbers before sending it.",
+  },
+  passport_expiry_date: {
+    zh: "你的护照有效期到哪一天？可以直接按护照上的日期回答。",
+    en: "When does your passport expire? You can give me the date shown in your passport.",
+  },
+  sex: {
+    zh: "护照上登记的性别是什么？",
+    en: "What sex is shown in your passport?",
+  },
+  date_of_birth: {
+    zh: "你的出生日期是哪一天？请按护照上的日期回答。",
+    en: "What is your date of birth as shown in your passport?",
+  },
+  nationality: {
+    zh: "你的国籍或公民身份是什么？",
+    en: "What is your nationality or citizenship?",
+  },
+  place_of_birth_country: {
+    zh: "你出生在哪个国家或地区？",
+    en: "Which country or region were you born in?",
+  },
+  place_of_residence: {
+    zh: "你现在长期居住在哪个城市？直接告诉我城市名称就可以。",
+    en: "Which city do you currently live in? Just tell me the city name.",
+  },
+  email_address: {
+    zh: "你希望用哪个邮箱接收入境卡相关通知？",
+    en: "Which email address would you like to use for arrival-card notifications?",
+  },
+  mobile_country_code: {
+    zh: "你的手机国家或地区代码是多少？例如中国大陆是 86。",
+    en: "What is your mobile country or region code? For example, China is 86.",
+  },
+  mobile_number: {
+    zh: "你的手机号码是多少？这里不用重复填写国家或地区代码。",
+    en: "What is your mobile number? You do not need to repeat the country or region code.",
+  },
+  has_used_different_name_to_enter_singapore: {
+    zh: "想确认一下，你以前是否用过不同姓名的护照入境新加坡？回答“是”或“否”就可以。",
+    en: "Have you ever entered Singapore with a passport under a different name? A simple yes or no is fine.",
+  },
+  has_health_symptoms: {
+    zh: "为了完成健康申报，想确认你现在是否有发热、咳嗽、呼吸急促、头痛、呕吐、头晕或皮疹？如果都没有，直接说“都没有”就好。",
+    en: "For the health declaration, do you currently have fever, cough, shortness of breath, headache, vomiting, dizziness, or a rash? If none apply, just say “none”.",
+  },
+  recent_country_visit_history: {
+    zh: "抵达前 6 天内，你去过黄热病风险国家或地区吗？如果没有，直接说“没有”就可以。",
+    en: "In the 6 days before arrival, did you visit a country or region with yellow-fever risk? If not, just say “no”.",
+  },
+  recent_high_risk_region_visit_history: {
+    zh: "抵达新加坡前 21 天内，你去过孟加拉国、印度、非洲、中东或拉丁美洲吗？",
+    en: "In the 21 days before arriving in Singapore, did you visit Bangladesh, India, Africa, the Middle East, or Latin America?",
+  },
+  arrival_date: {
+    zh: "你计划哪一天抵达新加坡？可以回答具体日期，也可以说“明天”或“后天”。",
+    en: "What day will you arrive in Singapore? You can give a date or say “tomorrow” or “the day after tomorrow”.",
+  },
+  departure_date: {
+    zh: "你计划哪一天离开新加坡？",
+    en: "What day will you leave Singapore?",
+  },
+  last_city_or_port_before_singapore: {
+    zh: "你抵达新加坡前，最后从哪个城市或港口出发？直接告诉我名称就可以，比如“长沙”。",
+    en: "Which city or port will you depart from immediately before arriving in Singapore? Just give me the name, for example “Changsha”.",
+  },
+  purpose_of_travel: {
+    zh: "这次去新加坡主要是为了什么？比如旅游、商务或探亲。",
+    en: "What is the main purpose of your trip to Singapore—for example, a holiday, business, or visiting family?",
+  },
+  mode_of_travel: {
+    zh: "你准备通过什么交通方式前往新加坡？是航空、陆路还是海路？",
+    en: "How will you travel to Singapore—by air, land, or sea?",
+  },
+  air_transport_type: {
+    zh: "你乘坐的是商业航班，还是私人、货运或其他类型的飞机？",
+    en: "Will you arrive on a commercial flight, or by private, cargo, or another type of aircraft?",
+  },
+  carrier_code: {
+    zh: "你乘坐哪家航空公司的航班？告诉我航空公司名称或代码都可以。",
+    en: "Which airline are you flying with? You can give me its name or code.",
+  },
+  transport_number: {
+    zh: "你的航班号是多少？例如 CA975。",
+    en: "What is your flight number? For example, CA975.",
+  },
+  carrier_name: {
+    zh: "请告诉我承运人名称和航班号（如有）。",
+    en: "Please tell me the carrier name and flight number, if available.",
+  },
+  land_transport_type: {
+    zh: "你会乘坐哪种陆路交通工具？比如巴士、汽车、火车或摩托车。",
+    en: "Which type of land transport will you use—for example, a bus, car, train, or motorcycle?",
+  },
+  vehicle_number: {
+    zh: "这辆车的车牌号或车辆号码是什么？",
+    en: "What is the vehicle or registration number?",
+  },
+  sea_transport_type: {
+    zh: "你会乘坐哪种海上交通工具？比如邮轮、渡轮或其他船只。",
+    en: "Which type of sea transport will you use—for example, a cruise, ferry, or another vessel?",
+  },
+  cruise_name: {
+    zh: "你乘坐的邮轮叫什么名字？",
+    en: "What is the name of your cruise ship?",
+  },
+  vessel_name: {
+    zh: "你乘坐的船只叫什么名字？",
+    en: "What is the name of the vessel you will travel on?",
+  },
+  accommodation_type: {
+    zh: "你在新加坡会住在哪里？是酒店、住宅，还是其他安排？",
+    en: "Where will you stay in Singapore—in a hotel, a residence, or somewhere else?",
+  },
+  accommodation_name: {
+    zh: "你会入住哪家酒店？告诉我酒店名称就可以。",
+    en: "Which hotel will you stay at? Just give me the hotel name.",
+  },
+  accommodation_other_type: {
+    zh: "你的住宿安排属于一日游还是过境？",
+    en: "Is your arrangement a day trip or transit?",
+  },
+  accommodation_postcode: {
+    zh: "你在新加坡住址的 6 位邮政编码是多少？",
+    en: "What is the 6-digit postal code for your address in Singapore?",
+  },
+  accommodation_block_number: {
+    zh: "这个住址的楼号或门牌号是多少？",
+    en: "What is the block or house number for this address?",
+  },
+  accommodation_street_name: {
+    zh: "这个住址所在的街道叫什么名字？",
+    en: "What is the street name for this address?",
+  },
+  accommodation_building_name: {
+    zh: "这栋建筑有名称吗？如果没有，可以告诉我留空。",
+    en: "Does the building have a name? If not, you can tell me to leave it blank.",
+  },
+  accommodation_floor_number: {
+    zh: "你住在几楼？如果不适用，可以直接说“不适用”。",
+    en: "Which floor will you stay on? If it does not apply, just say “not applicable”.",
+  },
+  accommodation_unit_number: {
+    zh: "房间或单位号码是多少？如果不适用，可以直接说“不适用”。",
+    en: "What is the room or unit number? If it does not apply, just say “not applicable”.",
+  },
+  next_city_or_port_after_singapore: {
+    zh: "离开新加坡后，你下一站会去哪个城市或港口？直接告诉我名称就可以。",
+    en: "Which city or port will you travel to after leaving Singapore? Just give me the name.",
+  },
+};
+
+function friendlyQuestion(field: VisaFormFieldRow, locale: string): string {
+  const copy = FRIENDLY_FIELD_QUESTIONS[field.fieldName];
+  if (copy) return locale.startsWith("zh") ? copy.zh : copy.en;
+  const label = localizedLabel(field, locale);
+  return locale.startsWith("zh")
+    ? `接下来想确认一下：${label}。你可以按自己的习惯回答，我会帮你整理成表单需要的格式。`
+    : `Next, could you tell me about ${label}? Answer naturally and I’ll format it for the form.`;
 }
 
 function localizedLabel(field: VisaFormFieldRow, locale: string): string {
@@ -386,10 +602,7 @@ function buildQuestion(fields: VisaFormFieldRow[], locale: string): string {
   }
   const field = fields[0];
   if (!field) return buildQuestion([], locale);
-  const label = localizedLabel(field, locale);
-  return locale.startsWith("zh")
-    ? `我们一次填写一项。${label}`
-    : `Let's complete one item at a time. ${label}`;
+  return friendlyQuestion(field, locale);
 }
 
 function buildCompletionQuestion(
@@ -397,10 +610,10 @@ function buildCompletionQuestion(
   locale: string,
 ): string {
   if (optionalFields.length === 0) return buildQuestion([], locale);
-  const label = localizedLabel(optionalFields[0], locale);
+  const question = friendlyQuestion(optionalFields[0], locale);
   return locale.startsWith("zh")
-    ? `必填信息已经齐全。还有一项选填内容：${label}。你可以直接回答，或运行最终检查并保持为空。`
-    : `All required information is complete. One optional item remains: ${label}. Answer here, or run the final check and leave it blank.`;
+    ? `必填信息已经齐全。如果你愿意，还可以补充一项选填内容：${question} 不想填写的话，直接运行最终检查就可以。`
+    : `All required information is complete. If you’d like, there is one optional detail left: ${question} You can also run the final check and leave it blank.`;
 }
 
 function buildTurnAcknowledgement(appliedCount: number, locale: string): string {
@@ -475,10 +688,10 @@ async function proposeTurn(params: {
     fieldName: field.fieldName,
     label: localizedLabel(field, params.locale),
     type: field.fieldType,
-    exactOptions: field.options?.slice(0, 250).map((option) => ({
+    exactOptions: relevantOptionsForMessage(field.options ?? [], params.text).map((option) => ({
       value: optionValue(option),
       aliases: optionAliases(option),
-    })) ?? [],
+    })),
     pattern: typeof field.validationRules?.pattern === "string" ? field.validationRules.pattern : null,
   }));
   const controller = new AbortController();
