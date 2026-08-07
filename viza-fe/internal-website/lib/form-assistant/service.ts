@@ -77,21 +77,71 @@ export function parseDirectYesNoAnswer(
   const positiveAnswers = new Set([
     "有",
     "是",
+    "是的",
     "有的",
     "去过",
     "到访过",
     "yes",
     "yep",
     "yeah",
+    "对",
+    "对的",
+    "正确",
+    "correct",
   ]);
-  const value = negativeAnswers.has(normalized)
+  const exactValue = negativeAnswers.has(normalized)
     ? noValue
     : positiveAnswers.has(normalized)
       ? yesValue
       : null;
-  return value
-    ? { fieldName: field.fieldName, value, confidence: "high" }
-    : null;
+  if (exactValue) {
+    return { fieldName: field.fieldName, value: exactValue, confidence: "high" };
+  }
+
+  const readable = text.trim().toLocaleLowerCase();
+  if (
+    /不确定|不清楚|不知道|记不清|可能|也许|说不准|not\s+sure|unsure|don['’]?t\s+know|maybe/.test(readable) ||
+    /不是\s*(?:没有|没)|并非\s*(?:没有|没)|not\s+(?:never|no\b)/.test(readable)
+  ) return null;
+
+  const beginsWithDirectAnswer =
+    /^(?:(?:嗯|好的|好)[,，\s]*)?(?:没有|没|无|否|不是|不|有|是|对)(?:的)?(?:[,，。；;\s]|$)/.test(readable) ||
+    /^(?:yes|no|nope|yep|yeah|never|none|correct)(?:[,.;:\s]|$)/.test(readable);
+  const isHealthField = field.fieldName === "has_health_symptoms";
+  const isVisitField = field.fieldName.includes("visit_history");
+  const isDifferentNameField = field.fieldName === "has_used_different_name_to_enter_singapore";
+  const mentionsCurrentField =
+    (isHealthField && /发热|咳嗽|呼吸|头痛|呕吐|头晕|皮疹|症状|不适|fever|cough|breath|headache|vomit|dizz|rash|symptom/.test(readable)) ||
+    (isVisitField && /去过|到访|访问|国家|地区|黄热病|visit|been|country|place|region|yellow\s+fever/.test(readable)) ||
+    (isDifferentNameField && /姓名|名字|护照|name|passport/.test(readable));
+  if (!beginsWithDirectAnswer && !mentionsCurrentField) return null;
+
+  const hasNegativeSignal =
+    /没有|没(?!有)|未曾?|从未|不曾|并无|不是|并非|无(?:任何|这些|上述)?|(^|[\s，,。；;])否([\s，,。；;]|$)/.test(readable) ||
+    /\b(?:no|nope|none|never|not|without)\b|(?:have|has|had|do|does|did|was|were|am|is|are)n['’]?t\b/.test(readable);
+  const affirmativeRemainder = readable
+    .replace(/没有去过|没去过|未曾?去过|从未去过|不曾去过|没有到访过|没到访过|未曾?到访过|从未到访过|不曾到访过/g, "")
+    .replace(/没有|没(?!有)|未曾?|从未|不曾|并无|不是|并非|无(?:任何|这些|上述)?/g, "")
+    .replace(/\b(?:have|has|had)\s+never\s+(?:visited|visit|been|gone|go)\b/g, "")
+    .replace(/\b(?:have|has|had)\s+not\s+(?:visited|visit|been|gone|go|had|experienced)\b/g, "")
+    .replace(/\b(?:do|does|did)\s+not\s+(?:have|visit|go|feel)\b/g, "")
+    .replace(/\b(?:am|is|are|was|were)\s+not\s+\w+\b/g, "")
+    .replace(/\b(?:no|nope|none|never|not|without)\b|(?:have|has|had|do|does|did|was|were|am|is|are)n['’]?t\b/g, "");
+  const hasHealthPositiveSignal = isHealthField && (
+    /有(?:一点|一些)?(?:这些|上述|发热|咳嗽|症状|不适)/.test(affirmativeRemainder) ||
+    /\b(?:i|we)\s+(?:have|have\s+got|am\s+experiencing|are\s+experiencing)\s+(?:a\s+)?(?:fever|cough|rash|headache|symptoms?)\b/.test(affirmativeRemainder)
+  );
+  const hasPositiveSignal =
+    /去过|到访过|有的|(^|[\s，,。；;])是([\s，,。；;]|$)/.test(affirmativeRemainder) ||
+    /\b(?:yes|yep|yeah|correct)\b|\b(?:have|has|had|did)\s+(?:visited|visit|been|gone|go)\b/.test(affirmativeRemainder) ||
+    hasHealthPositiveSignal;
+
+  if (hasNegativeSignal === hasPositiveSignal) return null;
+  return {
+    fieldName: field.fieldName,
+    value: hasNegativeSignal ? noValue : yesValue,
+    confidence: "high",
+  };
 }
 
 async function loadApplicationKnowledge(params: {
@@ -136,7 +186,60 @@ function optionValue(option: VisaFormFieldOption): string {
   return typeof option === "string" ? option : option.value;
 }
 
-function optionAliases(option: VisaFormFieldOption): string[] {
+const FIELD_OPTION_ALIASES: Record<string, Record<string, string[]>> = {
+  mode_of_travel: {
+    air: ["飞机", "航班", "坐飞机", "乘飞机", "搭飞机", "plane", "airplane", "flight", "fly", "flying"],
+    land: ["巴士", "公交", "汽车", "开车", "火车", "铁路", "摩托车", "bus", "car", "train", "drive", "driving", "road"],
+    sea: ["坐船", "乘船", "搭船", "船舶", "渡轮", "邮轮", "游轮", "boat", "ship", "ferry", "cruise", "sail"],
+  },
+  air_transport_type: {
+    commercial: ["民航", "普通航班", "民用航班", "定期航班", "regular flight", "airline flight"],
+    private: ["私人飞机", "包机", "货运航班", "private jet", "charter flight", "cargo flight"],
+  },
+  land_transport_type: {
+    bus: ["公交车", "大巴", "巴士", "coach"],
+    car: ["小汽车", "轿车", "自驾", "开车", "automobile", "drive", "driving"],
+    lorry: ["卡车", "货车", "truck"],
+    motorcycle: ["摩托", "摩托车", "motorbike", "motorcycle"],
+    rail: ["火车", "铁路", "列车", "train", "railway"],
+    van: ["面包车", "厢式车", "minivan"],
+  },
+  sea_transport_type: {
+    cruise: ["游轮", "邮轮", "cruise ship"],
+    commercial_vessel: ["商船", "货轮", "商业船舶", "cargo vessel", "merchant ship"],
+    ferry: ["渡轮", "轮渡"],
+    private_craft: ["私人游艇", "私人船只", "游艇", "yacht"],
+  },
+  accommodation_type: {
+    hotel: ["酒店", "宾馆", "旅馆", "hotel", "hostel"],
+    residential: ["住宅", "朋友家", "亲戚家", "自宅", "residence", "friend's home", "relative's home"],
+  },
+  purpose_of_travel: {
+    "1-day transit/visa free transit facility (vftf)": ["一日过境", "免签过境", "transit"],
+    "business/meeting/conference/convention/exhibition": ["商务", "出差", "开会", "参展", "business trip"],
+    "education/training": ["留学", "学习", "培训", "study"],
+    employment: ["工作", "就业", "上班", "work"],
+    "holiday/sightseeing/leisure": ["旅游", "度假", "观光", "休闲", "holiday", "vacation", "tourism", "sightseeing"],
+    "medical care": ["看病", "就医", "医疗", "medical treatment"],
+    "official/government visit": ["公务访问", "政府访问", "official visit"],
+    religion: ["宗教", "religious visit"],
+    "sports event": ["体育赛事", "比赛", "sporting event"],
+    "to take up residence": ["定居", "居住", "take up residence"],
+    "visiting friends/relatives": ["探亲", "访友", "看望亲友", "visit family", "visiting family", "visit friends", "visiting friends"],
+  },
+};
+
+const LOCATION_FIELD_NAMES = new Set([
+  "place_of_residence",
+  "last_city_or_port_before_singapore",
+  "next_city_or_port_after_singapore",
+]);
+
+const LOCATION_OPTION_ALIASES: Record<string, string[]> = {
+  "HONG KONG SAR, HONG KONG SAR, HONG KONG SAR": ["香港", "Hong Kong"],
+};
+
+function optionAliases(option: VisaFormFieldOption, fieldName?: string): string[] {
   const values = typeof option === "string"
     ? [option]
     : [
@@ -152,10 +255,17 @@ function optionAliases(option: VisaFormFieldOption): string[] {
   const aliases = values.filter(
     (value): value is string => typeof value === "string" && value.trim().length > 0,
   );
-  const segments = aliases.flatMap((value) =>
-    value.split(/[,，|]/).map((segment) => segment.trim()).filter(Boolean),
-  );
-  return Array.from(new Set([...aliases, ...segments]));
+  const segments = aliases.flatMap((value) => {
+    const hierarchy = value.split(/[,，|]/).map((segment) => segment.trim()).filter(Boolean);
+    return hierarchy.length > 1 ? [hierarchy.at(-1)!] : [];
+  });
+  const fieldAliases = fieldName
+    ? FIELD_OPTION_ALIASES[fieldName]?.[optionValue(option).toLocaleLowerCase()] ?? []
+    : [];
+  const locationAliases = fieldName && LOCATION_FIELD_NAMES.has(fieldName)
+    ? LOCATION_OPTION_ALIASES[optionValue(option).toLocaleUpperCase()] ?? []
+    : [];
+  return Array.from(new Set([...aliases, ...segments, ...fieldAliases, ...locationAliases]));
 }
 
 function normalizedNaturalLanguageValue(value: string): string {
@@ -183,14 +293,15 @@ function naturalLanguageContainsAlias(text: string, alias: string): boolean {
 function matchingOptionsForAnswer(
   text: string,
   options: VisaFormFieldOption[],
+  fieldName?: string,
 ): VisaFormFieldOption[] {
   const normalized = normalizedNaturalLanguageValue(text);
   const exactMatches = options.filter((option) =>
-    optionAliases(option).some((alias) => normalizedNaturalLanguageValue(alias) === normalized),
+    optionAliases(option, fieldName).some((alias) => normalizedNaturalLanguageValue(alias) === normalized),
   );
   if (exactMatches.length > 0) return exactMatches;
   return options.filter((option) =>
-    optionAliases(option).some((alias) => naturalLanguageContainsAlias(text, alias)),
+    optionAliases(option, fieldName).some((alias) => naturalLanguageContainsAlias(text, alias)),
   );
 }
 
@@ -198,8 +309,9 @@ function relevantOptionsForMessage(
   options: VisaFormFieldOption[],
   message: string,
   limit = 250,
+  fieldName?: string,
 ): VisaFormFieldOption[] {
-  const mentioned = matchingOptionsForAnswer(message, options);
+  const mentioned = matchingOptionsForAnswer(message, options, fieldName);
   if (mentioned.length === 0) return options.slice(0, limit);
   const mentionedValues = new Set(mentioned.map(optionValue));
   return [
@@ -230,21 +342,24 @@ function parseRelativeDateAnswer(text: string, now: Date, timeZone: string): str
   const offsets: number[] = [];
   const remaining = normalized
     .replace(/大后天/g, () => { offsets.push(3); return " "; })
-    .replace(/后天|day\s+after\s+tomorrow/g, () => { offsets.push(2); return " "; })
-    .replace(/明天|tomorrow/g, () => { offsets.push(1); return " "; })
-    .replace(/今天|today/g, () => { offsets.push(0); return " "; })
-    .replace(/(?:再|过)?\s*(\d{1,3})\s*天后|in\s+(\d{1,3})\s+days?/g, (_match, zhDays, enDays) => {
-      offsets.push(Number(zhDays ?? enDays));
+    .replace(/后天|\bday\s+after\s+tomorrow\b/g, () => { offsets.push(2); return " "; })
+    .replace(/明天|\btomorrow\b/g, () => { offsets.push(1); return " "; })
+    .replace(/今天|\btoday\b/g, () => { offsets.push(0); return " "; })
+    .replace(/(?:再\s*)?(?:过\s*)?(\d{1,3})\s*天后|(?:再\s*过\s*|再\s*|过\s*)(\d{1,3})\s*天|in\s+(\d{1,3})\s+days?/g, (_match, zhDaysAfter, zhDaysPrefix, enDays) => {
+      offsets.push(Number(zhDaysAfter ?? zhDaysPrefix ?? enDays));
       return " ";
     });
   if (offsets.length > 0) {
     const uniqueOffsets = Array.from(new Set(offsets));
-    if (uniqueOffsets.length !== 1 || /不是|不要|not\s+/.test(remaining)) return null;
+    if (
+      uniqueOffsets.length !== 1 ||
+      /不是|不要|不|\bnot\b|\bish\b|大概|左右|也许|可能|\bmaybe\b|\bapproximately\b|\baround\b/.test(remaining)
+    ) return null;
     return addIsoDays(isoDateInTimeZone(now, timeZone), uniqueOffsets[0]!);
   }
 
   const referenceDate = isoDateInTimeZone(now, timeZone);
-  const monthDay = normalized.match(/(?:^|\D)(\d{1,2})\s*月\s*(\d{1,2})\s*(?:日|号)(?:\D|$)/);
+  const monthDay = normalized.match(/(?<![A-Za-z0-9])(\d{1,2})\s*月\s*(\d{1,2})\s*(?:日|号)(?![A-Za-z0-9])/);
   if (monthDay) {
     const year = Number(referenceDate.slice(0, 4));
     const month = Number(monthDay[1]);
@@ -260,11 +375,20 @@ function parseRelativeDateAnswer(text: string, now: Date, timeZone: string): str
     return null;
   }
 
-  const explicit = normalized.match(/(?:^|\D)(\d{4})\s*(?:年|[-/.])\s*(\d{1,2})\s*(?:月|[-/.])\s*(\d{1,2})\s*(?:日|号)?(?:\D|$)/);
-  if (!explicit) return null;
-  const year = Number(explicit[1]);
-  const month = Number(explicit[2]);
-  const day = Number(explicit[3]);
+  const explicit = normalized.match(/(?<![A-Za-z0-9])(\d{4})\s*(?:年|[-/.])\s*(\d{1,2})\s*(?:月|[-/.])\s*(\d{1,2})\s*(?:日|号)?(?![A-Za-z0-9])/);
+  const englishMonths: Record<string, number> = {
+    january: 1, jan: 1, february: 2, feb: 2, march: 3, mar: 3,
+    april: 4, apr: 4, may: 5, june: 6, jun: 6, july: 7, jul: 7,
+    august: 8, aug: 8, september: 9, sep: 9, sept: 9,
+    october: 10, oct: 10, november: 11, nov: 11, december: 12, dec: 12,
+  };
+  const monthFirst = normalized.match(/\b([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,\s*|\s+)(\d{4})\b/);
+  const dayFirst = normalized.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)(?:,\s*|\s+)(\d{4})\b/);
+  const englishMonth = monthFirst ? englishMonths[monthFirst[1]!] : dayFirst ? englishMonths[dayFirst[2]!] : undefined;
+  if (!explicit && !englishMonth) return null;
+  const year = explicit ? Number(explicit[1]) : Number(monthFirst?.[3] ?? dayFirst?.[3]);
+  const month = explicit ? Number(explicit[2]) : englishMonth!;
+  const day = explicit ? Number(explicit[3]) : Number(monthFirst?.[2] ?? dayFirst?.[1]);
   const candidate = new Date(Date.UTC(year, month - 1, day));
   if (
     candidate.getUTCFullYear() !== year ||
@@ -295,7 +419,7 @@ export function parseDirectCurrentFieldAnswer(
   }
 
   if (field.options?.length) {
-    const matches = matchingOptionsForAnswer(text, field.options);
+    const matches = matchingOptionsForAnswer(text, field.options, field.fieldName);
     if (matches.length === 1) {
       return {
         fieldName: field.fieldName,
@@ -688,7 +812,12 @@ async function proposeTurn(params: {
     fieldName: field.fieldName,
     label: localizedLabel(field, params.locale),
     type: field.fieldType,
-    exactOptions: relevantOptionsForMessage(field.options ?? [], params.text).map((option) => ({
+    exactOptions: relevantOptionsForMessage(
+      field.options ?? [],
+      params.text,
+      250,
+      field.fieldName,
+    ).map((option) => ({
       value: optionValue(option),
       aliases: optionAliases(option),
     })),
