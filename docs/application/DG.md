@@ -288,9 +288,13 @@ user-confirmed transcript is saved as a message.
 Natural-language answers are normalized into official form values. For SGAC,
 relative dates use `Asia/Singapore` as the reference time zone, localized date
 phrases are converted to `YYYY-MM-DD`, and Chinese/English option labels map to
-the exact official option value. A successful write shows a localized notice
-with the field value and a conflict-safe Undo action; the notice disappears
-after 10 seconds.
+the exact official option value. Hierarchical city/port options also accept a
+unique natural-language leaf such as `长沙` or `Changsha`; ambiguous place
+names are not guessed. Current-field prompts use supportive, conversational
+wording and include reviewed choices or examples where useful. A successful
+write shows a viewport-level localized notice with the field value and a
+conflict-safe Undo action; the notice disappears after 10 seconds, and an old
+notice timer cannot dismiss a newer notice.
 
 The server recalculates visible missing fields on every turn. It reads saved
 application answers first, asks for at most five relevant missing fields, and

@@ -80,7 +80,7 @@ export interface FormFillingAssistantProps {
   onValidate: () => void | Promise<void>;
   onAcknowledgeWarnings: () => void | Promise<void>;
   onUndoFill: (items: FormAssistantFillNoticeItem[]) => void | Promise<void>;
-  onDismissFillNotice: () => void;
+  onDismissFillNotice: (noticeId: string) => void;
   onGoToReview: () => void;
   className?: string;
 }
@@ -336,7 +336,8 @@ export function FormFillingAssistant({
   useEffect(() => {
     setUndoFillError(null);
     if (!fillNotice) return;
-    const timeout = window.setTimeout(onDismissFillNotice, 10_000);
+    const noticeId = fillNotice.id;
+    const timeout = window.setTimeout(() => onDismissFillNotice(noticeId), 10_000);
     return () => window.clearTimeout(timeout);
   }, [fillNotice, onDismissFillNotice]);
 
@@ -402,7 +403,7 @@ export function FormFillingAssistant({
     setUndoFillError(null);
     try {
       await onUndoFill(fillNotice.items);
-      onDismissFillNotice();
+      onDismissFillNotice(fillNotice.id);
     } catch {
       setUndoFillError(t("filledNotice.undoFailed"));
     } finally {
@@ -509,9 +510,11 @@ export function FormFillingAssistant({
 
         {fillNotice ? (
           <section
-            className="rounded-xl border border-brand-100 bg-brand-50/50 px-4 py-3 text-brand-700 shadow-sm"
+            className="fixed bottom-6 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-xl border border-brand-100 bg-white px-4 py-3 text-brand-700 shadow-lg sm:bottom-8"
             role="status"
             aria-live="polite"
+            aria-atomic="true"
+            data-testid="form-assistant-fill-notice"
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-start gap-2">

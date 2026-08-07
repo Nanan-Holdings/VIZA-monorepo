@@ -17,6 +17,14 @@ Scope: this file applies to `lib/form-assistant/**`.
   `8月7号` must be normalized against the product time zone before model
   extraction. Localized option labels may map to reviewed exact option values;
   ambiguous dates or options must still be confirmed.
+- Ask the current SGAC field in concise, supportive language that explains the
+  expected answer with a useful example or reviewed choices when appropriate;
+  do not expose raw field labels as robotic prompts.
+- Hierarchical official options may use unique comma-delimited segments as
+  natural-language aliases (for example `长沙` for
+  `CHINA, HUNAN, CHANGSHA`). Apply a value only when the full option set has
+  exactly one match, and rank message-relevant options before any model
+  manifest limit instead of relying on the first database rows.
 - Keep document extraction policies pure and deterministic. They may classify
   document types and allowlisted field categories, but must not read storage,
   call an AI provider, or persist applicant answers.

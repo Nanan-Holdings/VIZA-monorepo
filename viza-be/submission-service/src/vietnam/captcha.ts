@@ -523,51 +523,113 @@ export async function waitForVietnamCaptchaRefresh(
 }
 
 async function firstUsableInput(locator: Locator): Promise<Locator | null> {
-  const count = Math.min(await locator.count().catch(() => 0), 30);
-  for (let index = 0; index < count; index += 1) {
-    const candidate = locator.nth(index);
-    const [visible, editable] = await Promise.all([
-      candidate.isVisible().catch(() => false),
-      candidate.isEditable().catch(() => false),
-    ]);
-    if (visible && editable) return candidate;
-  }
-  return null;
+  // Keep this lookup inside the browser process. On Fly, walking a review page
+  // input-by-input through Playwright can take tens of seconds and consume the
+  // CAPTCHA solver's total deadline before a task is even created.
+  const index = await locator
+    .evaluateAll((elements) => {
+      const limit = Math.min(elements.length, 30);
+      for (let current = 0; current < limit; current += 1) {
+        const element = elements[current];
+        if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) continue;
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        if (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0 &&
+          !element.disabled &&
+          !element.readOnly
+        ) {
+          return current;
+        }
+      }
+      return -1;
+    })
+    .catch(() => -1);
+  return index >= 0 ? locator.nth(index) : null;
 }
 
 async function firstVisible(locator: Locator): Promise<Locator | null> {
-  const count = Math.min(await locator.count().catch(() => 0), 30);
-  for (let index = 0; index < count; index += 1) {
-    const candidate = locator.nth(index);
-    if (await candidate.isVisible().catch(() => false)) return candidate;
-  }
-  return null;
+  const index = await locator
+    .evaluateAll((elements) => {
+      const limit = Math.min(elements.length, 30);
+      for (let current = 0; current < limit; current += 1) {
+        const element = elements[current];
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        if (style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0) {
+          return current;
+        }
+      }
+      return -1;
+    })
+    .catch(() => -1);
+  return index >= 0 ? locator.nth(index) : null;
 }
 
 async function locateVietnamCaptchaImage(root: CaptchaRoot, input: Locator): Promise<Locator | null> {
   const direct = await firstVisible(root.locator(CAPTCHA_IMAGE_SELECTOR));
   if (direct) return direct;
 
-  const inputBox = await input.boundingBox().catch(() => null);
-  if (!inputBox) return null;
+  // The current official review dialog renders an id-less challenge image and
+  // a nearby Ant `sync` SVG. The former fallback inspected every image through
+  // separate Playwright calls and could select the small refresh icon because
+  // it was physically closest to the input. Rank all candidates in one browser
+  // evaluation, reject controls/icons, and strongly prefer CAPTCHA-shaped
+  // raster images or canvases.
   const candidates = root.locator("img, canvas, svg");
-  const count = Math.min(await candidates.count().catch(() => 0), 50);
-  let best: { locator: Locator; score: number } | null = null;
-  for (let index = 0; index < count; index += 1) {
-    const candidate = candidates.nth(index);
-    if (!(await candidate.isVisible().catch(() => false))) continue;
-    const box = await candidate.boundingBox().catch(() => null);
-    if (!box || box.width <= 10 || box.height <= 10) continue;
-    const metadata = await candidate.evaluate((element) =>
-      `${element.getAttribute("src") ?? ""} ${element.getAttribute("alt") ?? ""} ${element.getAttribute("class") ?? ""}`,
-    ).catch(() => "");
-    const dx = Math.abs(box.x - (inputBox.x + inputBox.width));
-    const dy = Math.abs(box.y + box.height / 2 - (inputBox.y + inputBox.height / 2));
-    const labelBonus = /captcha|security|code|xác nhận/i.test(metadata) ? -100 : 0;
-    const score = dx + dy * 2 + labelBonus;
-    if (!best || score < best.score) best = { locator: candidate, score };
-  }
-  return best?.locator ?? null;
+  const bestIndex = await input
+    .evaluate((currentInput) => {
+      const inputRect = currentInput.getBoundingClientRect();
+      const elements = Array.from(document.querySelectorAll("img, canvas, svg")).slice(0, 50);
+      let selectedIndex = -1;
+      let selectedScore = Number.POSITIVE_INFINITY;
+      for (let index = 0; index < elements.length; index += 1) {
+        const element = elements[index];
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          rect.width < 40 ||
+          rect.height < 20
+        ) {
+          continue;
+        }
+        const metadata = `${element.getAttribute("src") ?? ""} ${element.getAttribute("alt") ?? ""} ` +
+          `${element.getAttribute("class") ?? ""} ${element.getAttribute("id") ?? ""} ` +
+          `${element.getAttribute("data-icon") ?? ""}`;
+        const control = element.closest("button, [role='button'], a");
+        const controlMetadata = control
+          ? `${control.textContent ?? ""} ${control.getAttribute("aria-label") ?? ""} ` +
+            `${control.getAttribute("title") ?? ""} ${control.getAttribute("class") ?? ""}`
+          : "";
+        if (/refresh|reload|sync|redo|rotate|anticon/i.test(`${metadata} ${controlMetadata}`)) continue;
+        if (control && element.tagName.toLowerCase() === "svg") continue;
+
+        const tagName = element.tagName.toLowerCase();
+        const aspectRatio = rect.width / Math.max(rect.height, 1);
+        const plausibleChallenge = rect.width >= 70 && rect.height >= 28 && aspectRatio >= 1.4 && aspectRatio <= 12;
+        if (tagName === "svg" && !plausibleChallenge && !/captcha|security|code|xác nhận/i.test(metadata)) {
+          continue;
+        }
+        const dx = Math.abs(rect.x + rect.width / 2 - (inputRect.x + inputRect.width / 2));
+        const dy = Math.abs(rect.y + rect.height / 2 - (inputRect.y + inputRect.height / 2));
+        const metadataBonus = /captcha|security|code|xác nhận/i.test(metadata) ? -1_000 : 0;
+        const shapeBonus = plausibleChallenge ? -500 : 0;
+        const rasterBonus = tagName === "img" || tagName === "canvas" ? -250 : 0;
+        const score = dx + dy * 2 + metadataBonus + shapeBonus + rasterBonus;
+        if (score < selectedScore) {
+          selectedIndex = index;
+          selectedScore = score;
+        }
+      }
+      return selectedIndex;
+    })
+    .catch(() => -1);
+  return bestIndex >= 0 ? candidates.nth(bestIndex) : null;
 }
 
 async function rootHasVisibleCaptchaDialog(root: CaptchaRoot): Promise<boolean> {

@@ -2832,8 +2832,8 @@ export default function ApplicationPage() {
     }
   }, [appState.applicationId, dbSteps, locale]);
 
-  const handleDismissFormAssistantFillNotice = useCallback(() => {
-    setFormAssistantFillNotice(null);
+  const handleDismissFormAssistantFillNotice = useCallback((noticeId: string) => {
+    setFormAssistantFillNotice((current) => current?.id === noticeId ? null : current);
   }, []);
 
   const handleFormAssistantTranscribe = useCallback(async (file: File): Promise<FormAssistantTranscriptionResponse> => {
