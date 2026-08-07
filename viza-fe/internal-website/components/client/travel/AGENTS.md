@@ -23,6 +23,9 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 ## Key Files
 
 - `travel-planner-form.tsx`: step form UI and structured payload emission
+- `travel-planner-copy.ts`: locale-scoped Travel planner questions, controls,
+  validation, search, and hotel-state copy; payload keys and deterministic step
+  order remain language-neutral.
 - `travel-itinerary-panel.tsx`: itinerary render/export
 - `trip-route-map.tsx`: map route, markers, hover preview, map-to-form handoff
 - `trip-route-map.test.ts`: regression coverage for shared marker-anchor and hover-pointer geometry.

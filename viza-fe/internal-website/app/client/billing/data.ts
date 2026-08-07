@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getUserFromSupabaseSession } from "@/lib/client-session";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBillingCopy } from "./copy";
 
 export interface BillingApplicant {
   applicantId: string;
@@ -152,8 +153,9 @@ function uniqueValues(values: Array<string | null>): string[] {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
 
-export async function getBillingOverview(): Promise<BillingOverview> {
+export async function getBillingOverview(locale?: string | null): Promise<BillingOverview> {
   const applicant = await requireBillingApplicant();
+  const copy = getBillingCopy(locale);
 
   try {
     const adminClient = createAdminClient();
@@ -195,7 +197,7 @@ export async function getBillingOverview(): Promise<BillingOverview> {
         refundRecords: [],
         applications: [],
         packages: [],
-        error: "We could not load billing records right now. Please try again later.",
+        error: copy.errors.loadRecords,
       };
     }
 
@@ -237,7 +239,7 @@ export async function getBillingOverview(): Promise<BillingOverview> {
       refundRecords: [],
       applications: [],
       packages: [],
-      error: "Billing records are temporarily unavailable.",
+      error: copy.errors.temporaryUnavailable,
     };
   }
 }
