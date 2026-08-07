@@ -12,7 +12,9 @@ import { pickRadio, pickSelect, tickCheckbox } from "../fillers.js";
 import { VN_COUNTRY_OPTION_ORDER } from "../country-options.js";
 import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
 import {
+  advanceVietnamToReview,
   collectVietnamReviewActionCandidates,
+  ensureVietnamApplicationDeclarationChecked,
   isVietnamUploadResponseAccepted,
   uploadVietnamFile,
   vietnamMultipartContainsFilename,
@@ -1426,6 +1428,53 @@ test("vn.review browser: discovers role, anchor, input, suffix, and disabled con
         { label: "Save draft", tagName: "input", disabled: false },
         { label: "Tiếp tục", tagName: "div", disabled: true },
       ],
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.review browser: checks the exact declaration and waits for Continue to enable", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <label class="ant-checkbox-wrapper">
+        <span class="ant-checkbox">
+          <input id="basic_ttcdCqTcCamDoan" type="checkbox" />
+        </span>
+        <span>Tôi xin cam đoan những thông tin trên là đúng</span>
+      </label>
+      <label class="ant-checkbox-wrapper">
+        <span class="ant-checkbox"><input id="create-account" type="checkbox" /></span>
+        <span>Agree to create account by email</span>
+      </label>
+      <button id="continue" disabled>Tiếp tục</button>
+      <script>
+        document.querySelector('#basic_ttcdCqTcCamDoan').addEventListener('change', (event) => {
+          setTimeout(() => {
+            document.querySelector('#continue').disabled = !event.target.checked;
+          }, 700);
+        });
+        document.querySelector('#continue').addEventListener('click', () => {
+          window.__reviewClicked = true;
+        });
+      </script>
+    `);
+
+    assert.equal(await ensureVietnamApplicationDeclarationChecked(page), true);
+    assert.equal(await page.locator("#basic_ttcdCqTcCamDoan").isChecked(), true);
+    assert.equal(await page.locator("#create-account").isChecked(), false);
+
+    const result = await advanceVietnamToReview(page, 1_500);
+    assert.deepEqual(result, {
+      advanced: false,
+      clickedLabel: "Tiếp tục",
+      failureReason: "no_transition",
+    });
+    assert.equal(
+      await page.evaluate(() => Boolean((window as unknown as { __reviewClicked?: boolean }).__reviewClicked)),
+      true,
     );
   } finally {
     await browser.close();
