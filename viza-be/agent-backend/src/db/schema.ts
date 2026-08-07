@@ -594,6 +594,61 @@ export const visaChatMessages = pgTable("visa_chat_messages", {
 });
 
 // =============================================================================
+// FORM FILLING ASSISTANT SESSIONS
+// Durable, application-scoped state for the interactive form assistant.
+// =============================================================================
+
+export const formAssistantSessions = pgTable("form_assistant_sessions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicationId: uuid("application_id").notNull(),
+	applicantId: uuid("applicant_id").notNull(),
+	authUserId: uuid("auth_user_id").notNull(),
+	schemaFingerprint: text("schema_fingerprint").notNull(),
+	knowledgeReleaseId: uuid("knowledge_release_id"),
+	knowledgeReleaseKey: text("knowledge_release_key"),
+	stateJson: jsonb("state_json").default({}).notNull(),
+	stateVersion: bigint("state_version", { mode: "number" }).default(0).notNull(),
+	lastCheckJson: jsonb("last_check_json"),
+	status: text("status").default("active").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+	completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => ({
+	applicationUniqueIdx: uniqueIndex("form_assistant_sessions_application_unique_idx").on(table.applicationId),
+	authUserUpdatedIdx: index("form_assistant_sessions_auth_user_updated_idx").on(table.authUserId, table.updatedAt),
+	applicantUpdatedIdx: index("form_assistant_sessions_applicant_updated_idx").on(table.applicantId, table.updatedAt),
+}));
+
+// =============================================================================
+// FORM FILLING ASSISTANT MESSAGES
+// Persisted text turns only; raw voice recordings are intentionally ephemeral.
+// =============================================================================
+
+export const formAssistantMessages = pgTable("form_assistant_messages", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	sessionId: uuid("session_id").notNull(),
+	applicationId: uuid("application_id"),
+	applicantId: uuid("applicant_id"),
+	authUserId: uuid("auth_user_id"),
+	idempotencyKey: text("idempotency_key").notNull(),
+	role: text("role").notNull(),
+	content: text("content").notNull(),
+	inputMode: text("input_mode").default("text").notNull(),
+	responseJson: jsonb("response_json"),
+	metadataJson: jsonb("metadata_json").default({}).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	sessionCreatedIdx: index("form_assistant_messages_session_created_idx").on(table.sessionId, table.createdAt),
+	applicationCreatedIdx: index("form_assistant_messages_application_created_idx").on(table.applicationId, table.createdAt),
+	authUserCreatedIdx: index("form_assistant_messages_auth_user_created_idx").on(table.authUserId, table.createdAt),
+	sessionIdempotencyRoleIdx: uniqueIndex("form_assistant_messages_session_idempotency_role_unique_idx").on(
+		table.sessionId,
+		table.idempotencyKey,
+		table.role,
+	),
+}));
+
+// =============================================================================
 // TRAVEL DESTINATION INDEX
 // Large searchable index for Travel AI destination resolution. Cards are stored
 // separately and generated lazily only after a destination is selected.
@@ -999,6 +1054,12 @@ export type NewVisaChatSession = typeof visaChatSessions.$inferInsert;
 
 export type VisaChatMessage = typeof visaChatMessages.$inferSelect;
 export type NewVisaChatMessage = typeof visaChatMessages.$inferInsert;
+
+export type FormAssistantSession = typeof formAssistantSessions.$inferSelect;
+export type NewFormAssistantSession = typeof formAssistantSessions.$inferInsert;
+
+export type FormAssistantMessage = typeof formAssistantMessages.$inferSelect;
+export type NewFormAssistantMessage = typeof formAssistantMessages.$inferInsert;
 
 export type TravelDestination = typeof travelDestinations.$inferSelect;
 export type NewTravelDestination = typeof travelDestinations.$inferInsert;

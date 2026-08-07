@@ -129,6 +129,26 @@ Each field can show an explicit `问 AI` button. Clicking it opens field-specifi
 
 The AI help should not open just because a user focuses or clicks a field.
 
+## Form-filling assistant and voice input
+
+The Singapore SG Arrival Card form includes a Form-filling assistant at the
+top of the page. You can answer its questions, use the microphone, or continue
+typing directly into the bilingual form in any order. Before each question the
+assistant checks the answers already saved on this application, so it does not
+ask again for information that is already available.
+
+Stopping a recording creates editable text in the message box. Review names,
+dates, passport numbers and flight numbers, then send the text yourself. The
+recording is not saved to your account or chat history. If microphone access or
+transcription is unavailable, ordinary text input and the form continue to
+work.
+
+Fields filled by the assistant are highlighted and remain editable. A manual
+edit becomes the authoritative answer. When the required answers are complete,
+run the final check. Errors must be fixed; warnings can be reviewed and kept.
+Confirmation opens the existing read-only Review step and does not submit the
+SG Arrival Card to ICA.
+
 ## Photo Upload
 
 The photo upload step should show country-specific photo guidance when available. It should not use one country's rules for every application. Users upload the required photo, then continue to review.

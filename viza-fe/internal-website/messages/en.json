@@ -542,6 +542,60 @@
     "title": "Indonesia Tourist Visa B211A",
     "saving": "Saving...",
     "edit": "Edit",
+    "formAssistant": {
+      "title": "Form filling assistant",
+      "description": "I will check what is already complete, ask only for missing details, and help you review your answers before you continue.",
+      "badge": "AI assistant",
+      "progressLabel": "Application completion",
+      "progress": "{completed} of {total} fields complete",
+      "conversationLabel": "Form filling assistant conversation",
+      "emptyConversation": "Tell me what you would like to add, or answer the questions I ask. You can also use the microphone to dictate your answer.",
+      "thinking": "Checking your application...",
+      "missing": {
+        "title": "Details still needed",
+        "required": "Required",
+        "optional": "Optional"
+      },
+      "filled": {
+        "title": "Filled with your confirmed information"
+      },
+      "validation": {
+        "title": "Answer check",
+        "errors": "{count, plural, one {# issue must be fixed} other {# issues must be fixed}}",
+        "warnings": "{count, plural, one {# item to review} other {# items to review}}",
+        "pass": "No required errors were found. Please review the form once more before continuing."
+      },
+      "composer": {
+        "label": "Message for the form filling assistant",
+        "placeholder": "Type an answer or ask for help...",
+        "hint": "Press Enter to send, or Shift+Enter for a new line. Voice recordings are transcribed for your review before sending.",
+        "startRecording": "Start voice input",
+        "stopRecording": "Stop voice input",
+        "cancelRecording": "Cancel",
+        "recording": "Recording {seconds}s / 60s",
+        "transcribing": "Transcribing your recording...",
+        "send": "Send message"
+      },
+      "errors": {
+        "unsupported": "Voice input is not supported in this browser. You can continue by typing.",
+        "permissionDenied": "Microphone access was not granted. You can continue by typing.",
+        "noDevice": "No microphone was found. You can continue by typing.",
+        "recordingFailed": "The recording could not be started. Please try again or type your answer.",
+        "emptyRecording": "No audio was captured. Please try again or type your answer.",
+        "fileTooLarge": "This recording is larger than the 10 MB limit. Please record a shorter answer.",
+        "emptyTranscript": "No words were detected. Please try again or type your answer.",
+        "transcriptionFailed": "The recording could not be transcribed. Please try again or type your answer.",
+        "sendFailed": "Your message was not sent. Your text has been kept so you can try again."
+      },
+      "actions": {
+        "checkAnswers": "Check my answers",
+        "checkAgain": "Check again",
+        "checking": "Checking answers...",
+        "acknowledgeWarnings": "Keep these answers and continue",
+        "acknowledgingWarnings": "Saving your confirmation...",
+        "goToReview": "Continue to review"
+      }
+    },
     "findingRecentApplication": "Opening your most recent application form...",
     "noRecentStartedTitle": "No application selected yet",
     "noRecentStartedBody": "Choose a destination from Home first. After that, Application will reopen your latest active form.",

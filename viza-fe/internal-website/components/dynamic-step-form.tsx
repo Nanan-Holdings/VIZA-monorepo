@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
-import { CircleHelp, Loader2, Trash2 } from "lucide-react";
+import { CircleHelp, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
@@ -69,6 +69,8 @@ interface DynamicStepFormProps {
    * visible step in the long form at once.
    */
   invalidFieldNames?: ReadonlySet<string>;
+  /** Fields last written by the form assistant. Manual edits clear this flag. */
+  aiFilledFieldNames?: ReadonlySet<string>;
 }
 
 const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
@@ -2471,6 +2473,7 @@ export function DynamicStepForm({
   visaType,
   externallyHandledFieldNames,
   invalidFieldNames,
+  aiFilledFieldNames,
 }: DynamicStepFormProps) {
   const tButtons = useTranslations("application.dynamicButtons");
   const externallyHandled = useMemo(
@@ -3963,6 +3966,13 @@ export function DynamicStepForm({
           }
       : null;
     const issue = postalLookupIssue ?? localIssue;
+    const isAiFilled = Boolean(aiFilledFieldNames?.has(field.fieldName) && values[valueKey]?.trim());
+    const aiFilledBadge = isAiFilled ? (
+      <span className="mb-1 inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600">
+        <Sparkles className="h-3 w-3" aria-hidden="true" />
+        {isChineseInterface ? "AI 已填写" : "AI filled"}
+      </span>
+    ) : null;
     const showIssue = issue.severity !== "ok" && issue.message !== "Required" && issue.message !== "必填项";
     const panelOpen = activeGuidanceKey === valueKey;
     const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
@@ -4022,9 +4032,11 @@ export function DynamicStepForm({
           className={cn(
             "application-form-field group/field relative py-1.5 transition-colors",
             panelOpen ? "bg-[#fbfdff]" : "",
+            isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
             submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500",
           )}
         >
+          {aiFilledBadge}
           <div className="min-w-0">
             {renderSide("en")}
           </div>
@@ -4056,9 +4068,11 @@ export function DynamicStepForm({
         className={cn(
           "application-form-field group/field relative py-1.5 transition-colors",
           panelOpen ? "bg-[#fbfdff]" : "",
+          isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
           submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500",
         )}
       >
+        {aiFilledBadge}
         <div className="grid min-w-0 gap-3 md:grid-cols-2">
           {renderSide("zh")}
           {renderSide("en")}

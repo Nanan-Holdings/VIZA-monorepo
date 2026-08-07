@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { applicantVault } from "../applicant-vault.js";
 import { hasAliasEmailForwardingConsent } from "../inbox/forwarding-consent.js";
 import { ensureApplicantInboxAlias } from "../inbox/alias.js";
@@ -9,6 +10,28 @@ const CURRENT_PASSWORD_KEY = "indonesia.portal.password";
 const ALIAS_VERSION_KEY = "indonesia.portal.alias_version";
 const LEGACY_EMAIL_KEY = "indonesia.portal.legacy.email";
 const LEGACY_PASSWORD_KEY = "indonesia.portal.legacy.password";
+
+export function generateIndonesiaPortalPassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$*?";
+  const all = upper + lower + digits + symbols;
+  const characters = [
+    upper[randomBytes(1)[0] % upper.length],
+    lower[randomBytes(1)[0] % lower.length],
+    digits[randomBytes(1)[0] % digits.length],
+    symbols[randomBytes(1)[0] % symbols.length],
+  ];
+  while (characters.length < 12) {
+    characters.push(all[randomBytes(1)[0] % all.length]);
+  }
+  return characters
+    .map((character) => ({ character, sort: randomBytes(2).readUInt16BE(0) }))
+    .sort((left, right) => left.sort - right.sort)
+    .map((entry) => entry.character)
+    .join("");
+}
 
 export class IndonesiaAliasPreflightError extends Error {
   constructor(

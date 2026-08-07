@@ -62,6 +62,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260721030018_create_universal_profile_documents.sql`;
   application document requirements may map their country-specific photo and
   signature aliases to these canonical profile materials.
+- Application-scoped Form Filling Assistant sessions and persisted text turns
+  are stored in `form_assistant_sessions` and `form_assistant_messages` by
+  `supabase/migrations/20260806155039_form_assistant_sessions.sql`; raw voice
+  recordings are ephemeral and never persisted.
 - Commercial and agency payment records are stored in `payment_records`,
   created by `supabase/migrations/*create_payment_records.sql`.
 - Customer support ticket storage for `/client/support` and `/admin/support`

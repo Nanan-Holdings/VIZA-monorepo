@@ -542,6 +542,60 @@
     "title": "印度尼西亚旅游签证 B211A",
     "saving": "保存中...",
     "edit": "编辑",
+    "formAssistant": {
+      "title": "表单填写助手",
+      "description": "我会先检查已经填写的内容，只询问缺少的信息，并在继续前帮助你检查答案。",
+      "badge": "AI 助手",
+      "progressLabel": "申请填写进度",
+      "progress": "已完成 {completed} / {total} 个项目",
+      "conversationLabel": "表单填写助手对话",
+      "emptyConversation": "告诉我你想补充的内容，或回答我提出的问题。你也可以使用麦克风口述答案。",
+      "thinking": "正在检查你的申请...",
+      "missing": {
+        "title": "仍需补充的信息",
+        "required": "必填",
+        "optional": "选填"
+      },
+      "filled": {
+        "title": "已使用你确认的信息填写"
+      },
+      "validation": {
+        "title": "答案检查",
+        "errors": "有 {count, plural, one {# 项问题需要修正} other {# 项问题需要修正}}",
+        "warnings": "有 {count, plural, one {# 项内容需要确认} other {# 项内容需要确认}}",
+        "pass": "没有发现必填错误。继续前请再检查一次表单。"
+      },
+      "composer": {
+        "label": "发送给表单填写助手的消息",
+        "placeholder": "输入答案或询问帮助...",
+        "hint": "按 Enter 发送，按 Shift+Enter 换行。语音会先转成文字，确认后才会发送。",
+        "startRecording": "开始语音输入",
+        "stopRecording": "停止语音输入",
+        "cancelRecording": "取消",
+        "recording": "正在录音 {seconds} 秒 / 60 秒",
+        "transcribing": "正在转写录音...",
+        "send": "发送消息"
+      },
+      "errors": {
+        "unsupported": "当前浏览器不支持语音输入，你可以继续使用文字输入。",
+        "permissionDenied": "没有获得麦克风权限，你可以继续使用文字输入。",
+        "noDevice": "没有找到麦克风，你可以继续使用文字输入。",
+        "recordingFailed": "无法开始录音，请重试或输入答案。",
+        "emptyRecording": "没有录到声音，请重试或输入答案。",
+        "fileTooLarge": "录音超过 10 MB 限制，请录制更短的答案。",
+        "emptyTranscript": "没有识别到文字，请重试或输入答案。",
+        "transcriptionFailed": "录音转写失败，请重试或输入答案。",
+        "sendFailed": "消息未发送，输入内容已保留，请重试。"
+      },
+      "actions": {
+        "checkAnswers": "检查我的答案",
+        "checkAgain": "再次检查",
+        "checking": "正在检查答案...",
+        "acknowledgeWarnings": "保留这些答案并继续",
+        "acknowledgingWarnings": "正在保存你的确认...",
+        "goToReview": "继续审核"
+      }
+    },
     "findingRecentApplication": "正在打开最近的申请表单...",
     "noRecentStartedTitle": "还没有选择申请",
     "noRecentStartedBody": "请先从首页选择目的地；之后点击申请会直接回到最近开启的表单。",

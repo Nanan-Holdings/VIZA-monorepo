@@ -35,6 +35,8 @@ Supabase service-role client setup for the agent backend.
   Vietnam status tracking, daily scheduling, atomic claims, and artifact audit.
 - `../../drizzle/0124_travel_agent_conversation_state.sql`: durable Travel
   Agent state versions, idempotent messages, model continuity, and preferences.
+- `../../drizzle/0134_form_assistant_sessions.sql`: durable application-scoped
+  Form Filling Assistant state/messages with idempotency and ownership RLS.
 
 ## Ownership Boundaries
 
@@ -66,6 +68,8 @@ For schema changes, also run any affected route/eval tests.
 - `travel_agent_sessions`
 - `travel_agent_messages`
 - `travel_user_preferences`
+- `form_assistant_sessions`
+- `form_assistant_messages`
 - `visa_documents`
 - `visa_chunks`
 - `visa_form_fields`

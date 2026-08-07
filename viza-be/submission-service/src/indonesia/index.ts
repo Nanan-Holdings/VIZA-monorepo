@@ -42,6 +42,11 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
   managedAccountAvailable: boolean;
   managedAccountEmail?: string | null;
   managedAccountPassword?: string | null;
+  managedAccountReusable?: boolean;
+  accountRecoveryPassword?: string | null;
+  onAccountPasswordReset?: (password: string) => Promise<void>;
+  legacyManagedAccountEmail?: string | null;
+  legacyManagedAccountPassword?: string | null;
   applicantId?: string | null;
   passportImagePath?: string | null;
   photoImagePath?: string | null;
@@ -270,6 +275,11 @@ export async function runIndonesiaLiveSubmission(
       applicantId: input.applicantId,
       accountEmail: managedEmail,
       accountPassword: managedPassword,
+      accountRecoveryEnabled: input.managedAccountReusable,
+      accountRecoveryPassword: input.accountRecoveryPassword,
+      onAccountPasswordReset: input.onAccountPasswordReset,
+      legacyAccountEmail: input.legacyManagedAccountEmail,
+      legacyAccountPassword: input.legacyManagedAccountPassword,
       registration: {
         documentTravelType: normalized.documentTravelType,
         fullName: normalized.fullName ?? input.profile?.fullName,

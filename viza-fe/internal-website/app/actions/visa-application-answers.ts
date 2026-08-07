@@ -547,6 +547,12 @@ export async function saveDynamicAnswers(
         application_id: applicationId,
         field_name: fieldName,
         value_text: value,
+        // Manual form input is authoritative. Persisting it clears any older
+        // assistant/OCR provenance so a later assistant turn cannot overwrite
+        // the applicant's edit.
+        source: "user_form",
+        source_profile_updated_at: null,
+        source_metadata: null,
         updated_at: now,
       }));
 
@@ -554,7 +560,16 @@ export async function saveDynamicAnswers(
       const { error: upsertError } = await adminClient
         .from("visa_application_answers")
         .upsert(upserts, { onConflict: "application_id,field_name" });
-      if (upsertError) return { error: upsertError.message };
+      if (upsertError) {
+        if (!isMissingSchemaFeatureError(upsertError, ["source", "source_profile_updated_at", "source_metadata"])) {
+          return { error: upsertError.message };
+        }
+        const legacyUpserts = upserts.map(({ source: _source, source_profile_updated_at: _profileUpdatedAt, source_metadata: _metadata, ...row }) => row);
+        const { error: legacyError } = await adminClient
+          .from("visa_application_answers")
+          .upsert(legacyUpserts, { onConflict: "application_id,field_name" });
+        if (legacyError) return { error: legacyError.message };
+      }
     }
 
     // Dynamic visa form saves are application-scoped. Universal Profile is a

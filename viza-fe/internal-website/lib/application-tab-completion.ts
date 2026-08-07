@@ -141,6 +141,20 @@ function missingForDynamicStep(step: WizardStep, stepId: number, stepName: strin
   return missing;
 }
 
+/**
+ * Deterministic, UI-independent missing-field calculation used by both the
+ * application wizard and the form-filling assistant. Conditional and
+ * required-unless rules are evaluated against the complete answer snapshot.
+ */
+export function getMissingDynamicFormFields(
+  dbSteps: WizardStep[],
+  answers: Record<string, string>,
+): MissingApplicationField[] {
+  return dbSteps.flatMap((step, index) =>
+    missingForDynamicStep(step, index, step.stepName, answers),
+  );
+}
+
 function pushMissing(
   output: MissingApplicationField[],
   fieldByName: Map<string, { field: VisaFormFieldRow; step: WizardStep; stepId: number }>,

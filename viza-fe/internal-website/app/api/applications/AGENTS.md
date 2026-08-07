@@ -64,6 +64,15 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/korea-evidence/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/korea-appointment-proof-pdf/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.test.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/form-assistant/transcribe/route.ts`
+  accepts a short-lived, ownership-checked multipart recording, forwards it to
+  the configured OpenAI transcription model, and returns editable text. It
+  must not persist raw audio or expose provider error payloads.
+- `viza-fe/internal-website/app/api/applications/[id]/form-assistant/route.ts`
+  and its `turn`, `validate`, `acknowledge-warnings`, and owned `documents/*/extract`
+  children provide the SGAC application-level assistant. Keep the product
+  allowlist, schema-scoped extraction, user-wins conflict checks, and
+  no-official-submission boundary intact.
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 - `viza-fe/internal-website/components/application-steps/translation-panel.tsx`
 - `viza-fe/internal-website/lib/submission-queue.ts`
