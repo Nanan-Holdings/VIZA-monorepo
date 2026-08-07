@@ -225,6 +225,7 @@ import {
   runIndonesiaLiveSubmission,
 } from "./indonesia";
 import {
+  generateIndonesiaPortalPassword,
   IndonesiaAliasPreflightError,
   prepareIndonesiaCanonicalAliasAccount,
 } from "./indonesia/account-alias.js";
@@ -6886,6 +6887,16 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const answers = await loadDs160Answers(item.application_id);
     const managedVaultEmail = await applicantVault.get(profile.id, "indonesia.portal.email", vaultOpts);
     const managedVaultPassword = await applicantVault.get(profile.id, "indonesia.portal.password", vaultOpts);
+    const legacyManagedVaultEmail = await applicantVault.get(
+      profile.id,
+      "indonesia.portal.legacy.email",
+      vaultOpts,
+    );
+    const legacyManagedVaultPassword = await applicantVault.get(
+      profile.id,
+      "indonesia.portal.legacy.password",
+      vaultOpts,
+    );
     const managedAliasVersion = await applicantVault.get(
       profile.id,
       "indonesia.portal.alias_version",
@@ -6896,7 +6907,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       currentEmail: managedVaultEmail,
       currentPassword: managedVaultPassword,
       currentAliasVersion: managedAliasVersion,
-      generatedPassword: generateFvPortalPassword(),
+      generatedPassword: generateIndonesiaPortalPassword(),
       correlationId: item.id,
     });
     console.log(
@@ -7134,6 +7145,16 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       managedAccountAvailable: true,
       managedAccountEmail: managedAccount.email,
       managedAccountPassword: managedAccount.password,
+      managedAccountReusable: managedAccount.reuseExistingAccount,
+      accountRecoveryPassword: generateIndonesiaPortalPassword(),
+      onAccountPasswordReset: async (password: string) => {
+        await applicantVault.set(profile.id, "indonesia.portal.password", password, {
+          ...vaultOpts,
+          note: "VIZA-managed Indonesia eVisa portal password recovered through the official reset flow",
+        });
+      },
+      legacyManagedAccountEmail: legacyManagedVaultEmail,
+      legacyManagedAccountPassword: legacyManagedVaultPassword,
       applicantId: profile.id,
       passportImagePath,
       photoImagePath,

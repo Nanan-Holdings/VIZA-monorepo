@@ -109,6 +109,8 @@ const APPLICANT_TABLES: ExportTable[] = [
 const APPLICATION_TABLES: ExportTable[] = [
   { table: "visa_application_answers", filterCol: "application_id" },
   { table: "application_documents", filterCol: "application_id" },
+  { table: "form_assistant_sessions", filterCol: "application_id" },
+  { table: "form_assistant_messages", filterCol: "application_id" },
   { table: "submission_queue", filterCol: "application_id" },
 ];
 

@@ -158,6 +158,10 @@ The current internal automation migrations are:
   gate for the first audited passport matrix.
 - `0133_harden_visa_knowledge_promotion.sql`: removes inherited anonymous and
   signed-in execution grants from knowledge promotion and keeps it service-only.
+- `0134_form_assistant_sessions.sql`: durable application-scoped Form Filling
+  Assistant sessions/messages, idempotency keys, validation state, indexes,
+  answer provenance columns, explicit grants, and authenticated ownership RLS
+  policies.
 
 ## Guardrails
 
