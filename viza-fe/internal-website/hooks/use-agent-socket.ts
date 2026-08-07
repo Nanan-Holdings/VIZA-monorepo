@@ -124,7 +124,9 @@ export function useAgentSocket({
       transports: ["polling", "websocket"],
       upgrade: true,
       reconnection: true,
-      reconnectionAttempts: 10,
+      // A sleeping production instance can take over a minute to wake. Keep
+      // the automatic retry window comfortably beyond that cold start.
+      reconnectionAttempts: 20,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 30000,
       timeout: 20000,
@@ -140,14 +142,22 @@ export function useAgentSocket({
     });
 
     visaSocket.on("disconnect", (reason) => {
-      setStatus("disconnected");
+      setStatus(visaSocket.active ? "connecting" : "disconnected");
       addLog("disconnected", { reason });
       flushTokenBuffer();
     });
 
     visaSocket.on("connect_error", (error) => {
-      setStatus("error");
+      setStatus(visaSocket.active ? "connecting" : "error");
       addLog("error", { message: error.message, type: "connect_error" });
+    });
+
+    visaSocket.io.on("reconnect_attempt", () => {
+      setStatus("connecting");
+    });
+
+    visaSocket.io.on("reconnect_failed", () => {
+      setStatus("error");
     });
 
     // Token streaming
