@@ -12,6 +12,7 @@ import { pickRadio, pickSelect, tickCheckbox } from "../fillers.js";
 import { VN_COUNTRY_OPTION_ORDER } from "../country-options.js";
 import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
 import {
+  acknowledgeVietnamNoteModal,
   advanceVietnamToReview,
   collectVietnamReviewActionCandidates,
   ensureVietnamApplicationDeclarationChecked,
@@ -19,6 +20,84 @@ import {
   uploadVietnamFile,
   vietnamMultipartContainsFilename,
 } from "../run.js";
+
+test("vn.note browser: acknowledges hidden Ant declaration inputs on the visible landing page", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <!doctype html>
+      <html>
+        <head>
+          <style>
+            .ant-checkbox-wrapper input { position: absolute; opacity: 0; }
+          </style>
+        </head>
+        <body>
+          <main>
+            <h1>NOTE DECLARATION INSTRUCTIONS</h1>
+            <div id="declarations" style="display:none">
+              <label class="ant-checkbox-wrapper">
+                <input id="read-instructions" type="checkbox" data-declaration />
+                <span>Confirmation of reading carefully instructions</span>
+              </label>
+              <label class="ant-checkbox-wrapper">
+                <input id="obey-laws" type="checkbox" data-declaration />
+                <span>Confirm compliance with Vietnamese laws upon entry</span>
+              </label>
+              <label class="ant-checkbox-wrapper">
+                <input id="create-account" type="checkbox" />
+                <span>Agree to create account by email</span>
+              </label>
+              <button id="next" disabled>Next</button>
+            </div>
+          </main>
+          <script>
+            const inputs = Array.from(document.querySelectorAll("input[data-declaration]"));
+            const next = document.getElementById("next");
+            for (const input of inputs) {
+              input.addEventListener("change", () => {
+                window.setTimeout(() => {
+                  next.disabled = !inputs.every((candidate) => candidate.checked);
+                }, 300);
+              });
+            }
+            next.addEventListener("click", () => {
+              document.body.dataset.advanced = "true";
+            });
+            window.setTimeout(() => {
+              document.getElementById("declarations").style.display = "block";
+            }, 700);
+          </script>
+        </body>
+      </html>
+    `);
+
+    assert.equal(await page.locator(".ant-checkbox-wrapper:visible").count(), 0);
+    const acknowledged = await acknowledgeVietnamNoteModal(page);
+    const noteState = {
+      ...(await page.evaluate(() => ({
+        inputs: Array.from(document.querySelectorAll<HTMLInputElement>("input[type='checkbox']")).map(
+          (input) => input.checked,
+        ),
+        nextDisabled: (document.getElementById("next") as HTMLButtonElement | null)?.disabled,
+        advanced: document.body.dataset.advanced,
+        wrapperVisibleCount: Array.from(document.querySelectorAll<HTMLElement>(".ant-checkbox-wrapper")).filter(
+          (element) => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0,
+        ).length,
+      }))),
+      inputVisibleCount: await page.locator("input[type='checkbox']:visible").count(),
+      wrapperPlaywrightVisibleCount: await page.locator(".ant-checkbox-wrapper:visible").count(),
+    };
+    assert.equal(acknowledged, true, JSON.stringify(noteState));
+    assert.equal(await page.locator("#read-instructions").isChecked(), true);
+    assert.equal(await page.locator("#obey-laws").isChecked(), true);
+    assert.equal(await page.locator("#create-account").isChecked(), false);
+    assert.equal(await page.locator("body").getAttribute("data-advanced"), "true");
+  } finally {
+    await browser.close();
+  }
+});
 
 test("vn.conditional-fields browser: clicking Yes fills the revealed prior-visit table", async () => {
   const browser = await chromium.launch({ headless: true });
