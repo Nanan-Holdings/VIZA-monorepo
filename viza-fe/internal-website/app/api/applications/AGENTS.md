@@ -69,10 +69,12 @@ ports directly.
   the configured OpenAI transcription model, and returns editable text. It
   must not persist raw audio or expose provider error payloads.
 - `viza-fe/internal-website/app/api/applications/[id]/form-assistant/route.ts`
-  and its `turn`, `validate`, `acknowledge-warnings`, and owned `documents/*/extract`
+  and its `turn`, `undo`, `validate`, `acknowledge-warnings`, and owned `documents/*/extract`
   children provide the SGAC application-level assistant. Keep the product
   allowlist, schema-scoped extraction, user-wins conflict checks, and
-  no-official-submission boundary intact.
+  no-official-submission boundary intact. Undo must compare the current
+  assistant-owned value before restoring or deleting it so later manual edits
+  always win.
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 - `viza-fe/internal-website/components/application-steps/translation-panel.tsx`
 - `viza-fe/internal-website/lib/submission-queue.ts`

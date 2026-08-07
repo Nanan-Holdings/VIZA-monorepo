@@ -474,10 +474,11 @@
         "required": "Required",
         "optional": "Optional"
       },
-      "filled": {
-        "title": "Filled with your confirmed information",
-        "latest": "Completed: {label}",
-        "summary": "{count, plural, one {# field completed with the assistant} other {# fields completed with the assistant}}"
+      "filledNotice": {
+        "message": "Filled {label}: {value}",
+        "undo": "Undo",
+        "undoing": "Undoing...",
+        "undoFailed": "This could not be undone because the answer may have changed."
       },
       "validation": {
         "title": "Answer check",

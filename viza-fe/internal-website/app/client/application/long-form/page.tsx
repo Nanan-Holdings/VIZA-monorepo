@@ -17,7 +17,7 @@ import {
   type DocumentCenterData,
 } from "@/app/client/documents/actions";
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
-import { type WizardStep } from "@/types/visa-form-fields";
+import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
@@ -39,7 +39,11 @@ import {
 } from "@/components/dynamic-step-form";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
-import { FormFillingAssistant } from "@/components/client/form-assistant";
+import {
+  FormFillingAssistant,
+  type FormAssistantFillNotice,
+  type FormAssistantFillNoticeItem,
+} from "@/components/client/form-assistant";
 import {
   saveDynamicAnswers,
   ensureDraftApplication,
@@ -61,6 +65,7 @@ import type {
   FormAssistantTurnResponse,
   FormAssistantValidationResponse,
   FormAssistantTranscriptionResponse,
+  FormAssistantUndoResponse,
 } from "@/types/form-assistant";
 import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
 import {
@@ -123,6 +128,58 @@ import {
 // ---------------------------------------------------------------------------
 
 type StepStatus = "complete" | "in_progress" | "locked";
+
+function formAssistantFieldLabel(field: VisaFormFieldRow, isZh: boolean): string {
+  if (isZh) {
+    const label = field.validationRules?.label_zh;
+    if (typeof label === "string" && label.trim()) return label.trim();
+  }
+  return field.label;
+}
+
+function formAssistantDisplayValue(
+  field: VisaFormFieldRow,
+  value: string,
+  locale: string,
+  isZh: boolean,
+): string {
+  if (field.fieldType === "date" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [, month, day] = value.split("-");
+    if (isZh) return `${Number(month)}月${Number(day)}日`;
+    return new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${value}T00:00:00Z`));
+  }
+  const option = field.options?.find((candidate) =>
+    (typeof candidate === "string" ? candidate : candidate.value) === value,
+  );
+  if (option && typeof option !== "string") {
+    if (isZh && option.label_zh?.trim()) return option.label_zh.trim();
+    return option.label_en?.trim() || option.text?.trim() || option.value;
+  }
+  return value;
+}
+
+function prepareFormAssistantState(state: FormAssistantState): FormAssistantState {
+  const persistedMessages = state.messages.at(-1)?.role === "assistant"
+    ? state.messages.slice(0, -1)
+    : state.messages;
+  return {
+    ...state,
+    messages: [
+      ...persistedMessages,
+      {
+        id: `assistant-current-${state.sessionId}-${crypto.randomUUID()}`,
+        role: "assistant",
+        content: state.assistantMessage,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  };
+}
 
 interface StepDef {
   id: number;
@@ -1771,6 +1828,7 @@ export default function ApplicationPage() {
   const [formAssistantBusy, setFormAssistantBusy] = useState(false);
   const [formAssistantValidation, setFormAssistantValidation] = useState<FormAssistantValidationResponse | null>(null);
   const [aiFilledFieldNames, setAiFilledFieldNames] = useState<string[]>([]);
+  const [formAssistantFillNotice, setFormAssistantFillNotice] = useState<FormAssistantFillNotice | null>(null);
   const [draftVersion, setDraftVersion] = useState(0);
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
@@ -1966,6 +2024,7 @@ export default function ApplicationPage() {
     if (!isSgArrivalCard || !applicationId) {
       setFormAssistantState(null);
       setAiFilledFieldNames([]);
+      setFormAssistantFillNotice(null);
       return;
     }
     const controller = new AbortController();
@@ -1980,19 +2039,7 @@ export default function ApplicationPage() {
       })
       .then((state) => {
         if (controller.signal.aborted) return;
-        const persistedMessages = state.messages.at(-1)?.role === "assistant"
-          ? state.messages.slice(0, -1)
-          : state.messages;
-        const messages = [
-          ...persistedMessages,
-          {
-            id: `assistant-current-${state.sessionId}`,
-            role: "assistant" as const,
-            content: state.assistantMessage,
-            createdAt: new Date().toISOString(),
-          },
-        ];
-        setFormAssistantState({ ...state, messages });
+        setFormAssistantState(prepareFormAssistantState(state));
         setAiFilledFieldNames(state.aiFilledFieldNames);
       })
       .catch((assistantError) => {
@@ -2075,18 +2122,6 @@ export default function ApplicationPage() {
   const tDyn = useTranslations("application.dynamicSteps");
   const tApp = useTranslations("application");
   const isZhInterface = locale.toLowerCase().startsWith("zh");
-  const aiFilledFieldLabels = useMemo(() => {
-    const fields = dbSteps.flatMap((step) => step.fields);
-    return aiFilledFieldNames.flatMap((fieldName) => {
-      const field = fields.find((candidate) => candidate.fieldName === fieldName);
-      if (!field) return [];
-      if (isZhInterface) {
-        const chineseLabel = field.validationRules?.label_zh;
-        if (typeof chineseLabel === "string" && chineseLabel.trim()) return [chineseLabel.trim()];
-      }
-      return [field.label];
-    });
-  }, [aiFilledFieldNames, dbSteps, isZhInterface]);
   // Indices for the extra steps appended after DB-driven form steps
   const documentStepIndex = dbSteps.length;
   const teamStepIndex = dbSteps.length + (showDocumentStep ? 1 : 0);
@@ -2690,6 +2725,7 @@ export default function ApplicationPage() {
       if (!response.ok) throw new Error(payload.error ?? "Form assistant request failed");
 
       if (payload.appliedPatches.length > 0) {
+        const fields = dbSteps.flatMap((step) => step.fields);
         const patch = Object.fromEntries(payload.appliedPatches.map((item) => [item.fieldName, item.value]));
         for (const item of payload.appliedPatches) {
           const stepIndex = dbSteps.findIndex((step) =>
@@ -2707,6 +2743,19 @@ export default function ApplicationPage() {
           ...current,
           ...payload.appliedPatches.map((item) => item.fieldName),
         ])));
+        const noticeItems = payload.appliedPatches.flatMap<FormAssistantFillNoticeItem>((item) => {
+          const field = fields.find((candidate) => candidate.fieldName === item.fieldName);
+          if (!field) return [];
+          return [{
+            fieldName: item.fieldName,
+            label: formAssistantFieldLabel(field, isZhInterface),
+            value: item.value,
+            displayValue: formAssistantDisplayValue(field, item.value, locale, isZhInterface),
+          }];
+        });
+        if (noticeItems.length > 0) {
+          setFormAssistantFillNotice({ id: crypto.randomUUID(), items: noticeItems });
+        }
       }
       setFormAssistantState((current) => current ? {
         ...current,
@@ -2729,7 +2778,63 @@ export default function ApplicationPage() {
     } finally {
       setFormAssistantBusy(false);
     }
-  }, [appState.applicationId, dbSteps, locale, saveAllDynamicDrafts, t]);
+  }, [appState.applicationId, dbSteps, isZhInterface, locale, saveAllDynamicDrafts, t]);
+
+  const handleFormAssistantUndoFill = useCallback(async (items: FormAssistantFillNoticeItem[]) => {
+    const applicationId = appState.applicationId;
+    if (!applicationId || items.length === 0) throw new Error("No assistant patch to undo");
+    const response = await fetch(`/api/applications/${applicationId}/form-assistant/undo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patches: items.map((item) => ({ fieldName: item.fieldName, value: item.value })),
+      }),
+    });
+    const payload = await response.json() as FormAssistantUndoResponse & { error?: string };
+    if (!response.ok || payload.skippedConflicts.length > 0) {
+      throw new Error(payload.error ?? "The assistant patch could not be undone");
+    }
+
+    const restored = new Map(payload.restored.map((item) => [item.fieldName, item]));
+    for (const item of payload.restored) {
+      const stepIndex = dbSteps.findIndex((step) =>
+        step.fields.some((field) => field.fieldName === item.fieldName),
+      );
+      if (stepIndex < 0) continue;
+      const nextDraft = { ...(dynamicDraftRef.current[stepIndex] ?? {}) };
+      if (item.restoredValue === null) delete nextDraft[item.fieldName];
+      else nextDraft[item.fieldName] = item.restoredValue;
+      dynamicDraftRef.current[stepIndex] = nextDraft;
+    }
+    setDynamicAnswers((current) => {
+      const next = { ...current };
+      for (const item of payload.restored) {
+        if (item.restoredValue === null) delete next[item.fieldName];
+        else next[item.fieldName] = item.restoredValue;
+      }
+      return next;
+    });
+    setAiFilledFieldNames((current) => current.filter((fieldName) => {
+      const item = restored.get(fieldName);
+      return !item || item.restoredSource === "form_assistant";
+    }));
+    setFormAssistantValidation(null);
+    setFormAssistantFillNotice(null);
+
+    const stateResponse = await fetch(
+      `/api/applications/${applicationId}/form-assistant?locale=${encodeURIComponent(locale)}`,
+      { cache: "no-store" },
+    );
+    if (stateResponse.ok) {
+      const state = await stateResponse.json() as FormAssistantState;
+      setFormAssistantState(prepareFormAssistantState(state));
+      setAiFilledFieldNames(state.aiFilledFieldNames);
+    }
+  }, [appState.applicationId, dbSteps, locale]);
+
+  const handleDismissFormAssistantFillNotice = useCallback(() => {
+    setFormAssistantFillNotice(null);
+  }, []);
 
   const handleFormAssistantTranscribe = useCallback(async (file: File): Promise<FormAssistantTranscriptionResponse> => {
     const applicationId = appState.applicationId;
@@ -3844,7 +3949,7 @@ export default function ApplicationPage() {
                 required: true,
                 section: field.stepName,
               }))}
-              aiFilledFieldLabels={aiFilledFieldLabels}
+              fillNotice={formAssistantFillNotice}
               loading={formAssistantBusy}
               validationResult={formAssistantValidation ? {
                 errors: formAssistantValidation.errors.map((issue) => ({
@@ -3863,6 +3968,8 @@ export default function ApplicationPage() {
               onTranscribe={handleFormAssistantTranscribe}
               onValidate={handleFormAssistantValidate}
               onAcknowledgeWarnings={handleFormAssistantAcknowledgeWarnings}
+              onUndoFill={handleFormAssistantUndoFill}
+              onDismissFillNotice={handleDismissFormAssistantFillNotice}
               onGoToReview={handleFormAssistantGoToReview}
               className="mb-5"
             />

@@ -34,6 +34,11 @@ type ProposedPatch = {
   fieldName: string;
   value: string;
   confidence: "high" | "medium" | "low";
+  modelSource?: string;
+};
+
+const PRODUCT_TIME_ZONES: Record<string, string> = {
+  SG_ARRIVAL_CARD: "Asia/Singapore",
 };
 
 export function parseDirectYesNoAnswer(
@@ -129,6 +134,130 @@ async function loadApplicationKnowledge(params: {
 
 function optionValue(option: VisaFormFieldOption): string {
   return typeof option === "string" ? option : option.value;
+}
+
+function optionAliases(option: VisaFormFieldOption): string[] {
+  if (typeof option === "string") return [option];
+  return Array.from(new Set([
+    option.value,
+    option.text,
+    option.label_zh,
+    option.label_en,
+    option.official_label,
+    option.searchText,
+    option.code,
+    option.airport,
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0)));
+}
+
+function normalizedNaturalLanguageValue(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[。！？!?，,；;：:'"“”‘’()（）\s/_-]/g, "");
+}
+
+function isoDateInTimeZone(now: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function addIsoDays(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year!, month! - 1, day! + days));
+  return shifted.toISOString().slice(0, 10);
+}
+
+function parseRelativeDateAnswer(text: string, now: Date, timeZone: string): string | null {
+  const normalized = text.trim().toLocaleLowerCase();
+  const offsets: number[] = [];
+  const remaining = normalized
+    .replace(/大后天/g, () => { offsets.push(3); return " "; })
+    .replace(/后天|day\s+after\s+tomorrow/g, () => { offsets.push(2); return " "; })
+    .replace(/明天|tomorrow/g, () => { offsets.push(1); return " "; })
+    .replace(/今天|today/g, () => { offsets.push(0); return " "; })
+    .replace(/(?:再|过)?\s*(\d{1,3})\s*天后|in\s+(\d{1,3})\s+days?/g, (_match, zhDays, enDays) => {
+      offsets.push(Number(zhDays ?? enDays));
+      return " ";
+    });
+  if (offsets.length > 0) {
+    const uniqueOffsets = Array.from(new Set(offsets));
+    if (uniqueOffsets.length !== 1 || /不是|不要|not\s+/.test(remaining)) return null;
+    return addIsoDays(isoDateInTimeZone(now, timeZone), uniqueOffsets[0]!);
+  }
+
+  const referenceDate = isoDateInTimeZone(now, timeZone);
+  const monthDay = normalized.match(/(?:^|\D)(\d{1,2})\s*月\s*(\d{1,2})\s*(?:日|号)(?:\D|$)/);
+  if (monthDay) {
+    const year = Number(referenceDate.slice(0, 4));
+    const month = Number(monthDay[1]);
+    const day = Number(monthDay[2]);
+    const candidate = new Date(Date.UTC(year, month - 1, day));
+    if (
+      candidate.getUTCFullYear() === year &&
+      candidate.getUTCMonth() === month - 1 &&
+      candidate.getUTCDate() === day
+    ) {
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+    return null;
+  }
+
+  const explicit = normalized.match(/(?:^|\D)(\d{4})\s*(?:年|[-/.])\s*(\d{1,2})\s*(?:月|[-/.])\s*(\d{1,2})\s*(?:日|号)?(?:\D|$)/);
+  if (!explicit) return null;
+  const year = Number(explicit[1]);
+  const month = Number(explicit[2]);
+  const day = Number(explicit[3]);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month - 1 ||
+    candidate.getUTCDate() !== day
+  ) return null;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+export function parseDirectCurrentFieldAnswer(
+  text: string,
+  field: VisaFormFieldRow | undefined,
+  options: { now?: Date; timeZone?: string } = {},
+): ProposedPatch | null {
+  if (!field) return null;
+  const yesNo = parseDirectYesNoAnswer(text, field);
+  if (yesNo) return { ...yesNo, modelSource: "deterministic" };
+
+  if (field.fieldType === "date") {
+    const value = parseRelativeDateAnswer(
+      text,
+      options.now ?? new Date(),
+      options.timeZone ?? "UTC",
+    );
+    return value
+      ? { fieldName: field.fieldName, value, confidence: "high", modelSource: "deterministic" }
+      : null;
+  }
+
+  if (field.options?.length) {
+    const normalized = normalizedNaturalLanguageValue(text);
+    const matches = field.options.filter((option) =>
+      optionAliases(option).some((alias) => normalizedNaturalLanguageValue(alias) === normalized),
+    );
+    if (matches.length === 1) {
+      return {
+        fieldName: field.fieldName,
+        value: optionValue(matches[0]!),
+        confidence: "high",
+        modelSource: "deterministic",
+      };
+    }
+  }
+  return null;
 }
 
 function localizedLabel(field: VisaFormFieldRow, locale: string): string {
@@ -333,6 +462,8 @@ async function proposeTurn(params: {
   currentField: VisaFormFieldRow | undefined;
   answers: Record<string, string>;
   knowledgeContext: string;
+  referenceDate: string;
+  timeZone: string;
 }): Promise<{ reply: string; patches: ProposedPatch[] }> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   const fallback = "";
@@ -344,7 +475,10 @@ async function proposeTurn(params: {
     fieldName: field.fieldName,
     label: localizedLabel(field, params.locale),
     type: field.fieldType,
-    exactOptions: field.options?.slice(0, 250).map(optionValue) ?? [],
+    exactOptions: field.options?.slice(0, 250).map((option) => ({
+      value: optionValue(option),
+      aliases: optionAliases(option),
+    })) ?? [],
     pattern: typeof field.validationRules?.pattern === "string" ? field.validationRules.pattern : null,
   }));
   const controller = new AbortController();
@@ -357,10 +491,12 @@ async function proposeTurn(params: {
         model: FORM_ASSISTANT_MODEL,
         max_output_tokens: 1_000,
         instructions: params.locale.startsWith("zh")
-          ? "你是表单填写助手。专业、温和、简洁。SG Arrival Card 不是签证，不要冒充签证官。只从用户本条消息明确提供的信息提取答案，不猜测。只能输出 manifest 中的字段；下拉值必须等于 exactOptions 中的 value。姓名、日期、证件号如有任何歧义，标为 medium/low。reply 只简短确认本轮理解到的内容，不得列出或询问后续字段；服务端会单独追加一个下一问题。返回严格 JSON。"
-          : "You are a professional, warm and concise form-filling assistant. The SG Arrival Card is not a visa; never impersonate an officer. Extract only facts explicitly provided in this user message and never guess. Return only manifest fields. Dropdown values must exactly equal an exactOptions value. Mark ambiguous names, dates, and document numbers medium/low. The reply must only briefly acknowledge what was understood in this turn; do not list or ask for later fields because the server appends exactly one next question. Return strict JSON.",
+          ? "你是表单填写助手。专业、温和、简洁。SG Arrival Card 不是签证，不要冒充签证官。理解用户的自然语言并转换为表单的官方标准值，但不得猜测。相对日期必须以 referenceDate 和 timeZone 计算：例如“明天”是 referenceDate 加一天；这种唯一明确的相对日期应标为 high，并输出 YYYY-MM-DD。下拉值必须使用 exactOptions 中的 value，可用 aliases 理解中文、英文、简称或翻译。只能输出 manifest 中的字段。确有多种解释的姓名、日期、证件号或选项才标为 medium/low。reply 只简短确认本轮理解到的内容，不得询问后续字段；服务端会单独追加下一问题。返回严格 JSON。"
+          : "You are a professional, warm and concise form-filling assistant. The SG Arrival Card is not a visa; never impersonate an officer. Understand natural-language answers and convert them to official form values without guessing. Resolve relative dates from referenceDate in timeZone: for example, tomorrow is referenceDate plus one day; an unambiguous relative date is high confidence and must be returned as YYYY-MM-DD. Dropdown values must use exactOptions[].value, matching Chinese, English, abbreviations, or translations through aliases. Return only manifest fields. Mark a name, date, document number, or option medium/low only when it genuinely has multiple interpretations. The reply only briefly acknowledges this turn and never asks later fields because the server appends the next question. Return strict JSON.",
         input: JSON.stringify({
           userMessage: params.text,
+          referenceDate: params.referenceDate,
+          timeZone: params.timeZone,
           currentQuestion: params.currentField
             ? {
                 fieldName: params.currentField.fieldName,
@@ -418,6 +554,7 @@ async function proposeTurn(params: {
 
 function validateProposal(field: VisaFormFieldRow, patch: ProposedPatch): boolean {
   if (patch.confidence !== "high" || !patch.value?.trim()) return false;
+  if (field.fieldType === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(patch.value)) return false;
   if (field.options?.length && !field.options.map(optionValue).includes(patch.value)) return false;
   const pattern = field.validationRules?.pattern;
   if (typeof pattern === "string") {
@@ -500,7 +637,7 @@ export async function runAssistantTurn(params: {
   const currentField = missing.length > 0
     ? fieldByName.get(missing[0]?.fieldName ?? "")
     : allFields.find((field) => optionalNames.has(field.fieldName));
-  const visibleCandidates = allFields.filter((field) => {
+  const visibleCandidatePool = allFields.filter((field) => {
     const stepFields = params.steps.find((step) => step.fields.includes(field))?.fields ?? allFields;
     if (!evaluateShowIf(field, existingValues, stepFields)) return false;
     // The model sees only currently missing fields plus fields that the
@@ -509,6 +646,10 @@ export async function runAssistantTurn(params: {
       (missingNames.size === 0 && optionalNames.has(field.fieldName)) ||
       params.answers[field.fieldName]?.source === "form_assistant";
   });
+  const visibleCandidates = [
+    ...(currentField && visibleCandidatePool.includes(currentField) ? [currentField] : []),
+    ...visibleCandidatePool.filter((field) => field !== currentField),
+  ].slice(0, 5);
 
   const userMessageId = await persistMessage({
     ...params,
@@ -535,7 +676,9 @@ export async function runAssistantTurn(params: {
     country: params.country,
     visaType: params.visaType,
   });
-  const directChoice = parseDirectYesNoAnswer(message, currentField);
+  const timeZone = PRODUCT_TIME_ZONES[params.visaType] ?? "UTC";
+  const referenceDate = isoDateInTimeZone(new Date(), timeZone);
+  const directChoice = parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
   const proposed = directChoice
     ? { reply: "", patches: [directChoice] }
     : await proposeTurn({
@@ -545,6 +688,8 @@ export async function runAssistantTurn(params: {
         currentField,
         answers: existingValues,
         knowledgeContext: knowledge.context,
+        referenceDate,
+        timeZone,
       });
 
   const appliedPatches: FormAssistantAppliedPatch[] = [];
@@ -563,7 +708,8 @@ export async function runAssistantTurn(params: {
       assistantMessageId,
       sourceKind: "user_chat",
       confidence: "high",
-      model: FORM_ASSISTANT_MODEL,
+      model: patch.modelSource ?? FORM_ASSISTANT_MODEL,
+      previousValue: current?.source === "form_assistant" ? current.value : null,
     };
     if (current?.source === "form_assistant") {
       const { data, error } = await params.admin
