@@ -11,10 +11,18 @@ import asyncio
 import unittest
 from unittest.mock import patch
 
-from tools.flights import _fallback_flights, search_flights
+from tools.flights import (
+    _destination_id_cache,
+    _fallback_flights,
+    _resolve_destination_id,
+    search_flights,
+)
 
 
 class FlightProviderContractTests(unittest.TestCase):
+    def tearDown(self):
+        _destination_id_cache.clear()
+
     def test_fallback_is_explicitly_estimated_and_has_no_carrier(self):
         options = _fallback_flights("广州", "东京", "2026-10-05")
 
@@ -94,6 +102,25 @@ class FlightProviderContractTests(unittest.TestCase):
         self.assertEqual(options[0]["provider"], "rapidapi-booking-com")
         self.assertEqual(options[0]["airline"], "测试航空")
         self.assertEqual(options[0]["flight_number"], "TA123")
+
+    def test_destination_ids_are_cached_after_a_successful_lookup(self):
+        calls = 0
+
+        async def provider_payload(_path, _params):
+            nonlocal calls
+            calls += 1
+            return {
+                "status": True,
+                "data": [{"id": "CITY_DPS", "cityName": "Bali"}],
+            }
+
+        with patch("tools.flights._request_json", new=provider_payload):
+            first = asyncio.run(_resolve_destination_id("Bali"))
+            second = asyncio.run(_resolve_destination_id("Bali"))
+
+        self.assertEqual(first, "CITY_DPS")
+        self.assertEqual(second, "CITY_DPS")
+        self.assertEqual(calls, 1)
 
 
 if __name__ == "__main__":

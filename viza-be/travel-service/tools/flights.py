@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 from datetime import date
 
 from typing import Any
@@ -11,6 +12,8 @@ RAPIDAPI_BASE_URL = os.getenv("RAPIDAPI_BOOKING_BASE_URL", f"https://{RAPIDAPI_H
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "").strip()
 # Kept as a module-level alias for callers that imported the old timeout name.
 RAPIDAPI_TIMEOUT = REQUEST_TIMEOUT
+DESTINATION_CACHE_TTL_SECONDS = 24 * 60 * 60
+_destination_id_cache: dict[str, tuple[float, str]] = {}
 
 
 def _headers():
@@ -39,6 +42,11 @@ async def _resolve_destination_id(query: str):
     if not query:
         return None
 
+    query_key = query.strip().lower()
+    cached = _destination_id_cache.get(query_key)
+    if cached and time.monotonic() - cached[0] < DESTINATION_CACHE_TTL_SECONDS:
+        return cached[1]
+
     payload = await _request_json("/api/v1/flights/searchDestination", {"query": query})
     if not payload or payload.get("status") is not True:
         return None
@@ -47,7 +55,6 @@ async def _resolve_destination_id(query: str):
     if not isinstance(data, list):
         return None
 
-    query_key = query.strip().lower()
     best_id = None
     best_score = -1
 
@@ -86,6 +93,7 @@ async def _resolve_destination_id(query: str):
             best_id = destination_id
 
     if best_id:
+        _destination_id_cache[query_key] = (time.monotonic(), best_id)
         return best_id
 
     for item in data:
@@ -93,6 +101,7 @@ async def _resolve_destination_id(query: str):
             continue
         destination_id = item.get("id")
         if isinstance(destination_id, str) and destination_id:
+            _destination_id_cache[query_key] = (time.monotonic(), destination_id)
             return destination_id
 
     return None

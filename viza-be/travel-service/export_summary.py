@@ -640,11 +640,20 @@ def _english_fallback_for_cell(key):
 
 
 def _translate_cell(key, value):
+    source = _as_text(value)
     if key == "type":
-        translated = TYPE_TRANSLATIONS.get(_as_text(value), _translate_text(value))
-    else:
-        translated = _translate_text(value)
-    return translated if translated and not _has_cjk(translated) else _english_fallback_for_cell(key)
+        translated = TYPE_TRANSLATIONS.get(source, _translate_text(source))
+        return translated or source
+
+    # The itinerary rows are user-visible, already edited data. If a place or
+    # supplier name is not in our small translation dictionary, preserving the
+    # concrete source text is strictly better than replacing it with Route TBD
+    # or Travel item. This also keeps mixed Chinese/English supplier data intact.
+    if _has_cjk(source):
+        return source
+
+    translated = _translate_text(source)
+    return translated or source
 
 
 def _localize_chinese_text(value):

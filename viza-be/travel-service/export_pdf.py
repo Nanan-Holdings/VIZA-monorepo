@@ -43,12 +43,12 @@ def _register_font():
         ("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc", 0),
         ("/usr/share/fonts/truetype/noto/NotoSansSC-Regular.otf", 0),
         ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", 0),
+        (r"C:\Windows\Fonts\simhei.ttf", 0),
         ("/mnt/c/Windows/Fonts/msyh.ttc", 0),
         ("/mnt/c/Windows/Fonts/simsun.ttc", 0),
         ("/mnt/c/Windows/Fonts/simhei.ttf", 0),
         (r"C:\Windows\Fonts\msyh.ttc", 0),
         (r"C:\Windows\Fonts\simsun.ttc", 0),
-        (r"C:\Windows\Fonts\simhei.ttf", 0),
     ]
 
     for font_path, subfont_index in font_candidates:
