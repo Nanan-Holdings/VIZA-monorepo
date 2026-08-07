@@ -63,6 +63,37 @@ test("Vietnam review action: accepts safe suffix text and excludes disabled cand
   );
 });
 
+test("Vietnam review action: ignores the official ordinal review step", () => {
+  assert.deepEqual(
+    chooseVietnamReviewAction([
+      {
+        domIndex: 1,
+        label: "2Xem lại hồ sơ",
+        isPrimary: false,
+        type: "button",
+        tagName: "div",
+        top: 120,
+      },
+      {
+        domIndex: 8,
+        label: "Lưu",
+        isPrimary: true,
+        type: "button",
+        tagName: "button",
+        top: 920,
+      },
+    ]),
+    {
+      domIndex: 8,
+      label: "Lưu",
+      isPrimary: true,
+      type: "button",
+      tagName: "button",
+      top: 920,
+    },
+  );
+});
+
 test("Vietnam review action: never treats submit or payment labels as review actions", () => {
   const stopped = (label: string) => VN_STOP_BUTTON_PATTERNS.some((pattern) => pattern.test(label));
   assert.equal(stopped("Save and submit"), true);
