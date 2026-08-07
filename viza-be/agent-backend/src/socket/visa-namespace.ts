@@ -873,7 +873,7 @@ function asksAboutVizaServiceCoverage(message: string): boolean {
   );
 }
 
-function buildVizaServiceCapabilityPrompt(
+export function buildVizaServiceCapabilityPrompt(
   message: string,
   country: SupportedKnowledgeCountry | null,
   locale: ResponseLocale
@@ -890,7 +890,9 @@ function buildVizaServiceCapabilityPrompt(
         .join(', ')}.`
     );
     if (ARRIVAL_CARD_FORM_ROUTES[country]) {
-      lines.push(`Dedicated arrival declaration form route: ${ARRIVAL_CARD_FORM_ROUTES[country]}.`);
+      lines.push(
+        'A dedicated VIZA arrival-declaration form is available. Its clickable application card is handled separately; do not write its route, URL, or internal product code in the assistant response.'
+      );
     }
   }
 
@@ -920,7 +922,7 @@ function shouldOfferApplicationRedirect(
   );
 }
 
-function buildApplicationRedirectPromptNote(
+export function buildApplicationRedirectPromptNote(
   blocks: ApplicationBlockPayload[],
   state: VisaConversationState,
   locale: ResponseLocale
@@ -928,10 +930,12 @@ function buildApplicationRedirectPromptNote(
   if (blocks.length === 0) return null;
 
   const blockLines = blocks
-    .map(
-      (block) =>
-        `${localizedCountryName(block.country as SupportedKnowledgeCountry, locale)}: ${localizedProductName(block.visaType ?? null, locale)} form link ${block.redirectUrl}`
-    )
+    .map((block) => {
+      const country = block.country as SupportedKnowledgeCountry;
+      return locale === 'zh'
+        ? `${localizedCountryName(country, locale)}：已提供“${block.title}”申请卡片。`
+        : `${localizedCountryName(country, locale)}: the “${block.title}” application card is already available.`;
+    })
     .join('\n');
   const nonSchengenDestinations = state.destinationCountries.filter(
     (country) => !isSchengenKnowledgeCountry(country)
@@ -948,8 +952,8 @@ function buildApplicationRedirectPromptNote(
       ? '本轮已经向用户发送了中文申请入口卡片。'
       : 'Application form redirect button(s) have already been sent in this turn.',
     locale === 'zh'
-      ? '正文使用中文产品名称提示用户点击下方入口即可；不要输出英文产品名或内部产品代码。'
-      : 'Mention the relevant form link(s) directly in the text so the user can locate them even if the CTA card is not visible after copying the chat.',
+      ? '正文只需说明“请使用下方申请卡片继续填写”。不得输出 VIZA 内部路径、URL、产品代码、表单链接字样或可复制的申请地址。'
+      : 'Tell the user to use the application card below. Do not repeat any VIZA URL, route, internal product code, generic link label, or copyable application address in the assistant text.',
     blockLines,
     nonSchengenNote,
     'Provide a rough overview of requirements and timing from retrieved knowledge. Do not ask the user to fill an inline chat form.',

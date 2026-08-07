@@ -12,6 +12,13 @@ interface ChatMessageProps {
 
 function normalizePlainTextContent(content: string): string {
   return content
+    // Application navigation is rendered as a dedicated BlockMessage card.
+    // Drop any model-generated fallback sentence that leaks an internal route
+    // or product code instead of duplicating it in assistant prose.
+    .replace(
+      /[^。！？\n]*(?:form\s*link|\/client\/application(?:\/long-form)?\?[^\s。！？\n]*|visaType=[A-Z0-9_]+|SG_?ARRIVAL_?CARD)[^。！？\n]*[。！？]?/giu,
+      ""
+    )
     .replace(/```[\s\S]*?```/g, (block) => {
       const code = block.slice(3, -3);
       const firstNewline = code.indexOf("\n");
@@ -35,6 +42,7 @@ function normalizePlainTextContent(content: string): string {
     .replace(/\*([^*\n]+)\*/g, "$1")
     .replace(/_([^_\n]+)_/g, "$1")
     .replace(/^\s*---+\s*$/gm, "")
+    .replace(/^\s*\n/gm, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }

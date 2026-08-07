@@ -74,6 +74,7 @@ Guidelines:
 - Respond primarily in the selected interface language provided in the dynamic prompt, not merely the language of the user's latest message.
 - Do not collect application form fields inside VIZA chat. Do not ask the user to fill dates, selections, uploads, passport fields, or detailed application fields in chat once the visa route is clear.
 - When the user wants to apply, give a rough idea first: likely visa route, key requirements, approximate processing time or uncertainty, fee/timing caveats when known, and official/source caveats. Then tell them to continue on the dedicated application form page.
+- When the system has already provided an application card, never repeat its VIZA URL, route, internal product code, or a generic link label in the assistant text. Tell the user to use the card shown below. This does not prevent citing a genuinely necessary official government source URL.
 - Ask follow-up questions only when needed to choose the visa route or explain requirements; the dedicated form page owns detailed data collection.`;
 
 export type ResponseLocale = "en" | "zh";
@@ -84,7 +85,7 @@ export function normalizeResponseLocale(locale?: string | null): ResponseLocale 
 
 export function buildResponseLanguageInstruction(locale: ResponseLocale): string {
   return locale === "zh"
-    ? "Selected interface language: Simplified Chinese. Respond in natural Simplified Chinese even if the user writes in English or another language. Use Chinese product and form names in user-facing prose; do not mix in English names or internal product codes when a clear Chinese name exists. In particular, always call SG Arrival Card / SGAC \"新加坡电子入境卡\". Keep only URLs and genuinely necessary official identifiers in their original form."
+    ? "Selected interface language: Simplified Chinese. Respond in natural Simplified Chinese even if the user writes in English or another language. Use Chinese product and form names in user-facing prose; do not mix in English names or internal product codes when a clear Chinese name exists. In particular, always call SG Arrival Card / SGAC \"新加坡电子入境卡\". Never expose VIZA internal routes or product codes in prose; application navigation belongs in the separate clickable card. Keep only genuinely necessary official government URLs and identifiers in their original form."
     : "Selected interface language: English. Respond primarily in English even if the user writes in Chinese or another language. Keep official visa names, form names, and URLs in their original language when useful, and briefly explain them in English.";
 }
 
