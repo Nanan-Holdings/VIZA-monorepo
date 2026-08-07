@@ -720,7 +720,7 @@ export function findTravelAttraction(
   const cityAttractions = getTravelAttractionsForCity(city);
   return (
     cityAttractions.find((item) => {
-      const itemKeys = [item.name, ...(item.aliases ?? [])].map((value) =>
+      const itemKeys = [item.name, item.location, ...(item.aliases ?? [])].map((value) =>
         normalizeTravelKnowledgeKey(value)
       );
       return itemKeys.some(

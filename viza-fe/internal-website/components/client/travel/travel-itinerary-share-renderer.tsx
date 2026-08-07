@@ -237,9 +237,7 @@ function localizeShareRows(
         name: getChineseShareName(route, row.name, "dining"),
       };
     }
-    if (/酒店|hotel/i.test(row.type) && /[A-Za-z]/.test(row.name)) {
-      return { ...row, route, name: `${route.split("→").at(-1)?.trim() ?? "目的地"}酒店` };
-    }
+    if (/酒店|hotel/i.test(row.type)) return { ...row, route };
     return { ...row, route };
   });
 }
