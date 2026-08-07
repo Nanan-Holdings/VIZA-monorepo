@@ -33,23 +33,15 @@ import { HistoryBoundaryMessage } from "@/components/client/companion/history-bo
 import { TravelChatClient } from "../travel-chat/travel-chat-client";
 import {
   createSession,
-  clearSessionMemory,
   deleteSession,
   ensureSessionMessage,
   getSessionMessages,
-  getSessionMemory,
   renameSession,
-  saveSessionPassportToProfile,
-  updateSessionMemory,
   type Message,
   type PersistableVisaMessageRole,
   type Session,
-  type VisaChatMemorySnapshot,
 } from "@/app/actions/companion-sessions";
-import {
-  VisaMemorySummary,
-  type EditableMemory,
-} from "./visa-memory-summary";
+import { buildLegacyApplicationBlocks } from "./legacy-application-blocks";
 import type {
   ChatMessage as SocketChatMessage,
   ConnectionStatus,
@@ -129,7 +121,6 @@ interface ChatClientProps {
   initialSessions: Session[];
   initialSessionId: string | null;
   initialMessages: Message[];
-  initialMemory: VisaChatMemorySnapshot | null;
   travelApplicationId: string | null;
   travelApplicationStatus: string | null;
 }
@@ -177,13 +168,21 @@ function formatStoredMessages(messages: Message[]): SocketChatMessage[] {
 function formatStoredBlocks(
   messages: Message[]
 ): Array<{ id: string; payload: ApplicationBlockPayload; timestamp: number }> {
-  return messages
+  const storedBlocks = messages
     .filter((msg) => msg.senderType === "block" && msg.blockData)
     .map((msg) => ({
       id: msg.id,
       payload: msg.blockData as unknown as ApplicationBlockPayload,
       timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
     }));
+
+  return [
+    ...storedBlocks,
+    ...buildLegacyApplicationBlocks(
+      messages,
+      storedBlocks.map((block) => block.payload)
+    ),
+  ].sort((left, right) => left.timestamp - right.timestamp);
 }
 
 function parseRequestedChatMode(value: string | null): ChatAgentMode | null {
@@ -607,7 +606,6 @@ export function ChatClient({
   initialSessions,
   initialSessionId,
   initialMessages,
-  initialMemory,
   travelApplicationId,
   travelApplicationStatus,
 }: ChatClientProps) {
@@ -623,8 +621,6 @@ export function ChatClient({
 
   const [sessions, setSessions] = useState<Session[]>(initialSessions);
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
-  const [memorySnapshot, setMemorySnapshot] =
-    useState<VisaChatMemorySnapshot | null>(initialMemory);
   const [showChat, setShowChat] = useState(() => {
     if (requestedChatMode) {
       if (typeof window !== "undefined") {
@@ -910,23 +906,6 @@ export function ChatClient({
       }
     });
 
-    socket.on(
-      "visa_memory_updated",
-      (event: {
-        sessionId: string;
-        revision: number;
-        state: VisaChatMemorySnapshot["state"];
-      }) => {
-        setMemorySnapshot((current) => {
-          if (event.sessionId !== activeSessionIdRef.current) {
-            return current;
-          }
-          if (current && current.revision > event.revision) return current;
-          return { state: event.state, revision: event.revision };
-        });
-      }
-    );
-
     socket.on("error", (event: ErrorEvent) => {
       flushTokenBuffer();
       addLog("error", { message: event.message, code: event.code });
@@ -1182,11 +1161,30 @@ export function ChatClient({
     [chatMessages]
   );
 
+  const visibleBlockMessages = useMemo(() => {
+    const legacyBlocks = buildLegacyApplicationBlocks(
+      chatMessages.map((message) => ({
+        id: message.id,
+        sessionId: sessionId ?? "current-session",
+        senderType: message.role === "user" ? "user" : "agent",
+        content: message.content,
+        intent: null,
+        riskLevel: null,
+        createdAt: new Date(message.timestamp).toISOString(),
+      })),
+      blockMessages.map((block) => block.payload)
+    );
+
+    return [...blockMessages, ...legacyBlocks].sort(
+      (left, right) => left.timestamp - right.timestamp
+    );
+  }, [blockMessages, chatMessages, sessionId]);
+
   const shouldShowNewChatGreeting =
     !isLoadingMessages &&
     chatMessages.length === 0 &&
     pendingComponents.length === 0 &&
-    blockMessages.length === 0;
+    visibleBlockMessages.length === 0;
 
   const wasStreamingRef = useRef(false);
   useEffect(() => {
@@ -1371,7 +1369,6 @@ export function ChatClient({
 
     activeSessionIdRef.current = null;
     setSessionId(null);
-    setMemorySnapshot(null);
     sessionStorage.removeItem(ACTIVE_VIZA_SESSION_STORAGE_KEY);
     setChatMessages([]);
     resetHistoryState(false);
@@ -1408,13 +1405,9 @@ export function ChatClient({
       resetRuntimeMessages();
 
       try {
-        const [messages, memory] = await Promise.all([
-          getSessionMessages(nextSessionId, userId),
-          getSessionMemory(nextSessionId, userId),
-        ]);
+        const messages = await getSessionMessages(nextSessionId, userId);
         setChatMessages(formatStoredMessages(messages));
         setBlockMessages(formatStoredBlocks(messages));
-        setMemorySnapshot(memory);
         resetHistoryState(messages.length >= 50);
       } catch (error) {
         console.error("Error loading VIZA session:", error);
@@ -1453,71 +1446,6 @@ export function ChatClient({
     restoredActiveSessionRef.current = true;
     void handleSessionSelect(savedSessionId);
   }, [handleSessionSelect, sessionId, sessions]);
-
-  const saveMemoryDraft = useCallback(
-    async (draft: EditableMemory): Promise<VisaChatMemorySnapshot | null> => {
-      if (!sessionId || !memorySnapshot) return null;
-      const result = await updateSessionMemory(
-        sessionId,
-        userId,
-        memorySnapshot.revision,
-        draft
-      );
-      if (result.snapshot) setMemorySnapshot(result.snapshot);
-      if (!result.success) {
-        toast.error(
-          result.conflict ? t("memoryConflict") : t("memorySaveFailed")
-        );
-        return null;
-      }
-      toast.success(t("memorySaved"));
-      return result.snapshot ?? null;
-    },
-    [memorySnapshot, sessionId, t, userId]
-  );
-
-  const handleSaveMemory = useCallback(
-    async (draft: EditableMemory) => {
-      await saveMemoryDraft(draft);
-    },
-    [saveMemoryDraft]
-  );
-
-  const handleClearMemory = useCallback(async () => {
-    if (!sessionId || !memorySnapshot) return;
-    const result = await clearSessionMemory(
-      sessionId,
-      userId,
-      memorySnapshot.revision
-    );
-    if (result.snapshot) setMemorySnapshot(result.snapshot);
-    if (result.success) {
-      toast.success(t("memoryCleared"));
-    } else {
-      toast.error(
-        result.conflict ? t("memoryConflict") : t("memorySaveFailed")
-      );
-    }
-  }, [memorySnapshot, sessionId, t, userId]);
-
-  const handleSavePassport = useCallback(
-    async (draft: EditableMemory) => {
-      if (!window.confirm(t("memorySavePassportConfirm"))) return;
-      const saved = await saveMemoryDraft(draft);
-      if (!saved || !sessionId) return;
-      const result = await saveSessionPassportToProfile(
-        sessionId,
-        userId,
-        saved.revision
-      );
-      if (result.success) {
-        toast.success(t("memoryPassportSaved"));
-      } else {
-        toast.error(result.error || t("memorySaveFailed"));
-      }
-    },
-    [saveMemoryDraft, sessionId, t, userId]
-  );
 
   const handleRenameVizaSession = useCallback(
     async (targetSessionId: string, nextTitle: string) => {
@@ -1571,7 +1499,6 @@ export function ChatClient({
           await handleSessionSelect(nextSession.id);
         } else {
           setSessionId(null);
-          setMemorySnapshot(null);
           sessionStorage.removeItem(ACTIVE_VIZA_SESSION_STORAGE_KEY);
           setChatMessages([]);
           resetHistoryState(false);
@@ -1612,7 +1539,6 @@ export function ChatClient({
         effectiveSessionId = newSession.id;
         activeSessionIdRef.current = effectiveSessionId;
         setSessionId(effectiveSessionId);
-        setMemorySnapshot(await getSessionMemory(effectiveSessionId, userId));
         sessionStorage.setItem(ACTIVE_VIZA_SESSION_STORAGE_KEY, effectiveSessionId);
         setSessions((prev) => [
           newSession,
@@ -2150,13 +2076,6 @@ export function ChatClient({
                   </div>
                 ) : (
                   <>
-                    <VisaMemorySummary
-                      disabled={isLoadingMessages || isStreaming}
-                      onClear={handleClearMemory}
-                      onSave={handleSaveMemory}
-                      onSavePassport={handleSavePassport}
-                      snapshot={memorySnapshot}
-                    />
                     <div
                       ref={messagesContainerRef}
                       onScroll={checkScrollPosition}
@@ -2223,7 +2142,7 @@ export function ChatClient({
                   ))}
 
                   {/* Application redirect CTA messages from the VIZA backend */}
-                  {blockMessages.map((block) => (
+                  {visibleBlockMessages.map((block) => (
                     <motion.div
                       key={block.id}
                       initial={{ opacity: 0, y: 8 }}
