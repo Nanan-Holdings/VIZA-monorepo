@@ -110,6 +110,24 @@ describe("ChatMessage", () => {
     expect(screen.queryByText(/SGARRIVALCARD/)).not.toBeInTheDocument();
   });
 
+  it("removes a legacy official SGAC application link when a form card owns the CTA", () => {
+    render(
+      <ChatMessage
+        role="agent"
+        content={
+          "持中国普通护照赴新加坡旅游5天可免签。\n如果准备好申请，请通过新加坡电子入境卡申请 https://www.ica.gov.sg/enter-transit-depart/entering-singapore/sg-arrival-card。"
+        }
+        timestamp={Date.now()}
+      />
+    );
+
+    expect(
+      screen.getByText("持中国普通护照赴新加坡旅游5天可免签。")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/ica\.gov\.sg/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/如果准备好申请/)).not.toBeInTheDocument();
+  });
+
   it("renders inline code markers as plain text", () => {
     const { container } = render(
       <ChatMessage role="agent" content="Use `npm install` to install" timestamp={Date.now()} />
