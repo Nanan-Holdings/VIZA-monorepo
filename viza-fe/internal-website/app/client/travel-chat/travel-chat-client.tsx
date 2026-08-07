@@ -3887,50 +3887,43 @@ export function TravelChatClient({
   const citySuggestionTargets = useMemo<MapTarget[]>(() => {
     if (!shouldShowCitySuggestions) return [];
 
-    const targets: MapTarget[] = [];
-    const seenTargetKeys = new Set<string>();
-    messages.forEach((message) => {
-      message.parts.forEach((part) => {
-        if (part.type !== "destination_cards") return;
-        part.cards.forEach((card) => {
-          if (card.selection_state === "recommendation") return;
-          if (!card.map_marker) return;
-          const city = card.city ?? card.title;
-          const key = normalizeCityKey(city);
-          if (!key || selectedCityKeys.has(key) || seenTargetKeys.has(key)) {
-            return;
-          }
-          seenTargetKeys.add(key);
-          targets.push({
-            id: `destination-card-${card.destination_id ?? card.id ?? key}`,
-            kind: "city",
-            label: city,
-            subtitle:
-              card.source_status === "llm_generated"
-                ? "临时目的地候选"
-                : "目的地候选",
-            localName: getLocalDisplayName(city),
-            intro: buildMapIntro("city", city, city),
-            countryLabel: card.country
-              ? getLocalDisplayName(card.country)
-              : undefined,
-            recommendedDays: localizeSuggestedDays(
-              card.suggested_days,
-              interfaceLocale
-            ),
-            imageSrc: getDestinationCardImage(card, city),
-            lat: card.map_marker.lat,
-            lng: card.map_marker.lng,
-            city,
-          });
-        });
-      });
-    });
+    // The chat intentionally shows only two random cards, but those cards must
+    // not define the initial map viewport. Keep the complete featured catalog
+    // on the map so Google Maps fits a stable world view and users can still
+    // browse every popular-city marker.
+    return FEATURED_DESTINATION_CITIES.flatMap((city) => {
+      const key = normalizeCityKey(city);
+      const coordinate = FEATURED_CITY_COORDINATES[key];
+      if (!coordinate || selectedCityKeys.has(key)) return [];
 
-    return targets;
+      const context = getCityContext(city);
+      return [
+        {
+          id: `city-suggestion-${key}`,
+          kind: "city" as const,
+          label: city,
+          subtitle: isZh ? "热门目的地" : "Popular destination",
+          localName: getLocalDisplayName(city),
+          intro: buildMapIntro("city", city, city),
+          countryLabel: context
+            ? isZh
+              ? context.countryZh
+              : context.countryEn
+            : undefined,
+          recommendedDays: localizeSuggestedDays(
+            context?.days,
+            interfaceLocale
+          ),
+          imageSrc: getCityImage(city),
+          lat: coordinate[0],
+          lng: coordinate[1],
+          city,
+        },
+      ];
+    });
   }, [
     interfaceLocale,
-    messages,
+    isZh,
     selectedCityKeys,
     shouldShowCitySuggestions,
   ]);
