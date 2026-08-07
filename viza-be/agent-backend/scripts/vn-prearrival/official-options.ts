@@ -121,10 +121,10 @@ export const VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES = [
 export const VN_PREARRIVAL_VISA_TYPE_OPTIONS = [
   vnPrearrivalOption("GMTT", "免签证证明", "Visa Exemption Certificate"),
   vnPrearrivalOption("EV", "电子签证（E-Visa）", "Electronic Visa (E-Visa)"),
-  vnPrearrivalOption("MMT", "按国家的默认免签政策", "Default visa exemption by country"),
+  vnPrearrivalOption("MMT", "按国籍适用的默认免签政策", "Default visa exemption by country"),
   vnPrearrivalOption("MTTQ", "富国岛签证豁免", "Phu Quoc Visa Exemption"),
   vnPrearrivalOption("TDL", "旅游卡", "Travel Card"),
-  vnPrearrivalOption("ABTC", "ABTC卡", "ABTC Card"),
+  vnPrearrivalOption("ABTC", "APEC商务旅行卡（ABTC）", "ABTC Card"),
   vnPrearrivalOption("TTR", "永久居留卡", "Permanent Residence Card"),
   vnPrearrivalOption("TTA", "临时居留卡", "Temporary Residence Card"),
   vnPrearrivalOption("TT", "签证", "Visa"),

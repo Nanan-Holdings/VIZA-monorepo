@@ -146,7 +146,7 @@ const FIELD_LABEL_ZH: Record<string, string> = {
   inviter_name: "邀请人/机构名称",
   inviter_dob_or_brn: "邀请人出生日期或机构营业登记号",
   inviter_relationship: "邀请人与申请人的关系",
-  inviter_address: "邀请人在韩国地址",
+  inviter_address: "邀请人在韩国的地址",
   inviter_phone: "邀请人联系电话",
   estimated_travel_costs_usd: "预计旅行费用（美元）",
   payer_name: "费用支付人/机构名称",
@@ -278,8 +278,8 @@ Object.assign(FIELD_LABEL_ZH, {
   has_inviting_company: "是否有邀请公司？",
   is_visa_portal_member: "是否加入签证门户网站会员？",
   invitation_company_portal_id: "邀请公司签证网站账号",
-  invitation_company_business_registration_no: "事业者登录号码",
-  invitation_company_name: "邀请公司名",
+  invitation_company_business_registration_no: "营业登记号码",
+  invitation_company_name: "邀请公司名称",
   invitation_company_representative_name: "代表姓名",
   invitation_company_relationship: "关系",
   invitation_company_address: "邀请公司地址",
@@ -292,7 +292,7 @@ Object.assign(FIELD_LABEL_ZH, {
   visit_cost_usd: "访问经费（美元标准）",
   cost_payer_name: "经费支付者姓名/公司（团体）名",
   cost_payer_relationship: "经费支付者关系",
-  cost_payer_support_type: "支援内容",
+  cost_payer_support_type: "资助内容",
   cost_payer_contact: "经费支付者联系方式",
   received_form_assistance: "该申请书是否有人辅助您一同填写？",
 });
@@ -329,7 +329,7 @@ Object.assign(OPTION_LABEL_ZH_BY_FIELD, {
   employment_status: {
     entrepreneur: "企业家",
     self_employed: "个体户",
-    employed: "上班人员",
+    employed: "在职人员",
     civil_servant: "公务员",
     student: "学生",
     retired: "退休人员",
@@ -339,13 +339,13 @@ Object.assign(OPTION_LABEL_ZH_BY_FIELD, {
   purpose_of_visit: {
     tourism_transit: "观光/过境",
     meeting_conference: "参加会议",
-    medical_tourism: "医疗观光",
+    medical_tourism: "医疗旅游",
     business_trip: "短期商务",
     study_training: "留学/研修",
     work: "就业活动",
     trade_investment_ict: "贸易/投资/派驻",
     visiting_family_relatives_friends: "探亲",
-    overseas_korean_visit: "外籍同胞 长、短期访问",
+    overseas_korean_visit: "海外同胞短期/长期访问",
     marriage_migrant: "结婚移民",
     diplomatic_official: "外交/公务",
     other: "其他",
@@ -358,7 +358,7 @@ Object.assign(OPTION_LABEL_ZH_BY_FIELD, {
   korea_address_mode: {
     official_search: "搜索并选择韩国地址",
     undecided: "未定",
-    address_not_found: "地址不存在",
+    address_not_found: "未找到地址",
   },
 });
 

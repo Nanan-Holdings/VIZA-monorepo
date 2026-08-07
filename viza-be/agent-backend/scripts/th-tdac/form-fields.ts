@@ -39,7 +39,7 @@ export interface ThTdacFieldDef {
 const rules = (labelZh: string, extra: Record<string, unknown> = {}) => ({ label_zh: labelZh, official: true, ...extra });
 const showIf = (expression: string) => ({ showIf: expression });
 const STEP_TRAVELLER = "旅客信息";
-const STEP_TRIP = "抵达和离境信息";
+const STEP_TRIP = "抵达及离境信息";
 const STEP_ACCOMMODATION = "住宿信息";
 const STEP_HEALTH = "健康申报";
 const NON_TRANSIT_ONLY = "is_transit_traveler !== yes";
@@ -223,7 +223,7 @@ export const TH_TDAC_FORM_FIELDS: ThTdacFieldDef[] = [
     step_name: STEP_TRIP,
     display_order: 2,
     options: TDAC_BOARDED_COUNTRY_OPTIONS,
-    validation_rules: rules("出发登程国家 / 地区"),
+    validation_rules: rules("出发国家/地区"),
   },
   {
     field_name: "purpose_of_travel",
@@ -290,7 +290,7 @@ export const TH_TDAC_FORM_FIELDS: ThTdacFieldDef[] = [
     step_number: 2,
     step_name: STEP_TRIP,
     display_order: 8,
-    validation_rules: rules("抵达航班号 / 车船号"),
+    validation_rules: rules("抵达航班号/车辆或船舶编号"),
   },
   {
     field_name: "departure_date",
@@ -345,7 +345,7 @@ export const TH_TDAC_FORM_FIELDS: ThTdacFieldDef[] = [
     step_number: 2,
     step_name: STEP_TRIP,
     display_order: 13,
-    validation_rules: rules("离境航班号 / 车船号"),
+    validation_rules: rules("离境航班号/车辆或船舶编号"),
   },
 
   {
@@ -394,7 +394,7 @@ export const TH_TDAC_FORM_FIELDS: ThTdacFieldDef[] = [
     display_order: 4,
     conditional_logic: showIf(NON_TRANSIT_ONLY),
     options: TDAC_PROVINCE_OPTIONS,
-    validation_rules: rules("府 / 省"),
+    validation_rules: rules("府（省级行政区）"),
   },
   {
     field_name: "district",
@@ -405,7 +405,7 @@ export const TH_TDAC_FORM_FIELDS: ThTdacFieldDef[] = [
     step_name: STEP_ACCOMMODATION,
     display_order: 5,
     conditional_logic: showIf(NON_TRANSIT_ONLY),
-    validation_rules: rules("县 / 区", {
+    validation_rules: rules("县/区（Amphoe）", {
       dependent_on: "province",
       dependent_options: TDAC_DISTRICT_OPTIONS_BY_PROVINCE,
     }),
@@ -419,7 +419,7 @@ export const TH_TDAC_FORM_FIELDS: ThTdacFieldDef[] = [
     step_name: STEP_ACCOMMODATION,
     display_order: 6,
     conditional_logic: showIf(NON_TRANSIT_ONLY),
-    validation_rules: rules("分区 / 镇", {
+    validation_rules: rules("分区/乡（Tambon）", {
       dependent_on: "district",
       dependent_options: TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT,
     }),
@@ -485,7 +485,7 @@ export const TH_TDAC_FORM_FIELDS: ThTdacFieldDef[] = [
     conditional_logic: showIf(withEveryYellowFeverTrigger("yellow_fever_vaccination_certificate === yes")),
     validation_rules: rules("黄热病疫苗接种日期", {
       format: "YYYY-MM-DD",
-      helper_zh: "官网会同时要求上传黄热病疫苗接种证书。",
+      helper_zh: "官网还会要求上传黄热病预防接种证书。",
       helper_en: "The official portal will also require the Yellow Fever Vaccination Certificate upload.",
     }),
   },
