@@ -1293,7 +1293,6 @@ test("vn.upload browser: official JSON success is accepted when the portal repla
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
-
 test("vn.upload browser: official 4xx is never accepted from local input preview", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();

@@ -4,7 +4,7 @@ import { hasAliasEmailForwardingConsent } from "../inbox/forwarding-consent.js";
 import { ensureApplicantInboxAlias } from "../inbox/alias.js";
 import { assertInboxAliasDomainRoutable } from "../inbox/wait-for-message.js";
 
-const INDONESIA_ALIAS_VERSION = "v2";
+const INDONESIA_ALIAS_VERSION = "v3";
 const CURRENT_EMAIL_KEY = "indonesia.portal.email";
 const CURRENT_PASSWORD_KEY = "indonesia.portal.password";
 const ALIAS_VERSION_KEY = "indonesia.portal.alias_version";
@@ -15,7 +15,10 @@ export function generateIndonesiaPortalPassword(): string {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghijkmnopqrstuvwxyz";
   const digits = "23456789";
-  const symbols = "!@#$*?";
+  // The official registration page only documents "one symbol" and its
+  // server-side validator is stricter than the browser validator. Keep the
+  // generated credential to the least ambiguous multipart-safe symbol.
+  const symbols = "!";
   const all = upper + lower + digits + symbols;
   const characters = [
     upper[randomBytes(1)[0] % upper.length],
@@ -52,6 +55,12 @@ export interface PreparedIndonesiaAliasAccount {
   migrated: boolean;
 }
 
+export function deriveIndonesiaPortalAlias(canonicalAlias: string): string {
+  const normalized = canonicalAlias.trim().toLowerCase();
+  const match = normalized.match(/^appl-([0-9a-z]{26})@(viza\.it\.com)$/i);
+  return match ? `id-${match[1]}@${match[2]}` : normalized;
+}
+
 export function resolveIndonesiaAliasMigration(input: {
   canonicalAlias: string;
   currentEmail: string | null;
@@ -62,11 +71,20 @@ export function resolveIndonesiaAliasMigration(input: {
   PreparedIndonesiaAliasAccount,
   "email" | "password" | "reuseExistingAccount" | "migrated"
 > {
-  const email = input.canonicalAlias.trim().toLowerCase();
+  const email = deriveIndonesiaPortalAlias(input.canonicalAlias);
+  const canonicalAlias = input.canonicalAlias.trim().toLowerCase();
   const currentEmail = input.currentEmail?.trim().toLowerCase() || null;
+  // v39 registered the derived service alias but accidentally persisted the
+  // canonical applicant alias. Treat that exact v3 shape as an existing
+  // account so the runner keeps the stored password and can recover it through
+  // the official reset flow instead of attempting duplicate registration.
+  const isBuggyV3CanonicalPersistence =
+    input.currentAliasVersion === INDONESIA_ALIAS_VERSION &&
+    currentEmail === canonicalAlias &&
+    email !== canonicalAlias;
   const reuseExistingAccount =
     input.currentAliasVersion === INDONESIA_ALIAS_VERSION &&
-    currentEmail === email &&
+    (currentEmail === email || isBuggyV3CanonicalPersistence) &&
     Boolean(input.currentPassword);
   return {
     email,
@@ -134,8 +152,18 @@ export async function prepareIndonesiaCanonicalAliasAccount(input: {
     generatedPassword: input.generatedPassword,
   });
   const currentEmail = input.currentEmail?.trim().toLowerCase() || null;
+  const canonicalAliasNormalized = canonicalAlias.trim().toLowerCase();
+  const isBuggyV3CanonicalPersistence =
+    input.currentAliasVersion === INDONESIA_ALIAS_VERSION &&
+    currentEmail === canonicalAliasNormalized &&
+    decision.email !== canonicalAliasNormalized;
 
-  if (decision.migrated && currentEmail) {
+  if (
+    decision.migrated &&
+    currentEmail &&
+    input.currentAliasVersion !== "v2" &&
+    !isBuggyV3CanonicalPersistence
+  ) {
     await applicantVault.set(input.applicantId, LEGACY_EMAIL_KEY, currentEmail, {
       ...vaultOpts,
       note: "Read-only archive of the pre-v2 Indonesia portal account email",
@@ -153,9 +181,9 @@ export async function prepareIndonesiaCanonicalAliasAccount(input: {
     }
   }
 
-  await applicantVault.set(input.applicantId, CURRENT_EMAIL_KEY, canonicalAlias, {
+  await applicantVault.set(input.applicantId, CURRENT_EMAIL_KEY, decision.email, {
     ...vaultOpts,
-    note: "Canonical v2 VIZA alias for the Indonesia eVisa portal",
+    note: "Indonesia v3 service alias for the Indonesia eVisa portal",
   });
   await applicantVault.set(input.applicantId, CURRENT_PASSWORD_KEY, decision.password, {
     ...vaultOpts,

@@ -3,6 +3,7 @@
 
 # Next.js/Turbopack runtime output (including image and incremental caches)
 .next/
+.next.pre-merge-cache-*/
 
 # Migration scripts — progress and logs
 scripts/.migration-progress.json

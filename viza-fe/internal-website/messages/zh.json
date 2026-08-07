@@ -487,7 +487,7 @@
       },
       "composer": {
         "label": "发送给表单填写助手的消息",
-        "placeholder": "输入答案或询问帮助...",
+        "placeholder": "在这里回答当前问题...",
         "hint": "按 Enter 发送，按 Shift+Enter 换行。语音会先转成文字，确认后才会发送。",
         "startRecording": "开始语音输入",
         "stopRecording": "停止语音输入",
@@ -562,7 +562,7 @@
     "statusHub": {
       "loading": "正在加载申请状态...",
       "loadError": "申请状态加载失败",
-      "eyebrow": "Full cycle applications",
+      "eyebrow": "申请全流程",
       "title": "申请状态中心",
       "subtitle": "这里展示每个签证申请从开始填写、材料、提交队列到官方结果的完整周期；首页仍只展示轻量表单进度。",
       "chooseDestination": "从首页选择目的地",
@@ -667,6 +667,7 @@
       "Travel Information": "旅行信息",
       "Travel Companions": "同行人员",
       "Previous US Travel": "以往赴美记录",
+      "Previous U.S. Travel": "以往赴美记录",
       "Address and Phone": "地址和电话信息",
       "Address and Phone Information": "地址和电话信息",
       "Passport Information": "护照信息",
@@ -682,8 +683,17 @@
       "Work/Education/Training: Present": "工作/教育/培训：当前",
       "Work/Education/Training: Previous": "工作/教育/培训：过往",
       "Work/Education/Training: Additional": "工作/教育/培训：补充",
+      "Work / Education / Training": "工作 / 教育 / 培训",
       "Work and Education": "工作与教育",
       "Education & Employment": "教育与就业",
+      "Kinship Information": "亲属信息",
+      "Delivery Location": "证件领取地点",
+      "Photo & Basic Status": "照片与基本信息",
+      "Applicant Identity": "申请人身份信息",
+      "Taiwan Contact Address": "台湾联系地址",
+      "Other Nationality": "其他国籍信息",
+      "Accompanying Children": "同行儿童",
+      "Travel Expenses and Insurance": "旅行费用与保险",
       "Security and Background": "安全与背景",
       "Security and Background: Part 1": "安全与背景：第1部分",
       "Security and Background: Part 2": "安全与背景：第2部分",
@@ -1029,7 +1039,7 @@
       "applicationReceipt": "申请回执",
       "paymentReceipt": "付款回执",
       "packet": "已准备申请包",
-      "arrivalCardConfirmation": "SG Arrival Card 确认 PDF（可下载打印）",
+      "arrivalCardConfirmation": "新加坡入境卡确认文件（可下载打印）",
       "approvedResult": "批准信 / 已签发签证 PDF",
       "rejectionLetter": "拒签信",
       "resultFile": "结果文件"
@@ -1041,7 +1051,7 @@
       "packet_generated": "申请包已生成",
       "external_status_updated": "外部状态已更新",
       "official_status_changed": "越南 e‑Visa 官网状态已更新",
-      "arrival_card_submitted": "SG Arrival Card 已成功提交",
+      "arrival_card_submitted": "新加坡入境卡已成功提交",
       "result_received": "已收到结果",
       "notification_sent": "通知已发送"
     }
@@ -1518,7 +1528,7 @@
       "extraItinPlaceholder": "9XX-XX-XXXX",
       "extraItinHint": "IRS 签发的税务号码 — 仅在您之前报过美国税的情况下填写。",
       "nationalIdSectionTitle": "国民身份证明",
-      "nationalIdInputLabel": "Resident ID Number (身份证号)",
+      "nationalIdInputLabel": "居民身份证号码",
       "nationalIdHelp": "您的18位中国居民身份证号码。",
       "nationalIdPlaceholderLong": "e.g. 110101199001011234",
       "nationalIdNone": "我没有",
@@ -2526,7 +2536,7 @@
         "tripDates": {
           "label": "日期",
           "title": "赴英时间",
-          "subtitle": "Standard Visitor 单次最多停留 6 个月。"
+          "subtitle": "标准访客签证单次最多停留 6 个月。"
         },
         "uk_address": {
           "label": "英国住址",
@@ -2561,7 +2571,7 @@
       },
       "review": {
         "label": "审核",
-        "title": "审核您的 UK Standard Visitor 答案",
+        "title": "审核您的英国标准访客签证答案",
         "subtitle": "提交前可编辑修正。",
         "purpose": "目的",
         "personal": "个人",
@@ -2938,8 +2948,8 @@
       "steps": {
         "stream": {
           "label": "类别",
-          "title": "600 类下哪个 stream?",
-          "subtitle": "选择最贴合您出行目的的 stream。"
+          "title": "选择 600 类签证类别",
+          "subtitle": "选择最符合您出行目的的签证类别。"
         },
         "personal": {
           "label": "个人",
@@ -2964,7 +2974,7 @@
         "tripDates": {
           "label": "日期",
           "title": "赴澳时间",
-          "subtitle": "600 类各 stream 单次停留可达 3、6 或 12 个月。"
+          "subtitle": "600 类各签证类别单次停留可达 3、6 或 12 个月。"
         },
         "visit": {
           "label": "访问",
@@ -3751,7 +3761,7 @@
   "inviteFriends": {
     "heroTitle": "邀请您的朋友",
     "heroSubtitle": "赚取 VIZA 积分",
-    "referHeading": "分享 referral code，赚取 99 积分",
+    "referHeading": "分享推荐码，赚取 99 积分",
     "referDescription": "把您的专属 referral code 分享给朋友和家人。新用户注册时使用该 code 后，你们两人各获得 99 VIZA 积分。",
     "referralCode": "Referral code",
     "loadingLink": "正在加载您的 code...",
@@ -3777,7 +3787,7 @@
     "howItWorks": "如何运作",
     "steps": {
       "share": {
-        "title": "分享您的 referral code",
+        "title": "分享您的推荐码",
         "description": "邀请朋友使用您的专属 code 加入 VIZA。"
       },
       "give": {
@@ -3848,7 +3858,7 @@
       "eyebrow": "积分中心",
       "title": "VIZA 积分",
       "totalLabel": "当前积分总额",
-      "referralRule": "新用户注册时使用您的 referral code 后，两边账号各获得 99 积分。",
+      "referralRule": "新用户注册时使用您的推荐码后，两边账号各获得 99 积分。",
       "purchaseRule": "每实际消费 100 元人民币可获得 100 VIZA 积分，付款确认后会自动计入当前积分总额。",
       "lifetimeEarned": "累计获得",
       "lifetimeSpent": "累计使用",
@@ -4230,7 +4240,7 @@
     },
     "actions": {
       "faqs": {
-        "title": "浏览 FAQ",
+        "title": "浏览常见问题",
         "description": "阅读帮助中心文章和指南。"
       },
       "requests": {
@@ -4316,7 +4326,7 @@
         "description": "邀请朋友并追踪您的奖励。"
       },
       "payments": {
-        "title": "付款和 VIZA Points",
+        "title": "付款和 VIZA 积分",
         "description": "查看交易、积分和收据。"
       }
     },
@@ -4580,7 +4590,7 @@
   },
   "subscription": {
     "back": "返回首页",
-    "eyebrow": "VIZA Application",
+    "eyebrow": "VIZA 申请方案",
     "title": "选择适合你的 VIZA 申请方式",
     "subtitle": "高频申请可以选择月付，偶尔出行可以按国家次付。所有价格均以人民币展示，点击在线付后再选择银行卡、微信支付或支付宝。",
     "current": {
@@ -4718,7 +4728,7 @@
     },
     "loading": "正在加载预约助手...",
     "errorTitle": "预约助手需要处理",
-    "dryRunNoticeTitle": "受控 assisted-live",
+    "dryRunNoticeTitle": "受控实时协助",
     "dryRunNotice": "中国首版流程只会在明确用户动作后运行。VIZA 可通过受控 runner 处理支持的官方节点，记录脱敏官方证据；不支持的官方阻塞会明确显示为需要人工处理。",
     "cloud": {
       "title": "云端自动化状态",
@@ -5189,7 +5199,7 @@
       "checkbox": "我授权 VIZA 为本申请运行法国申根 TLScontact 中国预约操作，并保留明确选位、一次性支付授权、最终确认和官方证据记录。"
     },
     "account": {
-      "title": "VIZA Alias 与 TLS 账号",
+      "title": "VIZA 别名邮箱与 TLS 账号",
       "alias": "Alias 邮箱",
       "status": "官网账号状态",
       "verification": "邮箱验证",
@@ -5203,7 +5213,7 @@
       "body": "TLScontact 要求复核后才能继续自动流程。"
     },
     "panel": {
-      "title": "预约 runner",
+      "title": "预约执行器",
       "progressTitle": "预约进度",
       "stepComplete": "已完成",
       "stepPending": "待完成",

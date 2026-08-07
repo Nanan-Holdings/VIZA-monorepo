@@ -5,6 +5,7 @@
 viza-be
 travel-agent
 .codex
+.codex-worktrees
 docs
 **/node_modules
 **/.next

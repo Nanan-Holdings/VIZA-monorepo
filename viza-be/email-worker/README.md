@@ -10,6 +10,8 @@ failures through the configured outbound provider.
 
 Forwarding is fail-closed: the Worker only resolves a destination after the
 applicant has accepted the current `alias_email_forwarding` consent document.
+It accepts both the current `consent_events` record and the equivalent legacy
+`consent_event` record for the same consent version, matching submission-service.
 Cloudflare destination-address verification remains a separate mailbox-control
 step that the applicant must complete from their own inbox.
 

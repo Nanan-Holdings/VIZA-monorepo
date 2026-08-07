@@ -37,18 +37,18 @@ describe("arrival card destination labels", () => {
     )).toHaveLength(2);
   });
 
-  test("SG Arrival Card has a dedicated package label separate from Singapore Visit Visa", () => {
+  test("SG Arrival Card has a fully localized package label separate from Singapore Visit Visa", () => {
     expect(getVisaTypeDisplayName("SG_ARRIVAL_CARD")).toBe("SG Arrival Card");
-    expect(getVisaTypeDisplayNameZh("SG_ARRIVAL_CARD")).toBe("SG Arrival Card 入境卡");
+    expect(getVisaTypeDisplayNameZh("SG_ARRIVAL_CARD")).toBe("入境卡");
 
     expect(getVisaPackageTitle("singapore", "SG_ARRIVAL_CARD")).toBe("Singapore SG Arrival Card");
-    expect(getVisaPackageTitleZh("singapore", "SG_ARRIVAL_CARD")).toBe("新加坡SG Arrival Card 入境卡");
+    expect(getVisaPackageTitleZh("singapore", "SG_ARRIVAL_CARD")).toBe("新加坡入境卡");
   });
 
   test("Singapore search card opens the SGAC form and Singapore/New Zealand are clickable", () => {
     const singapore = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "singapore");
     expect(singapore?.visaType).toBe("SG_ARRIVAL_CARD");
-    expect(singapore?.visaNameZh).toBe("SG Arrival Card 入境卡");
+    expect(singapore?.visaNameZh).toBe("入境卡");
 
     expect(isCountryLaunched("singapore")).toBe(true);
     expect(isCountryLaunched("new_zealand")).toBe(true);
@@ -69,32 +69,43 @@ describe("arrival card destination labels", () => {
     expect(matchesVisaDestinationSearch(singapore!, "SGAC")).toBe(true);
   });
 
+  test("Chinese application form names do not contain untranslated English words", () => {
+    const allowedCategoryCodes = /B211A|B1\/B2|C-3|C1|B1|A1|\bC\b|\bL\b/g;
+
+    for (const destination of SEARCHABLE_VISA_DESTINATIONS) {
+      expect(
+        destination.visaNameZh.replace(allowedCategoryCodes, ""),
+        destination.country,
+      ).not.toMatch(/[A-Za-z]/);
+    }
+  });
+
   test("Malaysia and Thailand arrival cards have standalone package labels and destination cards", () => {
     expect(getVisaTypeDisplayName("MY_MDAC_ARRIVAL_CARD")).toBe("Malaysia Digital Arrival Card");
-    expect(getVisaTypeDisplayNameZh("MY_MDAC_ARRIVAL_CARD")).toBe("MDAC 数字入境卡");
+    expect(getVisaTypeDisplayNameZh("MY_MDAC_ARRIVAL_CARD")).toBe("数字入境卡");
     expect(getVisaPackageTitle("malaysia", "MY_MDAC_ARRIVAL_CARD")).toBe("Malaysia Malaysia Digital Arrival Card");
-    expect(getVisaPackageTitleZh("malaysia", "MY_MDAC_ARRIVAL_CARD")).toBe("马来西亚MDAC 数字入境卡");
+    expect(getVisaPackageTitleZh("malaysia", "MY_MDAC_ARRIVAL_CARD")).toBe("马来西亚数字入境卡");
 
     expect(getVisaTypeDisplayName("TH_TDAC_ARRIVAL_CARD")).toBe("Thailand Digital Arrival Card");
-    expect(getVisaTypeDisplayNameZh("TH_TDAC_ARRIVAL_CARD")).toBe("TDAC 数字入境卡");
+    expect(getVisaTypeDisplayNameZh("TH_TDAC_ARRIVAL_CARD")).toBe("数字入境卡");
     expect(getVisaPackageTitle("thailand", "TH_TDAC_ARRIVAL_CARD")).toBe("Thailand Thailand Digital Arrival Card");
-    expect(getVisaPackageTitleZh("thailand", "TH_TDAC_ARRIVAL_CARD")).toBe("泰国TDAC 数字入境卡");
+    expect(getVisaPackageTitleZh("thailand", "TH_TDAC_ARRIVAL_CARD")).toBe("泰国数字入境卡");
 
     const malaysia = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "malaysia");
     const thailand = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "thailand");
     expect(malaysia?.visaType).toBe("MY_MDAC_ARRIVAL_CARD");
-    expect(malaysia?.visaNameZh).toBe("MDAC 数字入境卡");
+    expect(malaysia?.visaNameZh).toBe("数字入境卡");
     expect(thailand?.visaType).toBe("TH_TDAC_ARRIVAL_CARD");
-    expect(thailand?.visaNameZh).toBe("TDAC 数字入境卡");
+    expect(thailand?.visaNameZh).toBe("数字入境卡");
   });
 
   test("Philippines search collapses arrival and departure into one category entry", () => {
     expect(getVisaTypeDisplayName("PH_ETRAVEL_ARRIVAL_CARD")).toBe("Philippines eTravel Arrival Card");
-    expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_ARRIVAL_CARD")).toBe("eTravel 入境卡");
+    expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_ARRIVAL_CARD")).toBe("电子入境卡");
     expect(getVisaPackageTitle("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe(
       "Philippines Philippines eTravel Arrival Card",
     );
-    expect(getVisaPackageTitleZh("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe("菲律宾eTravel 入境卡");
+    expect(getVisaPackageTitleZh("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe("菲律宾电子入境卡");
 
     const philippines = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "philippines");
     expect(philippines?.kind).toBe("group");
@@ -106,7 +117,7 @@ describe("arrival card destination labels", () => {
     expect(SEARCHABLE_VISA_DESTINATIONS.filter((destination) =>
       matchesVisaDestinationSearch(destination, "eTravel"))).toEqual([philippines]);
     expect(getVisaTypeDisplayName("PH_ETRAVEL_DEPARTURE_CARD")).toBe("Philippines eTravel Departure Card");
-    expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_DEPARTURE_CARD")).toBe("eTravel 出境卡");
+    expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_DEPARTURE_CARD")).toBe("电子出境卡");
     expect(isCountryLaunched("philippines")).toBe(true);
     expect(isCountryLaunched("ph")).toBe(true);
   });
@@ -143,7 +154,7 @@ describe("arrival card destination labels", () => {
   test("South Korea C-3-9 search card is clickable as paper/KVAC assisted flow", () => {
     const southKorea = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "south_korea");
     expect(southKorea?.visaType).toBe("KR_C39_SHORT_TERM_VISIT");
-    expect(southKorea?.visaNameZh).toBe("C-3 签证 / K-ETA");
+    expect(southKorea?.visaNameZh).toBe("C-3 签证 / 电子旅行授权");
     expect(isCountryLaunched("south_korea")).toBe(true);
     expect(isCountryLaunched("kr")).toBe(true);
   });

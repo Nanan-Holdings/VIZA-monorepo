@@ -19,6 +19,11 @@ Directorate General of Immigration eVisa portal.
   exception is allowed only when the same VIZA application has a reusable
   official URL; never write the archived credentials back as current, use them
   for a fresh application, or replace the canonical alias in application forms.
+- When a deliberately fresh v3 service alias is being registered, a failed
+  read-only archived-account resume must not block that new registration. Drop
+  the stale saved-application URL before opening the registration form so the
+  new account cannot be redirected into an archived account's draft. Reusable
+  current accounts must still stop for recovery instead of duplicate registration.
 - If that archived-account resume fails, reopen a fresh official login page and
   try the canonical managed account once. If the reusable canonical account is
   also rejected, follow the visible official Forgot Password control, scope the
@@ -30,6 +35,14 @@ Directorate General of Immigration eVisa portal.
   after official email verification and a verified login. On any ambiguous recovery state, stop at
   `official_account_recovery_required`; do not fall through to duplicate
   registration or payment.
+- The current official change-password page can render its visible `Send`
+  control outside the password inputs' DOM form association. Prefer the
+  form-scoped submit control, then fall back to that page-level official action.
+  Its client validator listens only for `keyup`; after programmatic fills, send
+  a harmless key event and verify the official control is enabled before click.
+- Once a worker consumes an in-memory one-time card authorization, an unhandled
+  error must be terminal for that queue row and release its lease. Do not place
+  it back into automatic pending state without a fresh user card entry.
 - A fresh login page may hydrate slowly through the remote browser. Wait for
   both username and password controls before classifying the canonical account
   retry as unavailable, and preserve a diagnostic artifact when they never
@@ -77,6 +90,24 @@ Directorate General of Immigration eVisa portal.
   If the page handler produces no observable response, POST the same CSRF form
   to the portal's own `/front/upload-photo` route and accept only the official
   JSON `files` path; never invent or locally derive a storage path.
+- Before posting the foreigner-account registration form, query the official
+  email-availability endpoint and stop before a duplicate POST when it returns
+  `KO`. Diagnostics may record only `OK`/`KO`, field lengths/equality, control
+  validity, upload-path readiness, redirect path/query-key names, and bounded
+  dialog text; never log the managed alias, password, CSRF token, or upload
+  paths. Registration must not POST until `path_attachment`,
+  `path_attachment_crop`, and `path_photo` are all populated by official upload
+  responses. Use the conservative `!` symbol for newly generated portal passwords.
+- Indonesia account alias contract v3 deterministically derives
+  `id-<same ULID>@viza.it.com` from the applicant's canonical
+  `appl-<ULID>@viza.it.com`. B1 and C1 share this one service alias. Inbox
+  polling may override the canonical recipient only with that reversible exact
+  alias; arbitrary mailbox overrides must fail closed.
+- Persist the derived v3 service alias, never the canonical applicant alias, in
+  `indonesia.portal.email`. If the legacy v39 bug shape is encountered (v3 plus
+  a canonical `appl-...` value), preserve its stored password, rewrite the
+  derived alias, and treat the official account as reusable so password reset
+  can recover it without duplicate registration.
 - The current official `step_1` combines personal identity, passport, Indonesia
   stay/contact, return-ticket, and support-document fields. Fill those fields
   explicitly even when an MRZ payload was injected, because the portal's MRZ

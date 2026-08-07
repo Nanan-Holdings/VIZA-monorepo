@@ -97,3 +97,22 @@ test("Indonesia cloud processing refreshes its queue heartbeat until the run end
   assert.match(indonesiaBody, /\.in\("status", \[processingStatus, paymentProcessingStatus\]\)/);
   assert.match(indonesiaBody, /clearInterval\(heartbeatTimer\)/);
 });
+
+test("Indonesia worker errors cannot auto-retry after consuming a one-time card", () => {
+  const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
+  const indonesiaStart = source.indexOf("async function processIndonesiaItem");
+  const indonesiaEnd = source.indexOf("async function markIndonesiaQueueStage", indonesiaStart);
+  assert.notEqual(indonesiaStart, -1);
+  assert.notEqual(indonesiaEnd, -1);
+
+  const indonesiaBody = source.slice(indonesiaStart, indonesiaEnd);
+  assert.match(indonesiaBody, /let consumedOneTimeCardAuthorization = false/);
+  assert.match(indonesiaBody, /consumedOneTimeCardAuthorization = Boolean\(oneTimeIndonesiaCard\)/);
+  assert.match(
+    indonesiaBody,
+    /const newAttempts = consumedOneTimeCardAuthorization\s*\? MAX_ATTEMPTS\s*:\s*item\.attempts \+ 1/,
+  );
+  assert.match(indonesiaBody, /payment_status: "failed"/);
+  assert.match(indonesiaBody, /locked_by: null/);
+  assert.match(indonesiaBody, /locked_until: null/);
+});

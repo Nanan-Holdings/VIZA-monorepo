@@ -71,6 +71,20 @@ const HEADERS_OF_INTEREST = [
   "authentication-results",
 ];
 
+/**
+ * Indonesia's official portal uses a country-scoped alias derived from the
+ * applicant's canonical VIZA inbox alias. The profile row remains keyed by
+ * `appl-<ulid>@viza.it.com`; only the local-part prefix changes to `id-` for
+ * the portal session.
+ */
+const INDONESIA_ALIAS_PATTERN = /^id-([0-9a-z]{26})@(viza\.it\.com)$/i;
+
+function applicantProfileAlias(alias: string): string {
+  const normalized = alias.trim().toLowerCase();
+  const match = normalized.match(INDONESIA_ALIAS_PATTERN);
+  return match ? `appl-${match[1]}@${match[2]}` : normalized;
+}
+
 async function readAll(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
@@ -226,7 +240,8 @@ async function loadForwardingDestination(
   alias: string,
 ): Promise<ForwardingDestination> {
   const base = env.SUPABASE_URL.replace(/\/$/, "");
-  const url = `${base}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(alias)}&select=id,email&limit=1`;
+  const profileAlias = applicantProfileAlias(alias);
+  const url = `${base}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(profileAlias)}&select=id,email&limit=1`;
   const res = await fetch(url, {
     method: "GET",
     headers: supabaseHeaders(env),
@@ -260,7 +275,33 @@ async function loadForwardingDestination(
     throw new Error(`forwarding consent lookup failed: ${consentRes.status} ${detail}`);
   }
   const consents = (await consentRes.json()) as Array<{ id: string }>;
-  return consents.length > 0
+  if (consents.length > 0) {
+    return { email, reason: "authorized" };
+  }
+
+  // The applicant portal historically stored the same accepted consent in
+  // `consent_event`. Submission runners already accept that record so the
+  // email worker must do the same; otherwise the runner can consume an alias
+  // OTP while forwarding incorrectly fails closed as `consent_required`.
+  const legacyConsentQuery = [
+    `applicant_id=eq.${encodeURIComponent(owner.id)}`,
+    `doc_kind=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_TYPE)}`,
+    `doc_version=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_VERSION)}`,
+    "select=id",
+    "limit=1",
+  ].join("&");
+  const legacyConsentRes = await fetch(`${base}/rest/v1/consent_event?${legacyConsentQuery}`, {
+    method: "GET",
+    headers: supabaseHeaders(env),
+  });
+  if (!legacyConsentRes.ok) {
+    const detail = await legacyConsentRes.text();
+    throw new Error(
+      `legacy forwarding consent lookup failed: ${legacyConsentRes.status} ${detail}`,
+    );
+  }
+  const legacyConsents = (await legacyConsentRes.json()) as Array<{ id: string }>;
+  return legacyConsents.length > 0
     ? { email, reason: "authorized" }
     : { email: null, reason: "consent_required" };
 }
@@ -441,7 +482,8 @@ async function retryPendingForwards(env: Env): Promise<void> {
 }
 
 async function aliasIsActive(env: Env, toAddr: string): Promise<boolean> {
-  const url = `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(toAddr)}&select=inbox_alias_retired_at&limit=1`;
+  const profileAlias = applicantProfileAlias(toAddr);
+  const url = `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(profileAlias)}&select=inbox_alias_retired_at&limit=1`;
   const res = await fetch(url, {
     method: "GET",
     headers: {
