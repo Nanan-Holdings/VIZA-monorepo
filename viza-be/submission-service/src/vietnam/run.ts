@@ -529,10 +529,19 @@ async function fillVietnamApplicationOnce(
       ) {
         console.log(`[vn] Review CAPTCHA attempt ${attempt}/${maxReviewCaptchaAttempts}.`);
         if (attempt > 1) {
-          const refreshed = await refreshVietnamCaptchaChallenge(page);
+          const refreshBudgetMs = remainingVietnamCaptchaBudgetMs(
+            reviewCaptchaDeadline,
+            Math.min(stepTimeoutMs, 12_000),
+          );
+          const refreshed = await withTimeout(
+            refreshVietnamCaptchaChallenge(page, Math.min(refreshBudgetMs, 8_000)),
+            refreshBudgetMs,
+            false,
+          );
           console.log(
             `[vn] Review CAPTCHA refresh before attempt ${attempt}: ${refreshed ? "confirmed" : "not_observed"}.`,
           );
+          if (Date.now() >= reviewCaptchaDeadline) break;
           await page.waitForTimeout(1_000);
         }
         await emitProgress("captcha_solving");
@@ -544,11 +553,16 @@ async function fillVietnamApplicationOnce(
         logVietnamCaptchaOutcome("Review", attempt, captchaOutcome);
         if (!captchaOutcome.solved) {
           lastReviewCaptchaReason = captchaOutcome.reason ?? "unknown CAPTCHA error";
-          const recoverySnapshot = await readVietnamPortalSnapshot(
-            page,
-            failedRequests.length,
-            mainRequestFailed,
-          ).catch(() => null);
+          if (Date.now() >= reviewCaptchaDeadline) break;
+          const recoverySnapshot = await withTimeout(
+            readVietnamPortalSnapshot(
+              page,
+              failedRequests.length,
+              mainRequestFailed,
+            ).catch(() => null),
+            remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, 8_000),
+            null,
+          );
           if (recoverySnapshot) {
             lastSnapshot = recoverySnapshot;
             stateAfterCaptcha = classifyVietnamPortalSnapshot(recoverySnapshot);
@@ -1055,10 +1069,19 @@ async function reachVietnamFormCheckpoint(
       ) {
         console.log(`[vn] Portal CAPTCHA attempt ${attempt}/${maxCaptchaAttempts}.`);
         if (attempt > 1) {
-          const refreshed = await refreshVietnamCaptchaChallenge(page).catch(() => false);
+          const refreshBudgetMs = remainingVietnamCaptchaBudgetMs(
+            captchaDeadline,
+            Math.min(options.stepTimeoutMs, 12_000),
+          );
+          const refreshed = await withTimeout(
+            refreshVietnamCaptchaChallenge(page, Math.min(refreshBudgetMs, 8_000)).catch(() => false),
+            refreshBudgetMs,
+            false,
+          );
           console.log(
             `[vn] Portal CAPTCHA refresh before attempt ${attempt}: ${refreshed ? "confirmed" : "not_observed"}.`,
           );
+          if (Date.now() >= captchaDeadline) break;
           await page.waitForTimeout(750);
         }
         await options.onStage("captcha_solving");

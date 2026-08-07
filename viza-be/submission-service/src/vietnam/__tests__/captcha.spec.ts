@@ -137,6 +137,37 @@ test("vn.captcha: refreshes an id-less inline challenge through its nearby sync 
   }
 });
 
+test("vn.captcha: refresh selection stays bounded with many unrelated controls", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const decoys = Array.from({ length: 120 }, (_, index) => `<button type="button">Decoy ${index}</button>`).join("");
+    await page.setContent(`
+      ${decoys}
+      <section>
+        <img class="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <button id="refresh" type="button"><svg data-icon="sync" width="16" height="16"></svg></button>
+        <input type="text" value="stale" />
+      </section>
+    `);
+    await page.locator("#refresh").evaluate((button) => {
+      button.addEventListener("click", () => {
+        document.querySelector(".captcha-image")?.setAttribute(
+          "src",
+          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3ECD34%3C/text%3E%3C/svg%3E",
+        );
+      });
+    });
+
+    const startedAt = Date.now();
+    assert.equal(await refreshVietnamCaptchaChallenge(page, 2_000), true);
+    assert.ok(Date.now() - startedAt < 1_500, "refresh should not scan controls through serial Playwright calls");
+    assert.equal(await page.locator("input").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.captcha: provider retries are not multiplied inside one portal attempt", async () => {
   const previous = process.env.VN_CAPTCHA_SOLVER_ATTEMPTS;
   delete process.env.VN_CAPTCHA_SOLVER_ATTEMPTS;

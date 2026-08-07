@@ -78,6 +78,21 @@ test("vn.retry-policy: does not retry user data validation or payment checkpoint
   assert.equal(isRetryableVietnamResult(paymentResult), false);
 });
 
+test("vn.retry-policy: does not restart the whole form after the bounded CAPTCHA loop", () => {
+  const captchaFailure: FillVietnamResult = {
+    status: "failed",
+    failedStep: "captcha_visible",
+    error: {
+      code: "captcha_automatic_failed",
+      message: "Automatic CAPTCHA retries ended after a 2captcha timeout.",
+    },
+    checkpoint: "captcha_visible",
+    url: "https://evisa.gov.vn/e-visa/foreigners",
+  };
+
+  assert.equal(isRetryableVietnamResult(captchaFailure), false);
+});
+
 test("vn.retry-policy: never restarts after final-submit or payment uncertainty", () => {
   const paymentNavigationFailure: FillVietnamResult = {
     status: "failed",
