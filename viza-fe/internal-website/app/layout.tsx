@@ -29,7 +29,7 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <RuntimeAbortErrorGuard />
           {children}
-          <Toaster position="bottom-right" richColors closeButton />
+          <Toaster position="top-right" richColors closeButton />
         </NextIntlClientProvider>
       </body>
     </html>

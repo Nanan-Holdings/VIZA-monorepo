@@ -106,8 +106,20 @@
     --dur-nav: 600ms;
   }
 
-  html {
-    scrollbar-gutter: stable;
+  /* Keep every marketing surface scrollable without native scrollbar chrome. */
+  html,
+  body,
+  * {
+    -ms-overflow-style: none; /* IE/Edge legacy */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  *::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+    width: 0;
+    height: 0;
   }
 
   body {

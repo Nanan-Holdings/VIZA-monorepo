@@ -4033,7 +4033,7 @@ export function DynamicStepForm({
             "application-form-field group/field relative py-1.5 transition-colors",
             panelOpen ? "bg-[#fbfdff]" : "",
             isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
-            submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500",
+            submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
           )}
         >
           {aiFilledBadge}
@@ -4069,7 +4069,7 @@ export function DynamicStepForm({
           "application-form-field group/field relative py-1.5 transition-colors",
           panelOpen ? "bg-[#fbfdff]" : "",
           isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
-          submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500",
+          submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
         )}
       >
         {aiFilledBadge}

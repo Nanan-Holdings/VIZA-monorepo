@@ -29,6 +29,8 @@ reports, and workflow documentation for VIZA.
 - `pitch/**`: pitch-deck-ready product/module summaries and bilingual investor
   narrative material.
 - `visa-schema-playbook.md`: adding/maintaining country visa schemas.
+- `application-qa-multithread-testing.md`: authenticated Universal Profile
+  completion and six-tab Chrome QA across every DB-driven application schema.
 - `SUPABASE_AGENT_SETUP.md`: remote Supabase setup, migration, verification,
   and troubleshooting workflow for agents.
 - `AGENT_COMPLETION_CHECKLIST.md`: evidence checklist for database-backed and

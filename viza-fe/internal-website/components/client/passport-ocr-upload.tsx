@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  Check,
-  CheckCircle2,
-  FileText,
-  UploadCloud,
-  XCircle,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
 import { useLocale } from "next-intl";
 import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
 import { SmoothProgressBar } from "@/components/smooth-progress";
+import {
+  DocumentUploadField,
+  documentUploadStatusLabel,
+  type DocumentUploadStatus,
+} from "@/components/ui/document-upload-field";
+import { SupportingDocumentCard } from "@/components/ui/supporting-document-card";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import { normalizeBirthplace } from "@/lib/birthplace-options";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
@@ -179,6 +179,8 @@ const PASSPORT_OCR_COPY = {
     tipLightBody: "避免手或手机壳造成阴影。",
     tipGlareTitle: "避免反光",
     tipGlareBody: "如果防伪膜反光，请稍微调整拍摄角度。",
+    statusFailed: "上传失败",
+    replace: "替换",
   },
   en: {
     title: "Upload passport bio page",
@@ -209,6 +211,8 @@ const PASSPORT_OCR_COPY = {
     extractingDetails: "Extracting your details",
     verifyingAuthenticity: "Verifying authenticity",
     privacy: "Your scan is encrypted in transit and used only for extraction.",
+    statusFailed: "Upload failed",
+    replace: "Replace",
   },
 } as const;
 
@@ -353,6 +357,7 @@ export function PassportOcrUpload({
   documentType = "passport_copy",
   requirementKey = documentType,
   title,
+  description,
   presentation = "standard",
   onFieldsApplied,
   onUploaded,
@@ -369,7 +374,6 @@ export function PassportOcrUpload({
       : "Up to 2 MB"
     : copy.formatsLimit;
   const uploadAccept = useVietnamOfficialImageRules ? VIETNAM_OFFICIAL_IMAGE_ACCEPT : GENERIC_UPLOAD_ACCEPT;
-  const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<UploadStatus>(initialUploaded ? "uploaded" : "idle");
   const [fileName, setFileName] = useState<string | null>(initialUploaded ? initialFileName ?? null : null);
   const [message, setMessage] = useState<string | null>(
@@ -377,7 +381,6 @@ export function PassportOcrUpload({
   );
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewKind, setPreviewKind] = useState<"image" | "document" | null>(initialUploaded ? "document" : null);
-  const [isDragging, setIsDragging] = useState(false);
 
   const busy = status === "uploading" || status === "ocr" || status === "verifying";
   const supportingCardPresentation = presentation === "supporting-card";
@@ -486,141 +489,84 @@ export function PassportOcrUpload({
     }
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    setIsDragging(false);
-    const file = event.dataTransfer.files?.[0];
-    if (file) void handleFile(file);
-  };
+  const hasFile = status === "done" || status === "uploaded" || status === "needs_review";
+  /*
+   * A passport the applicant just uploaded is `in_review` regardless of whether
+   * OCR succeeded — client-side extraction is not a VIZA sign-off, so it must
+   * not turn the status green. See `DocumentUploadStatus` for the lifecycle.
+   */
+  const fieldStatus: DocumentUploadStatus = hasFile
+    ? "in_review"
+    : status === "error"
+      ? "rejected"
+      : "missing";
+  const statusLabel = hasFile
+    ? documentUploadStatusLabel("in_review", isZh)
+    : status === "error"
+      ? copy.statusFailed
+      : documentUploadStatusLabel("missing", isZh);
+
+  const field = (
+    <DocumentUploadField
+      status={fieldStatus}
+      statusLabel={statusLabel}
+      file={
+        hasFile
+          ? {
+              name: fileName ?? resolvedTitle,
+              kind: previewKind === "image" ? "image" : "document",
+              previewUrl: previewKind === "image" ? previewUrl : null,
+            }
+          : null
+      }
+      reason={
+        message && (status === "needs_review" || status === "error") ? message : null
+      }
+      dropLabel={copy.dropLabel}
+      acceptHint={`${uploadBadges.join(", ")} · ${uploadLimitLabel}`}
+      removeLabel={copy.replace}
+      accept={uploadAccept}
+      disabled={!applicationId}
+      inputAriaLabel={resolvedTitle}
+      onFileSelected={(file) => void handleFile(file)}
+    />
+  );
+
+  const scanning = busy || (status === "done" && !isVisuallyComplete);
+
+  if (supportingCardPresentation) {
+    return (
+      <section className={cn("flex flex-1 flex-col bg-white", className)}>
+        {scanning ? (
+          <ScanProgressPanel
+            stage={stageFromStatus(status)}
+            copy={copy}
+            displayedProgress={displayedProgress}
+          />
+        ) : (
+          field
+        )}
+      </section>
+    );
+  }
 
   return (
-    <section
-      className={cn(
-        supportingCardPresentation
-          ? "bg-white"
-          : "rounded-lg border border-[#e8e8e8] bg-white p-3",
-        className
-      )}
+    <SupportingDocumentCard
+      title={resolvedTitle}
+      description={description ?? copy.description}
+      required
+      headerLayout="stacked"
+      className={className}
     >
-      {busy || (status === "done" && !isVisuallyComplete) ? (
-        <ScanProgressPanel stage={stageFromStatus(status)} copy={copy} displayedProgress={displayedProgress} />
-      ) : status === "done" || status === "uploaded" || status === "needs_review" ? (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className={cn(
-            "group flex w-full min-w-0 items-center text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30",
-            supportingCardPresentation
-              ? "min-h-24 gap-3 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 px-4 py-3 hover:border-emerald-400"
-              : "gap-4 rounded-md border border-[#efefef] bg-[#fcfcfc] p-3 hover:border-[#c7d5e8] hover:bg-white"
-          )}
-        >
-          {supportingCardPresentation ? (
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-          ) : (
-            <span className="relative flex h-24 w-36 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#e5e7eb] bg-white">
-              {previewUrl && previewKind === "image" ? (
-                <img
-                  src={previewUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <FileText className="h-7 w-7 text-[#8a94a3]" />
-              )}
-            </span>
-          )}
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[14px] font-medium text-[#2f3a4a]">
-              {fileName ?? resolvedTitle}
-            </span>
-            {supportingCardPresentation && status !== "needs_review" ? (
-              <span className="mt-0.5 block text-xs text-muted-foreground">
-                {isZh ? "点击即可替换文件" : "Click anywhere to replace this file"}
-              </span>
-            ) : null}
-            {message && status === "needs_review" ? (
-              <span
-                className={cn(
-                  "mt-1 flex items-center gap-1.5 text-[12px]",
-                  "text-amber-700",
-                )}
-              >
-                <XCircle className="h-3.5 w-3.5" />
-                <span className="truncate">{message}</span>
-              </span>
-            ) : null}
-          </span>
-          <UploadCloud className="h-4 w-4 shrink-0 text-[#8a94a3] opacity-0 transition group-hover:opacity-100" />
-        </button>
+      {scanning ? (
+        <ScanProgressPanel
+          stage={stageFromStatus(status)}
+          copy={copy}
+          displayedProgress={displayedProgress}
+        />
       ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          className={cn(
-            supportingCardPresentation
-              ? "flex min-h-24 w-full items-center gap-3 rounded-lg border border-dashed px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30"
-              : "flex min-h-[128px] w-full flex-col items-center justify-center rounded-md border border-dashed bg-[#fcfcfc] px-4 py-5 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30",
-            isDragging
-              ? "border-brand-500 bg-brand-50"
-              : supportingCardPresentation
-                ? "border-brand-200 bg-brand-50/40 hover:border-brand-400 hover:bg-brand-50"
-                : "border-[#d8dee8] hover:border-[#9fb4d0] hover:bg-white"
-          )}
-        >
-          {supportingCardPresentation ? (
-            <UploadCloud className="h-5 w-5 shrink-0 text-brand-500" />
-          ) : (
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-brand-500 shadow-sm">
-              <UploadCloud className="h-4 w-4" />
-            </span>
-          )}
-          <span className={cn("min-w-0", !supportingCardPresentation && "contents")}>
-            <span
-              className={cn(
-                "block text-[14px] font-medium text-[#2f3a4a]",
-                !supportingCardPresentation && "mt-3"
-              )}
-            >
-              {supportingCardPresentation ? copy.dropLabel : resolvedTitle}
-            </span>
-            <span
-              className={cn(
-                "block text-[#667085]",
-                supportingCardPresentation ? "mt-0.5 text-xs" : "mt-1 text-[12px]"
-              )}
-            >
-              {supportingCardPresentation
-                ? `${uploadBadges.join(", ")} · ${uploadLimitLabel}`
-                : copy.dropSubtitle}
-            </span>
-            {!supportingCardPresentation ? (
-              <span className="mt-3 block text-[11px] font-medium text-[#8a94a3]">
-                {uploadBadges.join(", ")} · {uploadLimitLabel}
-              </span>
-            ) : null}
-          </span>
-        </button>
+        field
       )}
-
-      <input
-        ref={inputRef}
-        type="file"
-        className="hidden"
-        accept={uploadAccept}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void handleFile(file);
-          event.target.value = "";
-        }}
-      />
-    </section>
+    </SupportingDocumentCard>
   );
 }

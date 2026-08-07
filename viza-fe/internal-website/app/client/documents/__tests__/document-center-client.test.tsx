@@ -137,14 +137,12 @@ describe("embedded document upload step", () => {
       "group-hover/document-card:opacity-100"
     );
 
-    expect(screen.getByLabelText("Choose Passport bio page")).toHaveAttribute(
-      "type",
-      "file"
-    );
-    expect(screen.getByLabelText("Choose Proof of funds")).toHaveAttribute(
-      "type",
-      "file"
-    );
+    expect(
+      screen.getByLabelText("Choose Passport bio page", { selector: "input" })
+    ).toHaveAttribute("type", "file");
+    expect(
+      screen.getByLabelText("Choose Proof of funds", { selector: "input" })
+    ).toHaveAttribute("type", "file");
     expect(
       within(requiredSection as HTMLElement).queryByRole("button", {
         name: "Upload",
@@ -164,7 +162,7 @@ describe("embedded document upload step", () => {
     );
   });
 
-  test("keeps section labels visually subordinate and continues when required uploads are ready", () => {
+  test("renders flat document subsections and continues when required uploads are ready", () => {
     const onContinue = vi.fn();
     const readyData: DocumentCenterData = {
       ...initialData,
@@ -207,14 +205,28 @@ describe("embedded document upload step", () => {
     });
 
     expect(requiredHeading).toHaveClass(
-      "text-base",
+      "text-lg",
       "font-medium",
-      "text-muted-foreground"
+      "text-foreground"
     );
     expect(optionalHeading).toHaveClass(
-      "text-base",
+      "text-lg",
       "font-medium",
-      "text-muted-foreground"
+      "text-foreground"
+    );
+    expect(requiredHeading.closest("section")).toHaveClass("space-y-4");
+    expect(requiredHeading.closest("section")).not.toHaveClass(
+      "rounded-xl",
+      "border",
+      "bg-white",
+      "p-5"
+    );
+    expect(optionalHeading.closest("section")).toHaveClass("space-y-4");
+    expect(optionalHeading.closest("section")).not.toHaveClass(
+      "rounded-xl",
+      "border",
+      "bg-white",
+      "p-5"
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));

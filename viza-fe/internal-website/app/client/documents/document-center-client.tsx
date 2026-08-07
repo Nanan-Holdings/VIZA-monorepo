@@ -1,27 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type ChangeEvent,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
 import {
   AlertCircle,
   ArrowRight,
-  Camera,
   CheckCircle2,
-  Clock3,
   ExternalLink,
   FileCheck2,
   FileText,
   Loader2,
-  Plane,
-  UploadCloud,
-  XCircle,
-  type LucideIcon,
 } from "lucide-react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { AiAssistButton } from "@/components/ui/ai-assist-button";
@@ -39,6 +28,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DocumentUploadField,
+  documentUploadStatusLabel,
+  type DocumentUploadStatus,
+} from "@/components/ui/document-upload-field";
 import { SupportingDocumentCard } from "@/components/ui/supporting-document-card";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -76,8 +70,8 @@ interface DocumentViewState {
 interface DocumentStatusView {
   label: string;
   description: string;
-  icon: LucideIcon;
-  badgeClassName: string;
+  /** Drives the canonical `DocumentUploadField` dot and tone. */
+  fieldStatus: DocumentUploadStatus;
   ready: boolean;
   needsUpload: boolean;
 }
@@ -385,6 +379,10 @@ function isAcceptedStatus(status: string): boolean {
   );
 }
 
+function isImageFilename(filename: string | null): boolean {
+  return /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(filename ?? "");
+}
+
 function getDocumentStatus(
   requirement: DocumentRequirement,
   document: ApplicationDocument | null,
@@ -392,18 +390,12 @@ function getDocumentStatus(
 ): DocumentStatusView {
   if (!document) {
     return {
-      label: requirement.required
-        ? isZh
-          ? "缺失"
-          : "Missing"
-        : isZh
-          ? "可选"
-          : "Optional",
+      label: documentUploadStatusLabel(
+        requirement.required ? "missing" : "optional",
+        isZh
+      ),
       description: "",
-      icon: requirement.required ? AlertCircle : FileText,
-      badgeClassName: requirement.required
-        ? "border-amber-200 bg-amber-50 text-amber-800"
-        : "border-slate-200 bg-slate-50 text-slate-600",
+      fieldStatus: requirement.required ? "missing" : "optional",
       ready: !requirement.required,
       needsUpload: true,
     };
@@ -411,15 +403,14 @@ function getDocumentStatus(
 
   if (isRejectedStatus(document.status)) {
     return {
-      label: isZh ? "需要补交" : "Needs replacement",
+      label: documentUploadStatusLabel("rejected", isZh),
       description:
         document.rejectionReason ??
         document.reviewNotes ??
         (isZh
           ? "材料不清晰或有误，请重新上传。"
           : "The document is unclear or incorrect. Please upload it again."),
-      icon: XCircle,
-      badgeClassName: "border-red-200 bg-red-50 text-red-700",
+      fieldStatus: "rejected",
       ready: false,
       needsUpload: true,
     };
@@ -427,12 +418,11 @@ function getDocumentStatus(
 
   if (document.status.toLowerCase() === "missing") {
     return {
-      label: isZh ? "缺失" : "Missing",
+      label: documentUploadStatusLabel("missing", isZh),
       description: isZh
         ? "已要求该材料，但暂无可用文件。"
         : "This document is required, but no file is available yet.",
-      icon: AlertCircle,
-      badgeClassName: "border-amber-200 bg-amber-50 text-amber-800",
+      fieldStatus: "missing",
       ready: false,
       needsUpload: true,
     };
@@ -440,24 +430,22 @@ function getDocumentStatus(
 
   if (isAcceptedStatus(document.status)) {
     return {
-      label: isZh ? "已通过" : "Approved",
+      label: documentUploadStatusLabel("approved", isZh),
       description: isZh
         ? "材料已审核通过，可用于本次申请。"
         : "This document has been reviewed and can be used for this application.",
-      icon: CheckCircle2,
-      badgeClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      fieldStatus: "approved",
       ready: true,
       needsUpload: false,
     };
   }
 
   return {
-    label: isZh ? "已上传" : "Uploaded",
+    label: documentUploadStatusLabel("in_review", isZh),
     description: isZh
       ? "已收到，等待审核。"
       : "Received and waiting for review.",
-    icon: Clock3,
-    badgeClassName: "border-blue-200 bg-blue-50 text-blue-700",
+    fieldStatus: "in_review",
     ready: true,
     needsUpload: false,
   };
@@ -669,25 +657,10 @@ function ApplicationSelector({
   );
 }
 
-function StatusBadge({ status }: { status: DocumentStatusView }) {
-  const Icon = status.icon;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold",
-        status.badgeClassName
-      )}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {status.label}
-    </span>
-  );
-}
-
 function RequirementRow({
   view,
   busy,
-  onFileChange,
+  onFile,
   isZh,
   locale,
   country,
@@ -695,19 +668,13 @@ function RequirementRow({
 }: {
   view: DocumentViewState;
   busy: boolean;
-  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onFile: (file: File) => void;
   isZh: boolean;
   locale: string;
   country: string;
   visaType: string;
 }) {
   const { requirement, document, status } = view;
-  const Icon =
-    requirement.documentType === "photo"
-      ? Camera
-      : requirement.documentType === "travel_itinerary" || requirement.documentType === "return_ticket"
-        ? Plane
-        : FileText;
   const label = getRequirementLabel(requirement, isZh);
   const description = getRequirementDescription(requirement, isZh);
 
@@ -735,15 +702,12 @@ function RequirementRow({
 
   return (
     <SupportingDocumentCard
-      icon={<Icon className="h-5 w-5" />}
       title={label}
       description={description}
       required={requirement.required}
-      optionalLabel={isZh ? "可选" : "Optional"}
       headerLayout="stacked"
       headerAside={
         <>
-          {document ? <StatusBadge status={status} /> : null}
           <Popover open={guidanceOpen} onOpenChange={setGuidanceOpen}>
             <PopoverTrigger asChild>
               <AiAssistButton
@@ -775,69 +739,44 @@ function RequirementRow({
         </>
       }
     >
-      {document?.reviewNotes ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {isZh ? "审核备注：" : "Review note: "}
-          {document.reviewNotes}
-        </p>
-      ) : null}
-      {hasRejectedDocument && status.description ? (
-        <p className="mt-2 text-xs text-red-700">{status.description}</p>
-      ) : null}
-
-      <label
-        className={cn(
-          "relative mt-auto flex min-h-24 cursor-pointer items-center gap-3 rounded-lg border border-dashed px-4 py-3 transition-colors focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-100",
+      <DocumentUploadField
+        status={busy ? "uploading" : status.fieldStatus}
+        statusLabel={
+          busy ? documentUploadStatusLabel("uploading", isZh) : status.label
+        }
+        file={
+          document?.filename
+            ? {
+                name: document.filename,
+                kind: isImageFilename(document.filename)
+                  ? "image"
+                  : "document",
+              }
+            : null
+        }
+        reason={hasRejectedDocument ? status.description : null}
+        dropLabel={
+          isZh ? "拖放文件到这里，或点击选择" : "Drop file or browse"
+        }
+        acceptHint={
+          isZh
+            ? "支持 PDF、JPG、PNG、WebP、DOC 和 DOCX"
+            : "PDF, JPG, PNG, WebP, DOC or DOCX"
+        }
+        removeLabel={isZh ? "移除文件" : "Remove file"}
+        accept={getRequirementAccept(requirement)}
+        disabled={busy}
+        inputAriaLabel={
           document
-            ? "border-emerald-300 bg-emerald-50/50 hover:border-emerald-400"
-            : "border-brand-200 bg-brand-50/40 hover:border-brand-400 hover:bg-brand-50",
-          hasRejectedDocument && "border-red-300 bg-red-50/50 hover:border-red-400",
-          busy && "cursor-wait opacity-70"
-        )}
-      >
-        <input
-          type="file"
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait"
-          accept={getRequirementAccept(requirement)}
-          onChange={onFileChange}
-          disabled={busy}
-          aria-label={
-            document
-              ? isZh
-                ? `替换${label}`
-                : `Replace ${label}`
-              : isZh
-                ? `选择${label}`
-                : `Choose ${label}`
-          }
-        />
-        {busy ? (
-          <Loader2 className="h-5 w-5 shrink-0 animate-spin text-brand-500" />
-        ) : document ? (
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-        ) : (
-          <UploadCloud className="h-5 w-5 shrink-0 text-brand-500" />
-        )}
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-medium text-foreground">
-            {busy
-              ? isZh
-                ? "正在上传…"
-                : "Uploading…"
-              : document?.filename ??
-                (isZh ? "拖放文件到这里，或点击选择" : "Drop a file here, or click to choose")}
-          </span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">
-            {document
-              ? isZh
-                ? "点击即可替换文件"
-                : "Click anywhere to replace this file"
-              : isZh
-                ? "支持 PDF、JPG、PNG、WebP、DOC 和 DOCX"
-                : "PDF, JPG, PNG, WebP, DOC or DOCX"}
-          </span>
-        </span>
-      </label>
+            ? isZh
+              ? `替换${label}`
+              : `Replace ${label}`
+            : isZh
+              ? `选择${label}`
+              : `Choose ${label}`
+        }
+        onFileSelected={onFile}
+      />
     </SupportingDocumentCard>
   );
 }
@@ -1124,6 +1063,12 @@ export function DocumentCenterClient({
   const optionalViews = documentViews.filter(
     (view) => !view.requirement.required
   );
+  /*
+   * Packages with no optional materials render a single unlabelled panel: no
+   * empty "0 items" section, and no "Required documents" heading either, since
+   * with nothing to contrast against it labels the only thing on screen.
+   */
+  const hasOptionalSection = optionalViews.length > 0;
   const blockingViews = requiredViews.filter((view) => !view.status.ready);
   const travelView =
     documentViews.find(
@@ -1232,11 +1177,8 @@ export function DocumentCenterClient({
 
   async function handleFileChange(
     requirement: DocumentRequirement,
-    event: ChangeEvent<HTMLInputElement>
+    file: File
   ) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
     if ((isIndonesiaB1OfficialPdfRequirement(requirement) || isIndonesiaC1OfficialPdfRequirement(requirement)) && !isPdfFile(file)) {
       setError(isZh
         ? "印尼官网要求该材料仅接受 PDF 文件。"
@@ -1403,7 +1345,7 @@ export function DocumentCenterClient({
         </div>
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-8">
         {isVietnamEVisa && (
           <VietnamPhotoComparisonPanel
             passportView={passportView}
@@ -1415,17 +1357,21 @@ export function DocumentCenterClient({
           />
         )}
 
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-base font-medium text-muted-foreground">
-              {isZh ? "必需材料" : "Required documents"}
-            </h3>
-            <span className="text-xs text-muted-foreground">
-              {requiredViews.length}{" "}
-              {isZh ? "项" : requiredViews.length === 1 ? "item" : "items"}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <section className="space-y-4">
+          {/* The "Required documents" heading only earns its space when there is
+              an optional section to tell it apart from. */}
+          {hasOptionalSection ? (
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-lg font-medium text-foreground">
+                {isZh ? "必需材料" : "Required documents"}
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                {requiredViews.length}{" "}
+                {isZh ? "项" : requiredViews.length === 1 ? "item" : "items"}
+              </span>
+            </div>
+          ) : null}
+          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
             {requiredViews.map((view) => {
               const key = getDocumentKey(view.requirement);
               return (
@@ -1437,9 +1383,7 @@ export function DocumentCenterClient({
                     (busyTarget.type === "upload" ||
                       busyTarget.type === "travel")
                   }
-                  onFileChange={(event) =>
-                    handleFileChange(view.requirement, event)
-                  }
+                  onFile={(file) => handleFileChange(view.requirement, file)}
                   isZh={isZh}
                   locale={locale}
                   country={selectedApplication.country}
@@ -1450,18 +1394,18 @@ export function DocumentCenterClient({
           </div>
         </section>
 
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-base font-medium text-muted-foreground">
-              {isZh ? "可选补充材料" : "Optional supporting documents"}
-            </h3>
-            <span className="text-xs text-muted-foreground">
-              {optionalViews.length}{" "}
-              {isZh ? "项" : optionalViews.length === 1 ? "item" : "items"}
-            </span>
-          </div>
-          {optionalViews.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {hasOptionalSection ? (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-lg font-medium text-foreground">
+                {isZh ? "可选补充材料" : "Optional supporting documents"}
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                {optionalViews.length}{" "}
+                {isZh ? "项" : optionalViews.length === 1 ? "item" : "items"}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
               {optionalViews.map((view) => {
                 const key = getDocumentKey(view.requirement);
                 return (
@@ -1473,9 +1417,7 @@ export function DocumentCenterClient({
                       (busyTarget.type === "upload" ||
                         busyTarget.type === "travel")
                     }
-                    onFileChange={(event) =>
-                      handleFileChange(view.requirement, event)
-                    }
+                    onFile={(file) => handleFileChange(view.requirement, file)}
                     isZh={isZh}
                     locale={locale}
                     country={selectedApplication.country}
@@ -1484,14 +1426,8 @@ export function DocumentCenterClient({
                 );
               })}
             </div>
-          ) : (
-            <div className="rounded-lg border border-border bg-white p-4 text-sm text-muted-foreground shadow-sm">
-              {isZh
-                ? "该签证包暂未配置可选补充材料。"
-                : "No optional supporting documents are configured for this visa package yet."}
-            </div>
-          )}
-        </section>
+          </section>
+        ) : null}
       </div>
 
       {travelView && (

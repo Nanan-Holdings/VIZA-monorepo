@@ -4,8 +4,14 @@ import { useState } from "react";
 import { CheckCircle2, Database, Loader2, RefreshCw } from "lucide-react";
 import { useLocale } from "next-intl";
 import { syncApplicationAnswersToUniversalProfile } from "@/app/actions/visa-application-answers";
-import { BrandActionButton } from "@/components/client/brand-action-button";
-import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertAction,
+  AlertActions,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 
 export function UniversalProfileSyncCard({ applicationId }: { applicationId: string }) {
@@ -42,13 +48,8 @@ export function UniversalProfileSyncCard({ applicationId }: { applicationId: str
             ? "把本次申请中新填写的身份、家庭、联系方式、护照、工作教育和过往签证资料保存起来，下次申请自动预填空白字段。"
             : "Save reusable identity, family, contact, passport, work, education, and visa-history answers from this application. Future applications will use them to prefill empty fields."}
         </p>
-        <div className="mt-3 flex gap-2">
-          <BrandActionButton
-            type="button"
-            variant="secondary"
-            onClick={handleSync}
-            disabled={status === "saving"}
-          >
+        <AlertActions>
+          <AlertAction onClick={handleSync} disabled={status === "saving"}>
             {status === "saving" ? (
               <Loader2 className="animate-spin" />
             ) : status === "saved" ? (
@@ -61,8 +62,8 @@ export function UniversalProfileSyncCard({ applicationId }: { applicationId: str
               : status === "saved"
                 ? isZh ? "再次更新" : "Update again"
                 : isZh ? "保存本次新资料" : "Save new information"}
-          </BrandActionButton>
-        </div>
+          </AlertAction>
+        </AlertActions>
         {message ? (
           <div
             role={status === "error" ? "alert" : "status"}

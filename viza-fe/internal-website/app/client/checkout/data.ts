@@ -11,6 +11,7 @@ import {
   advanceApplicationAfterConfirmedPayment,
   type StripeSupabaseClient,
 } from "@/app/api/stripe/_shared";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 type Json =
   | string
@@ -395,7 +396,10 @@ function buildNextStep(
 
   if (!summary.applicationId) {
     return {
-      href: `/client/application?${params.toString()}`,
+      href: buildApplicationLongFormHref({
+        country: summary.country,
+        visaType: summary.visaType,
+      }),
       label: "Start application",
       description: "Start the application form so VIZA can prepare the next steps.",
     };

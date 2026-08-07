@@ -5,12 +5,24 @@ import {
   uploadSupportingDoc,
   type ChecklistRow,
 } from "@/app/actions/supporting-docs";
+import {
+  DocumentUploadField,
+  type DocumentUploadStatus,
+} from "@/components/ui/document-upload-field";
+import { SupportingDocumentCard } from "@/components/ui/supporting-document-card";
 
-const STATUS_PILL: Record<ChecklistRow["status"], string> = {
-  missing: "border-gray-200 bg-gray-50 text-gray-600",
-  uploaded: "border-blue-200 bg-blue-50 text-blue-700",
-  accepted: "border-green-200 bg-green-50 text-green-700",
-  rejected: "border-red-200 bg-red-50 text-red-700",
+const STATUS_FIELD: Record<ChecklistRow["status"], DocumentUploadStatus> = {
+  missing: "missing",
+  uploaded: "in_review",
+  accepted: "approved",
+  rejected: "rejected",
+};
+
+const STATUS_LABEL: Record<ChecklistRow["status"], string> = {
+  missing: "Missing",
+  uploaded: "In review",
+  accepted: "Approved",
+  rejected: "Rejected",
 };
 
 export function SupportingDocsChecklist({
@@ -23,6 +35,7 @@ export function SupportingDocsChecklist({
   const [rows, setRows] = useState(initial);
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [fileNames, setFileNames] = useState<Record<string, string>>({});
 
   async function handleUpload(slot: ChecklistRow, file: File) {
     setBusySlot(slot.slotId);
@@ -48,6 +61,7 @@ export function SupportingDocsChecklist({
         setErrors((e) => ({ ...e, [slot.slotId]: result.reason }));
         return;
       }
+      setFileNames((names) => ({ ...names, [slot.slotId]: file.name }));
       setRows((rs) =>
         rs.map((r) =>
           r.slotId === slot.slotId
@@ -71,74 +85,65 @@ export function SupportingDocsChecklist({
   ).length;
 
   return (
-    <div className="space-y-4">
-      <div className="text-sm text-[#6b6b6b]">
+    <section className="rounded-xl border border-border bg-white p-5">
+      <div className="mb-5 text-sm text-[#6b6b6b]">
         {completedRequired}/{requiredCount} required documents uploaded
       </div>
-      <ul className="space-y-3">
-        {rows.map((row) => (
-          <li
-            key={row.slotId}
-            className="bg-white rounded-lg border border-[#efefef] shadow-sm p-4"
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-[#232323]">
-                    {row.label}
-                    {row.required ? (
-                      <span className="text-xs text-[#6b6b6b] ml-1">(required)</span>
-                    ) : (
-                      <span className="text-xs text-[#9ca3af] ml-1">(optional)</span>
-                    )}
-                  </p>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded border ${STATUS_PILL[row.status]}`}
-                  >
-                    {row.status}
-                  </span>
-                </div>
-                {row.description ? (
-                  <p className="text-xs text-[#6b6b6b] mt-1">{row.description}</p>
-                ) : null}
-                {row.acceptedMimeHint ? (
-                  <p className="text-xs text-[#9ca3af] mt-1">
-                    Accepts {row.acceptedMimeHint} ·{" "}
-                    {(row.maxBytes / 1024 / 1024).toFixed(1)} MB max
-                  </p>
-                ) : null}
-                {row.staffComment ? (
-                  <p className="text-xs text-amber-700 mt-1">
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
+        {rows.map((row) => {
+          const busy = busySlot === row.slotId;
+          return (
+            <SupportingDocumentCard
+              key={row.slotId}
+              title={row.label}
+              description={row.description}
+              required={row.required}
+              headerLayout="stacked"
+              note={
+                row.staffComment ? (
+                  <p className="text-xs text-amber-700">
                     Staff note: {row.staffComment}
                   </p>
-                ) : null}
-                {errors[row.slotId] ? (
-                  <p className="text-xs text-red-700 mt-1">
-                    {errors[row.slotId]}
-                  </p>
-                ) : null}
-              </div>
-              <label className="text-xs text-brand-500 hover:underline cursor-pointer whitespace-nowrap">
-                {busySlot === row.slotId
-                  ? "Uploading…"
-                  : row.status === "missing"
-                    ? "Upload"
-                    : "Replace"}
-                <input
-                  type="file"
-                  accept="application/pdf,image/jpeg,image/png"
-                  className="hidden"
-                  disabled={busySlot === row.slotId}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) void handleUpload(row, f);
-                  }}
-                />
-              </label>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
+                ) : null
+              }
+            >
+              <DocumentUploadField
+                status={
+                  busy
+                    ? "uploading"
+                    : row.status === "missing" && !row.required
+                      ? "optional"
+                      : STATUS_FIELD[row.status]
+                }
+                statusLabel={
+                  busy
+                    ? "Uploading…"
+                    : row.status === "missing" && !row.required
+                      ? "Not uploaded"
+                      : STATUS_LABEL[row.status]
+                }
+                file={
+                  row.status === "missing"
+                    ? null
+                    : { name: fileNames[row.slotId] ?? row.label, kind: "document" }
+                }
+                reason={errors[row.slotId] || null}
+                dropLabel="Drop file or browse"
+                acceptHint={
+                  row.acceptedMimeHint
+                    ? `${row.acceptedMimeHint} · ${(row.maxBytes / 1024 / 1024).toFixed(1)} MB max`
+                    : `PDF, JPG or PNG · ${(row.maxBytes / 1024 / 1024).toFixed(1)} MB max`
+                }
+                removeLabel="Remove file"
+                accept="application/pdf,image/jpeg,image/png"
+                disabled={busy}
+                inputAriaLabel={row.label}
+                onFileSelected={(file) => void handleUpload(row, file)}
+              />
+            </SupportingDocumentCard>
+          );
+        })}
+      </div>
+    </section>
   );
 }

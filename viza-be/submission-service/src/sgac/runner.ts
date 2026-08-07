@@ -2,9 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
-import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
-import { browserbaseEnabled } from "../browserbase-session";
 import type { SgacPortalPayload } from "./normalize";
 import {
   reportBadCaptcha,
@@ -593,21 +592,10 @@ async function checkReviewDeclaration(page: Page, artifactDir: string): Promise<
 }
 
 async function launch(headless: boolean): Promise<Handles> {
-  if (browserbaseEnabled("SGAC")) {
-    const session = await createArrivalCardBrowserSession({ prefix: "SGAC", headless });
-    await session.page.setViewportSize({ width: 1365, height: 950 });
-    session.page.setDefaultTimeout(30_000);
-    return { browser: session.browser, context: session.context, page: session.page };
-  }
-  const browser = await chromium.launch({ headless });
-  const context = await browser.newContext({
-    viewport: { width: 1365, height: 950 },
-    locale: "en-SG",
-    acceptDownloads: true,
-  });
-  const page = await context.newPage();
-  page.setDefaultTimeout(30_000);
-  return { browser, context, page };
+  const session = await createArrivalCardBrowserSession({ prefix: "SGAC", headless });
+  await session.page.setViewportSize({ width: 1365, height: 950 });
+  session.page.setDefaultTimeout(30_000);
+  return { browser: session.browser, context: session.context, page: session.page };
 }
 
 async function fillTravellerStep(page: Page, payload: SgacPortalPayload): Promise<void> {

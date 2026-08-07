@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StripeEventBase } from "./client";
+import { isPayableOrderStatus } from "@/lib/checkout/payment-state";
 
 /**
  * Pure handler for Stripe webhook events (PAY-002).
@@ -33,6 +34,17 @@ export async function applyStripeEvent(
       const orderId = session.metadata?.order_id;
       if (!orderId) return { kind: "ignored", type: event.type };
       if (session.payment_status !== "paid") {
+        return { kind: "ignored", type: event.type };
+      }
+      const { data: existingOrder, error: existingOrderError } = await admin
+        .from("order")
+        .select("status")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (existingOrderError) {
+        throw new Error(`order status lookup: ${existingOrderError.message}`);
+      }
+      if (existingOrder && !isPayableOrderStatus(existingOrder.status as string | null)) {
         return { kind: "ignored", type: event.type };
       }
       const taxCents = session.total_details?.amount_tax ?? 0;

@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Loader2,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -308,9 +309,13 @@ export function UsResultCard({
               <p className="mt-3 text-sm text-muted-foreground">{proofMessage}</p>
             )}
             {proofError && (
-              <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {proofError}
-              </div>
+              <Alert variant="destructive" className="mt-3">
+                <AlertIcon variant="destructive" />
+                <AlertTitle>{t("proofFailed")}</AlertTitle>
+                <AlertDescription>
+                  <p>{proofError}</p>
+                </AlertDescription>
+              </Alert>
             )}
           </div>
         )}
@@ -378,9 +383,13 @@ export function UsResultCard({
                 : t("continueAutomaticSubmission")}
           </Button>
           {newApplicationError && (
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {newApplicationError}
-            </div>
+            <Alert variant="destructive">
+              <AlertIcon variant="destructive" />
+              <AlertTitle>{t("newApplicationError")}</AlertTitle>
+              <AlertDescription>
+                <p>{newApplicationError}</p>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       </CardContent>

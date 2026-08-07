@@ -17,7 +17,7 @@ function ApplicationYesNoControl({
 }) {
   return (
     <div
-        className="application-form-control flex h-[var(--application-control-height)] w-full max-w-xs items-stretch gap-1 bg-white p-1"
+      className="application-form-control flex w-fit min-w-[min(20rem,100%)] max-w-full items-stretch gap-1 bg-white p-1"
       role="radiogroup"
     >
       {options.map((option) => {
@@ -26,7 +26,7 @@ function ApplicationYesNoControl({
           <label
             key={option.value}
             className={cn(
-              "flex h-full min-h-0 flex-1 cursor-pointer items-center justify-center rounded-[calc(var(--application-control-radius)-0.25rem)] px-4 py-2 text-center text-[14px] font-medium leading-none focus-within:outline-none",
+              "flex min-h-[calc(var(--application-control-height)-0.625rem)] min-w-[min(9rem,calc(50%_-_0.125rem))] flex-auto cursor-pointer items-center justify-center rounded-[calc(var(--application-control-radius)-0.25rem)] px-4 py-2 text-center text-[14px] font-medium leading-none focus-within:outline-none",
               selected ? "bg-[#f5f5f5] text-[#3d3d3d]" : "text-[rgba(0,0,0,0.55)] hover:text-[#3d3d3d]",
               disabled && "cursor-not-allowed opacity-50",
             )}

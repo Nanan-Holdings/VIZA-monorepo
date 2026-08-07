@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useLocale } from "next-intl";
 import Link from "next/link";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertAction, AlertActions, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -309,15 +309,17 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       {error ? (
         <Alert variant="destructive">
           <AlertTitle>{isZh ? "当前操作未完成" : "The operation did not complete"}</AlertTitle>
-          <AlertDescription className="space-y-3">
+          <AlertDescription>
             <p>{error}</p>
             {errorEvidenceUrl ? (
-              <Button asChild variant="outline" size="sm">
-                <a href={errorEvidenceUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  {isZh ? "查看官网现场截图" : "View official-page screenshot"}
-                </a>
-              </Button>
+              <AlertActions>
+                <AlertAction asChild>
+                  <a href={errorEvidenceUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink />
+                    {isZh ? "查看官网现场截图" : "View official-page screenshot"}
+                  </a>
+                </AlertAction>
+              </AlertActions>
             ) : null}
           </AlertDescription>
         </Alert>
@@ -327,22 +329,26 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         <Alert>
           <CalendarCheck className="h-4 w-4" />
           <AlertTitle>{isZh ? "暂时没有可预约时间" : "No appointment times are currently available"}</AlertTitle>
-          <AlertDescription className="space-y-3">
+          <AlertDescription>
             <p>
               {isZh
                 ? "当前递签中心暂时没有开放可预约时段，因此官网不会发送验证码。你可以稍后重新查询，或返回选择其他符合领区要求的递签中心。"
                 : "The selected filing center has not released any appointment times, so the official site cannot send an SMS code. Try again later or choose another eligible center."}
             </p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>
-                <RefreshCw className="mr-2 h-4 w-4" />
+            <AlertActions>
+              <AlertAction onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>
+                <RefreshCw />
                 {isZh ? "重新查询" : "Check again"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
+              </AlertAction>
+              <AlertAction
+                variant="secondary"
+                onClick={() => void run("return-to-center-selection")}
+                disabled={Boolean(busy)}
+              >
+                <ArrowLeft />
                 {isZh ? "重新选择领区" : "Choose another center"}
-              </Button>
-            </div>
+              </AlertAction>
+            </AlertActions>
           </AlertDescription>
         </Alert>
       ) : null}

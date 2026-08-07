@@ -51,7 +51,7 @@ const defaultData: OnboardingData = {
 };
 
 // ---------------------------------------------------------------------------
-// Progress bar
+// Progress bar for the passport and contact onboarding flow.
 // ---------------------------------------------------------------------------
 
 function OnboardingProgress({ currentStepIndex }: { currentStepIndex: number }) {

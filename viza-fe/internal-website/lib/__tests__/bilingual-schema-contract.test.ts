@@ -49,6 +49,45 @@ describe("bilingual schema contract", () => {
     expect(helperZh).toEqual(expect.stringContaining("退款规则"));
   });
 
+  it("does not copy declaration labels into helper text", () => {
+    const officialLabel =
+      "I am aware that I have the right to obtain, in any of the Member States, notification of the data relating to me recorded in the VIS and of the Member State which transmitted the data, and to request that data relating to me which are inaccurate be corrected and that data relating to me processed unlawfully be deleted.";
+    const normalized = normalizeBilingualFormField(field({
+      fieldName: "declaration_data_rights_awareness",
+      label: officialLabel,
+      fieldType: "radio",
+      options: [
+        { value: "yes", text: "Yes" },
+        { value: "no", text: "No" },
+      ],
+      validationRules: {
+        helper_en: `  ${officialLabel}  `,
+      },
+    }));
+
+    expect(normalized.validationRules?.helper_en).toBeUndefined();
+    expect(normalized.validationRules?.helper_zh).toBeTruthy();
+    expect(normalized.validationRules?.helper_zh).not.toBe(
+      resolveLocalizedFieldLabel(normalized, "zh"),
+    );
+  });
+
+  it("omits generated helpers when no distinct guidance exists", () => {
+    const normalized = normalizeBilingualFormField(field({
+      fieldName: "declaration_custom_notice",
+      label:
+        "I acknowledge this official declaration and confirm that I have carefully reviewed every statement supplied with this application before selecting an answer to this question.",
+      fieldType: "radio",
+      options: [
+        { value: "yes", text: "Yes" },
+        { value: "no", text: "No" },
+      ],
+    }));
+
+    expect(normalized.validationRules?.helper_en).toBeUndefined();
+    expect(normalized.validationRules?.helper_zh).toBeUndefined();
+  });
+
   it("localizes option labels while preserving stored values", () => {
     const normalized = normalizeBilingualFormField(field({
       fieldName: "purpose_of_journey",

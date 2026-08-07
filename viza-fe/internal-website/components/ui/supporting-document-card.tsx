@@ -3,87 +3,99 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface SupportingDocumentCardProps {
-  icon: ReactNode;
   title: ReactNode;
   description?: ReactNode;
+  /**
+   * Secondary line rendered under the description — review notes, staff
+   * comments, OCR status. Keep it here rather than in `children` so the card
+   * body stays exactly two rows and stays subgrid-aligned with its siblings.
+   */
+  note?: ReactNode;
   required?: boolean;
-  optionalLabel?: ReactNode;
   headerAside?: ReactNode;
   children: ReactNode;
   className?: string;
-  titleClassName?: string;
-  bodyClassName?: string;
   headerLayout?: "inline" | "stacked";
 }
 
 export function SupportingDocumentCard({
-  icon,
   title,
   description,
+  note,
   required = false,
-  optionalLabel,
   headerAside,
   children,
   className,
-  titleClassName,
-  bodyClassName,
   headerLayout = "inline",
 }: SupportingDocumentCardProps) {
+  const stacked = headerLayout === "stacked";
+
   const heading = (
-    <>
-      <div className="flex flex-wrap items-center gap-2">
-        <h3
-          className={cn(
-            "text-base font-semibold text-foreground",
-            titleClassName
-          )}
-        >
-          {title}
-          {required ? (
-            <span className="ml-1 text-red-500" aria-hidden="true">
-              *
-            </span>
-          ) : null}
-        </h3>
-        {!required && optionalLabel ? (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-            {optionalLabel}
+    <div>
+      {/* Only the title line clears the floated aside — the description below it
+          gets the card's full width. */}
+      <h3
+        className={cn(
+          "text-[15px] font-medium tracking-[-0.1px] text-[#3d3d3d]",
+          stacked && headerAside && "pr-10"
+        )}
+      >
+        {title}
+        {required ? (
+          <span className="ml-0.5 text-[#EF4444]" aria-hidden="true">
+            *
           </span>
         ) : null}
-      </div>
+      </h3>
       {description ? (
-        <div className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <div className="mt-[5px] min-h-[40px] text-[13px] leading-[1.55] text-black/55">
           {description}
         </div>
       ) : null}
-    </>
+      {note ? <div className="mt-2">{note}</div> : null}
+    </div>
   );
 
+  if (!stacked) {
+    return (
+      <article
+        className={cn(
+          "group/document-card relative flex h-full min-h-[280px] flex-col gap-4 rounded-xl border border-border bg-white p-5",
+          className
+        )}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">{heading}</div>
+          {headerAside ? (
+            <div className="flex shrink-0 items-center gap-2">{headerAside}</div>
+          ) : null}
+        </div>
+        <div className="flex flex-1 flex-col gap-4">{children}</div>
+      </article>
+    );
+  }
+
+  /*
+   * Stacked cards wrap their own content height, so a card with a rejection
+   * reason is simply taller than its neighbours instead of padding them out.
+   * The description carries a two-line floor and the upload field is a fixed
+   * 190px, which keeps every field the same size and lines them up across a
+   * row for the common one-vs-two-line case.
+   */
   return (
     <article
       className={cn(
-        "group/document-card flex h-full min-h-[280px] flex-col rounded-xl border border-border bg-white p-5 shadow-sm",
+        "group/document-card relative flex flex-col gap-4 rounded-xl border border-border bg-white p-5",
         className
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-            {icon}
-          </span>
-          {headerLayout === "inline" ? (
-            <div className="min-w-0">{heading}</div>
-          ) : null}
+      {headerAside ? (
+        <div className="absolute right-5 top-5 z-10 flex items-center gap-2">
+          {headerAside}
         </div>
-        {headerAside ? (
-          <div className="flex shrink-0 items-center gap-2">{headerAside}</div>
-        ) : null}
-      </div>
-
-      <div className={cn("mt-4 flex flex-1 flex-col", bodyClassName)}>
-        {headerLayout === "stacked" ? heading : null}
-        {children}
-      </div>
+      ) : null}
+      {heading}
+      {children}
     </article>
   );
 }

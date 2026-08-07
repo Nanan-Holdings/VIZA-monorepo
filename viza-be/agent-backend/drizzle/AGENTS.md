@@ -68,6 +68,9 @@ The current internal automation migrations are:
 - `0124_travel_agent_conversation_state.sql`: server-owned Travel Agent state,
   optimistic versions, idempotent messages, OpenAI response continuity, and
   opt-in cross-session preferences.
+- `0130_universal_profile_answers.sql`: service-only field-keyed reusable
+  applicant facts synced explicitly from completed country forms and reused as
+  non-overwriting autofill in future applications.
 - `0094_vn_evisa_documents_and_labels.sql`: Vietnam e-Visa package document
   requirements and bilingual label metadata so the app uses official materials
   instead of generic fallback requirements.

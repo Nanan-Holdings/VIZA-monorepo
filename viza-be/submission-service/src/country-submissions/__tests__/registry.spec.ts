@@ -291,6 +291,54 @@ test("registry: France Schengen dry-run resolves to the Schengen provider", asyn
   assert.match(result.confirmationNumber ?? "", /^MOCK-SCHENGEN-111111112222$/);
 });
 
+test("from-records: maps the VIZA DS-160 travel-plans field to the provider key", () => {
+  const profile: ApplicantProfile = {
+    id: "test-applicant",
+    auth_user_id: "test-user",
+    full_name: "Alex Tan",
+    date_of_birth: "1999-01-15",
+    place_of_birth: null,
+    gender: "male",
+    nationality: "Singapore",
+    occupation: "Student",
+    address: "1 Test Street, Singapore 000001",
+    passport_number: "TEST123456",
+    passport_issue_date: "2023-01-01",
+    passport_expiry_date: "2033-01-01",
+    issuing_country: "Singapore",
+    issuing_authority: null,
+    email: "test.viza.user@example.com",
+    phone: "+6591234567",
+    wechat: null,
+  };
+  const application: Application = {
+    id: "11111111-2222-4333-8444-555555555555",
+    applicant_id: "test-applicant",
+    country: "united_states",
+    visa_type: "DS160",
+    status: "draft",
+    arrival_date: "2026-10-01",
+    departure_date: "2026-10-10",
+    port_of_entry: null,
+    purpose: "tourism",
+    accommodation_name: "Test Hotel",
+    accommodation_address: "1 Test Hotel Road",
+    confirmation_number: null,
+    submitted_at: null,
+    visa_package_id: null,
+    ds160_application_id: null,
+    ds160_retrieval_url: null,
+    ds160_dat_storage_path: null,
+  };
+
+  const mapped = buildCountrySubmissionApplication(profile, application, {
+    has_specific_plans: "no",
+    intended_length_of_stay: "10",
+  });
+  assert.equal(mapped.answers?.has_specific_travel_plans, "no");
+  assert.equal(mapped.answers?.intended_length_of_stay_value, "10");
+});
+
 test("from-records: maps Schengen dynamic answers into required dry-run trip fields", async () => {
   const profile: ApplicantProfile = {
     id: "test-applicant",

@@ -19,10 +19,8 @@ export const dynamic = "force-dynamic";
  *      `Wechatpay-Serial`.
  *   2. AES-256-GCM decrypt the encrypted resource.
  *   3. Apply the event (idempotent on `wechat_out_trade_no`).
- *   4. On `kind === "paid"` fire post-paid side-effects: magic-link
- *      email + runner enqueue. Errors are logged but never fail the
- *      ack — WeChat retries 8× on non-SUCCESS responses, so we want
- *      strict idempotency above all.
+ *   4. On `kind === "paid"` persist the durable provisioning event/job and
+ *      make one bounded worker attempt. A later worker retry handles failures.
  *   5. Respond {code:"SUCCESS", message:"OK"} per WeChat Pay spec.
  */
 export async function POST(req: Request) {
@@ -85,9 +83,15 @@ export async function POST(req: Request) {
     );
 
     if (result.kind === "paid") {
-      // Fire-and-forget post-paid side-effects (magic-link mail + runner
-      // enqueue), shared with the guest card rail. Both are idempotent.
-      runPostPaidSideEffects(result.orderId, "wechat");
+      await runPostPaidSideEffects(
+        result.orderId,
+        "wechat",
+        parsed.id ?? decrypted.out_trade_no,
+        {
+          out_trade_no: decrypted.out_trade_no,
+          transaction_id: decrypted.transaction_id ?? null,
+        },
+      );
     }
 
     return NextResponse.json({ code: "SUCCESS", message: "OK" });

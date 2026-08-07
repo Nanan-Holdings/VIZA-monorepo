@@ -129,12 +129,8 @@ function ReturnStateAlert({ state }: { state: CheckoutReturnState }) {
 
   return (
     <Alert
-      className={cn(
-        "shadow-sm",
-        state.tone === "success" && "border-emerald-200 bg-emerald-50 text-emerald-950",
-        state.tone === "warning" && "border-amber-200 bg-amber-50 text-amber-950",
-        state.tone === "error" && "border-destructive/30 bg-destructive/5 text-destructive",
-      )}
+      variant={state.tone === "success" ? "success" : state.tone === "warning" ? "warning" : "destructive"}
+      className="shadow-sm"
     >
       <Icon className="h-4 w-4" />
       <AlertTitle>{state.title}</AlertTitle>
