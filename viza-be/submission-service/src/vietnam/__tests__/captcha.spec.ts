@@ -7,9 +7,11 @@ import {
   describeVietnamCaptchaError,
   fingerprintVietnamCaptchaImage,
   getVietnamCaptchaTimeoutMs,
+  isVietnamCaptchaAnswerUsable,
   isVietnamCaptchaFailureRetryable,
   isVietnamCaptchaSolveCurrent,
   normalizeVietnamCaptchaAnswer,
+  refreshVietnamCaptchaChallenge,
   reportRejectedVietnamCaptcha,
   shouldSolveVietnamCaptcha,
   solveVietnamImageCaptcha,
@@ -77,6 +79,62 @@ test("vn.captcha: normalizes whitespace and distinguishes terminal solver failur
   assert.equal(isVietnamCaptchaFailureRetryable("2captcha API error: ERROR_CAPTCHA_UNSOLVABLE"), true);
   assert.equal(DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS, 5);
   assert.equal(DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS, 300_000);
+  assert.equal(isVietnamCaptchaAnswerUsable("AB12", { minLength: 4, maxLength: 8 }), true);
+  assert.equal(isVietnamCaptchaAnswerUsable("Ab", { minLength: 4, maxLength: 8 }), false);
+  assert.equal(isVietnamCaptchaAnswerUsable("A#12", { minLength: 4, maxLength: 8 }), false);
+});
+
+test("vn.captcha: rejects an unusable provider answer before filling the portal input", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  let receivedConstraints: { minLength: number; maxLength: number } | null = null;
+  try {
+    await page.setContent(`
+      <img class="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+      <input type="text" />
+    `);
+    const outcome = await solveVietnamImageCaptcha(page, 1_000, async (_image, _timeout, constraints) => {
+      receivedConstraints = constraints;
+      return { text: "?", solveId: "fixture", durationMs: 5 };
+    });
+
+    assert.equal(outcome.solved, false);
+    assert.match(outcome.reason ?? "", /expected 4-8 alphanumeric characters/);
+    assert.deepEqual(receivedConstraints, { minLength: 4, maxLength: 8 });
+    assert.equal(await page.locator("input").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: refreshes an id-less inline challenge through its nearby sync control", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <button id="unrelated" style="display:block">Back</button>
+      <section>
+        <img class="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <button class="anticon-sync" type="button">Refresh</button>
+        <input type="text" value="stale" />
+      </section>
+    `);
+    await page.locator(".anticon-sync").evaluate((button) => {
+      button.addEventListener("click", () => {
+        document.querySelector(".captcha-image")?.setAttribute(
+          "src",
+          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3ECD34%3C/text%3E%3C/svg%3E",
+        );
+        document.body.dataset.refreshed = "yes";
+      });
+    });
+
+    assert.equal(await refreshVietnamCaptchaChallenge(page, 2_000), true);
+    assert.equal(await page.locator("body").getAttribute("data-refreshed"), "yes");
+    assert.equal(await page.locator("input").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
 });
 
 test("vn.captcha: provider retries are not multiplied inside one portal attempt", async () => {
