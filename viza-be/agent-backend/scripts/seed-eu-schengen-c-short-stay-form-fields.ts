@@ -201,7 +201,7 @@ const FIELDS: FieldDef[] = [
     { value: "P", text: "Teaching", label_zh: "教育", label_en: "Teaching" },
     { value: "M", text: "Specialized, scientific and technical activities", label_zh: "专业、科学和技术活动", label_en: "Specialized, scientific and technical activities" },
     { value: "G", text: "Trade; car and motorcycle repairs", label_zh: "贸易；汽车和摩托车维修", label_en: "Trade; car and motorcycle repairs" },
-    { value: "Q", text: "Human health and social work", label_zh: "人类健康和社会工作", label_en: "Human health and social work" },
+    { value: "Q", text: "Human health and social work", label_zh: "医疗卫生和社会工作", label_en: "Human health and social work" },
   ], validation_rules: { official_portal: "france_visas", block_group: "employer" } },
   { field_name: "employer_name", label: "Employer name", field_type: "text", required: true, step_number: 6, step_name: "Occupation", display_order: 3, conditional_logic: { showIf: "is_student === no" }, validation_rules: { maxLength: 70, pattern: "^[A-Za-z0-9 .,'&/()\\-]+$", block_group: "employer" } },
   { field_name: "employer_address_line_1", label: "Employer address — line 1", field_type: "text", required: true, step_number: 6, step_name: "Occupation", display_order: 4, conditional_logic: { showIf: "is_student === no" }, validation_rules: { maxLength: 50, pattern: "^[A-Za-z0-9 .,'#/()\\-]+$", block_group: "employer" } },
