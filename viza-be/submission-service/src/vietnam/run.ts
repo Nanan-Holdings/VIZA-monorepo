@@ -1660,12 +1660,40 @@ export function isVietnamUploadResponseAccepted(
 async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName: string): Promise<string> {
   const maxBytes = 1_900_000;
   const stat = fs.statSync(localPath);
-  if (stat.size <= maxBytes) return localPath;
-  const ext = path.extname(localPath).toLowerCase();
-  if (![".jpg", ".jpeg", ".png", ".webp"].includes(ext)) return localPath;
+  const source = fs.readFileSync(localPath);
+  const detectedType = detectVietnamUploadImageType(source);
+  if (!detectedType) {
+    throw new Error("official_document_upload_unsupported_file_type");
+  }
 
-  const sourceBase64 = fs.readFileSync(localPath).toString("base64");
-  const mimeType = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+  if (stat.size <= maxBytes && detectedType !== "webp") {
+    const expectedExtension = detectedType === "png" ? ".png" : ".jpg";
+    const currentExtension = path.extname(localPath).toLowerCase();
+    const currentExtensionMatches =
+      detectedType === "png"
+        ? currentExtension === ".png"
+        : currentExtension === ".jpg" || currentExtension === ".jpeg";
+    if (currentExtensionMatches) return localPath;
+
+    // Supabase documents can have a null filename and are then downloaded as
+    // `<document_type>.bin`. The official portal validates the multipart
+    // filename instead of only inspecting the bytes, so give verified JPEG or
+    // PNG content a deterministic accepted extension before setInputFiles().
+    const normalizedPath = path.join(
+      path.dirname(localPath),
+      `${fieldName}-vietnam-upload${expectedExtension}`,
+    );
+    fs.copyFileSync(localPath, normalizedPath);
+    return normalizedPath;
+  }
+
+  const sourceBase64 = source.toString("base64");
+  const mimeType =
+    detectedType === "png"
+      ? "image/png"
+      : detectedType === "webp"
+        ? "image/webp"
+        : "image/jpeg";
   const compressed = await page.evaluate(
     async ({ sourceBase64, mimeType, maxBytes, fieldName }) => {
       const loadImage = (src: string) =>
@@ -1705,6 +1733,31 @@ async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName
     `[vn] compressed ${fieldName} upload ${path.basename(localPath)} ${stat.size}B -> ${path.basename(outputPath)} ${compressed.bytes}B (${compressed.width}x${compressed.height}, q=${compressed.quality})`,
   );
   return outputPath;
+}
+
+function detectVietnamUploadImageType(buffer: Buffer): "jpeg" | "png" | "webp" | null {
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
+    return "jpeg";
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  ) {
+    return "png";
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return "webp";
+  }
+  return null;
 }
 
 async function waitForVietnamUploadPreview(
