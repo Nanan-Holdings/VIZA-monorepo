@@ -15,7 +15,13 @@ export interface VietnamCaptchaSolveOutcome {
     solveId: string;
     durationMs: number;
     challengeFingerprint: string;
+    answerLength?: number;
   };
+}
+
+export interface VietnamCaptchaAnswerConstraints {
+  minLength: number;
+  maxLength: number;
 }
 
 const CAPTCHA_IMAGE_SELECTOR = [
@@ -105,6 +111,17 @@ export function normalizeVietnamCaptchaAnswer(value: string): string {
   return value.replace(/\s+/g, "").trim();
 }
 
+export function isVietnamCaptchaAnswerUsable(
+  value: string,
+  constraints: VietnamCaptchaAnswerConstraints,
+): boolean {
+  return (
+    value.length >= constraints.minLength &&
+    value.length <= constraints.maxLength &&
+    /^[A-Za-z0-9]+$/.test(value)
+  );
+}
+
 export function isVietnamCaptchaFailureRetryable(reason: string | undefined): boolean {
   if (!reason) return true;
   return !/TWOCAPTCHA_API_KEY is missing|zero balance|solving is disabled/i.test(reason);
@@ -127,9 +144,15 @@ export async function reportRejectedVietnamCaptcha(
 export async function solveVietnamImageCaptcha(
   page: Page,
   timeoutMs: number,
-  solver: (image: Buffer, timeoutMs: number) => Promise<CaptchaSolveResult> = (image, budgetMs) =>
+  solver: (
+    image: Buffer,
+    timeoutMs: number,
+    constraints: VietnamCaptchaAnswerConstraints,
+  ) => Promise<CaptchaSolveResult> = (image, budgetMs, constraints) =>
     solveImageCaptcha(image, budgetMs, {
       comment: "Vietnam e-Visa security code. Return only the visible characters and preserve letter case.",
+      minLength: constraints.minLength,
+      maxLength: constraints.maxLength,
     }),
 ): Promise<VietnamCaptchaSolveOutcome> {
   const solveTimeoutMs = getVietnamCaptchaTimeoutMs(timeoutMs);
@@ -147,6 +170,7 @@ export async function solveVietnamImageCaptcha(
     };
   }
   const { input, image } = controls;
+  const constraints = await readVietnamCaptchaAnswerConstraints(input);
 
   let lastReason = "unknown CAPTCHA error";
   // The owning portal flow already refreshes and retries rejected/stale
@@ -157,7 +181,7 @@ export async function solveVietnamImageCaptcha(
     try {
       const imageBuffer = await image.screenshot({ timeout: Math.min(solveTimeoutMs, 30_000) });
       const challengeFingerprint = fingerprintVietnamCaptchaImage(imageBuffer);
-      const result = await solver(imageBuffer, solveTimeoutMs);
+      const result = await solver(imageBuffer, solveTimeoutMs, constraints);
       const currentControls = await locateVietnamCaptchaControls(page, CAPTCHA_INPUT_WAIT_MS);
       const currentFingerprint = currentControls
         ? fingerprintVietnamCaptchaImage(
@@ -169,8 +193,10 @@ export async function solveVietnamImageCaptcha(
         continue;
       }
       const answer = normalizeVietnamCaptchaAnswer(result.text);
-      if (!answer) {
-        lastReason = "2captcha returned an empty Vietnam CAPTCHA answer.";
+      if (!isVietnamCaptchaAnswerUsable(answer, constraints)) {
+        lastReason =
+          `2captcha returned an unusable Vietnam CAPTCHA answer; expected ` +
+          `${constraints.minLength}-${constraints.maxLength} alphanumeric characters.`;
         continue;
       }
       await currentControls?.input.fill(answer, { timeout: 10_000 });
@@ -185,6 +211,7 @@ export async function solveVietnamImageCaptcha(
           solveId: result.solveId,
           durationMs: result.durationMs,
           challengeFingerprint,
+          answerLength: answer.length,
         },
       };
     } catch (error) {
@@ -202,6 +229,94 @@ export async function solveVietnamImageCaptcha(
     solved: false,
     reason: lastReason,
   };
+}
+
+async function readVietnamCaptchaAnswerConstraints(
+  input: Locator,
+): Promise<VietnamCaptchaAnswerConstraints> {
+  const observed = await input
+    .evaluate((element) => {
+      const input = element as HTMLInputElement;
+      const pattern = element.getAttribute("pattern") ?? "";
+      const exactLength = pattern.match(/\{(\d+)\}/)?.[1];
+      return {
+        minLength: input.minLength > 0 ? input.minLength : null,
+        maxLength: input.maxLength > 0 ? input.maxLength : null,
+        exactLength: exactLength ? Number.parseInt(exactLength, 10) : null,
+      };
+    })
+    .catch(() => ({ minLength: null, maxLength: null, exactLength: null }));
+  const exactLength =
+    observed.exactLength && observed.exactLength >= 2 && observed.exactLength <= 12
+      ? observed.exactLength
+      : null;
+  if (exactLength) return { minLength: exactLength, maxLength: exactLength };
+  const maxLength =
+    observed.maxLength && observed.maxLength >= 2 && observed.maxLength <= 12
+      ? observed.maxLength
+      : 8;
+  const minLength =
+    observed.minLength && observed.minLength >= 2 && observed.minLength <= maxLength
+      ? observed.minLength
+      : Math.min(4, maxLength);
+  return { minLength, maxLength };
+}
+
+export async function refreshVietnamCaptchaChallenge(
+  page: Page,
+  timeoutMs = 10_000,
+): Promise<boolean> {
+  const controls = await locateVietnamCaptchaControls(page, Math.min(timeoutMs, CAPTCHA_INPUT_WAIT_MS));
+  if (!controls) return false;
+  const previousFingerprint = fingerprintVietnamCaptchaImage(
+    await controls.image.screenshot({ timeout: Math.min(timeoutMs, 10_000) }),
+  );
+  await controls.input.fill("").catch(() => undefined);
+  const [inputBox, imageBox] = await Promise.all([
+    controls.input.boundingBox().catch(() => null),
+    controls.image.boundingBox().catch(() => null),
+  ]);
+  const candidates = controls.root.locator(
+    "button, [role='button'], a, img, svg, .anticon, [class*='refresh' i], [class*='sync' i]",
+  );
+  const count = Math.min(await candidates.count().catch(() => 0), 80);
+  let best: { locator: Locator; score: number } | null = null;
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    const [visible, box] = await Promise.all([
+      candidate.isVisible().catch(() => false),
+      candidate.boundingBox().catch(() => null),
+    ]);
+    if (!visible || !box) continue;
+    const metadata = await candidate
+      .evaluate(
+        (element) =>
+          `${element.textContent ?? ""} ${element.getAttribute("aria-label") ?? ""} ` +
+          `${element.getAttribute("title") ?? ""} ${element.getAttribute("class") ?? ""} ` +
+          `${element.getAttribute("src") ?? ""}`,
+      )
+      .catch(() => "");
+    const strongRefresh = /reload|refresh|sync|redo|anticon-sync/i.test(metadata);
+    const captchaTarget = /captcha/i.test(metadata);
+    if (!strongRefresh && !captchaTarget) continue;
+    const distanceToInput = inputBox
+      ? Math.abs(box.x - (inputBox.x + inputBox.width)) +
+        Math.abs(box.y + box.height / 2 - (inputBox.y + inputBox.height / 2)) * 2
+      : 0;
+    const distanceToImage = imageBox
+      ? Math.abs(box.x - (imageBox.x + imageBox.width)) +
+        Math.abs(box.y + box.height / 2 - (imageBox.y + imageBox.height / 2)) * 2
+      : 0;
+    const score = Math.min(distanceToInput, distanceToImage) + (strongRefresh ? -2_000 : -500);
+    if (!best || score < best.score) best = { locator: candidate, score };
+  }
+  if (!best) return false;
+  const clicked = await best.locator
+    .click({ timeout: Math.min(timeoutMs, 5_000) })
+    .then(() => true)
+    .catch(() => false);
+  if (!clicked) return false;
+  return waitForVietnamCaptchaRefresh(page, previousFingerprint, timeoutMs);
 }
 
 /**
