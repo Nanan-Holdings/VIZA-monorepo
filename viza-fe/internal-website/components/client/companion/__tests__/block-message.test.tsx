@@ -28,6 +28,7 @@ describe("BlockMessage", () => {
     expect(screen.getByText("填写新加坡电子入境卡")).toBeInTheDocument();
     expect(screen.getByText("开始填写")).toBeInTheDocument();
     expect(screen.queryByText(/SG Arrival Card/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\/client\/application/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /开始填写/ })).toHaveAttribute(
       "href",
       "/client/application?country=singapore&visaType=SG_ARRIVAL_CARD"
