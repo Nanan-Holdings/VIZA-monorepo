@@ -33,9 +33,10 @@ server mutations or navigation.
   used for history navigation. Voice remains an additional composer action.
 - Keep the composer free of redundant keyboard-hint text and hide final-check
   controls while assistant state is loading. A successful assistant write uses
-  a localized, value-specific notice with a real undo action; it automatically
-  disappears after 10 seconds. Do not render a persistent provenance summary
-  or expose canonical field keys.
+  a viewport-level, localized, value-specific notice with a real undo action;
+  it automatically disappears after 10 seconds. Dismiss callbacks must carry
+  the notice id so an older timer cannot hide a newer write. Do not render a
+  persistent provenance summary or expose canonical field keys.
 - Voice recordings are temporary browser data. Stop all media tracks when a
   recording is cancelled, reaches its limit, or the component unmounts. The
   component must place returned transcription into the composer only; sending

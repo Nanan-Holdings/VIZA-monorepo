@@ -87,6 +87,14 @@ function vietnamReviewActionPriority(candidate: VietnamReviewActionCandidate): n
 
 function isVietnamReviewActionLabel(label: string): boolean {
   const normalized = normalizeText(label);
+  // The official stepper exposes its second step as a role=button whose
+  // rendered text is currently `2Xem lại hồ sơ`. It is navigation chrome, not
+  // the form action, and clicking it leaves the application on the same page.
+  // Exclude ordinal-prefixed review labels so the real bottom action (usually
+  // Next / Tiếp tục / Lưu) is selected instead.
+  if (/^\d+\s*(?:xem\s+lại(?:\s+hồ\s+sơ)?|review(?:\s+application)?)/i.test(normalized)) {
+    return false;
+  }
   return (
     /\b(next|save|continue)\b/i.test(normalized) ||
     /tiếp\s+tục|xem\s+lại|^lưu(?:\s|$)|下一步|继续/i.test(normalized)
