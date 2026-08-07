@@ -36,6 +36,59 @@ type ProposedPatch = {
   confidence: "high" | "medium" | "low";
 };
 
+export function parseDirectYesNoAnswer(
+  text: string,
+  field: VisaFormFieldRow | undefined,
+): ProposedPatch | null {
+  if (!field?.options?.length) return null;
+  const optionByNormalizedValue = new Map(
+    field.options.map((option) => [optionValue(option).trim().toLowerCase(), optionValue(option)]),
+  );
+  const yesValue = optionByNormalizedValue.get("yes");
+  const noValue = optionByNormalizedValue.get("no");
+  if (!yesValue || !noValue) return null;
+
+  const normalized = text
+    .trim()
+    .toLowerCase()
+    .replace(/[。！？!?，,；;：:\s]/g, "");
+  const negativeAnswers = new Set([
+    "没有",
+    "都没有",
+    "没",
+    "无",
+    "否",
+    "不是",
+    "不",
+    "没有去过",
+    "未去过",
+    "从未",
+    "no",
+    "nope",
+    "none",
+    "never",
+    "not",
+  ]);
+  const positiveAnswers = new Set([
+    "有",
+    "是",
+    "有的",
+    "去过",
+    "到访过",
+    "yes",
+    "yep",
+    "yeah",
+  ]);
+  const value = negativeAnswers.has(normalized)
+    ? noValue
+    : positiveAnswers.has(normalized)
+      ? yesValue
+      : null;
+  return value
+    ? { fieldName: field.fieldName, value, confidence: "high" }
+    : null;
+}
+
 async function loadApplicationKnowledge(params: {
   admin: SupabaseClient;
   releaseKey: string | null;
@@ -202,10 +255,12 @@ function buildQuestion(fields: VisaFormFieldRow[], locale: string): string {
       ? "必填信息已经齐全。你可以补充仍为空的可选项，或运行最终检查。"
       : "All required information is complete. You can add optional details or run the final check.";
   }
-  const items = fields.map((field, index) => `${index + 1}. ${localizedLabel(field, locale)}`).join("\n");
+  const field = fields[0];
+  if (!field) return buildQuestion([], locale);
+  const label = localizedLabel(field, locale);
   return locale.startsWith("zh")
-    ? `我检查了当前表单。请回答下面这些尚缺的信息（可一次回复）：\n${items}`
-    : `I checked the current form. Please answer these missing items in one message if convenient:\n${items}`;
+    ? `我们一次填写一项。${label}`
+    : `Let's complete one item at a time. ${label}`;
 }
 
 function buildCompletionQuestion(
@@ -213,10 +268,17 @@ function buildCompletionQuestion(
   locale: string,
 ): string {
   if (optionalFields.length === 0) return buildQuestion([], locale);
-  const items = optionalFields.map((field) => localizedLabel(field, locale)).join(locale.startsWith("zh") ? "、" : ", ");
+  const label = localizedLabel(optionalFields[0], locale);
   return locale.startsWith("zh")
-    ? `必填信息已经齐全。以下可选项仍为空：${items}。你可以补充，或确认保持空白后运行最终检查。`
-    : `All required information is complete. These optional items are still blank: ${items}. Add any you want, or leave them blank and run the final check.`;
+    ? `必填信息已经齐全。还有一项选填内容：${label}。你可以直接回答，或运行最终检查并保持为空。`
+    : `All required information is complete. One optional item remains: ${label}. Answer here, or run the final check and leave it blank.`;
+}
+
+function buildTurnAcknowledgement(appliedCount: number, locale: string): string {
+  if (appliedCount === 0) return "";
+  return locale.startsWith("zh")
+    ? "好的，已记录你刚才确认的信息。"
+    : "Got it. I recorded the information you just confirmed.";
 }
 
 export function buildAssistantState(params: {
@@ -230,15 +292,13 @@ export function buildAssistantState(params: {
   const rawMissingFields = getMissingDynamicFormFields(params.steps, values);
   const fieldByName = new Map(params.steps.flatMap((step) => step.fields).map((field) => [field.fieldName, field]));
   const missingFields = localizeMissingFields(rawMissingFields, fieldByName, params.locale);
-  const nextFields = missingFields.slice(0, 5).map((item) => fieldByName.get(item.fieldName)).filter(Boolean) as VisaFormFieldRow[];
+  const nextFields = missingFields.slice(0, 1).map((item) => fieldByName.get(item.fieldName)).filter(Boolean) as VisaFormFieldRow[];
   const optionalFields = params.steps.flatMap((step) => step.fields.filter((field) =>
     !field.required && !values[field.fieldName]?.trim() && evaluateShowIf(field, values, step.fields),
   ));
-  const assistantMessage = params.messages.at(-1)?.role === "assistant"
-    ? params.messages.at(-1)!.content
-    : missingFields.length > 0
-      ? buildQuestion(nextFields, params.locale)
-      : buildCompletionQuestion(optionalFields, params.locale);
+  const assistantMessage = missingFields.length > 0
+    ? buildQuestion(nextFields, params.locale)
+    : buildCompletionQuestion(optionalFields, params.locale);
   return {
     enabled: true,
     sessionId: params.sessionId,
@@ -270,11 +330,12 @@ async function proposeTurn(params: {
   text: string;
   locale: string;
   candidates: VisaFormFieldRow[];
+  currentField: VisaFormFieldRow | undefined;
   answers: Record<string, string>;
   knowledgeContext: string;
 }): Promise<{ reply: string; patches: ProposedPatch[] }> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
-  const fallback = buildQuestion(params.candidates.slice(0, 5), params.locale);
+  const fallback = "";
   if (!apiKey || apiKey === "your_openai_api_key_here" || params.candidates.length === 0) {
     return { reply: fallback, patches: [] };
   }
@@ -296,10 +357,16 @@ async function proposeTurn(params: {
         model: FORM_ASSISTANT_MODEL,
         max_output_tokens: 1_000,
         instructions: params.locale.startsWith("zh")
-          ? "你是表单填写助手。专业、温和、简洁。SG Arrival Card 不是签证，不要冒充签证官。只从用户本条消息明确提供的信息提取答案，不猜测。只能输出 manifest 中的字段；下拉值必须等于 exactOptions 中的 value。姓名、日期、证件号如有任何歧义，标为 medium/low。每轮接着询问 3–5 个缺失项。返回严格 JSON。"
-          : "You are a professional, warm and concise form-filling assistant. The SG Arrival Card is not a visa; never impersonate an officer. Extract only facts explicitly provided in this user message and never guess. Return only manifest fields. Dropdown values must exactly equal an exactOptions value. Mark ambiguous names, dates, and document numbers medium/low. Ask the next 3-5 missing items. Return strict JSON.",
+          ? "你是表单填写助手。专业、温和、简洁。SG Arrival Card 不是签证，不要冒充签证官。只从用户本条消息明确提供的信息提取答案，不猜测。只能输出 manifest 中的字段；下拉值必须等于 exactOptions 中的 value。姓名、日期、证件号如有任何歧义，标为 medium/low。reply 只简短确认本轮理解到的内容，不得列出或询问后续字段；服务端会单独追加一个下一问题。返回严格 JSON。"
+          : "You are a professional, warm and concise form-filling assistant. The SG Arrival Card is not a visa; never impersonate an officer. Extract only facts explicitly provided in this user message and never guess. Return only manifest fields. Dropdown values must exactly equal an exactOptions value. Mark ambiguous names, dates, and document numbers medium/low. The reply must only briefly acknowledge what was understood in this turn; do not list or ask for later fields because the server appends exactly one next question. Return strict JSON.",
         input: JSON.stringify({
           userMessage: params.text,
+          currentQuestion: params.currentField
+            ? {
+                fieldName: params.currentField.fieldName,
+                label: localizedLabel(params.currentField, params.locale),
+              }
+            : null,
           missingFieldManifest: candidateManifest,
           productKnowledge: params.knowledgeContext,
         }),
@@ -426,12 +493,21 @@ export async function runAssistantTurn(params: {
   const allFields = params.steps.flatMap((step) => step.fields);
   const fieldByName = new Map(allFields.map((field) => [field.fieldName, field]));
   const missingNames = new Set(missing.map((item) => item.fieldName));
+  const optionalNames = new Set(allFields.filter((field) => {
+    const stepFields = params.steps.find((step) => step.fields.includes(field))?.fields ?? allFields;
+    return !field.required && !existingValues[field.fieldName]?.trim() && evaluateShowIf(field, existingValues, stepFields);
+  }).map((field) => field.fieldName));
+  const currentField = missing.length > 0
+    ? fieldByName.get(missing[0]?.fieldName ?? "")
+    : allFields.find((field) => optionalNames.has(field.fieldName));
   const visibleCandidates = allFields.filter((field) => {
     const stepFields = params.steps.find((step) => step.fields.includes(field))?.fields ?? allFields;
     if (!evaluateShowIf(field, existingValues, stepFields)) return false;
     // The model sees only currently missing fields plus fields that the
     // assistant previously filled and the user may now explicitly correct.
-    return missingNames.has(field.fieldName) || params.answers[field.fieldName]?.source === "form_assistant";
+    return missingNames.has(field.fieldName) ||
+      (missingNames.size === 0 && optionalNames.has(field.fieldName)) ||
+      params.answers[field.fieldName]?.source === "form_assistant";
   });
 
   const userMessageId = await persistMessage({
@@ -459,13 +535,17 @@ export async function runAssistantTurn(params: {
     country: params.country,
     visaType: params.visaType,
   });
-  const proposed = await proposeTurn({
-    text: message,
-    locale: params.locale,
-    candidates: visibleCandidates,
-    answers: existingValues,
-    knowledgeContext: knowledge.context,
-  });
+  const directChoice = parseDirectYesNoAnswer(message, currentField);
+  const proposed = directChoice
+    ? { reply: "", patches: [directChoice] }
+    : await proposeTurn({
+        text: message,
+        locale: params.locale,
+        candidates: visibleCandidates,
+        currentField,
+        answers: existingValues,
+        knowledgeContext: knowledge.context,
+      });
 
   const appliedPatches: FormAssistantAppliedPatch[] = [];
   const skippedConflicts: string[] = [];
@@ -527,13 +607,17 @@ export async function runAssistantTurn(params: {
     fieldByName,
     params.locale,
   );
-  const nextFields = nextMissing.slice(0, 5).map((item) => fieldByName.get(item.fieldName)).filter(Boolean) as VisaFormFieldRow[];
+  const nextFields = nextMissing.slice(0, 1).map((item) => fieldByName.get(item.fieldName)).filter(Boolean) as VisaFormFieldRow[];
   const optionalFields = params.steps.flatMap((step) => step.fields.filter((field) =>
     !field.required && !nextValues[field.fieldName]?.trim() && evaluateShowIf(field, nextValues, step.fields),
   ));
-  const assistantMessage = nextMissing.length > 0
-    ? [proposed.reply.trim(), buildQuestion(nextFields, params.locale)].filter(Boolean).join("\n\n")
+  const nextQuestion = nextMissing.length > 0
+    ? buildQuestion(nextFields, params.locale)
     : buildCompletionQuestion(optionalFields, params.locale);
+  const assistantMessage = [
+    buildTurnAcknowledgement(appliedPatches.length, params.locale),
+    nextQuestion,
+  ].filter(Boolean).join("\n\n");
   const response: FormAssistantTurnResponse = {
     sessionId: params.session.id,
     assistantMessage,
