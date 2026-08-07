@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "@playwright/test";
 import {
+  DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
+  DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
   describeVietnamCaptchaError,
   fingerprintVietnamCaptchaImage,
   getVietnamCaptchaTimeoutMs,
@@ -72,6 +74,9 @@ test("vn.captcha: normalizes whitespace and distinguishes terminal solver failur
     false,
   );
   assert.equal(isVietnamCaptchaFailureRetryable("2captcha account has zero balance"), false);
+  assert.equal(isVietnamCaptchaFailureRetryable("2captcha API error: ERROR_CAPTCHA_UNSOLVABLE"), true);
+  assert.equal(DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS, 5);
+  assert.equal(DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS, 300_000);
 });
 
 test("vn.captcha: provider retries are not multiplied inside one portal attempt", async () => {
