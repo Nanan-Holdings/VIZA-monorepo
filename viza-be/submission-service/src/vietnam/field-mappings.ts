@@ -430,6 +430,28 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   expense_payment_method: { domId: "basic_kpbhHinhThuc", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: true, optionLabels: EXPENSE_PAYMENT_METHOD_LABELS },
 };
 
+/**
+ * Legacy answer payloads can contain both `passport_copy` and
+ * `passport_photo`. They are aliases for the same official file input, so
+ * uploading both can replace a successful upload with a second rejected
+ * request. Keep the first mapped answer for each official upload control.
+ */
+export function dedupeVietnamUploadAnswers(
+  answers: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const deduped = { ...answers };
+  const seenDomIds = new Set<string>();
+  for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
+    if (mapping.type !== "upload" || !deduped[fieldName]) continue;
+    if (seenDomIds.has(mapping.domId)) {
+      delete deduped[fieldName];
+      continue;
+    }
+    seenDomIds.add(mapping.domId);
+  }
+  return deduped;
+}
+
 /** Selector for the registration-code element shown after a successful save
  *  (pre-payment review). The portal renders it as `Mã hồ sơ: <code>` near
  *  the top of the review screen. */
@@ -438,9 +460,11 @@ export const VN_REGISTRATION_CODE_SELECTOR = '[class*="ho-so"], [class*="registr
 /** Pay/submit button label patterns — runner halts as soon as one of these
  *  becomes the dominant CTA. */
 export const VN_STOP_BUTTON_PATTERNS: readonly RegExp[] = [
-  /^pay\b/i,
-  /^thanh toán/i,
-  /^submit\b/i,
-  /^xác nhận và thanh toán/i,
-  /^proceed to payment/i,
+  /\bpay\b/i,
+  /\bpayment\b/i,
+  /thanh toán/i,
+  /\bsubmit\b/i,
+  /xác nhận và thanh toán/i,
+  /proceed to payment/i,
+  /nộp hồ sơ/i,
 ];

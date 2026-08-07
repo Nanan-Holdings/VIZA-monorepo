@@ -33,6 +33,7 @@ import {
 } from "./conditional-fields";
 import { uncheckedVietnamDeclarationIndexes } from "./declaration";
 import {
+  dedupeVietnamUploadAnswers,
   getVnPortalOptionText,
   VN_FIELD_MAPPINGS,
   VN_REGISTRATION_CODE_SELECTOR,
@@ -55,11 +56,15 @@ import {
   readVietnamPortalSnapshot,
   shouldTryVietnamFallbackLanding,
   waitForVietnamPortalCheckpoint,
+  type VietnamReviewActionCandidate,
   type VietnamPortalSnapshot,
   type VietnamPortalStateId,
 } from "./portal-state";
 import type { VietnamProgressStage } from "./progress";
-import { installVietnamPublicApiProxy } from "./public-api-proxy";
+import {
+  installVietnamPublicApiProxy,
+  isVietnamPublicUploadRequest,
+} from "./public-api-proxy";
 import {
   buildVietnamBrowserAttempts,
   computeVietnamPortalRetryDelayMs,
@@ -112,6 +117,13 @@ export type FillVietnamResult =
       status: "scaffolded_pending_walk";
       runId?: string;
       reason: string;
+      errorCode?:
+        | "form_validation_failed"
+        | "document_upload_failed"
+        | "review_action_not_found"
+        | "review_action_disabled"
+        | "review_transition_failed"
+        | "registration_code_not_found";
       checkpoint?: VietnamPortalStateId;
       url?: string;
       diagnostics?: VietnamDiagnostics;
@@ -193,6 +205,7 @@ export async function fillVietnamApplication(
       return {
         status: "scaffolded_pending_walk",
         runId: options.runId,
+        errorCode: "form_validation_failed",
         reason: `Official Vietnam e-Visa portal fill blocked submission: ${validityErrors
           .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
           .join("; ")}`,
@@ -419,7 +432,8 @@ async function fillVietnamApplicationOnce(
 
     // ── Fill every mapped field that we have an answer for ─────────────
     await emitProgress("application_form_visible");
-    const conditionalAnswerErrors = validateVietnamConditionalAnswers(input.answers);
+    const fillAnswers = dedupeVietnamUploadAnswers(input.answers);
+    const conditionalAnswerErrors = validateVietnamConditionalAnswers(fillAnswers);
     if (conditionalAnswerErrors.length > 0) {
       validationErrors.push(
         ...conditionalAnswerErrors.map((error) => ({
@@ -431,6 +445,7 @@ async function fillVietnamApplicationOnce(
       return {
         status: "scaffolded_pending_walk",
         runId,
+        errorCode: "form_validation_failed",
         reason: `Official Vietnam e-Visa portal fill blocked submission: ${validationErrors
           .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
           .join("; ")}`,
@@ -444,7 +459,7 @@ async function fillVietnamApplicationOnce(
     let filled = 0;
     let skipped = 0;
     for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
-      const value = input.answers[fieldName];
+      const value = fillAnswers[fieldName];
       if (!value) {
         skipped++;
         continue;
@@ -455,7 +470,7 @@ async function fillVietnamApplicationOnce(
         if (fieldName === "intended_province_city") {
           await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
         }
-        filled += await fillVietnamConditionalRepeatGroups(page, input.answers, fieldName);
+        filled += await fillVietnamConditionalRepeatGroups(page, fillAnswers, fieldName);
         filled++;
         console.log(`[vn] filled field ${fieldName}`);
       } catch (err) {
@@ -471,9 +486,13 @@ async function fillVietnamApplicationOnce(
     }
 
     if (validationErrors.length > 0) {
+      const documentUploadFailed = validationErrors.some(
+        (error) => VN_FIELD_MAPPINGS[error.label]?.type === "upload",
+      );
       return {
         status: "scaffolded_pending_walk",
         runId,
+        errorCode: documentUploadFailed ? "document_upload_failed" : "form_validation_failed",
         reason: `Official Vietnam e-Visa portal fill blocked submission: ${validationErrors
           .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
           .join("; ")}`,
@@ -623,6 +642,7 @@ async function fillVietnamApplicationOnce(
         return {
           status: "scaffolded_pending_walk",
           runId,
+          errorCode: "form_validation_failed",
           reason: `Official Vietnam e-Visa portal validation blocked submission: ${validationErrors
             .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
             .join("; ")}`,
@@ -632,13 +652,22 @@ async function fillVietnamApplicationOnce(
         };
       }
       if (!reviewAdvance.advanced) {
+        const reviewErrorCode = reviewAdvance.failureReason === "disabled"
+          ? "review_action_disabled"
+          : reviewAdvance.failureReason === "not_found"
+            ? "review_action_not_found"
+            : "review_transition_failed";
         return {
           status: "scaffolded_pending_walk",
           runId,
+          errorCode: reviewErrorCode,
           reason:
-            `Official Vietnam e-Visa portal did not advance after VIZA clicked ` +
-            `the ${reviewAdvance.clickedLabel ?? "review"} action. The application remains saved, ` +
-            "and VIZA stopped without repeating the action to avoid a duplicate official submission.",
+            reviewAdvance.failureReason === "disabled"
+              ? "Official Vietnam e-Visa review action remained disabled after all required fields and document uploads were checked."
+              : reviewAdvance.failureReason === "not_found"
+                ? "Official Vietnam e-Visa review action was not present after form filling."
+                : `Official Vietnam e-Visa portal did not advance after VIZA clicked the ${reviewAdvance.clickedLabel ?? "review"} action. ` +
+                  "The application remains saved, and VIZA stopped without repeating the action to avoid a duplicate official submission.",
           checkpoint: stateAfterCaptcha,
           url: page.url(),
           diagnostics: diagnostics(),
@@ -735,6 +764,7 @@ async function fillVietnamApplicationOnce(
       return {
         status: "scaffolded_pending_walk",
         runId,
+        errorCode: "registration_code_not_found",
         reason:
           "Form filled but registration code element not found on review screen — " +
           "selector tweak required (see VN_REGISTRATION_CODE_SELECTOR).",
@@ -1519,7 +1549,12 @@ function parseDdMmYyyy(value: string): Date | null {
   return parsed;
 }
 
-async function uploadVietnamFile(page: Page, domId: string, rawPath: string, fieldName: string): Promise<void> {
+export async function uploadVietnamFile(
+  page: Page,
+  domId: string,
+  rawPath: string,
+  fieldName: string,
+): Promise<void> {
   const localPath = path.resolve(rawPath);
   if (!fs.existsSync(localPath)) {
     throw new Error(`Vietnam upload file not found for ${domId}: ${localPath}`);
@@ -1542,8 +1577,23 @@ async function uploadVietnamFile(page: Page, domId: string, rawPath: string, fie
       : (await byId.count().catch(() => 0)) > 0
         ? byId
         : page.locator('input[type="file"]').nth(uploadIndex);
+  const officialUploadResponse = page.waitForResponse(
+    (response) =>
+      isVietnamPublicUploadRequest(response.request().method(), response.url()),
+    { timeout: 30_000 },
+  );
   await fileInput.setInputFiles(uploadPath, { timeout: 20_000 });
-  await waitForVietnamUploadPreview(page, domId, uploadIndex, labelPattern);
+  const response = await officialUploadResponse.catch(() => null);
+  if (!response) {
+    throw new Error("official_document_upload_response_missing");
+  }
+  if (!response.ok()) {
+    throw new Error(`official_document_upload_rejected_http_${response.status()}`);
+  }
+  const previewAccepted = await waitForVietnamUploadPreview(page, domId, uploadIndex, labelPattern);
+  if (!previewAccepted) {
+    throw new Error("official_document_upload_preview_missing");
+  }
 }
 
 async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName: string): Promise<string> {
@@ -1601,7 +1651,7 @@ async function waitForVietnamUploadPreview(
   domId: string,
   uploadIndex: number,
   labelPattern: RegExp,
-): Promise<void> {
+): Promise<boolean> {
   const accepted = await page
     .waitForFunction(
       ({ domId, uploadIndex, labelSource, labelFlags }) => {
@@ -1619,8 +1669,11 @@ async function waitForVietnamUploadPreview(
         const text = (formItem?.textContent ?? "").replace(/\s+/g, " ");
         const hasError = /please enter|not be empty|required/i.test(text);
         const hasPreview =
-          Boolean(formItem?.querySelector("img[src^='blob:'], img[src^='data:'], .ant-upload-list-item, .ant-upload-list-item-done")) ||
-          Boolean(input?.files && input.files.length > 0);
+          Boolean(
+            formItem?.querySelector(
+              "img[src^='blob:'], img[src^='data:'], img[src^='http'], .ant-upload-list-item-done",
+            ),
+          );
         return hasPreview && !hasError;
       },
       {
@@ -1636,6 +1689,7 @@ async function waitForVietnamUploadPreview(
   if (!accepted) {
     await page.waitForTimeout(1_000);
   }
+  return accepted;
 }
 
 function cssEscape(value: string): string {
@@ -1645,6 +1699,57 @@ function cssEscape(value: string): string {
 interface VietnamReviewAdvanceResult {
   advanced: boolean;
   clickedLabel: string | null;
+  failureReason: "disabled" | "not_found" | "no_transition" | null;
+}
+
+const VN_REVIEW_ACTION_SELECTOR =
+  "button, a, [role='button'], input[type='button'], input[type='submit']";
+
+export async function collectVietnamReviewActionCandidates(
+  page: Page,
+): Promise<VietnamReviewActionCandidate[]> {
+  const rawCandidates = await page.locator(VN_REVIEW_ACTION_SELECTOR).evaluateAll((elements) => {
+    const rows: Array<VietnamReviewActionCandidate & { visible: boolean }> = [];
+    for (let domIndex = 0; domIndex < elements.length; domIndex++) {
+      const element = elements[domIndex] as HTMLElement;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      const value = element instanceof HTMLInputElement ? element.value : "";
+      const label = (
+        element.innerText ||
+        element.textContent ||
+        value ||
+        element.getAttribute("aria-label") ||
+        element.getAttribute("title") ||
+        ""
+      ).replace(/\s+/g, " ").trim();
+      const disabled =
+        ("disabled" in element && Boolean((element as HTMLButtonElement | HTMLInputElement).disabled)) ||
+        element.getAttribute("aria-disabled") === "true";
+      rows.push({
+        domIndex,
+        label,
+        isPrimary: /(?:^|\s)ant-btn-primary(?:\s|$)/.test(element.className),
+        type: element.getAttribute("type") || "button",
+        top: rect.top,
+        tagName: element.tagName.toLowerCase(),
+        disabled,
+        visible:
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0,
+      });
+    }
+    return rows;
+  });
+  return rawCandidates
+    .filter((candidate) => candidate.visible && candidate.label)
+    .filter(
+      (candidate) =>
+        !VN_STOP_BUTTON_PATTERNS.some((pattern) => pattern.test(candidate.label)),
+    )
+    .map(({ visible: _visible, ...candidate }) => candidate);
 }
 
 export async function advanceVietnamToReview(
@@ -1677,42 +1782,32 @@ export async function advanceVietnamToReview(
   });
   await page.waitForTimeout(300);
 
-  const candidates = await page.evaluate((stopPatterns) => {
-    const visible = (element: Element | null): element is HTMLElement => {
-      if (!element) return false;
-      const style = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-    };
-    const stopRegexes = stopPatterns.map((pattern) => new RegExp(pattern, "i"));
-    return Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .map((button, domIndex) => ({ button, domIndex }))
-      .filter(({ button }) => visible(button))
-      .filter(({ button }) => !button.disabled && button.getAttribute("aria-disabled") !== "true")
-      .map(({ button, domIndex }) => {
-        const text = (button.innerText || button.textContent || "").replace(/\s+/g, " ").trim();
-        const rect = button.getBoundingClientRect();
-        return {
-          domIndex,
-          label: text,
-          isPrimary: /(?:^|\s)ant-btn-primary(?:\s|$)/.test(button.className),
-          type: button.type,
-          top: rect.top,
-          stopped: stopRegexes.some((rx) => rx.test(text)),
-        };
-      })
-      .filter((candidate) => !candidate.stopped)
-      .map(({ stopped: _stopped, ...candidate }) => candidate);
-  }, VN_STOP_BUTTON_PATTERNS.map((rx) => rx.source));
+  const candidates = await collectVietnamReviewActionCandidates(page);
   const selected = chooseVietnamReviewAction(candidates);
   if (!selected) {
-    console.warn("[vn] No safe review action was available after filling the application form.");
-    return { advanced: false, clickedLabel: null };
+    const disabledCandidate = chooseVietnamReviewAction(
+      candidates
+        .filter((candidate) => candidate.disabled)
+        .map((candidate) => ({ ...candidate, disabled: false })),
+    );
+    const diagnostic = candidates.slice(-12).map((candidate) => ({
+      label: candidate.label,
+      tagName: candidate.tagName,
+      disabled: Boolean(candidate.disabled),
+    }));
+    console.warn(
+      `[vn] No enabled safe review action was available after filling the application form: ${JSON.stringify(diagnostic)}`,
+    );
+    return {
+      advanced: false,
+      clickedLabel: null,
+      failureReason: disabledCandidate ? "disabled" : "not_found",
+    };
   }
 
   console.log(`[vn] Clicking review action: ${selected.label}.`);
   const initialUrl = page.url();
-  const button = page.locator("button").nth(selected.domIndex);
+  const button = page.locator(VN_REVIEW_ACTION_SELECTOR).nth(selected.domIndex);
   await button.scrollIntoViewIfNeeded({ timeout: Math.min(timeoutMs, 10_000) });
   await button.click({ timeout: Math.min(timeoutMs, 15_000) });
 
@@ -1725,14 +1820,14 @@ export async function advanceVietnamToReview(
       snapshot.url !== initialUrl ||
       classifyVietnamPortalSnapshot(snapshot) !== "application_form_visible"
     ) {
-      return { advanced: true, clickedLabel: selected.label };
+      return { advanced: true, clickedLabel: selected.label, failureReason: null };
     }
     const errors = await readVietnamValidationErrors(page).catch(() => []);
     if (errors.length > 0) break;
   }
 
   console.warn(`[vn] Review action ${selected.label} did not produce an observable portal transition.`);
-  return { advanced: false, clickedLabel: selected.label };
+  return { advanced: false, clickedLabel: selected.label, failureReason: "no_transition" };
 }
 
 async function refreshVietnamReviewCaptcha(page: Page): Promise<boolean> {
