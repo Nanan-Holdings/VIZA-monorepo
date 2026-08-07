@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { chromium } from "@playwright/test";
 import {
   fillVietnamConditionalRepeatGroups,
@@ -8,6 +11,7 @@ import {
 import { pickRadio, pickSelect, tickCheckbox } from "../fillers.js";
 import { VN_COUNTRY_OPTION_ORDER } from "../country-options.js";
 import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
+import { collectVietnamReviewActionCandidates, uploadVietnamFile } from "../run.js";
 
 test("vn.conditional-fields browser: clicking Yes fills the revealed prior-visit table", async () => {
   const browser = await chromium.launch({ headless: true });
@@ -1140,3 +1144,126 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
     </script>
   `;
 }
+
+test("vn.upload browser: official 4xx is never accepted from local input preview", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
+  const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-rejected-"));
+  const filePath = join(tempDir, "portrait.jpg");
+  writeFileSync(filePath, Buffer.from("synthetic-image-fixture"));
+  try {
+    await page.route(uploadUrl, (route) =>
+      route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ error: "invalid_upload" }),
+      }),
+    );
+    await page.setContent(`
+      <div class="ant-form-item">
+        <label>Portrait photography</label>
+        <div class="ant-upload-wrapper">
+          <input id="basic_anhMat" type="file" />
+          <img id="local-preview" src="data:image/png;base64,AA==" />
+        </div>
+      </div>
+      <script>
+        document.querySelector('#basic_anhMat').addEventListener('change', async (event) => {
+          const body = new FormData();
+          body.append('file', event.target.files[0]);
+          await fetch('${uploadUrl}', { method: 'POST', body });
+        });
+      </script>
+    `);
+
+    await assert.rejects(
+      uploadVietnamFile(page, "basic_anhMat", filePath, "portrait_photo"),
+      /official_document_upload_rejected_http_400/,
+    );
+    assert.equal(
+      await page.locator("#basic_anhMat").evaluate((input) => (input as HTMLInputElement).files?.length),
+      1,
+    );
+  } finally {
+    await browser.close();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("vn.upload browser: official 2xx plus completed preview is accepted", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
+  const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-accepted-"));
+  const filePath = join(tempDir, "passport.jpg");
+  writeFileSync(filePath, Buffer.from("synthetic-image-fixture"));
+  try {
+    await page.route(uploadUrl, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ success: true }),
+      }),
+    );
+    await page.setContent(`
+      <div class="ant-form-item">
+        <label>Passport data page image</label>
+        <div class="ant-upload-wrapper">
+          <input id="basic_anhHoChieu" type="file" />
+        </div>
+      </div>
+      <script>
+        document.querySelector('#basic_anhHoChieu').addEventListener('change', async (event) => {
+          const body = new FormData();
+          body.append('file', event.target.files[0]);
+          const response = await fetch('${uploadUrl}', { method: 'POST', body });
+          if (response.ok) {
+            const done = document.createElement('div');
+            done.className = 'ant-upload-list-item-done';
+            event.target.closest('.ant-upload-wrapper').appendChild(done);
+          }
+        });
+      </script>
+    `);
+
+    await uploadVietnamFile(page, "basic_anhHoChieu", filePath, "passport_copy");
+    assert.equal(await page.locator(".ant-upload-list-item-done").count(), 1);
+  } finally {
+    await browser.close();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("vn.review browser: discovers role, anchor, input, suffix, and disabled controls safely", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <button disabled>Next</button>
+      <a role="button" href="#">Continue to review</a>
+      <input type="button" value="Save draft" />
+      <div role="button" aria-disabled="true">Tiếp tục</div>
+      <button class="ant-btn ant-btn-primary">Pay now</button>
+    `);
+
+    const candidates = await collectVietnamReviewActionCandidates(page);
+    assert.deepEqual(
+      candidates.map((candidate) => ({
+        label: candidate.label,
+        tagName: candidate.tagName,
+        disabled: candidate.disabled,
+      })),
+      [
+        { label: "Next", tagName: "button", disabled: true },
+        { label: "Continue to review", tagName: "a", disabled: false },
+        { label: "Save draft", tagName: "input", disabled: false },
+        { label: "Tiếp tục", tagName: "div", disabled: true },
+      ],
+    );
+  } finally {
+    await browser.close();
+  }
+});

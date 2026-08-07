@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { shouldProxyVietnamPublicRequest } from "../public-api-proxy.js";
 
-test("vn.public-api-proxy: allows only official public GET resources", () => {
+test("vn.public-api-proxy: allows official public reads and the exact upload POST", () => {
   assert.equal(
     shouldProxyVietnamPublicRequest(
       "GET",
@@ -17,13 +17,34 @@ test("vn.public-api-proxy: allows only official public GET resources", () => {
     ),
     true,
   );
+  assert.equal(
+    shouldProxyVietnamPublicRequest(
+      "POST",
+      "https://api.thithucdientu.gov.vn/client-service/public/upload",
+    ),
+    true,
+  );
 });
 
-test("vn.public-api-proxy: rejects auth, submit, payment, and non-GET requests", () => {
+test("vn.public-api-proxy: rejects auth, submit, payment, and non-allowlisted writes", () => {
   assert.equal(
     shouldProxyVietnamPublicRequest(
       "POST",
       "https://api.evisa.gov.vn/client-service/public/application/submit",
+    ),
+    false,
+  );
+  assert.equal(
+    shouldProxyVietnamPublicRequest(
+      "POST",
+      "https://api.evisa.gov.vn/client-service/public/payment/create",
+    ),
+    false,
+  );
+  assert.equal(
+    shouldProxyVietnamPublicRequest(
+      "POST",
+      "https://api.evisa.gov.vn/client-service/public/upload-b64",
     ),
     false,
   );

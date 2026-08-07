@@ -6,7 +6,6 @@ const OFFICIAL_API_HOSTS = new Set([
 ]);
 
 export function shouldProxyVietnamPublicRequest(method: string, rawUrl: string): boolean {
-  if (method.toUpperCase() !== "GET") return false;
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -14,9 +13,30 @@ export function shouldProxyVietnamPublicRequest(method: string, rawUrl: string):
     return false;
   }
   if (url.protocol !== "https:" || !OFFICIAL_API_HOSTS.has(url.hostname)) return false;
+  const normalizedMethod = method.toUpperCase();
+  if (normalizedMethod === "POST") {
+    // This is the only public write request that may be proxied. The browser
+    // still sends the official multipart body exactly once through route.fetch;
+    // the proxy only restores the official SPA origin header on the response.
+    // Application submit and payment requests must always bypass this helper.
+    return url.pathname === "/client-service/public/upload";
+  }
+  if (normalizedMethod !== "GET") return false;
+  return url.pathname.startsWith("/client-service/public/") || url.pathname.startsWith("/static/");
+}
+
+export function isVietnamPublicUploadRequest(method: string, rawUrl: string): boolean {
+  if (method.toUpperCase() !== "POST") return false;
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return false;
+  }
   return (
-    url.pathname.startsWith("/client-service/public/") ||
-    url.pathname.startsWith("/static/")
+    url.protocol === "https:" &&
+    OFFICIAL_API_HOSTS.has(url.hostname) &&
+    url.pathname === "/client-service/public/upload"
   );
 }
 
