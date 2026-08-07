@@ -47,8 +47,8 @@ export function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmi
             <AlertTriangle className="h-6 w-6 text-amber-600" />
           )}
           {successful
-            ? (isZh ? "SG Arrival Card 提交成功" : "SG Arrival Card submitted")
-            : (isZh ? "SG Arrival Card 未完成" : "SG Arrival Card not completed")}
+            ? (isZh ? "新加坡入境卡提交成功" : "SG Arrival Card submitted")
+            : (isZh ? "新加坡入境卡未完成" : "SG Arrival Card not completed")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">

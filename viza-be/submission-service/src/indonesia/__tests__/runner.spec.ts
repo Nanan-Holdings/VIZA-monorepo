@@ -262,6 +262,26 @@ test("registers a canonical Indonesia account only after the official missing-re
   );
 });
 
+test("falls back to the page-level Send control on the current Indonesia password-reset page", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const recoverySource = source.slice(
+    source.indexOf("async function recoverIndonesiaOfficialAccount"),
+    source.indexOf("async function continueFromAccountGate"),
+  );
+
+  assert.match(recoverySource, /const resetSubmitInForm = passwordControls/);
+  assert.match(
+    recoverySource,
+    /getByRole\("button", \{ name: \/\^\(\?:send\|reset password\|change password\|submit\)\$\/i \}\)/,
+  );
+  assert.match(recoverySource, /passwordControls\.nth\(1\)\.press\("End"\)/);
+  assert.match(recoverySource, /indonesia_account_password_reset_confirm_submit_disabled/);
+  assert.ok(
+    recoverySource.indexOf("resetSubmitInForm") <
+      recoverySource.indexOf("indonesia_account_password_reset_confirm_submit_not_found"),
+  );
+});
+
 test("classifies Indonesia portal login and registration gates", () => {
   assert.equal(
     classifyIndonesiaPortalSnapshot({
@@ -421,6 +441,23 @@ test("fills a newly opened Indonesia registration form before resuming a saved a
   );
 });
 
+test("preflights the Indonesia registration email and records redacted server feedback", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const registrationSource = source.slice(
+    source.indexOf("export async function fillForeignerAccountRegistration"),
+    source.indexOf("async function continueFromApplicationStepOne"),
+  );
+
+  assert.match(registrationSource, /\/front\/check-emails\?q=/);
+  assert.match(registrationSource, /indonesia_account_registration_email_preflight/);
+  assert.match(registrationSource, /indonesia_account_registration_email_already_exists_stop_before_post/);
+  assert.match(registrationSource, /indonesia_account_registration_pre_submit/);
+  assert.match(registrationSource, /indonesia_account_registration_dialog/);
+  assert.match(registrationSource, /queryKeys=/);
+  assert.match(registrationSource, /indonesia_account_passport_crop_upload/);
+  assert.match(registrationSource, /indonesia_account_passport_upload_paths_not_ready/);
+});
+
 test("uses archived Indonesia credentials only to resume a saved official application", () => {
   assert.equal(shouldPreferLegacyIndonesiaAccountResume({
     hasSavedApplicationUrl: true,
@@ -439,8 +476,9 @@ test("uses archived Indonesia credentials only to resume a saved official applic
   }), false);
 });
 
-test("freshens the Indonesia login page and stops before duplicate registration after legacy resume fails", () => {
+test("freshens the Indonesia login page and only registers an explicitly fresh managed alias after legacy resume fails", () => {
   const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const indexSource = readFileSync(path.resolve(__dirname, "..", "index.ts"), "utf8");
   const gateSource = source.slice(
     source.indexOf("async function continueFromAccountGate"),
     source.indexOf("export function shouldPreferLegacyIndonesiaAccountResume"),
@@ -448,11 +486,15 @@ test("freshens the Indonesia login page and stops before duplicate registration 
   assert.match(gateSource, /reopenIndonesiaAccountLogin\(page, input, diagnostics\)/);
   assert.match(gateSource, /indonesia_current_account_fresh_login_started/);
   assert.match(gateSource, /indonesia_official_account_recovery_required/);
+  assert.match(gateSource, /!input\.allowFreshAccountRegistration/);
+  assert.match(gateSource, /indonesia_fresh_managed_account_registration_started_after_legacy_resume_failed/);
   assert.ok(
     gateSource.indexOf("indonesia_official_account_recovery_required") <
       gateSource.indexOf("const createAccountLink"),
-    "a failed current-account retry must stop before opening registration",
+    "a reusable account with failed recovery must stop before opening registration",
   );
+  assert.match(indexSource, /allowFreshAccountRegistration: input\.managedAccountReusable === false/);
+  assert.match(source, /indonesia_stale_saved_application_url_discarded_for_fresh_account/);
   assert.match(source, /actionType: "official_account_recovery_required"/);
   assert.match(source, /indonesia_account_login_controls_not_ready/);
   assert.match(source, /waitFor\(\{ state: "visible", timeout: 15_000 \}\)/);

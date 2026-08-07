@@ -43,6 +43,11 @@ export interface WaitForMessageOpts {
   includeProcessed?: boolean;
   /** Prefer the newest matching message. Default false preserves FIFO behavior. */
   newestFirst?: boolean;
+  /**
+   * Country-service alias derived from the applicant's canonical alias.
+   * Only the reversible Indonesia `id-<ULID>` form is accepted.
+   */
+  aliasOverride?: string;
   /** Override clock — used in tests. */
   now?: () => number;
 }
@@ -214,6 +219,21 @@ async function loadAlias(applicantId: string): Promise<string> {
   return data.inbox_alias.toLowerCase();
 }
 
+export function resolveApplicantInboxAlias(
+  canonicalAlias: string,
+  aliasOverride?: string,
+): string {
+  const canonical = canonicalAlias.trim().toLowerCase();
+  const requested = aliasOverride?.trim().toLowerCase();
+  if (!requested || requested === canonical) return canonical;
+
+  const canonicalMatch = canonical.match(/^appl-([0-9a-z]{26})@(viza\.it\.com)$/i);
+  if (canonicalMatch && requested === `id-${canonicalMatch[1]}@${canonicalMatch[2]}`) {
+    return requested;
+  }
+  throw new Error("Inbox alias override does not belong to the applicant canonical alias");
+}
+
 async function fetchUnprocessedSince(
   alias: string,
   since: string,
@@ -262,7 +282,8 @@ export async function waitForMessage(
   const pollIntervalMs = opts.pollIntervalMs ?? 5_000;
   const now = opts.now ?? (() => Date.now());
   const since = opts.since ?? new Date(now() - 60_000).toISOString();
-  const alias = await loadAlias(applicantId);
+  const canonicalAlias = await loadAlias(applicantId);
+  const alias = resolveApplicantInboxAlias(canonicalAlias, opts.aliasOverride);
   await assertInboxAliasDomainRoutable(alias);
 
   const deadline = now() + timeoutMs;
