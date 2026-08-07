@@ -392,4 +392,105 @@ describe("bilingual schema contract", () => {
       "其他",
     ]);
   });
+
+  it("replaces legacy Taiwan permit labels with natural Chinese wording", () => {
+    const samples = [
+      field({
+        visaType: "TW_ENTRY_PERMIT",
+        fieldName: "accepted_terms",
+        label: "I have read and accept the following terms and conditions",
+        fieldType: "checkbox",
+        validationRules: { label_zh: "请填写：Accepted Terms" },
+      }),
+      field({
+        visaType: "TW_ENTRY_PERMIT",
+        fieldName: "kin_child1_current_address_same_as_overseas",
+        label: "Kin Child1 Current Address Same As Overseas",
+        fieldType: "radio",
+        validationRules: {
+          label_zh: "Child 1 (子女) — Current address same as applicant's overseas address",
+        },
+        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+      }),
+      field({
+        visaType: "TW_ENTRY_PERMIT",
+        fieldName: "current_mainland_political_military_role",
+        label: "Applicant currently holds a mainland political or military role",
+        fieldType: "radio",
+        validationRules: { label_zh: "当前" },
+        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+      }),
+    ].map(normalizeBilingualFormField);
+
+    expect(samples.map((sample) => resolveLocalizedFieldLabel(sample, "zh"))).toEqual([
+      "我已阅读并同意以下条款与声明",
+      "第一名子女—当前住址是否与申请人的港澳或海外住址相同？",
+      "您目前是否在中国大陆党政军机关、政治性组织或相关团体任职或具有成员身份？",
+    ]);
+  });
+
+  it("localizes health, border-point, and official-form options without changing values", () => {
+    const symptoms = normalizeBilingualFormField(field({
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      fieldName: "sickness_symptom",
+      label: "Symptoms",
+      fieldType: "checkbox",
+      options: [
+        { value: "Cough", text: "Cough" },
+        { value: "Difficulty of Breathing", text: "Difficulty of Breathing" },
+        { value: "Rashes, vesicles or blisters", text: "Rashes, vesicles or blisters" },
+      ],
+    }));
+    const checkpoints = normalizeBilingualFormField(field({
+      visaType: "SG_VISITOR_VISA",
+      fieldName: "port_of_entry",
+      label: "Port of entry",
+      fieldType: "select",
+      options: [
+        { value: "woodlands", text: "Woodlands Checkpoint (Causeway / land)" },
+        { value: "tuas", text: "Tuas Checkpoint (Second Link / land)" },
+      ],
+    }));
+
+    expect(resolveLocalizedOptions(symptoms.options, "zh")).toEqual([
+      expect.objectContaining({ value: "Cough", text: "咳嗽" }),
+      expect.objectContaining({ value: "Difficulty of Breathing", text: "呼吸困难" }),
+      expect.objectContaining({ value: "Rashes, vesicles or blisters", text: "皮疹、水疱或疱疹" }),
+    ]);
+    expect(resolveLocalizedOptions(checkpoints.options, "zh")).toEqual([
+      expect.objectContaining({ value: "woodlands", text: "兀兰关卡（新柔长堤，陆路）" }),
+      expect.objectContaining({ value: "tuas", text: "大士关卡（第二通道，陆路）" }),
+    ]);
+  });
+
+  it("keeps yes-or-no questions as complete Chinese questions", () => {
+    const samples = [
+      field({
+        visaType: "DS160",
+        fieldName: "has_social_media",
+        label: "Have you used any social media platforms in the last five years?",
+        fieldType: "radio",
+      }),
+      field({
+        visaType: "EU_SCHENGEN_C_SHORT_STAY",
+        fieldName: "event_invitation_letter_held",
+        label: "Do you have an invitation letter from the organiser?",
+        fieldType: "radio",
+        validationRules: { label_zh: "活动" },
+      }),
+      field({
+        visaType: "JP_TOURIST",
+        fieldName: "has_inviter_in_japan",
+        label: "Do you have an inviter or guarantor in Japan?",
+        fieldType: "radio",
+        validationRules: { label_zh: "邀请人" },
+      }),
+    ].map(normalizeBilingualFormField);
+
+    expect(samples.map((sample) => resolveLocalizedFieldLabel(sample, "zh"))).toEqual([
+      "过去五年内是否使用过任何社交媒体平台？",
+      "您是否持有活动主办方出具的邀请函？",
+      "您在日本是否有邀请人或担保人？",
+    ]);
+  });
 });

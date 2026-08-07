@@ -19,7 +19,6 @@ import { useLocale } from "next-intl";
 import {
   DEFAULT_CITY_DAYS,
   createTravelFormMessage,
-  getFieldQuestionForState,
   getDefaultFlexibleDepartureDate,
   nextMissingField,
   toTravelPlanningPayload,
@@ -33,6 +32,11 @@ import {
   type TravelField,
   type TravelState,
 } from "@/lib/travel/planner";
+import {
+  getTravelFieldQuestion,
+  getTravelPlannerCopy,
+  type TravelPlannerCopy,
+} from "./travel-planner-copy";
 import type {
   TravelChatInputMessage,
   TravelChatStatus,
@@ -184,7 +188,10 @@ function withOtherOption(
   ];
 }
 
-function getOptionGroups(options: Option[]): Array<{ heading?: string; options: Option[] }> {
+function getOptionGroups(
+  options: Option[],
+  isZh: boolean,
+): Array<{ heading?: string; options: Option[] }> {
   const featuredOptions = options.filter((option) => option.featured);
   if (!featuredOptions.length) {
     return [{ options }];
@@ -192,8 +199,8 @@ function getOptionGroups(options: Option[]): Array<{ heading?: string; options: 
 
   const regularOptions = options.filter((option) => !option.featured);
   return [
-    { heading: "热门目的地", options: featuredOptions },
-    { heading: "其他国家", options: regularOptions },
+    { heading: isZh ? "热门目的地" : "Popular destinations", options: featuredOptions },
+    { heading: isZh ? "其他国家" : "Other countries", options: regularOptions },
   ].filter((group) => group.options.length > 0);
 }
 
@@ -216,9 +223,11 @@ function OptionFlagIcon({ option }: { option: Option }) {
 function SelectOptionContent({
   option,
   selected,
+  isZh,
 }: {
   option: Option;
   selected: boolean;
+  isZh: boolean;
 }) {
   return (
     <>
@@ -233,7 +242,7 @@ function SelectOptionContent({
       </span>
       {option.featured && (
         <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">
-          热门
+          {isZh ? "热门" : "Popular"}
         </span>
       )}
       <CheckIcon
@@ -277,18 +286,20 @@ function SearchableSingleSelect({
   value,
   onChange,
   disabled,
+  isZh,
 }: {
   options: Option[];
   placeholder: string;
   value: string | null;
   onChange: (value: string) => void;
   disabled?: boolean;
+  isZh: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const selectedOption = options.find((option) => option.value === value);
   const selectedLabel =
     selectedOption?.label ?? (value ? getLocalLocationDisplayName(value) : "");
-  const optionGroups = getOptionGroups(options);
+  const optionGroups = getOptionGroups(options, isZh);
 
   return (
     <Popover onOpenChange={setOpen} open={open}>
@@ -320,9 +331,9 @@ function SearchableSingleSelect({
             matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0
           }
         >
-          <CommandInput placeholder="搜索..." />
+          <CommandInput placeholder={isZh ? "搜索…" : "Search…"} />
           <CommandList className="max-h-[280px]">
-            <CommandEmpty>没有匹配项</CommandEmpty>
+            <CommandEmpty>{isZh ? "没有匹配项" : "No matches found"}</CommandEmpty>
             {optionGroups.map((group) => (
               <CommandGroup heading={group.heading} key={group.heading ?? "options"}>
                 {group.options.map((option) => (
@@ -339,6 +350,7 @@ function SearchableSingleSelect({
                     <SelectOptionContent
                       option={option}
                       selected={value === option.value}
+                      isZh={isZh}
                     />
                   </CommandItem>
                 ))}
@@ -357,12 +369,14 @@ function SearchableMultiSelect({
   values,
   onChange,
   disabled,
+  isZh,
 }: {
   options: Option[];
   placeholder: string;
   values: string[];
   onChange: (values: string[]) => void;
   disabled?: boolean;
+  isZh: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -379,7 +393,7 @@ function SearchableMultiSelect({
     );
     return labels.join(" / ");
   }, [options, values]);
-  const optionGroups = getOptionGroups(options);
+  const optionGroups = getOptionGroups(options, isZh);
 
   const toggleValue = (value: string) => {
     if (values.includes(value)) {
@@ -425,9 +439,9 @@ function SearchableMultiSelect({
             matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0
           }
         >
-          <CommandInput placeholder="搜索..." />
+          <CommandInput placeholder={isZh ? "搜索…" : "Search…"} />
           <CommandList className="max-h-[280px]">
-            <CommandEmpty>没有匹配项</CommandEmpty>
+            <CommandEmpty>{isZh ? "没有匹配项" : "No matches found"}</CommandEmpty>
             {optionGroups.map((group) => (
               <CommandGroup heading={group.heading} key={group.heading ?? "options"}>
                 {group.options.map((option) => (
@@ -443,6 +457,7 @@ function SearchableMultiSelect({
                     <SelectOptionContent
                       option={option}
                       selected={values.includes(option.value)}
+                      isZh={isZh}
                     />
                   </CommandItem>
                 ))}
@@ -902,31 +917,35 @@ function buildFallbackHotelStays(payload: TravelPlanningPayload): HotelStayResul
 
 function formatFlightLabel(
   option: FlightLegResult["options"][number],
-  fallbackOrder: number
+  fallbackOrder: number,
+  copy: TravelPlannerCopy,
 ): string {
-  const airline = option.airline || `方案 ${fallbackOrder}`;
-  const price = option.price ? `${option.price} ${option.currency ?? ""}`.trim() : "价格未知";
-  const departure = option.departure ? `出发 ${option.departure}` : "出发时间未知";
+  const airline = option.airline || copy.flightFallback(fallbackOrder);
+  const price = option.price ? `${option.price} ${option.currency ?? ""}`.trim() : copy.unknownPrice;
+  const departure = option.departure ? `${copy.departureTime} ${option.departure}` : copy.departureUnknown;
   return `${airline} | ${price} | ${departure}`;
 }
 
 function formatHotelLabel(
   option: HotelStayResult["options"][number],
-  fallbackOrder: number
+  fallbackOrder: number,
+  copy: TravelPlannerCopy,
 ): string {
-  const name = option.name || `酒店方案 ${fallbackOrder}`;
+  const name = option.name || copy.hotelFallback(fallbackOrder);
   const price = option.price_per_night
-    ? `${option.price_per_night} ${option.currency ?? ""}/晚`.trim()
-    : "价格未知";
+    ? `${option.price_per_night} ${option.currency ?? ""}${copy.averageNight === "均价/晚" ? "/晚" : "/night"}`.trim()
+    : copy.unknownPrice;
   const rating =
-    option.rating !== undefined && option.rating !== null ? `评分 ${option.rating}` : "暂无评分";
+    option.rating !== undefined && option.rating !== null
+      ? `${copy.rating} ${option.rating}`
+      : copy.unknownRating;
   return `${name} | ${price} | ${rating}`;
 }
 
-function formatFlightStops(stops?: number): string {
-  if (typeof stops !== "number" || stops < 0) return "未知";
-  if (stops === 0) return "直飞";
-  return `${stops} 次中转`;
+function formatFlightStops(stops: number | undefined, copy: TravelPlannerCopy): string {
+  if (typeof stops !== "number" || stops < 0) return copy.unknown;
+  if (stops === 0) return copy.nonstop;
+  return copy.connection(stops);
 }
 
 function compactFlightOptionForMessage(
@@ -1015,6 +1034,9 @@ export function TravelPlannerForm({
     requestedMissingField === undefined
       ? nextMissingField(travelState)
       : requestedMissingField;
+  const locale = useLocale();
+  const isZh = locale.startsWith("zh");
+  const copy = useMemo(() => getTravelPlannerCopy(isZh), [isZh]);
   const planningPayload = useMemo(
     () => toTravelPlanningPayload(travelState),
     [travelState]
@@ -1026,10 +1048,9 @@ export function TravelPlannerForm({
 
   const busy = status === "submitted" || status === "streaming";
   const fieldQuestion = useMemo(
-    () => getFieldQuestionForState(travelState, missingField ?? "country"),
-    [missingField, travelState]
+    () => getTravelFieldQuestion(isZh, travelState, missingField ?? "country"),
+    [isZh, missingField, travelState]
   );
-  const locale = useLocale();
   const isOptionalQuestion = missingField === "final_note";
 
   const [countries, setCountries] = useState<string[]>(travelState.countries);
@@ -1120,7 +1141,7 @@ export function TravelPlannerForm({
 
       const text = await response.text();
       if (!response.ok) {
-        throw new Error(parseApiErrorText(text, "加载城市数据失败。"));
+        throw new Error(parseApiErrorText(text, copy.loadingCity));
       }
 
       let payload: unknown = {};
@@ -1141,12 +1162,12 @@ export function TravelPlannerForm({
         ...nextCityCountByCountry,
       }));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "加载城市数据失败。";
+      const message = error instanceof Error ? error.message : copy.loadingCity;
       setCityLoadError(message);
     } finally {
       setIsLoadingCityOptions(false);
     }
-  }, []);
+  }, [copy.loadingCity]);
 
   useEffect(() => {
     const nextCountries =
@@ -1296,7 +1317,7 @@ export function TravelPlannerForm({
       .then(async (response) => {
         const text = await response.text();
         if (!response.ok) {
-          throw new Error(parseApiErrorText(text, "加载国家数据失败。"));
+          throw new Error(parseApiErrorText(text, copy.loadingCountry));
         }
         try {
           return JSON.parse(text) as unknown;
@@ -1310,7 +1331,7 @@ export function TravelPlannerForm({
       })
       .catch((error) => {
         if (disposed) return;
-        const message = error instanceof Error ? error.message : "加载国家数据失败。";
+        const message = error instanceof Error ? error.message : copy.loadingCountry;
         setCountryLoadError(message);
       })
       .finally(() => {
@@ -1321,7 +1342,7 @@ export function TravelPlannerForm({
     return () => {
       disposed = true;
     };
-  }, []);
+  }, [copy.loadingCountry]);
 
   useEffect(() => {
     if (missingField !== "destination_confirmation") {
@@ -1367,7 +1388,7 @@ export function TravelPlannerForm({
       );
     if (!neededCountries.length) return;
     loadCitiesForCountries(neededCountries);
-  }, [originCountry, returnCountry, citiesByCountry, loadCitiesForCountries]);
+  }, [copy.loadingCountry, originCountry, returnCountry, citiesByCountry, loadCitiesForCountries]);
 
   useEffect(() => {
     if (ipLocation || ipLocationError || isPrefetchingIpLocation) return;
@@ -1379,7 +1400,7 @@ export function TravelPlannerForm({
       .then(async (response) => {
         const text = await response.text();
         if (!response.ok) {
-          throw new Error(parseApiErrorText(text, "无法根据 IP 推断城市。"));
+          throw new Error(parseApiErrorText(text, copy.noIpCity));
         }
         try {
           return JSON.parse(text) as unknown;
@@ -1391,14 +1412,14 @@ export function TravelPlannerForm({
         if (disposed) return;
         const location = coerceIpLocation(payload);
         if (!location) {
-          throw new Error("无法根据 IP 推断城市。");
+          throw new Error(copy.noIpCity);
         }
         setIpLocation(location);
       })
       .catch((error) => {
         if (disposed) return;
         const message =
-          error instanceof Error ? error.message : "无法根据 IP 推断城市。";
+          error instanceof Error ? error.message : copy.noIpCity;
         setIpLocationError(message);
         setManualEndpointMode(true);
       })
@@ -1410,7 +1431,7 @@ export function TravelPlannerForm({
     return () => {
       disposed = true;
     };
-  }, [ipLocation, ipLocationError, isPrefetchingIpLocation]);
+  }, [copy.noIpCity, ipLocation, ipLocationError, isPrefetchingIpLocation]);
 
   useEffect(() => {
     if (missingField !== "flight_selection") return;
@@ -1438,7 +1459,7 @@ export function TravelPlannerForm({
       }
 
       if (!response.ok) {
-        throw new Error(parseApiErrorText(text, "加载机票失败。"));
+        throw new Error(parseApiErrorText(text, copy.loadingFlights));
       }
 
       return payload;
@@ -1451,7 +1472,7 @@ export function TravelPlannerForm({
       })
       .catch((error) => {
         if (disposed) return;
-        const message = error instanceof Error ? error.message : "加载机票失败。";
+        const message = error instanceof Error ? error.message : copy.loadingFlights;
         setFlightLoadError(message);
       })
       .finally(() => {
@@ -1462,7 +1483,7 @@ export function TravelPlannerForm({
     return () => {
       disposed = true;
     };
-  }, [missingField, planningPayload, planningPayloadKey, loadedFlightsKey]);
+  }, [copy.loadingFlights, missingField, planningPayload, planningPayloadKey, loadedFlightsKey]);
 
   useEffect(() => {
     if (missingField !== "hotel_selection") return;
@@ -1481,7 +1502,7 @@ export function TravelPlannerForm({
       .then(async (response) => {
         const text = await response.text();
         if (!response.ok) {
-          throw new Error(parseApiErrorText(text, "加载酒店失败。"));
+          throw new Error(parseApiErrorText(text, copy.loadingHotels));
         }
         try {
           return JSON.parse(text) as unknown;
@@ -1497,7 +1518,7 @@ export function TravelPlannerForm({
       })
       .catch((error) => {
         if (disposed) return;
-        const message = error instanceof Error ? error.message : "加载酒店失败。";
+        const message = error instanceof Error ? error.message : copy.loadingHotels;
         setHotelLoadError(message);
       })
       .finally(() => {
@@ -1508,11 +1529,11 @@ export function TravelPlannerForm({
     return () => {
       disposed = true;
     };
-  }, [missingField, planningPayload, planningPayloadKey, loadedHotelsKey]);
+  }, [copy.loadingHotels, missingField, planningPayload, planningPayloadKey, loadedHotelsKey]);
 
   const countryOptionsWithOther = useMemo(
-    () => withOtherOption(countryOptions, OTHER_COUNTRY_VALUE, "其他（自定义国家）"),
-    [countryOptions]
+    () => withOtherOption(countryOptions, OTHER_COUNTRY_VALUE, copy.otherCountry),
+    [copy.otherCountry, countryOptions]
   );
 
   const cityOptions = useMemo(() => {
@@ -1520,8 +1541,8 @@ export function TravelPlannerForm({
     return cityOptionsFromCountries(baseCountries, citiesByCountry);
   }, [countries, citiesByCountry]);
   const cityOptionsWithOther = useMemo(
-    () => withOtherOption(cityOptions, OTHER_CITY_VALUE, "其他（自定义城市）"),
-    [cityOptions]
+    () => withOtherOption(cityOptions, OTHER_CITY_VALUE, copy.otherCity),
+    [cityOptions, copy.otherCity]
   );
   const cityOptionsForStep = useMemo(() => {
     if (missingField !== "cities") return cityOptionsWithOther;
@@ -1544,9 +1565,9 @@ export function TravelPlannerForm({
     return withOtherOption(
       cityOptionsFromCountries(baseCountries, citiesByCountry),
       OTHER_CITY_VALUE,
-      "其他（自定义城市）"
+      copy.otherCity
     );
-  }, [additionalCountries, citiesByCountry]);
+  }, [additionalCountries, citiesByCountry, copy.otherCity]);
   const citySet = useMemo(() => new Set(cities), [cities]);
 
   const resolvedCountries = useMemo(() => {
@@ -1604,27 +1625,27 @@ export function TravelPlannerForm({
     originCountry === OTHER_COUNTRY_VALUE ? "" : originCountry;
   const originCityOptions = useMemo(() => {
     if (!originCountryForCityLookup) {
-      return withOtherOption(cityOptions, OTHER_CITY_VALUE, "其他（自定义城市）");
+      return withOtherOption(cityOptions, OTHER_CITY_VALUE, copy.otherCity);
     }
     const baseOptions = cityOptionsFromCountries(
       [originCountryForCityLookup],
       citiesByCountry
     );
-    return withOtherOption(baseOptions, OTHER_CITY_VALUE, "其他（自定义城市）");
-  }, [originCountryForCityLookup, cityOptions, citiesByCountry]);
+    return withOtherOption(baseOptions, OTHER_CITY_VALUE, copy.otherCity);
+  }, [originCountryForCityLookup, cityOptions, citiesByCountry, copy.otherCity]);
 
   const returnCountryForCityLookup =
     returnCountry === OTHER_COUNTRY_VALUE ? "" : returnCountry;
   const returnCityOptions = useMemo(() => {
     if (!returnCountryForCityLookup) {
-      return withOtherOption(cityOptions, OTHER_CITY_VALUE, "其他（自定义城市）");
+      return withOtherOption(cityOptions, OTHER_CITY_VALUE, copy.otherCity);
     }
     const baseOptions = cityOptionsFromCountries(
       [returnCountryForCityLookup],
       citiesByCountry
     );
-    return withOtherOption(baseOptions, OTHER_CITY_VALUE, "其他（自定义城市）");
-  }, [returnCountryForCityLookup, cityOptions, citiesByCountry]);
+    return withOtherOption(baseOptions, OTHER_CITY_VALUE, copy.otherCity);
+  }, [returnCountryForCityLookup, cityOptions, citiesByCountry, copy.otherCity]);
 
   const countryLabelMap = useMemo(
     () => new Map(countryOptionsWithOther.map((option) => [option.value, option.label])),
@@ -1782,7 +1803,7 @@ export function TravelPlannerForm({
 
   const submitCountries = useCallback(() => {
     if (!resolvedCountries.length) {
-      toast.error("请至少选择一个国家。");
+      toast.error(copy.countryRequired);
       return;
     }
     sendStructuredMessage({
@@ -1793,11 +1814,11 @@ export function TravelPlannerForm({
         country: resolvedCountryDisplayNames.join("、"),
       },
     });
-  }, [resolvedCountries, resolvedCountryDisplayNames, sendStructuredMessage]);
+  }, [copy.countryRequired, resolvedCountries, resolvedCountryDisplayNames, sendStructuredMessage]);
 
   const submitCities = useCallback(() => {
     if (!resolvedCities.length) {
-      toast.error("请至少选择一个城市。");
+      toast.error(copy.cityRequired);
       return;
     }
     sendStructuredMessage({
@@ -1813,6 +1834,7 @@ export function TravelPlannerForm({
       },
     });
   }, [
+    copy.cityRequired,
     resolvedCities,
     resolvedCityDisplayNames,
     selectedCityLabelMap,
@@ -1821,11 +1843,11 @@ export function TravelPlannerForm({
 
   const submitAdditionalDestination = useCallback(() => {
     if (!resolvedAdditionalCountries.length) {
-      toast.error("请至少选择一个要添加的国家。");
+      toast.error(copy.additionalCountryRequired);
       return;
     }
     if (!resolvedAdditionalCities.length) {
-      toast.error("请至少选择一个要添加的城市。");
+      toast.error(copy.additionalCityRequired);
       return;
     }
 
@@ -1879,6 +1901,8 @@ export function TravelPlannerForm({
     setCustomAdditionalCountriesInput("");
     setCustomAdditionalCitiesInput("");
   }, [
+    copy.additionalCountryRequired,
+    copy.additionalCityRequired,
     getCityDisplayName,
     getCountryDisplayName,
     resolvedAdditionalCities,
@@ -1897,7 +1921,7 @@ export function TravelPlannerForm({
       !resolvedReturnCountry ||
       !resolvedReturnCity
     ) {
-      toast.error("请完整确认出发和返程国家、城市。");
+      toast.error(copy.endpointsRequired);
       return;
     }
 
@@ -1914,6 +1938,7 @@ export function TravelPlannerForm({
       },
     });
   }, [
+    copy.endpointsRequired,
     resolvedOriginCountry,
     resolvedOriginCity,
     resolvedOriginCountryDisplay,
@@ -1927,14 +1952,14 @@ export function TravelPlannerForm({
 
   const submitIpDefaultEndpoints = useCallback(() => {
     if (!ipLocation) {
-      toast.error("暂时没有识别到当前城市，请选择另选。");
+      toast.error(copy.noIpCity);
       return;
     }
 
     const country = normalizeToken(ipLocation.country);
     const city = normalizeToken(ipLocation.city);
     if (!country || !city) {
-      toast.error("暂时没有识别到当前城市，请选择另选。");
+      toast.error(copy.noIpCity);
       return;
     }
 
@@ -1951,8 +1976,8 @@ export function TravelPlannerForm({
         return_city: getLocalLocationDisplayName(city),
       },
     });
-    toast.success(`已确认出发和返程城市：${displayLabel}`);
-  }, [ipLocation, sendStructuredMessage]);
+    toast.success(copy.ipConfirmed(displayLabel));
+  }, [copy, ipLocation, sendStructuredMessage]);
 
   const showManualEndpointFields = manualEndpointMode || Boolean(ipLocationError);
   const ipEndpointDisplay = ipLocation
@@ -1970,7 +1995,7 @@ export function TravelPlannerForm({
     >
       <div className="mb-3 rounded-xl border border-sky-100/80 bg-gradient-to-r from-sky-50 to-cyan-50/70 px-3 py-2.5">
         <div className="text-sm font-semibold text-slate-900">
-          {locale.startsWith("zh") ? "旅行信息向导" : "Travel planner"}
+          {isZh ? "旅行信息向导" : "Travel planner"}
         </div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-600">
           {!isOptionalQuestion && (
@@ -1981,13 +2006,11 @@ export function TravelPlannerForm({
           <span>{fieldQuestion}</span>
           {isOptionalQuestion && (
             <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-              {locale.startsWith("zh")
-                ? "可选"
-                : locale.startsWith("vi")
+              {locale.startsWith("vi")
                 ? "Tùy chọn"
                 : locale.startsWith("es")
                 ? "Opcional"
-                : "Optional"}
+                : copy.optional}
             </span>
           )}
         </div>
@@ -2002,17 +2025,18 @@ export function TravelPlannerForm({
           )}
           <SearchableMultiSelect
             disabled={busy || isLoadingCountryOptions}
+            isZh={isZh}
             onChange={setCountries}
             options={countryOptionsWithOther}
             placeholder={
-              isLoadingCountryOptions ? "正在加载国家..." : "请选择国家（可多选）"
+              isLoadingCountryOptions ? copy.loadingCountry : copy.chooseCountry
             }
             values={countries}
           />
           {countries.includes(OTHER_COUNTRY_VALUE) && (
             <Input
               onChange={(event) => setCustomCountriesInput(event.target.value)}
-              placeholder="输入其他国家（可多项，逗号分隔）"
+              placeholder={copy.customCountryPlaceholder}
               type="text"
               value={customCountriesInput}
             />
@@ -2023,7 +2047,7 @@ export function TravelPlannerForm({
             onClick={submitCountries}
             size="sm"
           >
-            确认国家
+            {copy.confirmCountry}
           </Button>
           <Button
             className="w-full"
@@ -2032,7 +2056,7 @@ export function TravelPlannerForm({
             size="sm"
             variant="outline"
           >
-            没有别的国家了
+            {copy.noMoreCountries}
           </Button>
         </div>
       )}
@@ -2046,28 +2070,29 @@ export function TravelPlannerForm({
           )}
           <SearchableMultiSelect
             disabled={busy || countries.length === 0 || isLoadingCityOptions}
+            isZh={isZh}
             onChange={setCities}
             options={cityOptionsForStep}
             placeholder={
               !countries.length
-                ? "请先选择国家后再选城市"
+                ? copy.chooseCitiesAfterCountry
                 : isLoadingCityOptions
-                ? "正在加载城市..."
-                : "请选择城市（可多选）"
+                ? copy.loadingCity
+                : copy.chooseCity
             }
             values={cities}
           />
           {cities.includes(OTHER_CITY_VALUE) && (
             <Input
               onChange={(event) => setCustomCitiesInput(event.target.value)}
-              placeholder="输入其他城市（可多项，逗号分隔）"
+              placeholder={copy.customCityPlaceholder}
               type="text"
               value={customCitiesInput}
             />
           )}
           {cityLoadSummary && (
             <div className="text-[11px] text-muted-foreground">
-              已加载城市数量：{cityLoadSummary}
+              {copy.loadedCityCount(cityLoadSummary)}
             </div>
           )}
           <Button
@@ -2076,7 +2101,7 @@ export function TravelPlannerForm({
             onClick={submitCities}
             size="sm"
           >
-            确认城市
+            {copy.confirmCity}
           </Button>
           <Button
             className="w-full"
@@ -2085,7 +2110,7 @@ export function TravelPlannerForm({
             size="sm"
             variant="outline"
           >
-            没有别的城市了
+            {copy.noMoreCities}
           </Button>
         </div>
       )}
@@ -2093,11 +2118,12 @@ export function TravelPlannerForm({
       {missingField === "destination_confirmation" && (
         <div className="space-y-2">
           <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-            已选目的地：
-            {resolvedCityDisplayNames.length > 0
-              ? resolvedCityDisplayNames.join("、")
-              : travelState.cities.join("、")}
-            。如果还想加入别的国家或城市，可以继续选择国家和城市。
+            {copy.selectedDestinations(
+              resolvedCityDisplayNames.length > 0
+                ? resolvedCityDisplayNames.join("、")
+                : travelState.cities.join("、"),
+              isZh ? "。如果还想加入别的国家或城市，可以继续选择国家和城市。" : " If you would like to add another country or city, continue below.",
+            )}
           </div>
           {destinationAddStep === "idle" && (
             <div className="grid grid-cols-2 gap-2">
@@ -2109,7 +2135,7 @@ export function TravelPlannerForm({
                 type="button"
                 variant="outline"
               >
-                继续添加目的地
+                {copy.addDestinations}
               </Button>
               <Button
                 className="w-full"
@@ -2118,7 +2144,7 @@ export function TravelPlannerForm({
                 size="sm"
                 type="button"
               >
-                目的地就这些
+                {copy.destinationsDone}
               </Button>
             </div>
           )}
@@ -2126,7 +2152,7 @@ export function TravelPlannerForm({
           {destinationAddStep === "country" && (
             <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
               <div className="text-xs font-semibold text-slate-700">
-                先选择要追加的国家
+                {copy.chooseAdditionalCountry}
               </div>
               {countryLoadError && (
                 <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
@@ -2135,6 +2161,7 @@ export function TravelPlannerForm({
               )}
               <SearchableMultiSelect
                 disabled={busy || isLoadingCountryOptions}
+                isZh={isZh}
                 onChange={(values) => {
                   setAdditionalCountries(values);
                   setAdditionalCities([]);
@@ -2143,8 +2170,8 @@ export function TravelPlannerForm({
                 options={countryOptionsWithOther}
                 placeholder={
                   isLoadingCountryOptions
-                    ? "正在加载国家..."
-                    : "选择要追加的国家（可多选）"
+                    ? copy.loadingCountry
+                    : copy.chooseAdditionalCountryPlaceholder
                 }
                 values={additionalCountries}
               />
@@ -2153,7 +2180,7 @@ export function TravelPlannerForm({
                   onChange={(event) =>
                     setCustomAdditionalCountriesInput(event.target.value)
                   }
-                  placeholder="输入其他国家（可多项，逗号分隔）"
+                  placeholder={copy.customCountryPlaceholder}
                   type="text"
                   value={customAdditionalCountriesInput}
                 />
@@ -2173,7 +2200,7 @@ export function TravelPlannerForm({
                   type="button"
                   variant="outline"
                 >
-                  返回
+                  {copy.back}
                 </Button>
                 <Button
                   className="w-full"
@@ -2186,7 +2213,7 @@ export function TravelPlannerForm({
                   size="sm"
                   type="button"
                 >
-                  下一步选城市
+                  {copy.nextChooseCities}
                 </Button>
               </div>
             </div>
@@ -2195,7 +2222,7 @@ export function TravelPlannerForm({
           {destinationAddStep === "city" && (
             <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
               <div className="text-xs font-semibold text-slate-700">
-                再选择要追加的城市
+                {copy.chooseAdditionalCity}
               </div>
               {cityLoadError && (
                 <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
@@ -2208,12 +2235,13 @@ export function TravelPlannerForm({
                   resolvedAdditionalCountries.length === 0 ||
                   isLoadingCityOptions
                 }
+                isZh={isZh}
                 onChange={setAdditionalCities}
                 options={additionalCityOptions}
                 placeholder={
                   isLoadingCityOptions
-                    ? "正在加载城市..."
-                    : "选择要追加的城市（可多选）"
+                    ? copy.loadingCity
+                    : copy.chooseAdditionalCityPlaceholder
                 }
                 values={additionalCities}
               />
@@ -2222,18 +2250,17 @@ export function TravelPlannerForm({
                   onChange={(event) =>
                     setCustomAdditionalCitiesInput(event.target.value)
                   }
-                  placeholder="输入其他城市（可多项，逗号分隔）"
+                  placeholder={copy.customCityPlaceholder}
                   type="text"
                   value={customAdditionalCitiesInput}
                 />
               )}
               {resolvedAdditionalCountryDisplayNames.length > 0 && (
                 <div className="text-[11px] text-muted-foreground">
-                  正在添加：
-                  {resolvedAdditionalCountryDisplayNames.join("、")}
-                  {resolvedAdditionalCityDisplayNames.length > 0
-                    ? ` · ${resolvedAdditionalCityDisplayNames.join("、")}`
-                    : ""}
+                  {copy.adding(
+                    resolvedAdditionalCountryDisplayNames.join("、"),
+                    resolvedAdditionalCityDisplayNames.join("、"),
+                  )}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-2">
@@ -2245,7 +2272,7 @@ export function TravelPlannerForm({
                   type="button"
                   variant="outline"
                 >
-                  上一步
+                  {copy.previous}
                 </Button>
                 <Button
                   className="w-full"
@@ -2258,7 +2285,7 @@ export function TravelPlannerForm({
                   size="sm"
                   type="button"
                 >
-                  加入这些目的地
+                  {copy.addTheseDestinations}
                 </Button>
               </div>
             </div>
@@ -2280,7 +2307,7 @@ export function TravelPlannerForm({
               type="button"
               variant={dateMode === "flexible" ? "default" : "outline"}
             >
-              灵活出行
+              {copy.flexibleTravel}
             </Button>
             <Button
               className="w-full"
@@ -2290,7 +2317,7 @@ export function TravelPlannerForm({
               type="button"
               variant={dateMode === "fixed" ? "default" : "outline"}
             >
-              指定日期
+              {copy.fixedDate}
             </Button>
           </div>
 
@@ -2302,7 +2329,7 @@ export function TravelPlannerForm({
             />
           ) : (
             <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              灵活出行会先按两个月后的日期规划：{getDefaultFlexibleDepartureDate()}。
+              {copy.flexibleDateHint(getDefaultFlexibleDepartureDate())}
             </div>
           )}
 
@@ -2315,7 +2342,7 @@ export function TravelPlannerForm({
                   ? getDefaultFlexibleDepartureDate()
                   : departureDate;
               if (!/^\d{4}-\d{2}-\d{2}$/.test(finalDate)) {
-                toast.error("请选择有效的出行日期。");
+                toast.error(copy.invalidDate);
                 return;
               }
               setLoadedFlightsKey(null);
@@ -2331,7 +2358,7 @@ export function TravelPlannerForm({
             }}
             size="sm"
           >
-            确认出行日期
+            {copy.confirmDate}
           </Button>
         </div>
       )}
@@ -2343,13 +2370,15 @@ export function TravelPlannerForm({
             onChange={(event) =>
               setTravelDays(event.target.value.replace(/[^\d]/g, ""))
             }
-            placeholder="请输入总出行天数（正整数）"
+            placeholder={copy.daysPlaceholder}
             type="text"
             value={travelDays}
           />
           <div className="text-[11px] text-muted-foreground">
-            已选 {travelState.cities.length} 个城市，出行天数至少为{" "}
-            {Math.max(1, travelState.cities.length)} 天。
+            {copy.minimumDaysHint(
+              travelState.cities.length,
+              Math.max(1, travelState.cities.length),
+            )}
           </div>
           <Button
             className="w-full"
@@ -2358,7 +2387,7 @@ export function TravelPlannerForm({
               const value = parsePositiveIntText(travelDays);
               const minimumDays = Math.max(1, travelState.cities.length);
               if (!value || value < minimumDays) {
-                toast.error(`出行天数必须不少于 ${minimumDays} 天。`);
+                toast.error(copy.minimumDaysError(minimumDays));
                 return;
               }
               setLoadedFlightsKey(null);
@@ -2367,7 +2396,7 @@ export function TravelPlannerForm({
             }}
             size="sm"
           >
-            确认出行天数
+            {copy.confirmDays}
           </Button>
           <Button
             className="w-full"
@@ -2378,7 +2407,7 @@ export function TravelPlannerForm({
               sendStructuredMessage({
                 travel_days: flexibleTravelDays,
                 display: {
-                  travel_days_label: `天数先灵活，暂按 ${flexibleTravelDays} 天规划。`,
+                  travel_days_label: copy.flexibleDaysLabel(flexibleTravelDays),
                 },
               });
             }}
@@ -2386,7 +2415,7 @@ export function TravelPlannerForm({
             type="button"
             variant="outline"
           >
-            天数灵活，先按 {flexibleTravelDays} 天规划
+            {copy.flexibleDaysHint(flexibleTravelDays)}
           </Button>
         </div>
       )}
@@ -2396,7 +2425,7 @@ export function TravelPlannerForm({
           <Input
             inputMode="numeric"
             onChange={(event) => setTravelers(event.target.value.replace(/[^\d]/g, ""))}
-            placeholder="请输入旅行人数（正整数）"
+            placeholder={copy.travelersPlaceholder}
             type="text"
             value={travelers}
           />
@@ -2406,14 +2435,14 @@ export function TravelPlannerForm({
             onClick={() => {
               const value = parsePositiveIntText(travelers);
               if (!value) {
-                toast.error("旅行人数必须是正整数。");
+                toast.error(copy.travelersError);
                 return;
               }
               sendStructuredMessage({ travelers: value });
             }}
             size="sm"
           >
-            确认人数
+            {copy.confirmTravelers}
           </Button>
           <Button
             className="w-full"
@@ -2422,7 +2451,7 @@ export function TravelPlannerForm({
               sendStructuredMessage({
                 travelers: flexibleTravelers,
                 display: {
-                  travelers_label: `人数先灵活，暂按 ${flexibleTravelers} 人规划。`,
+                  travelers_label: copy.flexibleTravelersLabel(flexibleTravelers),
                 },
               });
             }}
@@ -2430,7 +2459,7 @@ export function TravelPlannerForm({
             type="button"
             variant="outline"
           >
-            人数灵活，先按 {flexibleTravelers} 人规划
+            {copy.flexibleTravelersHint(flexibleTravelers)}
           </Button>
         </div>
       )}
@@ -2440,7 +2469,7 @@ export function TravelPlannerForm({
           <Input
             inputMode="numeric"
             onChange={(event) => setBudget(event.target.value.replace(/[^\d]/g, ""))}
-            placeholder="请输入预算（RMB，正整数）"
+            placeholder={copy.budgetPlaceholder}
             type="text"
             value={budget}
           />
@@ -2450,14 +2479,14 @@ export function TravelPlannerForm({
             onClick={() => {
               const value = parsePositiveIntText(budget);
               if (!value) {
-                toast.error("预算必须是正整数。");
+                toast.error(copy.budgetError);
                 return;
               }
               sendStructuredMessage({ budget: value });
             }}
             size="sm"
           >
-            确认预算
+            {copy.confirmBudget}
           </Button>
           <Button
             className="w-full"
@@ -2466,7 +2495,7 @@ export function TravelPlannerForm({
               sendStructuredMessage({
                 budget: flexibleBudget,
                 display: {
-                  budget_label: `预算先灵活，暂按 ${flexibleBudget} RMB 规划。`,
+                  budget_label: copy.flexibleBudgetLabel(flexibleBudget),
                 },
               });
             }}
@@ -2474,7 +2503,7 @@ export function TravelPlannerForm({
             type="button"
             variant="outline"
           >
-            预算灵活，先按 {flexibleBudget} RMB 规划
+            {copy.flexibleBudgetHint(flexibleBudget)}
           </Button>
         </div>
       )}
@@ -2490,16 +2519,14 @@ export function TravelPlannerForm({
           {isLoadingIpLocation && !ipLocation && (
             <div className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/20 p-3 text-xs text-muted-foreground">
               <Loader2Icon className="size-3.5 animate-spin" />
-              正在根据 IP 默认填入出发和返程城市...
+              {copy.loadingIp}
             </div>
           )}
 
           {ipLocation && !manualEndpointMode && !ipLocationError && (
             <div className="space-y-3 rounded-xl border border-sky-100 bg-sky-50/80 p-3">
               <div className="text-xs text-sky-800">
-                已根据当前 IP 识别到你在{" "}
-                <span className="font-semibold">{ipEndpointDisplay}</span>。
-                是否将出发和返程城市都设为这里？
+                {copy.ipDetected(ipEndpointDisplay)}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button
@@ -2509,7 +2536,7 @@ export function TravelPlannerForm({
                   size="sm"
                   type="button"
                 >
-                  确认
+                  {copy.confirm}
                 </Button>
                 <Button
                   className="w-full"
@@ -2525,7 +2552,7 @@ export function TravelPlannerForm({
                   type="button"
                   variant="outline"
                 >
-                  另选
+                  {copy.chooseDifferent}
                 </Button>
               </div>
             </div>
@@ -2533,14 +2560,14 @@ export function TravelPlannerForm({
 
           {ipLocationError && (
             <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              {ipLocationError} 请手动选择出发和返程城市。
+              {ipLocationError} {copy.manualEndpointHint}
             </div>
           )}
 
           {!manualEndpointMode && !ipLocation && !ipLocationError && (
             <div className="space-y-2 rounded-lg border border-border/40 bg-muted/20 p-3">
               <div className="text-xs text-muted-foreground">
-                如果没有识别到当前位置，请手动选择出发和返程城市。
+                {copy.manualEndpointHint}
               </div>
               <Button
                 className="w-full"
@@ -2550,7 +2577,7 @@ export function TravelPlannerForm({
                 type="button"
                 variant="outline"
               >
-                手动选择
+                {copy.manualChoose}
               </Button>
             </div>
           )}
@@ -2559,54 +2586,58 @@ export function TravelPlannerForm({
             <div className="space-y-3">
               <div className="space-y-2 rounded-lg border border-border/40 p-2.5">
                 <div className="text-xs font-medium text-muted-foreground">
-                  出发城市
+                  {copy.originCity}
                 </div>
                 <SearchableSingleSelect
                   disabled={busy || isLoadingCountryOptions}
+                  isZh={isZh}
                   onChange={(value) => {
                     setOriginCountry(value);
                     setOriginCity("");
                   }}
                   options={countryOptionsWithOther}
                   placeholder={
-                    isLoadingCountryOptions ? "正在加载国家..." : "选择出发国家"
+                    isLoadingCountryOptions ? copy.loadingCountry : copy.chooseOriginCountry
                   }
                   value={originCountry || null}
                 />
                 {originCountry === OTHER_COUNTRY_VALUE && (
                   <Input
                     onChange={(event) => setCustomOriginCountry(event.target.value)}
-                    placeholder="输入出发国家"
+                    placeholder={copy.originCountryInput}
                     type="text"
                     value={customOriginCountry}
                   />
                 )}
                 <SearchableSingleSelect
                   disabled={busy || !originCountry || isLoadingCityOptions}
+                  isZh={isZh}
                   onChange={setOriginCity}
                   options={originCityOptions}
                   placeholder={
                     !originCountry
-                      ? "请先选择出发国家"
+                      ? copy.chooseOriginCountryFirst
                       : originCountry === OTHER_COUNTRY_VALUE
-                        ? "可选“其他”后输入出发城市"
+                        ? copy.customOriginCityHint
                         : isLoadingCityOptions
-                          ? "正在加载城市..."
-                          : "选择出发城市"
+                          ? copy.loadingCity
+                          : copy.chooseOriginCity
                   }
                   value={originCity || null}
                 />
                 {originCountryForCityLookup &&
                   typeof cityCountByCountry[originCountryForCityLookup] === "number" && (
                     <div className="text-[11px] text-muted-foreground">
-                      {getCountryDisplayName(originCountryForCityLookup)} 已加载{" "}
-                      {cityCountByCountry[originCountryForCityLookup]} 个城市
+                      {copy.loadedCities(
+                        getCountryDisplayName(originCountryForCityLookup),
+                        cityCountByCountry[originCountryForCityLookup],
+                      )}
                     </div>
                   )}
                 {originCity === OTHER_CITY_VALUE && (
                   <Input
                     onChange={(event) => setCustomOriginCity(event.target.value)}
-                    placeholder="输入出发城市"
+                    placeholder={copy.originCityInput}
                     type="text"
                     value={customOriginCity}
                   />
@@ -2615,54 +2646,58 @@ export function TravelPlannerForm({
 
               <div className="space-y-2 rounded-lg border border-border/40 p-2.5">
                 <div className="text-xs font-medium text-muted-foreground">
-                  返程城市
+                  {copy.returnCity}
                 </div>
                 <SearchableSingleSelect
                   disabled={busy || isLoadingCountryOptions}
+                  isZh={isZh}
                   onChange={(value) => {
                     setReturnCountry(value);
                     setReturnCity("");
                   }}
                   options={countryOptionsWithOther}
                   placeholder={
-                    isLoadingCountryOptions ? "正在加载国家..." : "选择返程国家"
+                    isLoadingCountryOptions ? copy.loadingCountry : copy.chooseReturnCountry
                   }
                   value={returnCountry || null}
                 />
                 {returnCountry === OTHER_COUNTRY_VALUE && (
                   <Input
                     onChange={(event) => setCustomReturnCountry(event.target.value)}
-                    placeholder="输入返程国家"
+                    placeholder={copy.returnCountryInput}
                     type="text"
                     value={customReturnCountry}
                   />
                 )}
                 <SearchableSingleSelect
                   disabled={busy || !returnCountry || isLoadingCityOptions}
+                  isZh={isZh}
                   onChange={setReturnCity}
                   options={returnCityOptions}
                   placeholder={
                     !returnCountry
-                      ? "请先选择返程国家"
+                      ? copy.chooseReturnCountryFirst
                       : returnCountry === OTHER_COUNTRY_VALUE
-                        ? "可选“其他”后输入返程城市"
+                        ? copy.customReturnCityHint
                         : isLoadingCityOptions
-                          ? "正在加载城市..."
-                          : "选择返程城市"
+                          ? copy.loadingCity
+                          : copy.chooseReturnCity
                   }
                   value={returnCity || null}
                 />
                 {returnCountryForCityLookup &&
                   typeof cityCountByCountry[returnCountryForCityLookup] === "number" && (
                     <div className="text-[11px] text-muted-foreground">
-                      {getCountryDisplayName(returnCountryForCityLookup)} 已加载{" "}
-                      {cityCountByCountry[returnCountryForCityLookup]} 个城市
+                      {copy.loadedCities(
+                        getCountryDisplayName(returnCountryForCityLookup),
+                        cityCountByCountry[returnCountryForCityLookup],
+                      )}
                     </div>
                   )}
                 {returnCity === OTHER_CITY_VALUE && (
                   <Input
                     onChange={(event) => setCustomReturnCity(event.target.value)}
-                    placeholder="输入返程城市"
+                    placeholder={copy.returnCityInput}
                     type="text"
                     value={customReturnCity}
                   />
@@ -2675,7 +2710,7 @@ export function TravelPlannerForm({
                 onClick={submitEndpoints}
                 size="sm"
               >
-                确认出发和返程城市
+                {copy.confirmEndpoints}
               </Button>
             </div>
           )}
@@ -2726,7 +2761,7 @@ export function TravelPlannerForm({
           ))}
 
           <div className="text-[11px] text-muted-foreground">
-            顺序确认后会进入航班选择，再进入酒店选择。
+            {copy.orderHint}
           </div>
 
           <Button
@@ -2734,13 +2769,13 @@ export function TravelPlannerForm({
             disabled={busy}
             onClick={() => {
               if (travelOrder.length !== cities.length) {
-                toast.error("旅行顺序必须覆盖全部已选城市。");
+                toast.error(copy.orderIncomplete);
                 return;
               }
 
               for (const city of travelOrder) {
                 if (!citySet.has(city)) {
-                  toast.error("旅行顺序中有不在已选列表的城市。");
+                  toast.error(copy.orderInvalid);
                   return;
                 }
               }
@@ -2758,7 +2793,7 @@ export function TravelPlannerForm({
             }}
             size="sm"
           >
-            确认顺序
+            {copy.confirmOrder}
           </Button>
         </div>
       )}
@@ -2768,29 +2803,29 @@ export function TravelPlannerForm({
           {isLoadingFlights && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2Icon className="size-3.5 animate-spin" />
-              正在加载航班选项...
+              {copy.loadingFlights}
             </div>
           )}
 
           {flightLoadError && (
             <div className="rounded-md border border-amber-400/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-300">
-              航班 API 暂时不可用，无法生成默认航班。请稍后重试。({flightLoadError})
+              {copy.flightsUnavailable(flightLoadError)}
             </div>
           )}
 
           {!isLoadingFlights && !flightLoadError && flightLegsForSelection.length === 0 && (
             <div className="rounded-md border border-border/40 px-2.5 py-2 text-xs text-muted-foreground">
-              当前没有可选航段。
+              {copy.noFlightLegs}
             </div>
           )}
 
           {flightLegsForSelection.map((leg, index) => {
             const legIndex = index + 1;
             const options: Option[] = [
-              { value: "skip", label: "跳过此航段（其他交通）" },
+              { value: "skip", label: copy.skipFlight },
               ...leg.options.map((option, optionIndex) => ({
                 value: String(optionIndex + 1),
-                label: formatFlightLabel(option, optionIndex + 1),
+                label: formatFlightLabel(option, optionIndex + 1, copy),
               })),
             ];
             const selectedValue =
@@ -2806,11 +2841,15 @@ export function TravelPlannerForm({
                 key={`${leg.from}-${leg.to}-${leg.departure_date}-${legIndex}`}
               >
                 <div className="text-xs text-muted-foreground">
-                  航段 {legIndex}: {getCityDisplayName(leg.from)} →{" "}
-                  {getCityDisplayName(leg.to)}（{leg.departure_date}）
+                  {copy.leg(
+                    legIndex,
+                    getCityDisplayName(leg.from),
+                    getCityDisplayName(leg.to),
+                  )}（{leg.departure_date}）
                 </div>
                 <SearchableSingleSelect
                   disabled={busy}
+                  isZh={isZh}
                   onChange={(value) => {
                     setFlightSelectionDraft((current) => ({
                       ...current,
@@ -2818,7 +2857,7 @@ export function TravelPlannerForm({
                     }));
                   }}
                   options={options}
-                  placeholder="选择航班或跳过"
+                  placeholder={copy.chooseFlight}
                   value={selectedValue}
                 />
                 {leg.provider_unavailable && leg.provider_message && (
@@ -2828,39 +2867,41 @@ export function TravelPlannerForm({
                 )}
                 {selectedValue === "skip" && (
                   <div className="rounded-md border border-border/40 bg-muted/20 p-2 text-xs text-muted-foreground">
-                    该航段已选择跳过。
+                    {copy.flightSkipped}
                   </div>
                 )}
                 {selectedOption && (
                   <div className="space-y-1 rounded-md border border-border/40 bg-muted/20 p-2 text-xs">
-                    <div className="font-medium text-foreground">航班详情</div>
-                    <div>航空公司：{selectedOption.airline ?? "未知"}</div>
+                    <div className="font-medium text-foreground">{copy.flightDetails}</div>
+                    <div>{copy.airline}：{selectedOption.airline ?? copy.unknown}</div>
                     <div>
-                      价格：
+                      {copy.price}：
                       {selectedOption.price
                         ? `${selectedOption.price} ${selectedOption.currency ?? ""}`.trim()
-                        : "未知"}
+                        : copy.unknown}
                     </div>
-                    <div>出发时间：{selectedOption.departure ?? "未知"}</div>
-                    <div>到达时间：{selectedOption.arrival ?? "未知"}</div>
-                    <div>时长：{selectedOption.duration ?? "未知"}</div>
-                    <div>经停：{formatFlightStops(selectedOption.stops)}</div>
+                    <div>{copy.departureTime}：{selectedOption.departure ?? copy.unknown}</div>
+                    <div>{copy.arrivalTime}：{selectedOption.arrival ?? copy.unknown}</div>
+                    <div>{copy.duration}：{selectedOption.duration ?? copy.unknown}</div>
+                    <div>{copy.stops}：{formatFlightStops(selectedOption.stops, copy)}</div>
                     {selectedOption.departure_airport && (
-                      <div>出发机场：{selectedOption.departure_airport}</div>
+                      <div>{copy.departureAirport}：{selectedOption.departure_airport}</div>
                     )}
                     {selectedOption.arrival_airport && (
-                      <div>到达机场：{selectedOption.arrival_airport}</div>
+                      <div>{copy.arrivalAirport}：{selectedOption.arrival_airport}</div>
                     )}
                     {selectedOption.cabin_class && (
-                      <div>舱位：{selectedOption.cabin_class}</div>
+                      <div>{copy.cabin}：{selectedOption.cabin_class}</div>
                     )}
                     {selectedOption.flight_number && (
-                      <div>航班号：{selectedOption.flight_number}</div>
+                      <div>{copy.flightNumber}：{selectedOption.flight_number}</div>
                     )}
-                    {selectedOption.aircraft && <div>机型：{selectedOption.aircraft}</div>}
+                    {selectedOption.aircraft && (
+                      <div>{copy.aircraft}：{selectedOption.aircraft}</div>
+                    )}
                     {selectedOption.offer_token && (
                       <div className="break-all text-[11px] text-muted-foreground">
-                        Offer Token：{selectedOption.offer_token}
+                        {copy.offerToken}：{selectedOption.offer_token}
                       </div>
                     )}
                     {selectedOption.booking_url && (
@@ -2870,12 +2911,12 @@ export function TravelPlannerForm({
                         rel="noreferrer"
                         target="_blank"
                       >
-                        前往预订
+                        {copy.bookFlight}
                         <ExternalLinkIcon className="size-3" />
                       </a>
                     )}
                     <div className="text-[11px] text-muted-foreground">
-                      数据来源：{selectedOption.provider ?? "unknown"}
+                      {copy.source}：{selectedOption.provider ?? copy.unknown}
                     </div>
                   </div>
                 )}
@@ -2913,13 +2954,13 @@ export function TravelPlannerForm({
 
                 const optionIndex = Number(selectedValue);
                 if (!Number.isInteger(optionIndex) || optionIndex <= 0) {
-                  toast.error(`航段 ${legIndex} 的选择无效，请重新选择。`);
+                  toast.error(copy.invalidFlight(legIndex));
                   return;
                 }
 
                 const chosenOption = leg.options[optionIndex - 1];
                 if (!chosenOption) {
-                  toast.error(`航段 ${legIndex} 的航班已失效，请重新选择。`);
+                  toast.error(copy.expiredFlight(legIndex));
                   return;
                 }
 
@@ -2938,7 +2979,7 @@ export function TravelPlannerForm({
             }}
             size="sm"
           >
-            确认航班选择
+            {copy.confirmFlights}
           </Button>
         </div>
       )}
@@ -2948,29 +2989,29 @@ export function TravelPlannerForm({
           {isLoadingHotels && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2Icon className="size-3.5 animate-spin" />
-              正在加载酒店选项...
+              {copy.loadingHotels}
             </div>
           )}
 
           {hotelLoadError && (
             <div className="rounded-md border border-amber-400/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-300">
-              酒店 API 暂时不可用，无法生成默认酒店。请稍后重试。({hotelLoadError})
+              {copy.hotelsUnavailable(hotelLoadError)}
             </div>
           )}
 
           {!isLoadingHotels && !hotelLoadError && hotelStaysForSelection.length === 0 && (
             <div className="rounded-md border border-border/40 px-2.5 py-2 text-xs text-muted-foreground">
-              当前没有可选酒店。
+              {copy.noHotels}
             </div>
           )}
 
           {hotelStaysForSelection.map((stay, index) => {
             const stayIndex = index + 1;
             const options: Option[] = [
-              { value: "self", label: "不选择酒店（自行安排）" },
+              { value: "self", label: copy.selfArrangeHotel },
               ...stay.options.map((option, optionIndex) => ({
                 value: String(optionIndex + 1),
-                label: formatHotelLabel(option, optionIndex + 1),
+                label: formatHotelLabel(option, optionIndex + 1, copy),
               })),
             ];
             const selectedValue =
@@ -2988,11 +3029,17 @@ export function TravelPlannerForm({
                 key={`${stay.city}-${stay.check_in}-${stay.check_out}-${stayIndex}`}
               >
                 <div className="text-xs text-muted-foreground">
-                  城市 {stayIndex}: {getCityDisplayName(stay.city)}（
-                  {stay.check_in} ~ {stay.check_out}，{stay.nights} 晚）
+                  {copy.stay(
+                    stayIndex,
+                    getCityDisplayName(stay.city),
+                    stay.check_in,
+                    stay.check_out,
+                    stay.nights,
+                  )}
                 </div>
                 <SearchableSingleSelect
                   disabled={busy}
+                  isZh={isZh}
                   onChange={(value) => {
                     setHotelSelectionDraft((current) => ({
                       ...current,
@@ -3000,43 +3047,43 @@ export function TravelPlannerForm({
                     }));
                   }}
                   options={options}
-                  placeholder="选择酒店"
+                  placeholder={copy.chooseHotel}
                   value={selectedValue}
                 />
                 {selectedValue === "self" && (
                   <div className="rounded-md border border-border/40 bg-muted/20 p-2 text-xs text-muted-foreground">
-                    该城市酒店由你自行安排。
+                    {copy.hotelSelfArranged}
                   </div>
                 )}
                 {selectedOption && (
                   <div className="space-y-1 rounded-md border border-border/40 bg-muted/20 p-2 text-xs">
-                    <div className="font-medium text-foreground">酒店详情</div>
-                    <div>名称：{selectedOption.name ?? "未知"}</div>
+                    <div className="font-medium text-foreground">{copy.hotelDetails}</div>
+                    <div>{copy.name}：{selectedOption.name ?? copy.unknown}</div>
                     <div>
-                      均价/晚：
+                      {copy.averageNight}：
                       {selectedOption.average_price_per_night ??
                         selectedOption.price_per_night ??
-                        "未知"}
+                        copy.unknown}
                       {selectedOption.currency ? ` ${selectedOption.currency}` : ""}
                     </div>
                     {selectedOption.total_price && (
                       <div>
-                        总价：{selectedOption.total_price}
+                        {copy.totalPrice}：{selectedOption.total_price}
                         {selectedOption.currency ? ` ${selectedOption.currency}` : ""}
                       </div>
                     )}
                     {selectedOption.taxes_and_fees && (
                       <div>
-                        税费：{selectedOption.taxes_and_fees}
+                        {copy.taxes}：{selectedOption.taxes_and_fees}
                         {selectedOption.currency ? ` ${selectedOption.currency}` : ""}
                       </div>
                     )}
                     <div>
-                      评分：
+                      {copy.rating}：
                       {selectedOption.rating !== undefined &&
                       selectedOption.rating !== null
                         ? selectedOption.rating
-                        : "暂无"}
+                        : copy.notAvailable}
                     </div>
                     {selectedOption.address && (
                       <div className="flex items-start gap-1">
@@ -3046,18 +3093,18 @@ export function TravelPlannerForm({
                     )}
                     {(selectedOption.latitude || selectedOption.longitude) && (
                       <div>
-                        坐标：{selectedOption.latitude ?? "-"},{" "}
+                        {copy.coordinates}：{selectedOption.latitude ?? "-"},{" "}
                         {selectedOption.longitude ?? "-"}
                       </div>
                     )}
                     {selectedOption.distance_to_center && (
-                      <div>距市中心：{selectedOption.distance_to_center}</div>
+                      <div>{copy.distanceToCenter}：{selectedOption.distance_to_center}</div>
                     )}
                     {selectedOption.check_in_time && (
-                      <div>入住时间：{selectedOption.check_in_time}</div>
+                      <div>{copy.checkIn}：{selectedOption.check_in_time}</div>
                     )}
                     {selectedOption.check_out_time && (
-                      <div>离店时间：{selectedOption.check_out_time}</div>
+                      <div>{copy.checkOut}：{selectedOption.check_out_time}</div>
                     )}
                     {selectedOption.contact_phone && (
                       <div className="flex items-center gap-1">
@@ -3078,7 +3125,7 @@ export function TravelPlannerForm({
                         rel="noreferrer"
                         target="_blank"
                       >
-                        酒店官网/链接
+                        {copy.hotelLink}
                         <ExternalLinkIcon className="size-3" />
                       </a>
                     )}
@@ -3088,7 +3135,7 @@ export function TravelPlannerForm({
                       </div>
                     )}
                     <div className="text-[11px] text-muted-foreground">
-                      数据来源：{selectedOption.provider ?? "unknown"}
+                      {copy.source}：{selectedOption.provider ?? copy.unknown}
                     </div>
                   </div>
                 )}
@@ -3125,7 +3172,7 @@ export function TravelPlannerForm({
                     option: compactHotelOptionForMessage({
                       provider: "self-arranged",
                       city: stay.city,
-                      name: "自行安排",
+                      name: copy.selfArrangeValue,
                       check_in: stay.check_in,
                       check_out: stay.check_out,
                       adults: stay.adults,
@@ -3138,13 +3185,13 @@ export function TravelPlannerForm({
 
                 const optionIndex = Number(selectedValue);
                 if (!Number.isInteger(optionIndex) || optionIndex <= 0) {
-                  toast.error(`${getCityDisplayName(stay.city)} 的酒店选择无效，请重新选择。`);
+                  toast.error(copy.invalidHotel(getCityDisplayName(stay.city)));
                   return;
                 }
 
                 const chosenOption = stay.options[optionIndex - 1];
                 if (!chosenOption) {
-                  toast.error(`${getCityDisplayName(stay.city)} 的酒店选项已失效，请重新选择。`);
+                  toast.error(copy.expiredHotel(getCityDisplayName(stay.city)));
                   return;
                 }
 
@@ -3163,7 +3210,7 @@ export function TravelPlannerForm({
             }}
             size="sm"
           >
-            确认酒店选择
+            {copy.confirmHotels}
           </Button>
         </div>
       )}
@@ -3171,13 +3218,13 @@ export function TravelPlannerForm({
       {missingField === "final_note" && (
         <div className="space-y-3">
           <div className="text-xs text-muted-foreground">
-            可选：补充偏好、禁忌、特殊需求，并附上参考文件（文件名会一并发给模型）。
+            {copy.finalNote}
           </div>
 
           <Textarea
             className="min-h-24"
             onChange={(event) => setFinalNoteDraft(event.target.value)}
-            placeholder="例如：希望节奏慢一些；不吃海鲜；每天安排亲子活动。"
+            placeholder={copy.finalNotePlaceholder}
             value={finalNoteDraft}
           />
 
@@ -3219,7 +3266,7 @@ export function TravelPlannerForm({
             }}
             size="sm"
           >
-            确认备注并生成行程
+            {copy.confirmNote}
           </Button>
         </div>
       )}
