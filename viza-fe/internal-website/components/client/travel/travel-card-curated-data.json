@@ -3480,6 +3480,69 @@
     },
     {
       "cityKeys": [
+        "Bali",
+        "巴厘岛",
+        "bali"
+      ],
+      "cityLabel": "巴厘岛",
+      "name": "海神庙",
+      "location": "Tanah Lot Temple",
+      "imageSrc": "/travel/attractions/bali-tanah-lot.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bali-tanah-lot.jpg",
+      "description": "建在离岸岩礁上的巴厘岛标志性海神庙，退潮可近观岩礁，傍晚适合欣赏印度洋日落。",
+      "aliases": [
+        "Tanah Lot",
+        "Tanah Lot Temple",
+        "Pura Tanah Lot"
+      ],
+      "lat": -8.6212,
+      "lng": 115.0868
+    },
+    {
+      "cityKeys": [
+        "Bali",
+        "巴厘岛",
+        "bali"
+      ],
+      "cityLabel": "巴厘岛",
+      "name": "佩妮达岛与精灵海滩",
+      "location": "Nusa Penida and Kelingking Beach",
+      "imageSrc": "/travel/attractions/bali-nusa-penida-kelingking.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kelingking_Beach.jpg",
+      "description": "从巴厘岛乘船可达的离岛，以精灵海滩的悬崖海湾最具代表性，建议预留一整天并提前安排岛上交通。",
+      "aliases": [
+        "Nusa Penida",
+        "Kelingking Beach",
+        "Penida Island",
+        "珀尼达岛",
+        "佩尼达岛",
+        "精灵海滩"
+      ],
+      "lat": -8.750878,
+      "lng": 115.474183
+    },
+    {
+      "cityKeys": [
+        "Bali",
+        "巴厘岛",
+        "bali"
+      ],
+      "cityLabel": "巴厘岛",
+      "name": "水明漾海滩",
+      "location": "Seminyak Beach",
+      "imageSrc": "/travel/attractions/bali-seminyak-beach.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Seminyak_Beach.jpg",
+      "description": "巴厘岛西南岸适合看日落的长滩，周边餐厅、咖啡馆和精品店集中，适合安排轻松的半日行程。",
+      "aliases": [
+        "Seminyak Beach",
+        "Seminyak",
+        "塞米亚克海滩"
+      ],
+      "lat": -8.693475,
+      "lng": 115.15825
+    },
+    {
+      "cityKeys": [
         "paris",
         "巴黎"
       ],
