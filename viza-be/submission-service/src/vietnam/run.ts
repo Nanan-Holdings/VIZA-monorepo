@@ -1590,10 +1590,71 @@ export async function uploadVietnamFile(
   if (!response.ok()) {
     throw new Error(`official_document_upload_rejected_http_${response.status()}`);
   }
+  const responseBody = await response.text().catch(() => "");
+  const responseContentType = response.headers()["content-type"] ?? "";
+  const responseAccepted = isVietnamUploadResponseAccepted(
+    response.status(),
+    responseContentType,
+    responseBody,
+  );
+  if (responseAccepted === false) {
+    throw new Error("official_document_upload_rejected_payload");
+  }
+  if (responseAccepted === true) return;
   const previewAccepted = await waitForVietnamUploadPreview(page, domId, uploadIndex, labelPattern);
+  // The live portal currently removes/replaces Ant Upload's preview node after
+  // the API request succeeds. Treat the official JSON response as the primary
+  // acknowledgement and the rendered preview as an additional confirmation.
+  // We still fail closed for an empty/ambiguous 2xx response and never accept
+  // merely because the local file input contains a File object.
   if (!previewAccepted) {
     throw new Error("official_document_upload_preview_missing");
   }
+}
+
+export function isVietnamUploadResponseAccepted(
+  status: number,
+  contentType: string,
+  rawBody: string,
+): boolean | null {
+  if (status < 200 || status >= 300) return false;
+  if (status === 204) return true;
+  const body = rawBody.trim();
+  if (!body || !/application\/json/i.test(contentType)) return null;
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  if (payload === null || typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  const normalizedStatus = String(record.status ?? "").trim().toLowerCase();
+  const normalizedMessage = String(record.message ?? "").trim().toLowerCase();
+  const normalizedCode = String(record.code ?? "").trim().toLowerCase();
+  const explicitFailure =
+    record.success === false ||
+    Boolean(record.error) ||
+    /(?:fail|error|invalid|reject)/.test(normalizedStatus) ||
+    /(?:fail|error|invalid|reject)/.test(normalizedMessage) ||
+    (/^\d+$/.test(normalizedCode) && Number(normalizedCode) >= 400);
+  if (explicitFailure) return false;
+
+  const explicitSuccess =
+    record.success === true ||
+    record.status === true ||
+    /^(?:success|ok|done|completed)$/.test(normalizedStatus) ||
+    /^(?:success|ok|uploaded|upload successful)$/.test(normalizedMessage) ||
+    /^(?:0|200|success|ok)$/.test(normalizedCode);
+  if (explicitSuccess) return true;
+
+  const data = record.data;
+  if (typeof data === "string" && data.trim()) return true;
+  if (data && typeof data === "object" && Object.keys(data as Record<string, unknown>).length > 0) {
+    return true;
+  }
+  return null;
 }
 
 async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName: string): Promise<string> {
