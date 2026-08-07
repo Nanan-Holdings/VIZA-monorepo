@@ -1,5 +1,7 @@
 const DEFAULT_TRAVEL_BACKEND_URL = "http://127.0.0.1:8000";
-const DEFAULT_TRAVEL_BACKEND_TIMEOUT_MS = 20_000;
+// Live flight/hotel providers may need two bounded upstream lookups. Keep the
+// proxy timeout longer than the travel service's provider deadline.
+const DEFAULT_TRAVEL_BACKEND_TIMEOUT_MS = 35_000;
 
 function getTravelBackendTimeoutMs(): number {
   const configured = Number.parseInt(process.env.TRAVEL_BACKEND_TIMEOUT_MS ?? "", 10);

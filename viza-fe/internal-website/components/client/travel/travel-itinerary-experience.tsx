@@ -1364,6 +1364,7 @@ function getLocalizedHotelName(
   const rawName = option?.name?.trim();
   const localized = localizeKnownTravelText(rawName);
   if (localized && !containsLatinLetters(localized)) return localized;
+  if (rawName) return rawName;
   return `${getLocalCityLabel(fallbackCity)}酒店`;
 }
 
@@ -3901,22 +3902,34 @@ function buildApiOptionsPayload(
         : travelState.travel_order;
   const travelOrder =
     travelState.travel_order.length > 0 ? travelState.travel_order : cities;
+  const providerCities = cities.map((city) => getCityLabel(city, "en"));
+  const providerTravelOrder = travelOrder.map((city) => getCityLabel(city, "en"));
+  const providerCityDays = Object.fromEntries(
+    Object.entries(travelState.city_days).map(([city, days]) => [
+      getCityLabel(city, "en"),
+      days,
+    ])
+  );
 
   return {
     country: travelState.country ?? travelState.countries[0] ?? "",
     countries: travelState.countries,
-    cities,
-    city_days: travelState.city_days,
+    cities: providerCities,
+    city_days: providerCityDays,
     departure_date: travelState.departure_date ?? undefined,
     date_flexibility: travelState.date_flexibility ?? undefined,
     travel_days: travelState.travel_days ?? Math.max(1, cities.length),
     travelers: travelState.travelers ?? 1,
     budget: travelState.budget ?? 1,
-    travel_order: travelOrder,
+    travel_order: providerTravelOrder,
     origin_country: travelState.origin_country ?? undefined,
-    origin_city: travelState.origin_city ?? undefined,
+    origin_city: travelState.origin_city
+      ? getCityLabel(travelState.origin_city, "en")
+      : undefined,
     return_country: travelState.return_country ?? undefined,
-    return_city: travelState.return_city ?? undefined,
+    return_city: travelState.return_city
+      ? getCityLabel(travelState.return_city, "en")
+      : undefined,
     selected_flights: [],
     selected_hotels: [],
     final_note: travelState.final_note ?? "",

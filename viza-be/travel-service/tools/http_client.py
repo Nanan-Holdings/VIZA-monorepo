@@ -41,6 +41,9 @@ RAPIDAPI_MAX_KEEPALIVE_CONNECTIONS = min(
     RAPIDAPI_MAX_CONNECTIONS,
 )
 RAPIDAPI_REQUEST_CONCURRENCY = _env_int("RAPIDAPI_REQUEST_CONCURRENCY", 8)
+RAPIDAPI_RATE_LIMIT_RETRY_SECONDS = _env_float(
+    "RAPIDAPI_RATE_LIMIT_RETRY_SECONDS", 1.0
+)
 
 REQUEST_TIMEOUT = httpx.Timeout(
     connect=RAPIDAPI_CONNECT_TIMEOUT_SECONDS,
@@ -103,13 +106,26 @@ async def request_json(
 
     client = await get_http_client()
     async with _get_request_semaphore():
-        try:
-            response = await client.get(url, params=params, headers=headers)
-            response.raise_for_status()
-            return response.json()
-        except Exception as exc:
-            print(f"Travel provider request failed ({url}):", exc)
-            return None
+        for attempt in range(2):
+            try:
+                response = await client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 429 and attempt == 0:
+                    retry_after = exc.response.headers.get("retry-after")
+                    try:
+                        delay = float(retry_after) if retry_after else RAPIDAPI_RATE_LIMIT_RETRY_SECONDS
+                    except (TypeError, ValueError):
+                        delay = RAPIDAPI_RATE_LIMIT_RETRY_SECONDS
+                    await asyncio.sleep(max(0.1, min(delay, 2.0)))
+                    continue
+                print(f"Travel provider request failed ({url}):", exc)
+                return None
+            except Exception as exc:
+                print(f"Travel provider request failed ({url}):", exc)
+                return None
+    return None
 
 
 async def close_http_client() -> None:

@@ -1252,6 +1252,9 @@ function getDeclutteredPoints(
   selectedPointIds?: ReadonlySet<string>
 ): TripMapPoint[] {
   if (points.length <= 1) return points;
+  // City-level maps should expose the complete curated inventory immediately.
+  // Decluttering is still useful on world/region views, where markers overlap.
+  if (zoom >= 8) return points;
 
   const minDistance = clamp(iconSize * (zoom <= 3 ? 1.05 : 0.82), 42, 78);
   const rankedPoints = points
