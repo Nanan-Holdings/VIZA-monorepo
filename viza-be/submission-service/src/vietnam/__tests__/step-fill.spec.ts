@@ -12,6 +12,7 @@ import {
   resolveStepPlan,
 } from "../fillers.js";
 import {
+  dedupeVietnamUploadAnswers,
   getVnCountryAlpha3ForOptionText,
   getVnCountryOptionIndex,
   getVnCountrySearchTextForOptionText,
@@ -110,6 +111,20 @@ test("vn.step-fill: uploads and unanswered fields are excluded", () => {
   assert.ok(!plan.some((p) => p.type === "upload"), "no upload fields in plan");
   // only the 3 answered, non-upload fields are planned
   assert.equal(plan.length, 3);
+});
+
+test("vn.step-fill: duplicate passport aliases target the official upload only once", () => {
+  const answers = dedupeVietnamUploadAnswers({
+    portrait_photo: "C:/tmp/portrait.jpg",
+    passport_copy: "C:/tmp/passport.jpg",
+    passport_photo: "C:/tmp/passport.jpg",
+    surname: "ZHANG",
+  });
+
+  assert.equal(answers.portrait_photo, "C:/tmp/portrait.jpg");
+  assert.equal(answers.passport_copy, "C:/tmp/passport.jpg");
+  assert.equal(answers.passport_photo, undefined);
+  assert.equal(answers.surname, "ZHANG");
 });
 
 test("vn.step-fill: select option matching escapes portal labels", () => {

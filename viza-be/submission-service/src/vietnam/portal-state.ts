@@ -66,6 +66,8 @@ export interface VietnamReviewActionCandidate {
   isPrimary: boolean;
   type: string;
   top: number;
+  tagName?: string;
+  disabled?: boolean;
 }
 
 const REGISTRATION_CODE_PATTERN =
@@ -77,17 +79,26 @@ function normalizeText(value: string): string {
 
 function vietnamReviewActionPriority(candidate: VietnamReviewActionCandidate): number {
   const label = normalizeText(candidate.label).toLocaleLowerCase("vi");
-  let priority = /^(next|continue|tiếp tục)$/.test(label) ? 300 : 100;
+  let priority = /\b(next|continue)\b|tiếp\s+tục|xem\s+lại|下一步|继续/.test(label) ? 300 : 100;
   if (candidate.isPrimary) priority += 20;
   if (candidate.type.toLowerCase() === "submit") priority += 5;
   return priority;
+}
+
+function isVietnamReviewActionLabel(label: string): boolean {
+  const normalized = normalizeText(label);
+  return (
+    /\b(next|save|continue)\b/i.test(normalized) ||
+    /tiếp\s+tục|xem\s+lại|^lưu(?:\s|$)|下一步|继续/i.test(normalized)
+  );
 }
 
 export function chooseVietnamReviewAction(
   candidates: readonly VietnamReviewActionCandidate[],
 ): VietnamReviewActionCandidate | null {
   return [...candidates]
-    .filter((candidate) => /^(next|save|continue|tiếp tục|lưu)$/i.test(normalizeText(candidate.label)))
+    .filter((candidate) => !candidate.disabled)
+    .filter((candidate) => isVietnamReviewActionLabel(candidate.label))
     .sort((left, right) => {
       const priorityDifference =
         vietnamReviewActionPriority(right) - vietnamReviewActionPriority(left);

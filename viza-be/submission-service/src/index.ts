@@ -3537,6 +3537,8 @@ function redactedVnDiagnostics(result: FillVietnamResult): Record<string, unknow
     captchaSolves: diagnostics.captchaSolves,
     validationErrors: diagnostics.validationErrors,
     fieldFallbacks: diagnostics.fieldFallbacks,
+    proxiedPublicRequestCount: diagnostics.proxiedPublicRequestCount,
+    publicProxyFailures: diagnostics.publicProxyFailures?.map(redactVnDiagnosticText),
     tracePath: diagnostics.tracePath,
     finalScreenshotPath: diagnostics.finalScreenshotPath,
     lastSnapshot: snapshot
@@ -3596,6 +3598,7 @@ function buildVnQueuePayload(
     return {
       ...base,
       reason: result.reason,
+      errorCode: result.errorCode,
       checkpoint: result.checkpoint,
       url: result.url,
     };
@@ -4615,7 +4618,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           last_error: reason,
           vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
           official_status: "official_portal_error",
-          error_code: "registration_code_not_found",
+          error_code: result.errorCode ?? "registration_code_not_found",
           error_message: reason,
           current_stage: result.checkpoint ?? "layout_changed",
           official_portal_url: result.url ?? null,

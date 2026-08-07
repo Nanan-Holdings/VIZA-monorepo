@@ -9,6 +9,7 @@ import {
   shouldTryVietnamFallbackLanding,
   type VietnamPortalSnapshot,
 } from "../portal-state";
+import { VN_STOP_BUTTON_PATTERNS } from "../field-mappings.js";
 
 test("Vietnam review action: Next outranks a later primary Save button", () => {
   assert.deepEqual(
@@ -29,6 +30,46 @@ test("Vietnam review action: accepts localized Continue and ignores unrelated co
     ]),
     { domIndex: 3, label: "Tiếp tục", isPrimary: false, type: "button", top: 705 },
   );
+});
+
+test("Vietnam review action: accepts safe suffix text and excludes disabled candidates", () => {
+  assert.deepEqual(
+    chooseVietnamReviewAction([
+      {
+        domIndex: 1,
+        label: "Next",
+        isPrimary: true,
+        type: "button",
+        top: 700,
+        disabled: true,
+      },
+      {
+        domIndex: 2,
+        label: "Continue to review",
+        isPrimary: false,
+        type: "button",
+        top: 705,
+        disabled: false,
+      },
+    ]),
+    {
+      domIndex: 2,
+      label: "Continue to review",
+      isPrimary: false,
+      type: "button",
+      top: 705,
+      disabled: false,
+    },
+  );
+});
+
+test("Vietnam review action: never treats submit or payment labels as review actions", () => {
+  const stopped = (label: string) => VN_STOP_BUTTON_PATTERNS.some((pattern) => pattern.test(label));
+  assert.equal(stopped("Save and submit"), true);
+  assert.equal(stopped("Continue to payment"), true);
+  assert.equal(stopped("Proceed to payment"), true);
+  assert.equal(stopped("Pay now"), true);
+  assert.equal(stopped("Continue to review"), false);
 });
 
 function snapshot(overrides: Partial<VietnamPortalSnapshot>): VietnamPortalSnapshot {
