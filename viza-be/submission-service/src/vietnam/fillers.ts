@@ -76,6 +76,21 @@ const VN_PORTAL_OPTION_ALIASES: Record<string, string[]> = {
   cash: ["Cash", "Tiền mặt"],
   "credit card": ["Credit card", "Thẻ tín dụng"],
   "traveller s cheques": ["Traveller's cheques", "Traveler's cheques", "Séc du lịch"],
+  "cat bi int airport hai phong": [
+    "Cat Bi Int Airport (Hai Phong)",
+    "Cửa khẩu Cảng hàng không quốc tế Cát Bi",
+    "Cảng hàng không quốc tế Cát Bi",
+    "Sân bay quốc tế Cát Bi",
+    "SBQT Cát Bi",
+  ],
+  "bo y landport": [
+    "Bo Y Landport",
+    "Cửa khẩu Bờ Y",
+    "Cửa khẩu quốc tế Bờ Y",
+    "CKQT Bờ Y",
+    "CK Bờ Y",
+    "Bờ Y",
+  ],
 };
 
 async function settle(page: Page): Promise<void> {
@@ -113,6 +128,16 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
       await settle(page);
       return;
     }
+  } else {
+    // Wards and border gates are long virtual lists without a stable index.
+    // Scan the localized list before replaying typed searches, because the
+    // Vietnamese portal often returns no results for an English label.
+    await openFullSelectListForIndexedScroll(page, domId);
+    const scanned = await scrollSelectOptionByText(page, matchTexts, deadline);
+    if (scanned.ok && (await selectDisplayMatches(page, domId, matchTexts))) {
+      await settle(page);
+      return;
+    }
   }
   const result = await page.evaluate(
     async ({ domId, matchTexts, searchTerms, timeoutMs }) => {
@@ -121,6 +146,7 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
       const normalize = (value: string) =>
         value
           .normalize("NFD")
+          .replace(/[Đđ]/g, "d")
           .replace(/[\u0300-\u036f]/g, "")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, " ")
@@ -416,13 +442,26 @@ async function pickSelectWithPlaywright(
       return { ok: true, candidates };
     }
   }
+  // The live portal virtualizes long ward and border-gate lists and its
+  // Vietnamese build does not reliably filter on the English schema label.
+  // Walk the rendered list before falling back to typed search. This keeps
+  // the applicant's exact choice while allowing localized aliases to match.
+  await openFullSelectListForIndexedScroll(page, domId);
+  const scanned = await scrollSelectOptionByText(page, matchTexts, deadline);
+  if (scanned.ok) {
+    await page.waitForTimeout(500);
+    if (await selectDisplayMatches(page, domId, matchTexts)) {
+      return { ok: true, candidates: scanned.candidates };
+    }
+  }
   // Preserve one exact term per localized alias. Taking the first generic
   // prefixes can fill the whole fallback budget before Vietnamese labels are
   // ever tried (for example Single-entry -> Một lần).
   const fallbackSearchTerms = matchTexts.slice(0, 4);
+  const scannedCandidates = scanned.candidates;
   for (const searchTerm of fallbackSearchTerms) {
     if (Date.now() >= deadline) {
-      return { ok: false, reason: "select_field_timeout", candidates: [] };
+      return { ok: false, reason: "select_field_timeout", candidates: scannedCandidates };
     }
     await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
     await page.waitForTimeout(150);
@@ -460,10 +499,68 @@ async function pickSelectWithPlaywright(
       candidates = await readVisibleSelectCandidates(page);
     }
     if (searchTerm === fallbackSearchTerms[fallbackSearchTerms.length - 1]) {
-      return { ok: false, reason: "playwright_selection_not_confirmed", candidates };
+      return {
+        ok: false,
+        reason: "playwright_selection_not_confirmed",
+        candidates: [...scannedCandidates, ...candidates].filter(
+          (candidate, index, allCandidates) => allCandidates.indexOf(candidate) === index,
+        ),
+      };
     }
   }
-  return { ok: false, reason: "playwright_selection_not_confirmed", candidates: [] };
+  return { ok: false, reason: "playwright_selection_not_confirmed", candidates: scannedCandidates };
+}
+
+async function scrollSelectOptionByText(
+  page: Page,
+  matchTexts: string[],
+  deadline: number,
+): Promise<{ ok: boolean; candidates: string[] }> {
+  const seen: string[] = [];
+  let lastScrollTop = -1;
+  for (let attempt = 0; attempt < 160 && Date.now() < deadline; attempt += 1) {
+    const clicked = await clickVisibleSelectOptionIfPresent(page, matchTexts);
+    for (const candidate of clicked.candidates) {
+      if (!seen.includes(candidate)) seen.push(candidate);
+    }
+    if (clicked.ok) return { ok: true, candidates: seen };
+
+    const position = await page.evaluate(() => {
+      const visible = (element: HTMLElement) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          !element.classList.contains("ant-select-dropdown-hidden") &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      const panel = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
+        .filter(visible)
+        .find((dropdown) => dropdown.querySelector(".ant-select-item-option, [role='option']"));
+      const holder = panel?.querySelector<HTMLElement>(".rc-virtual-list-holder");
+      if (!holder) return null;
+      const maximum = Math.max(0, holder.scrollHeight - holder.clientHeight);
+      const next = Math.min(maximum, holder.scrollTop + Math.max(120, Math.floor(holder.clientHeight * 0.75)));
+      holder.scrollTop = next;
+      holder.dispatchEvent(new Event("scroll", { bubbles: true }));
+      return { scrollTop: next, maximum };
+    }).catch(() => null);
+    if (!position || position.scrollTop === lastScrollTop) break;
+    lastScrollTop = position.scrollTop;
+    await page.waitForTimeout(180);
+    if (position.scrollTop >= position.maximum) {
+      const finalClick = await clickVisibleSelectOptionIfPresent(page, matchTexts);
+      for (const candidate of finalClick.candidates) {
+        if (!seen.includes(candidate)) seen.push(candidate);
+      }
+      if (finalClick.ok) return { ok: true, candidates: seen };
+      break;
+    }
+  }
+  return { ok: false, candidates: seen.slice(0, 80) };
 }
 
 async function openFullSelectListForIndexedScroll(page: Page, domId: string): Promise<void> {
@@ -549,6 +646,7 @@ async function clickVisibleSelectOptionIfPresent(
     const normalize = (value: string) =>
       value
         .normalize("NFD")
+        .replace(/[Đđ]/g, "d")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, " ")
@@ -604,6 +702,7 @@ async function selectDisplayMatches(page: Page, domId: string, matchTexts: strin
       const normalize = (value: string) =>
         value
           .normalize("NFD")
+          .replace(/[Đđ]/g, "d")
           .replace(/[\u0300-\u036f]/g, "")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, " ")
@@ -824,6 +923,7 @@ export function buildAntSelectOptionRegex(optionText: string): RegExp {
 function normalizeAntSelectText(value: string): string {
   return value
     .normalize("NFD")
+    .replace(/[Đđ]/g, "d")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")

@@ -744,6 +744,29 @@ test("vn.conditional-fields browser: selects Panama from a virtualized official 
   }
 });
 
+test("vn.conditional-fields browser: scans a localized virtual list for a saved ward", { timeout: 45_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const options = Array.from({ length: 50 }, (_, index) => `Phường thử ${index + 1}`);
+    options[42] = "Đặc khu Kiên Hải";
+    await page.setContent(`
+      <!doctype html>
+      <html>
+        <body>
+          ${renderVirtualAntSelect("basic_ttcdPhuongXa", options)}
+        </body>
+      </html>
+    `);
+
+    await pickSelect(page, "basic_ttcdPhuongXa", "DAC KHU KIEN HAI");
+
+    assert.equal((await page.locator(".ant-select-selection-item").innerText()).trim(), "Đặc khu Kiên Hải");
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.conditional-fields browser: selects Vietnamese country and radio labels", { timeout: 15_000 }, async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();

@@ -118,6 +118,11 @@ test("vn.step-fill: select option matching escapes portal labels", () => {
   assert.equal(pattern.test("Cat Bi Int Airport Hai Phong"), false);
 });
 
+test("vn.step-fill: current Vietnamese border-gate labels preserve the saved English choice", () => {
+  assert.ok(buildAntSelectMatchTexts("Cat Bi Int Airport (Hai Phong)").includes("SBQT Cát Bi"));
+  assert.ok(buildAntSelectMatchTexts("Bo Y Landport").includes("Cửa khẩu Bờ Y"));
+});
+
 test("vn.step-fill: free-text occupations map to official portal categories", () => {
   assert.equal(normalizeVnOccupationOption("Software engineer"), "Employee");
   assert.equal(normalizeVnOccupationOption("Self-employed consultant"), "Businessman");
