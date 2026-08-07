@@ -30,7 +30,6 @@ import {
   fillVietnamConditionalRepeatGroups,
   validateVietnamConditionalAnswers,
 } from "./conditional-fields";
-import { uncheckedVietnamDeclarationIndexes } from "./declaration";
 import {
   dedupeVietnamUploadAnswers,
   getVnPortalOptionText,
@@ -1386,7 +1385,7 @@ async function readCheckboxContextText(input: Locator): Promise<string> {
     .catch(() => "");
 }
 
-async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
+export async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
   await page
     .evaluate(() => {
       window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" as ScrollBehavior });
@@ -1399,38 +1398,79 @@ async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
     .catch(() => undefined);
   await page.waitForTimeout(300);
 
-  const checkboxInputs = page.locator("input[type='checkbox']:visible");
-  const checkedStates = await checkboxInputs
-    .evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).checked))
-    .catch(() => [] as boolean[]);
-  for (const index of uncheckedVietnamDeclarationIndexes(checkedStates)) {
-    const checkbox = checkboxInputs.nth(index);
-    const contextText = await readCheckboxContextText(checkbox);
-    if (isForbiddenVietnamAutoCheckboxText(contextText)) continue;
-    await checkbox.check({ force: true }).catch(() => undefined);
+  // The declaration controls hydrate after the surrounding NOTE copy. Wait
+  // for the visible wrappers instead of treating that brief gap as a manual
+  // checkpoint. Ant Design also keeps the native inputs hidden, so the wrapper
+  // is the reliable visible/actionable surface.
+  const firstVisibleWrapper = page.locator(".ant-checkbox-wrapper").first();
+  const wrapperHydrated = await firstVisibleWrapper
+    .waitFor({ state: "visible", timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!wrapperHydrated) {
+    await page
+      .locator("input[type='checkbox']")
+      .first()
+      .waitFor({ state: "visible", timeout: 2_000 })
+      .catch(() => undefined);
   }
-  const allChecked =
-    (await checkboxInputs.count()) >= 2 &&
-    (await checkboxInputs
-      .evaluateAll((inputs) =>
-        inputs.every((input) => {
-          const htmlInput = input as HTMLInputElement;
-          const label = input.closest("label") ?? input.closest(".ant-checkbox-wrapper") ?? input.parentElement;
-          const contextText = [
-            input.getAttribute("aria-label"),
-            input.getAttribute("name"),
-            input.getAttribute("id"),
-            label?.textContent,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          if (/agree\s+to\s+create\s+account\s+by\s+email|create\s+account\s+by\s+email/i.test(contextText)) {
-            return true;
-          }
-          return htmlInput.checked;
-        }),
-      )
-      .catch(() => false));
+
+  const wrappers = page.locator(".ant-checkbox-wrapper:visible");
+  const wrapperCount = await wrappers.count();
+  let declarationCount = 0;
+  let allChecked = true;
+
+  if (wrapperCount >= 2) {
+    for (let index = 0; index < wrapperCount; index++) {
+      const wrapper = wrappers.nth(index);
+      const checkbox = wrapper.locator("input[type='checkbox']").first();
+      const contextText = [
+        await wrapper.innerText().catch(() => ""),
+        (await checkbox.count()) > 0 ? await readCheckboxContextText(checkbox) : "",
+      ].join(" ");
+      if (isForbiddenVietnamAutoCheckboxText(contextText)) continue;
+      declarationCount++;
+
+      const isChecked = async (): Promise<boolean> =>
+        (await checkbox.count()) > 0
+          ? checkbox.isChecked().catch(() => false)
+          : wrapper.locator(".ant-checkbox-checked").count().then((count) => count > 0);
+      if (!(await isChecked())) {
+        const checkedNative =
+          (await checkbox.count()) > 0 &&
+          (await checkbox.check({ force: true }).then(() => true).catch(() => false));
+        if (!checkedNative || !(await isChecked())) {
+          // A few Ant builds reject Playwright's actionability check for the
+          // zero-sized native input. Native click still emits the click/input/
+          // change sequence consumed by Vue, and stays scoped to this exact
+          // declaration control.
+          await checkbox
+            .evaluate((element) => (element as HTMLInputElement).click())
+            .catch(() => undefined);
+        }
+        if (!(await isChecked())) {
+          await wrapper.click({ force: true }).catch(() => undefined);
+        }
+      }
+      if (!(await isChecked())) allChecked = false;
+    }
+  } else {
+    const checkboxInputs = page.locator("input[type='checkbox']:visible");
+    const checkedStates = await checkboxInputs
+      .evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).checked))
+      .catch(() => [] as boolean[]);
+    for (let index = 0; index < checkedStates.length; index++) {
+      const checkbox = checkboxInputs.nth(index);
+      const contextText = await readCheckboxContextText(checkbox);
+      if (isForbiddenVietnamAutoCheckboxText(contextText)) continue;
+      declarationCount++;
+      if (!checkedStates[index]) {
+        await checkbox.check({ force: true }).catch(() => undefined);
+      }
+      if (!(await checkbox.isChecked().catch(() => false))) allChecked = false;
+    }
+  }
+  allChecked = declarationCount >= 2 && allChecked;
   if (!allChecked) return false;
 
   const clicked = await page
