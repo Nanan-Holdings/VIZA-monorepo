@@ -1578,6 +1578,7 @@ export async function uploadVietnamFile(
         ? byId
         : page.locator('input[type="file"]').nth(uploadIndex);
   const expectedUploadFilename = path.basename(uploadPath);
+  const uploadBuffer = fs.readFileSync(uploadPath);
   const officialUploadResponse = page.waitForResponse(
     (response) =>
       isVietnamPublicUploadRequest(response.request().method(), response.url()) &&
@@ -1587,7 +1588,17 @@ export async function uploadVietnamFile(
       ),
     { timeout: 30_000 },
   );
-  await fileInput.setInputFiles(uploadPath, { timeout: 20_000 });
+  // Pass an explicit FilePayload instead of a filesystem path. The official
+  // API validates both the multipart filename and the part Content-Type, so do
+  // not rely on remote Chromium inferring MIME from a temporary path.
+  await fileInput.setInputFiles(
+    {
+      name: expectedUploadFilename,
+      mimeType: "image/jpeg",
+      buffer: uploadBuffer,
+    },
+    { timeout: 20_000 },
+  );
   const response = await officialUploadResponse.catch(() => null);
   if (!response) {
     throw new Error("official_document_upload_response_missing");
