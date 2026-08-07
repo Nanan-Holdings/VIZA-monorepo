@@ -1187,6 +1187,13 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
   `;
 }
 
+function syntheticPngFixture(): Buffer {
+  return Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2l7sAAAAASUVORK5CYII=",
+    "base64",
+  );
+}
+
 test("vn.upload response: accepts explicit official JSON success and rejects semantic failure", () => {
   assert.equal(
     isVietnamUploadResponseAccepted(
@@ -1207,13 +1214,53 @@ test("vn.upload response: accepts explicit official JSON success and rejects sem
   assert.equal(isVietnamUploadResponseAccepted(200, "text/html", "ok"), null);
 });
 
+test("vn.upload browser: a verified PNG downloaded as .bin is uploaded with an accepted filename", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
+  const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-normalized-name-"));
+  const filePath = join(tempDir, "portrait_photo.bin");
+  writeFileSync(filePath, syntheticPngFixture());
+  let multipartBody = "";
+  try {
+    await page.route(uploadUrl, (route) => {
+      multipartBody = route.request().postDataBuffer()?.toString("latin1") ?? "";
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ code: "200", message: "Thành công", data: { url: "/fixture.png" } }),
+      });
+    });
+    await page.setContent(`
+      <div class="ant-form-item">
+        <label>Portrait photography</label>
+        <input id="basic_anhMat" type="file" />
+      </div>
+      <script>
+        document.querySelector('#basic_anhMat').addEventListener('change', async (event) => {
+          const body = new FormData();
+          body.append('file', event.target.files[0]);
+          await fetch('${uploadUrl}', { method: 'POST', body });
+        });
+      </script>
+    `);
+
+    await uploadVietnamFile(page, "basic_anhMat", filePath, "portrait_photo");
+    assert.match(multipartBody, /filename="portrait_photo-vietnam-upload\.png"/);
+  } finally {
+    await browser.close();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("vn.upload browser: official JSON success is accepted when the portal replaces its preview node", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
   const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-api-accepted-"));
   const filePath = join(tempDir, "portrait.jpg");
-  writeFileSync(filePath, Buffer.from("synthetic-image-fixture"));
+  writeFileSync(filePath, syntheticPngFixture());
   try {
     await page.route(uploadUrl, (route) =>
       route.fulfill({
@@ -1253,7 +1300,7 @@ test("vn.upload browser: official 4xx is never accepted from local input preview
   const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
   const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-rejected-"));
   const filePath = join(tempDir, "portrait.jpg");
-  writeFileSync(filePath, Buffer.from("synthetic-image-fixture"));
+  writeFileSync(filePath, syntheticPngFixture());
   try {
     await page.route(uploadUrl, (route) =>
       route.fulfill({
@@ -1300,7 +1347,7 @@ test("vn.upload browser: official 2xx plus completed preview is accepted", async
   const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
   const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-accepted-"));
   const filePath = join(tempDir, "passport.jpg");
-  writeFileSync(filePath, Buffer.from("synthetic-image-fixture"));
+  writeFileSync(filePath, syntheticPngFixture());
   try {
     await page.route(uploadUrl, (route) =>
       route.fulfill({
