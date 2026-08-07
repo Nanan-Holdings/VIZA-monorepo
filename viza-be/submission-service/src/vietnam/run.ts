@@ -1882,6 +1882,157 @@ interface VietnamReviewAdvanceResult {
 const VN_REVIEW_ACTION_SELECTOR =
   "button, a, [role='button'], input[type='button'], input[type='submit']";
 
+const VN_APPLICATION_DECLARATION_ID = "basic_ttcdCqTcCamDoan";
+const VN_APPLICATION_DECLARATION_TEXT =
+  /i hereby declare|i declare|temporary residence|tôi\s+(?:xin\s+)?(?:cam\s+đoan|xác\s+nhận|đồng\s+ý)|cam\s*(?:đoan|kết)/i;
+
+interface VietnamReviewBlockerDiagnostics {
+  requiredUnfilled: string[];
+  invalidControls: string[];
+  validationMessages: Array<{ label: string; message: string; domId?: string }>;
+  declaration: {
+    found: boolean;
+    checked: boolean;
+    identifier: string | null;
+  };
+}
+
+async function readVietnamReviewBlockerDiagnostics(
+  page: Page,
+): Promise<VietnamReviewBlockerDiagnostics> {
+  const domDiagnostics = await page
+    .evaluate(({ declarationId, declarationPattern }) => {
+      const pattern = new RegExp(declarationPattern, "i");
+      const identifier = (element: Element) =>
+        (
+          element.getAttribute("id") ||
+          element.getAttribute("name") ||
+          element.getAttribute("aria-label") ||
+          element.getAttribute("placeholder") ||
+          element.tagName.toLowerCase()
+        ).replace(/\s+/g, " ").trim().slice(0, 120);
+      const visible = (element: Element) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      };
+      const requiredUnfilled = Array.from(
+        document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+          "input[required], textarea[required], select[required], [aria-required='true']",
+        ),
+      )
+        .filter((control) => {
+          if (control instanceof HTMLInputElement && control.type === "checkbox") return !control.checked;
+          if (control instanceof HTMLInputElement && control.type === "radio") {
+            const name = control.name;
+            return name
+              ? !document.querySelector<HTMLInputElement>(`input[type='radio'][name='${CSS.escape(name)}']:checked`)
+              : !control.checked;
+          }
+          return !(control as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value?.trim();
+        })
+        .map(identifier)
+        .filter(Boolean)
+        .slice(0, 20);
+      const invalidControls = Array.from(
+        document.querySelectorAll<HTMLElement>("[aria-invalid='true'], .ant-form-item-has-error input, .ant-form-item-has-error textarea, .ant-form-item-has-error select"),
+      )
+        .map(identifier)
+        .filter(Boolean)
+        .slice(0, 20);
+      const declarationCandidates = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          `#${CSS.escape(declarationId)}, input[type='checkbox'], [role='checkbox']`,
+        ),
+      );
+      const declaration = declarationCandidates.find((element) => {
+        if (element.id === declarationId) return true;
+        const scope = element.closest("label, .ant-checkbox-wrapper") ?? element;
+        const text = [
+          element.getAttribute("aria-label"),
+          element.getAttribute("name"),
+          element.getAttribute("id"),
+          scope.textContent,
+        ].filter(Boolean).join(" ");
+        return visible(scope) && pattern.test(text);
+      });
+      const declarationInput = declaration instanceof HTMLInputElement
+        ? declaration
+        : declaration?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+      const declarationScope = declaration?.closest("label, .ant-checkbox-wrapper") ?? declaration;
+      const declarationChecked = Boolean(
+        declarationInput?.checked ||
+        declaration?.getAttribute("aria-checked") === "true" ||
+        declarationScope?.getAttribute("aria-checked") === "true" ||
+        declarationScope?.querySelector(".ant-checkbox-checked"),
+      );
+      return {
+        requiredUnfilled: Array.from(new Set(requiredUnfilled)),
+        invalidControls: Array.from(new Set(invalidControls)),
+        declaration: {
+          found: Boolean(declaration),
+          checked: declarationChecked,
+          identifier: declaration ? identifier(declaration) : null,
+        },
+      };
+    }, {
+      declarationId: VN_APPLICATION_DECLARATION_ID,
+      declarationPattern: VN_APPLICATION_DECLARATION_TEXT.source,
+    })
+    .catch(() => ({
+      requiredUnfilled: [] as string[],
+      invalidControls: [] as string[],
+      declaration: { found: false, checked: false, identifier: null as string | null },
+    }));
+  const validationMessages = await readVietnamValidationErrors(page).catch(() => []);
+  return {
+    ...domDiagnostics,
+    validationMessages: validationMessages.slice(0, 20),
+  };
+}
+
+export async function ensureVietnamApplicationDeclarationChecked(page: Page): Promise<boolean> {
+  const exactInput = page.locator(`#${cssEscape(VN_APPLICATION_DECLARATION_ID)}`).first();
+  const exactCount = await exactInput.count().catch(() => 0);
+  if (exactCount > 0) {
+    const contextText = await readCheckboxContextText(exactInput);
+    if (!isForbiddenVietnamAutoCheckboxText(contextText)) {
+      await exactInput.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
+      await exactInput.check({ force: true, timeout: 5_000 }).catch(async () => {
+        const wrapper = exactInput.locator("xpath=ancestor-or-self::label[1] | ancestor-or-self::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-checkbox-wrapper ')][1]");
+        await wrapper.first().click({ force: true, timeout: 5_000 }).catch(() => undefined);
+      });
+      const checked = await exactInput.isChecked().catch(() => false);
+      if (checked) return true;
+    }
+  }
+
+  const candidates = page.locator("input[type='checkbox'], [role='checkbox']");
+  const count = await candidates.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    const contextText = await readCheckboxContextText(candidate);
+    if (
+      isForbiddenVietnamAutoCheckboxText(contextText) ||
+      !VN_APPLICATION_DECLARATION_TEXT.test(contextText)
+    ) {
+      continue;
+    }
+    const isNativeCheckbox = await candidate
+      .evaluate((element) => element instanceof HTMLInputElement && element.type === "checkbox")
+      .catch(() => false);
+    if (isNativeCheckbox) {
+      await candidate.check({ force: true, timeout: 5_000 }).catch(() => undefined);
+      if (await candidate.isChecked().catch(() => false)) return true;
+      continue;
+    }
+    if (await candidate.getAttribute("aria-checked") === "true") return true;
+    await candidate.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+    if (await candidate.getAttribute("aria-checked") === "true") return true;
+  }
+  return false;
+}
+
 export async function collectVietnamReviewActionCandidates(
   page: Page,
 ): Promise<VietnamReviewActionCandidate[]> {
@@ -1937,43 +2088,33 @@ export async function advanceVietnamToReview(
   // its label does NOT match one of the stop patterns. If the dominant
   // action is already a Pay/Submit button, leave the page where it is —
   // the registration-code capture either succeeds or returns null.
-  await page.evaluate(() => {
-    const visible = (element: Element | null): element is HTMLElement => {
-      if (!element) return false;
-      const style = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-    };
-    const declarationWrapper = Array.from(document.querySelectorAll<HTMLElement>(".ant-checkbox-wrapper"))
-      .filter(visible)
-      .find((wrapper) => /i hereby declare|cam đoan|cam kết/i.test(wrapper.innerText || wrapper.textContent || ""));
-    const declarationInput = declarationWrapper?.querySelector<HTMLInputElement>('input[type="checkbox"]');
-    const isChecked =
-      declarationInput?.checked ||
-      declarationWrapper?.querySelector(".ant-checkbox-checked") !== null ||
-      declarationWrapper?.getAttribute("aria-checked") === "true";
-    if (declarationWrapper && !isChecked) {
-      declarationWrapper.scrollIntoView({ block: "center" });
-      declarationWrapper.click();
-    }
-  });
-  await page.waitForTimeout(300);
+  const declarationChecked = await ensureVietnamApplicationDeclarationChecked(page);
+  if (!declarationChecked) {
+    console.warn("[vn] The required application declaration could not be verified as checked.");
+  }
 
-  const candidates = await collectVietnamReviewActionCandidates(page);
-  const selected = chooseVietnamReviewAction(candidates);
+  const enableDeadline = Date.now() + Math.min(timeoutMs, 5_000);
+  let candidates = await collectVietnamReviewActionCandidates(page);
+  let selected = chooseVietnamReviewAction(candidates);
+  while (!selected && Date.now() < enableDeadline) {
+    await page.waitForTimeout(250);
+    candidates = await collectVietnamReviewActionCandidates(page);
+    selected = chooseVietnamReviewAction(candidates);
+  }
   if (!selected) {
     const disabledCandidate = chooseVietnamReviewAction(
       candidates
         .filter((candidate) => candidate.disabled)
         .map((candidate) => ({ ...candidate, disabled: false })),
     );
-    const diagnostic = candidates.slice(-12).map((candidate) => ({
+    const actions = candidates.slice(-12).map((candidate) => ({
       label: candidate.label,
       tagName: candidate.tagName,
       disabled: Boolean(candidate.disabled),
     }));
+    const blockers = await readVietnamReviewBlockerDiagnostics(page);
     console.warn(
-      `[vn] No enabled safe review action was available after filling the application form: ${JSON.stringify(diagnostic)}`,
+      `[vn] No enabled safe review action was available after filling the application form: ${JSON.stringify({ actions, blockers })}`,
     );
     return {
       advanced: false,
