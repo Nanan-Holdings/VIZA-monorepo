@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 from datetime import date, timedelta
 from typing import Any
 
@@ -9,6 +10,8 @@ RAPIDAPI_HOST = os.getenv("RAPIDAPI_BOOKING_HOST", "booking-com15.p.rapidapi.com
 RAPIDAPI_BASE_URL = os.getenv("RAPIDAPI_BOOKING_BASE_URL", f"https://{RAPIDAPI_HOST}").strip().rstrip("/")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "").strip()
 RAPIDAPI_TIMEOUT = REQUEST_TIMEOUT
+DESTINATION_CACHE_TTL_SECONDS = 24 * 60 * 60
+_destination_cache: dict[str, tuple[float, str, str]] = {}
 
 
 def _headers():
@@ -37,6 +40,11 @@ async def _resolve_destination(query: str):
     if not query:
         return None, None
 
+    query_key = query.strip().lower()
+    cached = _destination_cache.get(query_key)
+    if cached and time.monotonic() - cached[0] < DESTINATION_CACHE_TTL_SECONDS:
+        return cached[1], cached[2]
+
     payload = await _request_json("/api/v1/hotels/searchDestination", {"query": query})
     if not payload or payload.get("status") is not True:
         return None, None
@@ -52,6 +60,11 @@ async def _resolve_destination(query: str):
         search_type = item.get("search_type")
         if isinstance(dest_id, str) and isinstance(search_type, str):
             if dest_id and search_type:
+                _destination_cache[query_key] = (
+                    time.monotonic(),
+                    dest_id,
+                    search_type,
+                )
                 return dest_id, search_type
 
     return None, None
@@ -270,7 +283,6 @@ async def search_hotels(
         if not isinstance(property_data, dict):
             property_data = {}
 
-        name = property_data.get("name") or entry.get("accessibilityLabel") or "酒店名称待确认"
         review_score = property_data.get("reviewScore")
 
         gross_price, gross_currency = _extract_price_value(
@@ -282,6 +294,20 @@ async def search_hotels(
         hotel_id = entry.get("hotel_id") or property_data.get("id")
 
         details = details_result if isinstance(details_result, dict) else None
+        raw_details = details.get("rawData") if details else None
+        if not isinstance(raw_details, dict):
+            raw_details = {}
+        name = (
+            (details or {}).get("hotel_name_trans")
+            or (details or {}).get("hotel_name")
+            or raw_details.get("hotel_name_trans")
+            or raw_details.get("hotel_name")
+            or property_data.get("name")
+            or entry.get("accessibilityLabel")
+            or "酒店名称待确认"
+        )
+        if isinstance(name, str):
+            name = _repair_mojibake_text(name).strip() or "酒店名称待确认"
 
         average_price_per_night = None
         total_price = None
@@ -305,7 +331,7 @@ async def search_hotels(
                 if isinstance(all_inclusive, dict):
                     total_price, _ = _extract_price_value(all_inclusive)
 
-            raw_data = details.get("rawData")
+            raw_data = raw_details
             if isinstance(raw_data, dict):
                 if latitude is None:
                     latitude = raw_data.get("latitude")

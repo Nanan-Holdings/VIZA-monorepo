@@ -166,4 +166,16 @@ describe("local-first destination contracts", () => {
     expect(findTravelAttraction("长沙", "臭豆腐")?.name).toBe("坡子街 / 火宫殿");
     expect(getTravelAttractionsForCity("长沙").length).toBeGreaterThanOrEqual(10);
   });
+
+  it("covers Bali's major island, temple, beach, and Ubud landmarks", () => {
+    expect(getTravelAttractionsForCity("巴厘岛").length).toBeGreaterThanOrEqual(13);
+    expect(findTravelAttraction("Bali", "Nusa Penida")?.name).toBe(
+      "佩妮达岛与精灵海滩"
+    );
+    expect(findTravelAttraction("巴厘岛", "Tanah Lot Temple")?.name).toBe("海神庙");
+    expect(findTravelAttraction("Bali", "Seminyak Beach")?.name).toBe("水明漾海滩");
+    expect(findTravelAttraction("Bali", "Ubud Monkey Forest")?.name).toBe(
+      "乌布圣猴森林"
+    );
+  });
 });
