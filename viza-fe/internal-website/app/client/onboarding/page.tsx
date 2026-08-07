@@ -2,19 +2,21 @@
 
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getUserVisaPackage } from "@/app/actions/user-package";
+import { getOnboardingCopy, type OnboardingCopy } from "./copy";
 
 // ---------------------------------------------------------------------------
 // Step definitions
 // ---------------------------------------------------------------------------
 
 const STEPS = [
-  { id: "personal", name: "Personal" },
-  { id: "passport", name: "Passport" },
-  { id: "travel", name: "Travel" },
-  { id: "contact", name: "Contact" },
+  { id: "personal" },
+  { id: "passport" },
+  { id: "travel" },
+  { id: "contact" },
 ] as const;
 
 type StepId = (typeof STEPS)[number]["id"];
@@ -54,7 +56,7 @@ const defaultData: OnboardingData = {
 // Progress bar for the passport and contact onboarding flow.
 // ---------------------------------------------------------------------------
 
-function OnboardingProgress({ currentStepIndex }: { currentStepIndex: number }) {
+function OnboardingProgress({ currentStepIndex, copy }: { currentStepIndex: number; copy: OnboardingCopy }) {
   const overallPercent = Math.round(((currentStepIndex) / STEPS.length) * 100);
 
   return (
@@ -97,7 +99,7 @@ function OnboardingProgress({ currentStepIndex }: { currentStepIndex: number }) 
                   isActive ? "text-brand-500" : isComplete ? "text-brand-400" : "text-[#DCDCDC]"
                 }`}
               >
-                {step.name}
+                {copy.steps[step.id]}
               </span>
             </div>
           );
@@ -135,6 +137,8 @@ const inputClass =
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const locale = useLocale();
+  const copy = getOnboardingCopy(locale);
   const [isChecking, setIsChecking] = useState(true);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [data, setData] = useState<OnboardingData>(defaultData);
@@ -186,7 +190,7 @@ export default function OnboardingPage() {
   };
 
   const handleNext = async () => {
-    if (!isStepValid()) { setError("Please fill in at least one field before continuing."); return; }
+    if (!isStepValid()) { setError(copy.errors.stepRequired); return; }
     setError(null);
 
     if (currentStepIndex < STEPS.length - 1) {
@@ -199,7 +203,7 @@ export default function OnboardingPage() {
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) throw new Error(copy.errors.saveFailed);
 
       // Upsert applicant_profiles
       const { error: profileError } = await supabase
@@ -246,8 +250,8 @@ export default function OnboardingPage() {
       });
 
       router.replace("/client/home");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save. Please try again.");
+    } catch {
+      setError(copy.errors.saveFailed);
       setIsSaving(false);
     }
   };
@@ -277,7 +281,7 @@ export default function OnboardingPage() {
           <button
             type="button"
             onClick={handleBack}
-            aria-label="Go back"
+            aria-label={copy.actions.back}
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-60 focus:outline-none md:h-[56px] md:w-[56px]"
             style={{ backgroundColor: "#0000000A" }}
           >
@@ -288,7 +292,7 @@ export default function OnboardingPage() {
         </div>
 
         <div className="mt-6 px-4 md:absolute md:left-1/2 md:top-10 md:mt-0 md:w-[761px] md:-translate-x-1/2 md:px-0">
-          <OnboardingProgress currentStepIndex={currentStepIndex} />
+          <OnboardingProgress currentStepIndex={currentStepIndex} copy={copy} />
         </div>
       </div>
 
@@ -297,32 +301,26 @@ export default function OnboardingPage() {
         <div className="mt-0 space-y-7 md:mt-3">
           <div className="space-y-2">
             <h1 className="text-[20px] font-medium leading-[1.3] tracking-[-0.6px] text-black md:text-[28px] md:tracking-[-1.12px]">
-              {currentStep.id === "personal" && "Tell us about yourself"}
-              {currentStep.id === "passport" && "Your passport details"}
-              {currentStep.id === "travel" && "Your travel plans"}
-              {currentStep.id === "contact" && "How to reach you"}
+              {copy.titles[currentStep.id]}
             </h1>
             <p className="text-[14px] text-[#989898] leading-[1.5] tracking-[-0.24px] md:text-[16px]">
-              {currentStep.id === "personal" && "This information will be used in your visa application."}
-              {currentStep.id === "passport" && "Enter your passport details exactly as they appear."}
-              {currentStep.id === "travel" && "Enter your planned travel dates to Indonesia."}
-              {currentStep.id === "contact" && "We will use these to send you application updates."}
+              {copy.subtitles[currentStep.id]}
             </p>
           </div>
 
           <div className="space-y-4">
             {currentStep.id === "personal" && (
               <>
-                <Field label="Full name (as on passport)">
+                <Field label={copy.fields.fullName}>
                   <input
                     type="text"
                     className={inputClass}
-                    placeholder="e.g. John Smith"
+                    placeholder={copy.fields.fullNamePlaceholder}
                     value={data.personal.fullName}
                     onChange={(e) => update("personal", "fullName", e.target.value)}
                   />
                 </Field>
-                <Field label="Date of birth">
+                <Field label={copy.fields.dateOfBirth}>
                   <input
                     type="date"
                     className={inputClass}
@@ -330,11 +328,11 @@ export default function OnboardingPage() {
                     onChange={(e) => update("personal", "dateOfBirth", e.target.value)}
                   />
                 </Field>
-                <Field label="Nationality">
+                <Field label={copy.fields.nationality}>
                   <input
                     type="text"
                     className={inputClass}
-                    placeholder="e.g. Australian"
+                    placeholder={copy.fields.nationalityPlaceholder}
                     value={data.personal.nationality}
                     onChange={(e) => update("personal", "nationality", e.target.value)}
                   />
@@ -344,16 +342,16 @@ export default function OnboardingPage() {
 
             {currentStep.id === "passport" && (
               <>
-                <Field label="Passport number">
+                <Field label={copy.fields.passportNumber}>
                   <input
                     type="text"
                     className={inputClass}
-                    placeholder="e.g. PA1234567"
+                    placeholder={copy.fields.passportNumberPlaceholder}
                     value={data.passport.passportNumber}
                     onChange={(e) => update("passport", "passportNumber", e.target.value)}
                   />
                 </Field>
-                <Field label="Issue date">
+                <Field label={copy.fields.issueDate}>
                   <input
                     type="date"
                     className={inputClass}
@@ -361,7 +359,7 @@ export default function OnboardingPage() {
                     onChange={(e) => update("passport", "issueDate", e.target.value)}
                   />
                 </Field>
-                <Field label="Expiry date">
+                <Field label={copy.fields.expiryDate}>
                   <input
                     type="date"
                     className={inputClass}
@@ -369,11 +367,11 @@ export default function OnboardingPage() {
                     onChange={(e) => update("passport", "expiryDate", e.target.value)}
                   />
                 </Field>
-                <Field label="Issuing country">
+                <Field label={copy.fields.issuingCountry}>
                   <input
                     type="text"
                     className={inputClass}
-                    placeholder="e.g. Australia"
+                    placeholder={copy.fields.issuingCountryPlaceholder}
                     value={data.passport.issuingCountry}
                     onChange={(e) => update("passport", "issuingCountry", e.target.value)}
                   />
@@ -383,7 +381,7 @@ export default function OnboardingPage() {
 
             {currentStep.id === "travel" && (
               <>
-                <Field label="Planned arrival date">
+                <Field label={copy.fields.arrivalDate}>
                   <input
                     type="date"
                     className={inputClass}
@@ -391,7 +389,7 @@ export default function OnboardingPage() {
                     onChange={(e) => update("travel", "arrivalDate", e.target.value)}
                   />
                 </Field>
-                <Field label="Planned departure date">
+                <Field label={copy.fields.departureDate}>
                   <input
                     type="date"
                     className={inputClass}
@@ -399,17 +397,17 @@ export default function OnboardingPage() {
                     onChange={(e) => update("travel", "departureDate", e.target.value)}
                   />
                 </Field>
-                <Field label="Purpose of visit">
+                <Field label={copy.fields.purpose}>
                   <select
                     className={inputClass}
                     value={data.travel.purpose}
                     onChange={(e) => update("travel", "purpose", e.target.value)}
                   >
-                    <option value="">Select purpose...</option>
-                    <option value="tourism">Tourism</option>
-                    <option value="business">Business</option>
-                    <option value="social_cultural">Social / Cultural</option>
-                    <option value="family_visit">Family Visit</option>
+                    <option value="">{copy.fields.purposePlaceholder}</option>
+                    <option value="tourism">{copy.purposes.tourism}</option>
+                    <option value="business">{copy.purposes.business}</option>
+                    <option value="social_cultural">{copy.purposes.socialCultural}</option>
+                    <option value="family_visit">{copy.purposes.familyVisit}</option>
                   </select>
                 </Field>
               </>
@@ -417,29 +415,29 @@ export default function OnboardingPage() {
 
             {currentStep.id === "contact" && (
               <>
-                <Field label="Email address">
+                <Field label={copy.fields.email}>
                   <input
                     type="email"
                     className={inputClass}
-                    placeholder="your@email.com"
+                    placeholder={copy.fields.emailPlaceholder}
                     value={data.contact.email}
                     onChange={(e) => update("contact", "email", e.target.value)}
                   />
                 </Field>
-                <Field label="Phone number">
+                <Field label={copy.fields.phone}>
                   <input
                     type="tel"
                     className={inputClass}
-                    placeholder="+61 400 000 000"
+                    placeholder={copy.fields.phonePlaceholder}
                     value={data.contact.phone}
                     onChange={(e) => update("contact", "phone", e.target.value)}
                   />
                 </Field>
-                <Field label="WeChat ID (optional)">
+                <Field label={copy.fields.wechat}>
                   <input
                     type="text"
                     className={inputClass}
-                    placeholder="WeChat ID"
+                    placeholder={copy.fields.wechatPlaceholder}
                     value={data.contact.wechat}
                     onChange={(e) => update("contact", "wechat", e.target.value)}
                   />
@@ -466,12 +464,12 @@ export default function OnboardingPage() {
           className="inline-flex h-[48px] w-full max-w-[420px] items-center justify-center rounded-full border border-black bg-black px-6 text-[14px] font-medium leading-[1.6] text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50 md:h-[52px] md:text-[16px]"
         >
           {isSaving ? (
-            <span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Saving...</span>
+            <span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />{copy.actions.saving}</span>
           ) : isLastStep ? (
-            "Submit"
+            copy.actions.submit
           ) : (
             <>
-              Next
+              {copy.actions.next}
               <span className="ml-3 hidden items-center gap-2 text-[14px] text-white/80 md:inline-flex">
                 <kbd className="rounded border border-white/40 px-2 py-0.5 text-[12px] font-medium">⏎</kbd>
               </span>

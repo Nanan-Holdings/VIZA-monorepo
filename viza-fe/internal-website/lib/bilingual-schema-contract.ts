@@ -35,6 +35,128 @@ export const VAGUE_CHINESE_LABELS = new Set([
   "说明",
 ]);
 
+const VISA_SPECIFIC_FIELD_NAME_ZH: Record<string, Record<string, string>> = {
+  DS160: {
+    has_social_media: "过去五年内是否使用过任何社交媒体平台？",
+    passport_has_expiry: "您的护照是否有明确的到期日期？",
+    vwp_denial: "您是否曾被拒绝美国免签计划（ESTA）授权？",
+  },
+  EU_SCHENGEN_C_SHORT_STAY: {
+    atv_airside_only: "您是否会一直停留在申根机场的国际中转区内，不办理入境手续？",
+    atv_annex_iv_acknowledged: "我已了解机场过境签证（ATV）及申根区过境规定",
+    directive_2004_38_acknowledged: "我已确认本申请是否适用欧盟、欧洲经济区或瑞士公民家庭成员的自由流动规则",
+    event_invitation_letter_held: "您是否持有活动主办方出具的邀请函？",
+    has_national_id: "您是否有国民身份证号码？",
+    medical_costs_prepaid: "医疗费用是否已经预付，或已由医疗机构确认付款安排？",
+    study_acceptance_letter_held: "您是否持有学校或教育机构出具的录取/接收证明？",
+    transit_onward_ticket_held: "您是否持有已确认的续程机票？",
+    visits_french_overseas_territories: "您是否计划前往法国海外领地？",
+  },
+  JP_TOURIST: {
+    accommodation_phone: "住宿地点/接待方联系电话",
+    employer_or_school_address: "雇主或学校地址",
+    employer_or_school_name: "雇主或学校名称",
+    employer_or_school_phone: "雇主或学校联系电话",
+    has_inviter_in_japan: "您在日本是否有邀请人或担保人？",
+    has_other_names_used: "您是否曾使用过其他姓名（如曾用名、笔名或别名）？",
+    has_overstayed_japan: "您是否曾逾期停留，或曾在日本非法居留？",
+    id_card_number: "本国身份证件号码（如适用）",
+    inviter_date_of_birth: "邀请人出生日期",
+    inviter_employer: "邀请人在日本的雇主名称及地址",
+    inviter_full_name: "邀请人完整姓名",
+    inviter_immigration_status: "邀请人在日本的居留身份（仅外国籍邀请人填写）",
+    inviter_relationship_to_applicant: "邀请人与申请人的关系",
+    inviter_sex: "邀请人性别",
+    other_passport_country: "其他护照的签发国家/地区",
+    prior_japan_visit_arrival_date: "上次赴日抵达日期",
+    prior_japan_visit_departure_date: "上次赴日离境日期",
+    prior_japan_visit_purpose: "上次赴日目的",
+    purpose_of_visit: "本次赴日目的",
+    remarks_special_circumstances: "备注或特殊情况（选填）",
+    spouse_date_of_birth: "配偶出生日期",
+    visited_japan_before: "您以前是否曾在日本停留？",
+  },
+  VN_E_VISA: {
+    has_relatives_in_vietnam: "您是否有亲属目前居住在越南？",
+  },
+};
+
+const TAIWAN_ENTRY_PERMIT_FIELD_ZH: Record<string, string> = {
+  accepted_terms: "我已阅读并同意以下条款与声明",
+  birth_place_is_mainland: "您的出生地是否在中国大陆？",
+  birth_place_mainland_region: "中国大陆出生省/市/地区",
+  birth_place_other_country: "出生国家/地区",
+  company_name: "任职单位、所属机构或就读学校全称",
+  continent: "所在大洲",
+  current_mainland_political_military_role: "您目前是否在中国大陆党政军机关、政治性组织或相关团体任职或具有成员身份？",
+  current_role_detail: "目前任职的机关、组织或团体全称",
+  eligibility_category: "申请资格类别",
+  embassy_office: "受理驻外馆处/办事处",
+  first_time_applying: "这是您首次在海外、香港或澳门申请赴台吗？",
+  household_revoked: "中国大陆户籍当前状态",
+  is_taiwanese_spouse: "您是否为台湾居民的配偶？",
+  local_mobile_phone: "现居地手机号码（含国家/地区区号）",
+  mainland_id_number: "中国大陆居民身份证号码",
+  mainland_id_number_not_applicable: "没有中国大陆居民身份证号码",
+  name_chinese: "中文姓名（繁体字）",
+  name_english: "英文姓名（按护照填写大写字母）",
+  never_held_mainland_political_military_role: "本人从未在中国大陆党政军机关、政治性组织或相关团体任职或具有成员身份",
+  occupation_experience: "工作经历",
+  other_nationality_country: "持有或曾持有的其他国籍",
+  overseas_address: "香港、澳门或海外现居地址",
+  overseas_residency_id_number: "海外居留身份证明号码（如永居证、居留卡或签证号码）",
+  passport_expiry_date: "护照/旅行证件有效期至（公历）",
+  passport_number: "护照或旅行证件号码",
+  past_mainland_political_military_role: "您过去是否曾在中国大陆党政军机关、政治性组织或相关团体任职或具有成员身份？",
+  past_role_detail: "过去任职的机关、组织或团体全称",
+  permit_count: "申请入台许可的次数",
+  permit_type: "申请的入台许可类型",
+  traveling_with_parents: "您的父母是否与您一同赴台？",
+  tw_contact_alley: "台湾地址—弄号（只填数字）",
+  tw_contact_building_number: "台湾地址—门牌、楼层及房号（入住酒店可填酒店名称）",
+  tw_contact_city: "台湾地址—县市",
+  tw_contact_district: "台湾地址—区/乡/镇",
+  tw_contact_lane: "台湾地址—巷号（只填数字）",
+  tw_contact_mobile: "台湾联系人手机号码",
+  tw_contact_mobile_not_applicable: "没有台湾联系人手机号码",
+  tw_contact_neighborhood: "台湾地址—邻号（只填数字）",
+  tw_contact_road: "台湾地址—街路及段",
+  tw_contact_village: "台湾地址—村/里（选填）",
+  tw_local_phone: "台湾市内电话号码",
+};
+
+const TAIWAN_KIN_LABELS: Record<string, string> = {
+  father: "父亲",
+  mother: "母亲",
+  spouse: "配偶",
+  child1: "第一名子女",
+  child2: "第二名子女",
+};
+
+const TAIWAN_KIN_FIELD_LABELS: Record<string, string> = {
+  current_address: "当前住址",
+  current_address_same_as_overseas: "当前住址是否与申请人的港澳或海外住址相同？",
+  date_of_birth: "出生日期",
+  job_title: "职务/职称",
+  name: "姓名",
+  occupation: "职业",
+  phone: "联系电话",
+  service_unit: "任职单位/所属机构",
+  status: "当前状况（在世、已故或离异）",
+};
+
+function getTaiwanEntryPermitChineseLabel(fieldName: string): string | null {
+  const normalized = normalizeFieldName(fieldName);
+  const direct = TAIWAN_ENTRY_PERMIT_FIELD_ZH[normalized];
+  if (direct) return direct;
+
+  const kinMatch = normalized.match(/^kin_(father|mother|spouse|child1|child2)_(.+)$/);
+  if (!kinMatch) return null;
+  const person = TAIWAN_KIN_LABELS[kinMatch[1]];
+  const detail = TAIWAN_KIN_FIELD_LABELS[kinMatch[2]];
+  return person && detail ? `${person}—${detail}` : null;
+}
+
 // UK Standard Visitor — complete, hand-checked field_name → Chinese label map.
 // The seed only ships English labels; without these entries the long-form fell
 // back to an auto-generator that produced broken/incorrect Chinese (e.g.
@@ -820,6 +942,40 @@ const OPTION_ZH_BY_VALUE: Record<string, string> = {
   imuga_arrival: "IMUGA 旅客申报 / 落地签",
   etravel_only: "eTravel 入境申报",
   form_id_936_single: "ID 936 访问签证（单次入境）",
+  "nile cruise / ship": "尼罗河游轮/船舶",
+  teaching: "教育/教学",
+  "trade; car and motorcycle repairs": "贸易及汽车、摩托车维修",
+  linggi: "林吉",
+  "p pinang": "槟城",
+  pekenu: "贝克努",
+  "pulau pinang": "槟城",
+  "klia2 / klia2 terminal": "吉隆坡第二国际机场航站楼（KLIA2）",
+  "sungai tujoh (brunei border, sarawak)": "双溪都九口岸（砂拉越—文莱边境）",
+  colds: "流鼻涕/感冒症状",
+  cough: "咳嗽",
+  diarrhea: "腹泻",
+  "difficulty of breathing": "呼吸困难",
+  dizziness: "头晕",
+  fever: "发热",
+  headache: "头痛",
+  "loss of appetite": "食欲不振",
+  "loss of smell": "嗅觉丧失",
+  "loss of taste": "味觉丧失",
+  "muscle pain": "肌肉疼痛",
+  nausea: "恶心",
+  "rashes, vesicles or blisters": "皮疹、水疱或疱疹",
+  "sore throat": "咽喉痛",
+  vomiting: "呕吐",
+  weakness: "乏力",
+  "jr.": "小（Jr.）",
+  ii: "第二代（II）",
+  iii: "第三代（III）",
+  iv: "第四代（IV）",
+  "subic bay freeport": "苏比克湾自由港",
+  "woodlands checkpoint (causeway / land)": "兀兰关卡（新柔长堤，陆路）",
+  "tuas checkpoint (second link / land)": "大士关卡（第二通道，陆路）",
+  "marina bay cruise centre (cruise)": "滨海湾邮轮中心（海路）",
+  "nong khai (lao border, mittraphap bridge)": "廊开口岸（泰老友谊大桥）",
 };
 
 const VIETNAM_PROVINCE_ZH_BY_VALUE: Record<string, string> = {
@@ -1318,7 +1474,16 @@ function deriveChineseFromLabel(field: FieldLike): string | null {
 }
 
 export function deriveChineseFieldLabel(field: FieldLike): string {
-  const isDs160 = ["DS160", "B1_B2", "US_B1_B2"].includes(field.visaType.toUpperCase());
+  const normalizedVisaType = field.visaType.toUpperCase();
+  const visaSpecificLabel = VISA_SPECIFIC_FIELD_NAME_ZH[normalizedVisaType]?.[normalizeFieldName(field.fieldName)];
+  if (visaSpecificLabel) return visaSpecificLabel;
+
+  const taiwanLabel = normalizedVisaType === "TW_ENTRY_PERMIT"
+    ? getTaiwanEntryPermitChineseLabel(field.fieldName)
+    : null;
+  if (taiwanLabel) return taiwanLabel;
+
+  const isDs160 = ["DS160", "B1_B2", "US_B1_B2"].includes(normalizedVisaType);
   if (isDs160) {
     const officialLabelTranslation = getChineseLabel(field.label, field.fieldName);
     if (

@@ -7,6 +7,7 @@ import {
   resolveBillingApplicant,
   type BillingPaymentRecord,
 } from "./data";
+import { getBillingCopy } from "./copy";
 
 export interface InvoiceRequestState {
   status: "idle" | "success" | "error";
@@ -27,10 +28,11 @@ export async function requestInvoice(
   formData: FormData,
 ): Promise<InvoiceRequestState> {
   const applicant = await resolveBillingApplicant();
+  const copy = getBillingCopy(readFormValue(formData, "locale"));
   if (!applicant) {
     return {
       status: "error",
-      message: "Please sign in again before requesting an invoice.",
+      message: copy.actionErrors.signIn,
     };
   }
 
@@ -43,21 +45,21 @@ export async function requestInvoice(
   if (!paymentRecordId) {
     return {
       status: "error",
-      message: "Choose a paid agency-fee record before requesting an invoice.",
+      message: copy.actionErrors.choosePayment,
     };
   }
 
   if (!invoiceName) {
     return {
       status: "error",
-      message: "Enter the legal name that should appear on the invoice.",
+      message: copy.actionErrors.invoiceName,
     };
   }
 
   if (!billingEmail || !isEmailLike(billingEmail)) {
     return {
       status: "error",
-      message: "Enter a valid billing email address.",
+      message: copy.actionErrors.billingEmail,
     };
   }
 
@@ -74,14 +76,14 @@ export async function requestInvoice(
     if (paymentError || !payment || payment.fee_type !== "agency_fee") {
       return {
         status: "error",
-        message: "We could not find a matching agency-fee payment for this account.",
+        message: copy.actionErrors.paymentNotFound,
       };
     }
 
     if (!isPaidPaymentStatus(payment.status)) {
       return {
         status: "error",
-        message: "Invoices can be requested after the agency-fee payment is marked paid.",
+        message: copy.actionErrors.paymentNotPaid,
       };
     }
 
@@ -100,8 +102,8 @@ export async function requestInvoice(
         status: "success",
         message:
           existing.status === "generated"
-            ? "An invoice has already been generated for this payment."
-            : "Your invoice request is already with the VIZA team.",
+            ? copy.actionErrors.alreadyGenerated
+            : copy.actionErrors.alreadyRequested,
       };
     }
 
@@ -120,19 +122,19 @@ export async function requestInvoice(
     if (insertError) {
       return {
         status: "error",
-        message: "We could not submit the invoice request. Please try again later.",
+        message: copy.actionErrors.submit,
       };
     }
 
     revalidatePath("/client/billing");
     return {
       status: "success",
-      message: "Invoice request received. The VIZA team will generate it after review.",
+      message: copy.actionErrors.received,
     };
   } catch {
     return {
       status: "error",
-      message: "Invoice requests are temporarily unavailable.",
+      message: copy.actionErrors.unavailable,
     };
   }
 }
