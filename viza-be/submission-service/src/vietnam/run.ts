@@ -17,14 +17,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
 import {
-  captureVietnamCaptchaFingerprint,
   DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
   DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
   isVietnamCaptchaFailureRetryable,
+  refreshVietnamCaptchaChallenge,
   reportRejectedVietnamCaptcha,
   solveVietnamImageCaptcha,
   submitVietnamCaptchaAnswer,
-  waitForVietnamCaptchaRefresh,
   type VietnamCaptchaSolveOutcome,
 } from "./captcha";
 import {
@@ -530,7 +529,10 @@ async function fillVietnamApplicationOnce(
       ) {
         console.log(`[vn] Review CAPTCHA attempt ${attempt}/${maxReviewCaptchaAttempts}.`);
         if (attempt > 1) {
-          await refreshVietnamReviewCaptcha(page);
+          const refreshed = await refreshVietnamCaptchaChallenge(page);
+          console.log(
+            `[vn] Review CAPTCHA refresh before attempt ${attempt}: ${refreshed ? "confirmed" : "not_observed"}.`,
+          );
           await page.waitForTimeout(1_000);
         }
         await emitProgress("captcha_solving");
@@ -539,6 +541,7 @@ async function fillVietnamApplicationOnce(
           remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, Math.min(stepTimeoutMs, 120_000)),
         );
         captchaSolves.push(captchaOutcome);
+        logVietnamCaptchaOutcome("Review", attempt, captchaOutcome);
         if (!captchaOutcome.solved) {
           lastReviewCaptchaReason = captchaOutcome.reason ?? "unknown CAPTCHA error";
           const recoverySnapshot = await readVietnamPortalSnapshot(
@@ -600,7 +603,7 @@ async function fillVietnamApplicationOnce(
         }
       }
       if (stateAfterCaptcha === "captcha_visible" && Date.now() >= reviewCaptchaDeadline) {
-        lastReviewCaptchaReason = "Vietnam CAPTCHA processing exceeded its total time budget.";
+        lastReviewCaptchaReason = `${lastReviewCaptchaReason} Total CAPTCHA time budget was exhausted.`;
       }
     }
     let registrationCode = await withTimeout(captureRegistrationCode(page), 15_000, null);
@@ -1052,7 +1055,10 @@ async function reachVietnamFormCheckpoint(
       ) {
         console.log(`[vn] Portal CAPTCHA attempt ${attempt}/${maxCaptchaAttempts}.`);
         if (attempt > 1) {
-          await refreshVietnamReviewCaptcha(page).catch(() => false);
+          const refreshed = await refreshVietnamCaptchaChallenge(page).catch(() => false);
+          console.log(
+            `[vn] Portal CAPTCHA refresh before attempt ${attempt}: ${refreshed ? "confirmed" : "not_observed"}.`,
+          );
           await page.waitForTimeout(750);
         }
         await options.onStage("captcha_solving");
@@ -1061,6 +1067,7 @@ async function reachVietnamFormCheckpoint(
           remainingVietnamCaptchaBudgetMs(captchaDeadline, Math.min(options.stepTimeoutMs, 120_000)),
         );
         options.onCaptchaSolved(outcome);
+        logVietnamCaptchaOutcome("Portal", attempt, outcome);
         if (!outcome.solved) {
           lastCaptchaReason = outcome.reason ?? "unknown CAPTCHA error";
           if (!isVietnamCaptchaFailureRetryable(outcome.reason)) break;
@@ -1105,7 +1112,7 @@ async function reachVietnamFormCheckpoint(
       }
 
       if (state === "captcha_visible" && Date.now() >= captchaDeadline) {
-        lastCaptchaReason = "Vietnam CAPTCHA processing exceeded its total time budget.";
+        lastCaptchaReason = `${lastCaptchaReason} Total CAPTCHA time budget was exhausted.`;
       }
 
       if (state === "captcha_visible") {
@@ -1977,50 +1984,6 @@ export async function advanceVietnamToReview(
   return { advanced: false, clickedLabel: selected.label, failureReason: "no_transition" };
 }
 
-async function refreshVietnamReviewCaptcha(page: Page): Promise<boolean> {
-  const previousFingerprint = await captureVietnamCaptchaFingerprint(page, 1_000);
-  const clicked = await page
-    .evaluate(() => {
-      const visible = (element: Element | null): element is HTMLElement | SVGElement => {
-        if (!element) return false;
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-      };
-      const captchaInput = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
-        .filter(visible)
-        .find((input) => /captcha|security code|mã xác nhận|ma xac nhan/i.test(`${input.placeholder} ${input.name} ${input.id} ${input.className}`));
-      captchaInput?.focus();
-      if (captchaInput) {
-        captchaInput.value = "";
-        captchaInput.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
-        captchaInput.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      const inputRect = captchaInput?.getBoundingClientRect();
-      const candidates = Array.from(document.querySelectorAll<HTMLElement | SVGElement>("button, .anticon, svg, img, a"))
-        .filter(visible)
-        .map((element) => {
-          const rect = element.getBoundingClientRect();
-          const text = `${element.textContent ?? ""} ${element.getAttribute("aria-label") ?? ""} ${element.getAttribute("title") ?? ""} ${element.getAttribute("class") ?? ""}`;
-          const isRefresh = /reload|refresh|sync|redo|captcha|anticon-sync/i.test(text);
-          const distance = inputRect
-            ? Math.abs(rect.left - inputRect.right) + Math.abs(rect.top + rect.height / 2 - (inputRect.top + inputRect.height / 2)) * 2
-            : rect.top;
-          return { element, score: distance + (isRefresh ? -200 : 0) };
-        })
-        .sort((left, right) => left.score - right.score);
-      const target = candidates[0]?.element as HTMLElement | SVGElement | undefined;
-      if (!target) return false;
-      target?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
-      target?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
-      target?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
-      return true;
-    })
-    .catch(() => false);
-  if (!clicked) return false;
-  return waitForVietnamCaptchaRefresh(page, previousFingerprint, 10_000);
-}
-
 async function captureRegistrationCode(page: Page): Promise<string | null> {
   // Try the explicit selector first; fall back to body-text regexes for
   // "Mã hồ sơ" / "Registration code" / "Electronic document code" patterns.
@@ -2195,6 +2158,27 @@ function readPositiveInt(rawValue: string | undefined, fallback: number): number
 
 function remainingVietnamCaptchaBudgetMs(deadlineMs: number, capMs: number): number {
   return Math.max(1, Math.min(capMs, deadlineMs - Date.now()));
+}
+
+function logVietnamCaptchaOutcome(
+  scope: "Review" | "Portal",
+  attempt: number,
+  outcome: VietnamCaptchaSolveOutcome,
+): void {
+  if (outcome.solved) {
+    console.log(
+      `[vn] ${scope} CAPTCHA attempt ${attempt} produced an accepted-shape answer ` +
+      `(length=${outcome.telemetry?.answerLength ?? "unknown"}, durationMs=${outcome.telemetry?.durationMs ?? "unknown"}).`,
+    );
+    return;
+  }
+  const reason = String(outcome.reason ?? "unknown CAPTCHA error")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/https?:\/\/\S+/gi, "[url]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+  console.warn(`[vn] ${scope} CAPTCHA attempt ${attempt} had no usable answer: ${reason}`);
 }
 
 function suffixArtifactPath(filePath: string | undefined, attempt: number): string | undefined {
