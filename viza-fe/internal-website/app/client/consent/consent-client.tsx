@@ -47,6 +47,14 @@ import {
 } from "@/components/client/brand-action-button";
 import { cn } from "@/lib/utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import {
+  getConsentCopy,
+  localizeApplicationName,
+  localizeConsentDocument,
+  localizeNextStep,
+  localizeStatus,
+} from "./consent-copy";
+import type { ConsentCopy } from "./consent-copy";
 
 interface ConsentClientProps {
   applications: ConsentApplication[];
@@ -62,28 +70,19 @@ interface ConsentClientProps {
 interface SignaturePadProps {
   disabled: boolean;
   onDrawChange: (hasDrawn: boolean) => void;
+  copy: ConsentCopy;
 }
 
-function formatDate(value: string | null): string {
-  if (!value) return "Not recorded";
-  return new Intl.DateTimeFormat(undefined, {
+function formatDate(value: string | null, isZh: boolean): string {
+  if (!value) return isZh ? "未记录" : "Not recorded";
+  return new Intl.DateTimeFormat(isZh ? "zh-CN" : undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
 }
 
-function applicationLabel(application: ConsentApplication, isZh: boolean): string {
-  const countryName = isZh ? application.countryNameZh : application.countryName;
-  const visaTypeLabel = isZh ? application.visaTypeLabelZh : application.visaTypeLabel;
-  return `${application.countryFlag} ${countryName} ${visaTypeLabel}`;
-}
-
-function statusLabel(status: string): string {
-  return status.replace(/_/g, " ");
-}
-
 const SignaturePad = forwardRef<HTMLCanvasElement, SignaturePadProps>(
-  ({ disabled, onDrawChange }, ref) => {
+  ({ disabled, onDrawChange, copy }, ref) => {
     const localRef = useRef<HTMLCanvasElement | null>(null);
     const drawingRef = useRef(false);
 
@@ -185,7 +184,7 @@ const SignaturePad = forwardRef<HTMLCanvasElement, SignaturePadProps>(
             "h-40 w-full touch-none rounded-lg border border-input bg-white shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40",
             disabled && "cursor-not-allowed opacity-60",
           )}
-          aria-label="Draw agency authorisation signature"
+          aria-label={copy.drawSignatureAriaLabel}
           role="img"
           tabIndex={0}
           onPointerDown={handlePointerDown}
@@ -201,7 +200,7 @@ const SignaturePad = forwardRef<HTMLCanvasElement, SignaturePadProps>(
           onClick={clearCanvas}
         >
           <Eraser className="h-4 w-4" />
-          Clear signature
+          {copy.clearSignature}
         </button>
       </div>
     );
@@ -221,6 +220,8 @@ export function ConsentClient({
 }: ConsentClientProps) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
+  const copy = getConsentCopy(isZh);
+  const displayNextStep = localizeNextStep(nextStep, isZh);
   const router = useRouter();
   const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [checkedConsents, setCheckedConsents] = useState<Record<string, boolean>>({});
@@ -286,25 +287,25 @@ export function ConsentClient({
     setFormError(null);
 
     if (!selectedApplication) {
-      setFormError("Start or select an application before recording consent.");
+      setFormError(copy.consentRequired);
       return;
     }
 
     if (!allMissingConsentsChecked) {
-      setFormError("Review and explicitly accept each current document version.");
+      setFormError(copy.acceptEachVersion);
       return;
     }
 
     let signaturePayload: ConsentSubmissionInput["signature"];
     if (needsSignature) {
       if (!hasSignerName) {
-        setFormError("Enter the applicant legal name before signing.");
+        setFormError(copy.applicantNameRequired);
         return;
       }
 
       if (signatureMode === "typed") {
         if (!hasTypedSignature) {
-          setFormError("Type the applicant name as the e-signature.");
+          setFormError(copy.typedSignatureRequired);
           return;
         }
         signaturePayload = {
@@ -315,7 +316,7 @@ export function ConsentClient({
       } else {
         const canvas = signatureCanvasRef.current;
         if (!canvas || !hasDrawnSignature) {
-          setFormError("Draw the applicant signature before submitting.");
+          setFormError(copy.drawnSignatureRequired);
           return;
         }
         signaturePayload = {
@@ -334,7 +335,7 @@ export function ConsentClient({
       });
 
       if (!result.success) {
-        setFormError(result.error ?? "Consent could not be saved.");
+        setFormError(result.error ?? copy.saveFailed);
         return;
       }
 
@@ -352,32 +353,32 @@ export function ConsentClient({
       <div className="mx-auto flex w-full max-w-[1090px] flex-col gap-6">
         <div className="space-y-3">
           <Badge variant="static" className="w-fit bg-brand-50 text-brand-500">
-            Consent gate
+            {copy.gate}
           </Badge>
           <h1 className="text-3xl font-semibold text-foreground">
-            Consent and authorisation
+            {copy.title}
           </h1>
           <p className="max-w-2xl text-base leading-7 text-muted-foreground">
-            Consent is recorded per visa application. Start an application first so
-            accepted versions and signatures can be scoped correctly.
+            {isZh
+              ? "同意记录会绑定到具体签证申请。请先开始申请，才能正确保存接受的版本和签名。"
+              : "Consent is recorded per visa application. Start an application first so accepted versions and signatures can be scoped correctly."}
           </p>
         </div>
         <Card>
           <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-foreground">
-                No application found
+                {copy.noApplicationTitle}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                VIZA needs an application record before ToS, Privacy, authorisation,
-                and e-signature can be saved.
+                {copy.noApplicationBody}
               </p>
             </div>
             <Link
               href="/client/application"
               className={cn(brandActionButtonVariants(), "w-full sm:w-auto")}
             >
-              Start application
+              {copy.startApplication}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </CardContent>
@@ -391,15 +392,16 @@ export function ConsentClient({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-3">
           <Badge variant="static" className="w-fit bg-brand-50 text-brand-500">
-            Consent gate
+            {copy.gate}
           </Badge>
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold text-foreground">
-              Consent and authorisation
+              {copy.title}
             </h1>
             <p className="max-w-3xl text-base leading-7 text-muted-foreground">
-              Accept the current legal versions and sign the VIZA agency mandate
-              before packet generation or any external handoff can continue.
+              {isZh
+                ? "请接受当前法律文件版本并签署 VIZA 机构授权，之后才能生成申请资料包或继续任何外部交接。"
+                : "Accept the current legal versions and sign the VIZA agency mandate before packet generation or any external handoff can continue."}
             </p>
           </div>
         </div>
@@ -412,7 +414,7 @@ export function ConsentClient({
             "w-full sm:w-auto",
           )}
         >
-          {nextStep.label}
+          {displayNextStep.label}
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
@@ -433,7 +435,7 @@ export function ConsentClient({
                 )}
                 aria-current={selected ? "page" : undefined}
               >
-                {applicationLabel(application, isZh)}
+                {localizeApplicationName(application, isZh)}
               </Link>
             );
           })}
@@ -457,11 +459,11 @@ export function ConsentClient({
           <div className="space-y-1">
             <p className="font-medium">
               {completionState === "complete"
-                ? "Consent is complete for this application."
-                : "Consent is still blocking this application."}
+                ? copy.completeBody
+                : copy.incompleteBody}
             </p>
             <p className="text-sm leading-6">
-              {nextStep.reason}
+              {displayNextStep.reason}
             </p>
           </div>
         </div>
@@ -472,10 +474,7 @@ export function ConsentClient({
           <div className="flex gap-3">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" />
             <p className="text-sm leading-6">
-              DS-160 boundary: this VIZA signature authorises preparation and
-              support inside VIZA only. The official DS-160 final signature,
-              CAPTCHA, and government submission are not completed or marked
-              complete inside VIZA.
+              {copy.ds160Boundary}
             </p>
           </div>
         </div>
@@ -485,14 +484,8 @@ export function ConsentClient({
         <div className="flex gap-3">
           <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" />
           <div className="space-y-1">
-            <p className="font-medium">
-              {isZh ? "还需要验证你的收件邮箱" : "Your destination mailbox must also be verified"}
-            </p>
-            <p className="text-sm leading-6">
-              {isZh
-                ? "勾选“官方邮件转发授权”后，VIZA 才能把专属 alias 收到的验证码、状态通知、QR、PDF 和附件转发到你的账户邮箱。如果随后收到 Cloudflare 的验证邮件，请由你本人点击验证链接；VIZA 不会代替你确认邮箱所有权。"
-                : "After you accept Official Email Forwarding, VIZA may forward verification codes, status notices, QR codes, PDFs, and attachments received by your dedicated alias to your profile email. If Cloudflare sends a verification message, you must click its verification link yourself; VIZA will not confirm mailbox ownership on your behalf."}
-            </p>
+            <p className="font-medium">{copy.mailboxTitle}</p>
+            <p className="text-sm leading-6">{copy.mailboxBody}</p>
           </div>
         </div>
       </div>
@@ -503,11 +496,12 @@ export function ConsentClient({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl">
                 <ShieldCheck className="h-5 w-5 text-brand-500" />
-                Current document versions
+                {copy.currentVersions}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {consentStatuses.map((document) => {
+                const localizedDocument = localizeConsentDocument(document, isZh);
                 const needsAcceptance = !document.currentVersionAccepted;
                 return (
                   <div
@@ -518,7 +512,7 @@ export function ConsentClient({
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="text-base font-semibold text-foreground">
-                            {document.title}
+                            {localizedDocument.title}
                           </h2>
                           <Badge
                             variant="static"
@@ -529,22 +523,26 @@ export function ConsentClient({
                             )}
                           >
                             {document.currentVersionAccepted
-                              ? "Current accepted"
-                              : "Current acceptance needed"}
+                              ? copy.currentAccepted
+                              : copy.acceptanceNeeded}
                           </Badge>
                         </div>
                         <p className="text-sm leading-6 text-muted-foreground">
-                          {document.summary}
+                          {localizedDocument.summary}
                         </p>
                         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                          <span>Current version {document.version}</span>
+                          <span>
+                            {copy.currentVersion} {document.version}
+                          </span>
                           {document.acceptedVersion ? (
                             <span>
-                              Last accepted {document.acceptedVersion} on{" "}
-                              {formatDate(document.acceptedAt)}
+                              {copy.lastAccepted(
+                                document.acceptedVersion,
+                                formatDate(document.acceptedAt, isZh),
+                              )}
                             </span>
                           ) : (
-                            <span>No accepted version recorded</span>
+                            <span>{copy.noAcceptedVersion}</span>
                           )}
                         </div>
                         {document.href && (
@@ -552,7 +550,7 @@ export function ConsentClient({
                             href={document.href}
                             className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-brand-500 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
                           >
-                            Read {document.shortTitle}
+                            {copy.readDocument(localizedDocument.shortTitle)}
                             <ExternalLink className="h-4 w-4" />
                           </Link>
                         )}
@@ -565,16 +563,20 @@ export function ConsentClient({
                             onCheckedChange={(checked) =>
                               updateConsentCheck(document.consentType, checked === true)
                             }
-                            aria-label={`Accept ${document.title} version ${document.version}`}
+                            aria-label={
+                              isZh
+                                ? `接受${localizedDocument.title}版本 ${document.version}`
+                                : `Accept ${localizedDocument.title} version ${document.version}`
+                            }
                           />
                           <span>
-                            I have read and accept version {document.version}.
+                            {copy.acceptVersion(document.version)}
                           </span>
                         </label>
                       ) : (
                         <div className="flex min-h-11 items-center gap-2 rounded-lg bg-emerald-50 px-3 text-sm font-medium text-emerald-700">
                           <CheckCircle2 className="h-4 w-4" />
-                          Accepted
+                          {copy.accepted}
                         </div>
                       )}
                     </div>
@@ -588,20 +590,16 @@ export function ConsentClient({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl">
                 <FileSignature className="h-5 w-5 text-brand-500" />
-                Agency authorisation signature
+                {copy.agencySignature}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="rounded-xl border border-input bg-white p-4">
                 <p className="text-sm leading-6 text-muted-foreground">
-                  By signing, the applicant authorises VIZA to prepare application
-                  materials, review documents, generate the VIZA packet, and support
-                  handoff steps for this application. This does not authorise VIZA
-                  to complete any official final signature or government submission
-                  step that must be performed by the applicant.
+                  {copy.agencySignatureBody}
                 </p>
                 <div className="mt-3 text-xs text-muted-foreground">
-                  Mandate version {AGENCY_AUTHORISATION_DOCUMENT.version}
+                  {copy.mandateVersion} {AGENCY_AUTHORISATION_DOCUMENT.version}
                 </div>
               </div>
 
@@ -609,34 +607,36 @@ export function ConsentClient({
                 <div className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
                   <div className="flex items-center gap-2 font-medium">
                     <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                    Signed current authorisation
+                    {copy.signedAuthorisation}
                   </div>
                   <p className="text-sm">
-                    {signatureStatus.signerName ?? "Applicant"} signed on{" "}
-                    {formatDate(signatureStatus.signedAt)}.
+                    {copy.signedBy(
+                      signatureStatus.signerName ?? (isZh ? "申请人" : "Applicant"),
+                      formatDate(signatureStatus.signedAt, isZh),
+                    )}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-5">
                   {signatureStatus.signedAt && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-                      A previous authorisation was signed on{" "}
-                      {formatDate(signatureStatus.signedAt)}, but the current
-                      mandate version still needs a signature.
+                      {copy.previousSignature(
+                        formatDate(signatureStatus.signedAt, isZh),
+                      )}
                     </div>
                   )}
 
                   <BrandField
-                    label="Applicant legal name"
+                    label={copy.applicantLegalName}
                     htmlFor="signer-name"
                     required
-                    hint={applicantName ? `Use the applicant name shown on the application: ${applicantName}` : undefined}
+                    hint={applicantName ? copy.applicantNameHint(applicantName) : undefined}
                   >
                     <BrandInput
                       id="signer-name"
                       value={signerName}
                       onChange={(event) => setSignerName(event.target.value)}
-                      placeholder="Enter applicant legal name"
+                      placeholder={copy.applicantLegalName}
                       disabled={isPending}
                     />
                   </BrandField>
@@ -660,36 +660,37 @@ export function ConsentClient({
                         ) : (
                           <FileSignature className="h-4 w-4" />
                         )}
-                        {mode}
+                        {mode === "typed" ? copy.typed : copy.drawn}
                       </button>
                     ))}
                   </div>
 
                   {signatureMode === "typed" ? (
                     <BrandField
-                      label="Typed e-signature"
+                      label={copy.typedSignature}
                       htmlFor="typed-signature"
                       required
-                      hint="Typing the applicant name here creates the VIZA agency authorisation signature record."
+                      hint={copy.typedSignatureHint}
                     >
                       <BrandInput
                         id="typed-signature"
                         value={typedSignature}
                         onChange={(event) => setTypedSignature(event.target.value)}
-                        placeholder="Type applicant full name"
+                        placeholder={copy.typedSignaturePlaceholder}
                         disabled={isPending}
                       />
                     </BrandField>
                   ) : (
                     <BrandField
-                      label="Drawn e-signature"
+                      label={copy.drawnSignature}
                       required
-                      hint="Draw with a mouse, trackpad, stylus, or finger. The image is submitted to the server with this form."
+                      hint={copy.drawnSignatureHint}
                     >
                       <SignaturePad
                         ref={signatureCanvasRef}
                         disabled={isPending}
                         onDrawChange={setHasDrawnSignature}
+                        copy={copy}
                       />
                     </BrandField>
                   )}
@@ -713,9 +714,9 @@ export function ConsentClient({
               className="w-full sm:w-auto"
               disabled={!canSubmit}
               loading={isPending}
-              loadingText="Saving consent"
+              loadingText={copy.saving}
             >
-              Save and continue
+              {copy.saveContinue}
               <ArrowRight className="h-4 w-4" />
             </BrandActionButton>
           ) : null}
@@ -724,12 +725,12 @@ export function ConsentClient({
         <aside className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Application</CardTitle>
+              <CardTitle className="text-lg">{copy.application}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <div className="text-sm font-medium text-foreground">
-                  {applicationLabel(selectedApplication, isZh)}
+                  {localizeApplicationName(selectedApplication, isZh)}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
                   {isZh ? selectedApplication.countryNameZh : selectedApplication.countryName} ·{" "}
@@ -738,15 +739,18 @@ export function ConsentClient({
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-lg bg-muted/50 p-3">
-                  <div className="text-xs text-muted-foreground">Status</div>
+                  <div className="text-xs text-muted-foreground">{copy.status}</div>
                   <div className="mt-1 font-medium capitalize">
-                    {statusLabel(selectedApplication.status)}
+                    {localizeStatus(selectedApplication.status, isZh)}
                   </div>
                 </div>
                 <div className="rounded-lg bg-muted/50 p-3">
-                  <div className="text-xs text-muted-foreground">Packet</div>
+                  <div className="text-xs text-muted-foreground">{copy.packet}</div>
                   <div className="mt-1 font-medium capitalize">
-                    {statusLabel(selectedApplication.packetStatus ?? "not_started")}
+                    {localizeStatus(
+                      selectedApplication.packetStatus ?? "not_started",
+                      isZh,
+                    )}
                   </div>
                 </div>
               </div>
@@ -755,37 +759,40 @@ export function ConsentClient({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Readiness</CardTitle>
+              <CardTitle className="text-lg">{copy.readiness}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {[
                 {
-                  label: "Current legal versions",
+                  label: copy.currentLegalVersions,
                   done: allCurrentConsentsAccepted,
                   detail: allCurrentConsentsAccepted
-                    ? "All accepted"
-                    : `${missingConsents.length} remaining`,
+                    ? copy.allAccepted
+                    : copy.remaining(missingConsents.length),
                 },
                 {
-                  label: "Agency authorisation",
+                  label: copy.agencyAuthorisation,
                   done: signatureStatus.currentVersionSigned,
-                  detail: signatureStatus.currentVersionSigned ? "Signed" : "Unsigned",
+                  detail: signatureStatus.currentVersionSigned ? copy.signed : copy.unsigned,
                 },
                 {
-                  label: "Application answers",
+                  label: copy.applicationAnswers,
                   done: progressCounts.answerCount > 0,
-                  detail: `${progressCounts.answerCount} fields saved`,
+                  detail: copy.fieldsSaved(progressCounts.answerCount),
                 },
                 {
-                  label: "Documents",
+                  label: copy.documents,
                   done:
                     progressCounts.documents.total > 0 &&
                     progressCounts.documents.missing === 0 &&
                     progressCounts.documents.rejected === 0,
                   detail:
                     progressCounts.documents.total > 0
-                      ? `${progressCounts.documents.ready}/${progressCounts.documents.total} ready`
-                      : "No documents yet",
+                      ? copy.documentsReady(
+                          progressCounts.documents.ready,
+                          progressCounts.documents.total,
+                        )
+                      : copy.noDocuments,
                 },
               ].map((item) => (
                 <div key={item.label} className="flex items-start gap-3">
@@ -809,7 +816,7 @@ export function ConsentClient({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Accepted versions</CardTitle>
+              <CardTitle className="text-lg">{copy.acceptedVersions}</CardTitle>
             </CardHeader>
             <CardContent>
               {consentHistory.length > 0 ? (
@@ -817,17 +824,17 @@ export function ConsentClient({
                   {consentHistory.map((event) => (
                     <div key={event.id} className="border-l-2 border-brand-200 pl-3">
                       <div className="text-sm font-medium text-foreground">
-                        {event.title} v{event.version}
+                        {localizeConsentDocument(event, isZh).title} v{event.version}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatDate(event.acceptedAt)}
+                        {formatDate(event.acceptedAt, isZh)}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <p className="text-sm leading-6 text-muted-foreground">
-                  No consent versions have been accepted for this application yet.
+                  {copy.noConsentHistory}
                 </p>
               )}
             </CardContent>

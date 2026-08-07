@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getLocale } from "next-intl/server";
 import {
   AlertCircle,
   ArrowRight,
@@ -19,10 +20,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  getDestinationDisplayName,
+  getDestinationDisplayNameForLocale,
   getDestinationFlag,
   getFormVisaType,
-  getVisaTypeDisplayName,
+  getVisaTypeDisplayNameForLocale,
 } from "@/lib/visa-destinations";
 import { InvoiceRequestForm } from "./invoice-request-form";
 import {
@@ -34,10 +35,12 @@ import {
   type BillingRefundRecord,
   type BillingVisaPackage,
 } from "./data";
+import { getBillingCopy, type BillingCopy } from "./copy";
 
-export const metadata: Metadata = {
-  title: "Billing | VIZA",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const copy = getBillingCopy(await getLocale());
+  return { title: copy.metadataTitle };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -79,9 +82,9 @@ const toneClasses: Record<Tone, string> = {
   blue: "border-blue-200 bg-blue-50 text-blue-700",
 };
 
-function formatMoney(cents: number, currency: string): string {
+function formatMoney(cents: number, currency: string, locale: string): string {
   try {
-    return new Intl.NumberFormat("en-AU", {
+    return new Intl.NumberFormat(locale.startsWith("zh") ? "zh-CN" : "en-AU", {
       style: "currency",
       currency: currency || "USD",
       maximumFractionDigits: 2,
@@ -91,18 +94,14 @@ function formatMoney(cents: number, currency: string): string {
   }
 }
 
-function formatDate(value: string | null): string {
-  if (!value) return "Not recorded";
+function formatDate(value: string | null, locale: string, copy: BillingCopy): string {
+  if (!value) return copy.dateNotRecorded;
 
-  return new Intl.DateTimeFormat("en-AU", {
+  return new Intl.DateTimeFormat(locale.startsWith("zh") ? "zh-CN" : "en-AU", {
     year: "numeric",
     month: "short",
     day: "numeric",
   }).format(new Date(value));
-}
-
-function normalizeStatus(status: string): string {
-  return status.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -134,41 +133,41 @@ function firstByPaymentId<T extends { payment_record_id: string | null }>(items:
   return map;
 }
 
-function getPaymentStatus(status: string): StatusMeta {
+function getPaymentStatus(status: string, copy: BillingCopy): StatusMeta {
   const normalized = status.toLowerCase();
   if (isPaidPaymentStatus(status)) {
     return {
-      label: "Paid",
+      label: copy.statuses.paid,
       tone: "emerald",
       icon: CheckCircle2,
     };
   }
   if (["failed", "canceled", "cancelled"].includes(normalized)) {
     return {
-      label: "Payment failed",
+      label: copy.statuses.paymentFailed,
       tone: "red",
       icon: XCircle,
     };
   }
   if (["refunded", "partially_refunded"].includes(normalized)) {
     return {
-      label: normalizeStatus(status),
+      label: copy.statuses.unknown(status),
       tone: "blue",
       icon: RefreshCcw,
     };
   }
   return {
-    label: normalizeStatus(status || "pending"),
+    label: status ? copy.statuses.unknown(status) : copy.statuses.pending,
     tone: "amber",
     icon: Clock3,
   };
 }
 
-function getInvoiceStatus(invoice: BillingInvoiceRequest | undefined): StatusMeta {
+function getInvoiceStatus(invoice: BillingInvoiceRequest | undefined, copy: BillingCopy): StatusMeta {
   if (!invoice) {
     return {
-      label: "Invoice not requested",
-      description: "B2B invoices are generated after a request is reviewed.",
+      label: copy.statuses.invoiceNotRequested,
+      description: copy.statuses.invoiceNotRequestedDescription,
       tone: "slate",
       icon: FileText,
     };
@@ -176,8 +175,8 @@ function getInvoiceStatus(invoice: BillingInvoiceRequest | undefined): StatusMet
 
   if (invoice.status === "generated") {
     return {
-      label: "Invoice generated",
-      description: "The VIZA team has generated an invoice for this agency-fee payment.",
+      label: copy.statuses.invoiceGenerated,
+      description: copy.statuses.invoiceGeneratedDescription,
       tone: "emerald",
       icon: CheckCircle2,
     };
@@ -185,16 +184,16 @@ function getInvoiceStatus(invoice: BillingInvoiceRequest | undefined): StatusMet
 
   if (invoice.status === "rejected") {
     return {
-      label: "Invoice request needs follow-up",
-      description: "The request could not be completed as submitted. Contact support for next steps.",
+      label: copy.statuses.invoiceFollowUp,
+      description: copy.statuses.invoiceFollowUpDescription,
       tone: "red",
       icon: AlertCircle,
     };
   }
 
   return {
-    label: "Invoice requested",
-    description: "The VIZA team will generate the invoice after billing review.",
+    label: copy.statuses.invoiceRequested,
+    description: copy.statuses.invoiceRequestedDescription,
     tone: "blue",
     icon: Clock3,
   };
@@ -204,12 +203,17 @@ function getRefundStatus(
   payment: BillingPaymentRecord,
   application: BillingApplication | null,
   refund: BillingRefundRecord | undefined,
+  copy: BillingCopy,
+  locale: string,
 ): StatusMeta {
   if (refund) {
     if (refund.status === "refunded") {
       return {
-        label: "Refunded",
-        description: `${formatMoney(refund.amount_cents, refund.currency)} was marked refunded on ${formatDate(refund.updated_at ?? refund.created_at)}.`,
+        label: copy.statuses.refundedLabel,
+        description: copy.statuses.refunded(
+          formatMoney(refund.amount_cents, refund.currency, locale),
+          formatDate(refund.updated_at ?? refund.created_at, locale, copy),
+        ),
         tone: "emerald",
         icon: CheckCircle2,
       };
@@ -217,25 +221,29 @@ function getRefundStatus(
 
     if (refund.status === "approved") {
       return {
-        label: "Refund approved",
-        description: "The refund has been approved. Provider settlement timing can still vary.",
+        label: copy.statuses.refundApproved,
+        description: copy.statuses.refundApprovedDescription,
         tone: "emerald",
         icon: CheckCircle2,
       };
     }
 
     if (refund.status === "rejected") {
+      const refundReason = refund.reason?.trim();
       return {
-        label: "Refund rejected",
-        description: refund.reason ?? "The refund request was reviewed and not approved.",
+        label: copy.statuses.refundRejected,
+        description:
+          refundReason && (!locale.startsWith("zh") || /[\u3400-\u9fff]/u.test(refundReason))
+            ? refundReason
+            : copy.statuses.refundRejectedDescription,
         tone: "red",
         icon: XCircle,
       };
     }
 
     return {
-      label: "Refund requested",
-      description: "The VIZA team is reviewing this refund request.",
+      label: copy.statuses.refundRequested,
+      description: copy.statuses.refundRequestedDescription,
       tone: "blue",
       icon: Clock3,
     };
@@ -243,8 +251,8 @@ function getRefundStatus(
 
   if (!isPaidPaymentStatus(payment.status)) {
     return {
-      label: "Refund review unavailable",
-      description: "Refund review starts after an agency-fee payment has settled.",
+      label: copy.statuses.refundReviewUnavailable,
+      description: copy.statuses.refundReviewUnavailableDescription,
       tone: "slate",
       icon: HelpCircle,
     };
@@ -252,8 +260,8 @@ function getRefundStatus(
 
   if (application?.submitted_at || application?.external_status || application?.result_status) {
     return {
-      label: "Not normally eligible",
-      description: "The application has already reached official submission or result tracking.",
+      label: copy.statuses.notNormallyEligible,
+      description: copy.statuses.notNormallyEligibleDescription,
       tone: "red",
       icon: ShieldCheck,
     };
@@ -261,16 +269,16 @@ function getRefundStatus(
 
   if (application?.packet_status && application.packet_status !== "not_started") {
     return {
-      label: "Staff review required",
-      description: "Preparation has started, so support must review policy details before any refund decision.",
+      label: copy.statuses.staffReviewRequired,
+      description: copy.statuses.staffReviewRequiredDescription,
       tone: "amber",
       icon: AlertCircle,
     };
   }
 
   return {
-    label: "Eligible for staff review",
-    description: "This payment can be reviewed before official submission work begins. Refunds are not automatic.",
+    label: copy.statuses.eligibleForStaffReview,
+    description: copy.statuses.eligibleForStaffReviewDescription,
     tone: "emerald",
     icon: CheckCircle2,
   };
@@ -287,18 +295,18 @@ function StatusPill({ meta }: { meta: StatusMeta }) {
   );
 }
 
-function getPackageLabel(application: BillingApplication | null, packageItem: BillingVisaPackage | null): string {
-  if (packageItem?.name) return packageItem.name;
+function getPackageLabel(application: BillingApplication | null, packageItem: BillingVisaPackage | null, locale: string): string {
+  if (packageItem?.name && (!locale.startsWith("zh") || /[\u3400-\u9fff]/u.test(packageItem.name))) return packageItem.name;
 
   const country = application?.country ?? packageItem?.country ?? "visa";
   const visaType = getFormVisaType(application?.visa_type ?? packageItem?.visa_type ?? "application");
-  return `${getDestinationDisplayName(country)} ${getVisaTypeDisplayName(visaType)}`;
+  return `${getDestinationDisplayNameForLocale(country, locale)} ${getVisaTypeDisplayNameForLocale(visaType, locale)}`;
 }
 
-function getRouteLabel(application: BillingApplication | null, packageItem: BillingVisaPackage | null): string {
+function getRouteLabel(application: BillingApplication | null, packageItem: BillingVisaPackage | null, locale: string): string {
   const country = application?.country ?? packageItem?.country ?? "visa";
   const visaType = getFormVisaType(application?.visa_type ?? packageItem?.visa_type ?? "application");
-  return `${getDestinationDisplayName(country)} · ${getVisaTypeDisplayName(visaType)}`;
+  return `${getDestinationDisplayNameForLocale(country, locale)} · ${getVisaTypeDisplayNameForLocale(visaType, locale)}`;
 }
 
 function getApplicationFlag(application: BillingApplication | null, packageItem: BillingVisaPackage | null): string {
@@ -384,21 +392,23 @@ function buildGovernmentDisclosureRows(
   return rows;
 }
 
-function summarizePaidTotals(payments: BillingPaymentRecord[]): string {
+function summarizePaidTotals(payments: BillingPaymentRecord[], locale: string, copy: BillingCopy): string {
   const totals = new Map<string, number>();
   for (const payment of payments.filter((item) => isPaidPaymentStatus(item.status))) {
     totals.set(payment.currency, (totals.get(payment.currency) ?? 0) + payment.amount_cents);
   }
 
-  if (totals.size === 0) return "No paid records";
+  if (totals.size === 0) return copy.statuses.noPaidRecords;
   return Array.from(totals.entries())
-    .map(([currency, cents]) => formatMoney(cents, currency))
+    .map(([currency, cents]) => formatMoney(cents, currency, locale))
     .join(" / ");
 }
 
 function getGovernmentDisclosure(
   application: BillingApplication | null,
   packageItem: BillingVisaPackage | null,
+  copy: BillingCopy,
+  locale: string,
 ): GovernmentDisclosure {
   const metadata = asRecord(packageItem?.metadata);
   const governmentFee = asRecord(metadata?.government_fee);
@@ -409,9 +419,13 @@ function getGovernmentDisclosure(
     packageItem?.currency ??
     "USD";
   const mode = application?.government_fee_mode ?? readString(governmentFee, "mode") ?? "display_only";
+  const metadataLabel = readString(governmentFee, "label");
   const label =
-    readString(governmentFee, "label") ??
-    (mode === "unknown" ? "Official fee is confirmed by the government portal." : "Government fee is not part of VIZA agency receipts.");
+    metadataLabel && (!locale.startsWith("zh") || /[\u3400-\u9fff]/u.test(metadataLabel))
+      ? metadataLabel
+      : mode === "unknown"
+        ? copy.government.officialFeeConfirmed
+        : copy.government.separateFromAgency;
 
   return {
     amountCents,
@@ -421,10 +435,10 @@ function getGovernmentDisclosure(
   };
 }
 
-function formatGovernmentFee(disclosure: GovernmentDisclosure): string {
-  if (disclosure.amountCents === null) return "Shown by official source";
-  if (disclosure.amountCents === 0) return "Not collected by VIZA";
-  return formatMoney(disclosure.amountCents, disclosure.currency);
+function formatGovernmentFee(disclosure: GovernmentDisclosure, locale: string, copy: BillingCopy): string {
+  if (disclosure.amountCents === null) return copy.government.officialSource;
+  if (disclosure.amountCents === 0) return copy.government.notCollected;
+  return formatMoney(disclosure.amountCents, disclosure.currency, locale);
 }
 
 function PaymentRecordCard({
@@ -433,16 +447,20 @@ function PaymentRecordCard({
   invoice,
   refund,
   applicantEmail,
+  copy,
+  locale,
 }: {
   payment: BillingPaymentRecord;
   application: BillingApplication | null;
   invoice: BillingInvoiceRequest | undefined;
   refund: BillingRefundRecord | undefined;
   applicantEmail: string | null;
+  copy: BillingCopy;
+  locale: string;
 }) {
-  const paymentStatus = getPaymentStatus(payment.status);
-  const invoiceStatus = getInvoiceStatus(invoice);
-  const refundStatus = getRefundStatus(payment, application, refund);
+  const paymentStatus = getPaymentStatus(payment.status, copy);
+  const invoiceStatus = getInvoiceStatus(invoice, copy);
+  const refundStatus = getRefundStatus(payment, application, refund, copy, locale);
 
   return (
     <article className="rounded-lg border bg-white p-4 shadow-sm sm:p-5">
@@ -451,15 +469,15 @@ function PaymentRecordCard({
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill meta={paymentStatus} />
             <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-              Agency fee only
+              {copy.paymentCard.agencyFeeOnly}
             </span>
           </div>
           <div>
             <p className="text-2xl font-semibold text-foreground">
-              {formatMoney(payment.amount_cents, payment.currency)}
+              {formatMoney(payment.amount_cents, payment.currency, locale)}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Paid record created {formatDate(payment.created_at)}
+              {copy.paymentCard.paidRecordCreated(formatDate(payment.created_at, locale, copy))}
             </p>
           </div>
         </div>
@@ -469,18 +487,18 @@ function PaymentRecordCard({
             <Button asChild variant="outline" className="h-11 rounded-full">
               <Link href={payment.receipt_url} target="_blank" rel="noopener noreferrer">
                 <Download className="h-4 w-4" />
-                Download receipt
+                {copy.paymentCard.downloadReceipt}
               </Link>
             </Button>
           ) : (
             <span className="inline-flex min-h-11 items-center rounded-full border border-dashed px-4 text-sm font-medium text-muted-foreground">
-              Receipt pending
+              {copy.paymentCard.receiptPending}
             </span>
           )}
           <Button asChild variant="outline" className="h-11 rounded-full">
             <Link href="/client/status">
               <ExternalLink className="h-4 w-4" />
-              Case status
+              {copy.paymentCard.caseStatus}
             </Link>
           </Button>
         </div>
@@ -489,19 +507,19 @@ function PaymentRecordCard({
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
         <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-blue-900">Invoice</p>
+            <p className="text-sm font-semibold text-blue-900">{copy.paymentCard.invoice}</p>
             <StatusPill meta={invoiceStatus} />
           </div>
           <p className="mt-2 text-sm leading-6 text-blue-900/80">{invoiceStatus.description}</p>
           {invoice ? (
             <dl className="mt-3 grid gap-2 text-sm text-blue-950 sm:grid-cols-2">
               <div>
-                <dt className="text-xs font-medium uppercase text-blue-900/60">Requested for</dt>
-                <dd className="mt-1 font-semibold">{invoice.invoice_name ?? "Billing name pending"}</dd>
+                <dt className="text-xs font-medium uppercase text-blue-900/60">{copy.paymentCard.requestedFor}</dt>
+                <dd className="mt-1 font-semibold">{invoice.invoice_name ?? copy.paymentCard.billingNamePending}</dd>
               </div>
               <div>
-                <dt className="text-xs font-medium uppercase text-blue-900/60">Requested on</dt>
-                <dd className="mt-1 font-semibold">{formatDate(invoice.created_at)}</dd>
+                <dt className="text-xs font-medium uppercase text-blue-900/60">{copy.paymentCard.requestedOn}</dt>
+                <dd className="mt-1 font-semibold">{formatDate(invoice.created_at, locale, copy)}</dd>
               </div>
             </dl>
           ) : isPaidPaymentStatus(payment.status) ? (
@@ -513,7 +531,7 @@ function PaymentRecordCard({
 
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-slate-900">Refund visibility</p>
+            <p className="text-sm font-semibold text-slate-900">{copy.paymentCard.refundVisibility}</p>
             <StatusPill meta={refundStatus} />
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-700">{refundStatus.description}</p>
@@ -523,20 +541,19 @@ function PaymentRecordCard({
   );
 }
 
-function EmptyPayments() {
+function EmptyPayments({ copy }: { copy: BillingCopy }) {
   return (
     <div className="rounded-lg border border-dashed bg-white px-6 py-12 text-center">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-500">
         <ReceiptText className="h-6 w-6" />
       </div>
-      <h2 className="mt-4 text-xl font-semibold text-foreground">No agency-fee payments yet</h2>
+      <h2 className="mt-4 text-xl font-semibold text-foreground">{copy.empty.title}</h2>
       <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-        Paid VIZA agency-fee records, receipt links, invoice requests, and refund status will appear here.
-        Government portal fees stay separate from these receipt records.
+        {copy.empty.description}
       </p>
       <Button asChild className="mt-6 h-11 rounded-full">
         <Link href="/client/checkout">
-          Go to checkout
+          {copy.empty.checkout}
           <ArrowRight className="h-4 w-4" />
         </Link>
       </Button>
@@ -544,13 +561,13 @@ function EmptyPayments() {
   );
 }
 
-function ErrorBanner({ message }: { message: string }) {
+function ErrorBanner({ message, copy }: { message: string; copy: BillingCopy }) {
   return (
     <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
       <div className="flex gap-3">
         <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
         <div>
-          <p className="font-semibold">Billing data unavailable</p>
+          <p className="font-semibold">{copy.errors.unavailableTitle}</p>
           <p className="mt-1">{message}</p>
         </div>
       </div>
@@ -559,7 +576,9 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 export default async function ClientBillingPage() {
-  const overview = await getBillingOverview();
+  const locale = await getLocale();
+  const copy = getBillingCopy(locale);
+  const overview = await getBillingOverview(locale);
   const packagesById = makeMap(overview.packages);
   const invoicesByPaymentId = firstByPaymentId(overview.invoiceRequests);
   const refundsByPaymentId = firstByPaymentId(overview.refundRecords);
@@ -574,26 +593,25 @@ export default async function ClientBillingPage() {
       <section className="pt-5 sm:pt-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">Billing</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">{copy.page.eyebrow}</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
-              Payments, receipts, invoices, and refund status
+              {copy.page.title}
             </h1>
             <p className="mt-3 text-base leading-7 text-muted-foreground">
-              Review VIZA agency-fee history, download hosted receipts, request B2B invoices, and see refund status.
-              Government fee disclosures are shown separately because they are not VIZA agency-fee receipts.
+              {copy.page.description}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" className="h-11 rounded-full">
               <Link href="/client/status">
                 <ShieldCheck className="h-4 w-4" />
-                View case status
+                {copy.page.viewCaseStatus}
               </Link>
             </Button>
             <Button asChild className="h-11 rounded-full">
               <Link href="/client/checkout">
                 <WalletCards className="h-4 w-4" />
-                Checkout
+                {copy.page.checkout}
               </Link>
             </Button>
           </div>
@@ -602,16 +620,16 @@ export default async function ClientBillingPage() {
 
       {overview.error ? (
         <section className="mt-6">
-          <ErrorBanner message={overview.error} />
+          <ErrorBanner message={overview.error} copy={copy} />
         </section>
       ) : null}
 
       <section className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Paid agency fees", value: summarizePaidTotals(overview.payments), icon: WalletCards },
-          { label: "Receipt links", value: `${receiptCount} available`, icon: ReceiptText },
-          { label: "Invoice requests", value: `${overview.invoiceRequests.length} tracked`, icon: FileText },
-          { label: "Refund records", value: `${overview.refundRecords.length} tracked`, icon: RefreshCcw },
+          { label: copy.page.paidAgencyFees, value: summarizePaidTotals(overview.payments, locale, copy), icon: WalletCards },
+          { label: copy.page.receiptLinksLabel, value: copy.page.receiptLinks(receiptCount), icon: ReceiptText },
+          { label: copy.page.invoiceRequestsLabel, value: copy.page.invoiceRequests(overview.invoiceRequests.length), icon: FileText },
+          { label: copy.page.refundRecordsLabel, value: copy.page.refundRecords(overview.refundRecords.length), icon: RefreshCcw },
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -634,11 +652,10 @@ export default async function ClientBillingPage() {
             <div>
               <div className="flex items-center gap-2 text-amber-900">
                 <AlertCircle className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Agency fee still needs attention</h2>
+                <h2 className="text-lg font-semibold">{copy.page.agencyFeeAttention}</h2>
               </div>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-900/80">
-                These applications do not have a settled VIZA agency-fee record yet. Checkout only covers VIZA agency fees;
-                official government fees remain separate.
+                {copy.page.agencyFeeAttentionDescription}
               </p>
             </div>
           </div>
@@ -648,12 +665,12 @@ export default async function ClientBillingPage() {
               return (
                 <div key={application.id} className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="font-semibold text-foreground">{getPackageLabel(application, packageItem)}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{getRouteLabel(application, packageItem)}</p>
+                    <p className="font-semibold text-foreground">{getPackageLabel(application, packageItem, locale)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{getRouteLabel(application, packageItem, locale)}</p>
                   </div>
                   <Button asChild className="h-10 rounded-full">
                     <Link href={getCheckoutHref(application, packageItem)}>
-                      Pay agency fee
+                      {copy.page.payAgencyFee}
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
@@ -667,14 +684,14 @@ export default async function ClientBillingPage() {
       <section className="mt-8">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">Payment history</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Agency-fee records are grouped by application or visa package.</p>
+            <h2 className="text-2xl font-semibold text-foreground">{copy.page.paymentHistory}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{copy.page.paymentHistoryDescription}</p>
           </div>
         </div>
 
         <div className="mt-5 space-y-6">
           {paymentGroups.length === 0 ? (
-            <EmptyPayments />
+            <EmptyPayments copy={copy} />
           ) : (
             paymentGroups.map((group) => (
               <section key={group.key} className="space-y-3">
@@ -684,13 +701,13 @@ export default async function ClientBillingPage() {
                       {getApplicationFlag(group.application, group.packageItem)}
                     </span>
                     <div className="min-w-0">
-                      <h3 className="text-xl font-semibold text-foreground">{getPackageLabel(group.application, group.packageItem)}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{getRouteLabel(group.application, group.packageItem)}</p>
+                      <h3 className="text-xl font-semibold text-foreground">{getPackageLabel(group.application, group.packageItem, locale)}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">{getRouteLabel(group.application, group.packageItem, locale)}</p>
                     </div>
                   </div>
                   <Button asChild variant="outline" className="h-10 rounded-full">
                     <Link href="/client/status">
-                      View progress
+                      {copy.page.viewProgress}
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
@@ -705,6 +722,8 @@ export default async function ClientBillingPage() {
                       invoice={invoicesByPaymentId.get(payment.id)}
                       refund={refundsByPaymentId.get(payment.id)}
                       applicantEmail={overview.applicant.email}
+                      copy={copy}
+                      locale={locale}
                     />
                   ))}
                 </div>
@@ -716,31 +735,31 @@ export default async function ClientBillingPage() {
 
       <section className="mt-10">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Government fee disclosure</h2>
+          <h2 className="text-2xl font-semibold text-foreground">{copy.page.governmentDisclosure}</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            These amounts are displayed apart from agency-fee receipts. VIZA does not collect or process official portal fees here.
+            {copy.page.governmentDisclosureDescription}
           </p>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {governmentDisclosureRows.length === 0 ? (
             <div className="rounded-lg border border-dashed bg-white p-5 text-sm text-muted-foreground">
-              Government fee information will appear after an application or visa package is selected.
+              {copy.government.shownAfterSelection}
             </div>
           ) : (
             governmentDisclosureRows.map((row) => {
-              const disclosure = getGovernmentDisclosure(row.application, row.packageItem);
+              const disclosure = getGovernmentDisclosure(row.application, row.packageItem, copy, locale);
               return (
                 <div key={row.key} className="rounded-lg border bg-white p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-foreground">{getPackageLabel(row.application, row.packageItem)}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{getRouteLabel(row.application, row.packageItem)}</p>
+                      <p className="font-semibold text-foreground">{getPackageLabel(row.application, row.packageItem, locale)}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{getRouteLabel(row.application, row.packageItem, locale)}</p>
                     </div>
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-                      {normalizeStatus(disclosure.mode)}
+                      {copy.statuses.mode(disclosure.mode)}
                     </span>
                   </div>
-                  <p className="mt-4 text-lg font-semibold text-foreground">{formatGovernmentFee(disclosure)}</p>
+                  <p className="mt-4 text-lg font-semibold text-foreground">{formatGovernmentFee(disclosure, locale, copy)}</p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{disclosure.label}</p>
                 </div>
               );

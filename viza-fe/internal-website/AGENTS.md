@@ -202,6 +202,14 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260728090000_vn_evisa_strict_validity_range.sql`:
   `visa_valid_to` must be at least one calendar day after `visa_valid_from`,
   matching the official portal rather than allowing a same-day interval.
+- Active application-form Chinese copy is polished by the
+  `20260807224244_polish_active_form_chinese_copy.sql` and
+  `20260807230600_polish_arrival_and_visa_form_chinese_copy.sql` migrations,
+  with the live Schengen sector field repaired by
+  `20260807231500_repair_schengen_health_option_chinese_copy.sql`;
+  it updates Chinese labels and option display text only, while preserving
+  official English wording, stored values, and submission mappings. Keep it
+  aligned with the runtime safety net in `lib/bilingual-schema-contract.ts`.
 - The required U.S. DS-160 China issuing-post selector is applied by
   `supabase/migrations/20260729054904_add_ds160_consular_post.sql`; its stored
   values are the live CEAC location codes consumed by submission-service.
@@ -360,6 +368,8 @@ Smoke URLs:
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
+- `app/account/security/copy.ts`: locale-scoped TOTP setup and recovery copy;
+  factor identifiers and statuses remain language-neutral internally.
 - `lib/frequent-traveler-profile.ts`
 - `lib/universal-profile-prefill.ts`
 - `lib/translation/*`
