@@ -77,10 +77,10 @@ export interface FormFillingAssistantProps {
   validationResult?: FormAssistantValidationResult | null;
   onSend: (text: string) => void | Promise<void>;
   onTranscribe: (file: File) => FormAssistantTranscription | Promise<FormAssistantTranscription>;
-  onValidate: () => void | Promise<void>;
   onAcknowledgeWarnings: () => void | Promise<void>;
   onUndoFill: (items: FormAssistantFillNoticeItem[]) => void | Promise<void>;
   onDismissFillNotice: (noticeId: string) => void;
+  onValidateAndGoToReview: () => void | Promise<void>;
   onGoToReview: () => void;
   className?: string;
 }
@@ -124,10 +124,10 @@ export function FormFillingAssistant({
   validationResult = null,
   onSend,
   onTranscribe,
-  onValidate,
   onAcknowledgeWarnings,
   onUndoFill,
   onDismissFillNotice,
+  onValidateAndGoToReview,
   onGoToReview,
   className,
 }: FormFillingAssistantProps) {
@@ -499,7 +499,7 @@ export function FormFillingAssistant({
                 ))}
               </div>
             ) : null}
-            {missingFields.length === 0 && progress.total > 0 && !loading && !canGoToReview ? (
+            {missingFields.length === 0 && progress.total > 0 && !loading ? (
               <div
                 className="flex justify-start pb-1"
                 data-testid="form-assistant-review-action"
@@ -509,8 +509,12 @@ export function FormFillingAssistant({
                     {t("actions.acknowledgeWarnings")}
                   </BrandActionButton>
                 ) : (
-                  <BrandActionButton variant="secondary" onClick={() => void onValidate()} loading={loading} loadingText={t("actions.checking")}>
-                    {validationResult ? t("actions.checkAgain") : t("actions.checkAnswers")}
+                  <BrandActionButton
+                    onClick={() => void (canGoToReview ? onGoToReview() : onValidateAndGoToReview())}
+                    loading={loading}
+                    loadingText={t("actions.checking")}
+                  >
+                    {t("actions.goToFinalReview")}
                   </BrandActionButton>
                 )}
               </div>
@@ -594,13 +598,6 @@ export function FormFillingAssistant({
             ) : null}
             {errors.length === 0 && warnings.length === 0 ? (
               <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">{t("validation.pass")}</p>
-            ) : null}
-            {canGoToReview ? (
-              <div className="flex justify-start pt-1">
-                <BrandActionButton onClick={onGoToReview} disabled={loading}>
-                  {t("actions.goToFinalReview")}
-                </BrandActionButton>
-              </div>
             ) : null}
           </section>
         ) : null}
