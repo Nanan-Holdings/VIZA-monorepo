@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import type { WizardStep } from "@/types/visa-form-fields";
 import {
@@ -95,6 +95,38 @@ describe("dynamic review localization", () => {
       .toBe("个人信息");
     expect(getLocalizedReviewSectionTitle("Passport Details", "en"))
       .toBe("Passport Details");
+  });
+
+  test("keeps identical section labels tied to their own edit destinations", () => {
+    const onEditSection = vi.fn();
+    const sharedRow = {
+      section: "行程信息",
+      label: "字段 / Field",
+      sourceLabel: "字段",
+      officialLabel: "Field",
+      sourceValue: "值",
+      officialValue: "Value",
+      badges: [],
+      warnings: [],
+      editable: true,
+    };
+
+    render(
+      <BilingualReviewPanel
+        onEditSection={onEditSection}
+        rows={[
+          { ...sharedRow, fieldName: "arrival", editStepIndex: 2 },
+          { ...sharedRow, fieldName: "insurance", editStepIndex: 7 },
+        ]}
+      />,
+    );
+
+    const editButtons = screen.getAllByRole("button", { name: "修改行程信息" });
+    expect(editButtons).toHaveLength(2);
+
+    fireEvent.click(editButtons[0]);
+    fireEvent.click(editButtons[1]);
+    expect(onEditSection.mock.calls).toEqual([[2], [7]]);
   });
 
   test("keeps empty fields at the end of the merged review", () => {

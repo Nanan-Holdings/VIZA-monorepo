@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ interface FieldValue {
 
 export default function SimplifiedFormReviewPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { formData } = useSimplifiedFormContext();
   const [fields, setFields] = useState<{ [section: string]: FieldValue[] }>({});
 
@@ -106,13 +107,19 @@ export default function SimplifiedFormReviewPage() {
   }, [formData, router]);
 
   const handleEdit = useCallback(() => {
-    router.push("/client/simplified-form");
-  }, [router]);
+    const query = searchParams.toString();
+    router.push(`/client/simplified-form${query ? `?${query}` : ""}`);
+  }, [router, searchParams]);
 
   const handleProceed = useCallback(() => {
     // Clear the context and proceed to the full application
-    router.push(buildApplicationLongFormHref({ step: "review" }));
-  }, [router]);
+    router.push(buildApplicationLongFormHref({
+      applicationId: searchParams.get("applicationId"),
+      country: searchParams.get("country"),
+      visaType: searchParams.get("visaType") ?? searchParams.get("visa_type"),
+      step: "review",
+    }));
+  }, [router, searchParams]);
 
   if (!formData) {
     return null;

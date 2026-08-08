@@ -906,6 +906,7 @@ function buildActions(
   resultFile: StatusFile | null,
 ): StatusAction[] {
   const applicationHref = buildApplicationLongFormHref({
+    applicationId: application?.id,
     country: packageBase.country,
     visaType: packageBase.visaType,
   });

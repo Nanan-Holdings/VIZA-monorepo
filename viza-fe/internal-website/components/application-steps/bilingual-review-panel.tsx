@@ -34,15 +34,21 @@ interface BilingualReviewPanelProps {
   onEditSection?: (stepIndex: number) => void;
 }
 
-function groupRows(rows: ReviewRow[]): Array<{ section: string; rows: ReviewRow[]; editStepIndex?: number }> {
+function groupRows(rows: ReviewRow[]): Array<{ id: string; section: string; rows: ReviewRow[]; editStepIndex?: number }> {
   const grouped = new Map<string, ReviewRow[]>();
   for (const row of rows) {
-    const existing = grouped.get(row.section) ?? [];
+    // Display labels are not stable identifiers: separate source steps can
+    // legitimately localize to the same section title. Include the edit target
+    // in the grouping key so one section's Edit button can never inherit a
+    // different step's destination.
+    const groupKey = `${row.editStepIndex ?? "read-only"}:${row.section}`;
+    const existing = grouped.get(groupKey) ?? [];
     existing.push(row);
-    grouped.set(row.section, existing);
+    grouped.set(groupKey, existing);
   }
-  return Array.from(grouped.entries()).map(([section, sectionRows]) => ({
-    section,
+  return Array.from(grouped.entries()).map(([id, sectionRows]) => ({
+    id,
+    section: sectionRows[0]?.section ?? "",
     rows: sectionRows,
     editStepIndex: sectionRows.find((row) => row.editStepIndex !== undefined)?.editStepIndex,
   }));
@@ -160,7 +166,7 @@ export function BilingualReviewPanel({
         </p>
       ) : (
         sections.map((section) => (
-          <section key={section.section}>
+          <section key={section.id}>
             <div className="flex min-h-8 items-center justify-between gap-3">
               <h3 className="font-heading text-sm font-semibold text-brand-500">
                 {section.section}

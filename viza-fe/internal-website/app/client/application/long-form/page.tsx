@@ -2365,13 +2365,10 @@ export default function ApplicationPage() {
     submissionResultStatus: appState.submissionResultStatus,
     submissionResult: appState.submissionResult,
   });
-  const showReviewAlongsideSubmissionStatus = shouldShowReviewAlongsideSubmissionStatus({
-    submissionResultStatus: appState.submissionResultStatus,
-    // Indonesia B1/C1 can remain at a payment/account checkpoint for an
-    // extended period. Keep the saved application review visible beside the
-    // live status so an applicant can always audit what VIZA is using.
-    preserveReview: preserveIndonesiaReview,
-  });
+  // A submission/status card must never replace the saved application review.
+  // This applies uniformly to pending, payment, handoff, success, retry, and
+  // failure states across every long-form country workflow.
+  const showReviewAlongsideSubmissionStatus = shouldShowReviewAlongsideSubmissionStatus();
 
   useEffect(() => {
     if (loading || effectiveSteps.length === 0) return;

@@ -145,6 +145,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   Scheduled arrival-card work must keep its future `available_at` and must not
   wake compute early. Legacy, Indonesia and Korea sticky wake requests reserve
   database Machine slots and may preempt only an idle shared worker.
+  Country wizard review-route coverage lives in
+  `components/client/wizards/shell/__tests__/review-routing.test.ts`; every
+  configured wizard must expose at least one review section and every review
+  Edit target must match a declared wizard step key.
   Production Fly app names are selected through `FLY_RUNNER_POOL_APP`,
   `FLY_SUBMISSION_LEGACY_APP`, `FLY_RUNNER_INDONESIA_APP`, and
   `FLY_RUNNER_SOUTH_KOREA_APP`; unset values retain the original app names for
