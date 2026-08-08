@@ -34,7 +34,7 @@ Before changing this route, read:
 - `components/dynamic-step-form.tsx`: shared DB-driven bilingual form renderer, including Chinese/English synchronization, field-level validation, repeat groups, keyboard undo/redo, and AI trigger buttons.
 - `components/dynamic-form-field.tsx`: primitive field renderer for text, textarea, date, select, country, radio, checkbox, phone, SSN, and upload-like fields.
 - `components/field-guidance-panel.tsx`: frontend panel for field-level AI help. It calls `POST /api/field-guidance` and must render plain, useful field guidance.
-- `components/client/form-assistant/form-filling-assistant.tsx`: application-level SGAC pilot assistant, including text/voice composer, progress, provenance list, and final-check controls.
+- `components/client/form-assistant/form-filling-assistant.tsx`: reusable application-level assistant for DB-driven forms, including text/voice composer, progress, provenance notices, and final-check controls.
 - `components/application-steps/dynamic-review-step.tsx`: read-only review step for DB-driven forms.
 - `app/client/application/_components/result-cards/submission-status-poll.ts`:
   bounded retry policy for final-step status polling. Network failures and
@@ -74,6 +74,9 @@ Before changing this route, read:
 13. Keep review read-only. Review should show what the user entered and the derived English/official value, but final editing belongs in the form steps.
 14. Be careful with dirty worktrees. This route is commonly edited alongside backend RAG and form seeds; do not revert unrelated files.
 15. The form-filling assistant is separate from general VIZA AI and field-level `问 AI`. It may collect form answers only through the owned application APIs, must never modify Universal Profile implicitly, and must leave the manual form usable when AI or voice services fail.
+16. Render the form-filling assistant only for an owned application with a
+    non-empty DB-driven schema. Keep every prompt, source, option and validator
+    scoped to that application's exact country and visa type.
 
 ## Validation Checklist
 

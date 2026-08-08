@@ -1,7 +1,5 @@
 import type { FormAssistantSource } from "@/types/form-assistant";
 
-export const FORM_ASSISTANT_ENABLED_VISA_TYPES = new Set(["SG_ARRIVAL_CARD"]);
-
 export const SGAC_ICA_SOURCES: FormAssistantSource[] = [
   {
     title: "ICA | SG Arrival Card (SGAC) with Electronic Health Declaration",
@@ -10,5 +8,30 @@ export const SGAC_ICA_SOURCES: FormAssistantSource[] = [
 ];
 
 export function isFormAssistantEnabled(visaType: string | null | undefined): boolean {
-  return FORM_ASSISTANT_ENABLED_VISA_TYPES.has((visaType ?? "").trim().toUpperCase());
+  const normalized = (visaType ?? "").trim().toUpperCase();
+  return /^[A-Z0-9][A-Z0-9_-]{0,127}$/.test(normalized);
+}
+
+export function canUseFormAssistant(params: {
+  applicationId: string | null | undefined;
+  visaType: string | null | undefined;
+  schemaFieldCount: number;
+}): boolean {
+  return Boolean(
+    params.applicationId &&
+    params.schemaFieldCount > 0 &&
+    isFormAssistantEnabled(params.visaType),
+  );
+}
+
+export function getFormAssistantFallbackSources(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): FormAssistantSource[] {
+  const normalizedCountry = (country ?? "").trim().toLowerCase();
+  const normalizedVisaType = (visaType ?? "").trim().toUpperCase();
+  return ["singapore", "sg", "新加坡"].includes(normalizedCountry) &&
+    normalizedVisaType === "SG_ARRIVAL_CARD"
+    ? SGAC_ICA_SOURCES
+    : [];
 }

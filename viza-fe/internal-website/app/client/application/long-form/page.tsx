@@ -68,6 +68,7 @@ import type {
   FormAssistantUndoResponse,
 } from "@/types/form-assistant";
 import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
+import { canUseFormAssistant } from "@/lib/form-assistant/constants";
 import {
   buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
@@ -1827,6 +1828,7 @@ export default function ApplicationPage() {
   const [formAssistantState, setFormAssistantState] = useState<FormAssistantState | null>(null);
   const [formAssistantBusy, setFormAssistantBusy] = useState(false);
   const [formAssistantValidation, setFormAssistantValidation] = useState<FormAssistantValidationResponse | null>(null);
+  const [formAssistantUnavailable, setFormAssistantUnavailable] = useState(false);
   const [aiFilledFieldNames, setAiFilledFieldNames] = useState<string[]>([]);
   const [formAssistantFillNotice, setFormAssistantFillNotice] = useState<FormAssistantFillNotice | null>(null);
   const [draftVersion, setDraftVersion] = useState(0);
@@ -2017,17 +2019,25 @@ export default function ApplicationPage() {
   const isVietnamEVisa = isVietnamEVisaApplication(resolvedCountry, resolvedVisaType);
   const isVietnamPrearrival = isVietnamPrearrivalApplication(resolvedCountry, resolvedVisaType);
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
-  const showFormFillingAssistant = isSgArrivalCard && Boolean(appState.applicationId);
+  const formAssistantSchemaFieldCount = dbSteps.reduce((count, step) => count + step.fields.length, 0);
+  const formAssistantEligible = canUseFormAssistant({
+    applicationId: appState.applicationId,
+    visaType: resolvedVisaType,
+    schemaFieldCount: formAssistantSchemaFieldCount,
+  });
+  const showFormFillingAssistant = formAssistantEligible && !formAssistantUnavailable;
 
   useEffect(() => {
     const applicationId = appState.applicationId;
-    if (!isSgArrivalCard || !applicationId) {
+    if (!formAssistantEligible || !applicationId) {
       setFormAssistantState(null);
       setAiFilledFieldNames([]);
       setFormAssistantFillNotice(null);
+      setFormAssistantUnavailable(false);
       return;
     }
     const controller = new AbortController();
+    setFormAssistantUnavailable(false);
     setFormAssistantBusy(true);
     fetch(`/api/applications/${applicationId}/form-assistant?locale=${encodeURIComponent(locale)}`, {
       signal: controller.signal,
@@ -2045,13 +2055,15 @@ export default function ApplicationPage() {
       .catch((assistantError) => {
         if (!controller.signal.aborted) {
           console.warn("Unable to load form assistant", assistantError);
+          setFormAssistantUnavailable(true);
+          setFormAssistantState(null);
         }
       })
       .finally(() => {
         if (!controller.signal.aborted) setFormAssistantBusy(false);
       });
     return () => controller.abort();
-  }, [appState.applicationId, isSgArrivalCard, locale]);
+  }, [appState.applicationId, formAssistantEligible, locale]);
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
   const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
@@ -2418,6 +2430,7 @@ export default function ApplicationPage() {
         applicationId: application?.id,
         country: resolvedCountry,
         visaType: resolvedVisaType,
+        hasFormSchema: dbSteps.some((step) => step.fields.length > 0),
       })) {
         const bootstrapKey = `${resolvedCountry}:${resolvedVisaType}`;
         if (formAssistantDraftBootstrapRef.current?.key !== bootstrapKey) {

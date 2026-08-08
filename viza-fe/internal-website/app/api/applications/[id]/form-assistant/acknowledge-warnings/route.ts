@@ -21,7 +21,7 @@ export async function POST(
   if (!consumeFormAssistantRateLimit(`acknowledge:${owned.user.id}`, { limit: 30, windowMs: 60_000 })) {
     return Response.json({ error: "Too many requests." }, { status: 429 });
   }
-  if (!isFormAssistantEnabled(owned.application.visa_type)) {
+  if (process.env.FORM_ASSISTANT_ENABLED === "false" || !isFormAssistantEnabled(owned.application.visa_type)) {
     return Response.json({ error: "Form assistant is not enabled for this application." }, { status: 404 });
   }
   let body: AcknowledgeBody;

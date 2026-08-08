@@ -48,6 +48,8 @@ export async function GET(
     const messages = await loadAssistantMessages(owned.admin, session.id);
     return Response.json(buildAssistantState({
       sessionId: session.id,
+      country: owned.application.country,
+      visaType: owned.application.visa_type,
       steps,
       answers,
       messages,

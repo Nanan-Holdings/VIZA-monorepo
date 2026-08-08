@@ -3,7 +3,16 @@ import "server-only";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { normalizeBilingualFormField } from "@/lib/bilingual-schema-contract";
+import {
+  normalizeBilingualFormField,
+  normalizeBilingualWizardSteps,
+} from "@/lib/bilingual-schema-contract";
+import {
+  getRagVisitorIntakeSteps,
+  shouldUseRagVisitorIntakeFallback,
+} from "@/lib/rag-visitor-intake-form";
+import { augmentThailandTouristEVisaSteps } from "@/lib/thailand-tourist-evisa-form-overrides";
+import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form-parity";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/types/visa-form-fields";
 
@@ -64,6 +73,12 @@ export async function loadAssistantSchema(
     .order("display_order", { ascending: true });
   if (error) throw new Error(error.message);
 
+  if (!data || data.length === 0) {
+    return shouldUseRagVisitorIntakeFallback(schemaVisaType)
+      ? normalizeBilingualWizardSteps(getRagVisitorIntakeSteps(schemaVisaType))
+      : [];
+  }
+
   const steps = new Map<number, WizardStep>();
   for (const row of (data ?? []) as VisaFormFieldDbRow[]) {
     if (!steps.has(row.step_number)) {
@@ -77,7 +92,16 @@ export async function loadAssistantSchema(
       normalizeBilingualFormField(dbRowToFormField(row)),
     );
   }
-  return Array.from(steps.values()).sort((left, right) => left.stepNumber - right.stepNumber);
+  const orderedSteps = Array.from(steps.values()).sort((left, right) => left.stepNumber - right.stepNumber);
+  const vietnamPatched = schemaVisaType === "VN_E_VISA"
+    ? augmentVietnamEVisaOfficialParitySteps(orderedSteps)
+    : orderedSteps;
+  const patchedSteps = schemaVisaType === "TH_TOURIST_E_VISA"
+    ? augmentThailandTouristEVisaSteps(vietnamPatched)
+    : vietnamPatched;
+  return schemaVisaType === "VN_E_VISA"
+    ? normalizeBilingualWizardSteps(patchedSteps)
+    : patchedSteps;
 }
 
 export async function loadAssistantAnswers(

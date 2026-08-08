@@ -70,8 +70,8 @@ ports directly.
   must not persist raw audio or expose provider error payloads.
 - `viza-fe/internal-website/app/api/applications/[id]/form-assistant/route.ts`
   and its `turn`, `undo`, `validate`, `acknowledge-warnings`, and owned `documents/*/extract`
-  children provide the SGAC application-level assistant. Keep the product
-  allowlist, schema-scoped extraction, user-wins conflict checks, and
+  children provide the application-level assistant for DB-driven forms. Keep
+  schema-scoped extraction, exact country/product RAG binding, user-wins conflict checks, and
   no-official-submission boundary intact. Undo must compare the current
   assistant-owned value before restoring or deleting it so later manual edits
   always win.
