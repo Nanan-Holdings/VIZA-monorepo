@@ -305,6 +305,73 @@ function matchingOptionsForAnswer(
   );
 }
 
+function normalizedAccommodationQuery(text: string): string {
+  return normalizedNaturalLanguageValue(text)
+    .replace(/^(?:好的|好|我(?:会|要|将)?(?:住在|入住|住)|住在|入住)/, "")
+    .replace(/^(?:i(?:am|m)?stayingat|i(?:will|ll)?stayat|stayingat|stayat|the)/, "")
+    .replace(/(?:这家)?(?:酒店|宾馆|旅馆)$/, "")
+    .replace(/hotel$/, "")
+    .replace(/新加坡|singapore/g, "");
+}
+
+function accommodationSearchTerms(query: string): string[] {
+  const brand = ["holidayinn", "holidayin", "宜必思", "ibis"].find((item) => query.includes(item));
+  if (!brand) return [query];
+  return [brand, query.replace(brand, "")].filter((item) => item.length > 0);
+}
+
+function findAccommodationCandidatesInOptions(
+  text: string,
+  options: VisaFormFieldOption[],
+): VisaFormFieldOption[] {
+  const strictMatches = matchingOptionsForAnswer(text, options, "accommodation_name");
+  if (strictMatches.length > 0) return strictMatches;
+
+  const query = normalizedAccommodationQuery(text);
+  const containsHan = /\p{Script=Han}/u.test(query);
+  if ((containsHan && query.length < 2) || (!containsHan && query.length < 4)) return [];
+  const genericQueries = new Set(["住宿", "新加坡", "hotel", "hostel", "singapore"]);
+  if (genericQueries.has(query)) return [];
+  const searchTerms = accommodationSearchTerms(query);
+
+  return options.filter((option) => optionAliases(option, "accommodation_name").some((alias) => {
+    const normalizedAlias = normalizedNaturalLanguageValue(alias);
+    return normalizedAlias.length >= query.length && (
+      normalizedAlias.includes(query) || searchTerms.every((term) => normalizedAlias.includes(term))
+    );
+  }));
+}
+
+export function findAccommodationOptionCandidates(
+  text: string,
+  field: VisaFormFieldRow | undefined,
+): VisaFormFieldOption[] {
+  if (field?.fieldName !== "accommodation_name" || !field.options?.length) return [];
+  return findAccommodationCandidatesInOptions(text, field.options);
+}
+
+export function buildAccommodationClarification(
+  candidates: VisaFormFieldOption[],
+  locale: string,
+): string {
+  const names = candidates.slice(0, 5).map((option) => {
+    if (typeof option === "string") return option;
+    if (locale.startsWith("zh") && typeof option.label_zh === "string" && option.label_zh.trim()) {
+      return option.label_zh.trim();
+    }
+    return option.text?.trim() || option.official_label?.trim() || option.value;
+  });
+  const formattedNames = names.map((name) => `“${name}”`).join(locale.startsWith("zh") ? "、" : ", ");
+  if (locale.startsWith("zh")) {
+    return candidates.length === 1
+      ? `我找到了一个可能的酒店：${formattedNames}。为避免填错，请回复完整酒店名称确认一下。`
+      : `我找到了几家名称相近的酒店：${formattedNames}${candidates.length > names.length ? "等" : ""}。你入住的是哪一家？请告诉我完整酒店名称或分店位置。`;
+  }
+  return candidates.length === 1
+    ? `I found one possible hotel: ${formattedNames}. To avoid filling the wrong hotel, please confirm its full name.`
+    : `I found several hotels with similar names: ${formattedNames}${candidates.length > names.length ? ", and others" : ""}. Which one will you stay at? Please give me the full hotel name or branch location.`;
+}
+
 function relevantOptionsForMessage(
   options: VisaFormFieldOption[],
   message: string,
@@ -312,10 +379,15 @@ function relevantOptionsForMessage(
   fieldName?: string,
 ): VisaFormFieldOption[] {
   const mentioned = matchingOptionsForAnswer(message, options, fieldName);
-  if (mentioned.length === 0) return options.slice(0, limit);
-  const mentionedValues = new Set(mentioned.map(optionValue));
+  const relevant = mentioned.length > 0
+    ? mentioned
+    : fieldName === "accommodation_name"
+      ? findAccommodationCandidatesInOptions(message, options)
+      : [];
+  if (relevant.length === 0) return options.slice(0, limit);
+  const mentionedValues = new Set(relevant.map(optionValue));
   return [
-    ...mentioned,
+    ...relevant,
     ...options.filter((option) => !mentionedValues.has(optionValue(option))),
   ].slice(0, limit);
 }
@@ -419,7 +491,9 @@ export function parseDirectCurrentFieldAnswer(
   }
 
   if (field.options?.length) {
-    const matches = matchingOptionsForAnswer(text, field.options, field.fieldName);
+    const matches = field.fieldName === "accommodation_name"
+      ? findAccommodationOptionCandidates(text, field)
+      : matchingOptionsForAnswer(text, field.options, field.fieldName);
     if (matches.length === 1) {
       return {
         fieldName: field.fieldName,
@@ -819,7 +893,7 @@ async function proposeTurn(params: {
       field.fieldName,
     ).map((option) => ({
       value: optionValue(option),
-      aliases: optionAliases(option),
+      aliases: optionAliases(option, field.fieldName),
     })),
     pattern: typeof field.validationRules?.pattern === "string" ? field.validationRules.pattern : null,
   }));
@@ -1021,8 +1095,13 @@ export async function runAssistantTurn(params: {
   const timeZone = PRODUCT_TIME_ZONES[params.visaType] ?? "UTC";
   const referenceDate = isoDateInTimeZone(new Date(), timeZone);
   const directChoice = parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
+  const accommodationCandidates = directChoice
+    ? []
+    : findAccommodationOptionCandidates(message, currentField);
   const proposed = directChoice
     ? { reply: "", patches: [directChoice] }
+    : accommodationCandidates.length > 0
+      ? { reply: "", patches: [] }
     : await proposeTurn({
         text: message,
         locale: params.locale,
@@ -1102,10 +1181,12 @@ export async function runAssistantTurn(params: {
   const nextQuestion = nextMissing.length > 0
     ? buildQuestion(nextFields, params.locale)
     : buildCompletionQuestion(optionalFields, params.locale);
-  const assistantMessage = [
-    buildTurnAcknowledgement(appliedPatches.length, params.locale),
-    nextQuestion,
-  ].filter(Boolean).join("\n\n");
+  const assistantMessage = accommodationCandidates.length > 0 && appliedPatches.length === 0
+    ? buildAccommodationClarification(accommodationCandidates, params.locale)
+    : [
+        buildTurnAcknowledgement(appliedPatches.length, params.locale),
+        nextQuestion,
+      ].filter(Boolean).join("\n\n");
   const response: FormAssistantTurnResponse = {
     sessionId: params.session.id,
     assistantMessage,
