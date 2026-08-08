@@ -9,6 +9,7 @@ import {
   buildAccommodationClarification,
   buildAssistantState,
   findAccommodationOptionCandidates,
+  inferRequestedCorrectionFieldName,
   parseDirectCurrentFieldAnswer,
   parseDirectYesNoAnswer,
 } from "./service";
@@ -139,6 +140,7 @@ describe("accommodation name resolution", () => {
     ["holidayin", 2],
     ["我住宜必思", 2],
     ["I am staying at Holiday Inn", 2],
+    ["我想改酒店，我想要住holidayin", 2],
   ])("finds all relevant official hotel branches for %s", (answer, expectedCount) => {
     expect(findAccommodationOptionCandidates(answer, accommodationField)).toHaveLength(expectedCount);
   });
@@ -159,6 +161,7 @@ describe("accommodation name resolution", () => {
     ["宜必思明古连", "IBIS SINGAPORE ON BENCOOLEN"],
     ["Holiday Inn Atrium", "HOLIDAY INN SINGAPORE ATRIUM"],
     ["I'm staying at Ibis Bencoolen", "IBIS SINGAPORE ON BENCOOLEN"],
+    ["我想改酒店，我想要住 Holiday Inn Atrium", "HOLIDAY INN SINGAPORE ATRIUM"],
   ])("fills a uniquely identified branch from natural input %s", (answer, expectedValue) => {
     expect(parseDirectCurrentFieldAnswer(answer, accommodationField)).toMatchObject({
       fieldName: "accommodation_name",
@@ -174,6 +177,19 @@ describe("accommodation name resolution", () => {
     expect(clarification).toContain("我找到了几家名称相近的酒店");
     expect(clarification).toContain("新加坡明古连街宜必思酒店");
     expect(clarification).toContain("你入住的是哪一家");
+  });
+
+  it.each([
+    "我想改酒店，我想要住holidayin",
+    "请帮我重新选择酒店",
+    "Change my hotel to Ibis",
+    "宜必思",
+  ])("recognizes an explicit hotel correction after the form is complete: %s", (answer) => {
+    expect(inferRequestedCorrectionFieldName(answer)).toBe("accommodation_name");
+  });
+
+  it("does not mistake a final-check request for a hotel correction", () => {
+    expect(inferRequestedCorrectionFieldName("请重新检查我的答案")).toBeNull();
   });
 
   it.each(["holidayin", "Holiday Inn", "宜必思", "我会入住宜必思酒店"])(

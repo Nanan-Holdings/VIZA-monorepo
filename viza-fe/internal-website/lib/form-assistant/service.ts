@@ -307,11 +307,26 @@ function matchingOptionsForAnswer(
 
 function normalizedAccommodationQuery(text: string): string {
   return normalizedNaturalLanguageValue(text)
+    .replace(/(?:我)?想(?:要)?(?:重新)?(?:选择|修改|更改|改|换)(?:成|为|到)?(?:酒店|宾馆|旅馆|住宿)?/g, "")
+    .replace(/(?:我)?想(?:要)?(?:住在|入住|住)/g, "")
+    .replace(/(?:请)?(?:帮我)?(?:把)?(?:酒店|宾馆|旅馆|住宿)?(?:修改|更改|改|换)(?:成|为|到)?/g, "")
+    .replace(/(?:please)?(?:change|switch|update|replace)(?:my|the)?(?:hotel|accommodation)(?:to)?/g, "")
+    .replace(/i(?:want|wouldlike)to(?:stayat|book|choose)?/g, "")
     .replace(/^(?:好的|好|我(?:会|要|将)?(?:住在|入住|住)|住在|入住)/, "")
     .replace(/^(?:i(?:am|m)?stayingat|i(?:will|ll)?stayat|stayingat|stayat|the)/, "")
     .replace(/(?:这家)?(?:酒店|宾馆|旅馆)$/, "")
     .replace(/hotel$/, "")
     .replace(/新加坡|singapore/g, "");
+}
+
+export function inferRequestedCorrectionFieldName(text: string): string | null {
+  const normalized = text.trim().toLocaleLowerCase();
+  const namesAHotelBrand = /holiday\s*in+n?|holidayin|宜必思|\bibis\b/.test(normalized);
+  const asksToChangeHotel =
+    /(?:重新选择|修改|更改|改|换|重选).{0,8}(?:酒店|宾馆|旅馆|住宿)/.test(normalized) ||
+    /(?:酒店|宾馆|旅馆|住宿).{0,8}(?:修改|更改|改|换|重选)/.test(normalized) ||
+    /\b(?:change|switch|update|replace|reselect)\b.{0,20}\b(?:hotel|accommodation)\b/.test(normalized);
+  return namesAHotelBrand || asksToChangeHotel ? "accommodation_name" : null;
 }
 
 function accommodationSearchTerms(query: string): string[] {
@@ -1050,15 +1065,32 @@ export async function runAssistantTurn(params: {
     const stepFields = params.steps.find((step) => step.fields.includes(field))?.fields ?? allFields;
     return !field.required && !existingValues[field.fieldName]?.trim() && evaluateShowIf(field, existingValues, stepFields);
   }).map((field) => field.fieldName));
-  const currentField = missing.length > 0
+  const explicitCorrectionFieldName = inferRequestedCorrectionFieldName(message);
+  const pendingCorrectionFieldName = typeof params.session.state_json?.pendingCorrectionField === "string"
+    ? params.session.state_json.pendingCorrectionField
+    : null;
+  const requestedCorrectionFieldName = explicitCorrectionFieldName ?? pendingCorrectionFieldName;
+  const requestedCorrectionCandidate = requestedCorrectionFieldName
+    ? fieldByName.get(requestedCorrectionFieldName)
+    : undefined;
+  let requestedCorrectionField = requestedCorrectionCandidate;
+  if (requestedCorrectionField) {
+    const correctionField = requestedCorrectionField;
+    const stepFields = params.steps.find((step) => step.fields.includes(correctionField))?.fields ?? allFields;
+    if (!evaluateShowIf(correctionField, existingValues, stepFields)) {
+      requestedCorrectionField = undefined;
+    }
+  }
+  const currentField = requestedCorrectionField ?? (missing.length > 0
     ? fieldByName.get(missing[0]?.fieldName ?? "")
-    : allFields.find((field) => optionalNames.has(field.fieldName));
+    : allFields.find((field) => optionalNames.has(field.fieldName)));
   const visibleCandidatePool = allFields.filter((field) => {
     const stepFields = params.steps.find((step) => step.fields.includes(field))?.fields ?? allFields;
     if (!evaluateShowIf(field, existingValues, stepFields)) return false;
     // The model sees only currently missing fields plus fields that the
     // assistant previously filled and the user may now explicitly correct.
-    return missingNames.has(field.fieldName) ||
+    return field === requestedCorrectionField ||
+      missingNames.has(field.fieldName) ||
       (missingNames.size === 0 && optionalNames.has(field.fieldName)) ||
       params.answers[field.fieldName]?.source === "form_assistant";
   });
@@ -1181,12 +1213,29 @@ export async function runAssistantTurn(params: {
   const nextQuestion = nextMissing.length > 0
     ? buildQuestion(nextFields, params.locale)
     : buildCompletionQuestion(optionalFields, params.locale);
-  const assistantMessage = accommodationCandidates.length > 0 && appliedPatches.length === 0
-    ? buildAccommodationClarification(accommodationCandidates, params.locale)
-    : [
-        buildTurnAcknowledgement(appliedPatches.length, params.locale),
-        nextQuestion,
-      ].filter(Boolean).join("\n\n");
+  const correctionConflict = requestedCorrectionField
+    ? skippedConflicts.includes(requestedCorrectionField.fieldName)
+    : false;
+  const correctionNeedsAnotherAnswer = Boolean(requestedCorrectionField && appliedPatches.length === 0);
+  const correctionRetryMessage = params.locale.startsWith("zh")
+    ? "我知道你想重新选择酒店，但还不能确定具体分店。请告诉我完整酒店名称或分店位置。"
+    : "I understand that you want to change hotels, but I cannot identify the exact branch yet. Please give me the full hotel name or branch location.";
+  const correctionConflictMessage = params.locale.startsWith("zh")
+    ? "这项酒店信息是你在表格中手动填写的。为避免覆盖你的内容，请直接在下方表格中修改酒店名称。"
+    : "You entered this hotel manually in the form. To avoid overwriting your answer, please change the hotel name directly in the form below.";
+  let assistantMessage: string;
+  if (accommodationCandidates.length > 0 && appliedPatches.length === 0) {
+    assistantMessage = buildAccommodationClarification(accommodationCandidates, params.locale);
+  } else if (correctionConflict) {
+    assistantMessage = correctionConflictMessage;
+  } else if (correctionNeedsAnotherAnswer) {
+    assistantMessage = correctionRetryMessage;
+  } else {
+    assistantMessage = [
+      buildTurnAcknowledgement(appliedPatches.length, params.locale),
+      nextQuestion,
+    ].filter(Boolean).join("\n\n");
+  }
   const response: FormAssistantTurnResponse = {
     sessionId: params.session.id,
     assistantMessage,
@@ -1209,7 +1258,14 @@ export async function runAssistantTurn(params: {
   await params.admin
     .from("form_assistant_sessions")
     .update({
-      state_json: { missingFields: nextMissing, progress: response.progress },
+      state_json: {
+        ...(params.session.state_json ?? {}),
+        missingFields: nextMissing,
+        progress: response.progress,
+        pendingCorrectionField: correctionNeedsAnotherAnswer && !correctionConflict
+          ? requestedCorrectionField?.fieldName ?? null
+          : null,
+      },
       state_version: Date.now(),
       updated_at: new Date().toISOString(),
     })

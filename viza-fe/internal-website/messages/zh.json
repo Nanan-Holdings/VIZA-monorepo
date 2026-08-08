@@ -514,7 +514,8 @@
         "checking": "正在检查答案...",
         "acknowledgeWarnings": "保留这些答案并继续",
         "acknowledgingWarnings": "正在保存你的确认...",
-        "goToReview": "继续审核"
+        "goToReview": "继续审核",
+        "goToFinalReview": "进入最终审核页面"
       }
     },
     "findingRecentApplication": "正在打开最近的申请表单...",
