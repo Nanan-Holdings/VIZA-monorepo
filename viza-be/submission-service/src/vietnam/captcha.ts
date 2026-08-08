@@ -2,6 +2,7 @@ import type { Frame, Locator, Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import {
   reportBadCaptcha,
+  reportGoodCaptcha,
   solveImageCaptcha,
   TwoCaptchaConfigError,
   TwoCaptchaZeroBalanceError,
@@ -18,6 +19,8 @@ export interface VietnamCaptchaSolveOutcome {
     answerLength?: number;
     captureWidth?: number;
     captureHeight?: number;
+    sourceWidth?: number;
+    sourceHeight?: number;
   };
 }
 
@@ -69,6 +72,8 @@ interface VietnamCaptchaCapture {
   buffer: Buffer;
   width?: number;
   height?: number;
+  sourceWidth?: number;
+  sourceHeight?: number;
 }
 
 function readPositiveIntEnv(name: string, fallback: number): number {
@@ -112,21 +117,25 @@ async function captureVietnamCaptchaImage(
   image: Locator,
   timeoutMs: number,
 ): Promise<VietnamCaptchaCapture> {
-  // The official challenge is rendered at roughly 120-160 px wide. Sending
-  // that small browser screenshot directly to 2captcha repeatedly produced
-  // ERROR_CAPTCHA_UNSOLVABLE in production. Rasterize it to a larger PNG in an
-  // off-DOM canvas first. This preserves the current pixels without resizing
-  // or mutating the official form, and falls back to the normal locator
-  // screenshot when canvas export is unavailable (for example, a tainted
-  // cross-origin image).
+  // The official challenge is displayed inside a CSS-sized box whose aspect
+  // ratio does not necessarily match the image's intrinsic pixels. Drawing
+  // into that CSS box stretches the glyphs. Upscale the intrinsic bitmap so
+  // the solver receives the same proportions that the portal generated.
   const rasterized = await image
     .evaluate((element) => {
       if (!(element instanceof HTMLImageElement || element instanceof HTMLCanvasElement)) return null;
       const rect = element.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return null;
-      const scale = Math.max(2, Math.min(4, Math.ceil(420 / rect.width), Math.ceil(120 / rect.height)));
-      const width = Math.max(1, Math.round(rect.width * scale));
-      const height = Math.max(1, Math.round(rect.height * scale));
+      const sourceWidth =
+        element instanceof HTMLImageElement ? element.naturalWidth || rect.width : element.width || rect.width;
+      const sourceHeight =
+        element instanceof HTMLImageElement ? element.naturalHeight || rect.height : element.height || rect.height;
+      if (sourceWidth <= 0 || sourceHeight <= 0) return null;
+      const scale = Math.max(
+        2,
+        Math.min(4, Math.ceil(420 / sourceWidth), Math.ceil(120 / sourceHeight)),
+      );
+      const width = Math.max(1, Math.round(sourceWidth * scale));
+      const height = Math.max(1, Math.round(sourceHeight * scale));
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
@@ -134,13 +143,14 @@ async function captureVietnamCaptchaImage(
       if (!context) return null;
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, width, height);
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = "high";
+      context.imageSmoothingEnabled = false;
       try {
-        context.drawImage(element, 0, 0, width, height);
+        context.drawImage(element, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
         const dataUrl = canvas.toDataURL("image/png");
         const comma = dataUrl.indexOf(",");
-        return comma >= 0 ? { base64: dataUrl.slice(comma + 1), width, height } : null;
+        return comma >= 0
+          ? { base64: dataUrl.slice(comma + 1), width, height, sourceWidth, sourceHeight }
+          : null;
       } catch {
         return null;
       }
@@ -151,15 +161,19 @@ async function captureVietnamCaptchaImage(
       buffer: Buffer.from(rasterized.base64, "base64"),
       width: rasterized.width,
       height: rasterized.height,
+      sourceWidth: rasterized.sourceWidth,
+      sourceHeight: rasterized.sourceHeight,
     };
   }
 
-  const buffer = await image.screenshot({ timeout: Math.min(timeoutMs, 30_000) });
+  const buffer = await image.screenshot({ timeout: Math.max(1, Math.min(timeoutMs, 30_000)) });
   const box = await image.boundingBox().catch(() => null);
   return {
     buffer,
     width: box ? Math.round(box.width) : undefined,
     height: box ? Math.round(box.height) : undefined,
+    sourceWidth: box ? Math.round(box.width) : undefined,
+    sourceHeight: box ? Math.round(box.height) : undefined,
   };
 }
 
@@ -193,6 +207,20 @@ export function isVietnamCaptchaFailureRetryable(reason: string | undefined): bo
 export async function reportRejectedVietnamCaptcha(
   outcome: VietnamCaptchaSolveOutcome,
   reporter: (solveId: string) => Promise<void> = reportBadCaptcha,
+): Promise<boolean> {
+  const solveId = outcome.solved ? outcome.telemetry?.solveId : undefined;
+  if (!solveId) return false;
+  try {
+    await reporter(solveId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function reportAcceptedVietnamCaptcha(
+  outcome: VietnamCaptchaSolveOutcome,
+  reporter: (solveId: string) => Promise<void> = reportGoodCaptcha,
 ): Promise<boolean> {
   const solveId = outcome.solved ? outcome.telemetry?.solveId : undefined;
   if (!solveId) return false;
@@ -277,6 +305,8 @@ export async function solveVietnamImageCaptcha(
           answerLength: answer.length,
           captureWidth: capture.width,
           captureHeight: capture.height,
+          sourceWidth: capture.sourceWidth,
+          sourceHeight: capture.sourceHeight,
         },
       };
     } catch (error) {
@@ -331,10 +361,16 @@ export async function refreshVietnamCaptchaChallenge(
   page: Page,
   timeoutMs = 10_000,
 ): Promise<boolean> {
-  const controls = await locateVietnamCaptchaControls(page, Math.min(timeoutMs, CAPTCHA_INPUT_WAIT_MS));
+  const deadline = Date.now() + Math.max(timeoutMs, 0);
+  const remainingMs = () => Math.max(0, deadline - Date.now());
+  const controls = await locateVietnamCaptchaControls(page, Math.min(remainingMs(), CAPTCHA_INPUT_WAIT_MS));
   if (!controls) return false;
+  // Baseline and polling must use the identical intrinsic-raster transform.
+  // Comparing a raw locator screenshot with a rasterized PNG makes an
+  // unchanged challenge look refreshed and caused production to re-solve the
+  // same rejected image repeatedly.
   const previousFingerprint = fingerprintVietnamCaptchaImage(
-    await controls.image.screenshot({ timeout: Math.min(timeoutMs, 10_000) }),
+    (await captureVietnamCaptchaImage(controls.image, Math.max(1, Math.min(remainingMs(), 10_000)))).buffer,
   );
   await controls.input.fill("").catch(() => undefined);
   // Rank and click candidates in one browser-context operation. The old
@@ -405,8 +441,23 @@ export async function refreshVietnamCaptchaChallenge(
       );
       return false;
     });
-  if (!clicked) return false;
-  return waitForVietnamCaptchaRefresh(page, previousFingerprint, timeoutMs);
+  const firstWaitMs = clicked ? Math.min(remainingMs(), Math.floor(timeoutMs / 2)) : 0;
+  if (clicked && await waitForVietnamCaptchaRefresh(page, previousFingerprint, firstWaitMs)) {
+    return true;
+  }
+
+  // Some versions of the official widget attach refresh directly to the
+  // challenge image instead of exposing an annotated sync control.
+  if (remainingMs() <= 0) return false;
+  const currentControls = await locateVietnamCaptchaControls(page, Math.min(remainingMs(), 1_000));
+  if (!currentControls) return false;
+  const imageClicked = await currentControls.image
+    .click({ timeout: Math.max(1, Math.min(remainingMs(), 1_000)) })
+    .then(() => true)
+    .catch(() => false);
+  return imageClicked
+    ? waitForVietnamCaptchaRefresh(page, previousFingerprint, remainingMs())
+    : false;
 }
 
 /**
