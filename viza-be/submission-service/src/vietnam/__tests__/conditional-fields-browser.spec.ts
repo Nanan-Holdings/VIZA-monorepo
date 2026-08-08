@@ -16,6 +16,7 @@ import {
   advanceVietnamToReview,
   collectVietnamReviewActionCandidates,
   ensureVietnamApplicationDeclarationChecked,
+  ensureVietnamFinalCommitmentChecked,
   isVietnamUploadResponseAccepted,
   uploadVietnamFile,
   vietnamMultipartContainsFilename,
@@ -1528,9 +1529,13 @@ test("vn.review browser: checks the exact declaration and waits for Continue to 
         <span class="ant-checkbox"><input id="create-account" type="checkbox" /></span>
         <span>Agree to create account by email</span>
       </label>
+      <label class="ant-checkbox-wrapper">
+        <span class="ant-checkbox"><input id="final-commitment" type="checkbox" /></span>
+        <span>I hereby declare that the above statements are true, accurate and I am fully responsible before the Vietnamese laws.</span>
+      </label>
       <button id="continue" disabled>Tiếp tục</button>
       <script>
-        document.querySelector('#basic_ttcdCqTcCamDoan').addEventListener('change', (event) => {
+        document.querySelector('#final-commitment').addEventListener('change', (event) => {
           setTimeout(() => {
             document.querySelector('#continue').disabled = !event.target.checked;
           }, 700);
@@ -1543,6 +1548,9 @@ test("vn.review browser: checks the exact declaration and waits for Continue to 
 
     assert.equal(await ensureVietnamApplicationDeclarationChecked(page), true);
     assert.equal(await page.locator("#basic_ttcdCqTcCamDoan").isChecked(), true);
+    assert.equal(await page.locator("#create-account").isChecked(), false);
+    assert.equal(await ensureVietnamFinalCommitmentChecked(page), true);
+    assert.equal(await page.locator("#final-commitment").isChecked(), true);
     assert.equal(await page.locator("#create-account").isChecked(), false);
 
     const result = await advanceVietnamToReview(page, 1_500);
