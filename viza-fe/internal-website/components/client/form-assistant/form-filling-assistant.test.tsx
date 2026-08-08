@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../messages/en.json";
 import {
   FormFillingAssistant,
@@ -20,10 +20,10 @@ function renderAssistant(overrides: Partial<FormFillingAssistantProps> = {}) {
     },
     onSend: vi.fn(),
     onTranscribe: vi.fn().mockResolvedValue("A1234567"),
-    onValidate: vi.fn(),
     onAcknowledgeWarnings: vi.fn(),
     onUndoFill: vi.fn(),
     onDismissFillNotice: vi.fn(),
+    onValidateAndGoToReview: vi.fn(),
     onGoToReview: vi.fn(),
     ...overrides,
   };
@@ -200,13 +200,14 @@ describe("FormFillingAssistant", () => {
     expect(props.onDismissFillNotice).toHaveBeenCalledExactlyOnceWith("notice-2");
   });
 
-  it("offers final checking only after required fields are complete", () => {
+  it("offers one-click final review only after required fields are complete", () => {
     const { props, rerender } = renderAssistant({ missingFields: [] });
     const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
 
     expect(within(conversation).getByTestId("form-assistant-review-action")).toBeInTheDocument();
-    fireEvent.click(within(conversation).getByRole("button", { name: "Check my answers" }));
-    expect(props.onValidate).toHaveBeenCalledOnce();
+    fireEvent.click(within(conversation).getByRole("button", { name: "Go to final review" }));
+    expect(props.onValidateAndGoToReview).toHaveBeenCalledOnce();
+    expect(props.onGoToReview).not.toHaveBeenCalled();
 
     rerender(
       <NextIntlClientProvider locale="en" messages={messages}>
@@ -217,9 +218,26 @@ describe("FormFillingAssistant", () => {
         />
       </NextIntlClientProvider>,
     );
-    expect(within(conversation).queryByTestId("form-assistant-review-action")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Go to final review" }));
+    expect(within(conversation).getByTestId("form-assistant-review-action")).toBeInTheDocument();
+    fireEvent.click(within(conversation).getByRole("button", { name: "Go to final review" }));
     expect(props.onGoToReview).toHaveBeenCalledOnce();
+  });
+
+  it("keeps warning acknowledgement in the conversation before final review", () => {
+    const { props } = renderAssistant({
+      missingFields: [],
+      validationResult: {
+        errors: [],
+        warnings: [{ id: "warning", message: "Please confirm the timing warning." }],
+        warningsAcknowledged: false,
+      },
+    });
+    const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
+
+    fireEvent.click(within(conversation).getByRole("button", { name: "Keep these answers and continue" }));
+    expect(props.onAcknowledgeWarnings).toHaveBeenCalledOnce();
+    expect(props.onValidateAndGoToReview).not.toHaveBeenCalled();
+    expect(props.onGoToReview).not.toHaveBeenCalled();
   });
 
   it("sends only explicit text submissions", () => {
