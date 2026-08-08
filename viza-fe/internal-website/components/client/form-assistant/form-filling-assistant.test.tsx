@@ -217,7 +217,8 @@ describe("FormFillingAssistant", () => {
         />
       </NextIntlClientProvider>,
     );
-    fireEvent.click(within(conversation).getByRole("button", { name: "Continue to review" }));
+    expect(within(conversation).queryByTestId("form-assistant-review-action")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Go to final review" }));
     expect(props.onGoToReview).toHaveBeenCalledOnce();
   });
 

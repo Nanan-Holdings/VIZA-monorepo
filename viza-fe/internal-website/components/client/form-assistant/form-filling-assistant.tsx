@@ -499,16 +499,12 @@ export function FormFillingAssistant({
                 ))}
               </div>
             ) : null}
-            {missingFields.length === 0 && progress.total > 0 && !loading ? (
+            {missingFields.length === 0 && progress.total > 0 && !loading && !canGoToReview ? (
               <div
                 className="flex justify-start pb-1"
                 data-testid="form-assistant-review-action"
               >
-                {canGoToReview ? (
-                  <BrandActionButton onClick={onGoToReview} disabled={loading}>
-                    {t("actions.goToReview")}
-                  </BrandActionButton>
-                ) : warnings.length > 0 && errors.length === 0 && !validationResult?.warningsAcknowledged ? (
+                {warnings.length > 0 && errors.length === 0 && !validationResult?.warningsAcknowledged ? (
                   <BrandActionButton onClick={() => void onAcknowledgeWarnings()} loading={loading} loadingText={t("actions.acknowledgingWarnings")}>
                     {t("actions.acknowledgeWarnings")}
                   </BrandActionButton>
@@ -598,6 +594,13 @@ export function FormFillingAssistant({
             ) : null}
             {errors.length === 0 && warnings.length === 0 ? (
               <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">{t("validation.pass")}</p>
+            ) : null}
+            {canGoToReview ? (
+              <div className="flex justify-start pt-1">
+                <BrandActionButton onClick={onGoToReview} disabled={loading}>
+                  {t("actions.goToFinalReview")}
+                </BrandActionButton>
+              </div>
             ) : null}
           </section>
         ) : null}
