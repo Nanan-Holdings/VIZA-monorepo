@@ -39,6 +39,7 @@ import {
   selectJapanAppointmentSlot,
 } from "@/lib/japan-appointment-client";
 import {
+  buildJapanApplicationFormHref,
   getJapanVfsChecklist,
   getJapanVfsEligibility,
   JAPAN_VFS_SG_OFFICIAL_URL,
@@ -88,6 +89,7 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
   const selectedSlot = snapshot?.slots.find((slot) => ["user_selected", "selected"].includes(slot.status)) ?? null;
   const stepOrder: JapanAppointmentStage[] = ["review", "account", "slots", "confirm", "result"];
   const currentStep = stepOrder.indexOf(stage);
+  const applicationFormHref = buildJapanApplicationFormHref(applicationId);
 
   const localizedError = useCallback((cause: unknown, fallback: "load" | "action") => {
     if (!(cause instanceof JapanAppointmentApiError)) return t(`errors.${fallback}`);
@@ -184,7 +186,7 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
     <main className="mx-auto w-full max-w-[860px] space-y-6 py-8">
       <div className="flex items-start gap-3">
         <Button asChild variant="outline" size="icon" aria-label={t("back")}>
-          <Link href={`/client/application/long-form?country=japan&applicationId=${encodeURIComponent(applicationId)}`}>
+          <Link href={applicationFormHref}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -298,7 +300,7 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
             </label>
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-              <Button variant="outline" asChild><Link href={`/client/application/long-form?country=japan&applicationId=${encodeURIComponent(applicationId)}`}><ArrowLeft className="mr-2 h-4 w-4" />{t("review.edit")}</Link></Button>
+              <Button variant="outline" asChild><Link href={applicationFormHref}><ArrowLeft className="mr-2 h-4 w-4" />{t("review.edit")}</Link></Button>
               <BrandActionButton
                 loading={busy === "create"}
                 loadingText={t("workflow.creating")}
