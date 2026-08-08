@@ -2851,7 +2851,14 @@ export default function ApplicationPage() {
     return payload;
   }, [appState.applicationId, locale, t]);
 
-  const handleFormAssistantValidate = useCallback(async () => {
+  const navigateFormAssistantToReview = useCallback(() => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("step", "review");
+    router.replace(`?${next.toString()}`, { scroll: false });
+    scrollToStepPanel(reviewStepIndex);
+  }, [reviewStepIndex, router, scrollToStepPanel, searchParams]);
+
+  const handleFormAssistantValidate = useCallback(async (): Promise<FormAssistantValidationResponse> => {
     const applicationId = appState.applicationId;
     if (!applicationId) throw new Error(t("errors.noApplicationFound"));
     setFormAssistantBusy(true);
@@ -2865,6 +2872,7 @@ export default function ApplicationPage() {
       const payload = await response.json() as FormAssistantValidationResponse & { error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Validation failed");
       setFormAssistantValidation(payload);
+      return payload;
     } finally {
       setFormAssistantBusy(false);
     }
@@ -2893,11 +2901,14 @@ export default function ApplicationPage() {
 
   const handleFormAssistantGoToReview = useCallback(() => {
     if (!formAssistantValidation?.canReview) return;
-    const next = new URLSearchParams(searchParams.toString());
-    next.set("step", "review");
-    router.replace(`?${next.toString()}`, { scroll: false });
-    scrollToStepPanel(reviewStepIndex);
-  }, [formAssistantValidation?.canReview, reviewStepIndex, router, scrollToStepPanel, searchParams]);
+    navigateFormAssistantToReview();
+  }, [formAssistantValidation?.canReview, navigateFormAssistantToReview]);
+
+  const handleFormAssistantValidateAndGoToReview = useCallback(async () => {
+    const validation = await handleFormAssistantValidate();
+    if (!validation.canReview) return;
+    navigateFormAssistantToReview();
+  }, [handleFormAssistantValidate, navigateFormAssistantToReview]);
 
   useEffect(() => {
     if (!useDynamic || loading || draftVersion === 0) return;
@@ -3966,7 +3977,7 @@ export default function ApplicationPage() {
               } : null}
               onSend={handleFormAssistantSend}
               onTranscribe={handleFormAssistantTranscribe}
-              onValidate={handleFormAssistantValidate}
+              onValidateAndGoToReview={handleFormAssistantValidateAndGoToReview}
               onAcknowledgeWarnings={handleFormAssistantAcknowledgeWarnings}
               onUndoFill={handleFormAssistantUndoFill}
               onDismissFillNotice={handleDismissFormAssistantFillNotice}
