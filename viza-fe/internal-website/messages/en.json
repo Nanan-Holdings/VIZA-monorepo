@@ -514,7 +514,8 @@
         "checking": "Checking answers...",
         "acknowledgeWarnings": "Keep these answers and continue",
         "acknowledgingWarnings": "Saving your confirmation...",
-        "goToReview": "Continue to review"
+        "goToReview": "Continue to review",
+        "goToFinalReview": "Go to final review"
       }
     },
     "findingRecentApplication": "Opening your most recent application form...",
