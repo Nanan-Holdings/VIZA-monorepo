@@ -47,7 +47,7 @@ const CAPTCHA_INPUT_SELECTOR = [
 const CAPTCHA_SUBMIT_LABEL_PATTERN =
   /\b(next|continue|submit|verify|confirm|send|check|ok)\b|tiếp tục|xác nhận|kiểm tra|kiểm chứng|hoàn tất|hoàn thành|gửi|nộp|đồng ý/i;
 
-const DEFAULT_VN_CAPTCHA_TIMEOUT_MS = 180_000;
+export const DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS = 180_000;
 const CAPTCHA_INPUT_WAIT_MS = 15_000;
 export const DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS = 5;
 export const DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS = 300_000;
@@ -79,7 +79,7 @@ function readPositiveIntEnv(name: string, fallback: number): number {
 }
 
 export function getVietnamCaptchaTimeoutMs(timeoutMs?: number): number {
-  const configured = readPositiveIntEnv("VN_CAPTCHA_TIMEOUT_MS", DEFAULT_VN_CAPTCHA_TIMEOUT_MS);
+  const configured = readPositiveIntEnv("VN_CAPTCHA_TIMEOUT_MS", DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS);
   if (!Number.isFinite(timeoutMs ?? NaN) || (timeoutMs ?? 0) <= 0) return configured;
   // Callers pass the remaining step/flow budget. Treat the environment value
   // as the normal solver ceiling, never as a floor that silently expands a
