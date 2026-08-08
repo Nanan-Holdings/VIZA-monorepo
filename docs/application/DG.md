@@ -270,12 +270,13 @@ RAG retrieval:
 - If embeddings are unavailable or retrieval fails, it falls back to filtered rows from `visa_chunks`.
 - Intent determines preferred document types, for example `form_requirements` and `photo_requirements` for form intake.
 
-## Form-filling assistant (SGAC pilot)
+## Form-filling assistant
 
-`SG_ARRIVAL_CARD` is the initial allowlisted product for the application-level
-form-filling assistant. The assistant is rendered after the page title and
-before the step navigation. The ordinary bilingual form remains editable at
-all times.
+The application-level form-filling assistant is enabled for every current
+DB-driven application schema. The assistant is rendered after the page title
+and before the step navigation. The ordinary bilingual form remains editable
+at all times. Legacy/fallback forms without a DB schema and status-only views
+do not render an empty assistant.
 
 The authenticated routes live under
 `/api/applications/[id]/form-assistant`: state/session GET, conversational
@@ -285,7 +286,10 @@ Sessions and sent messages are stored in `form_assistant_sessions` and
 `form_assistant_messages`; raw microphone audio is memory-only and only the
 user-confirmed transcript is saved as a message.
 
-Natural-language answers are normalized into official form values. For SGAC,
+Natural-language answers are normalized into official form values. Prompts,
+knowledge and sources are always bound to the owned application's exact
+`country + visaType`; SGAC's ICA fallback source is never reused for another
+product. For SGAC,
 relative dates use `Asia/Singapore` as the reference time zone, localized date
 phrases are converted to `YYYY-MM-DD`, and Chinese/English option labels map to
 the exact official option value. Hierarchical city/port options also accept a

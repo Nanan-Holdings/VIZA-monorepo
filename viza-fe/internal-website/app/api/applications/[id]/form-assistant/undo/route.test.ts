@@ -51,7 +51,7 @@ describe("POST /api/applications/[id]/form-assistant/undo", () => {
     });
     requireOwnedApplication.mockResolvedValue({
       admin: { from: vi.fn(() => table) },
-      application: { visa_type: "SG_ARRIVAL_CARD" },
+      application: { visa_type: "DS160" },
       user: { id: "user-id" },
     });
 
