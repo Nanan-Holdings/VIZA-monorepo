@@ -137,8 +137,13 @@ function getDetailHref(summary: ApplicationLifecycleSummary, basePath: string): 
   return `${basePath}?view=detail&country=${encodeURIComponent(summary.country)}&visaType=${encodeURIComponent(summary.visaType)}`;
 }
 
-function getFormHref(summary: Pick<ApplicationLifecycleSummary, "country" | "visaType">): string {
+function getFormHref(summary: {
+  country: string;
+  visaType: string;
+  applicationId?: string | null;
+}): string {
   return buildApplicationLongFormHref({
+    applicationId: summary.applicationId,
     country: summary.country,
     visaType: summary.visaType,
   });

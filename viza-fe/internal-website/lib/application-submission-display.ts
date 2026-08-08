@@ -33,11 +33,12 @@ export function shouldShowSubmissionStatusStep(input: {
   return Boolean(input.submissionResultStatus);
 }
 
-export function shouldShowReviewAlongsideSubmissionStatus(input: {
-  submissionResultStatus?: SubmissionResultStatus | null;
-  preserveReview?: boolean;
-}): boolean {
-  if (input.preserveReview) return true;
-  const normalized = (input.submissionResultStatus ?? "").trim().toLowerCase();
-  return normalized === "failed" || normalized === "stalled";
+/**
+ * The saved application review is part of the application record, not a
+ * transient submission-state view. Once a status card is shown, keep the
+ * review beside it for every country and every status so applicants can
+ * always audit and amend the answers used for a retry or official handoff.
+ */
+export function shouldShowReviewAlongsideSubmissionStatus(): true {
+  return true;
 }
