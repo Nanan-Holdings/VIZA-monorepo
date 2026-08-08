@@ -206,6 +206,34 @@ test("vn.captcha: id-less challenge excludes the nearby refresh SVG", async () =
   }
 });
 
+test("vn.captcha: official alt/name markers beat a large nearby review image", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <section style="position:relative;width:900px;height:700px">
+        <img id="review-photo" alt="portrait photography" style="position:absolute;left:80px;top:80px;width:495px;height:318px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='495' height='318'%3E%3Crect width='495' height='318' fill='navy'/%3E%3C/svg%3E" />
+        <img id="official-challenge" alt="captcha img" style="position:absolute;left:300px;top:520px;width:150px;height:36px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='44'%3E%3Crect width='140' height='44' fill='white'/%3E%3Ctext x='20' y='30'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <input id="official-input" name="maXacNhan" type="text" style="position:absolute;left:300px;top:570px;width:220px;height:36px" />
+      </section>
+    `);
+    let receivedDimensions: { width: number; height: number } | null = null;
+    const outcome = await solveVietnamImageCaptcha(page, 1_000, async (image) => {
+      receivedDimensions = {
+        width: image.readUInt32BE(16),
+        height: image.readUInt32BE(20),
+      };
+      return { text: "AB12", solveId: "task-official-markers", durationMs: 10 };
+    });
+
+    assert.equal(outcome.solved, true);
+    assert.deepEqual(receivedDimensions, { width: 420, height: 132 });
+    assert.equal(await page.locator("#official-input").inputValue(), "AB12");
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.captcha: a no-op refresh does not report a changed raster fingerprint", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
