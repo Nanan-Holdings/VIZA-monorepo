@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { chromium } from "@playwright/test";
 import {
   DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
+  DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS,
   DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
   describeVietnamCaptchaError,
   fingerprintVietnamCaptchaImage,
@@ -43,6 +44,7 @@ test("vn.captcha: caller deadline caps the configurable solve timeout", () => {
   delete process.env.VN_CAPTCHA_TIMEOUT_MS;
   assert.equal(getVietnamCaptchaTimeoutMs(60_000), 60_000);
   assert.equal(getVietnamCaptchaTimeoutMs(), 180_000);
+  assert.equal(DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS, 180_000);
 
   process.env.VN_CAPTCHA_TIMEOUT_MS = "240000";
   assert.equal(getVietnamCaptchaTimeoutMs(60_000), 60_000);
