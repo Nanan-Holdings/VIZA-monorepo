@@ -367,7 +367,7 @@ export function FormFillingAssistant({
 
   useEffect(() => {
     if (shouldFollowLatestRef.current) scrollConversationToLatest();
-  }, [loading, messages, scrollConversationToLatest]);
+  }, [loading, messages, scrollConversationToLatest, validationResult]);
 
   const handleSend = useCallback(() => {
     const trimmed = draft.trim();
@@ -499,12 +499,32 @@ export function FormFillingAssistant({
                 ))}
               </div>
             ) : null}
+            {missingFields.length === 0 && progress.total > 0 && !loading ? (
+              <div
+                className="flex justify-start pb-1"
+                data-testid="form-assistant-review-action"
+              >
+                {canGoToReview ? (
+                  <BrandActionButton onClick={onGoToReview} disabled={loading}>
+                    {t("actions.goToReview")}
+                  </BrandActionButton>
+                ) : warnings.length > 0 && errors.length === 0 && !validationResult?.warningsAcknowledged ? (
+                  <BrandActionButton onClick={() => void onAcknowledgeWarnings()} loading={loading} loadingText={t("actions.acknowledgingWarnings")}>
+                    {t("actions.acknowledgeWarnings")}
+                  </BrandActionButton>
+                ) : (
+                  <BrandActionButton variant="secondary" onClick={() => void onValidate()} loading={loading} loadingText={t("actions.checking")}>
+                    {validationResult ? t("actions.checkAgain") : t("actions.checkAnswers")}
+                  </BrandActionButton>
+                )}
+              </div>
+            ) : null}
           </div>
           <ScrollToBottomFab
             show={showScrollToLatest}
             onClick={scrollConversationToLatest}
             label={t("scrollToLatest")}
-            className="bottom-3 left-1/2 -translate-x-1/2 px-4 py-2"
+            className="bottom-3 right-3 px-4 py-2"
           />
         </div>
 
@@ -642,24 +662,6 @@ export function FormFillingAssistant({
             </div>
           </div>
         </div>
-
-        {missingFields.length === 0 && progress.total > 0 && !loading ? (
-          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
-            {canGoToReview ? (
-            <BrandActionButton onClick={onGoToReview} disabled={loading}>
-              {t("actions.goToReview")}
-            </BrandActionButton>
-          ) : warnings.length > 0 && errors.length === 0 && !validationResult?.warningsAcknowledged ? (
-            <BrandActionButton onClick={() => void onAcknowledgeWarnings()} loading={loading} loadingText={t("actions.acknowledgingWarnings")}>
-              {t("actions.acknowledgeWarnings")}
-            </BrandActionButton>
-          ) : (
-            <BrandActionButton variant="secondary" onClick={() => void onValidate()} loading={loading} loadingText={t("actions.checking")}>
-              {validationResult ? t("actions.checkAgain") : t("actions.checkAnswers")}
-            </BrandActionButton>
-            )}
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

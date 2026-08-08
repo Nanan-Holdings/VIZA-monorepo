@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../messages/en.json";
@@ -114,7 +114,10 @@ describe("FormFillingAssistant", () => {
     });
     fireEvent.scroll(conversation);
 
-    fireEvent.click(screen.getByRole("button", { name: "Jump to latest message" }));
+    const jumpButton = screen.getByRole("button", { name: "Jump to latest message" });
+    expect(jumpButton).toHaveClass("right-3");
+    expect(jumpButton).not.toHaveClass("left-1/2", "-translate-x-1/2");
+    fireEvent.click(jumpButton);
     expect(conversation.scrollTop).toBe(800);
   });
 
@@ -199,8 +202,10 @@ describe("FormFillingAssistant", () => {
 
   it("offers final checking only after required fields are complete", () => {
     const { props, rerender } = renderAssistant({ missingFields: [] });
+    const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Check my answers" }));
+    expect(within(conversation).getByTestId("form-assistant-review-action")).toBeInTheDocument();
+    fireEvent.click(within(conversation).getByRole("button", { name: "Check my answers" }));
     expect(props.onValidate).toHaveBeenCalledOnce();
 
     rerender(
@@ -212,7 +217,7 @@ describe("FormFillingAssistant", () => {
         />
       </NextIntlClientProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Continue to review" }));
+    fireEvent.click(within(conversation).getByRole("button", { name: "Continue to review" }));
     expect(props.onGoToReview).toHaveBeenCalledOnce();
   });
 
