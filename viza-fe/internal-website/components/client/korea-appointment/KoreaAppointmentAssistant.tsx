@@ -182,6 +182,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const cancellationIntent = cancellationAction?.metadata_redacted_json?.intent === "reschedule" ? "reschedule" : "cancel";
   const cancellationReady = cancellationAction?.action_type === "official_cancel_confirmation_required";
   const isSmsCenter = center?.liveBookingMode === "sms_sync_supported";
+  const workerUnavailable = snapshot?.manualAction?.metadata_redacted_json?.workerUnavailable === true;
   const changeOperation = busy === "request-reschedule" ? "reschedule" : busy === "request-cancel" ? "cancel" : null;
   const cancellingOfficialBooking = busy === "confirm-cancel-official";
   const startingLiveBooking = busy === "request-live-booking";
@@ -194,23 +195,12 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     setNoSlotsAvailable(false);
     try {
       const nextSnapshot = await requestSnapshot(applicationId, action, slotId, code, centerCode ?? activeCenterCode);
-      const requestedCenterCode = centerCode ?? activeCenterCode;
-      const requestedCenter = nextSnapshot.routing.allCenters?.find((item) => item.code === requestedCenterCode)
-        ?? nextSnapshot.routing.recommended;
-      if (
-        action === "request-live-booking"
-        && requestedCenter.liveBookingMode === "sms_sync_supported"
-        && getStage(nextSnapshot) !== "otp"
-      ) {
-        setNoSlotsAvailable(true);
-      }
       setSnapshot(nextSnapshot);
       if (action === "submit-sms-code") setSmsCode("");
       if (action === "start-new-booking") setSmsCode("");
     } catch (cause) {
       const requestError = cause instanceof AppointmentRequestError ? cause : null;
-      const isNoSlots = requestError?.code === "no_slots_available"
-        || /no selectable .*appointment slots/iu.test(cause instanceof Error ? cause.message : String(cause));
+      const isNoSlots = requestError?.code === "no_slots_available";
       if (isNoSlots) {
         setNoSlotsAvailable(true);
       } else {
@@ -503,7 +493,50 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       ) : null}
 
       {stage === "change-query" ? (
-        <Card className="rounded-[8px]"><CardHeader><CardTitle className="flex items-center gap-2">{busy ? <Loader2 className="h-5 w-5 animate-spin text-brand-600" /> : <RefreshCw className="h-5 w-5 text-brand-600" />}{busy ? (isZh ? "正在处理旧预约" : "Processing the existing booking") : (isZh ? "准备处理旧预约" : "Ready to process the existing booking")}</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm leading-6 text-muted-foreground">{snapshot?.manualAction?.action_type === "official_reschedule_required" ? (isZh ? "VIZA 已找到本申请保存的预约记录。继续后会在官网取消旧预约，再重新发送验证码选择新时间。" : "VIZA found a booking record saved for this application. Continuing cancels the old official appointment, then restarts SMS verification and slot selection.") : (isZh ? "你已在 VIZA 确认取消。继续后，后端会直接在官网查询、确认取消并复核结果。" : "You already confirmed cancellation in VIZA. Continuing queries, confirms, and verifies the cancellation directly on the official site.")}</p><div className="flex flex-wrap gap-2"><Button onClick={() => void run(snapshot?.manualAction?.action_type === "official_reschedule_required" ? "request-reschedule" : "request-cancel")} disabled={Boolean(busy)}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}{snapshot?.manualAction?.action_type === "official_reschedule_required" ? (isZh ? "取消旧预约并改约" : "Cancel old booking and reschedule") : (isZh ? "直接取消预约" : "Cancel appointment")}</Button><Button variant="outline" onClick={() => void run("restart-without-booking-record")} disabled={Boolean(busy)}>{busy === "restart-without-booking-record" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}{isZh ? "这不是有效预约，重新开始" : "No valid booking, restart"}</Button></div><p className="text-xs leading-5 text-muted-foreground">{isZh ? "重新开始只会清除 VIZA 内的遗留状态，不会在官网取消任何预约。" : "Restart clears stale VIZA state only; it does not cancel anything on the official site."}</p></CardContent></Card>
+        <Card className="rounded-[8px]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {busy ? <Loader2 className="h-5 w-5 animate-spin text-brand-600" /> : <RefreshCw className="h-5 w-5 text-brand-600" />}
+              {workerUnavailable
+                ? (isZh ? "预约查询服务暂时不可用" : "The appointment lookup service is temporarily unavailable")
+                : busy
+                  ? (isZh ? "正在处理旧预约" : "Processing the existing booking")
+                  : (isZh ? "准备处理旧预约" : "Ready to process the existing booking")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm leading-6 text-muted-foreground">
+              {workerUnavailable
+                ? (isZh
+                    ? "本次未能连接预约查询服务，官网预约记录查询没有完成。系统没有获得任何可用于判断时段或改约状态的官网结果，请稍后重试。"
+                    : "VIZA could not reach the appointment lookup service, so the official booking query did not complete. No official availability or rescheduling result was obtained; try again shortly.")
+                : snapshot?.manualAction?.action_type === "official_reschedule_required"
+                  ? (isZh
+                      ? "VIZA 已找到本申请保存的预约记录。继续后会在官网取消旧预约，再重新发送验证码选择新时间。"
+                      : "VIZA found a booking record saved for this application. Continuing cancels the old official appointment, then restarts SMS verification and slot selection.")
+                  : (isZh
+                      ? "你已在 VIZA 确认取消。继续后，后端会直接在官网查询、确认取消并复核结果。"
+                      : "You already confirmed cancellation in VIZA. Continuing queries, confirms, and verifies the cancellation directly on the official site.")}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => void run(snapshot?.manualAction?.action_type === "official_reschedule_required" ? "request-reschedule" : "request-cancel")} disabled={Boolean(busy)}>
+                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                {workerUnavailable
+                  ? (isZh ? "重新查询官网预约" : "Retry official booking lookup")
+                  : snapshot?.manualAction?.action_type === "official_reschedule_required"
+                    ? (isZh ? "取消旧预约并改约" : "Cancel old booking and reschedule")
+                    : (isZh ? "直接取消预约" : "Cancel appointment")}
+              </Button>
+              <Button variant="outline" onClick={() => void run("restart-without-booking-record")} disabled={Boolean(busy)}>
+                {busy === "restart-without-booking-record" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                {isZh ? "这不是有效预约，重新开始" : "No valid booking, restart"}
+              </Button>
+            </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              {isZh ? "重新开始只会清除 VIZA 内的遗留状态，不会在官网取消任何预约。" : "Restart clears stale VIZA state only; it does not cancel anything on the official site."}
+            </p>
+          </CardContent>
+        </Card>
       ) : null}
 
       {stage === "cancel-confirmation" ? (
@@ -610,14 +643,20 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-700" />
-              {isZh ? "该领区需要按官方指引办理" : "This center follows official guidance"}
+              {workerUnavailable
+                ? (isZh ? "预约查询服务暂时不可用" : "The appointment lookup service is temporarily unavailable")
+                : (isZh ? "该领区需要按官方指引办理" : "This center follows official guidance")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm leading-6 text-muted-foreground">
-              {isZh
-                ? "该中心没有可验证的统一短信预约流程，或官方站点出现账号、实名等必须由申请人处理的门槛。VIZA 不会把它标记为预约成功。"
-                : "This center has no verifiable unified SMS booking flow, or its official site has an applicant-only gate such as account or real-name verification. VIZA will not mark it as booked."}
+              {workerUnavailable
+                ? (isZh
+                    ? "本次未能连接预约查询服务，官网时段扫描没有完成，因此目前无法判断是否有可预约时间。请稍后重新查询。"
+                    : "VIZA could not reach the appointment lookup service, so the official slot scan did not complete. Availability is currently unknown; try again shortly.")
+                : (isZh
+                    ? "该中心没有可验证的统一短信预约流程，或官方站点出现账号、实名等必须由申请人处理的门槛。VIZA 不会把它标记为预约成功。"
+                    : "This center has no verifiable unified SMS booking flow, or its official site has an applicant-only gate such as account or real-name verification. VIZA will not mark it as booked.")}
             </p>
             <div className="rounded-[8px] border bg-muted/30 p-4 text-sm">
               <div className="font-medium">{centerName}</div>
@@ -627,23 +666,33 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
+              {workerUnavailable ? (
+                <Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>
+                  {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  {isZh ? "重新查询官网时段" : "Retry official slot lookup"}
+                </Button>
+              ) : null}
               <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>
                 {busy === "return-to-center-selection"
                   ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   : <ArrowLeft className="mr-2 h-4 w-4" />}
                 {isZh ? "重新选择领区" : "Choose another center"}
               </Button>
-              <Button asChild variant="outline">
-                <Link href={`/client/applications/${applicationId}/korea-appointment/rules`}>
-                  {isZh ? "查看递签规则" : "View filing rules"}
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <a href={center.bookingUrl ?? center.officialUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  {isZh ? "打开官方入口" : "Open official entry"}
-                </a>
-              </Button>
+              {!workerUnavailable ? (
+                <>
+                  <Button asChild variant="outline">
+                    <Link href={`/client/applications/${applicationId}/korea-appointment/rules`}>
+                      {isZh ? "查看递签规则" : "View filing rules"}
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <a href={center.bookingUrl ?? center.officialUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {isZh ? "打开官方入口" : "Open official entry"}
+                    </a>
+                  </Button>
+                </>
+              ) : null}
             </div>
           </CardContent>
         </Card>

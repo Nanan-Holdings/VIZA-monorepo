@@ -29,6 +29,10 @@ export type FlyMachineCapacityResult =
     }
   | Extract<FlyMachineWakeResult, { ok: false }>;
 
+export type HttpReadinessResult =
+  | { ok: true; attempts: number }
+  | { ok: false; attempts: number; reason: "readiness_timeout" };
+
 interface FlyMachineSummary {
   id: string;
   state: string;
@@ -314,4 +318,43 @@ export async function ensureFlyMachineStarted(
     app: capacity.app,
     state: capacity.started > 0 ? "start_requested" : "already_running",
   };
+}
+
+export async function waitForHttpReady(
+  url: string,
+  options: {
+    fetchImpl?: typeof fetch;
+    timeoutMs?: number;
+    pollIntervalMs?: number;
+    requestTimeoutMs?: number;
+  } = {},
+): Promise<HttpReadinessResult> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const timeoutMs = Math.max(0, options.timeoutMs ?? 90_000);
+  const pollIntervalMs = Math.max(0, options.pollIntervalMs ?? 750);
+  const requestTimeoutMs = Math.max(1, options.requestTimeoutMs ?? 8_000);
+  const deadline = Date.now() + timeoutMs;
+  let attempts = 0;
+
+  do {
+    attempts += 1;
+    const remainingMs = Math.max(1, deadline - Date.now());
+    try {
+      const response = await fetchImpl(url, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(Math.min(requestTimeoutMs, remainingMs)),
+      });
+      if (response.ok) return { ok: true, attempts };
+    } catch {
+      // A Fly Machine can accept the start request before its HTTP server is
+      // listening. Keep polling until the bounded readiness deadline expires.
+    }
+
+    const waitMs = Math.min(pollIntervalMs, Math.max(0, deadline - Date.now()));
+    if (waitMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+  } while (Date.now() < deadline);
+
+  return { ok: false, attempts, reason: "readiness_timeout" };
 }

@@ -252,7 +252,7 @@ describe("KoreaAppointmentAssistant back navigation", () => {
     expect(screen.getByRole("button", { name: "重新选择领区" })).toBeInTheDocument();
   });
 
-  it("never silently returns to center selection after a successful slot request", async () => {
+  it("does not claim no slots when a successful response has no official zero-slot evidence", async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(response(snapshot()))
       .mockResolvedValueOnce(response(snapshot({
@@ -262,7 +262,57 @@ describe("KoreaAppointmentAssistant back navigation", () => {
     render(<KoreaAppointmentAssistant applicationId="application-1" />);
     fireEvent.click(await screen.findByRole("button", { name: "查询时间并发送验证码" }));
 
-    expect(await screen.findByText("暂时没有可预约时间")).toBeInTheDocument();
+    await waitFor(() => expect(requestedActions()).toContainEqual(expect.objectContaining({ action: "request-live-booking" })));
+    expect(screen.queryByText("暂时没有可预约时间")).not.toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: "递签中心" })).toBeInTheDocument();
+  });
+
+  it("shows an unavailable-service checkpoint without claiming there are no slots", async () => {
+    const workerUnavailableSnapshot = snapshot({
+      job: { id: "job-1", status: "official_center_manual_checkpoint", mode: "live_assisted" },
+      manualAction: {
+        action_type: "official_center_manual_checkpoint",
+        instruction: "Internal worker error that must not be shown to the applicant.",
+        expires_at: null,
+        metadata_redacted_json: {
+          workerUnavailable: true,
+        },
+      },
+    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(snapshot()))
+      .mockResolvedValueOnce(response(workerUnavailableSnapshot));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "查询时间并发送验证码" }));
+
+    expect(await screen.findByText("预约查询服务暂时不可用")).toBeInTheDocument();
+    expect(screen.getByText(/官网时段扫描没有完成/u)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新查询官网时段" })).toBeInTheDocument();
+    expect(screen.queryByText("暂时没有可预约时间")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Internal worker error/u)).not.toBeInTheDocument();
+  });
+
+  it("shows an unavailable-service checkpoint when an official reschedule lookup cannot run", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(snapshot({
+      job: { id: "job-1", status: "reschedule_requested", mode: "live_assisted" },
+      manualAction: {
+        action_type: "official_reschedule_required",
+        instruction: "fetch failed",
+        expires_at: null,
+        metadata_redacted_json: {
+          workerUnavailable: true,
+        },
+      },
+    })));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+
+    expect(await screen.findByText("预约查询服务暂时不可用")).toBeInTheDocument();
+    expect(screen.getByText(/官网预约记录查询没有完成/u)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新查询官网预约" })).toBeInTheDocument();
+    expect(screen.queryByText("暂时没有可预约时间")).not.toBeInTheDocument();
+    expect(screen.queryByText("fetch failed")).not.toBeInTheDocument();
   });
 
   it("shows the OTP input when the official SMS checkpoint is returned", async () => {

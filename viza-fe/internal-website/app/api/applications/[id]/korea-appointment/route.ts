@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getClientSessionWithFallback } from "@/lib/client-session";
-import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
+import { ensureFlyMachineStarted, waitForHttpReady } from "@/lib/fly-machine-wake.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   isRebookingAfterCancellation,
@@ -239,12 +239,50 @@ async function readRoutingInput(
 }
 
 function submissionServiceBaseUrl() {
-  return (process.env.KR_KVAC_SUBMISSION_SERVICE_URL ?? process.env.SUBMISSION_SERVICE_LOCAL_URL ?? "http://127.0.0.1:8080").replace(/\/$/u, "");
+  return (
+    process.env.KR_KVAC_SUBMISSION_SERVICE_URL?.trim()
+    || process.env.SUBMISSION_SERVICE_LOCAL_URL?.trim()
+    || "http://127.0.0.1:8080"
+  ).replace(/\/$/u, "");
+}
+
+function isLocalSubmissionService(baseUrl: string) {
+  try {
+    const hostname = new URL(baseUrl).hostname;
+    return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+async function ensureSubmissionServiceReady(baseUrl: string) {
+  const isLocal = isLocalSubmissionService(baseUrl);
+  if (!isLocal) {
+    const wakeResult = await ensureFlyMachineStarted("south_korea");
+    if (!wakeResult.ok) {
+      throw new SubmissionServiceRequestError(
+        `Korea submission worker unavailable after wake request (${wakeResult.reason})`,
+        null,
+      );
+    }
+  }
+
+  const readiness = await waitForHttpReady(`${baseUrl}/ready`, {
+    timeoutMs: isLocal ? 15_000 : 90_000,
+    pollIntervalMs: 750,
+  });
+  if (!readiness.ok) {
+    throw new SubmissionServiceRequestError(
+      "Korea submission worker unavailable because it did not become ready after wake-up",
+      null,
+    );
+  }
 }
 
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  await ensureFlyMachineStarted("south_korea");
-  const url = `${submissionServiceBaseUrl()}${path}`;
+  const baseUrl = submissionServiceBaseUrl();
+  await ensureSubmissionServiceReady(baseUrl);
+  const url = `${baseUrl}${path}`;
   const internalToken = process.env.KR_SUBMISSION_INTERNAL_TOKEN?.trim();
   const response = await fetch(url, {
     method: "POST",
@@ -286,7 +324,7 @@ function submissionServiceErrorMessage(error: unknown) {
 
 function isSubmissionRunnerUnavailable(error: unknown) {
   const message = submissionServiceErrorMessage(error);
-  return /fetch failed|ECONNREFUSED|ECONNRESET|Failed to fetch|terminated|AbortError|failed \(404\)|not[_ ]found/i.test(message);
+  return /worker unavailable|did not become ready|fetch failed|ECONNREFUSED|ECONNRESET|Failed to fetch|terminated|AbortError|failed \((?:401|403|404)\)|not[_ ]found/i.test(message);
 }
 
 interface KoreaKvacPrintConfirmationResponse {
@@ -773,17 +811,17 @@ async function createWorkerUnavailableCheckpoint(
       ? "reschedule_requested"
       : "official_center_manual_checkpoint";
   const instruction = kind === "cancel"
-    ? "VIZA 已创建站内取消任务，但本地 Korea KVAC worker 暂时不可达。请启动 submission-service 并启用 KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED=true 后，在本页重新点击站内查询取消入口；用户不需要跳转到官网操作。"
+    ? "VIZA 已创建站内取消任务，但预约查询服务暂时不可用，官网取消查询尚未完成。请稍后在本页重新查询；用户不需要跳转到官网操作。"
     : kind === "reschedule"
-      ? "VIZA 已创建站内改约任务，但本地 Korea KVAC worker 暂时不可达。请启动 submission-service 并启用 KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED=true 后，在本页继续查询并取消旧预约；取消成功后才会重新发送验证码选择新时间。"
-      : "VIZA 已保留站内预约流程，但本地 Korea KVAC worker 暂时不可达。请启动 submission-service 并启用 KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED=true 后，在本页重新发送官网验证码；用户不需要跳转到官网操作。";
+      ? "VIZA 已创建站内改约任务，但预约查询服务暂时不可用，官网预约查询尚未完成。请稍后在本页重试；确认取消成功后才会重新发送验证码选择新时间。"
+      : "VIZA 已保留站内预约流程，但预约查询服务暂时不可用，官网时段扫描尚未完成。请稍后在本页重新查询；用户不需要跳转到官网操作。";
   const metadata = {
     centerCode: routing.recommended.code,
     centerNameEn: routing.recommended.nameEn,
     bookingUrl: routing.recommended.bookingUrl,
     bookingSearchUrl: routing.recommended.bookingSearchUrl,
     officialUrl: routing.recommended.officialUrl,
-    nextStep: kind === "cancel" || kind === "reschedule" ? "restart_worker_and_retry_cancel_query" : "restart_worker_and_resend_sms",
+    nextStep: kind === "cancel" || kind === "reschedule" ? "retry_cancel_query" : "retry_official_slot_query",
     workerBaseUrl: submissionServiceBaseUrl(),
     workerUnavailable: true,
     error: rawError,
