@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ensureFlyMachineCapacity,
   ensureFlyMachineStarted,
+  waitForHttpReady,
 } from "../fly-machine-wake.server";
 
 describe("ensureFlyMachineStarted", () => {
@@ -163,5 +164,35 @@ describe("ensureFlyMachineStarted", () => {
       started: 3,
     });
     expect(fetchImpl).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("waitForHttpReady", () => {
+  it("waits through a cold-start response until the worker is ready", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "ready" }), { status: 200 }));
+
+    await expect(
+      waitForHttpReady("https://worker.example.test/ready", {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        timeoutMs: 1_000,
+        pollIntervalMs: 0,
+      }),
+    ).resolves.toEqual({ ok: true, attempts: 2 });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns a typed timeout instead of treating an unreachable worker as ready", async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+
+    await expect(
+      waitForHttpReady("https://worker.example.test/ready", {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        timeoutMs: 0,
+        pollIntervalMs: 0,
+      }),
+    ).resolves.toEqual({ ok: false, attempts: 1, reason: "readiness_timeout" });
   });
 });
