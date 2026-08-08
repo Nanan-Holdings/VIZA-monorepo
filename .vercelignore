@@ -1,12 +1,38 @@
-# CLI deploys upload from the repo root so each project's Root Directory
-# (viza-fe/marketing-website or viza-fe/internal-website) resolves. Exclude
-# everything the two Next apps don't need to keep the upload small and the
-# build context clean.
-viza-be
-travel-agent
+# The viza-internal Vercel project has viza-fe/internal-website as its Root
+# Directory, but CLI deploys must still start at the monorepo root. Exclude
+# local credentials, browser profiles, audit output, and the other applications
+# from the deployment archive.
+.agents
+.claude
 .codex
 .codex-worktrees
+.dev-logs
+.github
+.ralph
+.tmp
+.venv
+db
 docs
+knowledge-base
+output
+research
+scripts
+shared
+supabase
+travel-agent
+vietnam-visa-helper-v1
+viza-be
+viza-fe/marketing-website
+
+*.log
+output-*.png
+tmp-*
+bilingual-schema-audit-report.*
+architecture.payment
+prd.json
+progress.txt
+**/.env*
+**/.vercel
 **/node_modules
 **/.next
 **/.turbo
