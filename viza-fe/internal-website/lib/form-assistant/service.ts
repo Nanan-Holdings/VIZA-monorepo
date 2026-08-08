@@ -306,17 +306,38 @@ function matchingOptionsForAnswer(
 }
 
 function normalizedAccommodationQuery(text: string): string {
-  return normalizedNaturalLanguageValue(text)
+  let normalized = normalizedNaturalLanguageValue(text);
+  const chineseReplacement = Array.from(normalized.matchAll(/(?:改|换)(?:成|为|到)?/g)).at(-1);
+  if (chineseReplacement?.index !== undefined) {
+    normalized = normalized.slice(chineseReplacement.index + chineseReplacement[0].length);
+  } else {
+    const readable = text.toLocaleLowerCase().replace(/[^\p{Letter}\p{Number}]+/gu, " ").trim();
+    const englishReplacement = readable.match(
+      /\b(?:change|changed|switch|update|replace)\b.*?\b(?:to|with|into)\b\s*(.+)$/,
+    );
+    const englishUseInstead = readable.match(/\b(?:use|choose|book)\b\s+(.+?)(?:\s+instead)?$/);
+    if (englishReplacement?.[1]) {
+      normalized = normalizedNaturalLanguageValue(englishReplacement[1]);
+    } else if (englishUseInstead?.[1]) {
+      normalized = normalizedNaturalLanguageValue(englishUseInstead[1]);
+    }
+  }
+
+  return normalized
+    .replace(/^(?:一家|另一家|新的|新)?(?:酒店|宾馆|旅馆|住宿)/, "")
     .replace(/(?:我)?想(?:要)?(?:重新)?(?:选择|修改|更改|改|换)(?:成|为|到)?(?:酒店|宾馆|旅馆|住宿)?/g, "")
     .replace(/(?:我)?想(?:要)?(?:住在|入住|住)/g, "")
     .replace(/(?:请)?(?:帮我)?(?:把)?(?:酒店|宾馆|旅馆|住宿)?(?:修改|更改|改|换)(?:成|为|到)?/g, "")
     .replace(/(?:please)?(?:change|switch|update|replace)(?:my|the)?(?:hotel|accommodation)(?:to)?/g, "")
-    .replace(/i(?:want|wouldlike)to(?:stayat|book|choose)?/g, "")
+    .replace(/i(?:dlike|wouldlike|want)to(?:stayat|book|choose|use)?/g, "")
     .replace(/^(?:好的|好|我(?:会|要|将)?(?:住在|入住|住)|住在|入住)/, "")
     .replace(/^(?:i(?:am|m)?stayingat|i(?:will|ll)?stayat|stayingat|stayat|the)/, "")
-    .replace(/(?:这家)?(?:酒店|宾馆|旅馆)$/, "")
+    .replace(/(?:please|thanks|thankyou|instead)+$/, "")
+    .replace(/(?:谢谢|麻烦了|可以吗|吧)+$/, "")
+    .replace(/(?:这家)?(?:酒店|宾馆|旅馆)+$/, "")
     .replace(/hotel$/, "")
-    .replace(/新加坡|singapore/g, "");
+    .replace(/新加坡|singapore/g, "")
+    .replace(/holidayin+/g, "holidayinn");
 }
 
 export function inferRequestedCorrectionFieldName(text: string): string | null {
@@ -329,6 +350,17 @@ export function inferRequestedCorrectionFieldName(text: string): string | null {
   return namesAHotelBrand || asksToChangeHotel ? "accommodation_name" : null;
 }
 
+export function isCorrectionCancellation(text: string): boolean {
+  const normalized = text.trim().toLocaleLowerCase();
+  const requestsReplacement =
+    /(?:改|换)(?:成|为|到)/.test(normalized) ||
+    /\b(?:change|switch|update|replace)\b.{0,40}\b(?:to|with|into)\b/.test(normalized);
+  if (requestsReplacement) return false;
+
+  return /算了|不改了|不用改|无需改|不换了|取消.{0,8}(?:修改|更改|换)|(?:还是)?(?:保留|保持).{0,8}(?:原来|原有|原|当前|现有).{0,8}(?:酒店|住宿)/.test(normalized) ||
+    /\bnever\s*mind\b|\bcancel\b.{0,20}\b(?:change|update|switch)\b|\b(?:do\s*not|don't|dont)\s+(?:change|switch|update)\s+(?:it|the\s+(?:hotel|accommodation))\b|\bkeep\s+(?:the\s+)?(?:current|existing|original|same)\s+(?:hotel|accommodation)\b/.test(normalized);
+}
+
 function accommodationSearchTerms(query: string): string[] {
   const brand = ["holidayinn", "holidayin", "宜必思", "ibis"].find((item) => query.includes(item));
   if (!brand) return [query];
@@ -339,10 +371,11 @@ function findAccommodationCandidatesInOptions(
   text: string,
   options: VisaFormFieldOption[],
 ): VisaFormFieldOption[] {
-  const strictMatches = matchingOptionsForAnswer(text, options, "accommodation_name");
+  if (isCorrectionCancellation(text)) return [];
+  const query = normalizedAccommodationQuery(text);
+  const strictMatches = matchingOptionsForAnswer(query, options, "accommodation_name");
   if (strictMatches.length > 0) return strictMatches;
 
-  const query = normalizedAccommodationQuery(text);
   const containsHan = /\p{Script=Han}/u.test(query);
   if ((containsHan && query.length < 2) || (!containsHan && query.length < 4)) return [];
   const genericQueries = new Set(["住宿", "新加坡", "hotel", "hostel", "singapore"]);
@@ -1069,7 +1102,12 @@ export async function runAssistantTurn(params: {
   const pendingCorrectionFieldName = typeof params.session.state_json?.pendingCorrectionField === "string"
     ? params.session.state_json.pendingCorrectionField
     : null;
-  const requestedCorrectionFieldName = explicitCorrectionFieldName ?? pendingCorrectionFieldName;
+  const correctionCancellation = isCorrectionCancellation(message) && Boolean(
+    explicitCorrectionFieldName || pendingCorrectionFieldName,
+  );
+  const requestedCorrectionFieldName = correctionCancellation
+    ? null
+    : explicitCorrectionFieldName ?? pendingCorrectionFieldName;
   const requestedCorrectionCandidate = requestedCorrectionFieldName
     ? fieldByName.get(requestedCorrectionFieldName)
     : undefined;
@@ -1126,11 +1164,17 @@ export async function runAssistantTurn(params: {
   });
   const timeZone = PRODUCT_TIME_ZONES[params.visaType] ?? "UTC";
   const referenceDate = isoDateInTimeZone(new Date(), timeZone);
-  const directChoice = parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
+  const directChoice = correctionCancellation
+    ? null
+    : parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
   const accommodationCandidates = directChoice
     ? []
-    : findAccommodationOptionCandidates(message, currentField);
-  const proposed = directChoice
+    : correctionCancellation
+      ? []
+      : findAccommodationOptionCandidates(message, currentField);
+  const proposed = correctionCancellation
+    ? { reply: "", patches: [] }
+    : directChoice
     ? { reply: "", patches: [directChoice] }
     : accommodationCandidates.length > 0
       ? { reply: "", patches: [] }
@@ -1223,8 +1267,13 @@ export async function runAssistantTurn(params: {
   const correctionConflictMessage = params.locale.startsWith("zh")
     ? "这项酒店信息是你在表格中手动填写的。为避免覆盖你的内容，请直接在下方表格中修改酒店名称。"
     : "You entered this hotel manually in the form. To avoid overwriting your answer, please change the hotel name directly in the form below.";
+  const correctionCancellationMessage = params.locale.startsWith("zh")
+    ? "好的，我会保留原来的酒店信息。"
+    : "Okay, I’ll keep your existing hotel information.";
   let assistantMessage: string;
-  if (accommodationCandidates.length > 0 && appliedPatches.length === 0) {
+  if (correctionCancellation) {
+    assistantMessage = [correctionCancellationMessage, nextQuestion].filter(Boolean).join("\n\n");
+  } else if (accommodationCandidates.length > 0 && appliedPatches.length === 0) {
     assistantMessage = buildAccommodationClarification(accommodationCandidates, params.locale);
   } else if (correctionConflict) {
     assistantMessage = correctionConflictMessage;

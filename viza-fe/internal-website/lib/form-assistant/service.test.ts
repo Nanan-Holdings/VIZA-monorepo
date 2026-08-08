@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
 import { SGAC_HOTEL_NAME_OPTIONS } from "../../../../viza-be/agent-backend/scripts/sgac/official-options";
 import { sgacOptionLabelZh } from "../../../../viza-be/agent-backend/scripts/sgac/option-labels";
@@ -10,8 +11,10 @@ import {
   buildAssistantState,
   findAccommodationOptionCandidates,
   inferRequestedCorrectionFieldName,
+  isCorrectionCancellation,
   parseDirectCurrentFieldAnswer,
   parseDirectYesNoAnswer,
+  runAssistantTurn,
 } from "./service";
 
 function field(fieldName: string, label: string, labelZh: string, required = true): VisaFormFieldRow {
@@ -41,6 +44,61 @@ function yesNoField(fieldName: string, label: string, labelZh: string): VisaForm
       { value: "no", text: "No" },
     ],
   };
+}
+
+function createAssistantAdminStub(priorResponse?: Record<string, unknown>) {
+  const messages: Array<Record<string, unknown>> = [];
+  const answerUpdates: Array<Record<string, unknown>> = [];
+  const sessionUpdates: Array<Record<string, unknown>> = [];
+  let messageSequence = 0;
+  const admin = {
+    from(table: string) {
+      let operation = "select";
+      let payload: Record<string, unknown> = {};
+      const chain: Record<string, unknown> = { error: null };
+      const returnChain = () => chain;
+      chain.select = returnChain;
+      chain.eq = returnChain;
+      chain.order = returnChain;
+      chain.limit = returnChain;
+      chain.ilike = returnChain;
+      chain.in = returnChain;
+      chain.upsert = (value: Record<string, unknown>) => {
+        operation = "upsert";
+        payload = value;
+        messages.push(value);
+        return chain;
+      };
+      chain.insert = (value: Record<string, unknown>) => {
+        operation = "insert";
+        payload = value;
+        answerUpdates.push(value);
+        return chain;
+      };
+      chain.update = (value: Record<string, unknown>) => {
+        operation = "update";
+        payload = value;
+        if (table === "visa_application_answers") answerUpdates.push(value);
+        if (table === "form_assistant_sessions") sessionUpdates.push(value);
+        return chain;
+      };
+      chain.maybeSingle = async () => {
+        if (table === "form_assistant_messages" && operation === "select" && priorResponse) {
+          return { data: { response_json: priorResponse }, error: null };
+        }
+        if (table === "form_assistant_messages" && operation === "upsert") {
+          messageSequence += 1;
+          return { data: { id: `message-${messageSequence}` }, error: null };
+        }
+        if (table === "visa_application_answers" && operation === "update") {
+          return { data: { field_name: "accommodation_name", ...payload }, error: null };
+        }
+        return { data: null, error: null };
+      };
+      return chain;
+    },
+  } as unknown as SupabaseClient;
+  return { admin, messages, answerUpdates, sessionUpdates };
 }
 
 describe("buildAssistantState", () => {
@@ -133,7 +191,20 @@ describe("accommodation name resolution", () => {
         text: "IBIS BUDGET SINGAPORE BUGIS",
         label_zh: "新加坡武吉士宜必思快捷酒店",
       },
+      {
+        value: "CARLTON CITY HOTEL SINGAPORE",
+        text: "CARLTON CITY HOTEL SINGAPORE",
+        label_zh: "新加坡卡尔登城市酒店",
+      },
     ],
+  };
+  const officialAccommodationField: VisaFormFieldRow = {
+    ...accommodationField,
+    options: SGAC_HOTEL_NAME_OPTIONS.map((option) => ({
+      value: option.value,
+      text: option.labelEn,
+      label_zh: sgacOptionLabelZh("hotel", option),
+    })),
   };
 
   it.each([
@@ -141,6 +212,11 @@ describe("accommodation name resolution", () => {
     ["我住宜必思", 2],
     ["I am staying at Holiday Inn", 2],
     ["我想改酒店，我想要住holidayin", 2],
+    ["我想换一家酒店：Holiday Inn", 2],
+    ["I'd like to switch my hotel to Holiday Inn", 2],
+    ["Holiday Inn, please", 2],
+    ["HOLIDAY INNN", 2],
+    ["假日酒店", 2],
   ])("finds all relevant official hotel branches for %s", (answer, expectedCount) => {
     expect(findAccommodationOptionCandidates(answer, accommodationField)).toHaveLength(expectedCount);
   });
@@ -162,6 +238,13 @@ describe("accommodation name resolution", () => {
     ["Holiday Inn Atrium", "HOLIDAY INN SINGAPORE ATRIUM"],
     ["I'm staying at Ibis Bencoolen", "IBIS SINGAPORE ON BENCOOLEN"],
     ["我想改酒店，我想要住 Holiday Inn Atrium", "HOLIDAY INN SINGAPORE ATRIUM"],
+    ["换到中庭假日酒店", "HOLIDAY INN SINGAPORE ATRIUM"],
+    ["请改成克拉码头智选假日酒店", "HOLIDAY INN EXPRESS SINGAPORE CLARKE QUAY"],
+    ["Switch from Holiday Inn to Ibis Bencoolen", "IBIS SINGAPORE ON BENCOOLEN"],
+    ["Switch from Carlton City to Ibis Bencoolen", "IBIS SINGAPORE ON BENCOOLEN"],
+    ["Change my hotel to Carlton City", "CARLTON CITY HOTEL SINGAPORE"],
+    ["I changed my mind; use Ibis Bencoolen instead", "IBIS SINGAPORE ON BENCOOLEN"],
+    ["不要 Holiday Inn Atrium，换成 Ibis Bencoolen", "IBIS SINGAPORE ON BENCOOLEN"],
   ])("fills a uniquely identified branch from natural input %s", (answer, expectedValue) => {
     expect(parseDirectCurrentFieldAnswer(answer, accommodationField)).toMatchObject({
       fieldName: "accommodation_name",
@@ -179,31 +262,96 @@ describe("accommodation name resolution", () => {
     expect(clarification).toContain("你入住的是哪一家");
   });
 
+  it("generates a safe two-turn result for an ambiguous hotel correction", () => {
+    const firstMessage = "我想改酒店，我想要住holidayin";
+    expect(inferRequestedCorrectionFieldName(firstMessage)).toBe("accommodation_name");
+    const candidates = findAccommodationOptionCandidates(firstMessage, officialAccommodationField);
+    expect(candidates.length).toBeGreaterThan(1);
+    expect(parseDirectCurrentFieldAnswer(firstMessage, officialAccommodationField)).toBeNull();
+    expect(buildAccommodationClarification(candidates, "zh-CN")).toMatch(/哪一家|完整酒店名称/);
+
+    expect(parseDirectCurrentFieldAnswer("Atrium", officialAccommodationField)).toEqual({
+      fieldName: "accommodation_name",
+      value: "HOLIDAY INN SINGAPORE ATRIUM",
+      confidence: "high",
+      modelSource: "deterministic",
+    });
+  });
+
+  it("limits a long official branch list while clearly indicating more results", () => {
+    const candidates = findAccommodationOptionCandidates("holidayin", officialAccommodationField);
+    const clarification = buildAccommodationClarification(candidates, "zh");
+
+    expect(candidates.length).toBeGreaterThan(5);
+    expect(clarification).toContain("等");
+    expect((clarification.match(/“/g) ?? [])).toHaveLength(5);
+  });
+
+  it("generates the matching English clarification without filling an ambiguous branch", () => {
+    const candidates = findAccommodationOptionCandidates("Holiday Inn", officialAccommodationField);
+    const clarification = buildAccommodationClarification(candidates, "en");
+
+    expect(clarification).toContain("I found several hotels with similar names");
+    expect(clarification).toContain("Which one will you stay at?");
+    expect(parseDirectCurrentFieldAnswer("Holiday Inn", officialAccommodationField)).toBeNull();
+  });
+
   it.each([
     "我想改酒店，我想要住holidayin",
     "请帮我重新选择酒店",
     "Change my hotel to Ibis",
     "宜必思",
+    "我想换一家酒店",
+    "I'd like to stay at Holiday Inn",
+    "Switch from Holiday Inn to Ibis Bencoolen",
   ])("recognizes an explicit hotel correction after the form is complete: %s", (answer) => {
     expect(inferRequestedCorrectionFieldName(answer)).toBe("accommodation_name");
   });
 
   it("does not mistake a final-check request for a hotel correction", () => {
     expect(inferRequestedCorrectionFieldName("请重新检查我的答案")).toBeNull();
+    expect(inferRequestedCorrectionFieldName("I am travelling for a holiday")).toBeNull();
+    expect(inferRequestedCorrectionFieldName("请检查住宿信息是否完整")).toBeNull();
+  });
+
+  it.each([
+    "算了，不改了",
+    "不用改酒店了",
+    "还是保留原来的酒店",
+    "保持原酒店",
+    "never mind, keep the current hotel",
+    "cancel the hotel change",
+    "don't change it",
+  ])("recognizes a correction cancellation without selecting another hotel: %s", (answer) => {
+    expect(isCorrectionCancellation(answer)).toBe(true);
+    expect(findAccommodationOptionCandidates(answer, accommodationField)).toEqual([]);
+  });
+
+  it.each([
+    "换成 Holiday Inn Atrium",
+    "不要原来的，改成宜必思明古连",
+    "don't keep the old one; switch to Ibis Bencoolen",
+  ])("does not mistake a replacement request for cancellation: %s", (answer) => {
+    expect(isCorrectionCancellation(answer)).toBe(false);
+  });
+
+  it.each([
+    "",
+    "酒店",
+    "hotel",
+    "新加坡",
+    "ok",
+    "maybe",
+    "Holiday Inn or Ibis",
+    "中庭还是克拉码头",
+  ])("refuses to invent an exact hotel for incomplete or ambiguous input: %s", (answer) => {
+    expect(parseDirectCurrentFieldAnswer(answer, accommodationField)).toBeNull();
   });
 
   it.each(["holidayin", "Holiday Inn", "宜必思", "我会入住宜必思酒店"])(
     "searches the complete ICA hotel list for %s instead of only its first page",
     (answer) => {
-      const officialField: VisaFormFieldRow = {
-        ...accommodationField,
-        options: SGAC_HOTEL_NAME_OPTIONS.map((option) => ({
-          value: option.value,
-          text: option.labelEn,
-          label_zh: sgacOptionLabelZh("hotel", option),
-        })),
-      };
-      const candidates = findAccommodationOptionCandidates(answer, officialField);
+      const candidates = findAccommodationOptionCandidates(answer, officialAccommodationField);
 
       expect(candidates.length).toBeGreaterThan(1);
       expect(candidates.some((option) => {
@@ -212,6 +360,187 @@ describe("accommodation name resolution", () => {
       })).toBe(true);
     },
   );
+});
+
+describe("runAssistantTurn hotel-correction edge cases", () => {
+  const accommodationField: VisaFormFieldRow = {
+    ...field("accommodation_name", "Hotel name", "酒店名称"),
+    fieldType: "select",
+    options: [
+      { value: "HOLIDAY INN SINGAPORE ATRIUM", text: "HOLIDAY INN SINGAPORE ATRIUM" },
+      { value: "HOLIDAY INN EXPRESS SINGAPORE CLARKE QUAY", text: "HOLIDAY INN EXPRESS SINGAPORE CLARKE QUAY" },
+      { value: "IBIS SINGAPORE ON BENCOOLEN", text: "IBIS SINGAPORE ON BENCOOLEN" },
+    ],
+  };
+  const steps: WizardStep[] = [{
+    stepNumber: 1,
+    stepName: "Trip details",
+    fields: [accommodationField],
+  }];
+  const baseParams = {
+    applicationId: "application-id",
+    applicantId: "applicant-id",
+    authUserId: "auth-user-id",
+    steps,
+    locale: "zh-CN",
+    inputMode: "text" as const,
+    country: "singapore",
+    visaType: "SG_ARRIVAL_CARD",
+  };
+
+  it("persists the pending hotel context and fills the selected branch on the next turn", async () => {
+    const firstAdmin = createAssistantAdminStub();
+    const firstAnswers = {
+      accommodation_name: { value: "CARLTON CITY HOTEL SINGAPORE", source: "form_assistant" },
+    };
+    const first = await runAssistantTurn({
+      ...baseParams,
+      admin: firstAdmin.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      answers: firstAnswers,
+      text: "我想改酒店，我想要住holidayin",
+      idempotencyKey: "turn-1",
+    });
+
+    expect(first.appliedPatches).toEqual([]);
+    expect(first.assistantMessage).toContain("你入住的是哪一家");
+    expect(firstAdmin.sessionUpdates.at(-1)).toMatchObject({
+      state_json: { pendingCorrectionField: "accommodation_name" },
+    });
+
+    const secondAdmin = createAssistantAdminStub();
+    const second = await runAssistantTurn({
+      ...baseParams,
+      admin: secondAdmin.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: { pendingCorrectionField: "accommodation_name" },
+      },
+      answers: firstAnswers,
+      text: "Atrium",
+      idempotencyKey: "turn-2",
+    });
+
+    expect(second.appliedPatches).toEqual([expect.objectContaining({
+      fieldName: "accommodation_name",
+      value: "HOLIDAY INN SINGAPORE ATRIUM",
+    })]);
+    expect(secondAdmin.answerUpdates).toHaveLength(1);
+    expect(secondAdmin.sessionUpdates.at(-1)).toMatchObject({
+      state_json: { pendingCorrectionField: null },
+    });
+  });
+
+  it("clears a pending correction when the user keeps the original hotel", async () => {
+    const stub = createAssistantAdminStub();
+    const result = await runAssistantTurn({
+      ...baseParams,
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: { pendingCorrectionField: "accommodation_name" },
+      },
+      answers: {
+        accommodation_name: { value: "CARLTON CITY HOTEL SINGAPORE", source: "form_assistant" },
+      },
+      text: "算了，还是保留原来的酒店",
+      idempotencyKey: "turn-cancel",
+    });
+
+    expect(result.appliedPatches).toEqual([]);
+    expect(result.assistantMessage).toContain("保留原来的酒店信息");
+    expect(stub.answerUpdates).toEqual([]);
+    expect(stub.sessionUpdates.at(-1)).toMatchObject({
+      state_json: { pendingCorrectionField: null },
+    });
+  });
+
+  it("does not overwrite a hotel that the user entered manually", async () => {
+    const stub = createAssistantAdminStub();
+    const result = await runAssistantTurn({
+      ...baseParams,
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      answers: {
+        accommodation_name: { value: "CARLTON CITY HOTEL SINGAPORE", source: "user_form" },
+      },
+      text: "换成 Holiday Inn Atrium",
+      idempotencyKey: "turn-conflict",
+    });
+
+    expect(result.appliedPatches).toEqual([]);
+    expect(result.skippedConflicts).toEqual(["accommodation_name"]);
+    expect(result.assistantMessage).toContain("手动填写");
+    expect(stub.answerUpdates).toEqual([]);
+  });
+
+  it("returns the saved response for a repeated idempotency key without writing again", async () => {
+    const savedResponse = {
+      sessionId: "session-id",
+      assistantMessage: "请选择具体的 Holiday Inn 分店。",
+      appliedPatches: [],
+      skippedConflicts: [],
+      missingFields: [],
+      progress: { completed: 1, total: 1 },
+      sources: [],
+      canRunFinalCheck: true,
+    };
+    const stub = createAssistantAdminStub(savedResponse);
+    const result = await runAssistantTurn({
+      ...baseParams,
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: { pendingCorrectionField: "accommodation_name" },
+      },
+      answers: {
+        accommodation_name: { value: "CARLTON CITY HOTEL SINGAPORE", source: "form_assistant" },
+      },
+      text: "holidayin",
+      idempotencyKey: "already-completed-turn",
+    });
+
+    expect(result).toEqual(savedResponse);
+    expect(stub.messages).toEqual([]);
+    expect(stub.answerUpdates).toEqual([]);
+    expect(stub.sessionUpdates).toEqual([]);
+  });
+
+  it("rejects an empty correction before creating any message", async () => {
+    const stub = createAssistantAdminStub();
+    await expect(runAssistantTurn({
+      ...baseParams,
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      answers: {
+        accommodation_name: { value: "CARLTON CITY HOTEL SINGAPORE", source: "form_assistant" },
+      },
+      text: "   ",
+      idempotencyKey: "empty-turn",
+    })).rejects.toThrow("Message is required");
+    expect(stub.messages).toEqual([]);
+  });
 });
 
 describe("parseDirectYesNoAnswer", () => {
