@@ -18,6 +18,7 @@ import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
 import {
   DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
+  DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS,
   DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
   isVietnamCaptchaFailureRetryable,
   refreshVietnamCaptchaChallenge,
@@ -546,7 +547,10 @@ async function fillVietnamApplicationOnce(
         await emitProgress("captcha_solving");
         const captchaOutcome = await solveVietnamImageCaptcha(
           page,
-          remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, Math.min(stepTimeoutMs, 120_000)),
+          remainingVietnamCaptchaBudgetMs(
+            reviewCaptchaDeadline,
+            Math.max(stepTimeoutMs, DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS),
+          ),
         );
         captchaSolves.push(captchaOutcome);
         logVietnamCaptchaOutcome("Review", attempt, captchaOutcome);
@@ -1086,7 +1090,10 @@ async function reachVietnamFormCheckpoint(
         await options.onStage("captcha_solving");
         const outcome = await solveVietnamImageCaptcha(
           page,
-          remainingVietnamCaptchaBudgetMs(captchaDeadline, Math.min(options.stepTimeoutMs, 120_000)),
+          remainingVietnamCaptchaBudgetMs(
+            captchaDeadline,
+            Math.max(options.stepTimeoutMs, DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS),
+          ),
         );
         options.onCaptchaSolved(outcome);
         logVietnamCaptchaOutcome("Portal", attempt, outcome);
