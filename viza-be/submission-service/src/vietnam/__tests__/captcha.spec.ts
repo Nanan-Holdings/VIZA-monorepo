@@ -13,6 +13,7 @@ import {
   isVietnamCaptchaSolveCurrent,
   normalizeVietnamCaptchaAnswer,
   refreshVietnamCaptchaChallenge,
+  reportAcceptedVietnamCaptcha,
   reportRejectedVietnamCaptcha,
   shouldSolveVietnamCaptcha,
   solveVietnamImageCaptcha,
@@ -177,7 +178,7 @@ test("vn.captcha: id-less challenge excludes the nearby refresh SVG", async () =
     await page.setContent(`
       <section role="dialog" aria-label="Captcha verification" style="position:relative;width:500px;height:220px">
         <span>Captcha verification</span>
-        <img id="official-challenge" style="position:absolute;left:120px;top:30px;width:140px;height:44px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='44'%3E%3Crect width='140' height='44' fill='white'/%3E%3Ctext x='20' y='30'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <img id="official-challenge" style="position:absolute;left:120px;top:30px;width:165px;height:106px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='44'%3E%3Crect width='140' height='44' fill='white'/%3E%3Ctext x='20' y='30'%3EAB12%3C/text%3E%3C/svg%3E" />
         <input id="generic-security-input" type="text" style="position:absolute;left:120px;top:100px;width:220px;height:36px" />
         <button type="button" style="position:absolute;left:350px;top:100px;width:40px;height:36px">
           <svg data-icon="sync" width="32" height="28"><circle cx="16" cy="14" r="10" /></svg>
@@ -197,7 +198,28 @@ test("vn.captcha: id-less challenge excludes the nearby refresh SVG", async () =
     assert.deepEqual(receivedDimensions, { width: 420, height: 132 });
     assert.equal(outcome.telemetry?.captureWidth, 420);
     assert.equal(outcome.telemetry?.captureHeight, 132);
+    assert.equal(outcome.telemetry?.sourceWidth, 140);
+    assert.equal(outcome.telemetry?.sourceHeight, 44);
     assert.equal(await page.locator("#generic-security-input").inputValue(), "AB12");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: a no-op refresh does not report a changed raster fingerprint", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <section>
+        <img class="captcha-image" style="display:block;width:165px;height:106px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='44'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <button type="button"><svg data-icon="sync" width="16" height="16"></svg></button>
+        <input type="text" value="stale" />
+      </section>
+    `);
+
+    assert.equal(await refreshVietnamCaptchaChallenge(page, 500), false);
+    assert.equal(await page.locator("input").inputValue(), "");
   } finally {
     await browser.close();
   }
@@ -339,6 +361,30 @@ test("vn.captcha: reports only a rejected solved task", async () => {
     true,
   );
   assert.deepEqual(reported, ["task-123"]);
+});
+
+test("vn.captcha: reports only an accepted solved task", async () => {
+  const reported: string[] = [];
+  const reporter = async (solveId: string) => {
+    reported.push(solveId);
+  };
+
+  assert.equal(await reportAcceptedVietnamCaptcha({ solved: false }, reporter), false);
+  assert.equal(
+    await reportAcceptedVietnamCaptcha(
+      {
+        solved: true,
+        telemetry: {
+          solveId: "task-good",
+          durationMs: 500,
+          challengeFingerprint: "fingerprint",
+        },
+      },
+      reporter,
+    ),
+    true,
+  );
+  assert.deepEqual(reported, ["task-good"]);
 });
 
 test("vn.captcha: reporting failures do not fail the submission flow", async () => {
