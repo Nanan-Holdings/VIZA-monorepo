@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import type { VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
+import { SGAC_HOTEL_NAME_OPTIONS } from "../../../../viza-be/agent-backend/scripts/sgac/official-options";
+import { sgacOptionLabelZh } from "../../../../viza-be/agent-backend/scripts/sgac/option-labels";
 
 vi.mock("server-only", () => ({}));
 
 import {
+  buildAccommodationClarification,
   buildAssistantState,
+  findAccommodationOptionCandidates,
   parseDirectCurrentFieldAnswer,
   parseDirectYesNoAnswer,
 } from "./service";
@@ -101,6 +105,97 @@ describe("buildAssistantState", () => {
     expect(state.assistantMessage).toBe("你准备通过什么交通方式前往新加坡？是航空、陆路还是海路？");
     expect(state.assistantMessage).not.toContain("我们一次填写一项");
   });
+});
+
+describe("accommodation name resolution", () => {
+  const accommodationField: VisaFormFieldRow = {
+    ...field("accommodation_name", "Hotel name", "酒店名称"),
+    fieldType: "select",
+    options: [
+      {
+        value: "HOLIDAY INN SINGAPORE ATRIUM",
+        text: "HOLIDAY INN SINGAPORE ATRIUM",
+        label_zh: "新加坡中庭假日酒店",
+      },
+      {
+        value: "HOLIDAY INN EXPRESS SINGAPORE CLARKE QUAY",
+        text: "HOLIDAY INN EXPRESS SINGAPORE CLARKE QUAY",
+        label_zh: "新加坡克拉码头智选假日酒店",
+      },
+      {
+        value: "IBIS SINGAPORE ON BENCOOLEN",
+        text: "IBIS SINGAPORE ON BENCOOLEN",
+        label_zh: "新加坡明古连街宜必思酒店",
+      },
+      {
+        value: "IBIS BUDGET SINGAPORE BUGIS",
+        text: "IBIS BUDGET SINGAPORE BUGIS",
+        label_zh: "新加坡武吉士宜必思快捷酒店",
+      },
+    ],
+  };
+
+  it.each([
+    ["holidayin", 2],
+    ["我住宜必思", 2],
+    ["I am staying at Holiday Inn", 2],
+  ])("finds all relevant official hotel branches for %s", (answer, expectedCount) => {
+    expect(findAccommodationOptionCandidates(answer, accommodationField)).toHaveLength(expectedCount);
+  });
+
+  it("does not treat a generic hotel answer as a branch", () => {
+    expect(findAccommodationOptionCandidates("酒店", accommodationField)).toEqual([]);
+  });
+
+  it("keeps an exact full hotel name eligible for deterministic filling", () => {
+    expect(parseDirectCurrentFieldAnswer("HOLIDAY INN SINGAPORE ATRIUM", accommodationField)).toMatchObject({
+      fieldName: "accommodation_name",
+      value: "HOLIDAY INN SINGAPORE ATRIUM",
+      confidence: "high",
+    });
+  });
+
+  it.each([
+    ["宜必思明古连", "IBIS SINGAPORE ON BENCOOLEN"],
+    ["Holiday Inn Atrium", "HOLIDAY INN SINGAPORE ATRIUM"],
+    ["I'm staying at Ibis Bencoolen", "IBIS SINGAPORE ON BENCOOLEN"],
+  ])("fills a uniquely identified branch from natural input %s", (answer, expectedValue) => {
+    expect(parseDirectCurrentFieldAnswer(answer, accommodationField)).toMatchObject({
+      fieldName: "accommodation_name",
+      value: expectedValue,
+      confidence: "high",
+    });
+  });
+
+  it("asks the user to choose a branch in friendly Chinese", () => {
+    const candidates = findAccommodationOptionCandidates("宜必思", accommodationField);
+    const clarification = buildAccommodationClarification(candidates, "zh");
+
+    expect(clarification).toContain("我找到了几家名称相近的酒店");
+    expect(clarification).toContain("新加坡明古连街宜必思酒店");
+    expect(clarification).toContain("你入住的是哪一家");
+  });
+
+  it.each(["holidayin", "Holiday Inn", "宜必思", "我会入住宜必思酒店"])(
+    "searches the complete ICA hotel list for %s instead of only its first page",
+    (answer) => {
+      const officialField: VisaFormFieldRow = {
+        ...accommodationField,
+        options: SGAC_HOTEL_NAME_OPTIONS.map((option) => ({
+          value: option.value,
+          text: option.labelEn,
+          label_zh: sgacOptionLabelZh("hotel", option),
+        })),
+      };
+      const candidates = findAccommodationOptionCandidates(answer, officialField);
+
+      expect(candidates.length).toBeGreaterThan(1);
+      expect(candidates.some((option) => {
+        const value = typeof option === "string" ? option : option.value;
+        return /HOLIDAY INN|IBIS/.test(value);
+      })).toBe(true);
+    },
+  );
 });
 
 describe("parseDirectYesNoAnswer", () => {
