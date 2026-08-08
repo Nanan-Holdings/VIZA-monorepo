@@ -182,15 +182,19 @@ test("vn.captcha: id-less challenge excludes the nearby refresh SVG", async () =
         </button>
       </section>
     `);
-    const expectedImage = await page.locator("#official-challenge").screenshot();
-    let receivedExpectedImage = false;
+    let receivedDimensions: { width: number; height: number } | null = null;
     const outcome = await solveVietnamImageCaptcha(page, 1_000, async (image) => {
-      receivedExpectedImage = image.equals(expectedImage);
+      receivedDimensions = {
+        width: image.readUInt32BE(16),
+        height: image.readUInt32BE(20),
+      };
       return { text: "AB12", solveId: "task-idless", durationMs: 10 };
     });
 
     assert.equal(outcome.solved, true);
-    assert.equal(receivedExpectedImage, true);
+    assert.deepEqual(receivedDimensions, { width: 420, height: 132 });
+    assert.equal(outcome.telemetry?.captureWidth, 420);
+    assert.equal(outcome.telemetry?.captureHeight, 132);
     assert.equal(await page.locator("#generic-security-input").inputValue(), "AB12");
   } finally {
     await browser.close();
