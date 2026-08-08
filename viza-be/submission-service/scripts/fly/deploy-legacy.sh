@@ -7,14 +7,31 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 app="${FLY_SUBMISSION_LEGACY_APP:-viza-submission-legacy}"
 deploy_ready_url="https://${app}.fly.dev/deploy-ready"
 
+ensure_retained_machine_started() {
+  local machine_id
+  # fly.legacy.toml deliberately disables Fly's HTTP auto-start so ordinary
+  # probes cannot wake a billed browser worker. A deployment readiness probe
+  # is an authorized exception: start only retained stopped/suspended
+  # Machines, then let /deploy-ready fail closed if the worker claims a task
+  # or still owns an unconsumed one-time card session.
+  while read -r machine_id; do
+    [[ -z "$machine_id" ]] && continue
+    fly machine start --app "$app" "$machine_id"
+  done < <(
+    fly machines list --app "$app" --json |
+      jq -r '.[] | select(.state == "stopped" or .state == "suspended") | .id'
+  )
+}
+
 require_deploy_ready() {
   local status="000"
   local attempt
-  # A request to a stopped Machine cold-starts the worker. During its first
-  # queue poll activeWork can briefly be non-zero even though no task or card
-  # session exists. Retry transient cold-start timeouts/5xx/409 responses,
-  # while keeping the gate bounded and fail-closed for protected work.
-  for attempt in {1..12}; do
+  ensure_retained_machine_started
+  # During the first queue poll activeWork can briefly be non-zero even though
+  # no task or card session exists. Retry transient startup timeouts/5xx/409
+  # responses, while keeping the gate bounded and fail-closed for protected
+  # work.
+  for attempt in $(seq 1 18); do
     status="$(curl --location --silent --show-error --max-time 10 \
       --output /dev/null --write-out '%{http_code}' "$deploy_ready_url" || true)"
     if [[ "$status" == "200" ]]; then
@@ -24,7 +41,7 @@ require_deploy_ready() {
       echo "Refusing to deploy: could not verify ${app} deployment readiness (HTTP ${status})." >&2
       exit 3
     fi
-    if (( attempt < 12 )); then
+    if (( attempt < 18 )); then
       sleep 5
     fi
   done
