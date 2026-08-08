@@ -13,7 +13,7 @@ import type {
   FormAssistantState,
   FormAssistantTurnResponse,
 } from "@/types/form-assistant";
-import { SGAC_ICA_SOURCES } from "./constants";
+import { getFormAssistantFallbackSources } from "./constants";
 import { getAssistantProgress } from "./validator";
 
 const FORM_ASSISTANT_MODEL =
@@ -39,7 +39,38 @@ type ProposedPatch = {
 
 const PRODUCT_TIME_ZONES: Record<string, string> = {
   SG_ARRIVAL_CARD: "Asia/Singapore",
+  MY_MDAC_ARRIVAL_CARD: "Asia/Kuala_Lumpur",
+  TH_TDAC_ARRIVAL_CARD: "Asia/Bangkok",
+  PH_ETRAVEL_ARRIVAL_CARD: "Asia/Manila",
+  PH_ETRAVEL_DEPARTURE_CARD: "Asia/Manila",
+  VN_PREARRIVAL_DECLARATION: "Asia/Ho_Chi_Minh",
 };
+
+const COUNTRY_TIME_ZONES: Record<string, string> = {
+  australia: "Australia/Sydney",
+  canada: "America/Toronto",
+  china: "Asia/Shanghai",
+  france: "Europe/Paris",
+  germany: "Europe/Berlin",
+  india: "Asia/Kolkata",
+  indonesia: "Asia/Jakarta",
+  japan: "Asia/Tokyo",
+  malaysia: "Asia/Kuala_Lumpur",
+  philippines: "Asia/Manila",
+  singapore: "Asia/Singapore",
+  south_korea: "Asia/Seoul",
+  taiwan: "Asia/Taipei",
+  thailand: "Asia/Bangkok",
+  united_kingdom: "Europe/London",
+  united_states: "America/New_York",
+  vietnam: "Asia/Ho_Chi_Minh",
+};
+
+export function formAssistantTimeZone(country: string, visaType: string): string {
+  const normalizedVisaType = visaType.trim().toUpperCase();
+  const normalizedCountry = country.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return PRODUCT_TIME_ZONES[normalizedVisaType] ?? COUNTRY_TIME_ZONES[normalizedCountry] ?? "UTC";
+}
 
 export function parseDirectYesNoAnswer(
   text: string,
@@ -150,14 +181,15 @@ async function loadApplicationKnowledge(params: {
   country: string;
   visaType: string;
 }): Promise<{ context: string; sources: FormAssistantSource[] }> {
-  if (!params.releaseKey) return { context: "", sources: SGAC_ICA_SOURCES };
+  const fallbackSources = getFormAssistantFallbackSources(params.country, params.visaType);
+  if (!params.releaseKey) return { context: "", sources: fallbackSources };
   const { data: release } = await params.admin
     .from("visa_knowledge_releases")
     .select("id")
     .eq("release_key", params.releaseKey)
     .eq("status", "active")
     .maybeSingle();
-  if (!release) return { context: "", sources: SGAC_ICA_SOURCES };
+  if (!release) return { context: "", sources: fallbackSources };
   const { data: documents } = await params.admin
     .from("visa_documents")
     .select("id, title, source_url")
@@ -166,7 +198,7 @@ async function loadApplicationKnowledge(params: {
     .ilike("visa_type", params.visaType)
     .limit(5);
   const documentIds = (documents ?? []).map((document) => document.id);
-  if (documentIds.length === 0) return { context: "", sources: SGAC_ICA_SOURCES };
+  if (documentIds.length === 0) return { context: "", sources: fallbackSources };
   const { data: chunks } = await params.admin
     .from("visa_chunks")
     .select("content, document_type")
@@ -178,7 +210,7 @@ async function loadApplicationKnowledge(params: {
     .filter((source, index, list) => list.findIndex((item) => item.url === source.url && item.title === source.title) === index);
   return {
     context: (chunks ?? []).map((chunk) => chunk.content.slice(0, 900)).join("\n\n"),
-    sources: sources.length > 0 ? sources : SGAC_ICA_SOURCES,
+    sources: sources.length > 0 ? sources : fallbackSources,
   };
 }
 
@@ -713,12 +745,34 @@ const FRIENDLY_FIELD_QUESTIONS: Record<string, { zh: string; en: string }> = {
   },
 };
 
-function friendlyQuestion(field: VisaFormFieldRow, locale: string): string {
-  const copy = FRIENDLY_FIELD_QUESTIONS[field.fieldName];
+function friendlyQuestion(
+  field: VisaFormFieldRow,
+  locale: string,
+  product: { country: string; visaType: string },
+): string {
+  const isSgac = product.visaType.trim().toUpperCase() === "SG_ARRIVAL_CARD";
+  const copy = isSgac ? FRIENDLY_FIELD_QUESTIONS[field.fieldName] : undefined;
   if (copy) return locale.startsWith("zh") ? copy.zh : copy.en;
   const label = localizedLabel(field, locale);
+  const optionLabels = (field.options ?? []).slice(0, 5).map((option) => {
+    if (typeof option === "string") return option;
+    if (locale.startsWith("zh") && typeof option.label_zh === "string" && option.label_zh.trim()) {
+      return option.label_zh.trim();
+    }
+    return option.label_en?.trim() || option.text?.trim() || option.official_label?.trim() || option.value;
+  });
+  if (optionLabels.length > 0 && optionLabels.length <= 5) {
+    return locale.startsWith("zh")
+      ? `接下来想确认一下${label}。你可以从${optionLabels.join("、")}中选择，也可以直接用自己的话回答。`
+      : `Next, could you tell me ${label}? You can choose ${optionLabels.join(", ")}, or answer naturally.`;
+  }
+  if (field.fieldType === "date") {
+    return locale.startsWith("zh")
+      ? `接下来想确认一下${label}。你可以告诉我具体日期，也可以说“明天”或“后天”。`
+      : `Next, could you tell me ${label}? You can give a date or say “tomorrow” or “the day after tomorrow”.`;
+  }
   return locale.startsWith("zh")
-    ? `接下来想确认一下：${label}。你可以按自己的习惯回答，我会帮你整理成表单需要的格式。`
+    ? `接下来想确认一下${label}。你可以按自己的习惯回答，我会帮你整理成表单需要的格式。`
     : `Next, could you tell me about ${label}? Answer naturally and I’ll format it for the form.`;
 }
 
@@ -840,23 +894,28 @@ export async function loadAssistantMessages(
   }));
 }
 
-function buildQuestion(fields: VisaFormFieldRow[], locale: string): string {
+function buildQuestion(
+  fields: VisaFormFieldRow[],
+  locale: string,
+  product: { country: string; visaType: string },
+): string {
   if (fields.length === 0) {
     return locale.startsWith("zh")
       ? "必填信息已经齐全。你可以补充仍为空的可选项，或运行最终检查。"
       : "All required information is complete. You can add optional details or run the final check.";
   }
   const field = fields[0];
-  if (!field) return buildQuestion([], locale);
-  return friendlyQuestion(field, locale);
+  if (!field) return buildQuestion([], locale, product);
+  return friendlyQuestion(field, locale, product);
 }
 
 function buildCompletionQuestion(
   optionalFields: VisaFormFieldRow[],
   locale: string,
+  product: { country: string; visaType: string },
 ): string {
-  if (optionalFields.length === 0) return buildQuestion([], locale);
-  const question = friendlyQuestion(optionalFields[0], locale);
+  if (optionalFields.length === 0) return buildQuestion([], locale, product);
+  const question = friendlyQuestion(optionalFields[0], locale, product);
   return locale.startsWith("zh")
     ? `必填信息已经齐全。如果你愿意，还可以补充一项选填内容：${question} 不想填写的话，直接运行最终检查就可以。`
     : `All required information is complete. If you’d like, there is one optional detail left: ${question} You can also run the final check and leave it blank.`;
@@ -871,6 +930,8 @@ function buildTurnAcknowledgement(appliedCount: number, locale: string): string 
 
 export function buildAssistantState(params: {
   sessionId: string;
+  country: string;
+  visaType: string;
   steps: WizardStep[];
   answers: Record<string, { value: string; source: string | null }>;
   messages: FormAssistantMessage[];
@@ -885,8 +946,8 @@ export function buildAssistantState(params: {
     !field.required && !values[field.fieldName]?.trim() && evaluateShowIf(field, values, step.fields),
   ));
   const assistantMessage = missingFields.length > 0
-    ? buildQuestion(nextFields, params.locale)
-    : buildCompletionQuestion(optionalFields, params.locale);
+    ? buildQuestion(nextFields, params.locale, params)
+    : buildCompletionQuestion(optionalFields, params.locale, params);
   return {
     enabled: true,
     sessionId: params.sessionId,
@@ -896,7 +957,7 @@ export function buildAssistantState(params: {
     skippedConflicts: [],
     missingFields,
     progress: getAssistantProgress(params.steps, values),
-    sources: SGAC_ICA_SOURCES,
+    sources: getFormAssistantFallbackSources(params.country, params.visaType),
     canRunFinalCheck: missingFields.length === 0,
     aiFilledFieldNames: Object.entries(params.answers)
       .filter(([, item]) => item.source === "form_assistant")
@@ -914,6 +975,16 @@ function parseOpenAiText(payload: unknown): string {
     .join("\n") ?? "";
 }
 
+export function buildFormAssistantModelInstructions(params: {
+  locale: string;
+  country: string;
+  visaType: string;
+}): string {
+  return params.locale.startsWith("zh")
+    ? `你是“表单填写助手”，正在协助填写 ${params.country} 的 ${params.visaType} 表单。专业、温和、简洁，不要冒充政府人员或签证官。入境卡和旅行申报不是签证；除非产品知识明确说明，否则统一称为“表单”或“申请”。理解用户的自然语言并转换为表单的官方标准值，但不得猜测。相对日期必须以 referenceDate 和 timeZone 计算：例如“明天”是 referenceDate 加一天；这种唯一明确的相对日期应标为 high，并输出 YYYY-MM-DD。下拉值必须使用 exactOptions 中的 value，可用 aliases 理解中文、英文、简称或翻译。只能输出 manifest 中的字段。确有多种解释的姓名、日期、证件号或选项才标为 medium/low。reply 只简短确认本轮理解到的内容，不得询问后续字段；服务端会单独追加下一问题。返回严格 JSON。`
+    : `You are the professional, warm, and concise Form Filling Assistant for the ${params.visaType} form for ${params.country}. Never impersonate a government officer or visa officer. Arrival cards and travel declarations are not visas; call the product a form or application unless product knowledge gives its official name. Understand natural-language answers and convert them to official form values without guessing. Resolve relative dates from referenceDate in timeZone: for example, tomorrow is referenceDate plus one day; an unambiguous relative date is high confidence and must be returned as YYYY-MM-DD. Dropdown values must use exactOptions[].value, matching Chinese, English, abbreviations, or translations through aliases. Return only manifest fields. Mark a name, date, document number, or option medium/low only when it genuinely has multiple interpretations. The reply only briefly acknowledges this turn and never asks later fields because the server appends the next question. Return strict JSON.`;
+}
+
 async function proposeTurn(params: {
   text: string;
   locale: string;
@@ -923,6 +994,8 @@ async function proposeTurn(params: {
   knowledgeContext: string;
   referenceDate: string;
   timeZone: string;
+  country: string;
+  visaType: string;
 }): Promise<{ reply: string; patches: ProposedPatch[] }> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   const fallback = "";
@@ -954,9 +1027,7 @@ async function proposeTurn(params: {
       body: JSON.stringify({
         model: FORM_ASSISTANT_MODEL,
         max_output_tokens: 1_000,
-        instructions: params.locale.startsWith("zh")
-          ? "你是表单填写助手。专业、温和、简洁。SG Arrival Card 不是签证，不要冒充签证官。理解用户的自然语言并转换为表单的官方标准值，但不得猜测。相对日期必须以 referenceDate 和 timeZone 计算：例如“明天”是 referenceDate 加一天；这种唯一明确的相对日期应标为 high，并输出 YYYY-MM-DD。下拉值必须使用 exactOptions 中的 value，可用 aliases 理解中文、英文、简称或翻译。只能输出 manifest 中的字段。确有多种解释的姓名、日期、证件号或选项才标为 medium/low。reply 只简短确认本轮理解到的内容，不得询问后续字段；服务端会单独追加下一问题。返回严格 JSON。"
-          : "You are a professional, warm and concise form-filling assistant. The SG Arrival Card is not a visa; never impersonate an officer. Understand natural-language answers and convert them to official form values without guessing. Resolve relative dates from referenceDate in timeZone: for example, tomorrow is referenceDate plus one day; an unambiguous relative date is high confidence and must be returned as YYYY-MM-DD. Dropdown values must use exactOptions[].value, matching Chinese, English, abbreviations, or translations through aliases. Return only manifest fields. Mark a name, date, document number, or option medium/low only when it genuinely has multiple interpretations. The reply only briefly acknowledges this turn and never asks later fields because the server appends the next question. Return strict JSON.",
+        instructions: buildFormAssistantModelInstructions(params),
         input: JSON.stringify({
           userMessage: params.text,
           referenceDate: params.referenceDate,
@@ -1162,7 +1233,7 @@ export async function runAssistantTurn(params: {
     country: params.country,
     visaType: params.visaType,
   });
-  const timeZone = PRODUCT_TIME_ZONES[params.visaType] ?? "UTC";
+  const timeZone = formAssistantTimeZone(params.country, params.visaType);
   const referenceDate = isoDateInTimeZone(new Date(), timeZone);
   const directChoice = correctionCancellation
     ? null
@@ -1187,6 +1258,8 @@ export async function runAssistantTurn(params: {
         knowledgeContext: knowledge.context,
         referenceDate,
         timeZone,
+        country: params.country,
+        visaType: params.visaType,
       });
 
   const appliedPatches: FormAssistantAppliedPatch[] = [];
@@ -1255,8 +1328,8 @@ export async function runAssistantTurn(params: {
     !field.required && !nextValues[field.fieldName]?.trim() && evaluateShowIf(field, nextValues, step.fields),
   ));
   const nextQuestion = nextMissing.length > 0
-    ? buildQuestion(nextFields, params.locale)
-    : buildCompletionQuestion(optionalFields, params.locale);
+    ? buildQuestion(nextFields, params.locale, params)
+    : buildCompletionQuestion(optionalFields, params.locale, params);
   const correctionConflict = requestedCorrectionField
     ? skippedConflicts.includes(requestedCorrectionField.fieldName)
     : false;

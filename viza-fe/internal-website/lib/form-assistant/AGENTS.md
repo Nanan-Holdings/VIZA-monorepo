@@ -6,7 +6,7 @@ Scope: this file applies to `lib/form-assistant/**`.
 
 - `bootstrap.ts` decides whether a first-time supported form visit must create
   an application-scoped draft before the assistant can render. It must reuse
-  existing drafts and remain restricted to the reviewed product allowlist.
+  existing drafts and require a non-empty DB-driven form schema.
 - `service.ts` asks exactly one current field question per turn. It may still
   extract multiple facts when an applicant volunteers them, but it must not
   render bulk missing-field prompts or reuse legacy multi-question prompts.
@@ -17,9 +17,10 @@ Scope: this file applies to `lib/form-assistant/**`.
   `8月7号` must be normalized against the product time zone before model
   extraction. Localized option labels may map to reviewed exact option values;
   ambiguous dates or options must still be confirmed.
-- Ask the current SGAC field in concise, supportive language that explains the
-  expected answer with a useful example or reviewed choices when appropriate;
-  do not expose raw field labels as robotic prompts.
+- Ask the current field in concise, supportive language that explains the
+  expected answer with a useful example or reviewed choices when appropriate.
+  SGAC-specific copy must only be used for SGAC; other products use their own
+  localized schema labels and exact options.
 - Hierarchical official options may use unique comma-delimited segments as
   natural-language aliases (for example `长沙` for
   `CHINA, HUNAN, CHANGSHA`). Apply a value only when the full option set has
@@ -32,6 +33,9 @@ Scope: this file applies to `lib/form-assistant/**`.
 - Product document requirements must come from reviewed product configuration;
   the assistant must never invent requirements from a model response.
 - `SG_ARRIVAL_CARD` intentionally has no document requirements.
+- Knowledge sources and prompts must remain bound to the owned application's
+  exact `country + visaType`. Never return the SGAC ICA fallback source for a
+  different Singapore product or another country.
 
 ## Validation
 
@@ -40,6 +44,7 @@ Run from `viza-fe/internal-website`:
 ```powershell
 npx vitest run lib/form-assistant/document-extraction-policy.test.ts
 npx vitest run lib/form-assistant/bootstrap.test.ts
+npx vitest run lib/form-assistant/constants.test.ts
 npx vitest run lib/form-assistant/service.test.ts
 npm run type-check
 ```

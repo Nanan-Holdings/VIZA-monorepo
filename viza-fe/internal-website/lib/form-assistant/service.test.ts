@@ -9,13 +9,36 @@ vi.mock("server-only", () => ({}));
 import {
   buildAccommodationClarification,
   buildAssistantState,
+  buildFormAssistantModelInstructions,
   findAccommodationOptionCandidates,
+  formAssistantTimeZone,
   inferRequestedCorrectionFieldName,
   isCorrectionCancellation,
   parseDirectCurrentFieldAnswer,
   parseDirectYesNoAnswer,
   runAssistantTurn,
 } from "./service";
+
+describe("buildFormAssistantModelInstructions", () => {
+  it("binds a visa prompt to its exact product without SGAC leakage", () => {
+    const instructions = buildFormAssistantModelInstructions({
+      locale: "zh",
+      country: "germany",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    });
+    expect(instructions).toContain("germany");
+    expect(instructions).toContain("EU_SCHENGEN_C_SHORT_STAY");
+    expect(instructions).not.toContain("SG Arrival Card");
+  });
+
+  it("keeps arrival cards distinct from visas", () => {
+    expect(buildFormAssistantModelInstructions({
+      locale: "en",
+      country: "thailand",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+    })).toContain("Arrival cards and travel declarations are not visas");
+  });
+});
 
 function field(fieldName: string, label: string, labelZh: string, required = true): VisaFormFieldRow {
   return {
@@ -101,6 +124,73 @@ function createAssistantAdminStub(priorResponse?: Record<string, unknown>) {
   return { admin, messages, answerUpdates, sessionUpdates };
 }
 
+describe("generic natural-language model extraction", () => {
+  it("translates a natural answer into a high-confidence field patch for a non-SG form", async () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        output_text: JSON.stringify({
+          reply: "",
+          patches: [{
+            fieldName: "current_occupation",
+            value: "Software engineer",
+            confidence: "high",
+          }],
+        }),
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const stub = createAssistantAdminStub();
+
+    try {
+      const result = await runAssistantTurn({
+        admin: stub.admin,
+        session: {
+          id: "session-id",
+          schema_fingerprint: "fingerprint",
+          knowledge_release_key: null,
+          state_json: {},
+        },
+        applicationId: "application-id",
+        applicantId: "applicant-id",
+        authUserId: "user-id",
+        steps: [{
+          stepNumber: 1,
+          stepName: "Employment",
+          fields: [field("current_occupation", "Current occupation", "当前职业")],
+        }],
+        answers: {},
+        text: "我现在是一名软件工程师",
+        locale: "zh",
+        inputMode: "text",
+        idempotencyKey: "generic-model-turn",
+        country: "germany",
+        visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      });
+
+      expect(result.appliedPatches).toEqual([expect.objectContaining({
+        fieldName: "current_occupation",
+        value: "Software engineer",
+        confidence: "high",
+      })]);
+      expect(stub.answerUpdates).toHaveLength(1);
+      const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+        instructions: string;
+        input: string;
+      };
+      expect(requestBody.instructions).toContain("EU_SCHENGEN_C_SHORT_STAY");
+      expect(requestBody.instructions).not.toContain("SG Arrival Card");
+      expect(requestBody.input).toContain("current_occupation");
+    } finally {
+      if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 describe("buildAssistantState", () => {
   const steps: WizardStep[] = [{
     stepNumber: 1,
@@ -114,6 +204,8 @@ describe("buildAssistantState", () => {
   it("asks exactly one current question", () => {
     const state = buildAssistantState({
       sessionId: "session-id",
+      country: "singapore",
+      visaType: "SG_ARRIVAL_CARD",
       steps,
       answers: {},
       messages: [],
@@ -128,6 +220,8 @@ describe("buildAssistantState", () => {
   it("replaces a legacy multi-question prompt with the current single question", () => {
     const state = buildAssistantState({
       sessionId: "session-id",
+      country: "singapore",
+      visaType: "SG_ARRIVAL_CARD",
       steps,
       answers: {},
       messages: [{
@@ -155,6 +249,8 @@ describe("buildAssistantState", () => {
     };
     const state = buildAssistantState({
       sessionId: "session-id",
+      country: "singapore",
+      visaType: "SG_ARRIVAL_CARD",
       steps: [{ stepNumber: 1, stepName: "Trip details", fields: [modeField] }],
       answers: {},
       messages: [],
@@ -163,6 +259,34 @@ describe("buildAssistantState", () => {
 
     expect(state.assistantMessage).toBe("你准备通过什么交通方式前往新加坡？是航空、陆路还是海路？");
     expect(state.assistantMessage).not.toContain("我们一次填写一项");
+  });
+
+  it("uses product-neutral copy and sources outside SGAC", () => {
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "germany",
+      visaType: "schengen_c",
+      steps,
+      answers: {},
+      messages: [],
+      locale: "zh",
+    });
+
+    expect(state.assistantMessage).toContain("抵达日期");
+    expect(state.assistantMessage).not.toContain("新加坡");
+    expect(state.sources).toEqual([]);
+  });
+});
+
+describe("formAssistantTimeZone", () => {
+  it.each([
+    ["singapore", "SG_ARRIVAL_CARD", "Asia/Singapore"],
+    ["malaysia", "MY_MDAC_ARRIVAL_CARD", "Asia/Kuala_Lumpur"],
+    ["united_states", "DS160", "America/New_York"],
+    ["germany", "schengen_c", "Europe/Berlin"],
+    ["unknown", "custom_form", "UTC"],
+  ])("uses the reviewed time zone for %s %s", (country, visaType, expected) => {
+    expect(formAssistantTimeZone(country, visaType)).toBe(expected);
   });
 });
 
