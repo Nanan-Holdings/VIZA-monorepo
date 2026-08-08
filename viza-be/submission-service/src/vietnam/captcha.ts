@@ -33,6 +33,7 @@ const CAPTCHA_IMAGE_SELECTOR = [
   "img[src*='captcha' i]",
   "img[id*='captcha' i]",
   "img[class*='captcha' i]",
+  "img[alt*='captcha' i]",
   ".captcha img",
 ].join(", ");
 
@@ -45,6 +46,8 @@ const CAPTCHA_INPUT_SELECTOR = [
   "input[placeholder*='enter code' i]",
   "input[placeholder*='mã xác nhận' i]",
   "input[placeholder*='ma xac nhan' i]",
+  "input[name='maXacNhan' i]",
+  "input[id='maXacNhan' i]",
 ].join(", ");
 
 const CAPTCHA_SUBMIT_LABEL_PATTERN =
