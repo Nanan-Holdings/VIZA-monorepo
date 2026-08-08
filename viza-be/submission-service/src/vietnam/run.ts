@@ -22,6 +22,7 @@ import {
   DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
   isVietnamCaptchaFailureRetryable,
   refreshVietnamCaptchaChallenge,
+  reportAcceptedVietnamCaptcha,
   reportRejectedVietnamCaptcha,
   solveVietnamImageCaptcha,
   submitVietnamCaptchaAnswer,
@@ -541,6 +542,11 @@ async function fillVietnamApplicationOnce(
           console.log(
             `[vn] Review CAPTCHA refresh before attempt ${attempt}: ${refreshed ? "confirmed" : "not_observed"}.`,
           );
+          if (!refreshed) {
+            lastReviewCaptchaReason =
+              "The official CAPTCHA refresh could not be confirmed; VIZA did not resubmit the stale challenge.";
+            break;
+          }
           if (Date.now() >= reviewCaptchaDeadline) break;
           await page.waitForTimeout(1_000);
         }
@@ -617,6 +623,11 @@ async function fillVietnamApplicationOnce(
           await reportRejectedVietnamCaptcha(captchaOutcome);
         } else if (!captchaSubmitted && stateAfterCaptcha === "captcha_visible") {
           lastReviewCaptchaReason = "VIZA could not activate the official CAPTCHA verification control.";
+        } else if (
+          captchaSubmitted &&
+          !["portal_error", "network_blocked", "layout_changed", "white_screen"].includes(stateAfterCaptcha)
+        ) {
+          await reportAcceptedVietnamCaptcha(captchaOutcome);
         }
       }
       if (stateAfterCaptcha === "captcha_visible" && Date.now() >= reviewCaptchaDeadline) {
@@ -1084,6 +1095,11 @@ async function reachVietnamFormCheckpoint(
           console.log(
             `[vn] Portal CAPTCHA refresh before attempt ${attempt}: ${refreshed ? "confirmed" : "not_observed"}.`,
           );
+          if (!refreshed) {
+            lastCaptchaReason =
+              "The official CAPTCHA refresh could not be confirmed; VIZA did not resubmit the stale challenge.";
+            break;
+          }
           if (Date.now() >= captchaDeadline) break;
           await page.waitForTimeout(750);
         }
@@ -1137,6 +1153,11 @@ async function reachVietnamFormCheckpoint(
             ? "The official portal rejected the automatic CAPTCHA answer."
             : "VIZA could not activate the official CAPTCHA verification control.";
           await reportRejectedVietnamCaptcha(outcome);
+        } else if (
+          submitted &&
+          !["portal_error", "network_blocked", "layout_changed", "white_screen"].includes(state)
+        ) {
+          await reportAcceptedVietnamCaptcha(outcome);
         }
       }
 
@@ -2447,7 +2468,10 @@ function logVietnamCaptchaOutcome(
   if (outcome.solved) {
     console.log(
       `[vn] ${scope} CAPTCHA attempt ${attempt} produced an accepted-shape answer ` +
-      `(length=${outcome.telemetry?.answerLength ?? "unknown"}, durationMs=${outcome.telemetry?.durationMs ?? "unknown"}).`,
+      `(length=${outcome.telemetry?.answerLength ?? "unknown"}, ` +
+      `durationMs=${outcome.telemetry?.durationMs ?? "unknown"}, ` +
+      `source=${outcome.telemetry?.sourceWidth ?? "unknown"}x${outcome.telemetry?.sourceHeight ?? "unknown"}, ` +
+      `capture=${outcome.telemetry?.captureWidth ?? "unknown"}x${outcome.telemetry?.captureHeight ?? "unknown"}).`,
     );
     return;
   }

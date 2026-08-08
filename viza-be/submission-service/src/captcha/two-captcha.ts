@@ -436,3 +436,13 @@ export async function reportBadCaptcha(solveId: string): Promise<void> {
     taskId: Number(solveId),
   });
 }
+
+/** Report an answer accepted by the target portal to improve future solves. */
+export async function reportGoodCaptcha(solveId: string): Promise<void> {
+  const apiKey = getApiKey();
+
+  await postJson(`${API_BASE}/reportCorrect`, {
+    clientKey: apiKey,
+    taskId: Number(solveId),
+  });
+}
