@@ -1925,6 +1925,8 @@ const VN_REVIEW_ACTION_SELECTOR =
 const VN_APPLICATION_DECLARATION_ID = "basic_ttcdCqTcCamDoan";
 const VN_APPLICATION_DECLARATION_TEXT =
   /i hereby declare|i declare|temporary residence|tôi\s+(?:xin\s+)?(?:cam\s+đoan|xác\s+nhận|đồng\s+ý)|cam\s*(?:đoan|kết)/i;
+const VN_FINAL_COMMITMENT_TEXT =
+  /i hereby declare that the above statements are true|fully responsible before the vietnamese laws|tôi\s+(?:xin\s+)?cam\s+đoan[^.]{0,240}(?:thông tin|nội dung)[^.]{0,240}(?:đúng|chính xác)/i;
 
 interface VietnamReviewBlockerDiagnostics {
   requiredUnfilled: string[];
@@ -1935,14 +1937,20 @@ interface VietnamReviewBlockerDiagnostics {
     checked: boolean;
     identifier: string | null;
   };
+  finalCommitment: {
+    found: boolean;
+    checked: boolean;
+    identifier: string | null;
+  };
 }
 
 async function readVietnamReviewBlockerDiagnostics(
   page: Page,
 ): Promise<VietnamReviewBlockerDiagnostics> {
   const domDiagnostics = await page
-    .evaluate(({ declarationId, declarationPattern }) => {
+    .evaluate(({ declarationId, declarationPattern, finalCommitmentPattern }) => {
       const pattern = new RegExp(declarationPattern, "i");
+      const commitmentPattern = new RegExp(finalCommitmentPattern, "i");
       const identifier = (element: Element) =>
         (
           element.getAttribute("id") ||
@@ -2006,6 +2014,26 @@ async function readVietnamReviewBlockerDiagnostics(
         declarationScope?.getAttribute("aria-checked") === "true" ||
         declarationScope?.querySelector(".ant-checkbox-checked"),
       );
+      const finalCommitment = declarationCandidates.find((element) => {
+        const scope = element.closest("label, .ant-checkbox-wrapper") ?? element;
+        const text = [
+          element.getAttribute("aria-label"),
+          element.getAttribute("name"),
+          element.getAttribute("id"),
+          scope.textContent,
+        ].filter(Boolean).join(" ");
+        return visible(scope) && commitmentPattern.test(text);
+      });
+      const finalCommitmentInput = finalCommitment instanceof HTMLInputElement
+        ? finalCommitment
+        : finalCommitment?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+      const finalCommitmentScope = finalCommitment?.closest("label, .ant-checkbox-wrapper") ?? finalCommitment;
+      const finalCommitmentChecked = Boolean(
+        finalCommitmentInput?.checked ||
+        finalCommitment?.getAttribute("aria-checked") === "true" ||
+        finalCommitmentScope?.getAttribute("aria-checked") === "true" ||
+        finalCommitmentScope?.querySelector(".ant-checkbox-checked"),
+      );
       return {
         requiredUnfilled: Array.from(new Set(requiredUnfilled)),
         invalidControls: Array.from(new Set(invalidControls)),
@@ -2014,15 +2042,22 @@ async function readVietnamReviewBlockerDiagnostics(
           checked: declarationChecked,
           identifier: declaration ? identifier(declaration) : null,
         },
+        finalCommitment: {
+          found: Boolean(finalCommitment),
+          checked: finalCommitmentChecked,
+          identifier: finalCommitment ? identifier(finalCommitment) : null,
+        },
       };
     }, {
       declarationId: VN_APPLICATION_DECLARATION_ID,
       declarationPattern: VN_APPLICATION_DECLARATION_TEXT.source,
+      finalCommitmentPattern: VN_FINAL_COMMITMENT_TEXT.source,
     })
     .catch(() => ({
       requiredUnfilled: [] as string[],
       invalidControls: [] as string[],
       declaration: { found: false, checked: false, identifier: null as string | null },
+      finalCommitment: { found: false, checked: false, identifier: null as string | null },
     }));
   const validationMessages = await readVietnamValidationErrors(page).catch(() => []);
   return {
@@ -2069,6 +2104,35 @@ export async function ensureVietnamApplicationDeclarationChecked(page: Page): Pr
     if (await candidate.getAttribute("aria-checked") === "true") return true;
     await candidate.click({ force: true, timeout: 5_000 }).catch(() => undefined);
     if (await candidate.getAttribute("aria-checked") === "true") return true;
+  }
+  return false;
+}
+
+export async function ensureVietnamFinalCommitmentChecked(page: Page): Promise<boolean> {
+  const wrappers = page.locator(".ant-checkbox-wrapper, label");
+  const count = await wrappers.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const wrapper = wrappers.nth(index);
+    const checkbox = wrapper.locator("input[type='checkbox']").first();
+    if ((await checkbox.count().catch(() => 0)) === 0) continue;
+    if (await checkbox.getAttribute("id") === VN_APPLICATION_DECLARATION_ID) continue;
+    const contextText = [
+      await wrapper.innerText().catch(() => ""),
+      await readCheckboxContextText(checkbox),
+    ].join(" ").replace(/\s+/g, " ").trim();
+    if (
+      isForbiddenVietnamAutoCheckboxText(contextText) ||
+      !VN_FINAL_COMMITMENT_TEXT.test(contextText)
+    ) {
+      continue;
+    }
+
+    await wrapper.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
+    if (await checkbox.isChecked().catch(() => false)) return true;
+    await checkbox.check({ force: true, timeout: 5_000 }).catch(() => undefined);
+    if (await checkbox.isChecked().catch(() => false)) return true;
+    await wrapper.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+    if (await checkbox.isChecked().catch(() => false)) return true;
   }
   return false;
 }
@@ -2131,6 +2195,10 @@ export async function advanceVietnamToReview(
   const declarationChecked = await ensureVietnamApplicationDeclarationChecked(page);
   if (!declarationChecked) {
     console.warn("[vn] The required application declaration could not be verified as checked.");
+  }
+  const finalCommitmentChecked = await ensureVietnamFinalCommitmentChecked(page);
+  if (!finalCommitmentChecked) {
+    console.warn("[vn] The final Vietnam e-Visa commitment could not be verified as checked.");
   }
 
   const enableDeadline = Date.now() + Math.min(timeoutMs, 5_000);
