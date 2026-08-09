@@ -188,6 +188,14 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     wechatPayTotalFen: 107300,
   },
   {
+    country: "indonesia",
+    visaType: "ID_B1_EVOA",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 3500,
+    currency: "USD",
+    govtFeeChannel: "viza_passthrough",
+  },
+  {
     country: "south_korea",
     visaType: "KR_C39_SHORT_TERM_VISIT",
     agencyFeeCents: AGENCY_USD,

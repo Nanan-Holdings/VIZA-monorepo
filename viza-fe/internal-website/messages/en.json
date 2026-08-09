@@ -2300,6 +2300,8 @@
         "employerAddress": "Employer or school address",
         "employerPhone": "Employer or school phone",
         "purposeOfVisit": "Purpose of visit",
+        "arrivalDate": "Arrival date",
+        "departureDate": "Departure date",
         "intendedArrivalDate": "Intended arrival date",
         "intendedLengthOfStay": "Intended length of stay",
         "portOfEntry": "Port of entry",
@@ -2366,7 +2368,9 @@
           "other": "Other"
         },
         "purpose": {
-          "tourism": "Tourism"
+          "tourism": "Tourism",
+          "businessMeeting": "Business meeting",
+          "transit": "Transit"
         },
         "idAccommodation": {
           "hotel": "Hotel",
