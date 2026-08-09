@@ -186,6 +186,9 @@ export function localizeProgressMessage(
     if (/^[a-z][a-z0-9._-]+$/i.test(message.trim())) {
       return chineseStageMessage(message.trim());
     }
+
+    if (/\p{Script=Han}/u.test(message)) return message;
+    return chineseStageMessage(normalized);
   }
   return message;
 }
@@ -253,6 +256,7 @@ export function WaitingCard({
           : "running",
     intervalMs: 800,
     initialProgress: 0,
+    syncToServerProgress: true,
     onVisualComplete,
   });
   const activePhase = PHASES[activePhaseIdx] ?? PHASES[0];
