@@ -1724,6 +1724,19 @@ type LoadedApplication = {
   accommodation_address?: string | null;
 };
 
+function submissionResultsMatch(
+  current: SubmissionResult | null,
+  incoming: SubmissionResult | null,
+): boolean {
+  if (current === incoming) return true;
+  if (!current || !incoming) return false;
+  try {
+    return JSON.stringify(current) === JSON.stringify(incoming);
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
@@ -2710,19 +2723,37 @@ export default function ApplicationPage() {
           const updated = payload.new as LoadedApplication;
           if (updated.id && updated.id !== applicationId) return;
 
-          setAppState((previous) => ({
-            ...previous,
-            applicationId: updated.id ?? previous.applicationId,
-            confirmationNumber:
-              updated.confirmation_number ?? previous.confirmationNumber,
-            submittedAt: updated.submitted_at ?? previous.submittedAt,
-            submissionResult:
+          setAppState((previous) => {
+            const nextApplicationId = updated.id ?? previous.applicationId;
+            const nextConfirmationNumber =
+              updated.confirmation_number ?? previous.confirmationNumber;
+            const nextSubmittedAt = updated.submitted_at ?? previous.submittedAt;
+            const nextSubmissionResult =
               (updated.submission_result as SubmissionResult | null | undefined) ??
-              previous.submissionResult,
-            submissionResultStatus:
+              previous.submissionResult;
+            const nextSubmissionResultStatus =
               (updated.submission_result_status as SubmissionResultStatus | null | undefined) ??
-              previous.submissionResultStatus,
-          }));
+              previous.submissionResultStatus;
+
+            if (
+              nextApplicationId === previous.applicationId &&
+              nextConfirmationNumber === previous.confirmationNumber &&
+              nextSubmittedAt === previous.submittedAt &&
+              nextSubmissionResultStatus === previous.submissionResultStatus &&
+              submissionResultsMatch(previous.submissionResult, nextSubmissionResult)
+            ) {
+              return previous;
+            }
+
+            return {
+              ...previous,
+              applicationId: nextApplicationId,
+              confirmationNumber: nextConfirmationNumber,
+              submittedAt: nextSubmittedAt,
+              submissionResult: nextSubmissionResult,
+              submissionResultStatus: nextSubmissionResultStatus,
+            };
+          });
         },
       )
       .subscribe();

@@ -140,9 +140,6 @@ export function useSmoothProgress({
 
     setDisplayedProgress((current) => {
       const nextProgress = Math.max(current, persisted, authoritativeFloor);
-      if (normalizedPersistenceKey) {
-        persistProgress(normalizedPersistenceKey, nextProgress);
-      }
       return nextProgress;
     });
   }, [
@@ -164,11 +161,7 @@ export function useSmoothProgress({
     const timer = window.setInterval(() => {
       setDisplayedProgress((current) => {
         if (current >= visualTarget) return current;
-        const nextProgress = Math.min(current + safeStep, visualTarget);
-        if (normalizedPersistenceKey) {
-          persistProgress(normalizedPersistenceKey, nextProgress);
-        }
-        return nextProgress;
+        return Math.min(current + safeStep, visualTarget);
       });
     }, safeIntervalMs);
 
