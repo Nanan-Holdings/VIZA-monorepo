@@ -1775,4 +1775,57 @@ describe("DynamicStepForm copilot format", () => {
       }
     }
   });
+
+  it("highlights a reviewed error and navigates to the next problematic field", () => {
+    const onNavigateReviewIssue = vi.fn();
+    const reviewIssues = new Map([
+      ["surname", {
+        fieldName: "surname",
+        message: "Use the name shown in the passport.",
+        severity: "error" as const,
+        nextFieldName: "passport_number",
+      }],
+    ]);
+
+    const { container } = render(
+      <DynamicStepForm
+        step={requiredTextStep}
+        prefill={{ surname: "Test" }}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        reviewIssues={reviewIssues}
+        onNavigateReviewIssue={onNavigateReviewIssue}
+      />,
+    );
+
+    expect(container.querySelector("[data-application-field-name='surname']"))
+      .toHaveAttribute("data-review-issue", "error");
+    expect(screen.getByText("Use the name shown in the passport.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "reviewRepair.nextIssue" }));
+    expect(onNavigateReviewIssue).toHaveBeenCalledExactlyOnceWith("passport_number");
+  });
+
+  it("returns to the assistant after the final reviewed issue", () => {
+    const onNavigateReviewIssue = vi.fn();
+    render(
+      <DynamicStepForm
+        step={requiredTextStep}
+        prefill={{ surname: "Test" }}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        reviewIssues={new Map([
+          ["surname", {
+            fieldName: "surname",
+            message: "Please confirm this answer.",
+            severity: "warning" as const,
+            nextFieldName: null,
+          }],
+        ])}
+        onNavigateReviewIssue={onNavigateReviewIssue}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "reviewRepair.returnToAssistant" }));
+    expect(onNavigateReviewIssue).toHaveBeenCalledExactlyOnceWith(null);
+  });
 });

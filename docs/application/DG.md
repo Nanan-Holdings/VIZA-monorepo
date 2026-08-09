@@ -362,6 +362,27 @@ npm run enrich:field-answer-norms-rag -- --all
 6. Verify `/client/application?country=<country>&visaType=<visaType>` loads the correct draft flow.
 7. Check bilingual labels, placeholders, options, photo guidance, review output, and field AI.
 
+## Cross-form assistant answer review
+
+Every DB-driven application schema participates in the shared form-assistant
+review flow; country pages must not implement their own issue navigation.
+
+- A validation error or warning is mapped to its canonical `fieldName` and
+  displayed with the complete original question and control inside the
+  assistant conversation.
+- Each issue offers a second path to the original form field. Original fields
+  remain highlighted and expose a next-issue action; the last issue returns to
+  the assistant so the applicant can run **Review final answers** again.
+- The read-only final review highlights the same question and answer, while all
+  editing remains in the assistant copy or original form.
+- Manual form users get a return-to-assistant review action when deterministic
+  required-field completion is reached.
+- Any edit after validation marks that result stale. Final-review navigation is
+  disabled until validation succeeds again; warnings still require the normal
+  explicit acknowledgement flow.
+- Issue ordering comes from the shared schema display order in
+  `lib/form-assistant/review-issues.ts`, including repeat-instance answer keys.
+
 ## Design Guardrails
 
 - Match the homepage content width. The current rhythm is `max-w-[1090px]`.

@@ -486,6 +486,10 @@
         "warnings": "{count, plural, one {# item to review} other {# items to review}}",
         "pass": "No required errors were found. Please review the form once more before continuing."
       },
+      "reviewRepair": {
+        "jumpToOriginal": "Edit in the original form",
+        "reviewWithAssistant": "Review answers with the form assistant"
+      },
       "composer": {
         "label": "Message for the form filling assistant",
         "placeholder": "Answer the current question here...",
@@ -511,7 +515,7 @@
       },
       "actions": {
         "checkAnswers": "Review answers",
-        "checkAgain": "Check again",
+        "checkAgain": "Review final answers",
         "checking": "Checking answers...",
         "acknowledgeWarnings": "Keep these answers and continue",
         "acknowledgingWarnings": "Saving your confirmation...",
@@ -727,7 +731,11 @@
       "saving": "Saving...",
       "selectFallback": "Select…",
       "addAnother": "Add another",
-      "remove": "Remove"
+      "remove": "Remove",
+      "reviewRepair": {
+        "nextIssue": "Next issue",
+        "returnToAssistant": "Return to the form assistant"
+      }
     },
     "team": {
       "title": "Team",

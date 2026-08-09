@@ -21,6 +21,11 @@ server mutations or navigation.
   missing-field list or controls that jump away from the assistant. Show
   final-check controls only after required fields are complete; review
   navigation remains final-check gated.
+- Validation issues with a schema field must offer both repair paths: render
+  the parent-supplied complete field editor inside the conversation and expose
+  a localized jump back to the original form field. After an edit, keep the
+  previous issue visible as stale and require a fresh validation before final
+  review navigation can be enabled.
 - The parent route must optimistically append an explicitly sent user message
   before awaiting the assistant API. Roll it back on failure so the composer
   can restore the text and show a retry error.
