@@ -339,6 +339,70 @@ describe("VnResultCard automated payment UI", () => {
     });
   });
 
+  it("shows one concise retry message at the bank-confirmation checkpoint", async () => {
+    const bankConfirmationResult = {
+      ...paymentResult,
+      portalUrl: "https://pay.vnpay.vn/transaction",
+      manualAction: {
+        type: "payment_required" as const,
+        status: "open" as const,
+        instructions: "Internal payment diagnostic that must stay hidden.",
+      },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith("/official-fee/status")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            paymentNeedsOperator: true,
+            quote: { official_fee_amount: 25, official_fee_currency: "USD" },
+          }),
+        };
+      }
+      if (url.endsWith("/manual-actions")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            manualActions: [{
+              id: "manual-action-id",
+              actionType: "payment_required",
+              status: "pending",
+              instruction: "Internal manual action details.",
+              screenshotUrl: "/private/payment-diagnostic.png",
+            }],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+      };
+    }));
+
+    render(
+      <VnResultCard
+        applicationId="app-vn-bank-confirmation"
+        jobId="job-vn-bank-confirmation"
+        result={bankConfirmationResult}
+      />,
+    );
+
+    expect(
+      await screen.findByText("付款失败，请在手机银行里确认。现在可重新提交。"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("重新自动付款银行卡")).toBeInTheDocument();
+    expect(screen.queryByText("自动处理中")).not.toBeInTheDocument();
+    expect(screen.queryByText("需要人工操作")).not.toBeInTheDocument();
+    expect(screen.queryByText("Internal payment diagnostic that must stay hidden.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Internal manual action details.")).not.toBeInTheDocument();
+    expect(screen.queryByText("/private/payment-diagnostic.png")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "我已在官网完成，继续" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "等待银行 App 验证结果" })).not.toBeInTheDocument();
+  });
+
   it("shows and keeps the Fly loading UI after restarting from an older failed queue", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.endsWith("/official-fee/status")) {

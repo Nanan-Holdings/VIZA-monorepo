@@ -109,20 +109,27 @@ export function VnResultCard({
       result.portalUrl?.includes("pay.vnpay.vn") ||
       /3ds|otp|bank-app|bank authentication/i.test(manualInstruction)
     );
+  const isBankConfirmationRetry = paymentNeedsOperator && needsBankConfirmation;
   const title = paymentPaid
     ? (isZh ? "越南 e-Visa 已提交并完成官方付款" : "Vietnam e-Visa submitted and paid")
     : isPaymentCheckpoint
     ? paymentQueued && !paymentNeedsOperator
       ? (isZh ? "越南自动付款处理中" : "Vietnam automated payment in progress")
       : paymentNeedsOperator
-        ? (isZh ? "官方付款未完成，可重新自动付款" : "Official payment incomplete; automated retry is available")
+        ? isBankConfirmationRetry
+          ? (isZh
+              ? "付款失败，请在手机银行里确认。现在可重新提交。"
+              : "Payment failed. Confirm it in your banking app. You can resubmit now.")
+          : (isZh ? "官方付款未完成，可重新自动付款" : "Official payment incomplete; automated retry is available")
         : (isZh ? "等待官方费用授权" : "Waiting for official-fee authorization")
     : isFormCheckpoint
       ? (isZh ? "已进入越南 e-Visa 官网表单" : "Vietnam e-Visa form reached")
       : isManualCheckpoint
         ? (isZh ? "越南 e-Visa 需要人工操作" : "Vietnam e-Visa action required")
         : (isZh ? "已进入越南官网流程" : "Vietnam official portal reached");
-  const badge = paymentPaid
+  const badge = isBankConfirmationRetry
+    ? null
+    : paymentPaid
     ? (isZh ? "已付款" : "Paid")
     : isPaymentCheckpoint
     ? (isZh ? "自动处理中" : "Automating")
@@ -351,24 +358,26 @@ export function VnResultCard({
             <Icon className="h-5 w-5 text-brand-500" />
             {title}
           </CardTitle>
-          <Badge variant="secondary">{badge}</Badge>
+          {badge ? <Badge variant="secondary">{badge}</Badge> : null}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {paymentPaid
-            ? isZh
-              ? "VIZA 已完成本次越南 e-Visa 官网付款，申请已进入官网审核。"
-              : "VIZA has completed the official Vietnam e-Visa payment for this application."
-            : isPaymentCheckpoint
-            ? isZh
-              ? "VIZA 已完成官网表单。填写本次付款银行卡后，系统会自动支付官方费用；只有银行要求 3DS、OTP 或 App 验证时才会暂停。"
-              : "VIZA completed the official form. Add a one-time card to pay automatically; the flow pauses only for bank 3DS, OTP, or app verification."
-            : result.manualAction?.instructions ??
-              (isZh
-                ? "后台已进入越南 e-Visa 官网流程，并停在付款或最终确认前的安全检查点。"
-                : "The worker reached the official Vietnam e-Visa portal and stopped at a safe checkpoint before payment or final submit.")}
-        </p>
+        {!isBankConfirmationRetry && (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {paymentPaid
+              ? isZh
+                ? "VIZA 已完成本次越南 e-Visa 官网付款，申请已进入官网审核。"
+                : "VIZA has completed the official Vietnam e-Visa payment for this application."
+              : isPaymentCheckpoint
+              ? isZh
+                ? "VIZA 已完成官网表单。填写本次付款银行卡后，系统会自动支付官方费用；只有银行要求 3DS、OTP 或 App 验证时才会暂停。"
+                : "VIZA completed the official form. Add a one-time card to pay automatically; the flow pauses only for bank 3DS, OTP, or app verification."
+              : result.manualAction?.instructions ??
+                (isZh
+                  ? "后台已进入越南 e-Visa 官网流程，并停在付款或最终确认前的安全检查点。"
+                  : "The worker reached the official Vietnam e-Visa portal and stopped at a safe checkpoint before payment or final submit.")}
+          </p>
+        )}
 
         {result.checkpoint && !isPaymentCheckpoint && (
           <div className="rounded-md border border-input bg-background px-3 py-2">
@@ -515,21 +524,12 @@ export function VnResultCard({
           </div>
         )}
 
-        {result.manualAction && (!isPaymentCheckpoint || needsBankConfirmation) && (
+        {result.manualAction && !isPaymentCheckpoint && (
           <Alert variant="warning">
             <AlertIcon variant="warning" />
             <AlertTitle>{isZh ? "需要人工操作" : "Manual action"}</AlertTitle>
             <AlertDescription>
-              {needsBankConfirmation && (
-                <p>
-                  {isZh
-                    ? "Fly 云端浏览器已到达 VNPAY / 银行 3DS 验证。请在银行 App 中批准本次付款；VIZA 会保持云端会话并自动继续，不会在本机打开官网窗口。"
-                    : "The Fly cloud browser reached VNPAY / bank 3DS. Approve the payment in your banking app; VIZA keeps the cloud session alive and continues automatically without opening the official portal locally."}
-                </p>
-              )}
-              <p className={needsBankConfirmation ? "mt-2" : undefined}>
-                {result.manualAction.instructions}
-              </p>
+              <p>{result.manualAction.instructions}</p>
               {manualAction?.screenshotUrl && (
                 <p className="mt-2 break-all font-mono text-xs">
                   {isZh ? "证据截图：" : "Screenshot: "}
@@ -563,12 +563,6 @@ export function VnResultCard({
           </div>
         )}
 
-        {needsBankConfirmation ? (
-          <Button type="button" className="w-full" disabled>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {isZh ? "等待银行 App 验证结果" : "Waiting for banking-app verification"}
-          </Button>
-        ) : null}
       </CardContent>
     </Card>
   );
