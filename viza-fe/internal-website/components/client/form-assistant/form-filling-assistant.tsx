@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import { AlertCircle, ArrowUp, CheckCircle2, Mic, Sparkles, Square, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -37,12 +38,14 @@ export interface FormAssistantValidationIssue {
   id?: string;
   fieldName?: string;
   message: string;
+  severity?: "error" | "warning";
 }
 
 export interface FormAssistantValidationResult {
   errors: FormAssistantValidationIssue[];
   warnings: FormAssistantValidationIssue[];
   warningsAcknowledged?: boolean;
+  dirty?: boolean;
 }
 
 export type FormAssistantTranscription =
@@ -75,6 +78,7 @@ export interface FormFillingAssistantProps {
   fillNotice?: FormAssistantFillNotice | null;
   loading?: boolean;
   validationResult?: FormAssistantValidationResult | null;
+  showReviewAction?: boolean;
   onSend: (text: string) => void | Promise<void>;
   onTranscribe: (file: File) => FormAssistantTranscription | Promise<FormAssistantTranscription>;
   onAcknowledgeWarnings: () => void | Promise<void>;
@@ -82,6 +86,8 @@ export interface FormFillingAssistantProps {
   onDismissFillNotice: (noticeId: string) => void;
   onValidate: () => unknown | Promise<unknown>;
   onGoToReview: () => void | Promise<void>;
+  renderIssueField?: (issue: FormAssistantValidationIssue) => ReactNode;
+  onJumpToIssue?: (fieldName: string) => void;
   className?: string;
 }
 
@@ -122,6 +128,7 @@ export function FormFillingAssistant({
   fillNotice = null,
   loading = false,
   validationResult = null,
+  showReviewAction,
   onSend,
   onTranscribe,
   onAcknowledgeWarnings,
@@ -129,6 +136,8 @@ export function FormFillingAssistant({
   onDismissFillNotice,
   onValidate,
   onGoToReview,
+  renderIssueField,
+  onJumpToIssue,
   className,
 }: FormFillingAssistantProps) {
   const t = useTranslations("application.formAssistant");
@@ -418,14 +427,22 @@ export function FormFillingAssistant({
   const errors = validationResult?.errors ?? [];
   const warnings = validationResult?.warnings ?? [];
   const canGoToReview = Boolean(
-    validationResult && errors.length === 0 && (warnings.length === 0 || validationResult.warningsAcknowledged),
+    validationResult &&
+    !validationResult.dirty &&
+    errors.length === 0 &&
+    (warnings.length === 0 || validationResult.warningsAcknowledged),
   );
   const handleReviewAction = useCallback(async () => {
     if (reviewActionPending || loading) return;
     setReviewActionPending(true);
     setReviewActionError(null);
     try {
-      if (warnings.length > 0 && errors.length === 0 && !validationResult?.warningsAcknowledged) {
+      if (
+        !validationResult?.dirty &&
+        warnings.length > 0 &&
+        errors.length === 0 &&
+        !validationResult.warningsAcknowledged
+      ) {
         await onAcknowledgeWarnings();
       } else if (canGoToReview) {
         await onGoToReview();
@@ -446,6 +463,7 @@ export function FormFillingAssistant({
     onValidate,
     reviewActionPending,
     t,
+    validationResult?.dirty,
     validationResult?.warningsAcknowledged,
     warnings.length,
   ]);
@@ -541,10 +559,26 @@ export function FormFillingAssistant({
                       <AlertCircle className="h-4 w-4" aria-hidden="true" />
                       <p className="text-sm font-semibold">{t("validation.errors", { count: errors.length })}</p>
                     </div>
-                    <ul className="space-y-1">
+                    <ul className="space-y-3">
                       {errors.map((issue, index) => (
-                        <li key={issue.id ?? `${issue.fieldName ?? "error"}-${index}`}>
+                        <li
+                          key={issue.id ?? `${issue.fieldName ?? "error"}-${index}`}
+                          className="space-y-3 rounded-lg border border-red-200 bg-white p-4"
+                          data-form-assistant-review-issue="error"
+                        >
                           <p className="text-sm leading-6 text-red-800">{issue.message}</p>
+                          {renderIssueField?.(issue)}
+                          {issue.fieldName && onJumpToIssue ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="border-red-300 text-red-800 hover:bg-red-100 hover:text-red-900"
+                              onClick={() => onJumpToIssue(issue.fieldName!)}
+                            >
+                              {t("reviewRepair.jumpToOriginal")}
+                            </Button>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -556,10 +590,26 @@ export function FormFillingAssistant({
                       <TriangleAlert className="h-4 w-4" aria-hidden="true" />
                       <p className="text-sm font-semibold">{t("validation.warnings", { count: warnings.length })}</p>
                     </div>
-                    <ul className="space-y-1">
+                    <ul className="space-y-3">
                       {warnings.map((issue, index) => (
-                        <li key={issue.id ?? `${issue.fieldName ?? "warning"}-${index}`}>
+                        <li
+                          key={issue.id ?? `${issue.fieldName ?? "warning"}-${index}`}
+                          className="space-y-3 rounded-lg border border-amber-200 bg-white p-4"
+                          data-form-assistant-review-issue="warning"
+                        >
                           <p className="text-sm leading-6 text-amber-900">{issue.message}</p>
+                          {renderIssueField?.(issue)}
+                          {issue.fieldName && onJumpToIssue ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="border-amber-300 text-amber-900 hover:bg-amber-100 hover:text-amber-950"
+                              onClick={() => onJumpToIssue(issue.fieldName!)}
+                            >
+                              {t("reviewRepair.jumpToOriginal")}
+                            </Button>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -575,12 +625,12 @@ export function FormFillingAssistant({
                 {reviewActionError}
               </p>
             ) : null}
-            {missingFields.length === 0 && progress.total > 0 && !loading ? (
+            {(showReviewAction ?? (missingFields.length === 0 && progress.total > 0)) && !loading ? (
               <div
                 className="flex justify-start pb-1"
                 data-testid="form-assistant-review-action"
               >
-                {warnings.length > 0 && errors.length === 0 && !validationResult?.warningsAcknowledged ? (
+                {!validationResult?.dirty && warnings.length > 0 && errors.length === 0 && !validationResult.warningsAcknowledged ? (
                   <BrandActionButton onClick={() => void handleReviewAction()} loading={reviewActionPending} loadingText={t("actions.acknowledgingWarnings")}>
                     {t("actions.acknowledgeWarnings")}
                   </BrandActionButton>

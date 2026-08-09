@@ -268,7 +268,66 @@ describe("FormFillingAssistant", () => {
 
     expect(within(conversation).getByText("Answer check")).toBeInTheDocument();
     expect(within(conversation).getByText("Nationality must use an official option.")).toBeInTheDocument();
-    expect(within(conversation).getByRole("button", { name: "Check again" })).toBeInTheDocument();
+    expect(within(conversation).getByRole("button", { name: "Review final answers" })).toBeInTheDocument();
+  });
+
+  it("offers inline editing and an original-form jump for every field issue", () => {
+    const onJumpToIssue = vi.fn();
+    renderAssistant({
+      missingFields: [],
+      validationResult: {
+        errors: [{
+          id: "invalid-nationality",
+          fieldName: "nationality",
+          message: "Nationality must use an official option.",
+          severity: "error",
+        }],
+        warnings: [],
+      },
+      renderIssueField: (issue) => (
+        <label>
+          Nationality
+          <input aria-label="Nationality" defaultValue={issue.fieldName} />
+        </label>
+      ),
+      onJumpToIssue,
+    });
+
+    expect(screen.getByRole("textbox", { name: "Nationality" })).toHaveValue("nationality");
+    fireEvent.click(screen.getByRole("button", { name: "Edit in the original form" }));
+    expect(onJumpToIssue).toHaveBeenCalledExactlyOnceWith("nationality");
+  });
+
+  it("requires another validation after an edited passing result", async () => {
+    const { props } = renderAssistant({
+      missingFields: [],
+      validationResult: {
+        errors: [],
+        warnings: [],
+        warningsAcknowledged: true,
+        dirty: true,
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Review final answers" }));
+    await waitFor(() => expect(props.onValidate).toHaveBeenCalledOnce());
+    expect(props.onGoToReview).not.toHaveBeenCalled();
+  });
+
+  it("revalidates an edited warning instead of acknowledging stale risk", async () => {
+    const { props } = renderAssistant({
+      missingFields: [],
+      validationResult: {
+        errors: [],
+        warnings: [{ id: "timing", message: "Please confirm the timing." }],
+        warningsAcknowledged: false,
+        dirty: true,
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Review final answers" }));
+    await waitFor(() => expect(props.onValidate).toHaveBeenCalledOnce());
+    expect(props.onAcknowledgeWarnings).not.toHaveBeenCalled();
   });
 
   it("keeps warning acknowledgement in the conversation before final review", async () => {

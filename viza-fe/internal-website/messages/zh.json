@@ -486,6 +486,10 @@
         "warnings": "有 {count, plural, one {# 项内容需要确认} other {# 项内容需要确认}}",
         "pass": "没有发现必填错误。继续前请再检查一次表单。"
       },
+      "reviewRepair": {
+        "jumpToOriginal": "在原表单中修改",
+        "reviewWithAssistant": "返回表单填写助手审核答案"
+      },
       "composer": {
         "label": "发送给表单填写助手的消息",
         "placeholder": "在这里回答当前问题...",
@@ -511,7 +515,7 @@
       },
       "actions": {
         "checkAnswers": "审核答案",
-        "checkAgain": "再次检查",
+        "checkAgain": "审核最终答案",
         "checking": "正在检查答案...",
         "acknowledgeWarnings": "保留这些答案并继续",
         "acknowledgingWarnings": "正在保存你的确认...",
@@ -822,7 +826,11 @@
       "saving": "保存中...",
       "selectFallback": "请选择…",
       "addAnother": "添加更多",
-      "remove": "删除"
+      "remove": "删除",
+      "reviewRepair": {
+        "nextIssue": "下一个问题",
+        "returnToAssistant": "返回表单填写助手"
+      }
     },
     "team": {
       "title": "团队",

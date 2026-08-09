@@ -63,6 +63,13 @@ export interface FormAssistantValidationResponse {
   validationId: string;
 }
 
+export interface FormAssistantFieldReviewIssue {
+  fieldName: string;
+  message: string;
+  severity: "error" | "warning";
+  nextFieldName: string | null;
+}
+
 export interface FormAssistantTranscriptionResponse {
   transcript: string;
   detectedLanguage?: string;

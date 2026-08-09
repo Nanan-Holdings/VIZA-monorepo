@@ -33,6 +33,9 @@ Scope: this file applies to `lib/form-assistant/**`.
 - Product document requirements must come from reviewed product configuration;
   the assistant must never invent requirements from a model response.
 - `SG_ARRIVAL_CARD` intentionally has no document requirements.
+- `review-issues.ts` maps validator output to schema-ordered field repair
+  navigation. Keep it country-agnostic, preserve repeat-instance keys, and let
+  hard errors take precedence over warnings for the same answer.
 - Knowledge sources and prompts must remain bound to the owned application's
   exact `country + visaType`. Never return the SGAC ICA fallback source for a
   different Singapore product or another country.
@@ -45,6 +48,7 @@ Run from `viza-fe/internal-website`:
 npx vitest run lib/form-assistant/document-extraction-policy.test.ts
 npx vitest run lib/form-assistant/bootstrap.test.ts
 npx vitest run lib/form-assistant/constants.test.ts
+npx vitest run lib/form-assistant/review-issues.test.ts
 npx vitest run lib/form-assistant/service.test.ts
 npm run type-check
 ```
