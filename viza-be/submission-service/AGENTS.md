@@ -112,6 +112,11 @@ filling and one-shot submission for the applicant.
   `FLY_RUNNER_POOL_APP`, `FLY_SUBMISSION_LEGACY_APP`,
   `FLY_RUNNER_INDONESIA_APP`, and `FLY_RUNNER_SOUTH_KOREA_APP`; scripts retain
   the original names when these variables are unset.
+  The production deploy workflow defaults `countries` to `none`: current
+  arrival-card background work belongs to the shared pool, while generic
+  country workers are legacy/operator-explicit only. `/deploy-ready` blocks
+  real queue claims and active user work, but does not treat interruptible
+  maintenance queries as protected browser work.
 - `src/submission-queue-claim.ts`: service-role RPC wrapper around
   `claim_submission_queue_batch`, which atomically claims legacy
   `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple
@@ -480,6 +485,9 @@ filling and one-shot submission for the applicant.
   and CVV in process memory with a short TTL, and deletes the card when the
   payment worker consumes it. Do not persist these values to DB, queue payloads,
   logs, traces, `.env`, AGENTS, or profile records.
+- `src/vietnam/fixed-card-payment.ts` waits a bounded period for a delayed
+  Standard Chartered bank-app challenge after the payment gateway handoff and
+  exits early if an official receipt or terminal payment result appears first.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use
