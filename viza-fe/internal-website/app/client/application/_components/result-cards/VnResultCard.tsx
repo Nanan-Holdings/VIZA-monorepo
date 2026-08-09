@@ -61,6 +61,10 @@ export function VnResultCard({
   const paymentQueue = officialFeeStatus?.paymentQueue as Record<string, unknown> | null | undefined;
   const paymentQueueStatus = typeof paymentQueue?.status === "string" ? paymentQueue.status : null;
   const paymentQueueStage = typeof paymentQueue?.current_stage === "string" ? paymentQueue.current_stage : null;
+  const paymentQueuePaymentStatus =
+    typeof paymentQueue?.payment_status === "string" ? paymentQueue.payment_status : null;
+  const paymentQueueOfficialStatus =
+    typeof paymentQueue?.official_status === "string" ? paymentQueue.official_status : null;
   const paymentQueuePaid = paymentQueue?.status === "vn_payment_paid" || paymentQueue?.payment_status === "paid";
   const quoteAmount = typeof quote?.official_fee_amount === "number"
     ? quote.official_fee_amount
@@ -79,6 +83,8 @@ export function VnResultCard({
   const cloudPaymentAtOfficialPayment =
     paymentQueueStatus === "vn_payment_pending" ||
     paymentQueueStatus === "vn_payment_processing" ||
+    paymentQueuePaymentStatus === "authorized" ||
+    /payment[_ -]?authorized|official[_ -]?payment[_ -]?approved/i.test(paymentQueueOfficialStatus ?? "") ||
     /payment|bank_authentication|3ds|otp/i.test(paymentQueueStage ?? "");
   const cloudPaymentWorkerRunning =
     paymentQueueStatus === "vn_live_assisted_processing" ||
@@ -313,6 +319,7 @@ export function VnResultCard({
         paymentQueue: {
           id: payPayload?.queueId ?? null,
           status: queuedStatus,
+          current_stage: "payment_authorized",
           payment_status: "authorized",
         },
       }));

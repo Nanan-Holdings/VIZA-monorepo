@@ -10,8 +10,8 @@ export const runtimeAbortErrorScript = `
     } else {
       message = String(error || "");
     }
-    message = message.toLowerCase();
-    return message.indexOf("signal is aborted") !== -1 || message.indexOf("operation was aborted") !== -1;
+    message = message.trim().toLowerCase();
+    return message === "aborted" || message.indexOf("signal is aborted") !== -1 || message.indexOf("operation was aborted") !== -1;
   }
 
   function isIgnorableConsoleAbort(args) {

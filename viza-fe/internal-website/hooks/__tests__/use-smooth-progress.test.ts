@@ -5,6 +5,7 @@ import { useSmoothProgress } from "../use-smooth-progress";
 describe("useSmoothProgress", () => {
   afterEach(() => {
     vi.useRealTimers();
+    window.sessionStorage.clear();
   });
 
   it("walks from 0 to a jumped server progress one integer at a time", () => {
@@ -107,5 +108,52 @@ describe("useSmoothProgress", () => {
 
     expect(result.current.displayedProgress).toBe(27);
     expect(result.current.isWaitingForUser).toBe(true);
+  });
+
+  it("preserves the highest displayed value when a progress view remounts", () => {
+    const persistenceKey = "submission:progress-remount-test";
+    const first = renderHook(() =>
+      useSmoothProgress({
+        serverProgress: 55,
+        status: "running",
+        initialProgress: 42,
+        persistenceKey,
+      }),
+    );
+
+    expect(first.result.current.displayedProgress).toBe(42);
+    first.unmount();
+
+    const second = renderHook(() =>
+      useSmoothProgress({
+        serverProgress: 12,
+        status: "running",
+        initialProgress: 0,
+        persistenceKey,
+      }),
+    );
+
+    expect(second.result.current.displayedProgress).toBe(42);
+    second.unmount();
+  });
+
+  it("restores the high-water mark from session storage after a page reload", () => {
+    const persistenceKey = "submission:progress-session-reload-test";
+    window.sessionStorage.setItem(
+      `viza:smooth-progress:${persistenceKey}`,
+      "88",
+    );
+
+    const { result, unmount } = renderHook(() =>
+      useSmoothProgress({
+        serverProgress: 12,
+        status: "running",
+        initialProgress: 0,
+        persistenceKey,
+      }),
+    );
+
+    expect(result.current.displayedProgress).toBe(88);
+    unmount();
   });
 });

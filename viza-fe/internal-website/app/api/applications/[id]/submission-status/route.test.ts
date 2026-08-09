@@ -231,6 +231,88 @@ describe("deriveNonTerminalStatus", () => {
     expect(status.error).toBeNull();
   });
 
+  it("keeps an authorized Vietnam payment handoff above the generic pending baseline", () => {
+    const now = new Date().toISOString();
+
+    const status = deriveNonTerminalStatus(
+      {
+        id: "app_vn_payment_authorized",
+        applicant_id: "profile_vn_payment_authorized",
+        country: "VN",
+        visa_type: "evisa_tourism",
+        submitted_at: now,
+        submission_result: null,
+        submission_result_status: "processing",
+        submission_result_updated_at: now,
+        updated_at: now,
+      },
+      {
+        id: "queue_vn_payment_authorized",
+        status: "vn_cloud_live_pending",
+        attempts: 0,
+        mode: "live_assisted",
+        provider: "vietnam_evisa_live",
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: "payment_authorized",
+        heartbeat_at: now,
+        manual_action_status: "completed",
+        official_status: "payment_authorized",
+        payment_status: null,
+        vn_result_payload: {},
+        created_at: now,
+        updated_at: now,
+      },
+    );
+
+    expect(status.status).toBe("running");
+    expect(status.stage).toBe("payment_handoff");
+    expect(status.progress).toBe(88);
+    expect(status.message).toBe("Current stage: payment_authorized.");
+  });
+
+  it("does not move an authorized Vietnam payment back when the worker starts", () => {
+    const now = new Date().toISOString();
+
+    const status = deriveNonTerminalStatus(
+      {
+        id: "app_vn_payment_starting",
+        applicant_id: "profile_vn_payment_starting",
+        country: "VN",
+        visa_type: "evisa_tourism",
+        submitted_at: now,
+        submission_result: null,
+        submission_result_status: "processing",
+        submission_result_updated_at: now,
+        updated_at: now,
+      },
+      {
+        id: "queue_vn_payment_starting",
+        status: "vn_live_assisted_processing",
+        attempts: 0,
+        mode: "live_assisted",
+        provider: "vietnam_evisa_live",
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: "starting",
+        heartbeat_at: now,
+        manual_action_status: "completed",
+        official_status: "processing",
+        payment_status: "authorized",
+        vn_result_payload: { status: "payment_authorized" },
+        created_at: now,
+        updated_at: now,
+      },
+    );
+
+    expect(status.status).toBe("running");
+    expect(status.stage).toBe("payment_handoff");
+    expect(status.progress).toBe(88);
+    expect(status.message).toBe("Current stage: starting.");
+  });
+
   it("prefers a terminal UK payment handoff over a stale completed queue row", () => {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 

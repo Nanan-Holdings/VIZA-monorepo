@@ -30,7 +30,7 @@ describe("RuntimeAbortErrorGuard", () => {
   it("prevents abort-only unhandled rejections from reaching the runtime overlay", () => {
     render(<RuntimeAbortErrorGuard />);
 
-    const event = createUnhandledRejectionEvent(new Error("signal is aborted without reason"));
+    const event = createUnhandledRejectionEvent(new Error("aborted"));
     const preventDefault = vi.spyOn(event, "preventDefault");
 
     window.dispatchEvent(event);
@@ -53,8 +53,8 @@ describe("RuntimeAbortErrorGuard", () => {
     render(<RuntimeAbortErrorGuard />);
 
     const event = new ErrorEvent("error", {
-      error: new Error("signal is aborted without reason"),
-      message: "signal is aborted without reason",
+      error: new Error("aborted"),
+      message: "aborted",
     });
     const preventDefault = vi.spyOn(event, "preventDefault");
 

@@ -22,7 +22,6 @@ export default function ApplicationRouterPage() {
 
       if (qs) {
         const params = new URLSearchParams(qs);
-        params.delete("applicationId");
         const suffix = params.toString() ? `?${params.toString()}` : "";
         router.replace(`${LONG_FORM_PATH}${suffix}`);
         return;

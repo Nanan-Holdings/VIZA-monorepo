@@ -2,7 +2,7 @@
 import { requireAdmin } from "@/lib/rbac";
 import type { Database } from "@/types/database";
 import { normalizeSupabaseEnvValue } from "./env";
-import { createFetchWithTimeout } from "./fetch-with-timeout";
+import { createFetchWithTransientRetry } from "./fetch-with-timeout";
 
 type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];
 
@@ -29,9 +29,9 @@ export function createAdminClient(options: { requestTimeoutMs?: number } = {}) {
       autoRefreshToken: false,
       persistSession: false,
     },
-    ...(options.requestTimeoutMs
-      ? { global: { fetch: createFetchWithTimeout(options.requestTimeoutMs) } }
-      : {}),
+    global: {
+      fetch: createFetchWithTransientRetry({ requestTimeoutMs: options.requestTimeoutMs }),
+    },
   });
 }
 
