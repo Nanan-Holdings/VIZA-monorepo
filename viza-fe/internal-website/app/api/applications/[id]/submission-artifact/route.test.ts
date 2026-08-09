@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isArtifactReferencedBySubmissionResult } from "./route";
+import { isArtifactReferencedBySubmissionResult } from "./route-handler";
 
 describe("isArtifactReferencedBySubmissionResult", () => {
   const qrPath =

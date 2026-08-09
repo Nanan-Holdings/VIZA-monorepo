@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
-import { createNewUsApplication, normalizeCopiedDs160Answers } from "./route";
+import { createNewUsApplication, normalizeCopiedDs160Answers } from "./route-handler";
 
 function query(result: unknown) {
   const builder = {
