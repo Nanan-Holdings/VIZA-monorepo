@@ -750,7 +750,7 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
           return { ...patchedField, displayOrder: 2 };
         }
         if (patchedField.fieldName === "expense_coverage") {
-          return { ...patchedField, displayOrder: 4 };
+          return { ...patchedField, required: true, displayOrder: 4 };
         }
 
         return patchedField;

@@ -201,6 +201,48 @@ export function validateVietnamConditionalAnswers(
     });
   }
 
+  const expenseCoverage = normalizeAnswer(answers.expense_coverage);
+  if (!expenseCoverage) {
+    errors.push({
+      fieldName: "expense_coverage",
+      message: "The official form requires who will cover the applicant's trip expenses.",
+    });
+  } else if (!["personal", "company"].includes(expenseCoverage)) {
+    errors.push({
+      fieldName: "expense_coverage",
+      message: "The trip-expense coverage answer is not supported by the official form.",
+    });
+  }
+
+  if (["personal", "company"].includes(expenseCoverage) && !normalizeAnswer(answers.expense_payment_method)) {
+    errors.push({
+      fieldName: "expense_payment_method",
+      message: "The official form requires a payment method for the selected trip-expense coverage.",
+    });
+  }
+
+  if (isVietnamYes(answers.bought_travel_insurance) && !answers.travel_insurance_specify?.trim()) {
+    errors.push({
+      fieldName: "travel_insurance_specify",
+      message: "Travel-insurance details are required when the applicant answered Yes.",
+    });
+  }
+
+  if (expenseCoverage === "company") {
+    const companyFields: Array<[string, string]> = [
+      ["expense_company_name", "company or agency name"],
+      ["expense_company_address", "company or agency address"],
+      ["expense_company_telephone", "company or agency telephone number"],
+    ];
+    for (const [fieldName, label] of companyFields) {
+      if (answers[fieldName]?.trim()) continue;
+      errors.push({
+        fieldName,
+        message: `The official form requires the ${label} when a company covers the trip expenses.`,
+      });
+    }
+  }
+
   return errors;
 }
 

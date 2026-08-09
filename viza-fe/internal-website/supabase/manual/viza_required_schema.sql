@@ -1517,3 +1517,10 @@ CREATE INDEX IF NOT EXISTS universal_profile_answers_source_app_idx
 
 REVOKE ALL ON TABLE public.universal_profile_answers FROM anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.universal_profile_answers TO service_role;
+
+-- Vietnam e-Visa review requires an explicit trip-expense sponsor.
+UPDATE public.visa_form_fields
+SET required = true,
+    updated_at = now()
+WHERE visa_type = 'VN_E_VISA'
+  AND field_name = 'expense_coverage';

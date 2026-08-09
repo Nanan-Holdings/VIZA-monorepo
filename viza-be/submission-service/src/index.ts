@@ -3535,10 +3535,39 @@ function redactedVnDiagnostics(result: FillVietnamResult): Record<string, unknow
     consoleErrors: diagnostics.consoleErrors.map(redactVnDiagnosticText),
     failedRequests: diagnostics.failedRequests.map(redactVnDiagnosticText),
     captchaSolves: diagnostics.captchaSolves,
-    validationErrors: diagnostics.validationErrors,
+    validationErrors: diagnostics.validationErrors?.map((entry) => ({
+      label: redactVnDiagnosticText(entry.label),
+      message: redactVnDiagnosticText(entry.message),
+      ...(entry.domId ? { domId: redactVnDiagnosticText(entry.domId) } : {}),
+    })),
     fieldFallbacks: diagnostics.fieldFallbacks,
     proxiedPublicRequestCount: diagnostics.proxiedPublicRequestCount,
     publicProxyFailures: diagnostics.publicProxyFailures?.map(redactVnDiagnosticText),
+    reviewBlockers: diagnostics.reviewBlockers
+      ? {
+          requiredUnfilled: diagnostics.reviewBlockers.requiredUnfilled.map(redactVnDiagnosticText),
+          invalidControls: diagnostics.reviewBlockers.invalidControls.map(redactVnDiagnosticText),
+          validationMessages: diagnostics.reviewBlockers.validationMessages.map((entry) => ({
+            label: redactVnDiagnosticText(entry.label),
+            message: redactVnDiagnosticText(entry.message),
+            ...(entry.domId ? { domId: redactVnDiagnosticText(entry.domId) } : {}),
+          })),
+          declaration: {
+            found: diagnostics.reviewBlockers.declaration.found,
+            checked: diagnostics.reviewBlockers.declaration.checked,
+            identifier: diagnostics.reviewBlockers.declaration.identifier
+              ? redactVnDiagnosticText(diagnostics.reviewBlockers.declaration.identifier)
+              : null,
+          },
+          finalCommitment: {
+            found: diagnostics.reviewBlockers.finalCommitment.found,
+            checked: diagnostics.reviewBlockers.finalCommitment.checked,
+            identifier: diagnostics.reviewBlockers.finalCommitment.identifier
+              ? redactVnDiagnosticText(diagnostics.reviewBlockers.finalCommitment.identifier)
+              : null,
+          },
+        }
+      : undefined,
     tracePath: diagnostics.tracePath,
     finalScreenshotPath: diagnostics.finalScreenshotPath,
     lastSnapshot: snapshot

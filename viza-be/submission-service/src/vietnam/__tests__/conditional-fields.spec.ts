@@ -9,6 +9,14 @@ import {
   validateVietnamConditionalAnswers,
 } from "../conditional-fields.js";
 
+function withRequiredExpenses(answers: Record<string, string>): Record<string, string> {
+  return {
+    expense_coverage: "personal",
+    expense_payment_method: "credit_card",
+    ...answers,
+  };
+}
+
 test("vn.conditional-fields: preserves Yes and collects prior Viet Nam visit table rows", () => {
   const answers = {
     visited_vietnam_in_last_year: "yes",
@@ -24,14 +32,14 @@ test("vn.conditional-fields: preserves Yes and collects prior Viet Nam visit tab
     { fromDate: "02/01/2026", toDate: "09/01/2026", purpose: "Tourism" },
     { fromDate: "04/03/2026", toDate: "08/03/2026", purpose: "Business meeting" },
   ]);
-  assert.deepEqual(validateVietnamConditionalAnswers(answers), []);
+  assert.deepEqual(validateVietnamConditionalAnswers(withRequiredExpenses(answers)), []);
 });
 
 test("vn.conditional-fields: blocks Yes prior Viet Nam answer when official table row fields are missing", () => {
-  const errors = validateVietnamConditionalAnswers({
+  const errors = validateVietnamConditionalAnswers(withRequiredExpenses({
     visited_vietnam_in_last_year: "yes",
     visited_vietnam_purpose_detail: "Visited Da Nang for tourism",
-  });
+  }));
 
   assert.equal(errors.length, 1);
   assert.equal(errors[0]?.fieldName, "visited_vietnam_in_last_year");
@@ -39,11 +47,11 @@ test("vn.conditional-fields: blocks Yes prior Viet Nam answer when official tabl
 });
 
 test("vn.conditional-fields: blocks incomplete prior Viet Nam table rows", () => {
-  const errors = validateVietnamConditionalAnswers({
+  const errors = validateVietnamConditionalAnswers(withRequiredExpenses({
     visited_vietnam_in_last_year: "yes",
     visited_vietnam_from_date: "2026-01-02",
     visited_vietnam_trip_purpose: "Tourism",
-  });
+  }));
 
   assert.equal(errors.length, 1);
   assert.equal(errors[0]?.fieldName, "visited_vietnam_last_year[1]");
@@ -84,14 +92,14 @@ test("vn.conditional-fields: collects every mapped Yes conditional repeat group"
   assert.deepEqual(collectVietnamRelativeRows(answers), [
     { values: ["NGUYEN VAN A", "03/02/1988", "China", "Friend", "Da Nang"] },
   ]);
-  assert.deepEqual(validateVietnamConditionalAnswers(answers), []);
+  assert.deepEqual(validateVietnamConditionalAnswers(withRequiredExpenses(answers)), []);
 });
 
 test("vn.conditional-fields: blocks mapped Yes conditional groups when row fields are missing", () => {
-  const errors = validateVietnamConditionalAnswers({
+  const errors = validateVietnamConditionalAnswers(withRequiredExpenses({
     has_contact_in_vietnam: "yes",
     contact_hosting_organization_name: "VIZA Vietnam",
-  });
+  }));
 
   assert.equal(errors.length, 1);
   assert.equal(errors[0]?.fieldName, "vietnam_contacts[1]");
@@ -99,12 +107,46 @@ test("vn.conditional-fields: blocks mapped Yes conditional groups when row field
 });
 
 test("vn.conditional-fields: blocks unsupported Yes conditional groups instead of dropping child details", () => {
-  const errors = validateVietnamConditionalAnswers({
+  const errors = validateVietnamConditionalAnswers(withRequiredExpenses({
     has_violated_vietnam_laws: "yes",
     vietnam_law_violation_act: "Overstay",
-  });
+  }));
 
   assert.equal(errors.length, 1);
   assert.equal(errors[0]?.fieldName, "has_violated_vietnam_laws");
   assert.match(errors[0]?.message ?? "", /blocked instead of changing the answer or dropping details/);
+});
+
+test("vn.conditional-fields: requires the official trip-expense coverage and payment method", () => {
+  const missingCoverage = validateVietnamConditionalAnswers({});
+  assert.deepEqual(
+    missingCoverage.map((error) => error.fieldName),
+    ["expense_coverage"],
+  );
+
+  const missingPaymentMethod = validateVietnamConditionalAnswers({
+    expense_coverage: "personal",
+  });
+  assert.deepEqual(
+    missingPaymentMethod.map((error) => error.fieldName),
+    ["expense_payment_method"],
+  );
+});
+
+test("vn.conditional-fields: requires dependent insurance and company expense details", () => {
+  const errors = validateVietnamConditionalAnswers({
+    expense_coverage: "company",
+    expense_payment_method: "credit_card",
+    bought_travel_insurance: "yes",
+  });
+
+  assert.deepEqual(
+    errors.map((error) => error.fieldName),
+    [
+      "travel_insurance_specify",
+      "expense_company_name",
+      "expense_company_address",
+      "expense_company_telephone",
+    ],
+  );
 });

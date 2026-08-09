@@ -1492,6 +1492,7 @@ test("vn.review browser: discovers role, anchor, input, suffix, and disabled con
       <a role="button" href="#">Continue to review</a>
       <input type="button" value="Save draft" />
       <div role="button" aria-disabled="true">Tiếp tục</div>
+      <button class="ant-btn ant-btn-disabled">Review application</button>
       <button class="ant-btn ant-btn-primary">Pay now</button>
     `);
 
@@ -1507,6 +1508,7 @@ test("vn.review browser: discovers role, anchor, input, suffix, and disabled con
         { label: "Continue to review", tagName: "a", disabled: false },
         { label: "Save draft", tagName: "input", disabled: false },
         { label: "Tiếp tục", tagName: "div", disabled: true },
+        { label: "Review application", tagName: "button", disabled: true },
       ],
     );
   } finally {
@@ -1563,6 +1565,25 @@ test("vn.review browser: checks the exact declaration and waits for Continue to 
       await page.evaluate(() => Boolean((window as unknown as { __reviewClicked?: boolean }).__reviewClicked)),
       true,
     );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.review browser: reports only visible enabled required blockers", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <input id="visible-required" required value="" style="display:block;width:120px;height:24px" />
+      <input id="hidden-required" required value="" style="display:none" />
+      <input id="disabled-required" required value="" disabled />
+      <button disabled>Continue to review</button>
+    `);
+
+    const result = await advanceVietnamToReview(page, 500);
+    assert.equal(result.failureReason, "disabled");
+    assert.deepEqual(result.blockers?.requiredUnfilled, ["visible-required"]);
   } finally {
     await browser.close();
   }
