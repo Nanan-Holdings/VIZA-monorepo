@@ -488,10 +488,53 @@ async function ensureVietcombankTermsAccepted(page: Page): Promise<boolean> {
     .catch(() => false);
 }
 
-async function submitVnpayInternationalCardForm(page: Page): Promise<boolean> {
-  const payButton = page.locator("#btnContinue, a.btnContinue").first();
-  if (!(await payButton.isVisible({ timeout: 1_500 }).catch(() => false))) return false;
+export async function waitForVnpayPaymentSubmissionTransition(
+  page: Page,
+  initialUrl: string,
+  timeoutMs = 20_000,
+): Promise<boolean> {
+  const deadline = Date.now() + Math.max(1_000, timeoutMs);
+  while (Date.now() < deadline && !page.isClosed()) {
+    const currentUrl = page.url();
+    const allFrameText = await readAllPaymentFrameText(page);
+    if (currentUrl !== initialUrl) return true;
+    if (
+      /\b(3d secure|3ds|otp|one[-\s]?time password|authentication|required|transaction failed|payment failed|declined|receipt|reference|successful|success)\b/i.test(
+        allFrameText,
+      ) ||
+      isStandardCharteredBankAppChallenge(allFrameText)
+    ) {
+      return true;
+    }
 
+    const cardEntryVisible = await page
+      .locator(
+        'input[autocomplete="cc-number"], input[placeholder*="card number" i], input[name*="card" i][name*="number" i], input[id*="card" i][id*="number" i]',
+      )
+      .first()
+      .isVisible({ timeout: 500 })
+      .catch(() => false);
+    const confirmationVisible = await page
+      .locator("#btnAgree")
+      .first()
+      .isVisible({ timeout: 500 })
+      .catch(() => false);
+    if (!cardEntryVisible && !confirmationVisible) return true;
+    await page.waitForTimeout(500);
+  }
+  return false;
+}
+
+async function submitVnpayInternationalCardForm(
+  page: Page,
+  timeoutMs: number,
+): Promise<{ clicked: boolean; transitioned: boolean }> {
+  const payButton = page.locator("#btnContinue, a.btnContinue").first();
+  if (!(await payButton.isVisible({ timeout: 1_500 }).catch(() => false))) {
+    return { clicked: false, transitioned: false };
+  }
+
+  const initialUrl = page.url();
   await payButton.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => undefined);
   await payButton.click({ timeout: 10_000, force: true });
   await page.waitForTimeout(1_000);
@@ -500,7 +543,10 @@ async function submitVnpayInternationalCardForm(page: Page): Promise<boolean> {
   if (await agreeButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await agreeButton.click({ timeout: 10_000, force: true });
   }
-  return true;
+  return {
+    clicked: true,
+    transitioned: await waitForVnpayPaymentSubmissionTransition(page, initialUrl, timeoutMs),
+  };
 }
 
 async function waitForVnpayPaymentSettlement(page: Page, timeoutMs = 300_000): Promise<void> {
@@ -671,6 +717,8 @@ async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCa
 export async function payVietnamPortalWithFixedCard(input: {
   page: Page;
   card: VietnamFixedCard;
+  contactEmail?: string | null;
+  paymentTransitionTimeoutMs?: number;
   onBankAuthenticationRequired?: () => void | Promise<void>;
 }): Promise<VietnamFixedCardPaymentResult> {
   const { page, card } = input;
@@ -737,12 +785,15 @@ export async function payVietnamPortalWithFixedCard(input: {
     'input[name*="name" i]',
     'input[id*="name" i]',
   ], card.holderName);
-  await fillFirstVisible(page, [
+  const expiryFilled = await fillFirstVisible(page, [
     'input[autocomplete="cc-exp"]',
+    'input[placeholder*="MM/YY" i]',
     'input[placeholder*="expiry" i]',
     'input[placeholder*="expired" i]',
+    'input[name*="expire" i]',
     'input[name*="expiry" i]',
     'input[name*="expired" i]',
+    'input[id*="expire" i]',
     'input[id*="expiry" i]',
     'input[id*="expired" i]',
   ], `${card.expiryMonth}/${card.expiryYear.slice(-2)}`);
@@ -756,7 +807,7 @@ export async function payVietnamPortalWithFixedCard(input: {
     'input[id*="exp_year" i]',
     'input[name*="year" i][name*="exp" i]',
   ], card.expiryYear);
-  await fillFirstVisible(page, [
+  const cvvFilled = await fillFirstVisible(page, [
     'input[autocomplete="cc-csc"]',
     'input[placeholder*="cvc" i]',
     'input[placeholder*="cvv" i]',
@@ -765,12 +816,23 @@ export async function payVietnamPortalWithFixedCard(input: {
     'input[name*="cvc" i]',
     'input[id*="cvc" i]',
   ], card.cvv);
-  await fillFirstVisible(page, [
-    'input[autocomplete="email"]',
-    'input[placeholder*="email" i]',
-    'input[name*="email" i]',
-    'input[id*="email" i]',
-  ], process.env.VN_FIXED_CARD_EMAIL ?? "e1484122@u.nus.edu");
+  if (!expiryFilled || !cvvFilled) {
+    return {
+      status: "needs_human",
+      receiptReference: null,
+      reason: "Could not locate all required expiry/CVV fields on the VNPAY card form; payment was not submitted.",
+      redactedCard,
+    };
+  }
+  const contactEmail = input.contactEmail?.trim() || process.env.VN_FIXED_CARD_EMAIL?.trim() || "";
+  if (contactEmail) {
+    await fillFirstVisible(page, [
+      'input[autocomplete="email"]',
+      'input[placeholder*="email" i]',
+      'input[name*="email" i]',
+      'input[id*="email" i]',
+    ], contactEmail);
+  }
   await fillFirstVisible(page, [
     'input[placeholder*="province" i]',
     'input[name*="province" i]',
@@ -788,31 +850,50 @@ export async function payVietnamPortalWithFixedCard(input: {
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => undefined);
   await page.waitForTimeout(500);
 
-  const submitted = await submitVnpayInternationalCardForm(page) || await clickFirstVisible(page, [
-    "#btnContinue",
-    "a.btnContinue",
-    'a:has-text("Pay")',
-    'button:has-text("Pay")',
-    'button:has-text("Pay now")',
-    'button:has-text("Continue")',
-    'button:has-text("Confirm")',
-    'button:has-text("Submit")',
-    'button:has-text("Submit Payment")',
-    'button:has-text("Thanh toán")',
-    '[role="button"]:has-text("Pay")',
-    '[role="button"]:has-text("Continue")',
-    '[role="button"]:has-text("Confirm")',
-    '[role="button"]:has-text("Submit")',
-    'input[type="submit"][value*="Pay" i]',
-    'input[type="button"][value*="Pay" i]',
-    'input[type="submit"][value*="Continue" i]',
-    'input[type="button"][value*="Continue" i]',
-  ]);
-  if (!submitted) {
+  const transitionTimeoutMs = input.paymentTransitionTimeoutMs ?? 20_000;
+  let submission = await submitVnpayInternationalCardForm(page, transitionTimeoutMs);
+  if (!submission.clicked) {
+    const initialUrl = page.url();
+    const clicked = await clickFirstVisible(page, [
+      "#btnContinue",
+      "a.btnContinue",
+      'a:has-text("Pay")',
+      'button:has-text("Pay")',
+      'button:has-text("Pay now")',
+      'button:has-text("Continue")',
+      'button:has-text("Confirm")',
+      'button:has-text("Submit")',
+      'button:has-text("Submit Payment")',
+      'button:has-text("Thanh toán")',
+      '[role="button"]:has-text("Pay")',
+      '[role="button"]:has-text("Continue")',
+      '[role="button"]:has-text("Confirm")',
+      '[role="button"]:has-text("Submit")',
+      'input[type="submit"][value*="Pay" i]',
+      'input[type="button"][value*="Pay" i]',
+      'input[type="submit"][value*="Continue" i]',
+      'input[type="button"][value*="Continue" i]',
+    ]);
+    submission = {
+      clicked,
+      transitioned: clicked
+        ? await waitForVnpayPaymentSubmissionTransition(page, initialUrl, transitionTimeoutMs)
+        : false,
+    };
+  }
+  if (!submission.clicked) {
     return {
       status: "needs_human",
       receiptReference: null,
       reason: "Could not locate a supported payment submit button.",
+      redactedCard,
+    };
+  }
+  if (!submission.transitioned) {
+    return {
+      status: "needs_human",
+      receiptReference: null,
+      reason: "VNPAY kept the card form visible after confirmation, so no bank authentication was initiated.",
       redactedCard,
     };
   }

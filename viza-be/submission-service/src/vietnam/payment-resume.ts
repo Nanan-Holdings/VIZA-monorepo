@@ -418,7 +418,11 @@ export async function resumeVietnamOfficialPayment(
     }
     await advanceOfficialFormToPayment(page, input.timeoutMs ?? 120_000);
 
-    const payment = await payVietnamPortalWithFixedCard({ page, card });
+    const payment = await payVietnamPortalWithFixedCard({
+      page,
+      card,
+      contactEmail: input.email,
+    });
     return mapPaymentResult(payment, page);
   } catch (error) {
     return {
