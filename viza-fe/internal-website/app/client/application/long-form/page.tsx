@@ -2862,11 +2862,15 @@ export default function ApplicationPage() {
   }, [appState.applicationId, locale, t]);
 
   const navigateFormAssistantToReview = useCallback(() => {
+    const targetStepId = useDynamic
+      ? (effectiveSteps.find((step) => step.sourceName === "Review")?.id ?? reviewStepIndex)
+      : fallbackReviewStepIndex;
     const next = new URLSearchParams(searchParams.toString());
     next.set("step", "review");
+    scrollToStepPanel(targetStepId);
+    setCompletedUpTo((current) => Math.max(current, getVisibleStepIndex(effectiveSteps, targetStepId) + 1));
     router.replace(`?${next.toString()}`, { scroll: false });
-    scrollToStepPanel(reviewStepIndex);
-  }, [reviewStepIndex, router, scrollToStepPanel, searchParams]);
+  }, [effectiveSteps, fallbackReviewStepIndex, reviewStepIndex, router, scrollToStepPanel, searchParams, useDynamic]);
 
   const handleFormAssistantValidate = useCallback(async (): Promise<FormAssistantValidationResponse> => {
     const applicationId = appState.applicationId;

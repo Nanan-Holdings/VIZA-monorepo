@@ -81,7 +81,7 @@ export interface FormFillingAssistantProps {
   onUndoFill: (items: FormAssistantFillNoticeItem[]) => void | Promise<void>;
   onDismissFillNotice: (noticeId: string) => void;
   onValidateAndGoToReview: () => void | Promise<void>;
-  onGoToReview: () => void;
+  onGoToReview: () => void | Promise<void>;
   className?: string;
 }
 
@@ -145,6 +145,8 @@ export function FormFillingAssistant({
   const [recordingError, setRecordingError] = useState<string | null>(null);
   const [undoingFill, setUndoingFill] = useState(false);
   const [undoFillError, setUndoFillError] = useState<string | null>(null);
+  const [reviewActionPending, setReviewActionPending] = useState(false);
+  const [reviewActionError, setReviewActionError] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -418,6 +420,35 @@ export function FormFillingAssistant({
   const canGoToReview = Boolean(
     validationResult && errors.length === 0 && (warnings.length === 0 || validationResult.warningsAcknowledged),
   );
+  const handleReviewAction = useCallback(async () => {
+    if (reviewActionPending || loading) return;
+    setReviewActionPending(true);
+    setReviewActionError(null);
+    try {
+      if (warnings.length > 0 && errors.length === 0 && !validationResult?.warningsAcknowledged) {
+        await onAcknowledgeWarnings();
+      } else if (canGoToReview) {
+        await onGoToReview();
+      } else {
+        await onValidateAndGoToReview();
+      }
+    } catch {
+      if (mountedRef.current) setReviewActionError(t("errors.reviewFailed"));
+    } finally {
+      if (mountedRef.current) setReviewActionPending(false);
+    }
+  }, [
+    canGoToReview,
+    errors.length,
+    loading,
+    onAcknowledgeWarnings,
+    onGoToReview,
+    onValidateAndGoToReview,
+    reviewActionPending,
+    t,
+    validationResult?.warningsAcknowledged,
+    warnings.length,
+  ]);
 
   return (
     <Card
@@ -499,19 +530,64 @@ export function FormFillingAssistant({
                 ))}
               </div>
             ) : null}
+            {validationResult ? (
+              <section className="space-y-3" aria-labelledby={validationTitleId} aria-live="polite">
+                <h3 id={validationTitleId} className="text-sm font-semibold text-brand-700">
+                  {t("validation.title")}
+                </h3>
+                {errors.length > 0 ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                    <div className="mb-2 flex items-center gap-2 text-red-800">
+                      <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                      <p className="text-sm font-semibold">{t("validation.errors", { count: errors.length })}</p>
+                    </div>
+                    <ul className="space-y-1">
+                      {errors.map((issue, index) => (
+                        <li key={issue.id ?? `${issue.fieldName ?? "error"}-${index}`}>
+                          <p className="text-sm leading-6 text-red-800">{issue.message}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {warnings.length > 0 ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="mb-2 flex items-center gap-2 text-amber-900">
+                      <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+                      <p className="text-sm font-semibold">{t("validation.warnings", { count: warnings.length })}</p>
+                    </div>
+                    <ul className="space-y-1">
+                      {warnings.map((issue, index) => (
+                        <li key={issue.id ?? `${issue.fieldName ?? "warning"}-${index}`}>
+                          <p className="text-sm leading-6 text-amber-900">{issue.message}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {errors.length === 0 && warnings.length === 0 ? (
+                  <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">{t("validation.pass")}</p>
+                ) : null}
+              </section>
+            ) : null}
+            {reviewActionError ? (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800" role="alert">
+                {reviewActionError}
+              </p>
+            ) : null}
             {missingFields.length === 0 && progress.total > 0 && !loading ? (
               <div
                 className="flex justify-start pb-1"
                 data-testid="form-assistant-review-action"
               >
                 {warnings.length > 0 && errors.length === 0 && !validationResult?.warningsAcknowledged ? (
-                  <BrandActionButton onClick={() => void onAcknowledgeWarnings()} loading={loading} loadingText={t("actions.acknowledgingWarnings")}>
+                  <BrandActionButton onClick={() => void handleReviewAction()} loading={reviewActionPending} loadingText={t("actions.acknowledgingWarnings")}>
                     {t("actions.acknowledgeWarnings")}
                   </BrandActionButton>
                 ) : (
                   <BrandActionButton
-                    onClick={() => void (canGoToReview ? onGoToReview() : onValidateAndGoToReview())}
-                    loading={loading}
+                    onClick={() => void handleReviewAction()}
+                    loading={reviewActionPending}
                     loadingText={t("actions.checking")}
                   >
                     {t("actions.goToFinalReview")}
@@ -558,47 +634,6 @@ export function FormFillingAssistant({
               </Button>
             </div>
             {undoFillError ? <p className="mt-2 text-sm text-red-700" role="alert">{undoFillError}</p> : null}
-          </section>
-        ) : null}
-
-        {validationResult ? (
-          <section className="space-y-3" aria-labelledby={validationTitleId} aria-live="polite">
-            <h3 id={validationTitleId} className="text-sm font-semibold text-brand-700">
-              {t("validation.title")}
-            </h3>
-            {errors.length > 0 ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                <div className="mb-2 flex items-center gap-2 text-red-800">
-                  <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                  <p className="text-sm font-semibold">{t("validation.errors", { count: errors.length })}</p>
-                </div>
-                <ul className="space-y-1">
-                  {errors.map((issue, index) => (
-                    <li key={issue.id ?? `${issue.fieldName ?? "error"}-${index}`}>
-                      <p className="text-sm leading-6 text-red-800">{issue.message}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {warnings.length > 0 ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <div className="mb-2 flex items-center gap-2 text-amber-900">
-                  <TriangleAlert className="h-4 w-4" aria-hidden="true" />
-                  <p className="text-sm font-semibold">{t("validation.warnings", { count: warnings.length })}</p>
-                </div>
-                <ul className="space-y-1">
-                  {warnings.map((issue, index) => (
-                    <li key={issue.id ?? `${issue.fieldName ?? "warning"}-${index}`}>
-                      <p className="text-sm leading-6 text-amber-900">{issue.message}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {errors.length === 0 && warnings.length === 0 ? (
-              <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">{t("validation.pass")}</p>
-            ) : null}
           </section>
         ) : null}
 
