@@ -97,6 +97,31 @@ describe("augmentVietnamEVisaOfficialParitySteps", () => {
     expect(validTo?.validationRules?.helper_zh).toBe("结束日期必须至少晚于开始日期 1 天。");
   });
 
+  it("requires the applicant to identify who covers trip expenses", () => {
+    const steps: WizardStep[] = [
+      {
+        stepNumber: 8,
+        stepName: "Travel Expenses and Insurance",
+        fields: [
+          field({
+            fieldName: "expense_coverage",
+            fieldType: "select",
+            required: false,
+            displayOrder: 3,
+            stepNumber: 8,
+            stepName: "Travel Expenses and Insurance",
+          }),
+        ],
+      },
+    ];
+
+    const expenseCoverage = augmentVietnamEVisaOfficialParitySteps(steps)
+      .find((step) => step.stepNumber === 8)
+      ?.fields.find((item) => item.fieldName === "expense_coverage");
+
+    expect(expenseCoverage?.required).toBe(true);
+  });
+
   it("inserts missing relatives fields immediately after the relatives yes/no question", () => {
     const steps: WizardStep[] = [
       {
