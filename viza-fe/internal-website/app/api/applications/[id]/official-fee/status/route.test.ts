@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveVietnamOfficialFeeQueueState,
   VIETNAM_OFFICIAL_FEE_QUEUE_STATUSES,
-} from "./route";
+} from "./route-handler";
 
 describe("deriveVietnamOfficialFeeQueueState", () => {
   it("keeps the loading UI active for a newly queued Fly cloud run", () => {

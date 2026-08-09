@@ -38,11 +38,15 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/authorize/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.ts`
+  keeps its implementation and test helpers in the adjacent `route-handler.ts`
+  module so the Next route exports only HTTP methods/configuration.
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.test.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-status/refresh/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/artifact-url/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/ds160-proof/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-artifact/route.ts`
+  delegates to its adjacent `route-handler.ts`; artifact reference matching
+  remains reusable by focused tests without widening the route module exports.
   authorizes both legacy application-id paths and exact artifact paths recorded
   in the owned application's trusted submission result, including shared-runner
   `jobs/<job-id>/**` QR paths.
@@ -52,12 +56,15 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/arrival-card-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/new-application/route.ts`
   creates a new blank U.S. DS-160 VIZA draft from a submitted application and
-  returns the explicit form URL; it must not copy answers or enqueue official
+  returns the explicit form URL; its implementation/test helpers live in the
+  adjacent `route-handler.ts`; it must not copy answers or enqueue official
   submission work.
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
   returns a retryable `503` response when its database dependency times out so
-  the client can keep polling without losing the durable submission state.
+  the client can keep polling without losing the durable submission state. Its
+  status derivation helpers live in the adjacent `route-handler.ts` module so
+  the Next route exports only HTTP methods/configuration.
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/payment-country.ts`
   keeps Vietnam and Indonesia payment checkpoints country-scoped before a
   temporary customer-facing result is synthesized.

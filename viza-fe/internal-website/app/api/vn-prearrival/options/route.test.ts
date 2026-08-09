@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { __testables } from "./route";
+import { __testables } from "./route-handler";
 
 describe("Vietnam pre-arrival official option mapping", () => {
   it("uses the same leading-zero search normalization as the official autocomplete", () => {

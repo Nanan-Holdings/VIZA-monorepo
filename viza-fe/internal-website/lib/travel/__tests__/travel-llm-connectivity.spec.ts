@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET as getTravelHealth } from "@/app/api/travel/health/route";
 
+const activeHealthRequest = () =>
+  new Request("http://127.0.0.1:3000/api/travel/health");
+
 describe("travel service health boundaries", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -14,6 +17,7 @@ describe("travel service health boundaries", () => {
     vi.stubEnv("TRAVEL_BACKEND_URL", "http://travel-service.test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test/");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
+    vi.stubEnv("CLIENT_SESSION_SECRET", "test-client-session-secret-that-is-long-enough");
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: RequestInfo | URL) =>
@@ -23,13 +27,14 @@ describe("travel service health boundaries", () => {
       )
     );
 
-    const payload = await (await getTravelHealth()).json();
+    const payload = await (await getTravelHealth(activeHealthRequest())).json();
     expect(payload.ok).toBe(true);
     expect(payload.services).toEqual({
       openai: { configured: true, reachable: true, probed: true },
       travelService: { configured: true, reachable: false },
       sessionDatabase: { configured: true, reachable: true },
       places: { configured: true, reachable: true },
+      clientSession: { configured: true, reachable: true },
     });
     expect(payload.llmReachable).toBe(true);
     expect(JSON.stringify(payload)).not.toContain("test-openai-key");
@@ -44,7 +49,7 @@ describe("travel service health boundaries", () => {
       vi.fn(async () => new Response("", { status: 200 }))
     );
 
-    const payload = await (await getTravelHealth()).json();
+    const payload = await (await getTravelHealth(activeHealthRequest())).json();
     expect(payload.services.openai).toEqual({
       configured: false,
       reachable: false,
@@ -62,7 +67,7 @@ describe("travel service health boundaries", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const payload = await (await getTravelHealth()).json();
+    const payload = await (await getTravelHealth(activeHealthRequest())).json();
     const databaseRequest = fetchMock.mock.calls.find(([url]) =>
       String(url).includes("/rest/v1/travel_agent_sessions")
     );
@@ -100,5 +105,21 @@ describe("travel service health boundaries", () => {
         String(url).includes("api.openai.com")
       )
     ).toBe(false);
+  });
+
+  it("fails closed when the client session secret is too short", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test/");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
+    vi.stubEnv("CLIENT_SESSION_SECRET", "short");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 200 })));
+
+    const payload = await (await getTravelHealth(activeHealthRequest())).json();
+
+    expect(payload.ok).toBe(false);
+    expect(payload.services.clientSession).toEqual({
+      configured: false,
+      reachable: false,
+    });
   });
 });
