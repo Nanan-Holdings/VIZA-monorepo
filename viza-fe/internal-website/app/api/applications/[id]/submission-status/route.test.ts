@@ -4,7 +4,11 @@ import {
   deriveSubmissionStatus,
   selectQueueForSubmissionStatus,
 } from "./route";
-import { isIndonesiaPaymentApplication } from "./payment-country";
+import {
+  isIndonesiaPaymentApplication,
+  isVietnamPaymentCheckpointState,
+  resolveVietnamSubmissionActionType,
+} from "./payment-country";
 
 const ukStoppedAtPayResult = {
   country: "UK",
@@ -22,6 +26,128 @@ describe("isIndonesiaPaymentApplication", () => {
   it("recognizes Indonesia country and visa identifiers", () => {
     expect(isIndonesiaPaymentApplication("indonesia", "ID_C1_TOURIST")).toBe(true);
     expect(isIndonesiaPaymentApplication(null, "ID_B1_EVOA")).toBe(true);
+  });
+});
+
+describe("isVietnamPaymentCheckpointState", () => {
+  it("recognizes both legacy and payment-resume Vietnam queue shapes", () => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        payloadCheckpoint: "payment_page_visible",
+      }),
+    ).toBe(true);
+
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        errorCode: "manual_payment_required",
+        currentStage: "official_fee_manual_review",
+        officialStatus: "payment_authorized",
+        payloadStatus: "payment_manual_review",
+      }),
+    ).toBe(true);
+  });
+
+  it.each([
+    { errorCode: "manual_payment_required" },
+    { currentStage: "official_fee_manual_review" },
+    { officialStatus: "registration_code_captured_payment_pending" },
+    { payloadStatus: "payment_manual_review" },
+  ])("recognizes the Vietnam payment signal $errorCode$currentStage$officialStatus$payloadStatus", (signals) => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        ...signals,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not turn a Vietnam CAPTCHA block into a payment checkpoint", () => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        errorCode: "captcha_required",
+        currentStage: "captcha_submitted_blocked",
+        payloadStatus: "captcha_failed",
+      }),
+    ).toBe(false);
+  });
+
+  it("fails closed when stale payment and CAPTCHA markers conflict", () => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        errorCode: "captcha_required",
+        currentStage: "official_fee_manual_review",
+        payloadActionType: "payment_required",
+      }),
+    ).toBe(false);
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        currentStage: "official_fee_manual_review",
+        payloadActionType: "payment_required",
+        payloadStatus: "captcha_failed",
+      }),
+    ).toBe(false);
+  });
+
+  it("does not upgrade review or unknown Vietnam blocks to payment", () => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        errorCode: "review_action_disabled",
+      }),
+    ).toBe(false);
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps Indonesia and unrelated countries outside the Vietnam payment state", () => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "id_c1_payment_pending",
+        provider: "indonesia_c1_live",
+        errorCode: "manual_payment_required",
+        currentStage: "official_fee_manual_review",
+      }),
+    ).toBe(false);
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "blocked",
+        provider: "france_live",
+        errorCode: "manual_payment_required",
+      }),
+    ).toBe(false);
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "blocked",
+        provider: "france_live",
+        payloadCheckpoint: "payment_page_visible",
+        payloadActionType: "payment_required",
+      }),
+    ).toBe(false);
+  });
+
+  it("canonicalizes a confirmed Vietnam payment handoff action", () => {
+    expect(resolveVietnamSubmissionActionType(true, "final_submit_required")).toBe(
+      "payment_required",
+    );
+    expect(resolveVietnamSubmissionActionType(false, "captcha_required")).toBe(
+      "captcha_required",
+    );
   });
 });
 
