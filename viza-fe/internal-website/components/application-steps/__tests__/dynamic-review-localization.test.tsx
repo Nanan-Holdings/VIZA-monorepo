@@ -97,6 +97,63 @@ describe("dynamic review localization", () => {
       .toBe("Passport Details");
   });
 
+  test("highlights both the question and answer for a final-review issue", () => {
+    const { container } = render(
+      <BilingualReviewPanel
+        rows={[{
+          section: "住宿 / Accommodation",
+          fieldName: "hotel_name",
+          label: "酒店名称 / Hotel name",
+          sourceLabel: "酒店名称",
+          officialLabel: "Hotel name",
+          sourceValue: "示例酒店",
+          officialValue: "Example Hotel",
+          badges: [],
+          warnings: [],
+          editable: false,
+          issueSeverity: "error",
+          issueMessage: "酒店名称需要修改。",
+        }]}
+      />,
+    );
+
+    const issueRow = container.querySelector("[data-review-issue='error']");
+    expect(issueRow).toHaveClass("bg-red-50");
+    expect(screen.getByText("酒店名称")).toHaveClass("text-red-800");
+    expect(screen.getByText("示例酒店")).toHaveClass("text-red-700");
+    expect(screen.getByText("酒店名称需要修改。")).toBeInTheDocument();
+  });
+
+  test("maps assistant issues onto the matching dynamic review answer", () => {
+    const hotelField = baseField({
+      fieldName: "hotel_name",
+      label: "Hotel name",
+    });
+    const { container } = render(
+      <DynamicReviewStep
+        applicationId="application-1"
+        dynamicAnswers={{ hotel_name: "Holiday Inn" }}
+        dbSteps={[{ stepNumber: 1, stepName: "Stay", fields: [hotelField] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        showAction={false}
+        reviewIssues={new Map([
+          ["hotel_name", {
+            fieldName: "hotel_name",
+            message: "Please verify the official hotel name.",
+            severity: "warning" as const,
+            nextFieldName: null,
+          }],
+        ])}
+      />,
+    );
+
+    expect(container.querySelector("[data-review-issue='warning']")).toHaveClass("bg-amber-50");
+    expect(screen.getByText("Please verify the official hotel name.")).toBeInTheDocument();
+  });
+
   test("keeps identical section labels tied to their own edit destinations", () => {
     const onEditSection = vi.fn();
     const sharedRow = {

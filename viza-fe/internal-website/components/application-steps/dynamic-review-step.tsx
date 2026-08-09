@@ -15,6 +15,7 @@ import {
 } from "@/lib/bilingual-schema-contract";
 import { ValidationPanel } from "./review-step";
 import { BilingualReviewPanel, type ReviewRow } from "./bilingual-review-panel";
+import { type FormAssistantFieldReviewIssue } from "@/types/form-assistant";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 import { Button } from "@/components/ui/button";
@@ -171,6 +172,7 @@ export interface DynamicReviewStepProps {
   mode?: "submit" | "continue";
   continueLabel?: string;
   showAction?: boolean;
+  reviewIssues?: ReadonlyMap<string, FormAssistantFieldReviewIssue>;
 }
 
 export function DynamicReviewStep({
@@ -184,6 +186,7 @@ export function DynamicReviewStep({
   mode = "submit",
   continueLabel,
   showAction = true,
+  reviewIssues,
 }: DynamicReviewStepProps) {
   const t = useTranslations("applicationSteps");
   const tDyn = useTranslations("application.dynamicSteps");
@@ -319,6 +322,8 @@ export function DynamicReviewStep({
             editable: true,
             editStepIndex: sourceIndex,
             missing: isMissing,
+            issueSeverity: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.severity,
+            issueMessage: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.message,
           };
 
           if (isMissing) missingRows.push(row);
@@ -328,7 +333,7 @@ export function DynamicReviewStep({
     });
 
     return [...completedRows, ...missingRows];
-  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, t, tDyn]);
+  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, reviewIssues, t, tDyn]);
 
   return (
     <div className="flex flex-col gap-4">
