@@ -7,6 +7,7 @@ import {
   userFacingSubmissionRuntimeMessage,
 } from "../SubmissionStatusStep";
 import { FailureCard } from "../FailureCard";
+import { localizeProgressMessage, WaitingCard } from "../WaitingCard";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
@@ -15,6 +16,52 @@ vi.mock("next-intl", () => ({
 describe("DigitalArrivalCardResultCard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("localizes raw loading stages for the Chinese interface", () => {
+    expect(localizeProgressMessage("Current stage: payment_authorized.", true)).toBe(
+      "官方付款已授权，正在等待云端任务继续。",
+    );
+    expect(localizeProgressMessage("Current stage: future_runner_stage.", true)).toBe(
+      "云端任务正在处理，页面会自动更新。",
+    );
+    expect(localizeProgressMessage("Current stage: payment_authorized.", false)).toBe(
+      "Current stage: payment_authorized.",
+    );
+  });
+
+  it("does not move the visible loading phase backward on a stale poll", async () => {
+    const { rerender } = render(
+      <WaitingCard
+        applicationId="app-monotonic-stage"
+        status="running"
+        stage="payment_handoff"
+        serverProgress={88}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("正在等待检查点或结果")).toHaveLength(2);
+    });
+
+    rerender(
+      <WaitingCard
+        applicationId="app-monotonic-stage"
+        status="running"
+        stage="preparing"
+        serverProgress={12}
+      />,
+    );
+
+    const activeStageLabel = screen
+      .getAllByText("正在等待检查点或结果")
+      .find((element) => element.closest("ol"));
+    const firstStageLabel = screen
+      .getAllByText("正在校验英文版答案")
+      .find((element) => element.closest("ol"));
+
+    expect(activeStageLabel?.closest("li")).toHaveClass("border-brand-500");
+    expect(firstStageLabel?.closest("li")).not.toHaveClass("border-brand-500");
   });
 
   it("does not hide portal field-selection errors as browser launch failures", () => {

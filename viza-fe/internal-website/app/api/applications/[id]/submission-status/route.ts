@@ -540,6 +540,21 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
   return { status: "running", stage: "confirming_result", progress: 92 };
 }
 
+function isVietnamAuthorizedPaymentQueue(queue: QueueRow | null): boolean {
+  if (!queue || normalizeStatus(queue.provider) !== "vietnam_evisa_live") return false;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  const paymentStatus = normalizeStatus(
+    typeof queue.payment_status === "string" ? queue.payment_status : null,
+  );
+  const officialStatus = normalizeStatus(queue.official_status);
+  const payloadStatus = normalizeStatus(readPayloadString(payload, "status"));
+  return (
+    paymentStatus === "authorized" ||
+    officialStatus === "payment_authorized" ||
+    payloadStatus === "payment_authorized"
+  );
+}
+
 function isActiveQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
   const queueStatus = normalizeStatus(queue.status);
@@ -621,6 +636,24 @@ export function deriveNonTerminalStatus(
       progress: 94,
       message:
         "Approve the payment in your SC Mobile Banking App now. The cloud browser is keeping the 3DS session open and will continue automatically.",
+      error: null,
+    };
+  }
+
+  // The fixed-card continuation is the same user-visible submission, not a new
+  // workflow. Its queue is initially `vn_cloud_live_pending`, and the worker
+  // later rewrites it to `vn_live_assisted_processing` with stage `starting`.
+  // Neither transition may send the UI back to the generic 12%/preparing state
+  // after the official form already reached payment.
+  if (
+    (queueDerived.status === "queued" || queueDerived.status === "running") &&
+    isVietnamAuthorizedPaymentQueue(queue)
+  ) {
+    return {
+      status: "running",
+      stage: "payment_handoff",
+      progress: 88,
+      message: `Current stage: ${currentStage || "payment_authorized"}.`,
       error: null,
     };
   }

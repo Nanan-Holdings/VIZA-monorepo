@@ -1838,6 +1838,7 @@ export default function ApplicationPage() {
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
   const [contentAlignment, setContentAlignment] = useState(0);
   const initialStepResolvedRef = useRef(false);
+  const loadDataRequestRef = useRef(0);
   const formAssistantDraftBootstrapRef = useRef<{
     key: string;
     promise: ReturnType<typeof ensureDraftApplication>;
@@ -2376,6 +2377,7 @@ export default function ApplicationPage() {
   }, [completedStepIds, effectiveSteps, loading]);
 
   useEffect(() => {
+    loadDataRequestRef.current += 1;
     setLoading(true);
     setError(null);
     setCurrentStep(0);
@@ -2395,6 +2397,9 @@ export default function ApplicationPage() {
   }, [explicitApplicationId, resolvedCountry, resolvedVisaType]);
 
   const loadData = useCallback(async () => {
+    const requestId = ++loadDataRequestRef.current;
+    const isLatestRequest = () => loadDataRequestRef.current === requestId;
+
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -2406,7 +2411,9 @@ export default function ApplicationPage() {
       if (explicitApplicationId) {
         const context = await getTeamApplicationContext(explicitApplicationId);
         if (!context.ok || !context.application || !context.profile) {
-          setError(context.reason ?? t("errors.noApplicationFound"));
+          if (isLatestRequest()) {
+            setError(context.reason ?? t("errors.noApplicationFound"));
+          }
           return;
         }
         profile = context.profile as LoadedApplicantProfile;
@@ -2416,7 +2423,7 @@ export default function ApplicationPage() {
           preferExplicit: preferExplicitPackage,
         });
         if (context.error) {
-          setError(context.error);
+          if (isLatestRequest()) setError(context.error);
           return;
         }
         profile = (context.profile as LoadedApplicantProfile | null) ?? null;
@@ -2458,15 +2465,18 @@ export default function ApplicationPage() {
         const applicationVisaType = getFormVisaType(application.visa_type ?? "").toLowerCase();
         const routeVisaType = getFormVisaType(resolvedVisaType).toLowerCase();
         if (applicationCountry !== routeCountry || applicationVisaType !== routeVisaType) {
-          setError(
-            isZhInterface
-              ? "当前申请与页面国家不一致。为避免提交到错误的官网，系统已停止本次操作，请从“我的申请”重新打开正确申请。"
-              : "This application does not match the country shown on the page. Submission was stopped to prevent filing with the wrong official portal. Reopen the correct application from My Applications.",
-          );
+          if (isLatestRequest()) {
+            setError(
+              isZhInterface
+                ? "当前申请与页面国家不一致。为避免提交到错误的官网，系统已停止本次操作，请从“我的申请”重新打开正确申请。"
+                : "This application does not match the country shown on the page. Submission was stopped to prevent filing with the wrong official portal. Reopen the correct application from My Applications.",
+            );
+          }
           return;
         }
       }
 
+      if (!isLatestRequest()) return;
       setForceDryRun(application?.purpose === "VIZA_PLACEHOLDER_DRY_RUN");
 
       if (profile) {
@@ -2486,11 +2496,13 @@ export default function ApplicationPage() {
         const mergedDynamicAnswers = normalizeAnswersToFieldOptions(universalDynamicAnswers, dbSteps);
         const profileFallback = profile;
 
+        if (!isLatestRequest()) return;
+
         // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
         const a = ds160Answers;
         setAppState((prev) => ({
           ...prev,
-          applicationId: application?.id ?? null,
+          applicationId: application?.id ?? prev.applicationId,
           personal: {
             surname: a.surname || profileFallback?.full_name?.split(" ").slice(-1)[0] || "",
             givenNames: a.given_names || profileFallback?.full_name?.split(" ").slice(0, -1).join(" ") || "",
@@ -2524,10 +2536,12 @@ export default function ApplicationPage() {
             usAddressZip: a.us_address_zip || "",
           },
           confirmationNumber: application?.confirmation_number ?? undefined,
-          submittedAt: application?.submitted_at ?? undefined,
-          submissionResult: (application?.submission_result as SubmissionResult | null) ?? null,
+          submittedAt: application?.submitted_at ?? prev.submittedAt,
+          submissionResult:
+            (application?.submission_result as SubmissionResult | null) ?? prev.submissionResult,
           submissionResultStatus:
-            (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
+            (application?.submission_result_status as SubmissionResultStatus | null) ??
+            prev.submissionResultStatus,
         }));
 
         if (!initialStepResolvedRef.current) {
@@ -2556,9 +2570,9 @@ export default function ApplicationPage() {
         t("errors.noApplicationFound"),
         t("errors.stalePage"),
       );
-      if (message) setError(message);
+      if (message && isLatestRequest()) setError(message);
     } finally {
-      setLoading(false);
+      if (isLatestRequest()) setLoading(false);
     }
   }, [dbSteps, explicitApplicationId, isZhInterface, preferExplicitPackage, resolvedCountry, resolvedVisaType, scrollToStepPanel, statusStepIndex, t]);
 
@@ -2622,13 +2636,21 @@ export default function ApplicationPage() {
   // Universal Profile is a non-overwriting autofill source: saved answers win,
   // and still-empty fields can be hydrated from the current profile.
   useEffect(() => {
+    const applicationId = appState.applicationId;
+    if (!applicationId) return;
+
     const supabase = createClient();
 
     const channel = supabase
-      .channel("application-page-realtime")
+      .channel(`application-page-realtime:${applicationId}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "applications" },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "applications",
+          filter: `id=eq.${applicationId}`,
+        },
         () => { void loadData(); }
       )
       .subscribe();
@@ -2636,7 +2658,7 @@ export default function ApplicationPage() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [loadData]);
+  }, [appState.applicationId, loadData]);
 
   const ensureWritableApplicationId = useCallback(async () => {
     let applicationId = appState.applicationId;

@@ -51,6 +51,49 @@ const requiredTextStep: WizardStep = {
   ],
 };
 
+const vietnamExpenseStep: WizardStep = {
+  stepNumber: 8,
+  stepName: "Travel Expenses and Insurance",
+  fields: [
+    {
+      id: "field-expense-coverage",
+      visaType: "VN_E_VISA",
+      fieldName: "expense_coverage",
+      label: "Who will cover the applicant's trip expenses?",
+      fieldType: "select",
+      required: true,
+      stepNumber: 8,
+      stepName: "Travel Expenses and Insurance",
+      displayOrder: 4,
+      placeholder: "Choose one",
+      validationRules: { label_zh: "谁承担申请人的旅行费用？" },
+      options: [
+        { value: "personal", text: "Personal", label_zh: "个人", label_en: "Personal" },
+        { value: "company", text: "Company", label_zh: "公司/机构", label_en: "Company" },
+      ],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-expense-payment-method",
+      visaType: "VN_E_VISA",
+      fieldName: "expense_payment_method",
+      label: "Payment method",
+      fieldType: "select",
+      required: true,
+      stepNumber: 8,
+      stepName: "Travel Expenses and Insurance",
+      displayOrder: 4.1,
+      placeholder: "Choose one",
+      validationRules: { label_zh: "付款方式" },
+      options: [
+        { value: "cash", text: "Cash", label_zh: "现金", label_en: "Cash" },
+        { value: "credit_card", text: "Credit card", label_zh: "信用卡", label_en: "Credit card" },
+      ],
+      conditionalLogic: { showIf: "expense_coverage === personal || expense_coverage === company" },
+    },
+  ],
+};
+
 const shortcutStep: WizardStep = {
   stepNumber: 1,
   stepName: "Shortcuts",
@@ -918,6 +961,50 @@ describe("DynamicStepForm copilot format", () => {
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(field?.className).toContain("[&_.application-form-control]:!border-red-500");
     expect(screen.queryByText("必填项")).not.toBeInTheDocument();
+  });
+
+  it("marks Vietnam expense coverage required and gates conditional payment method submission", () => {
+    const onComplete = vi.fn();
+    const { container } = render(
+      <DynamicStepForm
+        step={vietnamExpenseStep}
+        prefill={{}}
+        onComplete={onComplete}
+        visaType="VN_E_VISA"
+      />,
+    );
+
+    const coverageLabel = screen.getByText("谁承担申请人的旅行费用？");
+    expect(coverageLabel.parentElement).toHaveTextContent("*");
+    expect(screen.queryByText("付款方式")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "continue" })).toBeDisabled();
+
+    fireEvent.submit(container.querySelector("form")!);
+    expect(onComplete).not.toHaveBeenCalled();
+
+    const coverageTrigger = container.querySelector<HTMLButtonElement>(
+      '[data-application-field-name="expense_coverage"] [role="combobox"]',
+    );
+    expect(coverageTrigger).not.toBeNull();
+    fireEvent.click(coverageTrigger!);
+    fireEvent.click(screen.getByRole("option", { name: "个人" }));
+
+    expect(screen.getByText("付款方式")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "continue" })).toBeDisabled();
+
+    const paymentTrigger = container.querySelector<HTMLButtonElement>(
+      '[data-application-field-name="expense_payment_method"] [role="combobox"]',
+    );
+    expect(paymentTrigger).not.toBeNull();
+    fireEvent.click(paymentTrigger!);
+    fireEvent.click(screen.getByRole("option", { name: "现金" }));
+
+    expect(screen.getByRole("button", { name: "continue" })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "continue" }));
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
+      expense_coverage: "personal",
+      expense_payment_method: "cash",
+    }));
   });
 
   it("renders every visible conditional branch in the shared conditional fields panel", () => {

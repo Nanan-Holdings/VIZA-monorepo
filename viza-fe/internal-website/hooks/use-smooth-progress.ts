@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 export type SmoothProgressStatus =
   | "queued"
@@ -18,6 +18,7 @@ export type SmoothProgressStatus =
 
 export interface UseSmoothProgressOptions {
   serverProgress?: number;
+  persistenceKey?: string;
   status?: SmoothProgressStatus | null;
   isComplete?: boolean;
   isFailed?: boolean;
@@ -39,13 +40,47 @@ const WAITING_FOR_USER_STATUSES = new Set([
   "payment_required",
 ]);
 
+const persistedProgress = new Map<string, number>();
+const MAX_PERSISTED_PROGRESS_ENTRIES = 50;
+const SESSION_STORAGE_PREFIX = "viza:smooth-progress:";
+
+const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 function clampProgress(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+function readPersistedProgress(key: string): number {
+  const memoryValue = persistedProgress.get(key) ?? 0;
+  if (typeof window === "undefined") return memoryValue;
+  try {
+    const storedValue = Number(window.sessionStorage.getItem(`${SESSION_STORAGE_PREFIX}${key}`));
+    return Math.max(memoryValue, clampProgress(storedValue));
+  } catch {
+    return memoryValue;
+  }
+}
+
+function persistProgress(key: string, value: number): void {
+  const nextValue = Math.max(persistedProgress.get(key) ?? 0, clampProgress(value));
+  persistedProgress.set(key, nextValue);
+  if (persistedProgress.size > MAX_PERSISTED_PROGRESS_ENTRIES) {
+    const oldestKey = persistedProgress.keys().next().value;
+    if (typeof oldestKey === "string") persistedProgress.delete(oldestKey);
+  }
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(`${SESSION_STORAGE_PREFIX}${key}`, String(nextValue));
+  } catch {
+    // Some privacy modes disable sessionStorage. The in-memory high-water mark
+    // still protects ordinary React remounts in that case.
+  }
+}
+
 export function useSmoothProgress({
   serverProgress = 0,
+  persistenceKey,
   status = "running",
   isComplete: explicitComplete,
   isFailed: explicitFailed,
@@ -58,7 +93,13 @@ export function useSmoothProgress({
   onVisualComplete,
 }: UseSmoothProgressOptions) {
   const normalizedStatus = (status ?? "running").trim().toLowerCase();
-  const [displayedProgress, setDisplayedProgress] = useState(() => clampProgress(initialProgress));
+  const normalizedPersistenceKey = persistenceKey?.trim() || null;
+  const [displayedProgress, setDisplayedProgress] = useState(() => {
+    const persisted = normalizedPersistenceKey
+      ? persistedProgress.get(normalizedPersistenceKey) ?? 0
+      : 0;
+    return Math.max(clampProgress(initialProgress), persisted);
+  });
   const visualCompleteNotifiedRef = useRef(false);
 
   const isComplete = explicitComplete ?? COMPLETE_STATUSES.has(normalizedStatus);
@@ -85,13 +126,29 @@ export function useSmoothProgress({
     }
   }, [isComplete]);
 
+  useBrowserLayoutEffect(() => {
+    if (!normalizedPersistenceKey) return;
+    setDisplayedProgress((current) =>
+      Math.max(current, readPersistedProgress(normalizedPersistenceKey)),
+    );
+  }, [normalizedPersistenceKey]);
+
+  useEffect(() => {
+    if (!normalizedPersistenceKey) return;
+    persistProgress(normalizedPersistenceKey, displayedProgress);
+  }, [displayedProgress, normalizedPersistenceKey]);
+
   useEffect(() => {
     if (isFailed || isWaitingForUser || displayedProgress >= visualTarget) return;
 
     const timer = window.setInterval(() => {
       setDisplayedProgress((current) => {
         if (current >= visualTarget) return current;
-        return Math.min(current + safeStep, visualTarget);
+        const nextProgress = Math.min(current + safeStep, visualTarget);
+        if (normalizedPersistenceKey) {
+          persistProgress(normalizedPersistenceKey, nextProgress);
+        }
+        return nextProgress;
       });
     }, safeIntervalMs);
 
@@ -100,6 +157,7 @@ export function useSmoothProgress({
     displayedProgress,
     isFailed,
     isWaitingForUser,
+    normalizedPersistenceKey,
     safeIntervalMs,
     safeStep,
     visualTarget,
