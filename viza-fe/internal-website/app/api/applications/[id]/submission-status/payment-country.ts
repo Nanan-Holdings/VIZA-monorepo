@@ -24,6 +24,7 @@ type VietnamPaymentCheckpointSignals = {
   errorCode?: string | null;
   currentStage?: string | null;
   officialStatus?: string | null;
+  paymentStatus?: string | null;
   payloadCheckpoint?: string | null;
   payloadActionType?: string | null;
   payloadStatus?: string | null;
@@ -39,6 +40,7 @@ export function isVietnamPaymentCheckpointState({
   errorCode,
   currentStage,
   officialStatus,
+  paymentStatus,
   payloadCheckpoint,
   payloadActionType,
   payloadStatus,
@@ -48,6 +50,7 @@ export function isVietnamPaymentCheckpointState({
   const normalizedErrorCode = normalizeSignal(errorCode);
   const normalizedCurrentStage = normalizeSignal(currentStage);
   const normalizedOfficialStatus = normalizeSignal(officialStatus);
+  const normalizedPaymentStatus = normalizeSignal(paymentStatus);
   const normalizedPayloadCheckpoint = normalizeSignal(payloadCheckpoint);
   const normalizedPayloadActionType = normalizeSignal(payloadActionType);
   const normalizedPayloadStatus = normalizeSignal(payloadStatus);
@@ -87,6 +90,8 @@ export function isVietnamPaymentCheckpointState({
     normalizedErrorCode === "manual_payment_required" ||
     normalizedCurrentStage === "official_fee_manual_review" ||
     normalizedOfficialStatus === "registration_code_captured_payment_pending" ||
+    normalizedPaymentStatus === "manual_review" ||
+    normalizedPaymentStatus === "payment_manual_review" ||
     normalizedPayloadStatus === "payment_manual_review" ||
     (normalizedStatus === "vn_blocked" &&
       normalizedOfficialStatus === "payment_authorized")
