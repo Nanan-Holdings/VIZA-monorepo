@@ -16,9 +16,9 @@ on:
         required: true
         type: string
       countries:
-        description: Comma-separated country slugs, "all", or "none"
+        description: Optional legacy country workers; use shared pool for current production topology
         required: true
-        default: all
+        default: none
         type: string
       deploy_shared_pool:
         description: Deploy the retained shared runner pool

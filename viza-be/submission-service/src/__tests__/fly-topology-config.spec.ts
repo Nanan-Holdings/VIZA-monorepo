@@ -68,6 +68,23 @@ test("Vietnam Pre-Arrival remains shared-pool only", () => {
   assert.match(wakeRouting, /vn: "pool"/);
   assert.doesNotMatch(wakeRouting, /viza-runner-vietnam/);
   assert.match(deployWorkflow, /deploy-pool\.sh/);
+  assert.match(
+    deployWorkflow,
+    /countries:\s+[\s\S]*?default: none/,
+    "generic country workers must remain opt-in in the shared-pool topology",
+  );
+});
+
+test("deployment readiness ignores interruptible maintenance polling", () => {
+  const workerEntry = readRepoFile(
+    "viza-be/submission-service/src/index.ts",
+  );
+
+  assert.match(
+    workerEntry,
+    /isWorkerBusy: \(\) => legacyQueueWorkInFlight \|\| runnerJobInFlight \|\| activeHttpWork > 0/,
+  );
+  assert.doesNotMatch(workerEntry, /isWorkerBusy: \(\) => pollInFlight/);
 });
 
 test("Vietnam eVisa legacy worker retries only the bundled Fly browser", () => {

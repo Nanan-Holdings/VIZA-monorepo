@@ -163,6 +163,89 @@ test("vn.fixed-card-payment: keeps the issuer page alive and follows its complet
   }
 });
 
+test("vn.fixed-card-payment: waits for a delayed issuer bank-app challenge", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<main id="gateway-status">Contacting card issuer...</main>');
+    await page.evaluate(() => {
+      window.setTimeout(() => {
+        document.body.innerHTML = `
+          <form id="ValidateOutOfBandCredentialForm">
+            <p>Authenticate with your SC Mobile Banking App and approve this transaction.</p>
+            <button type="button" id="OOBValidateButton" onclick="this.closest('form').remove()">
+              Click here to complete your purchase
+            </button>
+          </form>
+        `;
+      }, 750);
+    });
+    let progressEmitted = false;
+
+    const startedAt = Date.now();
+    const result = await waitForStandardCharteredBankAppChallenge({
+      page,
+      timeoutMs: 5_000,
+      appearanceTimeoutMs: 3_000,
+      onBankAuthenticationRequired: () => {
+        progressEmitted = true;
+      },
+    });
+
+    assert.equal(result, "settled");
+    assert.equal(progressEmitted, true);
+    assert.ok(Date.now() - startedAt >= 500);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.fixed-card-payment: stops waiting when a receipt appears before a bank challenge", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<main id="gateway-status">Contacting card issuer...</main>');
+    await page.evaluate(() => {
+      window.setTimeout(() => {
+        document.body.innerHTML = '<p>Receipt: VN-SYNTH67890</p>';
+      }, 250);
+    });
+
+    const startedAt = Date.now();
+    const result = await waitForStandardCharteredBankAppChallenge({
+      page,
+      timeoutMs: 5_000,
+      appearanceTimeoutMs: 3_000,
+    });
+
+    assert.equal(result, "not_present");
+    assert.ok(Date.now() - startedAt < 2_500);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.fixed-card-payment: bounds issuer challenge discovery when no challenge arrives", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<main>Contacting card issuer...</main>');
+
+    const startedAt = Date.now();
+    const result = await waitForStandardCharteredBankAppChallenge({
+      page,
+      timeoutMs: 5_000,
+      appearanceTimeoutMs: 750,
+    });
+
+    assert.equal(result, "not_present");
+    assert.ok(Date.now() - startedAt >= 500);
+    assert.ok(Date.now() - startedAt < 2_500);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.fixed-card-payment: extracts receipt references", () => {
   assert.equal(extractVietnamPaymentReceiptReference("Receipt: VN-ABC12345"), "VN-ABC12345");
   assert.equal(extractVietnamPaymentReceiptReference("Transaction reference # TX998877"), "TX998877");
@@ -211,6 +294,65 @@ test("vn.fixed-card-payment: fills VNPAY cardExpire and uses the managed contact
       }).submittedPayment),
       { expiry: "01/31", email: "appl-synthetic@viza.it.com" },
     );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.fixed-card-payment: completes when the issuer challenge appears after the VNPAY transition", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <h1>Payment gateway</h1>
+        <input id="cardNumber" />
+        <input id="cardExpire" placeholder="MM/YY" />
+        <input id="cardCVV" />
+        <button type="button" id="btnContinue">Pay</button>
+        <button type="button" id="btnAgree" hidden>Agree</button>
+      </main>
+    `);
+    await page.evaluate(() => {
+      document.querySelector("#btnContinue")?.addEventListener("click", () => {
+        const agree = document.querySelector<HTMLButtonElement>("#btnAgree");
+        if (agree) agree.hidden = false;
+      });
+      document.querySelector("#btnAgree")?.addEventListener("click", () => {
+        document.body.innerHTML = "<main>Contacting card issuer...</main>";
+        window.setTimeout(() => {
+          document.body.innerHTML = `
+            <form id="ValidateOutOfBandCredentialForm">
+              <p>Authenticate with your SC Mobile Banking App and approve this transaction.</p>
+              <button type="button" id="OOBValidateButton">Click here to complete your purchase</button>
+            </form>
+          `;
+          document.querySelector("#OOBValidateButton")?.addEventListener("click", () => {
+            document.body.innerHTML = "<p>Receipt: VN-DELAYED123</p>";
+          });
+        }, 750);
+      });
+    });
+    let progressEmitted = false;
+
+    const result = await payVietnamPortalWithFixedCard({
+      page,
+      card: parseVietnamFixedCardInput({
+        pan: "4111111111111111",
+        expiry: "01/31",
+        cvv: "123",
+        holderName: "Synthetic Applicant",
+      }),
+      contactEmail: "appl-synthetic@viza.it.com",
+      paymentTransitionTimeoutMs: 2_000,
+      onBankAuthenticationRequired: () => {
+        progressEmitted = true;
+      },
+    });
+
+    assert.equal(result.status, "paid");
+    assert.equal(result.receiptReference, "VN-DELAYED123");
+    assert.equal(progressEmitted, true);
   } finally {
     await browser.close();
   }

@@ -7793,14 +7793,17 @@ async function pollOnce(): Promise<void> {
 
   const concurrency = targetJobId ? 1 : readSubmissionQueueConcurrency(process.env);
   let items: SubmissionQueueItem[];
+  legacyQueueWorkInFlight = true;
   try {
     items = await fetchPendingItems({ concurrency, targetJobId });
   } catch (err) {
+    legacyQueueWorkInFlight = false;
     console.error("[poll] Failed to claim queue:", err);
     return;
   }
 
   if (items.length === 0) {
+    legacyQueueWorkInFlight = false;
     console.log("[poll] No pending items.");
     if (!targetJobId) {
       await markStaleQueueItemsTimedOut();
@@ -7820,6 +7823,7 @@ async function pollOnce(): Promise<void> {
   try {
     await runSubmissionQueueBatch(items, processPendingQueueItem, { concurrency });
   } finally {
+    legacyQueueWorkInFlight = false;
     idleExitController?.workFinished();
   }
 
@@ -7834,6 +7838,9 @@ let legacyPollTimer: NodeJS.Timeout | null = null;
 let healthServer: ReturnType<typeof startHealthServer> | null = null;
 let shutdownRequested = false;
 let runnerJobInFlight = false;
+// Deployment readiness must block queue claims and user work, but not
+// best-effort maintenance queries that are safe to interrupt during rollout.
+let legacyQueueWorkInFlight = false;
 let activeHttpWork = 0;
 let idleExitController: IdleExitController | null = null;
 
@@ -8030,7 +8037,7 @@ async function main(): Promise<void> {
   // before slower runner configuration logging and queue startup complete.
   healthServer = startHealthServer({
     isWorkerStarted: () => runnerStarted,
-    isWorkerBusy: () => pollInFlight || runnerJobInFlight || activeHttpWork > 0,
+    isWorkerBusy: () => legacyQueueWorkInFlight || runnerJobInFlight || activeHttpWork > 0,
     hasOneTimeCardSessions: () =>
       hasVietnamCardSessions() || hasIndonesiaCardSessions(),
     wakeSubmissionQueue,

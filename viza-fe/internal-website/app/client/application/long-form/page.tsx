@@ -1724,19 +1724,6 @@ type LoadedApplication = {
   accommodation_address?: string | null;
 };
 
-function submissionResultsMatch(
-  current: SubmissionResult | null,
-  incoming: SubmissionResult | null,
-): boolean {
-  if (current === incoming) return true;
-  if (!current || !incoming) return false;
-  try {
-    return JSON.stringify(current) === JSON.stringify(incoming);
-  } catch {
-    return false;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
@@ -2728,19 +2715,29 @@ export default function ApplicationPage() {
             const nextConfirmationNumber =
               updated.confirmation_number ?? previous.confirmationNumber;
             const nextSubmittedAt = updated.submitted_at ?? previous.submittedAt;
-            const nextSubmissionResult =
-              (updated.submission_result as SubmissionResult | null | undefined) ??
-              previous.submissionResult;
             const nextSubmissionResultStatus =
               (updated.submission_result_status as SubmissionResultStatus | null | undefined) ??
               previous.submissionResultStatus;
+            const submissionMetadataChanged =
+              nextConfirmationNumber !== previous.confirmationNumber ||
+              nextSubmittedAt !== previous.submittedAt ||
+              nextSubmissionResultStatus !== previous.submissionResultStatus;
+            const incomingSubmissionResult = updated.submission_result as
+              | SubmissionResult
+              | null
+              | undefined;
+            const nextSubmissionResult =
+              incomingSubmissionResult &&
+              (previous.submissionResult === null || submissionMetadataChanged)
+                ? incomingSubmissionResult
+                : previous.submissionResult;
 
             if (
               nextApplicationId === previous.applicationId &&
               nextConfirmationNumber === previous.confirmationNumber &&
               nextSubmittedAt === previous.submittedAt &&
               nextSubmissionResultStatus === previous.submissionResultStatus &&
-              submissionResultsMatch(previous.submissionResult, nextSubmissionResult)
+              nextSubmissionResult === previous.submissionResult
             ) {
               return previous;
             }

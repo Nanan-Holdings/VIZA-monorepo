@@ -51,6 +51,7 @@ const BANK_APP_CHALLENGE_FAILURE_PATTERN =
 const DEFAULT_BANK_APP_WAIT_MS = 115_000;
 const MIN_BANK_APP_WAIT_MS = 10_000;
 const MAX_BANK_APP_WAIT_MS = 180_000;
+const DEFAULT_BANK_APP_APPEARANCE_WAIT_MS = 45_000;
 
 function envEnabled(value: string | undefined): boolean {
   return /^(1|true|yes|on)$/i.test((value ?? "").trim());
@@ -599,9 +600,28 @@ export type BankAppChallengeResult = "not_present" | "settled" | "failed" | "tim
 export async function waitForStandardCharteredBankAppChallenge(input: {
   page: Page;
   timeoutMs: number;
+  appearanceTimeoutMs?: number;
   onBankAuthenticationRequired?: () => void | Promise<void>;
 }): Promise<BankAppChallengeResult> {
-  const initial = await findStandardCharteredBankAppFrame(input.page);
+  const appearanceTimeoutMs = Math.max(
+    0,
+    input.appearanceTimeoutMs ?? Math.min(DEFAULT_BANK_APP_APPEARANCE_WAIT_MS, input.timeoutMs),
+  );
+  const appearanceDeadline = Date.now() + appearanceTimeoutMs;
+  let initial = await findStandardCharteredBankAppFrame(input.page);
+  while (!initial && Date.now() < appearanceDeadline && !input.page.isClosed()) {
+    const paymentText = await readAllPaymentFrameText(input.page);
+    if (
+      extractVietnamPaymentReceiptReference(paymentText) ||
+      /declined|insufficient funds|payment failed|transaction failed|card invalid/i.test(paymentText) ||
+      (vietnamPaymentNeedsHuman(paymentText) &&
+        !isStandardCharteredBankAppChallenge(paymentText))
+    ) {
+      return "not_present";
+    }
+    await input.page.waitForTimeout(500);
+    initial = await findStandardCharteredBankAppFrame(input.page);
+  }
   if (!initial) return "not_present";
 
   await input.onBankAuthenticationRequired?.();
