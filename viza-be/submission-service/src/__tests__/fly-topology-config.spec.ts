@@ -149,6 +149,7 @@ test("retained deployment scripts support fresh account-specific app names", () 
   assert.match(poolDeploy, /FLY_RUNNER_POOL_APP/);
   assert.match(legacyDeploy, /FLY_SUBMISSION_LEGACY_APP/);
   assert.match(indonesiaDeploy, /FLY_RUNNER_INDONESIA_APP/);
+  assert.match(indonesiaDeploy, /for attempt in \$\(seq 1 18\)/);
   assert.match(koreaDeploy, /FLY_RUNNER_SOUTH_KOREA_APP/);
   assert.match(legacyDeploy, /if has_retained_machine; then\s+require_deploy_ready/);
   assert.match(legacyDeploy, /ensure_retained_machine_started/);
