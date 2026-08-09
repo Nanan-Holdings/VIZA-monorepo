@@ -9,16 +9,21 @@ app="${FLY_RUNNER_INDONESIA_APP:-viza-runner-indonesia}"
 deploy_ready_url="https://${app}.fly.dev/deploy-ready"
 
 require_deploy_ready() {
-  local status
-  if ! status="$(curl --location --silent --show-error --max-time 10 \
-    --output /dev/null --write-out '%{http_code}' "$deploy_ready_url")"; then
-    echo "Refusing to deploy: could not verify ${app} deployment readiness." >&2
-    exit 3
-  fi
-  if [[ "$status" != "200" ]]; then
-    echo "Refusing to deploy: ${app} is busy or holds an unconsumed card session (HTTP ${status})." >&2
-    exit 4
-  fi
+  local status=""
+  for attempt in $(seq 1 18); do
+    if status="$(curl --location --silent --show-error --max-time 10 \
+      --output /dev/null --write-out '%{http_code}' "$deploy_ready_url")" \
+      && [[ "$status" == "200" ]]; then
+      return 0
+    fi
+    if [[ "$attempt" -lt 18 ]]; then
+      echo "[deploy] Waiting for ${app} deployment readiness (attempt ${attempt}/18, HTTP ${status:-unreachable})..."
+      sleep 10
+    fi
+  done
+
+  echo "Refusing to deploy: ${app} stayed busy, unreachable, or held an unconsumed card session (HTTP ${status:-unreachable})." >&2
+  exit 4
 }
 
 if ! fly apps create "$app" --org "$FLY_ORG"; then

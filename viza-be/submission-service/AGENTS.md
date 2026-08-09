@@ -499,8 +499,11 @@ filling and one-shot submission for the applicant.
   session. `scripts/fly/deploy-legacy.sh`, `scripts/fly/deploy-indonesia.sh`,
   and `scripts/fly/deploy-south-korea.sh` must fail closed unless this endpoint
   returns HTTP 200 both before secret staging and immediately before a rolling
-  deploy. Runtime secrets are staged into that release so secret synchronization
-  cannot independently restart the single memory-backed worker.
+  deploy. The Indonesia deploy retries this readiness check for a bounded three
+  minutes so an initial maintenance/claim tick does not cause a false failure;
+  exhausting the bound still refuses the rollout. Runtime secrets are staged
+  into that release so secret synchronization cannot independently restart the
+  single memory-backed worker.
 - `src/idle-exit-controller.ts`, `src/work-availability.ts`, and
   `src/scheduled-work.ts` own Fly scale-to-zero safety. A Fly worker may exit
   cleanly only after the configured idle grace, a second five-second
