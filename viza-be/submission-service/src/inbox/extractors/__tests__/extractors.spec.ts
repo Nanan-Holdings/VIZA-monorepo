@@ -54,6 +54,30 @@ test("evisa.xuatnhapcanh.gov.vn — registration code, no OTP", () => {
   assert.equal(result.code, undefined);
 });
 
+test("immigration.gov.vn — current e-Visa registration mail uses the Vietnam profile", () => {
+  const result = extractAuto({
+    from: "no-reply@immigration.gov.vn",
+    subject: "E-VISA Application registration",
+    text: "Your registration code is ZX12CV34BN5678. Check the result at https://thithucdientu.gov.vn/e-visa/search.",
+  });
+  assert.equal(result.profileId, "evisa-gov-vn");
+  assert.equal(result.reference, "ZX12CV34BN5678");
+  assert.match(result.link ?? "", /thithucdientu\.gov\.vn/);
+});
+
+test("immigration.gov.vn — extracts the current HTML-only Application ID", () => {
+  const result = extractAuto({
+    from: "no-reply@immigration.gov.vn",
+    subject: "Vietnam e-Visa application received",
+    html: [
+      "<table><tr><td>Application&nbsp;ID</td></tr>",
+      "<tr><td>Please retain this identifier:</td><td>VN-EVISA-2026-123456</td></tr></table>",
+    ].join(""),
+  });
+  assert.equal(result.profileId, "evisa-gov-vn");
+  assert.equal(result.reference, "VN-EVISA-2026-123456");
+});
+
 test("ceac.state.gov — DS-160 application id", () => {
   const result = extractAuto({
     from: "donotreply@state.gov",
