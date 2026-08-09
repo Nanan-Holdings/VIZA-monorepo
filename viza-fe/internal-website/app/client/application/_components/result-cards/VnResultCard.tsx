@@ -26,6 +26,24 @@ type ManualAction = {
   screenshotUrl: string | null;
 };
 
+export function mergeOfficialFeeStatus(
+  current: Record<string, unknown> | null,
+  payload: Record<string, unknown> | null,
+): Record<string, unknown> {
+  return {
+    ...(current ?? {}),
+    ...(payload ?? {}),
+    paymentQueued: payload?.paymentQueued === true || current?.paymentQueued === true,
+    queueId:
+      typeof payload?.queueId === "string"
+        ? payload.queueId
+        : typeof current?.queueId === "string"
+          ? current.queueId
+          : null,
+    paymentQueue: payload?.paymentQueue ?? current?.paymentQueue ?? null,
+  };
+}
+
 export function VnResultCard({
   applicationId,
   result,
@@ -212,16 +230,7 @@ export function VnResultCard({
           throw new Error(typeof payload?.error === "string" ? payload.error : `official-fee/status returned ${response.status}`);
         }
         if (!cancelled) {
-          setOfficialFeeStatus((current) => ({
-            ...(payload ?? {}),
-            paymentQueued: payload?.paymentQueued === true || current?.paymentQueued === true,
-            queueId:
-              typeof payload?.queueId === "string"
-                ? payload.queueId
-                : typeof current?.queueId === "string"
-                  ? current.queueId
-                  : null,
-          }));
+          setOfficialFeeStatus((current) => mergeOfficialFeeStatus(current, payload));
         }
       } catch (error) {
         if (!cancelled) setPaymentError(error instanceof Error ? error.message : String(error));
@@ -351,6 +360,9 @@ export function VnResultCard({
         serverProgress={cloudPaymentProgress}
         message={cloudPaymentMessage}
         applicationId={applicationId}
+        persistenceKey={
+          applicationId ? undefined : jobId ? `submission-job:${jobId}` : undefined
+        }
         country="vietnam"
         visaType="evisa_tourism"
       />

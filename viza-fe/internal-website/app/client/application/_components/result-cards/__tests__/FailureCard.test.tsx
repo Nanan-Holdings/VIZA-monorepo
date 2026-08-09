@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FailureCard } from "../FailureCard";
-import { VnResultCard } from "../VnResultCard";
+import { mergeOfficialFeeStatus, VnResultCard } from "../VnResultCard";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
@@ -276,6 +276,30 @@ describe("FailureCard", () => {
 });
 
 describe("VnResultCard automated payment UI", () => {
+  it("keeps the authorized queue stage when a later status payload omits the queue", () => {
+    const authorizedQueue = {
+      id: "queue-authorized",
+      status: "vn_live_assisted_processing",
+      current_stage: "starting",
+      payment_status: "authorized",
+    };
+
+    expect(
+      mergeOfficialFeeStatus(
+        {
+          paymentQueued: true,
+          queueId: "queue-authorized",
+          paymentQueue: authorizedQueue,
+        },
+        { paymentQueued: true, queueId: "queue-authorized" },
+      ),
+    ).toMatchObject({
+      paymentQueued: true,
+      queueId: "queue-authorized",
+      paymentQueue: authorizedQueue,
+    });
+  });
+
   const paymentResult = {
     country: "VN" as const,
     status: "stopped_at_pay" as const,

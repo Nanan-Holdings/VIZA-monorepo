@@ -206,6 +206,7 @@ export function WaitingCard({
   message,
   error,
   applicationId,
+  persistenceKey,
   country,
   visaType,
   onVisualComplete,
@@ -216,6 +217,7 @@ export function WaitingCard({
   message?: string | null;
   error?: string | null;
   applicationId?: string | null;
+  persistenceKey?: string | null;
   country?: string | null;
   visaType?: string | null;
   onVisualComplete?: () => void;
@@ -246,7 +248,9 @@ export function WaitingCard({
     isVisuallyComplete,
   } = useSmoothProgress({
     serverProgress: visualServerProgress,
-    persistenceKey: applicationId ? `submission:${applicationId}` : undefined,
+    persistenceKey:
+      persistenceKey?.trim() ||
+      (applicationId ? `submission:${applicationId}` : undefined),
     status: completeStatus
       ? "completed"
       : failedStatus
