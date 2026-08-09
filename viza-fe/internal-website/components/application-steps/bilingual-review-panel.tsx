@@ -20,6 +20,8 @@ export interface ReviewRow {
   editable: boolean;
   editStepIndex?: number;
   missing?: boolean;
+  issueSeverity?: "error" | "warning";
+  issueMessage?: string;
 }
 
 interface BilingualReviewPanelProps {
@@ -66,50 +68,111 @@ function BilingualReviewRow({
 
   if (!isZh) {
     return (
-      <TableRow className="hover:bg-transparent">
+      <TableRow
+        className={row.issueSeverity === "error"
+          ? "border-red-200 bg-red-50 hover:bg-red-50"
+          : row.issueSeverity === "warning"
+            ? "border-amber-200 bg-amber-50 hover:bg-amber-50"
+            : "hover:bg-transparent"}
+        data-review-issue={row.issueSeverity}
+      >
         <th
           scope="row"
           className="w-[56%] px-0 py-2 text-left align-top text-sm font-medium text-muted-foreground"
         >
-          {officialLabel}
+          <span className={row.issueSeverity === "error"
+            ? "text-red-800"
+            : row.issueSeverity === "warning"
+              ? "text-amber-900"
+              : undefined}
+          >
+            {officialLabel}
+          </span>
         </th>
         <TableCell
-          className={row.missing
-            ? "px-0 py-2 text-right align-top text-sm font-medium text-red-600"
-            : "px-0 py-2 text-right align-top text-sm font-medium text-foreground"}
+          className={row.issueSeverity === "error"
+            ? "px-0 py-2 text-right align-top text-sm font-medium text-red-700"
+            : row.missing
+              ? "px-0 py-2 text-right align-top text-sm font-medium text-red-600"
+            : row.issueSeverity === "warning"
+              ? "px-0 py-2 text-right align-top text-sm font-medium text-amber-900"
+              : "px-0 py-2 text-right align-top text-sm font-medium text-foreground"}
         >
           <span className="whitespace-pre-wrap break-words">{row.officialValue}</span>
+          {row.issueMessage ? (
+            <span className={row.issueSeverity === "error"
+              ? "mt-1 block text-xs leading-5 text-red-700"
+              : "mt-1 block text-xs leading-5 text-amber-800"}
+            >
+              {row.issueMessage}
+            </span>
+          ) : null}
         </TableCell>
       </TableRow>
     );
   }
 
   return (
-    <TableRow className="hover:bg-transparent">
+    <TableRow
+      className={row.issueSeverity === "error"
+        ? "border-red-200 bg-red-50 hover:bg-red-50"
+        : row.issueSeverity === "warning"
+          ? "border-amber-200 bg-amber-50 hover:bg-amber-50"
+          : "hover:bg-transparent"}
+      data-review-issue={row.issueSeverity}
+    >
       <th
         scope="row"
         className="w-[56%] px-0 py-2 text-left align-top font-normal"
       >
-        <span className="block text-sm font-medium text-foreground">{sourceLabel}</span>
-        <span lang="en" className="mt-0.5 block text-sm leading-5 text-muted-foreground">
+        <span className={row.issueSeverity === "error"
+          ? "block text-sm font-medium text-red-800"
+          : row.issueSeverity === "warning"
+            ? "block text-sm font-medium text-amber-900"
+            : "block text-sm font-medium text-foreground"}
+        >
+          {sourceLabel}
+        </span>
+        <span lang="en" className={row.issueSeverity === "error"
+          ? "mt-0.5 block text-sm leading-5 text-red-700"
+          : row.issueSeverity === "warning"
+            ? "mt-0.5 block text-sm leading-5 text-amber-800"
+            : "mt-0.5 block text-sm leading-5 text-muted-foreground"}
+        >
           {officialLabel}
         </span>
       </th>
       <TableCell className="px-0 py-2 text-right align-top">
-        <span className={row.missing
-          ? "block whitespace-pre-wrap break-words text-sm font-medium text-red-600"
-          : "block whitespace-pre-wrap break-words text-sm font-medium text-foreground"}
+        <span className={row.issueSeverity === "error"
+          ? "block whitespace-pre-wrap break-words text-sm font-medium text-red-700"
+          : row.missing
+            ? "block whitespace-pre-wrap break-words text-sm font-medium text-red-600"
+          : row.issueSeverity === "warning"
+            ? "block whitespace-pre-wrap break-words text-sm font-medium text-amber-900"
+            : "block whitespace-pre-wrap break-words text-sm font-medium text-foreground"}
         >
           {row.sourceValue}
         </span>
         <span
           lang="en"
-          className={row.missing
-            ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-red-600"
-            : "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-muted-foreground"}
+          className={row.issueSeverity === "error"
+            ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-red-700"
+            : row.missing
+              ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-red-600"
+            : row.issueSeverity === "warning"
+              ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-amber-800"
+              : "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-muted-foreground"}
         >
           {row.officialValue}
         </span>
+        {row.issueMessage ? (
+          <span className={row.issueSeverity === "error"
+            ? "mt-1 block text-xs leading-5 text-red-700"
+            : "mt-1 block text-xs leading-5 text-amber-800"}
+          >
+            {row.issueMessage}
+          </span>
+        ) : null}
       </TableCell>
     </TableRow>
   );

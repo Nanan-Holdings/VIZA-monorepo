@@ -8,6 +8,7 @@ import { DynamicFormField } from "@/components/dynamic-form-field";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
 import { ApplicationConditionalFieldsPanel } from "@/components/ui/application-conditional-fields-panel";
 import { AiAssistButton } from "@/components/ui/ai-assist-button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/popover";
 import { type VisaFormFieldOption, type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import { type FieldGuidanceChatMessage } from "@/types/field-guidance";
+import { type FormAssistantFieldReviewIssue } from "@/types/form-assistant";
 import {
   getChinesePlaceholder,
   getEnglishPlaceholder,
@@ -71,6 +73,10 @@ interface DynamicStepFormProps {
   invalidFieldNames?: ReadonlySet<string>;
   /** Fields last written by the form assistant. Manual edits clear this flag. */
   aiFilledFieldNames?: ReadonlySet<string>;
+  /** Final-answer review issues keyed by the concrete answer field name. */
+  reviewIssues?: ReadonlyMap<string, FormAssistantFieldReviewIssue>;
+  /** Navigate to the next issue, or back to the assistant when the target is null. */
+  onNavigateReviewIssue?: (targetFieldName: string | null) => void;
 }
 
 const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
@@ -2474,6 +2480,8 @@ export function DynamicStepForm({
   externallyHandledFieldNames,
   invalidFieldNames,
   aiFilledFieldNames,
+  reviewIssues,
+  onNavigateReviewIssue,
 }: DynamicStepFormProps) {
   const tButtons = useTranslations("application.dynamicButtons");
   const externallyHandled = useMemo(
@@ -3727,9 +3735,11 @@ export function DynamicStepForm({
 
   /** Translate and render a single field */
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
+    const reviewIssue = reviewIssues?.get(valueKey) ?? reviewIssues?.get(field.fieldName);
     const submitCheckInvalid = Boolean(
-      invalidFieldNames?.has(field.fieldName) || invalidFieldNames?.has(valueKey),
+      invalidFieldNames?.has(field.fieldName) || invalidFieldNames?.has(valueKey) || reviewIssue?.severity === "error",
     );
+    const reviewWarning = reviewIssue?.severity === "warning";
     const rawPlaceholder = field.placeholder ?? null;
     const zhPlaceholder = getChinesePlaceholder(rawPlaceholder, field.fieldName)
       ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
@@ -4033,12 +4043,16 @@ export function DynamicStepForm({
           key={valueKey}
           data-application-field-name={valueKey}
           data-validation-invalid={submitCheckInvalid ? "true" : "false"}
+          data-review-issue={reviewIssue?.severity}
           aria-invalid={submitCheckInvalid || undefined}
           className={cn(
             "application-form-field group/field relative py-1.5 transition-colors",
             panelOpen ? "bg-[#fbfdff]" : "",
             isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
             submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
+            reviewIssue && "-mx-3 px-3 py-3",
+            reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
+            reviewWarning && "rounded-lg bg-amber-50 [&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
           )}
         >
           {aiFilledBadge}
@@ -4060,6 +4074,28 @@ export function DynamicStepForm({
               )}
             </div>
           )}
+          {reviewIssue ? (
+            <div className={cn(
+              "mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2",
+              reviewIssue.severity === "error"
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-amber-200 bg-amber-50 text-amber-900",
+            )}>
+              <p className="text-sm leading-5">{reviewIssue.message}</p>
+              {onNavigateReviewIssue ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onNavigateReviewIssue(reviewIssue.nextFieldName)}
+                >
+                  {reviewIssue.nextFieldName
+                    ? tButtons("reviewRepair.nextIssue")
+                    : tButtons("reviewRepair.returnToAssistant")}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       );
     }
@@ -4069,12 +4105,16 @@ export function DynamicStepForm({
         key={valueKey}
         data-application-field-name={valueKey}
         data-validation-invalid={submitCheckInvalid ? "true" : "false"}
+        data-review-issue={reviewIssue?.severity}
         aria-invalid={submitCheckInvalid || undefined}
         className={cn(
           "application-form-field group/field relative py-1.5 transition-colors",
           panelOpen ? "bg-[#fbfdff]" : "",
           isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
           submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
+          reviewIssue && "-mx-3 px-3 py-3",
+          reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
+          reviewWarning && "rounded-lg bg-amber-50 [&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
         )}
       >
         {aiFilledBadge}
@@ -4113,6 +4153,28 @@ export function DynamicStepForm({
             </div>
           </div>
         </div>
+        {reviewIssue ? (
+          <div className={cn(
+            "mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2",
+            reviewIssue.severity === "error"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : "border-amber-200 bg-amber-50 text-amber-900",
+          )}>
+            <p className="text-sm leading-5">{reviewIssue.message}</p>
+            {onNavigateReviewIssue ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onNavigateReviewIssue(reviewIssue.nextFieldName)}
+              >
+                {reviewIssue.nextFieldName
+                  ? tButtons("reviewRepair.nextIssue")
+                  : tButtons("reviewRepair.returnToAssistant")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     );
   };

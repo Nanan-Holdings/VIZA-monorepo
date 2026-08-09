@@ -43,7 +43,9 @@ import {
   FormFillingAssistant,
   type FormAssistantFillNotice,
   type FormAssistantFillNoticeItem,
+  type FormAssistantValidationIssue as FormAssistantDisplayValidationIssue,
 } from "@/components/client/form-assistant";
+import { BrandActionButton } from "@/components/client/brand-action-button";
 import {
   saveDynamicAnswers,
   ensureDraftApplication,
@@ -69,6 +71,10 @@ import type {
 } from "@/types/form-assistant";
 import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
 import { canUseFormAssistant } from "@/lib/form-assistant/constants";
+import {
+  buildFormAssistantFieldReviewIssues,
+  getBaseAnswerFieldName,
+} from "@/lib/form-assistant/review-issues";
 import {
   buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
@@ -1828,6 +1834,7 @@ export default function ApplicationPage() {
   const [formAssistantState, setFormAssistantState] = useState<FormAssistantState | null>(null);
   const [formAssistantBusy, setFormAssistantBusy] = useState(false);
   const [formAssistantValidation, setFormAssistantValidation] = useState<FormAssistantValidationResponse | null>(null);
+  const [formAssistantValidationDirty, setFormAssistantValidationDirty] = useState(false);
   const [formAssistantUnavailable, setFormAssistantUnavailable] = useState(false);
   const [aiFilledFieldNames, setAiFilledFieldNames] = useState<string[]>([]);
   const [formAssistantFillNotice, setFormAssistantFillNotice] = useState<FormAssistantFillNotice | null>(null);
@@ -1849,6 +1856,7 @@ export default function ApplicationPage() {
   const autosaveRequestRef = useRef(0);
   const navigationSaveInFlightRef = useRef(false);
   const applicationContentRef = useRef<HTMLElement | null>(null);
+  const formAssistantRef = useRef<HTMLDivElement | null>(null);
   const stepPanelRefs = useRef(new Map<number, HTMLDivElement>());
 
   useEffect(() => {
@@ -1979,7 +1987,7 @@ export default function ApplicationPage() {
       ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
     );
     if (hasChangedValue) {
-      setFormAssistantValidation(null);
+      if (formAssistantValidation) setFormAssistantValidationDirty(true);
       setAutosaveFailed(false);
       setAutosaving(true);
     }
@@ -1990,7 +1998,7 @@ export default function ApplicationPage() {
       setDraftVersion((version) => version + 1);
     }, 120);
     setSubmitMissingFields([]);
-  }, [aiFilledFieldNames, dynamicAnswers]);
+  }, [aiFilledFieldNames, dynamicAnswers, formAssistantValidation]);
 
   useEffect(() => () => {
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
@@ -2350,6 +2358,51 @@ export default function ApplicationPage() {
   const confirmationMissingFields = forceDryRun
     ? visibleMissingFields.filter((item) => item.stepId !== documentStepIndex)
     : visibleMissingFields;
+  const formAssistantFieldReviewIssues = useMemo(
+    () => buildFormAssistantFieldReviewIssues(
+      formAssistantValidation,
+      visibleDynamicSteps.map(({ step }) => step),
+    ),
+    [formAssistantValidation, visibleDynamicSteps],
+  );
+  const formAssistantFieldReviewIssueMap = useMemo(
+    () => new Map(formAssistantFieldReviewIssues.map((issue) => [issue.fieldName, issue])),
+    [formAssistantFieldReviewIssues],
+  );
+  const formAssistantFieldLocations = useMemo(() => {
+    const locations = new Map<string, { field: VisaFormFieldRow; step: WizardStep; stepIndex: number }>();
+    dbSteps.forEach((step, stepIndex) => {
+      step.fields.forEach((field) => locations.set(field.fieldName, { field, step, stepIndex }));
+    });
+    return locations;
+  }, [dbSteps]);
+  const formAssistantDisplayValidation = useMemo(() => {
+    if (!formAssistantValidation) return null;
+    const expand = (
+      issues: FormAssistantValidationResponse["errors"],
+      severity: "error" | "warning",
+    ): FormAssistantDisplayValidationIssue[] => issues.flatMap((issue) =>
+      issue.fieldNames.length > 0
+        ? issue.fieldNames.map((fieldName) => ({
+            id: `${issue.code}:${fieldName}`,
+            fieldName,
+            message: issue.message,
+            severity,
+          }))
+        : [{ id: issue.code, message: issue.message, severity }],
+    );
+    return {
+      errors: expand(formAssistantValidation.errors, "error"),
+      warnings: expand(formAssistantValidation.warnings, "warning"),
+      warningsAcknowledged: formAssistantValidation.canReview,
+      dirty: formAssistantValidationDirty,
+    };
+  }, [formAssistantValidation, formAssistantValidationDirty]);
+  const formFieldsComplete = useMemo(
+    () => tabCompletion.missingFields.every((item) => item.stepId >= documentStepIndex),
+    [documentStepIndex, tabCompletion.missingFields],
+  );
+  const lastVisibleFormStepId = visibleDynamicSteps.at(-1)?.sourceIndex ?? null;
   const invalidFieldNamesByStep = useMemo(() => {
     const fieldsByStep = new Map<number, Set<string>>();
     if (submitCheckState !== "invalid") return fieldsByStep;
@@ -2385,6 +2438,8 @@ export default function ApplicationPage() {
     setDynamicAnswers({});
     setSubmitCheckState("idle");
     setSubmitMissingFields([]);
+    setFormAssistantValidation(null);
+    setFormAssistantValidationDirty(false);
     initialStepResolvedRef.current = false;
     setAppState((prev) => ({
       ...prev,
@@ -2734,6 +2789,7 @@ export default function ApplicationPage() {
     const now = new Date().toISOString();
     setFormAssistantBusy(true);
     setFormAssistantValidation(null);
+    setFormAssistantValidationDirty(false);
     setFormAssistantState((current) => current ? {
       ...current,
       messages: [
@@ -2851,6 +2907,7 @@ export default function ApplicationPage() {
       return !item || item.restoredSource === "form_assistant";
     }));
     setFormAssistantValidation(null);
+    setFormAssistantValidationDirty(false);
     setFormAssistantFillNotice(null);
 
     const stateResponse = await fetch(
@@ -2894,6 +2951,91 @@ export default function ApplicationPage() {
     router.replace(`?${next.toString()}`, { scroll: false });
   }, [effectiveSteps, fallbackReviewStepIndex, reviewStepIndex, router, scrollToStepPanel, searchParams, useDynamic]);
 
+  const scrollToFormAssistant = useCallback(() => {
+    formAssistantRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.requestAnimationFrame(() => {
+      const assistant = formAssistantRef.current;
+      const conversation = assistant?.querySelector<HTMLElement>("[role='log']");
+      if (conversation) {
+        conversation.scrollTo({ top: conversation.scrollHeight, behavior: "smooth" });
+      }
+      assistant
+        ?.querySelector<HTMLElement>("[data-testid='form-assistant-review-action'] button")
+        ?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const scrollToApplicationField = useCallback((fieldName: string) => {
+    const baseFieldName = getBaseAnswerFieldName(fieldName);
+    const location = formAssistantFieldLocations.get(baseFieldName);
+    if (!location) return;
+
+    setCurrentStep(location.stepIndex);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const panel = stepPanelRefs.current.get(location.stepIndex);
+        const target = Array.from(
+          panel?.querySelectorAll<HTMLElement>("[data-application-field-name]") ?? [],
+        ).find((element) =>
+          element.dataset.applicationFieldName === fieldName ||
+          element.dataset.applicationFieldName === baseFieldName,
+        );
+        if (!target) {
+          scrollToStepPanel(location.stepIndex);
+          return;
+        }
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.querySelector<HTMLElement>(
+          'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), button:not([data-copilot-trigger]):not([disabled]), [role="combobox"]',
+        )?.focus({ preventScroll: true });
+      });
+    });
+  }, [formAssistantFieldLocations, scrollToStepPanel]);
+
+  const handleNavigateReviewIssue = useCallback((targetFieldName: string | null) => {
+    if (targetFieldName) {
+      scrollToApplicationField(targetFieldName);
+      return;
+    }
+    scrollToFormAssistant();
+  }, [scrollToApplicationField, scrollToFormAssistant]);
+
+  const renderFormAssistantIssueField = useCallback((issue: FormAssistantDisplayValidationIssue) => {
+    if (!issue.fieldName) return null;
+    const location = formAssistantFieldLocations.get(getBaseAnswerFieldName(issue.fieldName));
+    if (!location) return null;
+    const issueStep: WizardStep = {
+      ...location.step,
+      fields: [location.field],
+    };
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-3" data-testid={`assistant-issue-editor-${issue.fieldName}`}>
+        <DynamicStepForm
+          key={`${formAssistantValidation?.validationId ?? "validation"}:${issue.fieldName}`}
+          step={issueStep}
+          prefill={dynamicAnswerSnapshot}
+          onComplete={(data) => handleDynamicDraftChange(location.stepIndex, data)}
+          onDraftChange={(data) => handleDynamicDraftChange(location.stepIndex, data)}
+          saving={saving}
+          showContinueButton={false}
+          country={resolvedCountry}
+          visaType={resolvedVisaType}
+          invalidFieldNames={issue.severity === "error" ? new Set([issue.fieldName]) : undefined}
+          aiFilledFieldNames={new Set(aiFilledFieldNames)}
+        />
+      </div>
+    );
+  }, [
+    aiFilledFieldNames,
+    dynamicAnswerSnapshot,
+    formAssistantFieldLocations,
+    formAssistantValidation?.validationId,
+    handleDynamicDraftChange,
+    resolvedCountry,
+    resolvedVisaType,
+    saving,
+  ]);
+
   const handleFormAssistantValidate = useCallback(async (): Promise<FormAssistantValidationResponse> => {
     const applicationId = appState.applicationId;
     if (!applicationId) throw new Error(t("errors.noApplicationFound"));
@@ -2908,6 +3050,7 @@ export default function ApplicationPage() {
       const payload = await response.json() as FormAssistantValidationResponse & { error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Validation failed");
       setFormAssistantValidation(payload);
+      setFormAssistantValidationDirty(false);
       return payload;
     } finally {
       setFormAssistantBusy(false);
@@ -2936,9 +3079,9 @@ export default function ApplicationPage() {
   }, [appState.applicationId, formAssistantValidation]);
 
   const handleFormAssistantGoToReview = useCallback(() => {
-    if (!formAssistantValidation?.canReview) return;
+    if (!formAssistantValidation?.canReview || formAssistantValidationDirty) return;
     navigateFormAssistantToReview();
-  }, [formAssistantValidation?.canReview, navigateFormAssistantToReview]);
+  }, [formAssistantValidation?.canReview, formAssistantValidationDirty, navigateFormAssistantToReview]);
 
   useEffect(() => {
     if (!useDynamic || loading || draftVersion === 0) return;
@@ -3977,43 +4120,36 @@ export default function ApplicationPage() {
           </header>
 
           {showFormFillingAssistant ? (
-            <FormFillingAssistant
-              key={appState.applicationId}
-              applicationId={appState.applicationId!}
-              locale={locale}
-              isZh={isZhInterface}
-              progress={formAssistantState?.progress ?? { completed: 0, total: 0 }}
-              messages={formAssistantState?.messages ?? []}
-              missingFields={(formAssistantState?.missingFields ?? []).map((field) => ({
-                fieldName: field.fieldName,
-                label: field.label,
-                required: true,
-                section: field.stepName,
-              }))}
-              fillNotice={formAssistantFillNotice}
-              loading={formAssistantBusy}
-              validationResult={formAssistantValidation ? {
-                errors: formAssistantValidation.errors.map((issue) => ({
-                  id: issue.code,
-                  fieldName: issue.fieldNames[0],
-                  message: issue.message,
-                })),
-                warnings: formAssistantValidation.warnings.map((issue) => ({
-                  id: issue.code,
-                  fieldName: issue.fieldNames[0],
-                  message: issue.message,
-                })),
-                warningsAcknowledged: formAssistantValidation.canReview,
-              } : null}
-              onSend={handleFormAssistantSend}
-              onTranscribe={handleFormAssistantTranscribe}
-              onValidate={handleFormAssistantValidate}
-              onAcknowledgeWarnings={handleFormAssistantAcknowledgeWarnings}
-              onUndoFill={handleFormAssistantUndoFill}
-              onDismissFillNotice={handleDismissFormAssistantFillNotice}
-              onGoToReview={handleFormAssistantGoToReview}
-              className="mb-5"
-            />
+            <div ref={formAssistantRef} className="scroll-mt-4">
+              <FormFillingAssistant
+                key={appState.applicationId}
+                applicationId={appState.applicationId!}
+                locale={locale}
+                isZh={isZhInterface}
+                progress={formAssistantState?.progress ?? { completed: 0, total: 0 }}
+                messages={formAssistantState?.messages ?? []}
+                missingFields={(formAssistantState?.missingFields ?? []).map((field) => ({
+                  fieldName: field.fieldName,
+                  label: field.label,
+                  required: true,
+                  section: field.stepName,
+                }))}
+                fillNotice={formAssistantFillNotice}
+                loading={formAssistantBusy}
+                validationResult={formAssistantDisplayValidation}
+                showReviewAction={formFieldsComplete}
+                onSend={handleFormAssistantSend}
+                onTranscribe={handleFormAssistantTranscribe}
+                onValidate={handleFormAssistantValidate}
+                onAcknowledgeWarnings={handleFormAssistantAcknowledgeWarnings}
+                onUndoFill={handleFormAssistantUndoFill}
+                onDismissFillNotice={handleDismissFormAssistantFillNotice}
+                onGoToReview={handleFormAssistantGoToReview}
+                renderIssueField={renderFormAssistantIssueField}
+                onJumpToIssue={scrollToApplicationField}
+                className="mb-5"
+              />
+            </div>
           ) : null}
 
           {/* Mobile step indicator */}
@@ -4089,8 +4225,22 @@ export default function ApplicationPage() {
                             externallyHandledFieldNames={passportUploadHandledFields}
                             invalidFieldNames={invalidFieldNamesByStep.get(step.id)}
                             aiFilledFieldNames={new Set(aiFilledFieldNames)}
+                            reviewIssues={formAssistantFieldReviewIssueMap}
+                            onNavigateReviewIssue={handleNavigateReviewIssue}
                           />
                         )}
+                        {showFormFillingAssistant &&
+                        formFieldsComplete &&
+                        step.id === lastVisibleFormStepId ? (
+                          <BrandActionButton
+                            type="button"
+                            variant="secondary"
+                            className="mt-5"
+                            onClick={scrollToFormAssistant}
+                          >
+                            {tApp("formAssistant.reviewRepair.reviewWithAssistant")}
+                          </BrandActionButton>
+                        ) : null}
 
                         {/* Supporting documents step */}
                         {showDocumentStep && step.id === documentStepIndex && (
@@ -4129,6 +4279,7 @@ export default function ApplicationPage() {
                                   onComplete={() => undefined}
                                   mode="continue"
                                   showAction={false}
+                                  reviewIssues={formAssistantFieldReviewIssueMap}
                                 />
                               ) : null}
                               <SubmissionStatusStep
@@ -4153,6 +4304,7 @@ export default function ApplicationPage() {
                                 mode="continue"
                                 continueLabel={isCompanionFlow ? t("team.confirmCompanion") : undefined}
                                 showAction={isCompanionFlow}
+                                reviewIssues={formAssistantFieldReviewIssueMap}
                               />
                               {!isCompanionFlow ? (
                                 <UniversalProfileSyncCard applicationId={appState.applicationId} />

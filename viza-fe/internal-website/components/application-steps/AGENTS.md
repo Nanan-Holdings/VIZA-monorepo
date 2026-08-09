@@ -46,7 +46,10 @@ review, bilingual review helpers, and status confirmation.
   `components/dynamic-form-field.tsx`, not in this module.
 - Country-specific photo copy should come from `lib/photo-guidance.ts` or RAG
   source data, not hardcoded generic text.
-- Review steps must stay read-only. Editing belongs in form steps.
+- Review steps must stay read-only. Editing belongs in form steps. Validator
+  errors and warnings may highlight the matching review question and answer,
+  but the repair action must still open the original field or the form
+  assistant's copied field editor.
 - Preserve the bilingual two-column contract when changing shared form rows. Indonesia C1/eVOA is the approved locale-only exception and must show just the selected interface language while retaining the official submission value internally.
 
 ## Validation
