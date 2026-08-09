@@ -2687,9 +2687,9 @@ export default function ApplicationPage() {
     }
   }, [currentStep, effectiveSteps, scrollToStepPanel, useDynamic]);
 
-  // US-040: Supabase Realtime — re-fetch application data on application UPDATE.
-  // Universal Profile is a non-overwriting autofill source: saved answers win,
-  // and still-empty fields can be hydrated from the current profile.
+  // Merge only submission fields from Realtime updates. Re-fetching the whole
+  // application on every runner stage update remounts the large form tree and
+  // makes the submission progress UI appear to restart.
   useEffect(() => {
     const applicationId = appState.applicationId;
     if (!applicationId) return;
@@ -2706,14 +2706,31 @@ export default function ApplicationPage() {
           table: "applications",
           filter: `id=eq.${applicationId}`,
         },
-        () => { void loadData(); }
+        (payload) => {
+          const updated = payload.new as LoadedApplication;
+          if (updated.id && updated.id !== applicationId) return;
+
+          setAppState((previous) => ({
+            ...previous,
+            applicationId: updated.id ?? previous.applicationId,
+            confirmationNumber:
+              updated.confirmation_number ?? previous.confirmationNumber,
+            submittedAt: updated.submitted_at ?? previous.submittedAt,
+            submissionResult:
+              (updated.submission_result as SubmissionResult | null | undefined) ??
+              previous.submissionResult,
+            submissionResultStatus:
+              (updated.submission_result_status as SubmissionResultStatus | null | undefined) ??
+              previous.submissionResultStatus,
+          }));
+        },
       )
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [appState.applicationId, loadData]);
+  }, [appState.applicationId]);
 
   const ensureWritableApplicationId = useCallback(async () => {
     let applicationId = appState.applicationId;

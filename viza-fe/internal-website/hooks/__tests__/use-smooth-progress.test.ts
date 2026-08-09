@@ -156,4 +156,35 @@ describe("useSmoothProgress", () => {
     expect(result.current.displayedProgress).toBe(88);
     unmount();
   });
+
+  it("immediately follows authoritative server progress without ever moving backward", () => {
+    const persistenceKey = "submission:authoritative-progress-test";
+    const { result, rerender, unmount } = renderHook(
+      ({ serverProgress }) =>
+        useSmoothProgress({
+          serverProgress,
+          status: "running",
+          persistenceKey,
+          syncToServerProgress: true,
+        }),
+      { initialProps: { serverProgress: 88 } },
+    );
+
+    expect(result.current.displayedProgress).toBe(88);
+
+    rerender({ serverProgress: 12 });
+    expect(result.current.displayedProgress).toBe(88);
+    unmount();
+
+    const remounted = renderHook(() =>
+      useSmoothProgress({
+        serverProgress: 12,
+        status: "running",
+        persistenceKey,
+        syncToServerProgress: true,
+      }),
+    );
+    expect(remounted.result.current.displayedProgress).toBe(88);
+    remounted.unmount();
+  });
 });
