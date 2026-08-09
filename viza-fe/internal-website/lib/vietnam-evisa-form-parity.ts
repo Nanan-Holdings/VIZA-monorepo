@@ -498,6 +498,21 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     conditionalLogic: { showIf: "bought_travel_insurance === yes" },
   },
   {
+    fieldName: "expense_coverage",
+    label: "Who will cover the applicant's trip expenses?",
+    fieldType: "select",
+    required: true,
+    stepNumber: 8,
+    stepName: "Travel Expenses and Insurance",
+    displayOrder: 4,
+    placeholder: "Choose one",
+    options: [
+      { value: "personal", text: "Personal", label_zh: "个人", label_en: "Personal", official_label: "Personal" },
+      { value: "company", text: "Company", label_zh: "公司/机构", label_en: "Company", official_label: "Company" },
+    ],
+    validationRules: { label_zh: "谁承担申请人的旅行费用？", live_dom_id: "basic_kpbhNguoiDamBao" },
+  },
+  {
     fieldName: "expense_payment_method",
     label: "Payment method",
     fieldType: "select",
@@ -512,7 +527,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
       { value: "travellers_cheques", text: "Traveller's cheques", label_zh: "旅行支票", label_en: "Traveller's cheques" },
     ],
     validationRules: { label_zh: "付款方式", live_dom_id: "basic_kpbhHinhThuc" },
-    conditionalLogic: { showIf: "expense_coverage in [personal, company]" },
+    conditionalLogic: { showIf: "expense_coverage === personal || expense_coverage === company" },
   },
   {
     fieldName: "expense_company_name",
@@ -749,10 +764,6 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
         if (patchedField.fieldName === "bought_travel_insurance") {
           return { ...patchedField, displayOrder: 2 };
         }
-        if (patchedField.fieldName === "expense_coverage") {
-          return { ...patchedField, required: true, displayOrder: 4 };
-        }
-
         return patchedField;
       }),
     });
