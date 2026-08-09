@@ -6,6 +6,7 @@ import {
   getVietnamBankAppWaitMs,
   isStandardCharteredBankAppChallenge,
   loadVietnamFixedCardFromEnv,
+  payVietnamPortalWithFixedCard,
   parseVietnamFixedCardInput,
   redactVietnamFixedCard,
   waitForStandardCharteredBankAppChallenge,
@@ -166,4 +167,84 @@ test("vn.fixed-card-payment: extracts receipt references", () => {
   assert.equal(extractVietnamPaymentReceiptReference("Receipt: VN-ABC12345"), "VN-ABC12345");
   assert.equal(extractVietnamPaymentReceiptReference("Transaction reference # TX998877"), "TX998877");
   assert.equal(extractVietnamPaymentReceiptReference("No payment reference yet"), null);
+});
+
+test("vn.fixed-card-payment: fills VNPAY cardExpire and uses the managed contact alias", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <h1>Payment gateway</h1>
+        <label>Card number <input id="cardNumber" /></label>
+        <label>Expiry <input id="cardExpire" placeholder="MM/YY" /></label>
+        <label>CVV <input id="cardCVV" /></label>
+        <label>Email <input id="paymentEmail" type="email" /></label>
+        <button type="button" id="btnContinue" onclick="document.querySelector('#btnAgree').hidden = false">Pay</button>
+        <button type="button" id="btnAgree" hidden onclick="
+          window.submittedPayment = {
+            expiry: document.querySelector('#cardExpire').value,
+            email: document.querySelector('#paymentEmail').value
+          };
+          document.querySelector('main').innerHTML = '<p>Receipt: VN-SYNTH12345</p>';
+        ">Agree</button>
+      </main>
+    `);
+
+    const result = await payVietnamPortalWithFixedCard({
+      page,
+      card: parseVietnamFixedCardInput({
+        pan: "4111111111111111",
+        expiry: "01/31",
+        cvv: "123",
+        holderName: "Synthetic Applicant",
+      }),
+      contactEmail: "appl-synthetic@viza.it.com",
+      paymentTransitionTimeoutMs: 2_000,
+    });
+
+    assert.equal(result.status, "paid");
+    assert.equal(result.receiptReference, "VN-SYNTH12345");
+    assert.deepEqual(
+      await page.evaluate(() => (window as typeof window & {
+        submittedPayment?: { expiry: string; email: string };
+      }).submittedPayment),
+      { expiry: "01/31", email: "appl-synthetic@viza.it.com" },
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.fixed-card-payment: does not report a submission when VNPAY remains on the card form", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <h1>Payment gateway</h1>
+        <input id="cardNumber" />
+        <input id="cardExpire" placeholder="MM/YY" />
+        <input id="cardCVV" />
+        <button type="button" id="btnContinue">Pay</button>
+      </main>
+    `);
+
+    const result = await payVietnamPortalWithFixedCard({
+      page,
+      card: parseVietnamFixedCardInput({
+        pan: "4111111111111111",
+        expiry: "01/31",
+        cvv: "123",
+        holderName: "Synthetic Applicant",
+      }),
+      contactEmail: "appl-synthetic@viza.it.com",
+      paymentTransitionTimeoutMs: 1_000,
+    });
+
+    assert.equal(result.status, "needs_human");
+    assert.match(result.reason ?? "", /no bank authentication was initiated/i);
+  } finally {
+    await browser.close();
+  }
 });

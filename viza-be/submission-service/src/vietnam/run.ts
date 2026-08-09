@@ -143,6 +143,7 @@ export type FillVietnamResult =
       checkpoint: VietnamPortalStateId;
       instruction: string;
       url: string;
+      registrationCode?: string | null;
       diagnostics?: VietnamDiagnostics;
     }
   | {
@@ -738,6 +739,7 @@ async function fillVietnamApplicationOnce(
         const payment = await payVietnamPortalWithFixedCard({
           page,
           card: fixedCard,
+          contactEmail: input.answers.email_address ?? input.answers.email ?? null,
           onBankAuthenticationRequired: () => emitProgress("bank_authentication_waiting"),
         });
         if (payment.status === "paid" && payment.receiptReference) {
@@ -762,6 +764,7 @@ async function fillVietnamApplicationOnce(
           instruction:
             `The official Vietnam e-Visa portal reached payment, but fixed-card payment could not complete automatically: ${payment.reason ?? payment.status}`,
           url: page.url(),
+          registrationCode: registrationCode ?? null,
           diagnostics: diagnostics(),
         };
       }
@@ -774,6 +777,7 @@ async function fillVietnamApplicationOnce(
           instruction:
             "The official Vietnam e-Visa portal reached payment, but VIZA has not recorded an authorized official-fee payment intent for this application. Authorize payment in VIZA before continuing.",
           url: page.url(),
+          registrationCode: registrationCode ?? null,
           diagnostics: diagnostics(),
         };
       }
@@ -785,6 +789,7 @@ async function fillVietnamApplicationOnce(
         instruction:
           "The official Vietnam e-Visa portal reached payment. VIZA stopped before Pay/Submit; complete payment manually only if you intend to proceed.",
         url: page.url(),
+        registrationCode: registrationCode ?? null,
         diagnostics: diagnostics(),
       };
     }
@@ -828,6 +833,7 @@ async function fillVietnamApplicationOnce(
         const payment = await payVietnamPortalWithFixedCard({
           page,
           card: fixedCard,
+          contactEmail: input.answers.email_address ?? input.answers.email ?? null,
           onBankAuthenticationRequired: () => emitProgress("bank_authentication_waiting"),
         });
         if (payment.status === "paid" && payment.receiptReference) {
@@ -852,6 +858,7 @@ async function fillVietnamApplicationOnce(
           instruction:
             `The official Vietnam e-Visa portal reached payment, but fixed-card payment could not complete automatically: ${payment.reason ?? payment.status}`,
           url: page.url(),
+          registrationCode: registrationCode ?? null,
           diagnostics: diagnostics(),
         };
       }

@@ -3621,6 +3621,7 @@ function buildVnQueuePayload(
       checkpoint: result.checkpoint,
       instruction: result.instruction,
       url: result.url,
+      registrationCodeCaptured: Boolean(result.registrationCode),
     };
   }
   if (result.status === "scaffolded_pending_walk") {
@@ -3668,6 +3669,7 @@ function buildVietnamActionRequiredResult(
     provider: "vietnam_evisa_live",
     portalUrl: result.url,
     checkpoint: result.checkpoint,
+    ...(result.registrationCode ? { registrationCode: result.registrationCode } : {}),
     manualAction: {
       type: result.actionType,
       status: "open",
@@ -3800,7 +3802,9 @@ async function loadVnRegistrationCode(applicationId: string, item: SubmissionQue
 
 async function getVietnamOfficialLookupEmail(applicantId: string): Promise<string> {
   const alias = await ensureApplicantInboxAlias(applicantId);
-  return alias.alias.trim().toLowerCase();
+  const officialLookupEmail = alias.alias.trim().toLowerCase();
+  await assertInboxAliasDomainRoutable(officialLookupEmail);
+  return officialLookupEmail;
 }
 
 function readAnswerValue(
@@ -3814,7 +3818,7 @@ function readAnswerValue(
   return null;
 }
 
-async function activatePaidVietnamTracking(
+async function activateVietnamTracking(
   applicationId: string,
   officialLookupEmail?: string,
 ): Promise<void> {
@@ -4127,7 +4131,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
             updated_at: now,
           })
           .eq("id", item.application_id);
-        await activatePaidVietnamTracking(item.application_id, email);
+        await activateVietnamTracking(item.application_id, email);
         return;
       }
 
@@ -4288,7 +4292,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         .eq("id", item.application_id),
     ]);
     if (!dryRunReceipt) {
-      await activatePaidVietnamTracking(item.application_id);
+      await activateVietnamTracking(item.application_id);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -4583,7 +4587,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
             updated_at: completedAt,
           })
           .eq("id", item.application_id);
-        await activatePaidVietnamTracking(
+        await activateVietnamTracking(
           item.application_id,
           officialLookupEmail ?? undefined,
         );
@@ -4609,8 +4613,13 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           attempts: item.attempts,
           last_error: result.instruction,
           vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
+          ...(result.registrationCode
+            ? { vn_registration_code_encrypted: encryptSecret(result.registrationCode) }
+            : {}),
           manual_action_status: "pending",
-          official_status: "manual_action_required",
+          official_status: result.registrationCode
+            ? "registration_code_captured_payment_pending"
+            : "manual_action_required",
           error_code: result.actionType,
           error_message: result.instruction,
           current_stage: result.checkpoint,
@@ -4627,6 +4636,13 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         },
       );
       await writeSubmissionResult(item.application_id, actionResult, "action_required");
+      if (
+        result.registrationCode &&
+        officialLookupEmail &&
+        (result.actionType === "payment_required" || result.actionType === "final_submit_required")
+      ) {
+        await activateVietnamTracking(item.application_id, officialLookupEmail);
+      }
       console.warn(`[vn] Run ${runId} requires manual action at ${result.checkpoint}: ${result.actionType}`);
       return;
     }
