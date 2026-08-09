@@ -1570,6 +1570,38 @@ test("vn.review browser: checks the exact declaration and waits for Continue to 
   }
 });
 
+test("vn.review browser: checks an unlabelled commitment with sibling copy", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <label class="ant-checkbox-wrapper">
+        <span class="ant-checkbox">
+          <input id="basic_ttcdCqTcCamDoan" type="checkbox" />
+        </span>
+        <span>Tôi xin cam đoan những thông tin trên là đúng</span>
+      </label>
+      <div class="official-final-commitment">
+        <span class="ant-checkbox"><input id="final-commitment-sibling" type="checkbox" /></span>
+        <span>I hereby declare that the above statements are true, accurate and I am fully responsible before the Vietnamese laws.</span>
+      </div>
+      <button id="continue" disabled>Tiếp tục</button>
+      <script>
+        document.querySelector('#final-commitment-sibling').addEventListener('change', (event) => {
+          document.querySelector('#continue').disabled = !event.target.checked;
+        });
+      </script>
+    `);
+
+    assert.equal(await ensureVietnamApplicationDeclarationChecked(page), true);
+    assert.equal(await ensureVietnamFinalCommitmentChecked(page), true);
+    assert.equal(await page.locator("#final-commitment-sibling").isChecked(), true);
+    assert.equal(await page.locator("#continue").isEnabled(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.review browser: reports only visible enabled required blockers", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();

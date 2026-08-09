@@ -122,6 +122,38 @@ describe("augmentVietnamEVisaOfficialParitySteps", () => {
     expect(expenseCoverage?.required).toBe(true);
   });
 
+  it("restores the required expense coverage field and its conditional payment method when missing", () => {
+    const steps: WizardStep[] = [
+      {
+        stepNumber: 8,
+        stepName: "Travel Expenses and Insurance",
+        fields: [],
+      },
+    ];
+
+    const fields = augmentVietnamEVisaOfficialParitySteps(steps)
+      .find((step) => step.stepNumber === 8)
+      ?.fields ?? [];
+    const expenseCoverage = fields.find((item) => item.fieldName === "expense_coverage");
+    const paymentMethod = fields.find((item) => item.fieldName === "expense_payment_method");
+
+    expect(expenseCoverage).toMatchObject({
+      fieldType: "select",
+      required: true,
+      displayOrder: 4,
+      options: [
+        expect.objectContaining({ value: "personal" }),
+        expect.objectContaining({ value: "company" }),
+      ],
+    });
+    expect(paymentMethod).toMatchObject({
+      required: true,
+      conditionalLogic: {
+        showIf: "expense_coverage === personal || expense_coverage === company",
+      },
+    });
+  });
+
   it("inserts missing relatives fields immediately after the relatives yes/no question", () => {
     const steps: WizardStep[] = [
       {

@@ -3605,7 +3605,12 @@ export function DynamicStepForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (indonesiaPostalLookupBlocksContinue) return;
+    // The long-form page hides the per-step Continue button, but the form can
+    // still receive an implicit submit (for example, Enter from a text input).
+    // Keep that path subject to the same required/field validation gate as the
+    // visible button so incomplete Vietnam expense answers cannot be saved as
+    // a completed step.
+    if (!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue) return;
     const stepData = buildCurrentStepAnswerPatch(
       step.fields,
       valuesRef.current,

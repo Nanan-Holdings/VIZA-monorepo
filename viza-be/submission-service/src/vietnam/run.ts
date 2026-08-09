@@ -1409,12 +1409,23 @@ function isForbiddenVietnamAutoCheckboxText(text: string): boolean {
 async function readCheckboxContextText(input: Locator): Promise<string> {
   return input
     .evaluate((element) => {
-      const label = element.closest("label") ?? element.closest(".ant-checkbox-wrapper") ?? element.parentElement;
+      const scopes = [
+        element.closest("label"),
+        element.closest(".ant-checkbox-wrapper"),
+        element.closest(".ant-form-item"),
+        element.parentElement,
+        element.parentElement?.parentElement,
+        element.parentElement?.parentElement?.parentElement,
+      ].filter((scope): scope is Element => Boolean(scope));
+      const scopeText = scopes
+        .map((scope) => (scope.textContent ?? "").replace(/\s+/g, " ").trim())
+        .filter((text) => text.length > 0 && text.length <= 1_000)
+        .sort((left, right) => left.length - right.length)[0] ?? "";
       return [
         element.getAttribute("aria-label"),
         element.getAttribute("name"),
         element.getAttribute("id"),
-        label?.textContent,
+        scopeText,
       ]
         .filter(Boolean)
         .join(" ")
@@ -2006,6 +2017,24 @@ async function readVietnamReviewBlockerDiagnostics(
           const rect = element.getBoundingClientRect();
           return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
         },
+        checkboxScope(element: Element) {
+          const scopes = [
+            element.closest("label"),
+            element.closest(".ant-checkbox-wrapper"),
+            element.closest(".ant-form-item"),
+            element.parentElement,
+            element.parentElement?.parentElement,
+            element.parentElement?.parentElement?.parentElement,
+          ].filter((scope): scope is Element => Boolean(scope));
+          return scopes
+            .filter((scope) => this.visible(scope))
+            .map((scope) => ({
+              scope,
+              text: (scope.textContent ?? "").replace(/\s+/g, " ").trim(),
+            }))
+            .filter((entry) => entry.text.length > 0 && entry.text.length <= 1_000)
+            .sort((left, right) => left.text.length - right.text.length)[0] ?? null;
+        },
       };
       const requiredUnfilled = Array.from(
         document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
@@ -2039,12 +2068,13 @@ async function readVietnamReviewBlockerDiagnostics(
       );
       const declaration = declarationCandidates.find((element) => {
         if (element.id === declarationId) return true;
-        const scope = element.closest("label, .ant-checkbox-wrapper") ?? element;
+        const scoped = helpers.checkboxScope(element);
+        const scope = scoped?.scope ?? element;
         const text = [
           element.getAttribute("aria-label"),
           element.getAttribute("name"),
           element.getAttribute("id"),
-          scope.textContent,
+          scoped?.text ?? scope.textContent,
         ].filter(Boolean).join(" ");
         return helpers.visible(scope) && pattern.test(text);
       });
@@ -2059,12 +2089,13 @@ async function readVietnamReviewBlockerDiagnostics(
         declarationScope?.querySelector(".ant-checkbox-checked"),
       );
       const finalCommitment = declarationCandidates.find((element) => {
-        const scope = element.closest("label, .ant-checkbox-wrapper") ?? element;
+        const scoped = helpers.checkboxScope(element);
+        const scope = scoped?.scope ?? element;
         const text = [
           element.getAttribute("aria-label"),
           element.getAttribute("name"),
           element.getAttribute("id"),
-          scope.textContent,
+          scoped?.text ?? scope.textContent,
         ].filter(Boolean).join(" ");
         return helpers.visible(scope) && commitmentPattern.test(text);
       });
@@ -2158,17 +2189,19 @@ export async function ensureVietnamApplicationDeclarationChecked(page: Page): Pr
 }
 
 export async function ensureVietnamFinalCommitmentChecked(page: Page): Promise<boolean> {
-  const wrappers = page.locator(".ant-checkbox-wrapper, label");
-  const count = await wrappers.count().catch(() => 0);
+  const candidates = page.locator("input[type='checkbox'], [role='checkbox']");
+  const count = await candidates.count().catch(() => 0);
   for (let index = 0; index < count; index += 1) {
-    const wrapper = wrappers.nth(index);
-    const checkbox = wrapper.locator("input[type='checkbox']").first();
+    const candidate = candidates.nth(index);
+    const isNativeCheckbox = await candidate
+      .evaluate((element) => element instanceof HTMLInputElement && element.type === "checkbox")
+      .catch(() => false);
+    const checkbox = isNativeCheckbox
+      ? candidate
+      : candidate.locator("input[type='checkbox']").first();
     if ((await checkbox.count().catch(() => 0)) === 0) continue;
     if (await checkbox.getAttribute("id") === VN_APPLICATION_DECLARATION_ID) continue;
-    const contextText = [
-      await wrapper.innerText().catch(() => ""),
-      await readCheckboxContextText(checkbox),
-    ].join(" ").replace(/\s+/g, " ").trim();
+    const contextText = await readCheckboxContextText(checkbox);
     if (
       isForbiddenVietnamAutoCheckboxText(contextText) ||
       !VN_FINAL_COMMITMENT_TEXT.test(contextText)
@@ -2176,11 +2209,11 @@ export async function ensureVietnamFinalCommitmentChecked(page: Page): Promise<b
       continue;
     }
 
-    await wrapper.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
+    await candidate.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
     if (await checkbox.isChecked().catch(() => false)) return true;
     await checkbox.check({ force: true, timeout: 5_000 }).catch(() => undefined);
     if (await checkbox.isChecked().catch(() => false)) return true;
-    await wrapper.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+    await candidate.click({ force: true, timeout: 5_000 }).catch(() => undefined);
     if (await checkbox.isChecked().catch(() => false)) return true;
   }
   return false;
