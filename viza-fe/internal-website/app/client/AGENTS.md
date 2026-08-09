@@ -13,7 +13,10 @@ applicant info, and help pages.
 
 - `layout.tsx`: client shell, nav, session validation, and impersonation
   mismatch handling. Client session checks must not create onboarding records
-  or redirect applicants away from their requested route.
+  or redirect applicants away from their requested route. The shell mounts
+  `_components/alias-forwarding-consent-gate.tsx` after a valid session so
+  applicants can explicitly authorize alias-email forwarding before protected
+  submission flows use it.
 - `about-me-form/`: compatibility redirect for retired health-questionnaire
   links. It may return only to a safe internal `/client/*` route and must never
   render or reintroduce the old Profile/Habits/Diet/Recovery questionnaire.

@@ -141,6 +141,11 @@ The current internal automation migrations are:
   matching the official portal's strict date-order validation.
 - `0121_ds160_consular_post.sql`: adds the required CEAC China issuing-post
   selector to the DS-160 form using the live official location codes.
+- `0125_backfill_account_alias_forwarding_consent.sql`: promotes accepted
+  application-alias forwarding consent into the canonical consent event used
+  by queue and email-worker authorization checks.
+- `0126_sgac_country_runner_retry.sql`: adds the SGAC country-runner retry RPC
+  and compatibility mapping for queued runner jobs.
 - `0127_runner_pool.sql`: adds typed six-country `runner_job` scheduling,
   service-role-only atomic enqueue/claim RPCs, country concurrency caps, ten
   logical Machine lease slots, sticky-service priority, scheduled availability,
