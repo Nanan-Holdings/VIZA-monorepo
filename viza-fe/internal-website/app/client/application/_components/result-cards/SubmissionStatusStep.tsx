@@ -1478,12 +1478,15 @@ export function SubmissionStatusStep({
         }
         const now = new Date().toISOString();
         const retryQueueId = typeof body?.queueId === "string" ? body.queueId : "";
+        const retryPaymentProgress = isVietnamEVisaApplication(retryCountry, retryVisaType)
+          ? 82
+          : 90;
         setLocalRetryActive(true);
         setActiveRetryQueueId(retryQueueId || null);
         setSnapshot({
           status: "queued",
-          stage: "preparing",
-          progress: fallbackProgressForStatus("queued", retryCountry, retryVisaType),
+          stage: "payment_handoff",
+          progress: retryPaymentProgress,
           message: isZh ? "银行卡已安全送入云端，正在启动自动付款。" : "The card was sent securely to the cloud; automated payment is starting.",
           result: null,
           error: null,
@@ -1866,12 +1869,17 @@ export function SubmissionStatusStep({
       isVietnamEVisaApplication(country, visaType) ||
       isIndonesiaEVisaApplication(country, visaType) ||
       initialResultTargetsIndonesia;
+    const paymentRetryProgress = isVietnamEVisaApplication(country, visaType) ? 82 : 90;
     return (
       <div className="space-y-4">
         <WaitingCard
           status="queued"
-          stage="preparing"
-          serverProgress={fallbackProgressForStatus("queued", country, visaType)}
+          stage={isPaymentCardRetry ? "payment_handoff" : "preparing"}
+          serverProgress={
+            isPaymentCardRetry
+              ? Math.max(effectiveProgress, paymentRetryProgress)
+              : fallbackProgressForStatus("queued", country, visaType)
+          }
           message={
             isPaymentCardRetry
               ? isZh
@@ -2170,7 +2178,16 @@ function renderSubmissionResultCard(
   result: SubmissionResult | null,
   jobId: string | null = null,
 ) {
-  if (!result) return <WaitingCard status="running" />;
+  if (!result) {
+    return (
+      <WaitingCard
+        status="running"
+        applicationId={applicationId}
+        country={country}
+        visaType={visaType}
+      />
+    );
+  }
 
   if (
     result.country === "GENERIC" &&
@@ -2270,7 +2287,12 @@ function renderSubmissionResultCard(
           result={result}
         />
       ) : (
-        <WaitingCard status="running" />
+        <WaitingCard
+          status="running"
+          applicationId={applicationId}
+          country={country}
+          visaType={visaType}
+        />
       );
     case "AE":
     case "CA":
@@ -2285,9 +2307,21 @@ function renderSubmissionResultCard(
           result={result}
         />
       ) : (
-        <WaitingCard status="running" />
+        <WaitingCard
+          status="running"
+          applicationId={applicationId}
+          country={country}
+          visaType={visaType}
+        />
       );
     default:
-      return <WaitingCard status="running" />;
+      return (
+        <WaitingCard
+          status="running"
+          applicationId={applicationId}
+          country={country}
+          visaType={visaType}
+        />
+      );
   }
 }

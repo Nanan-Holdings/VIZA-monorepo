@@ -21,6 +21,7 @@ import {
 } from "@/lib/universal-profile-fields";
 import { getChineseLabel, getEnglishLabel } from "@/lib/ds160-translations";
 import { normalizeBilingualFormField } from "@/lib/bilingual-schema-contract";
+import { retryTransientSupabaseResult } from "@/lib/supabase/fetch-with-timeout";
 import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/types/visa-form-fields";
 
 type ApplicationOwnerProfile = {
@@ -497,7 +498,7 @@ async function seedNewApplicationFromUniversalProfile(
  * Save dynamic form answers for a visa application.
  * Uses admin client to bypass RLS on visa_application_answers.
  */
-export async function saveDynamicAnswers(
+async function saveDynamicAnswersOnce(
   applicationId: string,
   data: Record<string, unknown>
 ): Promise<{ error?: string }> {
@@ -579,6 +580,16 @@ export async function saveDynamicAnswers(
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to save" };
   }
+}
+
+export async function saveDynamicAnswers(
+  applicationId: string,
+  data: Record<string, unknown>
+): Promise<{ error?: string }> {
+  // This save is idempotent: blank values are deleted and non-blank values are
+  // upserted on (application_id, field_name). A bounded retry is therefore safe
+  // when PostgREST briefly cannot build its schema cache during autosave.
+  return retryTransientSupabaseResult(() => saveDynamicAnswersOnce(applicationId, data));
 }
 
 /**

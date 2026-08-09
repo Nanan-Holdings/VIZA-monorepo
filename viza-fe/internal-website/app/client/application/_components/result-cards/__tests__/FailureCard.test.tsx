@@ -444,7 +444,9 @@ describe("VnResultCard automated payment UI", () => {
 
     expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
-    expect(screen.getByText("正在安全发送银行卡并启动 Fly 云端任务。")).toBeInTheDocument();
+    expect(
+      screen.getByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
   });
 
@@ -545,5 +547,30 @@ describe("VnResultCard automated payment UI", () => {
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
     expect(screen.getByText("Fly 云端正在填写越南 e-Visa 官网表单。")).toBeInTheDocument();
     expect(screen.getAllByText("正在填写官网表单").length).toBeGreaterThan(0);
+  });
+
+  it("keeps the payment handoff stage when an authorized Fly queue starts its worker", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        paymentQueued: true,
+        queueId: "queue-id",
+        paymentQueue: {
+          id: "queue-id",
+          status: "vn_live_assisted_processing",
+          current_stage: "starting",
+          payment_status: "authorized",
+        },
+      }),
+    }));
+
+    render(<VnResultCard applicationId="app-vn-authorized" result={paymentResult} />);
+
+    await screen.findByText("正在提交您的申请");
+    expect(
+      screen.getByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("正在等待检查点或结果").length).toBeGreaterThan(0);
   });
 });
