@@ -510,7 +510,7 @@
         "reviewFailed": "暂时无法检查答案或打开最终审核页面，请重试。"
       },
       "actions": {
-        "checkAnswers": "检查我的答案",
+        "checkAnswers": "审核答案",
         "checkAgain": "再次检查",
         "checking": "正在检查答案...",
         "acknowledgeWarnings": "保留这些答案并继续",
