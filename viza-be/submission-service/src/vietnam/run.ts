@@ -188,6 +188,7 @@ export interface VietnamDiagnostics {
   portalAttempt?: number;
   proxiedPublicRequestCount?: number;
   publicProxyFailures?: string[];
+  reviewBlockers?: VietnamReviewBlockerDiagnostics;
 }
 
 const VN_LANDING_URL = process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/";
@@ -200,20 +201,27 @@ export async function fillVietnamApplication(
   options: FillVietnamOptions = {},
 ): Promise<FillVietnamResult> {
   if (!options.stopAtFirstCheckpoint) {
-    const validityErrors = validateVietnamPortalValidityRange(input.answers);
-    if (validityErrors.length > 0) {
+    const preflightErrors: VietnamPortalValidationError[] = [
+      ...validateVietnamPortalValidityRange(input.answers),
+      ...validateVietnamConditionalAnswers(input.answers).map((error) => ({
+        label: error.fieldName,
+        domId: VN_FIELD_MAPPINGS[error.fieldName]?.domId,
+        message: error.message,
+      })),
+    ];
+    if (preflightErrors.length > 0) {
       return {
         status: "scaffolded_pending_walk",
         runId: options.runId,
         errorCode: "form_validation_failed",
-        reason: `Official Vietnam e-Visa portal fill blocked submission: ${validityErrors
+        reason: `Official Vietnam e-Visa portal fill blocked submission: ${preflightErrors
           .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
           .join("; ")}`,
         url: options.officialBaseUrl ?? VN_LANDING_URL,
         diagnostics: {
           consoleErrors: [],
           failedRequests: [],
-          validationErrors: validityErrors,
+          validationErrors: preflightErrors,
         },
       };
     }
@@ -300,6 +308,7 @@ async function fillVietnamApplicationOnce(
   const publicProxyFailures: string[] = [];
   let mainRequestFailed = false;
   let lastSnapshot: VietnamPortalSnapshot | undefined;
+  let reviewBlockers: VietnamReviewBlockerDiagnostics | undefined;
 
   const diagnostics = (): VietnamDiagnostics => ({
     consoleErrors: consoleErrors.slice(-20),
@@ -314,6 +323,7 @@ async function fillVietnamApplicationOnce(
     portalAttempt: options.portalAttempt ?? 1,
     proxiedPublicRequestCount,
     publicProxyFailures: publicProxyFailures.slice(-10),
+    reviewBlockers,
   });
   const emitProgress = async (stage: VietnamProgressStage): Promise<void> => {
     await options.onProgress?.(stage);
@@ -507,6 +517,7 @@ async function fillVietnamApplicationOnce(
     // pre-pay review screen. Never click anything matching VN_STOP_BUTTON_PATTERNS.
     await emitProgress("advancing_to_review");
     const reviewAdvance = await advanceVietnamToReview(page, stepTimeoutMs);
+    reviewBlockers = reviewAdvance.blockers;
     lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
     const reviewState = classifyVietnamPortalSnapshot(lastSnapshot);
     let stateAfterCaptcha = reviewState;
@@ -1945,6 +1956,7 @@ interface VietnamReviewAdvanceResult {
   advanced: boolean;
   clickedLabel: string | null;
   failureReason: "disabled" | "not_found" | "no_transition" | null;
+  blockers?: VietnamReviewBlockerDiagnostics;
 }
 
 const VN_REVIEW_ACTION_SELECTOR =
@@ -1956,7 +1968,7 @@ const VN_APPLICATION_DECLARATION_TEXT =
 const VN_FINAL_COMMITMENT_TEXT =
   /i hereby declare that the above statements are true|fully responsible before the vietnamese laws|tôi\s+(?:xin\s+)?cam\s+đoan[^.]{0,240}(?:thông tin|nội dung)[^.]{0,240}(?:đúng|chính xác)/i;
 
-interface VietnamReviewBlockerDiagnostics {
+export interface VietnamReviewBlockerDiagnostics {
   requiredUnfilled: string[];
   invalidControls: string[];
   validationMessages: Array<{ label: string; message: string; domId?: string }>;
@@ -1979,18 +1991,21 @@ async function readVietnamReviewBlockerDiagnostics(
     .evaluate(({ declarationId, declarationPattern, finalCommitmentPattern }) => {
       const pattern = new RegExp(declarationPattern, "i");
       const commitmentPattern = new RegExp(finalCommitmentPattern, "i");
-      const identifier = (element: Element) =>
-        (
-          element.getAttribute("id") ||
-          element.getAttribute("name") ||
-          element.getAttribute("aria-label") ||
-          element.getAttribute("placeholder") ||
-          element.tagName.toLowerCase()
-        ).replace(/\s+/g, " ").trim().slice(0, 120);
-      const visible = (element: Element) => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      const helpers = {
+        identifier(element: Element) {
+          return (
+            element.getAttribute("id") ||
+            element.getAttribute("name") ||
+            element.getAttribute("aria-label") ||
+            element.getAttribute("placeholder") ||
+            element.tagName.toLowerCase()
+          ).replace(/\s+/g, " ").trim().slice(0, 120);
+        },
+        visible(element: Element) {
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+        },
       };
       const requiredUnfilled = Array.from(
         document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
@@ -1998,6 +2013,7 @@ async function readVietnamReviewBlockerDiagnostics(
         ),
       )
         .filter((control) => {
+          if (!helpers.visible(control) || control.disabled) return false;
           if (control instanceof HTMLInputElement && control.type === "checkbox") return !control.checked;
           if (control instanceof HTMLInputElement && control.type === "radio") {
             const name = control.name;
@@ -2007,13 +2023,13 @@ async function readVietnamReviewBlockerDiagnostics(
           }
           return !(control as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value?.trim();
         })
-        .map(identifier)
+        .map((element) => helpers.identifier(element))
         .filter(Boolean)
         .slice(0, 20);
       const invalidControls = Array.from(
         document.querySelectorAll<HTMLElement>("[aria-invalid='true'], .ant-form-item-has-error input, .ant-form-item-has-error textarea, .ant-form-item-has-error select"),
       )
-        .map(identifier)
+        .map((element) => helpers.identifier(element))
         .filter(Boolean)
         .slice(0, 20);
       const declarationCandidates = Array.from(
@@ -2030,7 +2046,7 @@ async function readVietnamReviewBlockerDiagnostics(
           element.getAttribute("id"),
           scope.textContent,
         ].filter(Boolean).join(" ");
-        return visible(scope) && pattern.test(text);
+        return helpers.visible(scope) && pattern.test(text);
       });
       const declarationInput = declaration instanceof HTMLInputElement
         ? declaration
@@ -2050,7 +2066,7 @@ async function readVietnamReviewBlockerDiagnostics(
           element.getAttribute("id"),
           scope.textContent,
         ].filter(Boolean).join(" ");
-        return visible(scope) && commitmentPattern.test(text);
+        return helpers.visible(scope) && commitmentPattern.test(text);
       });
       const finalCommitmentInput = finalCommitment instanceof HTMLInputElement
         ? finalCommitment
@@ -2068,12 +2084,12 @@ async function readVietnamReviewBlockerDiagnostics(
         declaration: {
           found: Boolean(declaration),
           checked: declarationChecked,
-          identifier: declaration ? identifier(declaration) : null,
+          identifier: declaration ? helpers.identifier(declaration) : null,
         },
         finalCommitment: {
           found: Boolean(finalCommitment),
           checked: finalCommitmentChecked,
-          identifier: finalCommitment ? identifier(finalCommitment) : null,
+          identifier: finalCommitment ? helpers.identifier(finalCommitment) : null,
         },
       };
     }, {
@@ -2081,12 +2097,17 @@ async function readVietnamReviewBlockerDiagnostics(
       declarationPattern: VN_APPLICATION_DECLARATION_TEXT.source,
       finalCommitmentPattern: VN_FINAL_COMMITMENT_TEXT.source,
     })
-    .catch(() => ({
-      requiredUnfilled: [] as string[],
-      invalidControls: [] as string[],
-      declaration: { found: false, checked: false, identifier: null as string | null },
-      finalCommitment: { found: false, checked: false, identifier: null as string | null },
-    }));
+    .catch((error) => {
+      console.warn(
+        `[vn] Unable to inspect review blockers: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return {
+        requiredUnfilled: [] as string[],
+        invalidControls: [] as string[],
+        declaration: { found: false, checked: false, identifier: null as string | null },
+        finalCommitment: { found: false, checked: false, identifier: null as string | null },
+      };
+    });
   const validationMessages = await readVietnamValidationErrors(page).catch(() => []);
   return {
     ...domDiagnostics,
@@ -2185,7 +2206,8 @@ export async function collectVietnamReviewActionCandidates(
       ).replace(/\s+/g, " ").trim();
       const disabled =
         ("disabled" in element && Boolean((element as HTMLButtonElement | HTMLInputElement).disabled)) ||
-        element.getAttribute("aria-disabled") === "true";
+        element.getAttribute("aria-disabled") === "true" ||
+        element.classList.contains("ant-btn-disabled");
       rows.push({
         domIndex,
         label,
@@ -2256,6 +2278,7 @@ export async function advanceVietnamToReview(
       advanced: false,
       clickedLabel: null,
       failureReason: disabledCandidate ? "disabled" : "not_found",
+      blockers,
     };
   }
 

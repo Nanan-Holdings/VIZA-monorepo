@@ -91,6 +91,8 @@ test("vn.step-fill: invalid validity range is rejected before browser launch", a
       answers: {
         visa_valid_from: "2099-06-22",
         visa_valid_to: "2099-06-22",
+        expense_coverage: "personal",
+        expense_payment_method: "credit_card",
       },
     },
     {
@@ -104,6 +106,23 @@ test("vn.step-fill: invalid validity range is rejected before browser launch", a
     /valid from must be before.*valid to must be after/i,
   );
   assert.equal(result.diagnostics?.validationErrors?.length, 2);
+});
+
+test("vn.step-fill: missing trip-expense answers are rejected before browser launch", async () => {
+  const result = await fillVietnamApplication(
+    { answers: {} },
+    { officialBaseUrl: "https://example.invalid/" },
+  );
+
+  assert.equal(result.status, "scaffolded_pending_walk");
+  assert.match(
+    result.status === "scaffolded_pending_walk" ? result.reason : "",
+    /expense_coverage.*who will cover/i,
+  );
+  assert.deepEqual(
+    result.diagnostics?.validationErrors?.map((error) => error.label),
+    ["expense_coverage"],
+  );
 });
 
 test("vn.step-fill: uploads and unanswered fields are excluded", () => {

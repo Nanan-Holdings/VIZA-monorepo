@@ -426,7 +426,7 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   // 8. Trip's Expenses, Insurance
   intended_expenses_usd: { domId: "basic_kpbhDuTinh", type: "text", section: "8. TRIP'S EXPENSES, INSURANCE", required: false },
   bought_travel_insurance: { domId: "basic_kpbhMuaBaoHiem", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false, optionLabels: YES_NO_LABELS },
-  expense_coverage: { domId: "basic_kpbhNguoiDamBao", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false, optionLabels: EXPENSE_COVERAGE_LABELS },
+  expense_coverage: { domId: "basic_kpbhNguoiDamBao", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: true, optionLabels: EXPENSE_COVERAGE_LABELS },
   expense_payment_method: { domId: "basic_kpbhHinhThuc", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: true, optionLabels: EXPENSE_PAYMENT_METHOD_LABELS },
 };
 
