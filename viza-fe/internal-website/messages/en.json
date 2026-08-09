@@ -506,7 +506,8 @@
         "fileTooLarge": "This recording is larger than the 10 MB limit. Please record a shorter answer.",
         "emptyTranscript": "No words were detected. Please try again or type your answer.",
         "transcriptionFailed": "The recording could not be transcribed. Please try again or type your answer.",
-        "sendFailed": "Your message was not sent. Your text has been kept so you can try again."
+        "sendFailed": "Your message was not sent. Your text has been kept so you can try again.",
+        "reviewFailed": "We couldn't check your answers or open final review. Please try again."
       },
       "actions": {
         "checkAnswers": "Check my answers",

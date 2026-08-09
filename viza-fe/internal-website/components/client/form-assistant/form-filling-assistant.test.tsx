@@ -200,7 +200,7 @@ describe("FormFillingAssistant", () => {
     expect(props.onDismissFillNotice).toHaveBeenCalledExactlyOnceWith("notice-2");
   });
 
-  it("offers one-click final review only after required fields are complete", () => {
+  it("offers one-click final review only after required fields are complete", async () => {
     const { props, rerender } = renderAssistant({ missingFields: [] });
     const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
 
@@ -208,6 +208,7 @@ describe("FormFillingAssistant", () => {
     fireEvent.click(within(conversation).getByRole("button", { name: "Go to final review" }));
     expect(props.onValidateAndGoToReview).toHaveBeenCalledOnce();
     expect(props.onGoToReview).not.toHaveBeenCalled();
+    await waitFor(() => expect(within(conversation).getByRole("button", { name: "Go to final review" })).toBeEnabled());
 
     rerender(
       <NextIntlClientProvider locale="en" messages={messages}>
@@ -221,9 +222,42 @@ describe("FormFillingAssistant", () => {
     expect(within(conversation).getByTestId("form-assistant-review-action")).toBeInTheDocument();
     fireEvent.click(within(conversation).getByRole("button", { name: "Go to final review" }));
     expect(props.onGoToReview).toHaveBeenCalledOnce();
+    await waitFor(() => expect(within(conversation).getByRole("button", { name: "Go to final review" })).toBeEnabled());
   });
 
-  it("keeps warning acknowledgement in the conversation before final review", () => {
+  it("shows a retryable error when the final-review action fails", async () => {
+    const onValidateAndGoToReview = vi.fn().mockRejectedValue(new Error("network failed"));
+    renderAssistant({
+      missingFields: [],
+      onValidateAndGoToReview,
+    });
+    const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
+
+    fireEvent.click(within(conversation).getByRole("button", { name: "Go to final review" }));
+
+    expect(await within(conversation).findByRole("alert")).toHaveTextContent(
+      "We couldn't check your answers or open final review. Please try again.",
+    );
+    fireEvent.click(within(conversation).getByRole("button", { name: "Go to final review" }));
+    await waitFor(() => expect(onValidateAndGoToReview).toHaveBeenCalledTimes(2));
+  });
+
+  it("shows validation failures beside the final-review action", () => {
+    renderAssistant({
+      missingFields: [],
+      validationResult: {
+        errors: [{ id: "invalid-option", message: "Nationality must use an official option." }],
+        warnings: [],
+      },
+    });
+    const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
+
+    expect(within(conversation).getByText("Answer check")).toBeInTheDocument();
+    expect(within(conversation).getByText("Nationality must use an official option.")).toBeInTheDocument();
+    expect(within(conversation).getByRole("button", { name: "Go to final review" })).toBeInTheDocument();
+  });
+
+  it("keeps warning acknowledgement in the conversation before final review", async () => {
     const { props } = renderAssistant({
       missingFields: [],
       validationResult: {
@@ -238,6 +272,7 @@ describe("FormFillingAssistant", () => {
     expect(props.onAcknowledgeWarnings).toHaveBeenCalledOnce();
     expect(props.onValidateAndGoToReview).not.toHaveBeenCalled();
     expect(props.onGoToReview).not.toHaveBeenCalled();
+    await waitFor(() => expect(within(conversation).getByRole("button", { name: "Keep these answers and continue" })).toBeEnabled());
   });
 
   it("sends only explicit text submissions", () => {

@@ -506,7 +506,8 @@
         "fileTooLarge": "录音超过 10 MB 限制，请录制更短的答案。",
         "emptyTranscript": "没有识别到文字，请重试或输入答案。",
         "transcriptionFailed": "录音转写失败，请重试或输入答案。",
-        "sendFailed": "消息未发送，输入内容已保留，请重试。"
+        "sendFailed": "消息未发送，输入内容已保留，请重试。",
+        "reviewFailed": "暂时无法检查答案或打开最终审核页面，请重试。"
       },
       "actions": {
         "checkAnswers": "检查我的答案",
