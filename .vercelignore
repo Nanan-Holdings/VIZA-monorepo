@@ -1,7 +1,6 @@
-# The viza-internal Vercel project has viza-fe/internal-website as its Root
-# Directory, but CLI deploys must still start at the monorepo root. Exclude
-# local credentials, browser profiles, audit output, and the other applications
-# from the deployment archive.
+# The Vercel projects select their own Root Directory under viza-fe. Keep both
+# deployable frontend roots in the Git archive; exclude only non-Vercel apps,
+# local credentials, browser profiles, and audit output here.
 /.agents
 /.claude
 /.codex
@@ -22,7 +21,6 @@
 /travel-agent
 /vietnam-visa-helper-v1
 /viza-be
-/viza-fe/marketing-website
 
 *.log
 /output-*.png
