@@ -58,6 +58,9 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
   returns a retryable `503` response when its database dependency times out so
   the client can keep polling without losing the durable submission state.
+- `viza-fe/internal-website/app/api/applications/[id]/submission-status/payment-country.ts`
+  keeps Vietnam and Indonesia payment checkpoints country-scoped before a
+  temporary customer-facing result is synthesized.
 - `viza-fe/internal-website/app/api/applications/[id]/kr-annex17-pdf/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/korea-official-eform/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/korea-appointment/route.ts`

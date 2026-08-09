@@ -4,6 +4,7 @@ import {
   deriveSubmissionStatus,
   selectQueueForSubmissionStatus,
 } from "./route";
+import { isIndonesiaPaymentApplication } from "./payment-country";
 
 const ukStoppedAtPayResult = {
   country: "UK",
@@ -11,6 +12,18 @@ const ukStoppedAtPayResult = {
   portalUrl: "https://visas-immigration.service.gov.uk/next-steps",
   portalUsername: "appl-mr3f3iva@haggstorm.com",
 };
+
+describe("isIndonesiaPaymentApplication", () => {
+  it("does not classify a Vietnam payment checkpoint as Indonesia", () => {
+    expect(isIndonesiaPaymentApplication("vietnam", "VN_E_VISA")).toBe(false);
+    expect(isIndonesiaPaymentApplication("VN", "evisa_tourism")).toBe(false);
+  });
+
+  it("recognizes Indonesia country and visa identifiers", () => {
+    expect(isIndonesiaPaymentApplication("indonesia", "ID_C1_TOURIST")).toBe(true);
+    expect(isIndonesiaPaymentApplication(null, "ID_B1_EVOA")).toBe(true);
+  });
+});
 
 describe("deriveNonTerminalStatus", () => {
   it("marks stale pending live submission rows stalled when the worker has not picked them up", () => {
