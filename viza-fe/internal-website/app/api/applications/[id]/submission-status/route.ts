@@ -7,6 +7,7 @@ import {
   ukPrefillProgressPercent,
 } from "@/lib/submission-queue";
 import { getClientSessionFromRequest } from "@/lib/client-session";
+import { isIndonesiaPaymentApplication } from "./payment-country";
 
 export const dynamic = "force-dynamic";
 
@@ -132,8 +133,12 @@ function isVietnamPaymentCheckpointQueue(queue: QueueRow | null): boolean {
   return checkpoint === "payment_page_visible" || actionType === "payment_required";
 }
 
-function isIndonesiaPaymentCheckpointQueue(queue: QueueRow | null): boolean {
+function isIndonesiaPaymentCheckpointQueue(
+  queue: QueueRow | null,
+  application: ApplicationForStatus,
+): boolean {
   if (!queue) return false;
+  if (!isIndonesiaPaymentApplication(application.country, application.visa_type)) return false;
   const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
   const queueStatus = normalizeStatus(queue.status);
   const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
@@ -207,7 +212,7 @@ function extractFieldFallbacks(payload: unknown): unknown[] {
 
 function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationForStatus): unknown | null {
   const queueStatus = normalizeStatus(queue?.status);
-  const isIndonesiaPayment = isIndonesiaPaymentCheckpointQueue(queue);
+  const isIndonesiaPayment = isIndonesiaPaymentCheckpointQueue(queue, application);
   if (
     !queue ||
     !(
@@ -632,7 +637,7 @@ export function deriveNonTerminalStatus(
     };
   }
 
-  if (isIndonesiaPaymentCheckpointQueue(queue)) {
+  if (isIndonesiaPaymentCheckpointQueue(queue, application)) {
     return {
       status: "needs_user_action",
       stage: "payment_handoff",
