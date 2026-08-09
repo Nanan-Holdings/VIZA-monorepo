@@ -7,7 +7,11 @@ import {
   ukPrefillProgressPercent,
 } from "@/lib/submission-queue";
 import { getClientSessionFromRequest } from "@/lib/client-session";
-import { isIndonesiaPaymentApplication } from "./payment-country";
+import {
+  isIndonesiaPaymentApplication,
+  isVietnamPaymentCheckpointState,
+  resolveVietnamSubmissionActionType,
+} from "./payment-country";
 
 export const dynamic = "force-dynamic";
 
@@ -124,13 +128,17 @@ function readPayloadString(payload: Record<string, unknown>, key: string): strin
 
 function isVietnamPaymentCheckpointQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
-  const queueStatus = normalizeStatus(queue.status);
-  const provider = normalizeStatus(queue.provider);
-  if (queueStatus.startsWith("id_") || provider.startsWith("indonesia_")) return false;
   const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
-  const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
-  const actionType = readPayloadString(payload, "actionType");
-  return checkpoint === "payment_page_visible" || actionType === "payment_required";
+  return isVietnamPaymentCheckpointState({
+    status: queue.status,
+    provider: queue.provider,
+    errorCode: queue.error_code,
+    currentStage: queue.current_stage,
+    officialStatus: queue.official_status,
+    payloadCheckpoint: readPayloadString(payload, "checkpoint"),
+    payloadActionType: readPayloadString(payload, "actionType"),
+    payloadStatus: readPayloadString(payload, "status"),
+  });
 }
 
 function isIndonesiaPaymentCheckpointQueue(
@@ -212,24 +220,24 @@ function extractFieldFallbacks(payload: unknown): unknown[] {
 
 function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationForStatus): unknown | null {
   const queueStatus = normalizeStatus(queue?.status);
+  const isVietnamPayment = isVietnamPaymentCheckpointQueue(queue);
   const isIndonesiaPayment = isIndonesiaPaymentCheckpointQueue(queue, application);
   if (
     !queue ||
     !(
       queueStatus === "vn_blocked" ||
-      isVietnamPaymentCheckpointQueue(queue) ||
+      isVietnamPayment ||
       isIndonesiaPayment
     )
   ) {
     return null;
   }
   const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
-  const actionType =
-    typeof payload.actionType === "string" && payload.actionType.trim()
-      ? payload.actionType.trim()
-      : isVietnamPaymentCheckpointQueue(queue) || isIndonesiaPayment
-        ? "payment_required"
-        : "captcha_required";
+  const payloadActionType =
+    typeof payload.actionType === "string" ? payload.actionType : null;
+  const actionType = isVietnamPayment
+    ? resolveVietnamSubmissionActionType(true, payloadActionType)
+    : payloadActionType?.trim() || (isIndonesiaPayment ? "payment_required" : "captcha_required");
   const instruction =
     typeof payload.instruction === "string" && payload.instruction.trim()
       ? payload.instruction.trim()
@@ -244,7 +252,7 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
         : queue.current_stage ??
           (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
   const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
-  const instructionText = isVietnamPaymentCheckpointQueue(queue)
+  const instructionText = isVietnamPayment
     ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
     : isIndonesiaPayment
       ? checkpoint === "user_payment_required"
