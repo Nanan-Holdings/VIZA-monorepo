@@ -147,6 +147,8 @@ function isVietnamPaymentCheckpointQueue(queue: QueueRow | null): boolean {
     errorCode: queue.error_code,
     currentStage: queue.current_stage,
     officialStatus: queue.official_status,
+    paymentStatus:
+      typeof queue.payment_status === "string" ? queue.payment_status : null,
     payloadCheckpoint: readPayloadString(payload, "checkpoint"),
     payloadActionType: readPayloadString(payload, "actionType"),
     payloadStatus: readPayloadString(payload, "status"),
