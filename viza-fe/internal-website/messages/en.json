@@ -510,7 +510,7 @@
         "reviewFailed": "We couldn't check your answers or open final review. Please try again."
       },
       "actions": {
-        "checkAnswers": "Check my answers",
+        "checkAnswers": "Review answers",
         "checkAgain": "Check again",
         "checking": "Checking answers...",
         "acknowledgeWarnings": "Keep these answers and continue",
