@@ -97,6 +97,7 @@ describe("isVietnamPaymentCheckpointState", () => {
     { errorCode: "manual_payment_required" },
     { currentStage: "official_fee_manual_review" },
     { officialStatus: "registration_code_captured_payment_pending" },
+    { paymentStatus: "manual_review" },
     { payloadStatus: "payment_manual_review" },
   ])("recognizes the Vietnam payment signal $errorCode$currentStage$officialStatus$payloadStatus", (signals) => {
     expect(
