@@ -2918,12 +2918,6 @@ export default function ApplicationPage() {
     navigateFormAssistantToReview();
   }, [formAssistantValidation?.canReview, navigateFormAssistantToReview]);
 
-  const handleFormAssistantValidateAndGoToReview = useCallback(async () => {
-    const validation = await handleFormAssistantValidate();
-    if (!validation.canReview) return;
-    navigateFormAssistantToReview();
-  }, [handleFormAssistantValidate, navigateFormAssistantToReview]);
-
   useEffect(() => {
     if (!useDynamic || loading || draftVersion === 0) return;
 
@@ -3991,7 +3985,7 @@ export default function ApplicationPage() {
               } : null}
               onSend={handleFormAssistantSend}
               onTranscribe={handleFormAssistantTranscribe}
-              onValidateAndGoToReview={handleFormAssistantValidateAndGoToReview}
+              onValidate={handleFormAssistantValidate}
               onAcknowledgeWarnings={handleFormAssistantAcknowledgeWarnings}
               onUndoFill={handleFormAssistantUndoFill}
               onDismissFillNotice={handleDismissFormAssistantFillNotice}

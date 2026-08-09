@@ -80,7 +80,7 @@ export interface FormFillingAssistantProps {
   onAcknowledgeWarnings: () => void | Promise<void>;
   onUndoFill: (items: FormAssistantFillNoticeItem[]) => void | Promise<void>;
   onDismissFillNotice: (noticeId: string) => void;
-  onValidateAndGoToReview: () => void | Promise<void>;
+  onValidate: () => unknown | Promise<unknown>;
   onGoToReview: () => void | Promise<void>;
   className?: string;
 }
@@ -127,7 +127,7 @@ export function FormFillingAssistant({
   onAcknowledgeWarnings,
   onUndoFill,
   onDismissFillNotice,
-  onValidateAndGoToReview,
+  onValidate,
   onGoToReview,
   className,
 }: FormFillingAssistantProps) {
@@ -430,7 +430,7 @@ export function FormFillingAssistant({
       } else if (canGoToReview) {
         await onGoToReview();
       } else {
-        await onValidateAndGoToReview();
+        await onValidate();
       }
     } catch {
       if (mountedRef.current) setReviewActionError(t("errors.reviewFailed"));
@@ -443,7 +443,7 @@ export function FormFillingAssistant({
     loading,
     onAcknowledgeWarnings,
     onGoToReview,
-    onValidateAndGoToReview,
+    onValidate,
     reviewActionPending,
     t,
     validationResult?.warningsAcknowledged,
@@ -590,7 +590,11 @@ export function FormFillingAssistant({
                     loading={reviewActionPending}
                     loadingText={t("actions.checking")}
                   >
-                    {t("actions.goToFinalReview")}
+                    {canGoToReview
+                      ? t("actions.goToFinalReview")
+                      : validationResult
+                        ? t("actions.checkAgain")
+                        : t("actions.checkAnswers")}
                   </BrandActionButton>
                 )}
               </div>

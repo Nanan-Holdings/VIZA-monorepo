@@ -2,12 +2,16 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../messages/en.json";
+import zhMessages from "../../../messages/zh.json";
 import {
   FormFillingAssistant,
   type FormFillingAssistantProps,
 } from "./form-filling-assistant";
 
-function renderAssistant(overrides: Partial<FormFillingAssistantProps> = {}) {
+function renderAssistant(
+  overrides: Partial<FormFillingAssistantProps> = {},
+  provider: { locale: string; messages: typeof messages } = { locale: "en", messages },
+) {
   const props: FormFillingAssistantProps = {
     applicationId: "application-id",
     locale: "en",
@@ -23,14 +27,14 @@ function renderAssistant(overrides: Partial<FormFillingAssistantProps> = {}) {
     onAcknowledgeWarnings: vi.fn(),
     onUndoFill: vi.fn(),
     onDismissFillNotice: vi.fn(),
-    onValidateAndGoToReview: vi.fn(),
+    onValidate: vi.fn(),
     onGoToReview: vi.fn(),
     ...overrides,
   };
 
   return {
     ...render(
-      <NextIntlClientProvider locale="en" messages={messages}>
+      <NextIntlClientProvider locale={provider.locale} messages={provider.messages}>
         <FormFillingAssistant {...props} />
       </NextIntlClientProvider>,
     ),
@@ -67,7 +71,7 @@ describe("FormFillingAssistant", () => {
     expect(screen.queryByText("given_name")).not.toBeInTheDocument();
     expect(screen.getByText("2 of 5 fields complete")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Passport number/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Check my answers" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Review answers" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Press Enter to send/)).not.toBeInTheDocument();
   });
 
@@ -80,7 +84,7 @@ describe("FormFillingAssistant", () => {
     });
 
     expect(screen.queryByRole("button", { name: "Checking answers..." })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Check my answers" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Review answers" })).not.toBeInTheDocument();
   });
 
   it("keeps the full conversation history available", () => {
@@ -200,15 +204,15 @@ describe("FormFillingAssistant", () => {
     expect(props.onDismissFillNotice).toHaveBeenCalledExactlyOnceWith("notice-2");
   });
 
-  it("offers one-click final review only after required fields are complete", async () => {
+  it("reviews answers before offering final review", async () => {
     const { props, rerender } = renderAssistant({ missingFields: [] });
     const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
 
     expect(within(conversation).getByTestId("form-assistant-review-action")).toBeInTheDocument();
-    fireEvent.click(within(conversation).getByRole("button", { name: "Go to final review" }));
-    expect(props.onValidateAndGoToReview).toHaveBeenCalledOnce();
+    fireEvent.click(within(conversation).getByRole("button", { name: "Review answers" }));
+    expect(props.onValidate).toHaveBeenCalledOnce();
     expect(props.onGoToReview).not.toHaveBeenCalled();
-    await waitFor(() => expect(within(conversation).getByRole("button", { name: "Go to final review" })).toBeEnabled());
+    await waitFor(() => expect(within(conversation).getByRole("button", { name: "Review answers" })).toBeEnabled());
 
     rerender(
       <NextIntlClientProvider locale="en" messages={messages}>
@@ -225,21 +229,31 @@ describe("FormFillingAssistant", () => {
     await waitFor(() => expect(within(conversation).getByRole("button", { name: "Go to final review" })).toBeEnabled());
   });
 
+  it("uses the Chinese two-stage review labels", () => {
+    renderAssistant(
+      { missingFields: [], locale: "zh", isZh: true },
+      { locale: "zh", messages: zhMessages },
+    );
+
+    expect(screen.getByRole("button", { name: "审核答案" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "进入最终审核页面" })).not.toBeInTheDocument();
+  });
+
   it("shows a retryable error when the final-review action fails", async () => {
-    const onValidateAndGoToReview = vi.fn().mockRejectedValue(new Error("network failed"));
+    const onValidate = vi.fn().mockRejectedValue(new Error("network failed"));
     renderAssistant({
       missingFields: [],
-      onValidateAndGoToReview,
+      onValidate,
     });
     const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
 
-    fireEvent.click(within(conversation).getByRole("button", { name: "Go to final review" }));
+    fireEvent.click(within(conversation).getByRole("button", { name: "Review answers" }));
 
     expect(await within(conversation).findByRole("alert")).toHaveTextContent(
       "We couldn't check your answers or open final review. Please try again.",
     );
-    fireEvent.click(within(conversation).getByRole("button", { name: "Go to final review" }));
-    await waitFor(() => expect(onValidateAndGoToReview).toHaveBeenCalledTimes(2));
+    fireEvent.click(within(conversation).getByRole("button", { name: "Review answers" }));
+    await waitFor(() => expect(onValidate).toHaveBeenCalledTimes(2));
   });
 
   it("shows validation failures beside the final-review action", () => {
@@ -254,7 +268,7 @@ describe("FormFillingAssistant", () => {
 
     expect(within(conversation).getByText("Answer check")).toBeInTheDocument();
     expect(within(conversation).getByText("Nationality must use an official option.")).toBeInTheDocument();
-    expect(within(conversation).getByRole("button", { name: "Go to final review" })).toBeInTheDocument();
+    expect(within(conversation).getByRole("button", { name: "Check again" })).toBeInTheDocument();
   });
 
   it("keeps warning acknowledgement in the conversation before final review", async () => {
@@ -270,7 +284,7 @@ describe("FormFillingAssistant", () => {
 
     fireEvent.click(within(conversation).getByRole("button", { name: "Keep these answers and continue" }));
     expect(props.onAcknowledgeWarnings).toHaveBeenCalledOnce();
-    expect(props.onValidateAndGoToReview).not.toHaveBeenCalled();
+    expect(props.onValidate).not.toHaveBeenCalled();
     expect(props.onGoToReview).not.toHaveBeenCalled();
     await waitFor(() => expect(within(conversation).getByRole("button", { name: "Keep these answers and continue" })).toBeEnabled());
   });
