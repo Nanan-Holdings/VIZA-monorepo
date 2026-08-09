@@ -12,7 +12,7 @@ import { schengenConfig } from "../schengen/config";
 import { vnConfig } from "../vn/config";
 import { auConfig } from "../au/config";
 import { egConfig } from "../eg/config";
-import { idConfig } from "../id/config";
+import { idB1EvoaConfig, idConfig } from "../id/config";
 import { saConfig } from "../sa/config";
 import { myConfig } from "../my/config";
 import { thConfig } from "../th/config";
@@ -31,6 +31,7 @@ const REGISTRY: Record<string, WizardConfig<unknown>> = {
   [auConfig.visaType]: auConfig as WizardConfig<unknown>,
   [egConfig.visaType]: egConfig as WizardConfig<unknown>,
   [idConfig.visaType]: idConfig as WizardConfig<unknown>,
+  [idB1EvoaConfig.visaType]: idB1EvoaConfig as WizardConfig<unknown>,
   [saConfig.visaType]: saConfig as WizardConfig<unknown>,
   [myConfig.visaType]: myConfig as WizardConfig<unknown>,
   [thConfig.visaType]: thConfig as WizardConfig<unknown>,

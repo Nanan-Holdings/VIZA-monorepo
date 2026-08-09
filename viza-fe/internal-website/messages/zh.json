@@ -3280,6 +3280,8 @@
         "employerAddress": "雇主或学校地址",
         "employerPhone": "雇主或学校电话",
         "purposeOfVisit": "访问目的",
+        "arrivalDate": "到达日期",
+        "departureDate": "离境日期",
         "intendedArrivalDate": "预计到达日期",
         "intendedLengthOfStay": "预计停留时长",
         "portOfEntry": "入境口岸",
@@ -3346,7 +3348,9 @@
           "other": "其他"
         },
         "purpose": {
-          "tourism": "旅游"
+          "tourism": "旅游",
+          "businessMeeting": "商务会议",
+          "transit": "过境"
         },
         "idAccommodation": {
           "hotel": "酒店",
