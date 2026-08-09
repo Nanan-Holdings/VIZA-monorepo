@@ -6,3 +6,6 @@ This route is a server-only translation boundary for bilingual field helpers.
 It must never expose provider API keys to the browser, log applicant-entered
 text, or translate official stored values such as document numbers, dates,
 country codes, phone numbers, emails, or numeric amounts.
+
+The public `route.ts` exports only the HTTP method; its implementation and
+focused-test helper remain in the adjacent `route-handler.ts` module.

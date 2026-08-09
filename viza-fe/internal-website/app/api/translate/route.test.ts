@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { POST, shouldSkipTranslation } from "./route";
+import { POST, shouldSkipTranslation } from "./route-handler";
 
 const translateWithGoogleV2Mock = vi.hoisted(() => vi.fn());
 

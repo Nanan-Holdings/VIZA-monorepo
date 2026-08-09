@@ -36,7 +36,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/api/translate/**`, and
   `app/api/external-submission/**`.
 - Vietnam Pre-Arrival official dropdown lookup is proxied through
-  `app/api/vn-prearrival/options/**`; this route may read official category
+  `app/api/vn-prearrival/options/**` (with implementation/test helpers in the
+  adjacent non-route `route-handler.ts`); this route may read official category
   options but must not submit declarations or pretend a session-gated official
   list is complete when the portal returns an auth/session error.
   `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`

@@ -128,7 +128,7 @@ describe("generic natural-language model extraction", () => {
   it("translates a natural answer into a high-confidence field patch for a non-SG form", async () => {
     const originalKey = process.env.OPENAI_API_KEY;
     process.env.OPENAI_API_KEY = "test-key";
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       json: async () => ({
         output_text: JSON.stringify({

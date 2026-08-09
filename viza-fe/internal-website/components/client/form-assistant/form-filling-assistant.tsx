@@ -426,11 +426,12 @@ export function FormFillingAssistant({
   const progressPercent = progress.total > 0 ? Math.round((completed / progress.total) * 100) : 0;
   const errors = validationResult?.errors ?? [];
   const warnings = validationResult?.warnings ?? [];
+  const validationIsClean = validationResult != null && !validationResult.dirty;
+  const warningsAcknowledged = validationResult?.warningsAcknowledged ?? false;
   const canGoToReview = Boolean(
-    validationResult &&
-    !validationResult.dirty &&
+    validationIsClean &&
     errors.length === 0 &&
-    (warnings.length === 0 || validationResult.warningsAcknowledged),
+    (warnings.length === 0 || warningsAcknowledged),
   );
   const handleReviewAction = useCallback(async () => {
     if (reviewActionPending || loading) return;
@@ -438,10 +439,10 @@ export function FormFillingAssistant({
     setReviewActionError(null);
     try {
       if (
-        !validationResult?.dirty &&
+        validationIsClean &&
         warnings.length > 0 &&
         errors.length === 0 &&
-        !validationResult.warningsAcknowledged
+        !warningsAcknowledged
       ) {
         await onAcknowledgeWarnings();
       } else if (canGoToReview) {
@@ -463,8 +464,8 @@ export function FormFillingAssistant({
     onValidate,
     reviewActionPending,
     t,
-    validationResult?.dirty,
-    validationResult?.warningsAcknowledged,
+    validationIsClean,
+    warningsAcknowledged,
     warnings.length,
   ]);
 
@@ -630,7 +631,7 @@ export function FormFillingAssistant({
                 className="flex justify-start pb-1"
                 data-testid="form-assistant-review-action"
               >
-                {!validationResult?.dirty && warnings.length > 0 && errors.length === 0 && !validationResult.warningsAcknowledged ? (
+                {validationResult && !validationResult.dirty && warnings.length > 0 && errors.length === 0 && !validationResult.warningsAcknowledged ? (
                   <BrandActionButton onClick={() => void handleReviewAction()} loading={reviewActionPending} loadingText={t("actions.acknowledgingWarnings")}>
                     {t("actions.acknowledgeWarnings")}
                   </BrandActionButton>

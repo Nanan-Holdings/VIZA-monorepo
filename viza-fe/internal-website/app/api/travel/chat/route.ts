@@ -10,6 +10,7 @@ import {
   resolveLocalDestinationText,
   toTravelDestinationChatCard,
 } from "@/lib/travel/destination-resolver";
+import { findDropdownDestinationContract } from "@/lib/travel/destination-contracts";
 import type {
   TravelDestinationCard,
   TravelQuickReply,
@@ -507,18 +508,324 @@ function explicitDestinationCommand(
     );
   }
   const value = operation.valueText?.trim();
-  if (!value || !text.toLocaleLowerCase().includes(value.toLocaleLowerCase())) {
+  if (!value || !textMentionsDestination(text, value)) {
     return false;
   }
   if (operation.op === "add") {
-    return /(我想去|我要去|想去|加入|添加|选择|选|就去|目的地|\d+\s*(?:个)?人[^。！？]*去)/u.test(
-      text
-    );
+    if (EXPLICIT_DESTINATION_REMOVAL_PATTERN.test(text)) return false;
+    return /(我想去|我要去|想去|加入|添加|选择|选|就去|改去|换成|回到|还是|决定去|目的地|\d+\s*(?:个)?人[^。！？]*去)/u.test(text);
   }
   if (operation.op === "remove") {
-    return /(不要|不去|删除|移除|取消|撤销|去掉)/u.test(text);
+    return textExplicitlyRemovesDestination(
+      text,
+      value,
+      operation.path === "cities",
+    );
   }
   return false;
+}
+
+const EXPLICIT_DESTINATION_REMOVAL_PATTERN =
+  /(?:不想去|不去|不要去|不要|别去|删除|删掉|移除|取消|撤销|去掉|换掉|\b(?:do not|don't|dont)\s+(?:want\b|go\s+to\b|visit\b)|\b(?:remove|delete|drop|cancel)\b)/iu;
+const DESTINATION_REMOVAL_DOUBLE_NEGATIVE_PATTERN =
+  /(?:不是不想去|并非不想去|不是不去|\bnot\s+that\s+i\s+(?:do not|don't|dont)\s+want\b)/iu;
+
+function destinationMentionLabels(
+  value: string,
+  includeCountryLabels = false,
+): string[] {
+  const labels = new Set([value]);
+  const contract = findDropdownDestinationContract(value);
+  if (contract) {
+    [
+      contract.canonicalName,
+      contract.nameEn,
+      contract.nameZh,
+      contract.city,
+      ...contract.aliases,
+      ...(includeCountryLabels
+        ? [contract.countryNameEn, contract.countryNameZh]
+        : []),
+    ].forEach((label) => {
+      if (label?.trim()) labels.add(label.trim());
+    });
+  }
+  const resolution = resolveLocalDestinationText(value);
+  if (resolution.status !== "resolved") return [...labels];
+
+  for (const destination of resolution.destinations) {
+    [
+      destination.canonicalName,
+      destination.displayName,
+      destination.nameEn,
+      destination.nameZh,
+      destination.city,
+      ...(destination.aliases ?? []),
+      ...(includeCountryLabels
+        ? [
+            destination.countryName,
+            destination.countryNameEn,
+            destination.countryNameZh,
+          ]
+        : []),
+    ].forEach((label) => {
+      if (label?.trim()) labels.add(label.trim());
+    });
+  }
+  return [...labels];
+}
+
+function textMentionsDestination(
+  text: string,
+  value: string,
+  includeCountryLabels = false,
+): boolean {
+  const normalizedText = text.normalize("NFKC").toLocaleLowerCase();
+  return destinationMentionLabels(value, includeCountryLabels).some((label) => {
+    const normalizedLabel = label.normalize("NFKC").trim().toLocaleLowerCase();
+    if (!normalizedLabel) return false;
+    if (/^[a-z0-9]{1,3}$/u.test(normalizedLabel)) {
+      const escaped = normalizedLabel.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+      return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, "u").test(
+        normalizedText,
+      );
+    }
+    return normalizedText.includes(normalizedLabel);
+  });
+}
+
+function textExplicitlyRemovesDestination(
+  text: string,
+  value: string,
+  includeCountryLabels = false,
+): boolean {
+  return text
+    .split(
+      /(?:[，,；;。.!！？?\n]+|(?:但是|但|不过|然而)|\b(?:but|however|while)\b)/iu,
+    )
+    .map((clause) => clause.trim())
+    .filter(Boolean)
+    .some(
+      (clause) =>
+        EXPLICIT_DESTINATION_REMOVAL_PATTERN.test(clause) &&
+        !DESTINATION_REMOVAL_DOUBLE_NEGATIVE_PATTERN.test(clause) &&
+        textMentionsDestination(clause, value, includeCountryLabels),
+    );
+}
+
+function reconcileExplicitDestinationRemovals(
+  text: string,
+  currentState: unknown,
+  operations: TravelStateOperation[],
+): TravelStateOperation[] {
+  if (
+    !EXPLICIT_DESTINATION_REMOVAL_PATTERN.test(text) ||
+    DESTINATION_REMOVAL_DOUBLE_NEGATIVE_PATTERN.test(text)
+  ) {
+    return operations;
+  }
+
+  const state = coerceTravelState(currentState);
+  const selectedDestinations: Array<{
+    path: "cities" | "countries";
+    value: string;
+  }> = [
+    ...state.cities.map((value) => ({ path: "cities" as const, value })),
+    ...state.countries.map((value) => ({ path: "countries" as const, value })),
+  ];
+  const additions = selectedDestinations.flatMap(({ path, value }) => {
+    if (!textExplicitlyRemovesDestination(text, value, path === "cities")) {
+      return [];
+    }
+    const alreadyRemoved = operations.some(
+      (operation) =>
+        operation.explicit &&
+        operation.op === "remove" &&
+        operation.path === path &&
+        operation.valueText?.toLocaleLowerCase() === value.toLocaleLowerCase(),
+    );
+    if (alreadyRemoved) return [];
+    return [
+      {
+        op: "remove" as const,
+        path,
+        valueText: value,
+        valueNumber: null,
+        valueBoolean: null,
+        explicit: true,
+        evidence: text,
+      },
+    ];
+  });
+
+  return additions.length ? [...operations, ...additions] : operations;
+}
+
+function extractExplicitDepartureDate(text: string): string | null {
+  const trimmed = text.trim();
+  const shortDate = trimmed.match(
+    /^(?:(?:今天|明天|后天|大后天)|(?:(?:本|这|下|下下)周[一二三四五六日天末]?)|(?:(?:本|这|下|下下)个月)|(?:\d{1,2}月\d{1,2}(?:日|号))|(?:\d{4}[-/.年]\d{1,2}[-/.月]\d{1,2}(?:日)?))(?:出发)?$/u,
+  )?.[0];
+  if (shortDate) return shortDate.replace(/出发$/u, "").trim();
+
+  const explicitChinese = trimmed.match(
+    /(?:出发|启程)(?:时间|日期)?(?:就)?(?:定在|定为|安排在|是|为|[:：])?\s*([^，,；;。.!！？?]{2,30})/u,
+  )?.[1];
+  if (explicitChinese) return explicitChinese.trim();
+
+  const explicitEnglish = trimmed.match(
+    /\b(?:departure(?:\s+date)?|depart|leave|leaving)\s*(?:is|on|will\s+be|:)?\s*([^,.!?]{2,40})/iu,
+  )?.[1];
+  return explicitEnglish?.trim() || null;
+}
+
+function toIsoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function resolveExplicitDepartureDate(
+  value: string,
+  now = new Date(),
+): string | null {
+  const normalized = value.trim();
+  const isoMatch = normalized.match(
+    /^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})(?:日)?$/u,
+  );
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    const date = new Date(
+      Date.UTC(Number(year), Number(month) - 1, Number(day)),
+    );
+    return Number.isNaN(date.getTime()) ? null : toIsoDate(date);
+  }
+
+  const monthDayMatch = normalized.match(/^(\d{1,2})月(\d{1,2})(?:日|号)$/u);
+  if (monthDayMatch) {
+    const [, month, day] = monthDayMatch;
+    let year = now.getUTCFullYear();
+    let date = new Date(Date.UTC(year, Number(month) - 1, Number(day)));
+    const today = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    if (date < today) {
+      year += 1;
+      date = new Date(Date.UTC(year, Number(month) - 1, Number(day)));
+    }
+    return Number.isNaN(date.getTime()) ? null : toIsoDate(date);
+  }
+
+  const relativeDayOffsets: Record<string, number> = {
+    今天: 0,
+    明天: 1,
+    后天: 2,
+    大后天: 3,
+  };
+  if (normalized in relativeDayOffsets) {
+    const date = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    date.setUTCDate(date.getUTCDate() + relativeDayOffsets[normalized]);
+    return toIsoDate(date);
+  }
+
+  const weekMatch = normalized.match(
+    /^(本|这|下|下下)周([一二三四五六日天末])?$/u,
+  );
+  if (weekMatch) {
+    const [, weekPrefix, weekdayText] = weekMatch;
+    const currentDay = now.getUTCDay() || 7;
+    const monday = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    monday.setUTCDate(monday.getUTCDate() - currentDay + 1);
+    const weekOffset =
+      weekPrefix === "下下" ? 2 : weekPrefix === "下" ? 1 : 0;
+    const weekdayOffsets: Record<string, number> = {
+      一: 0,
+      二: 1,
+      三: 2,
+      四: 3,
+      五: 4,
+      六: 5,
+      日: 6,
+      天: 6,
+      末: 5,
+    };
+    monday.setUTCDate(
+      monday.getUTCDate() +
+        weekOffset * 7 +
+        (weekdayText ? weekdayOffsets[weekdayText] : 0),
+    );
+    return toIsoDate(monday);
+  }
+
+  return null;
+}
+
+function reconcileExplicitDepartureDate(
+  text: string,
+  operations: TravelStateOperation[],
+): TravelStateOperation[] {
+  const departureDateText = extractExplicitDepartureDate(text);
+  if (!departureDateText) return operations;
+  const departureDate =
+    resolveExplicitDepartureDate(departureDateText) ?? departureDateText;
+  const normalizedOperations = operations.map((operation) => {
+    if (
+      operation.explicit &&
+      operation.op === "set" &&
+      operation.path === "departure_date"
+    ) {
+      return { ...operation, valueText: departureDate };
+    }
+    if (
+      operation.explicit &&
+      operation.op === "set" &&
+      operation.path === "date_flexibility"
+    ) {
+      return { ...operation, valueText: "fixed" };
+    }
+    return operation;
+  });
+  const alreadyRecorded = normalizedOperations.some(
+    (operation) =>
+      operation.explicit &&
+      operation.op === "set" &&
+      operation.path === "departure_date",
+  );
+  const withDepartureDate = alreadyRecorded
+    ? normalizedOperations
+    : [
+        ...normalizedOperations,
+        {
+          op: "set" as const,
+          path: "departure_date" as const,
+          valueText: departureDate,
+          valueNumber: null,
+          valueBoolean: null,
+          explicit: true,
+          evidence: text,
+        },
+      ];
+  const alreadyFixed = withDepartureDate.some(
+    (operation) =>
+      operation.explicit &&
+      operation.op === "set" &&
+      operation.path === "date_flexibility",
+  );
+  if (alreadyFixed) return withDepartureDate;
+  return [
+    ...withDepartureDate,
+    {
+      op: "set",
+      path: "date_flexibility",
+      valueText: "fixed",
+      valueNumber: null,
+      valueBoolean: null,
+      explicit: true,
+      evidence: text,
+    },
+  ];
 }
 
 function validateExplicitOperations(
@@ -557,7 +864,7 @@ function validateExplicitOperations(
     if (operation.path === "travelers") {
       return {
         ...operation,
-        explicit: /\d+\s*(?:个)?(人|位|traveler|people|person)/iu.test(text),
+        explicit: /\d+\s*(?:个\s*)?(人|位|traveler|people|person)/iu.test(text),
       };
     }
     if (operation.path === "travel_order") {
@@ -1312,7 +1619,14 @@ export async function POST(request: Request) {
         evidence: cityOperation?.evidence || city,
       });
     }
-    const explicitOperations = resolved.filter((operation) => operation.explicit);
+    const explicitOperations = reconcileExplicitDepartureDate(
+      input.text,
+      reconcileExplicitDestinationRemovals(
+        input.text,
+        currentState,
+        resolved.filter((operation) => operation.explicit),
+      ),
+    );
     const nextPendingActions =
       openAI.result.intent === "reject_action" ||
       openAI.result.intent === "confirm_action"

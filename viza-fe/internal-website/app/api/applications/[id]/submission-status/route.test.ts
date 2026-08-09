@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   deriveNonTerminalStatus,
   deriveSubmissionStatus,
+  sgacRunnerJobToQueueRow,
   selectQueueForSubmissionStatus,
-} from "./route";
-import { isIndonesiaPaymentApplication } from "./payment-country";
+} from "./route-handler";
+import {
+  isIndonesiaPaymentApplication,
+  isVietnamPaymentCheckpointState,
+  resolveVietnamSubmissionActionType,
+} from "./payment-country";
 
 const ukStoppedAtPayResult = {
   country: "UK",
@@ -12,6 +17,47 @@ const ukStoppedAtPayResult = {
   portalUrl: "https://visas-immigration.service.gov.uk/next-steps",
   portalUsername: "appl-mr3f3iva@haggstorm.com",
 };
+
+describe("sgacRunnerJobToQueueRow", () => {
+  it("maps a queued country job to the existing SGAC pending UI contract", () => {
+    const enqueuedAt = new Date().toISOString();
+    expect(
+      sgacRunnerJobToQueueRow({
+        id: "runner_1",
+        status: "queued",
+        attempts: 0,
+        last_error: null,
+        enqueued_at: enqueuedAt,
+        started_at: null,
+        finished_at: null,
+      }),
+    ).toMatchObject({
+      id: "runner_1",
+      status: "sgac_live_assisted_pending",
+      provider: "sg_arrival_card_runner_job",
+      transport: "runner_job",
+      created_at: enqueuedAt,
+    });
+  });
+
+  it("maps exhausted country jobs to a failed SGAC attempt", () => {
+    expect(
+      sgacRunnerJobToQueueRow({
+        id: "runner_2",
+        status: "dead_letter",
+        attempts: 3,
+        last_error: "Official portal unavailable",
+        enqueued_at: "2026-07-30T00:00:00.000Z",
+        started_at: "2026-07-30T00:01:00.000Z",
+        finished_at: "2026-07-30T00:02:00.000Z",
+      }),
+    ).toMatchObject({
+      status: "sgac_live_assisted_failed",
+      error_message: "Official portal unavailable",
+      updated_at: "2026-07-30T00:02:00.000Z",
+    });
+  });
+});
 
 describe("isIndonesiaPaymentApplication", () => {
   it("does not classify a Vietnam payment checkpoint as Indonesia", () => {
@@ -22,6 +68,128 @@ describe("isIndonesiaPaymentApplication", () => {
   it("recognizes Indonesia country and visa identifiers", () => {
     expect(isIndonesiaPaymentApplication("indonesia", "ID_C1_TOURIST")).toBe(true);
     expect(isIndonesiaPaymentApplication(null, "ID_B1_EVOA")).toBe(true);
+  });
+});
+
+describe("isVietnamPaymentCheckpointState", () => {
+  it("recognizes both legacy and payment-resume Vietnam queue shapes", () => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        payloadCheckpoint: "payment_page_visible",
+      }),
+    ).toBe(true);
+
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        errorCode: "manual_payment_required",
+        currentStage: "official_fee_manual_review",
+        officialStatus: "payment_authorized",
+        payloadStatus: "payment_manual_review",
+      }),
+    ).toBe(true);
+  });
+
+  it.each([
+    { errorCode: "manual_payment_required" },
+    { currentStage: "official_fee_manual_review" },
+    { officialStatus: "registration_code_captured_payment_pending" },
+    { payloadStatus: "payment_manual_review" },
+  ])("recognizes the Vietnam payment signal $errorCode$currentStage$officialStatus$payloadStatus", (signals) => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        ...signals,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not turn a Vietnam CAPTCHA block into a payment checkpoint", () => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        errorCode: "captcha_required",
+        currentStage: "captcha_submitted_blocked",
+        payloadStatus: "captcha_failed",
+      }),
+    ).toBe(false);
+  });
+
+  it("fails closed when stale payment and CAPTCHA markers conflict", () => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        errorCode: "captcha_required",
+        currentStage: "official_fee_manual_review",
+        payloadActionType: "payment_required",
+      }),
+    ).toBe(false);
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        currentStage: "official_fee_manual_review",
+        payloadActionType: "payment_required",
+        payloadStatus: "captcha_failed",
+      }),
+    ).toBe(false);
+  });
+
+  it("does not upgrade review or unknown Vietnam blocks to payment", () => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+        errorCode: "review_action_disabled",
+      }),
+    ).toBe(false);
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "vn_blocked",
+        provider: "vietnam_evisa_live",
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps Indonesia and unrelated countries outside the Vietnam payment state", () => {
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "id_c1_payment_pending",
+        provider: "indonesia_c1_live",
+        errorCode: "manual_payment_required",
+        currentStage: "official_fee_manual_review",
+      }),
+    ).toBe(false);
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "blocked",
+        provider: "france_live",
+        errorCode: "manual_payment_required",
+      }),
+    ).toBe(false);
+    expect(
+      isVietnamPaymentCheckpointState({
+        status: "blocked",
+        provider: "france_live",
+        payloadCheckpoint: "payment_page_visible",
+        payloadActionType: "payment_required",
+      }),
+    ).toBe(false);
+  });
+
+  it("canonicalizes a confirmed Vietnam payment handoff action", () => {
+    expect(resolveVietnamSubmissionActionType(true, "final_submit_required")).toBe(
+      "payment_required",
+    );
+    expect(resolveVietnamSubmissionActionType(false, "captcha_required")).toBe(
+      "captcha_required",
+    );
   });
 });
 
