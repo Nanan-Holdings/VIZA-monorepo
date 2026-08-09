@@ -28,6 +28,7 @@ export interface UseSmoothProgressOptions {
   step?: number;
   maxBeforeComplete?: number;
   initialProgress?: number;
+  syncToServerProgress?: boolean;
   onVisualComplete?: () => void;
 }
 
@@ -90,6 +91,7 @@ export function useSmoothProgress({
   step = 1,
   maxBeforeComplete = 99,
   initialProgress = 0,
+  syncToServerProgress = false,
   onVisualComplete,
 }: UseSmoothProgressOptions) {
   const normalizedStatus = (status ?? "running").trim().toLowerCase();
@@ -127,11 +129,29 @@ export function useSmoothProgress({
   }, [isComplete]);
 
   useBrowserLayoutEffect(() => {
-    if (!normalizedPersistenceKey) return;
-    setDisplayedProgress((current) =>
-      Math.max(current, readPersistedProgress(normalizedPersistenceKey)),
-    );
-  }, [normalizedPersistenceKey]);
+    const persisted = normalizedPersistenceKey
+      ? readPersistedProgress(normalizedPersistenceKey)
+      : 0;
+    const authoritativeFloor = syncToServerProgress
+      ? isComplete
+        ? 100
+        : Math.min(clampProgress(serverProgress), safeMaxBeforeComplete)
+      : 0;
+
+    setDisplayedProgress((current) => {
+      const nextProgress = Math.max(current, persisted, authoritativeFloor);
+      if (normalizedPersistenceKey) {
+        persistProgress(normalizedPersistenceKey, nextProgress);
+      }
+      return nextProgress;
+    });
+  }, [
+    isComplete,
+    normalizedPersistenceKey,
+    safeMaxBeforeComplete,
+    serverProgress,
+    syncToServerProgress,
+  ]);
 
   useEffect(() => {
     if (!normalizedPersistenceKey) return;

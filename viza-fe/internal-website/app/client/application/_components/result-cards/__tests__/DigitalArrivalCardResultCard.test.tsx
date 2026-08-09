@@ -28,6 +28,10 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(localizeProgressMessage("Current stage: payment_authorized.", false)).toBe(
       "Current stage: payment_authorized.",
     );
+    expect(
+      localizeProgressMessage("Fly worker resumed with a future runtime message.", true),
+    ).toBe("云端任务正在处理，页面会自动更新。");
+    expect(localizeProgressMessage("云端任务正在继续。", true)).toBe("云端任务正在继续。");
   });
 
   it("does not move the visible loading phase backward on a stale poll", async () => {
@@ -38,6 +42,11 @@ describe("DigitalArrivalCardResultCard", () => {
         stage="payment_handoff"
         serverProgress={88}
       />,
+    );
+
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "88",
     );
 
     await waitFor(() => {
@@ -62,6 +71,10 @@ describe("DigitalArrivalCardResultCard", () => {
 
     expect(activeStageLabel?.closest("li")).toHaveClass("border-brand-500");
     expect(firstStageLabel?.closest("li")).not.toHaveClass("border-brand-500");
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "88",
+    );
   });
 
   it("does not hide portal field-selection errors as browser launch failures", () => {
