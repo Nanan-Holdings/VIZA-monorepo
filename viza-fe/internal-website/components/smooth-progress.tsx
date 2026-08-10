@@ -127,6 +127,7 @@ export function SmoothProgressMeter({
   maxBeforeComplete,
   initialProgress,
   persistenceKey,
+  progressCycleKey,
   syncToServerProgress,
   onVisualComplete,
   transitionMs,
@@ -144,6 +145,7 @@ export function SmoothProgressMeter({
     maxBeforeComplete,
     initialProgress,
     persistenceKey,
+    progressCycleKey,
     syncToServerProgress,
     onVisualComplete,
   });

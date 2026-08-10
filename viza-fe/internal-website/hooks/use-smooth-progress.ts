@@ -19,6 +19,7 @@ export type SmoothProgressStatus =
 export interface UseSmoothProgressOptions {
   serverProgress?: number;
   persistenceKey?: string;
+  progressCycleKey?: string | null;
   status?: SmoothProgressStatus | null;
   isComplete?: boolean;
   isFailed?: boolean;
@@ -82,6 +83,7 @@ function persistProgress(key: string, value: number): void {
 export function useSmoothProgress({
   serverProgress = 0,
   persistenceKey,
+  progressCycleKey,
   status = "running",
   isComplete: explicitComplete,
   isFailed: explicitFailed,
@@ -96,6 +98,7 @@ export function useSmoothProgress({
 }: UseSmoothProgressOptions) {
   const normalizedStatus = (status ?? "running").trim().toLowerCase();
   const normalizedPersistenceKey = persistenceKey?.trim() || null;
+  const normalizedProgressCycleKey = progressCycleKey?.trim() || null;
   const [displayedProgress, setDisplayedProgress] = useState(() => {
     const persisted = normalizedPersistenceKey
       ? persistedProgress.get(normalizedPersistenceKey) ?? 0
@@ -103,6 +106,8 @@ export function useSmoothProgress({
     return Math.max(clampProgress(initialProgress), persisted);
   });
   const displayedProgressRef = useRef(displayedProgress);
+  const progressCycleKeyRef = useRef(normalizedProgressCycleKey);
+  const pendingCycleResetProgressRef = useRef<number | null>(null);
   const visualCompleteNotifiedRef = useRef(false);
 
   const isComplete = explicitComplete ?? COMPLETE_STATUSES.has(normalizedStatus);
@@ -122,6 +127,7 @@ export function useSmoothProgress({
       safeMaxBeforeComplete,
     );
   }, [displayedProgress, isComplete, safeMaxBeforeComplete, serverProgress]);
+  const canAdvance = !isFailed && !isWaitingForUser && displayedProgress < visualTarget;
 
   useEffect(() => {
     if (!isComplete) {
@@ -139,13 +145,27 @@ export function useSmoothProgress({
         : Math.min(clampProgress(serverProgress), safeMaxBeforeComplete)
       : 0;
 
-    setDisplayedProgress((current) => {
-      const nextProgress = Math.max(current, persisted, authoritativeFloor);
-      return nextProgress;
-    });
+    const previousCycleKey = progressCycleKeyRef.current;
+    const cycleChanged = Boolean(
+      previousCycleKey &&
+        normalizedProgressCycleKey &&
+        previousCycleKey !== normalizedProgressCycleKey,
+    );
+
+    const resetProgress = Math.max(persisted, authoritativeFloor);
+    if (cycleChanged) {
+      pendingCycleResetProgressRef.current = resetProgress;
+    }
+    setDisplayedProgress((current) =>
+      cycleChanged ? resetProgress : Math.max(current, persisted, authoritativeFloor),
+    );
+    if (normalizedProgressCycleKey) {
+      progressCycleKeyRef.current = normalizedProgressCycleKey;
+    }
   }, [
     isComplete,
     normalizedPersistenceKey,
+    normalizedProgressCycleKey,
     safeMaxBeforeComplete,
     serverProgress,
     syncToServerProgress,
@@ -153,6 +173,11 @@ export function useSmoothProgress({
 
   useEffect(() => {
     if (!normalizedPersistenceKey) return;
+    const pendingResetProgress = pendingCycleResetProgressRef.current;
+    if (pendingResetProgress !== null) {
+      if (displayedProgress !== pendingResetProgress) return;
+      pendingCycleResetProgressRef.current = null;
+    }
     persistProgress(normalizedPersistenceKey, displayedProgress);
   }, [displayedProgress, normalizedPersistenceKey]);
 
@@ -161,7 +186,7 @@ export function useSmoothProgress({
   }, [displayedProgress]);
 
   useEffect(() => {
-    if (isFailed || isWaitingForUser || displayedProgressRef.current >= visualTarget) return;
+    if (!canAdvance) return;
 
     const timer = window.setInterval(() => {
       setDisplayedProgress((current) => {
@@ -177,8 +202,8 @@ export function useSmoothProgress({
 
     return () => window.clearInterval(timer);
   }, [
-    isFailed,
-    isWaitingForUser,
+    canAdvance,
+    normalizedProgressCycleKey,
     safeIntervalMs,
     safeStep,
     visualTarget,

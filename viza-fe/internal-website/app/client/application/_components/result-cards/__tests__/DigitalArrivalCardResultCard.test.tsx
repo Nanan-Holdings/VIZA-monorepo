@@ -15,6 +15,7 @@ vi.mock("next-intl", () => ({
 
 describe("DigitalArrivalCardResultCard", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -35,9 +36,12 @@ describe("DigitalArrivalCardResultCard", () => {
   });
 
   it("does not move the visible loading phase backward on a stale poll", async () => {
+    vi.useFakeTimers();
     const { rerender } = render(
       <WaitingCard
         applicationId="app-monotonic-stage"
+        persistenceKey="submission-run:queue-monotonic-stage"
+        progressCycleKey="queue-monotonic-stage"
         status="running"
         stage="payment_handoff"
         serverProgress={88}
@@ -46,16 +50,23 @@ describe("DigitalArrivalCardResultCard", () => {
 
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
       "aria-valuenow",
-      "88",
+      "0",
     );
 
-    await waitFor(() => {
-      expect(screen.getAllByText("正在等待检查点或结果")).toHaveLength(2);
+    act(() => {
+      vi.advanceTimersByTime(4_000);
     });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+    expect(screen.getAllByText("正在等待检查点或结果")).toHaveLength(2);
 
     rerender(
       <WaitingCard
         applicationId="app-monotonic-stage"
+        persistenceKey="submission-run:queue-monotonic-stage"
+        progressCycleKey="queue-monotonic-stage"
         status="running"
         stage="preparing"
         serverProgress={12}
@@ -73,7 +84,7 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(firstStageLabel?.closest("li")).not.toHaveClass("border-brand-500");
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
       "aria-valuenow",
-      "88",
+      "5",
     );
   });
 
