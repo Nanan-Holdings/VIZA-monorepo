@@ -1,4 +1,4 @@
-import { chromium, type Locator, type Page } from "@playwright/test";
+import { chromium, type Browser, type Locator, type Page } from "@playwright/test";
 import { solveImageCaptcha } from "../captcha";
 import {
   loadVietnamFixedCardFromEnv,
@@ -137,7 +137,24 @@ async function fillSearchFields(page: Page, input: VietnamPaymentResumeInput): P
   }
 }
 
-async function waitForSearchPageReady(page: Page, timeoutMs: number): Promise<boolean> {
+export function shouldRetryVietnamSearchAfterCriticalAssetFailure(input: {
+  elapsedMs: number;
+  bodyTextLength: number;
+  criticalAssetFailureDetected: boolean;
+}): boolean {
+  return (
+    input.elapsedMs >= 3_000 &&
+    input.bodyTextLength < 30 &&
+    input.criticalAssetFailureDetected
+  );
+}
+
+async function waitForSearchPageReady(
+  page: Page,
+  timeoutMs: number,
+  criticalAssetFailureDetected: () => boolean = () => false,
+): Promise<boolean> {
+  const startedAt = Date.now();
   const deadline = Date.now() + Math.min(timeoutMs, 45_000);
   while (Date.now() < deadline) {
     for (const selector of SEARCH_FIELD_SELECTORS) {
@@ -149,28 +166,151 @@ async function waitForSearchPageReady(page: Page, timeoutMs: number): Promise<bo
     if (/cloudflare|checking your browser|security verification|verify you are human/i.test(bodyText)) {
       return false;
     }
+    if (shouldRetryVietnamSearchAfterCriticalAssetFailure({
+      elapsedMs: Date.now() - startedAt,
+      bodyTextLength: bodyText.trim().length,
+      criticalAssetFailureDetected: criticalAssetFailureDetected(),
+    })) {
+      return false;
+    }
     await page.waitForTimeout(1_000);
   }
   return false;
 }
 
-async function gotoSearchPageWithRetry(page: Page, input: VietnamPaymentResumeInput): Promise<boolean> {
-  const searchUrl = input.searchUrl ?? DEFAULT_SEARCH_URL;
-  const attempts = Math.max(1, Math.min(Number(process.env.VN_PAYMENT_SEARCH_LOAD_ATTEMPTS ?? 3), 5));
+export interface FreshVietnamSearchPageRetryOptions<T> {
+  attempts: number;
+  openPage: (attempt: number) => Promise<T>;
+  isReady: (page: T, attempt: number) => Promise<boolean>;
+  closePage: (page: T) => Promise<void>;
+  waitBeforeRetry?: (attempt: number) => Promise<void>;
+}
+
+export interface FreshVietnamSearchPageRetryResult<T> {
+  page: T | null;
+  ready: boolean;
+  lastError?: unknown;
+}
+
+/**
+ * Retry the official search page in a fresh browser context each time.
+ *
+ * evisa.gov.vn occasionally returns a transient 4xx response for one of its
+ * hashed SPA chunks. Reloading the same page can retain the failed module graph,
+ * leaving the body blank for every subsequent reload. A fresh context discards
+ * that failed graph while retaining the last failed page for diagnostics.
+ */
+export async function retryFreshVietnamSearchPage<T>(
+  options: FreshVietnamSearchPageRetryOptions<T>,
+): Promise<FreshVietnamSearchPageRetryResult<T>> {
+  const attempts = Math.max(1, options.attempts);
+  let page: T | null = null;
+  let lastError: unknown;
+
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    await page.goto(searchUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: input.timeoutMs ?? 60_000,
-    });
-    if (await waitForSearchPageReady(page, input.timeoutMs ?? 60_000)) {
-      return true;
+    if (page) {
+      await options.closePage(page).catch(() => undefined);
+      page = null;
     }
-    if (attempt < attempts) {
-      await page.waitForTimeout(2_000 * attempt);
-      await page.reload({ waitUntil: "domcontentloaded", timeout: input.timeoutMs ?? 60_000 }).catch(() => undefined);
+    if (attempt > 1) {
+      await options.waitBeforeRetry?.(attempt);
+    }
+
+    try {
+      page = await options.openPage(attempt);
+      if (await options.isReady(page, attempt)) {
+        return { page, ready: true };
+      }
+    } catch (error) {
+      lastError = error;
     }
   }
-  return false;
+
+  return { page, ready: false, lastError };
+}
+
+function paymentBrowserIgnoresHttpsErrors(): boolean {
+  return /^(?:1|true|yes|on)$/i.test(process.env.VN_IGNORE_HTTPS_ERRORS?.trim() ?? "");
+}
+
+async function gotoSearchPageWithRetry(
+  browser: Browser,
+  input: VietnamPaymentResumeInput,
+): Promise<FreshVietnamSearchPageRetryResult<Page>> {
+  const searchUrl = input.searchUrl ?? DEFAULT_SEARCH_URL;
+  const attempts = Math.max(1, Math.min(Number(process.env.VN_PAYMENT_SEARCH_LOAD_ATTEMPTS ?? 5), 5));
+  const criticalAssetFailures = new WeakMap<Page, Set<string>>();
+
+  return retryFreshVietnamSearchPage<Page>({
+    attempts,
+    openPage: async () => {
+      const page = await browser.newPage({
+        ignoreHTTPSErrors: paymentBrowserIgnoresHttpsErrors(),
+        serviceWorkers: "block",
+      });
+      const failures = new Set<string>();
+      criticalAssetFailures.set(page, failures);
+      page.on("requestfailed", (request) => {
+        try {
+          const url = new URL(request.url());
+          if (url.origin === new URL(searchUrl).origin && url.pathname.startsWith("/assets/")) {
+            failures.add(url.pathname);
+          }
+        } catch {
+          // Ignore malformed or non-HTTP request URLs.
+        }
+      });
+      page.on("response", (response) => {
+        try {
+          const url = new URL(response.url());
+          if (
+            response.status() >= 400 &&
+            url.origin === new URL(searchUrl).origin &&
+            url.pathname.startsWith("/assets/")
+          ) {
+            failures.add(url.pathname);
+          }
+        } catch {
+          // Ignore malformed or non-HTTP response URLs.
+        }
+      });
+      await page.setExtraHTTPHeaders({
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      });
+      try {
+        await page.goto(searchUrl, {
+          waitUntil: "domcontentloaded",
+          timeout: input.timeoutMs ?? 60_000,
+        });
+      } catch (error) {
+        await page.close().catch(() => undefined);
+        throw error;
+      }
+      return page;
+    },
+    isReady: async (page, attempt) => {
+      const ready = await waitForSearchPageReady(
+        page,
+        input.timeoutMs ?? 60_000,
+        () => (criticalAssetFailures.get(page)?.size ?? 0) > 0,
+      );
+      if (!ready) {
+        const bodyTextLength = await page.locator("body").innerText({ timeout: 2_000 })
+          .then((text) => text.trim().length)
+          .catch(() => 0);
+        console.warn(
+          `[vn-payment] Official search page was not ready attempt=${attempt}/${attempts} ` +
+          `bodyTextLength=${bodyTextLength} criticalAssetFailures=${criticalAssetFailures.get(page)?.size ?? 0}`,
+        );
+      }
+      return ready;
+    },
+    closePage: (page) => page.close(),
+    waitBeforeRetry: async (attempt) => {
+      await new Promise((resolve) => setTimeout(resolve, 2_000 * (attempt - 1)));
+    },
+  });
 }
 
 async function solveSearchCaptcha(page: Page, timeoutMs: number): Promise<void> {
@@ -383,10 +523,19 @@ export async function resumeVietnamOfficialPayment(
   }
 
   const browser = await chromium.launch({ headless: input.headless ?? true });
-  const page = await browser.newPage();
+  let page: Page | null = null;
   try {
-    const ready = await gotoSearchPageWithRetry(page, input);
-    if (!ready) {
+    const searchPage = await gotoSearchPageWithRetry(browser, input);
+    page = searchPage.page;
+    if (!searchPage.ready || !page) {
+      if (!page) {
+        if (searchPage.lastError) throw searchPage.lastError;
+        return {
+          status: "unavailable",
+          reason: "The official Vietnam payment search page could not be opened after retries.",
+          url: input.searchUrl ?? DEFAULT_SEARCH_URL,
+        };
+      }
       const bodyText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
       return {
         status: "unavailable",
@@ -428,10 +577,10 @@ export async function resumeVietnamOfficialPayment(
     return {
       status: "needs_human",
       reason: error instanceof Error ? error.message : String(error),
-      url: page.url(),
+      url: page?.url() ?? input.searchUrl ?? DEFAULT_SEARCH_URL,
     };
   } finally {
-    if (input.screenshotPath) {
+    if (input.screenshotPath && page) {
       await page.screenshot({ path: input.screenshotPath, fullPage: true }).catch(() => undefined);
     }
     await browser.close().catch(() => undefined);
