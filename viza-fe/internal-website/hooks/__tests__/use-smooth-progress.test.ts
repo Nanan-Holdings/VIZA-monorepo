@@ -187,4 +187,91 @@ describe("useSmoothProgress", () => {
     expect(remounted.result.current.displayedProgress).toBe(88);
     remounted.unmount();
   });
+
+  it("starts a different submission cycle at zero while preserving one cycle's high-water mark", () => {
+    vi.useFakeTimers();
+    const { result, rerender, unmount } = renderHook(
+      ({ persistenceKey, progressCycleKey }) =>
+        useSmoothProgress({
+          serverProgress: 88,
+          status: "running",
+          intervalMs: 16,
+          initialProgress: 40,
+          persistenceKey,
+          progressCycleKey,
+        }),
+      {
+        initialProps: {
+          persistenceKey: "submission-run:first-queue",
+          progressCycleKey: "first-queue",
+        },
+      },
+    );
+
+    expect(result.current.displayedProgress).toBe(40);
+
+    rerender({
+      persistenceKey: "submission-run:second-queue",
+      progressCycleKey: "second-queue",
+    });
+    expect(result.current.displayedProgress).toBe(0);
+
+    act(() => {
+      vi.advanceTimersByTime(48);
+    });
+    expect(result.current.displayedProgress).toBe(3);
+
+    rerender({
+      persistenceKey: "submission-run:second-queue",
+      progressCycleKey: "second-queue",
+    });
+    expect(result.current.displayedProgress).toBe(3);
+    unmount();
+
+    const remountedSecondCycle = renderHook(() =>
+      useSmoothProgress({
+        serverProgress: 88,
+        status: "running",
+        intervalMs: 16,
+        persistenceKey: "submission-run:second-queue",
+        progressCycleKey: "second-queue",
+      }),
+    );
+    expect(remountedSecondCycle.result.current.displayedProgress).toBe(3);
+    remountedSecondCycle.unmount();
+  });
+
+  it("restarts the timer when a new submission begins after the previous target was reached", () => {
+    vi.useFakeTimers();
+    const { result, rerender, unmount } = renderHook(
+      ({ persistenceKey, progressCycleKey }) =>
+        useSmoothProgress({
+          serverProgress: 88,
+          status: "running",
+          intervalMs: 16,
+          initialProgress: 88,
+          persistenceKey,
+          progressCycleKey,
+        }),
+      {
+        initialProps: {
+          persistenceKey: "submission-run:finished-stage",
+          progressCycleKey: "finished-stage",
+        },
+      },
+    );
+
+    expect(result.current.displayedProgress).toBe(88);
+    rerender({
+      persistenceKey: "submission-run:fresh-stage",
+      progressCycleKey: "fresh-stage",
+    });
+    expect(result.current.displayedProgress).toBe(0);
+
+    act(() => {
+      vi.advanceTimersByTime(48);
+    });
+    expect(result.current.displayedProgress).toBe(3);
+    unmount();
+  });
 });

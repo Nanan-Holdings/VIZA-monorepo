@@ -485,7 +485,10 @@ describe("VnResultCard automated payment UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "重新自动付款" }));
 
     expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "0",
+    );
     expect(
       screen.getByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
     ).toBeInTheDocument();
