@@ -208,6 +208,7 @@ export function WaitingCard({
   applicationId,
   persistenceKey,
   progressCycleKey,
+  resetProgressOnMount,
   country,
   visaType,
   onVisualComplete,
@@ -220,6 +221,7 @@ export function WaitingCard({
   applicationId?: string | null;
   persistenceKey?: string | null;
   progressCycleKey?: string | null;
+  resetProgressOnMount?: boolean;
   country?: string | null;
   visaType?: string | null;
   onVisualComplete?: () => void;
@@ -252,6 +254,7 @@ export function WaitingCard({
     serverProgress: visualServerProgress,
     persistenceKey: persistenceKey?.trim() || undefined,
     progressCycleKey,
+    resetPersistedProgressOnMount: resetProgressOnMount,
     status: completeStatus
       ? "completed"
       : failedStatus

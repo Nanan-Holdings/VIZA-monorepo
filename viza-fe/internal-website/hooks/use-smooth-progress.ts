@@ -20,6 +20,7 @@ export interface UseSmoothProgressOptions {
   serverProgress?: number;
   persistenceKey?: string;
   progressCycleKey?: string | null;
+  resetPersistedProgressOnMount?: boolean;
   status?: SmoothProgressStatus | null;
   isComplete?: boolean;
   isFailed?: boolean;
@@ -80,10 +81,22 @@ function persistProgress(key: string, value: number): void {
   }
 }
 
+function clearPersistedProgress(key: string): void {
+  persistedProgress.delete(key);
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(`${SESSION_STORAGE_PREFIX}${key}`);
+  } catch {
+    // The in-memory value has already been cleared. Disabled storage does not
+    // prevent a fresh submission cycle from starting at zero.
+  }
+}
+
 export function useSmoothProgress({
   serverProgress = 0,
   persistenceKey,
   progressCycleKey,
+  resetPersistedProgressOnMount = false,
   status = "running",
   isComplete: explicitComplete,
   isFailed: explicitFailed,
@@ -100,6 +113,7 @@ export function useSmoothProgress({
   const normalizedPersistenceKey = persistenceKey?.trim() || null;
   const normalizedProgressCycleKey = progressCycleKey?.trim() || null;
   const [displayedProgress, setDisplayedProgress] = useState(() => {
+    if (resetPersistedProgressOnMount) return clampProgress(initialProgress);
     const persisted = normalizedPersistenceKey
       ? persistedProgress.get(normalizedPersistenceKey) ?? 0
       : 0;
@@ -108,6 +122,7 @@ export function useSmoothProgress({
   const displayedProgressRef = useRef(displayedProgress);
   const progressCycleKeyRef = useRef(normalizedProgressCycleKey);
   const pendingCycleResetProgressRef = useRef<number | null>(null);
+  const hasMountedProgressCycleRef = useRef(false);
   const visualCompleteNotifiedRef = useRef(false);
 
   const isComplete = explicitComplete ?? COMPLETE_STATUSES.has(normalizedStatus);
@@ -136,6 +151,20 @@ export function useSmoothProgress({
   }, [isComplete]);
 
   useBrowserLayoutEffect(() => {
+    const previousCycleKey = progressCycleKeyRef.current;
+    const cycleChanged = Boolean(
+      previousCycleKey &&
+        normalizedProgressCycleKey &&
+        previousCycleKey !== normalizedProgressCycleKey,
+    );
+    const resetPersistedProgress = Boolean(
+      normalizedPersistenceKey &&
+        (cycleChanged ||
+          (!hasMountedProgressCycleRef.current && resetPersistedProgressOnMount)),
+    );
+    if (resetPersistedProgress && normalizedPersistenceKey) {
+      clearPersistedProgress(normalizedPersistenceKey);
+    }
     const persisted = normalizedPersistenceKey
       ? readPersistedProgress(normalizedPersistenceKey)
       : 0;
@@ -145,27 +174,24 @@ export function useSmoothProgress({
         : Math.min(clampProgress(serverProgress), safeMaxBeforeComplete)
       : 0;
 
-    const previousCycleKey = progressCycleKeyRef.current;
-    const cycleChanged = Boolean(
-      previousCycleKey &&
-        normalizedProgressCycleKey &&
-        previousCycleKey !== normalizedProgressCycleKey,
-    );
-
     const resetProgress = Math.max(persisted, authoritativeFloor);
-    if (cycleChanged) {
+    if (cycleChanged || resetPersistedProgress) {
       pendingCycleResetProgressRef.current = resetProgress;
     }
     setDisplayedProgress((current) =>
-      cycleChanged ? resetProgress : Math.max(current, persisted, authoritativeFloor),
+      cycleChanged || resetPersistedProgress
+        ? resetProgress
+        : Math.max(current, persisted, authoritativeFloor),
     );
     if (normalizedProgressCycleKey) {
       progressCycleKeyRef.current = normalizedProgressCycleKey;
     }
+    hasMountedProgressCycleRef.current = true;
   }, [
     isComplete,
     normalizedPersistenceKey,
     normalizedProgressCycleKey,
+    resetPersistedProgressOnMount,
     safeMaxBeforeComplete,
     serverProgress,
     syncToServerProgress,

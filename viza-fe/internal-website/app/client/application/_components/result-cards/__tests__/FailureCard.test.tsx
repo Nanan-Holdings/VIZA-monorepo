@@ -14,6 +14,7 @@ vi.mock("next-intl", () => ({
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  window.sessionStorage.clear();
 });
 
 describe("localizeVietnamPaymentError", () => {
@@ -446,6 +447,10 @@ describe("VnResultCard automated payment UI", () => {
   });
 
   it("shows and keeps the Fly loading UI after restarting from an older failed queue", async () => {
+    window.sessionStorage.setItem(
+      "viza:smooth-progress:submission-run:old-failed-queue",
+      "88",
+    );
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.endsWith("/official-fee/status")) {
         return {
