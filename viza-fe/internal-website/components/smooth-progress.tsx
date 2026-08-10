@@ -126,6 +126,8 @@ export function SmoothProgressMeter({
   step,
   maxBeforeComplete,
   initialProgress,
+  persistenceKey,
+  syncToServerProgress,
   onVisualComplete,
   transitionMs,
   ...barProps
@@ -141,6 +143,8 @@ export function SmoothProgressMeter({
     step,
     maxBeforeComplete,
     initialProgress,
+    persistenceKey,
+    syncToServerProgress,
     onVisualComplete,
   });
 

@@ -2,7 +2,11 @@ import type { ComponentType } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FailureCard } from "../FailureCard";
-import { mergeOfficialFeeStatus, VnResultCard } from "../VnResultCard";
+import {
+  localizeVietnamPaymentError,
+  mergeOfficialFeeStatus,
+  VnResultCard,
+} from "../VnResultCard";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
@@ -10,6 +14,20 @@ vi.mock("next-intl", () => ({
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("localizeVietnamPaymentError", () => {
+  it("does not expose browser abort internals in the Chinese UI", () => {
+    expect(localizeVietnamPaymentError("signal is aborted without reason", true)).toBe(
+      "状态查询暂时超时，系统会自动重新连接。",
+    );
+  });
+
+  it("uses a safe Chinese fallback for unknown runtime errors", () => {
+    expect(localizeVietnamPaymentError("unexpected worker transport failure", true)).toBe(
+      "官网处理暂时未完成，系统会自动更新；如果长时间没有变化，请联系支持。",
+    );
+  });
 });
 
 describe("FailureCard", () => {

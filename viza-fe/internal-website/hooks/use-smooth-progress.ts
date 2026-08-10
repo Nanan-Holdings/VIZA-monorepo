@@ -102,6 +102,7 @@ export function useSmoothProgress({
       : 0;
     return Math.max(clampProgress(initialProgress), persisted);
   });
+  const displayedProgressRef = useRef(displayedProgress);
   const visualCompleteNotifiedRef = useRef(false);
 
   const isComplete = explicitComplete ?? COMPLETE_STATUSES.has(normalizedStatus);
@@ -155,22 +156,29 @@ export function useSmoothProgress({
     persistProgress(normalizedPersistenceKey, displayedProgress);
   }, [displayedProgress, normalizedPersistenceKey]);
 
+  useBrowserLayoutEffect(() => {
+    displayedProgressRef.current = displayedProgress;
+  }, [displayedProgress]);
+
   useEffect(() => {
-    if (isFailed || isWaitingForUser || displayedProgress >= visualTarget) return;
+    if (isFailed || isWaitingForUser || displayedProgressRef.current >= visualTarget) return;
 
     const timer = window.setInterval(() => {
       setDisplayedProgress((current) => {
-        if (current >= visualTarget) return current;
-        return Math.min(current + safeStep, visualTarget);
+        if (current >= visualTarget) {
+          window.clearInterval(timer);
+          return current;
+        }
+        const next = Math.min(current + safeStep, visualTarget);
+        if (next >= visualTarget) window.clearInterval(timer);
+        return next;
       });
     }, safeIntervalMs);
 
     return () => window.clearInterval(timer);
   }, [
-    displayedProgress,
     isFailed,
     isWaitingForUser,
-    normalizedPersistenceKey,
     safeIntervalMs,
     safeStep,
     visualTarget,
