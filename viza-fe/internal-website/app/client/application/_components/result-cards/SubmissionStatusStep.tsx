@@ -1907,8 +1907,11 @@ export function SubmissionStatusStep({
                 : "Securely sending the application data and starting the cloud job."
           }
           applicationId={applicationId}
-          persistenceKey={submissionProgressPersistenceKey(activeRetryQueueId)}
+          persistenceKey={submissionProgressPersistenceKey(
+            activeRetryQueueId ?? snapshot?.queue?.id ?? null,
+          )}
           progressCycleKey={activeProgressCycleKey}
+          resetProgressOnMount={Boolean(activeProgressCycleKey)}
           country={country}
           visaType={visaType}
         />

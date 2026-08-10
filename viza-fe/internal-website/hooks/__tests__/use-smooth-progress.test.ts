@@ -274,4 +274,38 @@ describe("useSmoothProgress", () => {
     expect(result.current.displayedProgress).toBe(3);
     unmount();
   });
+
+  it("clears a reused queue's old high-water mark for an explicitly fresh submission", () => {
+    vi.useFakeTimers();
+    const persistenceKey = "submission-run:reused-queue";
+    const previous = renderHook(() =>
+      useSmoothProgress({
+        serverProgress: 88,
+        status: "running",
+        initialProgress: 88,
+        persistenceKey,
+        progressCycleKey: "old-attempt",
+      }),
+    );
+    expect(previous.result.current.displayedProgress).toBe(88);
+    previous.unmount();
+
+    const fresh = renderHook(() =>
+      useSmoothProgress({
+        serverProgress: 88,
+        status: "running",
+        intervalMs: 16,
+        persistenceKey,
+        progressCycleKey: "new-attempt",
+        resetPersistedProgressOnMount: true,
+      }),
+    );
+    expect(fresh.result.current.displayedProgress).toBe(0);
+
+    act(() => {
+      vi.advanceTimersByTime(48);
+    });
+    expect(fresh.result.current.displayedProgress).toBe(3);
+    fresh.unmount();
+  });
 });
