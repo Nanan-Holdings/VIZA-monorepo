@@ -11,6 +11,7 @@ import {
   fingerprintVietnamCaptchaImage,
   refreshVietnamCaptchaChallenge,
   solveVietnamImageCaptcha,
+  waitForVietnamCaptchaRefresh,
 } from "./captcha";
 import { toVietnamDob } from "./status-check";
 
@@ -21,6 +22,7 @@ export interface VietnamPaymentSearchCaptchaDiagnostic {
   challengeFingerprintPrefix?: string;
   outcome: "solved" | "unusable" | "solver_error";
   refreshConfirmed?: boolean;
+  refreshStrategy?: "search_reload_control" | "shared_fallback";
 }
 
 export interface VietnamPaymentResumeDiagnostics {
@@ -360,6 +362,55 @@ class VietnamSearchCaptchaSolveError extends Error {
   }
 }
 
+const VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS = [
+  'img[alt="reload" i]',
+  'img[title*="reload" i]',
+  'button[aria-label*="reload" i]',
+  'button[title*="reload" i]',
+  '[role="button"][aria-label*="reload" i]',
+  '[role="button"][title*="reload" i]',
+  'button:has(img[alt="reload" i])',
+].join(", ");
+
+/**
+ * Refresh the CAPTCHA on the current Vue search page with a trusted browser
+ * click, then prove that the challenge bitmap changed. The live portal uses a
+ * standalone `img[alt="reload"]`; HTMLElement.click() does not reliably
+ * trigger its Vue handler, which previously sent the same rejected challenge
+ * to 2Captcha three times.
+ */
+export async function refreshVietnamSearchCaptchaChallenge(
+  page: Page,
+  previousFingerprint: string,
+  timeoutMs = 10_000,
+): Promise<"search_reload_control" | "shared_fallback" | null> {
+  const deadline = Date.now() + Math.max(timeoutMs, 0);
+  const remainingMs = () => Math.max(0, deadline - Date.now());
+  await page.locator("#basic_captcha, input[name*='captcha' i], input[id*='captcha' i]")
+    .first()
+    .fill("")
+    .catch(() => undefined);
+
+  const reloadControls = page.locator(VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS);
+  const count = Math.min(await reloadControls.count().catch(() => 0), 10);
+  for (let index = 0; index < count && remainingMs() > 0; index += 1) {
+    const control = reloadControls.nth(index);
+    if (!(await control.isVisible({ timeout: Math.min(remainingMs(), 1_000) }).catch(() => false))) continue;
+    const clicked = await control
+      .click({ timeout: Math.max(1, Math.min(remainingMs(), 3_000)) })
+      .then(() => true)
+      .catch(() => false);
+    if (!clicked) continue;
+    if (await waitForVietnamCaptchaRefresh(page, previousFingerprint, Math.min(remainingMs(), 6_000))) {
+      return "search_reload_control";
+    }
+  }
+
+  if (remainingMs() <= 0) return null;
+  const sharedConfirmed = await refreshVietnamCaptchaChallenge(page, remainingMs()).catch(() => false);
+  return sharedConfirmed ? "shared_fallback" : null;
+}
+
 async function solveSearchCaptcha(
   page: Page,
   timeoutMs: number,
@@ -430,8 +481,20 @@ async function solveSearchCaptcha(
       }
     }
     if (attempt < 3) {
-      const refreshConfirmed = await refreshVietnamCaptchaChallenge(page, 10_000).catch(() => false);
-      diagnostics[diagnostics.length - 1].refreshConfirmed = refreshConfirmed;
+      const previousFingerprint = fingerprintVietnamCaptchaImage(capture.buffer);
+      const refreshStrategy = await refreshVietnamSearchCaptchaChallenge(
+        page,
+        previousFingerprint,
+        10_000,
+      ).catch(() => null);
+      diagnostics[diagnostics.length - 1].refreshConfirmed = refreshStrategy !== null;
+      if (refreshStrategy) diagnostics[diagnostics.length - 1].refreshStrategy = refreshStrategy;
+      if (!refreshStrategy) {
+        throw new VietnamSearchCaptchaSolveError(
+          "Vietnam search CAPTCHA refresh was not confirmed; refusing to resend the stale challenge.",
+          diagnostics,
+        );
+      }
       await page.waitForTimeout(1_000);
     }
   }
