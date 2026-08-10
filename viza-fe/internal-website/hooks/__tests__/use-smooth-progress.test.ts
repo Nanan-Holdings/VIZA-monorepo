@@ -308,4 +308,39 @@ describe("useSmoothProgress", () => {
     expect(fresh.result.current.displayedProgress).toBe(3);
     fresh.unmount();
   });
+
+  it("clears a reused queue when its persistence key arrives asynchronously", () => {
+    vi.useFakeTimers();
+    const persistenceKey = "submission-run:delayed-reused-queue";
+    window.sessionStorage.setItem(
+      `viza:smooth-progress:${persistenceKey}`,
+      "88",
+    );
+
+    const { result, rerender, unmount } = renderHook(
+      ({ keyForProgress }: { keyForProgress?: string }) =>
+        useSmoothProgress({
+          serverProgress: 88,
+          status: "running",
+          intervalMs: 16,
+          persistenceKey: keyForProgress,
+          progressCycleKey: "delayed-new-attempt",
+          resetPersistedProgressOnMount: true,
+        }),
+      { initialProps: { keyForProgress: undefined as string | undefined } },
+    );
+    expect(result.current.displayedProgress).toBe(0);
+
+    act(() => {
+      vi.advanceTimersByTime(48);
+    });
+    expect(result.current.displayedProgress).toBe(3);
+
+    rerender({ keyForProgress: persistenceKey });
+    expect(result.current.displayedProgress).toBe(3);
+    expect(window.sessionStorage.getItem(`viza:smooth-progress:${persistenceKey}`)).toBe(
+      "3",
+    );
+    unmount();
+  });
 });
