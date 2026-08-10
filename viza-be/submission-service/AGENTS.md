@@ -488,6 +488,11 @@ filling and one-shot submission for the applicant.
 - `src/vietnam/fixed-card-payment.ts` waits a bounded period for a delayed
   Standard Chartered bank-app challenge after the payment gateway handoff and
   exits early if an official receipt or terminal payment result appears first.
+- `src/vietnam/payment-resume.ts` opens each official eVisa payment-search load
+  attempt in a fresh browser context. This avoids retaining a transient failed
+  SPA module graph when evisa.gov.vn intermittently returns a 4xx response for
+  a hashed static asset; keep `src/vietnam/__tests__/payment-resume.spec.ts` in
+  sync with that fresh-context retry contract.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use
