@@ -27,6 +27,14 @@ export interface VietnamPaymentSearchCaptchaDiagnostic {
 
 export interface VietnamPaymentResumeDiagnostics {
   searchCaptchaAttempts?: VietnamPaymentSearchCaptchaDiagnostic[];
+  paymentEntry?: VietnamPaymentEntryDiagnostic;
+}
+
+export interface VietnamPaymentEntryDiagnostic {
+  outcome: "advanced" | "not_found" | "disabled" | "confirmation_missing" | "transition_failed";
+  matchedActionLabel?: "Payment" | "Thanh toán" | "支付" | "支払い";
+  confirmationObserved?: boolean;
+  finalRoute?: "search" | "applicant_detail" | "payment_information" | "other";
 }
 
 export type VietnamPaymentResumeResult =
@@ -513,7 +521,144 @@ async function submitSearch(page: Page): Promise<void> {
     await page.locator('input[type="submit"]').first().click({ timeout: 5_000 }).then(() => true).catch(() => false);
   if (!submitted) throw new Error("Could not locate Vietnam search submit button.");
   await page.waitForLoadState("networkidle", { timeout: 45_000 }).catch(() => undefined);
-  await page.waitForTimeout(1_500);
+}
+
+const VIETNAM_PAYMENT_ACTION_LABELS = ["Payment", "Thanh toán", "支付", "支払い"] as const;
+const VIETNAM_PAYMENT_ACTION_NAME = /^(?:Payment|Thanh toán|支付|支払い)$/i;
+const VIETNAM_PAYMENT_CONFIRMATION_TEXT = /(?:Are you sure you want to pay for the selected applications\?|Bạn có chắc chắn thanh toán các hồ sơ đã chọn\?|您确定要为所选应用程序付费吗？|選択したアプリケーションの料金を支払いますか\?)/i;
+const VIETNAM_CONFIRM_ACTION_NAME = /^(?:Confirm|Xác nhận|确认|確認)$/i;
+
+function classifyVietnamPaymentRoute(page: Page): VietnamPaymentEntryDiagnostic["finalRoute"] {
+  const currentUrl = page.url();
+  if (/\/e-visa\/search(?:\/|$|\?)/i.test(currentUrl)) return "search";
+  if (/\/e-visa\/foreigners\/[^/?]+/i.test(currentUrl)) return "applicant_detail";
+  if (/\/thanh-toan-cqtc(?:\/|$|\?)/i.test(currentUrl)) return "payment_information";
+  return "other";
+}
+
+function vietnamPaymentEntryTransitionVisible(page: Page): Promise<boolean> {
+  return Promise.all([
+    page.locator("body").innerText({ timeout: 1_000 }).catch(() => ""),
+    Promise.resolve(page.url()),
+  ]).then(([bodyText, currentUrl]) => (
+    /payment[’']?s information|payment information|thông tin thanh toán|付款信息|支払い情報|amount paid \(usd\)|i agree to pay/i.test(bodyText) ||
+    /\/thanh-toan-cqtc(?:\/|$|\?)/i.test(currentUrl) ||
+    /\/e-visa\/foreigners\/[^/?]+/i.test(currentUrl)
+  ));
+}
+
+function paymentActionLabel(text: string): VietnamPaymentEntryDiagnostic["matchedActionLabel"] {
+  const normalized = text.trim();
+  return VIETNAM_PAYMENT_ACTION_LABELS.find((label) => label.toLocaleLowerCase() === normalized.toLocaleLowerCase());
+}
+
+/**
+ * Follows both official SPA handoffs. Individual applications navigate directly
+ * to their detail route; organization applications open a confirmation modal
+ * before /thanh-toan-cqtc. A click alone is never considered a transition.
+ */
+export async function followVietnamSearchPaymentEntry(
+  page: Page,
+  timeoutMs = 45_000,
+): Promise<VietnamPaymentEntryDiagnostic> {
+  const deadline = Date.now() + Math.max(500, timeoutMs);
+  let sawDisabled = false;
+
+  while (Date.now() < deadline) {
+    if (await vietnamPaymentEntryTransitionVisible(page)) {
+      return {
+        outcome: "advanced",
+        finalRoute: classifyVietnamPaymentRoute(page),
+      };
+    }
+
+    const paymentAction = page.getByRole("button", { name: VIETNAM_PAYMENT_ACTION_NAME, exact: true }).first();
+    if (await paymentAction.isVisible({ timeout: 500 }).catch(() => false)) {
+      const label = paymentActionLabel(await paymentAction.innerText().catch(() => ""));
+      if (!(await paymentAction.isEnabled({ timeout: 500 }).catch(() => false))) {
+        sawDisabled = true;
+        await page.waitForTimeout(250);
+        continue;
+      }
+
+      await paymentAction.click({ timeout: Math.min(10_000, Math.max(500, deadline - Date.now())) });
+      await page.waitForTimeout(250);
+      if (await vietnamPaymentEntryTransitionVisible(page)) {
+        return {
+          outcome: "advanced",
+          matchedActionLabel: label,
+          finalRoute: classifyVietnamPaymentRoute(page),
+        };
+      }
+
+      let confirmationObserved = false;
+      while (Date.now() < deadline) {
+        const confirmationText = page.getByText(VIETNAM_PAYMENT_CONFIRMATION_TEXT).first();
+        confirmationObserved = await confirmationText.isVisible({ timeout: 500 }).catch(() => false);
+        if (confirmationObserved) break;
+        if (await vietnamPaymentEntryTransitionVisible(page)) {
+          return {
+            outcome: "advanced",
+            matchedActionLabel: label,
+            finalRoute: classifyVietnamPaymentRoute(page),
+          };
+        }
+        await page.waitForTimeout(250);
+      }
+      if (!confirmationObserved) {
+        return {
+          outcome: "confirmation_missing",
+          matchedActionLabel: label,
+          confirmationObserved: false,
+          finalRoute: classifyVietnamPaymentRoute(page),
+        };
+      }
+
+      const visibleDialog = page.locator('[role="dialog"]:visible, .ant-modal:visible').filter({
+        hasText: VIETNAM_PAYMENT_CONFIRMATION_TEXT,
+      }).first();
+      const scopedConfirm = visibleDialog.getByRole("button", { name: VIETNAM_CONFIRM_ACTION_NAME, exact: true }).first();
+      const pageConfirm = page.getByRole("button", { name: VIETNAM_CONFIRM_ACTION_NAME, exact: true }).first();
+      const confirmAction = await scopedConfirm.isVisible({ timeout: 500 }).catch(() => false)
+        ? scopedConfirm
+        : pageConfirm;
+      if (!(await confirmAction.isVisible({ timeout: 1_500 }).catch(() => false)) ||
+        !(await confirmAction.isEnabled({ timeout: 500 }).catch(() => false))) {
+        return {
+          outcome: "confirmation_missing",
+          matchedActionLabel: label,
+          confirmationObserved: true,
+          finalRoute: classifyVietnamPaymentRoute(page),
+        };
+      }
+
+      await confirmAction.click({ timeout: Math.min(10_000, Math.max(500, deadline - Date.now())) });
+      while (Date.now() < deadline) {
+        if (await vietnamPaymentEntryTransitionVisible(page)) {
+          return {
+            outcome: "advanced",
+            matchedActionLabel: label,
+            confirmationObserved: true,
+            finalRoute: classifyVietnamPaymentRoute(page),
+          };
+        }
+        await page.waitForTimeout(250);
+      }
+      return {
+        outcome: "transition_failed",
+        matchedActionLabel: label,
+        confirmationObserved: true,
+        finalRoute: classifyVietnamPaymentRoute(page),
+      };
+    }
+
+    await page.waitForTimeout(250);
+  }
+
+  return {
+    outcome: sawDisabled ? "disabled" : "not_found",
+    finalRoute: classifyVietnamPaymentRoute(page),
+  };
 }
 
 async function clickVisibleButtonByText(page: Page, labels: string[]): Promise<boolean> {
@@ -569,76 +714,82 @@ async function clickVisibleTextOrCheckbox(page: Page, labels: string[]): Promise
   return false;
 }
 
-async function advanceOfficialFormToPayment(page: Page, timeoutMs: number): Promise<void> {
-  for (let attempt = 0; attempt < 6; attempt += 1) {
+export async function advanceOfficialFormToPayment(page: Page, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + Math.min(Math.max(timeoutMs, 1_000), 45_000);
+  for (let attempt = 0; attempt < 12 && Date.now() < deadline; attempt += 1) {
     const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
     const currentUrl = page.url();
     if (/payment gateway|payment amount|card number|credit card|debit card|cvv|cvc|pay now|submit payment|transaction/i.test(bodyText) ||
       /\/(?:payment|pay|checkout|gateway)(?:\/|$|\?)/i.test(currentUrl)) {
       return;
     }
-    if (/additional completed|electronic document code/i.test(bodyText)) {
-      if (!(await clickVisibleButtonByText(page, ["Confirm", "OK"]))) {
+    if (/additional completed|electronic document code|bổ sung hoàn thành|电子文件代码|電子文書コード/i.test(bodyText)) {
+      if (!(await clickVisibleButtonByText(page, ["Confirm", "Xác nhận", "确认", "確認", "OK"]))) {
         throw new Error("Could not confirm the Vietnam additional-completed dialog.");
       }
       continue;
     }
-    if (/payment’s information|payment's information|amount paid \(usd\)|i agree to pay/i.test(bodyText)) {
-      await clickVisibleTextOrCheckbox(page, ["I agree to pay"]);
-      if (!(await clickVisibleButtonByText(page, ["Payment", "Pay", "Continue"]))) {
+    if (/payment’s information|payment's information|amount paid \(usd\)|i agree to pay|tôi đồng ý thanh toán|我同意支付|支払いに同意する/i.test(bodyText)) {
+      await clickVisibleTextOrCheckbox(page, [
+        "I agree to pay",
+        "Tôi đồng ý thanh toán",
+        "我同意支付",
+        "支払いに同意する",
+      ]);
+      if (!(await clickVisibleButtonByText(page, [
+        "Payment",
+        "Pay",
+        "Continue",
+        "Thanh toán",
+        "Tiếp tục",
+        "支付",
+        "继续",
+        "支払い",
+        "続行",
+      ]))) {
         throw new Error("Could not click the Vietnam official payment confirmation button.");
       }
       continue;
     }
-    if (/review application form/i.test(bodyText) && /security code/i.test(bodyText)) {
+    if (/review application form|xem lại hồ sơ|审查申请表|申請フォームを確認する/i.test(bodyText)) {
       const reviewCaptcha = await solveVietnamImageCaptcha(page, timeoutMs);
       if (!reviewCaptcha.solved) {
         throw new Error(reviewCaptcha.reason ?? "Could not solve the Vietnam review CAPTCHA.");
       }
-      if (!(await clickVisibleButtonByText(page, ["Next", "Continue", "Payment"]))) {
+      if (!(await clickVisibleButtonByText(page, [
+        "Next",
+        "Continue",
+        "Payment",
+        "Tiếp tục",
+        "Thanh toán",
+        "下一步",
+        "继续",
+        "支付",
+        "次へ",
+        "続行",
+        "支払い",
+      ]))) {
         throw new Error("Could not advance from Vietnam review page to payment.");
       }
       continue;
     }
-    if (/viet nam e-visa application form|fill out the application form/i.test(bodyText)) {
-      if (!(await clickVisibleButtonByText(page, ["Next", "Continue"]))) {
+    if (/viet nam e-visa application form|fill out the application form|khai thông tin đề nghị|填写申请表|申請フォームを記入する/i.test(bodyText)) {
+      if (!(await clickVisibleButtonByText(page, [
+        "Next",
+        "Continue",
+        "Tiếp tục",
+        "下一步",
+        "继续",
+        "次へ",
+        "続行",
+      ]))) {
         throw new Error("Could not advance from Vietnam application form to review.");
       }
       continue;
     }
-    if (await clickPaymentEntry(page)) {
-      continue;
-    }
-    return;
+    await page.waitForTimeout(500);
   }
-}
-
-async function clickPaymentEntry(page: Page): Promise<boolean> {
-  const selectors = [
-    'button:has-text("Pay")',
-    'a:has-text("Pay")',
-    'button:has-text("Payment")',
-    'a:has-text("Payment")',
-    'button:has-text("pay visa fee")',
-    'a:has-text("pay visa fee")',
-    'button:has-text("Pay to edit")',
-    'a:has-text("Pay to edit")',
-    'button:has-text("Thanh toán")',
-    'a:has-text("Thanh toán")',
-    'button:has-text("Nộp phí")',
-    'a:has-text("Nộp phí")',
-  ];
-  for (const selector of selectors) {
-    const locator = page.locator(selector).first();
-    if (await locator.isVisible({ timeout: 1_500 }).catch(() => false)) {
-      await locator.click({ timeout: 10_000 });
-      await page.waitForLoadState("domcontentloaded", { timeout: 45_000 }).catch(() => undefined);
-      await page.waitForLoadState("networkidle", { timeout: 45_000 }).catch(() => undefined);
-      await page.waitForTimeout(1_500);
-      return true;
-    }
-  }
-  return false;
+  throw new Error("The official Vietnam application detail did not expose an expected review or payment step after the handoff.");
 }
 
 function mapPaymentResult(payment: VietnamFixedCardPaymentResult, page: Page): VietnamPaymentResumeResult {
@@ -700,11 +851,23 @@ export async function resumeVietnamOfficialPayment(
       };
     }
 
-    if (!(await clickPaymentEntry(page))) {
+    diagnostics.paymentEntry = await followVietnamSearchPaymentEntry(
+      page,
+      Math.min(input.timeoutMs ?? 120_000, 45_000),
+    );
+    if (diagnostics.paymentEntry.outcome !== "advanced") {
+      const reasonByOutcome: Record<VietnamPaymentEntryDiagnostic["outcome"], string> = {
+        advanced: "",
+        not_found: "The official Vietnam search result did not expose a payment entry before the bounded wait expired.",
+        disabled: "The official Vietnam search result exposed a disabled payment entry.",
+        confirmation_missing: "The official Vietnam payment action did not expose its confirmation dialog.",
+        transition_failed: "The official Vietnam payment confirmation did not advance to the payment information page.",
+      };
       return {
         status: "unavailable",
-        reason: "The official Vietnam search result did not expose a payment entry.",
+        reason: reasonByOutcome[diagnostics.paymentEntry.outcome],
         url: page.url(),
+        diagnostics,
       };
     }
     await advanceOfficialFormToPayment(page, input.timeoutMs ?? 120_000);

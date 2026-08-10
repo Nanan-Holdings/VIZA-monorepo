@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { chromium } from "@playwright/test";
 import {
+  advanceOfficialFormToPayment,
+  followVietnamSearchPaymentEntry,
   isVietnamSearchCaptchaAnswerUsable,
   normalizeVietnamSearchCaptchaAnswer,
   refreshVietnamSearchCaptchaChallenge,
@@ -160,4 +162,188 @@ test("vn.payment-resume: recovers when opening the first browser context fails",
   assert.equal(result.ready, true);
   assert.equal(result.page, "recovered");
   assert.equal(result.lastError, undefined);
+});
+
+for (const label of ["Payment", "Thanh toán", "支付", "支払い"]) {
+  test(`vn.payment-resume: follows the official two-step payment handoff in locale ${label}`, async () => {
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(`
+        <button id="payment-action">${label}</button>
+        <div id="dialog" role="dialog" hidden>
+          <p>Are you sure you want to pay for the selected applications?</p>
+          <button id="confirm">Confirm</button>
+        </div>
+        <script>
+          document.querySelector('#payment-action').addEventListener('click', () => {
+            document.querySelector('#dialog').hidden = false;
+          });
+          document.querySelector('#confirm').addEventListener('click', () => {
+            document.body.innerHTML = '<h1>PAYMENT’S INFORMATION</h1><label>I agree to pay</label>';
+          });
+        </script>
+      `);
+
+      const result = await followVietnamSearchPaymentEntry(page, 3_000);
+
+      assert.equal(result.outcome, "advanced");
+      assert.equal(result.matchedActionLabel, label);
+      assert.equal(result.confirmationObserved, true);
+    } finally {
+      await browser.close();
+    }
+  });
+}
+
+test("vn.payment-resume: follows the individual application detail handoff without expecting a modal", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.route("https://fixture.invalid/e-visa/search", async (route) => {
+      await route.fulfill({ contentType: "text/html", body: "<html><body></body></html>" });
+    });
+    await page.goto("https://fixture.invalid/e-visa/search");
+    await page.setContent(`
+      <button id="payment-action">Thanh toán</button>
+      <script>
+        document.querySelector('#payment-action').addEventListener('click', () => {
+          history.pushState({}, '', '/e-visa/foreigners/test-record?email=managed%40example.invalid');
+        });
+      </script>
+    `);
+
+    const result = await followVietnamSearchPaymentEntry(page, 3_000);
+
+    assert.equal(result.outcome, "advanced");
+    assert.equal(result.matchedActionLabel, "Thanh toán");
+    assert.equal(result.confirmationObserved, undefined);
+    assert.equal(result.finalRoute, "applicant_detail");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: waits for the Vue result action instead of racing a delayed response", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div id="result"></div>
+      <script>
+        setTimeout(() => {
+          document.querySelector('#result').innerHTML = '<button id="payment-action">Payment</button><div role="dialog" hidden><p>Are you sure you want to pay for the selected applications?</p><button id="confirm">Confirm</button></div>';
+          document.querySelector('#payment-action').addEventListener('click', () => {
+            document.querySelector('[role="dialog"]').hidden = false;
+          });
+          document.querySelector('#confirm').addEventListener('click', () => {
+            document.body.innerHTML = '<h1>PAYMENT INFORMATION</h1>';
+          });
+        }, 600);
+      </script>
+    `);
+
+    const result = await followVietnamSearchPaymentEntry(page, 3_000);
+
+    assert.equal(result.outcome, "advanced");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: does not click unrelated pay-like actions", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<button id="unrelated">Pay to edit</button><p>Download payment receipt</p>');
+
+    const result = await followVietnamSearchPaymentEntry(page, 600);
+
+    assert.equal(result.outcome, "not_found");
+    assert.equal(await page.locator('#unrelated').isVisible(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: reports a disabled official payment action", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<button disabled>Thanh toán</button>');
+
+    const result = await followVietnamSearchPaymentEntry(page, 600);
+
+    assert.equal(result.outcome, "disabled");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: does not report success when the first click has no confirmation", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<button>Payment</button>');
+
+    const result = await followVietnamSearchPaymentEntry(page, 700);
+
+    assert.equal(result.outcome, "confirmation_missing");
+    assert.equal(result.confirmationObserved, false);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: advances the default Vietnamese detail and payment steps", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <h1>Khai thông tin đề nghị</h1>
+      <button id="next">Tiếp tục</button>
+      <script>
+        document.querySelector('#next').addEventListener('click', () => {
+          document.body.innerHTML = '<label><input type="checkbox" /> Tôi đồng ý thanh toán</label><button id="pay">Thanh toán</button>';
+          document.querySelector('#pay').addEventListener('click', () => {
+            document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+          });
+        });
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 10_000);
+
+    assert.match(await page.locator('body').innerText(), /Payment gateway/);
+    assert.equal(await page.locator('input[type="checkbox"]').count(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: waits for the applicant detail SPA after the route changes", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div class="skeleton">Loading</div>
+      <script>
+        setTimeout(() => {
+          document.body.innerHTML = '<h1>Khai thông tin đề nghị</h1><button id="next">Tiếp tục</button>';
+          document.querySelector('#next').addEventListener('click', () => {
+            document.body.innerHTML = '<label><input type="checkbox" /> Tôi đồng ý thanh toán</label><button id="pay">Thanh toán</button>';
+            document.querySelector('#pay').addEventListener('click', () => {
+              document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+            });
+          });
+        }, 700);
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 10_000);
+
+    assert.match(await page.locator('body').innerText(), /Payment gateway/);
+  } finally {
+    await browser.close();
+  }
 });
