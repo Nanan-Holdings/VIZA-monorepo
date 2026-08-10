@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { MapPin, User } from "lucide-react";
 import { countries } from "country-data-list";
 import countryRegionData from "country-region-data/data.json";
@@ -20,6 +20,7 @@ import {
   toCopilotOptions,
   type BilingualFieldCopilotConfig,
 } from "./bilingual-form-shared";
+import { isChineseLocale } from "@/lib/i18n/locale";
 
 export interface PersonalInfoData {
   surname: string;
@@ -377,6 +378,7 @@ function BilingualRow({
   enControl: ReactNode;
   copilot?: BilingualFieldCopilotConfig;
 }) {
+  const isZh = isChineseLocale(useLocale());
   const scopedCopilot = copilot
     ? {
         ...copilot,
@@ -387,8 +389,25 @@ function BilingualRow({
   const labels = getBilingualRowLabels(label, scopedCopilot?.label);
   const requiredMark = scopedCopilot?.required ? <span className="ml-1 text-red-500">*</span> : null;
 
+  if (!isZh) {
+    return (
+      <div className="min-w-0 px-0 py-4 sm:px-2">
+        <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
+          {labels.en}
+          {requiredMark}
+        </span>
+        {enControl}
+        {scopedCopilot && (
+          <div className="min-w-0" data-copilot-panel-frame={scopedCopilot.fieldName}>
+            <BilingualFieldCopilot config={scopedCopilot} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="grid min-w-0 gap-4 px-0 py-4 sm:px-2 md:grid-cols-2">
+    <div className="min-w-0 px-0 py-4 sm:px-2">
       <div className="min-w-0">
         <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
           {labels.zh}
@@ -396,15 +415,8 @@ function BilingualRow({
         </span>
         {zhControl}
       </div>
-      <div className="min-w-0">
-        <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
-          {labels.en}
-          {requiredMark}
-        </span>
-        {enControl}
-      </div>
       {scopedCopilot && (
-        <div className="min-w-0 md:col-span-2" data-copilot-panel-frame={scopedCopilot.fieldName}>
+        <div className="min-w-0" data-copilot-panel-frame={scopedCopilot.fieldName}>
           <BilingualFieldCopilot config={scopedCopilot} />
         </div>
       )}

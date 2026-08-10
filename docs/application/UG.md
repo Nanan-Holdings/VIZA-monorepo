@@ -94,14 +94,18 @@ The home page application cards show progress so users can see which application
 
 ## Filling A Form
 
-Most current forms use a bilingual layout:
+Forms show one entry column in the selected interface language. In Chinese
+mode, questions, placeholders, options, and editable values are Chinese only.
+The corresponding English or official value is generated and stored in the
+background, then shown beside the Chinese value on the final **核对信息** step.
 
-- left column: Chinese question and Chinese input
-- right column: English or official question and English/official input
+For text fields, Chinese edits update the English or official value where the
+product has a deterministic mapping or translation helper. In English mode,
+edits preserve any stored Chinese value. Official names, passport names, dates,
+and country names should still be checked on final review before submitting.
 
-For text fields, the user can type in either side. Chinese-side edits can update the English or official side where the product has a deterministic mapping or translation helper. English-side edits do not overwrite the Chinese side. Official names, passport names, dates, and country names should still be checked by the user before submitting.
-
-For select, radio, date, country, and upload controls, both sides represent the same answer. Choosing a value on either side updates the shared answer.
+Select, radio, date, country, and upload controls keep one canonical answer
+shared across both display languages.
 
 ## Keyboard Shortcuts
 
