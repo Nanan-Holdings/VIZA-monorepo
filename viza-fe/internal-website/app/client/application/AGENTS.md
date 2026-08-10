@@ -8,7 +8,9 @@ Keep `/client/application` as the authenticated visa application filling flow:
 
 1. Users arrive from destination cards or VIZA AI redirects with `country` and `visaType`.
 2. The page loads or creates the matching draft application instead of assuming a single global active application.
-3. DB-driven forms render as a bilingual two-column form: Chinese on the left, English/official wording on the right.
+3. DB-driven forms render one entry column in the selected interface language.
+   Chinese and English/official values stay synchronized internally and appear
+   together on the final read-only review in Chinese mode.
 4. Field-level AI help opens only from the `问 AI` button and should support the current field without taking over normal form interaction.
 5. Photo upload is handled inside the supporting-documents step; review,
    submit/status steps remain part of the same application progress.
@@ -31,7 +33,7 @@ Before changing this route, read:
 ## Key Files
 
 - `page.tsx`: route entry and application flow coordinator. It resolves query params, loads draft application state, chooses DB-driven versus fallback steps, and appends supporting-documents/review/status steps.
-- `components/dynamic-step-form.tsx`: shared DB-driven bilingual form renderer, including Chinese/English synchronization, field-level validation, repeat groups, keyboard undo/redo, and AI trigger buttons.
+- `components/dynamic-step-form.tsx`: shared DB-driven localized form renderer, including hidden Chinese/English synchronization, field-level validation, repeat groups, keyboard undo/redo, and AI trigger buttons.
 - `components/dynamic-form-field.tsx`: primitive field renderer for text, textarea, date, select, country, radio, checkbox, phone, SSN, and upload-like fields.
 - `components/field-guidance-panel.tsx`: frontend panel for field-level AI help. It calls `POST /api/field-guidance` and must render plain, useful field guidance.
 - `components/client/form-assistant/form-filling-assistant.tsx`: reusable application-level assistant for DB-driven forms, including text/voice composer, progress, provenance notices, and final-check controls.
@@ -61,7 +63,9 @@ Before changing this route, read:
 2. The application UI must continue using the frozen canonical components
    demonstrated at `/ui-components`. Do not modify, replace, regenerate,
    restyle, or work around those components without Edward's explicit approval.
-3. Preserve the two-column bilingual contract: left is fully Chinese, right is fully English/official wording. Indonesia C1/eVOA is the approved exception: it follows the selected interface language and renders only one language column while retaining the official submission value internally.
+3. Form entry follows the selected interface language and renders one language
+   column. Preserve synchronized Chinese and English/official values internally;
+   Chinese-mode final review shows both for verification before submission.
 4. Do not reintroduce section-header rows or nested table/card borders inside the form body unless Edward explicitly reviews and approves that design change. The outer form card is enough.
 5. Keep the application page width aligned with the homepage content width. Use the shared `max-w-[1090px]` page rhythm unless Edward explicitly approves a design change.
 6. Avoid clipped focus or active borders. Prefer real borders inside the element over rings that overflow a constrained container.
