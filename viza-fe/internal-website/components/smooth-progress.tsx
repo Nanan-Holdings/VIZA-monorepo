@@ -128,6 +128,7 @@ export function SmoothProgressMeter({
   initialProgress,
   persistenceKey,
   progressCycleKey,
+  resetPersistedProgressOnMount,
   syncToServerProgress,
   onVisualComplete,
   transitionMs,
@@ -146,6 +147,7 @@ export function SmoothProgressMeter({
     initialProgress,
     persistenceKey,
     progressCycleKey,
+    resetPersistedProgressOnMount,
     syncToServerProgress,
     onVisualComplete,
   });

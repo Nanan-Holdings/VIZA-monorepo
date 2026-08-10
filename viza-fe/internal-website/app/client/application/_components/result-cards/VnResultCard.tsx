@@ -144,9 +144,7 @@ export function VnResultCard({
       : cloudPaymentVisualStage === "filling_form"
         ? 55
         : 9;
-  const cloudPaymentRunId = paymentProgressCycleKey
-    ? activePaymentQueueId
-    : activePaymentQueueId ?? polledPaymentQueueId ?? jobId ?? null;
+  const cloudPaymentRunId = activePaymentQueueId ?? polledPaymentQueueId ?? jobId ?? null;
   const cloudPaymentPersistenceKey = cloudPaymentRunId
     ? `submission-run:${cloudPaymentRunId}`
     : null;
@@ -402,6 +400,7 @@ export function VnResultCard({
         applicationId={applicationId}
         persistenceKey={cloudPaymentPersistenceKey}
         progressCycleKey={cloudPaymentProgressCycleKey}
+        resetProgressOnMount={Boolean(paymentProgressCycleKey)}
         country="vietnam"
         visaType="evisa_tourism"
       />
