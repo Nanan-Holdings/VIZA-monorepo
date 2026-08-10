@@ -76,6 +76,8 @@ export function VnResultCard({
   const [completing, setCompleting] = useState(false);
   const [officialFeeStatus, setOfficialFeeStatus] = useState<Record<string, unknown> | null>(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
+  const [activePaymentQueueId, setActivePaymentQueueId] = useState<string | null>(null);
+  const [paymentProgressCycleKey, setPaymentProgressCycleKey] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -94,6 +96,12 @@ export function VnResultCard({
     typeof officialFeeStatus?.queueId === "string";
   const paymentNeedsOperator = officialFeeStatus?.paymentNeedsOperator === true;
   const paymentQueue = officialFeeStatus?.paymentQueue as Record<string, unknown> | null | undefined;
+  const polledPaymentQueueId =
+    typeof paymentQueue?.id === "string"
+      ? paymentQueue.id
+      : typeof officialFeeStatus?.queueId === "string"
+        ? officialFeeStatus.queueId
+        : null;
   const paymentQueueStatus = typeof paymentQueue?.status === "string" ? paymentQueue.status : null;
   const paymentQueueStage = typeof paymentQueue?.current_stage === "string" ? paymentQueue.current_stage : null;
   const paymentQueuePaymentStatus =
@@ -136,6 +144,13 @@ export function VnResultCard({
       : cloudPaymentVisualStage === "filling_form"
         ? 55
         : 9;
+  const cloudPaymentRunId = paymentProgressCycleKey
+    ? activePaymentQueueId
+    : activePaymentQueueId ?? polledPaymentQueueId ?? jobId ?? null;
+  const cloudPaymentPersistenceKey = cloudPaymentRunId
+    ? `submission-run:${cloudPaymentRunId}`
+    : null;
+  const cloudPaymentProgressCycleKey = paymentProgressCycleKey ?? cloudPaymentRunId;
   const cardReady = cardNumber.replace(/\D/g, "").length >= 12 && cardExpiry.trim().length >= 4 && cardCvv.replace(/\D/g, "").length >= 3;
   const showPaymentForm =
     !paymentPaid &&
@@ -302,6 +317,8 @@ export function VnResultCard({
 
   const authorizeAndPay = async () => {
     if (!applicationId || paymentBusy) return;
+    setPaymentProgressCycleKey(`payment:${applicationId}:${Date.now()}`);
+    setActivePaymentQueueId(null);
     setPaymentBusy(true);
     setPaymentError(null);
     try {
@@ -340,13 +357,16 @@ export function VnResultCard({
         typeof payPayload?.queueStatus === "string"
           ? payPayload.queueStatus
           : "vn_cloud_live_pending";
+      const newPaymentQueueId =
+        typeof payPayload?.queueId === "string" ? payPayload.queueId : null;
+      setActivePaymentQueueId(newPaymentQueueId);
       setOfficialFeeStatus((current) => ({
         ...(current ?? {}),
         paymentQueued: true,
         paymentNeedsOperator: false,
-        queueId: payPayload?.queueId ?? null,
+        queueId: newPaymentQueueId,
         paymentQueue: {
-          id: payPayload?.queueId ?? null,
+          id: newPaymentQueueId,
           status: queuedStatus,
           current_stage: "payment_authorized",
           payment_status: "authorized",
@@ -380,9 +400,8 @@ export function VnResultCard({
         serverProgress={cloudPaymentProgress}
         message={cloudPaymentMessage}
         applicationId={applicationId}
-        persistenceKey={
-          applicationId ? undefined : jobId ? `submission-job:${jobId}` : undefined
-        }
+        persistenceKey={cloudPaymentPersistenceKey}
+        progressCycleKey={cloudPaymentProgressCycleKey}
         country="vietnam"
         visaType="evisa_tourism"
       />

@@ -207,6 +207,7 @@ export function WaitingCard({
   error,
   applicationId,
   persistenceKey,
+  progressCycleKey,
   country,
   visaType,
   onVisualComplete,
@@ -218,6 +219,7 @@ export function WaitingCard({
   error?: string | null;
   applicationId?: string | null;
   persistenceKey?: string | null;
+  progressCycleKey?: string | null;
   country?: string | null;
   visaType?: string | null;
   onVisualComplete?: () => void;
@@ -248,9 +250,8 @@ export function WaitingCard({
     isVisuallyComplete,
   } = useSmoothProgress({
     serverProgress: visualServerProgress,
-    persistenceKey:
-      persistenceKey?.trim() ||
-      (applicationId ? `submission:${applicationId}` : undefined),
+    persistenceKey: persistenceKey?.trim() || undefined,
+    progressCycleKey,
     status: completeStatus
       ? "completed"
       : failedStatus
@@ -260,7 +261,7 @@ export function WaitingCard({
           : "running",
     intervalMs: 800,
     initialProgress: 0,
-    syncToServerProgress: true,
+    syncToServerProgress: false,
     onVisualComplete,
   });
   const activePhase = PHASES[activePhaseIdx] ?? PHASES[0];

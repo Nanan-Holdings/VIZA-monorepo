@@ -99,6 +99,11 @@ interface SubmissionStatusSnapshot {
   } | null;
 }
 
+function submissionProgressPersistenceKey(queueId: string | null | undefined): string | null {
+  const normalizedQueueId = queueId?.trim();
+  return normalizedQueueId ? `submission-run:${normalizedQueueId}` : null;
+}
+
 type ManualAction = {
   id: string;
   actionType: string;
@@ -1433,6 +1438,7 @@ export function SubmissionStatusStep({
   const [resubmitting, setResubmitting] = useState(false);
   const [localRetryActive, setLocalRetryActive] = useState(false);
   const [activeRetryQueueId, setActiveRetryQueueId] = useState<string | null>(null);
+  const [activeProgressCycleKey, setActiveProgressCycleKey] = useState<string | null>(null);
   const initialResultTargetsIndonesia = resultTargetsIndonesia(result);
 
   const handleRetry = useCallback(async (
@@ -1440,6 +1446,8 @@ export function SubmissionStatusStep({
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
   ) => {
     if (!applicationId) return;
+    setActiveProgressCycleKey(`retry:${applicationId}:${Date.now()}`);
+    setActiveRetryQueueId(null);
     setRetryError(null);
     setResubmitting(true);
     try {
@@ -1617,6 +1625,11 @@ export function SubmissionStatusStep({
   const effectiveProgress = terminalPropsAvailable
     ? fallbackProgressForStatus(effectiveStatus, country, visaType)
     : snapshot?.progress ?? fallbackProgressForStatus(effectiveStatus, country, visaType);
+  const effectiveQueueId = localRetryActive
+    ? activeRetryQueueId
+    : snapshot?.queue?.id ?? null;
+  const effectiveProgressCycleKey = activeProgressCycleKey ?? effectiveQueueId;
+  const effectiveProgressPersistenceKey = submissionProgressPersistenceKey(effectiveQueueId);
   const polledVietnamPrearrivalHasQr =
     snapshot?.result &&
     isDigitalArrivalCardResult(snapshot.result) &&
@@ -1699,6 +1712,7 @@ export function SubmissionStatusStep({
     setRetryError(null);
     setLocalRetryActive(false);
     setActiveRetryQueueId(null);
+    setActiveProgressCycleKey(null);
   }, [applicationId, country, visaType]);
 
   useEffect(() => {
@@ -1893,6 +1907,8 @@ export function SubmissionStatusStep({
                 : "Securely sending the application data and starting the cloud job."
           }
           applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(activeRetryQueueId)}
+          progressCycleKey={activeProgressCycleKey}
           country={country}
           visaType={visaType}
         />
@@ -2159,6 +2175,8 @@ export function SubmissionStatusStep({
         }
         error={effectiveError}
         applicationId={applicationId}
+        persistenceKey={effectiveProgressPersistenceKey}
+        progressCycleKey={effectiveProgressCycleKey}
         country={country}
         visaType={visaType}
       />
@@ -2182,10 +2200,13 @@ function renderSubmissionResultCard(
   jobId: string | null = null,
 ) {
   if (!result) {
+    const persistenceKey = submissionProgressPersistenceKey(jobId);
     return (
       <WaitingCard
         status="running"
         applicationId={applicationId}
+        persistenceKey={persistenceKey}
+        progressCycleKey={jobId}
         country={country}
         visaType={visaType}
       />
@@ -2293,6 +2314,8 @@ function renderSubmissionResultCard(
         <WaitingCard
           status="running"
           applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(jobId)}
+          progressCycleKey={jobId}
           country={country}
           visaType={visaType}
         />
@@ -2313,6 +2336,8 @@ function renderSubmissionResultCard(
         <WaitingCard
           status="running"
           applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(jobId)}
+          progressCycleKey={jobId}
           country={country}
           visaType={visaType}
         />
@@ -2322,6 +2347,8 @@ function renderSubmissionResultCard(
         <WaitingCard
           status="running"
           applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(jobId)}
+          progressCycleKey={jobId}
           country={country}
           visaType={visaType}
         />
