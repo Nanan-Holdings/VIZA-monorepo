@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 function ApplicationFormLabelAction({ children }: { children: React.ReactNode }) {
   return (
-    <span className="absolute right-0 top-1/2 z-10 -translate-y-1/2 opacity-0 transition-opacity group-hover/field:opacity-100 group-focus-within/field:opacity-100">
+    <span className="absolute right-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center opacity-0 transition-opacity group-hover/field:opacity-100 group-focus-within/field:opacity-100">
       {children}
     </span>
   );

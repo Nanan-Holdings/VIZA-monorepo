@@ -201,7 +201,9 @@ API/action boundaries:
 2. `page.tsx` resolves the requested country and visa type, then loads or creates a matching draft application.
 3. The page tries DB-driven form steps from `visa_form_fields`.
 4. If DB-driven steps exist, `DynamicStepForm` renders them; otherwise the page falls back to legacy hardcoded B211A steps.
-5. Each DB-driven field is rendered as a bilingual pair through `DynamicFormField`.
+5. Each DB-driven field is rendered once in the selected interface language
+   through `DynamicFormField`; its paired Chinese and English/official values
+   remain synchronized in state.
 6. Field values are stored in local step state, then persisted to application answer rows when the user continues.
 7. Team management (when applicable) is followed by one final Review Application
    step. That step combines the read-only answer review, missing-field summary,
@@ -213,12 +215,14 @@ API/action boundaries:
 
 Rules:
 
-- left side is Chinese only
-- right side is English or official wording only
-- text-like fields keep a `{ zh, en }` pair; Chinese-side edits may update `en`, while English/official-side edits preserve `zh`
-- editing either side updates the pair and the canonical field value
-- non-text fields share one canonical answer across both sides
-- date, country, select, radio, and checkbox values should not diverge by language
+- entry renders only the selected interface language
+- text-like fields keep a hidden `{ zh, en }` pair; Chinese edits update the
+  English/official value through deterministic or realtime translation
+- English-interface edits preserve the stored Chinese value
+- non-text fields share one canonical answer across both languages
+- date, country, select, radio, and checkbox values do not diverge by language
+- Chinese-mode final review shows paired Chinese and English/official labels
+  and values; entry steps never show the two columns side by side
 
 Labels, placeholders, and option text are normalized through `lib/ds160-translations.ts` and option helpers in `DynamicStepForm`.
 
@@ -465,4 +469,4 @@ Manual checks:
 
 # Taiwan overseas-China tourist entry permit
 
-`TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT` is a separate Taiwan product for Chinese mainland passport holders resident in Singapore who apply for tourism. It is not an arrival card. Its DB-driven form must keep the Chinese/English two-column contract, select exactly one Singapore eligibility route, collect the matching evidence, require a mainland passport with at least six months validity and a recent white-background photo, and obtain an explicit official-submission declaration. The submission runner uses a VIZA-managed alias at the NIA email-verification boundary; it must return a structured recon checkpoint until an authorized controlled session maps every post-verification official field. Never mark an application submitted merely because the email page loaded.
+`TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT` is a separate Taiwan product for Chinese mainland passport holders resident in Singapore who apply for tourism. It is not an arrival card. Its DB-driven form must keep synchronized Chinese/English values while showing one interface-language entry column, select exactly one Singapore eligibility route, collect the matching evidence, require a mainland passport with at least six months validity and a recent white-background photo, and obtain an explicit official-submission declaration. The submission runner uses a VIZA-managed alias at the NIA email-verification boundary; it must return a structured recon checkpoint until an authorized controlled session maps every post-verification official field. Never mark an application submitted merely because the email page loaded.

@@ -2369,6 +2369,70 @@ function hasConditionalVisibility(field: VisaFormFieldRow): boolean {
   return Boolean((field.conditionalLogic as { showIf?: string } | null)?.showIf);
 }
 
+function getConditionalDependencies(field: VisaFormFieldRow): string[] {
+  const dependencies = new Set<string>();
+  const showIf = (field.conditionalLogic as { showIf?: string } | null)?.showIf;
+  if (showIf) {
+    const atoms = showIf.matchAll(
+      /(?:^|\|\||&&)\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:===|!==|not\s+in\b|in\b|contains_any\b)/g,
+    );
+    for (const atom of atoms) dependencies.add(atom[1]);
+  }
+
+  const rules = field.validationRules as {
+    dependent_on?: string;
+    depends_on?: string;
+    dependsOn?: string;
+  } | null;
+  for (const dependency of [rules?.dependent_on, rules?.depends_on, rules?.dependsOn]) {
+    if (dependency) dependencies.add(dependency);
+  }
+
+  return [...dependencies];
+}
+
+function getMultiOptionConditionalRoot(
+  field: VisaFormFieldRow,
+  allFields: VisaFormFieldRow[],
+): string | null {
+  if (!hasConditionalDependency(field)) return null;
+
+  const fieldsByName = new Map(allFields.map((candidate) => [candidate.fieldName, candidate]));
+  const roots = new Set<string>();
+  const visited = new Set<string>();
+
+  const visit = (fieldName: string) => {
+    if (visited.has(fieldName)) return;
+    visited.add(fieldName);
+
+    const dependencyField = fieldsByName.get(fieldName);
+    if (!dependencyField) return;
+    const dependencies = getConditionalDependencies(dependencyField);
+    if (dependencies.length === 0) {
+      roots.add(fieldName);
+      return;
+    }
+    dependencies.forEach(visit);
+  };
+
+  getConditionalDependencies(field).forEach(visit);
+  if (roots.size !== 1) return null;
+
+  const rootFieldName = [...roots][0];
+  const rootField = fieldsByName.get(rootFieldName);
+  if (rootField?.fieldType !== "select") return null;
+
+  const optionValues = new Set(
+    (rootField.options ?? []).map((option) =>
+      typeof option === "string" ? option : option.value,
+    ),
+  );
+  // Two-option dropdowns (for example aircraft vs vessel passenger) still own
+  // one conditional branch. Keep every active descendant in the same panel
+  // instead of drawing a separate box around each field in that branch.
+  return optionValues.size > 1 ? rootFieldName : null;
+}
+
 function findVerticalScrollContainer(element: HTMLElement): HTMLElement | null {
   let parent = element.parentElement;
   while (parent) {
@@ -3388,6 +3452,22 @@ export function DynamicStepForm({
     return map;
   }, [step.fields]);
 
+  const multiOptionConditionalGroups = useMemo(() => {
+    const fieldToRoot: Record<string, string> = {};
+    const fieldsByRoot: Record<string, VisaFormFieldRow[]> = {};
+
+    for (const field of step.fields) {
+      if (getRepeatGroup(field)) continue;
+      const root = getMultiOptionConditionalRoot(field, step.fields);
+      if (!root) continue;
+      fieldToRoot[field.fieldName] = root;
+      if (!fieldsByRoot[root]) fieldsByRoot[root] = [];
+      fieldsByRoot[root].push(field);
+    }
+
+    return { fieldToRoot, fieldsByRoot };
+  }, [step.fields]);
+
   // Find all fields whose visibility depends on a given parent field.
   const getDependentFields = useCallback(
     (parentFieldName: string): string[] => {
@@ -3897,7 +3977,7 @@ export function DynamicStepForm({
       return (
         <div
           className="min-w-0"
-          data-guidance-label-space={side === "en" ? "true" : undefined}
+          data-guidance-label-space={side === (isChineseInterface ? "zh" : "en") ? "true" : undefined}
         >
           <DynamicFormField
             key={`${valueKey}-${side}`}
@@ -3913,7 +3993,7 @@ export function DynamicStepForm({
             forceWhiteBackground={forceWhiteBackground}
             disabled={lt24Disabled || tdacTransitCheckboxLocked || isVnPrearrivalReadOnly}
             displayLocale={side}
-            labelAction={side === "en" ? guidancePopover : undefined}
+            labelAction={side === (isChineseInterface ? "zh" : "en") ? guidancePopover : undefined}
             onSearchQuery={
               isKoreaAddressSearchSelect
                 ? setKoreaAddressSearchQuery
@@ -4118,39 +4198,34 @@ export function DynamicStepForm({
         )}
       >
         {aiFilledBadge}
-        <div className="grid min-w-0 gap-3 md:grid-cols-2">
+        <div className="min-w-0">
           {renderSide("zh")}
-          {renderSide("en")}
         </div>
-          <div className="mt-1 grid min-w-0 gap-2 md:grid-cols-2">
-          <div className="flex min-w-0 items-start">
+        <div className="mt-1 flex min-w-0 flex-col items-end gap-2">
+          {isTextLike ? (
+            <DynamicFieldRealtimeTranslation
+              field={field}
+              valueKey={valueKey}
+              pair={pair}
+              enabled={!lt24Disabled && canRequestRealtimeTranslation(field, pair)}
+              isChineseInterface={isChineseInterface}
+              targetWasManuallyEdited={targetWasManuallyEdited}
+              onApplyTranslation={applyRealtimeTranslation}
+              onResetManualEdit={resetManualEnglishValue}
+            />
+          ) : null}
+          <div className="flex items-center justify-end gap-2">
             {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
-          </div>
-          <div className="flex min-w-0 flex-col items-end gap-2">
-            {isTextLike ? (
-              <DynamicFieldRealtimeTranslation
-                field={field}
-                valueKey={valueKey}
-                pair={pair}
-                enabled={!lt24Disabled && canRequestRealtimeTranslation(field, pair)}
-                isChineseInterface={isChineseInterface}
-                targetWasManuallyEdited={targetWasManuallyEdited}
-                onApplyTranslation={applyRealtimeTranslation}
-                onResetManualEdit={resetManualEnglishValue}
-              />
-            ) : null}
-            <div className="flex items-center justify-end gap-2">
-              {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
-                <span className="text-[13px] font-medium text-emerald-700">
-                  {indonesiaPostalLookup.summaryZh}
-                </span>
-              )}
-              {showIssue && (
-                <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
-                  {issue.message}
-                </span>
-              )}
-            </div>
+            {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
+              <span className="text-[13px] font-medium text-emerald-700">
+                {indonesiaPostalLookup.summaryZh}
+              </span>
+            )}
+            {showIssue && (
+              <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
+                {issue.message}
+              </span>
+            )}
           </div>
         </div>
         {reviewIssue ? (
@@ -4183,6 +4258,7 @@ export function DynamicStepForm({
   const renderedGroups = new Set<string>();
   const renderedInlineGroups = new Set<string>();
   const renderedBlockGroups = new Set<string>();
+  const renderedMultiOptionConditionalGroups = new Set<string>();
 
   return (
     <form
@@ -4211,6 +4287,42 @@ export function DynamicStepForm({
 
         // Non-repeatable field
         if (!group) {
+          const multiOptionRoot = multiOptionConditionalGroups.fieldToRoot[field.fieldName];
+          if (multiOptionRoot) {
+            if (renderedMultiOptionConditionalGroups.has(multiOptionRoot)) return null;
+            renderedMultiOptionConditionalGroups.add(multiOptionRoot);
+
+            const visibleConditionalFields = (
+              multiOptionConditionalGroups.fieldsByRoot[multiOptionRoot] ?? []
+            ).filter(
+              (candidate) =>
+                !externallyHandled.has(candidate.fieldName) &&
+                !isIndonesiaPostalAutoFillField(candidate) &&
+                (evaluateShowIf(candidate, values, step.fields) ||
+                  isDisabledByLT24(candidate, candidate.fieldName, values, step.fields)) &&
+                !isGatedByUnansweredToggle(candidate),
+            );
+            if (visibleConditionalFields.length === 0) return null;
+
+            return (
+              <ApplicationConditionalFieldsPanel
+                key={`multi-option-conditional-${multiOptionRoot}`}
+                data-conditional-controller={multiOptionRoot}
+              >
+                {groupFieldsInline(visibleConditionalFields).map((item) => {
+                  if (Array.isArray(item)) {
+                    return (
+                      <div key={item.map((candidate) => candidate.fieldName).join("-")} className="grid gap-2">
+                        {item.map((candidate) => renderField(candidate, candidate.fieldName, true))}
+                      </div>
+                    );
+                  }
+                  return renderField(item, item.fieldName, true);
+                })}
+              </ApplicationConditionalFieldsPanel>
+            );
+          }
+
           // Block group: wrap a consecutive set of non-repeatable fields in a
           // container box, rendered once for the group.
           const bg = getBlockGroup(field);
@@ -4257,7 +4369,6 @@ export function DynamicStepForm({
               return (
                 <ApplicationConditionalFieldsPanel
                   key={`block-${bg}`}
-                  className="-mt-2"
                 >
                   {blockContent}
                 </ApplicationConditionalFieldsPanel>
@@ -4293,7 +4404,6 @@ export function DynamicStepForm({
               return hasConditionalVisibility(inlineField) ? (
                 <ApplicationConditionalFieldsPanel
                   key={`inline-${ig}`}
-                  className="-mt-2"
                 >
                   {renderedInlineField}
                 </ApplicationConditionalFieldsPanel>
@@ -4314,7 +4424,6 @@ export function DynamicStepForm({
             return isConditionalInlineGroup ? (
               <ApplicationConditionalFieldsPanel
                 key={`inline-${ig}`}
-                className="-mt-2"
               >
                 {inlineContent}
               </ApplicationConditionalFieldsPanel>
@@ -4330,7 +4439,6 @@ export function DynamicStepForm({
           return hasConditionalVisibility(field) ? (
             <ApplicationConditionalFieldsPanel
               key={`conditional-${field.fieldName}`}
-              className="-mt-2"
             >
               {renderedField}
             </ApplicationConditionalFieldsPanel>
@@ -4350,14 +4458,12 @@ export function DynamicStepForm({
         if (visibleGroupFields.length === 0) return null;
 
         const count = groupCounts[group] ?? 1;
-        const isConditionalGroup = groupFields.some(hasConditionalDependency);
         const canAddGroupInstance =
           (groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX);
 
         return (
           <ApplicationConditionalFieldsPanel
             key={`group-${group}`}
-            className={cn(isConditionalGroup && "-mt-2")}
             canAdd={canAddGroupInstance}
             onAdd={() => addGroupInstance(group)}
             addLabel={tButtons("addAnother")}
