@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { chromium } from "@playwright/test";
 import {
   isVietnamSearchCaptchaAnswerUsable,
   normalizeVietnamSearchCaptchaAnswer,
+  refreshVietnamSearchCaptchaChallenge,
   retryFreshVietnamSearchPage,
   shouldRetryVietnamSearchAfterCriticalAssetFailure,
   VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS,
 } from "../payment-resume";
+import { captureVietnamCaptchaFingerprint } from "../captcha";
 
 test("vn.payment-resume: constrains the search CAPTCHA to exactly six digits", () => {
   assert.deepEqual(VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS, {
@@ -20,6 +23,64 @@ test("vn.payment-resume: constrains the search CAPTCHA to exactly six digits", (
   assert.equal(isVietnamSearchCaptchaAnswerUsable("898309"), true);
   assert.equal(isVietnamSearchCaptchaAnswerUsable("89830"), false);
   assert.equal(isVietnamSearchCaptchaAnswerUsable("89830O"), false);
+});
+
+test("vn.payment-resume: uses the live search reload image with a trusted click and confirms a new challenge", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const firstChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><rect width="240" height="100" fill="white"/><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    const secondChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><rect width="240" height="100" fill="yellow"/><text x="20" y="65" font-size="48">654321</text></svg>',
+    );
+    await page.setContent(`
+      <input id="basic_captcha" />
+      <img alt="captcha img" src="${firstChallenge}" />
+      <img alt="reload" src="${firstChallenge}" />
+      <script>
+        document.querySelector('img[alt="reload"]').addEventListener("click", (event) => {
+          if (event.isTrusted) document.querySelector('img[alt="captcha img"]').src = ${JSON.stringify(secondChallenge)};
+        });
+      </script>
+    `);
+    const previousFingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
+    assert.ok(previousFingerprint);
+
+    const strategy = await refreshVietnamSearchCaptchaChallenge(page, previousFingerprint, 5_000);
+    const currentFingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
+
+    assert.equal(strategy, "search_reload_control");
+    assert.ok(currentFingerprint);
+    assert.notEqual(currentFingerprint, previousFingerprint);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: rejects an unchanged search challenge after the reload control is clicked", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const challenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><rect width="240" height="100" fill="white"/><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    await page.setContent(`
+      <input id="basic_captcha" />
+      <img alt="captcha img" src="${challenge}" />
+      <img alt="reload" src="${challenge}" />
+    `);
+    const previousFingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
+    assert.ok(previousFingerprint);
+
+    const strategy = await refreshVietnamSearchCaptchaChallenge(page, previousFingerprint, 1_000);
+
+    assert.equal(strategy, null);
+    assert.equal(await captureVietnamCaptchaFingerprint(page, 2_000), previousFingerprint);
+  } finally {
+    await browser.close();
+  }
 });
 
 test("vn.payment-resume: retries a blank SPA promptly after a critical asset failure", () => {
