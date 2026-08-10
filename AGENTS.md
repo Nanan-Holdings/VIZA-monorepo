@@ -273,8 +273,10 @@ checks:
 - In client settings, new user-facing functionality should default to a single
   tab/entry point, with the full detail surface shown only after selection.
   Keep the points center and points marketplace behind one Points Center tab.
-- Dynamic visa forms must preserve the bilingual Chinese/English two-column
-  contract.
+- Dynamic visa forms show only the selected interface language while users
+  enter answers. They must still preserve synchronized Chinese and
+  English/official values internally, and Chinese-mode final review must show
+  both values for verification.
 - All user-facing copy must observe the current user's selected language and
   render in the matching display language/style. Avoid hard-coded single-
   language UI text, chat text, status text, validation messages, notification

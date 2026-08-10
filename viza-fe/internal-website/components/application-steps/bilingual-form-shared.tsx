@@ -277,7 +277,7 @@ export function BilingualRow({
   }
 
   return (
-    <div className="grid min-w-0 gap-4 px-0 py-4 sm:px-2 md:grid-cols-2">
+    <div className="min-w-0 px-0 py-4 sm:px-2">
       <div className="min-w-0">
         <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
           {labels.zh}
@@ -285,15 +285,8 @@ export function BilingualRow({
         </span>
         {zhControl}
       </div>
-      <div className="min-w-0">
-        <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
-          {labels.en}
-          {requiredMark}
-        </span>
-        {enControl}
-      </div>
       {scopedCopilot && (
-        <div className="min-w-0 md:col-span-2" data-copilot-panel-frame={scopedCopilot.fieldName}>
+        <div className="min-w-0" data-copilot-panel-frame={scopedCopilot.fieldName}>
           <BilingualFieldCopilot config={scopedCopilot} />
         </div>
       )}

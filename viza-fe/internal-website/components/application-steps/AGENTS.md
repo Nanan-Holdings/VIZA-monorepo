@@ -50,7 +50,9 @@ review, bilingual review helpers, and status confirmation.
   errors and warnings may highlight the matching review question and answer,
   but the repair action must still open the original field or the form
   assistant's copied field editor.
-- Preserve the bilingual two-column contract when changing shared form rows. Indonesia C1/eVOA is the approved locale-only exception and must show just the selected interface language while retaining the official submission value internally.
+- Shared form rows show only the selected interface language during entry.
+  Preserve synchronized Chinese and English/official values internally, and
+  keep the final Chinese-mode review bilingual and read-only.
 
 ## Validation
 
