@@ -492,7 +492,10 @@ filling and one-shot submission for the applicant.
   attempt in a fresh browser context. This avoids retaining a transient failed
   SPA module graph when evisa.gov.vn intermittently returns a 4xx response for
   a hashed static asset; keep `src/vietnam/__tests__/payment-resume.spec.ts` in
-  sync with that fresh-context retry contract.
+  sync with that fresh-context retry contract. The search CAPTCHA is exactly
+  six numeric characters: send those constraints to 2captcha, report unusable
+  answers, refresh the challenge, and persist only safe attempt telemetry
+  (length, duration, outcome and fingerprint prefix), never the answer.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use

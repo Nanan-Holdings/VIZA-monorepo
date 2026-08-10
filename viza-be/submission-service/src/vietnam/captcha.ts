@@ -116,7 +116,7 @@ export function fingerprintVietnamCaptchaImage(image: Buffer): string {
   return createHash("sha256").update(image).digest("hex");
 }
 
-async function captureVietnamCaptchaImage(
+export async function captureVietnamCaptchaImage(
   image: Locator,
   timeoutMs: number,
 ): Promise<VietnamCaptchaCapture> {
