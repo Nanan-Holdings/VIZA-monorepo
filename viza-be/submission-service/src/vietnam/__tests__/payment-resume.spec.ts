@@ -1,9 +1,26 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  isVietnamSearchCaptchaAnswerUsable,
+  normalizeVietnamSearchCaptchaAnswer,
   retryFreshVietnamSearchPage,
   shouldRetryVietnamSearchAfterCriticalAssetFailure,
+  VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS,
 } from "../payment-resume";
+
+test("vn.payment-resume: constrains the search CAPTCHA to exactly six digits", () => {
+  assert.deepEqual(VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS, {
+    case: false,
+    numeric: 1,
+    minLength: 6,
+    maxLength: 6,
+    comment: "Vietnam e-Visa search CAPTCHA. Enter exactly the six visible digits.",
+  });
+  assert.equal(normalizeVietnamSearchCaptchaAnswer(" 898 309 "), "898309");
+  assert.equal(isVietnamSearchCaptchaAnswerUsable("898309"), true);
+  assert.equal(isVietnamSearchCaptchaAnswerUsable("89830"), false);
+  assert.equal(isVietnamSearchCaptchaAnswerUsable("89830O"), false);
+});
 
 test("vn.payment-resume: retries a blank SPA promptly after a critical asset failure", () => {
   assert.equal(shouldRetryVietnamSearchAfterCriticalAssetFailure({
