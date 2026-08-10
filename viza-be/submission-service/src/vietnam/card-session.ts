@@ -22,6 +22,19 @@ export interface VietnamCardSessionResult {
 const DEFAULT_TTL_MS = 10 * 60 * 1000;
 const sessions = new Map<string, VietnamCardSession>();
 
+function envEnabled(value: string | undefined): boolean {
+  return /^(1|true|yes|on)$/i.test((value ?? "").trim());
+}
+
+export function vietnamCardSessionsEnabled(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return (
+    envEnabled(env.VN_LOCAL_CARD_SESSION_ENABLED) ||
+    envEnabled(env.VN_CLOUD_CARD_SESSION_ENABLED)
+  );
+}
+
 function nowMs(): number {
   return Date.now();
 }
