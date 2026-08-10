@@ -6,7 +6,26 @@ import {
   hasVietnamCardSessions,
   peekVietnamCardSession,
   putVietnamCardSession,
+  vietnamCardSessionsEnabled,
 } from "../card-session";
+
+test("vn.card-session: enables either local or cloud one-time handoff", () => {
+  assert.equal(
+    vietnamCardSessionsEnabled({ VN_LOCAL_CARD_SESSION_ENABLED: "true" }),
+    true,
+  );
+  assert.equal(
+    vietnamCardSessionsEnabled({ VN_CLOUD_CARD_SESSION_ENABLED: "1" }),
+    true,
+  );
+  assert.equal(
+    vietnamCardSessionsEnabled({
+      VN_LOCAL_CARD_SESSION_ENABLED: "false",
+      VN_CLOUD_CARD_SESSION_ENABLED: "off",
+    }),
+    false,
+  );
+});
 
 test("vn.card-session: stores only in memory and returns redacted card metadata", () => {
   clearVietnamCardSessions();

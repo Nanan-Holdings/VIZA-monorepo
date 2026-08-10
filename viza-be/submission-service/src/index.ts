@@ -112,6 +112,7 @@ import { resumeVietnamOfficialPayment } from "./vietnam/payment-resume";
 import {
   consumeVietnamCardSession,
   hasVietnamCardSessions,
+  vietnamCardSessionsEnabled,
 } from "./vietnam/card-session.js";
 import {
   consumeIndonesiaCardSession,
@@ -4015,7 +4016,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     const autopayEnabled = readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
     const directOneTimeCardAuthorized =
       autopayEnabled &&
-      readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false) &&
+      vietnamCardSessionsEnabled() &&
       item.payment_status === "authorized";
     if (!intent && !fallbackAuthorized && directOneTimeCardAuthorized) {
       fallbackAuthorized = true;
@@ -4052,7 +4053,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       const screenshotPath = path.join(diagnosticsDir, "payment-resume.png");
       const cardSession = await consumeVietnamCardSessionWithGrace(
         item.application_id,
-        readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false),
+        vietnamCardSessionsEnabled(),
       );
       const payment = await resumeVietnamOfficialPayment({
         registrationCode,
@@ -4410,8 +4411,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     const officialPaymentAutopayEnabled = liveAssisted && readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
     const oneTimeCardPaymentEnabled =
       officialPaymentAutopayEnabled &&
-      (readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false) ||
-        readBooleanEnv("VN_CLOUD_CARD_SESSION_ENABLED", false));
+      vietnamCardSessionsEnabled();
     const envFixedCardPaymentEnabled =
       officialPaymentAutopayEnabled && readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
     const oneTimeFixedCard = await consumeVietnamCardSessionWithGrace(
