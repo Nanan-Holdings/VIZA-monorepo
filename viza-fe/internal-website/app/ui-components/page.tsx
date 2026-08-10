@@ -548,6 +548,13 @@ export default function UiComponentsPage() {
                 description="Recent passport-style photo that follows the destination photo rules."
                 required
                 headerLayout="stacked"
+                headerAside={
+                  <AiAssistButton
+                    label="Ask AI about attached Passport-size photo"
+                    variant="field"
+                    className="opacity-0 focus-visible:opacity-100 group-hover/document-card:opacity-100 group-focus-within/document-card:opacity-100"
+                  />
+                }
               >
                 <DocumentUploadField
                   status="attached"
@@ -566,6 +573,13 @@ export default function UiComponentsPage() {
                 description="Day-by-day route, dates, cities, and major planned activities."
                 required
                 headerLayout="stacked"
+                headerAside={
+                  <AiAssistButton
+                    label="Ask AI about Travel itinerary"
+                    variant="field"
+                    className="opacity-0 focus-visible:opacity-100 group-hover/document-card:opacity-100 group-focus-within/document-card:opacity-100"
+                  />
+                }
               >
                 <DocumentUploadField
                   status="missing"
@@ -586,6 +600,13 @@ export default function UiComponentsPage() {
                 description="Recent bank statement or equivalent financial evidence."
                 required
                 headerLayout="stacked"
+                headerAside={
+                  <AiAssistButton
+                    label="Ask AI about Proof of funds"
+                    variant="field"
+                    className="opacity-0 focus-visible:opacity-100 group-hover/document-card:opacity-100 group-focus-within/document-card:opacity-100"
+                  />
+                }
               >
                 <DocumentUploadField
                   status="in_review"
@@ -604,6 +625,13 @@ export default function UiComponentsPage() {
                 description="Recent passport-style photo that follows the destination photo rules."
                 required
                 headerLayout="stacked"
+                headerAside={
+                  <AiAssistButton
+                    label="Ask AI about rejected Passport-size photo"
+                    variant="field"
+                    className="opacity-0 focus-visible:opacity-100 group-hover/document-card:opacity-100 group-focus-within/document-card:opacity-100"
+                  />
+                }
               >
                 <DocumentUploadField
                   status="rejected"
@@ -622,6 +650,13 @@ export default function UiComponentsPage() {
                 title="Flight booking"
                 description="Reservation or planned arrival and departure details, if available."
                 headerLayout="stacked"
+                headerAside={
+                  <AiAssistButton
+                    label="Ask AI about Flight booking"
+                    variant="field"
+                    className="opacity-0 focus-visible:opacity-100 group-hover/document-card:opacity-100 group-focus-within/document-card:opacity-100"
+                  />
+                }
               >
                 <DocumentUploadField
                   status="optional"

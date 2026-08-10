@@ -71,9 +71,9 @@ Smoke at least one route that uses the changed primitive.
 - `date-picker.tsx`: compatibility wrapper for the shared application form date
   picker used by existing client flows.
 - `application-form-panel.tsx` and `application-form-field.tsx`: shared form
-  container and label/helper wrappers. The field wrapper exposes a generic
-  `labelAction` slot that owns exact right-edge alignment plus hover/focus
-  reveal for controls such as the AI field trigger.
+  container and label/helper wrappers. The field wrapper exposes a fixed-size
+  `labelAction` slot that owns exact right-edge alignment and hover/focus reveal
+  for controls such as the AI field trigger.
   `application-form-controls.tsx` remains a compatibility re-export only.
 - `supporting-document-card.tsx`: shared visual shell for individual document
   upload cards; upload behavior remains owned by the consuming feature.
@@ -82,6 +82,8 @@ Smoke at least one route that uses the changed primitive.
   must remain lifecycle-owned and revoked by the upload field.
 - `ai-assist-button.tsx`: shared AI help trigger and icon used by application
   fields, supporting-document cards, and Universal Profile cards. Its circular
-  `field` variant stays transparent on hover while its icon stroke changes from
-  brand blue to dark brand blue.
+  `field` variant stays background-transparent on hover while its icon stroke
+  changes from brand blue to dark brand blue. Field/card triggers reveal on
+  hover or keyboard focus and remain visible while their control or popover is
+  active.
 - `viza-fe/internal-website/frontend.md`

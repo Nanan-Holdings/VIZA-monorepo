@@ -160,6 +160,32 @@ body::-webkit-scrollbar,
   background-color: var(--application-control-filled-background);
 }
 
+/* Chromium autofill paints its own blue inset layer on the nested input. That
+   layer can visually cover the parent's fractional border and make the top and
+   bottom edges look cropped. Keep autofill on the same background layer as the
+   shared input group so its border remains uniform on every side. */
+.application-form-input {
+  --application-form-input-background: #ffffff;
+}
+
+.application-form-input[data-filled="true"] {
+  --application-form-input-background: var(--application-control-filled-background);
+}
+
+.application-form-input[data-filled="true"]:hover,
+.application-form-input[data-filled="true"]:focus-within,
+.application-form-input[data-force-white="true"] {
+  --application-form-input-background: #ffffff;
+}
+
+.application-form-input > input:-webkit-autofill,
+.application-form-input > input:-webkit-autofill:hover,
+.application-form-input > input:-webkit-autofill:focus {
+  caret-color: #3d3d3d;
+  -webkit-text-fill-color: #3d3d3d;
+  -webkit-box-shadow: 0 0 0 1000px var(--application-form-input-background) inset !important;
+}
+
 .application-form-control[data-filled="true"]:hover,
 .application-form-input[data-filled="true"]:focus-within,
 textarea.application-form-control[data-filled="true"]:focus,
