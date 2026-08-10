@@ -2180,6 +2180,7 @@ export function SubmissionStatusStep({
         applicationId={applicationId}
         persistenceKey={effectiveProgressPersistenceKey}
         progressCycleKey={effectiveProgressCycleKey}
+        resetProgressOnMount={Boolean(activeProgressCycleKey)}
         country={country}
         visaType={visaType}
       />
