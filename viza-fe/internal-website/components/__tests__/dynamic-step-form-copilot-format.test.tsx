@@ -317,6 +317,91 @@ const multiOptionConditionalPanelStep: WizardStep = {
   ],
 };
 
+const twoOptionConditionalPanelStep: WizardStep = {
+  stepNumber: 3,
+  stepName: "Philippine Departure Details",
+  fields: [
+    {
+      id: "field-traveller-type",
+      visaType: "TEST_TWO_OPTION_BRANCH",
+      fieldName: "traveller_type",
+      label: "Traveller Type",
+      fieldType: "select",
+      required: true,
+      stepNumber: 3,
+      stepName: "Philippine Departure Details",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: null,
+      options: [
+        { value: "AIR", text: "Aircraft passenger" },
+        { value: "SEA", text: "Vessel passenger" },
+      ],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-airline-name",
+      visaType: "TEST_TWO_OPTION_BRANCH",
+      fieldName: "airline_name",
+      label: "Name of Airline",
+      fieldType: "select",
+      required: true,
+      stepNumber: 3,
+      stepName: "Philippine Departure Details",
+      displayOrder: 2,
+      placeholder: null,
+      validationRules: null,
+      options: [{ value: "TC009", text: "Singapore Airlines" }],
+      conditionalLogic: { showIf: "traveller_type === AIR" },
+    },
+    {
+      id: "field-flight-number",
+      visaType: "TEST_TWO_OPTION_BRANCH",
+      fieldName: "flight_number",
+      label: "Flight Number",
+      fieldType: "select",
+      required: true,
+      stepNumber: 3,
+      stepName: "Philippine Departure Details",
+      displayOrder: 3,
+      placeholder: null,
+      validationRules: { dependsOn: "airline_name" },
+      options: [{ value: "SQ917", text: "SQ917" }],
+      conditionalLogic: { showIf: "traveller_type === AIR" },
+    },
+    {
+      id: "field-vessel-name",
+      visaType: "TEST_TWO_OPTION_BRANCH",
+      fieldName: "vessel_name",
+      label: "Name of Vessel",
+      fieldType: "text",
+      required: true,
+      stepNumber: 3,
+      stepName: "Philippine Departure Details",
+      displayOrder: 4,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: { showIf: "traveller_type === SEA" },
+    },
+    {
+      id: "field-departure-airport",
+      visaType: "TEST_TWO_OPTION_BRANCH",
+      fieldName: "departure_airport",
+      label: "Airport of Origin in the Philippines",
+      fieldType: "select",
+      required: true,
+      stepNumber: 3,
+      stepName: "Philippine Departure Details",
+      displayOrder: 5,
+      placeholder: null,
+      validationRules: null,
+      options: [{ value: "CRK", text: "Clark International Airport (CRK)" }],
+      conditionalLogic: { showIf: "traveller_type === AIR" },
+    },
+  ],
+};
+
 const purposeOfTripStep: WizardStep = {
   stepNumber: 3,
   stepName: "Travel Information",
@@ -891,15 +976,15 @@ function renderWizardStep(config: WizardConfig<unknown>, index: number): ReactNo
 }
 
 describe("DynamicStepForm copilot format", () => {
-  it("shows only Chinese fields for the Indonesia C1 form in Chinese mode", () => {
+  it("shows only Chinese fields for the Philippines eTravel form in Chinese mode", () => {
     const onComplete = vi.fn();
     const { container } = render(
       <DynamicStepForm
         step={requiredTextStep}
         prefill={{ surname: "ZHANG", surname_zh: "张", surname_en: "ZHANG" }}
         onComplete={onComplete}
-        country="indonesia"
-        visaType="ID_C1_TOURIST"
+        country="philippines"
+        visaType="PH_ETRAVEL_DEPARTURE_CARD"
       />,
     );
 
@@ -1023,7 +1108,7 @@ describe("DynamicStepForm copilot format", () => {
     )).toBeNull();
 
     const inviterYes = container.querySelector<HTMLInputElement>(
-      'input[name="has_inviter_in_japan-en"][value="yes"]',
+      'input[name="has_inviter_in_japan-zh"][value="yes"]',
     );
     expect(inviterYes).not.toBeNull();
     fireEvent.click(inviterYes!);
@@ -1038,7 +1123,7 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     const specialRequestYes = container.querySelector<HTMLInputElement>(
-      'input[name="has_special_request-en"][value="yes"]',
+      'input[name="has_special_request-zh"][value="yes"]',
     );
     expect(specialRequestYes).not.toBeNull();
     fireEvent.click(specialRequestYes!);
@@ -1071,8 +1156,7 @@ describe("DynamicStepForm copilot format", () => {
       '[data-conditional-controller="cost_covered_by"]',
     );
     expect(panels).toHaveLength(1);
-    expect(panels[0]).toHaveClass("-mt-1");
-    expect(panels[0]).not.toHaveClass("-mt-2");
+    expect(panels[0]).not.toHaveClass("-mt-1", "-mt-2");
     expect(panels[0]).toContainElement(
       container.querySelector('[data-application-field-name="self_means_cash"]'),
     );
@@ -1096,6 +1180,39 @@ describe("DynamicStepForm copilot format", () => {
         container.querySelector(`[data-copilot-trigger="${fieldName}"]`),
       );
     }
+  });
+
+  it("keeps a two-option dropdown branch in one evenly spaced conditional panel", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={twoOptionConditionalPanelStep}
+        prefill={{
+          traveller_type: "AIR",
+          airline_name: "TC009",
+          flight_number: "SQ917",
+          departure_airport: "CRK",
+        }}
+        onComplete={vi.fn()}
+        country="philippines"
+        visaType="TEST_TWO_OPTION_BRANCH"
+      />,
+    );
+
+    const panels = container.querySelectorAll(
+      '[data-conditional-controller="traveller_type"]',
+    );
+    expect(panels).toHaveLength(1);
+    expect(panels[0]).not.toHaveClass("-mt-1", "-mt-2");
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="airline_name"]'),
+    );
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="flight_number"]'),
+    );
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="departure_airport"]'),
+    );
+    expect(container.querySelector('[data-application-field-name="vessel_name"]')).toBeNull();
   });
 
   it("uses the unified Chinese copilot trigger format", () => {
@@ -1163,10 +1280,10 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     const comboboxes = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="combobox"]'));
-    expect(comboboxes).toHaveLength(2);
+    expect(comboboxes).toHaveLength(1);
     expect(comboboxes.every((combobox) => combobox.disabled)).toBe(false);
     expect(container).toHaveTextContent("临时商务或旅游访客 (B)");
-    expect(container).toHaveTextContent("TEMP. BUSINESS OR PLEASURE VISITOR (B)");
+    expect(container).not.toHaveTextContent("TEMP. BUSINESS OR PLEASURE VISITOR (B)");
 
     const trigger = screen.getByRole("button", { name: "问 AI" });
     fireEvent.click(trigger);
@@ -1191,9 +1308,8 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     const dropdowns = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="combobox"]'));
-    expect(dropdowns).toHaveLength(2);
+    expect(dropdowns).toHaveLength(1);
     expect(dropdowns.every((dropdown) => dropdown.dataset.filled === "true")).toBe(true);
-    expect(dropdowns.some((dropdown) => dropdown.textContent?.includes("Employed"))).toBe(true);
     await waitFor(() => expect(onDraftChange).toHaveBeenCalledWith(
       expect.objectContaining({ current_profession: "employed" }),
     ));
@@ -1212,7 +1328,7 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     const dropdowns = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="combobox"]'));
-    expect(dropdowns).toHaveLength(2);
+    expect(dropdowns).toHaveLength(1);
     expect(dropdowns.every((dropdown) => !dropdown.disabled)).toBe(true);
     expect(dropdowns.every((dropdown) => dropdown.dataset.filled === "false")).toBe(true);
     expect(screen.queryByText("Choose one of the provided options")).not.toBeInTheDocument();
@@ -1234,8 +1350,8 @@ describe("DynamicStepForm copilot format", () => {
     const aiTrigger = container.querySelector<HTMLButtonElement>('[data-copilot-trigger="purpose_of_trip"]');
     const field = aiTrigger?.closest<HTMLElement>(".application-form-field");
     const dropdowns = field?.querySelectorAll<HTMLButtonElement>('[role="combobox"]');
-    const bilingualField = aiTrigger?.closest<HTMLElement>('[data-application-field-name="purpose_of_trip"]');
-    const bilingualDropdowns = bilingualField?.querySelectorAll<HTMLButtonElement>('[role="combobox"]');
+    const localizedField = aiTrigger?.closest<HTMLElement>('[data-application-field-name="purpose_of_trip"]');
+    const localizedDropdowns = localizedField?.querySelectorAll<HTMLButtonElement>('[role="combobox"]');
 
     expect(aiTrigger).toHaveClass("application-form-ai-trigger");
     expect(aiTrigger).toHaveClass(
@@ -1249,7 +1365,7 @@ describe("DynamicStepForm copilot format", () => {
     expect(field).not.toBeNull();
     expect(dropdowns).toHaveLength(1);
     expect(Array.from(dropdowns ?? []).every((dropdown) => dropdown.classList.contains("application-form-control"))).toBe(true);
-    expect(bilingualDropdowns).toHaveLength(2);
+    expect(localizedDropdowns).toHaveLength(1);
   });
 
   it("reserves label space for the AI trigger without narrowing the form control", () => {
@@ -1264,22 +1380,25 @@ describe("DynamicStepForm copilot format", () => {
 
     const aiTrigger = container.querySelector('[data-copilot-trigger="purpose_of_trip"]');
     const field = aiTrigger?.closest<HTMLElement>(".application-form-field");
-    const englishSide = aiTrigger?.closest<HTMLElement>('[data-guidance-label-space="true"]');
-    const label = englishSide?.querySelector(".application-form-question-label");
+    const interfaceSide = aiTrigger?.closest<HTMLElement>('[data-guidance-label-space="true"]');
+    const label = interfaceSide?.querySelector(".application-form-question-label");
     const labelAction = aiTrigger?.parentElement;
-    const control = englishSide?.querySelector(".application-form-control");
+    const control = interfaceSide?.querySelector(".application-form-control");
 
     expect(field).not.toBeNull();
-    expect(englishSide).not.toBeNull();
+    expect(interfaceSide).not.toBeNull();
     expect(label).not.toBeNull();
     expect(label).toHaveClass("pr-10");
     expect(labelAction).toHaveClass(
       "absolute",
       "right-0",
+      "h-8",
+      "w-8",
       "opacity-0",
       "group-hover/field:opacity-100",
       "group-focus-within/field:opacity-100",
     );
+    expect(labelAction).not.toHaveClass("opacity-100");
     expect(control).not.toBeNull();
     expect(control).not.toHaveClass("pr-10");
   });
@@ -1367,7 +1486,7 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     expect(screen.getByDisplayValue("长沙")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Changsha")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Changsha")).not.toBeInTheDocument();
     expect(prefill.full_name_zh).toBe("李晓明");
     expect(prefill.full_name_en).toBe("LI XIAOMING");
     expect(prefill.state_of_birth).toBe("Hunan");
@@ -1382,7 +1501,7 @@ describe("DynamicStepForm copilot format", () => {
     }));
   });
 
-  it("keeps the Chinese side unchanged when the English side is edited", () => {
+  it("updates the hidden official value when the visible Chinese field is edited", () => {
     const onComplete = vi.fn();
     render(
       <DynamicStepForm
@@ -1397,19 +1516,14 @@ describe("DynamicStepForm copilot format", () => {
       />,
     );
 
-    const [chineseInput, englishInput] = screen.getAllByRole("textbox");
+    const [chineseInput] = screen.getAllByRole("textbox");
     expect(chineseInput).toHaveValue("长沙");
-    expect(englishInput).toHaveValue("Changsha");
-
-    fireEvent.change(englishInput!, { target: { value: "Zhuzhou" } });
-
-    expect(chineseInput).toHaveValue("长沙");
-    expect(englishInput).toHaveValue("Zhuzhou");
+    expect(screen.queryByDisplayValue("Changsha")).not.toBeInTheDocument();
 
     fireEvent.change(chineseInput!, { target: { value: "北京" } });
 
     expect(chineseInput).toHaveValue("北京");
-    expect(englishInput).toHaveValue("Beijing");
+    expect(screen.queryByDisplayValue("Beijing")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
 
@@ -1508,15 +1622,14 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     const textboxes = screen.getAllByRole("textbox");
-    expect(textboxes).toHaveLength(2);
+    expect(textboxes).toHaveLength(1);
 
     fireEvent.change(textboxes[0]!, { target: { value: "珠海横琴" } });
-    expect(screen.getAllByDisplayValue("珠海横琴")).toHaveLength(2);
+    expect(screen.getAllByDisplayValue("珠海横琴")).toHaveLength(1);
     expect(screen.getByText("正在翻译...")).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("Hengqin, Zhuhai")).toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByText("已翻译")).toBeInTheDocument());
+    expect(screen.queryByDisplayValue("Hengqin, Zhuhai")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/translate",
       expect.objectContaining({
@@ -1553,7 +1666,7 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     expect(screen.getAllByDisplayValue("黄小敏")).toHaveLength(1);
-    expect(screen.getByDisplayValue("HUANGXIAOMIN")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("HUANGXIAOMIN")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
@@ -1581,13 +1694,13 @@ describe("DynamicStepForm copilot format", () => {
       />,
     );
 
-    fireEvent.change(screen.getAllByDisplayValue("OLD NAME")[1]!, {
+    fireEvent.change(screen.getByDisplayValue("OLD NAME"), {
       target: { value: "LATEST NAME" },
     });
-    fireEvent.change(screen.getAllByDisplayValue("OLD123")[1]!, {
+    fireEvent.change(screen.getByDisplayValue("OLD123"), {
       target: { value: "LATEST987" },
     });
-    fireEvent.change(screen.getAllByDisplayValue("2030-01-01")[1]!, {
+    fireEvent.change(screen.getByDisplayValue("2030-01-01"), {
       target: { value: "2035-12-31" },
     });
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
@@ -1618,9 +1731,8 @@ describe("DynamicStepForm copilot format", () => {
     expect(screen.getByText("格式不符合要求")).toBeInTheDocument();
 
     const textboxes = screen.getAllByRole("textbox");
-    expect(textboxes).toHaveLength(2);
+    expect(textboxes).toHaveLength(1);
     fireEvent.change(textboxes[0]!, { target: { value: "" } });
-    fireEvent.change(textboxes[1]!, { target: { value: "" } });
 
     expect(screen.queryByText("格式不符合要求")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
@@ -1734,7 +1846,7 @@ describe("DynamicStepForm copilot format", () => {
     expect(expiryDateTrigger?.closest('[data-application-field-name="travel_document_expiry_date"]')).toHaveTextContent("到期日必须晚于签发日");
   });
 
-  it("keeps Schengen option and placeholder language scoped to each side", () => {
+  it("keeps Schengen options and placeholders in the selected interface language", () => {
     const { container } = render(
       <DynamicStepForm
         step={schengenPurposeStep}
@@ -1753,10 +1865,10 @@ describe("DynamicStepForm copilot format", () => {
     expect(container).toHaveTextContent("旅游");
     expect(container).toHaveTextContent("商务");
     expect(container).toHaveTextContent("文化");
-    expect(container).toHaveTextContent("Tourism");
-    expect(container).toHaveTextContent("Business");
-    expect(container).toHaveTextContent("Cultural");
-    expect(container).toHaveTextContent("Select...");
+    expect(container).not.toHaveTextContent("Tourism");
+    expect(container).not.toHaveTextContent("Business");
+    expect(container).not.toHaveTextContent("Cultural");
+    expect(container).not.toHaveTextContent("Select...");
   });
 
   it("uses exact Chinese copy for Schengen declaration labels", () => {
@@ -1816,7 +1928,7 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     expect(screen.getAllByText(chineseLabel)).toHaveLength(1);
-    expect(screen.getAllByText(officialLabel)).toHaveLength(1);
+    expect(screen.queryByText(officialLabel)).not.toBeInTheDocument();
   });
 
   it("defaults France Schengen main destination and localizes country names per side", async () => {
@@ -1833,7 +1945,7 @@ describe("DynamicStepForm copilot format", () => {
     await waitFor(() => {
       expect(screen.getByText("法国")).toBeInTheDocument();
     });
-    expect(screen.getByText("France")).toBeInTheDocument();
+    expect(screen.queryByText("France")).not.toBeInTheDocument();
     expect(container).not.toHaveTextContent("法国 (France)");
   });
 

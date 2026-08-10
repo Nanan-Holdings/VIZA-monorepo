@@ -8,6 +8,9 @@ import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback, Suspense, type FormEvent } from 'react'
 import createGlobe from 'cobe'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
+import { ActionButton } from '@/components/ui/action-button'
+import { ApplicationFormInputGroup } from '@/components/ui/application-form-input'
+import { InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { useTranslations } from 'next-intl'
 
 type Step = 'email' | 'otp'
@@ -319,21 +322,24 @@ function ClientLoginContent() {
                     </button>
                   ))}
                 </div>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder={t('emailPlaceholder')}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoFocus
-                  disabled={isSubmitting}
-                  className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-[10px] font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
-                />
+                <ApplicationFormInputGroup className="h-12" filled={Boolean(email)} forceWhiteBackground>
+                  <InputGroupInput
+                    type="email"
+                    name="email"
+                    placeholder={t('emailPlaceholder')}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoFocus
+                    autoComplete="email"
+                    disabled={isSubmitting}
+                    className="h-12 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
+                  />
+                </ApplicationFormInputGroup>
                 {loginMethod === 'password' && (
                   <div className="space-y-2">
-                    <div className="relative">
-                      <input
+                    <ApplicationFormInputGroup className="h-12" filled={Boolean(password)} forceWhiteBackground>
+                      <InputGroupInput
                         type={showPassword ? 'text' : 'password'}
                         name="password"
                         placeholder={t('passwordPlaceholder')}
@@ -342,18 +348,20 @@ function ClientLoginContent() {
                         required
                         autoComplete="current-password"
                         disabled={isSubmitting}
-                        className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-12 font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
+                        className="h-12 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((value) => !value)}
-                        className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#737373] hover:bg-[#f5f5f5]"
-                        aria-label={showPassword ? t('hidePassword') : t('showPassword')}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    <Link href="/forgot-password" className="block text-right text-[12px] font-medium text-brand-500 underline">
+                      <InputGroupAddon align="inline-end" className="pr-1.5">
+                        <InputGroupButton
+                          size="icon-sm"
+                          onClick={() => setShowPassword((value) => !value)}
+                          className="rounded-full text-[#737373] hover:bg-[#f5f5f5]"
+                          aria-label={showPassword ? t('hidePassword') : t('showPassword')}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </InputGroupButton>
+                      </InputGroupAddon>
+                    </ApplicationFormInputGroup>
+                    <Link href="/forgot-password" className="block text-right text-[12px] font-medium text-brand-500 underline-offset-2 hover:underline focus-visible:underline">
                       {t('forgotPassword')}
                     </Link>
                   </div>
@@ -375,15 +383,17 @@ function ClientLoginContent() {
                     {error}
                   </motion.p>
                 )}
-                <button
+                <ActionButton
                   type="submit"
+                  size="lg"
+                  variant="primary"
+                  loading={isSubmitting}
+                  loadingText={loginMethod === 'password' ? t('signingIn') : t('sendingCode')}
                   disabled={isSubmitting || (loginMethod === 'password' && !password)}
-                  className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-black font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-white transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full font-sans tracking-[-0.24px]"
                 >
-                  {isSubmitting
-                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{loginMethod === 'password' ? t('signingIn') : t('sendingCode')}</span>
-                    : loginMethod === 'password' ? t('loginButton') : t('sendCodeButton')}
-                </button>
+                  {loginMethod === 'password' ? t('loginButton') : t('sendCodeButton')}
+                </ActionButton>
                 <div className="h-[clamp(24px,4.5vh,48px)]" />
               </form>
             </motion.div>
