@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import type { VnSubmissionResult } from "@/lib/submission-result";
 import { WaitingCard } from "./WaitingCard";
 
@@ -42,6 +43,22 @@ export function mergeOfficialFeeStatus(
           : null,
     paymentQueue: payload?.paymentQueue ?? current?.paymentQueue ?? null,
   };
+}
+
+export function localizeVietnamPaymentError(
+  error: string | null | undefined,
+  isZh: boolean,
+): string | null {
+  const normalized = error?.trim();
+  if (!normalized) return null;
+  if (!isZh || /\p{Script=Han}/u.test(normalized)) return normalized;
+  if (isIgnorableRuntimeAbortError(new Error(normalized))) {
+    return "状态查询暂时超时，系统会自动重新连接。";
+  }
+  if (/network|fetch|connection|timeout|timed out/i.test(normalized)) {
+    return "网络连接暂时不稳定，系统会自动重新连接。";
+  }
+  return "官网处理暂时未完成，系统会自动更新；如果长时间没有变化，请联系支持。";
 }
 
 export function VnResultCard({
@@ -231,9 +248,12 @@ export function VnResultCard({
         }
         if (!cancelled) {
           setOfficialFeeStatus((current) => mergeOfficialFeeStatus(current, payload));
+          setPaymentError(null);
         }
       } catch (error) {
-        if (!cancelled) setPaymentError(error instanceof Error ? error.message : String(error));
+        if (!cancelled && !isIgnorableRuntimeAbortError(error)) {
+          setPaymentError(error instanceof Error ? error.message : String(error));
+        }
       } finally {
         window.clearTimeout(deadline);
         controller = null;
@@ -368,6 +388,9 @@ export function VnResultCard({
       />
     );
   }
+
+  const localizedPaymentError = localizeVietnamPaymentError(paymentError, isZh);
+  const localizedActionError = localizeVietnamPaymentError(actionError, isZh);
 
   return (
     <Card className="rounded-xl border-input">
@@ -531,12 +554,12 @@ export function VnResultCard({
               </Button>
             )}
 
-            {paymentError && (
+            {localizedPaymentError && (
               <Alert variant="destructive">
                 <AlertIcon variant="destructive" />
                 <AlertTitle>{isZh ? "付款未完成" : "Payment did not complete"}</AlertTitle>
                 <AlertDescription>
-                  <p>{paymentError}</p>
+                  <p>{localizedPaymentError}</p>
                 </AlertDescription>
               </Alert>
             )}
@@ -563,8 +586,8 @@ export function VnResultCard({
                   </AlertAction>
                 </AlertActions>
               )}
-              {actionError && (
-                <p className="mt-2 font-medium !text-[hsl(0_72%_35%)]">{actionError}</p>
+              {localizedActionError && (
+                <p className="mt-2 font-medium !text-[hsl(0_72%_35%)]">{localizedActionError}</p>
               )}
             </AlertDescription>
           </Alert>
