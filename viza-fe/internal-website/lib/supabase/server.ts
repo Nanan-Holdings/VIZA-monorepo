@@ -3,7 +3,12 @@ import { cookies } from "next/headers";
 import { normalizeSupabaseEnvValue } from "./env";
 import { createFetchWithTransientRetry } from "./fetch-with-timeout";
 
-export async function createClient(options: { requestTimeoutMs?: number } = {}) {
+export type SupabaseClientOptions = {
+  requestTimeoutMs?: number;
+  retryDelaysMs?: readonly number[];
+};
+
+export async function createClient(options: SupabaseClientOptions = {}) {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -17,7 +22,10 @@ export async function createClient(options: { requestTimeoutMs?: number } = {}) 
     ),
     {
       global: {
-        fetch: createFetchWithTransientRetry({ requestTimeoutMs: options.requestTimeoutMs }),
+        fetch: createFetchWithTransientRetry({
+          requestTimeoutMs: options.requestTimeoutMs,
+          retryDelaysMs: options.retryDelaysMs,
+        }),
       },
       cookies: {
         getAll() {
