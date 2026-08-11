@@ -6,10 +6,14 @@ import {
   followVietnamSearchPaymentEntry,
   isVietnamSearchCaptchaAnswerUsable,
   normalizeVietnamSearchCaptchaAnswer,
+  registerVietnamSearchCaptchaChallenge,
   refreshVietnamSearchCaptchaChallenge,
   retryFreshVietnamSearchPage,
+  retryVietnamSearchCaptchaInFreshContexts,
+  solveVietnamPaymentSearchCaptcha,
   shouldRetryVietnamSearchAfterCriticalAssetFailure,
   VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS,
+  waitForVietnamSearchSubmissionOutcome,
 } from "../payment-resume";
 import { captureVietnamCaptchaFingerprint } from "../captcha";
 
@@ -25,6 +29,144 @@ test("vn.payment-resume: constrains the search CAPTCHA to exactly six digits", (
   assert.equal(isVietnamSearchCaptchaAnswerUsable("898309"), true);
   assert.equal(isVietnamSearchCaptchaAnswerUsable("89830"), false);
   assert.equal(isVietnamSearchCaptchaAnswerUsable("89830O"), false);
+});
+
+test("vn.payment-resume: never sends a previously-seen search challenge to the solver again", () => {
+  const knownFingerprints = new Set<string>();
+
+  assert.equal(registerVietnamSearchCaptchaChallenge(knownFingerprints, "challenge-a"), true);
+  assert.equal(registerVietnamSearchCaptchaChallenge(knownFingerprints, "challenge-b"), true);
+  assert.equal(registerVietnamSearchCaptchaChallenge(knownFingerprints, "challenge-a"), false);
+  assert.deepEqual([...knownFingerprints], ["challenge-a", "challenge-b"]);
+});
+
+test("vn.payment-resume: abandons an answer when the portal changes the challenge during solving", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const firstChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    const secondChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">654321</text></svg>',
+    );
+    await page.setContent(`<input id="basic_captcha" /><img alt="captcha img" src="${firstChallenge}" />`);
+    let badReports = 0;
+
+    await assert.rejects(
+      solveVietnamPaymentSearchCaptcha(page, 5_000, {
+        maxAttempts: 1,
+        knownChallengeFingerprints: new Set(),
+        solveCaptcha: async () => {
+          await page.locator('img[alt="captcha img"]').evaluate(
+            (element, nextSource) => element.setAttribute("src", nextSource),
+            secondChallenge,
+          );
+          return { text: "123456", solveId: "fixture-solve", durationMs: 10 };
+        },
+        reportBad: async () => { badReports += 1; },
+      }),
+      (error: unknown) => {
+        const diagnostics = (error as { diagnostics?: Array<{ outcome?: string }> }).diagnostics ?? [];
+        assert.equal(diagnostics.at(-1)?.outcome, "stale_challenge");
+        return true;
+      },
+    );
+
+    assert.equal(await page.locator("#basic_captcha").inputValue(), "");
+    assert.equal(badReports, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: abandons a redrawn CAPTCHA input instead of submitting", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const challenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    await page.setContent(`<input id="basic_captcha" /><img alt="captcha img" src="${challenge}" />`);
+
+    await assert.rejects(
+      solveVietnamPaymentSearchCaptcha(page, 5_000, {
+        maxAttempts: 1,
+        solveCaptcha: async () => {
+          await page.locator("#basic_captcha").evaluate((element) => element.remove());
+          return { text: "123456", solveId: "fixture-solve", durationMs: 10 };
+        },
+      }),
+      (error: unknown) => {
+        const diagnostics = (error as { diagnostics?: Array<{ outcome?: string }> }).diagnostics ?? [];
+        assert.equal(diagnostics.at(-1)?.outcome, "input_unconfirmed");
+        return true;
+      },
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: enforces one shared CAPTCHA deadline before filling the answer", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const challenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    await page.setContent(`<input id="basic_captcha" /><img alt="captcha img" src="${challenge}" />`);
+    const deadlineAt = Date.now() + 20;
+
+    await assert.rejects(
+      solveVietnamPaymentSearchCaptcha(page, 5_000, {
+        deadlineAt,
+        maxAttempts: 1,
+        solveCaptcha: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 40));
+          return { text: "123456", solveId: "fixture-solve", durationMs: 40 };
+        },
+      }),
+      /deadline was exhausted/,
+    );
+
+    assert.equal(await page.locator("#basic_captcha").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: distinguishes an official CAPTCHA rejection from a valid search result", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const rejectedPage = await browser.newPage();
+    await rejectedPage.setContent(`
+      <div class="ant-form-item">
+        <input id="basic_captcha" />
+        <div class="ant-form-item-explain-error">Security code is invalid</div>
+      </div>
+    `);
+    assert.equal(
+      await waitForVietnamSearchSubmissionOutcome(rejectedPage, undefined, 1_000),
+      "captcha_rejected",
+    );
+
+    const resultPage = await browser.newPage();
+    await resultPage.setContent('<table><tbody><tr><td>Application result</td></tr></tbody></table>');
+    assert.equal(
+      await waitForVietnamSearchSubmissionOutcome(resultPage, undefined, 1_000),
+      "accepted",
+    );
+
+    const noResultPage = await browser.newPage();
+    await noResultPage.setContent('<p>No result found</p>');
+    assert.equal(
+      await waitForVietnamSearchSubmissionOutcome(noResultPage, undefined, 1_000),
+      "accepted",
+    );
+  } finally {
+    await browser.close();
+  }
 });
 
 test("vn.payment-resume: uses the live search reload image with a trusted click and confirms a new challenge", async () => {
@@ -162,6 +304,65 @@ test("vn.payment-resume: recovers when opening the first browser context fails",
   assert.equal(result.ready, true);
   assert.equal(result.page, "recovered");
   assert.equal(result.lastError, undefined);
+});
+
+test("vn.payment-resume: replaces an unrefreshable CAPTCHA page with a fresh context", async () => {
+  const opened: string[] = [];
+  const closed: string[] = [];
+  const retried: number[] = [];
+
+  const result = await retryVietnamSearchCaptchaInFreshContexts({
+    attempts: 3,
+    openContext: async (attempt) => {
+      const context = `context-${attempt}`;
+      opened.push(context);
+      return context;
+    },
+    runContext: async (context, attempt) => {
+      if (attempt === 1) throw new Error("refresh_unconfirmed");
+      return `${context}:completed`;
+    },
+    closeContext: async (context) => {
+      closed.push(context);
+    },
+    shouldRetry: (error) => error instanceof Error && error.message === "refresh_unconfirmed",
+    onRetry: async (_error, attempt) => {
+      retried.push(attempt);
+    },
+  });
+
+  assert.deepEqual(opened, ["context-1", "context-2"]);
+  assert.deepEqual(closed, ["context-1"]);
+  assert.deepEqual(retried, [1]);
+  assert.equal(result.context, "context-2");
+  assert.equal(result.result, "context-2:completed");
+});
+
+test("vn.payment-resume: does not recycle a context after a non-retryable CAPTCHA error", async () => {
+  const opened: string[] = [];
+  const closed: string[] = [];
+
+  await assert.rejects(
+    retryVietnamSearchCaptchaInFreshContexts({
+      attempts: 3,
+      openContext: async (attempt) => {
+        const context = `context-${attempt}`;
+        opened.push(context);
+        return context;
+      },
+      runContext: async () => {
+        throw new Error("configuration_error");
+      },
+      closeContext: async (context) => {
+        closed.push(context);
+      },
+      shouldRetry: () => false,
+    }),
+    /configuration_error/,
+  );
+
+  assert.deepEqual(opened, ["context-1"]);
+  assert.deepEqual(closed, []);
 });
 
 for (const label of ["Payment", "Thanh toán", "支付", "支払い"]) {
