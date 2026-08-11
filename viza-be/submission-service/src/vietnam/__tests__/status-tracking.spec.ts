@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { computeVietnamTrackingSlot } from "../status-tracking-schedule.js";
 
+process.env.SUPABASE_URL ??= "https://example.supabase.co";
+process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role";
+
 test("vn.status-tracking: assigns a deterministic 02:00-04:59 Vietnam slot", () => {
   const now = new Date("2026-07-18T00:00:00.000Z");
   const first = computeVietnamTrackingSlot(
@@ -32,5 +35,36 @@ test("vn.status-tracking: advances to the next Vietnam day after today's slot", 
     Date.parse(afterSlot.nextDailyCheckAt) -
       Date.parse(morning.nextDailyCheckAt),
     24 * 60 * 60 * 1_000,
+  );
+});
+
+test("vn.status-tracking: treats a duplicate plain insert as an idempotent success", async () => {
+  const { insertIgnoringDuplicate } = await import("../status-tracking.js");
+
+  const inserted = await insertIgnoringDuplicate(
+    Promise.resolve({ error: { code: "23505", message: "duplicate key" } }),
+  );
+
+  assert.equal(inserted, false);
+});
+
+test("vn.status-tracking: reports a newly inserted row", async () => {
+  const { insertIgnoringDuplicate } = await import("../status-tracking.js");
+
+  const inserted = await insertIgnoringDuplicate(
+    Promise.resolve({ error: null }),
+  );
+
+  assert.equal(inserted, true);
+});
+
+test("vn.status-tracking: rethrows non-duplicate plain insert errors", async () => {
+  const { insertIgnoringDuplicate } = await import("../status-tracking.js");
+  const error = { code: "42P10", message: "conflict target is not usable" };
+
+  await assert.rejects(
+    insertIgnoringDuplicate(Promise.resolve({ error })),
+    (caught: unknown) =>
+      caught instanceof Error && caught.message === error.message,
   );
 });
