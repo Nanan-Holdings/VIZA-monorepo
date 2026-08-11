@@ -135,6 +135,7 @@ knowledge-base/visa-news.json
 **/tmp/
 **/temp/
 /.codex-worktrees/
+/.worktrees/
 **/node_modules.link-backup/
 
 # Submission service recon/diagnostic artifacts (HTML/PNG dumps)
