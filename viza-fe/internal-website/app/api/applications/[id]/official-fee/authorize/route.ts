@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { resolveOfficialFeeApplicantAuth } from "../auth";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,6 @@ type ApplicationRow = {
 
 type ProfileRow = {
   id: string;
-  auth_user_id: string;
 };
 
 type QueryErrorLike = {
@@ -57,31 +56,17 @@ function isVietnamEVisa(application: ApplicationRow): boolean {
   );
 }
 
-async function loadOwnedApplication(applicationId: string): Promise<
+async function loadOwnedApplication(request: NextRequest, applicationId: string): Promise<
   | { userId: string; profile: ProfileRow; application: ApplicationRow; error: null }
   | { userId: null; profile: null; application: null; error: NextResponse }
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { userId: null, profile: null, application: null, error: NextResponse.json({ error: "Not authenticated" }, { status: 401 }) };
+  const auth = await resolveOfficialFeeApplicantAuth(request);
+  if (!auth.ok) {
+    return { userId: null, profile: null, application: null, error: NextResponse.json({ error: auth.error }, { status: auth.status }) };
   }
 
   const admin = createAdminClient();
-  const { data: profileData, error: profileError } = await admin
-    .from("applicant_profiles")
-    .select("id, auth_user_id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-  if (profileError) {
-    return { userId: null, profile: null, application: null, error: NextResponse.json({ error: profileError.message }, { status: 500 }) };
-  }
-  const profile = profileData as ProfileRow | null;
-  if (!profile) {
-    return { userId: null, profile: null, application: null, error: NextResponse.json({ error: "Applicant profile not found" }, { status: 404 }) };
-  }
+  const profile: ProfileRow = { id: auth.profileId };
 
   const { data, error } = await admin
     .from("applications")
@@ -102,11 +87,11 @@ async function loadOwnedApplication(applicationId: string): Promise<
     return { userId: null, profile: null, application: null, error: NextResponse.json({ error: "Official-fee automation is only enabled for Vietnam e-Visa." }, { status: 422 }) };
   }
 
-  return { userId: user.id, profile, application, error: null };
+  return { userId: auth.actorId, profile, application, error: null };
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: applicationId } = await context.params;
@@ -114,7 +99,7 @@ export async function POST(
     return NextResponse.json({ error: "Missing application id" }, { status: 400 });
   }
 
-  const owned = await loadOwnedApplication(applicationId);
+  const owned = await loadOwnedApplication(request, applicationId);
   if (owned.error) return owned.error;
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
