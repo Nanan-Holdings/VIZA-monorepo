@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
-import { createClientSession, getUserFromSupabaseSession } from "@/lib/client-session";
+import {
+  clearClientSession,
+  createClientSession,
+  getUserFromSupabaseSession,
+} from "@/lib/client-session";
 import { createClient } from "@/lib/supabase/server";
 
 type AuthOperation = "password" | "send_otp" | "verify_otp";
 const SUPABASE_AUTH_TIMEOUT_MS = 6_000;
+const CLIENT_SESSION_BOOTSTRAP_TIMEOUT_MS = 500;
 
 interface ClientAuthRequest {
   operation?: unknown;
@@ -67,7 +72,8 @@ function providerUnavailableResponse() {
 async function bootstrapClientSession(): Promise<void> {
   try {
     const session = await getUserFromSupabaseSession({
-      requestTimeoutMs: SUPABASE_AUTH_TIMEOUT_MS,
+      requestTimeoutMs: CLIENT_SESSION_BOOTSTRAP_TIMEOUT_MS,
+      retryDelaysMs: [],
     });
     if (session) await createClientSession(session.userId, session.email);
   } catch {
@@ -107,6 +113,7 @@ export async function POST(request: Request) {
           : jsonError(error.message, 401);
       }
 
+      await clearClientSession();
       await bootstrapClientSession();
       return NextResponse.json({ success: true });
     }
@@ -134,6 +141,7 @@ export async function POST(request: Request) {
           : jsonError(error.message, 401);
       }
 
+      await clearClientSession();
       await bootstrapClientSession();
       return NextResponse.json({ success: true });
     }

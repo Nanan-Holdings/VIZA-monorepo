@@ -78,6 +78,11 @@ type ApplicantProfileSessionRow = {
   auth_user_id: string | null;
 };
 
+type SupabaseSessionOptions = {
+  requestTimeoutMs?: number;
+  retryDelaysMs?: readonly number[];
+};
+
 export function chooseApplicantProfileForAuthSession({
   authUserId,
   emailMatches,
@@ -101,7 +106,7 @@ export function chooseApplicantProfileForAuthSession({
  * Finds or creates an applicant_profiles record for the authenticated user.
  */
 export async function getUserFromSupabaseSession(
-  options: { requestTimeoutMs?: number } = {}
+  options: SupabaseSessionOptions = {}
 ): Promise<ClientSession | null> {
   try {
     const supabase = await createClient(options);

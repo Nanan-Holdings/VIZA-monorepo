@@ -5,6 +5,7 @@ const signInWithOtpMock = vi.hoisted(() => vi.fn());
 const verifyOtpMock = vi.hoisted(() => vi.fn());
 const getUserFromSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const createClientSessionMock = vi.hoisted(() => vi.fn());
+const clearClientSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
@@ -19,6 +20,7 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/client-session", () => ({
   getUserFromSupabaseSession: getUserFromSupabaseSessionMock,
   createClientSession: createClientSessionMock,
+  clearClientSession: clearClientSessionMock,
 }));
 
 import { POST } from "./route";
@@ -54,6 +56,7 @@ describe("POST /api/client/auth", () => {
     verifyOtpMock.mockReset();
     getUserFromSupabaseSessionMock.mockReset();
     createClientSessionMock.mockReset();
+    clearClientSessionMock.mockReset();
   });
 
   it("bootstraps the signed client session after a successful password login", async () => {
@@ -66,7 +69,14 @@ describe("POST /api/client/auth", () => {
     const response = await POST(passwordRequest());
 
     await expect(response.json()).resolves.toEqual({ success: true });
-    expect(getUserFromSupabaseSessionMock).toHaveBeenCalledWith({ requestTimeoutMs: 6_000 });
+    expect(clearClientSessionMock).toHaveBeenCalledOnce();
+    expect(getUserFromSupabaseSessionMock).toHaveBeenCalledWith({
+      requestTimeoutMs: 500,
+      retryDelaysMs: [],
+    });
+    expect(clearClientSessionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      getUserFromSupabaseSessionMock.mock.invocationCallOrder[0],
+    );
     expect(createClientSessionMock).toHaveBeenCalledWith(
       "applicant-profile-id",
       "applicant@example.com",
@@ -83,7 +93,14 @@ describe("POST /api/client/auth", () => {
     const response = await POST(verifyOtpRequest());
 
     await expect(response.json()).resolves.toEqual({ success: true });
-    expect(getUserFromSupabaseSessionMock).toHaveBeenCalledWith({ requestTimeoutMs: 6_000 });
+    expect(clearClientSessionMock).toHaveBeenCalledOnce();
+    expect(getUserFromSupabaseSessionMock).toHaveBeenCalledWith({
+      requestTimeoutMs: 500,
+      retryDelaysMs: [],
+    });
+    expect(clearClientSessionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      getUserFromSupabaseSessionMock.mock.invocationCallOrder[0],
+    );
     expect(createClientSessionMock).toHaveBeenCalledWith(
       "applicant-profile-id",
       "applicant@example.com",
@@ -97,6 +114,7 @@ describe("POST /api/client/auth", () => {
     const response = await POST(passwordRequest());
 
     await expect(response.json()).resolves.toEqual({ success: true });
+    expect(clearClientSessionMock).toHaveBeenCalledOnce();
     expect(createClientSessionMock).not.toHaveBeenCalled();
   });
 
@@ -107,6 +125,7 @@ describe("POST /api/client/auth", () => {
     const response = await POST(passwordRequest());
 
     await expect(response.json()).resolves.toEqual({ success: true });
+    expect(clearClientSessionMock).toHaveBeenCalledOnce();
   });
 
   it("maps a plain Supabase timeout error to provider_unavailable", async () => {
@@ -121,5 +140,6 @@ describe("POST /api/client/auth", () => {
       code: "provider_unavailable",
       error: "The authentication provider is temporarily unavailable.",
     });
+    expect(clearClientSessionMock).not.toHaveBeenCalled();
   });
 });
