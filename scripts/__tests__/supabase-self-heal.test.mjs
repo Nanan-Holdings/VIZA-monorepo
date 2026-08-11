@@ -73,6 +73,8 @@ function issueBody(state = emptyState()) {
 function createFetch({
   state = emptyState(),
   probeStatus = 503,
+  authStatus = probeStatus,
+  restStatus = probeStatus,
   authBody = {},
   restBody = [],
   controlStatus = 401,
@@ -95,13 +97,13 @@ function createFetch({
       String(url).includes("/auth/v1/settings") &&
       options.headers?.apikey === PUBLISHABLE_KEY
     ) {
-      return response(probeStatus, authBody, { stalled: stalledAuthBody });
+      return response(authStatus, authBody, { stalled: stalledAuthBody });
     }
     if (String(url).includes("/auth/v1/settings")) {
       return response(controlStatus, { message: "Invalid API key" });
     }
     if (String(url).includes("/rest/v1/applicant_profiles")) {
-      return response(probeStatus, restBody, { stalled: stalledRestBody });
+      return response(restStatus, restBody, { stalled: stalledRestBody });
     }
     if (String(url).includes("api.github.com/repos/")) {
       if (options.method === "GET") {
@@ -160,6 +162,10 @@ test("serializes and parses state only inside explicit HTML markers", () => {
   assert.deepEqual(parseStateFromIssueBody(body), state);
   assert.throws(() => parseStateFromIssueBody("missing marker"), /marker/i);
   assert.throws(() => parseStateFromIssueBody("<!-- supabase-self-heal-state:start -->{}<!-- supabase-self-heal-state:end -->"), /version|state/i);
+  assert.throws(
+    () => parseStateFromIssueBody(serializeStateForIssue({ ...state, consecutiveFailureRuns: 1_001 })),
+    /consecutiveFailureRuns/i,
+  );
 });
 
 test("builds GET read-only Auth and REST probe URLs", () => {
@@ -359,6 +365,45 @@ test("requires the pre-POST restart_pending lease and never posts when lease PAT
   assert.ok(patchIndex >= 0 && postIndex > patchIndex);
 });
 
+test("treats a Management API 5xx as unknown and never repeats it", async () => {
+  const shared = createFetch({
+    probeStatus: 503,
+    restartStatus: 503,
+    state: {
+      ...emptyState(),
+      incidentId: "incident-management-unknown",
+      consecutiveFailureRuns: 2,
+      firstFailureAt: new Date(300_000).toISOString(),
+      lastFailureAt: new Date(600_000).toISOString(),
+      lastOutcome: "probe_failure",
+      lastProcessedRunId: "3900",
+      lastProcessedWindow: "2",
+    },
+  });
+  const first = await runSelfHeal({
+    env: baseEnv({ GITHUB_RUN_ID: "3901" }),
+    fetchImpl: shared.fetchImpl,
+    now: () => 900_000,
+    rounds: 3,
+    intervalMs: 0,
+    sleep: async () => {},
+  });
+  assert.equal(first.action, "restart_unknown");
+  assert.equal(parseStateFromIssueBody(shared.getIssueBody().body).lastOutcome, "restart_unknown");
+
+  const second = await runSelfHeal({
+    env: baseEnv({ GITHUB_RUN_ID: "3902" }),
+    fetchImpl: shared.fetchImpl,
+    now: () => 4_000_000,
+    rounds: 3,
+    intervalMs: 0,
+    sleep: async () => {},
+  });
+  assert.equal(second.action, "suppressed");
+  assert.equal(second.reason, "restart_confirmation_pending");
+  assert.equal(shared.calls.filter((call) => call.url.endsWith("/restart")).length, 1);
+});
+
 test("stalled JSON body is a transient timeout and cannot trigger a restart by itself", async () => {
   const stalled = createFetch({ probeStatus: 200, stalledAuthBody: true, restBody: [] });
   const result = await runSelfHeal({
@@ -468,6 +513,35 @@ test("never repeats an unresolved restart even after the cooldown", async () => 
   const state = parseStateFromIssueBody(shared.getIssueBody().body);
   assert.equal(state.lastOutcome, "restart_pending");
   assert.equal(state.lastProcessedRunId, "7001");
+});
+
+test("keeps an unresolved restart lease through ambiguous non-healthy probes", async () => {
+  const prior = {
+    ...emptyState(),
+    incidentId: "incident-ambiguous-pending",
+    consecutiveFailureRuns: 3,
+    firstFailureAt: new Date(300_000).toISOString(),
+    lastFailureAt: new Date(900_000).toISOString(),
+    restartRequestedAt: new Date(900_000).toISOString(),
+    lastOutcome: "restart_unknown",
+    lastProcessedRunId: "7100",
+    lastProcessedWindow: "3",
+  };
+  const shared = createFetch({ state: prior, authStatus: 400, restStatus: 503 });
+  const result = await runSelfHeal({
+    env: baseEnv({ GITHUB_RUN_ID: "7101" }),
+    fetchImpl: shared.fetchImpl,
+    now: () => 4_300_000,
+    rounds: 3,
+    intervalMs: 0,
+    sleep: async () => {},
+  });
+  assert.equal(result.action, "suppressed");
+  assert.equal(result.reason, "restart_confirmation_pending");
+  assert.equal(shared.calls.some((call) => call.url.endsWith("/restart")), false);
+  const state = parseStateFromIssueBody(shared.getIssueBody().body);
+  assert.equal(state.lastOutcome, "restart_unknown");
+  assert.equal(state.lastProcessedRunId, "7101");
 });
 
 test("emits action and state_changed through GITHUB_OUTPUT", async () => {
