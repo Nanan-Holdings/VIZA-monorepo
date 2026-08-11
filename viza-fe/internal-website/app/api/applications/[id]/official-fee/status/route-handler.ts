@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { resolveOfficialFeeApplicantAuth } from "../auth";
 
 export const dynamic = "force-dynamic";
 
@@ -78,31 +78,17 @@ function isSchemaMissing(error: QueryErrorLike | null): boolean {
   );
 }
 
-async function loadOwnedApplication(applicationId: string): Promise<
+async function loadOwnedApplication(request: NextRequest, applicationId: string): Promise<
   | { application: ApplicationRow; error: null }
   | { application: null; error: NextResponse }
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { application: null, error: NextResponse.json({ error: "Not authenticated" }, { status: 401 }) };
+  const auth = await resolveOfficialFeeApplicantAuth(request);
+  if (!auth.ok) {
+    return { application: null, error: NextResponse.json({ error: auth.error }, { status: auth.status }) };
   }
 
   const admin = createAdminClient();
-  const { data: profileData, error: profileError } = await admin
-    .from("applicant_profiles")
-    .select("id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-  if (profileError) {
-    return { application: null, error: NextResponse.json({ error: profileError.message }, { status: 500 }) };
-  }
-  const profile = profileData as ProfileRow | null;
-  if (!profile) {
-    return { application: null, error: NextResponse.json({ error: "Applicant profile not found" }, { status: 404 }) };
-  }
+  const profile: ProfileRow = { id: auth.profileId };
 
   let application: ApplicationRow | null = null;
   const { data, error } = await admin
@@ -144,7 +130,7 @@ async function loadOwnedApplication(applicationId: string): Promise<
 }
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: applicationId } = await context.params;
@@ -152,7 +138,7 @@ export async function GET(
     return NextResponse.json({ error: "Missing application id" }, { status: 400 });
   }
 
-  const owned = await loadOwnedApplication(applicationId);
+  const owned = await loadOwnedApplication(request, applicationId);
   if (owned.error) return owned.error;
 
   const admin = createAdminClient();

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import {
   isIndonesiaEVisaApplication,
@@ -6,7 +6,7 @@ import {
   queueStatusForApplication,
 } from "@/lib/submission-queue";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { resolveOfficialFeeApplicantAuth } from "../auth";
 
 export const dynamic = "force-dynamic";
 
@@ -734,7 +734,7 @@ async function enqueueIndonesiaOfficialFeeCardJob(input: {
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: applicationId } = await context.params;
@@ -742,27 +742,13 @@ export async function POST(
     return NextResponse.json({ error: "Missing application id" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const auth = await resolveOfficialFeeApplicantAuth(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const admin = createAdminClient();
-  const { data: profileData, error: profileError } = await admin
-    .from("applicant_profiles")
-    .select("id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-  if (profileError) {
-    return NextResponse.json({ error: profileError.message }, { status: 500 });
-  }
-  const profile = profileData as ProfileRow | null;
-  if (!profile) {
-    return NextResponse.json({ error: "Applicant profile not found" }, { status: 404 });
-  }
+  const profile: ProfileRow = { id: auth.profileId };
 
   const { data: applicationData, error: applicationError } = await admin
     .from("applications")
@@ -822,7 +808,7 @@ export async function POST(
       application,
       applicationId,
       profileId: profile.id,
-      userId: user.id,
+      userId: auth.actorId,
       cardSession,
     });
   }
@@ -846,7 +832,7 @@ export async function POST(
       .from("consent_events")
       .select("id, accepted, created_at")
       .eq("application_id", applicationId)
-      .eq("auth_user_id", user.id)
+      .eq("auth_user_id", auth.actorId)
       .eq("consent_type", "official_fee_payment_authorization")
       .eq("accepted", true)
       .order("created_at", { ascending: false })
@@ -863,7 +849,7 @@ export async function POST(
         application,
         applicationId,
         profileId: profile.id,
-        userId: user.id,
+        userId: auth.actorId,
       });
       if (!fallbackConsentResult.ok) {
         return NextResponse.json({ error: fallbackConsentResult.error }, { status: 500 });
@@ -878,7 +864,7 @@ export async function POST(
       application,
       applicationId,
       profileId: profile.id,
-      userId: user.id,
+      userId: auth.actorId,
     });
     if (!createdIntent.ok) {
       return NextResponse.json({ error: createdIntent.error }, { status: createdIntent.status ?? 500 });
@@ -919,7 +905,7 @@ export async function POST(
   const queueEnqueue = await enqueueIsolatedOfficialFeeJob({
     admin,
     applicationId,
-    userId: user.id,
+    userId: auth.actorId,
     status: queueStatus,
     provider: "vietnam_evisa_live",
     currentStage: "payment_authorized",
@@ -950,10 +936,10 @@ export async function POST(
       {
         application_id: applicationId,
         applicant_id: profile.id,
-        auth_user_id: user.id,
+        auth_user_id: auth.actorId,
         event_type: "official_fee_payment_queued",
         actor_type: "user",
-        actor_id: user.id,
+        actor_id: auth.actorId,
         source: "official_fee",
         visibility: "staff",
         idempotency_key: `official-fee-payment-queued:${applicationId}:${intentRow.id}:${queue.queueId}`,

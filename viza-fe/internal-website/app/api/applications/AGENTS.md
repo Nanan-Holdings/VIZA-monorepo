@@ -35,6 +35,10 @@ ports directly.
 ## Related Files
 
 - `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/official-fee/auth.ts`
+  centralizes the signed `client_session` and Supabase session policy shared by
+  the official-fee routes; its focused regression coverage lives in the
+  adjacent `auth.test.ts`.
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/authorize/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.ts`
