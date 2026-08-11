@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClientSession, getUserFromSupabaseSession } from "@/lib/client-session";
 import { createClient } from "@/lib/supabase/server";
 
 type AuthOperation = "password" | "send_otp" | "verify_otp";
@@ -63,6 +64,18 @@ function providerUnavailableResponse() {
   );
 }
 
+async function bootstrapClientSession(): Promise<void> {
+  try {
+    const session = await getUserFromSupabaseSession({
+      requestTimeoutMs: SUPABASE_AUTH_TIMEOUT_MS,
+    });
+    if (session) await createClientSession(session.userId, session.email);
+  } catch {
+    // Supabase authentication already succeeded. Keep its cookie session as a
+    // fallback when applicant profile/session bootstrap is temporarily unavailable.
+  }
+}
+
 export async function POST(request: Request) {
   let payload: ClientAuthRequest;
   try {
@@ -88,11 +101,14 @@ export async function POST(request: Request) {
       if (!password) return jsonError("Please enter a password");
 
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      return error
-        ? isSupabaseUnavailable(error)
+      if (error) {
+        return isSupabaseUnavailable(error)
           ? providerUnavailableResponse()
-          : jsonError(error.message, 401)
-        : NextResponse.json({ success: true });
+          : jsonError(error.message, 401);
+      }
+
+      await bootstrapClientSession();
+      return NextResponse.json({ success: true });
     }
 
     if (operation === "send_otp") {
@@ -112,11 +128,14 @@ export async function POST(request: Request) {
       if (!/^\d{6,8}$/.test(token)) return jsonError("Please enter a valid verification code");
 
       const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
-      return error
-        ? isSupabaseUnavailable(error)
+      if (error) {
+        return isSupabaseUnavailable(error)
           ? providerUnavailableResponse()
-          : jsonError(error.message, 401)
-        : NextResponse.json({ success: true });
+          : jsonError(error.message, 401);
+      }
+
+      await bootstrapClientSession();
+      return NextResponse.json({ success: true });
     }
   } catch (error) {
     if (isSupabaseUnavailable(error)) return providerUnavailableResponse();
