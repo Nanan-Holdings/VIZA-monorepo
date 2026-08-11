@@ -1,5 +1,5 @@
 import { chromium, type Browser, type Locator, type Page } from "@playwright/test";
-import { reportBadCaptcha, solveImageCaptcha } from "../captcha";
+import { reportBadCaptcha, reportGoodCaptcha, solveImageCaptcha } from "../captcha";
 import {
   loadVietnamFixedCardFromEnv,
   payVietnamPortalWithFixedCard,
@@ -8,6 +8,7 @@ import {
 } from "./fixed-card-payment";
 import {
   captureVietnamCaptchaImage,
+  captureVietnamCaptchaFingerprint,
   fingerprintVietnamCaptchaImage,
   refreshVietnamCaptchaChallenge,
   solveVietnamImageCaptcha,
@@ -17,17 +18,27 @@ import { toVietnamDob } from "./status-check";
 
 export interface VietnamPaymentSearchCaptchaDiagnostic {
   attempt: number;
+  contextAttempt?: number;
   answerLength?: number;
   durationMs?: number;
   challengeFingerprintPrefix?: string;
-  outcome: "solved" | "unusable" | "solver_error";
+  outcome: "solved" | "unusable" | "solver_error" | "stale_challenge" | "input_unconfirmed" | "rejected";
   refreshConfirmed?: boolean;
   refreshStrategy?: "search_reload_control" | "shared_fallback";
+  freshContextRetry?: boolean;
 }
 
 export interface VietnamPaymentResumeDiagnostics {
   searchCaptchaAttempts?: VietnamPaymentSearchCaptchaDiagnostic[];
   paymentEntry?: VietnamPaymentEntryDiagnostic;
+}
+
+export type VietnamSearchSubmissionOutcome = "accepted" | "captcha_rejected" | "unconfirmed";
+
+interface VietnamSearchCaptchaSolveSuccess {
+  diagnostics: VietnamPaymentSearchCaptchaDiagnostic[];
+  solveId?: string;
+  challengeFingerprint?: string;
 }
 
 export interface VietnamPaymentEntryDiagnostic {
@@ -223,6 +234,44 @@ export interface FreshVietnamSearchPageRetryResult<T> {
   lastError?: unknown;
 }
 
+export interface FreshVietnamCaptchaContextRetryOptions<T, TResult> {
+  attempts: number;
+  openContext: (attempt: number) => Promise<T>;
+  runContext: (context: T, attempt: number) => Promise<TResult>;
+  closeContext: (context: T) => Promise<void>;
+  shouldRetry: (error: unknown, attempt: number) => boolean;
+  onRetry?: (error: unknown, attempt: number) => Promise<void> | void;
+}
+
+/**
+ * Re-run the complete official search in a new browser context after a stale
+ * or unrefreshable CAPTCHA. A failed challenge is never solved again in the
+ * same context, and the previous page is closed before the next one opens.
+ */
+export async function retryVietnamSearchCaptchaInFreshContexts<T, TResult>(
+  options: FreshVietnamCaptchaContextRetryOptions<T, TResult>,
+): Promise<{ context: T; result: TResult }> {
+  const attempts = Math.max(1, options.attempts);
+  let context: T | null = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (context) {
+      await options.closeContext(context).catch(() => undefined);
+      context = null;
+    }
+    context = await options.openContext(attempt);
+    try {
+      const result = await options.runContext(context, attempt);
+      return { context, result };
+    } catch (error) {
+      if (attempt >= attempts || !options.shouldRetry(error, attempt)) throw error;
+      await options.onRetry?.(error, attempt);
+    }
+  }
+
+  throw new Error("Vietnam search CAPTCHA fresh-context retries were exhausted.");
+}
+
 /**
  * Retry the official search page in a fresh browser context each time.
  *
@@ -267,6 +316,7 @@ function paymentBrowserIgnoresHttpsErrors(): boolean {
 async function gotoSearchPageWithRetry(
   browser: Browser,
   input: VietnamPaymentResumeInput,
+  deadlineAt = Date.now() + (input.timeoutMs ?? 60_000),
 ): Promise<FreshVietnamSearchPageRetryResult<Page>> {
   const searchUrl = input.searchUrl ?? DEFAULT_SEARCH_URL;
   const attempts = Math.max(1, Math.min(Number(process.env.VN_PAYMENT_SEARCH_LOAD_ATTEMPTS ?? 5), 5));
@@ -275,6 +325,8 @@ async function gotoSearchPageWithRetry(
   return retryFreshVietnamSearchPage<Page>({
     attempts,
     openPage: async () => {
+      const remainingMs = Math.max(1, deadlineAt - Date.now());
+      if (remainingMs <= 1) throw new Error("Vietnam payment search page deadline was exhausted.");
       const page = await browser.newPage({
         ignoreHTTPSErrors: paymentBrowserIgnoresHttpsErrors(),
         serviceWorkers: "block",
@@ -312,7 +364,7 @@ async function gotoSearchPageWithRetry(
       try {
         await page.goto(searchUrl, {
           waitUntil: "domcontentloaded",
-          timeout: input.timeoutMs ?? 60_000,
+          timeout: Math.min(input.timeoutMs ?? 60_000, remainingMs),
         });
       } catch (error) {
         await page.close().catch(() => undefined);
@@ -323,7 +375,7 @@ async function gotoSearchPageWithRetry(
     isReady: async (page, attempt) => {
       const ready = await waitForSearchPageReady(
         page,
-        input.timeoutMs ?? 60_000,
+        Math.max(1, Math.min(input.timeoutMs ?? 60_000, deadlineAt - Date.now())),
         () => (criticalAssetFailures.get(page)?.size ?? 0) > 0,
       );
       if (!ready) {
@@ -339,7 +391,8 @@ async function gotoSearchPageWithRetry(
     },
     closePage: (page) => page.close(),
     waitBeforeRetry: async (attempt) => {
-      await new Promise((resolve) => setTimeout(resolve, 2_000 * (attempt - 1)));
+      const delayMs = Math.min(2_000 * (attempt - 1), Math.max(0, deadlineAt - Date.now()));
+      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
     },
   });
 }
@@ -360,14 +413,37 @@ export function isVietnamSearchCaptchaAnswerUsable(value: string): boolean {
   return /^\d{6}$/.test(value);
 }
 
+export function registerVietnamSearchCaptchaChallenge(
+  knownFingerprints: Set<string>,
+  fingerprint: string,
+): boolean {
+  if (knownFingerprints.has(fingerprint)) return false;
+  knownFingerprints.add(fingerprint);
+  return true;
+}
+
 class VietnamSearchCaptchaSolveError extends Error {
   constructor(
     message: string,
     readonly diagnostics: VietnamPaymentSearchCaptchaDiagnostic[],
+    readonly retryWithFreshContext = false,
   ) {
     super(message);
     this.name = "VietnamSearchCaptchaSolveError";
   }
+}
+
+class VietnamSearchPageUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "VietnamSearchPageUnavailableError";
+  }
+}
+
+function readBoundedPositiveInteger(name: string, fallback: number, maximum: number): number {
+  const parsed = Number.parseInt(process.env[name]?.trim() ?? "", 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, maximum);
 }
 
 const VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS = [
@@ -419,12 +495,34 @@ export async function refreshVietnamSearchCaptchaChallenge(
   return sharedConfirmed ? "shared_fallback" : null;
 }
 
-async function solveSearchCaptcha(
+export async function solveVietnamPaymentSearchCaptcha(
   page: Page,
   timeoutMs: number,
-): Promise<VietnamPaymentSearchCaptchaDiagnostic[]> {
+  options: {
+    attemptOffset?: number;
+    contextAttempt?: number;
+    maxAttempts?: number;
+    knownChallengeFingerprints?: Set<string>;
+    deadlineAt?: number;
+    solveCaptcha?: typeof solveImageCaptcha;
+    reportBad?: typeof reportBadCaptcha;
+  } = {},
+): Promise<VietnamSearchCaptchaSolveSuccess> {
   const diagnostics: VietnamPaymentSearchCaptchaDiagnostic[] = [];
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  const maxAttempts = Math.max(1, Math.min(options.maxAttempts ?? 3, 3));
+  const deadlineAt = options.deadlineAt ?? Date.now() + timeoutMs;
+  const remainingMs = () => Math.max(0, deadlineAt - Date.now());
+  const solveCaptcha = options.solveCaptcha ?? solveImageCaptcha;
+  const reportBad = options.reportBad ?? reportBadCaptcha;
+  for (let localAttempt = 1; localAttempt <= maxAttempts; localAttempt += 1) {
+    if (remainingMs() <= 0) {
+      throw new VietnamSearchCaptchaSolveError(
+        "Vietnam search CAPTCHA deadline was exhausted.",
+        diagnostics,
+        false,
+      );
+    }
+    const attempt = (options.attemptOffset ?? 0) + localAttempt;
     const image = page.locator([
       "img.captcha",
       'img[alt*="Identify" i]',
@@ -435,24 +533,75 @@ async function solveSearchCaptcha(
       'canvas',
       '.captcha img',
     ].join(", ")).first();
-    if (!(await image.isVisible({ timeout: 3_000 }).catch(() => false))) return diagnostics;
-    const capture = await captureVietnamCaptchaImage(image, Math.min(timeoutMs, 30_000));
-    const challengeFingerprintPrefix = fingerprintVietnamCaptchaImage(capture.buffer).slice(0, 12);
+    if (!(await image.isVisible({ timeout: Math.min(3_000, remainingMs()) }).catch(() => false))) {
+      return { diagnostics };
+    }
+    const capture = await captureVietnamCaptchaImage(image, Math.max(1, Math.min(remainingMs(), 30_000)));
+    const challengeFingerprint = fingerprintVietnamCaptchaImage(capture.buffer);
+    const challengeFingerprintPrefix = challengeFingerprint.slice(0, 12);
+    if (
+      options.knownChallengeFingerprints &&
+      !registerVietnamSearchCaptchaChallenge(options.knownChallengeFingerprints, challengeFingerprint)
+    ) {
+      diagnostics.push({
+        attempt,
+        contextAttempt: options.contextAttempt,
+        challengeFingerprintPrefix,
+        outcome: "stale_challenge",
+        refreshConfirmed: false,
+      });
+      throw new VietnamSearchCaptchaSolveError(
+        "The fresh Vietnam search context returned a previously rejected CAPTCHA challenge.",
+        diagnostics,
+        true,
+      );
+    }
     try {
-      const solution = await solveImageCaptcha(
+      const solution = await solveCaptcha(
         capture.buffer,
-        Math.min(timeoutMs, 120_000),
+        Math.max(1, Math.min(remainingMs(), 120_000)),
         VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS,
       );
+      if (remainingMs() <= 0) {
+        throw new VietnamSearchCaptchaSolveError(
+          "Vietnam search CAPTCHA deadline was exhausted while waiting for 2captcha.",
+          diagnostics,
+          false,
+        );
+      }
       const captchaText = normalizeVietnamSearchCaptchaAnswer(solution.text);
       if (isVietnamSearchCaptchaAnswerUsable(captchaText)) {
-        diagnostics.push({
+        const currentCapture = await captureVietnamCaptchaImage(
+          image,
+          Math.max(1, Math.min(remainingMs(), 10_000)),
+        ).catch(() => null);
+        const currentFingerprint = currentCapture
+          ? fingerprintVietnamCaptchaImage(currentCapture.buffer)
+          : null;
+        if (!currentFingerprint || currentFingerprint !== challengeFingerprint) {
+          diagnostics.push({
+            attempt,
+            contextAttempt: options.contextAttempt,
+            answerLength: captchaText.length,
+            durationMs: solution.durationMs,
+            challengeFingerprintPrefix,
+            outcome: "stale_challenge",
+            refreshConfirmed: false,
+          });
+          throw new VietnamSearchCaptchaSolveError(
+            "The Vietnam search CAPTCHA changed while 2captcha was solving it.",
+            diagnostics,
+            true,
+          );
+        }
+        const solvedDiagnostic: VietnamPaymentSearchCaptchaDiagnostic = {
           attempt,
+          contextAttempt: options.contextAttempt,
           answerLength: captchaText.length,
           durationMs: solution.durationMs,
           challengeFingerprintPrefix,
           outcome: "solved",
-        });
+        };
         const captchaInput = page.locator([
           "#basic_captcha",
           "#_tracuuthongtinTTDT_WAR_eVisaportlet_captchaText",
@@ -461,39 +610,59 @@ async function solveSearchCaptcha(
           'input[placeholder*="captcha" i]',
           'input[placeholder*="security" i]',
         ].join(", ")).first();
-        await captchaInput.fill(captchaText, { timeout: 10_000 });
-        await setInputValue(captchaInput, captchaText);
-        return diagnostics;
+        const inputConfirmed = await captchaInput
+          .fill(captchaText, { timeout: Math.max(1, Math.min(10_000, remainingMs())) })
+          .then(async () => {
+            await setInputValue(captchaInput, captchaText);
+            const value = await captchaInput.inputValue({
+              timeout: Math.max(1, Math.min(3_000, remainingMs())),
+            });
+            return normalizeVietnamSearchCaptchaAnswer(value) === captchaText;
+          })
+          .catch(() => false);
+        if (!inputConfirmed) {
+          diagnostics.push({ ...solvedDiagnostic, outcome: "input_unconfirmed" });
+          throw new VietnamSearchCaptchaSolveError(
+            "The Vietnam search CAPTCHA input was redrawn before its value could be confirmed.",
+            diagnostics,
+            true,
+          );
+        }
+        diagnostics.push(solvedDiagnostic);
+        return { diagnostics, solveId: solution.solveId, challengeFingerprint };
       }
 
       const diagnostic: VietnamPaymentSearchCaptchaDiagnostic = {
         attempt,
+        contextAttempt: options.contextAttempt,
         answerLength: captchaText.length,
         durationMs: solution.durationMs,
         challengeFingerprintPrefix,
         outcome: "unusable",
       };
       diagnostics.push(diagnostic);
-      await reportBadCaptcha(solution.solveId).catch(() => undefined);
+      await reportBad(solution.solveId).catch(() => undefined);
     } catch (error) {
+      if (error instanceof VietnamSearchCaptchaSolveError) throw error;
       diagnostics.push({
         attempt,
+        contextAttempt: options.contextAttempt,
         challengeFingerprintPrefix,
         outcome: "solver_error",
       });
-      if (attempt === 3) {
+      if (localAttempt === maxAttempts) {
         throw new VietnamSearchCaptchaSolveError(
           error instanceof Error ? error.message : String(error),
           diagnostics,
+          true,
         );
       }
     }
-    if (attempt < 3) {
-      const previousFingerprint = fingerprintVietnamCaptchaImage(capture.buffer);
+    if (localAttempt < maxAttempts) {
       const refreshStrategy = await refreshVietnamSearchCaptchaChallenge(
         page,
-        previousFingerprint,
-        10_000,
+        challengeFingerprint,
+        Math.max(1, Math.min(10_000, remainingMs())),
       ).catch(() => null);
       diagnostics[diagnostics.length - 1].refreshConfirmed = refreshStrategy !== null;
       if (refreshStrategy) diagnostics[diagnostics.length - 1].refreshStrategy = refreshStrategy;
@@ -501,6 +670,7 @@ async function solveSearchCaptcha(
         throw new VietnamSearchCaptchaSolveError(
           "Vietnam search CAPTCHA refresh was not confirmed; refusing to resend the stale challenge.",
           diagnostics,
+          true,
         );
       }
       await page.waitForTimeout(1_000);
@@ -509,7 +679,63 @@ async function solveSearchCaptcha(
   throw new VietnamSearchCaptchaSolveError(
     "2captcha returned unusable Vietnam search CAPTCHA answers; expected exactly 6 digits.",
     diagnostics,
+    true,
   );
+}
+
+const VIETNAM_SEARCH_CAPTCHA_REJECTION_PATTERN =
+  /(?:captcha|security code|mã xác nhận|ma xac nhan|mã bảo mật|ma bao mat).{0,80}(?:invalid|incorrect|wrong|required|not correct|không đúng|khong dung|không chính xác|错误|无效|不正确|正しくない|無効)|(?:invalid|incorrect|wrong|required|not correct|không đúng|khong dung|không chính xác|错误|无效|不正确|正しくない|無効).{0,80}(?:captcha|security code|mã xác nhận|ma xac nhan|mã bảo mật|ma bao mat)/i;
+
+export async function waitForVietnamSearchSubmissionOutcome(
+  page: Page,
+  submittedChallengeFingerprint: string | undefined,
+  timeoutMs: number,
+): Promise<VietnamSearchSubmissionOutcome> {
+  const deadline = Date.now() + Math.max(0, timeoutMs);
+  let challengeChangedAt: number | null = null;
+  do {
+    const currentUrl = page.url();
+    if (/\/e-visa\/foreigners\/[^/?]+|\/thanh-toan-cqtc(?:\/|$|\?)/i.test(currentUrl)) {
+      return "accepted";
+    }
+    const paymentAction = page.getByRole("button", { name: VIETNAM_PAYMENT_ACTION_NAME, exact: true }).first();
+    if (await paymentAction.isVisible({ timeout: 250 }).catch(() => false)) return "accepted";
+    const resultRows = await page.locator(".ant-table-row:visible, table:visible tbody tr:visible")
+      .count()
+      .catch(() => 0);
+    if (resultRows > 0) return "accepted";
+
+    const bodyText = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+    if (/no result found|không tìm thấy|khong tim thay/i.test(bodyText)) return "accepted";
+    const captchaErrorText = await page.locator([
+      "#basic_captcha",
+      "input[name*='captcha' i]",
+      "input[id*='captcha' i]",
+    ].join(", ")).first().locator("xpath=ancestor::*[contains(@class, 'ant-form-item')][1]")
+      .innerText({ timeout: 500 })
+      .catch(() => "");
+    const visibleErrorText = await page.locator(".ant-form-item-explain-error:visible, .ant-message-error:visible")
+      .allInnerTexts()
+      .then((texts) => texts.join(" "))
+      .catch(() => "");
+    if (VIETNAM_SEARCH_CAPTCHA_REJECTION_PATTERN.test(`${captchaErrorText} ${visibleErrorText}`)) {
+      return "captcha_rejected";
+    }
+
+    if (submittedChallengeFingerprint) {
+      const currentFingerprint = await captureVietnamCaptchaFingerprint(page, 250).catch(() => null);
+      if (currentFingerprint && currentFingerprint !== submittedChallengeFingerprint) {
+        challengeChangedAt ??= Date.now();
+      }
+    }
+    // A changed challenge without an explicit validation message is not proof
+    // that the solver was wrong: the portal may rotate CAPTCHA after a valid
+    // lookup before Vue finishes rendering its result. Give the result UI a
+    // short grace, then retry in a fresh context without penalizing 2captcha.
+    if (challengeChangedAt && Date.now() - challengeChangedAt >= 3_000) return "unconfirmed";
+    if (Date.now() < deadline) await page.waitForTimeout(250);
+  } while (Date.now() < deadline);
+  return "unconfirmed";
 }
 
 async function submitSearch(page: Page): Promise<void> {
@@ -818,30 +1044,140 @@ export async function resumeVietnamOfficialPayment(
   let page: Page | null = null;
   const diagnostics: VietnamPaymentResumeDiagnostics = {};
   try {
-    const searchPage = await gotoSearchPageWithRetry(browser, input);
-    page = searchPage.page;
-    if (!searchPage.ready || !page) {
-      if (!page) {
-        if (searchPage.lastError) throw searchPage.lastError;
-        return {
-          status: "unavailable",
-          reason: "The official Vietnam payment search page could not be opened after retries.",
-          url: input.searchUrl ?? DEFAULT_SEARCH_URL,
-        };
-      }
-      const bodyText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
-      return {
-        status: "unavailable",
-        reason: bodyText.trim().length < 30
-          ? "The official Vietnam payment search page loaded blank after retries."
-          : "The official Vietnam payment search page did not expose the expected search fields after retries.",
-        url: page.url(),
-      };
-    }
-    await fillSearchFields(page, input);
-    diagnostics.searchCaptchaAttempts = await solveSearchCaptcha(page, input.timeoutMs ?? 120_000);
-    await fillSearchFields(page, input);
-    await submitSearch(page);
+    const captchaContextAttempts = readBoundedPositiveInteger(
+      "VN_PAYMENT_SEARCH_CAPTCHA_CONTEXT_ATTEMPTS",
+      3,
+      5,
+    );
+    const maxSolverAttempts = readBoundedPositiveInteger(
+      "VN_PAYMENT_SEARCH_CAPTCHA_SOLVER_ATTEMPTS",
+      6,
+      9,
+    );
+    const knownChallengeFingerprints = new Set<string>();
+    const combinedCaptchaDiagnostics: VietnamPaymentSearchCaptchaDiagnostic[] = [];
+    const searchDeadlineAt = Date.now() + Math.max(1_000, input.timeoutMs ?? 120_000);
+    const remainingSearchMs = () => Math.max(0, searchDeadlineAt - Date.now());
+    const countSolverAttempts = () => combinedCaptchaDiagnostics.filter(
+      (attempt) => attempt.outcome !== "stale_challenge",
+    ).length;
+
+    const searchExecution = await retryVietnamSearchCaptchaInFreshContexts<Page, void>({
+      attempts: captchaContextAttempts,
+      openContext: async () => {
+        if (remainingSearchMs() <= 0) {
+          throw new VietnamSearchCaptchaSolveError(
+            "Vietnam payment search CAPTCHA deadline was exhausted.",
+            [...combinedCaptchaDiagnostics],
+            false,
+          );
+        }
+        const searchPage = await gotoSearchPageWithRetry(browser, input, searchDeadlineAt);
+        page = searchPage.page;
+        if (!searchPage.ready || !page) {
+          if (!page) {
+            const suffix = searchPage.lastError instanceof Error
+              ? `: ${searchPage.lastError.message}`
+              : "";
+            throw new VietnamSearchPageUnavailableError(
+              `The official Vietnam payment search page could not be opened after retries${suffix}`,
+            );
+          }
+          const bodyText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+          throw new VietnamSearchPageUnavailableError(
+            bodyText.trim().length < 30
+              ? "The official Vietnam payment search page loaded blank after retries."
+              : "The official Vietnam payment search page did not expose the expected search fields after retries.",
+          );
+        }
+        return page;
+      },
+      runContext: async (currentPage, contextAttempt) => {
+        if (remainingSearchMs() <= 0) {
+          throw new VietnamSearchCaptchaSolveError(
+            "Vietnam payment search CAPTCHA deadline was exhausted.",
+            [...combinedCaptchaDiagnostics],
+            false,
+          );
+        }
+        await fillSearchFields(currentPage, input);
+        const remainingSolverAttempts = maxSolverAttempts - countSolverAttempts();
+        if (remainingSolverAttempts <= 0) {
+          throw new VietnamSearchCaptchaSolveError(
+            "Vietnam search CAPTCHA solver attempt budget was exhausted.",
+            [...combinedCaptchaDiagnostics],
+            false,
+          );
+        }
+        try {
+          const solveResult = await solveVietnamPaymentSearchCaptcha(
+            currentPage,
+            remainingSearchMs(),
+            {
+              attemptOffset: combinedCaptchaDiagnostics.length,
+              contextAttempt,
+              maxAttempts: Math.min(3, remainingSolverAttempts),
+              knownChallengeFingerprints,
+              deadlineAt: searchDeadlineAt,
+            },
+          );
+          combinedCaptchaDiagnostics.push(...solveResult.diagnostics);
+          diagnostics.searchCaptchaAttempts = [...combinedCaptchaDiagnostics];
+          await fillSearchFields(currentPage, input);
+          await submitSearch(currentPage);
+          const submissionOutcome = await waitForVietnamSearchSubmissionOutcome(
+            currentPage,
+            solveResult.challengeFingerprint,
+            Math.min(20_000, remainingSearchMs()),
+          );
+          if (submissionOutcome !== "accepted") {
+            const lastDiagnostic = combinedCaptchaDiagnostics.at(-1);
+            if (lastDiagnostic?.outcome === "solved") lastDiagnostic.outcome = "rejected";
+            diagnostics.searchCaptchaAttempts = [...combinedCaptchaDiagnostics];
+            if (submissionOutcome === "captcha_rejected" && solveResult.solveId) {
+              await reportBadCaptcha(solveResult.solveId).catch(() => undefined);
+            }
+            throw new VietnamSearchCaptchaSolveError(
+              submissionOutcome === "captcha_rejected"
+                ? "The official Vietnam search page rejected the solved CAPTCHA."
+                : "The official Vietnam search page did not confirm the CAPTCHA submission before the deadline.",
+              [],
+              true,
+            );
+          }
+          if (solveResult.solveId) {
+            await reportGoodCaptcha(solveResult.solveId).catch(() => undefined);
+          }
+        } catch (error) {
+          if (error instanceof VietnamSearchCaptchaSolveError) {
+            combinedCaptchaDiagnostics.push(...error.diagnostics);
+            diagnostics.searchCaptchaAttempts = [...combinedCaptchaDiagnostics];
+            throw new VietnamSearchCaptchaSolveError(
+              error.message,
+              [...combinedCaptchaDiagnostics],
+              error.retryWithFreshContext,
+            );
+          }
+          throw error;
+        }
+      },
+      closeContext: (currentPage) => currentPage.close(),
+      shouldRetry: (error) => (
+        error instanceof VietnamSearchCaptchaSolveError &&
+        error.retryWithFreshContext &&
+        countSolverAttempts() < maxSolverAttempts
+      ),
+      onRetry: async (_error, contextAttempt) => {
+        const lastDiagnostic = combinedCaptchaDiagnostics.at(-1);
+        if (lastDiagnostic) lastDiagnostic.freshContextRetry = true;
+        diagnostics.searchCaptchaAttempts = [...combinedCaptchaDiagnostics];
+        console.warn(
+          `[vn-payment] Retrying the official search CAPTCHA in a fresh context ` +
+          `after context=${contextAttempt}/${captchaContextAttempts}.`,
+        );
+      },
+    });
+    page = searchExecution.context;
     const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
     if (/no result found|không tìm thấy|khong tim thay/i.test(bodyText)) {
       return {
@@ -883,7 +1219,7 @@ export async function resumeVietnamOfficialPayment(
       diagnostics.searchCaptchaAttempts = error.diagnostics;
     }
     return {
-      status: "needs_human",
+      status: error instanceof VietnamSearchPageUnavailableError ? "unavailable" : "needs_human",
       reason: error instanceof Error ? error.message : String(error),
       url: page?.url() ?? input.searchUrl ?? DEFAULT_SEARCH_URL,
       diagnostics,
