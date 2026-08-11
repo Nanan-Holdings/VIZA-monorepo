@@ -495,7 +495,11 @@ filling and one-shot submission for the applicant.
   sync with that fresh-context retry contract. The search CAPTCHA is exactly
   six numeric characters: send those constraints to 2captcha, report unusable
   answers, refresh the challenge, and persist only safe attempt telemetry
-  (length, duration, outcome and fingerprint prefix), never the answer.
+  (length, duration, outcome and fingerprint prefix), never the answer. If the
+  challenge changes while solving, its input redraw cannot be confirmed, the
+  official page rejects it, or refresh cannot be proven, discard the page and
+  repeat the whole search in a new context under one shared timeout budget;
+  never send a previously-seen challenge fingerprint to the solver again.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use
