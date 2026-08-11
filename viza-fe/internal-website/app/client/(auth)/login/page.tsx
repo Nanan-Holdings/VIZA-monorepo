@@ -322,7 +322,7 @@ function ClientLoginContent() {
                     </button>
                   ))}
                 </div>
-                <ApplicationFormInputGroup className="h-12" filled={Boolean(email)} forceWhiteBackground>
+                <ApplicationFormInputGroup className="h-12 [--application-control-border-color:theme(colors.brand.300)]" filled={Boolean(email)} forceWhiteBackground>
                   <InputGroupInput
                     type="email"
                     name="email"
@@ -338,7 +338,7 @@ function ClientLoginContent() {
                 </ApplicationFormInputGroup>
                 {loginMethod === 'password' && (
                   <div className="space-y-2">
-                    <ApplicationFormInputGroup className="h-12" filled={Boolean(password)} forceWhiteBackground>
+                    <ApplicationFormInputGroup className="h-12 [--application-control-border-color:theme(colors.brand.300)]" filled={Boolean(password)} forceWhiteBackground>
                       <InputGroupInput
                         type={showPassword ? 'text' : 'password'}
                         name="password"
