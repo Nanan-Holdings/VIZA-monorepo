@@ -429,6 +429,142 @@
       }
     }
   },
+  "koreaAppointment": {
+    "locale": "en",
+    "page": {
+      "title": "Korea visa appointment",
+      "subtitle": "Complete one task at a time as we guide you through review, official verification, and booking.",
+      "backToForm": "Back to application form"
+    },
+    "progress": {
+      "ariaLabel": "Appointment progress",
+      "current": "Step {current} of {total}"
+    },
+    "steps": {
+      "review": "Details and center",
+      "account": "Official verification",
+      "slots": "Choose a time",
+      "confirm": "Final confirmation",
+      "result": "Appointment result"
+    },
+    "common": {
+      "notProvided": "Not provided",
+      "maskedPhone": "Registered mobile number",
+      "listSeparator": ", "
+    },
+    "loading": {
+      "title": "Loading appointment status",
+      "body": "Preparing your appointment flow…"
+    },
+    "errors": {
+      "loadFailed": "Appointment status is temporarily unavailable. Refresh the page and try again.",
+      "operationFailed": "The current operation did not complete. Try again shortly. VIZA has not treated this as proof that no official slots are available."
+    },
+    "review": {
+      "title": "Review details and filing center",
+      "body": "Check the details that will be used for the official booking. VIZA connects to the official portal only after you confirm them.",
+      "name": "Applicant name in English",
+      "passport": "Passport number",
+      "phone": "Mobile number for SMS",
+      "recommended": "Recommended filing center",
+      "basisResidence": "Recommended from the provable current residence in {province}",
+      "basisHukou": "Recommended from the hukou in {province}",
+      "basisSelected": "This is the filing center you explicitly selected",
+      "changeCenter": "Change center",
+      "details": "View jurisdiction basis and center details",
+      "ambiguous": "Confirm that this center matches your provable residence or hukou.",
+      "missingTitle": "Appointment details are incomplete",
+      "missingBody": "Add the applicant's English name and mobile number, then confirm an eligible filing center.",
+      "edit": "Edit application details",
+      "confirm": "Confirm details and continue",
+      "confirming": "Saving confirmation…"
+    },
+    "centerSheet": {
+      "title": "Change filing center",
+      "description": "Choose a center that matches your provable residence or hukou."
+    },
+    "account": {
+      "title": "Complete official verification",
+      "body": "Your details are confirmed. VIZA will check the selected center's official booking page; the portal may send an SMS code after it finds an open time.",
+      "restartBody": "The previous official session has ended. Start a fresh session and request a new code.",
+      "start": "Check official times",
+      "viewMethod": "View this center's filing method",
+      "checking": "Checking official times…",
+      "scanProgress": "Reading the official appointment calendar month by month. Keep this page open.",
+      "smsBody": "A code was sent to {phone}. VIZA will use it only in the same official session and will not store it.",
+      "expires": "Code valid until {time}",
+      "codeLabel": "SMS verification code",
+      "codePlaceholder": "Enter verification code",
+      "verify": "Verify and read times",
+      "verifying": "Verifying…",
+      "resend": "Send a new code",
+      "backToCenter": "Back to details and center",
+      "manualBody": "This center follows official guidance or has account and identity steps that the applicant must complete personally.",
+      "openOfficial": "Open official filing page",
+      "workerTitle": "Appointment lookup is temporarily unavailable",
+      "workerBody": "The official lookup did not complete, so availability is unknown. Try again shortly.",
+      "retry": "Retry official lookup"
+    },
+    "slots": {
+      "title": "Choose an appointment time",
+      "body": "These times came from the current official session. Final submission still requires a separate approval.",
+      "choose": "Choose this time",
+      "back": "Back to official verification",
+      "refresh": "Refresh official times",
+      "emptyTitle": "No appointment times are open yet",
+      "emptyBody": "The official calendar check completed, but this center has not released an available time. Try again later or change center.",
+      "checkedAt": "Officially checked at {time}",
+      "retry": "Check again",
+      "checking": "Checking again…",
+      "changeCenter": "Change center",
+      "viewEvidence": "View official-page screenshot"
+    },
+    "confirm": {
+      "title": "Confirm final booking",
+      "selected": "Selected official time",
+      "authorization": "I checked the date, time, and location and authorize VIZA to use this time for the final booking.",
+      "approve": "Save final approval",
+      "approving": "Saving approval…",
+      "approvedTitle": "Final approval saved",
+      "approvedBody": "Click submit once more before VIZA completes the booking on the official portal.",
+      "submit": "Submit official booking",
+      "submitting": "Submitting official booking…",
+      "back": "Back to times"
+    },
+    "result": {
+      "title": "Appointment confirmed",
+      "officialConfirmation": "Official booking confirmation",
+      "number": "Official confirmation: {number}",
+      "print": "Download or print confirmation",
+      "preparingPrint": "Preparing confirmation…",
+      "manage": "Manage appointment",
+      "cancelledTitle": "Appointment cancelled",
+      "cancelledBody": "The official portal confirmed cancellation. The old booking and cancellation evidence were preserved. You can now begin a fresh booking flow.",
+      "bookAgain": "Book again",
+      "restarting": "Starting a new flow…"
+    },
+    "management": {
+      "title": "Manage appointment",
+      "description": "Rescheduling and cancellation always begin by checking the official record.",
+      "reschedule": "Reschedule",
+      "cancel": "Cancel appointment",
+      "history": "View appointment history",
+      "confirmReschedule": "Cancel the old booking before rescheduling",
+      "confirmCancel": "Confirm appointment cancellation",
+      "cancelWarning": "The next step submits cancellation on the official portal and saves evidence. This cannot be undone.",
+      "sessionExpired": "The official session expired. Query the booking again and confirm once more.",
+      "cancelAndReschedule": "Cancel and continue rescheduling",
+      "cancelling": "Submitting cancellation…",
+      "retryQuery": "Query official booking again",
+      "querying": "Querying official booking…",
+      "back": "Back to appointment details",
+      "workerUnavailable": "The official booking query did not complete. Try again shortly.",
+      "rescheduleBody": "VIZA will query the old booking, ask for confirmation again, then cancel it before you choose a new time.",
+      "cancelBody": "VIZA will query the official booking record and ask for confirmation again before cancelling anything.",
+      "continue": "Continue official lookup",
+      "invalidRecord": "This is not a valid booking; restart"
+    }
+  },
   "client": {
     "signing": {
       "loading": "Loading your declaration…",
