@@ -62,3 +62,15 @@ smoke-test helpers for the VIZA monorepo.
 - `__tests__/start-all-vn-autopay.test.mjs`: static regression coverage for
   the global `dev:all:with-db` startup chain, especially the Vietnam
   one-time card-session submission-service handoff and matching frontend env.
+- `supabase-self-heal.mjs`: fail-closed, read-only Supabase Auth/REST canary
+  for an external GitHub Actions runner. It requires a project-ref-matching
+  `SUPABASE_URL`, runs three dual-endpoint probe rounds per schedule, requires
+  three independently scheduled failures before recovery, and persists
+  incident/lease state in the configured GitHub
+  Issue (`GITHUB_TOKEN`, `GITHUB_REPOSITORY`,
+  `SUPABASE_SELF_HEAL_ISSUE_NUMBER`) rather than local/cache storage. It never
+  prints key/token values.
+  The scheduled entry point is `.github/workflows/supabase-self-heal.yml`;
+  keep all credential values in GitHub Actions secrets and use
+  `SUPABASE_SELF_HEAL_DRY_RUN=true` to exercise the decision path without
+  calling the Management API restart endpoint.
