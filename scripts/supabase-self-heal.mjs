@@ -261,7 +261,11 @@ function validateState(state) {
   if (state.incidentId !== null && (typeof state.incidentId !== "string" || !state.incidentId)) {
     return "state incidentId is invalid";
   }
-  if (!Number.isInteger(state.consecutiveFailureRuns) || state.consecutiveFailureRuns < 0) {
+  if (
+    !Number.isSafeInteger(state.consecutiveFailureRuns) ||
+    state.consecutiveFailureRuns < 0 ||
+    state.consecutiveFailureRuns > 1_000
+  ) {
     return "state consecutiveFailureRuns is invalid";
   }
   for (const key of ["firstFailureAt", "lastFailureAt", "lastSuccessAt", "restartRequestedAt"]) {
@@ -673,6 +677,12 @@ async function postManagementRestart(
   if (result.kind === "http" && result.status >= 200 && result.status < 300) {
     return { outcome: "requested", result };
   }
+  if (
+    result.kind === "http" &&
+    (result.status === 408 || result.status === 429 || TRANSIENT_HTTP_STATUSES.has(result.status))
+  ) {
+    return { outcome: "unknown", result };
+  }
   return { outcome: "error", result };
 }
 
@@ -821,6 +831,33 @@ export async function runSelfHeal(options = {}) {
 
   const allHealthy = rounds.every(isHealthyProbe);
   const allConfirmedFailure = rounds.every(isConfirmedDataPlaneFailure);
+  if (
+    !allHealthy &&
+    ["restart_pending", "restart_unknown", "restart_requested"].includes(state.lastOutcome)
+  ) {
+    const pendingState = unresolvedRestartState(
+      state,
+      nowMs,
+      config.githubRunId,
+      runWindow,
+    );
+    const pendingSaved = await writeIssueState(config, pendingState, { fetchImpl, timeoutMs: config.timeoutMs });
+    logResult(logger, {
+      phase: "issue_write",
+      incidentId: pendingState.incidentId,
+      result: pendingSaved.result,
+      category: pendingSaved.ok ? state.lastOutcome : pendingSaved.reason,
+    });
+    if (!pendingSaved.ok) {
+      return finalizeResult(decisionResult("config_error", false, pendingSaved.reason, state, { rounds }), config, logger);
+    }
+    return finalizeResult(
+      decisionResult("suppressed", true, "restart_confirmation_pending", pendingState, { rounds }),
+      config,
+      logger,
+    );
+  }
+
   if (!allConfirmedFailure) {
     const nextState = recoveredState(
       state,
@@ -841,30 +878,6 @@ export async function runSelfHeal(options = {}) {
     stateChanged = true;
     return finalizeResult(
       decisionResult(allHealthy ? "healthy" : "suppressed", stateChanged, allHealthy ? "probes_healthy" : "probes_not_confirmed_transient", state, { rounds }),
-      config,
-      logger,
-    );
-  }
-
-  if (["restart_pending", "restart_unknown", "restart_requested"].includes(state.lastOutcome)) {
-    const pendingState = unresolvedRestartState(
-      state,
-      nowMs,
-      config.githubRunId,
-      runWindow,
-    );
-    const pendingSaved = await writeIssueState(config, pendingState, { fetchImpl, timeoutMs: config.timeoutMs });
-    logResult(logger, {
-      phase: "issue_write",
-      incidentId: pendingState.incidentId,
-      result: pendingSaved.result,
-      category: pendingSaved.ok ? state.lastOutcome : pendingSaved.reason,
-    });
-    if (!pendingSaved.ok) {
-      return finalizeResult(decisionResult("config_error", false, pendingSaved.reason, state, { rounds }), config, logger);
-    }
-    return finalizeResult(
-      decisionResult("suppressed", true, "restart_confirmation_pending", pendingState, { rounds }),
       config,
       logger,
     );

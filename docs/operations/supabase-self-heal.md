@@ -139,7 +139,8 @@ Interpret workflow actions:
   ambiguous signal, unresolved previous restart, or project status prevented
   restart;
 - `restart_requested`: Management API accepted the request;
-- `restart_unknown`: the restart request timed out; the persistent pending state
+- `restart_unknown`: the restart request timed out, was rate-limited, or returned
+  a transient server error after submission; the persistent pending state
   blocks another request until probes recover or an operator intervenes;
 - `config_error`: missing or inconsistent configuration; no outage counter and
   no restart.
