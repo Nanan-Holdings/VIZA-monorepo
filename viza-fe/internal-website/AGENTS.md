@@ -171,6 +171,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260625_vietnam_payment_status_tracking.sql`; these
   create the quote/intent/attempt/receipt tables and queue/status columns used
   by the Vietnam e-Visa payment checkpoint UI and submission-service runner.
+- Vietnam and Indonesia official-fee authorize/pay/status routes share
+  `app/api/applications/[id]/official-fee/auth.ts`; keep its accepted session
+  policy aligned with `/client/*` so signed `client_session` users do not see a
+  payment form that then fails a Supabase-only authentication check.
 - Vietnam e-Visa trip-expense coverage is made explicitly required by
   `supabase/migrations/20260809105541_vn_evisa_require_expense_coverage.sql`;
   keep the runtime parity patch and submission-service expense preflight in
