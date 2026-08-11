@@ -14,6 +14,7 @@ import {
 } from "@/lib/korea-c39/kvac-routing";
 
 type Action =
+  | "confirm-review"
   | "start-slot-search"
   | "select-slot"
   | "confirm-booking"
@@ -44,6 +45,26 @@ interface AppointmentJobRow {
   user_preferences_json: Record<string, unknown> | null;
   created_at: string | null;
   updated_at: string | null;
+  last_slot_check_at?: string | null;
+}
+
+interface KoreaAppointmentReview {
+  applicantName: string | null;
+  passportNumber: string | null;
+  phoneMasked: string | null;
+  currentResidenceProvince: string | null;
+  hukouProvince: string | null;
+  hasResidenceProof: boolean | null;
+  missingFields: string[];
+  routingBasis: "current_residence" | "hukou" | "ambiguous";
+  recommendationReason: string | null;
+}
+
+interface KoreaNoSlotsEvidence {
+  verified: boolean;
+  evidenceUrl: string | null;
+  lastCheckedAt: string | null;
+  centerCode?: string | null;
 }
 
 interface AppointmentManualActionRow {
@@ -206,10 +227,6 @@ async function readRoutingInput(
   applicationId: string,
   explicitInput?: KvacRoutingInput,
 ): Promise<KvacRoutingInput> {
-  if (explicitInput && Object.values(explicitInput).some((value) => value !== undefined && value !== null && value !== "")) {
-    return explicitInput;
-  }
-
   const answers = await readAnswerMap(admin, applicationId);
 
   const currentResidenceProvince = firstAnswer(answers, [
@@ -235,7 +252,119 @@ async function readRoutingInput(
     "has_local_residence_permit",
   ]));
 
-  return { currentResidenceProvince, hasResidenceProof, hukouProvince };
+  return {
+    currentResidenceProvince,
+    hasResidenceProof,
+    hukouProvince,
+    ...(explicitInput ?? {}),
+  };
+}
+
+function maskPassportNumber(value: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const visible = trimmed.slice(-4);
+  return visible ? `**** ${visible}` : "****";
+}
+
+function maskPhoneNumber(value: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const visible = trimmed.slice(-4);
+  if (!visible) return "****";
+  const prefix = trimmed.length > 8 ? trimmed.slice(0, 3) : trimmed.slice(0, 1);
+  return `${prefix}${"*".repeat(Math.max(2, trimmed.length - prefix.length - visible.length))}${visible}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function persistedNoSlotsEvidence(
+  job: AppointmentJobRow | null,
+  applicationId: string,
+): KoreaNoSlotsEvidence | null {
+  const preferences = job?.user_preferences_json;
+  if (!preferences) return null;
+  const raw = isRecord(preferences.noSlotsEvidence)
+    ? preferences.noSlotsEvidence
+    : isRecord(preferences.noSlots)
+      ? preferences.noSlots
+      : null;
+  if (!raw || raw.verified !== true) return null;
+
+  const evidencePath = typeof raw.evidencePath === "string"
+    ? raw.evidencePath
+    : typeof raw.screenshotPath === "string"
+      ? raw.screenshotPath
+      : null;
+  const evidenceUrl = typeof raw.evidenceUrl === "string"
+    ? raw.evidenceUrl
+    : evidencePath
+      ? `/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(evidencePath)}`
+      : null;
+  const lastCheckedAt = typeof raw.lastCheckedAt === "string"
+    ? raw.lastCheckedAt
+    : typeof raw.lastQueryAt === "string"
+      ? raw.lastQueryAt
+    : typeof raw.checkedAt === "string"
+      ? raw.checkedAt
+      : job?.last_slot_check_at ?? null;
+  return {
+    verified: true,
+    evidenceUrl,
+    lastCheckedAt,
+    centerCode: typeof raw.centerCode === "string" ? raw.centerCode : null,
+  };
+}
+
+const INITIAL_KOREA_JOB_STATUSES = new Set(["not_started", "appointment_not_started"]);
+
+function hasPersistedReviewConfirmation(job: AppointmentJobRow | null) {
+  const preferences = job?.user_preferences_json;
+  return preferences?.reviewConfirmed === true
+    || (typeof preferences?.reviewConfirmedAt === "string" && preferences.reviewConfirmedAt.trim().length > 0);
+}
+
+function isLegacyProgressedJob(job: AppointmentJobRow | null) {
+  return Boolean(job && !INITIAL_KOREA_JOB_STATUSES.has(job.status));
+}
+
+function effectiveReviewConfirmation(job: AppointmentJobRow | null) {
+  return hasPersistedReviewConfirmation(job) || isLegacyProgressedJob(job);
+}
+
+function buildReview(
+  answers: Record<string, string>,
+  routing: ReturnType<typeof resolveKvacCenter>,
+  routingInput: KvacRoutingInput,
+): KoreaAppointmentReview {
+  const applicantName = applicantNameForOfficial(answers) || null;
+  const passportNumber = firstAnswer(answers, [
+    "passport_number",
+    "passport_no",
+    "travel_document_number",
+    "document_number",
+  ]);
+  const phone = mobilePhoneForOfficial(answers);
+  const missingFields = [
+    ...(applicantName ? [] : ["applicantName"]),
+    ...(phone ? [] : ["mobilePhone"]),
+    ...(routing.recommended ? [] : ["selectedCenter"]),
+  ];
+  return {
+    applicantName,
+    passportNumber: maskPassportNumber(passportNumber),
+    phoneMasked: maskPhoneNumber(phone),
+    currentResidenceProvince: routingInput.currentResidenceProvince ?? null,
+    hukouProvince: routingInput.hukouProvince ?? null,
+    hasResidenceProof: routingInput.hasResidenceProof ?? null,
+    missingFields,
+    routingBasis: routing.basis,
+    recommendationReason: null,
+  };
 }
 
 function submissionServiceBaseUrl() {
@@ -377,9 +506,21 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
   )?.code ?? null;
   const effectiveRoutingInput = routingInput ?? (storedCenterCode ? { selectedCenterCode: storedCenterCode } : undefined);
   const routing = resolveKvacCenter(await readRoutingInput(admin, applicationId, effectiveRoutingInput));
+  const reviewRoutingInput = await readRoutingInput(admin, applicationId, routingInput ?? (storedCenterCode ? { selectedCenterCode: storedCenterCode } : undefined));
+  const reviewAnswers = await readAnswerMap(admin, applicationId);
+  const review = buildReview(reviewAnswers, routing, reviewRoutingInput);
+  const reviewConfirmedAt = typeof job?.user_preferences_json?.reviewConfirmedAt === "string"
+    ? job.user_preferences_json.reviewConfirmedAt
+    : null;
+  const reviewConfirmed = effectiveReviewConfirmation(job);
+  const noSlots = persistedNoSlotsEvidence(job, applicationId);
   if (!job) {
     return {
       routing,
+      review,
+      reviewConfirmed: false,
+      reviewConfirmedAt: null,
+      noSlots: null,
       job: null,
       slots: [],
       confirmation: null,
@@ -482,6 +623,10 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
     : (manualAction as AppointmentManualActionRow | null) ?? null;
   return {
     routing,
+    review,
+    reviewConfirmed,
+    reviewConfirmedAt,
+    noSlots,
     job,
     slots: slots ?? [],
     confirmation: normalizedConfirmation,
@@ -526,13 +671,16 @@ async function ensureKoreaJob(
   let job = await latestJob(admin, applicationId);
   if (job) {
     const selectedCenterChanged = job.user_preferences_json?.centerCode !== routing.recommended.code;
-    if ((mode === "live_assisted" && job.mode !== "live_assisted") || selectedCenterChanged) {
+    const modeNeedsUpgrade = mode === "live_assisted" && job.mode !== "live_assisted";
+    const resetForModeUpgrade = modeNeedsUpgrade && INITIAL_KOREA_JOB_STATUSES.has(job.status);
+    const shouldReset = selectedCenterChanged || resetForModeUpgrade;
+    if (modeNeedsUpgrade || selectedCenterChanged) {
       const { data, error } = await admin
         .from("appointment_assistance_jobs")
         .update({
           mode: mode === "live_assisted" ? "live_assisted" : job.mode,
-          status: mode === "live_assisted" ? "not_started" : job.status,
-          requires_user_action: false,
+          ...(shouldReset && mode === "live_assisted" ? { status: "not_started" } : { status: job.status }),
+          ...(shouldReset ? { requires_user_action: false } : {}),
           applying_post_city: routing.recommended.nameEn,
           user_preferences_json: {
             ...(job.user_preferences_json ?? {}),
@@ -547,7 +695,7 @@ async function ensureKoreaJob(
       if (error || !data) throw new Error(error?.message ?? "Could not update Korea appointment job.");
       job = data as AppointmentJobRow;
       await admin.from("applications").update({
-        appointment_assistance_status: "not_started",
+        ...(shouldReset ? { appointment_assistance_status: "not_started" } : {}),
         appointment_assistance_job_id: job.id,
       }).eq("id", applicationId);
     }
@@ -585,6 +733,99 @@ async function ensureKoreaJob(
   }).eq("id", applicationId);
 
   return data as AppointmentJobRow;
+}
+
+async function ensureKoreaReviewJob(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  userId: string,
+  routing: ReturnType<typeof resolveKvacCenter>,
+) {
+  const existingJob = await latestJob(admin, applicationId);
+  const reviewConfirmedAt = typeof existingJob?.user_preferences_json?.reviewConfirmedAt === "string"
+    ? existingJob.user_preferences_json.reviewConfirmedAt
+    : new Date().toISOString();
+  const preferences = {
+    ...(existingJob?.user_preferences_json ?? {}),
+    routing,
+    centerCode: routing.recommended.code,
+    reviewConfirmed: true,
+    reviewConfirmedAt,
+    finalConfirmationRequired: true,
+    source: "korea_c39_v1",
+  };
+
+  if (existingJob) {
+    const { data, error } = await admin
+      .from("appointment_assistance_jobs")
+      .update({
+        mode: existingJob.mode === "dry_run" ? "live_assisted" : existingJob.mode,
+        applying_post_city: routing.recommended.nameEn,
+        user_preferences_json: preferences,
+        updated_at: reviewConfirmedAt,
+      })
+      .eq("id", existingJob.id)
+      .select("*")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "Could not save Korea appointment review confirmation.");
+    const { error: applicationError } = await admin
+      .from("applications")
+      .update({
+        appointment_assistance_status: data.status,
+        appointment_assistance_job_id: data.id,
+      })
+      .eq("id", applicationId);
+    if (applicationError) throw new Error(applicationError.message);
+    return { job: data as AppointmentJobRow, confirmedAt: reviewConfirmedAt, created: false };
+  }
+
+  const idempotencyKey = `korea-kvac:${applicationId}:review`;
+  const { data: insertedJob, error: insertError } = await admin
+    .from("appointment_assistance_jobs")
+    .insert({
+      application_id: applicationId,
+      user_id: userId,
+      country_code: "KR",
+      visa_type: "KR_C39_SHORT_TERM_VISIT",
+      applying_country_code: "CN",
+      applying_post_city: routing.recommended.nameEn,
+      scheduling_provider: "kvac_cn",
+      status: "not_started",
+      mode: "live_assisted",
+      user_preferences_json: preferences,
+      requires_user_action: false,
+      idempotency_key: idempotencyKey,
+    })
+    .select("*")
+    .single();
+
+  let job = insertedJob as AppointmentJobRow | null;
+  let created = Boolean(insertedJob);
+  if (insertError) {
+    if (insertError.code !== "23505") throw new Error(insertError.message);
+    const { data: reusedJob, error: reuseError } = await admin
+      .from("appointment_assistance_jobs")
+      .select("*")
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
+    if (reuseError || !reusedJob) {
+      throw new Error(reuseError?.message ?? "Could not resume the Korea appointment review confirmation.");
+    }
+    job = reusedJob as AppointmentJobRow;
+    created = false;
+  }
+  if (!job) throw new Error("Could not create the Korea appointment review job.");
+
+  const { error: applicationError } = await admin
+    .from("applications")
+    .update({
+      appointment_assistance_status: job.status,
+      appointment_assistance_job_id: job.id,
+    })
+    .eq("id", applicationId);
+  if (applicationError) throw new Error(applicationError.message);
+
+  return { job, confirmedAt: reviewConfirmedAt, created };
 }
 
 function manualCheckpointForCenter(routing: ReturnType<typeof resolveKvacCenter>) {
@@ -912,6 +1153,87 @@ async function replaceObservedSlots(
   if (slotErr) throw new Error(slotErr.message);
 }
 
+async function saveNoSlotsEvidence(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  job: AppointmentJobRow,
+  routing: ReturnType<typeof resolveKvacCenter>,
+  error: SubmissionServiceRequestError,
+) {
+  const checkedAt = new Date().toISOString();
+  const evidenceUrl = error.screenshotPath
+    ? `/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(error.screenshotPath)}`
+    : null;
+  const evidence = {
+    verified: true,
+    evidenceUrl,
+    evidencePath: error.screenshotPath,
+    lastCheckedAt: checkedAt,
+    checkedAt,
+    centerCode: routing.recommended.code,
+    officialMessage: "Official Korea KVAC reported no selectable appointment slots.",
+  };
+  const { error: jobError } = await admin
+    .from("appointment_assistance_jobs")
+    .update({
+      status: "appointment_no_slots_available",
+      requires_user_action: false,
+      current_manual_action: null,
+      last_slot_check_at: checkedAt,
+      user_preferences_json: {
+        ...(job.user_preferences_json ?? {}),
+        noSlotsEvidence: evidence,
+        noSlots: evidence,
+      },
+      updated_at: checkedAt,
+    })
+    .eq("id", job.id);
+  if (jobError) throw new Error(jobError.message);
+
+  const { error: applicationError } = await admin
+    .from("applications")
+    .update({
+      appointment_assistance_status: "appointment_no_slots_available",
+      appointment_assistance_job_id: job.id,
+    })
+    .eq("id", applicationId);
+  if (applicationError) throw new Error(applicationError.message);
+
+  const { error: auditError } = await admin.from("appointment_audit_events").insert({
+    job_id: job.id,
+    application_id: applicationId,
+    user_id: job.user_id,
+    event_type: "appointment_no_slots_available",
+    event_message: "The official Korea KVAC booking window was loaded and no selectable appointment slots were observed.",
+    metadata_redacted_json: {
+      centerCode: routing.recommended.code,
+      evidenceUrl,
+      screenshotPath: error.screenshotPath,
+      lastCheckedAt: checkedAt,
+    },
+  });
+  if (auditError) throw new Error(auditError.message);
+}
+
+async function clearNoSlotsEvidence(
+  admin: ReturnType<typeof createAdminClient>,
+  job: AppointmentJobRow,
+  checkedAt: string,
+) {
+  const { error } = await admin
+    .from("appointment_assistance_jobs")
+    .update({
+      last_slot_check_at: checkedAt,
+      user_preferences_json: {
+        ...(job.user_preferences_json ?? {}),
+        noSlotsEvidence: null,
+        noSlots: null,
+      },
+    })
+    .eq("id", job.id);
+  if (error) throw new Error(error.message);
+}
+
 async function completeOfficialFinalBooking(
   admin: ReturnType<typeof createAdminClient>,
   applicationId: string,
@@ -1220,6 +1542,60 @@ export async function POST(
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
+  if (action === "confirm-review") {
+    const selectedCenterCode = body.routingInput?.selectedCenterCode;
+    const selectedCenter = typeof selectedCenterCode === "string"
+      ? KVAC_CENTERS.find((center) => center.code === selectedCenterCode)
+      : null;
+    if (!selectedCenter || selectedCenterCode !== selectedCenter.code) {
+      return NextResponse.json(
+        { error: "Select a valid Korea visa application center before confirming the appointment details.", code: "review_center_required" },
+        { status: 400 },
+      );
+    }
+
+    const answers = await readAnswerMap(auth.admin, id);
+    const applicantName = applicantNameForOfficial(answers);
+    const mobilePhone = mobilePhoneForOfficial(answers);
+    if (!applicantName || !mobilePhone) {
+      return NextResponse.json(
+        {
+          error: "Korea appointment review requires the applicant's English name and mainland China mobile phone in the saved application answers.",
+          code: "review_fields_required",
+          missingFields: [
+            ...(applicantName ? [] : ["applicantName"]),
+            ...(mobilePhone ? [] : ["mobilePhone"]),
+          ],
+        },
+        { status: 409 },
+      );
+    }
+
+    const existingJob = await latestJob(auth.admin, id);
+    const alreadyConfirmed = hasPersistedReviewConfirmation(existingJob);
+    const previousCenterCode = typeof existingJob?.user_preferences_json?.centerCode === "string"
+      ? existingJob.user_preferences_json.centerCode
+      : null;
+    const reviewJob = await ensureKoreaReviewJob(auth.admin, id, auth.profile.id, routing);
+    if (!alreadyConfirmed || previousCenterCode !== selectedCenter.code) {
+      const { error: auditError } = await auth.admin.from("appointment_audit_events").insert({
+        job_id: reviewJob.job.id,
+        application_id: id,
+        user_id: auth.profile.id,
+        event_type: "appointment_review_confirmed",
+        event_message: "Applicant confirmed the saved Korea appointment details and selected filing center. No official portal or worker was contacted by this transition.",
+        metadata_redacted_json: {
+          centerCode: selectedCenter.code,
+          routingBasis: routing.basis,
+          selectedCenterExplicit: true,
+          reviewConfirmedAt: reviewJob.confirmedAt,
+        },
+      });
+      if (auditError) throw new Error(auditError.message);
+    }
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
   if (action === "return-to-center-selection") {
     const job = await latestJob(auth.admin, id);
     if (!job) return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
@@ -1242,6 +1618,13 @@ export async function POST(
         status: "not_started",
         requires_user_action: false,
         current_manual_action: null,
+        user_preferences_json: {
+          ...(job.user_preferences_json ?? {}),
+          reviewConfirmed: false,
+          reviewConfirmedAt: null,
+          noSlotsEvidence: null,
+          noSlots: null,
+        },
         updated_at: now,
       })
       .eq("id", job.id);
@@ -1705,6 +2088,16 @@ export async function POST(
   }
 
   if (action === "request-live-booking") {
+    const existingJobBeforeStart = await latestJob(auth.admin, id);
+    if (!existingJobBeforeStart || !effectiveReviewConfirmation(existingJobBeforeStart)) {
+      return NextResponse.json(
+        {
+          error: "Confirm the saved applicant details and Korea filing center before starting official appointment lookup.",
+          code: "review_required",
+        },
+        { status: 409 },
+      );
+    }
     const job = await ensureKoreaJob(auth.admin, id, auth.profile.id, routing, "live_assisted");
     if (routing.recommended.liveBookingMode !== "sms_sync_supported") {
       await createOrReuseCenterCheckpoint(auth.admin, id, auth.profile.id, job, routing);
@@ -1779,6 +2172,7 @@ export async function POST(
     if (!officialStart.ok || officialStart.status !== "sms_verification_required") {
       throw new Error("Official Korea KVAC SMS verification did not start.");
     }
+    await clearNoSlotsEvidence(auth.admin, job, new Date().toISOString());
     const expiresAt = officialStart.expiresAtIso ?? new Date(Date.now() + 5 * 60 * 1000).toISOString();
     const { data: manualAction, error: manualErr } = await auth.admin
       .from("appointment_manual_actions")
@@ -1852,6 +2246,13 @@ export async function POST(
       }
       const noSlotsAvailable = error instanceof SubmissionServiceRequestError
         && /no selectable .*appointment slots/iu.test(error.message);
+      if (noSlotsAvailable) {
+        try {
+          await saveNoSlotsEvidence(auth.admin, id, job, routing, error as SubmissionServiceRequestError);
+        } catch (persistenceError) {
+          console.error("[korea-appointment] could not persist official no-slots evidence", persistenceError);
+        }
+      }
       return NextResponse.json(
         {
           error: noSlotsAvailable
