@@ -37,6 +37,8 @@ reports, and workflow documentation for VIZA.
   persistence-related completion claims.
 - `superpowers/plans/*`: implementation plans written before staged feature
   work; keep them aligned with the current module guides and product scope.
+- `superpowers/specs/*`: approved design notes that record scope, alternatives,
+  data flow, error handling, and verification criteria before implementation.
 - `prd-ds160-ceac-runtime-validation.md`: CEAC automation requirements.
 - `us-appointment-assistant-portal-mapping.md`: U.S. B1/B2 appointment
   assistant provider mapping, China gated assisted-live scope, dry-run fallback,
