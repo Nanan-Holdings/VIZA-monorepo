@@ -5,6 +5,10 @@ import { normalizeSupabaseEnvValue } from "./env";
 import { createFetchWithTransientRetry } from "./fetch-with-timeout";
 
 type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];
+type SupabaseAdminClientOptions = {
+  requestTimeoutMs?: number;
+  retryDelaysMs?: readonly number[];
+};
 
 /**
  * Admin client with service role key
@@ -14,7 +18,7 @@ type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];
  * - Never expose to client
  * - Always verify permissions before using
  */
-export function createAdminClient(options: { requestTimeoutMs?: number } = {}) {
+export function createAdminClient(options: SupabaseAdminClientOptions = {}) {
   const supabaseUrl = normalizeSupabaseEnvValue(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     "NEXT_PUBLIC_SUPABASE_URL"
@@ -30,7 +34,10 @@ export function createAdminClient(options: { requestTimeoutMs?: number } = {}) {
       persistSession: false,
     },
     global: {
-      fetch: createFetchWithTransientRetry({ requestTimeoutMs: options.requestTimeoutMs }),
+      fetch: createFetchWithTransientRetry({
+        requestTimeoutMs: options.requestTimeoutMs,
+        retryDelaysMs: options.retryDelaysMs,
+      }),
     },
   });
 }
