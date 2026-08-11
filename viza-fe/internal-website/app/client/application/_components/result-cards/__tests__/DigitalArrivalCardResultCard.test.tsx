@@ -35,7 +35,7 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(localizeProgressMessage("云端任务正在继续。", true)).toBe("云端任务正在继续。");
   });
 
-  it("does not move the visible loading phase backward on a stale poll", async () => {
+  it("completes the three loading phases gradually without following an early backend stage", () => {
     vi.useFakeTimers();
     const { rerender } = render(
       <WaitingCard
@@ -45,8 +45,15 @@ describe("DigitalArrivalCardResultCard", () => {
         status="running"
         stage="payment_handoff"
         serverProgress={88}
+        message="Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"
       />,
     );
+
+    const phaseItem = (label: string) =>
+      screen
+        .getAllByText(label)
+        .find((element) => element.closest("ol"))
+        ?.closest("li");
 
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
       "aria-valuenow",
@@ -60,7 +67,39 @@ describe("DigitalArrivalCardResultCard", () => {
       "aria-valuenow",
       "5",
     );
-    expect(screen.getAllByText("正在等待检查点或结果")).toHaveLength(2);
+    expect(phaseItem("正在校验英文版答案")).toHaveClass("border-brand-500");
+    expect(phaseItem("正在填写官网表单")).not.toHaveClass("border-brand-500");
+    expect(phaseItem("正在等待检查点或结果")).not.toHaveClass("border-brand-500");
+    expect(screen.getByText("正在整理并校验官网所需的英文答案。")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
+    ).not.toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(24_000);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "35",
+    );
+    expect(phaseItem("正在校验英文版答案")).toHaveClass("border-brand-200");
+    expect(phaseItem("正在填写官网表单")).toHaveClass("border-brand-500");
+    expect(phaseItem("正在等待检查点或结果")).not.toHaveClass("border-brand-500");
+    expect(screen.getByText("正在填写官网表单。")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(26_400);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "68",
+    );
+    expect(phaseItem("正在校验英文版答案")).toHaveClass("border-brand-200");
+    expect(phaseItem("正在填写官网表单")).toHaveClass("border-brand-200");
+    expect(phaseItem("正在等待检查点或结果")).toHaveClass("border-brand-500");
+    expect(
+      screen.getByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
+    ).toBeInTheDocument();
 
     rerender(
       <WaitingCard
@@ -70,22 +109,17 @@ describe("DigitalArrivalCardResultCard", () => {
         status="running"
         stage="preparing"
         serverProgress={12}
+        message="正在准备官网填写任务。"
       />,
     );
 
-    const activeStageLabel = screen
-      .getAllByText("正在等待检查点或结果")
-      .find((element) => element.closest("ol"));
-    const firstStageLabel = screen
-      .getAllByText("正在校验英文版答案")
-      .find((element) => element.closest("ol"));
-
-    expect(activeStageLabel?.closest("li")).toHaveClass("border-brand-500");
-    expect(firstStageLabel?.closest("li")).not.toHaveClass("border-brand-500");
+    expect(phaseItem("正在等待检查点或结果")).toHaveClass("border-brand-500");
+    expect(phaseItem("正在校验英文版答案")).toHaveClass("border-brand-200");
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
       "aria-valuenow",
-      "5",
+      "68",
     );
+    expect(screen.getByText("正在等待官网检查点或最终结果。")).toBeInTheDocument();
   });
 
   it("does not hide portal field-selection errors as browser launch failures", () => {
