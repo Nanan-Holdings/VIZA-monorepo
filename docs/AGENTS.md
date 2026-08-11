@@ -33,6 +33,8 @@ reports, and workflow documentation for VIZA.
   completion and six-tab Chrome QA across every DB-driven application schema.
 - `SUPABASE_AGENT_SETUP.md`: remote Supabase setup, migration, verification,
   and troubleshooting workflow for agents.
+- `operations/supabase-self-heal.md`: production Supabase health probes,
+  guarded restart policy, GitHub Actions controls, and incident runbook.
 - `AGENT_COMPLETION_CHECKLIST.md`: evidence checklist for database-backed and
   persistence-related completion claims.
 - `superpowers/plans/*`: implementation plans written before staged feature
