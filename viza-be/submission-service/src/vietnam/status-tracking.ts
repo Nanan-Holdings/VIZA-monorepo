@@ -66,11 +66,27 @@ type InboundEmailRow = {
   received_at: string;
 };
 
+type IdempotentInsertResult = {
+  error: {
+    code?: string;
+    message: string;
+  } | null;
+};
+
 export interface ActivateVietnamStatusTrackingInput {
   applicationId: string;
   applicantId: string;
   authUserId: string;
   officialLookupEmail: string;
+}
+
+export async function insertIgnoringDuplicate(
+  insert: PromiseLike<IdempotentInsertResult>,
+): Promise<boolean> {
+  const { error } = await insert;
+  if (!error) return true;
+  if (error.code === "23505") return false;
+  throw new Error(error.message);
 }
 
 function isSchemaMissing(error: unknown): boolean {
@@ -254,8 +270,8 @@ export async function enqueueVietnamEmailTriggeredChecks(): Promise<number> {
       const alertTargets = matched.length > 0 ? matched : candidates;
       await Promise.all(
         alertTargets.map((candidate) =>
-          supabase.from("application_events").upsert(
-            {
+          insertIgnoringDuplicate(
+            supabase.from("application_events").insert({
               application_id: candidate.application_id,
               applicant_id: candidate.applicant_id,
               auth_user_id: candidate.auth_user_id,
@@ -272,8 +288,7 @@ export async function enqueueVietnamEmailTriggeredChecks(): Promise<number> {
               },
               occurred_at: new Date().toISOString(),
               created_at: new Date().toISOString(),
-            },
-            { onConflict: "idempotency_key", ignoreDuplicates: true },
+            }),
           ),
         ),
       );
@@ -449,8 +464,8 @@ async function queueStatusNotification(input: {
   };
 
   await Promise.all([
-    supabase.from("application_events").upsert(
-      {
+    insertIgnoringDuplicate(
+      supabase.from("application_events").insert({
         application_id: input.application.id,
         applicant_id: input.application.applicant_id,
         auth_user_id: input.profile.auth_user_id,
@@ -467,11 +482,10 @@ async function queueStatusNotification(input: {
         },
         occurred_at: now,
         created_at: now,
-      },
-      { onConflict: "idempotency_key", ignoreDuplicates: true },
+      }),
     ),
-    supabase.from("notification_events").upsert(
-      {
+    insertIgnoringDuplicate(
+      supabase.from("notification_events").insert({
         application_id: input.application.id,
         applicant_id: input.application.applicant_id,
         auth_user_id: input.profile.auth_user_id,
@@ -482,12 +496,11 @@ async function queueStatusNotification(input: {
         idempotency_key: idempotencyKey,
         payload,
         updated_at: now,
-      },
-      { onConflict: "idempotency_key", ignoreDuplicates: true },
+      }),
     ),
     input.profile.email
-      ? supabase.from("notification_event_log").upsert(
-          {
+      ? insertIgnoringDuplicate(
+          supabase.from("notification_event_log").insert({
             applicant_id: input.application.applicant_id,
             application_id: input.application.id,
             event: input.documentReady ? "doc_ready" : "decision_issued",
@@ -500,10 +513,9 @@ async function queueStatusNotification(input: {
             next_attempt_at: now,
             idempotency_key: idempotencyKey,
             ts: now,
-          },
-          { onConflict: "idempotency_key", ignoreDuplicates: true },
+          }),
         )
-      : Promise.resolve({ error: null }),
+      : Promise.resolve(true),
   ]);
 }
 
@@ -514,21 +526,23 @@ async function queueRetry(check: StatusCheckRow): Promise<void> {
   const scheduledFor = new Date(
     Date.now() + delayMinutes * 60 * 1_000,
   ).toISOString();
-  await supabase.from("official_status_checks").insert({
-    application_id: check.application_id,
-    user_id: check.user_id,
-    country_code: "VN",
-    provider: "vietnam_evisa",
-    status: "queued",
-    requested_by: "system",
-    trigger_source: "retry",
-    idempotency_key: `vn:retry:${check.id}:${retryNumber}`,
-    scheduled_for: scheduledFor,
-    attempt_count: retryNumber - 1,
-    raw_status_json: { source: "bounded_retry", previous_check_id: check.id },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
+  await insertIgnoringDuplicate(
+    supabase.from("official_status_checks").insert({
+      application_id: check.application_id,
+      user_id: check.user_id,
+      country_code: "VN",
+      provider: "vietnam_evisa",
+      status: "queued",
+      requested_by: "system",
+      trigger_source: "retry",
+      idempotency_key: `vn:retry:${check.id}:${retryNumber}`,
+      scheduled_for: scheduledFor,
+      attempt_count: retryNumber - 1,
+      raw_status_json: { source: "bounded_retry", previous_check_id: check.id },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }),
+  );
 }
 
 async function processClaimedCheck(check: StatusCheckRow): Promise<void> {
