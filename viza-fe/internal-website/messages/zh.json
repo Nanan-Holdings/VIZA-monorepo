@@ -429,6 +429,142 @@
       }
     }
   },
+  "koreaAppointment": {
+    "locale": "zh",
+    "page": {
+      "title": "韩国签证预约",
+      "subtitle": "一次只完成一件事，我们会带你完成资料确认、官网验证和预约。",
+      "backToForm": "返回申请表"
+    },
+    "progress": {
+      "ariaLabel": "预约进度",
+      "current": "第 {current}/{total} 步"
+    },
+    "steps": {
+      "review": "资料与领区",
+      "account": "官网验证",
+      "slots": "选择时间",
+      "confirm": "最终确认",
+      "result": "预约结果"
+    },
+    "common": {
+      "notProvided": "未提供",
+      "maskedPhone": "已登记手机号",
+      "listSeparator": "、"
+    },
+    "loading": {
+      "title": "正在读取预约状态",
+      "body": "正在准备你的预约流程…"
+    },
+    "errors": {
+      "loadFailed": "暂时无法读取预约状态，请刷新页面后重试。",
+      "operationFailed": "当前操作没有完成，请稍后重试。系统尚未据此判断官网是否有可预约时间。"
+    },
+    "review": {
+      "title": "确认资料与递签领区",
+      "body": "请先核对将用于官网预约的资料。确认后，VIZA 才会连接官方预约页面。",
+      "name": "申请人英文姓名",
+      "passport": "护照号码",
+      "phone": "接收验证码的手机",
+      "recommended": "系统推荐领区",
+      "basisResidence": "根据可证明的现居住地 {province} 推荐",
+      "basisHukou": "根据户籍地 {province} 推荐",
+      "basisSelected": "这是你当前明确选择的递签中心",
+      "changeCenter": "更改领区",
+      "details": "查看领区依据与中心详情",
+      "ambiguous": "请确认该中心与你可证明的现居住地或户籍地一致。",
+      "missingTitle": "预约资料尚未完整",
+      "missingBody": "请先补齐申请人英文姓名、手机号，并确认可证明的递签领区。",
+      "edit": "修改申请资料",
+      "confirm": "确认资料并继续",
+      "confirming": "正在保存确认…"
+    },
+    "centerSheet": {
+      "title": "更改递签领区",
+      "description": "请选择与你可证明的现居住地或户籍地相符的中心。"
+    },
+    "account": {
+      "title": "完成官网验证",
+      "body": "资料已确认。下一步会查询所选中心的官方预约页面；找到开放时段后，官网可能发送短信验证码。",
+      "restartBody": "旧的官网会话已经结束。请重新建立会话并获取新的验证码。",
+      "start": "查询官网时间",
+      "viewMethod": "查看该中心办理方式",
+      "checking": "正在查询官网时间…",
+      "scanProgress": "正在逐月读取官方预约日历，请保持本页打开。",
+      "smsBody": "验证码已发送至 {phone}。输入后，VIZA 会在同一官方会话中继续读取时段；验证码不会保存。",
+      "expires": "验证码有效至 {time}",
+      "codeLabel": "短信验证码",
+      "codePlaceholder": "输入验证码",
+      "verify": "验证并读取时间",
+      "verifying": "正在验证…",
+      "resend": "重新发送验证码",
+      "backToCenter": "返回资料与领区",
+      "manualBody": "该中心需要按照官方指引办理，或存在必须由申请人亲自完成的账号、实名等步骤。",
+      "openOfficial": "打开官方办理入口",
+      "workerTitle": "预约查询服务暂时不可用",
+      "workerBody": "本次官网查询没有完成，因此目前无法判断是否有时段。请稍后重新查询。",
+      "retry": "重新查询官网时间"
+    },
+    "slots": {
+      "title": "选择预约时间",
+      "body": "以下时间来自当前官方会话。选择后还需要单独授权最终提交。",
+      "choose": "选择此时间",
+      "back": "返回官网验证",
+      "refresh": "重新读取时段",
+      "emptyTitle": "暂时没有开放的预约时间",
+      "emptyBody": "官方预约日历已完成检查，但当前中心暂未开放可预约时段。你可以稍后重新查询或更改领区。",
+      "checkedAt": "官网检查时间：{time}",
+      "retry": "重新查询",
+      "checking": "正在重新查询…",
+      "changeCenter": "更改领区",
+      "viewEvidence": "查看官网现场截图"
+    },
+    "confirm": {
+      "title": "确认最终预约",
+      "selected": "已选择的官方时段",
+      "authorization": "我已核对日期、时间和地点，并授权 VIZA 使用该时段进行最终预约。",
+      "approve": "保存最终授权",
+      "approving": "正在保存授权…",
+      "approvedTitle": "最终授权已保存",
+      "approvedBody": "请再次点击提交，VIZA 才会在官网完成最终预约。",
+      "submit": "提交官方预约",
+      "submitting": "正在提交官方预约…",
+      "back": "返回选择时间"
+    },
+    "result": {
+      "title": "预约已确认",
+      "officialConfirmation": "官网预约确认",
+      "number": "官方确认号：{number}",
+      "print": "下载或打印确认单",
+      "preparingPrint": "正在准备确认单…",
+      "manage": "管理预约",
+      "cancelledTitle": "预约已取消",
+      "cancelledBody": "官网已确认取消，旧预约和取消证据已保留。你可以重新开始一条新的预约流程。",
+      "bookAgain": "重新预约",
+      "restarting": "正在创建新流程…"
+    },
+    "management": {
+      "title": "管理预约",
+      "description": "改约和取消都会先查询并核对官网记录。",
+      "reschedule": "改约",
+      "cancel": "取消预约",
+      "history": "查看历史预约记录",
+      "confirmReschedule": "确认取消旧预约后改约",
+      "confirmCancel": "确认取消当前预约",
+      "cancelWarning": "下一步会在官网提交取消并保存证据。此操作不能撤销。",
+      "sessionExpired": "原官网会话已过期，需要重新查询预约记录后再次确认。",
+      "cancelAndReschedule": "取消旧预约并继续改约",
+      "cancelling": "正在提交取消…",
+      "retryQuery": "重新查询官网预约",
+      "querying": "正在查询官网预约…",
+      "back": "返回预约详情",
+      "workerUnavailable": "官网预约记录查询没有完成，请稍后重试。",
+      "rescheduleBody": "继续后会查询旧预约，并在你再次确认后取消旧预约，再开始选择新时间。",
+      "cancelBody": "继续后会查询官网预约记录，最终取消前仍会请你确认。",
+      "continue": "继续查询官网记录",
+      "invalidRecord": "这不是有效预约，重新开始"
+    }
+  },
   "client": {
     "signing": {
       "loading": "正在加载您的声明…",
