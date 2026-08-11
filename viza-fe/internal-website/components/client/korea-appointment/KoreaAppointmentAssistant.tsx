@@ -1,27 +1,43 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
+  AlertCircle,
   ArrowLeft,
   CalendarCheck,
+  Check,
   CheckCircle2,
+  ChevronDown,
   ExternalLink,
+  FileCheck2,
+  History,
   Loader2,
-  MapPin,
   MessageSquareText,
   Printer,
   RefreshCw,
   RotateCcw,
+  Settings2,
   ShieldCheck,
+  UserRound,
   XCircle,
 } from "lucide-react";
-import { useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Alert, AlertAction, AlertActions, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { BrandActionButton } from "@/components/client/brand-action-button";
+import { BrandField, BrandInput } from "@/components/client/brand-field";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { isChineseLocale } from "@/lib/i18n/locale";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 interface Center {
   code: string;
@@ -43,6 +59,24 @@ interface Center {
   importantNoticesEn: string[];
 }
 
+interface ReviewData {
+  applicantName?: string | null;
+  passportNumber?: string | null;
+  phoneMasked?: string | null;
+  currentResidenceProvince?: string | null;
+  hukouProvince?: string | null;
+  hasResidenceProof?: boolean | null;
+  missingFields?: string[];
+  routingBasis?: "current_residence" | "hukou" | "ambiguous";
+  recommendationReason?: string | null;
+}
+
+interface NoSlotsEvidence {
+  verified: boolean;
+  evidenceUrl?: string | null;
+  lastCheckedAt?: string | null;
+}
+
 interface Snapshot {
   routing: {
     basis: string;
@@ -50,7 +84,11 @@ interface Snapshot {
     alternatives: Center[];
     allCenters?: Center[];
   };
-  job: { id: string; status: string; mode?: string | null } | null;
+  review?: ReviewData | null;
+  reviewConfirmed?: boolean;
+  reviewConfirmedAt?: string | null;
+  noSlots?: NoSlotsEvidence | null;
+  job: { id: string; status: string; mode?: string | null; updated_at?: string | null } | null;
   manualAction: {
     action_type: string;
     instruction: string | null;
@@ -86,19 +124,7 @@ interface Snapshot {
   }>;
 }
 
-type Stage =
-  | "loading"
-  | "center"
-  | "otp"
-  | "slots"
-  | "confirm"
-  | "confirmed"
-  | "change-query"
-  | "cancel-confirmation"
-  | "reschedule-restart"
-  | "sms-restart"
-  | "cancelled"
-  | "manual";
+type AppointmentStage = "review" | "account" | "slots" | "confirm" | "result";
 
 class AppointmentRequestError extends Error {
   constructor(
@@ -111,14 +137,30 @@ class AppointmentRequestError extends Error {
   }
 }
 
-async function requestSnapshot(applicationId: string, action?: string, slotId?: string, smsCode?: string, selectedCenterCode?: string): Promise<Snapshot> {
+async function requestSnapshot(
+  applicationId: string,
+  action?: string,
+  slotId?: string,
+  smsCode?: string,
+  selectedCenterCode?: string,
+): Promise<Snapshot> {
   const response = await fetch(`/api/applications/${applicationId}/korea-appointment`, {
     method: action ? "POST" : "GET",
     headers: { "Content-Type": "application/json" },
-    body: action ? JSON.stringify({ action, slotId, smsCode, routingInput: selectedCenterCode ? { selectedCenterCode } : undefined }) : undefined,
+    body: action
+      ? JSON.stringify({
+          action,
+          slotId,
+          smsCode,
+          routingInput: selectedCenterCode ? { selectedCenterCode } : undefined,
+        })
+      : undefined,
     cache: "no-store",
   });
-  const body = (await response.json().catch(() => null)) as Snapshot | { error?: string; evidenceUrl?: string; code?: string } | null;
+  const body = (await response.json().catch(() => null)) as
+    | Snapshot
+    | { error?: string; evidenceUrl?: string; code?: string }
+    | null;
   if (!response.ok) {
     const errorBody = body as { error?: string; evidenceUrl?: string; code?: string } | null;
     throw new AppointmentRequestError(
@@ -132,80 +174,154 @@ async function requestSnapshot(applicationId: string, action?: string, slotId?: 
 
 function isOfficialConfirmation(snapshot: Snapshot | null) {
   const confirmation = snapshot?.confirmation;
-  return Boolean(confirmation) && confirmation?.raw_confirmation_redacted_json?.mode !== "dry_run" && !String(confirmation?.confirmation_number ?? "").startsWith("KR-DRYRUN-");
+  return Boolean(confirmation)
+    && confirmation?.raw_confirmation_redacted_json?.mode !== "dry_run"
+    && !String(confirmation?.confirmation_number ?? "").startsWith("KR-DRYRUN-");
 }
 
-function getStage(snapshot: Snapshot | null): Stage {
-  if (!snapshot) return "loading";
+export function getKoreaAppointmentStage(
+  snapshot: Snapshot | null,
+  transientNoSlots = false,
+): AppointmentStage {
+  if (!snapshot) return "review";
+  if (isOfficialConfirmation(snapshot) || snapshot.job?.status === "appointment_cancelled") return "result";
   const action = snapshot.manualAction?.action_type;
-  const cancelled = snapshot.job?.status === "appointment_cancelled";
-  const rescheduling = snapshot.changeIntent === "reschedule";
   const selectedSlot = snapshot.slots.some((slot) => ["user_selected", "selected"].includes(slot.status));
+  if (action === "final_booking_approval_required" || snapshot.job?.status === "final_booking_approved" || selectedSlot) {
+    return "confirm";
+  }
   const observedSlots = snapshot.slots.some((slot) => ["observed", "user_selected", "selected"].includes(slot.status));
+  if (observedSlots || snapshot.noSlots?.verified || transientNoSlots || snapshot.job?.status === "appointment_no_slots_available") {
+    return "slots";
+  }
+  if (snapshot.reviewConfirmed || (snapshot.job && snapshot.job.status !== "not_started")) return "account";
+  return "review";
+}
 
-  if (["official_center_manual_checkpoint", "official_guidance_required", "official_account_login_required"].includes(action ?? "")) return "manual";
-  if (rescheduling && cancelled) return "reschedule-restart";
-  if (["official_cancel_confirmation_required", "official_cancel_manual_checkpoint"].includes(action ?? "")) return "cancel-confirmation";
-  if (["official_reschedule_required", "official_cancel_required"].includes(action ?? "")) return "change-query";
-  if (cancelled) return "cancelled";
-  if (isOfficialConfirmation(snapshot)) return "confirmed";
-  if (action === "sms_verification_required") return "otp";
-  if (snapshot.job?.status === "sms_restart_required") return "sms-restart";
-  if (action === "final_booking_approval_required" || snapshot.job?.status === "final_booking_approved" || selectedSlot) return "confirm";
-  if (observedSlots) return "slots";
-  return "center";
+function stageNumber(stage: AppointmentStage) {
+  return (["review", "account", "slots", "confirm", "result"] as AppointmentStage[]).indexOf(stage) + 1;
+}
+
+function StageCard({
+  stage,
+  title,
+  icon,
+  error,
+  children,
+}: {
+  stage: AppointmentStage;
+  title: string;
+  icon: React.ReactNode;
+  error: string | null;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card
+      data-current-stage={stage}
+      className="min-h-[360px] rounded-[12px] border-slate-200 shadow-sm motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 motion-reduce:animate-none"
+    >
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 font-heading text-xl font-medium">
+          {icon}
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {error ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>{title}</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReviewValue({ label, value, missing }: { label: string; value: string | null | undefined; missing: string }) {
+  return (
+    <div className="min-w-0 rounded-[8px] border border-slate-200 bg-white px-4 py-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className={cn("mt-1 truncate text-sm font-semibold", value ? "text-foreground" : "text-amber-700")}>
+        {value || missing}
+      </p>
+    </div>
+  );
 }
 
 export function KoreaAppointmentAssistant({ applicationId }: { applicationId: string }) {
-  const isZh = isChineseLocale(useLocale());
+  const t = useTranslations("koreaAppointment");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [selectedCenterCode, setSelectedCenterCode] = useState<string | null>(null);
   const [smsCode, setSmsCode] = useState("");
   const [busy, setBusy] = useState<string | null>("load");
   const [error, setError] = useState<string | null>(null);
-  const [errorEvidenceUrl, setErrorEvidenceUrl] = useState<string | null>(null);
-  const [noSlotsAvailable, setNoSlotsAvailable] = useState(false);
-  const rescheduleSmsStartRef = useRef(false);
+  const [transientNoSlots, setTransientNoSlots] = useState<NoSlotsEvidence | null>(null);
+  const [centerSheetOpen, setCenterSheetOpen] = useState(false);
+  const [managementOpen, setManagementOpen] = useState(false);
+  const [authorizationChecked, setAuthorizationChecked] = useState(false);
 
   const recommendedCenter = snapshot?.routing.recommended;
   const activeCenterCode = selectedCenterCode ?? recommendedCenter?.code;
-  const center = snapshot?.routing.allCenters?.find((item) => item.code === activeCenterCode)
-    ?? recommendedCenter;
-  const stage = getStage(snapshot);
-  const selectedSlot = useMemo(
-    () => snapshot?.slots.find((slot) => ["user_selected", "selected"].includes(slot.status)) ?? null,
+  const allCenters = snapshot?.routing.allCenters
+    ?? (recommendedCenter ? [recommendedCenter, ...(snapshot?.routing.alternatives ?? [])] : []);
+  const center = allCenters.find((item) => item.code === activeCenterCode) ?? recommendedCenter;
+  const noSlots = snapshot?.noSlots?.verified ? snapshot.noSlots : transientNoSlots;
+  const stage = getKoreaAppointmentStage(snapshot, Boolean(noSlots));
+  const currentStep = stageNumber(stage);
+  const observedSlots = useMemo(
+    () => snapshot?.slots.filter((slot) => ["observed", "user_selected", "selected"].includes(slot.status)) ?? [],
     [snapshot?.slots],
   );
-  const waitingForFinalApproval = snapshot?.manualAction?.action_type === "final_booking_approval_required";
+  const selectedSlot = observedSlots.find((slot) => ["user_selected", "selected"].includes(slot.status)) ?? null;
+  const manualAction = snapshot?.manualAction;
+  const manualActionType = manualAction?.action_type;
+  const workerUnavailable = manualAction?.metadata_redacted_json?.workerUnavailable === true;
+  const waitingForFinalApproval = manualActionType === "final_booking_approval_required";
   const finalApproved = snapshot?.job?.status === "final_booking_approved";
-  const cancellationAction = snapshot?.manualAction;
-  const cancellationIntent = cancellationAction?.metadata_redacted_json?.intent === "reschedule" ? "reschedule" : "cancel";
-  const cancellationReady = cancellationAction?.action_type === "official_cancel_confirmation_required";
-  const isSmsCenter = center?.liveBookingMode === "sms_sync_supported";
-  const workerUnavailable = snapshot?.manualAction?.metadata_redacted_json?.workerUnavailable === true;
-  const changeOperation = busy === "request-reschedule" ? "reschedule" : busy === "request-cancel" ? "cancel" : null;
-  const cancellingOfficialBooking = busy === "confirm-cancel-official";
-  const startingLiveBooking = busy === "request-live-booking";
+  const cancelled = snapshot?.job?.status === "appointment_cancelled";
+  const changeIntent = manualAction?.metadata_redacted_json?.intent === "reschedule" || snapshot?.changeIntent === "reschedule"
+    ? "reschedule"
+    : "cancel";
   const savedAppointment = isOfficialConfirmation(snapshot) ? snapshot?.confirmation ?? null : null;
+  const isSmsCenter = center?.liveBookingMode === "sms_sync_supported";
+  const review = snapshot?.review;
+  const reviewReady = Boolean(review?.applicantName && review?.phoneMasked && center);
+  const reviewBasis = review?.routingBasis === "current_residence"
+    ? t("review.basisResidence", { province: review.currentResidenceProvince || t("common.notProvided") })
+    : review?.routingBasis === "hukou"
+      ? t("review.basisHukou", { province: review.hukouProvince || t("common.notProvided") })
+      : t("review.basisSelected");
+  const applicationFormHref = `/client/application/long-form?country=south_korea&visaType=KR_C39_SHORT_TERM_VISIT&applicationId=${encodeURIComponent(applicationId)}`;
 
-  const run = useCallback(async (action?: string, slotId?: string, code?: string, centerCode?: string) => {
+  const run = useCallback(async (
+    action?: string,
+    slotId?: string,
+    code?: string,
+    centerCode?: string,
+  ) => {
     setBusy(action ?? "load");
     setError(null);
-    setErrorEvidenceUrl(null);
-    setNoSlotsAvailable(false);
+    if (action !== "refresh-status") setTransientNoSlots(null);
     try {
-      const nextSnapshot = await requestSnapshot(applicationId, action, slotId, code, centerCode ?? activeCenterCode);
+      const nextSnapshot = await requestSnapshot(
+        applicationId,
+        action,
+        slotId,
+        code,
+        centerCode ?? activeCenterCode,
+      );
       setSnapshot(nextSnapshot);
-      if (action === "submit-sms-code") setSmsCode("");
-      if (action === "start-new-booking") setSmsCode("");
+      if (["submit-sms-code", "start-new-booking"].includes(action ?? "")) setSmsCode("");
+      if (action === "return-to-slot-selection") setAuthorizationChecked(false);
     } catch (cause) {
       const requestError = cause instanceof AppointmentRequestError ? cause : null;
-      const isNoSlots = requestError?.code === "no_slots_available";
-      if (isNoSlots) {
-        setNoSlotsAvailable(true);
+      if (requestError?.code === "no_slots_available") {
+        setTransientNoSlots({ verified: true, evidenceUrl: requestError.evidenceUrl, lastCheckedAt: new Date().toISOString() });
       } else {
-        setError(cause instanceof Error ? cause.message : String(cause));
-        setErrorEvidenceUrl(requestError?.evidenceUrl ?? null);
+        setError(t("errors.operationFailed"));
       }
       try {
         const selectedCode = centerCode ?? activeCenterCode;
@@ -217,26 +333,24 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
           selectedCode,
         ));
       } catch {
-        // Preserve the actionable error from the requested operation.
+        // Keep the safe, localized error from the requested transition.
       }
     } finally {
       setBusy(null);
     }
-  }, [activeCenterCode, applicationId]);
+  }, [activeCenterCode, applicationId, t]);
 
   useEffect(() => {
     let active = true;
     setBusy("load");
-    setError(null);
-    setErrorEvidenceUrl(null);
     void requestSnapshot(applicationId)
       .then((nextSnapshot) => {
-        if (active) setSnapshot(nextSnapshot);
-      })
-      .catch((cause) => {
         if (!active) return;
-        setError(cause instanceof Error ? cause.message : String(cause));
-        setErrorEvidenceUrl(cause instanceof AppointmentRequestError ? cause.evidenceUrl : null);
+        setSnapshot(nextSnapshot);
+        setSelectedCenterCode(nextSnapshot.routing.recommended.code);
+      })
+      .catch(() => {
+        if (active) setError(t("errors.loadFailed"));
       })
       .finally(() => {
         if (active) setBusy(null);
@@ -244,459 +358,522 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     return () => {
       active = false;
     };
-  }, [applicationId]);
+  }, [applicationId, t]);
 
   useEffect(() => {
-    if (!selectedCenterCode && center?.code) setSelectedCenterCode(center.code);
-  }, [center?.code, selectedCenterCode]);
-
-  useEffect(() => {
-    if (stage !== "reschedule-restart") {
-      rescheduleSmsStartRef.current = false;
-      return;
+    if ([
+      "official_reschedule_required",
+      "official_cancel_required",
+      "official_cancel_confirmation_required",
+      "official_cancel_manual_checkpoint",
+    ].includes(manualActionType ?? "")) {
+      setManagementOpen(true);
     }
-    if (busy || rescheduleSmsStartRef.current) return;
-    rescheduleSmsStartRef.current = true;
-    void run("request-live-booking");
-  }, [busy, run, stage]);
+  }, [manualActionType]);
 
-  const chooseCenter = useCallback(async (nextCenterCode: string) => {
+  const chooseCenter = async (nextCenterCode: string) => {
     setSelectedCenterCode(nextCenterCode);
+    setCenterSheetOpen(false);
     await run("refresh-status", undefined, undefined, nextCenterCode);
-  }, [run]);
+  };
 
-  const stepLabels = isZh ? ["选择领区", "短信验证", "选择时间", "预约结果"] : ["Center", "SMS", "Slot", "Result"];
-  const currentStep = stage === "center" || stage === "manual" || stage === "loading" ? 0 : stage === "otp" || stage === "sms-restart" || stage === "reschedule-restart" ? 1 : stage === "slots" || stage === "confirm" ? 2 : 3;
-  const centerName = center ? (isZh ? center.nameZh : center.nameEn) : "";
-  const serviceLabel = center?.serviceMode === "appointment_required"
-    ? (isZh ? "必须提前预约" : "Appointment required")
-    : center?.serviceMode === "center_guidance_required"
-      ? (isZh ? "按官方公告递交" : "Follow official guidance")
-      : (isZh ? "建议预约优先" : "Appointment preferred");
+  const centerName = center ? (t("locale") === "zh" ? center.nameZh : center.nameEn) : t("common.notProvided");
+  const centerRule = center ? (t("locale") === "zh" ? center.appointmentRuleZh : center.appointmentRuleEn) : "";
+  const phoneMasked = review?.phoneMasked
+    ?? (typeof manualAction?.metadata_redacted_json?.phoneMasked === "string"
+      ? manualAction.metadata_redacted_json.phoneMasked
+      : null);
+  const stepKeys = ["review", "account", "slots", "confirm", "result"] as const;
+
+  const managementContent = (() => {
+    if (manualActionType === "official_cancel_confirmation_required" || manualActionType === "official_cancel_manual_checkpoint") {
+      const ready = manualActionType === "official_cancel_confirmation_required";
+      return (
+        <div className="space-y-5">
+          <Alert className="border-amber-200 bg-amber-50">
+            <AlertCircle className="h-4 w-4 text-amber-700" />
+            <AlertTitle>{changeIntent === "reschedule" ? t("management.confirmReschedule") : t("management.confirmCancel")}</AlertTitle>
+            <AlertDescription>{ready ? t("management.cancelWarning") : t("management.sessionExpired")}</AlertDescription>
+          </Alert>
+          {ready ? (
+            <BrandActionButton
+              variant="destructive"
+              className="w-full"
+              loading={busy === "confirm-cancel-official"}
+              loadingText={t("management.cancelling")}
+              onClick={() => void run("confirm-cancel-official")}
+            >
+              <XCircle />
+              {changeIntent === "reschedule" ? t("management.cancelAndReschedule") : t("management.cancel")}
+            </BrandActionButton>
+          ) : (
+            <BrandActionButton
+              className="w-full"
+              loading={busy === "start-cancel-query"}
+              loadingText={t("management.querying")}
+              onClick={() => void run("start-cancel-query")}
+            >
+              <RefreshCw />
+              {t("management.retryQuery")}
+            </BrandActionButton>
+          )}
+          <Button variant="outline" className="w-full" onClick={() => void run("return-to-appointment-details")} disabled={Boolean(busy)}>
+            {t("management.back")}
+          </Button>
+        </div>
+      );
+    }
+    if (["official_reschedule_required", "official_cancel_required"].includes(manualActionType ?? "")) {
+      const isReschedule = manualActionType === "official_reschedule_required";
+      return (
+        <div className="space-y-5">
+          <p className="text-sm leading-6 text-muted-foreground">
+            {workerUnavailable ? t("management.workerUnavailable") : isReschedule ? t("management.rescheduleBody") : t("management.cancelBody")}
+          </p>
+          <BrandActionButton
+            className="w-full"
+            loading={busy === (isReschedule ? "request-reschedule" : "request-cancel")}
+            loadingText={t("management.querying")}
+            onClick={() => void run(isReschedule ? "request-reschedule" : "request-cancel")}
+          >
+            <RefreshCw />
+            {t("management.continue")}
+          </BrandActionButton>
+          <Button variant="outline" className="w-full" onClick={() => void run("restart-without-booking-record")} disabled={Boolean(busy)}>
+            {t("management.invalidRecord")}
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <BrandActionButton
+            variant="secondary"
+            loading={busy === "request-reschedule"}
+            onClick={() => void run("request-reschedule")}
+          >
+            <RotateCcw />
+            {t("management.reschedule")}
+          </BrandActionButton>
+          <BrandActionButton
+            variant="destructive"
+            loading={busy === "request-cancel"}
+            onClick={() => void run("request-cancel")}
+          >
+            <XCircle />
+            {t("management.cancel")}
+          </BrandActionButton>
+        </div>
+        {snapshot?.appointmentHistory.length ? (
+          <Collapsible>
+            <CollapsibleTrigger className="flex min-h-11 w-full items-center justify-between rounded-[8px] border px-4 text-sm font-medium">
+              <span className="flex items-center gap-2"><History className="h-4 w-4" />{t("management.history")}</span>
+              <ChevronDown className="h-4 w-4" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 pt-3">
+              {snapshot.appointmentHistory.map((record) => (
+                <div key={record.id} className="rounded-[8px] border bg-muted/30 p-3 text-sm">
+                  <p className="font-medium">{record.appointment_date} {record.appointment_time}</p>
+                  <p className="mt-1 text-muted-foreground">{record.appointment_location}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{record.confirmation_number}</p>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null}
+      </div>
+    );
+  })();
 
   return (
-    <main className="mx-auto w-full max-w-[860px] space-y-6 py-8">
-      <div className="flex items-start gap-3">
-        <Button asChild variant="outline" size="icon" aria-label={isZh ? "返回申请表" : "Back to form"} title={isZh ? "返回申请表" : "Back to form"}>
-          <Link href={`/client/application/long-form?country=south_korea&visaType=KR_C39_SHORT_TERM_VISIT&applicationId=${encodeURIComponent(applicationId)}`}>
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+    <main className="mx-auto w-full max-w-[760px] space-y-5 py-6 sm:py-8">
+      <header className="flex items-start gap-3">
+        <Button asChild variant="outline" size="icon" className="mt-0.5 shrink-0" aria-label={t("page.backToForm")}>
+          <Link href={applicationFormHref}><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
-        <div>
-          <h1 className="font-heading text-3xl font-medium text-foreground">{isZh ? "韩国签证预约" : "Korea visa appointment"}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{isZh ? "在 VIZA 内完成领区选择、官方短信验证、时段选择与预约确认。" : "Complete center selection, official SMS verification, slot selection, and booking confirmation in VIZA."}</p>
+        <div className="min-w-0">
+          <h1 className="font-heading text-2xl font-medium text-foreground sm:text-3xl">{t("page.title")}</h1>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{t("page.subtitle")}</p>
         </div>
-      </div>
+      </header>
 
-      <ol className="grid grid-cols-4 gap-2" aria-label={isZh ? "预约步骤" : "Appointment steps"}>
-        {stepLabels.map((label, index) => (
-          <li key={label} className={`border-t-2 pt-2 text-center text-xs sm:text-sm ${index <= currentStep ? "border-brand-600 text-brand-800" : "border-border text-muted-foreground"}`}>
-            <span className="mr-1 font-medium">{index + 1}.</span>{label}
-          </li>
-        ))}
-      </ol>
+      <nav aria-label={t("progress.ariaLabel")} className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium text-brand-700">{t("progress.current", { current: currentStep, total: 5 })}</span>
+          <span className="text-muted-foreground">{t(`steps.${stage}`)}</span>
+        </div>
+        <ol className="grid grid-cols-5 gap-1.5">
+          {stepKeys.map((key, index) => (
+            <li key={key} aria-current={key === stage ? "step" : undefined}>
+              <span className={cn(
+                "block h-1.5 rounded-full transition-colors duration-200 motion-reduce:transition-none",
+                index < currentStep ? "bg-brand-500" : "bg-slate-200",
+              )} />
+              <span className="sr-only">{t(`steps.${key}`)}</span>
+            </li>
+          ))}
+        </ol>
+      </nav>
 
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>{isZh ? "当前操作未完成" : "The operation did not complete"}</AlertTitle>
-          <AlertDescription>
-            <p>{error}</p>
-            {errorEvidenceUrl ? (
-              <AlertActions>
-                <AlertAction asChild>
-                  <a href={errorEvidenceUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink />
-                    {isZh ? "查看官网现场截图" : "View official-page screenshot"}
-                  </a>
-                </AlertAction>
-              </AlertActions>
-            ) : null}
-          </AlertDescription>
-        </Alert>
+      {busy === "load" && !snapshot ? (
+        <StageCard stage="review" title={t("loading.title")} icon={<Loader2 className="h-5 w-5 animate-spin text-brand-600" />} error={error}>
+          <div className="flex min-h-52 items-center justify-center text-sm text-muted-foreground" role="status">
+            {t("loading.body")}
+          </div>
+        </StageCard>
       ) : null}
 
-      {noSlotsAvailable ? (
-        <Alert>
-          <CalendarCheck className="h-4 w-4" />
-          <AlertTitle>{isZh ? "暂时没有可预约时间" : "No appointment times are currently available"}</AlertTitle>
-          <AlertDescription>
-            <p>
-              {isZh
-                ? "当前递签中心暂时没有开放可预约时段，因此官网不会发送验证码。你可以稍后重新查询，或返回选择其他符合领区要求的递签中心。"
-                : "The selected filing center has not released any appointment times, so the official site cannot send an SMS code. Try again later or choose another eligible center."}
-            </p>
-            <AlertActions>
-              <AlertAction onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>
-                <RefreshCw />
-                {isZh ? "重新查询" : "Check again"}
-              </AlertAction>
-              <AlertAction
-                variant="secondary"
-                onClick={() => void run("return-to-center-selection")}
-                disabled={Boolean(busy)}
-              >
-                <ArrowLeft />
-                {isZh ? "重新选择领区" : "Choose another center"}
-              </AlertAction>
-            </AlertActions>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      {changeOperation || cancellingOfficialBooking || startingLiveBooking ? (
-        <Card className="rounded-[8px] border-brand-200 bg-brand-50/40" role="status" aria-live="polite">
-          <CardContent className="space-y-4 p-5">
-            <div className="flex items-center gap-3">
-              <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
-              <div>
-                <div className="font-medium text-foreground">
-                  {startingLiveBooking
-                    ? (isZh ? "正在查询官网时段并发送验证码" : "Checking official slots and sending the code")
-                    : cancellingOfficialBooking
-                      ? (isZh ? "正在取消官方预约" : "Cancelling the official appointment")
-                      : (isZh ? "正在连接官方预约中心" : "Connecting to the official appointment center")}
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {startingLiveBooking
-                    ? (isZh
-                      ? "VIZA 正在逐月读取该中心全部可预约日期。找到可选时段后会自动在官网选择时段并发送短信验证码，通常需要 30–90 秒。请保持本页打开。"
-                      : "VIZA is scanning every available official booking month. When a slot is found, it will select the slot and request the SMS code automatically. This usually takes 30–90 seconds; keep this page open.")
-                    : cancellingOfficialBooking
-                      ? (isZh ? "已收到你的最终确认，正在官网提交取消并保存官方证据。请勿关闭此页面或重复点击。" : "Your final confirmation was received. Submitting the official cancellation and saving evidence. Keep this page open and do not click again.")
-                      : (isZh
-                        ? (changeOperation === "reschedule" ? "正在查询原预约。找到记录后，仍会请你确认取消，再开始改约。" : "正在查询原预约。找到记录后，仍会请你确认取消。")
-                        : (changeOperation === "reschedule" ? "Checking the current booking. You will still confirm its cancellation before rescheduling." : "Checking the current booking. You will still confirm cancellation before anything is cancelled."))}
+      {snapshot && stage === "review" ? (
+        <StageCard stage="review" title={t("review.title")} icon={<UserRound className="h-5 w-5 text-brand-600" />} error={error}>
+          <p className="text-sm leading-6 text-muted-foreground">{t("review.body")}</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <ReviewValue label={t("review.name")} value={review?.applicantName} missing={t("common.notProvided")} />
+            <ReviewValue label={t("review.passport")} value={review?.passportNumber} missing={t("common.notProvided")} />
+            <ReviewValue label={t("review.phone")} value={review?.phoneMasked} missing={t("common.notProvided")} />
+          </div>
+          <div className="rounded-[10px] border border-brand-100 bg-brand-50/60 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-brand-700">{t("review.recommended")}</p>
+                <p className="mt-1 font-medium text-foreground">{centerName}</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {review?.recommendationReason || reviewBasis}
                 </p>
               </div>
+              <Button variant="outline" size="sm" onClick={() => setCenterSheetOpen(true)}>
+                <Settings2 className="mr-2 h-4 w-4" />{t("review.changeCenter")}
+              </Button>
             </div>
-            {startingLiveBooking ? (
-              <ol className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
-                <li className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin text-brand-600" />{isZh ? "读取全部开放日期" : "Read all open dates"}</li>
-                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-border" />{isZh ? "选择官网可用时段" : "Select an official slot"}</li>
-                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-border" />{isZh ? "发送短信验证码" : "Send SMS code"}</li>
-              </ol>
-            ) : (
-              <ol className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
-                <li className="flex items-center gap-2">{cancellingOfficialBooking ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Loader2 className="h-4 w-4 animate-spin text-brand-600" />}{isZh ? "查询官方预约" : "Query official booking"}</li>
-                <li className="flex items-center gap-2">{cancellingOfficialBooking ? <Loader2 className="h-4 w-4 animate-spin text-brand-600" /> : <span className="h-2 w-2 rounded-full bg-border" />}{isZh ? "提交官方取消" : "Submit official cancellation"}</li>
-                {cancellationIntent === "reschedule" ? <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-border" />{isZh ? "发送新验证码并选择时间" : "Send a new code and choose a slot"}</li> : <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-border" />{isZh ? "保存官方取消证据" : "Save official cancellation evidence"}</li>}
-              </ol>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+          <Collapsible>
+            <CollapsibleTrigger className="flex min-h-11 w-full items-center justify-between rounded-[8px] border px-4 text-left text-sm font-medium">
+              {t("review.details")}
+              <ChevronDown className="h-4 w-4" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 pt-3 text-sm text-muted-foreground">
+              <p>{center?.addressZh}</p>
+              <p>{centerRule}</p>
+              {snapshot.routing.basis === "ambiguous" ? (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{t("review.ambiguous")}</AlertDescription>
+                </Alert>
+              ) : null}
+            </CollapsibleContent>
+          </Collapsible>
+          {!reviewReady ? (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertCircle className="h-4 w-4 text-amber-700" />
+              <AlertTitle>{t("review.missingTitle")}</AlertTitle>
+              <AlertDescription>{t("review.missingBody")}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button asChild variant="outline"><Link href={applicationFormHref}>{t("review.edit")}</Link></Button>
+            <BrandActionButton
+              className="w-full sm:w-auto"
+              loading={busy === "confirm-review"}
+              loadingText={t("review.confirming")}
+              disabled={!reviewReady || Boolean(busy)}
+              onClick={() => void run("confirm-review")}
+            >
+              <Check />{t("review.confirm")}
+            </BrandActionButton>
+          </div>
+        </StageCard>
       ) : null}
 
-      {stage === "loading" ? (
-        <Card className="rounded-[8px]"><CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-brand-600" />{isZh ? "正在读取预约状态..." : "Loading appointment status..."}</CardContent></Card>
-      ) : null}
-
-      {stage === "center" ? (
-        <Card className="rounded-[8px]">
-          <CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-brand-600" />{isZh ? "选择递签领区" : "Choose filing center"}</CardTitle></CardHeader>
-          <CardContent className="space-y-5">
-            {snapshot?.rebookingAfterCancellation ? (
-              <Alert className="border-emerald-200 bg-emerald-50/50">
-                <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-                <AlertTitle>{isZh ? "旧预约已取消，请确认新预约领区" : "Old booking cancelled; confirm the new filing center"}</AlertTitle>
-                <AlertDescription>{isZh ? "已为本申请创建新的预约流程。上次领区已预选，你可以在发送验证码前修改。" : "A fresh booking flow is ready. The previous center is preselected and can be changed before SMS verification."}</AlertDescription>
+      {snapshot && stage === "account" ? (
+        <StageCard stage="account" title={t("account.title")} icon={<MessageSquareText className="h-5 w-5 text-brand-600" />} error={error}>
+          {workerUnavailable ? (
+            <>
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertCircle className="h-4 w-4 text-amber-700" />
+                <AlertTitle>{t("account.workerTitle")}</AlertTitle>
+                <AlertDescription>{t("account.workerBody")}</AlertDescription>
               </Alert>
-            ) : null}
-            <p className="text-sm leading-6 text-muted-foreground">{isZh ? "请确认申请资料对应的领区。系统会根据当前居住地或户籍推荐中心；领区不确定时可手动选择。" : "Confirm the jurisdiction that matches your residence or hukou. You can select another center when the recommendation is not applicable."}</p>
-            <label className="block text-sm font-medium text-foreground">
-              {isZh ? "递签中心" : "Filing center"}
-              <select value={activeCenterCode ?? ""} onChange={(event) => void chooseCenter(event.target.value)} disabled={Boolean(busy)} className="mt-2 h-11 w-full rounded-[8px] border bg-white px-3 text-sm outline-none focus:border-brand-500 disabled:bg-muted">
-                {(snapshot?.routing.allCenters ?? (center ? [center, ...(snapshot?.routing.alternatives ?? [])] : [])).map((item) => <option key={item.code} value={item.code}>{isZh ? item.nameZh : item.nameEn} ({item.provinces.join(isZh ? "、" : ", ")})</option>)}
-              </select>
-            </label>
-            {center ? <div className="rounded-[8px] border bg-muted/30 p-4 text-sm"><div className="font-medium">{centerName}</div><div className="mt-1 text-muted-foreground">{center.addressZh}</div><div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded-full border bg-white px-3 py-1">{serviceLabel}</span><span className="rounded-full border bg-white px-3 py-1">{center.acceptsWalkIn === true ? (isZh ? "可现场取号" : "Walk-in allowed") : center.acceptsWalkIn === false ? (isZh ? "仅预约递交" : "Appointment only") : (isZh ? "现场规则以公告为准" : "Check current walk-in notice")}</span></div></div> : null}
-            {snapshot?.routing.basis === "ambiguous" ? <Alert><AlertTriangle className="h-4 w-4" /><AlertDescription>{isZh ? "请确认领区是否与可证明的现居住地或户籍地一致。" : "Confirm that the selected center matches your provable residence or hukou."}</AlertDescription></Alert> : null}
-            {snapshot?.appointmentHistory.length ? <div className="rounded-[8px] border bg-muted/30 p-4 text-sm"><div className="font-medium">{isZh ? "历史预约记录" : "Appointment history"}</div>{snapshot.appointmentHistory.map((record) => <div key={record.id} className="mt-2 border-t pt-2 text-muted-foreground"><span className="font-medium text-foreground">{record.appointment_date} {record.appointment_time}</span><span className="mx-2">{record.appointment_location}</span><span className="text-xs">{isZh ? "确认号：" : "Confirmation: "}{record.confirmation_number ?? (isZh ? "待官方确认" : "Pending official confirmation")}</span></div>)}</div> : null}
-            {savedAppointment ? <div className="rounded-[8px] border border-amber-200 bg-amber-50/50 p-4"><div className="font-medium text-foreground">{isZh ? "此申请已有预约" : "This application already has an appointment"}</div><p className="mt-1 text-sm leading-6 text-muted-foreground">{isZh ? "如需改变现有预约，请选择改约或取消。系统会先在官网查询该确认记录，最终取消前仍会请你确认。" : "To change the existing appointment, choose reschedule or cancel. VIZA will first query the official record and will ask you before any final cancellation."}</p><div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" onClick={() => void run("request-reschedule")} disabled={Boolean(busy) || !center}>{busy === "request-reschedule" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}{isZh ? "改约" : "Reschedule"}</Button><Button variant="outline" onClick={() => void run("request-cancel")} disabled={Boolean(busy) || !center}>{busy === "request-cancel" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}{isZh ? "取消预约" : "Cancel appointment"}</Button></div>{busy === "request-reschedule" || busy === "request-cancel" ? <p role="status" aria-live="polite" className="mt-3 text-sm text-muted-foreground">{isZh ? "正在准备官网预约查询，请勿重复点击。" : "Preparing the official appointment query. Do not click again."}</p> : null}</div> : <Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy) || !center} className="w-full sm:w-auto">{startingLiveBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}{isSmsCenter ? (startingLiveBooking ? (isZh ? "正在查询官网时段" : "Checking official slots") : (isZh ? "查询时间并发送验证码" : "Check slots and send code")) : (isZh ? "查看该中心办理方式" : "View center filing method")}</Button>}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {stage === "otp" ? (
-        <Card className="rounded-[8px]">
-          <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquareText className="h-5 w-5 text-brand-600" />{isZh ? "输入官方短信验证码" : "Enter official SMS code"}</CardTitle></CardHeader>
-          <CardContent className="space-y-5">
-            <p className="text-sm leading-6 text-muted-foreground">{isZh ? `验证码已由 ${centerName} 的官方预约页面发送。输入后，VIZA 会将其传入同一官方会话并读取可选时段。验证码不会写入日志或数据库。` : `The official ${centerName} booking page sent the code. VIZA passes it into the same official session to read slots. The code is not stored.`}</p>
-            {snapshot?.manualAction?.expires_at ? <p className="text-xs text-muted-foreground">{isZh ? `有效至 ${new Date(snapshot.manualAction.expires_at).toLocaleTimeString()}` : `Expires at ${new Date(snapshot.manualAction.expires_at).toLocaleTimeString()}`}</p> : null}
-            <div className="flex flex-col gap-3 sm:flex-row"><input value={smsCode} onChange={(event) => setSmsCode(event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" placeholder={isZh ? "输入验证码" : "SMS code"} className="h-11 flex-1 rounded-[8px] border bg-white px-3 text-sm outline-none focus:border-brand-500" /><Button onClick={() => void run("submit-sms-code", undefined, smsCode)} disabled={Boolean(busy) || !/^\d{4,8}$/.test(smsCode)}>{busy === "submit-sms-code" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarCheck className="mr-2 h-4 w-4" />}{isZh ? "验证并读取时间" : "Verify and read slots"}</Button></div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>{busy === "return-to-center-selection" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}{isZh ? "返回选择领区" : "Back to center selection"}</Button>
-              <Button variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>{busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}{isZh ? "重新发送验证码" : "Resend code"}</Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {stage === "slots" ? (
-        <Card className="rounded-[8px]">
-          <CardHeader><CardTitle className="flex items-center gap-2"><CalendarCheck className="h-5 w-5 text-brand-600" />{isZh ? "选择预约时间" : "Choose appointment slot"}</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">{isZh ? "以下时段来自当前官方会话。选择一个时段后，仍会在最终确认前请你授权。" : "These slots came from the current official session. After selection, you will still approve the final booking."}</p>
-            {snapshot?.slots.filter((slot) => ["observed", "user_selected", "selected"].includes(slot.status)).map((slot) => <div key={slot.id} className="flex flex-col gap-3 rounded-[8px] border p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-medium">{slot.appointment_date} {slot.appointment_time}</div><div className="text-sm text-muted-foreground">{slot.appointment_location}</div></div><Button variant="outline" onClick={() => void run("select-slot", slot.id)} disabled={Boolean(busy)}>{busy === "select-slot" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}{isZh ? "选择此时间" : "Choose this slot"}</Button></div>)}
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => void run("return-to-sms-verification")} disabled={Boolean(busy)}>
-                {busy === "return-to-sms-verification" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}
-                {isZh ? "返回短信验证" : "Back to SMS verification"}
-              </Button>
-              <Button variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}><RefreshCw className="mr-2 h-4 w-4" />{isZh ? "重新读取时段" : "Refresh slots"}</Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {stage === "confirm" ? (
-        <Card className="rounded-[8px]">
-          <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-brand-600" />{isZh ? "确认预约" : "Confirm booking"}</CardTitle></CardHeader>
-          <CardContent className="space-y-5">
-            <div className="rounded-[8px] border bg-muted/30 p-4"><div className="font-medium">{selectedSlot?.appointment_date} {selectedSlot?.appointment_time}</div><div className="mt-1 text-sm text-muted-foreground">{selectedSlot?.appointment_location}</div></div>
-            <p className="text-sm leading-6 text-muted-foreground">{isZh ? "只有你授权后，后端才会在官方页面点击最终确认；VIZA 仅在官方返回确认号时显示预约成功。" : "The worker clicks the official final confirmation only after your approval. VIZA marks it booked only when the official portal returns a confirmation number."}</p>
-            {waitingForFinalApproval ? <Button onClick={() => void run("approve-final-booking")} disabled={Boolean(busy)}>{busy === "approve-final-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}{isZh ? "授权最终预约" : "Approve final booking"}</Button> : null}
-            {finalApproved ? <Button onClick={() => void run("complete-final-booking")} disabled={Boolean(busy)}>{busy === "complete-final-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}{isZh ? "完成官方确认" : "Complete official confirmation"}</Button> : null}
-            {!finalApproved ? (
-              <Button variant="outline" onClick={() => void run("return-to-slot-selection")} disabled={Boolean(busy)}>
-                {busy === "return-to-slot-selection" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}
-                {isZh ? "返回选择时间" : "Back to slot selection"}
-              </Button>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {stage === "sms-restart" ? (
-        <Card className="rounded-[8px]">
-          <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquareText className="h-5 w-5 text-brand-600" />{isZh ? "重新进行短信验证" : "Restart SMS verification"}</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm leading-6 text-muted-foreground">{isZh ? "上一枚验证码已经在官网使用，不能重复提交。请重新发送验证码后继续读取当前可用时段。" : "The previous code was already consumed by the official portal. Send a new code before reading the current slots again."}</p>
-            <div className="flex flex-wrap gap-2">
+              <BrandActionButton
+                className="w-full sm:w-auto"
+                loading={busy === "request-live-booking"}
+                loadingText={t("account.checking")}
+                onClick={() => void run("request-live-booking")}
+              >
+                <RefreshCw />{t("account.retry")}
+              </BrandActionButton>
               <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>
-                {busy === "return-to-center-selection" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}
-                {isZh ? "返回选择领区" : "Back to center selection"}
+                {t("account.backToCenter")}
               </Button>
-              <Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>
-                {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
-                {isZh ? "重新发送验证码" : "Send a new code"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {stage === "confirmed" && snapshot?.confirmation ? (
-        <Card className="rounded-[8px] border-emerald-200">
-          <CardHeader><CardTitle className="flex items-center gap-2 text-emerald-800"><CheckCircle2 className="h-5 w-5" />{isZh ? "预约已确认" : "Appointment confirmed"}</CardTitle></CardHeader>
-          <CardContent className="space-y-5"><div className="rounded-[8px] bg-emerald-50 p-4 text-sm text-emerald-950"><div className="font-medium">{snapshot.confirmation.appointment_date} {snapshot.confirmation.appointment_time}</div><div className="mt-1">{snapshot.confirmation.appointment_location}</div><div className="mt-2 text-xs">{isZh ? "官方确认号：" : "Official confirmation: "}{snapshot.confirmation.confirmation_number}</div></div><div><div className="font-medium">{isZh ? "到场请准备" : "Bring to the appointment"}</div><ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-muted-foreground"><li>{isZh ? "护照原件及资料页复印件。" : "Original passport and bio-page copy."}</li><li>{isZh ? "官方 Korea Visa Portal 带条码 e-Form 打印件，到场签字。" : "Printed Korea Visa Portal barcode e-Form; sign at filing."}</li><li>{isZh ? "白底 3.5cm x 4.5cm 证件照，以及所选领区要求的行程、在职/在读、资金等材料。" : "White-background 3.5cm x 4.5cm photo plus itinerary, employment/student, financial, and center-specific documents."}</li><li>{isZh ? "预约确认单打印件。" : "Printed appointment confirmation."}</li></ul></div><div>{snapshot.confirmation.confirmation_pdf_url ? <Button asChild><a href={snapshot.confirmation.confirmation_pdf_url} target="_blank" rel="noopener noreferrer"><Printer className="mr-2 h-4 w-4" />{isZh ? "打印预约确认书" : "Print appointment confirmation"}</a></Button> : <Button onClick={() => void run("print-appointment-confirmation")} disabled={Boolean(busy)}>{busy === "print-appointment-confirmation" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}{isZh ? "打印预约确认书" : "Print appointment confirmation"}</Button>}</div><div className="border-t pt-5"><div className="font-medium">{isZh ? "改约或取消" : "Reschedule or cancel"}</div><p className="mt-1 text-sm text-muted-foreground">{isZh ? "改约会先在官方流程取消旧预约，再重新发送验证码并选择新时间。" : "Rescheduling cancels the old official appointment first, then restarts SMS verification and slot selection."}</p><div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" onClick={() => void run("request-reschedule")} disabled={Boolean(busy)}>{busy === "request-reschedule" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}{isZh ? "改约" : "Reschedule"}</Button><Button variant="outline" onClick={() => void run("request-cancel")} disabled={Boolean(busy)}>{busy === "request-cancel" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}{isZh ? "取消预约" : "Cancel appointment"}</Button></div></div></CardContent>
-        </Card>
-      ) : null}
-
-      {stage === "change-query" ? (
-        <Card className="rounded-[8px]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {busy ? <Loader2 className="h-5 w-5 animate-spin text-brand-600" /> : <RefreshCw className="h-5 w-5 text-brand-600" />}
-              {workerUnavailable
-                ? (isZh ? "预约查询服务暂时不可用" : "The appointment lookup service is temporarily unavailable")
-                : busy
-                  ? (isZh ? "正在处理旧预约" : "Processing the existing booking")
-                  : (isZh ? "准备处理旧预约" : "Ready to process the existing booking")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm leading-6 text-muted-foreground">
-              {workerUnavailable
-                ? (isZh
-                    ? "本次未能连接预约查询服务，官网预约记录查询没有完成。系统没有获得任何可用于判断时段或改约状态的官网结果，请稍后重试。"
-                    : "VIZA could not reach the appointment lookup service, so the official booking query did not complete. No official availability or rescheduling result was obtained; try again shortly.")
-                : snapshot?.manualAction?.action_type === "official_reschedule_required"
-                  ? (isZh
-                      ? "VIZA 已找到本申请保存的预约记录。继续后会在官网取消旧预约，再重新发送验证码选择新时间。"
-                      : "VIZA found a booking record saved for this application. Continuing cancels the old official appointment, then restarts SMS verification and slot selection.")
-                  : (isZh
-                      ? "你已在 VIZA 确认取消。继续后，后端会直接在官网查询、确认取消并复核结果。"
-                      : "You already confirmed cancellation in VIZA. Continuing queries, confirms, and verifies the cancellation directly on the official site.")}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void run(snapshot?.manualAction?.action_type === "official_reschedule_required" ? "request-reschedule" : "request-cancel")} disabled={Boolean(busy)}>
-                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                {workerUnavailable
-                  ? (isZh ? "重新查询官网预约" : "Retry official booking lookup")
-                  : snapshot?.manualAction?.action_type === "official_reschedule_required"
-                    ? (isZh ? "取消旧预约并改约" : "Cancel old booking and reschedule")
-                    : (isZh ? "直接取消预约" : "Cancel appointment")}
-              </Button>
-              <Button variant="outline" onClick={() => void run("restart-without-booking-record")} disabled={Boolean(busy)}>
-                {busy === "restart-without-booking-record" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-                {isZh ? "这不是有效预约，重新开始" : "No valid booking, restart"}
-              </Button>
-            </div>
-            <p className="text-xs leading-5 text-muted-foreground">
-              {isZh ? "重新开始只会清除 VIZA 内的遗留状态，不会在官网取消任何预约。" : "Restart clears stale VIZA state only; it does not cancel anything on the official site."}
-            </p>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {stage === "cancel-confirmation" ? (
-        <Card className="rounded-[8px] border-amber-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-700" />
-              {cancellationReady ? cancellationIntent === "reschedule" ? (isZh ? "确认取消旧预约后改约" : "Cancel old booking before rescheduling") : (isZh ? "直接取消预约" : "Cancel appointment directly") : (isZh ? "取消操作需要重试" : "Cancellation needs a retry")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {savedAppointment ? (
-              <section className="space-y-4 rounded-[8px] border bg-background p-4" aria-labelledby="current-appointment-details">
-                <div>
-                  <h2 id="current-appointment-details" className="font-medium text-foreground">{isZh ? "当前递签详情" : "Current filing details"}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{isZh ? "请在操作前核对以下已保存的预约信息。" : "Review the saved appointment details before making a change."}</p>
-                </div>
-                <div className="grid gap-3 text-sm sm:grid-cols-2">
-                  <div><div className="text-muted-foreground">{isZh ? "递签时间" : "Appointment time"}</div><div className="mt-1 font-medium">{savedAppointment.appointment_date} {savedAppointment.appointment_time}</div></div>
-                  <div><div className="text-muted-foreground">{isZh ? "递签地点" : "Filing location"}</div><div className="mt-1 font-medium">{savedAppointment.appointment_location}</div></div>
-                  <div className="sm:col-span-2"><div className="text-muted-foreground">{isZh ? "官方确认号" : "Official confirmation"}</div><div className="mt-1 font-medium">{savedAppointment.confirmation_number}</div></div>
-                </div>
-                <div className="border-t pt-4">
-                  <h3 className="font-medium text-foreground">{isZh ? "到场材料" : "What to bring"}</h3>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-muted-foreground">
-                    <li>{isZh ? "护照原件及资料页复印件。" : "Original passport and a copy of its bio page."}</li>
-                    <li>{isZh ? "官方 Korea Visa Portal 带条码 e-Form 打印件，到场签字。" : "Printed Korea Visa Portal barcode e-Form; sign it at filing."}</li>
-                    <li>{isZh ? "预约确认单打印件，以及所选领区要求的行程、在职/在读、资金等材料。" : "Printed appointment confirmation plus itinerary, employment/student, financial, and center-specific documents."}</li>
-                    <li>{isZh ? "如电子表格或所选领区要求，携带白底 3.5cm x 4.5cm 证件照。" : "Bring a 3.5cm x 4.5cm white-background photo if required by the e-Form or selected center."}</li>
-                  </ul>
-                </div>
-              </section>
-            ) : null}
-            <p className="text-sm leading-6 text-muted-foreground">
-              {cancellationReady ? (isZh ? "你已在 VIZA 确认取消。点击后，VIZA 会直接在官网完成取消并保存官方证据。此操作不能撤销。" : "You already confirmed cancellation in VIZA. Clicking below completes the cancellation on the official site and saves evidence. This cannot be undone.") : (isZh ? "本次官网会话未能完成取消。重新尝试会重新建立官网会话；只有官网明确返回成功或无预约记录时，VIZA 才会显示已取消。" : "The official session did not complete the cancellation. Retrying creates a fresh official session; VIZA marks it cancelled only after an official success or no-record result.")}
-            </p>
-            {snapshot?.cancellationRefreshRequired ? (
-              <Alert>
-                <RefreshCw className="h-4 w-4" />
-                <AlertTitle>{isZh ? "官方取消会话已刷新" : "Official cancellation session refreshed"}</AlertTitle>
-                <AlertDescription>{isZh ? "原会话已过期，VIZA 已重新查询官网预约。请再次确认，系统才会提交取消。" : "The previous session expired. VIZA queried the official booking again. Confirm once more before cancellation is submitted."}</AlertDescription>
-              </Alert>
-            ) : null}
-            {cancellationReady ? (
-              <div className="flex flex-wrap gap-2">
-                <Button variant="destructive" onClick={() => void run("confirm-cancel-official")} disabled={Boolean(busy)}>
-                  <XCircle className="mr-2 h-4 w-4" />
-                  {cancellingOfficialBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {cancellationIntent === "reschedule" ? (isZh ? "取消旧预约并继续改约" : "Cancel and continue rescheduling") : (isZh ? "直接取消预约" : "Cancel appointment")}
-                </Button>
-                <Button variant="outline" onClick={() => void run("return-to-appointment-details")} disabled={Boolean(busy)}>
-                  {busy === "return-to-appointment-details" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}
-                  {isZh ? "返回预约详情" : "Back to appointment details"}
-                </Button>
+            </>
+          ) : ["official_center_manual_checkpoint", "official_guidance_required", "official_account_login_required"].includes(manualActionType ?? "") ? (
+            <>
+              <p className="text-sm leading-6 text-muted-foreground">{t("account.manualBody")}</p>
+              <div className="rounded-[8px] border bg-muted/30 p-4 text-sm">
+                <p className="font-medium">{centerName}</p>
+                <p className="mt-2 leading-6 text-muted-foreground">{centerRule}</p>
               </div>
-            ) : (
-              <Button variant="outline" onClick={() => void run("start-cancel-query")} disabled={Boolean(busy)}>
-                {busy === "start-cancel-query" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                {isZh ? "重新查询取消入口" : "Retry cancellation query"}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {stage === "reschedule-restart" && !startingLiveBooking ? (
-        <Card className="rounded-[8px] border-emerald-200">
-          <CardHeader><CardTitle className="flex items-center gap-2 text-emerald-800"><CheckCircle2 className="h-5 w-5" />{isZh ? "旧预约已取消" : "Old booking cancelled"}</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">{isZh ? "现在重新发送官方验证码，选择新的预约时间。" : "Now send a fresh official SMS code and choose a new appointment time."}</p>
-            <div className="flex flex-wrap gap-2">
+              <BrandActionButton asChild className="w-full sm:w-auto">
+                <a href={center?.bookingUrl ?? center?.officialUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink />{t("account.openOfficial")}
+                </a>
+              </BrandActionButton>
               <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>
-                {busy === "return-to-center-selection" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}
-                {isZh ? "返回选择领区" : "Back to center selection"}
+                {t("account.backToCenter")}
               </Button>
-              <Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>
-                {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
-                {isZh ? "发送新验证码" : "Send new code"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </>
+          ) : manualActionType === "sms_verification_required" ? (
+            <>
+              <p className="text-sm leading-6 text-muted-foreground">{t("account.smsBody", { phone: phoneMasked || t("common.maskedPhone") })}</p>
+              {manualAction?.expires_at ? (
+                <p className="text-xs text-muted-foreground">{t("account.expires", { time: new Date(manualAction.expires_at).toLocaleTimeString() })}</p>
+              ) : null}
+              <BrandField label={t("account.codeLabel")} htmlFor="korea-sms-code">
+                <BrandInput
+                  id="korea-sms-code"
+                  value={smsCode}
+                  onChange={(event) => setSmsCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder={t("account.codePlaceholder")}
+                />
+              </BrandField>
+              <BrandActionButton
+                className="w-full sm:w-auto"
+                loading={busy === "submit-sms-code"}
+                loadingText={t("account.verifying")}
+                disabled={Boolean(busy) || !/^\d{4,8}$/.test(smsCode)}
+                onClick={() => void run("submit-sms-code", undefined, smsCode)}
+              >
+                <CalendarCheck />{t("account.verify")}
+              </BrandActionButton>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>{t("account.backToCenter")}</Button>
+                <Button variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>{t("account.resend")}</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm leading-6 text-muted-foreground">
+                {snapshot.rebookingAfterCancellation || snapshot.job?.status === "sms_restart_required"
+                  ? t("account.restartBody")
+                  : t("account.body")}
+              </p>
+              <div className="rounded-[8px] border bg-muted/30 p-4 text-sm">
+                <p className="font-medium">{centerName}</p>
+                <p className="mt-1 text-muted-foreground">{centerRule}</p>
+              </div>
+              <BrandActionButton
+                className="w-full sm:w-auto"
+                loading={busy === "request-live-booking"}
+                loadingText={t("account.checking")}
+                disabled={Boolean(busy)}
+                onClick={() => void run("request-live-booking")}
+              >
+                {isSmsCenter ? <MessageSquareText /> : <ExternalLink />}
+                {isSmsCenter ? t("account.start") : t("account.viewMethod")}
+              </BrandActionButton>
+              {busy === "request-live-booking" ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="polite">
+                  <Loader2 className="h-4 w-4 animate-spin text-brand-600" />{t("account.scanProgress")}
+                </div>
+              ) : null}
+              <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>{t("account.backToCenter")}</Button>
+            </>
+          )}
+        </StageCard>
       ) : null}
 
-      {stage === "cancelled" ? (
-        <Card className="rounded-[8px] border-emerald-200">
-          <CardContent className="space-y-4 p-6">
-            <div>
-              <div className="flex items-center gap-2 font-medium text-emerald-800"><CheckCircle2 className="h-5 w-5" />{isZh ? "预约已取消" : "Appointment cancelled"}</div>
-              <p className="mt-2 text-sm text-muted-foreground">{isZh ? "VIZA 已收到官方取消结果，并保留了旧预约与取消证据。你可以现在创建一条全新的预约流程。" : "VIZA received the official cancellation result and preserved the old booking and cancellation evidence. You can now start a fresh booking flow."}</p>
-            </div>
-            <Button onClick={() => void run("start-new-booking")} disabled={Boolean(busy)}>
-              {busy === "start-new-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-              {busy === "start-new-booking"
-                ? (isZh ? "正在创建新预约..." : "Starting a new booking...")
-                : (isZh ? "重新预约" : "Book again")}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {stage === "manual" && center ? (
-        <Card className="rounded-[8px]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-700" />
-              {workerUnavailable
-                ? (isZh ? "预约查询服务暂时不可用" : "The appointment lookup service is temporarily unavailable")
-                : (isZh ? "该领区需要按官方指引办理" : "This center follows official guidance")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm leading-6 text-muted-foreground">
-              {workerUnavailable
-                ? (isZh
-                    ? "本次未能连接预约查询服务，官网时段扫描没有完成，因此目前无法判断是否有可预约时间。请稍后重新查询。"
-                    : "VIZA could not reach the appointment lookup service, so the official slot scan did not complete. Availability is currently unknown; try again shortly.")
-                : (isZh
-                    ? "该中心没有可验证的统一短信预约流程，或官方站点出现账号、实名等必须由申请人处理的门槛。VIZA 不会把它标记为预约成功。"
-                    : "This center has no verifiable unified SMS booking flow, or its official site has an applicant-only gate such as account or real-name verification. VIZA will not mark it as booked.")}
-            </p>
-            <div className="rounded-[8px] border bg-muted/30 p-4 text-sm">
-              <div className="font-medium">{centerName}</div>
-              <div className="mt-1 text-muted-foreground">{isZh ? center.appointmentRuleZh : center.appointmentRuleEn}</div>
-              {(isZh ? center.importantNoticesZh : center.importantNoticesEn).map((notice) => (
-                <div key={notice} className="mt-2 text-xs text-muted-foreground">{notice}</div>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {workerUnavailable ? (
-                <Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>
-                  {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  {isZh ? "重新查询官网时段" : "Retry official slot lookup"}
+      {snapshot && stage === "slots" ? (
+        <StageCard stage="slots" title={t("slots.title")} icon={<CalendarCheck className="h-5 w-5 text-brand-600" />} error={error}>
+          {noSlots ? (
+            <div className="flex min-h-64 flex-col items-center justify-center text-center">
+              <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand-600"><CalendarCheck className="h-6 w-6" /></div>
+              <h2 className="mt-4 font-heading text-lg font-medium">{t("slots.emptyTitle")}</h2>
+              <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{t("slots.emptyBody")}</p>
+              {noSlots.lastCheckedAt ? <p className="mt-2 text-xs text-muted-foreground">{t("slots.checkedAt", { time: new Date(noSlots.lastCheckedAt).toLocaleString() })}</p> : null}
+              <BrandActionButton
+                className="mt-5 w-full sm:w-auto"
+                loading={busy === "request-live-booking"}
+                loadingText={t("slots.checking")}
+                onClick={() => void run("request-live-booking")}
+              >
+                <RefreshCw />{t("slots.retry")}
+              </BrandActionButton>
+              <Button variant="ghost" className="mt-2" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>{t("slots.changeCenter")}</Button>
+              {noSlots.evidenceUrl ? (
+                <Button asChild variant="link" className="mt-1">
+                  <a href={noSlots.evidenceUrl} target="_blank" rel="noopener noreferrer">{t("slots.viewEvidence")}</a>
                 </Button>
               ) : null}
-              <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>
-                {busy === "return-to-center-selection"
-                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  : <ArrowLeft className="mr-2 h-4 w-4" />}
-                {isZh ? "重新选择领区" : "Choose another center"}
-              </Button>
-              {!workerUnavailable ? (
-                <>
-                  <Button asChild variant="outline">
-                    <Link href={`/client/applications/${applicationId}/korea-appointment/rules`}>
-                      {isZh ? "查看递签规则" : "View filing rules"}
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <a href={center.bookingUrl ?? center.officialUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      {isZh ? "打开官方入口" : "Open official entry"}
-                    </a>
-                  </Button>
-                </>
-              ) : null}
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <>
+              <p className="text-sm leading-6 text-muted-foreground">{t("slots.body")}</p>
+              <div className="space-y-3">
+                {observedSlots.map((slot) => (
+                  <div key={slot.id} className="flex flex-col gap-3 rounded-[10px] border p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium">{slot.appointment_date} {slot.appointment_time}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{slot.appointment_location}</p>
+                    </div>
+                    <BrandActionButton
+                      size="sm"
+                      variant="secondary"
+                      loading={busy === "select-slot"}
+                      disabled={Boolean(busy)}
+                      onClick={() => void run("select-slot", slot.id)}
+                    >
+                      <CheckCircle2 />{t("slots.choose")}
+                    </BrandActionButton>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => void run("return-to-sms-verification")} disabled={Boolean(busy)}>{t("slots.back")}</Button>
+                <Button variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}><RefreshCw className="mr-2 h-4 w-4" />{t("slots.refresh")}</Button>
+              </div>
+            </>
+          )}
+        </StageCard>
       ) : null}
+
+      {snapshot && stage === "confirm" ? (
+        <StageCard stage="confirm" title={t("confirm.title")} icon={<ShieldCheck className="h-5 w-5 text-brand-600" />} error={error}>
+          <div className="rounded-[10px] border border-brand-100 bg-brand-50/60 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-brand-700">{t("confirm.selected")}</p>
+            <p className="mt-2 text-lg font-semibold">{selectedSlot?.appointment_date} {selectedSlot?.appointment_time}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{selectedSlot?.appointment_location}</p>
+            <p className="mt-3 border-t border-brand-100 pt-3 text-sm text-muted-foreground">{review?.applicantName || t("common.notProvided")}</p>
+          </div>
+          {!finalApproved ? (
+            <label className="flex cursor-pointer items-start gap-3 rounded-[10px] border p-4">
+              <Checkbox checked={authorizationChecked} onCheckedChange={(checked) => setAuthorizationChecked(checked === true)} className="mt-0.5 h-5 w-5" />
+              <span className="text-sm leading-6">{t("confirm.authorization")}</span>
+            </label>
+          ) : (
+            <Alert className="border-emerald-200 bg-emerald-50">
+              <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+              <AlertTitle>{t("confirm.approvedTitle")}</AlertTitle>
+              <AlertDescription>{t("confirm.approvedBody")}</AlertDescription>
+            </Alert>
+          )}
+          {waitingForFinalApproval ? (
+            <BrandActionButton
+              className="w-full sm:w-auto"
+              loading={busy === "approve-final-booking"}
+              loadingText={t("confirm.approving")}
+              disabled={!authorizationChecked || Boolean(busy)}
+              onClick={() => void run("approve-final-booking")}
+            >
+              <ShieldCheck />{t("confirm.approve")}
+            </BrandActionButton>
+          ) : null}
+          {finalApproved ? (
+            <BrandActionButton
+              className="w-full sm:w-auto"
+              loading={busy === "complete-final-booking"}
+              loadingText={t("confirm.submitting")}
+              disabled={Boolean(busy)}
+              onClick={() => void run("complete-final-booking")}
+            >
+              <CheckCircle2 />{t("confirm.submit")}
+            </BrandActionButton>
+          ) : null}
+          {!finalApproved ? (
+            <Button variant="outline" onClick={() => void run("return-to-slot-selection")} disabled={Boolean(busy)}>{t("confirm.back")}</Button>
+          ) : null}
+        </StageCard>
+      ) : null}
+
+      {snapshot && stage === "result" ? (
+        <StageCard
+          stage="result"
+          title={cancelled ? t("result.cancelledTitle") : t("result.title")}
+          icon={cancelled ? <XCircle className="h-5 w-5 text-slate-600" /> : <CheckCircle2 className="h-5 w-5 text-emerald-700" />}
+          error={error}
+        >
+          {cancelled ? (
+            <div className="flex min-h-64 flex-col items-center justify-center text-center">
+              <p className="max-w-md text-sm leading-6 text-muted-foreground">{t("result.cancelledBody")}</p>
+              <BrandActionButton
+                className="mt-5"
+                loading={busy === "start-new-booking"}
+                loadingText={t("result.restarting")}
+                onClick={() => void run("start-new-booking")}
+              >
+                <RotateCcw />{t("result.bookAgain")}
+              </BrandActionButton>
+            </div>
+          ) : savedAppointment ? (
+            <>
+              <div className="rounded-[12px] border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
+                <div className="flex items-center gap-2 text-sm font-medium"><FileCheck2 className="h-4 w-4" />{t("result.officialConfirmation")}</div>
+                <p className="mt-3 font-heading text-2xl font-medium">{savedAppointment.appointment_date} {savedAppointment.appointment_time}</p>
+                <p className="mt-1 text-sm">{savedAppointment.appointment_location}</p>
+                <p className="mt-4 border-t border-emerald-200 pt-4 text-sm">{t("result.number", { number: savedAppointment.confirmation_number ?? "-" })}</p>
+              </div>
+              {savedAppointment.confirmation_pdf_url ? (
+                <BrandActionButton asChild className="w-full sm:w-auto">
+                  <a href={savedAppointment.confirmation_pdf_url} target="_blank" rel="noopener noreferrer"><Printer />{t("result.print")}</a>
+                </BrandActionButton>
+              ) : (
+                <BrandActionButton
+                  className="w-full sm:w-auto"
+                  loading={busy === "print-appointment-confirmation"}
+                  loadingText={t("result.preparingPrint")}
+                  onClick={() => void run("print-appointment-confirmation")}
+                >
+                  <Printer />{t("result.print")}
+                </BrandActionButton>
+              )}
+              <Button variant="outline" onClick={() => setManagementOpen(true)}><Settings2 className="mr-2 h-4 w-4" />{t("result.manage")}</Button>
+            </>
+          ) : null}
+        </StageCard>
+      ) : null}
+
+      <Sheet open={centerSheetOpen} onOpenChange={setCenterSheetOpen}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t("centerSheet.title")}</SheetTitle>
+            <SheetDescription>{t("centerSheet.description")}</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 space-y-3">
+            {allCenters.map((item) => {
+              const selected = item.code === activeCenterCode;
+              return (
+                <button
+                  key={item.code}
+                  type="button"
+                  className={cn(
+                    "w-full rounded-[10px] border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40",
+                    selected ? "border-brand-400 bg-brand-50" : "border-slate-200 hover:bg-slate-50",
+                  )}
+                  onClick={() => void chooseCenter(item.code)}
+                >
+                  <span className="flex items-start justify-between gap-3">
+                    <span>
+                      <span className="block font-medium">{t("locale") === "zh" ? item.nameZh : item.nameEn}</span>
+                      <span className="mt-1 block text-sm leading-6 text-muted-foreground">{item.provinces.join(t("common.listSeparator"))}</span>
+                    </span>
+                    {selected ? <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-600" /> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={managementOpen} onOpenChange={setManagementOpen}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t("management.title")}</SheetTitle>
+            <SheetDescription>{t("management.description")}</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">{managementContent}</div>
+        </SheetContent>
+      </Sheet>
     </main>
   );
 }
