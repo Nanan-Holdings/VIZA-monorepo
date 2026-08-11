@@ -29,13 +29,22 @@ class SupabaseAuthUnavailableError extends Error {
   }
 }
 
+function readErrorField(error: unknown, field: "name" | "message"): string {
+  if (typeof error !== "object" || error === null) return "";
+
+  const value = (error as Record<string, unknown>)[field];
+  return typeof value === "string" ? value : "";
+}
+
 function isSupabaseUnavailable(error: unknown): boolean {
   if (error instanceof SupabaseAuthUnavailableError) return true;
-  if (!(error instanceof Error)) return false;
 
-  const message = error.message.toLowerCase();
+  const name = readErrorField(error, "name");
+  const message = readErrorField(error, "message").toLowerCase();
   return (
-    error.name === "AbortError" ||
+    name === "AbortError" ||
+    name === "TimeoutError" ||
+    name === "AuthRetryableFetchError" ||
     message.includes("fetch failed") ||
     message.includes("network") ||
     message.includes("timeout") ||

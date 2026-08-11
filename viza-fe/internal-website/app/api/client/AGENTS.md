@@ -4,6 +4,9 @@ Routes here proxy applicant authentication requests to Supabase from the same
 origin so local browser CORS settings never block login or email-code flows.
 Do not log credentials, verification codes, or raw Supabase tokens.
 
+`auth/route.test.ts` guards timeout and network-error normalization so raw
+Supabase failures never reach the login UI.
+
 `session/route.ts` validates the active applicant or impersonation session only.
 Keep it free of optional onboarding/database bootstrap side effects so opening
 a new client tab never redirects the applicant away from the requested page.
