@@ -66,6 +66,12 @@ const PHASES: Phase[] = [
 
 const PHASE_PROGRESS = [34, 67, 99] as const;
 
+function phaseIndexForProgress(progress: number): number {
+  if (progress <= PHASE_PROGRESS[0]) return 0;
+  if (progress <= PHASE_PROGRESS[1]) return 1;
+  return 2;
+}
+
 function normalizeStatus(status: SubmissionVisualStatus | null | undefined): string {
   return (status ?? "").trim().toLowerCase();
 }
@@ -193,6 +199,13 @@ export function localizeProgressMessage(
   return message;
 }
 
+function isPacedRuntimeMessage(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return /^(?:\s*Current stage:)|Fly 云端已到达官方付款阶段|Fly 云端正在填写|Fly cloud.*official payment stage|The Fly cloud run is filling|submission job is queued|preparing and mapping|the runner is filling|the runner is advancing|still confirming the submission result|submission completed|automated submission has started|自动提交任务已启动|银行卡已安全送入云端|正在准备官网填写任务/i.test(
+    message.trim(),
+  );
+}
+
 /**
  * WaitingCard — renders while applications.submission_result_status is
  * `waiting` or `processing`. Phase progresses on a soft timer; the realtime
@@ -228,7 +241,6 @@ export function WaitingCard({
 }) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
-  const [activePhaseIdx, setActivePhaseIdx] = useState(0);
   const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [cancelingScheduled, setCancelingScheduled] = useState(false);
@@ -241,12 +253,20 @@ export function WaitingCard({
     country?.toUpperCase() === "FR" ||
     country?.toLowerCase() === "france" ||
     visaType === "EU_SCHENGEN_C_SHORT_STAY";
+  const reportedPhaseIdx =
+    phaseIndexForStage(stage) ??
+    (completeStatus || failedStatus || waitingForUser
+      ? PHASES.length - 1
+      : normalizeStatus(status) === "processing"
+        ? 1
+        : 0);
+  const reportedPhaseProgress = PHASE_PROGRESS[reportedPhaseIdx] ?? PHASE_PROGRESS[0];
   const visualServerProgress =
-    typeof serverProgress === "number"
-      ? serverProgress
-      : completeStatus
-        ? 100
-        : PHASE_PROGRESS[activePhaseIdx] ?? PHASE_PROGRESS[0];
+    completeStatus
+      ? 100
+      : typeof serverProgress === "number"
+        ? Math.max(serverProgress, reportedPhaseProgress)
+        : reportedPhaseProgress;
   const {
     displayedProgress,
     isVisuallyComplete,
@@ -267,31 +287,8 @@ export function WaitingCard({
     syncToServerProgress: false,
     onVisualComplete,
   });
+  const activePhaseIdx = phaseIndexForProgress(displayedProgress);
   const activePhase = PHASES[activePhaseIdx] ?? PHASES[0];
-
-  useEffect(() => {
-    const stagePhaseIndex = phaseIndexForStage(stage);
-    if (stagePhaseIndex !== null) {
-      setActivePhaseIdx((current) => Math.max(current, stagePhaseIndex));
-    } else if (scheduledStatus) {
-      setActivePhaseIdx((current) => Math.max(current, 0));
-    } else if (completeStatus || failedStatus || waitingForUser) {
-      setActivePhaseIdx((current) => Math.max(current, PHASES.length - 1));
-    } else if (status === "processing") {
-      setActivePhaseIdx((current) => Math.max(current, 1));
-    } else if (status === "waiting") {
-      setActivePhaseIdx((current) => Math.max(current, 0));
-    }
-  }, [completeStatus, failedStatus, scheduledStatus, stage, status, waitingForUser]);
-
-  // Soft auto-advance only when no backend stage/progress has arrived yet.
-  useEffect(() => {
-    if (stage || typeof serverProgress === "number") return;
-    if (completeStatus || failedStatus || waitingForUser || scheduledStatus) return;
-    if (activePhaseIdx >= PHASES.length - 1) return;
-    const id = setTimeout(() => setActivePhaseIdx((i) => Math.min(i + 1, PHASES.length - 1)), 12_000);
-    return () => clearTimeout(id);
-  }, [activePhaseIdx, completeStatus, failedStatus, scheduledStatus, serverProgress, stage, waitingForUser]);
 
   useEffect(() => {
     if (!applicationId || !isFrance || officialAccount) return;
@@ -364,15 +361,27 @@ export function WaitingCard({
         ? "流程已暂停，等待您或工作人员完成官网上的必要操作。"
         : "The flow is paused while a required official-portal action is completed.";
     }
-    if (localizedMessage) return localizedMessage;
-    if (activePhase.id === "confirming" && !isVisuallyComplete) {
+    const reportedPhaseMatchesVisual = reportedPhaseIdx === activePhaseIdx;
+    if (
+      localizedMessage &&
+      (!isPacedRuntimeMessage(message) ||
+        (reportedPhaseMatchesVisual && (!completeStatus || isVisuallyComplete)))
+    ) {
+      return localizedMessage;
+    }
+    if (activePhase.id === "preparing") {
       return isZh
-        ? "仍在等待检查点或结果，请稍候。"
-        : "Still waiting for a checkpoint or result. Please wait.";
+        ? "正在整理并校验官网所需的英文答案。"
+        : "Preparing and validating the English answers required by the official portal.";
+    }
+    if (activePhase.id === "filling") {
+      return isZh
+        ? "正在填写官网表单。"
+        : "Filling the official portal form.";
     }
     return isZh
-      ? "该进度会随后台状态自动推进；如果需要你本人操作，会切换到检查点提示。"
-      : "This progress updates with the background worker. If your action is needed, this card will switch to a checkpoint prompt.";
+      ? "正在等待官网检查点或最终结果。"
+      : "Waiting for an official-portal checkpoint or the final result.";
   })();
 
   async function cancelScheduledSubmission() {

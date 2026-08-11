@@ -494,9 +494,9 @@ describe("VnResultCard automated payment UI", () => {
       "aria-valuenow",
       "0",
     );
-    expect(
-      screen.getByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("正在整理并校验官网所需的英文答案。")).toBeInTheDocument();
+    expect(screen.queryByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"))
+      .not.toBeInTheDocument();
     expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
   });
 
@@ -576,7 +576,7 @@ describe("VnResultCard automated payment UI", () => {
     expect(screen.queryByText("payment_page_visible")).not.toBeInTheDocument();
   });
 
-  it("advances the full loading UI when the Fly worker starts filling the official form", async () => {
+  it("paces the form-filling backend stage from the first visual phase", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -595,11 +595,16 @@ describe("VnResultCard automated payment UI", () => {
 
     await screen.findByText("正在提交您的申请");
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
-    expect(screen.getByText("Fly 云端正在填写越南 e-Visa 官网表单。")).toBeInTheDocument();
-    expect(screen.getAllByText("正在填写官网表单").length).toBeGreaterThan(0);
+    expect(screen.getByText("正在整理并校验官网所需的英文答案。")).toBeInTheDocument();
+    expect(screen.queryByText("Fly 云端正在填写越南 e-Visa 官网表单。"))
+      .not.toBeInTheDocument();
+    const firstPhase = screen
+      .getAllByText("正在校验英文版答案")
+      .find((element) => element.closest("ol"));
+    expect(firstPhase?.closest("li")).toHaveClass("border-brand-500");
   });
 
-  it("keeps the payment handoff stage when an authorized Fly queue starts its worker", async () => {
+  it("paces an authorized payment handoff from the first visual phase", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -618,9 +623,12 @@ describe("VnResultCard automated payment UI", () => {
     render(<VnResultCard applicationId="app-vn-authorized" result={paymentResult} />);
 
     await screen.findByText("正在提交您的申请");
-    expect(
-      screen.getByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText("正在等待检查点或结果").length).toBeGreaterThan(0);
+    expect(screen.getByText("正在整理并校验官网所需的英文答案。")).toBeInTheDocument();
+    expect(screen.queryByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"))
+      .not.toBeInTheDocument();
+    const firstPhase = screen
+      .getAllByText("正在校验英文版答案")
+      .find((element) => element.closest("ol"));
+    expect(firstPhase?.closest("li")).toHaveClass("border-brand-500");
   });
 });
