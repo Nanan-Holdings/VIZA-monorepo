@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import {
+  clearClientSession,
+  createClientSession,
+  getUserFromSupabaseSession,
+} from "@/lib/client-session";
 import { createClient } from "@/lib/supabase/server";
 
 type AuthOperation = "password" | "send_otp" | "verify_otp";
 const SUPABASE_AUTH_TIMEOUT_MS = 6_000;
+const CLIENT_SESSION_BOOTSTRAP_TIMEOUT_MS = 500;
 
 interface ClientAuthRequest {
   operation?: unknown;
@@ -29,13 +35,22 @@ class SupabaseAuthUnavailableError extends Error {
   }
 }
 
+function readErrorField(error: unknown, field: "name" | "message"): string {
+  if (typeof error !== "object" || error === null) return "";
+
+  const value = (error as Record<string, unknown>)[field];
+  return typeof value === "string" ? value : "";
+}
+
 function isSupabaseUnavailable(error: unknown): boolean {
   if (error instanceof SupabaseAuthUnavailableError) return true;
-  if (!(error instanceof Error)) return false;
 
-  const message = error.message.toLowerCase();
+  const name = readErrorField(error, "name");
+  const message = readErrorField(error, "message").toLowerCase();
   return (
-    error.name === "AbortError" ||
+    name === "AbortError" ||
+    name === "TimeoutError" ||
+    name === "AuthRetryableFetchError" ||
     message.includes("fetch failed") ||
     message.includes("network") ||
     message.includes("timeout") ||
@@ -52,6 +67,19 @@ function providerUnavailableResponse() {
     },
     { headers: { "Retry-After": "3" } }
   );
+}
+
+async function bootstrapClientSession(): Promise<void> {
+  try {
+    const session = await getUserFromSupabaseSession({
+      requestTimeoutMs: CLIENT_SESSION_BOOTSTRAP_TIMEOUT_MS,
+      retryDelaysMs: [],
+    });
+    if (session) await createClientSession(session.userId, session.email);
+  } catch {
+    // Supabase authentication already succeeded. Keep its cookie session as a
+    // fallback when applicant profile/session bootstrap is temporarily unavailable.
+  }
 }
 
 export async function POST(request: Request) {
@@ -79,11 +107,15 @@ export async function POST(request: Request) {
       if (!password) return jsonError("Please enter a password");
 
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      return error
-        ? isSupabaseUnavailable(error)
+      if (error) {
+        return isSupabaseUnavailable(error)
           ? providerUnavailableResponse()
-          : jsonError(error.message, 401)
-        : NextResponse.json({ success: true });
+          : jsonError(error.message, 401);
+      }
+
+      await clearClientSession();
+      await bootstrapClientSession();
+      return NextResponse.json({ success: true });
     }
 
     if (operation === "send_otp") {
@@ -103,11 +135,15 @@ export async function POST(request: Request) {
       if (!/^\d{6,8}$/.test(token)) return jsonError("Please enter a valid verification code");
 
       const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
-      return error
-        ? isSupabaseUnavailable(error)
+      if (error) {
+        return isSupabaseUnavailable(error)
           ? providerUnavailableResponse()
-          : jsonError(error.message, 401)
-        : NextResponse.json({ success: true });
+          : jsonError(error.message, 401);
+      }
+
+      await clearClientSession();
+      await bootstrapClientSession();
+      return NextResponse.json({ success: true });
     }
   } catch (error) {
     if (isSupabaseUnavailable(error)) return providerUnavailableResponse();
