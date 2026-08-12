@@ -287,6 +287,54 @@ test("vn.payment-resume: uses the live search reload image with a trusted click 
   }
 });
 
+test("vn.payment-resume: re-resolves a Vue-replaced CAPTCHA image and waits for its stable bitmap", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const firstChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">111111</text></svg>',
+    );
+    const transientChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">333333</text></svg>',
+    );
+    const stableChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">222222</text></svg>',
+    );
+    await page.setContent(`
+      <input id="basic_captcha" />
+      <div id="captcha-slot"><img alt="captcha img" src="${firstChallenge}" /></div>
+      <img alt="reload" src="${firstChallenge}" />
+      <script>
+        document.querySelector('img[alt="reload"]').addEventListener("click", () => {
+          document.querySelector('#captcha-slot').innerHTML = '<img alt="captcha img" src="${transientChallenge}" />';
+          setTimeout(() => {
+            document.querySelector('#captcha-slot').innerHTML = '<img alt="captcha img" src="${stableChallenge}" />';
+          }, 300);
+        });
+      </script>
+    `);
+    const previousFingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
+    assert.ok(previousFingerprint);
+    let solveCalls = 0;
+
+    const result = await solveVietnamPaymentSearchCaptcha(page, 8_000, {
+      maxAttempts: 1,
+      knownChallengeFingerprints: new Set([previousFingerprint]),
+      solveCaptcha: async () => {
+        solveCalls += 1;
+        return { text: "222222", solveId: "fixture-solve", durationMs: 10 };
+      },
+    });
+
+    assert.equal(solveCalls, 1);
+    assert.equal(await page.locator("#basic_captcha").inputValue(), "222222");
+    assert.equal(result.diagnostics.at(-1)?.outcome, "solved");
+    assert.equal(result.diagnostics.at(-1)?.refreshConfirmed, true);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.payment-resume: rejects an unchanged search challenge after the reload control is clicked", async () => {
   const browser = await chromium.launch({ headless: true });
   try {
