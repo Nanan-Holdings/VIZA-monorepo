@@ -438,7 +438,9 @@
     },
     "progress": {
       "ariaLabel": "预约进度",
-      "current": "第 {current}/{total} 步"
+      "current": "第 {current}/{total} 步",
+      "label": "第 {current}/{total} 步 · {name}",
+      "back": "返回上一步"
     },
     "steps": {
       "review": "资料与领区",
@@ -485,6 +487,7 @@
     },
     "account": {
       "title": "完成官网验证",
+      "focus": "连接所选中心的官方预约页面，完成当前验证任务。",
       "body": "资料已确认。下一步会查询所选中心的官方预约页面；找到开放时段后，官网可能发送短信验证码。",
       "restartBody": "旧的官网会话已经结束。请重新建立会话并获取新的验证码。",
       "start": "查询官网时间",
@@ -509,6 +512,8 @@
       "title": "选择预约时间",
       "body": "以下时间来自当前官方会话。选择后还需要单独授权最终提交。",
       "choose": "选择此时间",
+      "continue": "使用这个时间继续",
+      "continuing": "正在保存所选时间…",
       "back": "返回官网验证",
       "refresh": "重新读取时段",
       "emptyTitle": "暂时没有开放的预约时间",
@@ -521,6 +526,11 @@
     },
     "confirm": {
       "title": "确认最终预约",
+      "body": "请只核对本次将要提交的预约信息。保存授权后，仍需再次提交官方预约。",
+      "date": "预约日期",
+      "time": "预约时间",
+      "location": "递签地点",
+      "applicant": "申请人",
       "selected": "已选择的官方时段",
       "authorization": "我已核对日期、时间和地点，并授权 VIZA 使用该时段进行最终预约。",
       "approve": "保存最终授权",
@@ -533,6 +543,7 @@
     },
     "result": {
       "title": "预约已确认",
+      "body": "官网确认号和预约证据已保存。请下载确认单并按时到场。",
       "officialConfirmation": "官网预约确认",
       "number": "官方确认号：{number}",
       "print": "下载或打印确认单",
