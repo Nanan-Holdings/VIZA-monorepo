@@ -498,8 +498,11 @@ filling and one-shot submission for the applicant.
   (length, duration, outcome and fingerprint prefix), never the answer. If the
   challenge changes while solving, its input redraw cannot be confirmed, the
   official page rejects it, or refresh cannot be proven, discard the page and
-  repeat the whole search in a new context under one shared timeout budget;
-  never send a previously-seen challenge fingerprint to the solver again.
+  repeat the whole search in a new context under one shared timeout budget.
+  If a fresh context receives a previously-seen challenge, use the official
+  reload control first and prove that the fingerprint changed; send only the
+  newly observed challenge to the solver. If a bounded reload cannot produce a
+  new fingerprint, stop without another solver request or form submission.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use

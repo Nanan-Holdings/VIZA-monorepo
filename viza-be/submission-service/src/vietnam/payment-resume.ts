@@ -536,9 +536,29 @@ export async function solveVietnamPaymentSearchCaptcha(
     if (!(await image.isVisible({ timeout: Math.min(3_000, remainingMs()) }).catch(() => false))) {
       return { diagnostics };
     }
-    const capture = await captureVietnamCaptchaImage(image, Math.max(1, Math.min(remainingMs(), 30_000)));
-    const challengeFingerprint = fingerprintVietnamCaptchaImage(capture.buffer);
-    const challengeFingerprintPrefix = challengeFingerprint.slice(0, 12);
+    let capture = await captureVietnamCaptchaImage(image, Math.max(1, Math.min(remainingMs(), 30_000)));
+    let challengeFingerprint = fingerprintVietnamCaptchaImage(capture.buffer);
+    let challengeFingerprintPrefix = challengeFingerprint.slice(0, 12);
+    let preSolveRefreshStrategy: "search_reload_control" | "shared_fallback" | null = null;
+    if (options.knownChallengeFingerprints?.has(challengeFingerprint)) {
+      const refreshAttempts = Math.min(2, Math.max(0, maxAttempts));
+      for (let refreshAttempt = 1; refreshAttempt <= refreshAttempts && remainingMs() > 0; refreshAttempt += 1) {
+        preSolveRefreshStrategy = await refreshVietnamSearchCaptchaChallenge(
+          page,
+          challengeFingerprint,
+          Math.max(1, Math.min(10_000, remainingMs())),
+        ).catch(() => null);
+        if (!preSolveRefreshStrategy) break;
+
+        capture = await captureVietnamCaptchaImage(
+          image,
+          Math.max(1, Math.min(remainingMs(), 10_000)),
+        );
+        challengeFingerprint = fingerprintVietnamCaptchaImage(capture.buffer);
+        challengeFingerprintPrefix = challengeFingerprint.slice(0, 12);
+        if (!options.knownChallengeFingerprints.has(challengeFingerprint)) break;
+      }
+    }
     if (
       options.knownChallengeFingerprints &&
       !registerVietnamSearchCaptchaChallenge(options.knownChallengeFingerprints, challengeFingerprint)
@@ -548,10 +568,11 @@ export async function solveVietnamPaymentSearchCaptcha(
         contextAttempt: options.contextAttempt,
         challengeFingerprintPrefix,
         outcome: "stale_challenge",
-        refreshConfirmed: false,
+        refreshConfirmed: preSolveRefreshStrategy !== null,
+        ...(preSolveRefreshStrategy ? { refreshStrategy: preSolveRefreshStrategy } : {}),
       });
       throw new VietnamSearchCaptchaSolveError(
-        "The fresh Vietnam search context returned a previously rejected CAPTCHA challenge.",
+        "The Vietnam search CAPTCHA remained previously rejected after a bounded reload attempt.",
         diagnostics,
         true,
       );
@@ -601,6 +622,9 @@ export async function solveVietnamPaymentSearchCaptcha(
           durationMs: solution.durationMs,
           challengeFingerprintPrefix,
           outcome: "solved",
+          ...(preSolveRefreshStrategy
+            ? { refreshConfirmed: true, refreshStrategy: preSolveRefreshStrategy }
+            : {}),
         };
         const captchaInput = page.locator([
           "#basic_captcha",
@@ -639,6 +663,9 @@ export async function solveVietnamPaymentSearchCaptcha(
         durationMs: solution.durationMs,
         challengeFingerprintPrefix,
         outcome: "unusable",
+        ...(preSolveRefreshStrategy
+          ? { refreshConfirmed: true, refreshStrategy: preSolveRefreshStrategy }
+          : {}),
       };
       diagnostics.push(diagnostic);
       await reportBad(solution.solveId).catch(() => undefined);
@@ -649,6 +676,9 @@ export async function solveVietnamPaymentSearchCaptcha(
         contextAttempt: options.contextAttempt,
         challengeFingerprintPrefix,
         outcome: "solver_error",
+        ...(preSolveRefreshStrategy
+          ? { refreshConfirmed: true, refreshStrategy: preSolveRefreshStrategy }
+          : {}),
       });
       if (localAttempt === maxAttempts) {
         throw new VietnamSearchCaptchaSolveError(
