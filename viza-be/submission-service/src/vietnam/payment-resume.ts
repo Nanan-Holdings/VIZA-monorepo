@@ -12,7 +12,6 @@ import {
   fingerprintVietnamCaptchaImage,
   refreshVietnamCaptchaChallenge,
   solveVietnamImageCaptcha,
-  waitForVietnamCaptchaRefresh,
 } from "./captcha";
 import { toVietnamDob } from "./status-check";
 
@@ -456,6 +455,73 @@ const VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS = [
   'button:has(img[alt="reload" i])',
 ].join(", ");
 
+const VIETNAM_SEARCH_CAPTCHA_IMAGE_SELECTORS = [
+  "img.captcha",
+  'img[alt*="Identify" i]',
+  'img[src*="captcha" i]',
+  'img[src*="capcha" i]',
+  'img[alt*="captcha" i]',
+  'img[id*="captcha" i]',
+  ".captcha img",
+  "canvas",
+].join(", ");
+
+interface StableVietnamSearchCaptchaCapture {
+  buffer: Buffer;
+  fingerprint: string;
+}
+
+/**
+ * The search SPA replaces its CAPTCHA image while mounting and after reload.
+ * Treat a challenge as current only after two consecutive captures agree, and
+ * re-resolve the locator for every sample so a Vue node replacement cannot
+ * leave the worker observing a detached or superseded image.
+ */
+async function captureStableVietnamSearchCaptcha(
+  page: Page,
+  timeoutMs: number,
+  excludedFingerprint?: string,
+): Promise<StableVietnamSearchCaptchaCapture | null> {
+  const deadline = Date.now() + Math.max(0, timeoutMs);
+  let candidateFingerprint: string | null = null;
+  let candidateBuffer: Buffer | null = null;
+  let matchingSamples = 0;
+  do {
+    const remainingMs = Math.max(0, deadline - Date.now());
+    const image = page.locator(VIETNAM_SEARCH_CAPTCHA_IMAGE_SELECTORS).first();
+    const visible = await image
+      .isVisible({ timeout: Math.max(1, Math.min(remainingMs, 750)) })
+      .catch(() => false);
+    if (visible) {
+      const capture = await captureVietnamCaptchaImage(
+        image,
+        Math.max(1, Math.min(remainingMs, 2_000)),
+      ).catch(() => null);
+      if (capture) {
+        const fingerprint = fingerprintVietnamCaptchaImage(capture.buffer);
+        if (fingerprint !== excludedFingerprint) {
+          if (candidateFingerprint === fingerprint) {
+            matchingSamples += 1;
+          } else {
+            candidateFingerprint = fingerprint;
+            candidateBuffer = capture.buffer;
+            matchingSamples = 1;
+          }
+          if (matchingSamples >= 2 && candidateBuffer) {
+            return { buffer: candidateBuffer, fingerprint };
+          }
+        } else {
+          candidateFingerprint = null;
+          candidateBuffer = null;
+          matchingSamples = 0;
+        }
+      }
+    }
+    if (Date.now() < deadline) await page.waitForTimeout(250);
+  } while (Date.now() < deadline);
+  return null;
+}
+
 /**
  * Refresh the CAPTCHA on the current Vue search page with a trusted browser
  * click, then prove that the challenge bitmap changed. The live portal uses a
@@ -485,7 +551,11 @@ export async function refreshVietnamSearchCaptchaChallenge(
       .then(() => true)
       .catch(() => false);
     if (!clicked) continue;
-    if (await waitForVietnamCaptchaRefresh(page, previousFingerprint, Math.min(remainingMs(), 6_000))) {
+    if (await captureStableVietnamSearchCaptcha(
+      page,
+      Math.min(remainingMs(), 6_000),
+      previousFingerprint,
+    )) {
       return "search_reload_control";
     }
   }
@@ -523,21 +593,22 @@ export async function solveVietnamPaymentSearchCaptcha(
       );
     }
     const attempt = (options.attemptOffset ?? 0) + localAttempt;
-    const image = page.locator([
-      "img.captcha",
-      'img[alt*="Identify" i]',
-      'img[src*="captcha" i]',
-      'img[src*="capcha" i]',
-      'img[alt*="captcha" i]',
-      'img[id*="captcha" i]',
-      'canvas',
-      '.captcha img',
-    ].join(", ")).first();
-    if (!(await image.isVisible({ timeout: Math.min(3_000, remainingMs()) }).catch(() => false))) {
+    let stableCapture = await captureStableVietnamSearchCaptcha(
+      page,
+      Math.min(5_000, remainingMs()),
+    );
+    if (!stableCapture) {
+      if (remainingMs() <= 0) {
+        throw new VietnamSearchCaptchaSolveError(
+          "Vietnam search CAPTCHA deadline was exhausted while waiting for a stable challenge.",
+          diagnostics,
+          false,
+        );
+      }
       return { diagnostics };
     }
-    let capture = await captureVietnamCaptchaImage(image, Math.max(1, Math.min(remainingMs(), 30_000)));
-    let challengeFingerprint = fingerprintVietnamCaptchaImage(capture.buffer);
+    let capture = { buffer: stableCapture.buffer };
+    let challengeFingerprint = stableCapture.fingerprint;
     let challengeFingerprintPrefix = challengeFingerprint.slice(0, 12);
     let preSolveRefreshStrategy: "search_reload_control" | "shared_fallback" | null = null;
     if (options.knownChallengeFingerprints?.has(challengeFingerprint)) {
@@ -550,11 +621,14 @@ export async function solveVietnamPaymentSearchCaptcha(
         ).catch(() => null);
         if (!preSolveRefreshStrategy) break;
 
-        capture = await captureVietnamCaptchaImage(
-          image,
-          Math.max(1, Math.min(remainingMs(), 10_000)),
+        stableCapture = await captureStableVietnamSearchCaptcha(
+          page,
+          Math.max(1, Math.min(remainingMs(), 5_000)),
+          challengeFingerprint,
         );
-        challengeFingerprint = fingerprintVietnamCaptchaImage(capture.buffer);
+        if (!stableCapture) break;
+        capture = { buffer: stableCapture.buffer };
+        challengeFingerprint = stableCapture.fingerprint;
         challengeFingerprintPrefix = challengeFingerprint.slice(0, 12);
         if (!options.knownChallengeFingerprints.has(challengeFingerprint)) break;
       }
@@ -592,13 +666,11 @@ export async function solveVietnamPaymentSearchCaptcha(
       }
       const captchaText = normalizeVietnamSearchCaptchaAnswer(solution.text);
       if (isVietnamSearchCaptchaAnswerUsable(captchaText)) {
-        const currentCapture = await captureVietnamCaptchaImage(
-          image,
-          Math.max(1, Math.min(remainingMs(), 10_000)),
-        ).catch(() => null);
-        const currentFingerprint = currentCapture
-          ? fingerprintVietnamCaptchaImage(currentCapture.buffer)
-          : null;
+        const currentCapture = await captureStableVietnamSearchCaptcha(
+          page,
+          Math.max(1, Math.min(remainingMs(), 5_000)),
+        );
+        const currentFingerprint = currentCapture?.fingerprint ?? null;
         if (!currentFingerprint || currentFingerprint !== challengeFingerprint) {
           diagnostics.push({
             attempt,
