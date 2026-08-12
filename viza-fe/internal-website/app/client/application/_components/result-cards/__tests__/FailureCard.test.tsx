@@ -319,6 +319,34 @@ describe("VnResultCard automated payment UI", () => {
     });
   });
 
+  it("lets a terminal status response clear the optimistic queued flag", () => {
+    expect(
+      mergeOfficialFeeStatus(
+        {
+          paymentQueued: true,
+          paymentNeedsOperator: false,
+          queueId: "queue-authorized",
+        },
+        {
+          paymentQueued: false,
+          paymentNeedsOperator: true,
+          paymentQueue: {
+            id: "queue-authorized",
+            status: "vn_blocked",
+            payment_status: "manual_review",
+          },
+        },
+      ),
+    ).toMatchObject({
+      paymentQueued: false,
+      paymentNeedsOperator: true,
+      paymentQueue: {
+        status: "vn_blocked",
+        payment_status: "manual_review",
+      },
+    });
+  });
+
   const paymentResult = {
     country: "VN" as const,
     status: "stopped_at_pay" as const,
