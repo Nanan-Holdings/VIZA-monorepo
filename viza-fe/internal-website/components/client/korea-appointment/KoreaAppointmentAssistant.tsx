@@ -292,7 +292,9 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const center = allCenters.find((item) => item.code === activeCenterCode) ?? recommendedCenter;
   const noSlots = snapshot?.noSlots?.verified ? snapshot.noSlots : transientNoSlots;
   const stage = getKoreaAppointmentStage(snapshot, Boolean(noSlots));
-  const currentStep = stageNumber(stage);
+  const isCenterTransition = busy === "change-center";
+  const displayedStage: AppointmentStage = isCenterTransition ? "review" : stage;
+  const currentStep = stageNumber(displayedStage);
   const observedSlots = useMemo(
     () => snapshot?.slots.filter((slot) => ["observed", "user_selected", "selected"].includes(slot.status)) ?? [],
     [snapshot?.slots],
@@ -324,8 +326,9 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     slotId?: string,
     code?: string,
     centerCode?: string,
+    busyLabel?: string,
   ) => {
-    setBusy(action ?? "load");
+    setBusy(busyLabel ?? action ?? "load");
     setError(null);
     if (action !== "refresh-status") setTransientNoSlots(null);
     try {
@@ -340,6 +343,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       if (["submit-sms-code", "start-new-booking"].includes(action ?? "")) setSmsCode("");
       if (action === "return-to-slot-selection") setAuthorizationChecked(false);
       if (action === "select-slot") setPendingSlotId(null);
+      return nextSnapshot;
     } catch (cause) {
       const requestError = cause instanceof AppointmentRequestError ? cause : null;
       if (requestError?.code === "no_slots_available") {
@@ -359,6 +363,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       } catch {
         // Keep the safe, localized error from the requested transition.
       }
+      return null;
     } finally {
       setBusy(null);
     }
@@ -396,9 +401,10 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   }, [manualActionType]);
 
   const chooseCenter = async (nextCenterCode: string) => {
-    setSelectedCenterCode(nextCenterCode);
+    if (busy) return;
     setCenterSheetOpen(false);
-    await run("refresh-status", undefined, undefined, nextCenterCode);
+    const nextSnapshot = await run("refresh-status", undefined, undefined, nextCenterCode, "change-center");
+    if (nextSnapshot) setSelectedCenterCode(nextCenterCode);
   };
 
   const centerName = center ? (t("locale") === "zh" ? center.nameZh : center.nameEn) : t("common.notProvided");
@@ -542,13 +548,13 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       <ProgressRail
         step={currentStep}
         total={5}
-        label={t("progress.label", { current: currentStep, total: 5, name: t(`steps.${stage}`) })}
+        label={t("progress.label", { current: currentStep, total: 5, name: t(`steps.${displayedStage}`) })}
         onBack={goBackFromProgress}
-        backLabel={stage === "review" ? t("page.backToForm") : t("progress.back")}
+        backLabel={displayedStage === "review" ? t("page.backToForm") : t("progress.back")}
       />
 
       <AnimatePresence mode="wait">
-        <motion.div key={busy === "load" && !snapshot ? "loading" : stage} {...motionProps}>
+        <motion.div key={busy === "load" && !snapshot ? "loading" : isCenterTransition ? "center-transition" : stage} {...motionProps}>
 
       {busy === "load" && !snapshot ? (
         <StageCard stage="review" title={t("loading.title")} description={t("loading.body")} icon={<Loader2 className="h-5 w-5 animate-spin" />} error={error}>
@@ -558,7 +564,29 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         </StageCard>
       ) : null}
 
-      {snapshot && stage === "review" ? (
+      {snapshot && isCenterTransition ? (
+        <StageCard
+          stage="review"
+          title={t("centerLoading.title")}
+          description={t("centerLoading.body")}
+          icon={<Loader2 className="h-5 w-5 animate-spin" />}
+          error={error}
+        >
+          <div className="flex min-h-[280px] flex-col justify-center gap-5" role="status" aria-live="polite">
+            <div className="space-y-3 rounded-lg border p-5">
+              <div className="h-3 w-28 animate-pulse rounded bg-slate-200 motion-reduce:animate-none" />
+              <div className="h-7 w-3/4 animate-pulse rounded bg-slate-200 motion-reduce:animate-none" />
+              <div className="h-4 w-1/2 animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+            </div>
+            <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+              <span>{t("centerLoading.status")}</span>
+            </div>
+          </div>
+        </StageCard>
+      ) : null}
+
+      {snapshot && !isCenterTransition && stage === "review" ? (
         <StageCard stage="review" title={t("review.title")} description={t("review.body")} icon={<UserRound className="h-5 w-5" />} error={error}>
           <SummaryRows
             missing={t("common.notProvided")}
@@ -620,7 +648,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         </StageCard>
       ) : null}
 
-      {snapshot && stage === "account" ? (
+      {snapshot && !isCenterTransition && stage === "account" ? (
         <StageCard stage="account" title={t("account.title")} description={t("account.focus")} icon={<MessageSquareText className="h-5 w-5" />} error={error}>
           {workerUnavailable ? (
             <>
@@ -717,7 +745,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         </StageCard>
       ) : null}
 
-      {snapshot && stage === "slots" ? (
+      {snapshot && !isCenterTransition && stage === "slots" ? (
         <StageCard stage="slots" title={t("slots.title")} description={t("slots.body")} icon={<CalendarCheck className="h-5 w-5" />} error={error}>
           {noSlots ? (
             <div className="flex min-h-64 flex-col items-center justify-center text-center">
@@ -789,7 +817,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         </StageCard>
       ) : null}
 
-      {snapshot && stage === "confirm" ? (
+      {snapshot && !isCenterTransition && stage === "confirm" ? (
         <StageCard stage="confirm" title={t("confirm.title")} description={t("confirm.body")} icon={<ShieldCheck className="h-5 w-5" />} error={error}>
           <SummaryRows
             missing={t("common.notProvided")}
@@ -841,7 +869,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         </StageCard>
       ) : null}
 
-      {snapshot && stage === "result" ? (
+      {snapshot && !isCenterTransition && stage === "result" ? (
         <StageCard
           stage="result"
           title={cancelled ? t("result.cancelledTitle") : t("result.title")}

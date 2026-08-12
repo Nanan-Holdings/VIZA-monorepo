@@ -4,20 +4,7 @@ import { NextResponse } from "next/server";
 import { getClientSessionWithFallback } from "@/lib/client-session";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-function isAllowedEvidencePath(value: string): string | null {
-  const repoRoot = path.resolve(process.cwd(), "..", "..");
-  const allowedRoots = [
-    path.resolve(repoRoot, "output"),
-    path.resolve(repoRoot, "viza-be", "submission-service", "output"),
-  ];
-  const candidate = path.isAbsolute(value)
-    ? path.resolve(value)
-    : path.resolve(repoRoot, "viza-be", "submission-service", value);
-  return allowedRoots.some((root) => candidate === root || candidate.startsWith(`${root}${path.sep}`))
-    ? candidate
-    : null;
-}
+import { koreaEvidenceContentType, resolveKoreaEvidenceSource } from "./route-handler";
 
 export async function GET(
   req: Request,
@@ -46,19 +33,22 @@ export async function GET(
     if (session.userId !== application.applicant_id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const evidencePath = isAllowedEvidencePath(rawPath);
-  if (!evidencePath) return NextResponse.json({ error: "Evidence path is not allowed" }, { status: 400 });
+  const evidence = resolveKoreaEvidenceSource(rawPath, id);
+  if (!evidence) return NextResponse.json({ error: "Evidence path is not allowed" }, { status: 400 });
 
   try {
-    const bytes = await fs.readFile(evidencePath);
-    const extension = path.extname(evidencePath).toLowerCase();
-    const contentType = extension === ".pdf"
-      ? "application/pdf"
-      : extension === ".jpg" || extension === ".jpeg"
-        ? "image/jpeg"
-        : "image/png";
+    const stored = evidence.kind === "storage"
+      ? await admin.storage.from("submission-artifacts").download(evidence.path)
+      : null;
+    if (stored?.error || (evidence.kind === "storage" && !stored?.data)) {
+      return NextResponse.json({ error: "Evidence file not found" }, { status: 404 });
+    }
+    const bytes = evidence.kind === "storage"
+      ? new Uint8Array(await stored!.data!.arrayBuffer())
+      : await fs.readFile(evidence.path);
+    const contentType = koreaEvidenceContentType(evidence.path);
     const disposition = url.searchParams.get("download") === "1"
-      ? `attachment; filename="${path.basename(evidencePath)}"`
+      ? `attachment; filename="${path.basename(evidence.path)}"`
       : "inline";
     return new Response(bytes, {
       headers: {

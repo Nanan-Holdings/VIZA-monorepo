@@ -458,6 +458,11 @@
       "title": "Loading appointment status",
       "body": "Preparing your appointment flow…"
     },
+    "centerLoading": {
+      "title": "Changing filing center",
+      "body": "Preparing the review step for the newly selected center.",
+      "status": "Loading the center's rules and filing method…"
+    },
     "errors": {
       "loadFailed": "Appointment status is temporarily unavailable. Refresh the page and try again.",
       "operationFailed": "The current operation did not complete. Try again shortly. VIZA has not treated this as proof that no official slots are available."

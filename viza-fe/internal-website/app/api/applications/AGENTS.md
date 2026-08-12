@@ -83,6 +83,10 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/korea-official-eform/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/korea-appointment/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/korea-evidence/route.ts`
+  serves private Korea appointment screenshots and PDFs only after application
+  ownership checks. Storage paths must stay under the owned application's
+  `korea-appointments/<application-id>/` prefix; the adjacent
+  `route-handler.ts` keeps path authorization covered by focused tests.
 - `viza-fe/internal-website/app/api/applications/[id]/korea-appointment-proof-pdf/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.test.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/form-assistant/transcribe/route.ts`
