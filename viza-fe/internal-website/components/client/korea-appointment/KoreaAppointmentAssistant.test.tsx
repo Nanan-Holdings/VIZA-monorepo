@@ -7,6 +7,8 @@ const copy: Record<string, string> = {
   "page.title": "韩国签证预约",
   "page.subtitle": "一次只完成一件事",
   "progress.ariaLabel": "预约进度",
+  "progress.label": "预约进度",
+  "progress.back": "返回上一步",
   "steps.review": "资料与领区",
   "steps.account": "官网验证",
   "steps.slots": "选择时间",
@@ -35,6 +37,7 @@ const copy: Record<string, string> = {
   "common.maskedPhone": "已登记手机号",
   "common.listSeparator": "、",
   "account.title": "完成官网验证",
+  "account.focus": "连接官网完成验证",
   "account.body": "资料已确认",
   "account.restartBody": "请重新建立会话",
   "account.start": "查询官网时间",
@@ -57,6 +60,8 @@ const copy: Record<string, string> = {
   "slots.title": "选择预约时间",
   "slots.body": "以下时间来自当前官方会话",
   "slots.choose": "选择此时间",
+  "slots.continue": "使用这个时间继续",
+  "slots.continuing": "正在保存所选时间",
   "slots.back": "返回官网验证",
   "slots.refresh": "重新读取时段",
   "slots.emptyTitle": "暂时没有开放的预约时间",
@@ -67,6 +72,11 @@ const copy: Record<string, string> = {
   "slots.changeCenter": "更改领区",
   "slots.viewEvidence": "查看官网现场截图",
   "confirm.title": "确认最终预约",
+  "confirm.body": "核对将要提交的预约",
+  "confirm.date": "预约日期",
+  "confirm.time": "预约时间",
+  "confirm.location": "递签地点",
+  "confirm.applicant": "申请人",
   "confirm.selected": "已选择的官方时段",
   "confirm.authorization": "我已核对日期、时间和地点",
   "confirm.approve": "保存最终授权",
@@ -77,6 +87,7 @@ const copy: Record<string, string> = {
   "confirm.submitting": "正在提交官方预约",
   "confirm.back": "返回选择时间",
   "result.title": "预约已确认",
+  "result.body": "预约证据已保存",
   "result.officialConfirmation": "官网预约确认",
   "result.number": "官方确认号",
   "result.print": "下载或打印确认单",
@@ -205,7 +216,7 @@ describe("KoreaAppointmentAssistant five-stage flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "确认资料并继续" }));
     await waitFor(() => expect(requestedActions()).toContainEqual(expect.objectContaining({ action: "confirm-review" })));
-    expectOnlyStage("account");
+    await waitFor(() => expectOnlyStage("account"));
   });
 
   it("keeps a verified no-slot result inside the slot stage", async () => {
@@ -259,7 +270,7 @@ describe("KoreaAppointmentAssistant five-stage flow", () => {
 
     expect(await screen.findByPlaceholderText("输入验证码")).toBeInTheDocument();
     expectOnlyStage("account");
-    fireEvent.click(screen.getByRole("button", { name: "返回资料与领区" }));
+    fireEvent.click(screen.getByRole("button", { name: "返回上一步" }));
     await waitFor(() => expect(requestedActions()).toContainEqual(expect.objectContaining({ action: "return-to-center-selection" })));
   });
 
@@ -285,7 +296,8 @@ describe("KoreaAppointmentAssistant five-stage flow", () => {
     render(<KoreaAppointmentAssistant applicationId="application-1" />);
     await screen.findByText("选择预约时间");
     expectOnlyStage("slots");
-    fireEvent.click(await screen.findByRole("button", { name: "选择此时间" }));
+    fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("button", { name: "使用这个时间继续" }));
 
     expect(await screen.findByText("确认最终预约")).toBeInTheDocument();
     expectOnlyStage("confirm");

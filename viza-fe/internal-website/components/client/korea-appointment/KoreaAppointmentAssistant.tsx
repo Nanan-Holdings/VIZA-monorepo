@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
-  ArrowLeft,
   CalendarCheck,
   Check,
   CheckCircle2,
@@ -23,11 +22,12 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
+import { ProgressRail } from "@/components/client/simplified-form/progress-rail";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -205,28 +205,38 @@ function stageNumber(stage: AppointmentStage) {
 function StageCard({
   stage,
   title,
+  description,
   icon,
   error,
   children,
 }: {
   stage: AppointmentStage;
   title: string;
+  description?: string;
   icon: React.ReactNode;
   error: string | null;
   children: React.ReactNode;
 }) {
   return (
-    <Card
+    <section
       data-current-stage={stage}
-      className="min-h-[360px] rounded-[12px] border-slate-200 shadow-sm motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 motion-reduce:animate-none"
+      aria-labelledby={`korea-appointment-${stage}-title`}
+      className="min-h-[440px] overflow-hidden rounded-xl border bg-white shadow-sm"
     >
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 font-heading text-xl font-medium">
-          {icon}
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5">
+      <div className="border-b bg-brand-50/40 px-5 py-5 sm:px-8 sm:py-6">
+        <div className="flex items-start gap-4">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-brand-600 shadow-sm ring-1 ring-brand-100">
+            {icon}
+          </div>
+          <div className="min-w-0 pt-0.5">
+            <h1 id={`korea-appointment-${stage}-title`} className="font-heading text-xl font-semibold text-foreground sm:text-2xl">
+              {title}
+            </h1>
+            {description ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p> : null}
+          </div>
+        </div>
+      </div>
+      <div className="flex min-h-[330px] flex-col gap-6 p-5 sm:p-8">
         {error ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -235,19 +245,29 @@ function StageCard({
           </Alert>
         ) : null}
         {children}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
-function ReviewValue({ label, value, missing }: { label: string; value: string | null | undefined; missing: string }) {
+function SummaryRows({
+  rows,
+  missing,
+}: {
+  rows: Array<{ label: string; value: string | null | undefined }>;
+  missing: string;
+}) {
   return (
-    <div className="min-w-0 rounded-[8px] border border-slate-200 bg-white px-4 py-3">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 truncate text-sm font-semibold", value ? "text-foreground" : "text-amber-700")}>
-        {value || missing}
-      </p>
-    </div>
+    <dl className="divide-y rounded-lg border px-4 sm:px-5">
+      {rows.map((row) => (
+        <div key={row.label} className="grid gap-1 py-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] sm:items-center sm:gap-6">
+          <dt className="text-sm font-medium text-muted-foreground">{row.label}</dt>
+          <dd className={cn("min-w-0 break-words text-sm font-semibold sm:text-right", row.value ? "text-foreground" : "text-amber-700")}>
+            {row.value || missing}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -262,6 +282,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const [centerSheetOpen, setCenterSheetOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
   const [authorizationChecked, setAuthorizationChecked] = useState(false);
+  const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   const recommendedCenter = snapshot?.routing.recommended;
   const activeCenterCode = selectedCenterCode ?? recommendedCenter?.code;
@@ -276,6 +298,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     [snapshot?.slots],
   );
   const selectedSlot = observedSlots.find((slot) => ["user_selected", "selected"].includes(slot.status)) ?? null;
+  const pendingSlot = observedSlots.find((slot) => slot.id === pendingSlotId) ?? null;
   const manualAction = snapshot?.manualAction;
   const manualActionType = manualAction?.action_type;
   const workerUnavailable = manualAction?.metadata_redacted_json?.workerUnavailable === true;
@@ -316,6 +339,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       setSnapshot(nextSnapshot);
       if (["submit-sms-code", "start-new-booking"].includes(action ?? "")) setSmsCode("");
       if (action === "return-to-slot-selection") setAuthorizationChecked(false);
+      if (action === "select-slot") setPendingSlotId(null);
     } catch (cause) {
       const requestError = cause instanceof AppointmentRequestError ? cause : null;
       if (requestError?.code === "no_slots_available") {
@@ -383,7 +407,14 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     ?? (typeof manualAction?.metadata_redacted_json?.phoneMasked === "string"
       ? manualAction.metadata_redacted_json.phoneMasked
       : null);
-  const stepKeys = ["review", "account", "slots", "confirm", "result"] as const;
+  const motionProps = shouldReduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -6 },
+        transition: { duration: 0.2, ease: "easeOut" as const },
+      };
 
   const managementContent = (() => {
     if (manualActionType === "official_cancel_confirmation_required" || manualActionType === "official_cancel_manual_checkpoint") {
@@ -486,62 +517,67 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     );
   })();
 
-  return (
-    <main className="mx-auto w-full max-w-[760px] space-y-5 py-6 sm:py-8">
-      <header className="flex items-start gap-3">
-        <Button asChild variant="outline" size="icon" className="mt-0.5 shrink-0" aria-label={t("page.backToForm")}>
-          <Link href={applicationFormHref}><ArrowLeft className="h-4 w-4" /></Link>
-        </Button>
-        <div className="min-w-0">
-          <h1 className="font-heading text-2xl font-medium text-foreground sm:text-3xl">{t("page.title")}</h1>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">{t("page.subtitle")}</p>
-        </div>
-      </header>
+  const goBackFromProgress = () => {
+    if (stage === "review") {
+      window.location.assign(applicationFormHref);
+      return;
+    }
+    if (stage === "account") {
+      void run("return-to-center-selection");
+      return;
+    }
+    if (stage === "slots") {
+      void run("return-to-sms-verification");
+      return;
+    }
+    if (stage === "confirm" && !finalApproved) {
+      void run("return-to-slot-selection");
+      return;
+    }
+    setManagementOpen(true);
+  };
 
-      <nav aria-label={t("progress.ariaLabel")} className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-medium text-brand-700">{t("progress.current", { current: currentStep, total: 5 })}</span>
-          <span className="text-muted-foreground">{t(`steps.${stage}`)}</span>
-        </div>
-        <ol className="grid grid-cols-5 gap-1.5">
-          {stepKeys.map((key, index) => (
-            <li key={key} aria-current={key === stage ? "step" : undefined}>
-              <span className={cn(
-                "block h-1.5 rounded-full transition-colors duration-200 motion-reduce:transition-none",
-                index < currentStep ? "bg-brand-500" : "bg-slate-200",
-              )} />
-              <span className="sr-only">{t(`steps.${key}`)}</span>
-            </li>
-          ))}
-        </ol>
-      </nav>
+  return (
+    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 pb-12 pt-2 sm:pt-4">
+      <ProgressRail
+        step={currentStep}
+        total={5}
+        label={t("progress.label", { current: currentStep, total: 5, name: t(`steps.${stage}`) })}
+        onBack={goBackFromProgress}
+        backLabel={stage === "review" ? t("page.backToForm") : t("progress.back")}
+      />
+
+      <AnimatePresence mode="wait">
+        <motion.div key={busy === "load" && !snapshot ? "loading" : stage} {...motionProps}>
 
       {busy === "load" && !snapshot ? (
-        <StageCard stage="review" title={t("loading.title")} icon={<Loader2 className="h-5 w-5 animate-spin text-brand-600" />} error={error}>
+        <StageCard stage="review" title={t("loading.title")} description={t("loading.body")} icon={<Loader2 className="h-5 w-5 animate-spin" />} error={error}>
           <div className="flex min-h-52 items-center justify-center text-sm text-muted-foreground" role="status">
-            {t("loading.body")}
+            <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
           </div>
         </StageCard>
       ) : null}
 
       {snapshot && stage === "review" ? (
-        <StageCard stage="review" title={t("review.title")} icon={<UserRound className="h-5 w-5 text-brand-600" />} error={error}>
-          <p className="text-sm leading-6 text-muted-foreground">{t("review.body")}</p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <ReviewValue label={t("review.name")} value={review?.applicantName} missing={t("common.notProvided")} />
-            <ReviewValue label={t("review.passport")} value={review?.passportNumber} missing={t("common.notProvided")} />
-            <ReviewValue label={t("review.phone")} value={review?.phoneMasked} missing={t("common.notProvided")} />
-          </div>
-          <div className="rounded-[10px] border border-brand-100 bg-brand-50/60 p-4">
-            <div className="flex items-start justify-between gap-3">
+        <StageCard stage="review" title={t("review.title")} description={t("review.body")} icon={<UserRound className="h-5 w-5" />} error={error}>
+          <SummaryRows
+            missing={t("common.notProvided")}
+            rows={[
+              { label: t("review.name"), value: review?.applicantName },
+              { label: t("review.passport"), value: review?.passportNumber },
+              { label: t("review.phone"), value: review?.phoneMasked },
+            ]}
+          />
+          <div className="rounded-lg border border-brand-100 bg-brand-50/50 p-4 sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-wide text-brand-700">{t("review.recommended")}</p>
-                <p className="mt-1 font-medium text-foreground">{centerName}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">{t("review.recommended")}</p>
+                <p className="mt-2 font-heading text-lg font-semibold text-foreground">{centerName}</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   {review?.recommendationReason || reviewBasis}
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setCenterSheetOpen(true)}>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => setCenterSheetOpen(true)}>
                 <Settings2 className="mr-2 h-4 w-4" />{t("review.changeCenter")}
               </Button>
             </div>
@@ -569,10 +605,10 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <AlertDescription>{t("review.missingBody")}</AlertDescription>
             </Alert>
           ) : null}
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Button asChild variant="outline"><Link href={applicationFormHref}>{t("review.edit")}</Link></Button>
+          <div className="mt-auto flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <Button asChild variant="ghost"><Link href={applicationFormHref}>{t("review.edit")}</Link></Button>
             <BrandActionButton
-              className="w-full sm:w-auto"
+              className="w-full sm:min-w-48 sm:w-auto"
               loading={busy === "confirm-review"}
               loadingText={t("review.confirming")}
               disabled={!reviewReady || Boolean(busy)}
@@ -585,7 +621,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       ) : null}
 
       {snapshot && stage === "account" ? (
-        <StageCard stage="account" title={t("account.title")} icon={<MessageSquareText className="h-5 w-5 text-brand-600" />} error={error}>
+        <StageCard stage="account" title={t("account.title")} description={t("account.focus")} icon={<MessageSquareText className="h-5 w-5" />} error={error}>
           {workerUnavailable ? (
             <>
               <Alert className="border-amber-200 bg-amber-50">
@@ -593,17 +629,16 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                 <AlertTitle>{t("account.workerTitle")}</AlertTitle>
                 <AlertDescription>{t("account.workerBody")}</AlertDescription>
               </Alert>
-              <BrandActionButton
-                className="w-full sm:w-auto"
-                loading={busy === "request-live-booking"}
-                loadingText={t("account.checking")}
-                onClick={() => void run("request-live-booking")}
-              >
-                <RefreshCw />{t("account.retry")}
-              </BrandActionButton>
-              <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>
-                {t("account.backToCenter")}
-              </Button>
+              <div className="mt-auto border-t pt-5">
+                <BrandActionButton
+                  className="w-full"
+                  loading={busy === "request-live-booking"}
+                  loadingText={t("account.checking")}
+                  onClick={() => void run("request-live-booking")}
+                >
+                  <RefreshCw />{t("account.retry")}
+                </BrandActionButton>
+              </div>
             </>
           ) : ["official_center_manual_checkpoint", "official_guidance_required", "official_account_login_required"].includes(manualActionType ?? "") ? (
             <>
@@ -612,14 +647,13 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                 <p className="font-medium">{centerName}</p>
                 <p className="mt-2 leading-6 text-muted-foreground">{centerRule}</p>
               </div>
-              <BrandActionButton asChild className="w-full sm:w-auto">
-                <a href={center?.bookingUrl ?? center?.officialUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink />{t("account.openOfficial")}
-                </a>
-              </BrandActionButton>
-              <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>
-                {t("account.backToCenter")}
-              </Button>
+              <div className="mt-auto border-t pt-5">
+                <BrandActionButton asChild className="w-full">
+                  <a href={center?.bookingUrl ?? center?.officialUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink />{t("account.openOfficial")}
+                  </a>
+                </BrandActionButton>
+              </div>
             </>
           ) : manualActionType === "sms_verification_required" ? (
             <>
@@ -637,18 +671,17 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                   placeholder={t("account.codePlaceholder")}
                 />
               </BrandField>
-              <BrandActionButton
-                className="w-full sm:w-auto"
-                loading={busy === "submit-sms-code"}
-                loadingText={t("account.verifying")}
-                disabled={Boolean(busy) || !/^\d{4,8}$/.test(smsCode)}
-                onClick={() => void run("submit-sms-code", undefined, smsCode)}
-              >
-                <CalendarCheck />{t("account.verify")}
-              </BrandActionButton>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>{t("account.backToCenter")}</Button>
-                <Button variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>{t("account.resend")}</Button>
+              <div className="mt-auto space-y-2 border-t pt-5">
+                <BrandActionButton
+                  className="w-full"
+                  loading={busy === "submit-sms-code"}
+                  loadingText={t("account.verifying")}
+                  disabled={Boolean(busy) || !/^\d{4,8}$/.test(smsCode)}
+                  onClick={() => void run("submit-sms-code", undefined, smsCode)}
+                >
+                  <CalendarCheck />{t("account.verify")}
+                </BrandActionButton>
+                <Button className="w-full" variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>{t("account.resend")}</Button>
               </div>
             </>
           ) : (
@@ -662,29 +695,30 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                 <p className="font-medium">{centerName}</p>
                 <p className="mt-1 text-muted-foreground">{centerRule}</p>
               </div>
-              <BrandActionButton
-                className="w-full sm:w-auto"
-                loading={busy === "request-live-booking"}
-                loadingText={t("account.checking")}
-                disabled={Boolean(busy)}
-                onClick={() => void run("request-live-booking")}
-              >
-                {isSmsCenter ? <MessageSquareText /> : <ExternalLink />}
-                {isSmsCenter ? t("account.start") : t("account.viewMethod")}
-              </BrandActionButton>
+              <div className="mt-auto border-t pt-5">
+                <BrandActionButton
+                  className="w-full"
+                  loading={busy === "request-live-booking"}
+                  loadingText={t("account.checking")}
+                  disabled={Boolean(busy)}
+                  onClick={() => void run("request-live-booking")}
+                >
+                  {isSmsCenter ? <MessageSquareText /> : <ExternalLink />}
+                  {isSmsCenter ? t("account.start") : t("account.viewMethod")}
+                </BrandActionButton>
+              </div>
               {busy === "request-live-booking" ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="polite">
                   <Loader2 className="h-4 w-4 animate-spin text-brand-600" />{t("account.scanProgress")}
                 </div>
               ) : null}
-              <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>{t("account.backToCenter")}</Button>
             </>
           )}
         </StageCard>
       ) : null}
 
       {snapshot && stage === "slots" ? (
-        <StageCard stage="slots" title={t("slots.title")} icon={<CalendarCheck className="h-5 w-5 text-brand-600" />} error={error}>
+        <StageCard stage="slots" title={t("slots.title")} description={t("slots.body")} icon={<CalendarCheck className="h-5 w-5" />} error={error}>
           {noSlots ? (
             <div className="flex min-h-64 flex-col items-center justify-center text-center">
               <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand-600"><CalendarCheck className="h-6 w-6" /></div>
@@ -692,7 +726,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{t("slots.emptyBody")}</p>
               {noSlots.lastCheckedAt ? <p className="mt-2 text-xs text-muted-foreground">{t("slots.checkedAt", { time: new Date(noSlots.lastCheckedAt).toLocaleString() })}</p> : null}
               <BrandActionButton
-                className="mt-5 w-full sm:w-auto"
+                className="mt-5 w-full"
                 loading={busy === "request-live-booking"}
                 loadingText={t("slots.checking")}
                 onClick={() => void run("request-live-booking")}
@@ -708,29 +742,47 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             </div>
           ) : (
             <>
-              <p className="text-sm leading-6 text-muted-foreground">{t("slots.body")}</p>
-              <div className="space-y-3">
+              <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+                <span>{centerName}</span>
+                {snapshot.job?.updated_at ? <span>{t("slots.checkedAt", { time: new Date(snapshot.job.updated_at).toLocaleString() })}</span> : null}
+              </div>
+              <div className="space-y-3" role="radiogroup" aria-label={t("slots.title")}>
                 {observedSlots.map((slot) => (
-                  <div key={slot.id} className="flex flex-col gap-3 rounded-[10px] border p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-medium">{slot.appointment_date} {slot.appointment_time}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{slot.appointment_location}</p>
-                    </div>
-                    <BrandActionButton
-                      size="sm"
-                      variant="secondary"
-                      loading={busy === "select-slot"}
-                      disabled={Boolean(busy)}
-                      onClick={() => void run("select-slot", slot.id)}
-                    >
-                      <CheckCircle2 />{t("slots.choose")}
-                    </BrandActionButton>
-                  </div>
+                  <button
+                    key={slot.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={slot.id === pendingSlotId}
+                    className={cn(
+                      "flex min-h-20 w-full items-center gap-4 rounded-lg border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40",
+                      slot.id === pendingSlotId ? "border-brand-500 bg-brand-50" : "border-input hover:border-brand-200 hover:bg-brand-50/30",
+                    )}
+                    onClick={() => setPendingSlotId(slot.id)}
+                  >
+                    <span className={cn(
+                      "grid h-5 w-5 shrink-0 place-items-center rounded-full border",
+                      slot.id === pendingSlotId ? "border-brand-500 bg-brand-500 text-white" : "border-input bg-white",
+                    )}>
+                      {slot.id === pendingSlotId ? <Check className="h-3 w-3" /> : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-heading text-lg font-semibold">{slot.appointment_date} · {slot.appointment_time}</span>
+                      <span className="mt-1 block text-sm text-muted-foreground">{slot.appointment_location}</span>
+                    </span>
+                  </button>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => void run("return-to-sms-verification")} disabled={Boolean(busy)}>{t("slots.back")}</Button>
-                <Button variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}><RefreshCw className="mr-2 h-4 w-4" />{t("slots.refresh")}</Button>
+              <div className="mt-auto space-y-2 border-t pt-5">
+                <BrandActionButton
+                  className="w-full"
+                  loading={busy === "select-slot"}
+                  loadingText={t("slots.continuing")}
+                  disabled={Boolean(busy) || !pendingSlot}
+                  onClick={() => pendingSlot ? void run("select-slot", pendingSlot.id) : undefined}
+                >
+                  {t("slots.continue")}
+                </BrandActionButton>
+                <Button className="w-full" variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}><RefreshCw className="mr-2 h-4 w-4" />{t("slots.refresh")}</Button>
               </div>
             </>
           )}
@@ -738,13 +790,16 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       ) : null}
 
       {snapshot && stage === "confirm" ? (
-        <StageCard stage="confirm" title={t("confirm.title")} icon={<ShieldCheck className="h-5 w-5 text-brand-600" />} error={error}>
-          <div className="rounded-[10px] border border-brand-100 bg-brand-50/60 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-brand-700">{t("confirm.selected")}</p>
-            <p className="mt-2 text-lg font-semibold">{selectedSlot?.appointment_date} {selectedSlot?.appointment_time}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{selectedSlot?.appointment_location}</p>
-            <p className="mt-3 border-t border-brand-100 pt-3 text-sm text-muted-foreground">{review?.applicantName || t("common.notProvided")}</p>
-          </div>
+        <StageCard stage="confirm" title={t("confirm.title")} description={t("confirm.body")} icon={<ShieldCheck className="h-5 w-5" />} error={error}>
+          <SummaryRows
+            missing={t("common.notProvided")}
+            rows={[
+              { label: t("confirm.date"), value: selectedSlot?.appointment_date },
+              { label: t("confirm.time"), value: selectedSlot?.appointment_time },
+              { label: t("confirm.location"), value: selectedSlot?.appointment_location },
+              { label: t("confirm.applicant"), value: review?.applicantName },
+            ]}
+          />
           {!finalApproved ? (
             <label className="flex cursor-pointer items-start gap-3 rounded-[10px] border p-4">
               <Checkbox checked={authorizationChecked} onCheckedChange={(checked) => setAuthorizationChecked(checked === true)} className="mt-0.5 h-5 w-5" />
@@ -758,29 +813,30 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             </Alert>
           )}
           {waitingForFinalApproval ? (
-            <BrandActionButton
-              className="w-full sm:w-auto"
-              loading={busy === "approve-final-booking"}
-              loadingText={t("confirm.approving")}
-              disabled={!authorizationChecked || Boolean(busy)}
-              onClick={() => void run("approve-final-booking")}
-            >
-              <ShieldCheck />{t("confirm.approve")}
-            </BrandActionButton>
+            <div className="mt-auto border-t pt-5">
+              <BrandActionButton
+                className="w-full"
+                loading={busy === "approve-final-booking"}
+                loadingText={t("confirm.approving")}
+                disabled={!authorizationChecked || Boolean(busy)}
+                onClick={() => void run("approve-final-booking")}
+              >
+                <ShieldCheck />{t("confirm.approve")}
+              </BrandActionButton>
+            </div>
           ) : null}
           {finalApproved ? (
-            <BrandActionButton
-              className="w-full sm:w-auto"
-              loading={busy === "complete-final-booking"}
-              loadingText={t("confirm.submitting")}
-              disabled={Boolean(busy)}
-              onClick={() => void run("complete-final-booking")}
-            >
-              <CheckCircle2 />{t("confirm.submit")}
-            </BrandActionButton>
-          ) : null}
-          {!finalApproved ? (
-            <Button variant="outline" onClick={() => void run("return-to-slot-selection")} disabled={Boolean(busy)}>{t("confirm.back")}</Button>
+            <div className="mt-auto border-t pt-5">
+              <BrandActionButton
+                className="w-full"
+                loading={busy === "complete-final-booking"}
+                loadingText={t("confirm.submitting")}
+                disabled={Boolean(busy)}
+                onClick={() => void run("complete-final-booking")}
+              >
+                <CheckCircle2 />{t("confirm.submit")}
+              </BrandActionButton>
+            </div>
           ) : null}
         </StageCard>
       ) : null}
@@ -789,7 +845,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         <StageCard
           stage="result"
           title={cancelled ? t("result.cancelledTitle") : t("result.title")}
-          icon={cancelled ? <XCircle className="h-5 w-5 text-slate-600" /> : <CheckCircle2 className="h-5 w-5 text-emerald-700" />}
+          description={cancelled ? t("result.cancelledBody") : t("result.body")}
+          icon={cancelled ? <XCircle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5 text-emerald-700" />}
           error={error}
         >
           {cancelled ? (
@@ -806,31 +863,36 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             </div>
           ) : savedAppointment ? (
             <>
-              <div className="rounded-[12px] border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950 sm:p-6">
                 <div className="flex items-center gap-2 text-sm font-medium"><FileCheck2 className="h-4 w-4" />{t("result.officialConfirmation")}</div>
                 <p className="mt-3 font-heading text-2xl font-medium">{savedAppointment.appointment_date} {savedAppointment.appointment_time}</p>
                 <p className="mt-1 text-sm">{savedAppointment.appointment_location}</p>
                 <p className="mt-4 border-t border-emerald-200 pt-4 text-sm">{t("result.number", { number: savedAppointment.confirmation_number ?? "-" })}</p>
               </div>
-              {savedAppointment.confirmation_pdf_url ? (
-                <BrandActionButton asChild className="w-full sm:w-auto">
-                  <a href={savedAppointment.confirmation_pdf_url} target="_blank" rel="noopener noreferrer"><Printer />{t("result.print")}</a>
-                </BrandActionButton>
-              ) : (
-                <BrandActionButton
-                  className="w-full sm:w-auto"
-                  loading={busy === "print-appointment-confirmation"}
-                  loadingText={t("result.preparingPrint")}
-                  onClick={() => void run("print-appointment-confirmation")}
-                >
-                  <Printer />{t("result.print")}
-                </BrandActionButton>
-              )}
-              <Button variant="outline" onClick={() => setManagementOpen(true)}><Settings2 className="mr-2 h-4 w-4" />{t("result.manage")}</Button>
+              <div className="mt-auto space-y-2 border-t pt-5">
+                {savedAppointment.confirmation_pdf_url ? (
+                  <BrandActionButton asChild className="w-full">
+                    <a href={savedAppointment.confirmation_pdf_url} target="_blank" rel="noopener noreferrer"><Printer />{t("result.print")}</a>
+                  </BrandActionButton>
+                ) : (
+                  <BrandActionButton
+                    className="w-full"
+                    loading={busy === "print-appointment-confirmation"}
+                    loadingText={t("result.preparingPrint")}
+                    onClick={() => void run("print-appointment-confirmation")}
+                  >
+                    <Printer />{t("result.print")}
+                  </BrandActionButton>
+                )}
+                <Button className="w-full" variant="ghost" onClick={() => setManagementOpen(true)}><Settings2 className="mr-2 h-4 w-4" />{t("result.manage")}</Button>
+              </div>
             </>
           ) : null}
         </StageCard>
       ) : null}
+
+        </motion.div>
+      </AnimatePresence>
 
       <Sheet open={centerSheetOpen} onOpenChange={setCenterSheetOpen}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
