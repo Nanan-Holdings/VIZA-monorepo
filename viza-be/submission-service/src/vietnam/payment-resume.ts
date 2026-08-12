@@ -21,7 +21,7 @@ export interface VietnamPaymentSearchCaptchaDiagnostic {
   answerLength?: number;
   durationMs?: number;
   challengeFingerprintPrefix?: string;
-  outcome: "solved" | "unusable" | "solver_error" | "stale_challenge" | "input_unconfirmed" | "rejected";
+  outcome: "solved" | "unusable" | "solver_error" | "stale_challenge" | "refresh_unconfirmed" | "input_unconfirmed" | "rejected";
   refreshConfirmed?: boolean;
   refreshStrategy?: "search_reload_control" | "shared_fallback";
   freshContextRetry?: boolean;
@@ -628,6 +628,7 @@ export async function solveVietnamPaymentSearchCaptcha(
     contextAttempt?: number;
     maxAttempts?: number;
     knownChallengeFingerprints?: Set<string>;
+    refreshInitialChallenge?: boolean;
     deadlineAt?: number;
     solveCaptcha?: typeof solveImageCaptcha;
     reportBad?: typeof reportBadCaptcha;
@@ -666,6 +667,49 @@ export async function solveVietnamPaymentSearchCaptcha(
     let challengeFingerprint = stableCapture.fingerprint;
     let challengeFingerprintPrefix = challengeFingerprint.slice(0, 12);
     let preSolveRefreshStrategy: "search_reload_control" | "shared_fallback" | null = null;
+    if (localAttempt === 1 && options.refreshInitialChallenge) {
+      preSolveRefreshStrategy = await refreshVietnamSearchCaptchaChallenge(
+        page,
+        challengeFingerprint,
+        Math.max(1, Math.min(10_000, remainingMs())),
+      ).catch(() => null);
+      if (!preSolveRefreshStrategy) {
+        diagnostics.push({
+          attempt,
+          contextAttempt: options.contextAttempt,
+          challengeFingerprintPrefix,
+          outcome: "refresh_unconfirmed",
+          refreshConfirmed: false,
+        });
+        throw new VietnamSearchCaptchaSolveError(
+          "The initial Vietnam search CAPTCHA refresh was not confirmed.",
+          diagnostics,
+          true,
+        );
+      }
+      stableCapture = await captureStableVietnamSearchCaptcha(
+        page,
+        Math.max(1, Math.min(remainingMs(), 5_000)),
+        challengeFingerprint,
+      );
+      if (!stableCapture) {
+        diagnostics.push({
+          attempt,
+          contextAttempt: options.contextAttempt,
+          challengeFingerprintPrefix,
+          outcome: "refresh_unconfirmed",
+          refreshConfirmed: false,
+        });
+        throw new VietnamSearchCaptchaSolveError(
+          "The refreshed Vietnam search CAPTCHA did not become stable.",
+          diagnostics,
+          true,
+        );
+      }
+      capture = { buffer: stableCapture.buffer };
+      challengeFingerprint = stableCapture.fingerprint;
+      challengeFingerprintPrefix = challengeFingerprint.slice(0, 12);
+    }
     if (options.knownChallengeFingerprints?.has(challengeFingerprint)) {
       const refreshAttempts = Math.min(2, Math.max(0, maxAttempts));
       for (let refreshAttempt = 1; refreshAttempt <= refreshAttempts && remainingMs() > 0; refreshAttempt += 1) {
@@ -1216,7 +1260,7 @@ export async function resumeVietnamOfficialPayment(
     const searchDeadlineAt = Date.now() + Math.max(1_000, input.timeoutMs ?? 120_000);
     const remainingSearchMs = () => Math.max(0, searchDeadlineAt - Date.now());
     const countSolverAttempts = () => combinedCaptchaDiagnostics.filter(
-      (attempt) => attempt.outcome !== "stale_challenge",
+      (attempt) => attempt.outcome !== "stale_challenge" && attempt.outcome !== "refresh_unconfirmed",
     ).length;
 
     const searchExecution = await retryVietnamSearchCaptchaInFreshContexts<Page, void>({
@@ -1275,6 +1319,7 @@ export async function resumeVietnamOfficialPayment(
               contextAttempt,
               maxAttempts: Math.min(3, remainingSolverAttempts),
               knownChallengeFingerprints,
+              refreshInitialChallenge: contextAttempt === 1,
               deadlineAt: searchDeadlineAt,
             },
           );
