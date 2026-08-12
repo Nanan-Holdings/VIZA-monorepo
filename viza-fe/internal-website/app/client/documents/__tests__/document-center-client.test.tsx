@@ -66,6 +66,25 @@ const initialData: DocumentCenterData = {
   ocrExtractions: [],
 };
 
+const vietnamApplication = {
+  ...application,
+  id: "application-vietnam",
+  country: "vietnam",
+  visaType: "evisa_tourism",
+  countryName: "Vietnam",
+  countryNameZh: "越南",
+};
+
+const vietnamData: DocumentCenterData = {
+  ...initialData,
+  applications: [vietnamApplication],
+  selectedApplication: vietnamApplication,
+  requirements: [
+    requirement("passport_copy", "Passport bio page", true, 1),
+    requirement("photo", "Passport-size photo", true, 2),
+  ],
+};
+
 describe("embedded document upload step", () => {
   test("omits the divider and continue action when the parent does not request step navigation", () => {
     const { container } = render(
@@ -232,5 +251,39 @@ describe("embedded document upload step", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+
+  test("uses the standard material-card treatment for Vietnam face comparison", () => {
+    render(
+      <DocumentCenterClient
+        initialData={vietnamData}
+        initialError={null}
+        applicationId={vietnamApplication.id}
+        embedded
+      />
+    );
+
+    const heading = screen.getByRole("heading", {
+      name: "Portrait and passport face match",
+      level: 3,
+    });
+    const comparisonCard = heading.closest("article");
+
+    expect(comparisonCard).toHaveClass(
+      "rounded-xl",
+      "border-border",
+      "bg-white",
+      "p-5"
+    );
+    expect(comparisonCard).not.toHaveClass("border-cyan-200", "bg-cyan-50/50");
+    expect(screen.getByText("Upload requirements")).toBeInTheDocument();
+    expect(screen.getByText("Not checked")).toBeInTheDocument();
+    expect(screen.getAllByText("Waiting for upload")).toHaveLength(2);
+
+    const generateButton = screen.getByRole("button", {
+      name: "Generate similarity",
+    });
+    expect(generateButton).toBeDisabled();
+    expect(generateButton).toHaveClass("h-[38px]", "rounded-full");
   });
 });
