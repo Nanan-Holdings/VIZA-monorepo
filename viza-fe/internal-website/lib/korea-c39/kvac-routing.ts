@@ -21,7 +21,7 @@ export interface KvacCenter {
   consularPostZh: string;
   consularPostEn: string;
   serviceMode: "appointment_required" | "appointment_preferred" | "center_guidance_required";
-  liveBookingMode: "sms_sync_supported" | "site_recon_only" | "official_guidance_only";
+  liveBookingMode: "sms_sync_supported" | "direct_slot_sync_supported" | "site_recon_only" | "official_guidance_only";
   acceptsWalkIn: boolean | null;
   appointmentRuleZh: string;
   appointmentRuleEn: string;
@@ -261,12 +261,12 @@ export const KVAC_CENTERS: KvacCenter[] = [
     consularPostZh: "大韩民国驻成都总领事馆",
     consularPostEn: "Consulate General of the Republic of Korea in Chengdu",
     serviceMode: "appointment_preferred",
-    liveBookingMode: "site_recon_only",
+    liveBookingMode: "direct_slot_sync_supported",
     acceptsWalkIn: true,
     appointmentRuleZh: "成都中心实行网上预约办理签证；预约迟到者需和一般申请人一样正常取号等待。网上预约只能提前预约 7 个工作日的到访时间，开放当月及后续两个月。",
     appointmentRuleEn: "Chengdu uses online appointment handling. Late arrivals wait as ordinary applicants. Online booking is available 7 working days ahead and for the current month plus two following months.",
-    liveBookingRuleZh: "成都使用独立预约站点，当前 VIZA 只验证入口可达与规则展示；若需打印访问预约证，必须在官方确认返回后保存证明。",
-    liveBookingRuleEn: "Chengdu uses a separate booking site. VIZA currently validates entry reachability and rule guidance only; visit-appointment proof must be saved only after official confirmation.",
+    liveBookingRuleZh: "成都使用独立预约站点；VIZA 读取官网实时开放日期、时间和剩余名额。最终申请仍须在明确授权后提交，访问预约证仅在官网确认后保存。",
+    liveBookingRuleEn: "Chengdu uses a separate booking site. VIZA reads the official site's live dates, times, and remaining capacity. Final submission still requires explicit approval, and visit proof is saved only after official confirmation.",
     importantNoticesZh: [
       "预约后必须打印访问预约证并携带；打印后不能变更预约。",
       "如未提前填写申请书，需比预约时间提前 20 分钟以上到达。",

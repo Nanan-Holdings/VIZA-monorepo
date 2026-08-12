@@ -22,6 +22,7 @@ import {
   startKoreaKvacOfficialSmsSession,
   submitKoreaKvacOfficialSmsCode,
 } from "./korea-kvac/live-session.js";
+import { observeChengduAvailableSlots } from "./korea-kvac/chengdu-slots.js";
 import { supabase } from "./supabase.js";
 import { putVietnamCardSession } from "./vietnam/card-session.js";
 import { bookJapanVfsSingaporeSlot, observeJapanVfsSingaporeSlots } from "./jp-vfs-sg/runner.js";
@@ -245,6 +246,52 @@ async function handleKoreaKvacSmsStart(req: http.IncomingMessage, res: http.Serv
         ? { screenshotPath: error.screenshotPath }
         : {}),
     });
+  }
+}
+
+async function handleKoreaKvacChengduSlots(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isKoreaInternalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+  try {
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1366, height: 1000 } });
+    const response = await page.goto("https://www.koreavisa-cd.com/zh-CN/reservation/apply", {
+      waitUntil: "networkidle",
+      timeout: 90_000,
+    });
+    if (!response?.ok()) throw new Error(`Chengdu official booking page returned HTTP ${response?.status() ?? 0}.`);
+    const slots = await observeChengduAvailableSlots(page);
+    sendJson(res, 200, {
+      ok: true,
+      status: "appointment_slots_observed",
+      observedAt: new Date().toISOString(),
+      centerCode: "chengdu",
+      slots: slots.map((slot) => ({
+        id: `chengdu-${slot.appointmentDate}-${slot.appointmentTime.replace(":", "")}`,
+        appointment_date: slot.appointmentDate,
+        appointment_time: slot.appointmentTime,
+        appointment_location: "Korea Visa Application Center Chengdu",
+        appointment_type: "C-3-9 document intake",
+        source: "official_koreavisa_cd",
+        status: "available",
+        metadata_redacted_json: {
+          appointmentEndTime: slot.appointmentEndTime,
+          bookingSettingNo: slot.bookingSettingNo,
+          remainingCapacity: slot.capacity,
+        },
+      })),
+    });
+  } catch (error) {
+    sendJson(res, 502, { error: error instanceof Error ? error.message : String(error) });
+  } finally {
+    await browser?.close().catch(() => undefined);
   }
 }
 
@@ -672,6 +719,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     }
     if (req.method === "POST" && url === "/local/korea-kvac/sms/start") {
       runTracked(handleKoreaKvacSmsStart(req, res));
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/chengdu/slots") {
+      runTracked(handleKoreaKvacChengduSlots(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/sms/submit") {

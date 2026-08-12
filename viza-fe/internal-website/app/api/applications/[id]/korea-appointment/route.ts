@@ -260,6 +260,11 @@ async function readRoutingInput(
   };
 }
 
+interface KoreaKvacObservedSlotsResponse extends KoreaKvacSubmitSmsResponse {
+  observedAt?: string;
+  centerCode?: string;
+}
+
 function maskPassportNumber(value: string | null) {
   if (!value) return null;
   const trimmed = value.trim();
@@ -2099,6 +2104,66 @@ export async function POST(
       );
     }
     const job = await ensureKoreaJob(auth.admin, id, auth.profile.id, routing, "live_assisted");
+    if (routing.recommended.code === "chengdu") {
+      try {
+        const official = await postSubmissionService<KoreaKvacObservedSlotsResponse>("/local/korea-kvac/chengdu/slots", {
+          applicationId: id,
+          jobId: job.id,
+          centerCode: "chengdu",
+        });
+        if (!official.ok || official.status !== "appointment_slots_observed") {
+          throw new Error("Chengdu official appointment calendar did not return an observable result.");
+        }
+        const observedAt = official.observedAt ?? new Date().toISOString();
+        await auth.admin.from("appointment_slots").delete().eq("job_id", job.id);
+        if (official.slots?.length) {
+          const { error: slotError } = await auth.admin.from("appointment_slots").insert(official.slots.map((slot) => ({
+            job_id: job.id,
+            application_id: id,
+            appointment_date: slot.appointment_date,
+            appointment_time: slot.appointment_time,
+            appointment_location: slot.appointment_location,
+            appointment_type: slot.appointment_type,
+            source: slot.source,
+            status: "observed",
+            observed_at: observedAt,
+            metadata_redacted_json: slot.metadata_redacted_json,
+          })));
+          if (slotError) throw new Error(slotError.message);
+          await clearNoSlotsEvidence(auth.admin, job, observedAt);
+        }
+        await auth.admin.from("appointment_assistance_jobs").update({
+          status: "appointment_slots_observed",
+          requires_user_action: false,
+          current_manual_action: null,
+          last_slot_check_at: observedAt,
+          updated_at: observedAt,
+          user_preferences_json: {
+            ...(job.user_preferences_json ?? {}),
+            noSlotsEvidence: official.slots?.length ? null : {
+              verified: true,
+              checkedAt: observedAt,
+              centerCode: "chengdu",
+              source: "official_koreavisa_cd",
+            },
+            noSlots: official.slots?.length ? null : {
+              verified: true,
+              checkedAt: observedAt,
+              centerCode: "chengdu",
+              source: "official_koreavisa_cd",
+            },
+          },
+        }).eq("id", job.id);
+        await auth.admin.from("applications").update({
+          appointment_assistance_status: "appointment_slots_observed",
+          appointment_assistance_job_id: job.id,
+        }).eq("id", id);
+        return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+      } catch (error) {
+        console.error("[korea-appointment] Chengdu official slot lookup failed", error);
+        return NextResponse.json({ error: "The Chengdu official appointment calendar could not be checked safely. Please retry." }, { status: 502 });
+      }
+    }
     if (routing.recommended.liveBookingMode !== "sms_sync_supported") {
       await createOrReuseCenterCheckpoint(auth.admin, id, auth.profile.id, job, routing);
       return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
