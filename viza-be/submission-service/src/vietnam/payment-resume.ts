@@ -446,6 +446,7 @@ function readBoundedPositiveInteger(name: string, fallback: number, maximum: num
 }
 
 const VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS = [
+  'form img[alt="reload" i]',
   'img[alt="reload" i]',
   'img[title*="reload" i]',
   'button[aria-label*="reload" i]',
@@ -541,26 +542,74 @@ export async function refreshVietnamSearchCaptchaChallenge(
     .fill("")
     .catch(() => undefined);
 
+  const clickAndConfirm = async (
+    control: Locator,
+    dispatch: "trusted" | "vue_event_fallback",
+  ): Promise<boolean> => {
+    const responseWaitMs = Math.max(1, Math.min(remainingMs(), 4_000));
+    const captchaResponse = page.waitForResponse(
+      (response) => {
+        try {
+          const url = new URL(response.url());
+          return response.request().method() === "GET"
+            && url.hostname === "api.evisa.gov.vn"
+            && url.pathname.endsWith("/authorization-service/captcha/generate")
+            && response.ok();
+        } catch {
+          return false;
+        }
+      },
+      { timeout: responseWaitMs },
+    ).then(() => true).catch(() => false);
+    const clicked = dispatch === "trusted"
+      ? await control
+        .click({ timeout: Math.max(1, Math.min(remainingMs(), 2_000)) })
+        .then(() => true)
+        .catch(() => false)
+      : await control
+        .evaluate((element) => {
+          if (!(element instanceof HTMLElement)) return false;
+          element.click();
+          return true;
+        })
+        .catch(() => false);
+    if (!clicked) return false;
+
+    const changed = await captureStableVietnamSearchCaptcha(
+      page,
+      Math.max(1, Math.min(remainingMs(), 1_600)),
+      previousFingerprint,
+    );
+    // A newly stable bitmap is authoritative. The API observation is kept in
+    // the synchronization window so Vue has time to apply the response; some
+    // test fixtures and future portals may rotate an inline challenge instead.
+    void captchaResponse;
+    return changed !== null;
+  };
+
   // The live portal occasionally accepts the trusted reload click without
   // rotating the bitmap (typically while the Vue request is still settling).
   // Re-resolve and retry the same annotated control a small number of times;
   // the old control-index loop clicked a page with one reload image only once.
   for (let clickAttempt = 1; clickAttempt <= 3 && remainingMs() > 0; clickAttempt += 1) {
-    const reloadControls = page.locator(VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS);
+    const scopedReloadControls = page
+      .locator("#basic_captcha")
+      .locator("xpath=ancestor::form[1]")
+      .locator('img[alt="reload" i]');
+    const reloadControls = await scopedReloadControls.count().catch(() => 0) > 0
+      ? scopedReloadControls
+      : page.locator(VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS);
     const count = Math.min(await reloadControls.count().catch(() => 0), 10);
     for (let index = 0; index < count && remainingMs() > 0; index += 1) {
       const control = reloadControls.nth(index);
       if (!(await control.isVisible({ timeout: Math.min(remainingMs(), 750) }).catch(() => false))) continue;
-      const clicked = await control
-        .click({ timeout: Math.max(1, Math.min(remainingMs(), 2_000)) })
-        .then(() => true)
-        .catch(() => false);
-      if (!clicked) continue;
-      if (await captureStableVietnamSearchCaptcha(
-        page,
-        Math.min(remainingMs(), 2_500),
-        previousFingerprint,
-      )) {
+      if (await clickAndConfirm(control, "trusted")) return "search_reload_control";
+
+      // The official Vue bundle binds a plain onClick handler to the reload
+      // image. On some headless Fly sessions the trusted pointer click lands
+      // without dispatching that handler. A DOM click is a safe, scoped
+      // fallback; success still requires the official API response/new bitmap.
+      if (remainingMs() > 0 && await clickAndConfirm(control, "vue_event_fallback")) {
         return "search_reload_control";
       }
     }
