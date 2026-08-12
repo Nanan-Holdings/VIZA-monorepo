@@ -40,6 +40,90 @@ test("vn.payment-resume: never sends a previously-seen search challenge to the s
   assert.deepEqual([...knownFingerprints], ["challenge-a", "challenge-b"]);
 });
 
+test("vn.payment-resume: reloads a repeated fresh-context challenge before solving", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const firstChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">111111</text></svg>',
+    );
+    const secondChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">222222</text></svg>',
+    );
+    await page.setContent(`
+      <input id="basic_captcha" />
+      <img alt="captcha img" src="${firstChallenge}" />
+      <button aria-label="reload captcha" type="button">Reload</button>
+      <script>
+        document.querySelector('[aria-label="reload captcha"]').addEventListener('click', () => {
+          document.querySelector('img[alt="captcha img"]').setAttribute('src', ${JSON.stringify(secondChallenge)});
+        });
+      </script>
+    `);
+    const firstFingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
+    assert.ok(firstFingerprint);
+    const knownFingerprints = new Set([firstFingerprint]);
+    let solveCalls = 0;
+
+    const result = await solveVietnamPaymentSearchCaptcha(page, 8_000, {
+      maxAttempts: 1,
+      knownChallengeFingerprints: knownFingerprints,
+      solveCaptcha: async () => {
+        solveCalls += 1;
+        return { text: "222222", solveId: "fixture-solve", durationMs: 10 };
+      },
+    });
+
+    assert.equal(solveCalls, 1);
+    assert.equal(await page.locator("#basic_captcha").inputValue(), "222222");
+    assert.equal(knownFingerprints.size, 2);
+    assert.equal(result.diagnostics.at(-1)?.outcome, "solved");
+    assert.equal(result.diagnostics.at(-1)?.refreshConfirmed, true);
+    assert.equal(result.diagnostics.at(-1)?.refreshStrategy, "search_reload_control");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: never solves a repeated challenge when reload is a no-op", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const challenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">111111</text></svg>',
+    );
+    await page.setContent(`
+      <input id="basic_captcha" />
+      <img alt="captcha img" src="${challenge}" />
+      <button aria-label="reload captcha" type="button">Reload</button>
+    `);
+    const fingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
+    assert.ok(fingerprint);
+    let solveCalls = 0;
+
+    await assert.rejects(
+      solveVietnamPaymentSearchCaptcha(page, 2_500, {
+        maxAttempts: 1,
+        knownChallengeFingerprints: new Set([fingerprint]),
+        solveCaptcha: async () => {
+          solveCalls += 1;
+          return { text: "111111", solveId: "fixture-solve", durationMs: 10 };
+        },
+      }),
+      (error: unknown) => {
+        const diagnostics = (error as { diagnostics?: Array<{ outcome?: string }> }).diagnostics ?? [];
+        assert.equal(diagnostics.at(-1)?.outcome, "stale_challenge");
+        return true;
+      },
+    );
+
+    assert.equal(solveCalls, 0);
+    assert.equal(await page.locator("#basic_captcha").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.payment-resume: abandons an answer when the portal changes the challenge during solving", async () => {
   const browser = await chromium.launch({ headless: true });
   try {
