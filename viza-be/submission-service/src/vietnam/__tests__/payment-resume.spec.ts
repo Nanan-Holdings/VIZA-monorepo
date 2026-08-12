@@ -335,6 +335,44 @@ test("vn.payment-resume: re-resolves a Vue-replaced CAPTCHA image and waits for 
   }
 });
 
+test("vn.payment-resume: retries the one live reload control when its first trusted click is a no-op", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const firstChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">111111</text></svg>',
+    );
+    const secondChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">222222</text></svg>',
+    );
+    await page.setContent(`
+      <input id="basic_captcha" />
+      <img alt="captcha img" src="${firstChallenge}" />
+      <img alt="reload" src="${firstChallenge}" />
+      <script>
+        window.reloadClicks = 0;
+        document.querySelector('img[alt="reload"]').addEventListener("click", (event) => {
+          if (!event.isTrusted) return;
+          window.reloadClicks += 1;
+          if (window.reloadClicks >= 2) {
+            document.querySelector('img[alt="captcha img"]').src = ${JSON.stringify(secondChallenge)};
+          }
+        });
+      </script>
+    `);
+    const previousFingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
+    assert.ok(previousFingerprint);
+
+    const strategy = await refreshVietnamSearchCaptchaChallenge(page, previousFingerprint, 7_000);
+
+    assert.equal(strategy, "search_reload_control");
+    assert.equal(await page.evaluate(() => (window as typeof window & { reloadClicks?: number }).reloadClicks ?? 0), 2);
+    assert.notEqual(await captureVietnamCaptchaFingerprint(page, 2_000), previousFingerprint);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.payment-resume: rejects an unchanged search challenge after the reload control is clicked", async () => {
   const browser = await chromium.launch({ headless: true });
   try {

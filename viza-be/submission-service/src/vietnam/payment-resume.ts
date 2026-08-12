@@ -541,22 +541,28 @@ export async function refreshVietnamSearchCaptchaChallenge(
     .fill("")
     .catch(() => undefined);
 
-  const reloadControls = page.locator(VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS);
-  const count = Math.min(await reloadControls.count().catch(() => 0), 10);
-  for (let index = 0; index < count && remainingMs() > 0; index += 1) {
-    const control = reloadControls.nth(index);
-    if (!(await control.isVisible({ timeout: Math.min(remainingMs(), 1_000) }).catch(() => false))) continue;
-    const clicked = await control
-      .click({ timeout: Math.max(1, Math.min(remainingMs(), 3_000)) })
-      .then(() => true)
-      .catch(() => false);
-    if (!clicked) continue;
-    if (await captureStableVietnamSearchCaptcha(
-      page,
-      Math.min(remainingMs(), 6_000),
-      previousFingerprint,
-    )) {
-      return "search_reload_control";
+  // The live portal occasionally accepts the trusted reload click without
+  // rotating the bitmap (typically while the Vue request is still settling).
+  // Re-resolve and retry the same annotated control a small number of times;
+  // the old control-index loop clicked a page with one reload image only once.
+  for (let clickAttempt = 1; clickAttempt <= 3 && remainingMs() > 0; clickAttempt += 1) {
+    const reloadControls = page.locator(VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS);
+    const count = Math.min(await reloadControls.count().catch(() => 0), 10);
+    for (let index = 0; index < count && remainingMs() > 0; index += 1) {
+      const control = reloadControls.nth(index);
+      if (!(await control.isVisible({ timeout: Math.min(remainingMs(), 750) }).catch(() => false))) continue;
+      const clicked = await control
+        .click({ timeout: Math.max(1, Math.min(remainingMs(), 2_000)) })
+        .then(() => true)
+        .catch(() => false);
+      if (!clicked) continue;
+      if (await captureStableVietnamSearchCaptcha(
+        page,
+        Math.min(remainingMs(), 2_500),
+        previousFingerprint,
+      )) {
+        return "search_reload_control";
+      }
     }
   }
 

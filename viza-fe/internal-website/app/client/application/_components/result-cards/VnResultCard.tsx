@@ -31,10 +31,16 @@ export function mergeOfficialFeeStatus(
   current: Record<string, unknown> | null,
   payload: Record<string, unknown> | null,
 ): Record<string, unknown> {
+  const payloadHasPaymentQueued = typeof payload?.paymentQueued === "boolean";
   return {
     ...(current ?? {}),
     ...(payload ?? {}),
-    paymentQueued: payload?.paymentQueued === true || current?.paymentQueued === true,
+    // A terminal queue response must be allowed to clear the optimistic
+    // `true` written immediately after POST /pay. Keeping it sticky made the
+    // payment card remain at 99% after vn_blocked/manual_review was persisted.
+    paymentQueued: payloadHasPaymentQueued
+      ? payload?.paymentQueued === true
+      : current?.paymentQueued === true,
     queueId:
       typeof payload?.queueId === "string"
         ? payload.queueId
