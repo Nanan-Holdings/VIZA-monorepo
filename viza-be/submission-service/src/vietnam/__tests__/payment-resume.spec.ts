@@ -10,12 +10,19 @@ import {
   refreshVietnamSearchCaptchaChallenge,
   retryFreshVietnamSearchPage,
   retryVietnamSearchCaptchaInFreshContexts,
+  shouldRefreshVietnamSearchCaptchaBeforeFirstSolve,
   solveVietnamPaymentSearchCaptcha,
   shouldRetryVietnamSearchAfterCriticalAssetFailure,
   VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS,
   waitForVietnamSearchSubmissionOutcome,
 } from "../payment-resume";
 import { captureVietnamCaptchaFingerprint, fingerprintVietnamCaptchaImage } from "../captcha";
+
+test("vn.payment-resume: rotates the fixed default challenge in every fresh context", () => {
+  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(1), true);
+  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(2), true);
+  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(3), true);
+});
 
 test("vn.payment-resume: constrains the search CAPTCHA to exactly six digits", () => {
   assert.deepEqual(VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS, {

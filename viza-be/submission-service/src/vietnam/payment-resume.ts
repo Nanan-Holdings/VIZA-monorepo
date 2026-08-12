@@ -34,6 +34,13 @@ export interface VietnamPaymentResumeDiagnostics {
 
 export type VietnamSearchSubmissionOutcome = "accepted" | "captcha_rejected" | "unconfirmed";
 
+export function shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(
+  _contextAttempt: number,
+): boolean {
+  // A new browser context still mounts the same official default challenge.
+  return true;
+}
+
 interface VietnamSearchCaptchaSolveSuccess {
   diagnostics: VietnamPaymentSearchCaptchaDiagnostic[];
   solveId?: string;
@@ -1319,7 +1326,12 @@ export async function resumeVietnamOfficialPayment(
               contextAttempt,
               maxAttempts: Math.min(3, remainingSolverAttempts),
               knownChallengeFingerprints,
-              refreshInitialChallenge: contextAttempt === 1,
+              // The official Vue SPA mounts the same fixed default CAPTCHA in
+              // every fresh page.  A fresh browser context is therefore not a
+              // fresh challenge: rotate it before the first solver request in
+              // every context, not only in context 1.
+              refreshInitialChallenge:
+                shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(contextAttempt),
               deadlineAt: searchDeadlineAt,
             },
           );
