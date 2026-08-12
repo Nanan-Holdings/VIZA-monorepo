@@ -810,71 +810,119 @@ function VietnamPhotoComparisonPanel({
     : isZh ? "待检测" : "Not checked";
   const decisionClass = faceMatch?.decision === "auto_approve"
     ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-    : faceMatch?.decision
+    : faceMatch?.decision === "staff_review"
       ? "border-amber-200 bg-amber-50 text-amber-800"
-      : "border-border bg-white text-muted-foreground";
+      : faceMatch?.decision === "reject"
+        ? "border-red-200 bg-red-50 text-red-700"
+        : "border-border bg-muted/30 text-muted-foreground";
+  const decisionIcon = faceMatch?.decision === "auto_approve"
+    ? <CheckCircle2 className="h-4 w-4" />
+    : faceMatch?.decision
+      ? <AlertCircle className="h-4 w-4" />
+      : <FileCheck2 className="h-4 w-4" />;
 
   return (
-    <section className="space-y-4 rounded-lg border border-cyan-200 bg-cyan-50/50 p-5">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-normal text-cyan-800">
-            {isZh ? "越南官网照片对照" : "Vietnam official photo comparison"}
-          </p>
-          <h2 className="text-xl font-semibold text-foreground">
-            {isZh ? "证件照与护照人脸相似度" : "Portrait and passport face match"}
-          </h2>
-          <ul className="space-y-1 text-sm text-muted-foreground">
-            <li>{isZh ? "证件照和护照资料页均必须为 JPG/JPEG/PNG，单个文件小于 2MB。" : "Portrait and passport bio page must be JPG/JPEG/PNG and under 2MB each."}</li>
-            <li>{isZh ? "证件照需近期 4x6cm、正脸、白底、无遮挡、无帽子和墨镜。" : "Portrait should be recent 4x6cm, front-facing, white background, unobstructed, no hat or sunglasses."}</li>
-            <li>{isZh ? "护照资料页需清晰、无缺角，并能检测到人脸。" : "Passport bio page must be clear, uncropped, and contain a detectable face."}</li>
-          </ul>
-        </div>
-        <div className={cn("rounded-lg border px-4 py-3 text-sm font-semibold", decisionClass)}>
-          <div>{decisionLabel}</div>
-          <div className="mt-1 text-2xl">
-            {scorePercent === null ? "--" : `${scorePercent}%`}
+    <section aria-labelledby="vietnam-photo-comparison-title">
+      <article className="rounded-xl border border-border bg-white p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-brand-500">
+              {isZh ? "越南电子签证 · 照片要求" : "Vietnam e-Visa · Photo requirements"}
+            </p>
+            <h3
+              id="vietnam-photo-comparison-title"
+              className="mt-1 text-[15px] font-medium tracking-[-0.1px] text-[#3d3d3d]"
+            >
+              {isZh ? "证件照与护照人脸相似度" : "Portrait and passport face match"}
+            </h3>
+            <p className="mt-[5px] text-[13px] leading-[1.55] text-black/55">
+              {isZh
+                ? "上传两项材料后进行检测，结果将作为提交前材料证据。"
+                : "Compare both uploads and save the result as pre-submission evidence."}
+            </p>
+          </div>
+          <div
+            className={cn(
+              "inline-flex w-fit shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium",
+              decisionClass
+            )}
+          >
+            {decisionIcon}
+            <span>{decisionLabel}</span>
+            <span aria-hidden="true">·</span>
+            <span className="tabular-nums">
+              {scorePercent === null ? "--" : `${scorePercent}%`}
+            </span>
           </div>
         </div>
-      </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-lg border border-border bg-white p-4">
-          <p className="text-sm font-semibold">{isZh ? "本人证件照" : "Portrait photo"}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {hasPhoto
-              ? isZh ? "已上传，可用于对照。" : "Uploaded and ready for comparison."
-              : isZh ? "请先上传本人证件照。" : "Upload the portrait photo first."}
+        <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4">
+          <p className="text-sm font-medium text-foreground">
+            {isZh ? "上传要求" : "Upload requirements"}
           </p>
+          <ul className="mt-2 grid gap-2 text-[13px] leading-[1.55] text-muted-foreground lg:grid-cols-3">
+            <li>{isZh ? "JPG、JPEG 或 PNG 格式，单个文件小于 2MB。" : "JPG, JPEG or PNG; each file must be under 2MB."}</li>
+            <li>{isZh ? "证件照需近期 4×6cm、正脸、白底且无遮挡。" : "Use a recent 4×6cm, front-facing photo on a white background."}</li>
+            <li>{isZh ? "护照资料页需完整清晰，并能检测到人脸。" : "The passport bio page must be complete, clear and show a detectable face."}</li>
+          </ul>
         </div>
-        <div className="rounded-lg border border-border bg-white p-4">
-          <p className="text-sm font-semibold">{isZh ? "护照资料页" : "Passport bio page"}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {hasPassport
-              ? isZh ? "已上传，可用于对照。" : "Uploaded and ready for comparison."
-              : isZh ? "请先上传护照资料页。" : "Upload the passport bio page first."}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-white p-4">
-          <p className="text-sm font-semibold">{isZh ? "VIZA 检测" : "VIZA check"}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {faceMatch?.ok
-              ? isZh ? "检测结果已生成，会作为提交前材料证据。" : "Comparison result generated and saved as pre-submission evidence."
-              : faceMatch?.reason ?? (isZh ? "上传两项材料后生成相似度。" : "Generate similarity after both files are uploaded.")}
-          </p>
-        </div>
-      </div>
 
-      <Button
-        type="button"
-        variant="outline"
-        onClick={onRun}
-        disabled={busy || !hasPassport || !hasPhoto}
-        className="w-full bg-white"
-      >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileCheck2 className="h-4 w-4" />}
-        {isZh ? "生成相似度" : "Generate similarity"}
-      </Button>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {[
+            {
+              label: isZh ? "本人证件照" : "Portrait photo",
+              ready: hasPhoto,
+              readyText: isZh ? "已上传，可用于检测" : "Uploaded and ready",
+              missingText: isZh ? "等待上传" : "Waiting for upload",
+            },
+            {
+              label: isZh ? "护照资料页" : "Passport bio page",
+              ready: hasPassport,
+              readyText: isZh ? "已上传，可用于检测" : "Uploaded and ready",
+              missingText: isZh ? "等待上传" : "Waiting for upload",
+            },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="flex items-center gap-3 rounded-lg border border-border px-4 py-3"
+            >
+              {item.ready ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+              ) : (
+                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">{item.label}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {item.ready ? item.readyText : item.missingText}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {!faceMatch?.ok && faceMatch?.reason ? (
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{faceMatch.reason}</p>
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex justify-end border-t border-border pt-4">
+          <BrandActionButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onRun}
+            disabled={!hasPassport || !hasPhoto}
+            loading={busy}
+            loadingText={isZh ? "正在检测…" : "Comparing…"}
+          >
+            <FileCheck2 />
+            {isZh ? "生成相似度" : "Generate similarity"}
+          </BrandActionButton>
+        </div>
+      </article>
     </section>
   );
 }
