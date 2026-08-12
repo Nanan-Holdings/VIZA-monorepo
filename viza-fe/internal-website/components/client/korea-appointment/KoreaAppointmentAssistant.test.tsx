@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KoreaAppointmentAssistant } from "./KoreaAppointmentAssistant";
 
 const copy: Record<string, string> = {
+  "locale": "zh",
   "page.backToForm": "返回申请表",
   "page.title": "韩国签证预约",
   "page.subtitle": "一次只完成一件事",
@@ -16,6 +17,9 @@ const copy: Record<string, string> = {
   "steps.result": "预约结果",
   "loading.title": "正在读取预约状态",
   "loading.body": "正在准备你的预约流程",
+  "centerLoading.title": "正在切换递签领区",
+  "centerLoading.body": "正在准备新的资料确认页",
+  "centerLoading.status": "正在载入所选中心的规则与办理方式",
   "review.title": "确认资料与递签领区",
   "review.body": "请先核对资料",
   "review.name": "申请人英文姓名",
@@ -217,6 +221,31 @@ describe("KoreaAppointmentAssistant five-stage flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "确认资料并继续" }));
     await waitFor(() => expect(requestedActions()).toContainEqual(expect.objectContaining({ action: "confirm-review" })));
     await waitFor(() => expectOnlyStage("account"));
+  });
+
+  it("replaces the stale review card with a loading transition while changing center", async () => {
+    const reviewSnapshot = snapshot({ job: null, reviewConfirmed: false, reviewConfirmedAt: null });
+    let resolveCenterChange!: (value: Response) => void;
+    const centerChange = new Promise<Response>((resolve) => {
+      resolveCenterChange = resolve;
+    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(reviewSnapshot))
+      .mockReturnValueOnce(centerChange);
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "更改领区" }));
+    const sheet = await screen.findByRole("dialog");
+    fireEvent.click(within(sheet).getByRole("button", { name: /上海/u }));
+
+    expect(await screen.findByText("正在切换递签领区")).toBeInTheDocument();
+    expectOnlyStage("review");
+    expect(screen.queryByRole("button", { name: "确认资料并继续" })).not.toBeInTheDocument();
+
+    resolveCenterChange(response(reviewSnapshot));
+    expect(await screen.findByText("韩国签证申请中心（上海）")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "确认资料并继续" })).toBeEnabled();
   });
 
   it("keeps a verified no-slot result inside the slot stage", async () => {

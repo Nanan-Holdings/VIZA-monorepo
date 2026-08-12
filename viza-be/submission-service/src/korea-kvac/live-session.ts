@@ -124,6 +124,8 @@ export interface KoreaKvacObservedSlot {
 }
 
 interface KoreaKvacCancelSession {
+  applicationId: string;
+  jobId: string;
   browser: Browser;
   page: Page;
   bookingSearchUrl: string;
@@ -413,10 +415,37 @@ async function selectByVisibleText(page: Page, selector: string, textPattern: Re
   if (value) await page.selectOption(selector, value);
 }
 
-async function screenshot(page: Page, jobId: string, label: string) {
-  const path = `output/playwright/korea-kvac-${jobId}-${label}.png`;
-  await page.screenshot({ path, fullPage: true }).catch(() => undefined);
-  return path;
+async function screenshot(
+  page: Page,
+  applicationId: string,
+  jobId: string,
+  label: string,
+  requireStoredEvidence = false,
+) {
+  const safeApplicationId = applicationId.replace(/[^a-z0-9_-]/gi, "-");
+  const safeJobId = jobId.replace(/[^a-z0-9_-]/gi, "-");
+  const safeLabel = label.replace(/[^a-z0-9_-]/gi, "-");
+  const outputPath = path.resolve("output", "playwright", `korea-kvac-${safeJobId}-${safeLabel}.png`);
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  const bytes = await page.screenshot({ path: outputPath, fullPage: true }).catch(() => null);
+  if (!bytes) {
+    if (requireStoredEvidence) throw new Error("Official KVAC screenshot could not be captured.");
+    return null;
+  }
+
+  const storagePath = `korea-appointments/${safeApplicationId}/${safeJobId}-${safeLabel}.png`;
+  const { error } = await supabase.storage.from("submission-artifacts").upload(storagePath, bytes, {
+    contentType: "image/png",
+    upsert: true,
+  });
+  if (error) {
+    if (requireStoredEvidence) {
+      throw new Error(`Official KVAC screenshot could not be stored: ${error.message}`);
+    }
+    console.warn(`[korea-kvac] optional screenshot upload failed job=${safeJobId} label=${safeLabel}`);
+    return null;
+  }
+  return storagePath;
 }
 
 async function saveOfficialConfirmationPdf(page: Page, applicationId: string, jobId: string) {
@@ -773,7 +802,7 @@ export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsI
     await page.waitForTimeout(3_000);
     const availableSlots = await observeAllAvailableSlots(page);
     if (!availableSlots.length) {
-      const screenshotPath = await screenshot(page, input.jobId, "no-selectable-slots");
+      const screenshotPath = await screenshot(page, input.applicationId, input.jobId, "no-selectable-slots", true);
       throw new KoreaKvacOfficialSessionError(
         `No selectable ${centerConfig.label} appointment slots were found in the official booking window.`,
         screenshotPath,
@@ -805,7 +834,7 @@ export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsI
     }
 
     const expiresAt = nowMs() + SESSION_TTL_MS;
-    const screenshotPath = await screenshot(page, input.jobId, "sms-required");
+    const screenshotPath = await screenshot(page, input.applicationId, input.jobId, "sms-required");
     sessions.set(input.jobId, {
       applicationId: input.applicationId,
       jobId: input.jobId,
@@ -854,7 +883,7 @@ export async function submitKoreaKvacOfficialSmsCode(input: {
   await confirmButton.click({ timeout: 30_000 });
   await session.page.waitForTimeout(4_000);
 
-  const screenshotPath = await screenshot(session.page, input.jobId, "sms-submitted");
+  const screenshotPath = await screenshot(session.page, session.applicationId, input.jobId, "sms-submitted");
   session.screenshotPath = screenshotPath;
   return {
     status: "appointment_slots_observed",
@@ -897,7 +926,7 @@ export async function completeKoreaKvacOfficialBooking(input: {
 
   const existingConfirmationNumber = await extractConfirmationNumber(session.page);
   if (existingConfirmationNumber) {
-    const screenshotPath = await screenshot(session.page, input.jobId, "confirmation");
+    const screenshotPath = await screenshot(session.page, session.applicationId, input.jobId, "confirmation");
     const confirmationPdfUrl = await saveOfficialConfirmationPdf(session.page, session.applicationId, input.jobId);
     await cleanupSession(input.jobId);
     return {
@@ -936,7 +965,7 @@ export async function completeKoreaKvacOfficialBooking(input: {
   await session.page.locator("#personal_info_agree_yn").check({ force: true }).catch(() => undefined);
   await clickFinalBookingButton(session.page);
   const confirmationNumber = await extractConfirmationNumber(session.page);
-  const screenshotPath = await screenshot(session.page, input.jobId, "confirmation");
+  const screenshotPath = await screenshot(session.page, session.applicationId, input.jobId, "confirmation");
   if (!confirmationNumber) {
     throw new Error("Official KVAC final click completed, but no confirmation number was found. Preserve the screenshot and verify the official page before reporting success.");
   }
@@ -984,7 +1013,7 @@ export async function printKoreaKvacOfficialConfirmation(
     await page.waitForTimeout(4_000);
     const confirmationNumber = await extractConfirmationNumber(page);
     if (!confirmationNumber) {
-      await screenshot(page, input.jobId, "confirmation-print-not-found");
+      await screenshot(page, input.applicationId, input.jobId, "confirmation-print-not-found");
       const officialMessage = dialogs.at(-1)?.replace(/\s+/g, " ").trim();
       throw new Error(
         officialMessage
@@ -992,7 +1021,7 @@ export async function printKoreaKvacOfficialConfirmation(
           : "Official KVAC appointment lookup did not return a confirmation number.",
       );
     }
-    const screenshotPath = await screenshot(page, input.jobId, "confirmation-print");
+    const screenshotPath = await screenshot(page, input.applicationId, input.jobId, "confirmation-print");
     const confirmationPdfUrl = await saveOfficialConfirmationPdf(page, input.applicationId, input.jobId);
     return {
       status: "appointment_confirmation_printed",
@@ -1037,7 +1066,7 @@ export async function startKoreaKvacOfficialCancelQuery(input: KoreaKvacCancelQu
 
     const cancelButton = await findOfficialCancelButton(page);
     const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-    const screenshotPath = await screenshot(page, input.jobId, cancelButton ? "cancel-confirmation-required" : "cancel-query");
+    const screenshotPath = await screenshot(page, input.applicationId, input.jobId, cancelButton ? "cancel-confirmation-required" : "cancel-query");
     if (!cancelButton) {
       await browser.close().catch(() => undefined);
       return {
@@ -1054,6 +1083,8 @@ export async function startKoreaKvacOfficialCancelQuery(input: KoreaKvacCancelQu
     }
 
     cancelSessions.set(input.jobId, {
+      applicationId: input.applicationId,
+      jobId: input.jobId,
       browser,
       page,
       bookingSearchUrl: input.bookingSearchUrl,
@@ -1074,7 +1105,7 @@ export async function startKoreaKvacOfficialCancelQuery(input: KoreaKvacCancelQu
     };
   } catch (error) {
     if (!(error instanceof KoreaKvacOfficialSessionError)) {
-      const screenshotPath = await screenshot(page, input.jobId, "official-session-start-failed").catch(() => null);
+      const screenshotPath = await screenshot(page, input.applicationId, input.jobId, "official-session-start-failed").catch(() => null);
       await browser.close().catch(() => undefined);
       throw new KoreaKvacOfficialSessionError(
         error instanceof Error ? error.message : String(error),
@@ -1099,7 +1130,7 @@ export async function confirmKoreaKvacOfficialCancellation(input: { jobId: strin
 
   const confirmationButton = await findOfficialCancellationConfirmationButton(session.page);
   if (!confirmationButton) {
-    const screenshotPath = await screenshot(session.page, input.jobId, "cancel-confirmation-missing");
+    const screenshotPath = await screenshot(session.page, session.applicationId, input.jobId, "cancel-confirmation-missing");
     await cleanupCancelSession(input.jobId);
     throw new Error(
       `Official KVAC cancellation confirmation dialog was not detected (${screenshotPath ?? "no screenshot"}). The appointment was not marked as cancelled.`,
@@ -1127,7 +1158,7 @@ export async function confirmKoreaKvacOfficialCancellation(input: { jobId: strin
     if (verification.bodyText) bodyText = verification.bodyText;
     succeeded = verification.verified;
   }
-  const screenshotPath = await screenshot(session.page, input.jobId, succeeded ? "cancelled" : "cancel-unverified");
+  const screenshotPath = await screenshot(session.page, session.applicationId, input.jobId, succeeded ? "cancelled" : "cancel-unverified");
   await cleanupCancelSession(input.jobId);
 
   if (!succeeded) {
