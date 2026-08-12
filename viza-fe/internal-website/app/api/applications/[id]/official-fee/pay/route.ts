@@ -1,5 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
+import {
+  ensureFlyMachineStarted,
+  waitForHttpReady,
+} from "@/lib/fly-machine-wake.server";
 import {
   isIndonesiaEVisaApplication,
   queueProviderForApplication,
@@ -7,8 +10,10 @@ import {
 } from "@/lib/submission-queue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveOfficialFeeApplicantAuth } from "../auth";
+import { ensureVietnamCardWorkerReady } from "./cloud-worker-ready";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const VN_OFFICIAL_FEE_AMOUNT = 25;
 const VN_OFFICIAL_FEE_CURRENCY = "USD";
@@ -560,7 +565,27 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
   if (countryPath === "vietnam") {
     const cloud = getVietnamCloudCardSessionConfig();
     if (cloud) {
-      await ensureFlyMachineStarted("legacy");
+      const ready = await ensureVietnamCardWorkerReady({
+        baseUrl: cloud.baseUrl,
+        wakeLegacy: () => ensureFlyMachineStarted("legacy"),
+        waitUntilReady: (url) => waitForHttpReady(url, {
+          timeoutMs: 30_000,
+          pollIntervalMs: 500,
+          requestTimeoutMs: 4_000,
+        }),
+      });
+      if (!ready.ok) {
+        console.error("Vietnam cloud card-session worker unavailable", {
+          reason: ready.reason,
+          attempts: "attempts" in ready ? ready.attempts : undefined,
+        });
+        return {
+          ok: false,
+          error: ready.reason === "wake_failed"
+            ? "越南云端付款服务暂时无法启动，请稍后重试。"
+            : "越南云端付款服务仍在启动，请稍后重试。",
+        };
+      }
       const result = await postOneTimeCardSession({
         endpoint: `${cloud.baseUrl}/internal/vietnam/card-session`,
         applicationId,
