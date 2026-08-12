@@ -179,6 +179,10 @@ filling and one-shot submission for the applicant.
   from Vercel to the single Fly legacy queue worker. It keeps one Vietnam
   official-fee card in worker memory until one consumption or expiry and must
   never log or persist PAN/CVV.
+- Vietnam payment-search CAPTCHA capture must wait for a stable bitmap and
+  re-resolve the current image after every reload. The official Vue SPA may
+  replace the image node during mount/reload; never solve or resubmit a
+  detached, transient, or previously rejected challenge.
 - `POST /internal/france-tls/register-account`: internal-token protected
   account preparation endpoint gated by
   `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true`. It runs exactly one
