@@ -437,6 +437,11 @@ filling and one-shot submission for the applicant.
   smoke for all mainland China filing channels. It opens the official booking
   or guidance entry for each center and saves evidence screenshots without
   sending SMS codes or clicking final booking.
+- `src/korea-kvac/chengdu-slots.ts` reads Chengdu's official live
+  calendar and schedule APIs and accepts only `isUse=Y` schedules with positive
+  remaining capacity. `scripts/probe-korea-shenyang-browserbase.ts` is the
+  read-only Browserbase reachability probe for Shenyang/VFS and must never log
+  provider credentials or submit an appointment.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
