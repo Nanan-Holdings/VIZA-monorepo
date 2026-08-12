@@ -23,6 +23,10 @@ ports directly.
   `enqueue_official_fee_submission` RPC. It serializes by application, reuses
   claimed work, supersedes only same-application stale work, and prevents
   duplicate active browser jobs.
+- Vietnam cloud card handoff must wait for the explicitly started legacy
+  worker's `/ready` endpoint before posting the short-lived in-memory card
+  session. A Fly start request is not evidence that the HTTP service is ready;
+  never enqueue a payment job unless the card-session handoff succeeded.
 - Generic retry enqueue must call the service-role `enqueue_submission_retry`
   RPC so supersede-and-insert is atomic. Never reintroduce separate update and
   insert calls; concurrent retries for one application must reuse one job.
@@ -41,6 +45,9 @@ ports directly.
   adjacent `auth.test.ts`.
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/authorize/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/cloud-worker-ready.ts`
+  owns the cold-start readiness boundary and keeps its focused regression tests
+  in the adjacent `cloud-worker-ready.test.ts`.
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.ts`
   keeps its implementation and test helpers in the adjacent `route-handler.ts`
   module so the Next route exports only HTTP methods/configuration.
