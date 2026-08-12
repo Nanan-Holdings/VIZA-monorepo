@@ -553,7 +553,7 @@ export async function refreshVietnamSearchCaptchaChallenge(
     control: Locator,
     dispatch: "trusted" | "vue_event_fallback",
   ): Promise<boolean> => {
-    const responseWaitMs = Math.max(1, Math.min(remainingMs(), 4_000));
+    const responseWaitMs = Math.max(1, Math.min(remainingMs(), 3_000));
     const captchaResponse = page.waitForResponse(
       (response) => {
         try {
@@ -582,44 +582,71 @@ export async function refreshVietnamSearchCaptchaChallenge(
         .catch(() => false);
     if (!clicked) return false;
 
-    const changed = await captureStableVietnamSearchCaptcha(
+    // Accept either an inline challenge rotation or the official API response
+    // as the first synchronization signal.  After the API answers, keep the
+    // rest of the caller's bounded deadline available for Vue to replace and
+    // paint the image.  The previous fixed 1.6 second bitmap window routinely
+    // expired on Fly before the successful API response reached the SPA.
+    const firstSignal = await Promise.race([
+      captchaResponse.then((responseObserved) => ({ kind: "response", responseObserved } as const)),
+      captureStableVietnamSearchCaptcha(
+        page,
+        Math.max(1, Math.min(remainingMs(), 2_600)),
+        previousFingerprint,
+      ).then((changed) => ({ kind: "capture", changed } as const)),
+    ]);
+    if (firstSignal.kind === "capture" && firstSignal.changed) return true;
+    const responseObserved = firstSignal.kind === "response"
+      ? firstSignal.responseObserved
+      : await captchaResponse;
+    if (!responseObserved) return false;
+
+    const changedAfterResponse = await captureStableVietnamSearchCaptcha(
       page,
-      Math.max(1, Math.min(remainingMs(), 1_600)),
+      Math.max(1, remainingMs()),
       previousFingerprint,
     );
-    // A newly stable bitmap is authoritative. The API observation is kept in
-    // the synchronization window so Vue has time to apply the response; some
-    // test fixtures and future portals may rotate an inline challenge instead.
-    void captchaResponse;
-    return changed !== null;
+    return changedAfterResponse !== null;
   };
 
   // The live portal occasionally accepts the trusted reload click without
   // rotating the bitmap (typically while the Vue request is still settling).
   // Re-resolve and retry the same annotated control a small number of times;
   // the old control-index loop clicked a page with one reload image only once.
-  for (let clickAttempt = 1; clickAttempt <= 3 && remainingMs() > 0; clickAttempt += 1) {
+  const resolveReloadControls = async (): Promise<Locator> => {
     const scopedReloadControls = page
       .locator("#basic_captcha")
       .locator("xpath=ancestor::form[1]")
       .locator('img[alt="reload" i]');
-    const reloadControls = await scopedReloadControls.count().catch(() => 0) > 0
+    return await scopedReloadControls.count().catch(() => 0) > 0
       ? scopedReloadControls
       : page.locator(VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS);
+  };
+
+  // Give a real pointer click two chances before the DOM fallback. Doing the
+  // synthetic click immediately after every no-op consumed the entire refresh
+  // budget and prevented the second trusted click that the live Vue control
+  // sometimes needs while mounting.
+  for (let clickAttempt = 1; clickAttempt <= 2 && remainingMs() > 0; clickAttempt += 1) {
+    const reloadControls = await resolveReloadControls();
     const count = Math.min(await reloadControls.count().catch(() => 0), 10);
     for (let index = 0; index < count && remainingMs() > 0; index += 1) {
       const control = reloadControls.nth(index);
       if (!(await control.isVisible({ timeout: Math.min(remainingMs(), 750) }).catch(() => false))) continue;
       if (await clickAndConfirm(control, "trusted")) return "search_reload_control";
-
-      // The official Vue bundle binds a plain onClick handler to the reload
-      // image. On some headless Fly sessions the trusted pointer click lands
-      // without dispatching that handler. A DOM click is a safe, scoped
-      // fallback; success still requires the official API response/new bitmap.
-      if (remainingMs() > 0 && await clickAndConfirm(control, "vue_event_fallback")) {
-        return "search_reload_control";
-      }
     }
+  }
+
+  // The official Vue bundle binds a plain onClick handler to the reload image.
+  // On some headless Fly sessions both pointer clicks land without dispatching
+  // that handler. A DOM click is a safe, scoped final fallback; success still
+  // requires the official API response and a new stable bitmap.
+  const fallbackControls = await resolveReloadControls();
+  const fallbackCount = Math.min(await fallbackControls.count().catch(() => 0), 10);
+  for (let index = 0; index < fallbackCount && remainingMs() > 0; index += 1) {
+    const control = fallbackControls.nth(index);
+    if (!(await control.isVisible({ timeout: Math.min(remainingMs(), 750) }).catch(() => false))) continue;
+    if (await clickAndConfirm(control, "vue_event_fallback")) return "search_reload_control";
   }
 
   if (remainingMs() <= 0) return null;
