@@ -438,7 +438,9 @@
     },
     "progress": {
       "ariaLabel": "Appointment progress",
-      "current": "Step {current} of {total}"
+      "current": "Step {current} of {total}",
+      "label": "Step {current} of {total} · {name}",
+      "back": "Back"
     },
     "steps": {
       "review": "Details and center",
@@ -485,6 +487,7 @@
     },
     "account": {
       "title": "Complete official verification",
+      "focus": "Connect to the selected center's official booking page and complete the current verification task.",
       "body": "Your details are confirmed. VIZA will check the selected center's official booking page; the portal may send an SMS code after it finds an open time.",
       "restartBody": "The previous official session has ended. Start a fresh session and request a new code.",
       "start": "Check official times",
@@ -509,6 +512,8 @@
       "title": "Choose an appointment time",
       "body": "These times came from the current official session. Final submission still requires a separate approval.",
       "choose": "Choose this time",
+      "continue": "Continue with this time",
+      "continuing": "Saving selected time…",
       "back": "Back to official verification",
       "refresh": "Refresh official times",
       "emptyTitle": "No appointment times are open yet",
@@ -521,6 +526,11 @@
     },
     "confirm": {
       "title": "Confirm final booking",
+      "body": "Review only the booking that will be submitted. After saving approval, you will still submit the official booking separately.",
+      "date": "Appointment date",
+      "time": "Appointment time",
+      "location": "Filing location",
+      "applicant": "Applicant",
       "selected": "Selected official time",
       "authorization": "I checked the date, time, and location and authorize VIZA to use this time for the final booking.",
       "approve": "Save final approval",
@@ -533,6 +543,7 @@
     },
     "result": {
       "title": "Appointment confirmed",
+      "body": "The official confirmation number and booking evidence have been saved. Download the confirmation and arrive on time.",
       "officialConfirmation": "Official booking confirmation",
       "number": "Official confirmation: {number}",
       "print": "Download or print confirmation",
