@@ -10,12 +10,19 @@ import {
   refreshVietnamSearchCaptchaChallenge,
   retryFreshVietnamSearchPage,
   retryVietnamSearchCaptchaInFreshContexts,
+  shouldRefreshVietnamSearchCaptchaBeforeFirstSolve,
   solveVietnamPaymentSearchCaptcha,
   shouldRetryVietnamSearchAfterCriticalAssetFailure,
   VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS,
   waitForVietnamSearchSubmissionOutcome,
 } from "../payment-resume";
-import { captureVietnamCaptchaFingerprint } from "../captcha";
+import { captureVietnamCaptchaFingerprint, fingerprintVietnamCaptchaImage } from "../captcha";
+
+test("vn.payment-resume: rotates the fixed default challenge in every fresh context", () => {
+  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(1), true);
+  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(2), true);
+  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(3), true);
+});
 
 test("vn.payment-resume: constrains the search CAPTCHA to exactly six digits", () => {
   assert.deepEqual(VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS, {
@@ -38,6 +45,87 @@ test("vn.payment-resume: never sends a previously-seen search challenge to the s
   assert.equal(registerVietnamSearchCaptchaChallenge(knownFingerprints, "challenge-b"), true);
   assert.equal(registerVietnamSearchCaptchaChallenge(knownFingerprints, "challenge-a"), false);
   assert.deepEqual([...knownFingerprints], ["challenge-a", "challenge-b"]);
+});
+
+test("vn.payment-resume: rotates the official default challenge before the first solver request", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const defaultChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">111111</text></svg>',
+    );
+    const rotatedChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">222222</text></svg>',
+    );
+    await page.setContent(`
+      <form>
+        <input id="basic_captcha" />
+        <img alt="captcha img" src="${defaultChallenge}" />
+        <img alt="reload" src="${defaultChallenge}" />
+      </form>
+      <script>
+        document.querySelector('img[alt="reload"]').addEventListener("click", () => {
+          document.querySelector('img[alt="captcha img"]').src = ${JSON.stringify(rotatedChallenge)};
+        });
+      </script>
+    `);
+    const defaultFingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
+    assert.ok(defaultFingerprint);
+    let solverFingerprint: string | null = null;
+
+    const result = await solveVietnamPaymentSearchCaptcha(page, 8_000, {
+      maxAttempts: 1,
+      refreshInitialChallenge: true,
+      solveCaptcha: async (image) => {
+        solverFingerprint = fingerprintVietnamCaptchaImage(image);
+        return { text: "222222", solveId: "fixture-solve", durationMs: 10 };
+      },
+    });
+
+    assert.notEqual(solverFingerprint, defaultFingerprint);
+    assert.equal(result.diagnostics.at(-1)?.outcome, "solved");
+    assert.equal(result.diagnostics.at(-1)?.refreshConfirmed, true);
+    assert.equal(result.diagnostics.at(-1)?.refreshStrategy, "search_reload_control");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: does not send the fixed default challenge when its first refresh cannot be confirmed", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const defaultChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">111111</text></svg>',
+    );
+    await page.setContent(`
+      <form>
+        <input id="basic_captcha" />
+        <img alt="captcha img" src="${defaultChallenge}" />
+        <img alt="reload" src="${defaultChallenge}" />
+      </form>
+    `);
+    let solveCalls = 0;
+
+    await assert.rejects(
+      solveVietnamPaymentSearchCaptcha(page, 3_500, {
+        maxAttempts: 1,
+        refreshInitialChallenge: true,
+        solveCaptcha: async () => {
+          solveCalls += 1;
+          return { text: "111111", solveId: "fixture-solve", durationMs: 10 };
+        },
+      }),
+      (error: unknown) => {
+        const diagnostics = (error as { diagnostics?: Array<{ outcome?: string }> }).diagnostics ?? [];
+        assert.equal(diagnostics.at(-1)?.outcome, "refresh_unconfirmed");
+        return true;
+      },
+    );
+    assert.equal(solveCalls, 0);
+  } finally {
+    await browser.close();
+  }
 });
 
 test("vn.payment-resume: reloads a repeated fresh-context challenge before solving", async () => {
@@ -367,6 +455,45 @@ test("vn.payment-resume: retries the one live reload control when its first trus
 
     assert.equal(strategy, "search_reload_control");
     assert.equal(await page.evaluate(() => (window as typeof window & { reloadClicks?: number }).reloadClicks ?? 0), 2);
+    assert.notEqual(await captureVietnamCaptchaFingerprint(page, 2_000), previousFingerprint);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: waits beyond the old 1.6s window for a delayed Vue CAPTCHA repaint", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const firstChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">111111</text></svg>',
+    );
+    const secondChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">222222</text></svg>',
+    );
+    await page.setContent(`
+      <form>
+        <input id="basic_captcha" />
+        <img alt="captcha img" src="${firstChallenge}" />
+        <img alt="reload" src="${firstChallenge}" />
+      </form>
+      <script>
+        const reload = document.querySelector('img[alt="reload"]');
+        reload.addEventListener("click", (event) => {
+          if (!event.isTrusted) return;
+          reload.remove();
+          setTimeout(() => {
+            document.querySelector('img[alt="captcha img"]').src = ${JSON.stringify(secondChallenge)};
+          }, 2_200);
+        });
+      </script>
+    `);
+    const previousFingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
+    assert.ok(previousFingerprint);
+
+    const strategy = await refreshVietnamSearchCaptchaChallenge(page, previousFingerprint, 7_000);
+
+    assert.equal(strategy, "search_reload_control");
     assert.notEqual(await captureVietnamCaptchaFingerprint(page, 2_000), previousFingerprint);
   } finally {
     await browser.close();
