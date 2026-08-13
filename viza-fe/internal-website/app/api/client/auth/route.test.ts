@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const signInWithPasswordMock = vi.hoisted(() => vi.fn());
 const signInWithOtpMock = vi.hoisted(() => vi.fn());
 const verifyOtpMock = vi.hoisted(() => vi.fn());
+const createClientMock = vi.hoisted(() => vi.fn());
 const getUserFromSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const createClientSessionMock = vi.hoisted(() => vi.fn());
 const clearClientSessionMock = vi.hoisted(() => vi.fn());
@@ -11,7 +12,7 @@ const sendContinuityOtpMock = vi.hoisted(() => vi.fn());
 const verifyContinuityOtpMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => ({
+  createClient: createClientMock.mockImplementation(async () => ({
     auth: {
       signInWithPassword: signInWithPasswordMock,
       signInWithOtp: signInWithOtpMock,
@@ -58,11 +59,23 @@ function verifyOtpRequest(): Request {
   });
 }
 
+function sendOtpRequest(): Request {
+  return new Request("http://localhost/api/client/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      operation: "send_otp",
+      email: "applicant@example.com",
+    }),
+  });
+}
+
 describe("POST /api/client/auth", () => {
   beforeEach(() => {
     signInWithPasswordMock.mockReset();
     signInWithOtpMock.mockReset();
     verifyOtpMock.mockReset();
+    createClientMock.mockClear();
     getUserFromSupabaseSessionMock.mockReset();
     createClientSessionMock.mockReset();
     clearClientSessionMock.mockReset();
@@ -70,6 +83,17 @@ describe("POST /api/client/auth", () => {
     cacheContinuityIdentityMock.mockResolvedValue(undefined);
     sendContinuityOtpMock.mockReset();
     verifyContinuityOtpMock.mockReset();
+  });
+
+  it("allows hosted email delivery enough time to return its real result", async () => {
+    signInWithOtpMock.mockResolvedValue({ error: null });
+
+    const response = await POST(sendOtpRequest());
+
+    await expect(response.json()).resolves.toEqual({ success: true });
+    expect(createClientMock).toHaveBeenCalledWith({
+      requestTimeoutMs: 20_000,
+    });
   });
 
   it("bootstraps the signed client session after a successful password login", async () => {

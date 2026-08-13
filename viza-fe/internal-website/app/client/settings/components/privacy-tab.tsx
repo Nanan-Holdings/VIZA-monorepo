@@ -3,12 +3,12 @@
 import { useState, type ReactNode } from "react";
 import { motion } from "motion/react";
 import {
-  AlertCircle,
-  CheckCircle2,
+  WarningCircle as AlertCircle,
+  CheckCircle as CheckCircle2,
   Download,
-  Loader2,
-  Trash2,
-} from "lucide-react";
+  CircleNotch as Loader2,
+  Trash as Trash2,
+} from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import {
   AlertDialog,

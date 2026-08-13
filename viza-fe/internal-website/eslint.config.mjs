@@ -83,6 +83,16 @@ export default [
               message:
                 "withAdmin() must not be imported from client code. Call it from a server action or route handler.",
             },
+            {
+              name: "lucide-react",
+              message:
+                "The client portal icon system is Phosphor. Import icons from `@phosphor-icons/react`.",
+            },
+            {
+              name: "@radix-ui/react-icons",
+              message:
+                "The client portal icon system is Phosphor. Import icons from `@phosphor-icons/react`.",
+            },
           ],
           patterns: [
             {
@@ -94,6 +104,11 @@ export default [
               ],
               message:
                 "Service-role / withAdmin imports are forbidden under app/client/** and components/**.",
+            },
+            {
+              group: ["react-icons", "react-icons/*", "@heroicons/*"],
+              message:
+                "The client portal icon system is Phosphor. Import icons from `@phosphor-icons/react`.",
             },
           ],
         },

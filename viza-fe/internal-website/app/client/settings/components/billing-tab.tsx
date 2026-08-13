@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { CreditCard } from "lucide-react";
+import { CreditCard } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { geist } from "../../../fonts";
 import {

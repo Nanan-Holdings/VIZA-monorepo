@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Database, Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle as CheckCircle2, Database, CircleNotch as Loader2, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { syncApplicationAnswersToUniversalProfile } from "@/app/actions/visa-application-answers";
 import {

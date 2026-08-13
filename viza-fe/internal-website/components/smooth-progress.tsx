@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, PauseCircle, XCircle } from "lucide-react";
+import { Warning as AlertTriangle, CheckCircle as CheckCircle2, CircleNotch as Loader2, PauseCircle, XCircle } from "@phosphor-icons/react";
 import {
   useSmoothProgress,
   type SmoothProgressStatus,

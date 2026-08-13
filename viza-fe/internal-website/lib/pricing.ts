@@ -397,13 +397,30 @@ export const PACKAGE_PRICING: PackagePricing[] = [
   },
 ];
 
+function normalizePricingKey(value: string): string {
+  return value.trim().toUpperCase().replace(/[\s/-]+/g, "_");
+}
+
+function canonicalPricingVisaType(visaType: string): string {
+  const normalized = normalizePricingKey(visaType);
+  if (["DS160", "DS_160", "B1_B2", "B_1_B_2", "US_B1_B2", "US_DS160"].includes(normalized)) {
+    return "B1_B2";
+  }
+  return normalized;
+}
+
 export function pricingFor(
   country: string,
   visaType: string,
 ): PackagePricing | null {
+  const normalizedCountry = normalizePricingKey(country);
+  const normalizedVisaType = canonicalPricingVisaType(visaType);
+
   return (
     PACKAGE_PRICING.find(
-      (p) => p.country === country && p.visaType === visaType,
+      (p) =>
+        normalizePricingKey(p.country) === normalizedCountry &&
+        canonicalPricingVisaType(p.visaType) === normalizedVisaType,
     ) ?? null
   );
 }

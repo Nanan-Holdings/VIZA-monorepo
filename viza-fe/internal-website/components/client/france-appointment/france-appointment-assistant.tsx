@@ -3,21 +3,21 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowLeft,
   CalendarCheck,
-  CheckCircle2,
-  Clock3,
+  CheckCircle as CheckCircle2,
+  Clock as Clock3,
   CreditCard,
-  Loader2,
-  Mail,
+  CircleNotch as Loader2,
+  Envelope as Mail,
   MapPin,
   PauseCircle,
   Play,
-  RefreshCw,
+  ArrowsClockwise as RefreshCw,
   ShieldCheck,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { getTeamApplicationContext } from "@/app/actions/application-group";
 import { BrandActionButton } from "@/components/client/brand-action-button";

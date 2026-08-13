@@ -254,17 +254,27 @@ export async function selectUserVisaDestination(
  */
 export async function getUserVisaPackages(): Promise<UserVisaPackage[]> {
   try {
-    const supabase = await createClient();
+    const session = await getClientSessionWithFallback();
+    if (!session) return [];
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return [];
+    const adminClient = createAdminClient({
+      requestTimeoutMs: 4_000,
+      retryDelaysMs: [250],
+    });
+    const { data: profile, error: profileError } = await adminClient
+      .from("applicant_profiles")
+      .select("auth_user_id")
+      .eq("id", session.userId)
+      .maybeSingle();
+    if (profileError) return [];
 
-    const { data, error } = await supabase
+    // Normal applicant sessions store the applicant profile id. Legacy client
+    // sessions may store the auth id directly, so retain it as the fallback.
+    const authUserId = profile?.auth_user_id ?? session.userId;
+    const { data, error } = await adminClient
       .from("user_packages")
       .select("visa_package_id, visa_packages(id, country, visa_type, name, description)")
-      .eq("auth_user_id", user.id)
+      .eq("auth_user_id", authUserId)
       .eq("status", "active")
       .order("assigned_at", { ascending: false });
 

@@ -19,7 +19,7 @@ import { type FormAssistantFieldReviewIssue } from "@/types/form-assistant";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
+import { Pencil } from "@phosphor-icons/react";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";

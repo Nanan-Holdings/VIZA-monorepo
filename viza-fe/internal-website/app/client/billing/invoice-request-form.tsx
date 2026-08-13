@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { FileText } from "lucide-react";
+import { FileText } from "@phosphor-icons/react";
 import { requestInvoice, type InvoiceRequestState } from "./actions";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";

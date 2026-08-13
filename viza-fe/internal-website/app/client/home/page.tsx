@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, CircleAlert } from "lucide-react";
+import { CircleNotch as Loader2, WarningCircle as CircleAlert } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
@@ -46,6 +46,7 @@ import {
   type PaymentRow,
 } from "@/lib/client/application-progress";
 import { isIgnorableDashboardLoadError } from "./home-load-errors";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ---------------------------------------------------------------------------
 // Loading / error states
@@ -75,6 +76,25 @@ function ErrorState({ message }: { message: string }) {
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
+    </div>
+  );
+}
+
+function TimelineLoadingState() {
+  const t = useTranslations("home");
+
+  return (
+    <div
+      aria-label={t("loadingDashboard")}
+      className="mx-auto w-full max-w-[1090px] space-y-5 pb-[80px]"
+      role="status"
+    >
+      <Skeleton className="h-9 w-40 rounded-lg" />
+      <div className="space-y-3">
+        {[0, 1, 2].map((item) => (
+          <Skeleton key={item} className="h-24 w-full rounded-xl" />
+        ))}
+      </div>
     </div>
   );
 }
@@ -236,6 +256,7 @@ export default function HomePage() {
   // 核心业务状态
   const [selectedApplicationStatus, setSelectedApplicationStatus] =
     useState<StatusApplication | null>(null);
+  const [isTimelineLoading, setIsTimelineLoading] = useState(true);
   const [universalInfoProgress, setUniversalInfoProgress] =
     useState<UniversalInfoProgress>({
       completedCount: 0,
@@ -302,12 +323,24 @@ export default function HomePage() {
       setError(null);
 
       try {
-        const [dashboard, statusResult] = await Promise.all([
-          getClientHomeDashboardData(),
-          getClientApplicationStatuses(),
-        ]);
+        // Start the expensive lifecycle read at the same time, but do not keep
+        // the whole dashboard behind it. The hero and primary actions only
+        // depend on the compact dashboard query.
+        const statusPromise = getClientApplicationStatuses().catch(
+          (statusError) => {
+            if (!isIgnorableDashboardLoadError(statusError)) {
+              console.error(
+                "Failed to load client home timeline",
+                statusError,
+              );
+            }
+            return null;
+          },
+        );
+        const dashboard = await getClientHomeDashboardData();
         lastDashboardLoadAtRef.current = Date.now();
         if (!dashboard.authenticated) {
+          if (isLatestRequest()) setIsTimelineLoading(false);
           if (showLoading && isLatestRequest()) setIsLoading(false);
           return;
         }
@@ -332,6 +365,7 @@ export default function HomePage() {
           if (authName) setApplicantName(authName);
           setActiveVisa(null);
           setSelectedApplicationStatus(null);
+          setIsTimelineLoading(false);
           return;
         }
 
@@ -366,18 +400,38 @@ export default function HomePage() {
           }) ??
           loadedApplications.find((application) => isOngoingApplicationState(application.status)) ??
           null;
-        const currentStatus = currentApplication
-          ? statusResult.applications.find((application) => application.id === currentApplication.id) ?? null
-          : null;
-        setSelectedApplicationStatus(currentStatus);
-        if (currentApplication && currentStatus && activeSelection?.applicationId !== currentApplication.id) {
-          setActiveApplicationSelection({
-            applicationId: currentApplication.id,
-            packageId: currentApplication.visa_package_id,
-            country: currentApplication.country,
-            visaType: currentApplication.visa_type,
-            href: getNextApplicationHref(currentApplication, loadedPayments),
-          });
+        if (!currentApplication) {
+          setSelectedApplicationStatus(null);
+          setIsTimelineLoading(false);
+        } else {
+          setIsTimelineLoading(true);
+          void statusPromise
+            .then((statusResult) => {
+              if (!isLatestRequest() || !statusResult) return;
+              const currentStatus =
+                statusResult.applications.find(
+                  (application) => application.id === currentApplication.id,
+                ) ?? null;
+              setSelectedApplicationStatus(currentStatus);
+              if (
+                currentStatus &&
+                activeSelection?.applicationId !== currentApplication.id
+              ) {
+                setActiveApplicationSelection({
+                  applicationId: currentApplication.id,
+                  packageId: currentApplication.visa_package_id,
+                  country: currentApplication.country,
+                  visaType: currentApplication.visa_type,
+                  href: getNextApplicationHref(
+                    currentApplication,
+                    loadedPayments,
+                  ),
+                });
+              }
+            })
+            .finally(() => {
+              if (isLatestRequest()) setIsTimelineLoading(false);
+            });
         }
         setHeroCountry(currentApplication?.country ?? null);
         setActiveVisa(
@@ -405,6 +459,7 @@ export default function HomePage() {
             )
           );
           setSelectedApplicationStatus(null);
+          setIsTimelineLoading(false);
           return;
         }
 
@@ -510,7 +565,7 @@ export default function HomePage() {
         />
         <div className="absolute inset-0 bg-[rgba(0,0,0,0.05)] mix-blend-hard-light" />
         {heroTheme.image && (
-          <div className="absolute h-[900px] left-1/2 -translate-x-1/2 bottom-0 w-[600px] blur-sm">
+          <div className="absolute h-[900px] left-1/2 -translate-x-1/2 bottom-0 w-[760px] blur-sm">
             <img
               alt=""
               className="w-full h-full object-contain object-bottom"
@@ -566,7 +621,11 @@ export default function HomePage() {
         </motion.div>
 
         <div className="mt-12 w-full sm:mt-16">
-          <ApplicationTimelineSection application={selectedApplicationStatus} />
+          {isTimelineLoading ? (
+            <TimelineLoadingState />
+          ) : (
+            <ApplicationTimelineSection application={selectedApplicationStatus} />
+          )}
         </div>
       </div>
     </div>

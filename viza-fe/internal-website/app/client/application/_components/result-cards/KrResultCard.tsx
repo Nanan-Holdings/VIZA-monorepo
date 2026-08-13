@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarCheck, Download, FileCheck2, Loader2, MapPin } from "lucide-react";
+import { CalendarCheck, Download, FileText as FileCheck2, CircleNotch as Loader2, MapPin } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";

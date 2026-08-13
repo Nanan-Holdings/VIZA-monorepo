@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, CheckCircle2, CreditCard, ExternalLink, FileCheck2, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { Warning as AlertTriangle, CheckCircle as CheckCircle2, CreditCard, ArrowSquareOut as ExternalLink, FileText as FileCheck2, CircleNotch as Loader2, Envelope as Mail, ShieldCheck } from "@phosphor-icons/react";
 import {
   Alert,
   AlertAction,

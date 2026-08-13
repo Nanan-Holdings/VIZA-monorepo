@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle as CheckCircle2, CircleNotch as Loader2, XCircle } from "@phosphor-icons/react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Button } from "@/components/ui/button";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";

@@ -3,16 +3,16 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { motion } from "motion/react";
 import {
-  AlertCircle,
-  Loader2,
+  WarningCircle as AlertCircle,
+  CircleNotch as Loader2,
   Pencil,
   Plus,
-  Save,
-  Trash2,
-  UserRound,
-  UsersRound,
+  FloppyDisk as Save,
+  Trash as Trash2,
+  UserCircle as UserRound,
+  UsersThree as UsersRound,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import {
   AlertDialog,

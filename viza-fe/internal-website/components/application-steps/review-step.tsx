@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, AlertCircle, AlertTriangle, Pencil } from "lucide-react";
+import { CheckCircle as CheckCircle2, WarningCircle as AlertCircle, Warning as AlertTriangle, Pencil } from "@phosphor-icons/react";
 import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";

@@ -2,12 +2,12 @@
 
 import Image from "next/image";
 import {
-  CalendarDaysIcon,
+  CalendarIcon as CalendarDaysIcon,
   DownloadIcon,
   MapPinIcon,
-  SparklesIcon,
+  SparkleIcon as SparklesIcon,
   WalletIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { type ItineraryDay } from "@/lib/travel/planner";

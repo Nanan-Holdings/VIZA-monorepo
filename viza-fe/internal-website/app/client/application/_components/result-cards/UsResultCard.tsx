@@ -7,15 +7,15 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   CalendarCheck,
-  ExternalLink,
+  ArrowSquareOut as ExternalLink,
   Copy,
   Check,
   ShieldCheck,
   Printer,
-  Mail,
-  RotateCcw,
-  Loader2,
-} from "lucide-react";
+  Envelope as Mail,
+  ArrowCounterClockwise as RotateCcw,
+  CircleNotch as Loader2,
+} from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

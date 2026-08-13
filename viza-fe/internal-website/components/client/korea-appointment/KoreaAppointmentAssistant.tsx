@@ -2,24 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   CalendarCheck,
   Check,
-  CheckCircle2,
-  ChevronDown,
-  ExternalLink,
-  FileCheck2,
-  History,
-  Loader2,
-  MessageSquareText,
+  CheckCircle as CheckCircle2,
+  CaretDown as ChevronDown,
+  ArrowSquareOut as ExternalLink,
+  FileText as FileCheck2,
+  ClockCounterClockwise as History,
+  CircleNotch as Loader2,
+  ChatText as MessageSquareText,
   Printer,
-  RefreshCw,
-  RotateCcw,
-  Settings2,
+  ArrowsClockwise as RefreshCw,
+  ArrowCounterClockwise as RotateCcw,
+  SlidersHorizontal as Settings2,
   ShieldCheck,
-  UserRound,
+  UserCircle as UserRound,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";

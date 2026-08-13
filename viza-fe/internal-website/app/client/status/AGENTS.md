@@ -13,15 +13,27 @@ results and updates from the same data.
 ## Key Responsibilities
 
 - Render `/client/status` as the application and destination selector. The
-  index lists every country, expands exact ongoing applications when a country
-  has more than one, and keeps the current application selection separate from
-  browsing. The current selection is a dedicated card linked to `/client/home`;
-  choosing an ongoing record also activates it before opening Home. A `country`
-  query pre-expands that country's row.
+  page title block and 1040px content column mirror `/client/settings` for
+  consistent top spacing, typography, and muted subtitle treatment. The
+  index lists every non-current application, expands exact application records
+  when a country has more than one, and keeps the current application selection
+  separate from browsing. The current selection is a one-country panel linked
+  to `/client/home` and must reuse the same panel and row styling as the list
+  below it. Single-application countries use a direct right-arrow row, while
+  multi-application countries use a down chevron. Choosing an ongoing record
+  activates it before opening Home. A `country` query pre-expands that country's
+  row. Every interactive application or destination panel must visibly change
+  its background on hover. The full destination-card surface, including the
+  flag and country header, selects its first listed option; specific visa rows
+  remain individually selectable. Disabled coming-soon panels remain
+  non-interactive.
 - Render destination flags with `react-circle-flags` through the shared
   `DestinationFlag` component so flags do not depend on the operating system's
-  emoji coverage. Unavailable destination cards stay gray and sort after
-  launched destinations, with their coming-soon label beside the country name.
+  emoji coverage. Destination states (`Added`, `Browse`, or `Coming soon`) sit
+  beside the country name. Pin the Schengen browse card first, followed by
+  available destinations that have not been added. Already-added destinations
+  sit directly above the gray coming-soon group, and unavailable destinations
+  remain last.
 - Keep `/client/destinations` a redirect to this route. The regional pickers
   under `/client/destinations/[region]` and `/client/destinations/schengen`
   stay where they are — only the index merged.

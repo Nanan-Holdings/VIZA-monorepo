@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Loader2, Pencil, RefreshCw } from "lucide-react";
+import { WarningCircle as AlertCircle, CircleNotch as Loader2, Pencil, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";

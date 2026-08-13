@@ -5,14 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
+  WarningCircle as AlertCircle,
+  CheckCircle as CheckCircle2,
+  CircleNotch as Loader2,
   Plus,
-  Settings2,
-  Trash2,
-  UserRound,
-} from "lucide-react";
+  SlidersHorizontal as Settings2,
+  Trash as Trash2,
+  UserCircle as UserRound,
+} from "@phosphor-icons/react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

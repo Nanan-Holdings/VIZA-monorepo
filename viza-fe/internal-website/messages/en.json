@@ -89,19 +89,60 @@
     },
     "timeline": {
       "groups": { "todo": "To-dos", "completed": "Completed tasks" },
-      "states": { "complete": "Completed", "current": "Current step", "attention": "Action needed", "blocked": "Waiting on an earlier step", "upcoming": "Not started" },
-      "steps": {
-        "payment": { "title": "Complete service-fee payment", "description": "Payment must be confirmed before VIZA prepares the application." },
-        "consent": { "title": "Confirm consent and authority", "description": "Complete the service authority and required electronic signature." },
-        "form": { "title": "Complete the application form", "description": "Enter and review the information required for the application." },
-        "documents": { "title": "Upload required documents", "description": "Upload the passport, photo, and destination-specific evidence." },
-        "packet": { "title": "Prepare the application packet", "description": "VIZA prepares the packet when the core requirements are ready." },
-        "handoff": { "title": "Submit to the official portal", "description": "The prepared application enters the official submission flow." },
-        "result": { "title": "Wait for the application result", "description": "Approval, visa, refusal, or result files appear when received." }
+      "states": {
+        "complete": "Completed",
+        "current": "Current step",
+        "attention": "Action needed",
+        "blocked": "Waiting on an earlier step",
+        "upcoming": "Not started"
       },
-      "metrics": { "answers": "{count} saved answers", "documents": "{ready}/{total} documents uploaded or validated", "reference": "Official reference: {reference}" },
-      "relative": { "justNow": "Just now", "minutesAgo": "{count}m ago", "hoursAgo": "{count}h ago", "daysAgo": "{count}d ago" },
-      "empty": { "noApplication": "Choose an ongoing application to see its to-dos and completed tasks here.", "choose": "Choose application", "incomplete": "This application has no to-dos right now.", "completed": "This application has no completed tasks yet." }
+      "steps": {
+        "payment": {
+          "title": "Complete service-fee payment",
+          "description": "Payment must be confirmed before VIZA prepares the application."
+        },
+        "consent": {
+          "title": "Confirm consent and authority",
+          "description": "Complete the service authority and required electronic signature."
+        },
+        "form": {
+          "title": "Complete the application form",
+          "description": "Enter and review the information required for the application."
+        },
+        "documents": {
+          "title": "Upload required documents",
+          "description": "Upload the passport, photo, and destination-specific evidence."
+        },
+        "packet": {
+          "title": "Prepare the application packet",
+          "description": "VIZA prepares the packet when the core requirements are ready."
+        },
+        "handoff": {
+          "title": "Submit to the official portal",
+          "description": "The prepared application enters the official submission flow."
+        },
+        "result": {
+          "title": "Wait for the application result",
+          "description": "Approval, visa, refusal, or result files appear when received."
+        }
+      },
+      "metrics": {
+        "answers": "{count} saved answers",
+        "documents": "{ready}/{total} documents uploaded or validated",
+        "reference": "Official reference: {reference}"
+      },
+      "relative": {
+        "justNow": "Just now",
+        "minutesAgo": "{count}m ago",
+        "hoursAgo": "{count}h ago",
+        "daysAgo": "{count}d ago"
+      },
+      "empty": {
+        "noApplication": "Choose an ongoing application to see its to-dos and completed tasks here.",
+        "choose": "Choose application",
+        "incomplete": "This application has no to-dos right now.",
+        "completed": "This application has no completed tasks yet."
+      }
     },
     "subscriptionPlan": {
       "title": "VIZA Application",
@@ -629,7 +670,10 @@
     "edit": "Edit",
     "postSubmission": {
       "title": "After submission",
-      "tabs": { "results": "Receipts & results", "updates": "Application updates" },
+      "tabs": {
+        "results": "Receipts & results",
+        "updates": "Application updates"
+      },
       "officialReference": "Official reference",
       "download": "Download",
       "resultsEmpty": "Receipts and result files will appear here when VIZA generates or receives them.",
@@ -978,7 +1022,7 @@
       "title": "Applications",
       "subtitle": "Open any application to keep going, or add a new destination below.",
       "yourApplications": "Your applications",
-      "destinationCount": "{count} destinations",
+      "destinationCount": "{count}",
       "current": "Current",
       "currentHandling": "Currently working on",
       "continue": "Continue",
@@ -3974,11 +4018,7 @@
         "arrivalCardSubmission": {
           "title": "Free arrival card submission",
           "description": "Redeem 1,000 points for one free arrival card submission for eligible destinations.",
-          "countries": [
-            "Singapore",
-            "Malaysia",
-            "Thailand"
-          ]
+          "countries": ["Singapore", "Malaysia", "Thailand"]
         },
         "priorityChecklist": {
           "title": "Priority checklist preparation",

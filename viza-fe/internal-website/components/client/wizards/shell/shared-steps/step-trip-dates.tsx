@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { CalendarRange } from "lucide-react";
+import { CalendarDots as CalendarRange } from "@phosphor-icons/react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField } from "@/components/client/brand-field";
 import { DatePicker } from "@/components/ui/date-picker";

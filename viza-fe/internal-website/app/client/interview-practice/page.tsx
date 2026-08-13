@@ -1,8 +1,41 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import Link from "next/link";
 import type { InterviewReport } from "@/app/api/interview/report/route";
+import {
+  Airplane,
+  ArrowCounterClockwise,
+  ArrowLeft,
+  ArrowRight,
+  Briefcase,
+  Buildings,
+  Calendar,
+  ChartBar,
+  ChatCircle,
+  Check,
+  CheckCircle,
+  ClipboardText,
+  Clock,
+  CurrencyDollar,
+  Eye,
+  FileText,
+  House,
+  LinkSimple,
+  MapPin,
+  MapTrifold,
+  Microphone,
+  PhoneDisconnect,
+  Play,
+  PushPin,
+  SpeakerHigh,
+  SpeakerSlash,
+  Target,
+  Ticket,
+  User,
+  UsersThree,
+  Warning,
+  type Icon,
+} from "@phosphor-icons/react";
 
 const TRANSCRIPT_KEY = "viza_interview_transcript";
 
@@ -105,8 +138,9 @@ function StartPage({ onStart }: { onStart: () => void }) {
           <p className="text-white/60 text-[13px] leading-relaxed mb-7 max-w-[380px]">
             与 AI 领事官进行仿真对话练习，考察真实签证场景问题，面试结束后给出逐题评分与改进建议。
           </p>
-          <button onClick={onStart} className="bg-white text-[#03346E] text-[13px] font-bold px-7 py-3 rounded-full shadow-md hover:bg-blue-50 transition-colors">
-            ▶ 开始模拟面试
+          <button onClick={onStart} className="inline-flex items-center gap-2 bg-white text-[#03346E] text-[13px] font-bold px-7 py-3 rounded-full shadow-md hover:bg-blue-50 transition-colors">
+            <Play className="size-3.5" weight="fill" />
+            开始模拟面试
           </button>
           {/* Stats */}
           <div className="flex gap-6 mt-8 pt-6 border-t border-white/10">
@@ -152,8 +186,8 @@ function StartPage({ onStart }: { onStart: () => void }) {
               </div>
               {/* Avatar */}
               <div className="flex flex-col items-center gap-2.5 mb-4">
-                <div className="w-[68px] h-[68px] rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center text-[30px]">
-                  👨‍💼
+                <div className="w-[68px] h-[68px] rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center">
+                  <User className="size-8 text-white" weight="duotone" />
                 </div>
                 <div className="w-[6px] h-[6px] rounded-full bg-green-400" style={{ animation: "dot-glow 2s infinite" }} />
               </div>
@@ -174,12 +208,14 @@ function StartPage({ onStart }: { onStart: () => void }) {
         <p className="text-[11px] font-semibold uppercase tracking-[.07em] text-[#989898] mb-4">核心功能</p>
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
-            { icon: "👨‍💼", t: "真实口吻提问", d: "AI 采用领事官极简短句风格，模拟签证窗口真实问答压力，不引导、不解释、直接追问。" },
-            { icon: "🎙️", t: "语音双向交互", d: "支持语音作答与 AI 朗读提问，全程沉浸练习，口语表达与反应速度同步提升。" },
-            { icon: "📊", t: "逐题评估报告", d: "面试结束自动生成报告：综合评分、通过概率及每道题的优劣分析与改进建议。" },
-          ].map((f) => (
+            { icon: User, t: "真实口吻提问", d: "AI 采用领事官极简短句风格，模拟签证窗口真实问答压力，不引导、不解释、直接追问。" },
+            { icon: Microphone, t: "语音双向交互", d: "支持语音作答与 AI 朗读提问，全程沉浸练习，口语表达与反应速度同步提升。" },
+            { icon: ChartBar, t: "逐题评估报告", d: "面试结束自动生成报告：综合评分、通过概率及每道题的优劣分析与改进建议。" },
+          ].map(({ icon: FeatureIcon, ...f }) => (
             <div key={f.t} className="bg-white border border-[#efefef] rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-              <div className="w-[40px] h-[40px] rounded-[10px] bg-[#EEF3FA] flex items-center justify-center text-[18px] mb-4">{f.icon}</div>
+              <div className="w-[40px] h-[40px] rounded-[10px] bg-[#EEF3FA] flex items-center justify-center mb-4">
+                <FeatureIcon className="size-5 text-brand-500" weight="duotone" />
+              </div>
               <div className="text-[14px] font-bold text-[#1a1a1a] mb-2">{f.t}</div>
               <div className="text-[12px] text-[rgba(0,0,0,0.45)] leading-[1.7]">{f.d}</div>
             </div>
@@ -210,8 +246,9 @@ function StartPage({ onStart }: { onStart: () => void }) {
             <div className="text-white font-bold text-[18px] mb-1.5">准备好了吗？</div>
             <div className="text-white/50 text-[13px]">面试只有一次机会，练习可以无数次。</div>
           </div>
-          <button onClick={onStart} className="bg-white text-[#03346E] text-[13px] font-bold px-7 py-3 rounded-full whitespace-nowrap hover:bg-blue-50 transition-colors shadow-md">
-            立即开始 →
+          <button onClick={onStart} className="inline-flex items-center gap-2 bg-white text-[#03346E] text-[13px] font-bold px-7 py-3 rounded-full whitespace-nowrap hover:bg-blue-50 transition-colors shadow-md">
+            立即开始
+            <ArrowRight className="size-3.5" weight="bold" />
           </button>
         </div>
       </div>
@@ -250,7 +287,10 @@ function ChecklistPage({ onConfirm, onBack }: { onConfirm: () => void; onBack: (
     <div className="min-h-screen bg-[#fafafa] flex flex-col">
       <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between flex-shrink-0">
         <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
-        <button onClick={onBack} className="text-white/60 text-[12px] hover:text-white transition-colors">← 返回</button>
+        <button onClick={onBack} className="inline-flex items-center gap-1 text-white/60 text-[12px] hover:text-white transition-colors">
+          <ArrowLeft className="size-3" />
+          返回
+        </button>
       </nav>
 
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
@@ -258,7 +298,7 @@ function ChecklistPage({ onConfirm, onBack }: { onConfirm: () => void; onBack: (
           {/* Header */}
           <div className="mb-8 text-center">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[#EEF3FA] mb-4">
-              <span className="text-[28px]">📋</span>
+              <ClipboardText className="size-7 text-brand-500" weight="duotone" />
             </div>
             <h1 className="text-[20px] font-bold text-[#1a1a1a] mb-2">面试前材料确认</h1>
             <p className="text-[13px] text-[rgba(0,0,0,0.45)] leading-relaxed">
@@ -278,7 +318,7 @@ function ChecklistPage({ onConfirm, onBack }: { onConfirm: () => void; onBack: (
                 {/* Checkbox */}
                 <span className={`w-5 h-5 rounded-md flex items-center justify-center border-2 flex-shrink-0 transition-all
                   ${checked[i] ? "bg-green-500 border-green-500" : "border-[#d0d0d0]"}`}>
-                  {checked[i] && <span className="text-white text-[11px] font-bold leading-none">✓</span>}
+                  {checked[i] && <Check className="size-3 text-white" weight="bold" />}
                 </span>
                 {/* Text */}
                 <div className="flex-1 min-w-0">
@@ -307,12 +347,17 @@ function ChecklistPage({ onConfirm, onBack }: { onConfirm: () => void; onBack: (
           <button
             onClick={onConfirm}
             disabled={!allChecked}
-            className={`w-full py-3.5 rounded-full text-[14px] font-bold transition-all
+            className={`w-full py-3.5 rounded-full text-[14px] font-bold transition-all flex items-center justify-center gap-2
               ${allChecked
                 ? "bg-[#03346E] text-white hover:bg-[#022B5C] shadow-md"
                 : "bg-[#e8e8e8] text-[#aaa] cursor-not-allowed"}`}
           >
-            {allChecked ? "材料已备齐，开始面试 →" : "请确认全部材料"}
+            {allChecked ? (
+              <>
+                材料已备齐，开始面试
+                <ArrowRight className="size-4" weight="bold" />
+              </>
+            ) : "请确认全部材料"}
           </button>
         </div>
       </div>
@@ -528,7 +573,11 @@ function InterviewPage({
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onToggleMute} className="flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white/80 text-[10px] font-medium hover:bg-white/15 transition-colors">
-            {isMuted ? "🔇 已静音" : "🔊 朗读开启"}
+            {isMuted ? (
+              <><SpeakerSlash className="size-3.5" weight="fill" />已静音</>
+            ) : (
+              <><SpeakerHigh className="size-3.5" weight="fill" />朗读开启</>
+            )}
           </button>
           <button onClick={onAbandon} className="bg-red-500/20 border border-red-300/30 text-red-300 text-[10px] font-semibold px-3 py-1.5 rounded-full hover:bg-red-500/30 transition-colors">结束面试</button>
         </div>
@@ -574,7 +623,11 @@ function InterviewPage({
                         style={tag.type === "good"
                           ? { background: "#EAF3DE", color: "#27500A", borderColor: "#C0DD97" }
                           : { background: "#FAEEDA", color: "#633806", borderColor: "#FAC775" }}>
-                        <span>{tag.type === "good" ? "✓" : "⚠"}</span>
+                        {tag.type === "good" ? (
+                          <Check className="size-3.5 shrink-0" weight="bold" />
+                        ) : (
+                          <Warning className="size-3.5 shrink-0" weight="fill" />
+                        )}
                         <span>{tag.text}</span>
                       </div>
                     ))}
@@ -587,46 +640,46 @@ function InterviewPage({
             <p className="text-[10px] font-bold uppercase tracking-[.07em] text-[#989898] mb-3">答题小贴士</p>
             {(() => {
               const lastMsg = [...messages].reverse().find((m) => m.role === "assistant")?.content ?? "";
-              type Tip = { icon: string; text: string };
+              type Tip = { icon: Icon; text: string };
               // ordered from most-specific to least — prevents false matches on common words
               const tips: Tip[] =
                 /费用|预算|资助|银行流水|资金证明/.test(lastMsg) ? [
-                  { icon: "💰", text: "建议提及具体金额和资金来源" },
-                  { icon: "📄", text: "如有银行流水或存款证明，主动说明" },
-                  { icon: "✅", text: "说清是自费还是家人资助" },
+                  { icon: CurrencyDollar, text: "建议提及具体金额和资金来源" },
+                  { icon: FileText, text: "如有银行流水或存款证明，主动说明" },
+                  { icon: CheckCircle, text: "说清是自费还是家人资助" },
                 ] : /工作|公司|机构|收入|请假/.test(lastMsg) ? [
-                  { icon: "🏢", text: "说出具体公司名称和您的职位" },
-                  { icon: "📅", text: "提一句请假已经获批" },
-                  { icon: "💼", text: "稳定的工作是回国意愿的有力证明" },
+                  { icon: Buildings, text: "说出具体公司名称和您的职位" },
+                  { icon: Calendar, text: "提一句请假已经获批" },
+                  { icon: Briefcase, text: "稳定的工作是回国意愿的有力证明" },
                 ] : /家里|配偶|子女|牵挂|回国|回来/.test(lastMsg) ? [
-                  { icon: "👨‍👩‍👧", text: "提及具体家庭成员，越真实越有说服力" },
-                  { icon: "🏠", text: "说明回国后有明确的工作或生活安排" },
-                  { icon: "🔗", text: "具体的责任牵挂比泛泛而谈更有效" },
+                  { icon: UsersThree, text: "提及具体家庭成员，越真实越有说服力" },
+                  { icon: House, text: "说明回国后有明确的工作或生活安排" },
+                  { icon: LinkSimple, text: "具体的责任牵挂比泛泛而谈更有效" },
                 ] : /多长时间|多久|回程|机票|停留/.test(lastMsg) ? [
-                  { icon: "✈️", text: "给出明确天数，例如：打算待三周" },
-                  { icon: "🎫", text: "已订好回程机票的话，主动提出来" },
-                  { icon: "⏱️", text: "停留时间要和旅行目的匹配" },
+                  { icon: Airplane, text: "给出明确天数，例如：打算待三周" },
+                  { icon: Ticket, text: "已订好回程机票的话，主动提出来" },
+                  { icon: Clock, text: "停留时间要和旅行目的匹配" },
                 ] : /酒店|朋友家|住宿|预订|住哪/.test(lastMsg) ? [
-                  { icon: "🏨", text: "说出具体住宿区域或酒店名称" },
-                  { icon: "📋", text: "有预订记录会大大增加可信度" },
-                  { icon: "📍", text: "住宿地点最好与行程城市一致" },
+                  { icon: Buildings, text: "说出具体住宿区域或酒店名称" },
+                  { icon: ClipboardText, text: "有预订记录会大大增加可信度" },
+                  { icon: MapPin, text: "住宿地点最好与行程城市一致" },
                 ] : /城市|跟团|路线|待几天/.test(lastMsg) ? [
-                  { icon: "🗺️", text: "列出具体城市，说明大概路线" },
-                  { icon: "📅", text: "说明每个地方大概待几天" },
-                  { icon: "🎯", text: "有主题的行程更有说服力，例如文化游" },
+                  { icon: MapTrifold, text: "列出具体城市，说明大概路线" },
+                  { icon: Calendar, text: "说明每个地方大概待几天" },
+                  { icon: Target, text: "有主题的行程更有说服力，例如文化游" },
                 ] : /打算|旅游|旅行|目的|规划|做什么|时间/.test(lastMsg) ? [
-                  { icon: "🎯", text: "说清楚旅行的主要目的，越具体越好" },
-                  { icon: "📋", text: "提前做过规划会显得更有备而来" },
-                  { icon: "💬", text: "避免只说【就是去玩】，给出真实细节" },
+                  { icon: Target, text: "说清楚旅行的主要目的，越具体越好" },
+                  { icon: ClipboardText, text: "提前做过规划会显得更有备而来" },
+                  { icon: ChatCircle, text: "避免只说【就是去玩】，给出真实细节" },
                 ] : [
-                  { icon: "💬", text: "回答要简洁直接，不要绕弯子" },
-                  { icon: "👁️", text: "保持自然，不要背稿子" },
-                  { icon: "📌", text: "回答要与您的签证材料保持一致" },
+                  { icon: ChatCircle, text: "回答要简洁直接，不要绕弯子" },
+                  { icon: Eye, text: "保持自然，不要背稿子" },
+                  { icon: PushPin, text: "回答要与您的签证材料保持一致" },
                 ];
-              return tips.map((tip) => (
-                <div key={tip.text} className="flex items-start gap-2.5 mb-2.5">
-                  <span className="text-[14px] flex-shrink-0 mt-0.5">{tip.icon}</span>
-                  <span className="text-[11px] text-[rgba(0,0,0,0.6)] leading-relaxed">{tip.text}</span>
+              return tips.map(({ icon: TipIcon, text }) => (
+                <div key={text} className="flex items-start gap-2.5 mb-2.5">
+                  <TipIcon className="mt-0.5 size-3.5 shrink-0 text-brand-500" weight="duotone" />
+                  <span className="text-[11px] text-[rgba(0,0,0,0.6)] leading-relaxed">{text}</span>
                 </div>
               ));
             })()}
@@ -646,11 +699,7 @@ function InterviewPage({
               )}
               {imgError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                  <svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <ellipse cx="36" cy="26" rx="18" ry="20" fill="rgba(255,255,255,0.18)" />
-                    <rect x="10" y="52" width="52" height="36" rx="26" fill="rgba(255,255,255,0.14)" />
-                    <ellipse cx="36" cy="26" rx="12" ry="14" fill="rgba(255,255,255,0.28)" />
-                  </svg>
+                  <User className="h-[88px] w-[72px] text-white/25" weight="duotone" />
                   <span className="text-white/40 text-[10px]">CONSULAR OFFICER</span>
                 </div>
               )}
@@ -722,12 +771,7 @@ function InterviewPage({
                     transition: "all 0.2s ease", cursor: "pointer",
                   }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <rect x="9" y="2" width="6" height="12" rx="3" fill={isListening ? "#fff" : "#7ec8f8"} />
-                    <path d="M5 11c0 3.866 3.134 7 7 7s7-3.134 7-7" stroke={isListening ? "#fff" : "#7ec8f8"} strokeWidth="2" strokeLinecap="round" fill="none" />
-                    <line x1="12" y1="18" x2="12" y2="22" stroke={isListening ? "#fff" : "#7ec8f8"} strokeWidth="2" strokeLinecap="round" />
-                    <line x1="9" y1="22" x2="15" y2="22" stroke={isListening ? "#fff" : "#7ec8f8"} strokeWidth="2" strokeLinecap="round" />
-                  </svg>
+                  <Microphone color={isListening ? "#fff" : "#7ec8f8"} size={22} weight="fill" />
                 </button>
                 {/* End call button */}
                 <button
@@ -745,9 +789,7 @@ function InterviewPage({
                     transition: "all 0.2s ease", cursor: "pointer",
                   }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" fill="#f87171" />
-                  </svg>
+                  <PhoneDisconnect color="#f87171" size={22} weight="fill" />
                 </button>
               </div>
             )}
@@ -762,7 +804,10 @@ function InterviewPage({
 
           {interviewDone && (
             <button onClick={onEnd} className="bg-[#03346E] text-white font-bold text-[13px] py-3 rounded-xl hover:bg-[#022B5C] transition-colors flex-shrink-0">
-              查看面试报告 →
+              <span className="inline-flex items-center justify-center gap-2">
+                查看面试报告
+                <ArrowRight className="size-4" weight="bold" />
+              </span>
             </button>
           )}
 
@@ -852,7 +897,8 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
           <div className="ml-auto">
             <button onClick={onRetry}
               className="flex items-center gap-1.5 text-[12px] text-white border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.15)] transition-colors px-5 py-2 rounded-full">
-              ↺ 重新模拟
+              <ArrowCounterClockwise className="size-4" />
+              重新模拟
             </button>
           </div>
         </div>
@@ -882,7 +928,10 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
           <div className="bg-white border border-[#e8e8e8] rounded-xl p-5 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4">AI 洞察</p>
             <div className="mb-4">
-              <div className="text-[11px] font-semibold text-green-700 mb-2.5">✓ 关键优势</div>
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-green-700 mb-2.5">
+                <Check className="size-3.5" weight="bold" />
+                关键优势
+              </div>
               {report.strengths.map((s, i) => (
                 <div key={i} className="border-l-[2.5px] border-green-600 rounded-[0_6px_6px_0] bg-green-50 px-3 py-2.5 mb-2 text-[12px] text-[#3d3d3d] leading-relaxed">{s}</div>
               ))}
@@ -1078,7 +1127,11 @@ export default function InterviewPracticePage() {
     // score and the report API would 400 ("对话记录不足"). Bail back to start.
     const answeredCount = messages.filter((m) => m.role === "user").length;
     if (messages.length < 2 || answeredCount === 0) { setPageState("start"); return; }
-    try { window.localStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(messages)); } catch {}
+    try {
+      window.localStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(messages));
+    } catch {
+      // Reporting can continue when local transcript persistence is unavailable.
+    }
     setIsGeneratingReport(true); setPageState("report");
     try {
       const res = await fetch("/api/interview/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });

@@ -1391,7 +1391,7 @@ describe("DynamicStepForm copilot format", () => {
     expect(label).toHaveClass("pr-10");
     expect(labelAction).toHaveClass(
       "absolute",
-      "right-0",
+      "-right-2",
       "h-8",
       "w-8",
       "opacity-0",
@@ -1601,7 +1601,7 @@ describe("DynamicStepForm copilot format", () => {
     expect(onDraftChange).toHaveBeenLastCalledWith({ is_transit_traveler: "" });
   });
 
-  it("uses the server translation fallback when local sync leaves Chinese in the English field", async () => {
+  it("uses the server translation fallback without showing a translated success pill", async () => {
     const onComplete = vi.fn();
     const fetchMock = vi.fn(async () => new Response(
       JSON.stringify({ ok: true, translatedText: "Hengqin, Zhuhai" }),
@@ -1628,7 +1628,8 @@ describe("DynamicStepForm copilot format", () => {
     expect(screen.getAllByDisplayValue("珠海横琴")).toHaveLength(1);
     expect(screen.getByText("正在翻译...")).toBeInTheDocument();
 
-    await waitFor(() => expect(screen.getByText("已翻译")).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("正在翻译...")).not.toBeInTheDocument());
+    expect(screen.queryByText("已翻译")).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("Hengqin, Zhuhai")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/translate",
@@ -1647,6 +1648,33 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ city_of_birth: "Hengqin, Zhuhai" }));
+  });
+
+  it("highlights the full input control when realtime translation reports a warning", async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ ok: false, error: "Translation service unavailable" }),
+      {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { container } = render(
+      <DynamicStepForm
+        step={cityOfBirthStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "测试失败地址" } });
+
+    await waitFor(() => expect(screen.getByText("翻译失败，可重试")).toBeInTheDocument());
+    const field = container.querySelector<HTMLElement>('[data-application-field-name="city_of_birth"]');
+    expect(field).toHaveAttribute("data-field-warning", "true");
+    expect(field?.className).toContain("[&_.application-form-control]:!border-red-500");
   });
 
   it("repairs a Chinese value accidentally saved in the SGAC English full-name field", () => {
