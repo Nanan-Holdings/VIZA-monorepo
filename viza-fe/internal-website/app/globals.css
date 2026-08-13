@@ -107,7 +107,7 @@ body::-webkit-scrollbar,
 
     --application-control-height: 3rem;
     --application-control-radius: 0.375rem;
-    --application-control-border-width: 1.5px;
+    --application-control-border-width: 1px;
     --application-control-border-color: var(--border-input);
     --application-control-focus-color: #03346e;
     --application-control-filled-background: #f5f5f5;
@@ -206,9 +206,10 @@ textarea.application-form-control[data-filled="true"]:focus,
 .application-form-control:focus-visible,
 .application-form-input:focus-within,
 .application-form-control[data-state="open"] {
+  border-width: 1.5px;
   border-color: var(--application-control-focus-color);
   outline: none;
-  box-shadow: 0 0 0 1px var(--application-control-focus-color);
+  box-shadow: none;
 }
 
 /* Input groups sit inside several animated/auth layouts where an outer focus
@@ -216,7 +217,7 @@ textarea.application-form-control[data-filled="true"]:focus,
    from the horizontal edges). Draw the complete focus edge as a real border so
    all four sides stay the same thickness at every device scale. */
 .application-form-input:focus-within {
-  border-width: 2px;
+  border-width: 1.5px;
   box-shadow: none !important;
 }
 
@@ -263,6 +264,19 @@ textarea.application-form-control[data-filled="true"]:focus,
 /* Client portal typography tweaks */
 .client-shell {
   letter-spacing: -0.011em;
+}
+
+/*
+ * Phosphor's square canvas can make glyphs feel small in compact controls.
+ * Enlarge the artwork proportionally while keeping its layout box, centre
+ * position, and the surrounding control padding unchanged.
+ *
+ * Use the individual scale property so Tailwind transform utilities (including
+ * animate-spin and rotated chevrons) continue to compose with this treatment.
+ */
+.client-icon-system svg[viewBox="0 0 256 256"] {
+  scale: 1.2;
+  transform-origin: center;
 }
 
 /* React Big Calendar Customization */

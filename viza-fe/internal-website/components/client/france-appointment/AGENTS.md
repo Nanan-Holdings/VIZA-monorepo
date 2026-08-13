@@ -30,4 +30,4 @@ France-Visas official reference capture.
   do not present them as completed bookings.
 - All text must use `messages/en.json` and `messages/zh.json`.
 - Use client portal primitives (`BrandField`, `BrandInput`,
-  `BrandActionButton`, shadcn `Card`, `Alert`, `Button`, and lucide icons).
+  `BrandActionButton`, shadcn `Card`, `Alert`, `Button`, and Phosphor icons).

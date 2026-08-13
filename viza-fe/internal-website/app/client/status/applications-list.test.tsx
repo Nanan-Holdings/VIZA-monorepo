@@ -1,8 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { ApplicationsList, type ApplicationListItem } from "./applications-list";
+import {
+  ApplicationsList,
+  type ApplicationListItem,
+} from "./applications-list";
+import {
+  AddDestinationSection,
+  getGroupSortRank,
+} from "./add-destination-section";
 import { DestinationFlag } from "@/components/client/home/DestinationFlag";
 import { readActiveApplicationSelection } from "@/lib/client/active-application-selection";
+import {
+  VISA_DESTINATION_COUNTRY_GROUPS,
+  getVisaDestinationKey,
+} from "@/lib/visa-destinations";
 
 const refresh = vi.fn();
 const push = vi.fn();
@@ -16,11 +27,12 @@ vi.mock("@/app/actions/user-package", () => ({
 }));
 
 vi.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: () => (key: string, values?: Record<string, number>) => {
     const labels: Record<string, string> = {
       currentHandling: "Currently working on",
       yourApplications: "Your applications",
-      destinationCount: `${values?.count ?? 0} destinations`,
+      destinationCount: `${values?.count ?? 0}`,
       current: "Current",
       applicationCount: `${values?.count ?? 0} application records`,
       selectApplication: "Choose application",
@@ -74,6 +86,52 @@ const item: ApplicationListItem = {
       detailHref: "/client/application/long-form?applicationId=two&step=status",
       ongoing: true,
     },
+    {
+      selectionKey: "three",
+      applicationId: "three",
+      packageId: "package-one",
+      visaLabel: "TDAC · October trip",
+      stateLabel: "Not started",
+      tone: "brand",
+      progressPercent: 0,
+      country: "thailand",
+      visaType: "tdac",
+      continueHref: "/client/application/long-form?applicationId=three",
+      detailHref:
+        "/client/application/long-form?applicationId=three&step=status",
+      ongoing: true,
+    },
+  ],
+};
+
+const taiwanItem: ApplicationListItem = {
+  key: "taiwan",
+  countryKey: "taiwan",
+  flag: "🇹🇼",
+  countryLabel: "Taiwan",
+  visaLabel: "Taiwan entry permit",
+  stateLabel: "Awaiting payment",
+  tone: "alert",
+  progressPercent: 0,
+  continueHref: "/client/checkout?applicationId=taiwan-one",
+  country: "taiwan",
+  visaType: "entry-permit",
+  destinationId: "taiwan-entry-permit",
+  records: [
+    {
+      selectionKey: "taiwan-one",
+      applicationId: "taiwan-one",
+      packageId: "package-taiwan",
+      visaLabel: "Taiwan entry permit",
+      stateLabel: "Awaiting payment",
+      tone: "alert",
+      progressPercent: 0,
+      country: "taiwan",
+      visaType: "entry-permit",
+      continueHref: "/client/checkout?applicationId=taiwan-one",
+      detailHref: "/client/checkout?applicationId=taiwan-one",
+      ongoing: true,
+    },
   ],
 };
 
@@ -88,29 +146,79 @@ describe("applications selector", () => {
         clear: () => values.clear(),
         getItem: (key: string) => values.get(key) ?? null,
         key: (index: number) => [...values.keys()][index] ?? null,
-        get length() { return values.size; },
-        removeItem: (key: string) => { values.delete(key); },
-        setItem: (key: string, value: string) => { values.set(key, value); },
+        get length() {
+          return values.size;
+        },
+        removeItem: (key: string) => {
+          values.delete(key);
+        },
+        setItem: (key: string, value: string) => {
+          values.set(key, value);
+        },
       } satisfies Storage,
     });
   });
 
   it("expands a multi-application country and switches the exact application before opening Home", async () => {
-    const { container } = render(<ApplicationsList items={[item]} initialExpandedCountry={null} />);
+    render(<ApplicationsList items={[item]} initialExpandedCountry={null} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Choose application" }));
-    expect(screen.getAllByText("TDAC · August trip")).toHaveLength(2);
+    expect(screen.getAllByText("TDAC · August trip")).toHaveLength(1);
     expect(screen.getByText("TDAC · September trip")).toBeInTheDocument();
-    expect(container.querySelector("svg.lucide-check")).not.toBeInTheDocument();
-
+    expect(screen.getByText("TDAC · October trip")).toBeInTheDocument();
     const septemberApplication = screen.getByRole("button", {
       name: /TDAC · September trip/,
     });
     expect(septemberApplication).toHaveClass("hover:bg-[#f7f9fc]");
     fireEvent.click(septemberApplication);
-    await waitFor(() => expect(readActiveApplicationSelection()?.applicationId).toBe("two"));
+    await waitFor(() =>
+      expect(readActiveApplicationSelection()?.applicationId).toBe("two")
+    );
     await waitFor(() => expect(push).toHaveBeenCalledWith("/client/home"));
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("uses a right-arrow row for a country with one selectable application", async () => {
+    const { container } = render(
+      <ApplicationsList
+        items={[item, taiwanItem]}
+        initialExpandedCountry={null}
+      />
+    );
+
+    const taiwanRow = screen.getByRole("button", {
+      name: /Taiwan Taiwan entry permit/,
+    });
+    expect(
+      taiwanRow.querySelector('[data-testid="single-application-arrow"]')
+    ).toBeInTheDocument();
+    expect(
+      container.querySelectorAll('[data-testid="multi-application-chevron"]')
+    ).toHaveLength(1);
+
+    fireEvent.click(taiwanRow);
+    await waitFor(() =>
+      expect(readActiveApplicationSelection()?.applicationId).toBe("taiwan-one")
+    );
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/client/home"));
+  });
+
+  it("does not repeat the only current application in the lower section", async () => {
+    render(
+      <ApplicationsList
+        items={[{ ...taiwanItem, records: [taiwanItem.records[0]] }]}
+        initialExpandedCountry={null}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("0")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: /Taiwan/ })).toHaveAttribute(
+      "href",
+      "/client/home"
+    );
+    expect(
+      screen.queryByRole("button", { name: /Taiwan entry permit/ })
+    ).not.toBeInTheDocument();
   });
 
   it("links the current application card to Home", () => {
@@ -118,7 +226,7 @@ describe("applications selector", () => {
 
     expect(screen.getByRole("link", { name: /Thailand/ })).toHaveAttribute(
       "href",
-      "/client/home",
+      "/client/home"
     );
   });
 
@@ -127,7 +235,49 @@ describe("applications selector", () => {
 
     expect(screen.getByTestId("circle-country-flag")).toHaveAttribute(
       "src",
-      "https://react-circle-flags.pages.dev/tw.svg",
+      "https://react-circle-flags.pages.dev/tw.svg"
     );
+  });
+});
+
+describe("add destination ordering", () => {
+  it("places Schengen first, then available, added, and coming-soon destinations", () => {
+    const schengen = VISA_DESTINATION_COUNTRY_GROUPS.find((group) =>
+      group.destinations.some((destination) => destination.kind === "group")
+    );
+    const australia = VISA_DESTINATION_COUNTRY_GROUPS.find((group) =>
+      group.destinations.some(
+        (destination) => destination.country === "australia"
+      )
+    );
+    const taiwan = VISA_DESTINATION_COUNTRY_GROUPS.find((group) =>
+      group.destinations.some((destination) => destination.country === "taiwan")
+    );
+    const argentina = VISA_DESTINATION_COUNTRY_GROUPS.find((group) =>
+      group.destinations.some(
+        (destination) => destination.country === "argentina"
+      )
+    );
+    const started = new Set([
+      getVisaDestinationKey("taiwan", "TW_ENTRY_PERMIT"),
+    ]);
+
+    expect(schengen).toBeDefined();
+    expect(australia).toBeDefined();
+    expect(taiwan).toBeDefined();
+    expect(argentina).toBeDefined();
+    expect(getGroupSortRank(schengen!, started)).toBe(0);
+    expect(getGroupSortRank(australia!, started)).toBe(1);
+    expect(getGroupSortRank(taiwan!, started)).toBe(2);
+    expect(getGroupSortRank(argentina!, started)).toBe(3);
+  });
+
+  it("makes the full surface of every destination card an interaction target", () => {
+    render(<AddDestinationSection startedKeys={[]} />);
+
+    const cardHitAreas = screen.getAllByTestId("destination-card-hit-area");
+    expect(cardHitAreas).toHaveLength(VISA_DESTINATION_COUNTRY_GROUPS.length);
+    expect(cardHitAreas[0]).toHaveAccessibleName(/Schengen Area/);
+    expect(cardHitAreas[0]).toBeEnabled();
   });
 });

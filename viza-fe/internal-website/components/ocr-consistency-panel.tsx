@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle as CheckCircle2, CircleNotch as Loader2, Warning as AlertTriangle } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { runOcrConsistencyCheck, type ConsistencyResult } from "@/app/actions/ocr-consistency";
 import { saveDynamicAnswers } from "@/app/actions/visa-application-answers";
@@ -39,7 +39,7 @@ export function OcrConsistencyPanel({ applicationId, initialResult = null, onApp
     });
   };
 
-  const useOcrValue = (fieldName: string, value: string): void => {
+  const applyOcrValue = (fieldName: string, value: string): void => {
     setApplyingField(fieldName);
     startTransition(async () => {
       const res = await saveDynamicAnswers(applicationId, { [fieldName]: value });
@@ -116,7 +116,7 @@ export function OcrConsistencyPanel({ applicationId, initialResult = null, onApp
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => useOcrValue(fieldName, entry.ocr!)}
+                      onClick={() => applyOcrValue(fieldName, entry.ocr!)}
                       disabled={applyingField === fieldName}
                     >
                       Use OCR

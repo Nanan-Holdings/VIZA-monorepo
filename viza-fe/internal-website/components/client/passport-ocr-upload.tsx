@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check } from "lucide-react";
+import { Check } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
 import { SmoothProgressBar } from "@/components/smooth-progress";
@@ -343,11 +343,11 @@ function ScanProgressPanel({
                 )}
               >
                 {done ? (
-                  <Check className="h-5 w-5" strokeWidth={3} />
+                  <Check className="size-5" weight="bold" />
                 ) : active ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
                 ) : (
-                  <Check className="h-5 w-5" strokeWidth={3} />
+                  <Check className="size-5" weight="bold" />
                 )}
               </span>
               <span

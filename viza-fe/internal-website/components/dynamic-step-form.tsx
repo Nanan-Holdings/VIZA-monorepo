@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
-import { CircleHelp, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Question as CircleHelp, CircleNotch as Loader2, Sparkle as Sparkles, Trash as Trash2 } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
@@ -392,7 +392,7 @@ function RealtimeTranslationStatusLine({
   isChineseInterface: boolean;
   onRetry: () => void;
 }) {
-  if (status === "idle" || status === "skipped") return null;
+  if (status === "idle" || status === "skipped" || status === "translated") return null;
 
   const isBusy = status === "typing" || status === "translating";
   const copy = {
@@ -438,6 +438,7 @@ function DynamicFieldRealtimeTranslation({
   targetWasManuallyEdited,
   onApplyTranslation,
   onResetManualEdit,
+  onWarningChange,
 }: {
   field: VisaFormFieldRow;
   valueKey: string;
@@ -447,6 +448,7 @@ function DynamicFieldRealtimeTranslation({
   targetWasManuallyEdited: boolean;
   onApplyTranslation: (valueKey: string, sourceText: string, translatedText: string, force: boolean) => void;
   onResetManualEdit: (valueKey: string) => void;
+  onWarningChange: (valueKey: string, hasWarning: boolean) => void;
 }) {
   const handleTranslatedText = useCallback(
     (translatedText: string, options: { force: boolean; sourceText: string }) => {
@@ -472,6 +474,15 @@ function DynamicFieldRealtimeTranslation({
     onTranslatedText: handleTranslatedText,
     onManualEditReset: handleManualEditReset,
   });
+  const hasWarning = status === "failed" || status === "user_edited";
+
+  useEffect(() => {
+    onWarningChange(valueKey, hasWarning);
+  }, [hasWarning, onWarningChange, valueKey]);
+
+  useEffect(() => () => {
+    onWarningChange(valueKey, false);
+  }, [onWarningChange, valueKey]);
 
   return (
     <RealtimeTranslationStatusLine
@@ -2719,6 +2730,7 @@ export function DynamicStepForm({
     return init;
   });
   const [manualEnglishValueKeys, setManualEnglishValueKeys] = useState<Record<string, boolean>>({});
+  const [translationWarningValueKeys, setTranslationWarningValueKeys] = useState<Record<string, boolean>>({});
   const [koreaAddressOptions, setKoreaAddressOptions] = useState<VisaFormFieldOption[]>([]);
   const [koreaAddressSearchQuery, setKoreaAddressSearchQuery] = useState("");
   const [koreaAddressSearching, setKoreaAddressSearching] = useState(false);
@@ -3282,6 +3294,17 @@ export function DynamicStepForm({
     const nextManualKeys = { ...manualEnglishValueKeysRef.current, [valueKey]: false };
     manualEnglishValueKeysRef.current = nextManualKeys;
     setManualEnglishValueKeys(nextManualKeys);
+  }, []);
+
+  const handleTranslationWarningChange = useCallback((valueKey: string, hasWarning: boolean) => {
+    setTranslationWarningValueKeys((current) => {
+      if (Boolean(current[valueKey]) === hasWarning) return current;
+      if (hasWarning) return { ...current, [valueKey]: true };
+
+      const next = { ...current };
+      delete next[valueKey];
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -4069,6 +4092,8 @@ export function DynamicStepForm({
       </span>
     ) : null;
     const showIssue = issue.severity !== "ok" && issue.message !== "Required" && issue.message !== "必填项";
+    const translationWarning = isChineseInterface && Boolean(translationWarningValueKeys[valueKey]);
+    const highlightControlAsWarning = submitCheckInvalid || showIssue || translationWarning;
     const panelOpen = activeGuidanceKey === valueKey;
     const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "ID_C1_TOURIST";
     const buttonLabel = isChineseInterface ? "问 AI" : "Ask AI";
@@ -4123,13 +4148,14 @@ export function DynamicStepForm({
           key={valueKey}
           data-application-field-name={valueKey}
           data-validation-invalid={submitCheckInvalid ? "true" : "false"}
+          data-field-warning={showIssue || translationWarning ? "true" : "false"}
           data-review-issue={reviewIssue?.severity}
           aria-invalid={submitCheckInvalid || undefined}
           className={cn(
             "application-form-field group/field relative py-1.5 transition-colors",
             panelOpen ? "bg-[#fbfdff]" : "",
             isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
-            submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
+            highlightControlAsWarning && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
             reviewIssue && "-mx-3 px-3 py-3",
             reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
             reviewWarning && "rounded-lg bg-amber-50 [&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
@@ -4185,13 +4211,14 @@ export function DynamicStepForm({
         key={valueKey}
         data-application-field-name={valueKey}
         data-validation-invalid={submitCheckInvalid ? "true" : "false"}
+        data-field-warning={showIssue || translationWarning ? "true" : "false"}
         data-review-issue={reviewIssue?.severity}
         aria-invalid={submitCheckInvalid || undefined}
         className={cn(
           "application-form-field group/field relative py-1.5 transition-colors",
           panelOpen ? "bg-[#fbfdff]" : "",
           isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
-          submitCheckInvalid && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
+          highlightControlAsWarning && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
           reviewIssue && "-mx-3 px-3 py-3",
           reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
           reviewWarning && "rounded-lg bg-amber-50 [&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
@@ -4212,6 +4239,7 @@ export function DynamicStepForm({
               targetWasManuallyEdited={targetWasManuallyEdited}
               onApplyTranslation={applyRealtimeTranslation}
               onResetManualEdit={resetManualEnglishValue}
+              onWarningChange={handleTranslationWarningChange}
             />
           ) : null}
           <div className="flex items-center justify-end gap-2">

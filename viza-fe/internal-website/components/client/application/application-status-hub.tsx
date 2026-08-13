@@ -6,17 +6,17 @@ import { motion } from "motion/react";
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
-  CircleAlert,
-  CircleDot,
-  Clock3,
+  CheckCircle as CheckCircle2,
+  WarningCircle as CircleAlert,
+  Circle as CircleDot,
+  Clock as Clock3,
   FileText,
-  Loader2,
-  Send,
+  CircleNotch as Loader2,
+  PaperPlaneTilt as Send,
   Upload,
   XCircle,
-  type LucideIcon,
-} from "lucide-react";
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   getApplicationLifecycleSummaries,
@@ -62,7 +62,7 @@ const FILTER_STATUS_MAP: Record<HubFilter, ApplicationLifecycleStatus[]> = {
 
 const STATUS_TONE: Record<
   ApplicationLifecycleStatus,
-  { icon: LucideIcon; badge: string; ring: string; bar: string; dot: string }
+  { icon: PhosphorIcon; badge: string; ring: string; bar: string; dot: string }
 > = {
   not_started: {
     icon: CircleDot,

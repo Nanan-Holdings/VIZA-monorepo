@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileCheck2 } from "lucide-react";
+import { Download, FileText as FileCheck2 } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { getClientApplicationStatus } from "@/app/actions/client-application-status";
 import type { StatusApplication, StatusEvent, StatusFile } from "@/app/client/status/status-data";

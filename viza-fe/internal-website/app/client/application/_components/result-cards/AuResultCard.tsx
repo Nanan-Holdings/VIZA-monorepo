@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, FileCheck2 } from "lucide-react";
+import { ArrowSquareOut as ExternalLink, FileText as FileCheck2 } from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +95,6 @@ export function AuResultCard({ applicationId, result }: AuResultCardProps) {
             {!screenshotLoading && screenshotUrl && (
               // Plain <img> — Next/Image needs domains config that the
               // signed URL host doesn't always satisfy.
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={screenshotUrl}
                 alt="ImmiAccount Review page snapshot"

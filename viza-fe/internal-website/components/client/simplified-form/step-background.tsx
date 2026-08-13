@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Heart, Plane, Scale, Shield, ShieldCheck, FileWarning, Users } from "lucide-react";
+import { Heart, Airplane as Plane, Scales as Scale, Shield, ShieldCheck, FileText as FileWarning, Users } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { BrandInput, BrandField } from "@/components/client/brand-field";
 import { TabChoice } from "@/components/client/simplified-form/tab-choice";

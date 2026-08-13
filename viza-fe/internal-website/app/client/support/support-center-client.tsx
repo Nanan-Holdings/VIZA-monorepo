@@ -5,19 +5,19 @@ import { ChangeEvent, FormEvent, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
   ArrowRight,
-  CalendarClock,
-  CheckCircle2,
-  ClipboardList,
+  CalendarDots as CalendarClock,
+  CheckCircle as CheckCircle2,
+  ClipboardText as ClipboardList,
   CreditCard,
-  FileCheck2,
-  FolderKanban,
-  HelpCircle,
-  Inbox,
-  MessageSquareText,
-  Search,
-  SendHorizontal,
-  type LucideIcon,
-} from "lucide-react";
+  FileText as FileCheck2,
+  Kanban as FolderKanban,
+  Question as HelpCircle,
+  Tray as Inbox,
+  ChatText as MessageSquareText,
+  MagnifyingGlass as Search,
+  PaperPlaneRight as SendHorizontal,
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 import { createSupportTicket } from "@/app/actions/support";
 import { AiAssistIcon } from "@/components/ui/ai-assist-button";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ type ChatTurn = {
 
 const ISSUE_TYPES: Array<{
   key: IssueTypeKey;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   href: string;
   tone: "info" | "success" | "warning";
 }> = [
@@ -48,7 +48,7 @@ const ISSUE_TYPES: Array<{
 
 const HELP_ACTIONS: Array<{
   key: HelpActionKey;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   href: string;
 }> = [
   { key: "faqs", icon: HelpCircle, href: "/client/help" },

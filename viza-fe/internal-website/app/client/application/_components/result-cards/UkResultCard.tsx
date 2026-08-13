@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { ExternalLink, Eye, EyeOff, Loader2, RotateCw, ShieldCheck } from "lucide-react";
+import { ArrowSquareOut as ExternalLink, Eye, EyeSlash as EyeOff, CircleNotch as Loader2, ArrowClockwise as RotateCw, ShieldCheck } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

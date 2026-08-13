@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
-  ChevronRight,
+  CaretRight as ChevronRight,
   CreditCard,
-  Search,
-} from "lucide-react";
+  MagnifyingGlass as Search,
+} from "@phosphor-icons/react";
 import type { PayPerItem, PayPerRegion } from "./pay-per-types";
 
 interface PayPerApplicationBrowserProps {

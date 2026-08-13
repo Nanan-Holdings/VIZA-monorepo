@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, FileText } from "lucide-react";
+import { ArrowRight, FileText } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { cn } from "@/lib/utils";
 

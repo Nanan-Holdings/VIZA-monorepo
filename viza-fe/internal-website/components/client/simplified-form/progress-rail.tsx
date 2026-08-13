@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Button } from "@/components/ui/button";
 

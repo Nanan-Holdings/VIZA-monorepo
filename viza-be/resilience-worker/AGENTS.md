@@ -9,6 +9,10 @@ configuration, probe-status, and health evaluation helpers live in
 `src/watchdog-health.ts` so Wrangler can generate runtime types without
 mistaking test helpers for additional Worker entry points.
 
+The production Cron runs every 30 minutes. `MAX_PROBE_AGE_MS` must retain a
+small scheduling-jitter allowance above that cadence so `/health` does not
+report a healthy persisted probe as stale between scheduled runs.
+
 Cloudflare data-plane contracts also live in `src/index.ts`:
 
 - `ResilienceState` remains the durable outbox/idempotency and lease source of

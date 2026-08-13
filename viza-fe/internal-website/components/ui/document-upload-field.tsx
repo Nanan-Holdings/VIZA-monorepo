@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import dynamic from "next/dynamic";
-import { FileText, ImageIcon, Loader2, Trash2, UploadCloud } from "lucide-react";
+import { FileText, ImageIcon, CircleNotch as Loader2, Trash as Trash2, CloudArrowUp as UploadCloud } from "@phosphor-icons/react";
 
 import { ActionButton } from "@/components/ui/action-button";
 import { cn } from "@/lib/utils";

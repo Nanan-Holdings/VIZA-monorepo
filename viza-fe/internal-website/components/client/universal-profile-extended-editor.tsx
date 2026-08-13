@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Loader2, Pencil, Save } from "lucide-react";
+import { CheckCircle as CheckCircle2, CircleNotch as Loader2, Pencil, FloppyDisk as Save } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import {
   loadUniversalProfileWorkspace,

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, Download, ExternalLink, Loader2, Plus, ShieldCheck } from "lucide-react";
+import { Warning as AlertTriangle, Download, ArrowSquareOut as ExternalLink, CircleNotch as Loader2, Plus, ShieldCheck } from "@phosphor-icons/react";
 import type { SgArrivalCardSubmissionResult } from "@/lib/submission-result";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { Button } from "@/components/ui/button";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Trash2 } from "lucide-react";
+import { CircleNotch as Loader2, Trash as Trash2 } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";

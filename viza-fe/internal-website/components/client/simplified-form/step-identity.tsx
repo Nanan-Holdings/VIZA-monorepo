@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, ScanLine, Keyboard, Info, X } from "lucide-react";
+import { CheckCircle as CheckCircle2, Scan as ScanLine, Keyboard, Info, X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { BrandInput, BrandField } from "@/components/client/brand-field";
 import { DatePicker } from "@/components/ui/date-picker";

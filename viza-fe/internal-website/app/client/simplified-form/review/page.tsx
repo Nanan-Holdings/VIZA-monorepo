@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, CheckCircle } from "lucide-react";
+import { CaretLeft as ChevronLeft, CheckCircle } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSimplifiedFormContext } from "@/lib/context/simplified-form-context";

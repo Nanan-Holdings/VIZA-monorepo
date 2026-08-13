@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle as CheckCircle2, CircleNotch as Loader2, MagnifyingGlass as Search } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   getVisaDestinationCountryName,

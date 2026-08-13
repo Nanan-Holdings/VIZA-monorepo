@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "motion/react";
-import { ChevronRight } from "lucide-react";
+import { CaretRight as ChevronRight } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale } from "next-intl";
-import { AlertTriangle, ExternalLink, ShieldCheck } from "lucide-react";
+import { Warning as AlertTriangle, ArrowSquareOut as ExternalLink, ShieldCheck } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

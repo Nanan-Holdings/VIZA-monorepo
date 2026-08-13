@@ -2,43 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion } from "motion/react";
-import { X, Search, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { CircleNotch as Loader2, MagnifyingGlass as Search, SidebarSimple, UsersThree, X } from "@phosphor-icons/react";
 import type { MessagePreview, SearchResult } from "@/app/actions/companion-sessions";
-
-// Icon Components
-function LucidePanelLeft() {
-  return (
-    <div className="relative shrink-0 size-[32px] cursor-pointer hover:opacity-70 transition-opacity">
-      <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 32 32">
-        <path
-          d="M12 5.33331H6.66671C5.93033 5.33331 5.33337 5.93027 5.33337 6.66665V25.3333C5.33337 26.0697 5.93033 26.6666 6.66671 26.6666H12M12 5.33331V26.6666M12 5.33331H25.3334C26.0698 5.33331 26.6667 5.93027 26.6667 6.66665V25.3333C26.6667 26.0697 26.0698 26.6666 25.3334 26.6666H12"
-          stroke="black"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeOpacity="0.35"
-          strokeWidth="2.66667"
-        />
-      </svg>
-    </div>
-  );
-}
-
-function LucideUsersRound() {
-  return (
-    <div className="relative shrink-0 size-[21px]">
-      <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 21.3333 21.3333">
-        <path
-          d="M14.2222 17.7778C14.2222 15.8149 12.4037 14.2222 10.1481 14.2222C7.89258 14.2222 6.07407 15.8149 6.07407 17.7778M17.7778 14.8519C17.7778 13.5127 16.7847 12.3579 15.4074 11.9654M3.55556 14.8519C3.55556 13.5127 4.54866 12.3579 5.92593 11.9654M12.5185 8.14815C12.5185 9.45725 11.4572 10.5185 10.1481 10.5185C8.83906 10.5185 7.77778 9.45725 7.77778 8.14815C7.77778 6.83906 8.83906 5.77778 10.1481 5.77778C11.4572 5.77778 12.5185 6.83906 12.5185 8.14815ZM16.0741 7.40741C16.0741 8.38644 15.2809 9.17963 14.3019 9.17963C13.3228 9.17963 12.5296 8.38644 12.5296 7.40741C12.5296 6.42837 13.3228 5.63519 14.3019 5.63519C15.2809 5.63519 16.0741 6.42837 16.0741 7.40741ZM7.77778 7.40741C7.77778 8.38644 6.98459 9.17963 6.00556 9.17963C5.02652 9.17963 4.23333 8.38644 4.23333 7.40741C4.23333 6.42837 5.02652 5.63519 6.00556 5.63519C6.98459 5.63519 7.77778 6.42837 7.77778 7.40741Z"
-          stroke="#989898"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="1.77333"
-        />
-      </svg>
-    </div>
-  );
-}
 
 interface ContinuousSidebarProps {
   // Checkpoints
@@ -215,7 +180,7 @@ export function ContinuousSidebar({
             className="hover:opacity-70 transition-opacity"
             aria-label="Toggle sidebar"
           >
-            <LucidePanelLeft />
+            <SidebarSimple className="size-8 text-black/35" />
           </button>
         </div>
 
@@ -247,7 +212,7 @@ export function ContinuousSidebar({
                 className="w-full flex items-center gap-[10.667px] py-2 px-2 -mx-2 rounded-md text-[#989898] hover:text-gray-700 hover:bg-gray-100/60 transition-colors"
               >
                 <div className="relative shrink-0 size-[21px]">
-                  <Search className="w-full h-full" strokeWidth={1.77} />
+                  <Search className="size-full" weight="light" />
                 </div>
                 <span className="font-medium text-[16px] leading-[1.6] whitespace-nowrap">
                   Search chats
@@ -260,7 +225,7 @@ export function ContinuousSidebar({
               onClick={onNewCareTeamChat}
               className="w-full flex items-center gap-[10.667px] py-2 px-2 -mx-2 rounded-md text-[#989898] hover:text-gray-700 hover:bg-gray-100/60 transition-colors"
             >
-              <LucideUsersRound />
+              <UsersThree className="size-[21px] shrink-0" />
               <span className="font-medium text-[16px] leading-[1.6] whitespace-nowrap">
                 New Care Team chat
               </span>

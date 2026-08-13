@@ -4,13 +4,13 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Camera,
-  CheckCircle2,
-  AlertCircle,
+  CheckCircle as CheckCircle2,
+  WarningCircle as AlertCircle,
   Upload,
-  Loader2,
+  CircleNotch as Loader2,
   ImageIcon,
   Crop,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { AiAssistButton } from "@/components/ui/ai-assist-button";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

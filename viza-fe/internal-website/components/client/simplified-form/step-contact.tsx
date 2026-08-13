@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Mail, Phone, Instagram, Facebook, Linkedin, Youtube, Music2, Twitter, MessageCircle, Radio } from "lucide-react";
+import { Envelope as Mail, Phone, InstagramLogo as Instagram, FacebookLogo as Facebook, LinkedinLogo as Linkedin, YoutubeLogo as Youtube, MusicNotes as Music2, TwitterLogo as Twitter, ChatCircle as MessageCircle, Radio } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { BrandInput, BrandField } from "@/components/client/brand-field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
