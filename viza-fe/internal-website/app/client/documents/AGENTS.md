@@ -19,6 +19,9 @@ application flow.
 - Confirm passport OCR into reusable profile columns and confirm national
   identity-card OCR into `universal_profile_answers`; keep identity-card
   numbers separate from passport-number fields.
+- Persist confirmed OCR values under every supported country-schema alias and
+  mark their provenance as `passport_ocr`; later manual form edits remain
+  authoritative and replace that provenance.
 - Upsert `application_documents` by `(application_id, document_type)`.
 - Show upload, missing, approved/validated, rejected, and needs-replacement
   states.

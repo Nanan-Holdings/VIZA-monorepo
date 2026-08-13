@@ -61,7 +61,7 @@ describe("wakeCloudSubmissionWorker", () => {
       if (url.endsWith("/apps/viza-runner-pool/machines/machine-vn/start")) {
         return new Response(null, { status: 202 });
       }
-      if (url.endsWith("/internal/submission-queue/wake")) {
+      if (url.endsWith("/internal/runner-job/wake")) {
         return new Response(null, { status: 202 });
       }
       return new Response(null, { status: 404 });
@@ -99,7 +99,7 @@ describe("wakeCloudSubmissionWorker", () => {
       if (url.endsWith("/apps/viza-runner-pool/machines")) {
         return Response.json([{ id: "machine-pool", state: "started" }]);
       }
-      if (url === "https://viza-runner-pool.fly.dev/internal/submission-queue/wake") {
+      if (url === "https://viza-runner-pool.fly.dev/internal/runner-job/wake") {
         return new Response(null, { status: 202 });
       }
       return new Response(null, { status: 404 });
@@ -117,7 +117,7 @@ describe("wakeCloudSubmissionWorker", () => {
 
     expect(result).toEqual({ ok: true });
     expect(fetchImpl).toHaveBeenCalledWith(
-      "https://viza-runner-pool.fly.dev/internal/submission-queue/wake",
+      "https://viza-runner-pool.fly.dev/internal/runner-job/wake",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ jobId: "job-pool" }),

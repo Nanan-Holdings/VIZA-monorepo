@@ -36,6 +36,20 @@ import {
 
 type JsonRecord = Record<string, unknown>;
 
+function isMissingSchemaFeatureError(
+  error: { code?: string | null; message?: string | null } | null,
+  featureNames: string[],
+): boolean {
+  if (!error) return false;
+  const normalized = error.message?.toLowerCase() ?? "";
+  return (
+    error.code === "PGRST204" ||
+    normalized.includes("schema cache") ||
+    normalized.includes("does not exist") ||
+    normalized.includes("relation")
+  ) && featureNames.some((name) => normalized.includes(name.toLowerCase()));
+}
+
 export type DocumentCenterResult =
   | { ok: true; data: DocumentCenterData }
   | { ok: false; code: "not_authenticated" | "not_found" | "server_error"; error: string };
@@ -2137,6 +2151,17 @@ function isMissingOcrBilingualColumnError(message: string) {
     (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("relation"));
 }
 
+function isMissingOcrAnswerProvenanceColumnError(message: string) {
+  const normalized = message.toLowerCase();
+  return ["source", "source_profile_updated_at", "source_metadata"].some(
+    (column) => normalized.includes(column),
+  ) && (
+    normalized.includes("schema cache")
+    || normalized.includes("column")
+    || normalized.includes("does not exist")
+  );
+}
+
 function buildPassportProfileUpdates(fields: JsonRecord) {
   const updates: Record<string, string> = {};
   const fullName = pickExtractedField(fields, ["full_name", "fullName", "name", "passport_full_name", "holder_name"]);
@@ -2275,11 +2300,22 @@ function buildPassportAnswerRows(applicationId: string, fields: JsonRecord) {
     ["nationality", profileUpdates.nationality],
     ["nationality_country", profileUpdates.nationality],
     ["passport_number", profileUpdates.passport_number],
+    ["passportNumber", profileUpdates.passport_number],
+    ["travel_document_number", profileUpdates.passport_number],
     ["passport_issue_date", profileUpdates.passport_issue_date],
     ["passport_issuance_date", profileUpdates.passport_issue_date],
+    ["date_of_issue", profileUpdates.passport_issue_date],
+    ["passport_date_of_issue", profileUpdates.passport_issue_date],
+    ["travel_document_issue_date", profileUpdates.passport_issue_date],
     ["passport_expiry_date", profileUpdates.passport_expiry_date],
     ["passport_expiration_date", profileUpdates.passport_expiry_date],
+    ["valid_until", profileUpdates.passport_expiry_date],
+    ["passport_date_of_expiry", profileUpdates.passport_expiry_date],
+    ["travel_document_expiry_date", profileUpdates.passport_expiry_date],
     ["passport_issuing_country", profileUpdates.passport_issuing_country],
+    ["passport_issuance_country", profileUpdates.passport_issuing_country],
+    ["passport_country_of_issue", profileUpdates.passport_issuing_country],
+    ["travel_document_issuing_country", profileUpdates.passport_issuing_country],
     ["national_identity_number", profileUpdates.national_identity_number],
     ["national_identity_no", profileUpdates.national_identity_number],
     ["national_id_number", profileUpdates.national_identity_number],
@@ -2295,6 +2331,9 @@ function buildPassportAnswerRows(applicationId: string, fields: JsonRecord) {
       application_id: applicationId,
       field_name: fieldName,
       value_text: value,
+      source: "passport_ocr",
+      source_profile_updated_at: null,
+      source_metadata: { source: "passport_ocr" },
       updated_at: now,
     }));
 }
@@ -2415,7 +2454,23 @@ export async function confirmPassportOcrExtraction(input: {
         .from("visa_application_answers")
         .upsert(answerRows, { onConflict: "application_id,field_name" });
 
-      if (answersError) return { ok: false, code: "server_error", error: answersError.message };
+      if (answersError) {
+        if (!isMissingOcrAnswerProvenanceColumnError(answersError.message)) {
+          return { ok: false, code: "server_error", error: answersError.message };
+        }
+        const legacyAnswerRows = answerRows.map(({
+          source: _source,
+          source_profile_updated_at: _sourceProfileUpdatedAt,
+          source_metadata: _sourceMetadata,
+          ...row
+        }) => row);
+        const { error: legacyAnswersError } = await adminClient
+          .from("visa_application_answers")
+          .upsert(legacyAnswerRows, { onConflict: "application_id,field_name" });
+        if (legacyAnswersError) {
+          return { ok: false, code: "server_error", error: legacyAnswersError.message };
+        }
+      }
     }
 
     const { error: confirmError } = await adminClient

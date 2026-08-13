@@ -423,7 +423,10 @@ export default function ClientSignupPage() {
         const { initializeAuthenticatedApplicantInbox } = await import(
           '@/app/actions/applicant-inbox'
         )
-        await initializeAuthenticatedApplicantInbox()
+        const inboxResult = await initializeAuthenticatedApplicantInbox()
+        if (!inboxResult.ok) {
+          console.error('Could not provision applicant inbox alias:', inboxResult.error.code)
+        }
       } catch (inboxError) {
         // Registration should still complete if inbox provisioning is
         // temporarily unavailable. The authenticated client shell retries and
