@@ -25,6 +25,51 @@ export interface RunnerSlotLeaseOptions {
   onLeaseLost?: () => void;
 }
 
+export interface RunnerSlotAcquireRetryOptions {
+  signal?: AbortSignal;
+  initialDelayMs?: number;
+  maxDelayMs?: number;
+  onError?: (error: unknown, attempt: number) => void;
+}
+
+export async function acquireRunnerSlotWithRetry(
+  lease: Pick<RunnerSlotLease, "start">,
+  options: RunnerSlotAcquireRetryOptions = {},
+): Promise<boolean> {
+  const initialDelayMs = Math.max(1, options.initialDelayMs ?? 2_000);
+  const maxDelayMs = Math.max(initialDelayMs, options.maxDelayMs ?? 30_000);
+  let attempt = 0;
+  while (!options.signal?.aborted) {
+    attempt += 1;
+    try {
+      return await lease.start();
+    } catch (error) {
+      options.onError?.(error, attempt);
+    }
+    const delayMs = Math.min(maxDelayMs, initialDelayMs * (2 ** Math.min(attempt - 1, 4)));
+    await new Promise<void>((resolve) => {
+      const signal = options.signal;
+      const onAbort = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      }, delayMs);
+      if (signal) {
+        if (signal.aborted) {
+          clearTimeout(timer);
+          resolve();
+        } else {
+          signal.addEventListener("abort", onAbort, { once: true });
+        }
+      }
+    });
+  }
+  return false;
+}
+
 async function reserveSlot(
   machineId: string,
   kind: RunnerMachineKind,

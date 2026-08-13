@@ -1,6 +1,44 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RunnerSlotLease } from "./runner-slot-lease.js";
+import { acquireRunnerSlotWithRetry, RunnerSlotLease } from "./runner-slot-lease.js";
+
+test("acquireRunnerSlotWithRetry keeps the worker alive through transient database failures", async () => {
+  let attempts = 0;
+  const errors: number[] = [];
+  const acquired = await acquireRunnerSlotWithRetry({
+    start: async () => {
+      attempts += 1;
+      if (attempts < 3) throw new Error("temporary database gateway failure");
+      return true;
+    },
+  }, {
+    initialDelayMs: 1,
+    maxDelayMs: 2,
+    onError: (_error, attempt) => errors.push(attempt),
+  });
+
+  assert.equal(acquired, true);
+  assert.equal(attempts, 3);
+  assert.deepEqual(errors, [1, 2]);
+});
+
+test("acquireRunnerSlotWithRetry stops retrying when shutdown is requested", async () => {
+  const controller = new AbortController();
+  let attempts = 0;
+  const acquired = await acquireRunnerSlotWithRetry({
+    start: async () => {
+      attempts += 1;
+      controller.abort();
+      throw new Error("database unavailable");
+    },
+  }, {
+    signal: controller.signal,
+    initialDelayMs: 1,
+  });
+
+  assert.equal(acquired, false);
+  assert.equal(attempts, 1);
+});
 
 test("RunnerSlotLease reserves, renews, and releases a pool slot", async () => {
   let reserveCalls = 0;

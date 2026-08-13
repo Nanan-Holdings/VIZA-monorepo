@@ -62,6 +62,7 @@ import { validateEnv } from "./config/validate-env";
 import { startHealthServer } from "./health-server";
 import { IdleExitController } from "./idle-exit-controller.js";
 import {
+  acquireRunnerSlotWithRetry,
   RunnerSlotLease,
   type RunnerMachineKind,
 } from "./runner-slot-lease.js";
@@ -7930,25 +7931,6 @@ async function main(): Promise<void> {
   // DEP-003: fail fast on misconfiguration before doing any work.
   validateEnv();
 
-  const flyMachineId = process.env.FLY_MACHINE_ID?.trim();
-  if (flyMachineId && RUNNER_MACHINE_KIND) {
-    runnerSlotLease = new RunnerSlotLease({
-      machineId: flyMachineId,
-      kind: RUNNER_MACHINE_KIND,
-      renewEveryMs: 15_000,
-      onLeaseLost: () => shutdownRunner("capacity slot reassigned"),
-    });
-    const acquired = await runnerSlotLease.start();
-    if (!acquired) {
-      console.log(
-        `[capacity] No logical slot is available for kind=${RUNNER_MACHINE_KIND}; exiting without polling.`,
-      );
-      await runnerSlotLease.stop();
-      runnerSlotLease = null;
-      return;
-    }
-  }
-
   const configuredIdleMs = Number.parseInt(
     process.env.SUBMISSION_SERVICE_IDLE_EXIT_MS ?? "0",
     10,
@@ -7984,6 +7966,35 @@ async function main(): Promise<void> {
       idleSince: null,
     },
   });
+
+  const flyMachineId = process.env.FLY_MACHINE_ID?.trim();
+  if (flyMachineId && RUNNER_MACHINE_KIND) {
+    runnerSlotLease = new RunnerSlotLease({
+      machineId: flyMachineId,
+      kind: RUNNER_MACHINE_KIND,
+      renewEveryMs: 15_000,
+      onLeaseLost: () => shutdownRunner("capacity slot reassigned"),
+    });
+    runnerPoolDatabaseHealthy = false;
+    const acquired = await acquireRunnerSlotWithRetry(runnerSlotLease, {
+      signal: runnerAbort.signal,
+      onError: (_error, attempt) => {
+        console.error(`[capacity] Machine slot reserve unavailable; retrying attempt=${attempt}.`);
+      },
+    });
+    if (!acquired) {
+      if (!shutdownRequested) {
+        console.log(
+          `[capacity] No logical slot is available for kind=${RUNNER_MACHINE_KIND}; exiting without polling.`,
+        );
+      }
+      await runnerSlotLease.stop();
+      runnerSlotLease = null;
+      if (!shutdownRequested) closeHealthServer();
+      return;
+    }
+    runnerPoolDatabaseHealthy = true;
+  }
 
   console.log("[main] VIZA Submission Service starting...");
   console.log(`[main] Polling every ${POLL_INTERVAL_MS / 1000}s`);

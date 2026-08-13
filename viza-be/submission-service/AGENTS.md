@@ -547,6 +547,10 @@ filling and one-shot submission for the applicant.
   authoritative queue check, and confirmation that no protected in-memory
   payment or Korea browser session remains. Future-window arrival-card rows do
   not count as runnable work until their persisted `scheduledFor` date.
+  Health and one-time-card endpoints must listen before Machine slot
+  reservation completes. A transient Supabase/Cloudflare outage keeps the
+  process alive with bounded retry and no queue claims until a slot is acquired;
+  it must not cause a Fly restart loop or dump gateway HTML into logs.
 - `scripts/run-us-appointment-register.ts`: local USVisaScheduling account
   registration helper. It requires a configured `US_APPOINTMENT_BROWSER_API_ENDPOINT`
   or `US_APPOINTMENT_CDP_ENDPOINT` unless explicitly run with `--local-browser`,
