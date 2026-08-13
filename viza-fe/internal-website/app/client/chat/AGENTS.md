@@ -42,7 +42,7 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 3. Do not hardcode AI answers in the frontend; assistant text should come from persisted history or streamed backend output.
 4. Keep Travel AI changes inside the Travel module unless the chat tab integration itself changes.
 5. Keep `/client/chat` on the light visual palette. Do not move the `VIZA AI / Travel AI` tab controls when changing the process/session panel.
-6. The VIZA process/session panel defaults to collapsed. On desktop, opening it should render a fixed, full-height left navigation layer that does not move the centered AI output or the `VIZA AI / Travel AI` tab controls; on mobile, it opens as a drawer. The expand/collapse control must keep the same vertical screen position in both states.
+6. The VIZA process/session rail defaults to open on desktop and blends into the page without a card, border, or shadow. Collapsing it must animate without moving the centered AI output or the `VIZA AI / Travel AI` tab controls; on mobile, it opens as a drawer. The collapsed state shows only the neutral panel icon, aligned with the navbar hamburger inset, without a button panel or duplicate new-chat shortcut.
 7. Treat `components/client/companion/**` as shared UI. Check other imports before changing props or styles.
 8. Preserve queued-message behavior while an assistant response is streaming.
 9. Keep application redirect blocks type-safe. VIZA chat should redirect to `/client/application` for form filling instead of collecting fields inline.
@@ -65,7 +65,7 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 
 `/client/chat` uses `visa_chat_sessions.id` as the Socket.IO `session_id` and as the parent for `visa_chat_messages.session_id`. One applicant may have multiple VIZA conversation processes. The page loads recent non-empty sessions with `getUserSessions()`, switches messages with `getSessionMessages()`, and creates a new `visa_chat_sessions` row with `createSession()` when the user sends the first message in a new chat. Treat `user_chat_sessions` as legacy/unused for this route unless a future migration explicitly removes or repurposes it.
 
-New empty VIZA chats render a localized assistant greeting from `messages/*/chat.newChatGreeting`. This is display-only and must not be written to `visa_chat_messages`; the first persisted message should still be the user's first real prompt.
+New empty VIZA chats render a localized centered start state from `messages/*/chat.emptyPromptTitle` plus starter prompts. This is display-only and must not be written to `visa_chat_messages`; the first persisted message should still be the user's first real prompt.
 
 Session rename uses hidden system marker rows instead of a `visa_chat_sessions.title` column. `getUserSessions()` turns the latest marker into `Session.title`; `getSessionMessages()` and history helpers must keep those markers hidden.
 

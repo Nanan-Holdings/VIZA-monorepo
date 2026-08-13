@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { useLocale } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { PageBackButton } from "@/components/ui/page-back-button";
 
 type TravelPreference = {
   id: string;
@@ -84,15 +84,12 @@ export function TravelMemorySettings() {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8">
-      <Link
-        href="/client/settings"
-        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {isZh ? "返回设置" : "Back to settings"}
-      </Link>
+      <PageBackButton
+        fallbackHref="/client/settings"
+        label={isZh ? "返回上一页" : "Back to previous page"}
+      />
 
-      <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
+      <div className="mt-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">
             {isZh ? "旅行偏好记忆" : "Travel preference memory"}

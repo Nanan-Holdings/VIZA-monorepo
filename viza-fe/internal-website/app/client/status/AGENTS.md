@@ -4,39 +4,40 @@ Scope: this file applies to `viza-fe/internal-website/app/client/status/**`.
 
 ## Purpose
 
-This module owns the applicant-facing status center for VIZA-owned automation.
-It shows the progress of payment, consent, form completion, documents,
-application packet generation, external submission handoff, and final result
-delivery.
-
-This module does not run official-portal automation. It only displays VIZA
-website state and externally ingested submission/result state.
+This module owns the applicant-facing application selector and its shared
+customer-safe lifecycle data loader. `/client/status` switches the exact
+ongoing application or opens completed application history; `/client/home`
+renders lifecycle tasks and `/client/application` renders post-submission
+results and updates from the same data.
 
 ## Key Responsibilities
 
-- Render `/client/status` as the canonical application status route. With no
-  selection param it is the merged **applications index**: the list of every
-  application (`applications-list.tsx`) plus the destination browser
-  (`add-destination-section.tsx`) that used to live at `/client/destinations`.
-  With `applicationId`, `packageId`, or `country` it renders the detail view.
+- Render `/client/status` as the application and destination selector. The
+  index lists every country, expands exact ongoing applications when a country
+  has more than one, and keeps the current application selection separate from
+  browsing. The current selection is a dedicated card linked to `/client/home`;
+  choosing an ongoing record also activates it before opening Home. A `country`
+  query pre-expands that country's row.
+- Render destination flags with `react-circle-flags` through the shared
+  `DestinationFlag` component so flags do not depend on the operating system's
+  emoji coverage. Unavailable destination cards stay gray and sort after
+  launched destinations, with their coming-soon label beside the country name.
 - Keep `/client/destinations` a redirect to this route. The regional pickers
   under `/client/destinations/[region]` and `/client/destinations/schengen`
   stay where they are — only the index merged.
-- Reuse `components/client/application/application-status-hub.tsx` where
-  possible instead of building a second lifecycle UI.
-- Render live-assisted official-site checkpoints through
-  `live-manual-action-card.tsx`; it may resume an existing job after a human
-  completes an official-site step, but must not collect CAPTCHA answers or
-  bypass official checks.
+- Application lifecycle tasks live on `/client/home`; post-submission files
+  and customer-safe updates live in the application submission/status step.
 - Keep `/client/documents` focused on document upload/checklist work; do not
   put document-management UI here unless it is a status summary.
 - Surface customer-safe statuses only. Technical backend or external process
   errors must be translated into plain user-facing next steps.
-- Show result-delivery links when `applications.result_storage_path`,
-  `applications.receipt_url`, or official reference fields are available.
-- For newly tracked Vietnam e-Visas, show the safe official status, last and
-  next daily query times, and authenticated view/print/download controls.
-  Browser page refreshes must not enqueue official CAPTCHA queries.
+- Keep result-delivery links in the submitted application view when
+  `applications.result_storage_path`, `applications.receipt_url`, or official
+  reference fields are available.
+- For newly tracked Vietnam e-Visas, keep safe official status, daily query
+  timing, and authenticated artifact links available to the submitted
+  application view. Browser page refreshes must not enqueue official CAPTCHA
+  queries.
 
 ## Data Sources
 

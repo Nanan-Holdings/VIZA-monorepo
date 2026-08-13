@@ -6,7 +6,6 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import {
-  ArrowLeft,
   ArrowRight,
   Check,
   ChevronRight,
@@ -40,7 +39,10 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { ActionButton } from "@/components/ui/action-button";
+import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import { Button } from "@/components/ui/button";
+import { PageBackButton } from "@/components/ui/page-back-button";
 import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
 import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
@@ -272,9 +274,9 @@ function SectionCard({
       <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
         {title}
       </h2>
-      <div className="rounded-xl border bg-white px-4 shadow-sm sm:px-5">
+      <ApplicationFormPanel aria-label={title} className="px-4 sm:px-5">
         {children}
-      </div>
+      </ApplicationFormPanel>
     </section>
   );
 }
@@ -1033,94 +1035,16 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
         onLoad={() => setAirwallexScriptReady(true)}
         onError={() => setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") })}
       />
-      {view === "home" ? (
-      <section className="grid gap-5 pt-4 lg:grid-cols-[0.82fr_1.18fr]">
-        <motion.div
-          className="self-start rounded-xl border bg-white p-5 shadow-sm sm:p-6"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-              <UserRound className="h-6 w-6" />
-            </span>
-            <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-              {t("profile.complete", { percent: profileCompletion })}
-            </span>
-          </div>
-
-          <div className="mt-5">
-            <h2 className="font-heading text-2xl font-semibold text-foreground">
-              {t("profile.universalTitle")}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {t("profile.universalDescription")}
-            </p>
-          </div>
-
-          <Button asChild className="mt-6 h-11 w-full rounded-full">
-            <Link href="/client/universal-info">
-              {t("profile.reviewProfile")}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </motion.div>
-
-        <motion.div
-          className="rounded-xl border bg-white p-5 shadow-sm sm:p-6"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.05 }}
-        >
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">
-              {t("quickSnapshot.label")}
-            </p>
-          </div>
-          <dl className="mt-5 grid gap-3 sm:grid-cols-2">
-            <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
-              <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <Mail className="h-4 w-4 text-brand-500" />
-                {t("quickSnapshot.email")}
-              </dt>
-              <dd className="mt-2 break-words text-sm font-semibold text-foreground">
-                {profile?.email || email || t("quickSnapshot.notSet")}
-              </dd>
-            </div>
-            <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
-              <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <Phone className="h-4 w-4 text-brand-500" />
-                {t("quickSnapshot.phone")}
-              </dt>
-              <dd className="mt-2 break-words text-sm font-semibold text-foreground">
-                {profile?.phone || t("quickSnapshot.notSet")}
-              </dd>
-            </div>
-            <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
-              <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <IdCard className="h-4 w-4 text-brand-500" />
-                {t("quickSnapshot.passport")}
-              </dt>
-              <dd className="mt-2 break-all text-sm font-semibold text-foreground">
-                {profile?.passport_number || t("quickSnapshot.notSet")}
-              </dd>
-            </div>
-            <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
-              <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <CreditCard className="h-4 w-4 text-brand-500" />
-                {t("quickSnapshot.payment")}
-              </dt>
-              <dd className="mt-2 break-words text-sm font-semibold text-foreground">
-                {paymentSummary}
-              </dd>
-            </div>
-          </dl>
-        </motion.div>
-      </section>
+      {view !== "home" ? (
+        <div className="pt-4">
+          <PageBackButton
+            fallbackHref="/client/settings"
+            label={isZh ? "返回上一页" : "Back to previous page"}
+          />
+        </div>
       ) : null}
 
-      <section className={cn("space-y-4", view === "home" ? "mt-8" : "pt-4")}>
+      <section className={view === "home" ? "pt-4" : "pt-8"}>
         <div>
           <h1 className="text-3xl font-semibold text-foreground sm:text-4xl">
             {t(settingsTitleKey(view))}
@@ -1129,16 +1053,97 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
             {t("subtitle")}
           </p>
         </div>
-
-        {view !== "home" ? (
-          <Button asChild variant="outline" className="h-10 rounded-full">
-            <Link href="/client/settings">
-              <ArrowLeft className="h-4 w-4" />
-              {t("backToSettings")}
-            </Link>
-          </Button>
-        ) : null}
       </section>
+
+      {view === "home" ? (
+        <section className="mt-8 grid gap-5 lg:grid-cols-[0.82fr_1.18fr]">
+        <motion.div
+          className="self-start"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <ApplicationFormPanel className="p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                <UserRound className="h-6 w-6" />
+              </span>
+              <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+                {t("profile.complete", { percent: profileCompletion })}
+              </span>
+            </div>
+
+            <div className="mt-5">
+              <h2 className="font-heading text-2xl font-semibold text-foreground">
+                {t("profile.universalTitle")}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {t("profile.universalDescription")}
+              </p>
+            </div>
+
+            <Button asChild className="mt-6 h-11 w-full rounded-full">
+              <Link href="/client/universal-info">
+                {t("profile.reviewProfile")}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </ApplicationFormPanel>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.05 }}
+        >
+          <ApplicationFormPanel className="p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">
+                {t("quickSnapshot.label")}
+              </p>
+            </div>
+            <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+                <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <Mail className="h-4 w-4 text-brand-500" />
+                  {t("quickSnapshot.email")}
+                </dt>
+                <dd className="mt-2 break-words text-sm font-semibold text-foreground">
+                  {profile?.email || email || t("quickSnapshot.notSet")}
+                </dd>
+              </div>
+              <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+                <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <Phone className="h-4 w-4 text-brand-500" />
+                  {t("quickSnapshot.phone")}
+                </dt>
+                <dd className="mt-2 break-words text-sm font-semibold text-foreground">
+                  {profile?.phone || t("quickSnapshot.notSet")}
+                </dd>
+              </div>
+              <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+                <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <IdCard className="h-4 w-4 text-brand-500" />
+                  {t("quickSnapshot.passport")}
+                </dt>
+                <dd className="mt-2 break-all text-sm font-semibold text-foreground">
+                  {profile?.passport_number || t("quickSnapshot.notSet")}
+                </dd>
+              </div>
+              <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+                <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <CreditCard className="h-4 w-4 text-brand-500" />
+                  {t("quickSnapshot.payment")}
+                </dt>
+                <dd className="mt-2 break-words text-sm font-semibold text-foreground">
+                  {paymentSummary}
+                </dd>
+              </div>
+            </dl>
+          </ApplicationFormPanel>
+        </motion.div>
+        </section>
+      ) : null}
 
       {view === "payment-methods" ? (
       <section className="mt-6 space-y-4" id="payment-methods">
@@ -1545,7 +1550,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
             <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
               {t("security.title")}
             </h2>
-            <div className="rounded-xl border bg-white px-4 shadow-sm sm:px-5">
+            <ApplicationFormPanel aria-label={t("security.title")} className="px-4 sm:px-5">
               <SettingsRow
                 icon={LockKeyhole}
                 title={t("security.passwordTitle")}
@@ -1564,7 +1569,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                 description={t("security.guideDescription")}
                 href="/client/help/privacy-and-security/account-security-tips"
               />
-            </div>
+            </ApplicationFormPanel>
 
             {activeSecurityPanel ? (
               <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
@@ -1747,7 +1752,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
             <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
               {t("account.title")}
             </h2>
-            <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
+            <ApplicationFormPanel aria-label={t("account.title")} className="p-5 sm:p-6">
               <div className="flex items-start gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
                   <Mail className="h-5 w-5" />
@@ -1762,17 +1767,18 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                 </div>
               </div>
               <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-                <Button
+                <ActionButton
                   type="button"
                   variant="outline"
-                  className="h-11 rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  size="sm"
+                  className="!border-[#d8d3d4] bg-[#fafafa] text-[#76696b] hover:bg-[#f1eeee] hover:text-[#68595c]"
                   onClick={handleSignOut}
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut />
                   {t("signOut.button")}
-                </Button>
+                </ActionButton>
               </div>
-            </div>
+            </ApplicationFormPanel>
           </section>
         </div>
       </div>

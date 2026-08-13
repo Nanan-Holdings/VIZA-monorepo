@@ -152,9 +152,16 @@ describe("embedded document upload step", () => {
     const aiTriggers = screen.getAllByRole("button", { name: "Ask AI" });
     expect(aiTriggers).toHaveLength(6);
     expect(aiTriggers[0]).toHaveClass(
+      "border-0",
+      "bg-transparent",
+      "text-brand-500",
+      "hover:text-brand-700",
       "opacity-0",
-      "group-hover/document-card:opacity-100"
+      "focus-visible:opacity-100",
+      "group-hover/document-card:opacity-100",
+      "group-focus-within/document-card:opacity-100"
     );
+    expect(aiTriggers[0].parentElement).toHaveClass("right-5", "top-5");
 
     expect(
       screen.getByLabelText("Choose Passport bio page", { selector: "input" })
@@ -179,6 +186,45 @@ describe("embedded document upload step", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Passport bio page, Passport-size photo, Travel itinerary, Proof of funds"
     );
+  });
+
+  test("reserves the stacked description row when adjacent upload cards omit copy", () => {
+    const signatureRequirement = requirement(
+      "customs_signature_file",
+      "Customs declaration e-signature",
+      true,
+      2
+    );
+    signatureRequirement.description = null;
+
+    render(
+      <DocumentCenterClient
+        initialData={{
+          ...initialData,
+          requirements: [
+            requirement("applicant_photo", "Portrait photo", true, 1),
+            signatureRequirement,
+          ],
+        }}
+        initialError={null}
+        applicationId={application.id}
+        embedded
+      />
+    );
+
+    const portraitDescriptionSlot = screen
+      .getByRole("heading", { name: "Portrait photo", level: 3 })
+      .nextElementSibling;
+    const signatureDescriptionSlot = screen
+      .getByRole("heading", {
+        name: "Customs declaration e-signature",
+        level: 3,
+      })
+      .nextElementSibling;
+
+    expect(portraitDescriptionSlot).toHaveClass("min-h-[40px]");
+    expect(signatureDescriptionSlot).toBeEmptyDOMElement();
+    expect(signatureDescriptionSlot).toHaveClass("min-h-[40px]");
   });
 
   test("renders flat document subsections and continues when required uploads are ready", () => {

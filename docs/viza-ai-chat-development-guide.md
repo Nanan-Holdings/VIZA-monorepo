@@ -41,7 +41,7 @@
 
 截图里的元素来源：
 
-- 左侧/移动端抽屉 `VIZA chats`：`chat-client.tsx` 读取 `visa_chat_sessions`，允许像 Travel AI 一样维护多个独立 conversation process；默认折叠，桌面以浮层打开，不推动或重排中间的 AI 输出。
+- 左侧/移动端抽屉 `VIZA chats`：`chat-client.tsx` 读取 `visa_chat_sessions`，允许像 Travel AI 一样维护多个独立 conversation process；桌面默认显示为与页面融合的无边框 rail，收起或展开都不推动或重排中间的 AI 输出。
 - 顶部 `VIZA AI / Travel AI` pills：`chat-client.tsx` 的 chat view tab controls。
 - 右侧深蓝色 `hi` 气泡：`ChatMessage` 渲染 user message。
 - 左侧大段 `Hi there...`：不是前端固定文案，而是从聊天历史或后端 AI streaming response 进入 `ChatMessage`。
@@ -98,7 +98,7 @@ flowchart TD
 - `sessions`：当前用户最近的 `visa_chat_sessions`，用于桌面左侧栏和移动端抽屉。
 - `showChat`：入口页或聊天页。
 - `chatMode`：`viza` 或 `travel`。
-- `sessionPanelCollapsed` / `sessionPanelOpen`：VIZA process panel 默认关闭；桌面展开为左侧浮层，移动端展开为 drawer。它不改变 `VIZA AI / Travel AI` tab 或消息内容的水平位置。
+- `sessionPanelCollapsed` / `sessionPanelOpen`：VIZA process rail 桌面默认打开，移动端按需展开为 drawer。它不改变 `VIZA AI / Travel AI` tab 或消息内容的水平位置。
 - `status`：Socket 连接状态，用于显示连接中状态和触发 pending messages flush；不要直接用它禁用输入框。
 - `socketMessages`：Socket 实时消息暂存。
 - `chatMessages`：`useContinuousChat` 维护的最终消息列表。
@@ -126,7 +126,7 @@ flowchart TD
 2. 用户点击 `New chat` 时，前端先把 active `sessionId` 设为 `null` 并清空当前消息。
 3. 用户在新 process 里发送第一条消息时，`createSession(userId, applicationId)` 才写入新的 `visa_chat_sessions`。
 4. 切换已有 session 时，`getSessionMessages()` 只加载该 session 的消息；`useContinuousChat` 的向上加载也会带 `sessionId`，避免混入其他 process。当前 active process 会保存到 `sessionStorage["viza_chat_session_id"]`，刷新后客户端会自动恢复到用户上次选中的 process。
-5. 新空 VIZA chat 会渲染 `messages/*/chat.newChatGreeting` 作为 display-only assistant greeting；这个 greeting 不写入 `visa_chat_messages`，避免污染历史或重复保存。
+5. 新空 VIZA chat 会渲染 `messages/*/chat.emptyPromptTitle` 和本地化 starter prompts 组成的居中 start state；这些 display-only 内容不写入 `visa_chat_messages`，避免污染历史或重复保存。
 6. Process 侧栏只保留一个显式 `New chat` 入口；每个 process 支持 rename 和 delete。Rename 使用明确的 Save / Cancel 操作，并通过隐藏 system marker 持久化；delete 删除 `visa_chat_sessions` 并由数据库 cascade 删除消息。
 7. `getUserSessions()` 只返回有 title 或首条用户消息的非空 process；空白 draft session 不应抢占最新历史。前端会在发送 user message 和收到 `response_complete` 时调用 `ensureSessionMessage()` 做 Supabase-side 幂等保存，作为 agent-backend Socket 持久化失败时的兜底。
 8. `role='block'` 的 application redirect 记录必须从 `block_data` 恢复为 `BlockMessage` CTA 卡片；历史会话、刷新后页面和实时 Socket 事件都应该显示同一个直达表单按钮。
@@ -288,7 +288,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 - `/client/chat` 路由存在，并接入客户端登录态/impersonation。
 - 聊天 session 已统一到 `visa_chat_sessions.id`，避免 `visa_chat_messages.session_id` 指向错误的 session 表。
 - VIZA AI 已支持多个 conversation processes：页面加载最近 session 列表，左侧/移动端抽屉可以新建和切换；新 session 在第一条消息发送时创建。
-- `/client/chat` 保持浅色背景和原有 `VIZA AI / Travel AI` tab 位置；processes 侧栏默认折叠，展开时作为浮层，不挤压中间 AI 输出。
+- `/client/chat` 保持浅色背景和原有 `VIZA AI / Travel AI` tab 位置；processes rail 桌面默认打开并与页面背景融合，收起时不挤压中间 AI 输出。
 - RAG 检索 helper 已新增，能读取 `visa_chunks` 并格式化知识上下文。
 - `match_visa_chunks` RPC migration 已新增；应用 migration 后可启用 pgvector 相似度检索。
 - `/visa` Socket chat 已接入 RAG：每条用户消息会先检索 `visa_chunks`，再把知识上下文注入 VIZA AI 的 system prompt。
@@ -371,8 +371,9 @@ npm run type-check
 - Step 27 chat-to-form handoff：按产品要求，VIZA chat 不再收集行程、身份、护照或 route-specific 表单字段。`BASE_SYSTEM_PROMPT` 改为先解释路线、要求、处理时间/费用不确定性和官方来源 caveat；`/visa` 的 `form_intake` intent 改为发 `application_redirect` block；`BlockMessage` 只渲染 CTA；`/client/application` 支持读取 `country` / `visaType` query，避免从聊天跳转后被旧 active package 拉回其他国家。
 - Step 28 multi-application progress routing：修复从 VIZA chat 点击加拿大等国家 CTA 后，`/client/application` 仍加载用户最新 application（例如荷兰）的串线问题。现在当 URL 带 `country` + `visaType` 时，申请页按这两个字段读取对应 `applications` 记录；`ensureDraftApplication()` 也按 `applicant_id + country + visa_type` 查找/创建 draft。这样同一个用户可以并行维护多个国家/签证类型的申请进度。
 - Step 29 process switching and save UX：VIZA process 切换现在会保存 active session id 到 `sessionStorage["viza_chat_session_id"]`，页面刷新后会在 session 列表可用后恢复上次选中的 process；断线排队消息会带目标 `sessionId`，重连后不会误发到当前/其他 process；rename 编辑态从小图标保存改为明确的 Save / Cancel 按钮。
+- Step 30 Figma-aligned chat shell：桌面 VIZA conversation rail 改为默认展开、无外框/阴影并与页面背景融合；收起时 rail 会平滑滑出，只保留与展开态同尺寸、同中性色的 panel 图标，不再显示额外 new-chat 图标，左缘与 navbar hamburger 同为 80px。空会话改为居中标题、composer 和本地化 starter prompts。Travel AI 的 chat shell 去除 Card 背景与外层阴影，地图缩到桌面约 36% 宽度，session drawer 同步改为无阴影 rail。前端 type-check 与 ChatInput 19 项测试通过；Chrome 登录态在 375px、768px、1440px 验证两种 agent route 均无水平溢出。
 
-当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。
+当前 Chrome 登录态已覆盖 VIZA/Travel 两个 route 的布局、sidebar 展开/收起和响应式 smoke test；本轮没有发送真实 AI 消息，因此未触发新的模型调用或会话写入。
 
 ## Taiwan entry-permit route
 

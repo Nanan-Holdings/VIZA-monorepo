@@ -117,6 +117,9 @@ applicant info, and help pages.
   PDF helpers live in `lib/korea-c39/**`.
 - Do not bypass `proxy.ts` or the client shell session checks when adding new
   authenticated routes.
+- Exact current-application selection is stored client-side through
+  `lib/client/active-application-selection.ts`; preserve `applicationId` so
+  same-country/same-visa applications remain distinguishable.
 - Use `getAuthenticatedUserId()` for user identity when impersonation support
   matters.
 

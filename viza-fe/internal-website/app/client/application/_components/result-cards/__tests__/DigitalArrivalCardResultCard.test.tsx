@@ -11,6 +11,11 @@ import { localizeProgressMessage, WaitingCard } from "../WaitingCard";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
+  useTranslations: () => Object.assign((key: string) => key, { has: () => true }),
+}));
+
+vi.mock("@/app/actions/client-application-status", () => ({
+  getClientApplicationStatus: vi.fn(async () => null),
 }));
 
 describe("DigitalArrivalCardResultCard", () => {

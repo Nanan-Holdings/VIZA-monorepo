@@ -12,16 +12,15 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty";
-import {
-  RecentActivitySection,
-  type ActivityEvent,
-} from "@/components/client/home/RecentActivitySection";
+import { ApplicationTimelineSection } from "@/components/client/home/ApplicationTimelineSection";
 
 // ─── 完美还原与保留的核心卡片组件 ───
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
 import { ActiveVisaCard } from "@/components/client/home/ActiveVisaCard";
 import { getClientHomeDashboardData } from "@/app/actions/client-home-dashboard";
+import { getClientApplicationStatuses } from "@/app/actions/client-application-status";
+import type { StatusApplication } from "@/app/client/status/status-data";
 import {
   getDestinationDisplayNameForLocale,
   getFormVisaType,
@@ -36,12 +35,16 @@ import {
   readApplicationFormTarget,
 } from "@/lib/client/recent-application-form";
 import {
+  isOngoingApplicationState,
+  readActiveApplicationSelection,
+  setActiveApplicationSelection,
+} from "@/lib/client/active-application-selection";
+import {
   getNextApplicationHref,
   type ApplicationRow,
   type DocumentRow,
   type PaymentRow,
 } from "@/lib/client/application-progress";
-import { resolveHomeDocumentLabel } from "./home-activity";
 import { isIgnorableDashboardLoadError } from "./home-load-errors";
 
 // ---------------------------------------------------------------------------
@@ -231,7 +234,8 @@ export default function HomePage() {
   const [activeVisa, setActiveVisa] = useState<ActiveVisaSummary | null>(null);
 
   // 核心业务状态
-  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
+  const [selectedApplicationStatus, setSelectedApplicationStatus] =
+    useState<StatusApplication | null>(null);
   const [universalInfoProgress, setUniversalInfoProgress] =
     useState<UniversalInfoProgress>({
       completedCount: 0,
@@ -280,76 +284,6 @@ export default function HomePage() {
     }
   }, [t]);
 
-  const buildActivityEvents = useCallback(
-    (
-      appsList: ApplicationRow[],
-      docsList: DocumentRow[],
-      paymentsList: PaymentRow[]
-    ): ActivityEvent[] => {
-      const events: ActivityEvent[] = [];
-      const applicationsById = new Map(
-        appsList.map((application) => [application.id, application])
-      );
-
-      for (const application of appsList) {
-        const applicationName = getVisaPackageTitle(
-          application.country,
-          application.visa_type,
-          locale
-        );
-        const href = getNextApplicationHref(application, paymentsList);
-        if (application.submitted_at) {
-          events.push({
-            id: `app-submitted-${application.id}`,
-            eventType: "status_change",
-            label: t("activity.applicationSubmitted"),
-            sublabel: applicationName,
-            timestamp: application.submitted_at,
-            icon: "check",
-            href,
-          });
-        }
-        events.push({
-          id: `app-created-${application.id}`,
-          eventType: "application_created",
-          label: t("activity.applicationCreated"),
-          sublabel: applicationName,
-          timestamp: application.created_at,
-          icon: "clock",
-          href,
-        });
-      }
-
-      for (const doc of docsList) {
-        const application = applicationsById.get(doc.application_id);
-        const docLabel = resolveHomeDocumentLabel(t, doc.document_type);
-        events.push({
-          id: `doc-${doc.id}`,
-          eventType: "document_upload",
-          label: t("activity.documentUploaded", { docType: docLabel }),
-          sublabel:
-            doc.status === "rejected"
-              ? t("activity.documentRejected")
-              : t("activity.documentReceived"),
-          timestamp: doc.updated_at,
-          icon: doc.status === "rejected" ? "alert" : "upload",
-          href: application
-            ? doc.status === "rejected"
-              ? `/client/documents?applicationId=${encodeURIComponent(application.id)}`
-              : getNextApplicationHref(application, paymentsList)
-            : undefined,
-        });
-      }
-
-      events.sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-      return events.slice(0, 5);
-    },
-    [locale, t]
-  );
-
   const fetchData = useCallback(
     async ({
       showLoading = true,
@@ -368,7 +302,10 @@ export default function HomePage() {
       setError(null);
 
       try {
-        const dashboard = await getClientHomeDashboardData();
+        const [dashboard, statusResult] = await Promise.all([
+          getClientHomeDashboardData(),
+          getClientApplicationStatuses(),
+        ]);
         lastDashboardLoadAtRef.current = Date.now();
         if (!dashboard.authenticated) {
           if (showLoading && isLatestRequest()) setIsLoading(false);
@@ -394,7 +331,7 @@ export default function HomePage() {
         if (!profileTyped) {
           if (authName) setApplicantName(authName);
           setActiveVisa(null);
-          setActivityEvents([]);
+          setSelectedApplicationStatus(null);
           return;
         }
 
@@ -404,11 +341,18 @@ export default function HomePage() {
         const loadedApplications = dashboard.applications as ApplicationRow[];
         const loadedPayments = dashboard.payments as PaymentRow[];
 
-        // Current application = last-visited form context, else newest application.
+        // Current application = explicit active selection, then last-visited
+        // form context, then the newest ongoing application.
+        const activeSelection = readActiveApplicationSelection();
         const formTarget = readApplicationFormTarget(
           getRecentApplicationFormHref()
         );
         const currentApplication =
+          loadedApplications.find((application) =>
+            activeSelection?.applicationId
+              ? application.id === activeSelection.applicationId
+              : false,
+          ) ??
           loadedApplications.find((application) => {
             if (formTarget?.applicationId)
               return application.id === formTarget.applicationId;
@@ -420,8 +364,21 @@ export default function HomePage() {
                 getFormVisaType(formTarget.visaType).toLowerCase()
             );
           }) ??
-          loadedApplications[0] ??
+          loadedApplications.find((application) => isOngoingApplicationState(application.status)) ??
           null;
+        const currentStatus = currentApplication
+          ? statusResult.applications.find((application) => application.id === currentApplication.id) ?? null
+          : null;
+        setSelectedApplicationStatus(currentStatus);
+        if (currentApplication && currentStatus && activeSelection?.applicationId !== currentApplication.id) {
+          setActiveApplicationSelection({
+            applicationId: currentApplication.id,
+            packageId: currentApplication.visa_package_id,
+            country: currentApplication.country,
+            visaType: currentApplication.visa_type,
+            href: getNextApplicationHref(currentApplication, loadedPayments),
+          });
+        }
         setHeroCountry(currentApplication?.country ?? null);
         setActiveVisa(
           currentApplication
@@ -447,7 +404,7 @@ export default function HomePage() {
               dashboard.authEmail
             )
           );
-          setActivityEvents([]);
+          setSelectedApplicationStatus(null);
           return;
         }
 
@@ -463,21 +420,6 @@ export default function HomePage() {
             profile as ApplicantProfileSummary | null,
             dashboard.authEmail,
             hasPassportUpload
-          )
-        );
-        // Recent activity is scoped to the current application only — other
-        // applications are visible from /client/destinations.
-        const currentApplications = currentApplication
-          ? [currentApplication]
-          : [];
-        const currentDocuments = loadedDocuments.filter(
-          (document) => document.application_id === currentApplication?.id
-        );
-        setActivityEvents(
-          buildActivityEvents(
-            currentApplications,
-            currentDocuments,
-            loadedPayments
           )
         );
       } catch (loadError) {
@@ -499,7 +441,7 @@ export default function HomePage() {
           setIsLoading(false);
       }
     },
-    [buildActivityEvents, locale, t]
+    [locale, t]
   );
 
   useEffect(() => {
@@ -548,11 +490,6 @@ export default function HomePage() {
   const headingVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { delay: 0.2, duration: 0.5 } },
-  };
-
-  const activityHeadingVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0, transition: { delay: 0.3, duration: 0.4 } },
   };
 
   return (
@@ -628,17 +565,9 @@ export default function HomePage() {
           </div>
         </motion.div>
 
-        {/* Recent Activity Heading */}
-        <motion.p
-          className="mb-4 mt-12 w-full max-w-[1090px] font-heading text-[24px] font-medium leading-[1.3] tracking-[-0.72px] text-[#3d3d3d] sm:mb-5 sm:mt-16 sm:text-[30px] sm:tracking-[-0.9px]"
-          initial="hidden"
-          animate="visible"
-          variants={activityHeadingVariants}
-        >
-          {t("recentActivity")}
-        </motion.p>
-
-        <RecentActivitySection events={activityEvents} />
+        <div className="mt-12 w-full sm:mt-16">
+          <ApplicationTimelineSection application={selectedApplicationStatus} />
+        </div>
       </div>
     </div>
   );

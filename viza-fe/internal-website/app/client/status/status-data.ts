@@ -91,6 +91,7 @@ export interface StatusEvent {
 
 export interface CountryApplicationRecord {
   id: string;
+  applicationId: string | null;
   packageId: string | null;
   country: string;
   visaType: string;
@@ -104,6 +105,7 @@ export interface CountryApplicationRecord {
   confirmationNumber: string | null;
   file: StatusFile | null;
   detailHref: string;
+  continueHref: string;
 }
 
 export interface StatusApplication {
@@ -537,13 +539,20 @@ function getPrimaryResultFile(application: StatusApplication): StatusFile | null
 
 function toCountryApplicationRecord(application: StatusApplication): CountryApplicationRecord {
   const detailHref = application.id
-    ? `/client/status?applicationId=${encodeURIComponent(application.id)}&view=detail`
+    ? `/client/application/long-form?applicationId=${encodeURIComponent(application.id)}&step=status`
     : application.packageId
-      ? `/client/status?packageId=${encodeURIComponent(application.packageId)}&view=detail`
-      : `/client/status?country=${encodeURIComponent(application.countryKey)}&view=detail`;
+      ? `/client/status?packageId=${encodeURIComponent(application.packageId)}`
+      : `/client/status?country=${encodeURIComponent(application.countryKey)}`;
+  const primaryAction = application.actions.find((action) => action.primary);
+  const continueHref = primaryAction?.href ?? buildApplicationLongFormHref({
+    applicationId: application.id,
+    country: application.country,
+    visaType: application.visaType,
+  });
 
   return {
     id: application.id ?? application.key,
+    applicationId: application.id,
     packageId: application.packageId,
     country: application.country,
     visaType: application.visaType,
@@ -557,6 +566,7 @@ function toCountryApplicationRecord(application: StatusApplication): CountryAppl
     confirmationNumber: application.officialReference,
     file: getPrimaryResultFile(application),
     detailHref,
+    continueHref,
   };
 }
 
@@ -949,11 +959,11 @@ function buildActions(
   } else if (firstOpenStep.key === "form") {
     actions.push({ key: "continueForm", href: applicationHref, primary: true });
   } else if (firstOpenStep.key === "documents") {
-    actions.push({ key: "uploadDocuments", href: "/client/documents", primary: true });
+    actions.push({ key: "uploadDocuments", href: `/client/documents?applicationId=${encodeURIComponent(application.id)}`, primary: true });
   } else if (firstOpenStep.key === "packet") {
-    actions.push({ key: "waitPacket", href: `/client/status?applicationId=${encodeURIComponent(application.id)}`, primary: true });
+    actions.push({ key: "waitPacket", href: `${applicationHref}&step=status`, primary: true });
   } else if (firstOpenStep.key === "handoff") {
-    actions.push({ key: "waitExternal", href: `/client/status?applicationId=${encodeURIComponent(application.id)}`, primary: true });
+    actions.push({ key: "waitExternal", href: `${applicationHref}&step=status`, primary: true });
   } else if (resultFile?.href) {
     actions.push({ key: "downloadResult", href: resultFile.href, primary: true });
   } else {
