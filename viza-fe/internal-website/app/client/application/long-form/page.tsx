@@ -89,9 +89,11 @@ import {
   markTeamCompanionReviewed,
 } from "@/app/actions/application-group";
 import {
+  buildApplicationLongFormHref,
   buildApplicationFormHref,
   setRecentApplicationFormHref,
 } from "@/lib/client/recent-application-form";
+import { setActiveApplicationSelection } from "@/lib/client/active-application-selection";
 import {
   computeAllTabCompletion,
   getContiguousCompletedCount,
@@ -3915,6 +3917,20 @@ export default function ApplicationPage() {
 
   const activeCountry = resolvedCountry;
   const activeVisaType = resolvedVisaType;
+  useEffect(() => {
+    if (isExplicitStatusView || !appState.applicationId) return;
+    setActiveApplicationSelection({
+      applicationId: appState.applicationId,
+      packageId: null,
+      country: activeCountry,
+      visaType: activeVisaType,
+      href: buildApplicationLongFormHref({
+        applicationId: appState.applicationId,
+        country: activeCountry,
+        visaType: activeVisaType,
+      }),
+    });
+  }, [activeCountry, activeVisaType, appState.applicationId, isExplicitStatusView]);
   const teamReturnToParams = new URLSearchParams({
     step: "team",
     country: activeCountry,

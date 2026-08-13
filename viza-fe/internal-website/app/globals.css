@@ -112,7 +112,7 @@ body::-webkit-scrollbar,
     --application-control-focus-color: #03346e;
     --application-control-filled-background: #f5f5f5;
     --application-panel-radius: var(--radius-xl);
-    --application-panel-border-width: 2px;
+    --application-panel-border-width: 1px;
     --application-panel-border-color: var(--border-hairline);
 
     --radius-xl: 0.75rem;
@@ -166,6 +166,15 @@ body::-webkit-scrollbar,
    shared input group so its border remains uniform on every side. */
 .application-form-input {
   --application-form-input-background: #ffffff;
+  overflow: hidden;
+}
+
+/* Keep the nested control inside the wrapper's content box. In particular,
+   Chromium autofill gives the input an opaque painted layer; allowing a 48px
+   child to overflow a 48px bordered wrapper hides its horizontal borders. */
+.application-form-input > [data-slot="input-group-control"] {
+  height: 100%;
+  min-height: 0;
 }
 
 .application-form-input[data-filled="true"] {
@@ -200,6 +209,15 @@ textarea.application-form-control[data-filled="true"]:focus,
   border-color: var(--application-control-focus-color);
   outline: none;
   box-shadow: 0 0 0 1px var(--application-control-focus-color);
+}
+
+/* Input groups sit inside several animated/auth layouts where an outer focus
+   shadow can be rasterized unevenly (visible on the vertical edges but clipped
+   from the horizontal edges). Draw the complete focus edge as a real border so
+   all four sides stay the same thickness at every device scale. */
+.application-form-input:focus-within {
+  border-width: 2px;
+  box-shadow: none !important;
 }
 
 /* Radix select/popover triggers keep DOM focus after closing. Their active

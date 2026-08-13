@@ -5,7 +5,9 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
+import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
+import { InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { updatePassword } from "@/app/actions/password-reset";
 import { createBrowserClient } from "@supabase/ssr";
@@ -103,7 +105,7 @@ export default function ResetPasswordPage() {
         setIsSuccess(true);
         // Redirect to login after a short delay
         setTimeout(() => {
-          router.push("/login?reset=success");
+          router.push("/client/login?reset=1");
         }, 2000);
       }
     } catch {
@@ -155,20 +157,17 @@ export default function ResetPasswordPage() {
                 This password reset link has expired or is invalid. Please request a new one.
               </p>
               <div className="space-y-3">
-                <Link href="/forgot-password">
-                  <Button className="w-full py-2.5 h-auto bg-brand hover:bg-brand-600 text-white font-medium rounded-lg">
+                <ActionButton asChild className="w-full">
+                  <Link href="/forgot-password">
                     Request new link
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button
-                    variant="outline"
-                    className="w-full py-2.5 h-auto border-gray-200 hover:bg-gray-50"
-                  >
+                  </Link>
+                </ActionButton>
+                <ActionButton asChild variant="secondary" className="w-full">
+                  <Link href="/client/login">
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back to login
-                  </Button>
-                </Link>
+                  </Link>
+                </ActionButton>
               </div>
             </div>
           </div>
@@ -238,11 +237,11 @@ export default function ResetPasswordPage() {
                     >
                       New password
                     </Label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <ApplicationFormInputGroup className="h-12" filled={Boolean(password)} forceWhiteBackground>
+                      <InputGroupAddon align="inline-start">
                         <Lock className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <input
+                      </InputGroupAddon>
+                      <InputGroupInput
                         id="password"
                         name="password"
                         type={showPassword ? "text" : "password"}
@@ -252,28 +251,14 @@ export default function ResetPasswordPage() {
                         disabled={isSubmitting}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="
-                          w-full pl-10 pr-10 py-2.5
-                          bg-gray-50/50 border border-gray-200 rounded-lg
-                          text-gray-900 text-sm placeholder:text-gray-400
-                          transition-all duration-200 ease-out
-                          hover:border-gray-300 hover:bg-gray-50
-                          focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand focus:bg-white
-                          disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-gray-50/50
-                        "
+                        className="h-full min-h-0 text-[15px] text-gray-900 placeholder:text-gray-400"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
+                      <InputGroupAddon align="inline-end" className="pr-4">
+                        <InputGroupButton size="icon-sm" onClick={() => setShowPassword(!showPassword)} className="rounded-full text-gray-400 hover:text-gray-600" aria-label={showPassword ? "Hide password" : "Show password"}>
+                          {showPassword ? <EyeOff /> : <Eye />}
+                        </InputGroupButton>
+                      </InputGroupAddon>
+                    </ApplicationFormInputGroup>
                     <p className="text-xs text-gray-400 mt-1">
                       Must be at least 8 characters
                     </p>
@@ -287,11 +272,11 @@ export default function ResetPasswordPage() {
                     >
                       Confirm password
                     </Label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <ApplicationFormInputGroup className="h-12" filled={Boolean(confirmPassword)} forceWhiteBackground>
+                      <InputGroupAddon align="inline-start">
                         <Lock className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <input
+                      </InputGroupAddon>
+                      <InputGroupInput
                         id="confirmPassword"
                         name="confirmPassword"
                         type={showConfirmPassword ? "text" : "password"}
@@ -301,28 +286,14 @@ export default function ResetPasswordPage() {
                         disabled={isSubmitting}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="
-                          w-full pl-10 pr-10 py-2.5
-                          bg-gray-50/50 border border-gray-200 rounded-lg
-                          text-gray-900 text-sm placeholder:text-gray-400
-                          transition-all duration-200 ease-out
-                          hover:border-gray-300 hover:bg-gray-50
-                          focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand focus:bg-white
-                          disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-gray-50/50
-                        "
+                        className="h-full min-h-0 text-[15px] text-gray-900 placeholder:text-gray-400"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600"
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
+                      <InputGroupAddon align="inline-end" className="pr-4">
+                        <InputGroupButton size="icon-sm" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="rounded-full text-gray-400 hover:text-gray-600" aria-label={showConfirmPassword ? "Hide password confirmation" : "Show password confirmation"}>
+                          {showConfirmPassword ? <EyeOff /> : <Eye />}
+                        </InputGroupButton>
+                      </InputGroupAddon>
+                    </ApplicationFormInputGroup>
                   </div>
 
                   {/* Error Message */}
@@ -334,33 +305,20 @@ export default function ResetPasswordPage() {
                   )}
 
                   {/* Submit Button */}
-                  <Button
+                  <ActionButton
                     type="submit"
+                    loading={isSubmitting}
+                    loadingText="Updating..."
                     disabled={isSubmitting}
-                    className="
-                      w-full py-2.5 h-auto
-                      bg-brand hover:bg-brand-600 active:bg-brand-700
-                      text-white font-medium
-                      rounded-lg shadow-sm shadow-brand/20
-                      transition-all duration-200 ease-out
-                      hover:shadow-md hover:shadow-brand/25
-                      disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:shadow-sm
-                    "
+                    className="w-full"
                   >
-                    {isSubmitting ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Updating...
-                      </span>
-                    ) : (
-                      "Update password"
-                    )}
-                  </Button>
+                    Update password
+                  </ActionButton>
 
                   {/* Back to Login */}
                   <div className="text-center pt-2">
                     <Link
-                      href="/login"
+                      href="/client/login"
                       className="text-sm text-gray-500 hover:text-brand transition-colors inline-flex items-center gap-1.5"
                     >
                       <ArrowLeft className="h-3.5 w-3.5" />

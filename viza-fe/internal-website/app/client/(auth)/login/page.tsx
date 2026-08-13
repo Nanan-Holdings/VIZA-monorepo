@@ -6,11 +6,14 @@ import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
 import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback, Suspense, type FormEvent } from 'react'
+import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import createGlobe from 'cobe'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
 import { ActionButton } from '@/components/ui/action-button'
 import { ApplicationFormInputGroup } from '@/components/ui/application-form-input'
+import { Button } from '@/components/ui/button'
 import { InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { useTranslations } from 'next-intl'
 
 type Step = 'email' | 'otp'
@@ -185,6 +188,7 @@ function ClientLoginContent() {
   const [loginMethod, setLoginMethod] = useState<LoginMethod>('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [otpCode, setOtpCode] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -238,7 +242,11 @@ function ClientLoginContent() {
     setIsSubmitting(true)
     const ok = await sendOtp(email)
     setIsSubmitting(false)
-    if (ok) { setStep('otp'); setResendCooldown(60) }
+    if (ok) {
+      setOtpCode('')
+      setStep('otp')
+      setResendCooldown(60)
+    }
   }
 
   const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -262,7 +270,10 @@ function ClientLoginContent() {
     try {
       const ok = await sendOtp(email)
       setIsSubmitting(false)
-      if (ok) setResendCooldown(60)
+      if (ok) {
+        setOtpCode('')
+        setResendCooldown(60)
+      }
     } catch {
       setIsSubmitting(false)
       setError(t('failedToResend'))
@@ -312,16 +323,17 @@ function ClientLoginContent() {
               >
                 <div className="grid grid-cols-2 gap-2 rounded-[999px] bg-[#f5f5f5] p-1">
                   {(['password', 'otp'] as const).map((method) => (
-                    <button
+                    <Button
                       key={method}
                       type="button"
+                      variant="ghost"
                       onClick={() => { setLoginMethod(method); setError(null); setNotice(null) }}
-                      className={`h-9 rounded-[999px] text-[13px] font-medium transition-colors ${
+                      className={`h-9 w-full rounded-[999px] px-3 text-[13px] font-medium transition-colors ${
                         loginMethod === method ? 'bg-white text-[#3d3d3d] shadow-sm' : 'text-[rgba(0,0,0,0.55)] hover:text-[#3d3d3d]'
                       }`}
                     >
                       {method === 'password' ? t('passwordLogin') : t('codeLogin')}
-                    </button>
+                    </Button>
                   ))}
                 </div>
                 <ApplicationFormInputGroup className={LOGIN_INPUT_GROUP_CLASS_NAME} filled={Boolean(email)} forceWhiteBackground>
@@ -335,7 +347,7 @@ function ClientLoginContent() {
                     autoFocus
                     autoComplete="email"
                     disabled={isSubmitting}
-                    className="h-12 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
+                    className="h-full min-h-0 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
                   />
                 </ApplicationFormInputGroup>
                 {loginMethod === 'password' && (
@@ -350,9 +362,9 @@ function ClientLoginContent() {
                         required
                         autoComplete="current-password"
                         disabled={isSubmitting}
-                        className="h-12 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
+                        className="h-full min-h-0 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
                       />
-                      <InputGroupAddon align="inline-end" className="pr-1.5">
+                      <InputGroupAddon align="inline-end" className="pr-4">
                         <InputGroupButton
                           size="icon-sm"
                           onClick={() => setShowPassword((value) => !value)}
@@ -408,13 +420,16 @@ function ClientLoginContent() {
               exit={{ opacity: 0, x: -16 }}
               transition={{ duration: 0.25 }}
             >
-              <button
-                onClick={() => { setStep('email'); setError(null) }}
-                className="flex h-7 w-7 shrink-0 items-center justify-center text-[#3d3d3d] hover:opacity-60 transition-opacity"
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => { setStep('email'); setOtpCode(''); setError(null) }}
+                className="h-11 w-11 shrink-0 rounded-full text-[#3d3d3d] hover:bg-[#f5f5f5]"
                 aria-label="Back"
               >
-                <ArrowLeft className="h-7 w-7" />
-              </button>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
 
               <div className="flex flex-col gap-[clamp(16px,3vh,40px)]">
                 <div className="flex flex-col gap-[4px]">
@@ -428,52 +443,28 @@ function ClientLoginContent() {
                 </div>
 
                 <div className="flex flex-col gap-[clamp(10px,1.5vh,16px)]">
-                  <div className="flex w-full gap-2 sm:gap-3">
-                    {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-                      <input
-                        key={i}
-                        id={`otp-${i}`}
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={1}
-                        disabled={isSubmitting}
-                        className="flex-1 h-[clamp(36px,4.8vh,46px)] w-0 min-w-0 rounded-[8px] border border-[#d1d5db] bg-white text-center font-sans text-[clamp(12px,1vw,14px)] text-[#3d3d3d] focus:outline-none focus:border-[#3d3d3d] focus:ring-1 focus:ring-[#3d3d3d]"
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '')
-                          e.target.value = val.slice(-1)
-                          if (val) {
-                            const next = document.getElementById(`otp-${i + 1}`) as HTMLInputElement
-                            if (next) next.focus()
-                          }
-                          const allInputs = Array.from({ length: 8 }, (_, j) => {
-                            const el = document.getElementById(`otp-${j}`) as HTMLInputElement
-                            return el ? el.value : ''
-                          })
-                          const combined = allInputs.join('')
-                          if (combined.length === 8) verifyOtp(combined)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Backspace' && !(e.target as HTMLInputElement).value) {
-                            const prev = document.getElementById(`otp-${i - 1}`) as HTMLInputElement
-                            if (prev) { prev.focus(); prev.value = '' }
-                          }
-                        }}
-                        onPaste={i === 0 ? (e) => {
-                          e.preventDefault()
-                          const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8)
-                          pasted.split('').forEach((ch, j) => {
-                            const el = document.getElementById(`otp-${j}`) as HTMLInputElement
-                            if (el) el.value = ch
-                          })
-                          if (pasted.length === 8) verifyOtp(pasted)
-                          else {
-                            const next = document.getElementById(`otp-${pasted.length}`) as HTMLInputElement
-                            if (next) next.focus()
-                          }
-                        } : undefined}
-                      />
-                    ))}
-                  </div>
+                  <InputOTP
+                    maxLength={8}
+                    pattern={REGEXP_ONLY_DIGITS}
+                    value={otpCode}
+                    onChange={(value) => {
+                      setOtpCode(value)
+                      if (value.length === 8) void verifyOtp(value)
+                    }}
+                    disabled={isSubmitting}
+                    containerClassName="w-full"
+                    aria-label={t('clickLink')}
+                  >
+                    <InputOTPGroup className="grid w-full grid-cols-8 gap-2 sm:gap-3">
+                      {Array.from({ length: 8 }, (_, index) => (
+                        <InputOTPSlot
+                          key={index}
+                          index={index}
+                          className="h-[clamp(36px,4.8vh,46px)] w-full rounded-md border-[1.5px] border-input first:rounded-md first:border-l last:rounded-md"
+                        />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
                   {error && (
                   <motion.p
                     role="alert"
@@ -483,16 +474,18 @@ function ClientLoginContent() {
                       {error}
                     </motion.p>
                   )}
-                  <button
+                  <ActionButton
                     type="button"
                     onClick={handleResend}
                     disabled={resendCooldown > 0 || isSubmitting}
-                    className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-[#dcdcdc] font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-[#989898] transition-all disabled:cursor-not-allowed enabled:bg-black enabled:text-white enabled:hover:opacity-80"
+                    variant="secondary"
+                    size="lg"
+                    loading={isSubmitting}
+                    loadingText={t('sendingCode')}
+                    className="w-full font-sans tracking-[-0.24px]"
                   >
-                    {isSubmitting
-                      ? <span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />{t('sendingCode')}</span>
-                      : resendCooldown > 0 ? t('resendIn', { seconds: resendCooldown }) : t('resendCode')}
-                  </button>
+                    {resendCooldown > 0 ? t('resendIn', { seconds: resendCooldown }) : t('resendCode')}
+                  </ActionButton>
                 </div>
               </div>
             </motion.div>

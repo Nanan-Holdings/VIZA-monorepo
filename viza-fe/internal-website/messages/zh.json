@@ -87,6 +87,22 @@
       "open": "打开申请",
       "choose": "选择签证"
     },
+    "timeline": {
+      "groups": { "todo": "待办事项", "completed": "已完成任务" },
+      "states": { "complete": "已完成", "current": "当前步骤", "attention": "需要处理", "blocked": "等待前置步骤", "upcoming": "尚未开始" },
+      "steps": {
+        "payment": { "title": "完成服务费付款", "description": "付款确认后，VIZA 才能开始准备申请。" },
+        "consent": { "title": "确认授权与同意", "description": "完成服务授权和所需电子签署。" },
+        "form": { "title": "完善申请表", "description": "填写并检查申请所需信息。" },
+        "documents": { "title": "上传所需材料", "description": "上传护照、照片及目的地要求的证明材料。" },
+        "packet": { "title": "生成申请包", "description": "VIZA 会在核心资料齐全后准备申请包。" },
+        "handoff": { "title": "递交官网申请", "description": "申请包将进入官网递交流程。" },
+        "result": { "title": "等待申请结果", "description": "批准、签证、拒签或结果文件会在收到后显示。" }
+      },
+      "metrics": { "answers": "已保存 {count} 项回答", "documents": "{ready}/{total} 份材料已上传或通过检查", "reference": "官方参考号：{reference}" },
+      "relative": { "justNow": "刚刚", "minutesAgo": "{count}分钟前", "hoursAgo": "{count}小时前", "daysAgo": "{count}天前" },
+      "empty": { "noApplication": "选择一个进行中的申请后，这里会显示待办事项和已完成任务。", "choose": "选择申请", "incomplete": "此申请目前没有待办事项。", "completed": "此申请目前还没有已完成任务。" }
+    },
     "subscriptionPlan": {
       "title": "VIZA 申请",
       "subtitle": "申请方案与订阅状态",
@@ -606,6 +622,14 @@
     "title": "印度尼西亚旅游签证 B211A",
     "saving": "保存中...",
     "edit": "编辑",
+    "postSubmission": {
+      "title": "提交后信息",
+      "tabs": { "results": "回执与结果", "updates": "申请更新" },
+      "officialReference": "官方参考号",
+      "download": "下载",
+      "resultsEmpty": "生成或收到回执和结果文件后，会显示在这里。",
+      "updatesEmpty": "暂无可向客户展示的申请更新。"
+    },
     "formAssistant": {
       "title": "表单填写助手",
       "description": "我会检查已有内容，每次只问一个问题。你可以直接在这里用文字或语音回答。",
@@ -1046,8 +1070,12 @@
       "yourApplications": "您的申请",
       "destinationCount": "{count} 个目的地",
       "current": "当前",
+      "currentHandling": "当前办理",
       "continue": "继续",
       "switchTo": "切换到此申请",
+      "selectApplication": "选择申请",
+      "ongoingCount": "{count} 个进行中的申请",
+      "applicationCount": "{count} 个申请记录",
       "switching": "切换中",
       "switchError": "无法切换到该申请，请稍后重试。",
       "progressAriaLabel": "申请进度",
@@ -3884,6 +3912,10 @@
     "supportDescription": "复杂问题和客户服务",
     "supportResponseTime": "工作日<24小时",
     "newChatGreeting": "您好！我是 VIZA，您的签证助手。告诉我目的地、国籍、出行目的和计划停留时间，我会帮您判断合适的签证路线。",
+    "emptyPromptTitle": "今天想了解哪项签证？",
+    "starterRoute": "帮我判断合适的签证",
+    "starterDocuments": "查看所需申请材料",
+    "starterTiming": "估算签证处理时间",
     "inputPlaceholder": "询问关于您的签证申请...",
     "memoryTitle": "本聊天记忆",
     "memoryPassport": "护照",
@@ -4580,7 +4612,6 @@
       "subtitle": "输入电子邮件，开始设置您的 VIZA 账户。",
       "emailPlaceholder": "输入您的电子邮件",
       "referralCodePlaceholder": "Referral code（选填）",
-      "referralCodeHint": "新用户注册时填写 referral code，两边账号各获得 99 积分。",
       "invalidEmail": "请输入有效的电子邮件地址。",
       "submitting": "提交中...",
       "continueToPassword": "继续",

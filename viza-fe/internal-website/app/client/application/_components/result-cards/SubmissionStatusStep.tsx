@@ -62,6 +62,7 @@ import {
   shouldPreferDurableTerminalProps,
   shouldStopSubmissionStatusPolling,
 } from "./submission-status-poll";
+import { PostSubmissionInfoPanel } from "./PostSubmissionInfoPanel";
 
 interface SubmissionStatusStepProps {
   applicationId: string | null;
@@ -1424,7 +1425,7 @@ function UkResubmitPanel({
  * Completed results wait until the visual progress reaches 100; failed and
  * needs_user_action states stop immediately.
  */
-export function SubmissionStatusStep({
+function SubmissionStatusStepContent({
   applicationId,
   country,
   visaType,
@@ -2184,6 +2185,15 @@ export function SubmissionStatusStep({
         country={country}
         visaType={visaType}
       />
+    </div>
+  );
+}
+
+export function SubmissionStatusStep(props: SubmissionStatusStepProps) {
+  return (
+    <div className="space-y-4">
+      <SubmissionStatusStepContent {...props} />
+      <PostSubmissionInfoPanel applicationId={props.applicationId} />
     </div>
   );
 }

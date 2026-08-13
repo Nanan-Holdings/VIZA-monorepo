@@ -712,6 +712,7 @@ function RequirementRow({
             <PopoverTrigger asChild>
               <AiAssistButton
                 label={guidanceLabel}
+                variant="field"
                 className="opacity-0 focus-visible:opacity-100 group-hover/document-card:opacity-100 group-focus-within/document-card:opacity-100"
                 data-copilot-trigger={`document-${requirement.key}`}
               />

@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { ArrowLeft, AtSign, BookOpen, BriefcaseBusiness, CheckCircle2, CheckIcon, ChevronDown, ContactRound, Database, FileText, HeartHandshake, History, IdCard, Loader2, MapPin, Pencil, Phone, Save, ShieldCheck, User, WalletCards, type LucideIcon } from "lucide-react";
+import { AtSign, BookOpen, BriefcaseBusiness, CheckCircle2, CheckIcon, ChevronDown, ContactRound, Database, FileText, HeartHandshake, History, IdCard, Loader2, MapPin, Pencil, Phone, Save, ShieldCheck, User, WalletCards, type LucideIcon } from "lucide-react";
 import { CircleFlag } from "react-circle-flags";
 import { countries } from "country-data-list";
 import {
@@ -16,6 +15,7 @@ import {
   loadUniversalProfileReusableDocumentStatuses,
 } from "@/app/client/documents/actions";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { PageBackButton } from "@/components/ui/page-back-button";
 import { UniversalProfileDocumentsCarousel } from "@/components/client/universal-profile-documents-carousel";
 import { UniversalProfileExtendedEditor } from "@/components/client/universal-profile-extended-editor";
 import {
@@ -1803,23 +1803,16 @@ export default function UniversalInfoPage() {
   return (
     <div className="min-h-screen pb-16 pt-6">
       <main className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 sm:px-6">
-        <Link
-          href="/client/home"
-          className="inline-flex w-fit items-center gap-2 rounded-full border border-[#e6e6e6] bg-white px-4 py-2 text-[14px] font-medium text-[#03346E] transition hover:border-[#03346E]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {copy(isZh, "返回首页", "Back home")}
-        </Link>
+        <PageBackButton
+          fallbackHref="/client/home"
+          label={copy(isZh, "返回上一页", "Back to previous page")}
+          className="mb-2"
+        />
 
         <header className="max-w-3xl">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-              <Database className="h-5 w-5" />
-            </span>
-            <h1 className="font-heading text-[28px] font-medium leading-[1.15] tracking-[-1px] text-[#3d3d3d] sm:text-[34px]">
-              {copy(isZh, "通用资料", "Universal profile")}
-            </h1>
-          </div>
+          <h1 className="font-heading text-[28px] font-medium leading-[1.15] tracking-[-1px] text-[#3d3d3d] sm:text-[34px]">
+            {copy(isZh, "通用资料", "Universal profile")}
+          </h1>
           <p className="mt-3 text-[15px] leading-6 text-[#667085]">
             {copy(
               isZh,
