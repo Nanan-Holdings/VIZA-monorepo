@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, ExternalLink, Loader2, Mail, RotateCw, ShieldCheck } from "lucide-react";
+import { Download, ArrowSquareOut as ExternalLink, CircleNotch as Loader2, Envelope as Mail, ArrowClockwise as RotateCw, ShieldCheck } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

@@ -3,7 +3,7 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, CircleNotch as Loader2 } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { getUserVisaPackage } from "@/app/actions/user-package";
 import { getOnboardingCopy, type OnboardingCopy } from "./copy";
@@ -285,9 +285,7 @@ export default function OnboardingPage() {
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-60 focus:outline-none md:h-[56px] md:w-[56px]"
             style={{ backgroundColor: "#0000000A" }}
           >
-            <svg width="19" height="19" viewBox="0 0 19 19" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9.33463 17.5003L1.16797 9.33366M1.16797 9.33366L9.33463 1.16699M1.16797 9.33366H17.5013" stroke="black" strokeWidth="2.33333" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <ArrowLeft className="size-[19px]" weight="bold" />
           </button>
         </div>
 

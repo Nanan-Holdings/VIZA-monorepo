@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MotionConfig, motion } from "motion/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronDown, Loader2, MessageCircle, Plane, Mic } from "lucide-react";
+import { Airplane as Plane, CaretDown as ChevronDown, ChatCircle as MessageCircle, Check, CircleNotch as Loader2, List, Microphone as Mic } from "@phosphor-icons/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatedMenu } from "@/components/client/animated-menu";
 import { LanguageSelector } from "@/components/client/language-selector";
@@ -61,11 +61,9 @@ const chatAgentOptions = [
   },
 ] as const;
 
-type LiveSaveStatus = "saving" | "saved";
+type LiveSaveStatus = "idle" | "saving" | "saved";
 
 const LIVE_SAVE_STATUS_EVENT = "viza:live-save-status";
-const MENU_ICON_PATH = "M5.33333 6.66667H26.6667M5.33333 16H26.6667M5.33333 25.3333H26.6667";
-
 function LiveSaveStatusIcon({
   color,
   size,
@@ -133,7 +131,7 @@ export function NavBar({
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [mobileChatMenuOpen, setMobileChatMenuOpen] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
-  const [liveSaveStatus, setLiveSaveStatus] = useState<LiveSaveStatus>("saved");
+  const [liveSaveStatus, setLiveSaveStatus] = useState<LiveSaveStatus>("idle");
   const [recentApplicationHref, setRecentApplicationHref] = useState<string | null>(null);
   const transitionDuration = 0.6;
   const showLiveSaveStatus =
@@ -159,7 +157,7 @@ export function NavBar({
   useEffect(() => {
     const handleLiveSaveStatus = (event: Event) => {
       const nextStatus = (event as CustomEvent<{ status?: LiveSaveStatus }>).detail?.status;
-      if (nextStatus === "saving" || nextStatus === "saved") {
+      if (nextStatus === "idle" || nextStatus === "saving" || nextStatus === "saved") {
         setLiveSaveStatus(nextStatus);
       }
     };
@@ -379,14 +377,7 @@ export function NavBar({
                     whileHover={{ scale: 1.1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   >
-                    <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
-                      <motion.path
-                        d={MENU_ICON_PATH}
-                        style={{ stroke: "var(--nav-stroke-color)" }}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    <List className="size-8" style={{ color: "var(--nav-stroke-color)" }} />
                   </motion.button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-0 border-0 bg-transparent shadow-none">
@@ -404,9 +395,7 @@ export function NavBar({
                 animate={{ opacity: 1 }}
                 transition={{ duration: transitionDuration, ease: "easeInOut" }}
               >
-                <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
-                  <motion.path d={MENU_ICON_PATH} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
-                </svg>
+                <List className="size-8" style={{ color: "var(--nav-stroke-color)" }} />
               </motion.button>
             )}
           </div>
@@ -436,7 +425,7 @@ export function NavBar({
 
           {/* Live save status and language */}
           <div className="flex shrink-0 items-center justify-self-end gap-2">
-            {showLiveSaveStatus && (
+            {showLiveSaveStatus && liveSaveStatus !== "idle" && (
               <LiveSaveStatusIcon color={liveSaveColor} size="desktop" status={liveSaveStatus} />
             )}
             <LanguageSelector size="desktop" />
@@ -466,7 +455,7 @@ export function NavBar({
           </Link>
 
           <div className="flex items-center gap-1">
-            {showLiveSaveStatus && (
+            {showLiveSaveStatus && liveSaveStatus !== "idle" && (
               <LiveSaveStatusIcon color={liveSaveColor} size="mobile" status={liveSaveStatus} />
             )}
             <LanguageSelector size="mobile" />
@@ -474,9 +463,7 @@ export function NavBar({
               <Popover open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <PopoverTrigger asChild>
                   <motion.button className="w-9 h-9 flex items-center justify-center cursor-pointer" type="button">
-                    <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none">
-                      <motion.path d={MENU_ICON_PATH} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
-                    </svg>
+                    <List className="size-5" style={{ color: "var(--nav-stroke-color)" }} />
                   </motion.button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-auto p-0 border-0 bg-transparent shadow-none">
@@ -490,9 +477,7 @@ export function NavBar({
               </Popover>
             ) : (
               <motion.button className="w-9 h-9 flex items-center justify-center" type="button">
-                <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none">
-                  <motion.path d={MENU_ICON_PATH} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
-                </svg>
+                <List className="size-5" style={{ color: "var(--nav-stroke-color)" }} />
               </motion.button>
             )}
           </div>

@@ -2,16 +2,16 @@
 
 import {
   CheckIcon,
-  ChevronsUpDownIcon,
-  ExternalLinkIcon,
-  Globe2Icon,
-  Loader2Icon,
+  CaretUpDownIcon as ChevronsUpDownIcon,
+  ArrowSquareOutIcon as ExternalLinkIcon,
+  GlobeHemisphereWestIcon as Globe2Icon,
+  CircleNotchIcon as Loader2Icon,
   MapPinIcon,
-  MessageSquareTextIcon,
-  MoveDownIcon,
-  MoveUpIcon,
+  ChatTextIcon as MessageSquareTextIcon,
+  ArrowDownIcon as MoveDownIcon,
+  ArrowUpIcon as MoveUpIcon,
   PhoneIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CircleFlag } from "react-circle-flags";
 import { toast } from "sonner";

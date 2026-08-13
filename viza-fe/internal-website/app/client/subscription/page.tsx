@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowLeft,
-  BadgeCheck,
-  CheckCircle2,
-  Plane,
+  SealCheck as BadgeCheck,
+  CheckCircle as CheckCircle2,
+  Airplane as Plane,
   ShieldCheck,
-  Sparkles,
-  UsersRound,
+  Sparkle as Sparkles,
+  UsersThree as UsersRound,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react/ssr";
 import {
   getCurrentSubscriptionForCurrentUser,
   reconcileStripeSubscriptionReturn,

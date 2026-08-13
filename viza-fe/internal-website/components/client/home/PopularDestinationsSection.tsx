@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
+import { ArrowRight, CheckCircle as CheckCircle2, CircleNotch as Loader2, MagnifyingGlass as Search } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   DESTINATION_REGION_GROUP_DESTINATIONS,

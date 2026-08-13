@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, KeyboardEvent } from "react";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
@@ -120,7 +120,7 @@ export function ChatInput({
           )}
           aria-label={isConnecting ? "Connecting..." : "Send message"}
         >
-          <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
+          <ArrowUp className="size-5" weight="bold" />
         </button>
       </div>
     </div>

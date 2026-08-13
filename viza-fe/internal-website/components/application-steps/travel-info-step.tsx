@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Building2, MapPin, Plane } from "lucide-react";
+import { Buildings as Building2, MapPin, Airplane as Plane } from "@phosphor-icons/react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import {
   BilingualDateControl,

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle, ClipboardText, Rocket, type Icon } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import type { JourneyNextAction } from "@/app/actions/application-journey";
 
@@ -11,13 +11,13 @@ interface Props {
   hasApplication: boolean;
 }
 
-function PhaseIconBubble({ icon }: { icon: string }) {
+function PhaseIconBubble({ icon: Icon }: { icon: Icon }) {
   return (
     <div
-      className="size-[56px] rounded-[12px] bg-[rgba(255,255,255,0.18)] flex items-center justify-center text-[28px]"
+      className="size-[56px] rounded-[12px] bg-[rgba(255,255,255,0.18)] flex items-center justify-center"
       aria-hidden="true"
     >
-      <span role="img">{icon}</span>
+      <Icon className="size-7 text-white" weight="duotone" />
     </div>
   );
 }
@@ -39,7 +39,7 @@ export function NextActionCard({ nextAction, hasApplication }: Props) {
             {t("home.nextAction.title")}
           </p>
           <div>
-            <PhaseIconBubble icon={hasApplication ? "✅" : "🚀"} />
+            <PhaseIconBubble icon={hasApplication ? CheckCircle : Rocket} />
             <p className="font-heading text-white text-[18px] mt-3">
               {hasApplication ? t("home.nextAction.allDone") : t("home.nextAction.getStarted")}
             </p>
@@ -78,7 +78,7 @@ export function NextActionCard({ nextAction, hasApplication }: Props) {
           </p>
 
           <div className="flex items-start gap-3 w-full">
-            <PhaseIconBubble icon="📋" />
+            <PhaseIconBubble icon={ClipboardText} />
             <div className="min-w-0 flex-1">
               <p className="font-heading text-white text-[18px] leading-tight truncate">
                 {phaseTitle}

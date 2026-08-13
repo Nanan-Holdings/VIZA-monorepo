@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { AlertCircle, ArrowUp, Bot, CheckCircle2, Mic, Square, TriangleAlert } from "lucide-react";
+import { WarningCircle as AlertCircle, ArrowUp, Robot as Bot, CheckCircle as CheckCircle2, Microphone as Mic, Square, Warning as TriangleAlert } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ChatMessage } from "@/components/client/companion/chat-message";
@@ -481,7 +481,7 @@ export function FormFillingAssistant({
       <CardHeader className="gap-4 border-b border-brand-50 p-5 sm:p-6">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500" aria-hidden="true">
-            <Bot className="h-5 w-5" />
+            <Bot className="h-5 w-5" data-testid="form-assistant-icon" />
           </span>
           <div className="min-w-0">
             <CardTitle id={titleId} className="text-lg text-brand-600">
@@ -741,7 +741,7 @@ export function FormFillingAssistant({
                 onClick={handleSend}
                 disabled={!draft.trim() || loading || recordingState !== "idle"}
               >
-                <ArrowUp className="h-5 w-5" strokeWidth={2.5} />
+                <ArrowUp className="size-5" weight="bold" />
               </Button>
             </div>
           </div>

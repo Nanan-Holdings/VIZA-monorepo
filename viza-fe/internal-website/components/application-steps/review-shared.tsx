@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
+import { Pencil } from "@phosphor-icons/react/ssr";
 
 export function SectionRow({ label, value }: { label: string; value?: string }) {
   if (!value) return null;

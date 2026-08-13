@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { CircleNotch as Loader2 } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 
 const LONG_FORM_PATH = "/client/application/long-form";

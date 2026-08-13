@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 
 export function EmptyApplicationCard() {

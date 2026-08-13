@@ -5,7 +5,7 @@ import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { CircleNotch as Loader2 } from "@phosphor-icons/react";
 
 interface PhotoCropToolProps {
   imageObjectUrl: string;

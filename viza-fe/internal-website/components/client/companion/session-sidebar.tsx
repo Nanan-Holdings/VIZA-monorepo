@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Search, PenSquare, Users } from "lucide-react";
+import { MagnifyingGlass as Search, NotePencil as PenSquare, Users } from "@phosphor-icons/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { Session } from "@/app/actions/companion-sessions";

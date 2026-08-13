@@ -91,6 +91,14 @@ applicant info, and help pages.
 
 ## Ownership Boundaries
 
+- Phosphor is the only icon system for the client portal. Import every UI icon
+  from `@phosphor-icons/react`; do not add Lucide, Radix Icons, React Icons,
+  Heroicons, hand-drawn SVG glyphs, or emoji as structural UI. Purpose-built
+  data visualizations, brand marks, and map geometry are exempt. Follow the
+  sizing and weight rules in `frontend.md`. The client shell deliberately
+  enlarges Phosphor glyphs proportionally through `.client-icon-system` while
+  retaining their layout slot; preserve that rule and never stretch one axis
+  independently or add compensating padding or smaller sizes.
 - Shared client UI belongs in `components/client/**`, not directly in route
   files, once it is reused or grows beyond route orchestration.
 - Filling/editing pages in the client portal must visually and behaviorally

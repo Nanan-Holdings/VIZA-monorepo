@@ -2,17 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowRight,
-  CheckCircle2,
+  CheckCircle as CheckCircle2,
   CreditCard,
   FileText,
-  Landmark,
-  PackageCheck,
-  ReceiptText,
+  Bank as Landmark,
+  Package as PackageCheck,
+  Receipt as ReceiptText,
   ShieldCheck,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react/ssr";
 import { startStripeCheckout } from "./actions";
 import { CheckoutSubmitButton } from "./submit-button";
 import {
@@ -179,7 +179,10 @@ function PackageSwitcher({
           return (
             <Link
               key={packageSummary.assignmentId}
-              href={`/client/checkout?packageId=${packageSummary.packageId}`}
+              href={`/client/checkout?${new URLSearchParams({
+                packageId: packageSummary.packageId,
+                ...(packageSummary.applicationId ? { applicationId: packageSummary.applicationId } : {}),
+              }).toString()}`}
               className={cn(
                 "rounded-lg border bg-white p-4 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40",
                 isSelected ? "border-brand-500 bg-brand-50" : "hover:border-brand-200",
@@ -405,6 +408,9 @@ function CheckoutContent({
               ) : (
                 <form action={startStripeCheckout} className="space-y-4">
                   <input type="hidden" name="packageId" value={selectedPackage.packageId} />
+                  {selectedPackage.applicationId ? (
+                    <input type="hidden" name="applicationId" value={selectedPackage.applicationId} />
+                  ) : null}
                   <CheckoutSubmitButton disabled={!canStartPayment}>
                     <CreditCard className="h-4 w-4" />
                     Pay agency fee with Stripe

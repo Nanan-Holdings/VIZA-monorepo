@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle as CheckCircle2, CircleNotch as Loader2, Warning as AlertTriangle } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { runOcrConsistencyCheck, type ConsistencyResult } from "@/app/actions/ocr-consistency";
 import { saveDynamicAnswers } from "@/app/actions/visa-application-answers";

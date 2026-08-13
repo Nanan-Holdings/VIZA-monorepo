@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ExternalLink, Info, MapPin } from "lucide-react";
+import { Warning as AlertTriangle, ArrowLeft, ArrowSquareOut as ExternalLink, Info, MapPin } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

@@ -141,7 +141,7 @@ describe("FormFillingAssistant", () => {
     const composerRow = composer.parentElement;
 
     expect(panel).toHaveClass("shadow-none");
-    expect(panel.querySelector(".lucide-bot")).toBeInTheDocument();
+    expect(screen.getByTestId("form-assistant-icon")).toBeInTheDocument();
     expect(screen.queryByText("AI assistant")).not.toBeInTheDocument();
     expect(composerRow).toHaveClass("items-center", "shadow-none");
     expect(composerRow).not.toHaveClass("items-end");

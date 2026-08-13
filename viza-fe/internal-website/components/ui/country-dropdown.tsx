@@ -18,7 +18,7 @@ import {
 
 import { cn, matchesSearchText } from "@/lib/utils";
 
-import { ChevronDown, CheckIcon, Globe } from "lucide-react";
+import { CaretDown as ChevronDown, CheckIcon, Globe } from "@phosphor-icons/react";
 import { CircleFlag } from "react-circle-flags";
 
 import { countries } from "country-data-list";

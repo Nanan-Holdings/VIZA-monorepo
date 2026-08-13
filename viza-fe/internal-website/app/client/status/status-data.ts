@@ -3,6 +3,7 @@ import "server-only";
 // eslint-disable-next-line no-restricted-imports -- This server-only data loader uses service-role access after authenticating the applicant and scoping rows to their profile.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getClientSession } from "@/lib/client-session";
 import {
   getDestinationDisplayName,
   getDestinationDisplayNameZh,
@@ -194,6 +195,7 @@ export interface ClientStatusData {
 interface ApplicantProfileRow {
   id: string;
   email: string | null;
+  auth_user_id: string | null;
 }
 
 interface VisaPackageRow {
@@ -1437,11 +1439,25 @@ async function buildApplicationStatus({
 }
 
 export async function getClientStatusData(): Promise<ClientStatusData> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const clientSession = await getClientSession();
+  let authUserId = clientSession?.userId ?? null;
+  let authEmail = clientSession?.email ?? null;
+
+  // The proxy already verifies this signed cookie. Avoid a second remote Auth
+  // request on every Home/status render when that local session is available.
+  if (!clientSession) {
+    const supabase = await createClient({
+      requestTimeoutMs: 3_000,
+      retryDelaysMs: [250],
+    });
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    authUserId = user?.id ?? null;
+    authEmail = user?.email ?? null;
+  }
+
+  if (!authUserId) {
     return {
       authenticated: false,
       applications: [],
@@ -1450,30 +1466,33 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     };
   }
 
-  const adminClient = createAdminClient();
+  const adminClient = createAdminClient({
+    requestTimeoutMs: 4_000,
+    retryDelaysMs: [250],
+  });
   let partialData = false;
 
   const profileReads: Array<Promise<ReadRowsResult<ApplicantProfileRow>>> = [
     readRows<ApplicantProfileRow>(
       adminClient
         .from("applicant_profiles")
-        .select("id, email")
-        .eq("auth_user_id", user.id),
+        .select("id, email, auth_user_id")
+        .eq("auth_user_id", authUserId),
     ),
     readRows<ApplicantProfileRow>(
       adminClient
         .from("applicant_profiles")
-        .select("id, email")
-        .eq("id", user.id),
+        .select("id, email, auth_user_id")
+        .eq("id", authUserId),
     ),
   ];
-  if (user.email) {
+  if (authEmail) {
     profileReads.push(
       readRows<ApplicantProfileRow>(
         adminClient
           .from("applicant_profiles")
-          .select("id, email")
-          .eq("email", user.email),
+          .select("id, email, auth_user_id")
+          .eq("email", authEmail),
       ),
     );
   }
@@ -1481,9 +1500,12 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   partialData = partialData || profileResults.some((result) => result.failed);
   const profiles = dedupeById(profileResults.flatMap((result) => result.rows));
   const profileIds = profiles.map((profile) => profile.id);
+  authUserId =
+    profiles.find((profile) => profile.id === clientSession?.userId)
+      ?.auth_user_id ?? authUserId;
   const ownerEmails = [
     ...new Set(
-      [user.email, ...profiles.map((profile) => profile.email)]
+      [authEmail, ...profiles.map((profile) => profile.email)]
         .filter((email): email is string => Boolean(email))
         .map((email) => email.trim().toLowerCase()),
     ),
@@ -1493,7 +1515,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     adminClient
       .from("user_packages")
       .select("visa_package_id, application_id, assigned_at, status, visa_packages(id, country, visa_type, name, description, price_cents, currency, metadata)")
-      .eq("auth_user_id", user.id)
+      .eq("auth_user_id", authUserId)
       .order("assigned_at", { ascending: false }),
   );
   partialData = partialData || packagesFailed;

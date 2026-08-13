@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { MapPin, User } from "lucide-react";
+import { MapPin, User } from "@phosphor-icons/react";
 import { countries } from "country-data-list";
 import countryRegionData from "country-region-data/data.json";
 import { BrandActionButton } from "@/components/client/brand-action-button";

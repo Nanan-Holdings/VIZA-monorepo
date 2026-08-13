@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useId, useRef, useState } from "react";
-import { Camera, Loader2, RefreshCcw, Upload, X, CheckCircle2 } from "lucide-react";
+import { ArrowsCounterClockwise as RefreshCcw, Camera, CheckCircle as CheckCircle2, CircleNotch as Loader2, Upload, X } from "@phosphor-icons/react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Button } from "@/components/ui/button";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";

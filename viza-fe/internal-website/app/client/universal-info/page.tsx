@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { AtSign, BookOpen, BriefcaseBusiness, CheckCircle2, CheckIcon, ChevronDown, ContactRound, Database, FileText, HeartHandshake, History, IdCard, Loader2, MapPin, Pencil, Phone, Save, ShieldCheck, User, WalletCards, type LucideIcon } from "lucide-react";
+import { At as AtSign, BookOpen, Briefcase as BriefcaseBusiness, CheckCircle as CheckCircle2, CheckIcon, CaretDown as ChevronDown, AddressBook as ContactRound, Database, FileText, HandHeart as HeartHandshake, ClockCounterClockwise as History, IdentificationCard as IdCard, CircleNotch as Loader2, MapPin, Pencil, Phone, FloppyDisk as Save, ShieldCheck, User, Cards as WalletCards, type Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { CircleFlag } from "react-circle-flags";
 import { countries } from "country-data-list";
 import {
@@ -148,7 +148,7 @@ type UniversalProfileSectionKey = "documents" | UniversalProfileCategory;
 
 interface UniversalProfileSectionDefinition {
   key: UniversalProfileSectionKey;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   zh: string;
   en: string;
   descriptionZh: string;

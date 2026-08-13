@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
-import { CheckCircle2, ExternalLink } from "lucide-react";
+import { CheckCircle as CheckCircle2, ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TranslationPanel } from "./translation-panel";

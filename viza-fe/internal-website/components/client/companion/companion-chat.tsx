@@ -6,9 +6,10 @@ import {
   ArrowLeft,
   Bug,
   Clock,
-  Menu,
-  ChevronDown,
-} from "lucide-react";
+  List as Menu,
+  CaretDown as ChevronDown,
+  Sparkle,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -438,7 +439,7 @@ export function CompanionChat({
                     className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 cursor-pointer hover:border-[#c1785d] hover:shadow-md transition-all duration-200"
                   >
                     <div className="flex items-start justify-between mb-2.5">
-                      <div className="text-[#c1785d] text-xl">✻</div>
+                      <Sparkle className="size-5 text-[#c1785d]" weight="fill" />
                       <div className="flex items-center gap-1 text-[11px] text-gray-500">
                         <Clock className="w-3 h-3" />
                         <span>Immediate</span>
@@ -537,7 +538,7 @@ export function CompanionChat({
                       <ArrowLeft className="w-5 h-5 text-gray-600" />
                     </button>
                     <div className="flex items-center gap-2">
-                      <div className="text-[#c1785d] text-lg">✻</div>
+                      <Sparkle className="size-[18px] text-[#c1785d]" weight="fill" />
                       <h2 className="text-lg font-medium text-gray-900">
                         VIZA AI
                       </h2>
@@ -634,7 +635,7 @@ export function CompanionChat({
                       className="flex gap-3"
                     >
                       <div className="w-8 h-8 rounded-full bg-[#c1785d]/10 flex items-center justify-center flex-shrink-0">
-                        <span className="text-[#c1785d] text-sm">✻</span>
+                        <Sparkle className="size-3.5 text-[#c1785d]" weight="fill" />
                       </div>
                       <div className="bg-white rounded-xl rounded-tl-md border border-gray-100 px-4 py-3 max-w-[85%] shadow-sm">
                         <p className="text-gray-800 text-sm sm:text-base">

@@ -11,11 +11,11 @@ import {
   useState,
 } from "react";
 import {
-  AlertCircle,
-  Loader2,
-  Send,
+  WarningCircle as AlertCircle,
+  CircleNotch as Loader2,
+  PaperPlaneTilt as Send,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { AiAssistIcon } from "@/components/ui/ai-assist-button";
 import { Textarea } from "@/components/ui/textarea";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";

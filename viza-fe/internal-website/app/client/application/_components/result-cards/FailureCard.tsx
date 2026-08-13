@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, CreditCard, ExternalLink, Eye, EyeOff, RotateCw } from "lucide-react";
+import { Warning as AlertTriangle, CreditCard, ArrowSquareOut as ExternalLink, Eye, EyeSlash as EyeOff, ArrowClockwise as RotateCw } from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

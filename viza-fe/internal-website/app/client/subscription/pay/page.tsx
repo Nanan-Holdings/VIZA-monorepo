@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "@phosphor-icons/react/ssr";
 import { PaymentStatusPoller } from "../payment-status-poller";
 import { getPaymentRecordForCurrentUser } from "../data";
 import { Button } from "@/components/ui/button";

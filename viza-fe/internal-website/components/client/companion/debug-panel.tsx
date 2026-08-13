@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Trash2, Copy, Check } from "lucide-react";
+import { X, Trash as Trash2, Copy, Check } from "@phosphor-icons/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { LogEntry, ConnectionStatus } from "@/types/agent-test";

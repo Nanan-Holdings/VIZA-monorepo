@@ -8,35 +8,35 @@ import { motion } from "motion/react";
 import {
   ArrowRight,
   Check,
-  ChevronRight,
-  CircleHelp,
+  CaretRight as ChevronRight,
+  Question as CircleHelp,
   Coins,
   CreditCard,
   Database,
   Gift,
-  Globe2,
+  GlobeHemisphereWest as Globe2,
   Headphones,
-  IdCard,
-  KeyRound,
-  Loader2,
-  LockKeyhole,
-  LogOut,
-  Mail,
-  MessageCircle,
+  IdentificationCard as IdCard,
+  Key as KeyRound,
+  CircleNotch as Loader2,
+  LockKey as LockKeyhole,
+  SignOut as LogOut,
+  Envelope as Mail,
+  ChatCircle as MessageCircle,
   Pencil,
   QrCode,
-  ReceiptText,
+  Receipt as ReceiptText,
   ShieldCheck,
-  Sparkles,
-  TicketPercent,
+  Sparkle as Sparkles,
+  SealPercent as TicketPercent,
   Trophy,
-  Trash2,
+  Trash as Trash2,
   Phone,
-  UserRound,
-  UsersRound,
-  WalletCards,
-  type LucideIcon,
-} from "lucide-react";
+  UserCircle as UserRound,
+  UsersThree as UsersRound,
+  Cards as WalletCards,
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ActionButton } from "@/components/ui/action-button";
@@ -157,7 +157,7 @@ const PAYMENT_STORAGE_KEY = "viza.settings.paymentAccounts.v1";
 
 const paymentMethods: Array<{
   id: PaymentMethodId;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   accentClass: string;
 }> = [
   {
@@ -202,7 +202,7 @@ function SettingsRow({
   isActive,
   ariaControls,
 }: {
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   title: string;
   description: string;
   href?: string;
@@ -430,25 +430,29 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     async function loadSettings() {
       const supabase = createClient();
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
 
       if (!user) {
         router.replace("/client/login");
         return;
       }
 
-      const { data } = await supabase
-        .from("applicant_profiles")
-        .select("full_name, email, phone, passport_number")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-
-      const { data: walletData } = await supabase
-        .from("reward_wallets")
-        .select("balance, lifetime_earned, lifetime_spent")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // These independent reads used to run serially after an extra remote
+      // auth validation. RLS still validates the access token on both queries.
+      const [{ data }, { data: walletData }] = await Promise.all([
+        supabase
+          .from("applicant_profiles")
+          .select("full_name, email, phone, passport_number")
+          .eq("auth_user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("reward_wallets")
+          .select("balance, lifetime_earned, lifetime_spent")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
 
       if (!mounted) return;
 

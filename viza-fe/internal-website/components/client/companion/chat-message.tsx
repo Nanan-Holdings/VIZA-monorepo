@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { Warning as AlertTriangle } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface ChatMessageProps {

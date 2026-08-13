@@ -3,21 +3,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowLeft,
   CalendarCheck,
-  CheckCircle2,
-  CircleAlert,
-  Clock3,
+  CheckCircle as CheckCircle2,
+  WarningCircle as CircleAlert,
+  Clock as Clock3,
   Eye,
-  EyeOff,
-  Loader2,
+  EyeSlash as EyeOff,
+  CircleNotch as Loader2,
   PauseCircle,
   Play,
-  RefreshCw,
+  ArrowsClockwise as RefreshCw,
   ShieldCheck,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
