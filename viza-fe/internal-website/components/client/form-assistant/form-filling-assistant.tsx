@@ -9,12 +9,11 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { AlertCircle, ArrowUp, CheckCircle2, Mic, Sparkles, Square, TriangleAlert } from "lucide-react";
+import { AlertCircle, ArrowUp, Bot, CheckCircle2, Mic, Square, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -471,7 +470,7 @@ export function FormFillingAssistant({
 
   return (
     <Card
-      className={cn("w-full border-brand-100 bg-white shadow-sm", className)}
+      className={cn("w-full border-brand-100 bg-white shadow-none", className)}
       data-application-id={applicationId}
       data-locale={locale}
       data-is-zh={resolvedIsZh ? "true" : "false"}
@@ -480,21 +479,16 @@ export function FormFillingAssistant({
       aria-labelledby={titleId}
     >
       <CardHeader className="gap-4 border-b border-brand-50 p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500" aria-hidden="true">
-              <Sparkles className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <CardTitle id={titleId} className="text-lg text-brand-600">
-                {t("title")}
-              </CardTitle>
-              <CardDescription className="mt-2 leading-6">{t("description")}</CardDescription>
-            </div>
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500" aria-hidden="true">
+            <Bot className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <CardTitle id={titleId} className="text-lg text-brand-600">
+              {t("title")}
+            </CardTitle>
+            <CardDescription className="mt-2 leading-6">{t("description")}</CardDescription>
           </div>
-          <Badge className="bg-brand-50 text-brand-600 hover:bg-brand-50" variant="secondary">
-            {t("badge")}
-          </Badge>
         </div>
         <div className="space-y-2" aria-label={t("progressLabel")}>
           <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
@@ -699,7 +693,7 @@ export function FormFillingAssistant({
         ) : null}
 
         <div className="mx-auto w-full max-w-[760px]">
-          <div className="flex items-end gap-2 rounded-[26px] border border-gray-200 bg-white px-3 py-2 shadow-sm transition-all duration-200 hover:border-gray-300 focus-within:border-brand-500">
+          <div className="flex items-center gap-2 rounded-[26px] border border-gray-200 bg-white px-3 py-2 shadow-none transition-all duration-200 hover:border-gray-300 focus-within:border-brand-500">
             <Textarea
               ref={composerRef}
               value={draft}
@@ -711,7 +705,7 @@ export function FormFillingAssistant({
               rows={1}
               className="min-h-11 max-h-[168px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-base leading-7 shadow-none outline-none placeholder:text-gray-400 focus-visible:ring-0"
             />
-            <div className="flex shrink-0 items-center gap-2 pb-1">
+            <div className="flex shrink-0 items-center gap-2">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Button
                   type="button"

@@ -34,6 +34,7 @@ import { ApplicationYesNoControl } from "@/components/ui/application-yes-no-cont
 import { CountryDropdown } from "@/components/ui/country-dropdown";
 import { DocumentUploadField } from "@/components/ui/document-upload-field";
 import { InputGroupInput } from "@/components/ui/input-group";
+import { PageBackButton } from "@/components/ui/page-back-button";
 import { Select, SelectValue } from "@/components/ui/select";
 import { SupportingDocumentCard } from "@/components/ui/supporting-document-card";
 
@@ -125,6 +126,16 @@ export default function UiComponentsPage() {
         </header>
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <ApplicationFormPanel className="p-5">
+            <h2 className="text-base font-semibold text-foreground">Page back button</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Universal page-level navigation with a localized accessible label.
+            </p>
+            <div className="mt-8">
+              <PageBackButton fallbackHref="/ui-components" label="Back to previous page" />
+            </div>
+          </ApplicationFormPanel>
+
           <ApplicationFormPanel className="p-5">
             <h2 className="text-base font-semibold text-foreground">Panel + input</h2>
             <ApplicationFormField

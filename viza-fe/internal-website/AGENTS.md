@@ -14,6 +14,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 ## Key Flows
 
 - Client portal under `app/client/**`.
+- Client dashboard country hero artwork under `public/country-heroes/**`, mapped
+  to application country slugs by `lib/client/country-hero-theme.ts`.
 - Arrival-card preview entries under `app/client/arrival-cards/**`, routed to
   dedicated DB-driven application packages and kept separate from visa packages.
 - Admin portal under `app/admin/**`.

@@ -87,6 +87,22 @@
       "open": "Open application",
       "choose": "Choose a visa"
     },
+    "timeline": {
+      "groups": { "todo": "To-dos", "completed": "Completed tasks" },
+      "states": { "complete": "Completed", "current": "Current step", "attention": "Action needed", "blocked": "Waiting on an earlier step", "upcoming": "Not started" },
+      "steps": {
+        "payment": { "title": "Complete service-fee payment", "description": "Payment must be confirmed before VIZA prepares the application." },
+        "consent": { "title": "Confirm consent and authority", "description": "Complete the service authority and required electronic signature." },
+        "form": { "title": "Complete the application form", "description": "Enter and review the information required for the application." },
+        "documents": { "title": "Upload required documents", "description": "Upload the passport, photo, and destination-specific evidence." },
+        "packet": { "title": "Prepare the application packet", "description": "VIZA prepares the packet when the core requirements are ready." },
+        "handoff": { "title": "Submit to the official portal", "description": "The prepared application enters the official submission flow." },
+        "result": { "title": "Wait for the application result", "description": "Approval, visa, refusal, or result files appear when received." }
+      },
+      "metrics": { "answers": "{count} saved answers", "documents": "{ready}/{total} documents uploaded or validated", "reference": "Official reference: {reference}" },
+      "relative": { "justNow": "Just now", "minutesAgo": "{count}m ago", "hoursAgo": "{count}h ago", "daysAgo": "{count}d ago" },
+      "empty": { "noApplication": "Choose an ongoing application to see its to-dos and completed tasks here.", "choose": "Choose application", "incomplete": "This application has no to-dos right now.", "completed": "This application has no completed tasks yet." }
+    },
     "subscriptionPlan": {
       "title": "VIZA Application",
       "subtitle": "Application plan and subscription status",
@@ -611,6 +627,14 @@
     "title": "Indonesia Tourist Visa B211A",
     "saving": "Saving...",
     "edit": "Edit",
+    "postSubmission": {
+      "title": "After submission",
+      "tabs": { "results": "Receipts & results", "updates": "Application updates" },
+      "officialReference": "Official reference",
+      "download": "Download",
+      "resultsEmpty": "Receipts and result files will appear here when VIZA generates or receives them.",
+      "updatesEmpty": "There are no customer-visible application updates yet."
+    },
     "formAssistant": {
       "title": "Form filling assistant",
       "description": "I check what is already complete and ask one question at a time. Answer here by text or voice.",
@@ -956,8 +980,12 @@
       "yourApplications": "Your applications",
       "destinationCount": "{count} destinations",
       "current": "Current",
+      "currentHandling": "Currently working on",
       "continue": "Continue",
       "switchTo": "Switch to this",
+      "selectApplication": "Choose application",
+      "ongoingCount": "{count} ongoing applications",
+      "applicationCount": "{count} application records",
       "switching": "Switching",
       "switchError": "We could not switch to that application. Please try again.",
       "progressAriaLabel": "Application progress",
@@ -3794,6 +3822,10 @@
     "supportDescription": "Complex topics and customer service",
     "supportResponseTime": "<24h on weekdays",
     "newChatGreeting": "Hi there! I'm VIZA, your visa assistant. Tell me your destination, nationality, trip purpose, and how long you plan to stay, and I'll help you find the right visa route.",
+    "emptyPromptTitle": "How can I help with your visa today?",
+    "starterRoute": "Help me find the right visa",
+    "starterDocuments": "Check document requirements",
+    "starterTiming": "Estimate processing time",
     "inputPlaceholder": "Ask about your visa application...",
     "memoryTitle": "Chat memory",
     "memoryPassport": "Passport",
@@ -4490,7 +4522,6 @@
       "subtitle": "Enter your email to begin your VIZA account setup.",
       "emailPlaceholder": "Enter your email",
       "referralCodePlaceholder": "Referral code (optional)",
-      "referralCodeHint": "New users who register with a referral code get 99 points, and the referrer gets 99 points too.",
       "invalidEmail": "Please enter a valid email address.",
       "submitting": "Submitting...",
       "continueToPassword": "Continue",

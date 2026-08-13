@@ -36,6 +36,7 @@ change:
 - `application-yes-no-control.tsx`
 - `country-dropdown.tsx`
 - `supporting-document-card.tsx`
+- `page-back-button.tsx`
 
 This freeze covers code, public props, behavior, layout, styling, copy, icons,
 spacing, colors, borders, motion, hover states, and focus states. Do not
@@ -86,4 +87,10 @@ Smoke at least one route that uses the changed primitive.
   changes from brand blue to dark brand blue. Field/card triggers reveal on
   hover or keyboard focus and remain visible while their control or popover is
   active.
+- `page-back-button.tsx`: universal icon-only page navigation control. Consumers
+  supply a safe fallback destination and localized accessible label, then own
+  the spacing around the control in their page layout. It returns through
+  browser history when possible and uses the fallback only for a direct entry.
+  Its navigation and accessible-name contract is covered by
+  `__tests__/page-back-button.test.tsx`.
 - `viza-fe/internal-website/frontend.md`

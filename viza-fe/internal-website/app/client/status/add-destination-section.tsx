@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { isCountryLaunched } from "@/lib/launched-countries";
+import { DestinationFlag } from "@/components/client/home/DestinationFlag";
 import { selectUserVisaDestination } from "@/app/actions/user-package";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 import {
@@ -48,6 +49,13 @@ function matchesGroup(group: VisaDestinationCountryGroup, query: string): boolea
   );
 }
 
+function isGroupAvailable(group: VisaDestinationCountryGroup): boolean {
+  return group.destinations.some(
+    (destinationItem) =>
+      destinationItem.kind === "group" || isCountryLaunched(destinationItem.country),
+  );
+}
+
 export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }) {
   const t = useTranslations("clientStatus.index");
   const locale = useLocale();
@@ -66,7 +74,7 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
     return VISA_DESTINATION_COUNTRY_GROUPS.filter(
       (group) =>
         (region === ALL_REGIONS || group.region === region) && matchesGroup(group, normalizedQuery),
-    );
+    ).sort((first, second) => Number(isGroupAvailable(second)) - Number(isGroupAvailable(first)));
   }, [query, region]);
 
   function handleSelect(destinationItem: PopularVisaDestination) {
@@ -156,84 +164,103 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {visibleGroups.map((group) => (
-            <li
-              key={group.key}
-              className="flex flex-col gap-3.5 rounded-2xl border border-[#efefef] bg-white px-5 py-[18px]"
-            >
-              <div className="flex items-center gap-3">
-                <span aria-hidden="true" className="text-[24px] leading-8">
-                  {group.flag}
-                </span>
-                <div className="min-w-0">
-                  <p className="font-heading text-[16px] font-medium text-[#26364a]">
-                    {isZh ? group.countryNameZh : group.countryName}
-                  </p>
-                  <p className="mt-px text-[12px] text-[#8a94a6]">
-                    {getVisaDestinationRegionName(group.region, locale)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col">
-                {group.destinations.map((destinationItem) => {
-                  const isGroup = destinationItem.kind === "group";
-                  const launched = isGroup || isCountryLaunched(destinationItem.country);
-                  const alreadyStarted =
-                    !isGroup &&
-                    started.has(
-                      getVisaDestinationKey(destinationItem.country, destinationItem.visaType),
-                    );
-                  const loading = pendingDestinationId === destinationItem.id;
-
-                  return (
-                    <button
-                      key={destinationItem.id}
-                      type="button"
-                      onClick={() => handleSelect(destinationItem)}
-                      disabled={loading || !launched}
-                      aria-disabled={!launched}
-                      title={launched ? undefined : t("comingSoon")}
-                      className={cn(
-                        "group flex min-h-11 items-center justify-between gap-3 border-t border-[#efefef] py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
-                        !launched
-                          ? "cursor-not-allowed opacity-50"
-                          : loading
-                            ? "cursor-wait opacity-80"
-                            : "cursor-pointer",
-                      )}
-                    >
-                      <span className="min-w-0">
-                        <span className="block text-[14px] font-medium text-[#26364a] transition group-hover:text-brand-500">
-                          {getVisaDestinationVisaName(destinationItem, locale)}
-                        </span>
-                        <span className="mt-0.5 block line-clamp-2 text-[12px] leading-4 text-[#66758a]">
-                          {getVisaDestinationDescription(destinationItem, locale)}
-                        </span>
-                      </span>
-                      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[13px] font-medium text-[#66758a] transition group-hover:text-brand-500">
-                        {loading ? (
-                          <>
-                            {t("starting")}
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          </>
-                        ) : !launched ? (
-                          t("comingSoon")
-                        ) : alreadyStarted ? (
-                          t("added")
-                        ) : (
-                          <>
-                            {isGroup ? t("browse") : t("start")}
-                            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-                          </>
+          {visibleGroups.map((group) => {
+            const groupAvailable = isGroupAvailable(group);
+            return (
+              <li
+                key={group.key}
+                className={cn(
+                  "flex flex-col gap-3.5 rounded-2xl border px-5 py-[18px]",
+                  groupAvailable
+                    ? "border-[#efefef] bg-white"
+                    : "border-[#e5e5e5] bg-[#f3f3f3]",
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <DestinationFlag flag={group.flag} size={30} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <p
+                        className={cn(
+                          "font-heading text-[16px] font-medium",
+                          groupAvailable ? "text-[#26364a]" : "text-[#7d8794]",
                         )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </li>
-          ))}
+                      >
+                        {isZh ? group.countryNameZh : group.countryName}
+                      </p>
+                      {!groupAvailable ? (
+                        <span className="shrink-0 text-[12px] font-medium text-[#8a94a6]">
+                          {t("comingSoon")}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-px text-[12px] text-[#8a94a6]">
+                      {getVisaDestinationRegionName(group.region, locale)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col">
+                  {group.destinations.map((destinationItem) => {
+                    const isGroup = destinationItem.kind === "group";
+                    const launched = isGroup || isCountryLaunched(destinationItem.country);
+                    const alreadyStarted =
+                      !isGroup &&
+                      started.has(
+                        getVisaDestinationKey(destinationItem.country, destinationItem.visaType),
+                      );
+                    const loading = pendingDestinationId === destinationItem.id;
+                    const action = loading ? (
+                      <>
+                        {t("starting")}
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </>
+                    ) : alreadyStarted ? (
+                      t("added")
+                    ) : isGroup ? (
+                      <>
+                        {t("browse")}
+                        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                      </>
+                    ) : null;
+
+                    return (
+                      <button
+                        key={destinationItem.id}
+                        type="button"
+                        onClick={() => handleSelect(destinationItem)}
+                        disabled={loading || !launched}
+                        aria-disabled={!launched}
+                        title={launched ? undefined : t("comingSoon")}
+                        className={cn(
+                          "group flex min-h-11 items-center justify-between gap-3 border-t border-[#efefef] py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+                          !launched
+                            ? "cursor-not-allowed opacity-50"
+                            : loading
+                              ? "cursor-wait opacity-80"
+                              : "cursor-pointer",
+                        )}
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-[14px] font-medium text-[#26364a] transition group-hover:text-brand-500">
+                            {getVisaDestinationVisaName(destinationItem, locale)}
+                          </span>
+                          <span className="mt-0.5 block line-clamp-2 text-[12px] leading-4 text-[#66758a]">
+                            {getVisaDestinationDescription(destinationItem, locale)}
+                          </span>
+                        </span>
+                        {action ? (
+                          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[13px] font-medium text-[#66758a] transition group-hover:text-brand-500">
+                            {action}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 

@@ -6,7 +6,7 @@ import {
   Loader2,
   PanelLeft,
   Pencil,
-  Plus,
+  Search,
   SquarePen,
   Trash2,
   X,
@@ -219,11 +219,20 @@ function ChatSessionPanel({
     string | null
   >(null);
   const [draftTitle, setDraftTitle] = useState("");
+  const [searchValue, setSearchValue] = useState("");
   const [pendingSessionAction, setPendingSessionAction] = useState<string | null>(
     null
   );
 
   const actionDisabled = disabled || pendingSessionAction !== null;
+  const normalizedSearchValue = searchValue.trim().toLocaleLowerCase(locale);
+  const visibleSessions = normalizedSearchValue
+    ? sessions.filter((session) =>
+        getSessionDisplayTitle(session, t("sessionUntitled"))
+          .toLocaleLowerCase(locale)
+          .includes(normalizedSearchValue)
+      )
+    : sessions;
 
   const startRename = (session: Session) => {
     setDeleteConfirmSessionId(null);
@@ -259,40 +268,51 @@ function ChatSessionPanel({
   };
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden border-r border-[#e2e7ee] bg-[#f5f7fa] text-gray-900">
-      <div className="relative flex h-[68px] shrink-0 items-center px-4 pr-14">
-        <p className="font-heading text-base font-semibold leading-tight text-[#16324f]">
+    <div className="relative flex h-full flex-col overflow-hidden bg-[#fafafa] text-gray-900">
+      <div className="flex min-h-11 shrink-0 items-center justify-between gap-2">
+        <p className="font-heading text-[22px] font-medium leading-tight text-foreground">
           {t("sessionPanelTitle")}
         </p>
         {(onCollapse || onClose) && (
-          <div className="absolute right-3 top-4 flex items-center gap-1">
-          {onCollapse && (
-            <button
-              aria-label={t("sessionCollapse")}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-[#516173] transition-colors hover:bg-white hover:text-[#03346E]"
-              onClick={onCollapse}
-              type="button"
-            >
-              <PanelLeft className="h-4 w-4" />
-            </button>
-          )}
-          {onClose && (
-            <button
-              aria-label={t("sessionClose")}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-[#516173] transition-colors hover:bg-white hover:text-[#03346E]"
-              onClick={onClose}
-              type="button"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            {onCollapse && (
+              <button
+                aria-label={t("sessionCollapse")}
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onClick={onCollapse}
+                type="button"
+              >
+                <PanelLeft className="h-5 w-5" />
+              </button>
+            )}
+            {onClose && (
+              <button
+                aria-label={t("sessionClose")}
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onClick={onClose}
+                type="button"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      <div className="shrink-0 px-2 pb-4">
+      <div className="shrink-0 space-y-0 pb-4 pt-1">
+        <label className="flex min-h-11 items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground transition-colors focus-within:text-foreground">
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="sr-only">{t("searchChats")}</span>
+          <input
+            className="min-w-0 flex-1 bg-transparent py-2 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground"
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder={t("searchChats")}
+            type="search"
+            value={searchValue}
+          />
+        </label>
         <button
-          className="flex min-h-11 w-full items-center gap-3 rounded-xl bg-white px-3 py-2 text-left text-sm font-medium text-[#16324f] shadow-[0_1px_2px_rgba(15,23,42,0.06)] transition-colors hover:bg-[#eef3fa] hover:text-[#03346E] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex min-h-11 w-full items-center gap-3 rounded-lg py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
           disabled={actionDisabled}
           onClick={onNewSession}
           type="button"
@@ -303,19 +323,18 @@ function ChatSessionPanel({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <p className="shrink-0 px-5 pb-2 text-xs font-medium text-[#6b7787]">
+        <p className="shrink-0 pb-1 text-sm font-medium text-muted-foreground">
           {t("sessionRecent")}
         </p>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 [scrollbar-color:#c7ced8_transparent] [scrollbar-width:thin]">
-
-        {sessions.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-gray-400">
-            {t("noConversations")}
-          </p>
-        ) : (
-          <div className="space-y-0.5">
-            {sessions.map((session) => {
+        <div className="min-h-0 flex-1 overflow-y-auto pb-3 [scrollbar-color:#c7ced8_transparent] [scrollbar-width:thin]">
+          {visibleSessions.length === 0 ? (
+            <p className="py-1 text-sm text-muted-foreground">
+              {sessions.length === 0 ? t("noConversations") : t("noResults")}
+            </p>
+          ) : (
+            <div className="space-y-0.5">
+              {visibleSessions.map((session) => {
               const active = session.id === activeSessionId;
               const title = getSessionDisplayTitle(session, t("sessionUntitled"));
               const editing = editingSessionId === session.id;
@@ -408,16 +427,16 @@ function ChatSessionPanel({
               return (
                 <div
                   className={cn(
-                    "group flex w-full items-center rounded-xl transition-colors",
+                    "group flex w-full items-center rounded-lg transition-colors",
                     active
-                      ? "bg-[#e7edf6] text-[#03346E]"
-                      : "text-[#334155] hover:bg-white hover:text-[#16324f]"
+                      ? "text-brand-500"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                   key={session.id}
                 >
                   <button
                     aria-pressed={active}
-                    className="min-h-11 min-w-0 flex-1 px-2.5 py-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                    className="min-h-11 min-w-0 flex-1 py-2 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={actionDisabled}
                     onClick={() => onSelectSession(session.id)}
                     type="button"
@@ -425,7 +444,7 @@ function ChatSessionPanel({
                     <span className="block truncate text-sm font-medium leading-snug">
                       {title}
                     </span>
-                    <span className="mt-0.5 block text-xs leading-snug text-gray-400">
+                    <span className="mt-0.5 block text-xs leading-snug text-muted-foreground/70">
                       {formatSessionDate(session.createdAt, locale)}
                     </span>
                   </button>
@@ -638,7 +657,7 @@ export function ChatClient({
   );
   const [showDebug] = useState(false);
   const [sessionPanelOpen, setSessionPanelOpen] = useState(false);
-  const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(true);
+  const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [pendingMessages, setPendingMessages] = useState<PendingVizaMessage[]>([]);
@@ -1185,6 +1204,11 @@ export function ChatClient({
     chatMessages.length === 0 &&
     pendingComponents.length === 0 &&
     visibleBlockMessages.length === 0;
+  const starterPrompts = [
+    t("starterRoute"),
+    t("starterDocuments"),
+    t("starterTiming"),
+  ];
 
   const wasStreamingRef = useRef(false);
   useEffect(() => {
@@ -1697,11 +1721,18 @@ export function ChatClient({
 
   return (
     <div className="chat-page fixed top-[104px] bottom-0 left-0 right-0 bg-[#fafafa] z-10 border-t border-[#e5e5e5]">
-      {chatMode === "viza" && !sessionPanelCollapsed && (
+      {chatMode === "viza" && (
         <>
           <aside
-            className="absolute bottom-0 left-0 top-0 z-20 hidden w-[280px] lg:block"
+            aria-hidden={sessionPanelCollapsed}
+            className={cn(
+              "absolute bottom-6 left-4 top-6 z-20 hidden w-[220px] transition-[opacity,transform] duration-200 ease-out lg:block xl:left-20",
+              sessionPanelCollapsed
+                ? "pointer-events-none -translate-x-[18px] opacity-0"
+                : "translate-x-0 opacity-100"
+            )}
             data-testid="viza-session-sidebar"
+            inert={sessionPanelCollapsed}
           >
             <ChatSessionPanel
               activeSessionId={sessionId}
@@ -1718,68 +1749,42 @@ export function ChatClient({
             />
           </aside>
 
-          {sessionPanelOpen && (
-            <div className="fixed inset-x-0 bottom-0 top-[105px] z-40 lg:hidden">
-              <button
-                aria-label={t("sessionClose")}
-                className="absolute inset-0 bg-black/20"
-                onClick={() => {
-                  setSessionPanelOpen(false);
-                  setSessionPanelCollapsed(true);
-                }}
-                type="button"
-              />
-              <aside className="absolute bottom-0 left-0 top-0 w-[min(88vw,300px)] shadow-xl">
-                <ChatSessionPanel
-                  activeSessionId={sessionId}
-                  disabled={isStreaming || isLoadingMessages}
-                  onClose={() => {
-                    setSessionPanelOpen(false);
-                    setSessionPanelCollapsed(true);
-                  }}
-                  onDeleteSession={handleDeleteVizaSession}
-                  onNewSession={handleNewVizaSession}
-                  onRenameSession={handleRenameVizaSession}
-                  onSelectSession={handleSessionSelect}
-                  sessions={sessions}
-                />
-              </aside>
-            </div>
-          )}
+          <div
+            aria-hidden={!sessionPanelCollapsed}
+            className={cn(
+              "absolute left-4 top-6 z-30 hidden transition-[opacity,transform] duration-150 ease-out lg:flex xl:left-20",
+              sessionPanelCollapsed
+                ? "translate-x-0 opacity-100 delay-200"
+                : "pointer-events-none -translate-x-2 opacity-0"
+            )}
+            inert={!sessionPanelCollapsed}
+          >
+            <button
+              aria-label={t("sessionExpand")}
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              onClick={() => setSessionPanelCollapsed(false)}
+              type="button"
+            >
+              <PanelLeft className="h-5 w-5" />
+            </button>
+          </div>
         </>
       )}
 
-      {chatMode === "viza" && sessionPanelCollapsed && (
-        <div className="absolute left-4 top-4 z-30 flex items-center gap-2">
+      {chatMode === "viza" && !sessionPanelOpen && (
+        <div className="absolute left-4 top-4 z-30 lg:hidden">
           <button
             aria-label={t("sessionExpand")}
-            className="hidden h-9 w-9 items-center justify-center rounded-lg border border-[#e2e7ee] bg-white text-[#03346E] shadow-sm transition-colors hover:bg-[#eef3fa] lg:flex"
-            onClick={() => setSessionPanelCollapsed(false)}
-            type="button"
-          >
-            <PanelLeft className="h-4 w-4" />
-          </button>
-          <button
-            aria-label={t("sessionExpand")}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e2e7ee] bg-white text-[#03346E] shadow-sm transition-colors hover:bg-[#eef3fa] lg:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             onClick={() => setSessionPanelOpen(true)}
             type="button"
           >
-            <PanelLeft className="h-4 w-4" />
-          </button>
-          <button
-            aria-label={t("sessionNew")}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e2e7ee] bg-white text-[#03346E] shadow-sm transition-colors hover:bg-[#eef3fa] disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={isStreaming || isLoadingMessages}
-            onClick={handleNewVizaSession}
-            type="button"
-          >
-            <Plus className="h-4 w-4" />
+            <PanelLeft className="h-5 w-5" />
           </button>
         </div>
       )}
 
-      {chatMode === "viza" && sessionPanelCollapsed && sessionPanelOpen && (
+      {chatMode === "viza" && sessionPanelOpen && (
         <div className="fixed inset-x-0 bottom-0 top-[105px] z-40 lg:hidden">
           <button
             aria-label={t("sessionClose")}
@@ -1787,7 +1792,7 @@ export function ChatClient({
             onClick={() => setSessionPanelOpen(false)}
             type="button"
           />
-          <aside className="absolute bottom-0 left-0 top-0 w-[min(88vw,300px)] shadow-xl">
+          <aside className="absolute bottom-0 left-0 top-0 w-[min(88vw,300px)] bg-[#fafafa] px-4 py-6">
             <ChatSessionPanel
               activeSessionId={sessionId}
               disabled={isStreaming || isLoadingMessages}
@@ -2079,7 +2084,12 @@ export function ChatClient({
                     <div
                       ref={messagesContainerRef}
                       onScroll={checkScrollPosition}
-                      className="relative mx-auto mb-0 w-full max-w-[760px] flex-1 space-y-8 overflow-y-auto overscroll-y-contain pt-6 min-h-0"
+                      className={cn(
+                        "relative mx-auto mb-0 w-full max-w-[760px] flex-1 overflow-y-auto overscroll-y-contain min-h-0",
+                        shouldShowNewChatGreeting
+                          ? "flex items-center justify-center"
+                          : "space-y-8 pt-6"
+                      )}
                       style={{ WebkitOverflowScrolling: "touch" }}
                     >
                   {continuousChat.isLoadingMore && (
@@ -2109,13 +2119,32 @@ export function ChatClient({
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="w-full"
+                      className="flex w-full flex-col items-center gap-8 pb-16"
                     >
-                      <ChatMessage
-                        role="agent"
-                        content={t("newChatGreeting")}
-                        density="compact"
+                      <h1 className="max-w-[620px] text-center text-2xl font-medium tracking-tight text-foreground sm:text-[28px]">
+                        {t("emptyPromptTitle")}
+                      </h1>
+                      <ChatInput
+                        buttonClassName="h-11 w-11"
+                        className="w-full flex-row items-end gap-2 rounded-2xl px-4 py-2 shadow-[0_1px_5px_rgba(15,23,42,0.08)]"
+                        disabled={isLoadingMessages}
+                        isConnecting={status === "connecting"}
+                        onSend={handleSendMessage}
+                        placeholder={t("inputPlaceholder")}
+                        textareaClassName="min-h-11 py-2 text-base leading-7"
                       />
+                      <div className="flex max-w-full flex-wrap justify-center gap-2">
+                        {starterPrompts.map((prompt) => (
+                          <button
+                            className="min-h-11 rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-brand-200 hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            key={prompt}
+                            onClick={() => void handleSendMessage(prompt)}
+                            type="button"
+                          >
+                            {prompt}
+                          </button>
+                        ))}
+                      </div>
                     </motion.div>
                   )}
 
@@ -2156,6 +2185,7 @@ export function ChatClient({
                   <div ref={messagesEndRef} />
                 </div>
 
+                    {!shouldShowNewChatGreeting && (
                     <div className="mt-auto pt-0 relative">
                       <ScrollToBottomFab
                         show={continuousChat.showScrollToBottom}
@@ -2177,6 +2207,7 @@ export function ChatClient({
                         {t("consultantDisclaimer")}
                       </p>
                     </div>
+                    )}
                   </>
                 )}
               </div>
@@ -2197,8 +2228,3 @@ export function ChatClient({
     </div>
   );
 }
-
-
-
-
-

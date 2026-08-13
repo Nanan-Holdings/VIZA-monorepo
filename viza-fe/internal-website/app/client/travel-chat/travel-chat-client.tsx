@@ -6097,16 +6097,16 @@ export function TravelChatClient({
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_clamp(180px,30dvh,320px)] gap-3 sm:gap-4 lg:grid-cols-[minmax(360px,0.78fr)_minmax(500px,1.22fr)] lg:grid-rows-none xl:grid-cols-[minmax(390px,0.7fr)_minmax(640px,1.3fr)] 2xl:grid-cols-[minmax(430px,0.66fr)_minmax(760px,1.34fr)]">
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_clamp(150px,24dvh,260px)] gap-3 sm:gap-4 lg:grid-cols-[minmax(540px,1.18fr)_minmax(340px,0.82fr)] lg:grid-rows-none xl:grid-cols-[minmax(620px,1.22fr)_minmax(400px,0.78fr)] 2xl:grid-cols-[minmax(760px,1.28fr)_minmax(440px,0.72fr)]">
         <div className="relative h-full min-h-0">
           <Button
-            className="absolute left-3 top-3 z-30 h-8 w-8 bg-white/95 shadow-sm"
+            className="absolute left-3 top-3 z-30 h-11 w-11 border-0 bg-transparent text-brand-500 shadow-none hover:bg-transparent hover:text-brand-600 xl:left-12"
             data-testid="travel-session-toggle"
             onClick={() => setSessionsPanelOpen(true)}
             size="icon"
             title={isZh ? "打开对话进程" : "Open chat sessions"}
             type="button"
-            variant="outline"
+            variant="ghost"
           >
             <PanelLeft className="h-4 w-4" />
           </Button>
@@ -6115,39 +6115,39 @@ export function TravelChatClient({
             <>
               <button
                 aria-label={isZh ? "关闭对话进程" : "Close chat sessions"}
-                className="absolute inset-0 z-30 bg-slate-950/10 backdrop-blur-[1px]"
+                className="absolute inset-0 z-30 bg-slate-950/10 backdrop-blur-[1px] lg:bg-transparent lg:backdrop-blur-0"
                 data-testid="travel-session-backdrop"
                 onClick={() => setSessionsPanelOpen(false)}
                 type="button"
               />
               <aside
-                className="absolute inset-y-0 left-0 z-40 flex w-[320px] max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_18px_60px_rgba(15,23,42,0.22)] backdrop-blur"
+                className="absolute inset-y-0 left-0 z-40 flex w-[300px] max-w-[calc(100%-1rem)] flex-col overflow-hidden bg-[#fafafa] shadow-none xl:left-12 xl:w-[240px]"
                 data-testid="travel-chat-session-sidebar"
               >
-                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 py-3">
+                <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-4 xl:px-0">
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <p className="text-xs font-medium text-muted-foreground">
                       {isZh ? "旅行顾问" : "Travel AI"}
                     </p>
-                    <p className="truncate text-sm font-semibold text-slate-950">
+                    <p className="mt-1 truncate text-xl font-medium text-foreground">
                       {isZh ? "对话进程" : "Chat sessions"}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <Button
-                      className="h-8 w-8"
+                      className="h-11 w-11 border-0 bg-transparent shadow-none"
                       data-testid="travel-new-session-button"
                       disabled={status !== "ready"}
                       onClick={handleNewSession}
                       size="icon"
                       title={isZh ? "新建旅行对话" : "New travel chat"}
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <MessageSquarePlus className="h-4 w-4" />
                     </Button>
                     <Button
-                      className="h-8 w-8"
+                      className="h-11 w-11 border-0 bg-transparent shadow-none"
                       data-testid="travel-session-close-button"
                       onClick={() => setSessionsPanelOpen(false)}
                       size="icon"
@@ -6160,7 +6160,7 @@ export function TravelChatClient({
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
+                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2 xl:px-0">
                   {sessions.map((session) => {
                     const active = session.id === activeSessionId;
                     const renaming = session.id === renamingSessionId;
@@ -6171,10 +6171,10 @@ export function TravelChatClient({
                     return (
                       <div
                         aria-current={active ? "true" : undefined}
-                        className={`rounded-xl border p-2 transition-colors ${
+                        className={`rounded-lg border border-transparent p-2 transition-colors ${
                           active
-                            ? "border-[#03346E] bg-[#03346E] text-white shadow-sm"
-                            : "border-transparent bg-slate-50 text-slate-700 hover:border-slate-200 hover:bg-white"
+                            ? "text-brand-500"
+                            : "text-muted-foreground hover:text-foreground"
                         }`}
                         data-testid="travel-session-item"
                         key={session.id}
@@ -6241,7 +6241,9 @@ export function TravelChatClient({
                               </span>
                               <span
                                 className={`mt-1 block text-xs ${
-                                  active ? "text-white/70" : "text-slate-500"
+                                  active
+                                    ? "text-brand-500/70"
+                                    : "text-muted-foreground/70"
                                 }`}
                               >
                                 {userMessageCount > 0
@@ -6256,9 +6258,7 @@ export function TravelChatClient({
                             <div className="flex shrink-0 gap-1">
                               <Button
                                 className={`h-7 w-7 ${
-                                  active
-                                    ? "text-white hover:text-slate-900"
-                                    : ""
+                                  active ? "text-brand-500" : ""
                                 }`}
                                 data-testid="travel-session-rename-button"
                                 disabled={status !== "ready"}
@@ -6268,13 +6268,13 @@ export function TravelChatClient({
                                 size="icon"
                                 title={isZh ? "重命名对话" : "Rename chat"}
                                 type="button"
-                                variant={active ? "ghost" : "outline"}
+                                variant="ghost"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 className={`h-7 w-7 ${
-                                  active ? "text-white hover:text-red-700" : ""
+                                  active ? "text-brand-500 hover:text-red-700" : ""
                                 }`}
                                 data-testid="travel-session-delete-button"
                                 disabled={status !== "ready"}
@@ -6282,7 +6282,7 @@ export function TravelChatClient({
                                 size="icon"
                                 title={isZh ? "删除对话" : "Delete chat"}
                                 type="button"
-                                variant={active ? "ghost" : "outline"}
+                                variant="ghost"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -6297,9 +6297,9 @@ export function TravelChatClient({
             </>
           )}
 
-          <Card className="h-full min-h-0 overflow-hidden rounded-xl border-slate-200/80 bg-white/95 shadow-[0_14px_45px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-2xl">
+          <Card className="h-full min-h-0 overflow-hidden rounded-none border-0 bg-transparent shadow-none">
             <CardContent className="h-full p-0">
-              <div className="flex h-full min-h-0 flex-col bg-white">
+              <div className="flex h-full min-h-0 flex-col bg-transparent">
                 <div className="relative min-h-0 flex-1">
                   <div
                     ref={scrollRailRef}
@@ -7069,7 +7069,7 @@ export function TravelChatClient({
                   </div>
                 </div>
                 <div
-                  className="relative shrink-0 border-t border-slate-200 bg-white/95 px-2 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur sm:px-3"
+                  className="relative shrink-0 border-t border-slate-200/80 bg-transparent px-2 py-2 shadow-none sm:px-3"
                   data-testid="travel-free-chat-form"
                 >
                   <ScrollToBottomFab
@@ -7099,7 +7099,7 @@ export function TravelChatClient({
           </Card>
         </div>
 
-        <aside className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-200/90 bg-[#08213b] shadow-[0_14px_45px_rgba(15,23,42,0.12)] sm:rounded-2xl">
+        <aside className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-200/90 bg-[#08213b] shadow-none sm:rounded-2xl">
           <div className="relative h-full min-h-0 overflow-hidden bg-slate-50">
             {showFinalItinerary ? (
               <TravelItineraryExperience

@@ -42,6 +42,9 @@ Before changing this route, read:
   bounded retry policy for final-step status polling. Network failures and
   retryable upstream responses must reconnect without marking the durable
   submission job failed or creating another submission.
+- `app/client/application/_components/result-cards/PostSubmissionInfoPanel.tsx`:
+  shows customer-safe receipts/results and application updates only after the
+  application has crossed a reliable submission boundary.
 - `app/actions/visa-form-fields.ts`: loads `visa_form_fields` rows and groups them into wizard steps.
 - `app/actions/application-lifecycle.ts`: creates and reads per-user application progress summaries.
 - `app/client/application/_components/result-cards/__tests__`: focused regression tests for confirmation/result cards.
