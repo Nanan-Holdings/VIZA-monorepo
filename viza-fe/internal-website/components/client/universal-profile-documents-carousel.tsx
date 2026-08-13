@@ -21,10 +21,11 @@ export interface ReusableDocumentState {
 interface UniversalProfileDocumentsCarouselProps {
   applicationId: string | null;
   passport: ReusableDocumentState;
+  identityCard: ReusableDocumentState;
   photo: ReusableDocumentState;
   signature: ReusableDocumentState;
   onPassportFieldsApplied: (fields: UniversalProfileSnapshot) => void;
-  onDocumentUploaded: (type: "passport" | "photo" | "signature", fileName: string) => void;
+  onDocumentUploaded: (type: "passport" | "identityCard" | "photo" | "signature", fileName: string) => void;
 }
 
 interface CompactUploadProps {
@@ -197,6 +198,7 @@ function CompactProfileUpload({
 export function UniversalProfileDocumentsCarousel({
   applicationId,
   passport,
+  identityCard,
   photo,
   signature,
   onPassportFieldsApplied,
@@ -218,7 +220,7 @@ export function UniversalProfileDocumentsCarousel({
           </p>
         </div>
         <span className="w-fit rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600">
-          {isZh ? "3 项材料" : "3 items"}
+          {isZh ? "4 项材料" : "4 items"}
         </span>
       </div>
 
@@ -247,6 +249,35 @@ export function UniversalProfileDocumentsCarousel({
             presentation="supporting-card"
             onFieldsApplied={onPassportFieldsApplied}
             onUploaded={(fileName) => onDocumentUploaded("passport", fileName)}
+          />
+        </SupportingDocumentCard>
+
+        <SupportingDocumentCard
+          title={isZh ? "身份证件" : "National identity card"}
+          description={
+            isZh
+              ? "上传身份证件并自动读取姓名、证件号、出生日期、性别和国籍；证件号不会写入护照号码。"
+              : "Upload an identity card to extract name, card number, date of birth, gender, and nationality. The card number is never saved as a passport number."
+          }
+          headerLayout="stacked"
+          headerAside={
+            <ReusableDocumentHelp title={isZh ? "身份证件" : "National identity card"} isZh={isZh}>
+              {isZh ? "请仅上传本人证件，并在回填后核对所有字段。" : "Upload only your own document and review every extracted field."}
+            </ReusableDocumentHelp>
+          }
+        >
+          <PassportOcrUpload
+            applicationId={applicationId}
+            initialUploaded={identityCard.uploaded}
+            initialFileName={identityCard.fileName}
+            documentScope="universal_profile"
+            documentType="national_identity_card"
+            requirementKey="national_identity_card"
+            title={isZh ? "上传身份证件" : "Upload identity card"}
+            description={isZh ? "支持身份证、国民身份证等有照片的身份文件。" : "Supports photo-bearing national identity documents."}
+            presentation="supporting-card"
+            onFieldsApplied={onPassportFieldsApplied}
+            onUploaded={(fileName) => onDocumentUploaded("identityCard", fileName)}
           />
         </SupportingDocumentCard>
 

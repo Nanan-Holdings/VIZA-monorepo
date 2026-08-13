@@ -9,6 +9,7 @@ const FIELD_NAMES = [
   "given_names",
   "surname",
   "passport_number",
+  "identity_document_number",
   "date_of_birth",
   "place_of_birth",
   "nationality",
@@ -25,6 +26,7 @@ function successResponse() {
     given_names: "ANNA MARIA",
     surname: "ERIKSSON",
     passport_number: "L898902C3",
+    identity_document_number: null,
     date_of_birth: "1974-08-12",
     place_of_birth: "UTOPIA",
     nationality: "UTO",
@@ -112,6 +114,7 @@ function chineseNameWithMrzResponse() {
     given_names: "三",
     surname: "张",
     passport_number: "E12345678",
+    identity_document_number: null,
     date_of_birth: "1990-01-01",
     place_of_birth: "BEIJING",
     nationality: "CHN",
@@ -153,6 +156,7 @@ function fullNameAsSurnameResponse() {
     given_names: "XIAOMING",
     surname: "LI XIAOMING",
     passport_number: "E12345678",
+    identity_document_number: null,
     date_of_birth: "1990-01-01",
     place_of_birth: "HUNAN",
     nationality: "CHN",
@@ -187,6 +191,44 @@ function fullNameAsSurnameResponse() {
   });
 }
 
+function identityCardResponse() {
+  const fields = {
+    full_name: "ZHANG SAN",
+    native_full_name: null,
+    given_names: "SAN",
+    surname: "ZHANG",
+    passport_number: null,
+    identity_document_number: "TESTID19900101X",
+    date_of_birth: "1990-01-01",
+    place_of_birth: "BEIJING",
+    nationality: "CHN",
+    issuing_country: "CHN",
+    issue_date: "2020-01-01",
+    expiry_date: "2030-01-01",
+    gender: "M",
+  };
+  const fieldConfidence = Object.fromEntries(FIELD_NAMES.map((field) => [field, 0.98]));
+
+  return Response.json({
+    output: [
+      {
+        type: "message",
+        content: [
+          {
+            type: "output_text",
+            text: JSON.stringify({
+              is_readable: true,
+              confidence: 0.98,
+              fields,
+              field_confidence: fieldConfidence,
+            }),
+          },
+        ],
+      },
+    ],
+  });
+}
+
 function mrzNoiseNameResponse() {
   const fields = {
     full_name: "EMCHNM LI XIAOMING",
@@ -194,6 +236,7 @@ function mrzNoiseNameResponse() {
     given_names: "XIAOMING",
     surname: "LI",
     passport_number: "EM7429107",
+    identity_document_number: null,
     date_of_birth: "2006/07/27",
     place_of_birth: "HAINAN",
     nationality: "CHINESE",
@@ -325,6 +368,23 @@ describe("passport OCR provider", () => {
     });
   });
 
+  it("reports network failures as provider unavailable instead of blaming file quality", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+    const file: PassportOcrFile = {
+      bytes: Buffer.from("synthetic image bytes"),
+      filename: "passport.jpg",
+      mimeType: "image/jpeg",
+    };
+
+    await expect(extractPassportOcr(file)).rejects.toMatchObject({
+      code: "provider_unavailable",
+      message: "Passport OCR provider is temporarily unavailable.",
+      retryable: true,
+    });
+  });
+
   it("uses the Latin MRZ name when local-script name text is also visible", async () => {
     vi.stubEnv("OPENAI_API_KEY", "test-key");
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(chineseNameWithMrzResponse());
@@ -386,5 +446,23 @@ describe("passport OCR provider", () => {
     expect(result.fields.gender.value).toBe("M");
     expect(result.warnings).toContain("full_name_repaired_from_name_parts");
     expect(result.warnings).toContain("fields_verified_from_mrz");
+  });
+
+  it("keeps a national identity number separate from passport number", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(identityCardResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const file: PassportOcrFile = {
+      bytes: Buffer.from("synthetic identity card image bytes"),
+      filename: "identity-card.png",
+      mimeType: "image/png",
+    };
+
+    const result = await extractPassportOcr(file, { documentKind: "national_identity_card" });
+
+    const [body] = requestBodies(fetchMock);
+    expect(JSON.stringify(body.input)).toContain("national identity card");
+    expect(result.fields.identityDocumentNumber.value).toBe("TESTID19900101X");
+    expect(result.fields.passportNumber.value).toBeNull();
   });
 });

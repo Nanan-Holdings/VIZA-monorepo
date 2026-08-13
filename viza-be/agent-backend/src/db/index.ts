@@ -26,14 +26,13 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, "../../.env.local") });
 dotenv.config({ path: join(__dirname, "../../.env") });
 
-// Use DATABASE_URL from environment (supports both direct and pooled connections)
+// Runtime DATABASE_URL must point at the Supabase pooler. Direct database
+// connections are reserved for operator-run migrations and diagnostics.
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
 	throw new Error(
-		"DATABASE_URL is required. Get your database connection string from:\n" +
-		"Supabase Dashboard → Project Settings → Database → Connection String\n" +
-		"Use either 'Direct connection' or 'Transaction pooler' depending on your needs."
+		"DATABASE_URL is required and must use the Supabase transaction pooler."
 	);
 }
 
@@ -58,9 +57,9 @@ function readBoundedInteger(
 // unreasonably large deployment value cannot restore unbounded work.
 const poolMax = readBoundedInteger(
 	["DB_POOL_MAX", "PG_POOL_MAX", "PGPOOL_MAX", "DATABASE_POOL_MAX"],
-	20,
+	3,
 	1,
-	100,
+	20,
 );
 const connectionTimeoutMillis = readBoundedInteger(
 	[

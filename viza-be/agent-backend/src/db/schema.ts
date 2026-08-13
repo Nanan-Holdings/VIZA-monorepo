@@ -297,6 +297,9 @@ export const officialStatusChecks = pgTable("official_status_checks", {
 	checkedAt: timestamp("checked_at", { withTimezone: true }).defaultNow(),
 	completedAt: timestamp("completed_at", { withTimezone: true }),
 	attemptCount: integer("attempt_count").default(0).notNull(),
+	workerId: text("worker_id"),
+	claimedAt: timestamp("claimed_at", { withTimezone: true }),
+	leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
 	artifactStoragePath: text("artifact_storage_path"),
 	artifactSha256: text("artifact_sha256"),
 	rawStatusJson: jsonb("raw_status_json").default({}).notNull(),
@@ -308,7 +311,12 @@ export const officialStatusChecks = pgTable("official_status_checks", {
 	applicationIdx: index("official_status_checks_application_idx").on(table.applicationId),
 	statusIdx: index("official_status_checks_status_idx").on(table.status),
 	idempotencyIdx: uniqueIndex("official_status_checks_idempotency_idx").on(table.idempotencyKey),
-	claimIdx: index("official_status_checks_claim_idx").on(table.status, table.scheduledFor, table.createdAt),
+	claimIdx: index("official_status_checks_claim_idx").on(
+		table.status,
+		table.scheduledFor,
+		table.leaseExpiresAt,
+		table.createdAt,
+	),
 }));
 
 // =============================================================================

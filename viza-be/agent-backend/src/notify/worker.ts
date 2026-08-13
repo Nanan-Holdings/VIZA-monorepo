@@ -1,10 +1,10 @@
 /**
  * Notification drain worker (NOTIFY-001 / NOTIFY-002 / NOTIFY-003).
  *
- * Polls notification_event_log every 30s for outcome='queued' rows with
- * next_attempt_at <= now and retry_count < MAX_ATTEMPTS. Resolves the
- * template by template_key, dispatches via Resend (email) or Twilio
- * (sms), and updates the row.
+ * Atomically claims notification_event_log rows through a leased RPC. Resolves
+ * the template by template_key, dispatches via Resend (email) or Twilio (sms),
+ * then conditionally acknowledges or rejects the row while this process still
+ * owns its lease.
  *
  * Failure path: increment retry_count, push next_attempt_at out by an
  * exponential backoff. After MAX_ATTEMPTS attempts mark the row
@@ -13,10 +13,17 @@
 
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { resolveTemplate, validatePayload, type NotificationTemplate } from "./templates/index.js";
+import { hostname } from "node:os";
+import { randomUUID } from "node:crypto";
 
 export const POLL_INTERVAL_MS = 30_000;
 export const MAX_ATTEMPTS = 5;
 const BACKOFF_MS = [60_000, 300_000, 900_000, 1_800_000, 3_600_000];
+const DEFAULT_BATCH_SIZE = 20;
+const DEFAULT_LEASE_SECONDS = 900;
+const PROCESS_WORKER_ID =
+  process.env.NOTIFICATION_WORKER_ID?.trim() ||
+  `notify-${hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`;
 
 interface QueuedEvent {
   id: number;
@@ -41,10 +48,32 @@ export interface NotifyDeps {
   sendEmail?: (args: { to: string; subject: string; html: string; text: string }) => Promise<DispatchResult>;
   sendSms?: (args: { to: string; body: string }) => Promise<DispatchResult>;
   now?: () => Date;
+  client?: NotificationRpcClient;
+  workerId?: string;
+  batchSize?: number;
+  leaseSeconds?: number;
+}
+
+interface RpcError {
+  message: string;
+}
+
+interface RpcResult<T> {
+  data: T;
+  error: RpcError | null;
+}
+
+export interface NotificationRpcClient {
+  rpc(
+    name:
+      | "claim_notification_event_batch"
+      | "ack_notification_event"
+      | "nack_notification_event",
+    args: Record<string, unknown>,
+  ): PromiseLike<RpcResult<unknown>>;
 }
 
 const dynamicRequire: (specifier: string) => Promise<unknown> = (specifier) =>
-  // eslint-disable-next-line no-new-func
   new Function("specifier", "return import(specifier)")(specifier) as Promise<unknown>;
 
 let cachedResend: { Resend: new (key: string) => { emails: { send: (args: Record<string, unknown>) => Promise<{ data?: { id?: string }; error?: { message?: string } }> } } } | null = null;
@@ -94,9 +123,23 @@ async function defaultSendSms(args: { to: string; body: string }): Promise<Dispa
   }
 }
 
-function nextAttemptIso(retryCount: number): string {
+function nextAttemptIso(retryCount: number, now: Date): string {
   const idx = Math.min(retryCount, BACKOFF_MS.length - 1);
-  return new Date(Date.now() + BACKOFF_MS[idx]).toISOString();
+  return new Date(now.getTime() + BACKOFF_MS[idx]).toISOString();
+}
+
+function boundedInteger(value: number | undefined, fallback: number, minimum: number, maximum: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(minimum, Math.min(Math.floor(value!), maximum));
+}
+
+function failureCode(value: string | undefined): string {
+  const normalized = (value ?? "delivery")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 60);
+  return normalized || "delivery";
 }
 
 async function dispatch(
@@ -124,84 +167,91 @@ async function dispatch(
 }
 
 export async function processOnce(deps: NotifyDeps = {}): Promise<{ processed: number; sent: number; dlq: number }> {
-  const supabase = getSupabaseClient();
-  const nowIso = (deps.now?.() ?? new Date()).toISOString();
-  const { data: rows, error } = await supabase
-    .from("notification_event_log")
-    .select("id, applicant_id, application_id, event, template_key, channel, recipient, payload, retry_count")
-    .eq("outcome", "queued")
-    .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
-    .lt("retry_count", MAX_ATTEMPTS)
-    .order("id", { ascending: true })
-    .limit(50);
+  const client = deps.client ?? getSupabaseClient();
+  const workerId = deps.workerId?.trim() || PROCESS_WORKER_ID;
+  const batchSize = boundedInteger(deps.batchSize, DEFAULT_BATCH_SIZE, 1, 100);
+  const leaseSeconds = boundedInteger(deps.leaseSeconds, DEFAULT_LEASE_SECONDS, 30, 3_600);
+  const now = deps.now?.() ?? new Date();
+  const { data, error } = await client.rpc("claim_notification_event_batch", {
+    p_worker_id: workerId,
+    p_limit: batchSize,
+    p_lease_seconds: leaseSeconds,
+  });
   if (error) {
-    console.error("[notify-worker] poll failed:", error.message);
+    console.error("[notify-worker] claim failed:", error.message);
     return { processed: 0, sent: 0, dlq: 0 };
   }
+  const rows = (Array.isArray(data) ? data : []) as QueuedEvent[];
   let sent = 0;
   let dlq = 0;
-  for (const row of (rows ?? []) as QueuedEvent[]) {
+  for (const row of rows) {
     const template = row.template_key ? resolveTemplate(row.template_key) : null;
     if (!template) {
-      await supabase
-        .from("notification_event_log")
-        .update({ outcome: `failed_no_template:${row.template_key ?? "(none)"}`, error: "no template" })
-        .eq("id", row.id);
+      const { data: settled, error: nackError } = await client.rpc("nack_notification_event", {
+        p_event_id: row.id,
+        p_worker_id: workerId,
+        p_error: `no template: ${row.template_key ?? "(none)"}`,
+        p_retry_count: row.retry_count + 1,
+        p_next_attempt_at: null,
+        p_terminal: true,
+        p_failure_code: "no_template",
+      });
+      if (nackError) console.error(`[notify-worker] nack ${row.id} failed:`, nackError.message);
+      if (settled === true) dlq += 1;
       continue;
     }
     const validationErr = validatePayload(template, row.payload ?? {});
     if (validationErr) {
-      await supabase
-        .from("notification_event_log")
-        .update({ outcome: "failed_payload", error: validationErr })
-        .eq("id", row.id);
+      const { data: settled, error: nackError } = await client.rpc("nack_notification_event", {
+        p_event_id: row.id,
+        p_worker_id: workerId,
+        p_error: validationErr,
+        p_retry_count: row.retry_count + 1,
+        p_next_attempt_at: null,
+        p_terminal: true,
+        p_failure_code: "payload",
+      });
+      if (nackError) console.error(`[notify-worker] nack ${row.id} failed:`, nackError.message);
+      if (settled === true) dlq += 1;
       continue;
     }
 
     const result = await dispatch(template, row, deps);
     if (result.ok) {
-      await supabase
-        .from("notification_event_log")
-        .update({ outcome: "sent", external_id: result.externalId, error: null })
-        .eq("id", row.id);
-      sent += 1;
+      const { data: settled, error: ackError } = await client.rpc("ack_notification_event", {
+        p_event_id: row.id,
+        p_worker_id: workerId,
+        p_external_id: result.externalId ?? null,
+      });
+      if (ackError) console.error(`[notify-worker] ack ${row.id} failed:`, ackError.message);
+      if (settled === true) {
+        sent += 1;
+      } else if (!ackError) {
+        console.warn(`[notify-worker] ack ${row.id} rejected because its lease was lost or expired`);
+      }
       continue;
     }
 
     const nextRetryCount = row.retry_count + 1;
-    if (!result.retry || nextRetryCount >= MAX_ATTEMPTS) {
-      await supabase
-        .from("notification_event_log")
-        .update({
-          outcome: `failed_${result.error?.slice(0, 60) ?? "unknown"}`,
-          error: result.error ?? null,
-          retry_count: nextRetryCount,
-        })
-        .eq("id", row.id);
-      await supabase.from("notification_dlq").insert({
-        source_event_id: row.id,
-        applicant_id: row.applicant_id,
-        application_id: row.application_id,
-        template_key: template.key,
-        channel: row.channel,
-        recipient: row.recipient,
-        payload: row.payload,
-        error: result.error ?? "unknown",
-        retry_count: nextRetryCount,
-      });
+    const terminal = !result.retry || nextRetryCount >= MAX_ATTEMPTS;
+    const { data: settled, error: nackError } = await client.rpc("nack_notification_event", {
+      p_event_id: row.id,
+      p_worker_id: workerId,
+      p_error: result.error ?? "unknown",
+      p_retry_count: nextRetryCount,
+      p_next_attempt_at: terminal ? null : nextAttemptIso(nextRetryCount, now),
+      p_terminal: terminal,
+      p_failure_code: failureCode(result.error),
+    });
+    if (nackError) {
+      console.error(`[notify-worker] nack ${row.id} failed:`, nackError.message);
+    } else if (settled !== true) {
+      console.warn(`[notify-worker] nack ${row.id} rejected because its lease was lost or expired`);
+    } else if (terminal) {
       dlq += 1;
-    } else {
-      await supabase
-        .from("notification_event_log")
-        .update({
-          retry_count: nextRetryCount,
-          next_attempt_at: nextAttemptIso(nextRetryCount),
-          error: result.error ?? null,
-        })
-        .eq("id", row.id);
     }
   }
-  return { processed: rows?.length ?? 0, sent, dlq };
+  return { processed: rows.length, sent, dlq };
 }
 
 let shutdownRequested = false;
@@ -211,7 +261,9 @@ export function requestShutdown(): void {
 }
 
 export async function startWorker(): Promise<void> {
-  console.log(`[notify-worker] starting — poll every ${POLL_INTERVAL_MS}ms, max ${MAX_ATTEMPTS} attempts`);
+  console.log(
+    `[notify-worker] starting worker=${PROCESS_WORKER_ID} — poll every ${POLL_INTERVAL_MS}ms, max ${MAX_ATTEMPTS} attempts`,
+  );
   const onSignal = (sig: NodeJS.Signals): void => {
     console.log(`[notify-worker] received ${sig} — draining current tick then exiting`);
     requestShutdown();

@@ -68,6 +68,7 @@ export interface UniversalProfileSnapshot {
   passport_issuance_city?: string | null;
   email?: string | null;
   phone?: string | null;
+  national_identity_number?: string | null;
   wechat?: string | null;
   reusable_answers?: UniversalProfileAnswerRecord[] | null;
 }
@@ -396,6 +397,18 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
     profile.passport_place_of_issue || profile.passport_issuance_city,
   );
   setAnswer(out, ["passport_issuing_authority"], profile.passport_issuing_authority);
+  setAnswer(
+    out,
+    [
+      "national_identity_number",
+      "national_identity_no",
+      "national_id_number",
+      "national_id_no",
+      "identity_card_number",
+      "id_card_number",
+    ],
+    profile.national_identity_number,
+  );
   setAnswer(out, ["email", "email_address"], profile.email);
   setAnswer(
     out,

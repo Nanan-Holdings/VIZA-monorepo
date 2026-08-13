@@ -1836,6 +1836,7 @@ export default function ApplicationPage() {
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
   const [formAssistantState, setFormAssistantState] = useState<FormAssistantState | null>(null);
   const [formAssistantBusy, setFormAssistantBusy] = useState(false);
+  const [formAssistantReloadKey, setFormAssistantReloadKey] = useState(0);
   const [formAssistantValidation, setFormAssistantValidation] = useState<FormAssistantValidationResponse | null>(null);
   const [formAssistantValidationDirty, setFormAssistantValidationDirty] = useState(false);
   const [formAssistantUnavailable, setFormAssistantUnavailable] = useState(false);
@@ -2075,7 +2076,30 @@ export default function ApplicationPage() {
         if (!controller.signal.aborted) setFormAssistantBusy(false);
       });
     return () => controller.abort();
-  }, [appState.applicationId, formAssistantEligible, locale]);
+  }, [appState.applicationId, formAssistantEligible, formAssistantReloadKey, locale]);
+
+  // A concurrent Server Action refresh can remount the client subtree after a
+  // successful assistant request and leave the card in its empty 0 / 0 shell.
+  // Recover that state automatically instead of asking the applicant to reload.
+  useEffect(() => {
+    if (
+      !formAssistantEligible ||
+      !appState.applicationId ||
+      formAssistantBusy ||
+      formAssistantUnavailable ||
+      formAssistantState
+    ) return;
+    const retryTimer = window.setTimeout(() => {
+      setFormAssistantReloadKey((key) => key + 1);
+    }, 1_500);
+    return () => window.clearTimeout(retryTimer);
+  }, [
+    appState.applicationId,
+    formAssistantBusy,
+    formAssistantEligible,
+    formAssistantState,
+    formAssistantUnavailable,
+  ]);
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
   const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
@@ -2460,10 +2484,6 @@ export default function ApplicationPage() {
     const isLatestRequest = () => loadDataRequestRef.current === requestId;
 
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       let profile: LoadedApplicantProfile | null = null;
       let application: LoadedApplication | null = null;
 
@@ -2806,8 +2826,15 @@ export default function ApplicationPage() {
     );
     if (!hasNonEmptyValue && !hasChangedValue) return;
 
+    const changedData = Object.fromEntries(
+      Object.entries(data).filter(
+        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+      ),
+    );
+    if (Object.keys(changedData).length === 0) return;
+
     const applicationId = await ensureWritableApplicationId();
-    const saveResult = await saveDynamicAnswers(applicationId, data);
+    const saveResult = await saveDynamicAnswers(applicationId, changedData);
     if (saveResult.error) throw new Error(saveResult.error);
 
     setDynamicAnswers((prev) => ({ ...prev, ...data }));
@@ -2823,8 +2850,15 @@ export default function ApplicationPage() {
     );
     if (!hasChangedValue) return;
 
+    const changedDraft = Object.fromEntries(
+      draftEntries.filter(
+        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+      ),
+    );
+    if (Object.keys(changedDraft).length === 0) return;
+
     const applicationId = await ensureWritableApplicationId();
-    const saveResult = await saveDynamicAnswers(applicationId, mergedDraft);
+    const saveResult = await saveDynamicAnswers(applicationId, changedDraft);
     if (saveResult.error) throw new Error(saveResult.error);
 
     setDynamicAnswers((prev) => ({ ...prev, ...mergedDraft }));
@@ -2869,10 +2903,16 @@ export default function ApplicationPage() {
             step.fields.some((field) => field.fieldName === item.fieldName),
           );
           if (stepIndex >= 0) {
-            dynamicDraftRef.current[stepIndex] = {
-              ...(dynamicDraftRef.current[stepIndex] ?? {}),
-              [item.fieldName]: item.value,
-            };
+            // The assistant route already persisted this patch with
+            // `source=form_assistant`. Do not leave a duplicate local draft:
+            // the autosave path labels drafts as `user_form`, which would
+            // otherwise erase provenance and make a later chat correction look
+            // like a conflict with manual input.
+            const existingDraft = dynamicDraftRef.current[stepIndex];
+            if (existingDraft && Object.prototype.hasOwnProperty.call(existingDraft, item.fieldName)) {
+              const { [item.fieldName]: _assistantPatchedField, ...remainingDraft } = existingDraft;
+              dynamicDraftRef.current[stepIndex] = remainingDraft;
+            }
           }
         }
         setDynamicAnswers((current) => ({ ...current, ...patch }));
@@ -3161,9 +3201,19 @@ export default function ApplicationPage() {
     setAutosaving(true);
 
     const timer = window.setTimeout(() => {
+      const changedDraft = Object.fromEntries(
+        Object.entries(pendingDraft).filter(
+          ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+        ),
+      );
+      if (Object.keys(changedDraft).length === 0) {
+        setAutosaveFailed(false);
+        setAutosaving(false);
+        return;
+      }
       const runAutosave = autosaveQueueRef.current.then(async () => {
         const applicationId = await ensureWritableApplicationId();
-        const saveResult = await saveDynamicAnswers(applicationId, pendingDraft);
+        const saveResult = await saveDynamicAnswers(applicationId, changedDraft);
         if (saveResult.error) throw new Error(saveResult.error);
       });
 
@@ -3175,7 +3225,7 @@ export default function ApplicationPage() {
       void runAutosave.then(
         () => {
           if (requestId !== autosaveRequestRef.current) return;
-          setDynamicAnswers((previous) => ({ ...previous, ...pendingDraft }));
+          setDynamicAnswers((previous) => ({ ...previous, ...changedDraft }));
           setAutosaveFailed(false);
           setAutosaving(false);
         },

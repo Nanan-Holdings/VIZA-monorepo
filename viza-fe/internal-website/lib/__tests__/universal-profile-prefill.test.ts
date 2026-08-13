@@ -74,6 +74,22 @@ describe("universal profile prefill", () => {
     expect(patch).toEqual({});
   });
 
+  it("maps a reusable national identity number without populating passport number", () => {
+    const patch = buildUniversalProfileAnswerPatch({
+      national_identity_number: "TESTID19900101X",
+    });
+
+    expect(patch).toMatchObject({
+      national_identity_number: "TESTID19900101X",
+      national_identity_no: "TESTID19900101X",
+      national_id_number: "TESTID19900101X",
+      national_id_no: "TESTID19900101X",
+      identity_card_number: "TESTID19900101X",
+      id_card_number: "TESTID19900101X",
+    });
+    expect(patch).not.toHaveProperty("passport_number");
+  });
+
   it("repairs Chinese text accidentally stored in official English name columns", () => {
     const patch = buildUniversalProfileAnswerPatch({
       full_name_zh: "黄小敏",

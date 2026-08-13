@@ -5,6 +5,12 @@ wake requests; its focused tests live under `lib/__tests__/`.
 
 Scope: this file applies to `viza-fe/internal-website/**`.
 
+Production Vercel Functions are pinned by `vercel.json` to `bom1` (Mumbai),
+which is the compute region nearest the production Supabase primary in
+`ap-south-1`. Keep database-backed Node.js routes in that region unless the
+primary database is deliberately migrated; static assets remain globally
+served by Vercel's CDN.
+
 ## Purpose
 
 The internal website is the main VIZA portal. It contains the applicant client

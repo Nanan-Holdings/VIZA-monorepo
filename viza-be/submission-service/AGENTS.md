@@ -73,6 +73,17 @@ filling and one-shot submission for the applicant.
   single-runner local maximum is 10 via `SUBMISSION_SERVICE_MAX_CONCURRENCY`;
   wider product-scale concurrency uses `src/submission-queue-claim.ts` and
   migration `0105_submission_queue_claim_locks.sql` for DB-level leases.
+- `src/queue/poll-backoff.ts`: exponential jittered database-outage backoff and
+  bounded queue error summaries; keep runner failures from amplifying a
+  degraded Supabase data plane or dumping provider HTML into logs.
+- `src/submission-queue-claim.ts`: all production `submission_queue` pickup,
+  including provider allowlists and targeted failed retries, goes through an
+  atomic service-role claim RPC. Missing/unavailable claim RPCs fail closed;
+  never add a plain table-select fallback because concurrent workers could run
+  the same official submission.
+- `src/vietnam/status-check-lease.ts`: Vietnam official-status checks are
+  worker-leased and may be completed or failed only by their claiming worker;
+  the consumer must honor a false conditional-RPC result as lost ownership.
 - Official-fee enqueue operations use migration
   `0118_official_fee_queue_isolation.sql`: the application row is the mutex,
   claimed/running jobs are reused, and stale jobs for only that application

@@ -29,12 +29,14 @@ interface PassportOcrFieldProposal {
 interface PassportOcrResponse {
   success: boolean;
   extractionId?: string | null;
+  documentKind?: "passport" | "national_identity_card";
   proposedFields?: {
     fullName: PassportOcrFieldProposal;
     nativeFullName?: PassportOcrFieldProposal;
     givenNames: PassportOcrFieldProposal;
     surname: PassportOcrFieldProposal;
     passportNumber: PassportOcrFieldProposal;
+    identityDocumentNumber?: PassportOcrFieldProposal;
     dateOfBirth: PassportOcrFieldProposal;
     placeOfBirth?: PassportOcrFieldProposal;
     nationality: PassportOcrFieldProposal;
@@ -101,6 +103,7 @@ function buildProfileFields(payload: PassportOcrResponse): UniversalProfileSnaps
     nationality: placeOfBirthValue ? proposalValue(fields.nationality) : null,
   });
 
+  const isIdentityCard = payload.documentKind === "national_identity_card";
   return {
     full_name: fullName ?? nativeFullName,
     full_name_zh: nativeFullName,
@@ -124,10 +127,11 @@ function buildProfileFields(payload: PassportOcrResponse): UniversalProfileSnaps
     birth_city_en: normalizedBirthplace.city.en,
     gender: proposalValue(fields.gender),
     nationality: proposalValue(fields.nationality),
-    passport_number: proposalValue(fields.passportNumber),
-    passport_issue_date: proposalValue(fields.issueDate),
-    passport_expiry_date: proposalValue(fields.expiryDate),
-    passport_issuing_country: proposalValue(fields.issuingCountry),
+    passport_number: isIdentityCard ? null : proposalValue(fields.passportNumber),
+    passport_issue_date: isIdentityCard ? null : proposalValue(fields.issueDate),
+    passport_expiry_date: isIdentityCard ? null : proposalValue(fields.expiryDate),
+    passport_issuing_country: isIdentityCard ? null : proposalValue(fields.issuingCountry),
+    national_identity_number: isIdentityCard ? proposalValue(fields.identityDocumentNumber) : null,
   };
 }
 
@@ -232,10 +236,26 @@ function isVietnamOfficialImageContext(country?: string | null, visaType?: strin
   );
 }
 
-function getResponseError(payload: PassportOcrResponse | null, fallbackMessage: string, isZh: boolean) {
+function getResponseError(
+  payload: PassportOcrResponse | null,
+  fallbackMessage: string,
+  isZh: boolean,
+  documentKind: "passport" | "national_identity_card",
+) {
   const message = payload?.error?.message?.trim();
   const code = payload?.error?.code;
   if (isZh) {
+    if (documentKind === "national_identity_card") {
+      const identityCopy: Record<string, string> = {
+        provider_unavailable: "身份证件 OCR 服务暂时不可用，请稍后重试。",
+        provider_failed: "身份证件 OCR 暂时无法处理这份文件，请稍后重试或换一张更清晰的身份证件图片。",
+        unreadable: "这份身份证件暂时无法读取，请换一张更清晰的图片。",
+        unsupported_file: "身份证件 OCR 支持 PDF、JPG、PNG 和 WebP 文件。",
+        missing_file: "未找到已上传的身份证件文件，请重新上传。",
+        unauthorized: "请先登录后再上传身份证件。",
+      };
+      if (code && identityCopy[code]) return identityCopy[code];
+    }
     if (code && code in OCR_ERROR_COPY.zh) {
       return OCR_ERROR_COPY.zh[code as keyof typeof OCR_ERROR_COPY.zh];
     }
@@ -365,6 +385,9 @@ export function PassportOcrUpload({
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const copy = isZh ? PASSPORT_OCR_COPY.zh : PASSPORT_OCR_COPY.en;
+  const requestedDocumentKind = ["national_identity_card", "identity_card", "id_card"].includes(documentType)
+    ? "national_identity_card"
+    : "passport";
   const resolvedTitle = title ?? copy.title;
   const useVietnamOfficialImageRules = isVietnamOfficialImageContext(country, visaType);
   const uploadBadges = useVietnamOfficialImageRules ? VIETNAM_OFFICIAL_IMAGE_BADGES : GENERIC_UPLOAD_BADGES;
@@ -462,7 +485,9 @@ export function PassportOcrUpload({
         body: JSON.stringify({ applicationId, storagePath: uploadResult.storagePath }),
       });
       const payload = (await response.json().catch(() => null)) as PassportOcrResponse | null;
-      if (!response.ok || !payload?.success) throw new Error(getResponseError(payload, copy.ocrFallback, isZh));
+      if (!response.ok || !payload?.success) {
+        throw new Error(getResponseError(payload, copy.ocrFallback, isZh, requestedDocumentKind));
+      }
 
       const profileFields = buildProfileFields(payload);
       setStatus("verifying");
@@ -471,6 +496,7 @@ export function PassportOcrUpload({
         const confirmResult = await confirmPassportOcrExtraction({
           applicationId,
           extractionId: payload.extractionId,
+          saveToUniversalProfile: documentScope === "universal_profile",
         });
         if (!confirmResult.ok) throw new Error(confirmResult.error);
       }
@@ -482,7 +508,12 @@ export function PassportOcrUpload({
       if (uploadCompleted) {
         setStatus("needs_review");
         const detail = error instanceof Error ? error.message : copy.ocrFallback;
-        setMessage(detail && detail !== copy.ocrFallback ? `${copy.ocrNeedsReview} ${detail}` : copy.ocrNeedsReview);
+        const needsReviewCopy = requestedDocumentKind === "national_identity_card"
+          ? isZh
+            ? "身份证件已保存，但 OCR 暂时无法读取。你可以稍后重试，或直接手动填写资料。"
+            : "Identity card saved, but OCR could not read it yet. Retry later or fill the details manually."
+          : copy.ocrNeedsReview;
+        setMessage(detail && detail !== copy.ocrFallback ? `${needsReviewCopy} ${detail}` : needsReviewCopy);
         return;
       }
       setStatus("error");

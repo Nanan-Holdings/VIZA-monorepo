@@ -6,6 +6,7 @@ import { createFetchWithTransientRetry } from "./fetch-with-timeout";
 export type SupabaseClientOptions = {
   requestTimeoutMs?: number;
   retryDelaysMs?: readonly number[];
+  circuitBreakerScope?: string;
 };
 
 export async function createClient(options: SupabaseClientOptions = {}) {
@@ -25,6 +26,7 @@ export async function createClient(options: SupabaseClientOptions = {}) {
         fetch: createFetchWithTransientRetry({
           requestTimeoutMs: options.requestTimeoutMs,
           retryDelaysMs: options.retryDelaysMs,
+          circuitBreakerScope: options.circuitBreakerScope,
         }),
       },
       cookies: {
