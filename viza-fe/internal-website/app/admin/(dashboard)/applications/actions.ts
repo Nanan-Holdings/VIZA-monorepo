@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { buildStatusSummary, fetchAdminApplicationDetail } from "./data";
 
 type QueueRow = {
@@ -278,6 +279,11 @@ export async function completeLiveManualAction(formData: FormData) {
       .update(queuePatch)
       .eq("id", jobId);
     if (updateQueueError) redirect(target);
+
+    const wake = await wakeCloudSubmissionWorker(jobId, { target: "legacy" });
+    if (!wake.ok) {
+      console.warn("[submission-queue] Staff manual-action requeue wake failed; durable queue remains recoverable.", wake);
+    }
 
     await adminClient.from("applications").update({
       status: "submitted",

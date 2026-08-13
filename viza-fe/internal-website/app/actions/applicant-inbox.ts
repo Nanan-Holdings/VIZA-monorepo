@@ -82,6 +82,45 @@ export interface ApplicantInboxSetupState {
   forwardingAuthorized: boolean;
 }
 
+export type ApplicantInboxActionErrorCode =
+  | "AUTH_REQUIRED"
+  | "DESTINATION_EMAIL_REQUIRED"
+  | "SERVICE_UNAVAILABLE";
+
+export type ApplicantInboxActionResult =
+  | { ok: true; data: ApplicantInboxSetupState }
+  | { ok: false; error: { code: ApplicantInboxActionErrorCode } };
+
+class ApplicantInboxActionFailure extends Error {
+  constructor(
+    readonly code: Exclude<ApplicantInboxActionErrorCode, "SERVICE_UNAVAILABLE">,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApplicantInboxActionFailure";
+  }
+}
+
+async function runApplicantInboxAction(
+  operation: "initialize" | "authorize",
+  action: () => Promise<ApplicantInboxSetupState>,
+): Promise<ApplicantInboxActionResult> {
+  try {
+    return { ok: true, data: await action() };
+  } catch (error) {
+    console.error(`[applicant-inbox] ${operation} failed`, error);
+    return {
+      ok: false,
+      error: {
+        code:
+          error instanceof ApplicantInboxActionFailure
+            ? error.code
+            : "SERVICE_UNAVAILABLE",
+      },
+    };
+  }
+}
+
 export async function assignApplicantInboxAlias(
   applicantId: string,
 ): Promise<AssignAliasResult> {
@@ -192,7 +231,10 @@ async function readForensics() {
 async function getAuthenticatedApplicantProfile() {
   const session = await getClientSessionWithFallback();
   if (!session) {
-    throw new Error("You must be signed in to manage your VIZA application email.");
+    throw new ApplicantInboxActionFailure(
+      "AUTH_REQUIRED",
+      "A signed-in applicant session is required to manage the VIZA application email.",
+    );
   }
 
   return withAdmin("system", "actions/applicant-inbox:profile", async (admin) => {
@@ -205,7 +247,10 @@ async function getAuthenticatedApplicantProfile() {
       throw new Error(`Applicant profile lookup failed: ${error.message}`);
     }
     if (!data?.id || !data.email) {
-      throw new Error("Your applicant profile does not have a destination email.");
+      throw new ApplicantInboxActionFailure(
+        "DESTINATION_EMAIL_REQUIRED",
+        "The applicant profile does not have a destination email.",
+      );
     }
     return {
       id: data.id as string,
@@ -256,62 +301,52 @@ async function hasAccountForwardingConsent(applicantId: string): Promise<boolean
   });
 }
 
-export async function initializeAuthenticatedApplicantInbox(): Promise<ApplicantInboxSetupState> {
-  const profile = await getAuthenticatedApplicantProfile();
-  const [{ alias }, forwardingAuthorized] = await Promise.all([
-    assignApplicantInboxAlias(profile.id),
-    hasAccountForwardingConsent(profile.id),
-  ]);
-  return {
-    alias,
-    destinationEmail: profile.email,
-    forwardingAuthorized,
-  };
+export async function initializeAuthenticatedApplicantInbox(): Promise<ApplicantInboxActionResult> {
+  return runApplicantInboxAction("initialize", async () => {
+    const profile = await getAuthenticatedApplicantProfile();
+    const [{ alias }, forwardingAuthorized] = await Promise.all([
+      assignApplicantInboxAlias(profile.id),
+      hasAccountForwardingConsent(profile.id),
+    ]);
+    return {
+      alias,
+      destinationEmail: profile.email,
+      forwardingAuthorized,
+    };
+  });
 }
 
-export async function authorizeAuthenticatedApplicantInboxForwarding(): Promise<ApplicantInboxSetupState> {
-  const profile = await getAuthenticatedApplicantProfile();
-  const { alias } = await assignApplicantInboxAlias(profile.id);
+export async function authorizeAuthenticatedApplicantInboxForwarding(): Promise<ApplicantInboxActionResult> {
+  return runApplicantInboxAction("authorize", async () => {
+    const profile = await getAuthenticatedApplicantProfile();
+    const { alias } = await assignApplicantInboxAlias(profile.id);
 
-  if (!(await hasAccountForwardingConsent(profile.id))) {
-    const { ip, ua } = await readForensics();
-    await withAdmin("system", "actions/applicant-inbox:consent-write", async (admin) => {
-      const { error } = await admin.from("consent_event").insert({
-        user_id: profile.authUserId,
-        applicant_id: profile.id,
-        email: profile.email,
-        doc_kind: EMAIL_FORWARDING_CONSENT.type,
-        doc_version: EMAIL_FORWARDING_CONSENT.version,
-        ip,
-        ua,
+    if (!(await hasAccountForwardingConsent(profile.id))) {
+      const { ip, ua } = await readForensics();
+      await withAdmin("system", "actions/applicant-inbox:consent-write", async (admin) => {
+        const { error } = await admin.from("consent_event").insert({
+          user_id: profile.authUserId,
+          applicant_id: profile.id,
+          email: profile.email,
+          doc_kind: EMAIL_FORWARDING_CONSENT.type,
+          doc_version: EMAIL_FORWARDING_CONSENT.version,
+          ip,
+          ua,
+        });
+        if (error) {
+          throw new Error(`Email forwarding authorization failed: ${error.message}`);
+        }
       });
-      if (error) {
-        throw new Error(`Email forwarding authorization failed: ${error.message}`);
-      }
-    });
-  }
-
-  await withAdmin("system", "actions/applicant-inbox:resume-forwarding", async (admin) => {
-    const { error } = await admin
-      .from("inbound_email")
-      .update({
-        forwarding_status: "pending",
-        forwarding_error: null,
-      })
-      .eq("to_addr", alias)
-      .eq("forwarding_status", "skipped")
-      .eq("forwarding_error", "consent_required")
-      .eq("quarantined", false);
-    if (error) {
-      throw new Error(`Deferred email forwarding resume failed: ${error.message}`);
     }
-  });
 
-  return {
-    alias,
-    destinationEmail: profile.email,
-    forwardingAuthorized: true,
-  };
+    // Messages received before authorization remain skipped. Replaying them
+    // later would violate the applicant's consent boundary at receipt time.
+    return {
+      alias,
+      destinationEmail: profile.email,
+      forwardingAuthorized: true,
+    };
+  });
 }
 
 /**

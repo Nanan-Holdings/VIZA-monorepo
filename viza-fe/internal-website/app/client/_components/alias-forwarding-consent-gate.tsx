@@ -6,6 +6,7 @@ import { useLocale } from "next-intl";
 import {
   authorizeAuthenticatedApplicantInboxForwarding,
   initializeAuthenticatedApplicantInbox,
+  type ApplicantInboxActionErrorCode,
   type ApplicantInboxSetupState,
 } from "@/app/actions/applicant-inbox";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,22 @@ import { isChineseLocale } from "@/lib/i18n/locale";
 
 interface AliasForwardingConsentGateProps {
   enabled: boolean;
+}
+
+function actionErrorMessage(code: ApplicantInboxActionErrorCode, isZh: boolean): string {
+  if (code === "AUTH_REQUIRED") {
+    return isZh
+      ? "登录状态已失效，请刷新页面后重新登录。"
+      : "Your session has expired. Refresh the page and sign in again.";
+  }
+  if (code === "DESTINATION_EMAIL_REQUIRED") {
+    return isZh
+      ? "你的账号邮箱尚未完整配置，请先在设置中补充邮箱。"
+      : "Your account email is not configured yet. Add it in Settings first.";
+  }
+  return isZh
+    ? "邮箱授权服务暂时不可用，请稍后重试。你的申请资料不会丢失。"
+    : "The email authorization service is temporarily unavailable. Please try again later; your application data is safe.";
 }
 
 export function AliasForwardingConsentGate({
@@ -41,18 +58,17 @@ export function AliasForwardingConsentGate({
     setLoading(true);
     setError(null);
     void initializeAuthenticatedApplicantInbox()
-      .then((nextSetup) => {
-        if (!cancelled) setSetup(nextSetup);
+      .then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          setSetup(result.data);
+        } else {
+          setError(actionErrorMessage(result.error.code, isZh));
+        }
       })
-      .catch((cause: unknown) => {
+      .catch(() => {
         if (!cancelled) {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : isZh
-                ? "无法初始化申请专属邮箱。"
-                : "Unable to initialize your application email.",
-          );
+          setError(actionErrorMessage("SERVICE_UNAVAILABLE", isZh));
         }
       })
       .finally(() => {
@@ -73,16 +89,14 @@ export function AliasForwardingConsentGate({
     setAuthorizing(true);
     setError(null);
     try {
-      const nextSetup = await authorizeAuthenticatedApplicantInboxForwarding();
-      setSetup(nextSetup);
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : isZh
-            ? "授权失败，请重试。"
-            : "Authorization failed. Please try again.",
-      );
+      const result = await authorizeAuthenticatedApplicantInboxForwarding();
+      if (result.ok) {
+        setSetup(result.data);
+      } else {
+        setError(actionErrorMessage(result.error.code, isZh));
+      }
+    } catch {
+      setError(actionErrorMessage("SERVICE_UNAVAILABLE", isZh));
     } finally {
       setAuthorizing(false);
     }
