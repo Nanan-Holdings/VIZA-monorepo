@@ -1,25 +1,19 @@
 ﻿"use client";
 
-import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CreditCard, CircleNotch as Loader2, Check, CaretDown as ChevronDown, ShieldCheck } from "@phosphor-icons/react";
+import { AlertCircle, CreditCard, Loader2, Check, ChevronDown, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
-import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
-import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
-import { InputGroupInput } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
-import { countries } from "country-data-list";
 import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
 import {
   loadDocumentCenterData,
   type DocumentCenterData,
 } from "@/app/client/documents/actions";
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
-import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
+import { type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
-import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
 import {
   PersonalInfoStep,
@@ -40,13 +34,6 @@ import {
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
-  FormFillingAssistant,
-  type FormAssistantFillNotice,
-  type FormAssistantFillNoticeItem,
-  type FormAssistantValidationIssue as FormAssistantDisplayValidationIssue,
-} from "@/components/client/form-assistant";
-import { BrandActionButton } from "@/components/client/brand-action-button";
-import {
   saveDynamicAnswers,
   ensureDraftApplication,
   loadApplicationFormContext,
@@ -62,20 +49,6 @@ import type {
   SubmissionResult,
   SubmissionResultStatus,
 } from "@/lib/submission-result";
-import type {
-  FormAssistantState,
-  FormAssistantTurnResponse,
-  FormAssistantValidationResponse,
-  FormAssistantTranscriptionResponse,
-  FormAssistantUndoResponse,
-} from "@/types/form-assistant";
-import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
-import { canUseFormAssistant } from "@/lib/form-assistant/constants";
-import {
-  buildFormAssistantFieldReviewIssues,
-  getBaseAnswerFieldName,
-  normalizeFormAssistantValidationResponse,
-} from "@/lib/form-assistant/review-issues";
 import {
   buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
@@ -84,26 +57,27 @@ import {
   type UniversalProfileSnapshot,
 } from "@/lib/universal-profile-prefill";
 import { SubmissionStatusStep } from "../_components/result-cards/SubmissionStatusStep";
-import { UniversalProfileSyncCard } from "@/components/application-steps/universal-profile-sync-card";
+import { ApplicationCompletenessPanel } from "../_components/ApplicationCompletenessPanel";
 import {
   getTeamApplicationContext,
   markTeamCompanionReviewed,
 } from "@/app/actions/application-group";
 import {
-  buildApplicationLongFormHref,
   buildApplicationFormHref,
   setRecentApplicationFormHref,
 } from "@/lib/client/recent-application-form";
-import { setActiveApplicationSelection } from "@/lib/client/active-application-selection";
+import { readApplicationRouteParam } from "@/lib/client/application-route-params";
 import {
   computeAllTabCompletion,
   getContiguousCompletedCount,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
-import {
-  shouldShowReviewAlongsideSubmissionStatus,
-  shouldShowSubmissionStatusStep,
-} from "@/lib/application-submission-display";
+import { shouldShowSubmissionStatusStep } from "@/lib/application-submission-display";
+import type {
+  ApplicationCompletenessMissingDocument,
+  ApplicationCompletenessMissingField,
+  ApplicationCompletenessResult,
+} from "@/lib/application-completeness";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import {
   attemptStaleServerActionReload,
@@ -111,6 +85,7 @@ import {
 } from "@/lib/server-action-recovery";
 import {
   buildApplicationStepSections,
+  getApplicationStepSectionKey,
   getDynamicStepTranslationCandidates,
   type ApplicationStepSection,
   type ApplicationStepSectionKey,
@@ -132,64 +107,21 @@ import {
   submissionQueueRequiresServerEnqueue,
   type SubmissionMode,
 } from "@/lib/submission-queue";
+import {
+  isPhEtravelClientLiveSubmissionEnabled,
+  PH_ETRAVEL_REFRESH_POLICY,
+} from "@/features/ph-etravel/status";
+import {
+  getTaiwanEntryPermitExtraRequirements,
+  getTaiwanEntryPermitRequiredDocumentKeys,
+  getTaiwanEntryPermitVisibleDocumentKeys,
+} from "@/lib/taiwan-entry-permit-document-requirements";
 
 // ---------------------------------------------------------------------------
 // Step definitions
 // ---------------------------------------------------------------------------
 
 type StepStatus = "complete" | "in_progress" | "locked";
-
-function formAssistantFieldLabel(field: VisaFormFieldRow, isZh: boolean): string {
-  if (isZh) {
-    const label = field.validationRules?.label_zh;
-    if (typeof label === "string" && label.trim()) return label.trim();
-  }
-  return field.label;
-}
-
-function formAssistantDisplayValue(
-  field: VisaFormFieldRow,
-  value: string,
-  locale: string,
-  isZh: boolean,
-): string {
-  if (field.fieldType === "date" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [, month, day] = value.split("-");
-    if (isZh) return `${Number(month)}月${Number(day)}日`;
-    return new Intl.DateTimeFormat(locale, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      timeZone: "UTC",
-    }).format(new Date(`${value}T00:00:00Z`));
-  }
-  const option = field.options?.find((candidate) =>
-    (typeof candidate === "string" ? candidate : candidate.value) === value,
-  );
-  if (option && typeof option !== "string") {
-    if (isZh && option.label_zh?.trim()) return option.label_zh.trim();
-    return option.label_en?.trim() || option.text?.trim() || option.value;
-  }
-  return value;
-}
-
-function prepareFormAssistantState(state: FormAssistantState): FormAssistantState {
-  const persistedMessages = state.messages.at(-1)?.role === "assistant"
-    ? state.messages.slice(0, -1)
-    : state.messages;
-  return {
-    ...state,
-    messages: [
-      ...persistedMessages,
-      {
-        id: `assistant-current-${state.sessionId}-${crypto.randomUUID()}`,
-        role: "assistant",
-        content: state.assistantMessage,
-        createdAt: new Date().toISOString(),
-      },
-    ],
-  };
-}
 
 interface StepDef {
   id: number;
@@ -227,7 +159,7 @@ const TDAC_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_TDAC_LIVE_SUBMISSION_ENABLED !== "false";
 
 const PH_ETRAVEL_LIVE_ASSISTED_ENABLED =
-  process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
+  isPhEtravelClientLiveSubmissionEnabled();
 
 const UK_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_UK_LIVE_SUBMISSION_ENABLED !== "false";
@@ -255,14 +187,6 @@ interface VietnamOneTimePaymentCard {
   holderName: string;
 }
 
-type SubmitCheckState = "idle" | "checking" | "invalid";
-
-const OFFICIAL_PAYMENT_CARD_FIELD_NAMES = {
-  pan: "official_payment_card_number",
-  expiry: "official_payment_card_expiry",
-  cvv: "official_payment_card_cvv",
-} as const;
-
 interface VisibleDynamicStep {
   step: WizardStep;
   sourceIndex: number;
@@ -286,7 +210,7 @@ const ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   "Stay in Malaysia": "在马来西亚停留",
   "Stay in Thailand": "在泰国停留",
   "Health Declaration": "健康申报",
-  "eTravel Scope": "电子旅行申报范围",
+  "eTravel Scope": "eTravel 范围",
   "Customs Declaration": "海关申报",
   "Declaration": "声明确认",
 };
@@ -329,7 +253,7 @@ const VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
 };
 
 const KOREA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
-  "Official e-Form Route": "官方电子表单路线",
+  "Official e-Form Route": "官方 e-Form 路线",
   "Personal Details": "个人信息",
   Passport: "护照",
   "Contact Details": "联系方式",
@@ -344,6 +268,86 @@ const KOREA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
 type StepSectionKey = ApplicationStepSectionKey;
 type StepSectionDef = ApplicationStepSection<StepDef>;
 
+const TAIWAN_ENTRY_PERMIT_SECTION_TITLES = {
+  delivery: "递送地点",
+  overseasTourism: "旅居海外大陆地区人民申请来台观光",
+  applicant: "申请人资料",
+  kinship: "亲属状况（亲属资料）",
+  declaration: "申报事项",
+} as const;
+
+const TAIWAN_ENTRY_PERMIT_QUALIFICATION_STEP_SOURCE_NAME = "Photo & Basic Status";
+const TAIWAN_ENTRY_PERMIT_DOCUMENTS_STEP_SOURCE_NAME = "Supporting Documents";
+
+export function isTaiwanEntryPermitQualificationStepSource(sourceName?: string | null): boolean {
+  return sourceName === TAIWAN_ENTRY_PERMIT_QUALIFICATION_STEP_SOURCE_NAME;
+}
+
+export function shouldShowStandaloneDocumentStep(showDocumentStep: boolean, visaType?: string | null): boolean {
+  return showDocumentStep && visaType !== "TW_ENTRY_PERMIT";
+}
+
+export function getTaiwanEntryPermitInlineDocumentStepId(
+  steps: Array<{ id: number; sourceName?: string | null }>,
+): number | null {
+  return steps.find((step) => isTaiwanEntryPermitQualificationStepSource(step.sourceName))?.id ?? null;
+}
+
+export function buildTaiwanEntryPermitSections(steps: StepDef[]): StepSectionDef[] {
+  const sections: StepSectionDef[] = [
+    { id: "taiwan-delivery", key: "personal", title: TAIWAN_ENTRY_PERMIT_SECTION_TITLES.delivery, steps: [] },
+    { id: "taiwan-overseas-tourism", key: "travel", title: TAIWAN_ENTRY_PERMIT_SECTION_TITLES.overseasTourism, steps: [] },
+    { id: "taiwan-applicant", key: "personal", title: TAIWAN_ENTRY_PERMIT_SECTION_TITLES.applicant, steps: [] },
+    { id: "taiwan-kinship", key: "family", title: TAIWAN_ENTRY_PERMIT_SECTION_TITLES.kinship, steps: [] },
+    { id: "taiwan-declaration", key: "securityAndBackground", title: TAIWAN_ENTRY_PERMIT_SECTION_TITLES.declaration, steps: [] },
+  ];
+  const byId = new Map(sections.map((section) => [section.id, section]));
+  const fallbackSections: StepSectionDef[] = [];
+
+  for (const step of steps) {
+    switch (step.sourceName) {
+      case "Delivery Location":
+        byId.get("taiwan-delivery")?.steps.push({ ...step, name: "递送地点" });
+        break;
+      case TAIWAN_ENTRY_PERMIT_QUALIFICATION_STEP_SOURCE_NAME:
+        byId.get("taiwan-overseas-tourism")?.steps.push({
+          ...step,
+          name: "申请资格与证别",
+        });
+        break;
+      case TAIWAN_ENTRY_PERMIT_DOCUMENTS_STEP_SOURCE_NAME:
+        break;
+      case "Applicant Identity":
+        byId.get("taiwan-applicant")?.steps.push({ ...step, name: "申请人资料" });
+        break;
+      case "Taiwan Contact Address":
+        byId.get("taiwan-applicant")?.steps.push({ ...step, name: "在台联络地址" });
+        break;
+      case "Other Nationality":
+        byId.get("taiwan-applicant")?.steps.push({ ...step, name: "其他国籍护（证）照" });
+        break;
+      case "Kinship Information":
+        byId.get("taiwan-kinship")?.steps.push({ ...step, name: "亲属状况（亲属资料）" });
+        break;
+      case "Declaration":
+        byId.get("taiwan-declaration")?.steps.push({ ...step, name: "申报事项" });
+        break;
+      default:
+        fallbackSections.push({
+          id: `taiwan-${String(step.sourceName ?? step.name).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+          key: getApplicationStepSectionKey(step),
+          title: step.name,
+          steps: [step],
+        });
+    }
+  }
+
+  return [
+    ...sections.filter((section) => section.steps.length > 0),
+    ...fallbackSections,
+  ];
+}
+
 function collectDraftAnswers(drafts: Record<number, Record<string, string>>): Record<string, string> {
   return Object.values(drafts).reduce<Record<string, string>>(
     (acc, stepDraft) => ({ ...acc, ...stepDraft }),
@@ -351,7 +355,7 @@ function collectDraftAnswers(drafts: Record<number, Record<string, string>>): Re
   );
 }
 
-const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "team", "review"] as const;
+const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "review", "team", "status"] as const;
 
 function getVisibleDynamicSteps(steps: WizardStep[], answers: Record<string, string>): VisibleDynamicStep[] {
   return steps
@@ -435,7 +439,7 @@ function VerticalStepSidebar({
   const activeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
 
   return (
-    <aside className="w-[360px] shrink-0 px-4 pt-4 hidden xl:flex xl:flex-col z-10 overflow-y-auto">
+    <aside className="w-[360px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
       <div className="relative">
       <div
         className="absolute top-4 bottom-0 border-l-2 border-dashed border-gray-200"
@@ -455,10 +459,10 @@ function VerticalStepSidebar({
                 void onStepClick(step.id);
               }}
               className={cn(
-                "application-form-panel border bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer",
+                "rounded-xl border border-[#efefef] bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm",
                 isSelected
-                  ? "application-form-sidebar-panel-selected ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
-                  : "hover:bg-gray-50",
+                  ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                  : "hover:border-gray-300",
               )}
             >
               {/* Circle */}
@@ -471,7 +475,7 @@ function VerticalStepSidebar({
                 )}
               >
                 {status === "complete" ? (
-                  <Check className="size-4" weight="bold" />
+                  <Check className="h-4 w-4" strokeWidth={3} />
                 ) : (
                   i + 1
                 )}
@@ -482,7 +486,7 @@ function VerticalStepSidebar({
                   className={cn(
                     "text-[15px]",
                     status === "in_progress" && "font-semibold text-[#03346E]",
-                    status === "complete" && "font-medium text-gray-500",
+                    status === "complete" && "font-medium text-[#03346E]",
                     status === "locked" && "font-medium text-gray-500"
                   )}
                 >
@@ -522,7 +526,7 @@ function MobileStepBar({
   const activeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
 
   return (
-    <div className="xl:hidden mb-6 bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+    <div className="lg:hidden mb-6 bg-white rounded-lg border border-gray-100 shadow-sm p-4">
       <div className="flex items-center gap-1">
         {steps.map((step, i) => {
           const status: StepStatus =
@@ -542,7 +546,7 @@ function MobileStepBar({
                 )}
               >
                 {status === "complete" ? (
-                  <Check className="size-3" weight="bold" />
+                  <Check className="h-3 w-3" strokeWidth={3} />
                 ) : (
                   i + 1
                 )}
@@ -602,7 +606,7 @@ function GroupedStepSidebar({
   }, []);
 
   return (
-    <aside className="w-[380px] shrink-0 px-4 pt-4 hidden xl:flex xl:flex-col z-10 overflow-y-auto">
+    <aside className="w-[380px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
       <div className="space-y-3">
         {sections.map((section, sectionIndex) => {
           if (section.steps.length === 1) {
@@ -618,10 +622,10 @@ function GroupedStepSidebar({
                   void onStepClick(step.id);
                 }}
                 className={cn(
-                  "application-form-panel border bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer w-full",
+                  "rounded-xl border border-[#efefef] bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm w-full",
                   isSelected
-                    ? "application-form-sidebar-panel-selected ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
-                    : "hover:bg-gray-50",
+                    ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                    : "hover:border-gray-300",
                 )}
               >
                 <div
@@ -632,14 +636,14 @@ function GroupedStepSidebar({
                     status === "locked" && "bg-white border-gray-200 text-gray-500"
                   )}
                 >
-                  {status === "complete" ? <Check className="size-4" weight="bold" /> : sectionIndex + 1}
+                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : sectionIndex + 1}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p
                     className={cn(
                       "text-[15px]",
                       status === "in_progress" && "font-semibold text-[#03346E]",
-                      status === "complete" && "font-medium text-gray-500",
+                      status === "complete" && "font-medium text-[#03346E]",
                       status === "locked" && "font-medium text-gray-500"
                     )}
                   >
@@ -661,10 +665,10 @@ function GroupedStepSidebar({
             <section
               key={section.id}
               className={cn(
-                "application-form-panel border bg-white overflow-hidden transition-all duration-200",
+                "rounded-xl border bg-white overflow-hidden transition-all duration-200",
                 activeInSection
-                  ? "application-form-sidebar-panel-selected ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
-                  : "hover:bg-gray-50"
+                  ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                  : "border-[#efefef] hover:border-gray-300 hover:shadow-sm"
               )}
             >
               <button
@@ -682,7 +686,7 @@ function GroupedStepSidebar({
                   )}
                 >
                   {sectionComplete ? (
-                    <Check className="size-4" weight="bold" />
+                    <Check className="h-4 w-4" strokeWidth={3} />
                   ) : (
                     sectionIndex + 1
                   )}
@@ -692,7 +696,7 @@ function GroupedStepSidebar({
                     className={cn(
                       "text-[15px] leading-tight truncate",
                       activeInSection && "font-semibold text-[#03346E]",
-                      sectionComplete && !activeInSection && "font-medium text-gray-500",
+                      sectionComplete && !activeInSection && "font-medium text-[#03346E]",
                       !activeInSection && !sectionComplete && "font-medium text-gray-500"
                     )}
                   >
@@ -741,7 +745,7 @@ function GroupedStepSidebar({
                             )}
                           >
                             {status === "complete" ? (
-                              <Check className="size-5" weight="bold" />
+                              <Check className="h-5 w-5" strokeWidth={3} />
                             ) : status === "in_progress" ? (
                               <span className="h-2.5 w-2.5 rounded-full bg-[#03346E]" />
                             ) : (
@@ -752,7 +756,7 @@ function GroupedStepSidebar({
                             className={cn(
                               "text-[14px] leading-snug min-w-0 flex-1 truncate",
                               status === "in_progress" && "font-semibold text-[#03346E]",
-                              status === "complete" && "font-medium text-gray-600",
+                              status === "complete" && "font-medium text-[#03346E]",
                               status === "locked" && "font-medium text-gray-600"
                             )}
                           >
@@ -815,7 +819,7 @@ function GroupedMobileStepBar({
   }, []);
 
   return (
-    <div className="xl:hidden mb-6 space-y-3">
+    <div className="lg:hidden mb-6 space-y-3">
       <div className="rounded-xl border border-[#efefef] bg-white p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -870,7 +874,7 @@ function GroupedMobileStepBar({
                     status === "locked" && "bg-white border-gray-200 text-gray-500"
                   )}
                 >
-                  {status === "complete" ? <Check className="size-4" weight="bold" /> : sectionIndex + 1}
+                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : sectionIndex + 1}
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -878,7 +882,7 @@ function GroupedMobileStepBar({
                     className={cn(
                       "text-[15px] leading-tight truncate",
                       status === "in_progress" && "font-semibold text-[#03346E]",
-                      status === "complete" && "font-medium text-gray-500",
+                      status === "complete" && "font-medium text-[#03346E]",
                       status === "locked" && "font-medium text-gray-500"
                     )}
                   >
@@ -920,7 +924,7 @@ function GroupedMobileStepBar({
                   )}
                 >
                   {sectionComplete ? (
-                    <Check className="size-4" weight="bold" />
+                    <Check className="h-4 w-4" strokeWidth={3} />
                   ) : (
                     sectionIndex + 1
                   )}
@@ -930,7 +934,7 @@ function GroupedMobileStepBar({
                     className={cn(
                       "text-[15px] leading-tight truncate",
                       activeInSection && "font-semibold text-[#03346E]",
-                      sectionComplete && !activeInSection && "font-medium text-gray-500",
+                      sectionComplete && !activeInSection && "font-medium text-[#03346E]",
                       !activeInSection && !sectionComplete && "font-medium text-gray-500"
                     )}
                   >
@@ -979,7 +983,7 @@ function GroupedMobileStepBar({
                             )}
                           >
                             {status === "complete" ? (
-                              <Check className="size-5" weight="bold" />
+                              <Check className="h-5 w-5" strokeWidth={3} />
                             ) : status === "in_progress" ? (
                               <span className="h-2.5 w-2.5 rounded-full bg-[#03346E]" />
                             ) : (
@@ -990,7 +994,7 @@ function GroupedMobileStepBar({
                             className={cn(
                               "text-[14px] leading-snug min-w-0 flex-1 truncate",
                               status === "in_progress" && "font-semibold text-[#03346E]",
-                              status === "complete" && "font-medium text-gray-600",
+                              status === "complete" && "font-medium text-[#03346E]",
                               status === "locked" && "font-medium text-gray-600"
                             )}
                           >
@@ -1014,32 +1018,42 @@ function FinalConfirmationPanel({
   isZh,
   liveAssistedTarget,
   liveAssistedEnabled,
-  forceDryRun,
   missingFields,
   requirementsLoading,
   submittingMode,
-  submitCheckState,
+  onEdit,
   onSubmit,
 }: {
   isZh: boolean;
   liveAssistedTarget: LiveAssistedTarget;
   liveAssistedEnabled: boolean;
-  forceDryRun: boolean;
   missingFields: MissingApplicationField[];
   requirementsLoading: boolean;
   submittingMode: SubmissionMode | null;
-  submitCheckState: SubmitCheckState;
+  onEdit: StepClickHandler;
   onSubmit: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => void | Promise<void>;
 }) {
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
   const [cardHolderName, setCardHolderName] = useState("");
+  const groupedMissing = useMemo(() => {
+    const groups = new Map<number, { stepName: string; fields: MissingApplicationField[] }>();
+    for (const item of missingFields) {
+      const existing = groups.get(item.stepId);
+      if (existing) {
+        existing.fields.push(item);
+      } else {
+        groups.set(item.stepId, { stepName: item.stepName, fields: [item] });
+      }
+    }
+    return Array.from(groups.entries()).map(([stepId, group]) => ({ stepId, ...group }));
+  }, [missingFields]);
+
   const hasMissing = missingFields.length > 0;
   const isSubmitting = submittingMode !== null;
-  const isChecking = submitCheckState === "checking";
-  const validationActive = submitCheckState === "invalid";
-  const hasLiveAssistedTarget = liveAssistedTarget !== null && !forceDryRun;
+  const baseDisabled = isSubmitting || hasMissing || requirementsLoading;
+  const hasLiveAssistedTarget = liveAssistedTarget !== null;
   const isFrance = liveAssistedTarget === "france";
   const isVietnam = liveAssistedTarget === "vietnam";
   const isVietnamPrearrival = liveAssistedTarget === "vn_prearrival";
@@ -1058,6 +1072,7 @@ function FinalConfirmationPanel({
       cardExpiry.trim().length >= 4 &&
       cardCvv.replace(/\D/g, "").length >= 3
     );
+  const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget || !oneTimeOfficialPaymentCardReady;
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
     : requiresOneTimeOfficialPaymentCard && !oneTimeOfficialPaymentCardReady
@@ -1103,10 +1118,7 @@ function FinalConfirmationPanel({
       : null;
 
   const submitMode: SubmissionMode = hasLiveAssistedTarget ? "live_assisted" : "dry_run";
-  // Missing answers are checked after the click so the final action never
-  // becomes an unexplained dead end. Only an in-flight check/submission locks
-  // the control against duplicate requests.
-  const submitDisabled = isSubmitting || isChecking;
+  const submitDisabled = hasLiveAssistedTarget ? liveDisabled : baseDisabled;
   const officialPaymentCard: VietnamOneTimePaymentCard | undefined = requiresOneTimeOfficialPaymentCard
     ? {
         pan: cardNumber,
@@ -1115,41 +1127,105 @@ function FinalConfirmationPanel({
         holderName: cardHolderName,
       }
     : undefined;
-  const submitCopy = forceDryRun
-    ? isZh
-      ? "这是隔离的云端演练，只验证 VIZA 与 Fly 提交链路，不会打开或填写官方 CEAC 网站。"
-      : "This isolated cloud dry run verifies the VIZA-to-Fly submission path without opening or filling the official CEAC website."
-    : isZh
-      ? hasLiveAssistedTarget
-        ? "点击“提交”后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度和官方编号。"
-        : "点击“提交”后，VIZA 会创建后台提交任务，并在本页显示进度和结果。"
-      : hasLiveAssistedTarget
-        ? "Click Submit to create a real official-site submission job. VIZA fills the official form and shows progress and official evidence here."
-        : "Click Submit to create the background submission job and show progress here.";
+  const submitCopy = isZh
+    ? hasLiveAssistedTarget
+      ? "点击“提交”后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度和官方编号。"
+      : "点击“提交”后，VIZA 会创建后台提交任务，并在本页显示进度和结果。"
+    : hasLiveAssistedTarget
+      ? "Click Submit to create a real official-site submission job. VIZA fills the official form and shows progress and official evidence here."
+      : "Click Submit to create the background submission job and show progress here.";
+  const liveSafetyCopy = isFrance
+    ? (isZh
+        ? "France-Visas 提交会使用 VIZA 保存的答案、官方账号和必要的注册验证码处理来创建/更新官网申请；付款、预约或官网风控如果出现，会作为后续状态展示。"
+        : "France-Visas submission uses saved VIZA answers, the official account, and registration CAPTCHA handling when needed to create/update the official application. Payment, appointment, or portal risk checks are surfaced as follow-up status.")
+    : isVietnam
+      ? (isZh
+          ? "越南 e-Visa 会打开官网并使用已保存答案填写；验证码、付款或官网风控会作为后续状态展示。"
+          : "Vietnam e-Visa opens the official portal and uses saved answers to fill it. CAPTCHA, payment, or portal risk checks are surfaced as follow-up status.")
+      : isVietnamPrearrival
+        ? (isZh
+            ? "提交后会创建越南入境前申报官方提交任务，使用已保存答案填写官网表单，并在本页显示进度、确认编号、PDF 和二维码。"
+            : "Submitting creates a Vietnam Pre-Arrival official-submission task using your saved answers. Progress, the confirmation number, PDF, and QR code appear here.")
+      : isSgac
+        ? (isZh
+            ? "提交后会创建 SG Arrival Card 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、确认/参考号和 ICA 响应摘要。"
+            : "Submitting creates an SG Arrival Card official-submission task. This page shows the submission in progress and, when the backend succeeds, displays submitted=true, the confirmation/reference number, and the ICA response summary.")
+        : isMdac
+          ? (isZh
+              ? "提交后会创建 Malaysia MDAC 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方参考号和确认文件。"
+              : "Submitting creates a Malaysia MDAC official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official reference, and confirmation evidence.")
+          : isTdac
+            ? (isZh
+                ? "提交后会创建 Thailand TDAC 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方参考号和确认文件。"
+                : "Submitting creates a Thailand TDAC official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official reference, and confirmation evidence.")
+            : isPhEtravel
+              ? (isZh
+                  ? "菲律宾官方 eTravel 登记免费，且不是签证，也不保证边检准入。提交后会创建普通入境旅客的官方 eTravel 任务；页面会显示进度，只有后端保存官方参考号和独立 QR 后才应展示成功。"
+                  : "Official Philippines eTravel registration is free, is not a visa, and does not guarantee admission at border control. Submitting creates an ordinary-arrival-passenger eTravel task; progress appears here, and success should only appear after the official reference and standalone QR are saved.")
+              : isIndonesia
+                ? (isZh
+                    ? "提交后会创建 Indonesia e-Visa 官方提交任务；VIZA 会使用托管账号填写官网表单，并把流程推进到官方付款页。"
+                    : "Submitting creates an Indonesia e-Visa official-submission task. VIZA uses the managed account to fill the official portal and advance to the official payment page.")
+              : (isZh
+                  ? "提交会打开 CEAC 官网并使用已保存答案填写；验证码、风控或最终签名提交会作为后续状态展示。"
+                  : "Submission opens CEAC and uses saved answers to fill it. CAPTCHA, risk checks, or final signature submission are surfaced as follow-up status.");
 
   return (
     <div className="space-y-6">
-      <Alert variant={hasMissing ? "warning" : "info"}>
-        <AlertIcon variant={hasMissing ? "warning" : "info"} />
-        <AlertTitle>{isZh ? "最终确认" : "Final confirmation"}</AlertTitle>
-        <AlertDescription>
-          <p>
-            {isChecking
-              ? isZh
-                ? "正在检查整份申请中的所有必填项。"
-                : "Checking every required field in this application."
-              : hasMissing
-              ? isZh
-                ? "提交前还需要补齐信息。请使用上方缺失信息分区的编辑图标返回对应步骤，保存后再回到这里提交。"
-                : "Some information is still required. Use the edit icons in the missing-information sections above, save your changes, then return here to submit."
-              : requirementsLoading
+      <div className="rounded-xl border border-[#d7e6fb] bg-[#f2f7ff] p-5">
+        <div className="flex gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#03346E]" />
+          <div className="space-y-1">
+            <h3 className="text-base font-semibold text-[#0b2545]">
+              {isZh ? "最终确认" : "Final confirmation"}
+            </h3>
+            <p className="text-sm leading-relaxed text-[#3d5878]">
+              {hasMissing
                 ? isZh
-                  ? "正在检查支持材料和当前表单状态。完成后才可以提交。"
-                  : "Checking supporting documents and current form status. You can submit once this finishes."
-              : submitCopy}
-          </p>
-        </AlertDescription>
-      </Alert>
+                  ? "提交前还需要补齐以下信息。请先编辑对应 tab，保存后再回到这里提交。"
+                  : "Some information is still required. Edit the listed tabs, save, then return here to submit."
+                : requirementsLoading
+                  ? isZh
+                    ? "正在检查支持材料和当前表单状态。完成后才可以提交。"
+                    : "Checking supporting documents and current form status. You can submit once this finishes."
+                : submitCopy}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {hasMissing && (
+        <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-5">
+          <h3 className="text-sm font-semibold text-red-800">
+            {isZh ? "缺失信息清单" : "Missing information"}
+          </h3>
+          <div className="space-y-3">
+            {groupedMissing.map((group) => (
+              <div key={group.stepId} className="rounded-lg border border-red-100 bg-white p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-red-900">{group.stepName}</p>
+                  <button
+                    type="button"
+                    className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-800 hover:bg-red-50"
+                    onClick={() => {
+                      void onEdit(group.stepId);
+                    }}
+                  >
+                    {isZh ? "去编辑" : "Edit"}
+                  </button>
+                </div>
+                <ul className="space-y-1 text-sm text-red-700">
+                  {group.fields.map((item) => (
+                    <li key={`${item.stepId}-${item.fieldName}`}>
+                      {item.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {requiresOneTimeOfficialPaymentCard && (
         <div className="space-y-3 rounded-xl border border-[#d7e6fb] bg-white p-5">
@@ -1167,97 +1243,56 @@ function FinalConfirmationPanel({
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label
-              className="space-y-1 sm:col-span-2"
-              data-application-field-name={OFFICIAL_PAYMENT_CARD_FIELD_NAMES.pan}
-            >
+            <label className="space-y-1 sm:col-span-2">
               <span className="text-xs text-gray-600">{isZh ? "银行卡号" : "Card number"}</span>
-              <ApplicationFormInputGroup
-                className={cn(
-                  "h-12 bg-white",
-                  validationActive && cardNumber.replace(/\D/g, "").length < 12 && "!border-red-500 !shadow-[0_0_0_1px_rgb(239_68_68)]",
-                )}
-                aria-invalid={validationActive && cardNumber.replace(/\D/g, "").length < 12 || undefined}
-              >
-                <InputGroupInput
-                  value={cardNumber}
-                  onChange={(event) => setCardNumber(event.target.value)}
-                  autoComplete="cc-number"
-                  inputMode="numeric"
-                  className="h-12 text-sm"
-                  placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
-                />
-              </ApplicationFormInputGroup>
+              <input
+                value={cardNumber}
+                onChange={(event) => setCardNumber(event.target.value)}
+                autoComplete="cc-number"
+                inputMode="numeric"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
+                placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
+              />
             </label>
-            <label
-              className="space-y-1"
-              data-application-field-name={OFFICIAL_PAYMENT_CARD_FIELD_NAMES.expiry}
-            >
+            <label className="space-y-1">
               <span className="text-xs text-gray-600">{isZh ? "有效期" : "Expiry"}</span>
-              <ApplicationFormInputGroup
-                className={cn(
-                  "h-12 bg-white",
-                  validationActive && cardExpiry.trim().length < 4 && "!border-red-500 !shadow-[0_0_0_1px_rgb(239_68_68)]",
-                )}
-                aria-invalid={validationActive && cardExpiry.trim().length < 4 || undefined}
-              >
-                <InputGroupInput
-                  value={cardExpiry}
-                  onChange={(event) => setCardExpiry(event.target.value)}
-                  autoComplete="cc-exp"
-                  inputMode="numeric"
-                  className="h-12 text-sm"
-                  placeholder="MM/YY"
-                />
-              </ApplicationFormInputGroup>
+              <input
+                value={cardExpiry}
+                onChange={(event) => setCardExpiry(event.target.value)}
+                autoComplete="cc-exp"
+                inputMode="numeric"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
+                placeholder="MM/YY"
+              />
             </label>
-            <label
-              className="space-y-1"
-              data-application-field-name={OFFICIAL_PAYMENT_CARD_FIELD_NAMES.cvv}
-            >
+            <label className="space-y-1">
               <span className="text-xs text-gray-600">CVV</span>
-              <ApplicationFormInputGroup
-                className={cn(
-                  "h-12 bg-white",
-                  validationActive && cardCvv.replace(/\D/g, "").length < 3 && "!border-red-500 !shadow-[0_0_0_1px_rgb(239_68_68)]",
-                )}
-                aria-invalid={validationActive && cardCvv.replace(/\D/g, "").length < 3 || undefined}
-              >
-                <InputGroupInput
-                  value={cardCvv}
-                  onChange={(event) => setCardCvv(event.target.value)}
-                  autoComplete="cc-csc"
-                  inputMode="numeric"
-                  className="h-12 text-sm"
-                  placeholder="CVV"
-                />
-              </ApplicationFormInputGroup>
+              <input
+                value={cardCvv}
+                onChange={(event) => setCardCvv(event.target.value)}
+                autoComplete="cc-csc"
+                inputMode="numeric"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
+                placeholder="CVV"
+              />
             </label>
             <label className="space-y-1 sm:col-span-2">
               <span className="text-xs text-gray-600">{isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)"}</span>
-              <ApplicationFormInputGroup className="h-12 bg-white">
-                <InputGroupInput
-                  value={cardHolderName}
-                  onChange={(event) => setCardHolderName(event.target.value)}
-                  autoComplete="cc-name"
-                  className="h-12 text-sm"
-                  placeholder={isZh ? "不填则使用 VIZA" : "Defaults to VIZA"}
-                />
-              </ApplicationFormInputGroup>
+              <input
+                value={cardHolderName}
+                onChange={(event) => setCardHolderName(event.target.value)}
+                autoComplete="cc-name"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
+                placeholder={isZh ? "不填则使用 VIZA" : "Defaults to VIZA"}
+              />
             </label>
           </div>
           {!oneTimeOfficialPaymentCardReady && (
-            <Alert variant="warning">
-              <AlertIcon variant="warning" />
-              <AlertTitle>{isZh ? "银行卡信息未填写完整" : "Card details incomplete"}</AlertTitle>
-              <AlertDescription>
-                <p>
-                  {isZh
-                    ? "请填写银行卡号、有效期和 CVV 后再提交。"
-                    : "Enter the card number, expiry, and CVV before submitting."}
-                </p>
-              </AlertDescription>
-            </Alert>
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {isZh
+                ? "请填写银行卡号、有效期和 CVV 后再提交。"
+                : "Enter the card number, expiry, and CVV before submitting."}
+            </p>
           )}
         </div>
       )}
@@ -1280,7 +1315,7 @@ function FinalConfirmationPanel({
         )}
         title={liveDisabledReason ?? undefined}
       >
-        {isChecking ? (
+        {requirementsLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             {isZh ? "正在检查" : "Checking"}
@@ -1298,15 +1333,22 @@ function FinalConfirmationPanel({
         )}
       </button>
 
-      {hasLiveAssistedTarget && liveDisabledReason ? (
-        <Alert variant="warning">
-          <AlertIcon variant="warning" />
-          <AlertTitle>{isZh ? "暂时无法提交" : "Cannot submit yet"}</AlertTitle>
-          <AlertDescription>
-            <p>{liveDisabledReason}</p>
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      {hasLiveAssistedTarget && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
+          {liveDisabledReason ?? liveSafetyCopy}
+          {isPhEtravel ? (
+            <p className="mt-2">
+              {isZh
+                ? PH_ETRAVEL_REFRESH_POLICY.statusPollingCreatesQueue
+                  ? "刷新本页可能会创建新的官网任务。"
+                  : "刷新或重新打开本页只会查询已保存的提交状态，不会创建新的官网任务。"
+                : PH_ETRAVEL_REFRESH_POLICY.statusPollingCreatesQueue
+                  ? "Refreshing this page may create a new official job."
+                  : "Refreshing or reopening this page checks the saved submission status only and does not create a new official job."}
+            </p>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
@@ -1493,7 +1535,6 @@ async function insertSubmissionQueueJob(
 
   const { error } = await supabase.from("submission_queue").insert(enrichedPayload);
   if (!error) {
-    await requestCloudSubmissionWorkerWake(null);
     return {
       scheduled: false,
       scheduledFor: null,
@@ -1526,7 +1567,6 @@ async function insertSubmissionQueueJob(
     created_at: input.createdAt,
   });
   if (legacyError) throw new Error(legacyError.message);
-  await requestCloudSubmissionWorkerWake(null);
   return {
     scheduled: false,
     scheduledFor: null,
@@ -1536,22 +1576,6 @@ async function insertSubmissionQueueJob(
     submissionResultStatus: "waiting",
     submissionResult: null,
   };
-}
-
-async function requestCloudSubmissionWorkerWake(jobId: string | null): Promise<void> {
-  try {
-    const response = await fetch("/api/submission-worker/wake", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jobId }),
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      console.warn(`[submission-queue] Cloud worker wake returned ${response.status}; scheduled fallback will retry.`);
-    }
-  } catch (error) {
-    console.warn("[submission-queue] Cloud worker wake failed; scheduled fallback will retry.", error);
-  }
 }
 
 async function insertOfficialFeeSubmissionQueueJobWithCard(
@@ -1616,12 +1640,6 @@ const SGAC_NATIONALITY_PROFILE_ALIASES: Record<string, string> = {
   中国籍: "CHINESE",
 };
 
-const COUNTRY_ALPHA3_TO_ALPHA2 = new Map(
-  (countries.all as Array<{ alpha2: string; alpha3: string; status: string }>)
-    .filter((country) => country.status !== "deleted")
-    .map((country) => [country.alpha3.toLowerCase(), country.alpha2.toUpperCase()]),
-);
-
 function normalizeComparableValue(value: string): string {
   return value
     .normalize("NFKC")
@@ -1641,8 +1659,6 @@ function getFieldOptionValueMatch(field: WizardStep["fields"][number], rawValue:
       : null;
   const candidates = new Set([normalized]);
   if (aliasValue) candidates.add(normalizeComparableValue(aliasValue));
-  const alpha2 = COUNTRY_ALPHA3_TO_ALPHA2.get(normalized);
-  if (alpha2) candidates.add(normalizeComparableValue(alpha2));
 
   for (const option of field.options) {
     if (typeof option === "string") {
@@ -1736,19 +1752,19 @@ export default function ApplicationPage() {
   const t = useTranslations("application");
   const locale = useLocale();
   const searchParams = useSearchParams();
-  const jumpToReview = searchParams.get("step") === "review";
-  const jumpToTeam = searchParams.get("step") === "team";
-  const jumpToConfirmation = ["confirmation", "confirm", "status"].includes(searchParams.get("step") ?? "");
-  const explicitApplicationId = searchParams.get("applicationId")?.trim() || null;
-  const returnToParam = searchParams.get("returnTo")?.trim() || null;
+  const stepParam = readApplicationRouteParam(searchParams, "step");
+  const focusFieldParam = readApplicationRouteParam(searchParams, "field", "fieldName", "focusField");
+  const requirementKeyParam = readApplicationRouteParam(searchParams, "requirementKey", "requirement");
+  const jumpToReview = stepParam === "review";
+  const jumpToTeam = stepParam === "team";
+  const jumpToConfirmation = ["confirmation", "confirm", "status"].includes(stepParam ?? "");
+  const jumpToDocuments = ["documents", "supporting_documents"].includes(stepParam ?? "");
+  const explicitApplicationId = readApplicationRouteParam(searchParams, "applicationId");
+  const returnToParam = readApplicationRouteParam(searchParams, "returnTo");
   const isCompanionFlow = Boolean(explicitApplicationId && returnToParam);
-  const teamNotice = searchParams.get("teamNotice");
-  const explicitCountry = searchParams.get("country")?.trim().toLowerCase() || null;
-  const requestedVisaType =
-    searchParams.get("visaType")?.trim() || searchParams.get("visa_type")?.trim() || null;
-  const explicitVisaType = requestedVisaType
-    ? resolveVisaFormSchemaVisaType(requestedVisaType, explicitCountry)
-    : null;
+  const teamNotice = readApplicationRouteParam(searchParams, "teamNotice");
+  const explicitCountry = readApplicationRouteParam(searchParams, "country")?.toLowerCase() || null;
+  const explicitVisaType = readApplicationRouteParam(searchParams, "visaType", "visa_type");
   const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
   const isExplicitStatusView = Boolean(explicitApplicationId && jumpToConfirmation);
 
@@ -1760,18 +1776,13 @@ export default function ApplicationPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const packagePromise: Promise<UserVisaPackage | null> =
-      explicitVisaType || isExplicitStatusView
-        ? Promise.resolve(null)
-        : getUserVisaPackage().catch((error) => {
-            attemptStaleServerActionReload(error);
-            return null;
-          });
-    if (!explicitVisaType && !isExplicitStatusView) {
-      void packagePromise.then((pkg) => {
-        if (!cancelled && pkg) setVisaPackage(pkg);
-      });
-    }
+    const packagePromise = getUserVisaPackage().catch((error) => {
+      attemptStaleServerActionReload(error);
+      return null;
+    });
+    void packagePromise.then((pkg) => {
+      if (!cancelled && pkg) setVisaPackage(pkg);
+    });
 
     // A persisted submission/payment status view does not need the complete
     // form schema. Loading that schema can be slow (or temporarily unavailable)
@@ -1788,7 +1799,7 @@ export default function ApplicationPage() {
     const stepsPromise = explicitVisaType
       ? getVisaFormSteps(explicitVisaType, { country: explicitCountry })
       : packagePromise.then((pkg) => getVisaFormSteps(
-          pkg?.visa_type ?? "ID_C1_TOURIST",
+          pkg?.visa_type ?? "tourist_b211a",
           { country: pkg?.country ?? null },
         ));
 
@@ -1825,129 +1836,56 @@ export default function ApplicationPage() {
     submissionResultStatus: null,
   });
   const [saving, setSaving] = useState(false);
-  const [autosaving, setAutosaving] = useState(false);
-  const [autosaveFailed, setAutosaveFailed] = useState(false);
   const [submittingMode, setSubmittingMode] = useState<SubmissionMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitMissingFields, setSubmitMissingFields] = useState<MissingApplicationField[]>([]);
-  const [submitCheckState, setSubmitCheckState] = useState<SubmitCheckState>("idle");
-  const [forceDryRun, setForceDryRun] = useState(false);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
-  const [formAssistantState, setFormAssistantState] = useState<FormAssistantState | null>(null);
-  const [formAssistantBusy, setFormAssistantBusy] = useState(false);
-  const [formAssistantReloadKey, setFormAssistantReloadKey] = useState(0);
-  const [formAssistantValidation, setFormAssistantValidation] = useState<FormAssistantValidationResponse | null>(null);
-  const [formAssistantValidationDirty, setFormAssistantValidationDirty] = useState(false);
-  const [formAssistantUnavailable, setFormAssistantUnavailable] = useState(false);
-  const [aiFilledFieldNames, setAiFilledFieldNames] = useState<string[]>([]);
-  const [formAssistantFillNotice, setFormAssistantFillNotice] = useState<FormAssistantFillNotice | null>(null);
   const [draftVersion, setDraftVersion] = useState(0);
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
   const [documentCenterLoaded, setDocumentCenterLoaded] = useState(false);
+  const [applicationCompleteness, setApplicationCompleteness] = useState<ApplicationCompletenessResult | null>(null);
+  const [applicationCompletenessLoading, setApplicationCompletenessLoading] = useState(false);
+  const [focusedFieldName, setFocusedFieldName] = useState<string | null>(focusFieldParam);
+  const [highlightRequirementKey, setHighlightRequirementKey] = useState<string | null>(requirementKeyParam);
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
-  const [contentAlignment, setContentAlignment] = useState(0);
   const initialStepResolvedRef = useRef(false);
-  const loadDataRequestRef = useRef(0);
-  const formAssistantDraftBootstrapRef = useRef<{
-    key: string;
-    promise: ReturnType<typeof ensureDraftApplication>;
-  } | null>(null);
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
   const draftVersionTimerRef = useRef<number | null>(null);
-  const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const autosaveRequestRef = useRef(0);
   const navigationSaveInFlightRef = useRef(false);
-  const hasLiveSaveActivityRef = useRef(false);
-  const applicationContentRef = useRef<HTMLElement | null>(null);
-  const formAssistantRef = useRef<HTMLDivElement | null>(null);
-  const stepPanelRefs = useRef(new Map<number, HTMLDivElement>());
+  const mainScrollRef = useRef<HTMLElement | null>(null);
+  const activeStepPanelRef = useRef<HTMLDivElement | null>(null);
+  const scrollClampFrameRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    const hasActiveSave = saving || autosaving || autosaveFailed;
-    if (hasActiveSave) {
-      hasLiveSaveActivityRef.current = true;
-    }
-    if (!hasLiveSaveActivityRef.current) return;
+  const clampMainScrollToActivePanel = useCallback(() => {
+    const main = mainScrollRef.current;
+    const panel = activeStepPanelRef.current;
+    if (!main || !panel || main.scrollTop <= 0) return;
 
-    window.dispatchEvent(new CustomEvent("viza:live-save-status", {
-      detail: {
-        status: hasActiveSave ? "saving" : "saved",
-      },
-    }));
-  }, [autosaveFailed, autosaving, saving]);
+    const mainRect = main.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const allowedBottomGap = 8;
+    const excessiveBlank = mainRect.bottom - allowedBottomGap - panelRect.bottom;
 
-  useEffect(() => {
-    const resetLiveSaveStatus = () => {
-      window.dispatchEvent(new CustomEvent("viza:live-save-status", {
-        detail: { status: "idle" },
-      }));
-    };
-
-    resetLiveSaveStatus();
-    return resetLiveSaveStatus;
-  }, []);
-
-  const setStepPanelRef = useCallback((stepId: number, node: HTMLDivElement | null) => {
-    if (node) {
-      stepPanelRefs.current.set(stepId, node);
-    } else {
-      stepPanelRefs.current.delete(stepId);
+    if (excessiveBlank > 0) {
+      main.scrollTop = Math.max(0, main.scrollTop - excessiveBlank);
     }
   }, []);
 
-  const scrollToStepPanel = useCallback((stepId: number, behavior: ScrollBehavior = "smooth") => {
-    setCurrentStep(stepId);
-
-    // The target may have just become visible because a conditional step was
-    // added. Waiting one frame lets React commit it before we scroll.
-    window.requestAnimationFrame(() => {
-      const target = stepPanelRefs.current.get(stepId);
-      if (!target) return;
-
-      const firstPanel = Array.from(stepPanelRefs.current.values())
-        .sort((left, right) => left.offsetTop - right.offsetTop)[0];
-      if (target === firstPanel) {
-        if (window.matchMedia("(min-width: 1024px)").matches && applicationContentRef.current) {
-          applicationContentRef.current.scrollTo({ top: 0, behavior });
-        } else {
-          window.scrollTo({ top: 0, behavior });
-        }
-        return;
-      }
-
-      target.scrollIntoView({ behavior, block: "start" });
+  const handleMainScroll = useCallback(() => {
+    if (scrollClampFrameRef.current !== null) return;
+    scrollClampFrameRef.current = window.requestAnimationFrame(() => {
+      scrollClampFrameRef.current = null;
+      clampMainScrollToActivePanel();
     });
-  }, []);
+  }, [clampMainScrollToActivePanel]);
 
-  useLayoutEffect(() => {
-    const syncNavAlignment = () => {
-      const homeAnchor = Array.from(document.querySelectorAll<HTMLElement>("[data-nav-anchor='Home']"))
-        .find((element) => element.getBoundingClientRect().width > 0);
-      const content = applicationContentRef.current;
-      if (!homeAnchor || !content) return;
-
-      const homeLeft = homeAnchor.getBoundingClientRect().left;
-      setContentAlignment(Math.max(0, homeLeft - content.getBoundingClientRect().left));
-    };
-
-    syncNavAlignment();
-    const alignmentFrame = window.requestAnimationFrame(syncNavAlignment);
-    const alignmentTimer = window.setTimeout(syncNavAlignment, 100);
-    const alignmentObserver = new MutationObserver(syncNavAlignment);
-    alignmentObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["data-nav-anchor"],
-    });
-    window.addEventListener("resize", syncNavAlignment);
+  useEffect(() => {
     return () => {
-      window.cancelAnimationFrame(alignmentFrame);
-      window.clearTimeout(alignmentTimer);
-      alignmentObserver.disconnect();
-      window.removeEventListener("resize", syncNavAlignment);
+      if (scrollClampFrameRef.current !== null) {
+        window.cancelAnimationFrame(scrollClampFrameRef.current);
+      }
     };
   }, []);
 
@@ -1987,26 +1925,25 @@ export default function ApplicationPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const main = mainScrollRef.current;
+    const panel = activeStepPanelRef.current;
+    if (!main || !panel) return;
+
+    const observer = new ResizeObserver(handleMainScroll);
+    observer.observe(main);
+    observer.observe(panel);
+    window.addEventListener("resize", handleMainScroll);
+    handleMainScroll();
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", handleMainScroll);
+    };
+  }, [currentStep, draftVersion, handleMainScroll]);
+
   const handleDynamicDraftChange = useCallback((stepId: number, data: Record<string, string>) => {
     dynamicDraftRef.current[stepId] = data;
-    const manuallyChangedAiFields = new Set(
-      Object.entries(data)
-        .filter(([fieldName, value]) =>
-          aiFilledFieldNames.includes(fieldName) && (dynamicAnswers[fieldName] ?? "") !== value,
-        )
-        .map(([fieldName]) => fieldName),
-    );
-    if (manuallyChangedAiFields.size > 0) {
-      setAiFilledFieldNames((current) => current.filter((fieldName) => !manuallyChangedAiFields.has(fieldName)));
-    }
-    const hasChangedValue = Object.entries(data).some(
-      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
-    );
-    if (hasChangedValue) {
-      if (formAssistantValidation) setFormAssistantValidationDirty(true);
-      setAutosaveFailed(false);
-      setAutosaving(true);
-    }
     // Let a large official select close before recalculating outer step visibility.
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
     draftVersionTimerRef.current = window.setTimeout(() => {
@@ -2014,20 +1951,20 @@ export default function ApplicationPage() {
       setDraftVersion((version) => version + 1);
     }, 120);
     setSubmitMissingFields([]);
-  }, [aiFilledFieldNames, dynamicAnswers, formAssistantValidation]);
+  }, []);
 
   useEffect(() => () => {
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
   }, []);
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
-  const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "ID_C1_TOURIST";
+  const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
+  const isTaiwanEntryPermit = resolvedVisaType === "TW_ENTRY_PERMIT";
   const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
   const showDocumentStep = !isArrivalCardApplication || isPhilippinesEtravel;
-  // Companion questions required by an official visa schema remain regular
-  // dynamic form steps. The standalone VIZA Team workflow is deferred.
-  const showTeamStep = false;
+  const showStandaloneDocumentStep = shouldShowStandaloneDocumentStep(showDocumentStep, resolvedVisaType);
+  const showTeamStep = !isCompanionFlow && !isArrivalCardApplication;
   const STEPS: StepDef[] = STEP_KEYS
     .filter((key) => showTeamStep || key !== "team")
     .map((key, id) => ({
@@ -2044,80 +1981,10 @@ export default function ApplicationPage() {
   const isVietnamEVisa = isVietnamEVisaApplication(resolvedCountry, resolvedVisaType);
   const isVietnamPrearrival = isVietnamPrearrivalApplication(resolvedCountry, resolvedVisaType);
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
-  const formAssistantSchemaFieldCount = dbSteps.reduce((count, step) => count + step.fields.length, 0);
-  const formAssistantEligible = canUseFormAssistant({
-    applicationId: appState.applicationId,
-    visaType: resolvedVisaType,
-    schemaFieldCount: formAssistantSchemaFieldCount,
-  });
-  const showFormFillingAssistant = formAssistantEligible && !formAssistantUnavailable;
-
-  useEffect(() => {
-    const applicationId = appState.applicationId;
-    if (!formAssistantEligible || !applicationId) {
-      setFormAssistantState(null);
-      setAiFilledFieldNames([]);
-      setFormAssistantFillNotice(null);
-      setFormAssistantUnavailable(false);
-      return;
-    }
-    const controller = new AbortController();
-    setFormAssistantUnavailable(false);
-    setFormAssistantBusy(true);
-    fetch(`/api/applications/${applicationId}/form-assistant?locale=${encodeURIComponent(locale)}`, {
-      signal: controller.signal,
-      cache: "no-store",
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Form assistant returned ${response.status}`);
-        return response.json() as Promise<FormAssistantState>;
-      })
-      .then((state) => {
-        if (controller.signal.aborted) return;
-        setFormAssistantState(prepareFormAssistantState(state));
-        setAiFilledFieldNames(state.aiFilledFieldNames);
-      })
-      .catch((assistantError) => {
-        if (!controller.signal.aborted) {
-          console.warn("Unable to load form assistant", assistantError);
-          setFormAssistantUnavailable(true);
-          setFormAssistantState(null);
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setFormAssistantBusy(false);
-      });
-    return () => controller.abort();
-  }, [appState.applicationId, formAssistantEligible, formAssistantReloadKey, locale]);
-
-  // A concurrent Server Action refresh can remount the client subtree after a
-  // successful assistant request and leave the card in its empty 0 / 0 shell.
-  // Recover that state automatically instead of asking the applicant to reload.
-  useEffect(() => {
-    if (
-      !formAssistantEligible ||
-      !appState.applicationId ||
-      formAssistantBusy ||
-      formAssistantUnavailable ||
-      formAssistantState
-    ) return;
-    const retryTimer = window.setTimeout(() => {
-      setFormAssistantReloadKey((key) => key + 1);
-    }, 1_500);
-    return () => window.clearTimeout(retryTimer);
-  }, [
-    appState.applicationId,
-    formAssistantBusy,
-    formAssistantEligible,
-    formAssistantState,
-    formAssistantUnavailable,
-  ]);
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
   const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
   const isIndonesiaEVisa = isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType);
-  const preserveIndonesiaReview =
-    isIndonesiaEVisa || isIndonesiaEVisaApplication(explicitCountry, requestedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
@@ -2184,12 +2051,12 @@ export default function ApplicationPage() {
   const isZhInterface = locale.toLowerCase().startsWith("zh");
   // Indices for the extra steps appended after DB-driven form steps
   const documentStepIndex = dbSteps.length;
-  const teamStepIndex = dbSteps.length + (showDocumentStep ? 1 : 0);
-  const reviewStepIndex = teamStepIndex + (showTeamStep ? 1 : 0);
-  const statusStepIndex = reviewStepIndex;
-  const fallbackTeamStepIndex = 4;
-  const fallbackReviewStepIndex = showTeamStep ? 5 : 4;
-  const fallbackStatusStepIndex = fallbackReviewStepIndex;
+  const reviewStepIndex = dbSteps.length + (showStandaloneDocumentStep ? 1 : 0);
+  const teamStepIndex = reviewStepIndex + 1;
+  const statusStepIndex = reviewStepIndex + (showTeamStep ? 2 : 1);
+  const fallbackReviewStepIndex = 4;
+  const fallbackTeamStepIndex = 5;
+  const fallbackStatusStepIndex = showTeamStep ? 6 : 5;
 
   const pendingDynamicDrafts = useMemo(
     () => {
@@ -2225,12 +2092,14 @@ export default function ApplicationPage() {
   const passportOcrInitialFileName =
     localPassportBioPageName ??
     passportBioPageDocument?.filename ??
-    null;
+    (hasUniversalPassportPrefill
+      ? (isZhInterface ? "已从通用资料读取护照信息" : "Loaded from universal profile")
+      : null);
   const passportOcrInitialUploaded = Boolean(
     localPassportBioPageName ||
-    passportBioPageDocument,
+    passportBioPageDocument ||
+    hasUniversalPassportPrefill,
   );
-  const showPassportOcrUpload = !hasUniversalPassportPrefill || passportOcrInitialUploaded;
 
   // Steps in DB source order — used only to build the grouped sections.
   // The displayed/navigated list (`effectiveSteps` below) is reordered to
@@ -2250,25 +2119,15 @@ export default function ApplicationPage() {
           }),
           description: tApp("dynamicStepDescription", { count: step.fields.length }),
         })),
-        ...(showDocumentStep
+        ...(showStandaloneDocumentStep
           ? [
               {
                 id: documentStepIndex,
-                sourceName: "Supporting Documents",
+                sourceName: TAIWAN_ENTRY_PERMIT_DOCUMENTS_STEP_SOURCE_NAME,
                 name: isPhilippinesEtravel && isZhInterface
                   ? "附加材料"
                   : tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : isZhInterface ? "材料" : "Documents",
                 description: tApp.has("documentsStepDescription") ? tApp("documentsStepDescription" as never) : "Upload required and optional supporting documents",
-              },
-            ]
-          : []),
-        ...(showTeamStep
-          ? [
-              {
-                id: teamStepIndex,
-                sourceName: "Team",
-                name: tApp.has("steps.team.name") ? tApp("steps.team.name" as never) : "Team",
-                description: tApp.has("teamStepDescription") ? tApp("teamStepDescription" as never) : "Add or review companions",
               },
             ]
           : []),
@@ -2280,15 +2139,34 @@ export default function ApplicationPage() {
             : isPhilippinesEtravel && isZhInterface
               ? "核对信息"
             : tDyn.has("Review") ? tDyn("Review" as never) : isZhInterface ? "审核申请" : "Review Application",
-          description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review, confirm, and submit your details",
+          description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
+        },
+        ...(showTeamStep
+          ? [
+              {
+                id: teamStepIndex,
+                sourceName: "Team",
+                name: tApp.has("steps.team.name") ? tApp("steps.team.name" as never) : "Team",
+                description: tApp.has("teamStepDescription") ? tApp("teamStepDescription" as never) : "Add or review companions",
+              },
+            ]
+          : []),
+        {
+          id: statusStepIndex,
+          sourceName: "Confirmation",
+          name: resolvedVisaType === "VN_PREARRIVAL_DECLARATION"
+            ? VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH.Confirmation
+            : tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : isZhInterface ? "确认" : "Confirmation",
+          description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
         },
       ]
         : [...STEPS],
     [
       documentStepIndex,
       reviewStepIndex,
-      showDocumentStep,
+      showStandaloneDocumentStep,
       showTeamStep,
+      statusStepIndex,
       STEPS,
       teamStepIndex,
       resolvedVisaType,
@@ -2323,6 +2201,9 @@ export default function ApplicationPage() {
   const groupedSections = useMemo(
     () => {
       if (!useDynamic) return [];
+      if (resolvedVisaType === "TW_ENTRY_PERMIT") {
+        return buildTaiwanEntryPermitSections(sourceOrderedSteps);
+      }
       const sections = buildApplicationStepSections(sourceOrderedSteps, dynamicSectionTitles);
       if (isPhilippinesEtravel) {
         return sections.map((section) =>
@@ -2341,7 +2222,7 @@ export default function ApplicationPage() {
           : section,
       );
     },
-    [dynamicSectionTitles, isIndonesiaEVisa, isPhilippinesEtravel, isZhInterface, sourceOrderedSteps, useDynamic],
+    [dynamicSectionTitles, isIndonesiaEVisa, isPhilippinesEtravel, isZhInterface, resolvedVisaType, sourceOrderedSteps, useDynamic],
   );
 
   // Final list of steps in display order: flattened from grouped sections so
@@ -2350,6 +2231,13 @@ export default function ApplicationPage() {
   const effectiveSteps: StepDef[] = useDynamic
     ? groupedSections.flatMap((section) => section.steps)
     : sourceOrderedSteps;
+  const taiwanEntryPermitDocumentHostStepId = useMemo(
+    () => isTaiwanEntryPermit ? getTaiwanEntryPermitInlineDocumentStepId(effectiveSteps) : null,
+    [effectiveSteps, isTaiwanEntryPermit],
+  );
+  const documentNavigationStepId = useDynamic
+    ? (isTaiwanEntryPermit ? (taiwanEntryPermitDocumentHostStepId ?? firstFormStepId) : documentStepIndex)
+    : 3;
 
   const tabCompletion = useMemo(
     () => computeAllTabCompletion({
@@ -2366,7 +2254,7 @@ export default function ApplicationPage() {
       reviewStepId: reviewStepIndex,
       teamStepId: teamStepIndex,
       confirmationStepId: statusStepIndex,
-      showDocumentStep,
+      showDocumentStep: showStandaloneDocumentStep,
       showTeamStep,
     }),
     [
@@ -2376,12 +2264,13 @@ export default function ApplicationPage() {
       documentCenterData,
       documentCenterLoaded,
       documentStepIndex,
+      documentNavigationStepId,
       dynamicAnswerSnapshot,
       effectiveSteps,
       resolvedCountry,
       resolvedVisaType,
       reviewStepIndex,
-      showDocumentStep,
+      showStandaloneDocumentStep,
       showTeamStep,
       statusStepIndex,
       teamStepIndex,
@@ -2394,75 +2283,21 @@ export default function ApplicationPage() {
   const visibleMissingFields = submitMissingFields.length > 0
     ? submitMissingFields
     : tabCompletion.missingFields;
-  const confirmationMissingFields = forceDryRun
-    ? visibleMissingFields.filter((item) => item.stepId !== documentStepIndex)
+  const completenessBlocksSubmission = Boolean(applicationCompleteness && !applicationCompleteness.complete);
+  const confirmationMissingFields = completenessBlocksSubmission && visibleMissingFields.length === 0
+    ? [{
+        stepId: useDynamic ? statusStepIndex : fallbackStatusStepIndex,
+        stepName: isZhInterface ? "最终确认" : "Final confirmation",
+        fieldName: "application_completeness",
+        label: isZhInterface ? "请先补齐上方缺失信息和材料" : "Complete the missing information and documents above",
+        reason: "required" as const,
+      }]
     : visibleMissingFields;
-  const formAssistantFieldReviewIssues = useMemo(
-    () => buildFormAssistantFieldReviewIssues(
-      formAssistantValidation,
-      visibleDynamicSteps.map(({ step }) => step),
-    ),
-    [formAssistantValidation, visibleDynamicSteps],
-  );
-  const formAssistantFieldReviewIssueMap = useMemo(
-    () => new Map(formAssistantFieldReviewIssues.map((issue) => [issue.fieldName, issue])),
-    [formAssistantFieldReviewIssues],
-  );
-  const formAssistantFieldLocations = useMemo(() => {
-    const locations = new Map<string, { field: VisaFormFieldRow; step: WizardStep; stepIndex: number }>();
-    dbSteps.forEach((step, stepIndex) => {
-      step.fields.forEach((field) => locations.set(field.fieldName, { field, step, stepIndex }));
-    });
-    return locations;
-  }, [dbSteps]);
-  const formAssistantDisplayValidation = useMemo(() => {
-    if (!formAssistantValidation) return null;
-    const expand = (
-      issues: FormAssistantValidationResponse["errors"],
-      severity: "error" | "warning",
-    ): FormAssistantDisplayValidationIssue[] => issues.flatMap((issue) => {
-      const fieldNames = issue.fieldNames ?? [];
-      return fieldNames.length > 0
-        ? fieldNames.map((fieldName) => ({
-            id: `${issue.code}:${fieldName}`,
-            fieldName,
-            message: issue.message,
-            severity,
-          }))
-        : [{ id: issue.code, message: issue.message, severity }];
-    });
-    return {
-      errors: expand(formAssistantValidation.errors, "error"),
-      warnings: expand(formAssistantValidation.warnings, "warning"),
-      warningsAcknowledged: formAssistantValidation.canReview,
-      dirty: formAssistantValidationDirty,
-    };
-  }, [formAssistantValidation, formAssistantValidationDirty]);
-  const formFieldsComplete = useMemo(
-    () => tabCompletion.missingFields.every((item) => item.stepId >= documentStepIndex),
-    [documentStepIndex, tabCompletion.missingFields],
-  );
-  const lastVisibleFormStepId = visibleDynamicSteps.at(-1)?.sourceIndex ?? null;
-  const invalidFieldNamesByStep = useMemo(() => {
-    const fieldsByStep = new Map<number, Set<string>>();
-    if (submitCheckState !== "invalid") return fieldsByStep;
-
-    for (const item of confirmationMissingFields) {
-      const fieldNames = fieldsByStep.get(item.stepId) ?? new Set<string>();
-      fieldNames.add(item.fieldName);
-      fieldsByStep.set(item.stepId, fieldNames);
-    }
-    return fieldsByStep;
-  }, [confirmationMissingFields, submitCheckState]);
   const showSubmissionStatusStep = shouldShowSubmissionStatusStep({
     submittedAt: appState.submittedAt,
     submissionResultStatus: appState.submissionResultStatus,
     submissionResult: appState.submissionResult,
   });
-  // A submission/status card must never replace the saved application review.
-  // This applies uniformly to pending, payment, handoff, success, retry, and
-  // failure states across every long-form country workflow.
-  const showReviewAlongsideSubmissionStatus = shouldShowReviewAlongsideSubmissionStatus();
 
   useEffect(() => {
     if (loading || effectiveSteps.length === 0) return;
@@ -2470,17 +2305,8 @@ export default function ApplicationPage() {
   }, [completedStepIds, effectiveSteps, loading]);
 
   useEffect(() => {
-    loadDataRequestRef.current += 1;
     setLoading(true);
     setError(null);
-    setCurrentStep(0);
-    setCompletedUpTo(0);
-    setDynamicAnswers({});
-    setSubmitCheckState("idle");
-    setSubmitMissingFields([]);
-    setFormAssistantValidation(null);
-    setFormAssistantValidationDirty(false);
-    initialStepResolvedRef.current = false;
     setAppState((prev) => ({
       ...prev,
       applicationId: null,
@@ -2492,19 +2318,18 @@ export default function ApplicationPage() {
   }, [explicitApplicationId, resolvedCountry, resolvedVisaType]);
 
   const loadData = useCallback(async () => {
-    const requestId = ++loadDataRequestRef.current;
-    const isLatestRequest = () => loadDataRequestRef.current === requestId;
-
     try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       let profile: LoadedApplicantProfile | null = null;
       let application: LoadedApplication | null = null;
 
       if (explicitApplicationId) {
         const context = await getTeamApplicationContext(explicitApplicationId);
         if (!context.ok || !context.application || !context.profile) {
-          if (isLatestRequest()) {
-            setError(context.reason ?? t("errors.noApplicationFound"));
-          }
+          setError(context.reason ?? t("errors.noApplicationFound"));
           return;
         }
         profile = context.profile as LoadedApplicantProfile;
@@ -2514,40 +2339,11 @@ export default function ApplicationPage() {
           preferExplicit: preferExplicitPackage,
         });
         if (context.error) {
-          if (isLatestRequest()) setError(context.error);
+          setError(context.error);
           return;
         }
         profile = (context.profile as LoadedApplicantProfile | null) ?? null;
         application = (context.application as LoadedApplication | null) ?? null;
-      }
-
-      if (shouldBootstrapFormAssistantDraft({
-        applicationId: application?.id,
-        country: resolvedCountry,
-        visaType: resolvedVisaType,
-        hasFormSchema: dbSteps.some((step) => step.fields.length > 0),
-      })) {
-        const bootstrapKey = `${resolvedCountry}:${resolvedVisaType}`;
-        if (formAssistantDraftBootstrapRef.current?.key !== bootstrapKey) {
-          formAssistantDraftBootstrapRef.current = {
-            key: bootstrapKey,
-            promise: ensureDraftApplication(resolvedCountry, resolvedVisaType, {
-              preferExplicit: preferExplicitPackage,
-            }),
-          };
-        }
-        const draftResult = await formAssistantDraftBootstrapRef.current.promise;
-        if (draftResult.error || !draftResult.applicationId) {
-          formAssistantDraftBootstrapRef.current = null;
-          throw new Error(draftResult.error ?? t("errors.noApplicationFound"));
-        }
-        application = {
-          ...(application ?? {}),
-          id: draftResult.applicationId,
-          country: resolvedCountry,
-          visa_type: resolvedVisaType,
-          status: "draft",
-        };
       }
 
       if (application?.id && preferExplicitPackage) {
@@ -2556,19 +2352,14 @@ export default function ApplicationPage() {
         const applicationVisaType = getFormVisaType(application.visa_type ?? "").toLowerCase();
         const routeVisaType = getFormVisaType(resolvedVisaType).toLowerCase();
         if (applicationCountry !== routeCountry || applicationVisaType !== routeVisaType) {
-          if (isLatestRequest()) {
-            setError(
-              isZhInterface
-                ? "当前申请与页面国家不一致。为避免提交到错误的官网，系统已停止本次操作，请从“我的申请”重新打开正确申请。"
-                : "This application does not match the country shown on the page. Submission was stopped to prevent filing with the wrong official portal. Reopen the correct application from My Applications.",
-            );
-          }
+          setError(
+            isZhInterface
+              ? "当前申请与页面国家不一致。为避免提交到错误的官网，系统已停止本次操作，请从“我的申请”重新打开正确申请。"
+              : "This application does not match the country shown on the page. Submission was stopped to prevent filing with the wrong official portal. Reopen the correct application from My Applications.",
+          );
           return;
         }
       }
-
-      if (!isLatestRequest()) return;
-      setForceDryRun(application?.purpose === "VIZA_PLACEHOLDER_DRY_RUN");
 
       if (profile) {
         // Load DS-160 answers from visa_application_answers first (the source of truth)
@@ -2587,13 +2378,11 @@ export default function ApplicationPage() {
         const mergedDynamicAnswers = normalizeAnswersToFieldOptions(universalDynamicAnswers, dbSteps);
         const profileFallback = profile;
 
-        if (!isLatestRequest()) return;
-
         // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
         const a = ds160Answers;
         setAppState((prev) => ({
           ...prev,
-          applicationId: application?.id ?? prev.applicationId,
+          applicationId: application?.id ?? null,
           personal: {
             surname: a.surname || profileFallback?.full_name?.split(" ").slice(-1)[0] || "",
             givenNames: a.given_names || profileFallback?.full_name?.split(" ").slice(0, -1).join(" ") || "",
@@ -2627,12 +2416,10 @@ export default function ApplicationPage() {
             usAddressZip: a.us_address_zip || "",
           },
           confirmationNumber: application?.confirmation_number ?? undefined,
-          submittedAt: application?.submitted_at ?? prev.submittedAt,
-          submissionResult:
-            (application?.submission_result as SubmissionResult | null) ?? prev.submissionResult,
+          submittedAt: application?.submitted_at ?? undefined,
+          submissionResult: (application?.submission_result as SubmissionResult | null) ?? null,
           submissionResultStatus:
-            (application?.submission_result_status as SubmissionResultStatus | null) ??
-            prev.submissionResultStatus,
+            (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
         }));
 
         if (!initialStepResolvedRef.current) {
@@ -2642,7 +2429,7 @@ export default function ApplicationPage() {
               (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
             submissionResult: (application?.submission_result as SubmissionResult | null) ?? null,
           });
-          scrollToStepPanel(shouldOpenConfirmation ? statusStepIndex : 0, "auto");
+          setCurrentStep(shouldOpenConfirmation ? statusStepIndex : 0);
           initialStepResolvedRef.current = true;
         }
 
@@ -2661,11 +2448,11 @@ export default function ApplicationPage() {
         t("errors.noApplicationFound"),
         t("errors.stalePage"),
       );
-      if (message && isLatestRequest()) setError(message);
+      if (message) setError(message);
     } finally {
-      if (isLatestRequest()) setLoading(false);
+      setLoading(false);
     }
-  }, [dbSteps, explicitApplicationId, isZhInterface, preferExplicitPackage, resolvedCountry, resolvedVisaType, scrollToStepPanel, statusStepIndex, t]);
+  }, [dbSteps, explicitApplicationId, isZhInterface, preferExplicitPackage, resolvedCountry, resolvedVisaType, statusStepIndex, t]);
 
   useEffect(() => {
     if (!packageLoaded || isExplicitStatusView) return;
@@ -2673,14 +2460,16 @@ export default function ApplicationPage() {
   }, [isExplicitStatusView, loadData, packageLoaded]);
 
   // Honor deep links from redirects: once steps + any prefilled answers have
-  // loaded, jump directly to the requested Review/Team/Confirmation step.
+  // loaded, jump directly to the requested Review/Team/Confirmation/Documents step.
   const [reviewJumpHandled, setReviewJumpHandled] = useState(false);
   useEffect(() => {
-    if ((!jumpToReview && !jumpToTeam && !jumpToConfirmation) || reviewJumpHandled || loading) return;
+    if ((!jumpToReview && !jumpToTeam && !jumpToConfirmation && !jumpToDocuments) || reviewJumpHandled || loading) return;
     const targetId = jumpToConfirmation
       ? (useDynamic
           ? (effectiveSteps.find((s) => s.sourceName === "Confirmation")?.id ?? statusStepIndex)
           : fallbackStatusStepIndex)
+      : jumpToDocuments
+      ? documentNavigationStepId
       : jumpToTeam && showTeamStep
       ? (useDynamic
           ? (effectiveSteps.find((s) => s.sourceName === "Team")?.id ?? teamStepIndex)
@@ -2688,7 +2477,7 @@ export default function ApplicationPage() {
       : useDynamic
         ? (effectiveSteps.find((s) => s.sourceName === "Review")?.id ?? reviewStepIndex)
         : fallbackReviewStepIndex;
-    scrollToStepPanel(targetId, "auto");
+    setCurrentStep(targetId);
     setCompletedUpTo((c) => Math.max(c, targetId));
     setReviewJumpHandled(true);
   }, [
@@ -2703,9 +2492,10 @@ export default function ApplicationPage() {
     fallbackStatusStepIndex,
     fallbackTeamStepIndex,
     jumpToConfirmation,
+    jumpToDocuments,
+    documentNavigationStepId,
     teamStepIndex,
     statusStepIndex,
-    scrollToStepPanel,
     useDynamic,
   ]);
 
@@ -2715,86 +2505,33 @@ export default function ApplicationPage() {
 
     const fallbackStep = [...effectiveSteps].reverse().find((step) => step.id < currentStep) ?? effectiveSteps[0];
     if (fallbackStep && fallbackStep.id !== currentStep) {
-      scrollToStepPanel(fallbackStep.id, "auto");
+      setCurrentStep(fallbackStep.id);
       const fallbackIndex = effectiveSteps.findIndex((step) => step.id === fallbackStep.id);
       if (fallbackIndex >= 0) {
         setCompletedUpTo((current) => Math.min(current, fallbackIndex));
       }
     }
-  }, [currentStep, effectiveSteps, scrollToStepPanel, useDynamic]);
+  }, [currentStep, effectiveSteps, useDynamic]);
 
-  // Merge only submission fields from Realtime updates. Re-fetching the whole
-  // application on every runner stage update remounts the large form tree and
-  // makes the submission progress UI appear to restart.
+  // US-040: Supabase Realtime — re-fetch application data on application UPDATE.
+  // Universal Profile is a non-overwriting autofill source: saved answers win,
+  // and still-empty fields can be hydrated from the current profile.
   useEffect(() => {
-    const applicationId = appState.applicationId;
-    if (!applicationId) return;
-
     const supabase = createClient();
 
     const channel = supabase
-      .channel(`application-page-realtime:${applicationId}`)
+      .channel("application-page-realtime")
       .on(
         "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "applications",
-          filter: `id=eq.${applicationId}`,
-        },
-        (payload) => {
-          const updated = payload.new as LoadedApplication;
-          if (updated.id && updated.id !== applicationId) return;
-
-          setAppState((previous) => {
-            const nextApplicationId = updated.id ?? previous.applicationId;
-            const nextConfirmationNumber =
-              updated.confirmation_number ?? previous.confirmationNumber;
-            const nextSubmittedAt = updated.submitted_at ?? previous.submittedAt;
-            const nextSubmissionResultStatus =
-              (updated.submission_result_status as SubmissionResultStatus | null | undefined) ??
-              previous.submissionResultStatus;
-            const submissionMetadataChanged =
-              nextConfirmationNumber !== previous.confirmationNumber ||
-              nextSubmittedAt !== previous.submittedAt ||
-              nextSubmissionResultStatus !== previous.submissionResultStatus;
-            const incomingSubmissionResult = updated.submission_result as
-              | SubmissionResult
-              | null
-              | undefined;
-            const nextSubmissionResult =
-              incomingSubmissionResult &&
-              (previous.submissionResult === null || submissionMetadataChanged)
-                ? incomingSubmissionResult
-                : previous.submissionResult;
-
-            if (
-              nextApplicationId === previous.applicationId &&
-              nextConfirmationNumber === previous.confirmationNumber &&
-              nextSubmittedAt === previous.submittedAt &&
-              nextSubmissionResultStatus === previous.submissionResultStatus &&
-              nextSubmissionResult === previous.submissionResult
-            ) {
-              return previous;
-            }
-
-            return {
-              ...previous,
-              applicationId: nextApplicationId,
-              confirmationNumber: nextConfirmationNumber,
-              submittedAt: nextSubmittedAt,
-              submissionResult: nextSubmissionResult,
-              submissionResultStatus: nextSubmissionResultStatus,
-            };
-          });
-        },
+        { event: "UPDATE", schema: "public", table: "applications" },
+        () => { void loadData(); }
       )
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [appState.applicationId]);
+  }, [loadData]);
 
   const ensureWritableApplicationId = useCallback(async () => {
     let applicationId = appState.applicationId;
@@ -2828,6 +2565,33 @@ export default function ApplicationPage() {
     t,
   ]);
 
+  const refreshApplicationCompleteness = useCallback(async (targetApplicationId?: string | null) => {
+    const applicationId = targetApplicationId ?? appState.applicationId;
+    if (!applicationId) return null;
+    setApplicationCompletenessLoading(true);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/completeness`, {
+        method: "GET",
+        headers: { "Accept": "application/json" },
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        completeness?: ApplicationCompletenessResult;
+        error?: string;
+      } | null;
+      if (!response.ok || !payload?.completeness) {
+        throw new Error(payload?.error ?? (isZhInterface ? "无法检查申请完整性。" : "Unable to check application completeness."));
+      }
+      setApplicationCompleteness(payload.completeness);
+      return payload.completeness;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : isZhInterface ? "无法检查申请完整性。" : "Unable to check application completeness.";
+      setError(message);
+      return null;
+    } finally {
+      setApplicationCompletenessLoading(false);
+    }
+  }, [appState.applicationId, isZhInterface]);
+
   const saveDynamicDraftForStep = useCallback(async (stepIndex: number) => {
     const data = dynamicDraftRef.current[stepIndex];
     if (!data) return;
@@ -2838,19 +2602,13 @@ export default function ApplicationPage() {
     );
     if (!hasNonEmptyValue && !hasChangedValue) return;
 
-    const changedData = Object.fromEntries(
-      Object.entries(data).filter(
-        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
-      ),
-    );
-    if (Object.keys(changedData).length === 0) return;
-
     const applicationId = await ensureWritableApplicationId();
-    const saveResult = await saveDynamicAnswers(applicationId, changedData);
+    const saveResult = await saveDynamicAnswers(applicationId, data);
     if (saveResult.error) throw new Error(saveResult.error);
 
     setDynamicAnswers((prev) => ({ ...prev, ...data }));
-  }, [dynamicAnswers, ensureWritableApplicationId]);
+    void refreshApplicationCompleteness(applicationId);
+  }, [dynamicAnswers, ensureWritableApplicationId, refreshApplicationCompleteness]);
 
   const saveAllDynamicDrafts = useCallback(async () => {
     const mergedDraft = collectDraftAnswers(dynamicDraftRef.current);
@@ -2862,430 +2620,17 @@ export default function ApplicationPage() {
     );
     if (!hasChangedValue) return;
 
-    const changedDraft = Object.fromEntries(
-      draftEntries.filter(
-        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
-      ),
-    );
-    if (Object.keys(changedDraft).length === 0) return;
-
     const applicationId = await ensureWritableApplicationId();
-    const saveResult = await saveDynamicAnswers(applicationId, changedDraft);
+    const saveResult = await saveDynamicAnswers(applicationId, mergedDraft);
     if (saveResult.error) throw new Error(saveResult.error);
 
     setDynamicAnswers((prev) => ({ ...prev, ...mergedDraft }));
     setSubmitMissingFields([]);
-  }, [dynamicAnswers, ensureWritableApplicationId]);
-
-  const handleFormAssistantSend = useCallback(async (text: string) => {
-    const applicationId = appState.applicationId;
-    if (!applicationId) throw new Error(t("errors.noApplicationFound"));
-    const optimisticMessageId = `user-pending-${crypto.randomUUID()}`;
-    const now = new Date().toISOString();
-    setFormAssistantBusy(true);
-    setFormAssistantValidation(null);
-    setFormAssistantValidationDirty(false);
-    setFormAssistantState((current) => current ? {
-      ...current,
-      messages: [
-        ...current.messages,
-        { id: optimisticMessageId, role: "user", content: text, createdAt: now },
-      ],
-    } : current);
-    try {
-      await saveAllDynamicDrafts();
-      const response = await fetch(`/api/applications/${applicationId}/form-assistant/turn`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          locale,
-          inputMode: "text",
-          idempotencyKey: crypto.randomUUID(),
-        }),
-      });
-      const payload = await response.json() as FormAssistantTurnResponse & { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "Form assistant request failed");
-
-      if (payload.appliedPatches.length > 0) {
-        const fields = dbSteps.flatMap((step) => step.fields);
-        const patch = Object.fromEntries(payload.appliedPatches.map((item) => [item.fieldName, item.value]));
-        for (const item of payload.appliedPatches) {
-          // Assistant values are persisted in the schema's official value.
-          // Remove stale bilingual draft aliases so a prior manual `_zh` or
-          // `_en` value cannot visually override the correction on reload.
-          delete patch[`${item.fieldName}_zh`];
-          delete patch[`${item.fieldName}_en`];
-          const stepIndex = dbSteps.findIndex((step) =>
-            step.fields.some((field) => field.fieldName === item.fieldName),
-          );
-          if (stepIndex >= 0) {
-            // The assistant route already persisted this patch with
-            // `source=form_assistant`. Do not leave a duplicate local draft:
-            // the autosave path labels drafts as `user_form`, which would
-            // otherwise erase provenance and make a later chat correction look
-            // like a conflict with manual input.
-            const existingDraft = dynamicDraftRef.current[stepIndex];
-            if (existingDraft && Object.prototype.hasOwnProperty.call(existingDraft, item.fieldName)) {
-              const {
-                [item.fieldName]: _assistantPatchedField,
-                [`${item.fieldName}_zh`]: _assistantPatchedFieldZh,
-                [`${item.fieldName}_en`]: _assistantPatchedFieldEn,
-                ...remainingDraft
-              } = existingDraft;
-              dynamicDraftRef.current[stepIndex] = remainingDraft;
-            }
-          }
-        }
-        setDynamicAnswers((current) => {
-          const next = { ...current };
-          for (const item of payload.appliedPatches) {
-            delete next[`${item.fieldName}_zh`];
-            delete next[`${item.fieldName}_en`];
-          }
-          return { ...next, ...patch };
-        });
-        setAiFilledFieldNames((current) => Array.from(new Set([
-          ...current,
-          ...payload.appliedPatches.map((item) => item.fieldName),
-        ])));
-        const noticeItems = payload.appliedPatches.flatMap<FormAssistantFillNoticeItem>((item) => {
-          const field = fields.find((candidate) => candidate.fieldName === item.fieldName);
-          if (!field) return [];
-          return [{
-            fieldName: item.fieldName,
-            label: formAssistantFieldLabel(field, isZhInterface),
-            value: item.value,
-            displayValue: formAssistantDisplayValue(field, item.value, locale, isZhInterface),
-          }];
-        });
-        if (noticeItems.length > 0) {
-          setFormAssistantFillNotice({ id: crypto.randomUUID(), items: noticeItems });
-        }
-      }
-      setFormAssistantState((current) => current ? {
-        ...current,
-        ...payload,
-        messages: [
-          ...current.messages,
-          { id: `assistant-${crypto.randomUUID()}`, role: "assistant", content: payload.assistantMessage, createdAt: now },
-        ],
-        aiFilledFieldNames: Array.from(new Set([
-          ...current.aiFilledFieldNames,
-          ...payload.appliedPatches.map((item) => item.fieldName),
-        ])),
-      } : current);
-    } catch (sendError) {
-      setFormAssistantState((current) => current ? {
-        ...current,
-        messages: current.messages.filter((message) => message.id !== optimisticMessageId),
-      } : current);
-      throw sendError;
-    } finally {
-      setFormAssistantBusy(false);
-    }
-  }, [appState.applicationId, dbSteps, isZhInterface, locale, saveAllDynamicDrafts, t]);
-
-  const handleFormAssistantUndoFill = useCallback(async (items: FormAssistantFillNoticeItem[]) => {
-    const applicationId = appState.applicationId;
-    if (!applicationId || items.length === 0) throw new Error("No assistant patch to undo");
-    const response = await fetch(`/api/applications/${applicationId}/form-assistant/undo`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        patches: items.map((item) => ({ fieldName: item.fieldName, value: item.value })),
-      }),
-    });
-    const payload = await response.json() as FormAssistantUndoResponse & { error?: string };
-    if (!response.ok || payload.skippedConflicts.length > 0) {
-      throw new Error(payload.error ?? "The assistant patch could not be undone");
-    }
-
-    const restored = new Map(payload.restored.map((item) => [item.fieldName, item]));
-    for (const item of payload.restored) {
-      const stepIndex = dbSteps.findIndex((step) =>
-        step.fields.some((field) => field.fieldName === item.fieldName),
-      );
-      if (stepIndex < 0) continue;
-      const nextDraft = { ...(dynamicDraftRef.current[stepIndex] ?? {}) };
-      if (item.restoredValue === null) delete nextDraft[item.fieldName];
-      else nextDraft[item.fieldName] = item.restoredValue;
-      dynamicDraftRef.current[stepIndex] = nextDraft;
-    }
-    setDynamicAnswers((current) => {
-      const next = { ...current };
-      for (const item of payload.restored) {
-        if (item.restoredValue === null) delete next[item.fieldName];
-        else next[item.fieldName] = item.restoredValue;
-      }
-      return next;
-    });
-    setAiFilledFieldNames((current) => current.filter((fieldName) => {
-      const item = restored.get(fieldName);
-      return !item || item.restoredSource === "form_assistant";
-    }));
-    setFormAssistantValidation(null);
-    setFormAssistantValidationDirty(false);
-    setFormAssistantFillNotice(null);
-
-    const stateResponse = await fetch(
-      `/api/applications/${applicationId}/form-assistant?locale=${encodeURIComponent(locale)}`,
-      { cache: "no-store" },
-    );
-    if (stateResponse.ok) {
-      const state = await stateResponse.json() as FormAssistantState;
-      setFormAssistantState(prepareFormAssistantState(state));
-      setAiFilledFieldNames(state.aiFilledFieldNames);
-    }
-  }, [appState.applicationId, dbSteps, locale]);
-
-  const handleDismissFormAssistantFillNotice = useCallback((noticeId: string) => {
-    setFormAssistantFillNotice((current) => current?.id === noticeId ? null : current);
-  }, []);
-
-  const handleFormAssistantTranscribe = useCallback(async (file: File): Promise<FormAssistantTranscriptionResponse> => {
-    const applicationId = appState.applicationId;
-    if (!applicationId) throw new Error(t("errors.noApplicationFound"));
-    const formData = new FormData();
-    formData.append("audio", file);
-    formData.append("language", locale);
-    const response = await fetch(`/api/applications/${applicationId}/form-assistant/transcribe`, {
-      method: "POST",
-      body: formData,
-    });
-    const payload = await response.json() as FormAssistantTranscriptionResponse & { error?: string };
-    if (!response.ok) throw new Error(payload.error ?? "Transcription failed");
-    return payload;
-  }, [appState.applicationId, locale, t]);
-
-  const navigateFormAssistantToReview = useCallback(() => {
-    const targetStepId = useDynamic
-      ? (effectiveSteps.find((step) => step.sourceName === "Review")?.id ?? reviewStepIndex)
-      : fallbackReviewStepIndex;
-    const next = new URLSearchParams(searchParams.toString());
-    next.set("step", "review");
-    scrollToStepPanel(targetStepId);
-    setCompletedUpTo((current) => Math.max(current, getVisibleStepIndex(effectiveSteps, targetStepId) + 1));
-    router.replace(`?${next.toString()}`, { scroll: false });
-  }, [effectiveSteps, fallbackReviewStepIndex, reviewStepIndex, router, scrollToStepPanel, searchParams, useDynamic]);
-
-  const scrollToFormAssistant = useCallback(() => {
-    formAssistantRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    window.requestAnimationFrame(() => {
-      const assistant = formAssistantRef.current;
-      const conversation = assistant?.querySelector<HTMLElement>("[role='log']");
-      if (conversation) {
-        conversation.scrollTo({ top: conversation.scrollHeight, behavior: "smooth" });
-      }
-      assistant
-        ?.querySelector<HTMLElement>("[data-testid='form-assistant-review-action'] button")
-        ?.focus({ preventScroll: true });
-    });
-  }, []);
-
-  const scrollToApplicationField = useCallback((fieldName: string) => {
-    const baseFieldName = getBaseAnswerFieldName(fieldName);
-    const location = formAssistantFieldLocations.get(baseFieldName);
-    if (!location) return;
-
-    setCurrentStep(location.stepIndex);
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        const panel = stepPanelRefs.current.get(location.stepIndex);
-        const target = Array.from(
-          panel?.querySelectorAll<HTMLElement>("[data-application-field-name]") ?? [],
-        ).find((element) =>
-          element.dataset.applicationFieldName === fieldName ||
-          element.dataset.applicationFieldName === baseFieldName,
-        );
-        if (!target) {
-          scrollToStepPanel(location.stepIndex);
-          return;
-        }
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
-        target.querySelector<HTMLElement>(
-          'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), button:not([data-copilot-trigger]):not([disabled]), [role="combobox"]',
-        )?.focus({ preventScroll: true });
-      });
-    });
-  }, [formAssistantFieldLocations, scrollToStepPanel]);
-
-  const handleNavigateReviewIssue = useCallback((targetFieldName: string | null) => {
-    if (targetFieldName) {
-      scrollToApplicationField(targetFieldName);
-      return;
-    }
-    scrollToFormAssistant();
-  }, [scrollToApplicationField, scrollToFormAssistant]);
-
-  const renderFormAssistantIssueField = useCallback((issue: FormAssistantDisplayValidationIssue) => {
-    if (!issue.fieldName) return null;
-    const location = formAssistantFieldLocations.get(getBaseAnswerFieldName(issue.fieldName));
-    if (!location) return null;
-    const issueStep: WizardStep = {
-      ...location.step,
-      fields: [location.field],
-    };
-    return (
-      <div className="rounded-lg border border-gray-200 bg-white p-3" data-testid={`assistant-issue-editor-${issue.fieldName}`}>
-        <DynamicStepForm
-          key={`${formAssistantValidation?.validationId ?? "validation"}:${issue.fieldName}`}
-          step={issueStep}
-          prefill={dynamicAnswerSnapshot}
-          onComplete={(data) => handleDynamicDraftChange(location.stepIndex, data)}
-          onDraftChange={(data) => handleDynamicDraftChange(location.stepIndex, data)}
-          saving={saving}
-          showContinueButton={false}
-          country={resolvedCountry}
-          visaType={resolvedVisaType}
-          invalidFieldNames={issue.severity === "error" ? new Set([issue.fieldName]) : undefined}
-          aiFilledFieldNames={new Set(aiFilledFieldNames)}
-        />
-      </div>
-    );
-  }, [
-    aiFilledFieldNames,
-    dynamicAnswerSnapshot,
-    formAssistantFieldLocations,
-    formAssistantValidation?.validationId,
-    handleDynamicDraftChange,
-    resolvedCountry,
-    resolvedVisaType,
-    saving,
-  ]);
-
-  const handleFormAssistantValidate = useCallback(async (): Promise<FormAssistantValidationResponse> => {
-    const applicationId = appState.applicationId;
-    if (!applicationId) throw new Error(t("errors.noApplicationFound"));
-    setFormAssistantBusy(true);
-    try {
-      await saveAllDynamicDrafts();
-      const response = await fetch(`/api/applications/${applicationId}/form-assistant/validate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locale }),
-      });
-      const rawPayload = await response.json() as unknown;
-      const responseError = rawPayload && typeof rawPayload === "object" && "error" in rawPayload &&
-        typeof (rawPayload as { error?: unknown }).error === "string"
-        ? (rawPayload as { error: string }).error
-        : null;
-      if (!response.ok) throw new Error(responseError ?? "Validation failed");
-      const payload = normalizeFormAssistantValidationResponse(rawPayload);
-      if (!payload) throw new Error("Invalid validation response");
-      setFormAssistantValidation(payload);
-      setFormAssistantValidationDirty(false);
-      return payload;
-    } finally {
-      setFormAssistantBusy(false);
-    }
-  }, [appState.applicationId, locale, saveAllDynamicDrafts, t]);
-
-  const handleFormAssistantAcknowledgeWarnings = useCallback(async () => {
-    const applicationId = appState.applicationId;
-    if (!applicationId || !formAssistantValidation) return;
-    setFormAssistantBusy(true);
-    try {
-      const response = await fetch(`/api/applications/${applicationId}/form-assistant/acknowledge-warnings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          validationId: formAssistantValidation.validationId,
-          warningCodes: formAssistantValidation.warnings.map((warning) => warning.code),
-        }),
-      });
-      const payload = await response.json() as { canReview?: boolean; error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "Warning acknowledgement failed");
-      setFormAssistantValidation((current) => current ? { ...current, canReview: true } : current);
-    } finally {
-      setFormAssistantBusy(false);
-    }
-  }, [appState.applicationId, formAssistantValidation]);
-
-  const handleFormAssistantGoToReview = useCallback(() => {
-    if (!formAssistantValidation?.canReview || formAssistantValidationDirty) return;
-    navigateFormAssistantToReview();
-  }, [formAssistantValidation?.canReview, formAssistantValidationDirty, navigateFormAssistantToReview]);
-
-  useEffect(() => {
-    if (!useDynamic || loading || draftVersion === 0) return;
-
-    if (saving) {
-      setAutosaving(false);
-      return;
-    }
-
-    const pendingDraft = collectDraftAnswers(dynamicDraftRef.current);
-    const hasChangedValue = Object.entries(pendingDraft).some(
-      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
-    );
-
-    if (!hasChangedValue) {
-      setAutosaveFailed(false);
-      setAutosaving(false);
-      return;
-    }
-
-    const requestId = ++autosaveRequestRef.current;
-    setAutosaving(true);
-
-    const timer = window.setTimeout(() => {
-      const changedDraft = Object.fromEntries(
-        Object.entries(pendingDraft).filter(
-          ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
-        ),
-      );
-      if (Object.keys(changedDraft).length === 0) {
-        setAutosaveFailed(false);
-        setAutosaving(false);
-        return;
-      }
-      const runAutosave = autosaveQueueRef.current.then(async () => {
-        const applicationId = await ensureWritableApplicationId();
-        const saveResult = await saveDynamicAnswers(applicationId, changedDraft);
-        if (saveResult.error) throw new Error(saveResult.error);
-      });
-
-      autosaveQueueRef.current = runAutosave.then(
-        () => undefined,
-        () => undefined,
-      );
-
-      void runAutosave.then(
-        () => {
-          if (requestId !== autosaveRequestRef.current) return;
-          setDynamicAnswers((previous) => ({ ...previous, ...changedDraft }));
-          setAutosaveFailed(false);
-          setAutosaving(false);
-        },
-        (err: unknown) => {
-          if (requestId !== autosaveRequestRef.current) return;
-          const message = recoverOrFormatServerActionError(
-            err,
-            t("errors.failedToSave"),
-            t("errors.stalePage"),
-          );
-          if (message) setError(message);
-          setAutosaveFailed(true);
-          setAutosaving(false);
-        },
-      );
-    }, 800);
-
-    return () => window.clearTimeout(timer);
-  }, [draftVersion, dynamicAnswers, ensureWritableApplicationId, loading, saving, t, useDynamic]);
-
-  useEffect(() => () => {
-    autosaveRequestRef.current += 1;
-  }, []);
+    void refreshApplicationCompleteness(applicationId);
+  }, [dynamicAnswers, ensureWritableApplicationId, refreshApplicationCompleteness]);
 
   const handleStepNavigation = useCallback(async (targetStepId: number) => {
-    if (navigationSaveInFlightRef.current) return;
-
-    // Jump immediately, then persist the section the user just left. The save
-    // is important, but it should never make sidebar navigation feel blocked.
-    scrollToStepPanel(targetStepId);
-    if (targetStepId === currentStep) return;
+    if (targetStepId === currentStep || navigationSaveInFlightRef.current) return;
 
     const shouldAutosaveCurrentStep =
       useDynamic &&
@@ -3293,6 +2638,7 @@ export default function ApplicationPage() {
       Boolean(dbSteps[currentStep]);
 
     if (!shouldAutosaveCurrentStep) {
+      setCurrentStep(targetStepId);
       return;
     }
 
@@ -3302,9 +2648,7 @@ export default function ApplicationPage() {
 
     try {
       await saveDynamicDraftForStep(currentStep);
-      // Saving can reveal or hide conditional fields above the destination.
-      // Re-anchor after that layout change so the requested panel stays put.
-      scrollToStepPanel(targetStepId);
+      setCurrentStep(targetStepId);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -3316,7 +2660,19 @@ export default function ApplicationPage() {
       navigationSaveInFlightRef.current = false;
       setSaving(false);
     }
-  }, [currentStep, dbSteps, documentStepIndex, saveDynamicDraftForStep, scrollToStepPanel, t, useDynamic]);
+  }, [currentStep, dbSteps, documentStepIndex, saveDynamicDraftForStep, t, useDynamic]);
+
+  const handleGoToMissingField = useCallback((item: ApplicationCompletenessMissingField) => {
+    setFocusedFieldName(item.fieldName);
+    setCurrentStep(item.stepNumber);
+    setError(null);
+  }, []);
+
+  const handleGoToMissingDocument = useCallback((item: ApplicationCompletenessMissingDocument) => {
+    setHighlightRequirementKey(item.requirementKey);
+    setCurrentStep(documentNavigationStepId);
+    setError(null);
+  }, [documentNavigationStepId]);
 
   const handlePersonalComplete = async (data: PersonalInfoData) => {
     setSaving(true);
@@ -3359,7 +2715,7 @@ export default function ApplicationPage() {
 
       setAppState((prev) => ({ ...prev, applicationId, personal: data }));
       setCompletedUpTo((c) => Math.max(c, 1));
-      scrollToStepPanel(1);
+      setCurrentStep(1);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -3405,7 +2761,7 @@ export default function ApplicationPage() {
 
       setAppState((prev) => ({ ...prev, applicationId, passport: data }));
       setCompletedUpTo((c) => Math.max(c, 2));
-      scrollToStepPanel(2);
+      setCurrentStep(2);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -3447,7 +2803,7 @@ export default function ApplicationPage() {
 
       setAppState((prev) => ({ ...prev, travel: data, applicationId }));
       setCompletedUpTo((c) => Math.max(c, 3));
-      scrollToStepPanel(3);
+      setCurrentStep(3);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -3491,7 +2847,7 @@ export default function ApplicationPage() {
       const currentStepPosition = getVisibleStepIndex(effectiveSteps, stepIndex);
       const nextStepId = getNextVisibleStepId(effectiveSteps, stepIndex);
       setCompletedUpTo((c) => Math.max(c, currentStepPosition + 1));
-      scrollToStepPanel(nextStepId ?? stepIndex);
+      setCurrentStep(nextStepId ?? stepIndex);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -3504,12 +2860,46 @@ export default function ApplicationPage() {
     }
   };
 
+  const handleDynamicDocumentsContinue = () => {
+    setSubmitMissingFields([]);
+    void refreshApplicationCompleteness(appState.applicationId);
+    const documentStepPosition = getVisibleStepIndex(effectiveSteps, documentStepIndex);
+    setCompletedUpTo((c) => Math.max(c, documentStepPosition + 1));
+    setCurrentStep(reviewStepIndex);
+  };
+
+  const handleFallbackDocumentsContinue = () => {
+    setSubmitMissingFields([]);
+    setCompletedUpTo((c) => Math.max(c, 4));
+    setCurrentStep(4);
+  };
+
   const returnToTeam = useCallback(() => {
     const target = new URL(returnToParam ?? "/client/application/long-form", window.location.origin);
     target.searchParams.set("step", "team");
     target.searchParams.set("teamNotice", "companion_added");
     router.push(target.toString().replace(window.location.origin, ""));
   }, [returnToParam, router]);
+
+  const handleReviewContinueToTeam = useCallback(() => {
+    if (!showTeamStep) return;
+    void refreshApplicationCompleteness(appState.applicationId);
+    const targetReviewStepIndex = useDynamic ? reviewStepIndex : fallbackReviewStepIndex;
+    const targetTeamStepIndex = useDynamic ? teamStepIndex : fallbackTeamStepIndex;
+    const reviewStepPosition = getVisibleStepIndex(effectiveSteps, targetReviewStepIndex);
+    setCompletedUpTo((c) => Math.max(c, reviewStepPosition + 1));
+    setCurrentStep(targetTeamStepIndex);
+  }, [
+    effectiveSteps,
+    appState.applicationId,
+    fallbackReviewStepIndex,
+    fallbackTeamStepIndex,
+    reviewStepIndex,
+    showTeamStep,
+    teamStepIndex,
+    useDynamic,
+    refreshApplicationCompleteness,
+  ]);
 
   const handleCompanionReviewComplete = useCallback(async () => {
     setSaving(true);
@@ -3561,7 +2951,7 @@ export default function ApplicationPage() {
       reviewStepId: reviewStepIndex,
       teamStepId: teamStepIndex,
       confirmationStepId: statusStepIndex,
-      showDocumentStep,
+      showDocumentStep: showStandaloneDocumentStep,
       showTeamStep,
     }).missingFields,
     [
@@ -3575,12 +2965,29 @@ export default function ApplicationPage() {
       resolvedCountry,
       resolvedVisaType,
       reviewStepIndex,
-      showDocumentStep,
+      showStandaloneDocumentStep,
       showTeamStep,
       statusStepIndex,
       teamStepIndex,
     ],
   );
+
+  useEffect(() => {
+    if (!appState.applicationId) return;
+    const isCompletenessStep =
+      currentStep === statusStepIndex ||
+      currentStep === reviewStepIndex ||
+      currentStep === teamStepIndex;
+    if (!isCompletenessStep) return;
+    void refreshApplicationCompleteness(appState.applicationId);
+  }, [
+    appState.applicationId,
+    currentStep,
+    refreshApplicationCompleteness,
+    reviewStepIndex,
+    statusStepIndex,
+    teamStepIndex,
+  ]);
 
   const handleTeamConfirm = useCallback(async () => {
     setSaving(true);
@@ -3592,7 +2999,7 @@ export default function ApplicationPage() {
       const targetStatusStepIndex = useDynamic ? statusStepIndex : fallbackStatusStepIndex;
       const teamStepPosition = getVisibleStepIndex(effectiveSteps, targetTeamStepIndex);
       setCompletedUpTo((c) => Math.max(c, teamStepPosition + 1));
-      scrollToStepPanel(targetStatusStepIndex);
+      setCurrentStep(targetStatusStepIndex);
     } catch (err) {
       const message = recoverOrFormatServerActionError(
         err,
@@ -3608,7 +3015,6 @@ export default function ApplicationPage() {
     fallbackStatusStepIndex,
     fallbackTeamStepIndex,
     saveAllDynamicDrafts,
-    scrollToStepPanel,
     statusStepIndex,
     t,
     teamStepIndex,
@@ -3662,7 +3068,7 @@ export default function ApplicationPage() {
         submissionResultStatus: prev.submissionResultStatus ?? "waiting",
         submissionResult: prev.submissionResult ?? null,
       }));
-      scrollToStepPanel(statusStepIndex);
+      setCurrentStep(statusStepIndex);
     }
     try {
       if (mode === "live_assisted" && !liveAssistedTarget) {
@@ -3684,15 +3090,20 @@ export default function ApplicationPage() {
       if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
       await saveAllDynamicDrafts();
-      const missing = getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot()).filter(
-        (item) => !forceDryRun || item.stepId !== documentStepIndex,
-      );
+      const completeness = await refreshApplicationCompleteness(applicationId);
+      if (completeness && !completeness.complete) {
+        setCurrentStep(statusStepIndex);
+        throw new Error(isZhInterface
+          ? "申请资料尚未完整，已在确认页列出需要补齐的信息和材料。"
+          : "The application is not complete yet. Review the missing information and documents on the confirmation step.");
+      }
+      const missing = getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot());
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
-        scrollToStepPanel(statusStepIndex);
+        setCurrentStep(statusStepIndex);
         throw new Error(isZhInterface
-          ? "请先补齐审核申请页末尾列出的缺失信息。"
-          : "Please complete the missing information listed at the end of Review Application.");
+          ? "请先补齐最终确认页列出的缺失信息。"
+          : "Please complete the missing information listed on the final confirmation step.");
       }
 
       const isJpTourist = resolvedVisaType === "JP_TOURIST";
@@ -3782,9 +3193,9 @@ export default function ApplicationPage() {
         }));
       }
       setSubmitMissingFields([]);
-      const completionPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
+      const completionPosition = getVisibleStepIndex(effectiveSteps, showTeamStep ? teamStepIndex : reviewStepIndex);
       setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
-      scrollToStepPanel(statusStepIndex);
+      setCurrentStep(statusStepIndex);
     } catch (err) {
       if (shouldShowArrivalSubmissionImmediately && isIgnorableRuntimeAbortError(err)) {
         // Supabase/Next can abort the client request after the queue write has
@@ -3792,7 +3203,7 @@ export default function ApplicationPage() {
         // status endpoint reconcile the durable queue instead of showing the
         // raw AbortSignal implementation message.
         setError(null);
-        scrollToStepPanel(statusStepIndex);
+        setCurrentStep(statusStepIndex);
         return;
       }
       if (shouldShowArrivalSubmissionImmediately) {
@@ -3848,10 +3259,10 @@ export default function ApplicationPage() {
         : [];
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
-        scrollToStepPanel(fallbackStatusStepIndex);
+        setCurrentStep(fallbackStatusStepIndex);
         throw new Error(isZhInterface
-          ? "请先补齐审核申请页末尾列出的缺失信息。"
-          : "Please complete the missing information listed at the end of Review Application.");
+          ? "请先补齐最终确认页列出的缺失信息。"
+          : "Please complete the missing information listed on the final confirmation step.");
       }
 
       // Persist the complete DS-160 answer set from hardcoded steps
@@ -3891,9 +3302,8 @@ export default function ApplicationPage() {
         confirmationNumber: submissionState.confirmationNumber,
       }));
       setSubmitMissingFields([]);
-      const completionPosition = getVisibleStepIndex(effectiveSteps, fallbackReviewStepIndex);
-      setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
-      scrollToStepPanel(fallbackStatusStepIndex);
+      setCompletedUpTo((c) => Math.max(c, fallbackStatusStepIndex));
+      setCurrentStep(fallbackStatusStepIndex);
     } catch (err) {
       const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));
       const message = recoverOrFormatServerActionError(
@@ -3910,114 +3320,8 @@ export default function ApplicationPage() {
     }
   };
 
-  const focusFirstMissingField = (missingFields: MissingApplicationField[]) => {
-    const firstMissing = missingFields[0];
-    if (!firstMissing) return;
-
-    setCurrentStep(firstMissing.stepId);
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        const target = Array.from(
-          document.querySelectorAll<HTMLElement>("[data-application-field-name]"),
-        ).find((element) => element.dataset.applicationFieldName === firstMissing.fieldName);
-
-        if (!target) {
-          scrollToStepPanel(firstMissing.stepId);
-          return;
-        }
-
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
-        const focusTarget = target.querySelector<HTMLElement>(
-          'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), button:not([data-copilot-trigger]):not([disabled]), [role="combobox"]',
-        );
-        focusTarget?.focus({ preventScroll: true });
-      });
-    });
-  };
-
-  const checkAndSubmit = async (
-    submit: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => void | Promise<void>,
-    mode: SubmissionMode,
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
-  ) => {
-    if (saving || submitCheckState === "checking") return;
-
-    setSubmitCheckState("checking");
-    setError(null);
-
-    // Give React one paint to expose the page-wide checking state before the
-    // synchronous schema walk. No validation state is written to storage, so
-    // a refresh naturally returns the page to its normal state.
-    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-
-    if (showDocumentStep && appState.applicationId && !documentCenterLoaded) {
-      setSubmitCheckState("idle");
-      return;
-    }
-
-    const missing = useDynamic
-      ? getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot()).filter(
-          (item) => !forceDryRun || item.stepId !== documentStepIndex,
-        )
-      : [];
-
-    if (mode === "live_assisted" && liveAssistedTarget === "vietnam") {
-      if (!vietnamPaymentCard || vietnamPaymentCard.pan.replace(/\D/g, "").length < 12) {
-        missing.push({
-          stepId: reviewStepIndex,
-          stepName: isZhInterface ? "最终确认" : "Final confirmation",
-          fieldName: OFFICIAL_PAYMENT_CARD_FIELD_NAMES.pan,
-          label: isZhInterface ? "银行卡号" : "Card number",
-          reason: "required",
-        });
-      }
-      if (!vietnamPaymentCard || vietnamPaymentCard.expiry.trim().length < 4) {
-        missing.push({
-          stepId: reviewStepIndex,
-          stepName: isZhInterface ? "最终确认" : "Final confirmation",
-          fieldName: OFFICIAL_PAYMENT_CARD_FIELD_NAMES.expiry,
-          label: isZhInterface ? "有效期" : "Expiry",
-          reason: "required",
-        });
-      }
-      if (!vietnamPaymentCard || vietnamPaymentCard.cvv.replace(/\D/g, "").length < 3) {
-        missing.push({
-          stepId: reviewStepIndex,
-          stepName: isZhInterface ? "最终确认" : "Final confirmation",
-          fieldName: OFFICIAL_PAYMENT_CARD_FIELD_NAMES.cvv,
-          label: "CVV",
-          reason: "required",
-        });
-      }
-    }
-
-    setSubmitMissingFields(missing.filter((item) => !item.fieldName.startsWith("official_payment_card_")));
-    if (missing.length > 0) {
-      setSubmitCheckState("invalid");
-      focusFirstMissingField(missing);
-      return;
-    }
-
-    setSubmitCheckState("idle");
-    await submit(mode, vietnamPaymentCard);
-  };
-
   const activeCountry = resolvedCountry;
   const activeVisaType = resolvedVisaType;
-  useEffect(() => {
-    if (isExplicitStatusView || !appState.applicationId) return;
-    setActiveApplicationSelection({
-      applicationId: appState.applicationId,
-      packageId: null,
-      country: activeCountry,
-      visaType: activeVisaType,
-      href: buildApplicationLongFormHref({
-        applicationId: appState.applicationId,
-        country: activeCountry,
-        visaType: activeVisaType,
-      }),
-    });
-  }, [activeCountry, activeVisaType, appState.applicationId, isExplicitStatusView]);
   const teamReturnToParams = new URLSearchParams({
     step: "team",
     country: activeCountry,
@@ -4151,62 +3455,6 @@ export default function ApplicationPage() {
     );
   }, [hasPassportUploadField, passportOcrInitialUploaded, passportOcrInitialFileName]);
 
-  useEffect(() => {
-    if (isExplicitStatusView || loading || !packageLoaded || effectiveSteps.length === 0) return;
-
-    const main = applicationContentRef.current;
-    let frame: number | null = null;
-
-    const syncCurrentStepToScroll = () => {
-      frame = null;
-      const isDesktopScroll = window.matchMedia("(min-width: 1024px)").matches && Boolean(main);
-      const anchorTop = isDesktopScroll && main
-        ? main.getBoundingClientRect().top + 24
-        : 112;
-      const panels = effectiveSteps
-        .map((step) => ({ id: step.id, node: stepPanelRefs.current.get(step.id) }))
-        .filter((panel): panel is { id: number; node: HTMLDivElement } => Boolean(panel.node));
-
-      if (panels.length === 0) return;
-
-      const remainingScroll = isDesktopScroll && main
-        ? main.scrollHeight - main.scrollTop - main.clientHeight
-        : document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
-      let visibleStepId = panels[0].id;
-
-      if (remainingScroll <= 24) {
-        visibleStepId = panels[panels.length - 1].id;
-      } else {
-        for (const panel of panels) {
-          if (panel.node.getBoundingClientRect().top <= anchorTop) {
-            visibleStepId = panel.id;
-          } else {
-            break;
-          }
-        }
-      }
-
-      setCurrentStep((previous) => previous === visibleStepId ? previous : visibleStepId);
-    };
-
-    const scheduleSync = () => {
-      if (frame !== null) return;
-      frame = window.requestAnimationFrame(syncCurrentStepToScroll);
-    };
-
-    main?.addEventListener("scroll", scheduleSync, { passive: true });
-    window.addEventListener("scroll", scheduleSync, { passive: true });
-    window.addEventListener("resize", scheduleSync);
-    scheduleSync();
-
-    return () => {
-      main?.removeEventListener("scroll", scheduleSync);
-      window.removeEventListener("scroll", scheduleSync);
-      window.removeEventListener("resize", scheduleSync);
-      if (frame !== null) window.cancelAnimationFrame(frame);
-    };
-  }, [effectiveSteps, isExplicitStatusView, loading, packageLoaded]);
-
   if (isExplicitStatusView) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
@@ -4233,73 +3481,45 @@ export default function ApplicationPage() {
   const pageTitle = hasResolvedPackage
     ? getVisaPackageTitle(resolvedCountry, resolvedVisaType, locale)
     : t("title");
+  const isDocumentsStep = currentStep === documentNavigationStepId;
+  const taiwanEntryPermitRequiredDocumentKeys = isTaiwanEntryPermit
+    ? getTaiwanEntryPermitRequiredDocumentKeys(dynamicAnswerSnapshot)
+    : undefined;
+  const taiwanEntryPermitVisibleDocumentKeys = isTaiwanEntryPermit
+    ? getTaiwanEntryPermitVisibleDocumentKeys(dynamicAnswerSnapshot)
+    : undefined;
+  const taiwanEntryPermitExtraRequirements = isTaiwanEntryPermit
+    ? getTaiwanEntryPermitExtraRequirements(dynamicAnswerSnapshot)
+    : undefined;
 
   return (
-    <div
-      className="flex min-h-screen flex-col pt-3 lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:overflow-hidden lg:overscroll-none xl:-mt-5 xl:h-[calc(100dvh-108px)] xl:pt-0"
-      data-submit-check-state={submitCheckState}
-    >
-      <div className="flex min-h-0 flex-1 lg:overflow-hidden lg:overscroll-none">
-        {/* Left sidebar - desktop only */}
-        {useDynamic ? (
-          <GroupedStepSidebar
-            sections={groupedSections}
-            currentStep={currentStep}
-            completedStepIds={completedStepIds}
-            onStepClick={handleStepNavigation}
-          />
-        ) : (
-          <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedStepIds={completedStepIds} onStepClick={handleStepNavigation} />
-        )}
+    <div className="flex min-h-screen pt-3 lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:overflow-hidden lg:overscroll-none">
+      {/* Left sidebar - desktop only */}
+      {useDynamic ? (
+        <GroupedStepSidebar
+          sections={groupedSections}
+          currentStep={currentStep}
+          completedStepIds={completedStepIds}
+          onStepClick={handleStepNavigation}
+        />
+      ) : (
+        <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedStepIds={completedStepIds} onStepClick={handleStepNavigation} />
+      )}
 
-        {/* Main content area */}
-        <main
-          ref={applicationContentRef}
-          className="min-w-0 flex-1 pt-0 pb-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain xl:pt-4"
-        >
+      {/* Main content area */}
+      <main
+        ref={mainScrollRef}
+        onScroll={handleMainScroll}
+        onWheelCapture={handleMainScroll}
+        onTouchMoveCapture={handleMainScroll}
+        className="min-w-0 flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"
+      >
         <div
-          className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl"
-          style={{ marginLeft: `${contentAlignment}px` }}
+          className={cn(
+            "mx-auto max-w-xl sm:max-w-2xl",
+            isDocumentsStep ? "md:max-w-5xl" : "md:max-w-3xl"
+          )}
         >
-          <header className="mb-4 w-full sm:mb-5">
-            <h1 className="font-heading text-[28px] font-medium leading-[1.15] tracking-[-1px] text-[#3d3d3d] sm:text-[34px] sm:tracking-[-1.2px]">
-              {pageTitle}
-            </h1>
-          </header>
-
-          {showFormFillingAssistant ? (
-            <div ref={formAssistantRef} className="scroll-mt-4">
-              <FormFillingAssistant
-                key={appState.applicationId}
-                applicationId={appState.applicationId!}
-                locale={locale}
-                isZh={isZhInterface}
-                progress={formAssistantState?.progress ?? { completed: 0, total: 0 }}
-                messages={formAssistantState?.messages ?? []}
-                missingFields={(formAssistantState?.missingFields ?? []).map((field) => ({
-                  fieldName: field.fieldName,
-                  label: field.label,
-                  required: true,
-                  section: field.stepName,
-                }))}
-                fillNotice={formAssistantFillNotice}
-                loading={formAssistantBusy}
-                validationResult={formAssistantDisplayValidation}
-                showReviewAction={formFieldsComplete}
-                onSend={handleFormAssistantSend}
-                onTranscribe={handleFormAssistantTranscribe}
-                onValidate={handleFormAssistantValidate}
-                onAcknowledgeWarnings={handleFormAssistantAcknowledgeWarnings}
-                onUndoFill={handleFormAssistantUndoFill}
-                onDismissFillNotice={handleDismissFormAssistantFillNotice}
-                onGoToReview={handleFormAssistantGoToReview}
-                renderIssueField={renderFormAssistantIssueField}
-                onJumpToIssue={scrollToApplicationField}
-                className="mb-5"
-              />
-            </div>
-          ) : null}
-
           {/* Mobile step indicator */}
           {useDynamic ? (
             <GroupedMobileStepBar
@@ -4312,6 +3532,14 @@ export default function ApplicationPage() {
           ) : (
             <MobileStepBar steps={effectiveSteps} currentStep={currentStep} completedStepIds={completedStepIds} onStepClick={handleStepNavigation} />
           )}
+
+          {/* Page header */}
+          <div className="mb-8 sm:mb-12">
+            <h1 className="font-heading font-medium leading-[1.15] text-[28px] tracking-[-1px] text-[#3d3d3d] sm:text-[34px] sm:tracking-[-1.2px] lg:text-[40px] lg:tracking-[-1.6px]">
+              {pageTitle}
+            </h1>
+          </div>
+
           {error &&
             !(
               showSubmissionStatusStep &&
@@ -4329,21 +3557,26 @@ export default function ApplicationPage() {
           )}
 
           {/* Step cards */}
-          <div className="flex flex-col gap-5 sm:gap-6">
+          <div className="flex flex-col gap-6 sm:gap-8 md:gap-10">
             {effectiveSteps.map((step) => {
+              const isActive = step.id === currentStep;
+
+              // Only render the active step — hide all others
+              if (!isActive) return null;
+
               return (
                 <div
                   key={step.id}
-                  id={`application-step-${step.id}`}
-                  ref={(node) => setStepPanelRef(step.id, node)}
-                  className="flex scroll-mt-28 flex-col gap-2 lg:scroll-mt-4"
+                  ref={activeStepPanelRef}
+                  className="flex flex-col gap-4"
                 >
+                  {/* Section heading - outside the panel */}
+                  <h2 className="font-heading text-[20px] sm:text-[24px] md:text-[28px] font-medium text-[#3d3d3d] tracking-[-0.5px] sm:tracking-[-0.7px]">
+                    {step.name}
+                  </h2>
                   {/* Panel card */}
-                  <ApplicationFormPanel className="w-full p-4 sm:p-6 md:p-8">
-                    <h2 className="mb-5 font-heading text-[20px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[24px] sm:tracking-[-0.7px] md:text-[28px]">
-                      {step.name}
-                    </h2>
-                    {showPassportOcrUpload && step.id === firstFormStepId && activeVisaType !== "VN_PREARRIVAL_DECLARATION" && (
+                  <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6 md:p-8">
+                    {step.id === firstFormStepId && activeVisaType !== "VN_PREARRIVAL_DECLARATION" && (
                       <PassportOcrUpload
                         applicationId={appState.applicationId}
                         className="mb-6"
@@ -4360,38 +3593,85 @@ export default function ApplicationPage() {
                       <>
                         {/* DB-driven form steps */}
                         {step.id < documentStepIndex && dbSteps[step.id] && (
-                          <DynamicStepForm
-                            key={step.id}
-                            step={dbSteps[step.id]}
-                            prefill={dynamicAnswers}
-                            onComplete={(data) => handleDynamicStepComplete(step.id, data)}
-                            onDraftChange={(data) => handleDynamicDraftChange(step.id, data)}
-                            saving={saving}
-                            showContinueButton={false}
-                            country={activeCountry}
-                            visaType={activeVisaType}
-                            externallyHandledFieldNames={passportUploadHandledFields}
-                            invalidFieldNames={invalidFieldNamesByStep.get(step.id)}
-                            aiFilledFieldNames={new Set(aiFilledFieldNames)}
-                            reviewIssues={formAssistantFieldReviewIssueMap}
-                            onNavigateReviewIssue={handleNavigateReviewIssue}
-                          />
+                          <>
+                            {isTaiwanEntryPermit && isTaiwanEntryPermitQualificationStepSource(step.sourceName) && (
+                              appState.applicationId ? (
+                                <DocumentCenterClient
+                                  initialData={documentCenterData}
+                                  initialError={documentCenterError}
+                                  applicationId={appState.applicationId}
+                                  country={activeCountry}
+                                  visaType={activeVisaType}
+                                  embedded
+                                  onlyRequirementKeys={["photo"]}
+                                  onDataChange={(nextData) => {
+                                    setDocumentCenterData(nextData);
+                                    void refreshApplicationCompleteness(appState.applicationId);
+                                  }}
+                                  onUploadComplete={() => void refreshApplicationCompleteness(appState.applicationId)}
+                                  highlightRequirementKey={highlightRequirementKey === "photo" ? highlightRequirementKey : null}
+                                />
+                              ) : (
+                                <div className="flex min-h-[160px] items-center justify-center">
+                                  <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
+                                </div>
+                              )
+                            )}
+                            <DynamicStepForm
+                              key={step.id}
+                              step={{
+                                ...dbSteps[step.id],
+                                fields: isTaiwanEntryPermit
+                                  ? dbSteps[step.id].fields.filter((field) => field.fieldName !== "household_revoked")
+                                  : dbSteps[step.id].fields,
+                              }}
+                              prefill={dynamicAnswers}
+                              onComplete={(data) => handleDynamicStepComplete(step.id, data)}
+                              onDraftChange={(data) => handleDynamicDraftChange(step.id, data)}
+                              saving={saving}
+                              country={activeCountry}
+                              visaType={activeVisaType}
+                              focusFieldName={focusedFieldName}
+                              externallyHandledFieldNames={passportUploadHandledFields}
+                            />
+                            {isTaiwanEntryPermit && isTaiwanEntryPermitQualificationStepSource(step.sourceName) && (
+                              appState.applicationId ? (
+                                <div className="mt-8 border-t border-[#e8e8e8] pt-7">
+                                  <h3 className="mb-4 font-heading text-[20px] font-medium text-[#3d3d3d]">
+                                    应检附文件
+                                  </h3>
+                                  <DocumentCenterClient
+                                    initialData={documentCenterData}
+                                    initialError={documentCenterError}
+                                    applicationId={appState.applicationId}
+                                    country={activeCountry}
+                                    visaType={activeVisaType}
+                                    embedded
+                                    onlyRequirementKeys={taiwanEntryPermitVisibleDocumentKeys}
+                                    excludeRequirementKeys={["photo"]}
+                                    extraRequirements={taiwanEntryPermitExtraRequirements}
+                                    hideOptionalDocuments
+                                    forceRequiredRequirementKeys={taiwanEntryPermitRequiredDocumentKeys}
+                                    presentation="taiwan-inline"
+                                    onDataChange={(nextData) => {
+                                      setDocumentCenterData(nextData);
+                                      void refreshApplicationCompleteness(appState.applicationId);
+                                    }}
+                                    onUploadComplete={() => void refreshApplicationCompleteness(appState.applicationId)}
+                                    highlightRequirementKey={highlightRequirementKey === "photo" ? null : highlightRequirementKey}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="mt-8 flex min-h-[240px] items-center justify-center border-t border-[#efefef] pt-8">
+                                  <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
+                                </div>
+                              )
+                            )}
+                          </>
                         )}
-                        {showFormFillingAssistant &&
-                        formFieldsComplete &&
-                        step.id === lastVisibleFormStepId ? (
-                          <BrandActionButton
-                            type="button"
-                            variant="secondary"
-                            className="mt-5"
-                            onClick={scrollToFormAssistant}
-                          >
-                            {tApp("formAssistant.reviewRepair.reviewWithAssistant")}
-                          </BrandActionButton>
-                        ) : null}
 
                         {/* Supporting documents step */}
-                        {showDocumentStep && step.id === documentStepIndex && (
+                        {showStandaloneDocumentStep && step.id === documentStepIndex && (
                           appState.applicationId ? (
                             <DocumentCenterClient
                               initialData={documentCenterData}
@@ -4400,7 +3680,19 @@ export default function ApplicationPage() {
                               country={activeCountry}
                               visaType={activeVisaType}
                               embedded
-                              onDataChange={setDocumentCenterData}
+                              onlyRequirementKeys={taiwanEntryPermitVisibleDocumentKeys}
+                              excludeRequirementKeys={isTaiwanEntryPermit ? ["photo"] : undefined}
+                              extraRequirements={taiwanEntryPermitExtraRequirements}
+                              hideOptionalDocuments={isTaiwanEntryPermit}
+                              forceRequiredRequirementKeys={taiwanEntryPermitRequiredDocumentKeys}
+                              onDataChange={(nextData) => {
+                                setDocumentCenterData(nextData);
+                                void refreshApplicationCompleteness(appState.applicationId);
+                              }}
+                              onUploadComplete={() => void refreshApplicationCompleteness(appState.applicationId)}
+                              highlightRequirementKey={highlightRequirementKey}
+                              onContinue={handleDynamicDocumentsContinue}
+                              continueLabel={t("dynamicButtons.continue")}
                             />
                           ) : (
                             <div className="flex min-h-[240px] items-center justify-center">
@@ -4411,67 +3703,29 @@ export default function ApplicationPage() {
 
                         {/* Dynamic review step */}
                         {step.id === reviewStepIndex && appState.applicationId && (
-                          showSubmissionStatusStep ? (
-                            <div
-                              className="flex flex-col gap-6"
-                              data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
-                            >
-                              {showReviewAlongsideSubmissionStatus ? (
-                                <DynamicReviewStep
-                                  applicationId={appState.applicationId}
-                                  dynamicAnswers={dynamicAnswerSnapshot}
-                                  dbSteps={dbSteps}
-                                  photoPath={appState.photo}
-                                  onEdit={(stepIdx) => scrollToStepPanel(stepIdx)}
-                                  onPhotoEdit={() => scrollToStepPanel(showDocumentStep ? documentStepIndex : firstFormStepId)}
-                                  onComplete={() => undefined}
-                                  mode="continue"
-                                  showAction={false}
-                                  reviewIssues={formAssistantFieldReviewIssueMap}
-                                />
-                              ) : null}
-                              <SubmissionStatusStep
-                                applicationId={appState.applicationId}
-                                country={activeCountry}
-                                visaType={activeVisaType}
-                                status={appState.submissionResultStatus}
-                                result={appState.submissionResult}
-                                onResubmit={handleDynamicReviewComplete}
-                              />
-                            </div>
-                          ) : (
-                            <div className="flex flex-col gap-6">
-                              <DynamicReviewStep
-                                applicationId={appState.applicationId}
-                                dynamicAnswers={dynamicAnswerSnapshot}
-                                dbSteps={dbSteps}
-                                photoPath={appState.photo}
-                                onEdit={(stepIdx) => scrollToStepPanel(stepIdx)}
-                                onPhotoEdit={() => scrollToStepPanel(showDocumentStep ? documentStepIndex : firstFormStepId)}
-                                onComplete={isCompanionFlow ? handleCompanionReviewComplete : () => undefined}
-                                mode="continue"
-                                continueLabel={isCompanionFlow ? t("team.confirmCompanion") : undefined}
-                                showAction={isCompanionFlow}
-                                reviewIssues={formAssistantFieldReviewIssueMap}
-                              />
-                              {!isCompanionFlow ? (
-                                <UniversalProfileSyncCard applicationId={appState.applicationId} />
-                              ) : null}
-                              {!isCompanionFlow ? (
-                                <FinalConfirmationPanel
-                                  isZh={isZhInterface}
-                                  liveAssistedTarget={liveAssistedTarget}
-                                  liveAssistedEnabled={liveAssistedEnabled}
-                                  forceDryRun={forceDryRun}
-                                  missingFields={confirmationMissingFields}
-                                  requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
-                                  submittingMode={saving ? submittingMode ?? "dry_run" : null}
-                                  submitCheckState={submitCheckState}
-                                  onSubmit={(mode, paymentCard) => checkAndSubmit(handleDynamicReviewComplete, mode, paymentCard)}
-                                />
-                              ) : null}
-                            </div>
-                          )
+                          <DynamicReviewStep
+                            applicationId={appState.applicationId}
+                            dynamicAnswers={dynamicAnswers}
+                            dbSteps={dbSteps}
+                            photoPath={appState.photo}
+                            onEdit={(stepIdx) => setCurrentStep(stepIdx)}
+                            onPhotoEdit={() => setCurrentStep(documentNavigationStepId)}
+                            onComplete={
+                              isCompanionFlow
+                                ? handleCompanionReviewComplete
+                                : showTeamStep
+                                  ? handleReviewContinueToTeam
+                                  : handleTeamConfirm
+                            }
+                            mode="continue"
+                            continueLabel={
+                              isCompanionFlow
+                                ? t("team.confirmCompanion")
+                                : showTeamStep
+                                  ? t("team.continueToTeam")
+                                  : t("dynamicButtons.continue")
+                            }
+                          />
                         )}
 
                         {/* Team management and final submit step */}
@@ -4488,9 +3742,45 @@ export default function ApplicationPage() {
                           />
                         )}
 
+                        {/* Status/confirmation step */}
+                        {step.id === statusStepIndex && (
+                          showSubmissionStatusStep ? (
+                            <SubmissionStatusStep
+                              applicationId={appState.applicationId}
+                              country={activeCountry}
+                              visaType={activeVisaType}
+                              status={appState.submissionResultStatus}
+                              result={appState.submissionResult}
+                              onResubmit={handleDynamicReviewComplete}
+                            />
+                          ) : (
+                            <div className="space-y-4">
+                              <ApplicationCompletenessPanel
+                                completeness={applicationCompleteness}
+                                checking={applicationCompletenessLoading}
+                                isZh={isZhInterface}
+                                onGoToField={handleGoToMissingField}
+                                onGoToDocument={handleGoToMissingDocument}
+                              />
+                              <FinalConfirmationPanel
+                                isZh={isZhInterface}
+                                liveAssistedTarget={liveAssistedTarget}
+                                liveAssistedEnabled={liveAssistedEnabled}
+                                missingFields={confirmationMissingFields}
+                                requirementsLoading={
+                                  applicationCompletenessLoading ||
+                                  (!documentCenterLoaded && Boolean(appState.applicationId))
+                                }
+                                submittingMode={saving ? submittingMode ?? "dry_run" : null}
+                                onEdit={handleStepNavigation}
+                                onSubmit={handleDynamicReviewComplete}
+                              />
+                            </div>
+                          )
+                        )}
                       </>
                     ) : (
-                      /* Hardcoded Indonesia C1 steps */
+                      /* Hardcoded B211A steps */
                       <>
                         {step.id === 0 && (
                           <PersonalInfoStep
@@ -4526,12 +3816,33 @@ export default function ApplicationPage() {
                               visaType={activeVisaType}
                               embedded
                               onDataChange={setDocumentCenterData}
+                              onContinue={handleFallbackDocumentsContinue}
+                              continueLabel={t("dynamicButtons.continue")}
                             />
                           ) : (
                             <div className="flex min-h-[240px] items-center justify-center">
                               <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
                             </div>
                           )
+                        )}
+                        {step.id === 4 && (
+                          <ReviewStep
+                            applicationId={appState.applicationId ?? ""}
+                            data={appState}
+                            onEdit={(section) => {
+                              const sectionMap: Record<string, number> = {
+                                personal: 0, passport: 1, travel: 2, documents: 3,
+                              };
+                              setCurrentStep(sectionMap[section] ?? 0);
+                            }}
+                            onComplete={isCompanionFlow ? handleCompanionReviewComplete : handleReviewContinueToTeam}
+                            mode="continue"
+                            continueLabel={
+                              isCompanionFlow
+                                ? t("team.confirmCompanion")
+                                : t("team.continueToTeam")
+                            }
+                          />
                         )}
                         {step.id === fallbackTeamStepIndex && showTeamStep && (
                           <TeamStep
@@ -4545,81 +3856,38 @@ export default function ApplicationPage() {
                             initialNotice={initialTeamNotice ?? undefined}
                           />
                         )}
-                        {step.id === fallbackReviewStepIndex && (
+                        {step.id === fallbackStatusStepIndex && (
                           showSubmissionStatusStep ? (
-                            <div
-                              className="flex flex-col gap-6"
-                              data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
-                            >
-                              {showReviewAlongsideSubmissionStatus ? (
-                                <ReviewStep
-                                  applicationId={appState.applicationId ?? ""}
-                                  data={appState}
-                                  onEdit={(section) => {
-                                    const sectionMap: Record<string, number> = {
-                                      personal: 0, passport: 1, travel: 2, documents: 3,
-                                    };
-                                    scrollToStepPanel(sectionMap[section] ?? 0);
-                                  }}
-                                  onComplete={() => undefined}
-                                  mode="continue"
-                                  showAction={false}
-                                />
-                              ) : null}
-                              <SubmissionStatusStep
-                                applicationId={appState.applicationId}
-                                country={activeCountry}
-                                visaType={activeVisaType}
-                                status={appState.submissionResultStatus}
-                                result={appState.submissionResult}
-                                onResubmit={handleReviewComplete}
-                              />
-                            </div>
+                            <SubmissionStatusStep
+                              applicationId={appState.applicationId}
+                              country={activeCountry}
+                              visaType={activeVisaType}
+                              status={appState.submissionResultStatus}
+                              result={appState.submissionResult}
+                              onResubmit={handleReviewComplete}
+                            />
                           ) : (
-                            <div className="flex flex-col gap-6">
-                              <ReviewStep
-                                applicationId={appState.applicationId ?? ""}
-                                data={appState}
-                                onEdit={(section) => {
-                                  const sectionMap: Record<string, number> = {
-                                    personal: 0, passport: 1, travel: 2, documents: 3,
-                                  };
-                                  scrollToStepPanel(sectionMap[section] ?? 0);
-                                }}
-                                onComplete={isCompanionFlow ? handleCompanionReviewComplete : () => undefined}
-                                mode="continue"
-                                continueLabel={isCompanionFlow ? t("team.confirmCompanion") : undefined}
-                                showAction={isCompanionFlow}
-                              />
-                              {!isCompanionFlow && appState.applicationId ? (
-                                <UniversalProfileSyncCard applicationId={appState.applicationId} />
-                              ) : null}
-                              {!isCompanionFlow ? (
-                                <FinalConfirmationPanel
-                                  isZh={isZhInterface}
-                                  liveAssistedTarget={liveAssistedTarget}
-                                  liveAssistedEnabled={liveAssistedEnabled}
-                                  forceDryRun={forceDryRun}
-                                  missingFields={confirmationMissingFields}
-                                  requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
-                                  submittingMode={saving ? submittingMode ?? "dry_run" : null}
-                                  submitCheckState={submitCheckState}
-                                  onSubmit={(mode, paymentCard) => checkAndSubmit(handleReviewComplete, mode, paymentCard)}
-                                />
-                              ) : null}
-                            </div>
+                            <FinalConfirmationPanel
+                              isZh={isZhInterface}
+                              liveAssistedTarget={liveAssistedTarget}
+                              liveAssistedEnabled={liveAssistedEnabled}
+                              missingFields={visibleMissingFields}
+                              requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
+                              submittingMode={saving ? submittingMode ?? "dry_run" : null}
+                              onEdit={handleStepNavigation}
+                              onSubmit={handleReviewComplete}
+                            />
                           )
                         )}
                       </>
                     )}
-                  </ApplicationFormPanel>
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
-        </main>
-      </div>
+      </main>
     </div>
   );
 }

@@ -9,27 +9,38 @@ import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
  * Reuses the shared inbox infrastructure (src/inbox/wait-for-message.ts)
  * rather than building new polling logic, mirroring src/uk/inbox.ts.
  *
- * TODO(verify against a real message): the live walkthrough
- * (docs/tw-entry-permit-auto-submit-plan.md §2.5) confirmed the OTP *flow*
- * exists but did not capture an actual OTP email, so neither the sender
- * domain nor the exact code length/format is confirmed. The predicate/
- * extractor below assume a plausible bilingual subject and a 4-8 digit
- * numeric code (the common shape for Taiwanese government-portal OTPs).
- * Confirm both against a real message before relying on this for a live run
- * — do not widen/narrow the digit-count assumption without evidence.
+ * Confirmed by operator-provided real-message evidence on 2026-08-01:
+ * official application-form email verification messages come from the
+ * immigration.gov.tw domain, use the "境外人士线上申办系统" verification subject,
+ * and contain an approximately 15-character mixed alphanumeric token after
+ * an explicit verification-code label. This is separate from authorized
+ * official-account login OTP and separate from CAPTCHA.
  */
 
-const TW_FROM_REGEX = /@(immigration\.gov\.tw|coa\.immigration\.gov\.tw)$/i;
-const TW_VERIFY_SUBJECT_REGEX = /驗證碼|認證|verification code|來臺觀光|入境許可|coa\.immigration/i;
+const TW_OFFICIAL_FROM_DOMAIN_REGEX = /(^|\.)immigration\.gov\.tw$/i;
+const TW_SYSTEM_SUBJECT_REGEX = /境外人士[線线]上申辦系統|境外人士线上申办系统/i;
+const TW_VERIFY_SUBJECT_REGEX = /驗證|验证|認證|认证|verification/i;
+const TW_CODE_LABEL_REGEX = /(?:驗證碼|验证码|認證碼|认证码|verification\s*code)\s*[:：]?\s*/i;
+const TW_CODE_TOKEN_REGEX = /^[A-Z0-9]{12,20}\b/i;
 
 function messageBody(msg: InboundMessage): string {
-  return [msg.subject ?? "", msg.text ?? "", msg.html ?? ""].join("\n");
+  return [msg.text ?? "", msg.html ?? ""].join("\n");
 }
 
-function isTwVerificationEmail(msg: InboundMessage): boolean {
-  if (TW_FROM_REGEX.test(msg.from_addr)) return true;
-  if (!TW_VERIFY_SUBJECT_REGEX.test(msg.subject ?? "")) return false;
-  return /\d{4,8}/.test(messageBody(msg));
+function fromDomain(fromAddr: string): string | null {
+  const address = fromAddr.match(/<([^<>@\s]+@[^<>\s]+)>/)?.[1] ?? fromAddr.trim();
+  const domain = address.split("@").pop()?.trim().replace(/[>),;.\s]+$/g, "").toLowerCase();
+  return domain && domain.includes(".") ? domain : null;
+}
+
+export function isTwVerificationEmail(msg: InboundMessage): boolean {
+  const domain = fromDomain(msg.from_addr);
+  if (!domain || !TW_OFFICIAL_FROM_DOMAIN_REGEX.test(domain)) return false;
+
+  const subject = msg.subject ?? "";
+  if (!TW_SYSTEM_SUBJECT_REGEX.test(subject) || !TW_VERIFY_SUBJECT_REGEX.test(subject)) return false;
+
+  return TW_CODE_LABEL_REGEX.test(messageBody(msg));
 }
 
 export interface TwVerificationCodeEmail {
@@ -38,17 +49,19 @@ export interface TwVerificationCodeEmail {
 }
 
 /**
- * Extract the OTP digits from a matched message. See the file-level TODO —
- * this is a best-effort, format-unconfirmed regex, not a promoted extractor
- * profile in src/inbox/extractors/ (unlike UK/gov-uk.ts) because there is
- * no confirmed real sample to validate a profile against yet.
+ * Extract only a labeled application-form email token. Do not fall back to
+ * broad numeric scanning; unrelated official reference numbers often appear
+ * in government email bodies and must not be treated as verification codes.
  */
-function extractTwVerificationCode(msg: InboundMessage): string | null {
+export function extractTwVerificationCode(msg: InboundMessage): string | null {
   const haystack = messageBody(msg);
-  const m =
-    /(?:驗證碼|認證碼|verification code|code)[^0-9]{0,12}(\d{4,8})/i.exec(haystack) ??
-    /\b(\d{4,8})\b/.exec(haystack);
-  return m ? m[1] : null;
+  const labelPattern = new RegExp(TW_CODE_LABEL_REGEX.source, TW_CODE_LABEL_REGEX.flags.includes("g") ? TW_CODE_LABEL_REGEX.flags : `${TW_CODE_LABEL_REGEX.flags}g`);
+  for (const labelMatch of haystack.matchAll(labelPattern)) {
+    const afterLabel = haystack.slice((labelMatch.index ?? 0) + labelMatch[0].length).trimStart();
+    const token = TW_CODE_TOKEN_REGEX.exec(afterLabel)?.[0] ?? null;
+    if (token && /[A-Z]/i.test(token) && /\d/.test(token)) return token;
+  }
+  return null;
 }
 
 export async function waitForTwVerificationCode(
@@ -56,7 +69,7 @@ export async function waitForTwVerificationCode(
   timeoutMs: number = 120_000,
 ): Promise<TwVerificationCodeEmail> {
   const message = await inbox.waitForMessage(applicantId, isTwVerificationEmail, timeoutMs, {
-    since: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    since: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
   });
   const code = extractTwVerificationCode(message);
   if (!code) {

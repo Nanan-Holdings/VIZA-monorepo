@@ -1,21 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import { useLocale } from "next-intl";
 import {
-  WarningCircle as AlertCircle,
+  AlertCircle,
   ArrowRight,
-  CheckCircle as CheckCircle2,
-  ArrowSquareOut as ExternalLink,
-  FileText as FileCheck2,
+  Camera,
+  CheckCircle2,
+  Clock3,
+  ExternalLink,
+  FileCheck2,
   FileText,
-  CircleNotch as Loader2,
-} from "@phosphor-icons/react";
-import { BrandActionButton } from "@/components/client/brand-action-button";
-import { AiAssistButton } from "@/components/ui/ai-assist-button";
+  Loader2,
+  Plane,
+  RefreshCw,
+  UploadCloud,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FieldGuidancePanel } from "@/components/field-guidance-panel";
 import {
   Dialog,
   DialogContent,
@@ -23,25 +34,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  DocumentUploadField,
-  documentUploadStatusLabel,
-  type DocumentUploadStatus,
-} from "@/components/ui/document-upload-field";
-import { SupportingDocumentCard } from "@/components/ui/supporting-document-card";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { runFaceMatch, type FaceMatchActionResult } from "@/app/actions/face-match";
-import type { VisaFormFieldRow } from "@/types/visa-form-fields";
-import type { FieldGuidanceChatMessage } from "@/types/field-guidance";
 import {
   loadDocumentCenterData,
+  reuseUniversalProfileDocument,
   type ApplicationDocument,
   type DocumentApplication,
   type DocumentCenterData,
@@ -56,9 +56,17 @@ interface DocumentCenterClientProps {
   visaType?: string | null;
   embedded?: boolean;
   hideApplicationSelector?: boolean;
+  onlyRequirementKeys?: string[];
+  excludeRequirementKeys?: string[];
+  extraRequirements?: DocumentRequirement[];
+  hideOptionalDocuments?: boolean;
+  forceRequiredRequirementKeys?: string[];
   onDataChange?: (data: DocumentCenterData | null) => void;
+  onUploadComplete?: () => void;
+  highlightRequirementKey?: string | null;
   onContinue?: () => void;
   continueLabel?: string;
+  presentation?: "default" | "taiwan-inline";
 }
 
 interface DocumentViewState {
@@ -70,11 +78,19 @@ interface DocumentViewState {
 interface DocumentStatusView {
   label: string;
   description: string;
-  /** Drives the canonical `DocumentUploadField` dot and tone. */
-  fieldStatus: DocumentUploadStatus;
+  icon: LucideIcon;
+  badgeClassName: string;
   ready: boolean;
   needsUpload: boolean;
 }
+
+const TAIWAN_INLINE_UPLOAD_REQUIREMENTS = [
+  "文件格式为 JPG、JPEG、PNG、BMP、PDF；上传的文件须清晰，身份证及护照上不能加上任何字句或图样，如“影印本”“COPY”等。",
+  "文件须小于 1024K。",
+  "上传文件如为中文及英文以外的文件，请再上传中文译本。",
+  "应检附文件请依原证件大小扫描后，将文件名称重新命名为符合该文件内容的名称（例如：居留证正面.JPG）。",
+  "如证件双面均载有资料，正、反面均须扫描后上传。",
+] as const;
 
 interface TravelSupportCandidate {
   id: string;
@@ -113,6 +129,26 @@ const UNIVERSAL_UPLOAD_DOCUMENT_TYPES = new Set<string>([
   ...PROFILE_PHOTO_DOCUMENT_TYPES,
   ...PROFILE_SIGNATURE_DOCUMENT_TYPES,
 ]);
+const REUSABLE_PROFILE_DOCUMENT_TYPES = new Set<string>([
+  "passport_copy",
+  "passport",
+  "passport_bio_page",
+  "passport_scan",
+  ...UNIVERSAL_UPLOAD_DOCUMENT_TYPES,
+]);
+const TW_ENTRY_PERMIT_REQUIREMENT_LABEL_ZH: Record<string, string> = {
+  mainland_travel_document: "大陆地区所发尚余6个月以上效期之旅行证件或香港、澳门政府核发之非永久性居民旅行证件",
+  eligibility_supporting_document_1: "有效学生签证（或再入国签证）及学校核发之3个月内在学证明",
+  eligibility_supporting_document_2: "永久居留权证明",
+  eligibility_supporting_document_3: "有现住地之出入境查验章戳之护照内页、工作签证及3个月内公司在职证明",
+  eligibility_supporting_document_4: "现住地依亲居留权证明及等值新台币十万元以上存款证明",
+  hk_macau_id_scan: "旅居香港或澳门之申请人，须附香港或澳门居民身份证（正、反面）及有效香港或澳门签证（11岁以下免附）",
+  hk_macau_student_residency_document: "旅居香港或澳门之申请人，须附香港或澳门居民身份证（正、反面）及有效香港或澳门签证（11 岁以下免附）",
+  minor_guardian_consent_document: "未成年且无法定代理人或监护人陪同来台者，应检附法定代理人同意书及亲属关系证明（如：出生证明、亲属关系公证书或同户之常住人口登记卡）或监护人同意书及监护证明文件。",
+  other_supporting_document: "其他相关证明文件（若无要求则免附，申请人如旅居日本，请上传3个月内住民票）",
+  other_nationality_passport_scan: "具有他国国籍护（证）照文件",
+  mainland_id_card_scan: "大陆身份证（正、反面）",
+};
 const REQUIREMENT_LABEL_ZH: Record<string, string> = {
   passport_copy: "护照资料页",
   passport_bio_page: "护照资料页",
@@ -191,6 +227,34 @@ const REQUIREMENT_DESCRIPTION_EN: Record<string, string> = {
     "If available, provide flight bookings or round-trip travel details.",
   hotel_booking:
     "If available, provide accommodation bookings or confirmations.",
+};
+const APPLICATION_STATUS_LABELS_ZH: Record<string, string> = {
+  draft: "草稿",
+  in_progress: "进行中",
+  submitted: "已提交",
+  approved: "已通过",
+  rejected: "已拒绝",
+  pending: "待处理",
+  complete: "已完成",
+};
+const APPLICATION_STATUS_LABELS_EN: Record<string, string> = {
+  draft: "Draft",
+  in_progress: "In progress",
+  submitted: "Submitted",
+  approved: "Approved",
+  rejected: "Rejected",
+  pending: "Pending",
+  complete: "Complete",
+};
+const CHECKLIST_SOURCE_LABELS_ZH: Record<string, string> = {
+  document_requirements: "材料要求",
+  package_metadata: "签证包配置",
+  fallback: "默认清单",
+};
+const CHECKLIST_SOURCE_LABELS_EN: Record<string, string> = {
+  document_requirements: "Document requirements",
+  package_metadata: "Package configuration",
+  fallback: "Default checklist",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -272,9 +336,10 @@ function getRequirementLabel(
         REQUIREMENT_LABEL_EN[requirement.key || requirement.documentType]) ??
       "Supporting document"
     );
+  const key = requirement.key || requirement.documentType;
+  if (TW_ENTRY_PERMIT_REQUIREMENT_LABEL_ZH[key]) return TW_ENTRY_PERMIT_REQUIREMENT_LABEL_ZH[key];
   if (requirement.labelZh && containsCjk(requirement.labelZh))
     return requirement.labelZh;
-  const key = requirement.key || requirement.documentType;
   return REQUIREMENT_LABEL_ZH[key] ?? "补充材料";
 }
 
@@ -291,6 +356,21 @@ function getRequirementDescription(
   if (requirement.description && containsCjk(requirement.description))
     return requirement.description;
   return REQUIREMENT_DESCRIPTION_ZH[key] ?? null;
+}
+
+function formatApplicationStatus(status: string, isZh: boolean): string {
+  const normalized = status.toLowerCase();
+  if (!isZh) return APPLICATION_STATUS_LABELS_EN[normalized] ?? "Updating";
+  return APPLICATION_STATUS_LABELS_ZH[normalized] ?? "状态更新中";
+}
+
+function formatChecklistSource(
+  source: string | null | undefined,
+  isZh: boolean
+): string {
+  const labels = isZh ? CHECKLIST_SOURCE_LABELS_ZH : CHECKLIST_SOURCE_LABELS_EN;
+  if (!source) return labels.fallback;
+  return labels[source] ?? labels.fallback;
 }
 
 function isVietnamEVisaApplication(application: DocumentApplication | null): boolean {
@@ -379,10 +459,6 @@ function isAcceptedStatus(status: string): boolean {
   );
 }
 
-function isImageFilename(filename: string | null): boolean {
-  return /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(filename ?? "");
-}
-
 function getDocumentStatus(
   requirement: DocumentRequirement,
   document: ApplicationDocument | null,
@@ -390,12 +466,24 @@ function getDocumentStatus(
 ): DocumentStatusView {
   if (!document) {
     return {
-      label: documentUploadStatusLabel(
-        requirement.required ? "missing" : "optional",
-        isZh
-      ),
-      description: "",
-      fieldStatus: requirement.required ? "missing" : "optional",
+      label: requirement.required
+        ? isZh
+          ? "缺失"
+          : "Missing"
+        : isZh
+          ? "可选"
+          : "Optional",
+      description: requirement.required
+        ? isZh
+          ? "必需材料未齐全，当前签证包无法推进。"
+          : "Required documents are incomplete, so this visa package cannot move forward yet."
+        : isZh
+          ? "如有助于申请，可补充上传。"
+          : "Upload this if it helps support your application.",
+      icon: requirement.required ? AlertCircle : FileText,
+      badgeClassName: requirement.required
+        ? "border-amber-200 bg-amber-50 text-amber-800"
+        : "border-slate-200 bg-slate-50 text-slate-600",
       ready: !requirement.required,
       needsUpload: true,
     };
@@ -403,14 +491,15 @@ function getDocumentStatus(
 
   if (isRejectedStatus(document.status)) {
     return {
-      label: documentUploadStatusLabel("rejected", isZh),
+      label: isZh ? "需要补交" : "Needs replacement",
       description:
         document.rejectionReason ??
         document.reviewNotes ??
         (isZh
           ? "材料不清晰或有误，请重新上传。"
           : "The document is unclear or incorrect. Please upload it again."),
-      fieldStatus: "rejected",
+      icon: XCircle,
+      badgeClassName: "border-red-200 bg-red-50 text-red-700",
       ready: false,
       needsUpload: true,
     };
@@ -418,11 +507,12 @@ function getDocumentStatus(
 
   if (document.status.toLowerCase() === "missing") {
     return {
-      label: documentUploadStatusLabel("missing", isZh),
+      label: isZh ? "缺失" : "Missing",
       description: isZh
         ? "已要求该材料，但暂无可用文件。"
         : "This document is required, but no file is available yet.",
-      fieldStatus: "missing",
+      icon: AlertCircle,
+      badgeClassName: "border-amber-200 bg-amber-50 text-amber-800",
       ready: false,
       needsUpload: true,
     };
@@ -430,22 +520,24 @@ function getDocumentStatus(
 
   if (isAcceptedStatus(document.status)) {
     return {
-      label: documentUploadStatusLabel("approved", isZh),
+      label: isZh ? "已通过" : "Approved",
       description: isZh
         ? "材料已审核通过，可用于本次申请。"
         : "This document has been reviewed and can be used for this application.",
-      fieldStatus: "approved",
+      icon: CheckCircle2,
+      badgeClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
       ready: true,
       needsUpload: false,
     };
   }
 
   return {
-    label: documentUploadStatusLabel("in_review", isZh),
+    label: isZh ? "已上传" : "Uploaded",
     description: isZh
       ? "已收到，等待审核。"
       : "Received and waiting for review.",
-    fieldStatus: "in_review",
+    icon: Clock3,
+    badgeClassName: "border-blue-200 bg-blue-50 text-blue-700",
     ready: true,
     needsUpload: false,
   };
@@ -657,128 +749,159 @@ function ApplicationSelector({
   );
 }
 
+function StatusBadge({ status }: { status: DocumentStatusView }) {
+  const Icon = status.icon;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold",
+        status.badgeClassName
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {status.label}
+    </span>
+  );
+}
+
 function RequirementRow({
   view,
   busy,
-  onFile,
+  onChooseFile,
+  inputRef,
+  onFileChange,
   isZh,
-  locale,
-  country,
-  visaType,
+  extraAction,
+  onReuseProfileDocument,
+  highlighted,
 }: {
   view: DocumentViewState;
   busy: boolean;
-  onFile: (file: File) => void;
+  onChooseFile: () => void;
+  inputRef: (element: HTMLInputElement | null) => void;
+  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   isZh: boolean;
-  locale: string;
-  country: string;
-  visaType: string;
+  extraAction?: ReactNode;
+  onReuseProfileDocument?: () => void;
+  highlighted?: boolean;
 }) {
   const { requirement, document, status } = view;
+  const Icon =
+    requirement.documentType === "photo"
+      ? Camera
+      : requirement.documentType === "travel_itinerary" || requirement.documentType === "return_ticket"
+        ? Plane
+        : FileText;
   const label = getRequirementLabel(requirement, isZh);
   const description = getRequirementDescription(requirement, isZh);
 
-  const hasRejectedDocument = isRejectedStatus(document?.status ?? "");
-  const [guidanceOpen, setGuidanceOpen] = useState(false);
-  const [guidanceConversation, setGuidanceConversation] = useState<
-    FieldGuidanceChatMessage[]
-  >([]);
-  const guidanceField: VisaFormFieldRow = {
-    id: `document-${requirement.key}`,
-    visaType,
-    fieldName: requirement.key,
-    label,
-    fieldType: "file",
-    required: requirement.required,
-    stepNumber: 0,
-    stepName: isZh ? "支持材料" : "Supporting documents",
-    displayOrder: requirement.sortOrder,
-    placeholder: null,
-    validationRules: description ? { description } : null,
-    options: null,
-    conditionalLogic: null,
-  };
-  const guidanceLabel = isZh ? "问 AI" : "Ask AI";
-
   return (
-    <SupportingDocumentCard
-      title={label}
-      description={description}
-      required={requirement.required}
-      headerLayout="stacked"
-      headerAside={
-        <>
-          <Popover open={guidanceOpen} onOpenChange={setGuidanceOpen}>
-            <PopoverTrigger asChild>
-              <AiAssistButton
-                label={guidanceLabel}
-                variant="field"
-                className="opacity-0 focus-visible:opacity-100 group-hover/document-card:opacity-100 group-focus-within/document-card:opacity-100"
-                data-copilot-trigger={`document-${requirement.key}`}
-              />
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              className="w-[min(448px,calc(100vw-2rem))] border-0 bg-transparent p-0 shadow-none"
-              sideOffset={10}
-            >
-              <div data-copilot-panel-frame={`document-${requirement.key}`}>
-                <FieldGuidancePanel
-                  country={country}
-                  visaType={visaType}
-                  locale={locale}
-                  field={guidanceField}
-                  answer={document?.filename ?? ""}
-                  allAnswers={{ [requirement.key]: document?.filename ?? "" }}
-                  initialConversation={guidanceConversation}
-                  onConversationChange={setGuidanceConversation}
-                  onClose={() => setGuidanceOpen(false)}
-                />
-              </div>
-            </PopoverContent>
-          </Popover>
-        </>
-      }
+    <div
+      className={cn(
+        "rounded-lg border bg-white p-4 shadow-sm transition-colors",
+        highlighted ? "border-amber-300 bg-amber-50 ring-2 ring-amber-300 ring-offset-2" : "border-border",
+      )}
+      data-requirement-key={requirement.key}
+      tabIndex={highlighted ? -1 : undefined}
     >
-      <DocumentUploadField
-        status={busy ? "uploading" : status.fieldStatus}
-        statusLabel={
-          busy ? documentUploadStatusLabel("uploading", isZh) : status.label
-        }
-        file={
-          document?.filename
-            ? {
-                name: document.filename,
-                kind: isImageFilename(document.filename)
-                  ? "image"
-                  : "document",
-              }
-            : null
-        }
-        reason={hasRejectedDocument ? status.description : null}
-        dropLabel={
-          isZh ? "拖放文件到这里，或点击选择" : "Drop file or browse"
-        }
-        acceptHint={
-          isZh
-            ? "支持 PDF、JPG、PNG、WebP、DOC 和 DOCX"
-            : "PDF, JPG, PNG, WebP, DOC or DOCX"
-        }
-        removeLabel={isZh ? "移除文件" : "Remove file"}
-        accept={getRequirementAccept(requirement)}
-        disabled={busy}
-        inputAriaLabel={
-          document
-            ? isZh
-              ? `替换${label}`
-              : `Replace ${label}`
-            : isZh
-              ? `选择${label}`
-              : `Choose ${label}`
-        }
-        onFileSelected={onFile}
-      />
-    </SupportingDocumentCard>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 gap-3">
+          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+            <Icon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-semibold text-foreground">
+                {label}
+              </h3>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {requirement.required
+                  ? isZh
+                    ? "必需"
+                    : "Required"
+                  : requirement.applicability === "conditional"
+                    ? isZh
+                      ? "情形适用"
+                      : "Situation-specific"
+                    : isZh
+                      ? "可选"
+                      : "Optional"}
+              </span>
+            </div>
+            {description && (
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                {description}
+              </p>
+            )}
+            {document?.filename && (
+              <p className="text-xs text-muted-foreground">
+                {isZh ? "已上传文件：" : "Uploaded file: "}
+                <span className="font-medium text-foreground">
+                  {document.filename}
+                </span>
+              </p>
+            )}
+            {document?.reviewNotes && (
+              <p className="text-xs text-muted-foreground">
+                {isZh ? "审核备注：" : "Review note: "}
+                {document.reviewNotes}
+              </p>
+            )}
+            {status.needsUpload && status.description && (
+              <p
+                className={cn(
+                  "text-xs",
+                  isRejectedStatus(document?.status ?? "")
+                    ? "text-red-700"
+                    : "text-amber-800"
+                )}
+              >
+                {status.description}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+          <StatusBadge status={status} />
+          <Button
+            type="button"
+            variant={document ? "outline" : "default"}
+            className={cn(!document && "bg-brand-500 hover:bg-brand-400")}
+            onClick={onChooseFile}
+            disabled={busy}
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : document ? (
+              <RefreshCw className="h-4 w-4" />
+            ) : (
+              <UploadCloud className="h-4 w-4" />
+            )}
+            {document
+              ? isZh
+                ? "重新上传"
+                : "Replace"
+              : isZh
+                ? "上传"
+                : "Upload"}
+          </Button>
+          {onReuseProfileDocument && !document && (
+            <Button type="button" variant="outline" onClick={onReuseProfileDocument} disabled={busy}>
+              {isZh ? "使用已保存资料" : "Use saved profile file"}
+            </Button>
+          )}
+          {extraAction}
+          <input
+            ref={inputRef}
+            type="file"
+            className="hidden"
+            accept={getRequirementAccept(requirement)}
+            onChange={onFileChange}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -811,119 +934,71 @@ function VietnamPhotoComparisonPanel({
     : isZh ? "待检测" : "Not checked";
   const decisionClass = faceMatch?.decision === "auto_approve"
     ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-    : faceMatch?.decision === "staff_review"
-      ? "border-amber-200 bg-amber-50 text-amber-800"
-      : faceMatch?.decision === "reject"
-        ? "border-red-200 bg-red-50 text-red-700"
-        : "border-border bg-muted/30 text-muted-foreground";
-  const decisionIcon = faceMatch?.decision === "auto_approve"
-    ? <CheckCircle2 className="h-4 w-4" />
     : faceMatch?.decision
-      ? <AlertCircle className="h-4 w-4" />
-      : <FileCheck2 className="h-4 w-4" />;
+      ? "border-amber-200 bg-amber-50 text-amber-800"
+      : "border-border bg-white text-muted-foreground";
 
   return (
-    <section aria-labelledby="vietnam-photo-comparison-title">
-      <article className="rounded-xl border border-border bg-white p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-brand-500">
-              {isZh ? "越南电子签证 · 照片要求" : "Vietnam e-Visa · Photo requirements"}
-            </p>
-            <h3
-              id="vietnam-photo-comparison-title"
-              className="mt-1 text-[15px] font-medium tracking-[-0.1px] text-[#3d3d3d]"
-            >
-              {isZh ? "证件照与护照人脸相似度" : "Portrait and passport face match"}
-            </h3>
-            <p className="mt-[5px] text-[13px] leading-[1.55] text-black/55">
-              {isZh
-                ? "上传两项材料后进行检测，结果将作为提交前材料证据。"
-                : "Compare both uploads and save the result as pre-submission evidence."}
-            </p>
-          </div>
-          <div
-            className={cn(
-              "inline-flex w-fit shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium",
-              decisionClass
-            )}
-          >
-            {decisionIcon}
-            <span>{decisionLabel}</span>
-            <span aria-hidden="true">·</span>
-            <span className="tabular-nums">
-              {scorePercent === null ? "--" : `${scorePercent}%`}
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4">
-          <p className="text-sm font-medium text-foreground">
-            {isZh ? "上传要求" : "Upload requirements"}
+    <section className="space-y-4 rounded-lg border border-cyan-200 bg-cyan-50/50 p-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm font-semibold uppercase tracking-normal text-cyan-800">
+            {isZh ? "越南官网照片对照" : "Vietnam official photo comparison"}
           </p>
-          <ul className="mt-2 grid gap-2 text-[13px] leading-[1.55] text-muted-foreground lg:grid-cols-3">
-            <li>{isZh ? "JPG、JPEG 或 PNG 格式，单个文件小于 2MB。" : "JPG, JPEG or PNG; each file must be under 2MB."}</li>
-            <li>{isZh ? "证件照需近期 4×6cm、正脸、白底且无遮挡。" : "Use a recent 4×6cm, front-facing photo on a white background."}</li>
-            <li>{isZh ? "护照资料页需完整清晰，并能检测到人脸。" : "The passport bio page must be complete, clear and show a detectable face."}</li>
+          <h2 className="text-xl font-semibold text-foreground">
+            {isZh ? "证件照与护照人脸相似度" : "Portrait and passport face match"}
+          </h2>
+          <ul className="space-y-1 text-sm text-muted-foreground">
+            <li>{isZh ? "证件照和护照资料页均必须为 JPG/JPEG/PNG，单个文件小于 2MB。" : "Portrait and passport bio page must be JPG/JPEG/PNG and under 2MB each."}</li>
+            <li>{isZh ? "证件照需近期 4x6cm、正脸、白底、无遮挡、无帽子和墨镜。" : "Portrait should be recent 4x6cm, front-facing, white background, unobstructed, no hat or sunglasses."}</li>
+            <li>{isZh ? "护照资料页需清晰、无缺角，并能检测到人脸。" : "Passport bio page must be clear, uncropped, and contain a detectable face."}</li>
           </ul>
         </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {[
-            {
-              label: isZh ? "本人证件照" : "Portrait photo",
-              ready: hasPhoto,
-              readyText: isZh ? "已上传，可用于检测" : "Uploaded and ready",
-              missingText: isZh ? "等待上传" : "Waiting for upload",
-            },
-            {
-              label: isZh ? "护照资料页" : "Passport bio page",
-              ready: hasPassport,
-              readyText: isZh ? "已上传，可用于检测" : "Uploaded and ready",
-              missingText: isZh ? "等待上传" : "Waiting for upload",
-            },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className="flex items-center gap-3 rounded-lg border border-border px-4 py-3"
-            >
-              {item.ready ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-              ) : (
-                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-              )}
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">{item.label}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {item.ready ? item.readyText : item.missingText}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {!faceMatch?.ok && faceMatch?.reason ? (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>{faceMatch.reason}</p>
+        <div className={cn("rounded-lg border px-4 py-3 text-sm font-semibold", decisionClass)}>
+          <div>{decisionLabel}</div>
+          <div className="mt-1 text-2xl">
+            {scorePercent === null ? "--" : `${scorePercent}%`}
           </div>
-        ) : null}
-
-        <div className="mt-5 flex justify-end border-t border-border pt-4">
-          <BrandActionButton
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={onRun}
-            disabled={!hasPassport || !hasPhoto}
-            loading={busy}
-            loadingText={isZh ? "正在检测…" : "Comparing…"}
-          >
-            <FileCheck2 />
-            {isZh ? "生成相似度" : "Generate similarity"}
-          </BrandActionButton>
         </div>
-      </article>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-lg border border-border bg-white p-4">
+          <p className="text-sm font-semibold">{isZh ? "本人证件照" : "Portrait photo"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {hasPhoto
+              ? isZh ? "已上传，可用于对照。" : "Uploaded and ready for comparison."
+              : isZh ? "请先上传本人证件照。" : "Upload the portrait photo first."}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-white p-4">
+          <p className="text-sm font-semibold">{isZh ? "护照资料页" : "Passport bio page"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {hasPassport
+              ? isZh ? "已上传，可用于对照。" : "Uploaded and ready for comparison."
+              : isZh ? "请先上传护照资料页。" : "Upload the passport bio page first."}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-white p-4">
+          <p className="text-sm font-semibold">{isZh ? "VIZA 检测" : "VIZA check"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {faceMatch?.ok
+              ? isZh ? "检测结果已生成，会作为提交前材料证据。" : "Comparison result generated and saved as pre-submission evidence."
+              : faceMatch?.reason ?? (isZh ? "上传两项材料后生成相似度。" : "Generate similarity after both files are uploaded.")}
+          </p>
+        </div>
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onRun}
+        disabled={busy || !hasPassport || !hasPhoto}
+        className="w-full bg-white"
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileCheck2 className="h-4 w-4" />}
+        {isZh ? "生成相似度" : "Generate similarity"}
+      </Button>
     </section>
   );
 }
@@ -1080,9 +1155,17 @@ export function DocumentCenterClient({
   visaType,
   embedded = false,
   hideApplicationSelector = embedded,
+  onlyRequirementKeys,
+  excludeRequirementKeys,
+  extraRequirements,
+  hideOptionalDocuments = false,
+  forceRequiredRequirementKeys,
   onDataChange,
+  onUploadComplete,
+  highlightRequirementKey,
   onContinue,
   continueLabel,
+  presentation = "default",
 }: DocumentCenterClientProps) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
@@ -1094,7 +1177,19 @@ export function DocumentCenterClient({
   >([]);
   const [travelPickerOpen, setTravelPickerOpen] = useState(false);
   const [faceMatch, setFaceMatch] = useState<FaceMatchActionResult | null>(null);
-  const [continueAttempted, setContinueAttempted] = useState(false);
+  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  useEffect(() => {
+    if (!highlightRequirementKey) return;
+    const timer = window.setTimeout(() => {
+      const selector = `[data-requirement-key="${CSS.escape(highlightRequirementKey)}"]`;
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return;
+      element.scrollIntoView?.({ block: "center", behavior: "smooth" });
+      element.focus({ preventScroll: true });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [highlightRequirementKey, data?.requirements]);
 
   useEffect(() => {
     setData(initialData);
@@ -1103,40 +1198,83 @@ export function DocumentCenterClient({
 
   const selectedApplication = data?.selectedApplication ?? null;
   const documentViews = useMemo(
-    () => (data ? buildDocumentViews(data, isZh) : []),
-    [data, isZh]
+    () => {
+      const views = data ? buildDocumentViews(data, isZh) : [];
+      const documentMatchesExtraRequirement = (requirement: DocumentRequirement) =>
+        data?.documents.find((document) => document.requirementKey === requirement.key) ??
+        data?.documents.find((document) => document.documentType === requirement.documentType) ??
+        null;
+      const extraViews = (extraRequirements ?? []).map((requirement) => {
+        const document = documentMatchesExtraRequirement(requirement);
+        return {
+          requirement,
+          document,
+          status: getDocumentStatus(requirement, document, isZh),
+        };
+      });
+      const extraViewsByKey = new Map(extraViews.map((view) => [view.requirement.key, view]));
+      const mergedViews = [
+        ...views.map((view) => {
+          const override = extraViewsByKey.get(view.requirement.key);
+          if (!override) return view;
+          extraViewsByKey.delete(view.requirement.key);
+          const document = view.document ?? override.document;
+          const requirement = { ...view.requirement, ...override.requirement };
+          return {
+            requirement,
+            document,
+            status: getDocumentStatus(requirement, document, isZh),
+          };
+        }),
+        ...extraViewsByKey.values(),
+      ];
+      const onlyKeys = new Set(onlyRequirementKeys ?? []);
+      const excludedKeys = new Set(excludeRequirementKeys ?? []);
+      const forceRequiredKeys = new Set(forceRequiredRequirementKeys ?? []);
+      return mergedViews.flatMap((view) => {
+        const key = getDocumentKey(view.requirement);
+        if (onlyKeys.size > 0 && !onlyKeys.has(key) && !onlyKeys.has(view.requirement.key)) return [];
+        if (excludedKeys.has(key) || excludedKeys.has(view.requirement.key)) return [];
+        if (!forceRequiredKeys.has(key) && !forceRequiredKeys.has(view.requirement.key)) return [view];
+        const requirement = { ...view.requirement, required: true };
+        return [{
+          ...view,
+          requirement,
+          status: getDocumentStatus(requirement, view.document, isZh),
+        }];
+      });
+    },
+    [data, excludeRequirementKeys, extraRequirements, forceRequiredRequirementKeys, isZh, onlyRequirementKeys]
   );
   const requiredViews = documentViews.filter(
     (view) => view.requirement.required
   );
   const optionalViews = documentViews.filter(
-    (view) => !view.requirement.required
+    (view) => !view.requirement.required && view.requirement.applicability !== "conditional"
   );
-  /*
-   * Packages with no optional materials render a single unlabelled panel: no
-   * empty "0 items" section, and no "Required documents" heading either, since
-   * with nothing to contrast against it labels the only thing on screen.
-   */
-  const hasOptionalSection = optionalViews.length > 0;
+  const conditionalViews = documentViews.filter(
+    (view) => !view.requirement.required && view.requirement.applicability === "conditional"
+  );
   const blockingViews = requiredViews.filter((view) => !view.status.ready);
   const travelView =
     documentViews.find(
       (view) => isTravelItineraryRequirement(view.requirement)
     ) ?? null;
   const isVietnamEVisa = isVietnamEVisaApplication(selectedApplication);
+  const isKoreaC39 =
+    selectedApplication?.country === "south_korea" &&
+    selectedApplication.visaType === "KR_C39_SHORT_TERM_VISIT";
   const passportView =
     documentViews.find((view) => isPassportRequirement(view.requirement)) ?? null;
   const photoView =
     documentViews.find((view) => view.requirement.documentType === "photo") ?? null;
-
-  function handleContinue() {
-    if (blockingViews.length > 0) {
-      setContinueAttempted(true);
-      return;
-    }
-
-    onContinue?.();
-  }
+  const totalRequired = requiredViews.length;
+  const readyRequired = requiredViews.filter(
+    (view) => view.status.ready
+  ).length;
+  const completionPercent =
+    totalRequired > 0 ? Math.round((readyRequired / totalRequired) * 100) : 0;
+  const isTaiwanInline = presentation === "taiwan-inline";
 
   useEffect(() => {
     if (!applicationId) return;
@@ -1217,6 +1355,7 @@ export function DocumentCenterClient({
       if (!result.ok) throw new Error(result.error);
 
       await refreshData();
+      onUploadComplete?.();
     } catch (uploadError) {
       console.error("Document upload failed", uploadError);
       setError(formatUploadError(uploadError, isZh));
@@ -1224,10 +1363,33 @@ export function DocumentCenterClient({
     }
   }
 
+  async function reuseProfileDocument(requirement: DocumentRequirement) {
+    if (!selectedApplication) return;
+    const key = getDocumentKey(requirement);
+    setBusyTarget({ type: "upload", key });
+    setError(null);
+    const result = await reuseUniversalProfileDocument({
+      applicationId: selectedApplication.id,
+      documentType: requirement.documentType,
+      requirementKey: requirement.key,
+      required: requirement.required,
+    });
+    if (!result.ok) {
+      setError(result.error || formatUploadError(new Error(result.error), isZh));
+      setBusyTarget(null);
+      return;
+    }
+    await refreshData();
+    onUploadComplete?.();
+  }
+
   async function handleFileChange(
     requirement: DocumentRequirement,
-    file: File
+    event: ChangeEvent<HTMLInputElement>
   ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
     if ((isIndonesiaB1OfficialPdfRequirement(requirement) || isIndonesiaC1OfficialPdfRequirement(requirement)) && !isPdfFile(file)) {
       setError(isZh
         ? "印尼官网要求该材料仅接受 PDF 文件。"
@@ -1359,31 +1521,199 @@ export function DocumentCenterClient({
     );
   }
 
+  const refreshing = busyTarget?.type === "refresh";
   const travelBusyKey = travelView ? getDocumentKey(travelView.requirement) : null;
   const travelBusy = Boolean(
     travelBusyKey &&
       busyTarget?.type === "travel" &&
       busyTarget.key === travelBusyKey
   );
-  const documentMutationBusy =
-    busyTarget !== null && busyTarget.type !== "refresh";
+
+  function renderTravelAiAction(view: DocumentViewState) {
+    if (!isTravelItineraryRequirement(view.requirement)) return undefined;
+    const key = getDocumentKey(view.requirement);
+    const busy = busyTarget?.type === "travel" && busyTarget.key === key;
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setTravelPickerOpen(true)}
+        disabled={busyTarget !== null && !busy}
+      >
+        {busy ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <FileCheck2 className="h-4 w-4" />
+        )}
+        {isZh ? "从旅行 AI 上载" : "Upload from Travel AI"}
+      </Button>
+    );
+  }
 
   return (
     <main
       className={cn(
-        "space-y-6",
+        isTaiwanInline ? "space-y-5" : "space-y-6",
         embedded ? "pb-2" : "mx-auto max-w-7xl pb-16"
       )}
     >
-      {!hideApplicationSelector && (
-        <section>
+      <section className={cn(isTaiwanInline ? "space-y-3" : "space-y-5")}>
+        {!hideApplicationSelector && (
           <ApplicationSelector
             applications={data.applications}
             selectedApplication={selectedApplication}
             isZh={isZh}
           />
-        </section>
-      )}
+        )}
+
+        {isTaiwanInline ? (
+          <>
+            <div className="rounded-[8px] border border-sky-200 bg-sky-50 px-4 py-3 text-sky-950">
+              <h4 className="text-[14px] font-semibold">上传文件要求</h4>
+              <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-[13px] leading-6">
+                {TAIWAN_INLINE_UPLOAD_REQUIREMENTS.map((item) => (
+                  <li key={item} className="break-words">
+                    {item}
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="flex flex-col gap-3 rounded-[8px] bg-[#f8fafc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <SmoothProgressBar
+                  displayedProgress={completionPercent}
+                  label={isZh ? "材料完成度" : "Document progress"}
+                  labelClassName="mb-1 text-[13px] font-semibold text-[#3d3d3d]"
+                  valueClassName="text-[18px] font-semibold text-brand-500"
+                  trackClassName="bg-white"
+                />
+                <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
+                  {isZh
+                    ? `已完成 ${readyRequired} / ${totalRequired} 项必需材料上传或审核。`
+                    : `${readyRequired} / ${totalRequired} required documents uploaded or reviewed.`}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={refreshData}
+                disabled={refreshing}
+                aria-label={isZh ? "刷新材料清单" : "Refresh document checklist"}
+              >
+                {refreshing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold uppercase tracking-normal text-brand-500">
+                {embedded
+                  ? isZh
+                    ? "当前表单材料"
+                    : "Form documents"
+                  : isZh
+                    ? "材料清单中心"
+                    : "Document checklist center"}
+              </p>
+              <div className="space-y-1">
+                <h1
+                  className={cn(
+                    "font-semibold text-foreground",
+                    embedded ? "text-2xl" : "text-3xl"
+                  )}
+                >
+                  {selectedApplication.countryFlag}{" "}
+                  {isZh
+                    ? selectedApplication.countryNameZh ||
+                      selectedApplication.countryName
+                    : selectedApplication.countryName}{" "}
+                  {isZh ? "材料" : "Documents"}
+                </h1>
+                <p className="max-w-3xl text-muted-foreground">
+                  {isKoreaC39
+                    ? isZh
+                      ? "韩国 C-3-9 可在这里上传证件照用于资料完整性检查；官方 e-Form 和预约中心材料以线下携带为准。"
+                      : "For Korea C-3-9, you can upload a passport-size photo here for completeness checks. Bring official e-Form and appointment-center materials in person."
+                    : isZh
+                      ? "在这个表单内完成必需材料和可选补充材料。旅行行程可手动上传，也可从旅行 AI 选择已生成的英语 PDF。"
+                      : "Complete required and optional supporting documents inside this form. Travel itinerary evidence can be uploaded manually or selected from an existing Travel AI English PDF."}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-medium">
+                <span className="rounded-full bg-brand-50 px-3 py-1 text-brand-700">
+                  {isZh
+                    ? selectedApplication.visaTypeLabelZh ||
+                      selectedApplication.visaTypeLabel
+                    : selectedApplication.visaTypeLabel}
+                </span>
+                <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                  {isZh ? "申请状态：" : "Application status: "}
+                  {formatApplicationStatus(selectedApplication.status, isZh)}
+                </span>
+                <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                  {isZh ? "清单来源：" : "Checklist source: "}
+                  {formatChecklistSource(
+                    data.packageSummary?.source ?? null,
+                    isZh
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                "w-full rounded-lg border border-border bg-muted/30 p-4",
+                embedded ? "lg:max-w-xs" : "lg:max-w-sm",
+              )}
+            >
+              <SmoothProgressBar
+                displayedProgress={completionPercent}
+                label={isZh ? "完成度" : "Progress"}
+                labelClassName="mb-1 text-sm font-semibold text-foreground"
+                valueClassName="text-2xl font-semibold text-brand-500"
+                trackClassName="bg-muted"
+              />
+              <p className="mt-3 text-sm text-muted-foreground">
+                {isZh
+                  ? `已完成 ${readyRequired} / ${totalRequired} 项必需材料上传或审核。`
+                  : `${readyRequired} / ${totalRequired} required documents uploaded or reviewed.`}
+              </p>
+              <div className="mt-4 flex gap-2">
+                {!embedded && (
+                  <Button asChild variant="outline" className="flex-1">
+                    <Link href="/client/status">
+                      {isZh ? "查看状态" : "View status"}
+                      <ExternalLink className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={embedded ? "w-full" : undefined}
+                  onClick={refreshData}
+                  disabled={refreshing}
+                >
+                  {refreshing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+          </div>
+        )}
+      </section>
 
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -1394,68 +1724,91 @@ export function DocumentCenterClient({
         </div>
       )}
 
-      <div className="space-y-8">
-        {isVietnamEVisa && (
-          <VietnamPhotoComparisonPanel
-            passportView={passportView}
-            photoView={photoView}
-            faceMatch={faceMatch}
-            busy={busyTarget?.type === "face_match"}
-            onRun={handleRunFaceMatch}
-            isZh={isZh}
-          />
+      <section
+        className={cn(
+          isTaiwanInline ? "rounded-[8px] border px-4 py-3" : "rounded-lg border p-5 shadow-sm",
+          blockingViews.length
+            ? "border-amber-200 bg-amber-50"
+            : "border-emerald-200 bg-emerald-50"
         )}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              {blockingViews.length ? (
+                <AlertCircle className="h-5 w-5 text-amber-700" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+              )}
+              <h2
+                className={cn(
+                  isTaiwanInline ? "text-[15px] font-semibold" : "text-lg font-semibold",
+                  blockingViews.length ? "text-amber-900" : "text-emerald-900"
+                )}
+              >
+                {blockingViews.length
+                  ? isZh
+                    ? "缺失或需补交的材料"
+                    : "Missing or replacement documents"
+                  : isZh
+                    ? "必需材料已齐备"
+                    : "Required documents complete"}
+              </h2>
+            </div>
+            <p
+              className={cn(
+                "mt-1 text-sm",
+                blockingViews.length ? "text-amber-800" : "text-emerald-800"
+              )}
+            >
+              {blockingViews.length
+                ? isZh
+                  ? "必需材料未齐全，需上传或补交后才能继续处理。"
+                  : "Required documents are incomplete. Upload or replace the missing items before processing can continue."
+                : isZh
+                  ? "必需材料已齐全，VIZA 可继续审核材料包。"
+                  : "Required documents are complete. VIZA can continue reviewing the application packet."}
+            </p>
+          </div>
+          {blockingViews.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {blockingViews.map((view) => (
+                <span
+                  key={getDocumentKey(view.requirement)}
+                  className="rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-semibold text-amber-800"
+                >
+                  {getRequirementLabel(view.requirement, isZh)}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
-        <section className="space-y-4">
-          {/* The "Required documents" heading only earns its space when there is
-              an optional section to tell it apart from. */}
-          {hasOptionalSection ? (
+      <div className="space-y-6">
+          {isVietnamEVisa && (
+            <VietnamPhotoComparisonPanel
+              passportView={passportView}
+              photoView={photoView}
+              faceMatch={faceMatch}
+              busy={busyTarget?.type === "face_match"}
+              onRun={handleRunFaceMatch}
+              isZh={isZh}
+            />
+          )}
+
+          <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-medium text-foreground">
+              <h2 className={cn("font-semibold", isTaiwanInline ? "text-lg" : "text-xl")}>
                 {isZh ? "必需材料" : "Required documents"}
-              </h3>
-              <span className="text-xs text-muted-foreground">
+              </h2>
+              <span className="text-sm text-muted-foreground">
                 {requiredViews.length}{" "}
                 {isZh ? "项" : requiredViews.length === 1 ? "item" : "items"}
               </span>
             </div>
-          ) : null}
-          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
-            {requiredViews.map((view) => {
-              const key = getDocumentKey(view.requirement);
-              return (
-                <RequirementRow
-                  key={key}
-                  view={view}
-                  busy={
-                    busyTarget?.key === key &&
-                    (busyTarget.type === "upload" ||
-                      busyTarget.type === "travel")
-                  }
-                  onFile={(file) => handleFileChange(view.requirement, file)}
-                  isZh={isZh}
-                  locale={locale}
-                  country={selectedApplication.country}
-                  visaType={selectedApplication.visaType}
-                />
-              );
-            })}
-          </div>
-        </section>
-
-        {hasOptionalSection ? (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-medium text-foreground">
-                {isZh ? "可选补充材料" : "Optional supporting documents"}
-              </h3>
-              <span className="text-xs text-muted-foreground">
-                {optionalViews.length}{" "}
-                {isZh ? "项" : optionalViews.length === 1 ? "item" : "items"}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
-              {optionalViews.map((view) => {
+            <div className="space-y-3">
+              {requiredViews.map((view) => {
                 const key = getDocumentKey(view.requirement);
                 return (
                   <RequirementRow
@@ -1466,17 +1819,124 @@ export function DocumentCenterClient({
                       (busyTarget.type === "upload" ||
                         busyTarget.type === "travel")
                     }
-                    onFile={(file) => handleFileChange(view.requirement, file)}
+                    inputRef={(element) => {
+                      fileInputs.current[key] = element;
+                    }}
+                    onChooseFile={() => fileInputs.current[key]?.click()}
+                    onFileChange={(event) =>
+                      handleFileChange(view.requirement, event)
+                    }
                     isZh={isZh}
-                    locale={locale}
-                    country={selectedApplication.country}
-                    visaType={selectedApplication.visaType}
+                    highlighted={highlightRequirementKey === view.requirement.key || highlightRequirementKey === key}
+                    extraAction={renderTravelAiAction(view)}
+                    onReuseProfileDocument={
+                      REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType)
+                        ? () => void reuseProfileDocument(view.requirement)
+                        : undefined
+                    }
                   />
                 );
               })}
             </div>
           </section>
-        ) : null}
+
+          {conditionalViews.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className={cn("font-semibold", isTaiwanInline ? "text-lg" : "text-xl")}>
+                {isZh ? "情形适用材料" : "Situation-specific documents"}
+              </h2>
+              <span className="text-sm text-muted-foreground">
+                {conditionalViews.length}{" "}
+                {isZh ? "项" : conditionalViews.length === 1 ? "item" : "items"}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {conditionalViews.map((view) => {
+                const key = getDocumentKey(view.requirement);
+                return (
+                  <RequirementRow
+                    key={key}
+                    view={view}
+                    busy={
+                      busyTarget?.key === key &&
+                      (busyTarget.type === "upload" ||
+                        busyTarget.type === "travel")
+                    }
+                    inputRef={(element) => {
+                      fileInputs.current[key] = element;
+                    }}
+                    onChooseFile={() => fileInputs.current[key]?.click()}
+                    onFileChange={(event) =>
+                      handleFileChange(view.requirement, event)
+                    }
+                    isZh={isZh}
+                    highlighted={highlightRequirementKey === view.requirement.key || highlightRequirementKey === key}
+                    extraAction={renderTravelAiAction(view)}
+                    onReuseProfileDocument={
+                      REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType)
+                        ? () => void reuseProfileDocument(view.requirement)
+                        : undefined
+                    }
+                  />
+                );
+              })}
+            </div>
+          </section>
+          )}
+
+          {!hideOptionalDocuments && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className={cn("font-semibold", isTaiwanInline ? "text-lg" : "text-xl")}>
+                {isZh ? "可选补充材料" : "Optional supporting documents"}
+              </h2>
+              <span className="text-sm text-muted-foreground">
+                {optionalViews.length}{" "}
+                {isZh ? "项" : optionalViews.length === 1 ? "item" : "items"}
+              </span>
+            </div>
+            {optionalViews.length > 0 ? (
+              <div className="space-y-3">
+                {optionalViews.map((view) => {
+                  const key = getDocumentKey(view.requirement);
+                  return (
+                    <RequirementRow
+                      key={key}
+                      view={view}
+                      busy={
+                        busyTarget?.key === key &&
+                        (busyTarget.type === "upload" ||
+                          busyTarget.type === "travel")
+                      }
+                      inputRef={(element) => {
+                        fileInputs.current[key] = element;
+                      }}
+                      onChooseFile={() => fileInputs.current[key]?.click()}
+                    onFileChange={(event) =>
+                      handleFileChange(view.requirement, event)
+                    }
+                    isZh={isZh}
+                    highlighted={highlightRequirementKey === view.requirement.key || highlightRequirementKey === key}
+                    extraAction={renderTravelAiAction(view)}
+                    onReuseProfileDocument={
+                      REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType)
+                        ? () => void reuseProfileDocument(view.requirement)
+                        : undefined
+                    }
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-border bg-white p-4 text-sm text-muted-foreground shadow-sm">
+                {isZh
+                  ? "该签证包暂未配置可选补充材料。"
+                  : "No optional supporting documents are configured for this visa package yet."}
+              </div>
+            )}
+          </section>
+          )}
       </div>
 
       {travelView && (
@@ -1491,44 +1951,16 @@ export function DocumentCenterClient({
       )}
 
       {embedded && onContinue && (
-        <div className="space-y-3 border-t border-border pt-5">
-          {continueAttempted && blockingViews.length > 0 ? (
-            <div
-              id="document-continue-requirements"
-              role="alert"
-              className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"
-            >
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="text-sm font-medium">
-                  {isZh
-                    ? `请先上传 ${blockingViews.length} 项必需材料，再继续。`
-                    : `Upload ${blockingViews.length} required ${blockingViews.length === 1 ? "document" : "documents"} before continuing.`}
-                </p>
-                <p className="mt-1 text-xs text-amber-800">
-                  {blockingViews
-                    .map((view) => getRequirementLabel(view.requirement, isZh))
-                    .join(isZh ? "、" : ", ")}
-                </p>
-              </div>
-            </div>
-          ) : null}
-          <div className="flex justify-end">
-            <BrandActionButton
-              type="button"
-              onClick={handleContinue}
-              loading={documentMutationBusy}
-              loadingText={isZh ? "正在处理材料…" : "Processing documents…"}
-              aria-describedby={
-                continueAttempted && blockingViews.length > 0
-                  ? "document-continue-requirements"
-                  : undefined
-              }
-            >
-              {continueLabel ?? (isZh ? "继续" : "Continue")}
-              <ArrowRight className="h-4 w-4" />
-            </BrandActionButton>
-          </div>
+        <div className="flex justify-end border-t border-border pt-5">
+          <Button
+            type="button"
+            className="bg-brand-500 hover:bg-brand-400"
+            onClick={onContinue}
+            disabled={busyTarget !== null || blockingViews.length > 0}
+          >
+            {continueLabel ?? (isZh ? "继续" : "Continue")}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
         </div>
       )}
     </main>

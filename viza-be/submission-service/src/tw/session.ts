@@ -20,6 +20,11 @@
 
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { launchStealthBrowser } from "../ceac/stealth-browser";
+import {
+  connectBrowserbaseCloudBrowser,
+  browserbaseEnabled,
+  getBrowserbaseLiveViewUrl,
+} from "../browserbase-session";
 import { assertNoGate } from "./gates";
 import { TwSessionBootstrapError } from "./errors";
 
@@ -36,6 +41,8 @@ export interface TwSessionOptions {
   navigationTimeoutMs?: number;
   userAgent?: string;
   runId?: string;
+  applicantHandoff?: boolean;
+  handoffTimeoutSeconds?: number;
 }
 
 export interface TwSession {
@@ -43,6 +50,12 @@ export interface TwSession {
   context: BrowserContext;
   page: Page;
   readonly runId?: string;
+  readonly handoff?: {
+    provider: "browserbase";
+    sessionId: string;
+    liveViewUrl: string;
+    expiresAt: string;
+  };
   close(): Promise<void>;
 }
 
@@ -54,11 +67,24 @@ export async function startTwSession(options: TwSessionOptions = {}): Promise<Tw
   let context: BrowserContext | null = null;
 
   try {
-    const handles = await launchStealthBrowser({
+    const timeoutSeconds = options.handoffTimeoutSeconds ?? 1_800;
+    if (options.applicantHandoff && !browserbaseEnabled("TW_ENTRY_PERMIT")) {
+      throw new TwSessionBootstrapError(
+        "TW_ENTRY_PERMIT_BROWSERBASE_ENABLED must be true for applicant live handoff",
+        { url: TW_URLS.START, details: { runId: options.runId } },
+      );
+    }
+    const cloud = options.applicantHandoff
+      ? await connectBrowserbaseCloudBrowser({
+          prefix: "TW_ENTRY_PERMIT",
+          keepAlive: true,
+          timeoutSeconds,
+        })
+      : null;
+    const handles = cloud ?? await launchStealthBrowser({
       headless,
       acceptDownloads: false,
       userAgent: options.userAgent,
-      // See TODO above — no residential proxy by default for this portal.
       residentialProxy: false,
     });
     browser = handles.browser;
@@ -79,11 +105,19 @@ export async function startTwSession(options: TwSessionOptions = {}): Promise<Tw
 
     await assertNoGate(page);
 
+    const handoff = cloud ? {
+      provider: "browserbase" as const,
+      sessionId: cloud.sessionId,
+      liveViewUrl: await getBrowserbaseLiveViewUrl(cloud.sessionId),
+      expiresAt: new Date(Date.now() + timeoutSeconds * 1_000).toISOString(),
+    } : undefined;
+
     return {
       browser,
       context,
       page,
       runId: options.runId,
+      ...(handoff ? { handoff } : {}),
       close: makeCloser(browser, context),
     };
   } catch (err) {
