@@ -16,6 +16,10 @@ application lifecycle state.
   application, answer, document, and queue tables.
 - `client-home-dashboard.ts`: server-side home dashboard reads using the same
   client session/profile identity resolution as authenticated customer routes.
+- `applicant-inbox.ts`: resolves current and legacy client-session identities,
+  initializes applicant inbox aliases, and records explicit forwarding consent.
+  Keep its client-facing failures typed and covered by
+  `applicant-inbox.test.ts`.
 - `client-application-status.ts`: customer-safe application timeline, file,
   and update reads shared by the home dashboard and the submitted application
   view.

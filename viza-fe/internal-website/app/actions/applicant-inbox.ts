@@ -238,14 +238,31 @@ async function getAuthenticatedApplicantProfile() {
   }
 
   return withAdmin("system", "actions/applicant-inbox:profile", async (admin) => {
-    const { data, error } = await admin
+    const { data: profileById, error: profileByIdError } = await admin
       .from("applicant_profiles")
       .select("id, auth_user_id, email")
       .eq("id", session.userId)
       .maybeSingle();
-    if (error) {
-      throw new Error(`Applicant profile lookup failed: ${error.message}`);
+    if (profileByIdError) {
+      throw new Error(`Applicant profile lookup failed: ${profileByIdError.message}`);
     }
+
+    let data = profileById;
+    if (!data) {
+      const legacyAuthUserId = session.authUserId ?? session.userId;
+      const { data: profileByAuthUserId, error: profileByAuthUserIdError } = await admin
+        .from("applicant_profiles")
+        .select("id, auth_user_id, email")
+        .eq("auth_user_id", legacyAuthUserId)
+        .maybeSingle();
+      if (profileByAuthUserIdError) {
+        throw new Error(
+          `Applicant profile auth fallback failed: ${profileByAuthUserIdError.message}`,
+        );
+      }
+      data = profileByAuthUserId;
+    }
+
     if (!data?.id || !data.email) {
       throw new ApplicantInboxActionFailure(
         "DESTINATION_EMAIL_REQUIRED",

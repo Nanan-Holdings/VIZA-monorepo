@@ -220,6 +220,10 @@ function createAssistantAdminStub(priorResponse?: Record<string, unknown>) {
       chain.limit = returnChain;
       chain.ilike = returnChain;
       chain.in = returnChain;
+      chain.delete = () => {
+        operation = "delete";
+        return chain;
+      };
       chain.upsert = (value: Record<string, unknown>) => {
         operation = "upsert";
         payload = value;
