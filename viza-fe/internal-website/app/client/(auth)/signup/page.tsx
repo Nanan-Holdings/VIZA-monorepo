@@ -3,12 +3,19 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'motion/react'
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import createGlobe from 'cobe'
 import { createClient } from '@/lib/supabase/client'
 import { prepareAuthEmailLocale } from '@/app/actions/client-auth'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
+import { ActionButton } from '@/components/ui/action-button'
+import { ApplicationCheckbox } from '@/components/ui/application-checkbox'
+import { ApplicationFormInputGroup } from '@/components/ui/application-form-input'
+import { InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { PageBackButton } from '@/components/ui/page-back-button'
 import { normalizeAuthEmailLocale } from '@/lib/i18n/locale'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -227,10 +234,11 @@ export default function ClientSignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(0)
-  const [acceptTos, setAcceptTos] = useState(false)
-  const [acceptPrivacy, setAcceptPrivacy] = useState(false)
-  const [acceptDisclaimer, setAcceptDisclaimer] = useState(false)
-  const consentReady = acceptTos && acceptPrivacy && acceptDisclaimer
+  const [acceptLegalTerms, setAcceptLegalTerms] = useState(false)
+  const consentReady = acceptLegalTerms
+  const usesChinesePunctuation = locale.toLowerCase().startsWith('zh')
+  const legalSeparator = usesChinesePunctuation ? '、' : ', '
+  const legalTerminator = usesChinesePunctuation ? '。' : '.'
   const passwordStrength = getPasswordScore(password)
   const passwordsMatch = password.length > 0 && password === confirmPassword
   const strengthKey =
@@ -464,13 +472,11 @@ export default function ClientSignupPage() {
               exit={{ opacity: 0, x: 16 }}
               transition={{ duration: 0.25 }}
             >
-              <Link
-                href="/client/login"
-                className="flex h-7 w-7 shrink-0 items-center justify-center text-[#3d3d3d] hover:opacity-60 transition-opacity"
-                aria-label="Back to login"
-              >
-                <ArrowLeft className="h-7 w-7" />
-              </Link>
+              <PageBackButton
+                fallbackHref="/client/login"
+                label={t('backToLogin')}
+                className="mb-[clamp(8px,1vh,16px)] text-[#3d3d3d]"
+              />
 
               <div className="flex flex-col gap-[4px]">
                 <h1 className="text-[clamp(20px,3vw,36px)] font-normal leading-[1.3] tracking-[-1px] text-[#3d3d3d]">
@@ -482,77 +488,54 @@ export default function ClientSignupPage() {
               </div>
 
               <form onSubmit={handleEmailSubmit} className="flex flex-col gap-[clamp(10px,1.5vh,16px)]">
-                <input
-                  type="email"
-                  name="email"
-                  placeholder={t('emailPlaceholder')}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                <ApplicationFormInputGroup className="h-12" filled={Boolean(email)} forceWhiteBackground>
+                  <InputGroupInput
+                    type="email"
+                    name="email"
+                    placeholder={t('emailPlaceholder')}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoFocus
+                    autoComplete="email"
+                    disabled={isSubmitting}
+                    className="h-full min-h-0 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50"
+                  />
+                </ApplicationFormInputGroup>
+                <ApplicationFormInputGroup className="h-12" filled={Boolean(referralCode)} forceWhiteBackground>
+                  <InputGroupInput
+                    type="text"
+                    name="referralCode"
+                    placeholder={t('referralCodePlaceholder')}
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    disabled={isSubmitting}
+                    className="h-full min-h-0 font-sans text-[15px] tracking-normal text-[#3d3d3d] placeholder:text-[#3d3d3d]/50"
+                  />
+                </ApplicationFormInputGroup>
+                <ApplicationCheckbox
+                  checked={acceptLegalTerms}
+                  onCheckedChange={setAcceptLegalTerms}
                   required
-                  autoFocus
-                  disabled={isSubmitting}
-                  className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-[10px] font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
+                  labelClassName="text-[13px] tracking-[-0.18px]"
+                  label={(
+                    <span>
+                      {t('acceptTos')}{' '}
+                      <Link href="/terms" target="_blank" rel="noreferrer" className="text-brand-500 underline-offset-2 hover:underline focus-visible:underline">
+                        {t('termsOfService')}
+                      </Link>
+                      {legalSeparator}
+                      <Link href="/privacy" target="_blank" rel="noreferrer" className="text-brand-500 underline-offset-2 hover:underline focus-visible:underline">
+                        {t('privacyPolicy')}
+                      </Link>
+                      {legalSeparator}
+                      <Link href="/disclaimer" target="_blank" rel="noreferrer" className="text-brand-500 underline-offset-2 hover:underline focus-visible:underline">
+                        {t('disclaimer')}
+                      </Link>
+                      {legalTerminator}
+                    </span>
+                  )}
                 />
-                <input
-                  type="text"
-                  name="referralCode"
-                  placeholder={t('referralCodePlaceholder')}
-                  value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                  disabled={isSubmitting}
-                  className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-[10px] font-sans text-[clamp(11px,1vw,14px)] tracking-normal text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
-                />
-                <p className="-mt-1 text-[12px] leading-5 text-[rgba(0,0,0,0.55)]">
-                  {t('referralCodeHint')}
-                </p>
-                <label className="flex items-start gap-2 text-[12px] tracking-[-0.18px] text-[#3d3d3d]">
-                  <input
-                    type="checkbox"
-                    checked={acceptTos}
-                    onChange={(e) => setAcceptTos(e.target.checked)}
-                    className="mt-[3px] h-4 w-4 cursor-pointer accent-black"
-                    required
-                  />
-                  <span>
-                    {t('acceptTos')}{' '}
-                    <Link href="/terms" className="underline hover:opacity-70">
-                      {t('termsOfService')}
-                    </Link>
-                    .
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 text-[12px] tracking-[-0.18px] text-[#3d3d3d]">
-                  <input
-                    type="checkbox"
-                    checked={acceptDisclaimer}
-                    onChange={(e) => setAcceptDisclaimer(e.target.checked)}
-                    className="mt-[3px] h-4 w-4 cursor-pointer accent-black"
-                    required
-                  />
-                  <span>
-                    {t('acceptDisclaimer')}{' '}
-                    <Link href="/disclaimer" className="underline hover:opacity-70">
-                      {t('disclaimer')}
-                    </Link>
-                    .
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 text-[12px] tracking-[-0.18px] text-[#3d3d3d]">
-                  <input
-                    type="checkbox"
-                    checked={acceptPrivacy}
-                    onChange={(e) => setAcceptPrivacy(e.target.checked)}
-                    className="mt-[3px] h-4 w-4 cursor-pointer accent-black"
-                    required
-                  />
-                  <span>
-                    {t('acceptPrivacy')}{' '}
-                    <Link href="/privacy" className="underline hover:opacity-70">
-                      {t('privacyPolicy')}
-                    </Link>
-                    .
-                  </span>
-                </label>
                 {error && (
                   <motion.p
                     className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
@@ -561,15 +544,17 @@ export default function ClientSignupPage() {
                     {error}
                   </motion.p>
                 )}
-                <button
+                <ActionButton
                   type="submit"
+                  size="lg"
+                  variant="primary"
+                  loading={isSubmitting}
+                  loadingText={t('sendingCode')}
                   disabled={isSubmitting || !consentReady}
-                  className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-black font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-white transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full font-sans tracking-[-0.24px]"
                 >
-                  {isSubmitting
-                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{t('sendingCode')}</span>
-                    : t('sendCodeButton')}
-                </button>
+                  {t('sendCodeButton')}
+                </ActionButton>
                 <div className="h-[clamp(24px,4.5vh,48px)]" />
               </form>
             </motion.div>
@@ -601,48 +586,24 @@ export default function ClientSignupPage() {
               </div>
 
               <div className="flex flex-col gap-[clamp(10px,1.5vh,16px)]">
-                <div className="flex w-full gap-2 sm:gap-3">
-                  {Array.from({ length: 8 }, (_, i) => (
-                    <input
-                      key={i}
-                      id={`signup-otp-${i}`}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      disabled={isSubmitting}
-                      value={otpCode[i] ?? ''}
-                      aria-label={t('otpDigitLabel', { digit: i + 1 })}
-                      className="flex-1 h-[clamp(36px,4.8vh,46px)] w-0 min-w-0 rounded-[8px] border border-[#d1d5db] bg-white text-center font-sans text-[clamp(12px,1vw,14px)] text-[#3d3d3d] focus:outline-none focus:border-[#3d3d3d] focus:ring-1 focus:ring-[#3d3d3d]"
-                      onChange={(event) => {
-                        const val = event.target.value.replace(/\D/g, '').slice(-1)
-                        const nextCode = `${otpCode.slice(0, i)}${val}${otpCode.slice(i + 1)}`.slice(0, 8)
-                        setOtpCode(nextCode)
-                        if (val) {
-                          const next = document.getElementById(`signup-otp-${i + 1}`) as HTMLInputElement | null
-                          if (next) next.focus()
-                        }
-                        if (nextCode.length === 8) void verifySignupCode(nextCode)
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Backspace' && !otpCode[i]) {
-                          const prev = document.getElementById(`signup-otp-${i - 1}`) as HTMLInputElement | null
-                          if (prev) prev.focus()
-                        }
-                      }}
-                      onPaste={i === 0 ? (event) => {
-                        event.preventDefault()
-                        const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8)
-                        setOtpCode(pasted)
-                        if (pasted.length === 8) {
-                          void verifySignupCode(pasted)
-                        } else {
-                          const next = document.getElementById(`signup-otp-${pasted.length}`) as HTMLInputElement | null
-                          if (next) next.focus()
-                        }
-                      } : undefined}
-                    />
-                  ))}
-                </div>
+                <InputOTP
+                  maxLength={8}
+                  pattern={REGEXP_ONLY_DIGITS}
+                  value={otpCode}
+                  disabled={isSubmitting}
+                  aria-label={t('verifyEmailTitle')}
+                  containerClassName="w-full"
+                  onChange={(value) => {
+                    setOtpCode(value)
+                    if (value.length === 8) void verifySignupCode(value)
+                  }}
+                >
+                  <InputOTPGroup className="grid w-full grid-cols-8 gap-2">
+                    {Array.from({ length: 8 }, (_, index) => (
+                      <InputOTPSlot key={index} index={index} className="h-12 w-full rounded-md border-[1.5px] border-input first:rounded-md first:border-l last:rounded-md" />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
 
                 {error && (
                   <motion.p
@@ -653,16 +614,18 @@ export default function ClientSignupPage() {
                   </motion.p>
                 )}
 
-                <button
+                <ActionButton
                   type="button"
+                  size="lg"
+                  variant="secondary"
+                  loading={isSubmitting}
+                  loadingText={t('sendingCode')}
                   onClick={handleResend}
                   disabled={resendCooldown > 0 || isSubmitting}
-                  className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-[#dcdcdc] font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-[#989898] transition-all disabled:cursor-not-allowed enabled:bg-black enabled:text-white enabled:hover:opacity-80"
+                  className="w-full font-sans tracking-[-0.24px]"
                 >
-                  {isSubmitting
-                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{t('sendingCode')}</span>
-                    : resendCooldown > 0 ? t('resendIn', { seconds: resendCooldown }) : t('resendCode')}
-                </button>
+                  {resendCooldown > 0 ? t('resendIn', { seconds: resendCooldown }) : t('resendCode')}
+                </ActionButton>
                 <div className="h-[clamp(24px,4.5vh,48px)]" />
               </div>
             </motion.div>
@@ -694,8 +657,8 @@ export default function ClientSignupPage() {
               </div>
 
               <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-[clamp(10px,1.5vh,16px)]">
-                <div className="relative">
-                  <input
+                <ApplicationFormInputGroup className="h-12" filled={Boolean(password)} forceWhiteBackground>
+                  <InputGroupInput
                     type={showPassword ? 'text' : 'password'}
                     name="password"
                     placeholder={t('passwordPlaceholder')}
@@ -705,17 +668,14 @@ export default function ClientSignupPage() {
                     autoFocus
                     autoComplete="new-password"
                     disabled={isSubmitting}
-                    className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-12 font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
+                    className="h-full min-h-0 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#737373] hover:bg-[#f5f5f5]"
-                    aria-label={showPassword ? t('hidePassword') : t('showPassword')}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                  <InputGroupAddon align="inline-end" className="pr-4">
+                    <InputGroupButton size="icon-sm" onClick={() => setShowPassword((value) => !value)} className="rounded-full text-[#737373]" aria-label={showPassword ? t('hidePassword') : t('showPassword')}>
+                      {showPassword ? <EyeOff /> : <Eye />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </ApplicationFormInputGroup>
 
                 <div className="space-y-2 rounded-[12px] border border-[#efefef] bg-[#fafafa] px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
@@ -745,8 +705,8 @@ export default function ClientSignupPage() {
                   </div>
                 </div>
 
-                <div className="relative">
-                  <input
+                <ApplicationFormInputGroup className="h-12" filled={Boolean(confirmPassword)} forceWhiteBackground>
+                  <InputGroupInput
                     type={showConfirmPassword ? 'text' : 'password'}
                     name="confirmPassword"
                     placeholder={t('confirmPasswordPlaceholder')}
@@ -755,17 +715,14 @@ export default function ClientSignupPage() {
                     required
                     autoComplete="new-password"
                     disabled={isSubmitting}
-                    className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-12 font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
+                    className="h-full min-h-0 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((value) => !value)}
-                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#737373] hover:bg-[#f5f5f5]"
-                    aria-label={showConfirmPassword ? t('hidePassword') : t('showPassword')}
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                  <InputGroupAddon align="inline-end" className="pr-4">
+                    <InputGroupButton size="icon-sm" onClick={() => setShowConfirmPassword((value) => !value)} className="rounded-full text-[#737373]" aria-label={showConfirmPassword ? t('hidePassword') : t('showPassword')}>
+                      {showConfirmPassword ? <EyeOff /> : <Eye />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </ApplicationFormInputGroup>
 
                 {confirmPassword && !passwordsMatch && (
                   <p className="text-[12px] text-[#a13d2d]" role="alert">{t('passwordMismatch')}</p>
@@ -780,15 +737,17 @@ export default function ClientSignupPage() {
                   </motion.p>
                 )}
 
-                <button
+                <ActionButton
                   type="submit"
+                  size="lg"
+                  variant="primary"
+                  loading={isSubmitting}
+                  loadingText={t('creatingAccount')}
                   disabled={isSubmitting || !passwordStrength.isValid || !passwordsMatch}
-                  className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-black font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-white transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full font-sans tracking-[-0.24px]"
                 >
-                  {isSubmitting
-                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{t('creatingAccount')}</span>
-                    : t('createAccount')}
-                </button>
+                  {t('createAccount')}
+                </ActionButton>
                 <div className="h-[clamp(24px,4.5vh,48px)]" />
               </form>
             </motion.div>

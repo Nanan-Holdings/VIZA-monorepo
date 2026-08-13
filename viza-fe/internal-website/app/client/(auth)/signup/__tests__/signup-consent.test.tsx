@@ -76,21 +76,25 @@ vi.mock("@/lib/i18n/locale", () => ({
 }));
 
 describe("ClientSignupPage consent requirements", () => {
-  it("requires terms, privacy, and disclaimer consent before sending a signup code", async () => {
+  it("uses one legal consent control with working legal-document links", async () => {
     render(<ClientSignupPage />);
 
     const sendButton = screen.getByRole("button", { name: "发送验证码" });
 
-    expect(screen.getAllByRole("link", { name: "服务条款" })[0]).toHaveAttribute("href", "/terms");
-    expect(screen.getAllByRole("link", { name: "隐私政策" })[0]).toHaveAttribute("href", "/privacy");
-    expect(screen.getAllByRole("link", { name: "免责声明" })[0]).toHaveAttribute("href", "/disclaimer");
+    const termsLink = screen.getAllByRole("link", { name: "服务条款" })[0];
+    const privacyLink = screen.getAllByRole("link", { name: "隐私政策" })[0];
+    const disclaimerLink = screen.getAllByRole("link", { name: "免责声明" })[0];
+
+    expect(termsLink).toHaveAttribute("href", "/terms");
+    expect(privacyLink).toHaveAttribute("href", "/privacy");
+    expect(disclaimerLink).toHaveAttribute("href", "/disclaimer");
+    expect(termsLink).toHaveAttribute("target", "_blank");
+    expect(privacyLink).toHaveAttribute("target", "_blank");
+    expect(disclaimerLink).toHaveAttribute("target", "_blank");
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
     expect(sendButton).toBeDisabled();
 
-    fireEvent.click(screen.getByLabelText(/服务条款/));
-    fireEvent.click(screen.getByLabelText(/隐私政策/));
-    expect(sendButton).toBeDisabled();
-
-    fireEvent.click(screen.getByLabelText(/免责声明/));
+    fireEvent.click(screen.getByRole("checkbox"));
     expect(sendButton).not.toBeDisabled();
   });
 });

@@ -47,7 +47,7 @@ export function StaticArticle({ title, subtitle, sections }: StaticArticleProps)
         </motion.div>
 
         {/* Article body */}
-        <div className="w-full max-w-[720px] mt-[40px] sm:mt-[72px] flex flex-col gap-8 sm:gap-12 pb-[80px] sm:pb-[100px]">
+        <div className="w-full max-w-[720px] mt-[40px] sm:mt-[72px] lg:mt-[128px] xl:mt-[120px] flex flex-col gap-8 sm:gap-12 pb-[80px] sm:pb-[100px]">
           {sections.map((section, i) => (
             <motion.div
               key={section.heading}

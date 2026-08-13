@@ -14,9 +14,14 @@ browsing, application status cards, and recent activity.
   home-card fact and links to that application's next step.
 - `UniversalInfoCard.tsx` shows reusable profile readiness without repeating a
   field inventory or decorative icons.
-- `RecentActivitySection.tsx` uses the shared `.application-form-panel`
-  container and neutral black/gray row typography. Its generated editorial
-  thumbnails live under `public/images/home-activity/`.
+- `ApplicationTimelineSection.tsx` keeps to-dos and completed lifecycle tasks
+  visible as separate groups for the exact active application. Each task uses
+  the established recent-activity card treatment with its own editorial image,
+  status or completion time, and an action chevron when the row is clickable.
+  Omit the completed group when it has no tasks, and visually mute upcoming
+  tasks that have not started.
+- `ApplicationTimelineSection.test.tsx` protects the two-group, multi-panel
+  structure so it cannot regress to a one-at-a-time tab view.
 
 ## Destination Browsing
 
@@ -28,6 +33,9 @@ browsing, application status cards, and recent activity.
   Vietnam, and the Philippines once and route into their dedicated category
   pages; those country pages keep the individual application schemas separate.
 - Destination metadata and region membership belong in `lib/visa-destinations.ts`.
+- Render destination flags through `DestinationFlag.tsx`; it converts regional
+  indicator emoji metadata into `react-circle-flags` icons so country displays
+  remain consistent even when the operating system lacks a flag glyph.
 
 ## Guardrails
 
