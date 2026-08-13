@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowRight,
-  CheckCircle2,
-  ExternalLink,
-  FileCheck2,
+  CheckCircle as CheckCircle2,
+  ArrowSquareOut as ExternalLink,
+  FileText as FileCheck2,
   FileText,
-  Loader2,
-} from "lucide-react";
+  CircleNotch as Loader2,
+} from "@phosphor-icons/react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { AiAssistButton } from "@/components/ui/ai-assist-button";
 import { Button } from "@/components/ui/button";

@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import {
-  CalendarDays,
-  CheckCircle2,
+  Calendar as CalendarDays,
+  CheckCircle as CheckCircle2,
   CreditCard,
-  Loader2,
-  ReceiptText,
-  RotateCcw,
+  CircleNotch as Loader2,
+  Receipt as ReceiptText,
+  ArrowCounterClockwise as RotateCcw,
   ShieldCheck,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";

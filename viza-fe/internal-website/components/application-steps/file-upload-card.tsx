@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Loader2, ScanLine } from "lucide-react";
+import { CircleNotch as Loader2, Scan as ScanLine } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   DocumentUploadField,

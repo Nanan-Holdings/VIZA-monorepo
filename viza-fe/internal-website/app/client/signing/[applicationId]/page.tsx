@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { CircleNotch as Loader2, CheckCircle as CheckCircle2, Warning as AlertTriangle } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import {
   Empty,

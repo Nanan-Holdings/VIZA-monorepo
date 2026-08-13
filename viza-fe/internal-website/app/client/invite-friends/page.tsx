@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Copy, Mail, Gift, UserRound, ShoppingBag, Loader2 } from 'lucide-react';
+import { CircleNotch as Loader2, Copy, Envelope as Mail, Gift, Minus, Plus, ShoppingBag, UserCircle as UserRound } from '@phosphor-icons/react';
 import { InviteHistory } from '@/components/client/invite-history';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from "next-intl";
@@ -20,11 +20,6 @@ async function getReferralCode() {
 
   return { success: true as const, code: `VIZA-${user.id.toUpperCase()}` };
 }
-// SVG paths from Figma
-const svgPaths = {
-  p10c3c700: "M12 20.1667H28.3333M20.1667 12V28.3333",
-};
-
 function ReferralSection() {
   const t = useTranslations("inviteFriends");
   const locale = useLocale();
@@ -298,20 +293,15 @@ function FAQ() {
                 {faq.question}
               </p>
               <motion.div
-                className="relative shrink-0 size-[40.333px] flex items-center justify-center"
+                className="relative flex size-[40.333px] shrink-0 items-center justify-center rounded-full bg-black/[0.04]"
                 animate={{ rotate: openIndex === index ? 180 : 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <svg className="size-full" fill="none" viewBox="0 0 40.3333 40.3333">
-                  <rect fill="rgba(0,0,0,0.04)" height="40.3333" rx="20.1667" width="40.3333" />
-                  <path
-                    d={openIndex === index ? "M12 20.165H28.3333" : svgPaths.p10c3c700}
-                    stroke="black"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.75"
-                  />
-                </svg>
+                {openIndex === index ? (
+                  <Minus className="size-4" weight="regular" />
+                ) : (
+                  <Plus className="size-4" weight="regular" />
+                )}
               </motion.div>
             </div>
 

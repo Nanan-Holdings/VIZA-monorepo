@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileCheck2, CalendarCheck } from "lucide-react";
+import { Download, FileText as FileCheck2, CalendarCheck } from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

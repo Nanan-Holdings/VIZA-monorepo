@@ -4,17 +4,17 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  CalendarDays,
+  Calendar as CalendarDays,
   Download,
   FileText,
-  Hotel,
+  BuildingOffice as Hotel,
   MapPin,
-  Plane,
-  Share2,
-  Sparkles,
+  Airplane as Plane,
+  ShareNetwork as Share2,
+  Sparkle as Sparkles,
   Star,
   Users,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {

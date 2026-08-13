@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { CaretRight as ChevronRight } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
 import { ActionButton } from "@/components/ui/action-button";

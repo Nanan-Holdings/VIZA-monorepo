@@ -7,6 +7,7 @@ import {
   createStripeClient,
   getCheckoutContext,
 } from "./data";
+import { stripeCheckoutPaymentMethodsFor } from "@/lib/payments/method-availability";
 
 function getFormString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -35,9 +36,11 @@ function checkoutUrl(params: Record<string, string>): string {
 
 export async function startStripeCheckout(formData: FormData): Promise<void> {
   const packageId = getFormString(formData, "packageId");
+  const applicationId = getFormString(formData, "applicationId");
   let destination = checkoutUrl({
     error: "checkout_unavailable",
     ...(packageId ? { packageId } : {}),
+    ...(applicationId ? { applicationId } : {}),
   });
 
   try {
@@ -46,7 +49,7 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
       return;
     }
 
-    const context = await getCheckoutContext({ packageId });
+    const context = await getCheckoutContext({ packageId, applicationId });
     if (!context.user) {
       destination = "/client/login";
       return;
@@ -54,12 +57,19 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
 
     const selectedPackage = context.selectedPackage;
     if (!selectedPackage || selectedPackage.packageId !== packageId) {
-      destination = checkoutUrl({ error: "package_not_found" });
+      destination = checkoutUrl({
+        error: "package_not_found",
+        ...(applicationId ? { applicationId } : {}),
+      });
       return;
     }
 
     if (!selectedPackage.agencyFee) {
-      destination = checkoutUrl({ error: "pricing_missing", packageId });
+      destination = checkoutUrl({
+        error: "pricing_missing",
+        packageId,
+        ...(applicationId ? { applicationId } : {}),
+      });
       return;
     }
 
@@ -71,11 +81,35 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
     const stripe = createStripeClient();
     const appBaseUrl = await getAppBaseUrl();
     if (!stripe || !appBaseUrl) {
-      destination = checkoutUrl({ error: "stripe_unconfigured", packageId });
+      destination = checkoutUrl({
+        error: "stripe_unconfigured",
+        packageId,
+        ...(applicationId ? { applicationId } : {}),
+      });
       return;
     }
 
     const adminClient = createCheckoutAdminClient();
+
+    if (selectedPackage.applicationId) {
+      const { error: applicationPackageError } = await adminClient
+        .from("applications")
+        .update({
+          visa_package_id: selectedPackage.packageId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", selectedPackage.applicationId)
+        .eq("applicant_id", context.applicantProfile?.id ?? context.user.id);
+
+      if (applicationPackageError) {
+        destination = checkoutUrl({
+          error: "checkout_unavailable",
+          packageId,
+          applicationId: selectedPackage.applicationId,
+        });
+        return;
+      }
+    }
 
     if (
       selectedPackage.latestPayment?.status === "pending" &&
@@ -127,7 +161,11 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
       .single();
 
     if (paymentError || !paymentRecord) {
-      destination = checkoutUrl({ error: "payment_record_failed", packageId });
+      destination = checkoutUrl({
+        error: "payment_record_failed",
+        packageId,
+        ...(selectedPackage.applicationId ? { applicationId: selectedPackage.applicationId } : {}),
+      });
       return;
     }
 
@@ -145,6 +183,11 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
     if (selectedPackage.applicationId) {
       cancelUrl.searchParams.set("applicationId", selectedPackage.applicationId);
     }
+
+    const paymentMethodTypes = stripeCheckoutPaymentMethodsFor(
+      selectedPackage.country,
+      selectedPackage.visaType,
+    );
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -164,6 +207,10 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
       ],
       success_url: successUrl.toString().replace("%7BCHECKOUT_SESSION_ID%7D", "{CHECKOUT_SESSION_ID}"),
       cancel_url: cancelUrl.toString(),
+      payment_method_types: paymentMethodTypes,
+      payment_method_options: paymentMethodTypes.includes("wechat_pay")
+        ? { wechat_pay: { client: "web" } }
+        : undefined,
       client_reference_id: paymentRecord.id,
       metadata: {
         paymentRecordId: paymentRecord.id,

@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { User } from "lucide-react";
+import { User } from "@phosphor-icons/react";
 import { countries } from "country-data-list";
 import { useLocale } from "next-intl";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";

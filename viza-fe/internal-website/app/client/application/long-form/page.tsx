@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CreditCard, Loader2, Check, ChevronDown, ShieldCheck } from "lucide-react";
+import { CreditCard, CircleNotch as Loader2, Check, CaretDown as ChevronDown, ShieldCheck } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
@@ -471,7 +471,7 @@ function VerticalStepSidebar({
                 )}
               >
                 {status === "complete" ? (
-                  <Check className="h-4 w-4" strokeWidth={3} />
+                  <Check className="size-4" weight="bold" />
                 ) : (
                   i + 1
                 )}
@@ -542,7 +542,7 @@ function MobileStepBar({
                 )}
               >
                 {status === "complete" ? (
-                  <Check className="h-3 w-3" strokeWidth={3} />
+                  <Check className="size-3" weight="bold" />
                 ) : (
                   i + 1
                 )}
@@ -632,7 +632,7 @@ function GroupedStepSidebar({
                     status === "locked" && "bg-white border-gray-200 text-gray-500"
                   )}
                 >
-                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : sectionIndex + 1}
+                  {status === "complete" ? <Check className="size-4" weight="bold" /> : sectionIndex + 1}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p
@@ -682,7 +682,7 @@ function GroupedStepSidebar({
                   )}
                 >
                   {sectionComplete ? (
-                    <Check className="h-4 w-4" strokeWidth={3} />
+                    <Check className="size-4" weight="bold" />
                   ) : (
                     sectionIndex + 1
                   )}
@@ -741,7 +741,7 @@ function GroupedStepSidebar({
                             )}
                           >
                             {status === "complete" ? (
-                              <Check className="h-5 w-5" strokeWidth={3} />
+                              <Check className="size-5" weight="bold" />
                             ) : status === "in_progress" ? (
                               <span className="h-2.5 w-2.5 rounded-full bg-[#03346E]" />
                             ) : (
@@ -870,7 +870,7 @@ function GroupedMobileStepBar({
                     status === "locked" && "bg-white border-gray-200 text-gray-500"
                   )}
                 >
-                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : sectionIndex + 1}
+                  {status === "complete" ? <Check className="size-4" weight="bold" /> : sectionIndex + 1}
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -920,7 +920,7 @@ function GroupedMobileStepBar({
                   )}
                 >
                   {sectionComplete ? (
-                    <Check className="h-4 w-4" strokeWidth={3} />
+                    <Check className="size-4" weight="bold" />
                   ) : (
                     sectionIndex + 1
                   )}
@@ -979,7 +979,7 @@ function GroupedMobileStepBar({
                             )}
                           >
                             {status === "complete" ? (
-                              <Check className="h-5 w-5" strokeWidth={3} />
+                              <Check className="size-5" weight="bold" />
                             ) : status === "in_progress" ? (
                               <span className="h-2.5 w-2.5 rounded-full bg-[#03346E]" />
                             ) : (
@@ -1858,22 +1858,34 @@ export default function ApplicationPage() {
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const autosaveRequestRef = useRef(0);
   const navigationSaveInFlightRef = useRef(false);
+  const hasLiveSaveActivityRef = useRef(false);
   const applicationContentRef = useRef<HTMLElement | null>(null);
   const formAssistantRef = useRef<HTMLDivElement | null>(null);
   const stepPanelRefs = useRef(new Map<number, HTMLDivElement>());
 
   useEffect(() => {
+    const hasActiveSave = saving || autosaving || autosaveFailed;
+    if (hasActiveSave) {
+      hasLiveSaveActivityRef.current = true;
+    }
+    if (!hasLiveSaveActivityRef.current) return;
+
     window.dispatchEvent(new CustomEvent("viza:live-save-status", {
       detail: {
-        status: saving || autosaving || autosaveFailed ? "saving" : "saved",
+        status: hasActiveSave ? "saving" : "saved",
       },
     }));
   }, [autosaveFailed, autosaving, saving]);
 
-  useEffect(() => () => {
-    window.dispatchEvent(new CustomEvent("viza:live-save-status", {
-      detail: { status: "saved" },
-    }));
+  useEffect(() => {
+    const resetLiveSaveStatus = () => {
+      window.dispatchEvent(new CustomEvent("viza:live-save-status", {
+        detail: { status: "idle" },
+      }));
+    };
+
+    resetLiveSaveStatus();
+    return resetLiveSaveStatus;
   }, []);
 
   const setStepPanelRef = useCallback((stepId: number, node: HTMLDivElement | null) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
+import { X } from "@phosphor-icons/react";
 import { toast as sonner } from "sonner";
 
 import { ActionButton, type ActionButtonProps } from "@/components/ui/action-button";

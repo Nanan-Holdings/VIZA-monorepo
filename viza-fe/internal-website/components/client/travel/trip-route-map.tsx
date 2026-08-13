@@ -9,6 +9,7 @@ import {
   getTravelCityImage,
 } from "@/components/client/travel/travel-attraction-knowledge";
 import type { TravelPlaceAttribution } from "@/lib/travel/google-places";
+import { Bed, CaretRight, Fire, ForkKnife, MapPin, MoonStars, Star, type Icon } from "@phosphor-icons/react";
 
 export type TripMapPoint = {
   id: string;
@@ -106,7 +107,7 @@ type DetailSectionSample = {
 type DetailSection = DetailSectionSample & {
   id: DetailSectionId;
   title: string;
-  icon: string;
+  icon: Icon;
   body: string;
 };
 
@@ -458,12 +459,12 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
 };
 const DETAIL_SECTION_META: Record<
   DetailSectionId,
-  { title: string; icon: string }
+  { title: string; icon: Icon }
 > = {
-  attractions: { title: "热门景点", icon: "⌁" },
-  food: { title: "必吃美食", icon: "♨" },
-  stay: { title: "热门住宿区域", icon: "▥" },
-  nightlife: { title: "夜生活", icon: "◐" },
+  attractions: { title: "热门景点", icon: MapPin },
+  food: { title: "必吃美食", icon: ForkKnife },
+  stay: { title: "热门住宿区域", icon: Bed },
+  nightlife: { title: "夜生活", icon: MoonStars },
 };
 const CITY_DETAIL_SAMPLES_BY_KEY: Record<
   string,
@@ -1848,7 +1849,7 @@ function buildHoverCardHtml(
   const introLineHeight = compact ? 19 : 21;
   const introHeight = introLineHeight * 2;
   const galleryButtonSize = compact ? 34 : 38;
-  const galleryButtonStyle = `pointer-events:auto;position:absolute;top:50%;height:${galleryButtonSize}px;width:${galleryButtonSize}px;transform:translateY(-50%);border:0;border-radius:999px;background:#fff;color:#0f172a;font-size:${compact ? 27 : 30}px;font-weight:400;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(15,23,42,.18);`;
+  const galleryButtonStyle = `pointer-events:auto;position:absolute;top:50%;height:${galleryButtonSize}px;min-width:${galleryButtonSize}px;transform:translateY(-50%);border:0;border-radius:999px;background:#fff;color:#0f172a;font-size:${compact ? 10 : 11}px;font-weight:700;line-height:1;cursor:pointer;padding:0 8px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(15,23,42,.18);`;
 
   return `
 <div data-viza-trip-hover-card="true" style="box-sizing:border-box;width:${cardWidth}px;max-width:${cardWidth}px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;pointer-events:auto;">
@@ -1858,12 +1859,12 @@ function buildHoverCardHtml(
       <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,23,42,.03),rgba(15,23,42,.18));"></div>
       ${
         previousPhotoButtonId
-          ? `<button id="${previousPhotoButtonId}" type="button" aria-label="${isZh ? "上一张照片" : "Previous photo"}" style="${galleryButtonStyle}left:12px;"><span style="display:block;line-height:1;transform:translateY(-1px);">‹</span></button>`
+          ? `<button id="${previousPhotoButtonId}" type="button" aria-label="${isZh ? "上一张照片" : "Previous photo"}" style="${galleryButtonStyle}left:12px;">${isZh ? "上一张" : "Prev"}</button>`
           : ""
       }
       ${
         photoButtonId
-          ? `<button id="${photoButtonId}" type="button" aria-label="${isZh ? "下一张照片" : "Next photo"}" style="${galleryButtonStyle}right:12px;"><span style="display:block;line-height:1;transform:translateY(-1px);">›</span></button>`
+          ? `<button id="${photoButtonId}" type="button" aria-label="${isZh ? "下一张照片" : "Next photo"}" style="${galleryButtonStyle}right:12px;">${isZh ? "下一张" : "Next"}</button>`
           : ""
       }
       <div style="position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:5px;">
@@ -1878,7 +1879,7 @@ function buildHoverCardHtml(
     <div style="box-sizing:border-box;margin-top:-12px;position:relative;border-radius:12px 12px 0 0;background:#fff;padding:${padding}px ${padding}px ${padding + 2}px;">
       <div style="display:flex;align-items:center;gap:6px;font-size:${titleSize}px;font-weight:800;line-height:1.1;color:#020617;">
         <span>${escapeHtml(title)}</span>
-        <span style="border-radius:6px;background:#fff1f2;color:#fb4d61;font-size:${compact ? 13 : 15}px;font-weight:800;padding:2px 5px;">🔥 10</span>
+        <span style="border-radius:6px;background:#fff1f2;color:#fb4d61;font-size:${compact ? 13 : 15}px;font-weight:800;padding:2px 5px;">${isZh ? "热度 10" : "Trending 10"}</span>
       </div>
       <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:10px;width:100%;border:0;border-radius:7px;background:#f1f0ff;padding:7px 8px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 14}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
         <span style="color:#0f3bae;">${isZh ? "热门景点：" : "Highlights:"}</span> <span style="color:#020617;">${escapeHtml(attractions)}</span>
@@ -1888,7 +1889,7 @@ function buildHoverCardHtml(
           ? `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:${bodySize}px;color:#475569;">
         ${
           googleRating
-            ? `<span style="font-weight:700;color:#0f172a;">★ ${escapeHtml(googleRating)}</span>`
+            ? `<span style="font-weight:700;color:#0f172a;">${isZh ? "评分" : "Rating"} ${escapeHtml(googleRating)}</span>`
             : ""
         }
         ${
@@ -3047,10 +3048,13 @@ export function TripRouteMap({
                 <div>
                   <div className="flex items-center gap-2 text-3xl font-bold text-slate-950">
                     <span>{getPointDisplayName(detailPoint)}</span>
-                    <span className="text-slate-300">›</span>
+                    <CaretRight className="size-6 text-slate-300" />
                   </div>
                   <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-rose-50 px-2 py-1 text-base font-semibold text-[#fb4d61]">
-                    <span>🔥 10</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Fire className="size-4" weight="fill" />
+                      10
+                    </span>
                     <span className="h-4 w-px bg-rose-200" />
                     <span>
                       第 1 名 · {getPointDisplayLocation(detailPoint)}
@@ -3064,7 +3068,10 @@ export function TripRouteMap({
                       </span>
                       {detailGoogleRating ? (
                         <span className="rounded-md bg-amber-50 px-2 py-1 font-semibold text-amber-700">
-                          ★ {detailGoogleRating}
+                          <span className="inline-flex items-center gap-1">
+                            <Star className="size-3.5" weight="fill" />
+                            {detailGoogleRating}
+                          </span>
                         </span>
                       ) : null}
                       {detailPoint.googleMapsUri ? (
@@ -3117,16 +3124,17 @@ export function TripRouteMap({
                     aria-label={
                       isZh ? "下一张目的地照片" : "Next destination photo"
                     }
-                    className="mr-1 flex h-14 w-14 shrink-0 self-center rounded-full bg-white text-4xl text-slate-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)]"
+                    className="mr-1 flex h-14 w-14 shrink-0 items-center justify-center self-center rounded-full bg-white text-slate-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)]"
                     type="button"
                   >
-                    <span className="m-auto">›</span>
+                    <CaretRight className="size-6" weight="bold" />
                   </button>
                 </div>
 
                 <div className="space-y-4">
                   {detailSections.map((section) => {
                     const isExpanded = expandedDetailSectionId === section.id;
+                    const SectionIcon = section.icon;
                     return (
                       <div
                         className="overflow-hidden rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/80 transition-all duration-300 hover:-translate-y-0.5 hover:from-blue-50 hover:to-blue-100/70 hover:shadow-xl hover:shadow-blue-100/70"
@@ -3143,20 +3151,18 @@ export function TripRouteMap({
                           type="button"
                         >
                           <span className="text-2xl text-slate-600">
-                            {section.icon}
+                            <SectionIcon className="size-6" weight="duotone" />
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="flex items-center gap-2 text-xl font-bold text-slate-950">
                               {section.title}
-                              <span
-                                className={`inline-block text-slate-500 transition-transform ${
+                              <CaretRight
+                                className={`size-4 text-slate-500 transition-transform ${
                                   isExpanded
                                     ? "rotate-90"
                                     : "group-hover:translate-x-1"
                                 }`}
-                              >
-                                ›
-                              </span>
+                              />
                             </span>
                             <span className="mt-3 line-clamp-2 block text-base leading-relaxed text-slate-900">
                               {section.body}

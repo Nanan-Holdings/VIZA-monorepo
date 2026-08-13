@@ -38,6 +38,11 @@ describe("paymentMethodsFor", () => {
       "alipay",
       "wechat_pay",
     ]);
+    expect(stripeCheckoutPaymentMethodsFor("united_states", "DS160")).toEqual([
+      "card",
+      "alipay",
+      "wechat_pay",
+    ]);
     expect(
       stripeCheckoutPaymentMethodsFor("new_zealand", "NZ_VISITOR_VISA"),
     ).toEqual(["card", "alipay"]);

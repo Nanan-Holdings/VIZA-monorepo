@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
+import { type Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import {
   Popover,
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 export interface NavDropdownItem {
   id: string;
   label: ReactNode;
-  icon?: LucideIcon;
+  icon?: PhosphorIcon;
   selected?: boolean;
   disabled?: boolean;
   tone?: "default" | "brand" | "danger";

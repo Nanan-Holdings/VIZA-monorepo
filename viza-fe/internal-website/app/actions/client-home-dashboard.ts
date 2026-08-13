@@ -87,7 +87,10 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
       };
     }
 
-    const adminClient = createAdminClient({ requestTimeoutMs: 4_000 });
+    const adminClient = createAdminClient({
+      requestTimeoutMs: 4_000,
+      retryDelaysMs: [250],
+    });
     const [profileResult, applicationResult] = await Promise.all([
       adminClient
         .from("applicant_profiles")

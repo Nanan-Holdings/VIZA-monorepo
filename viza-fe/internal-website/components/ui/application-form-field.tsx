@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 function ApplicationFormLabelAction({ children }: { children: React.ReactNode }) {
   return (
-    <span className="absolute right-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center opacity-0 transition-opacity group-hover/field:opacity-100 group-focus-within/field:opacity-100">
+    <span className="absolute -right-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center opacity-0 transition-opacity group-hover/field:opacity-100 group-focus-within/field:opacity-100">
       {children}
     </span>
   );
@@ -31,7 +31,7 @@ function ApplicationFormField({
 }) {
   return (
     <div className={cn("application-form-field group/field relative flex flex-col gap-2", className)}>
-      <div className="relative flex min-h-5 items-center">
+      <div className="relative flex min-h-5 w-full max-w-full items-center group-has-[>.application-yes-no-control]/field:max-w-80">
         <Label
           htmlFor={htmlFor}
           className={cn(

@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Search } from "lucide-react";
+import {
+  CircleNotch as Loader2,
+  MagnifyingGlass as Search,
+} from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -33,7 +36,7 @@ async function selectWithDeadline(destinationId: string) {
       new Promise<never>((_, reject) => {
         timeout = window.setTimeout(
           () => reject(new Error("destination_selection_timeout")),
-          DESTINATION_SELECTION_UI_TIMEOUT_MS,
+          DESTINATION_SELECTION_UI_TIMEOUT_MS
         );
       }),
     ]);
@@ -42,21 +45,58 @@ async function selectWithDeadline(destinationId: string) {
   }
 }
 
-function matchesGroup(group: VisaDestinationCountryGroup, query: string): boolean {
+function matchesGroup(
+  group: VisaDestinationCountryGroup,
+  query: string
+): boolean {
   if (!query) return true;
   return group.destinations.some((destinationItem) =>
-    matchesVisaDestinationSearch(destinationItem, query),
+    matchesVisaDestinationSearch(destinationItem, query)
   );
 }
 
 function isGroupAvailable(group: VisaDestinationCountryGroup): boolean {
   return group.destinations.some(
     (destinationItem) =>
-      destinationItem.kind === "group" || isCountryLaunched(destinationItem.country),
+      destinationItem.kind === "group" ||
+      isCountryLaunched(destinationItem.country)
   );
 }
 
-export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }) {
+function isGroupStarted(
+  group: VisaDestinationCountryGroup,
+  started: Set<string>
+): boolean {
+  return group.destinations.some(
+    (destinationItem) =>
+      destinationItem.kind !== "group" &&
+      started.has(
+        getVisaDestinationKey(destinationItem.country, destinationItem.visaType)
+      )
+  );
+}
+
+function isBrowseGroup(group: VisaDestinationCountryGroup): boolean {
+  return group.destinations.some(
+    (destinationItem) => destinationItem.kind === "group"
+  );
+}
+
+export function getGroupSortRank(
+  group: VisaDestinationCountryGroup,
+  started: Set<string>
+): number {
+  if (isBrowseGroup(group)) return 0;
+  if (isGroupAvailable(group) && !isGroupStarted(group, started)) return 1;
+  if (isGroupStarted(group, started)) return 2;
+  return 3;
+}
+
+export function AddDestinationSection({
+  startedKeys,
+}: {
+  startedKeys: string[];
+}) {
   const t = useTranslations("clientStatus.index");
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
@@ -64,7 +104,9 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
 
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState<string>(ALL_REGIONS);
-  const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
+  const [pendingDestinationId, setPendingDestinationId] = useState<
+    string | null
+  >(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
 
   const started = useMemo(() => new Set(startedKeys), [startedKeys]);
@@ -73,9 +115,13 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
     const normalizedQuery = query.trim().toLowerCase();
     return VISA_DESTINATION_COUNTRY_GROUPS.filter(
       (group) =>
-        (region === ALL_REGIONS || group.region === region) && matchesGroup(group, normalizedQuery),
-    ).sort((first, second) => Number(isGroupAvailable(second)) - Number(isGroupAvailable(first)));
-  }, [query, region]);
+        (region === ALL_REGIONS || group.region === region) &&
+        matchesGroup(group, normalizedQuery)
+    ).sort(
+      (first, second) =>
+        getGroupSortRank(first, started) - getGroupSortRank(second, started)
+    );
+  }, [query, region, started]);
 
   function handleSelect(destinationItem: PopularVisaDestination) {
     if (pendingDestinationId) return;
@@ -92,12 +138,13 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
       buildApplicationLongFormHref({
         country: destinationItem.country,
         visaType: destinationItem.visaType,
-      }),
+      })
     );
     void (async () => {
       try {
         const result = await selectWithDeadline(destinationItem.id);
-        if (!result.success) setSelectionError(result.error ?? t("selectError"));
+        if (!result.success)
+          setSelectionError(result.error ?? t("selectError"));
       } catch {
         setSelectionError(t("selectError"));
       } finally {
@@ -109,7 +156,9 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
   return (
     <section className="mt-12">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
-        <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("addDestination")}</h2>
+        <h2 className="font-heading text-[22px] font-medium text-[#26364a]">
+          {t("addDestination")}
+        </h2>
         <p className="text-[14px] text-[#8a94a6]">{t("addDestinationHint")}</p>
       </div>
 
@@ -139,10 +188,12 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
                 "inline-flex h-11 items-center rounded-full border px-[14px] text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:h-8",
                 pressed
                   ? "border-brand-500 text-brand-500"
-                  : "border-[#e5e7eb] bg-white text-[#66758a] hover:bg-[#fbfbfb]",
+                  : "border-[#e5e7eb] bg-white text-[#66758a] hover:bg-[#fbfbfb]"
               )}
             >
-              {regionId === ALL_REGIONS ? t("allRegions") : getVisaDestinationRegionName(regionId, locale)}
+              {regionId === ALL_REGIONS
+                ? t("allRegions")
+                : getVisaDestinationRegionName(regionId, locale)}
             </button>
           );
         })}
@@ -159,38 +210,76 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
 
       {visibleGroups.length === 0 ? (
         <div className="rounded-2xl border border-[#efefef] bg-white p-10 text-center">
-          <p className="font-heading text-[17px] font-medium text-[#26364a]">{t("noResultsTitle")}</p>
-          <p className="mt-1.5 text-[14px] text-[#66758a]">{t("noResultsBody")}</p>
+          <p className="font-heading text-[17px] font-medium text-[#26364a]">
+            {t("noResultsTitle")}
+          </p>
+          <p className="mt-1.5 text-[14px] text-[#66758a]">
+            {t("noResultsBody")}
+          </p>
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visibleGroups.map((group) => {
             const groupAvailable = isGroupAvailable(group);
+            const groupStarted = isGroupStarted(group, started);
+            const countryName = isZh ? group.countryNameZh : group.countryName;
+            const groupBrowses = group.destinations.some(
+              (destinationItem) => destinationItem.kind === "group"
+            );
+            const primaryDestination = group.destinations.find(
+              (destinationItem) =>
+                destinationItem.kind === "group" ||
+                isCountryLaunched(destinationItem.country)
+            );
+            const groupStatus = !groupAvailable
+              ? t("comingSoon")
+              : groupStarted
+                ? t("added")
+                : groupBrowses
+                  ? t("browse")
+                  : null;
             return (
               <li
                 key={group.key}
                 className={cn(
-                  "flex flex-col gap-3.5 rounded-2xl border px-5 py-[18px]",
+                  "relative flex flex-col gap-3.5 rounded-2xl border px-5 py-[18px] transition-colors duration-150",
                   groupAvailable
-                    ? "border-[#efefef] bg-white"
-                    : "border-[#e5e5e5] bg-[#f3f3f3]",
+                    ? "border-[#efefef] bg-white hover:bg-[#f7f9fc]"
+                    : "border-[#e5e5e5] bg-[#f3f3f3]"
                 )}
               >
-                <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  aria-label={
+                    primaryDestination
+                      ? `${countryName}: ${getVisaDestinationVisaName(primaryDestination, locale)}`
+                      : countryName
+                  }
+                  data-testid="destination-card-hit-area"
+                  disabled={
+                    !primaryDestination || Boolean(pendingDestinationId)
+                  }
+                  onClick={() => {
+                    if (primaryDestination) handleSelect(primaryDestination);
+                  }}
+                  className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed"
+                />
+
+                <div className="pointer-events-none relative z-10 flex items-center gap-3">
                   <DestinationFlag flag={group.flag} size={30} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-3">
                       <p
                         className={cn(
                           "font-heading text-[16px] font-medium",
-                          groupAvailable ? "text-[#26364a]" : "text-[#7d8794]",
+                          groupAvailable ? "text-[#26364a]" : "text-[#7d8794]"
                         )}
                       >
-                        {isZh ? group.countryNameZh : group.countryName}
+                        {countryName}
                       </p>
-                      {!groupAvailable ? (
+                      {groupStatus ? (
                         <span className="shrink-0 text-[12px] font-medium text-[#8a94a6]">
-                          {t("comingSoon")}
+                          {groupStatus}
                         </span>
                       ) : null}
                     </div>
@@ -200,27 +289,16 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
                   </div>
                 </div>
 
-                <div className="flex flex-col">
+                <div className="pointer-events-none relative z-10 flex flex-col">
                   {group.destinations.map((destinationItem) => {
                     const isGroup = destinationItem.kind === "group";
-                    const launched = isGroup || isCountryLaunched(destinationItem.country);
-                    const alreadyStarted =
-                      !isGroup &&
-                      started.has(
-                        getVisaDestinationKey(destinationItem.country, destinationItem.visaType),
-                      );
+                    const launched =
+                      isGroup || isCountryLaunched(destinationItem.country);
                     const loading = pendingDestinationId === destinationItem.id;
                     const action = loading ? (
                       <>
                         {t("starting")}
                         <Loader2 className="h-4 w-4 animate-spin" />
-                      </>
-                    ) : alreadyStarted ? (
-                      t("added")
-                    ) : isGroup ? (
-                      <>
-                        {t("browse")}
-                        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                       </>
                     ) : null;
 
@@ -233,20 +311,26 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
                         aria-disabled={!launched}
                         title={launched ? undefined : t("comingSoon")}
                         className={cn(
-                          "group flex min-h-11 items-center justify-between gap-3 border-t border-[#efefef] py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+                          "group pointer-events-auto flex min-h-11 items-center justify-between gap-3 border-t border-[#efefef] py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
                           !launched
                             ? "cursor-not-allowed opacity-50"
                             : loading
                               ? "cursor-wait opacity-80"
-                              : "cursor-pointer",
+                              : "cursor-pointer"
                         )}
                       >
                         <span className="min-w-0">
                           <span className="block text-[14px] font-medium text-[#26364a] transition group-hover:text-brand-500">
-                            {getVisaDestinationVisaName(destinationItem, locale)}
+                            {getVisaDestinationVisaName(
+                              destinationItem,
+                              locale
+                            )}
                           </span>
                           <span className="mt-0.5 block line-clamp-2 text-[12px] leading-4 text-[#66758a]">
-                            {getVisaDestinationDescription(destinationItem, locale)}
+                            {getVisaDestinationDescription(
+                              destinationItem,
+                              locale
+                            )}
                           </span>
                         </span>
                         {action ? (
@@ -264,7 +348,9 @@ export function AddDestinationSection({ startedKeys }: { startedKeys: string[] }
         </ul>
       )}
 
-      <p className="mt-5 text-[13px] italic text-[#8a94a6]">{t("governmentFeeNote")}</p>
+      <p className="mt-5 text-[13px] italic text-[#8a94a6]">
+        {t("governmentFeeNote")}
+      </p>
     </section>
   );
 }

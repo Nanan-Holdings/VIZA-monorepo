@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { ArrowLeft, MapPinned } from "lucide-react";
+import { ArrowLeft, MapPinArea as MapPinned } from "@phosphor-icons/react/ssr";
 import { getPayPerRegion } from "../../pay-per-data";
 import { PayPerRow } from "../../pay-per-application-browser";
 

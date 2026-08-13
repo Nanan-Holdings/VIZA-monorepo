@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Eraser } from "lucide-react";
+import { Eraser } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 

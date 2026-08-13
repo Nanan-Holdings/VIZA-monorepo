@@ -110,9 +110,13 @@ Keep it subtle — the client portal is quiet, not layered:
 
 ### 1.9 Icons
 
-- Library: **`lucide-react`**. Standard size is `h-4 w-4` (matches Button's `[&_svg]:size-4`). Use `h-5 w-5` for prominent section headers, `h-12 w-12` only for loading/empty state illustrations (`Loader2`).
-- Never use emoji as structural icons (nav, buttons, status). Emoji are OK inline in content copy (e.g. country flags in `app/client/home/page.tsx` — that's content, not UI chrome).
-- Stroke width: leave at Lucide's default (`stroke-width="2"`). Don't mix stroke widths in the same view.
+- Library: **`@phosphor-icons/react`**. Every structural icon rendered in `/client/*` or by a component under `components/**` must come from Phosphor. Do not introduce Lucide, Radix Icons, React Icons, Heroicons, hand-drawn SVG glyphs, or emoji as UI chrome.
+- Standard size is `size-4` (matches Button's `[&_svg]:size-4`). Use `size-5` for prominent section headers and larger sizes only for intentional empty-state illustrations.
+- Use Phosphor's default `regular` weight for normal controls, `bold` for tiny high-emphasis glyphs such as checks, `fill` for state/tone icons, and `duotone` for decorative feature or empty-state illustrations. Keep weights consistent within a view.
+- Use `CircleNotch` with `animate-spin` for loading states. For icon component types, import `type Icon` from `@phosphor-icons/react`.
+- Next.js Server Components must import from `@phosphor-icons/react/ssr`; Client Components use `@phosphor-icons/react`.
+- The client shell proportionally enlarges Phosphor SVGs by `1.2` through `.client-icon-system`. The icon's layout slot, centre position, and its control's horizontal padding remain unchanged. Never stretch one axis independently, compensate with a smaller icon size, or add vertical padding; use the documented `size-*` classes normally.
+- Emoji remain acceptable only as content, such as national flags or user-authored text. Data visualizations, brand marks, and geometric map connectors are not icons and may keep purpose-built SVG or canvas rendering.
 
 ---
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Loader2, ScanFace } from "lucide-react";
+import { CircleNotch as Loader2, ScanSmiley as ScanFace } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   processApplicantPhoto,

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { motion } from "motion/react";
-import { Loader2, CheckCircle2, Clock3, Eye, EyeOff, ExternalLink, XCircle } from "lucide-react";
+import { CircleNotch as Loader2, CheckCircle as CheckCircle2, Clock as Clock3, Eye, EyeSlash as EyeOff, ArrowSquareOut as ExternalLink, XCircle } from "@phosphor-icons/react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { signIn } from "@/app/actions/auth";
-import { AlertCircle, Loader2, Mail, Lock } from "lucide-react";
+import { CircleNotch as Loader2, Envelope as Mail, Lock, WarningCircle as AlertCircle } from "@phosphor-icons/react";
 
 export function LoginForm() {
   const t = useTranslations("auth.loginForm");

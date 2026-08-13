@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
+import { Warning as AlertTriangle, CheckCircle as CheckCircle2, ArrowSquareOut as ExternalLink, CircleNotch as Loader2 } from "@phosphor-icons/react";
 import type { LiveManualActionSummary, LiveSubmissionSummary } from "@/lib/submission-live-status";
 
 type Copy = {

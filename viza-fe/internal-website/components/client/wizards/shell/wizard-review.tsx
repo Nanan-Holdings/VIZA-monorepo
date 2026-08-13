@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Pencil, Send } from "lucide-react";
+import { Pencil, PaperPlaneTilt as Send } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { SubmissionDisclaimerDialog } from "@/components/application-steps/submission-disclaimer-dialog";
 import type { WizardConfig } from "./types";

@@ -2,9 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { CircleNotch as Loader2 } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
-import { getUserVisaPackage } from "@/app/actions/user-package";
 import { getRecentApplicationFormHref } from "@/lib/client/recent-application-form";
 
 const LONG_FORM_PATH = "/client/application/long-form";
@@ -15,45 +14,16 @@ export default function ApplicationRouterPage() {
   const tShared = useTranslations("simplifiedForm.shared");
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function redirectToApplicationForm() {
-      const qs = searchParams?.toString();
-
-      if (qs) {
-        const params = new URLSearchParams(qs);
-        const suffix = params.toString() ? `?${params.toString()}` : "";
-        router.replace(`${LONG_FORM_PATH}${suffix}`);
-        return;
-      }
-
-      const recentFormHref = getRecentApplicationFormHref();
-      if (recentFormHref) {
-        router.replace(recentFormHref);
-        return;
-      }
-
-      try {
-        const pkg = await getUserVisaPackage();
-        if (cancelled) return;
-
-        const params = new URLSearchParams();
-        if (pkg?.country) params.set("country", pkg.country);
-        if (pkg?.visa_type) params.set("visaType", pkg.visa_type);
-        const suffix = params.toString() ? `?${params.toString()}` : "";
-        router.replace(`${LONG_FORM_PATH}${suffix}`);
-      } catch {
-        if (!cancelled) {
-          router.replace(LONG_FORM_PATH);
-        }
-      }
+    const qs = searchParams?.toString();
+    if (qs) {
+      router.replace(`${LONG_FORM_PATH}?${qs}`);
+      return;
     }
 
-    void redirectToApplicationForm();
-
-    return () => {
-      cancelled = true;
-    };
+    // The long-form route already resolves the active package. Avoid doing the
+    // same server action here first, which used to add a second full loading
+    // screen to every first visit to the Application tab.
+    router.replace(getRecentApplicationFormHref() ?? LONG_FORM_PATH);
   }, [router, searchParams]);
 
   return (

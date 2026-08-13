@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Check, MagnifyingGlass } from "@phosphor-icons/react";
 
 export interface AnimatedDropdownItem {
   id: string;
@@ -102,18 +103,7 @@ export function AnimatedDropdown({
           {searchable && (
             <div className="relative z-10">
               <div className="flex items-center gap-[12px] p-[12px] rounded-[8px] bg-[#f5f5f5]">
-                <svg
-                  className="w-4 h-4 text-[#999] shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
+                <MagnifyingGlass className="size-4 shrink-0 text-[#999]" />
                 <input
                   ref={inputRef}
                   type="text"
@@ -157,17 +147,7 @@ export function AnimatedDropdown({
                     {item.label}
                   </p>
                   {item.selected && (
-                    <svg
-                      className="w-4 h-4 text-[#3d3d3d]"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
+                    <Check className="size-4 text-[#3d3d3d]" weight="bold" />
                   )}
                 </div>
               </motion.div>

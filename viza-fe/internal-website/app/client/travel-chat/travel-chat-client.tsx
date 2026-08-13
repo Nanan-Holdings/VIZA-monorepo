@@ -13,19 +13,19 @@ import {
 } from "react";
 import {
   Check,
-  ExternalLink,
-  ImageOff,
-  Loader2,
+  ArrowSquareOut as ExternalLink,
+  ImageBroken as ImageOff,
+  CircleNotch as Loader2,
   MapPin,
-  MessageSquare,
-  MessageSquarePlus,
-  PanelLeft,
+  Chat as MessageSquare,
+  ChatCenteredDots as MessageSquarePlus,
+  SidebarSimple as PanelLeft,
   Pencil,
-  RefreshCw,
+  ArrowsClockwise as RefreshCw,
   Star,
-  Trash2,
+  Trash as Trash2,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { ChatInput } from "@/components/client/companion/chat-input";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
@@ -6097,21 +6097,32 @@ export function TravelChatClient({
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_clamp(150px,24dvh,260px)] gap-3 sm:gap-4 lg:grid-cols-[minmax(540px,1.18fr)_minmax(340px,0.82fr)] lg:grid-rows-none xl:grid-cols-[minmax(620px,1.22fr)_minmax(400px,0.78fr)] 2xl:grid-cols-[minmax(760px,1.28fr)_minmax(440px,0.72fr)]">
-        <div className="relative h-full min-h-0">
-          <Button
-            className="absolute left-3 top-3 z-30 h-11 w-11 border-0 bg-transparent text-brand-500 shadow-none hover:bg-transparent hover:text-brand-600 xl:left-12"
-            data-testid="travel-session-toggle"
-            onClick={() => setSessionsPanelOpen(true)}
-            size="icon"
-            title={isZh ? "打开对话进程" : "Open chat sessions"}
-            type="button"
-            variant="ghost"
-          >
-            <PanelLeft className="h-4 w-4" />
-          </Button>
+      <div
+        className={`grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_clamp(150px,24dvh,260px)] gap-3 sm:gap-4 lg:grid-rows-none ${
+          embedded
+            ? "lg:grid-cols-[minmax(420px,0.82fr)_minmax(520px,1.18fr)] xl:grid-cols-[minmax(460px,0.78fr)_minmax(620px,1.22fr)] 2xl:grid-cols-[minmax(520px,0.72fr)_minmax(760px,1.28fr)]"
+            : "lg:grid-cols-[minmax(540px,1.18fr)_minmax(340px,0.82fr)] xl:grid-cols-[minmax(620px,1.22fr)_minmax(400px,0.78fr)] 2xl:grid-cols-[minmax(760px,1.28fr)_minmax(440px,0.72fr)]"
+        }`}
+      >
+        <div
+          className="relative h-full min-h-0"
+          data-testid="travel-chat-pane"
+        >
+          {!embedded && (
+            <Button
+              className="absolute left-3 top-3 z-30 h-11 w-11 border-0 bg-transparent text-brand-500 shadow-none hover:bg-transparent hover:text-brand-600 xl:left-12"
+              data-testid="travel-session-toggle"
+              onClick={() => setSessionsPanelOpen(true)}
+              size="icon"
+              title={isZh ? "打开对话进程" : "Open chat sessions"}
+              type="button"
+              variant="ghost"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </Button>
+          )}
 
-          {sessionsPanelOpen && (
+          {!embedded && sessionsPanelOpen && (
             <>
               <button
                 aria-label={isZh ? "关闭对话进程" : "Close chat sessions"}
@@ -7099,7 +7110,10 @@ export function TravelChatClient({
           </Card>
         </div>
 
-        <aside className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-200/90 bg-[#08213b] shadow-none sm:rounded-2xl">
+        <aside
+          className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-200/90 bg-[#08213b] shadow-none sm:rounded-2xl"
+          data-testid="travel-map-pane"
+        >
           <div className="relative h-full min-h-0 overflow-hidden bg-slate-50">
             {showFinalItinerary ? (
               <TravelItineraryExperience

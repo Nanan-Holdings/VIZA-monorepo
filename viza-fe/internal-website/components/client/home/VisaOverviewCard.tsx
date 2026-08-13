@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import type { JourneyOverview, JourneyVisaPackage } from "@/app/actions/application-journey";
 import { SmoothProgressBar } from "@/components/smooth-progress";
+import { Globe } from "@phosphor-icons/react";
 
 interface Props {
   visaPackage: JourneyVisaPackage | null;
@@ -13,7 +14,7 @@ interface Props {
 
 export function VisaOverviewCard({ visaPackage, overview, hasApplication }: Props) {
   const t = useTranslations();
-  const flag = visaPackage?.flag ?? "🌐";
+  const flag = visaPackage?.flag ?? null;
   const name = visaPackage?.name ?? t("home.emptyApplication.noActiveApplication");
   const description = visaPackage?.description ?? null;
 
@@ -39,9 +40,13 @@ export function VisaOverviewCard({ visaPackage, overview, hasApplication }: Prop
         <div className="absolute border border-[rgba(255,255,255,0.2)] inset-0 pointer-events-none rounded-[12px]" />
 
         <div className="flex items-center gap-3">
-          <span className="text-4xl leading-none" role="img" aria-label="flag">
-            {flag}
-          </span>
+          {flag ? (
+            <span className="text-4xl leading-none" role="img" aria-label="flag">
+              {flag}
+            </span>
+          ) : (
+            <Globe className="size-9 shrink-0 text-white" weight="duotone" aria-hidden="true" />
+          )}
           <div className="min-w-0">
             <p className="font-heading font-medium text-[18px] leading-tight text-white truncate">
               {name}

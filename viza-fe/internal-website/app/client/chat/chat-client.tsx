@@ -3,14 +3,15 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Loader2,
-  PanelLeft,
+  CircleNotch as Loader2,
+  ArrowUp,
+  SidebarSimple as PanelLeft,
   Pencil,
-  Search,
-  SquarePen,
-  Trash2,
+  MagnifyingGlass as Search,
+  NotePencil as SquarePen,
+  Trash as Trash2,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Sparkle } from "@phosphor-icons/react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -2031,19 +2032,7 @@ export function ChatClient({
                           aria-label="Send message"
                         >
                           <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-brand-500 flex items-center justify-center">
-                            <svg
-                              className="w-4 h-4 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 10l7-7m0 0l7 7m-7-7v18"
-                              />
-                            </svg>
+                            <ArrowUp className="size-4 text-white" weight="bold" />
                           </div>
                         </button>
                       </div>

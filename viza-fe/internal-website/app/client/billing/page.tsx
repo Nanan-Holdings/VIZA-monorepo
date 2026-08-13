@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getLocale } from "next-intl/server";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowRight,
-  CheckCircle2,
-  Clock3,
+  CheckCircle as CheckCircle2,
+  Clock as Clock3,
   Download,
-  ExternalLink,
+  ArrowSquareOut as ExternalLink,
   FileText,
-  HelpCircle,
-  ReceiptText,
-  RefreshCcw,
+  Question as HelpCircle,
+  Receipt as ReceiptText,
+  ArrowsCounterClockwise as RefreshCcw,
   ShieldCheck,
-  WalletCards,
+  Cards as WalletCards,
   XCircle,
-  type LucideIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -50,7 +50,7 @@ interface StatusMeta {
   label: string;
   description?: string;
   tone: Tone;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
 }
 
 interface PaymentGroup {
