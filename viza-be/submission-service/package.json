@@ -29,7 +29,6 @@
     "france-tls:readiness": "tsx scripts/check-france-tls-readiness.ts",
     "france-tls:register-account": "tsx scripts/run-france-tls-register-account.ts",
     "france-tls:appointment-flow": "tsx scripts/run-france-tls-appointment-flow.ts",
-    "tw-entry-permit:smoke": "tsx scripts/run-tw-entry-permit-smoke.ts",
     "ph-etravel:smoke": "tsx scripts/run-ph-etravel-smoke.ts",
     "ph-etravel:departure-smoke": "tsx scripts/run-ph-etravel-departure-smoke.ts",
     "ph-etravel:chrome": "powershell -ExecutionPolicy Bypass -File scripts/start-ph-etravel-user-chrome.ps1",

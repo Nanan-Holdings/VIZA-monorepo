@@ -31,6 +31,7 @@ import { runOne as runThailand } from "../th/runner.js";
 import { runOne as runSingapore } from "../sg/runner.js";
 import { runOne as runUae } from "../ae/runner.js";
 import { runOne as runTaiwan } from "../tw/runner.js";
+import { runOne as runPhilippines } from "../ph-etravel/runner-job.js";
 
 // Types + error classes live in the leaf module ./types.js to avoid an
 // import cycle (runners import these; dispatch imports runners). Re-exported
@@ -125,10 +126,14 @@ export const DISPATCH: Record<string, RunOne> = {
   saudi_arabia: (a, j) => runSaudi(a, j),
   // RUN-JP-001: Japan paper-pack runner (paper_ready terminal, no online submit).
   japan: (a, j) => runJapan(a, j),
-  // Taiwan Online Entry Permit: single continuous session, no persistent
-  // account, halts at the CAPTCHA + "確認資料" submit boundary (no gov-pay
-  // gate in this session — see docs/tw-entry-permit-auto-submit-plan.md).
+  // Taiwan Online Entry Permit: canonical runner_job path. The runner owns a
+  // single continuous session, solves email/final CAPTCHA through shared
+  // providers, clicks official "確認資料", then requires official receipt
+  // evidence before reporting submitted. No payment occurs in this session.
   taiwan: (a, j) => runTaiwan(a, j),
+  // PH eTravel ordinary arrival: canonical runner_job is deliberately
+  // preflight/recovery-first and always keeps official final Submit disabled.
+  philippines: (a, j) => runPhilippines(a, j),
   // RUN-KR-001: Korea C-3-9 paper/KVAC readiness result; live e-Form remains gated.
   south_korea: (a, j) => runKorea(a, j),
 };
@@ -160,6 +165,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   saudi_arabia: { runner: "sa/runner.runOne", implemented: true },
   japan: { runner: "jp/runner.runOne (paper_ready)", implemented: true },
   taiwan: { runner: "tw/runner.runOne", implemented: true },
+  philippines: { runner: "ph-etravel/runner-job.runOne (arrival review/recovery only)", implemented: true },
   south_korea: { runner: "kr/runner.runOne (form_ready_for_kvac)", implemented: true },
 };
 
@@ -196,6 +202,7 @@ export const COUNTRY_ALIASES: Record<string, string> = {
   la: "laos",
   za: "south_africa",
   tw: "taiwan",
+  ph: "philippines",
 };
 
 export function normalizeCountry(country: string): string {

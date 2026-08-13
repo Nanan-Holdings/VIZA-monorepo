@@ -110,6 +110,7 @@ export interface CountrySubmissionProvider {
   sandboxAvailable: boolean;
   realSubmitAvailable: boolean;
   routeStatus:
+    | "runner_job_dispatched"
     | "submission_queue_dispatched"
     | "frontend_only"
     | "package_catalog_only"

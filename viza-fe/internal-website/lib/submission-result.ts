@@ -26,12 +26,8 @@
  *   - unsupported            Controlled unsupported-country state
  *   - needs_user_action      Safe halt at a human checkpoint such as payment,
  *                            CAPTCHA, final review, or applicant submit
- *   - stopped_at_captcha     TW: form filled to the CAPTCHA + "確認資料"
- *                            submit step; halted intentionally. There is no
- *                            payment gate in this flow — the real government
- *                            fee is only payable after NIA approval, in a
- *                            separate later session, so this is TW's only
- *                            halt state (no `stopped_at_pay` equivalent).
+ *   - stopped_at_captcha     TW legacy rows: form filled to the CAPTCHA +
+ *                            "確認資料" submit step; halted intentionally.
  */
 
 export type SubmissionResult =
@@ -315,32 +311,64 @@ export interface JpSubmissionResult {
  * 觀光入境許可). No persistent portal account exists for this country (the
  * official site verifies the applicant's email via a one-time OTP inline
  * during automation, not a registered account like `UkSubmissionResult`).
- * The automation stops right before the official site's CAPTCHA and
- * "確認資料" (confirm data) submit button — it never solves the CAPTCHA and
- * never clicks final submit. There is no payment step to halt before: the
- * real government fee (NT$600 / NT$1,000) is only payable after National
- * Immigration Agency approval, in a separate later session on the official
- * site, so the FE must not build any "pay now" UI for this result.
+ * The automation may log in, pass OTP, fill answers, upload files, validate
+ * the visible official page, solve the final image CAPTCHA, and click the NIA
+ * "確認資料" submit button. Legacy rows may still show stopped_at_captcha.
  */
+export type TwSubmissionStatus =
+  | "queued"
+  | "logging_in"
+  | "otp_required"
+  | "filling"
+  | "uploading"
+  | "validating"
+  | "stopped_at_captcha"
+  | "submitted"
+  | "failed";
+
 export interface TwSubmissionResult {
   country: "TW";
-  status: "stopped_at_captcha" | "failed";
-  /** 20-digit temporary save number, or 12-digit receipt number once submitted by the applicant. */
+  status: TwSubmissionStatus;
+  /** 20-digit temporary save number if captured before the CAPTCHA boundary. */
   caseNumber?: string;
-  /** coa.immigration.gov.tw application URL the applicant opens to enter the CAPTCHA and submit themselves. Present on "stopped_at_captcha". */
+  /** Diagnostic only. A normal official URL is not a resumable handoff link. */
   portalUrl?: string;
   /** Section labels (e.g. "Delivery Location", "Applicant Identity") the automation filled before stopping. */
   pagesFilled?: string[];
   /** ISO timestamp the automation reached the CAPTCHA step. */
   capturedAt?: string;
-  /** Whether the CAPTCHA was auto-solved and pre-filled (best-effort,
-   *  unverified — the automation never clicks the real "確認資料" submit
-   *  button, so there's no way to confirm the solve was correct). Applicant
-   *  should still check the value before submitting on the official site. */
+  /** Opaque VIZA handoff id. Fetch the live URL through the authenticated API. */
+  handoffId?: string;
+  handoffExpiresAt?: string;
+  submittedAt?: string;
+  officialReceipt?: {
+    source: "official_success_page_with_application_number";
+    capturedAt: string;
+    portalUrl: string;
+    caseNumber: string;
+    confirmationText?: string;
+  };
+  currentStage?: string | null;
   captchaAutoFilled?: boolean;
+  captchaSolve?: {
+    solve: {
+      solveId: string;
+      durationMs: number;
+      text: "[redacted]";
+      userAgent?: string;
+    };
+    telemetry: Array<{
+      solveId: string;
+      durationMs: number;
+      attempt: number;
+      outcome: "solved" | "wrong_answer_retry" | "failed";
+    }>;
+  };
   /** Present on "failed". */
   error?: string;
-  url?: string;
+  errorCode?: string;
+  missingFields?: string[];
+  missingDocuments?: string[];
 }
 
 export interface KrSubmissionResult {

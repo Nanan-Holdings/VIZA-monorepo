@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   BrowserbaseSessionError,
   createBrowserbaseCloudSession,
+  getBrowserbaseLiveViewUrl,
 } from "../browserbase-session";
 
 const ENV_NAMES = [
@@ -20,6 +21,7 @@ const ENV_NAMES = [
   "SGAC_BROWSERBASE_COUNTRY",
   "TDAC_BROWSERBASE_COUNTRY",
   "VN_BROWSERBASE_COUNTRY",
+  "TW_ENTRY_PERMIT_BROWSERBASE_COUNTRY",
 ] as const;
 
 function restoreEnvironment(snapshot: Record<string, string | undefined>): void {
@@ -144,6 +146,7 @@ test("selects a country-specific proxy location for every migrated runner", asyn
     SGAC: "SG",
     TDAC: "TH",
     VN: "VN",
+    TW_ENTRY_PERMIT: "TW",
   } as const;
   try {
     for (const [prefix, country] of Object.entries(expected)) {
@@ -164,6 +167,50 @@ test("selects a country-specific proxy location for every migrated runner", asyn
       };
       assert.equal(requestBody.proxies[0]?.geolocation.country, country);
     }
+  } finally {
+    restoreEnvironment(snapshot);
+  }
+});
+
+test("creates a keep-alive Taiwan handoff session with an explicit timeout", async () => {
+  const snapshot = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
+  process.env.BROWSERBASE_API_KEY = "test-secret";
+  try {
+    let capturedInit: RequestInit | undefined;
+    await createBrowserbaseCloudSession({
+      prefix: "TW_ENTRY_PERMIT",
+      keepAlive: true,
+      timeoutSeconds: 1800,
+      fetchImpl: async (_input, init) => {
+        capturedInit = init;
+        return new Response(JSON.stringify({ id: "tw-session", connectUrl: "wss://example.invalid" }), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    });
+    const requestBody = JSON.parse(String(capturedInit?.body)) as Record<string, unknown>;
+    assert.equal(requestBody.keepAlive, true);
+    assert.equal(requestBody.timeout, 1800);
+  } finally {
+    restoreEnvironment(snapshot);
+  }
+});
+
+test("fetches a Browserbase live-view URL without exposing the API key", async () => {
+  const snapshot = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
+  process.env.BROWSERBASE_API_KEY = "test-secret";
+  try {
+    let capturedUrl = "";
+    const liveUrl = await getBrowserbaseLiveViewUrl("tw-session", async (input, init) => {
+      capturedUrl = String(input);
+      assert.equal((init?.headers as Record<string, string>)["X-BB-API-Key"], "test-secret");
+      return new Response(JSON.stringify({
+        debuggerFullscreenUrl: "https://www.browserbase.com/live/tw-session",
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+    assert.match(capturedUrl, /\/sessions\/tw-session\/debug$/);
+    assert.equal(liveUrl, "https://www.browserbase.com/live/tw-session");
   } finally {
     restoreEnvironment(snapshot);
   }

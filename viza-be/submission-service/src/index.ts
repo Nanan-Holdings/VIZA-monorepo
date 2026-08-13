@@ -55,6 +55,7 @@ import {
 import type { SubmissionPayload } from "./country-submissions/types";
 import { pollAndRun } from "./queue/worker";
 import { runnerJobHandler } from "./queue/handler";
+import { normalizeCountry } from "./queue/dispatch";
 import { runUkHalt } from "./queue/halt-runners";
 import { NeedsHumanError } from "./queue/types";
 import { validateEnv } from "./config/validate-env";
@@ -193,7 +194,28 @@ import {
   normalizePhEtravelPortalPayload,
 } from "./ph-etravel/normalize";
 import { evaluatePhEtravelSubmissionWindow } from "./ph-etravel/date-window";
-import { PhEtravelPortalError, runPhEtravelPortalSubmission } from "./ph-etravel/runner";
+import { evaluatePhEtravelArrivalLaunchPreflight } from "./ph-etravel/launch-preflight";
+import {
+  PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
+  PhEtravelPortalError,
+  isPhEtravelReviewStopError,
+  runPhEtravelPortalSubmission,
+  sanitizePhEtravelLogs,
+  type PhEtravelPortalSubmissionResult,
+} from "./ph-etravel/runner";
+import {
+  buildPhEtravelRecoverableResult,
+  extractCompletePhEtravelStoredSubmissionEvidence,
+  hasCompletePhEtravelSubmissionEvidence,
+  hasCompletePhEtravelStoredSubmissionResult,
+  phEtravelOfficialReference,
+  planPhEtravelConsistencyCompensation,
+} from "./ph-etravel/result-consistency";
+import {
+  safePhEtravelDiagnosticLogs,
+  safePhEtravelErrorSummary,
+  safePhEtravelServiceLog,
+} from "./ph-etravel/error-safety";
 import { hasOfficialArrivalCardSuccess } from "./arrival-card-success-guard";
 import {
   VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
@@ -216,6 +238,7 @@ import {
   runIndonesiaLiveSubmission,
 } from "./indonesia";
 import { hasPreparedIndonesiaPortalAccount } from "./indonesia/managed-account";
+import { bootstrapTwOfficialLoginProvidersFromEnvironment } from "./tw/auth";
 
 const POLL_INTERVAL_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
@@ -298,6 +321,10 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "phetravel_live_assisted_scheduled",
   "phetravel_live_assisted_pending",
   "phetravel_live_assisted_processing",
+  "tw_dry_run_pending",
+  "tw_dry_run_processing",
+  "tw_live_assisted_pending",
+  "tw_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
   "au_prefill_pending",
@@ -340,6 +367,8 @@ const VN_CLOUD_QUEUE_ENABLED = readBooleanEnv(
   false,
 );
 const RUNNER_JOB_COUNTRY = process.env.RUNNER_JOB_COUNTRY?.trim().toLowerCase() || undefined;
+const RUNNER_JOB_TARGET_ID = process.env.RUNNER_JOB_TARGET_ID?.trim() || undefined;
+const RUNNER_JOB_EXPECTED_APPLICATION_ID = process.env.RUNNER_JOB_EXPECTED_APPLICATION_ID?.trim() || undefined;
 
 function isSubmissionDryRunMode(): boolean {
   return process.env.VIZA_SUBMISSION_DRY_RUN === "1";
@@ -353,6 +382,7 @@ function isDryRunQueueItem(item: SubmissionQueueItem): boolean {
     item.status.startsWith("mdac_dry_run_") ||
     item.status.startsWith("tdac_dry_run_") ||
     item.status.startsWith("phetravel_dry_run_") ||
+    item.status.startsWith("tw_dry_run_") ||
     item.status.startsWith("vn_prearrival_dry_run_")
   );
 }
@@ -420,6 +450,10 @@ function isDs160LiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
 
 function isLegacyRealSubmitEnabled(): boolean {
   return process.env.VIZA_ALLOW_LEGACY_REAL_SUBMIT === "1";
+}
+
+function isTaiwanLegacyRealSubmitQueueItem(item: SubmissionQueueItem): boolean {
+  return item.provider === "taiwan_overseas_cn_entry_permit_live";
 }
 
 function redactIdentifier(value: string | null | undefined): string {
@@ -559,12 +593,14 @@ function queuePriority(item: SubmissionQueueItem): number {
   if (item.status === "id_b1_evoa_live_assisted_pending") return 0;
   if (item.status === "phetravel_live_assisted_scheduled") return 0;
   if (item.status === "phetravel_live_assisted_pending") return 0;
+  if (item.status === "tw_live_assisted_pending") return 0;
   if (item.status === "vn_prearrival_live_assisted_scheduled") return 0;
   if (item.status === "vn_prearrival_live_assisted_pending") return 0;
   if (item.status === "sgac_dry_run_pending") return 1;
   if (item.status === "mdac_dry_run_pending") return 1;
   if (item.status === "tdac_dry_run_pending") return 1;
   if (item.status === "phetravel_dry_run_pending") return 1;
+  if (item.status === "tw_dry_run_pending") return 1;
   if (item.status === "vn_prearrival_dry_run_pending") return 1;
   if (item.status === "vn_cloud_live_pending") return 2;
   if (item.status === "vn_live_assisted_pending") return 2;
@@ -1431,6 +1467,9 @@ function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): Subm
   if (status.startsWith("phetravel_live_assisted_")) return "phetravel_live_assisted_failed";
   if (status.startsWith("phetravel_dry_run_")) return "phetravel_dry_run_failed";
   if (status.startsWith("phetravel_")) return "phetravel_blocked";
+  if (status.startsWith("tw_live_assisted_")) return "tw_live_assisted_failed";
+  if (status.startsWith("tw_dry_run_")) return "tw_dry_run_failed";
+  if (status.startsWith("tw_")) return "tw_blocked";
   if (status.startsWith("au_")) return "au_prefill_failed";
   return "failed";
 }
@@ -6156,7 +6195,12 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
         message: input.message,
         missingFields: input.missingFields,
       },
-      artifacts: { screenshots: screenshotArtifacts, pdfs: [], logs: input.logs ?? [], traces: [] },
+      artifacts: {
+        screenshots: screenshotArtifacts,
+        pdfs: [],
+        logs: input.logs ?? [],
+        traces: [],
+      },
       payloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, "failed");
@@ -6404,10 +6448,17 @@ async function suppressDuplicateArrivalCardQueueAfterSuccess(
   }
 
   const result = application?.submission_result as { submitted?: unknown } | null;
-  const alreadySucceeded = hasOfficialArrivalCardSuccess({
-    applicationResult: result,
-    completedQueues,
-  });
+  const completedQueueSucceeded = (completedQueues ?? []).some((queue) => (
+    queue.mode === "live_assisted"
+    && queue.official_status === "submitted"
+    && Boolean(queue.live_submitted_at?.trim())
+  ));
+  const alreadySucceeded = code === "PH_ETRAVEL"
+    ? hasCompletePhEtravelStoredSubmissionResult(result) && completedQueueSucceeded
+    : hasOfficialArrivalCardSuccess({
+        applicationResult: result,
+        completedQueues,
+      });
   if (!alreadySucceeded) return false;
 
   const now = new Date().toISOString();
@@ -6430,6 +6481,137 @@ async function suppressDuplicateArrivalCardQueueAfterSuccess(
     `[${arrivalCardLogCode(code)}] Suppressed duplicate queue item after an earlier official submission succeeded.`,
   );
   return true;
+}
+
+async function loadPhEtravelStoredSubmissionResult(applicationId: string): Promise<unknown | null> {
+  const { data, error } = await supabase
+    .from("applications")
+    .select("submission_result")
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (error) {
+    console.warn(`[phetravel] Could not load stored result for consistency guard: ${error.message}`);
+    return null;
+  }
+  return (data as { submission_result?: unknown } | null)?.submission_result ?? null;
+}
+
+async function synchronizePhEtravelStoredSubmittedResult(input: {
+  item: SubmissionQueueItem;
+  evidence: NonNullable<ReturnType<typeof extractCompletePhEtravelStoredSubmissionEvidence>>;
+  source: "stored_complete_result" | "stored_pending_sync_result";
+}): Promise<void> {
+  const now = new Date().toISOString();
+  const officialReference = input.evidence.officialReference;
+  const { error: applicationStatusError } = await supabase
+    .from("applications")
+    .update({
+      status: "submitted",
+      confirmation_number: officialReference,
+      external_reference: input.evidence.referenceNumber,
+      submitted_at: now,
+      updated_at: now,
+    })
+    .eq("id", input.item.application_id);
+
+  if (applicationStatusError) {
+    const safeError = safePhEtravelErrorSummary({ code: "phetravel_result_consistency_sync_failed" });
+    const { error: queueError } = await supabase
+      .from("submission_queue")
+      .update({
+        status: "phetravel_blocked",
+        attempts: input.item.attempts + 1,
+        last_error: safeError.message,
+        error_code: safeError.code,
+        error_message: safeError.message,
+        current_stage: "result_consistency_recovery_required",
+        official_status: "submitted_pending_application_sync",
+        manual_action_status: "open",
+        updated_at: now,
+      })
+      .eq("id", input.item.id);
+    if (queueError) {
+      throw new Error(`Failed to mark PH eTravel consistency recovery queue: ${queueError.message}`);
+    }
+    console.warn("[phetravel] Stored authoritative result evidence was found, but application status sync still needs recovery.");
+    return;
+  }
+
+  const { error: queueUpdateError } = await supabase
+    .from("submission_queue")
+    .update({
+      status: "done",
+      last_error: null,
+      error_code: null,
+      error_message: null,
+      current_stage: "submitted",
+      official_status: "submitted",
+      official_confirmation_number_encrypted: encryptSecret(officialReference),
+      official_confirmation_pdf_url: input.evidence.pdfArtifacts[0] ?? null,
+      live_submitted_at: now,
+      live_screenshot_url: input.evidence.screenshotArtifacts[0] ?? null,
+      updated_at: now,
+    })
+    .eq("id", input.item.id);
+  if (queueUpdateError) {
+    throw new Error(`Failed to synchronize PH eTravel submitted queue from stored result: ${queueUpdateError.message}`);
+  }
+  console.warn(`[phetravel] Synchronized queue from ${input.source}; official portal was not re-submitted.`);
+}
+
+async function blockPhEtravelIncompleteSubmittedEvidence(input: {
+  item: SubmissionQueueItem;
+  code: string | null;
+}): Promise<void> {
+  const now = new Date().toISOString();
+  const safeError = safePhEtravelErrorSummary({
+    code: input.code ?? "ph_etravel_authoritative_result_read_required",
+  });
+  const { error } = await supabase
+    .from("submission_queue")
+    .update({
+      status: "phetravel_blocked",
+      attempts: input.item.attempts + 1,
+      last_error: safeError.message,
+      error_code: safeError.code,
+      error_message: safeError.message,
+      current_stage: "result_consistency_recovery_required",
+      official_status: "submitted_evidence_incomplete",
+      manual_action_status: "open",
+      updated_at: now,
+    })
+    .eq("id", input.item.id);
+  if (error) {
+    throw new Error(`Failed to block PH eTravel incomplete submitted evidence queue: ${error.message}`);
+  }
+  console.warn("[phetravel] Stored result claims submission but lacks complete official evidence; official submit was not retried.");
+}
+
+async function keepPhEtravelActionRequired(input: {
+  item: SubmissionQueueItem;
+  code: string | null;
+}): Promise<void> {
+  const safeError = safePhEtravelErrorSummary({
+    code: input.code ?? "ph_etravel_launch_final_result_recovery_required",
+  });
+  const { error } = await supabase
+    .from("submission_queue")
+    .update({
+      status: "phetravel_blocked",
+      attempts: input.item.attempts + 1,
+      last_error: safeError.message,
+      error_code: safeError.code,
+      error_message: safeError.message,
+      current_stage: "action_required_not_submitted",
+      official_status: "action_required_not_submitted",
+      manual_action_status: "open",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.item.id);
+  if (error) {
+    throw new Error(`Failed to retain PH eTravel action-required queue: ${error.message}`);
+  }
+  console.warn(`[phetravel] ${safePhEtravelServiceLog({ code: safeError.code })}`);
 }
 
 async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code: ArrivalCardCode): Promise<void> {
@@ -6459,6 +6641,40 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
     `[${logCode}] Processing live submission application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
   );
 
+  if (!isMdac && !isTdac) {
+    const storedPhResult = await loadPhEtravelStoredSubmissionResult(item.application_id);
+    const storedPlan = planPhEtravelConsistencyCompensation(storedPhResult);
+    if (storedPlan.action === "sync_internal_submitted") {
+      await synchronizePhEtravelStoredSubmittedResult({
+        item,
+        evidence: storedPlan.evidence,
+        source: storedPlan.source,
+      });
+      return;
+    }
+    if (storedPlan.action === "recover_authoritative_result") {
+      await blockPhEtravelIncompleteSubmittedEvidence({
+        item,
+        code: storedPlan.code,
+      });
+      return;
+    }
+    if (storedPlan.action === "block_incomplete_submitted_evidence") {
+      await blockPhEtravelIncompleteSubmittedEvidence({
+        item,
+        code: storedPlan.code,
+      });
+      return;
+    }
+    if (storedPlan.action === "keep_action_required") {
+      await keepPhEtravelActionRequired({
+        item,
+        code: storedPlan.code,
+      });
+      return;
+    }
+  }
+
   if (await suppressDuplicateArrivalCardQueueAfterSuccess(item, code)) return;
 
   await supabase
@@ -6484,6 +6700,12 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
     screenshotPaths?: string[];
     logs?: string[];
   }): Promise<void> {
+    const safePhError = !isMdac && !isTdac
+      ? safePhEtravelErrorSummary({ code: input.code, missingFields: input.missingFields })
+      : null;
+    const persistedCode = safePhError?.code ?? input.code;
+    const persistedMessage = safePhError?.message ?? input.message;
+    const persistedPortalSummary = safePhError?.portalSummary ?? input.portalSummary;
     const screenshotArtifacts = await uploadArrivalCardArtifacts({
       authUserId: artifactOwnerId,
       applicationId: item.application_id,
@@ -6504,13 +6726,18 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       confirmationNumber: null,
       referenceNumber: null,
       portalUrl,
-      portalResponseSummary: input.portalSummary,
+      portalResponseSummary: persistedPortalSummary,
       errorDetails: {
-        code: input.code,
-        message: input.message,
+        code: persistedCode,
+        message: persistedMessage,
         missingFields: input.missingFields,
       },
-      artifacts: { screenshots: screenshotArtifacts, pdfs: [], logs: input.logs ?? [], traces: [] },
+      artifacts: {
+        screenshots: screenshotArtifacts,
+        pdfs: [],
+        logs: !isMdac && !isTdac ? safePhEtravelDiagnosticLogs(input.logs ?? []) : input.logs ?? [],
+        traces: [],
+      },
       payloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, "failed");
@@ -6519,10 +6746,69 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       .update({
         status: failedStatus,
         attempts: item.attempts + 1,
-        last_error: input.message,
-        error_code: input.code,
-        error_message: input.message,
+        last_error: persistedMessage,
+        error_code: persistedCode,
+        error_message: persistedMessage,
         current_stage: input.status === "validation_failed" ? "validation_failed" : "official_portal_failed",
+        live_screenshot_url: screenshotArtifacts[0] ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+  }
+
+  async function writePhRecoverable(input: {
+    code: string;
+    message: string;
+    portalSummary: string;
+    portalUrl?: string;
+    confirmationNumber?: string | null;
+    referenceNumber?: string | null;
+    screenshotPaths?: string[];
+    screenshotArtifacts?: string[];
+    qrCodes?: string[];
+    pdfs?: string[];
+    logs?: string[];
+    stage: string;
+    officialStatus: string;
+  }): Promise<void> {
+    const safeError = safePhEtravelErrorSummary({ code: input.code });
+    const screenshotArtifacts = input.screenshotArtifacts ?? await uploadArrivalCardArtifacts({
+      authUserId: artifactOwnerId,
+      applicationId: item.application_id,
+      country: "PH",
+      kind: "phetravel-screenshot",
+      ext: "png",
+      contentType: "image/png",
+      paths: input.screenshotPaths ?? [],
+    });
+    const result = buildPhEtravelRecoverableResult({
+      applicationId: item.application_id,
+      visaType,
+      portalUrl: input.portalUrl ?? portalUrl,
+      portalSummary: input.portalSummary,
+      code: input.code,
+      message: input.message,
+      confirmationNumber: input.confirmationNumber,
+      referenceNumber: input.referenceNumber,
+      screenshots: screenshotArtifacts,
+      qrCodes: input.qrCodes ?? [],
+      pdfs: input.pdfs ?? [],
+      logs: sanitizePhEtravelLogs(input.logs ?? []),
+      payloadSummary,
+    });
+    await writeSubmissionResult(item.application_id, result, "action_required");
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: "phetravel_blocked",
+        attempts: item.attempts + 1,
+        last_error: safeError.message,
+        error_code: safeError.code,
+        error_message: safeError.message,
+        current_stage: input.stage,
+        official_status: input.officialStatus,
+        manual_action_status: "open",
+        official_portal_url: input.portalUrl ?? portalUrl,
         live_screenshot_url: screenshotArtifacts[0] ?? null,
         updated_at: new Date().toISOString(),
       })
@@ -6597,6 +6883,26 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         missingFields: validation.missingRequiredFields,
       });
       return;
+    }
+
+    if (!isMdac && !isTdac && visaType === "PH_ETRAVEL_ARRIVAL_CARD") {
+      const preflight = evaluatePhEtravelArrivalLaunchPreflight({
+        payload,
+        finalSubmitEnabled: PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
+      });
+      if (preflight.status !== "allowed") {
+        await writePhRecoverable({
+          code: preflight.code,
+          message: "Philippines eTravel launch preflight requires operator review.",
+          portalSummary: preflight.code,
+          logs: [],
+          stage: "launch_preflight_action_required",
+          officialStatus: preflight.status === "diverted"
+            ? "ordinary_arrival_diverted"
+            : "launch_preflight_blocked",
+        });
+        return;
+      }
     }
 
     await supabase
@@ -6763,34 +7069,72 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       contentType: "image/png",
       paths: portalResult.qrCodes ?? [],
     });
-    if (!isMdac && !isTdac && portalResult.submitted && qrArtifacts.length === 0) {
-      throw new Error("Philippines eTravel submission cannot complete without a stored official QR artifact.");
+    const phPortalResult = !isMdac && !isTdac
+      ? portalResult as PhEtravelPortalSubmissionResult
+      : null;
+    const phCompleteEvidence = !isMdac && !isTdac
+      ? hasCompletePhEtravelSubmissionEvidence({ portalResult })
+      : portalResult.submitted;
+    const safePhNotSubmitted = !isMdac && !isTdac && !phCompleteEvidence
+      ? safePhEtravelErrorSummary({ code: `${logCode}_not_submitted` })
+      : null;
+    if (!isMdac && !isTdac && portalResult.submitted && !phCompleteEvidence) {
+      await writePhRecoverable({
+        code: "ph_etravel_authoritative_result_read_required",
+        message: "Philippines eTravel requires an authoritative post-submit registration read and reference-derived QR render before VIZA can record success.",
+        portalSummary: portalResult.portalResponseSummary,
+        portalUrl: portalResult.portalUrl,
+        confirmationNumber: portalResult.confirmationNumber ?? null,
+        referenceNumber: portalResult.referenceNumber ?? null,
+        screenshotArtifacts,
+        qrCodes: qrArtifacts,
+        pdfs: pdfArtifacts,
+        logs: portalResult.logs,
+        stage: "result_consistency_recovery_required",
+        officialStatus: "submitted_evidence_incomplete",
+      });
+      return;
     }
-    const result: DigitalArrivalCardSubmissionResult = {
+    const result: DigitalArrivalCardSubmissionResult & {
+      resultEvidence?: {
+        authoritativeRead?: PhEtravelPortalSubmissionResult["authoritativeRead"];
+        qrRender?: PhEtravelPortalSubmissionResult["qrRender"];
+      };
+    } = {
       country,
       visaType,
-      status: portalResult.submitted ? "submitted" : "official_portal_error",
+      status: phCompleteEvidence ? "submitted" : "official_portal_error",
       mode: "live_assisted",
       provider: providerName,
       applicationId: item.application_id,
-      submitted: portalResult.submitted,
+      submitted: phCompleteEvidence,
       confirmationNumber: portalResult.confirmationNumber ?? null,
       referenceNumber: portalResult.referenceNumber ?? null,
       portalUrl: portalResult.portalUrl,
-      portalResponseSummary: portalResult.portalResponseSummary,
+      portalResponseSummary: safePhNotSubmitted?.portalSummary ?? portalResult.portalResponseSummary,
       confirmationPdfStoragePath: pdfArtifacts[0] ?? null,
       artifacts: {
         screenshots: screenshotArtifacts,
         qrCodes: qrArtifacts,
         pdfs: pdfArtifacts,
-        logs: portalResult.logs,
+        logs: !isMdac && !isTdac ? safePhEtravelDiagnosticLogs(portalResult.logs) : portalResult.logs,
         traces: [],
       },
       payloadSummary,
+      ...(phPortalResult && (phPortalResult.authoritativeRead || phPortalResult.qrRender)
+        ? {
+            resultEvidence: {
+              authoritativeRead: phPortalResult.authoritativeRead,
+              qrRender: phPortalResult.qrRender,
+            },
+          }
+        : {}),
     };
-    await writeSubmissionResult(item.application_id, result, portalResult.submitted ? "completed" : "failed");
-    if (portalResult.submitted) {
-      const officialReference = portalResult.confirmationNumber ?? portalResult.referenceNumber ?? null;
+    await writeSubmissionResult(item.application_id, result, phCompleteEvidence ? "completed" : "failed");
+    if (phCompleteEvidence) {
+      const officialReference = !isMdac && !isTdac
+        ? phEtravelOfficialReference(portalResult)
+        : portalResult.confirmationNumber ?? portalResult.referenceNumber ?? null;
       const { error: applicationStatusError } = await supabase
         .from("applications")
         .update({
@@ -6802,41 +7146,88 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         })
         .eq("id", item.application_id);
       if (applicationStatusError) {
-        console.error(
-          `[${logCode}] Official submission succeeded but application status sync failed: ${applicationStatusError.message}`,
-        );
+        if (!isMdac && !isTdac) {
+          await writePhRecoverable({
+            code: "phetravel_result_consistency_sync_failed",
+            message: "Official Philippines eTravel reference and QR were captured, but VIZA could not synchronize the application status.",
+            portalSummary: portalResult.portalResponseSummary,
+            portalUrl: portalResult.portalUrl,
+            confirmationNumber: portalResult.confirmationNumber ?? null,
+            referenceNumber: portalResult.referenceNumber ?? null,
+            screenshotArtifacts,
+            qrCodes: qrArtifacts,
+            pdfs: pdfArtifacts,
+            logs: portalResult.logs,
+            stage: "result_consistency_recovery_required",
+            officialStatus: "submitted_pending_application_sync",
+          });
+          return;
+        }
+        console.error(`[${logCode}] Official submission succeeded but application status sync failed.`);
       }
     }
-    await supabase
+    const { error: queueUpdateError } = await supabase
       .from("submission_queue")
       .update({
-        status: portalResult.submitted ? "done" : failedStatus,
-        last_error: null,
-        error_code: null,
-        error_message: null,
-        current_stage: portalResult.submitted ? "submitted" : "official_portal_error",
+        status: phCompleteEvidence ? "done" : failedStatus,
+        last_error: phCompleteEvidence ? null : safePhNotSubmitted?.message ?? portalResult.portalResponseSummary,
+        error_code: phCompleteEvidence ? null : safePhNotSubmitted?.code ?? `${logCode}_not_submitted`,
+        error_message: phCompleteEvidence ? null : safePhNotSubmitted?.message ?? portalResult.portalResponseSummary,
+        current_stage: phCompleteEvidence ? "submitted" : "official_portal_error",
         official_portal_url: portalResult.portalUrl,
+        official_status: phCompleteEvidence ? "submitted" : "official_portal_error",
         official_confirmation_number_encrypted: portalResult.confirmationNumber
           ? encryptSecret(portalResult.confirmationNumber)
           : null,
         official_confirmation_pdf_url: pdfArtifacts[0] ?? null,
-        live_submitted_at: portalResult.submitted ? new Date().toISOString() : null,
+        live_submitted_at: phCompleteEvidence ? new Date().toISOString() : null,
         live_screenshot_url: screenshotArtifacts[0] ?? null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
+    if (queueUpdateError) {
+      if (!isMdac && !isTdac && phCompleteEvidence) {
+        console.error(`[${logCode}] ${safePhEtravelServiceLog({ code: "phetravel_result_consistency_sync_failed" })}`);
+        return;
+      }
+      throw new Error(`Failed to update ${code} submission queue: ${queueUpdateError.message}`);
+    }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     if (await suppressDuplicateArrivalCardQueueAfterSuccess(item, code)) return;
     const validationError = err instanceof MdacPortalValidationError || err instanceof TdacPortalValidationError || err instanceof PhEtravelPortalValidationError;
     const portalError = err instanceof MdacPortalError || err instanceof TdacPortalError || err instanceof PhEtravelPortalError;
+    const errorCode = validationError
+      ? err.code
+      : portalError
+        ? err.code
+        : `${logCode}_live_worker_error`;
+    if (!isMdac && !isTdac && (isPhEtravelReviewStopError(err) || (
+      err instanceof PhEtravelPortalError && [
+        "ph_etravel_confirmation_evidence_missing",
+        "ph_etravel_authoritative_result_read_required",
+        "ph_etravel_final_post_http_200_unverified",
+        "ph_etravel_final_post_ambiguous_recovery_required",
+      ].includes(err.code)
+    ))) {
+      await writePhRecoverable({
+        code: err.code,
+        message: errorMsg,
+        portalSummary: err.portalSummary ??
+          (isPhEtravelReviewStopError(err)
+            ? "Philippines eTravel reached Review and stopped before final submit by policy."
+            : "Philippines eTravel requires an authoritative post-submit registration result read."),
+        portalUrl,
+        screenshotPaths: err.screenshotPaths,
+        logs: err.logs,
+        stage: isPhEtravelReviewStopError(err) ? "review_reached_stop_before_submit" : "result_consistency_recovery_required",
+        officialStatus: isPhEtravelReviewStopError(err) ? "review_reached_not_submitted" : "submitted_evidence_incomplete",
+      });
+      return;
+    }
     await writeFailure({
       status: validationError ? "validation_failed" : "official_portal_error",
-      code: validationError
-        ? err.code
-        : portalError
-          ? err.code
-          : `${logCode}_live_worker_error`,
+      code: errorCode,
       message: errorMsg,
       portalSummary:
         portalError && err.portalSummary
@@ -6848,7 +7239,11 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       screenshotPaths: portalError ? err.screenshotPaths : [],
       logs: err instanceof PhEtravelPortalError ? err.logs : [],
     });
-    console.error(`[${logCode}] Live submission failed: ${errorMsg}`);
+    console.error(
+      !isMdac && !isTdac
+        ? `[${logCode}] Live submission failed: ${safePhEtravelServiceLog({ code: errorCode })}`
+        : `[${logCode}] Live submission failed: ${errorMsg}`,
+    );
   }
 }
 
@@ -7362,7 +7757,9 @@ async function processDryRunItem(
                 ? "phetravel_dry_run_processing"
                 : item.status === "vn_prearrival_dry_run_pending"
                   ? "vn_prearrival_dry_run_processing"
-                  : "processing",
+                  : item.status === "tw_dry_run_pending"
+                    ? "tw_dry_run_processing"
+                    : "processing",
       updated_at: new Date().toISOString(),
     })
     .eq("id", item.id);
@@ -7463,6 +7860,27 @@ async function processDryRunItem(
   }
 }
 
+async function failClosedTaiwanLegacyRealSubmitItem(item: SubmissionQueueItem): Promise<void> {
+  const message =
+    "taiwan: legacy real-submit is disabled; set VIZA_ALLOW_LEGACY_REAL_SUBMIT=1 only for an approved Taiwan smoke";
+  console.warn(
+    `[tw] Legacy real-submit blocked application=${redactIdentifier(item.application_id)} provider=${item.provider ?? "(none)"}`,
+  );
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "failed",
+      attempts: item.attempts + 1,
+      last_error: message,
+      error_code: "tw_legacy_real_submit_disabled",
+      error_message: message,
+      current_stage: "fail_closed",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+  await markSubmissionFailed(item.application_id, message);
+}
+
 // ─── Main processing loop ────────────────────────────────────────────────────
 
 async function processItem(item: SubmissionQueueItem): Promise<void> {
@@ -7515,6 +7933,10 @@ async function processPendingQueueItem(rawItem: SubmissionQueueItem): Promise<vo
   const item = await normalizeDigitalArrivalCardQueueItem(
     await normalizeSgacQueueItem(await normalizeVietnamQueueItem(rawItem)),
   );
+  if (isTaiwanLegacyRealSubmitQueueItem(item) && !isLegacyRealSubmitEnabled()) {
+    await failClosedTaiwanLegacyRealSubmitItem(item);
+    return;
+  }
   if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
     await processDryRunItem(item, "global_dry_run");
   } else if (isDs160ProofJob(item)) {
@@ -7826,6 +8248,18 @@ async function main(): Promise<void> {
   if (RUNNER_JOB_COUNTRY) {
     console.log(`[main] runner_job country scope=${RUNNER_JOB_COUNTRY}`);
   }
+  if (RUNNER_JOB_TARGET_ID) {
+    console.log(`[main] runner_job single-target mode active job=${RUNNER_JOB_TARGET_ID.slice(0, 8)}`);
+  }
+  const twOfficialLoginBootstrap = await bootstrapTwOfficialLoginProvidersFromEnvironment();
+  if (twOfficialLoginBootstrap.status === "configured") {
+    console.log(`[main] Taiwan official login bootstrap configured adapter=${twOfficialLoginBootstrap.adapterName}`);
+  } else {
+    console.warn(
+      `[main] Taiwan official login bootstrap fail-closed reason=${twOfficialLoginBootstrap.reason ?? "unknown"}`,
+    );
+  }
+  console.log(`[main] Legacy real-submit gate=${isLegacyRealSubmitEnabled() ? "enabled" : "disabled"}`);
   const ds160Config = loadDs160SubmissionConfig();
   console.log(
     [
@@ -7892,9 +8326,24 @@ async function main(): Promise<void> {
   }
 
   if (/^(1|true|yes|on)$/i.test(process.env.SUBMISSION_SERVICE_LOCAL_ENDPOINTS_ONLY ?? "")) {
+    if (RUNNER_JOB_TARGET_ID) {
+      throw new Error("[main] runner_job single-target mode cannot run with SUBMISSION_SERVICE_LOCAL_ENDPOINTS_ONLY=true");
+    }
     runnerStarted = true;
     console.log("[main] Local endpoints only mode enabled; submission polling and runner_job consumer are disabled.");
     return;
+  }
+
+  if (RUNNER_JOB_TARGET_ID) {
+    if (!RUNNER_JOB_CONSUMER_ENABLED) {
+      throw new Error("[main] runner_job single-target mode requires SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED=true");
+    }
+    if (!RUNNER_JOB_COUNTRY) {
+      throw new Error("[main] runner_job single-target mode requires RUNNER_JOB_COUNTRY");
+    }
+    if (!["taiwan", "philippines"].includes(normalizeCountry(RUNNER_JOB_COUNTRY))) {
+      throw new Error("[main] runner_job single-target mode is currently allowed only for RUNNER_JOB_COUNTRY=taiwan or philippines");
+    }
   }
 
   // Country-scoped cloud workers must not also contend for the legacy queue.
@@ -7910,6 +8359,18 @@ async function main(): Promise<void> {
   if (RUNNER_JOB_CONSUMER_ENABLED) {
     console.log(`[main] runner_job consumer active (workerId=${RUNNER_WORKER_ID})`);
     runnerStarted = true;
+    if (RUNNER_JOB_TARGET_ID) {
+      await pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
+        country: RUNNER_JOB_COUNTRY,
+        targetJobId: RUNNER_JOB_TARGET_ID,
+        expectedApplicationId: RUNNER_JOB_EXPECTED_APPLICATION_ID,
+        normalizeCountry,
+        signal: runnerAbort.signal,
+      });
+      console.log(`[main] runner_job single-target mode completed job=${RUNNER_JOB_TARGET_ID.slice(0, 8)}`);
+      closeHealthServer();
+      return;
+    }
     void pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
       country: RUNNER_JOB_COUNTRY,
       signal: runnerAbort.signal,
