@@ -466,6 +466,48 @@ export function messageLikelyContainsMultipleAnswers(
   return mentionedFields.size >= 2;
 }
 
+function messageExplicitlyMentionsField(text: string, field: VisaFormFieldRow): boolean {
+  const normalized = normalizedNaturalLanguageValue(text);
+  return fieldCorrectionAliases(field).some((alias) => {
+    const normalizedAlias = normalizedNaturalLanguageValue(alias);
+    return normalizedAlias.length >= 2 && normalized.includes(normalizedAlias);
+  });
+}
+
+function parseDirectCheckboxAgreement(
+  text: string,
+  field: VisaFormFieldRow,
+): ProposedPatch | null {
+  if (field.fieldType !== "checkbox" || field.validationRules?.mustBeTrue !== true) return null;
+  if (!messageExplicitlyMentionsField(text, field)) return null;
+  const normalized = text.trim().toLocaleLowerCase();
+  if (/(?:不同意|不接受|拒绝|不确定|不知道)|\b(?:disagree|decline|reject|do not agree|don't agree|not sure)\b/.test(normalized)) {
+    return null;
+  }
+  if (/(?:我)?(?:同意|接受|确认|已阅读|已了解)|\b(?:i agree|accept|confirm|acknowledge|have read)\b/.test(normalized)) {
+    return { fieldName: field.fieldName, value: "true", confidence: "high", modelSource: "deterministic" };
+  }
+  return null;
+}
+
+export function parseExplicitMultiFieldAnswers(
+  text: string,
+  fields: VisaFormFieldRow[],
+  options: { now?: Date; timeZone?: string } = {},
+): ProposedPatch[] {
+  return fields.flatMap((field) => {
+    if (!messageExplicitlyMentionsField(text, field)) return [];
+    const checkboxAgreement = parseDirectCheckboxAgreement(text, field);
+    if (checkboxAgreement) return [checkboxAgreement];
+    const optionValues = (field.options ?? []).map(optionValue);
+    if (optionValues.length === 0 || optionValues.every((value) => ["yes", "no"].includes(value.toLowerCase()))) {
+      return [];
+    }
+    const patch = parseDirectCurrentFieldAnswer(text, field, options);
+    return patch ? [patch] : [];
+  });
+}
+
 export function isCorrectionCancellation(text: string): boolean {
   const normalized = text.trim().toLocaleLowerCase();
   const requestsReplacement =
@@ -1327,6 +1369,9 @@ export async function runAssistantTurn(params: {
   const referenceDate = isoDateInTimeZone(new Date(), timeZone);
   const exactVagueAnswer = isVagueFormAnswer(message);
   const multiAnswerMessage = messageLikelyContainsMultipleAnswers(message, visibleCandidates);
+  const explicitMultiPatches = multiAnswerMessage
+    ? parseExplicitMultiFieldAnswers(message, visibleCandidates, { timeZone })
+    : [];
   const directChoice = correctionCancellation || exactVagueAnswer || multiAnswerMessage
     ? null
     : parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
@@ -1337,6 +1382,8 @@ export async function runAssistantTurn(params: {
       : findAccommodationOptionCandidates(message, currentField);
   const proposed = correctionCancellation || exactVagueAnswer
     ? { reply: "", patches: [] }
+    : explicitMultiPatches.length >= 2
+      ? { reply: "", patches: explicitMultiPatches }
     : directChoice
     ? { reply: "", patches: [directChoice] }
     : accommodationCandidates.length > 0
