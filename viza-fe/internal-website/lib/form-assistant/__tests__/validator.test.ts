@@ -101,4 +101,108 @@ describe("validateApplicationAnswers", () => {
     expect(result.errors.some((issue) => issue.code === "departure_before_arrival")).toBe(true);
     expect(result.warnings.some((issue) => issue.code === "sgac_three_day_window")).toBe(true);
   });
+
+  it("requires true checkbox acceptance instead of treating false as complete", () => {
+    const declarationSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Declaration",
+      fields: [{
+        id: "terms",
+        visaType: "TW_ENTRY_PERMIT",
+        fieldName: "accepted_terms",
+        label: "Terms and conditions",
+        fieldType: "checkbox",
+        required: true,
+        stepNumber: 1,
+        stepName: "Declaration",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: { mustBeTrue: true },
+        options: null,
+        conditionalLogic: null,
+      }],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: declarationSteps,
+      answers: { accepted_terms: "false" },
+      visaType: "TW_ENTRY_PERMIT",
+    });
+
+    expect(result.errors.map((issue) => issue.code)).toEqual(
+      expect.arrayContaining(["required_missing", "acceptance_required"]),
+    );
+    expect(result.progress).toEqual({ completed: 0, total: 1 });
+  });
+
+  it("enforces Vietnam conditional numeric and schema date-window rules", () => {
+    const vietnamSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Entry Information",
+      fields: [
+        {
+          id: "visa-type",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "visa_type",
+          label: "Visa type",
+          fieldType: "select",
+          required: true,
+          stepNumber: 1,
+          stepName: "Entry Information",
+          displayOrder: 1,
+          placeholder: null,
+          validationRules: null,
+          options: ["EV", "VR"],
+          conditionalLogic: null,
+        },
+        {
+          id: "visa-number",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "visa_number",
+          label: "Visa number",
+          fieldType: "text",
+          required: true,
+          stepNumber: 1,
+          stepName: "Entry Information",
+          displayOrder: 2,
+          placeholder: null,
+          validationRules: {
+            numeric_length_when: { field: "visa_type", equals: "EV", length: 9 },
+          },
+          options: null,
+          conditionalLogic: null,
+        },
+        {
+          id: "arrival",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "expected_arrival_date",
+          label: "Expected arrival date",
+          fieldType: "date",
+          required: true,
+          stepNumber: 1,
+          stepName: "Entry Information",
+          displayOrder: 3,
+          placeholder: null,
+          validationRules: { min_date: "today", max_days_from_today: 2 },
+          options: null,
+          conditionalLogic: null,
+        },
+      ],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: vietnamSteps,
+      answers: {
+        visa_type: "EV",
+        visa_number: "12345678",
+        expected_arrival_date: "2026-08-16",
+      },
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      now: new Date("2026-08-13T00:00:00Z"),
+    });
+
+    expect(result.errors.map((issue) => issue.code)).toEqual(
+      expect.arrayContaining(["invalid_conditional_length", "date_after_submission_window"]),
+    );
+  });
 });

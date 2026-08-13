@@ -78,31 +78,31 @@ describe("human-style assistant edge cases", () => {
       ...field("registration_for", "Registration for", "登记对象"),
       fieldType: "radio",
       options: [
-        { value: "self", text: "Self", label_zh: "本人" },
-        { value: "other", text: "Other", label_zh: "他人" },
+        { value: "FOR_ME", text: "For Me", label_zh: "本人" },
+        { value: "FOR_OTHER", text: "For Other", label_zh: "他人" },
       ],
     } as VisaFormFieldRow;
     const transportField = {
-      ...field("departure_transport_mode", "Departure transport mode", "离境交通方式"),
+      ...field("transport_type", "Mode of Travel", "离境交通方式"),
       fieldType: "radio",
       options: [
-        { value: "air", text: "Air", label_zh: "航空" },
-        { value: "sea", text: "Sea", label_zh: "海路" },
+        { value: "AIR", text: "Air", label_zh: "航空" },
+        { value: "SEA", text: "Sea", label_zh: "海路" },
       ],
     } as VisaFormFieldRow;
     const privacyField = {
-      ...field("accepted_privacy", "I agree to the data privacy policy", "我同意数据隐私政策"),
+      ...field("data_privacy_agreement", "I agree to the data privacy policy", "我同意数据隐私政策"),
       fieldType: "checkbox",
-      validationRules: { label_zh: "我同意数据隐私政策", mustBeTrue: true },
+      validationRules: { label_zh: "我同意数据隐私政策" },
     } as VisaFormFieldRow;
 
     expect(parseExplicitMultiFieldAnswers(
       "登记对象是本人，离境交通方式是航空，我同意数据隐私政策",
       [registrationField, transportField, privacyField],
     )).toMatchObject([
-      { fieldName: "registration_for", value: "self" },
-      { fieldName: "departure_transport_mode", value: "air" },
-      { fieldName: "accepted_privacy", value: "true" },
+      { fieldName: "registration_for", value: "FOR_ME" },
+      { fieldName: "transport_type", value: "AIR" },
+      { fieldName: "data_privacy_agreement", value: "true" },
     ]);
   });
 
