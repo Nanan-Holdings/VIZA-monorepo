@@ -259,6 +259,36 @@ const FIELD_OPTION_ALIASES: Record<string, Record<string, string[]>> = {
     "to take up residence": ["定居", "居住", "take up residence"],
     "visiting friends/relatives": ["探亲", "访友", "看望亲友", "visit family", "visiting family", "visit friends", "visiting friends"],
   },
+  purpose_of_visit: {
+    tourism_transit: ["旅游", "旅行", "观光", "过境", "旅游过境", "tourism", "transit", "tourism transit"],
+    meeting_conference: ["会议", "参会", "开会", "meeting", "conference"],
+    medical_tourism: ["医疗旅游", "就医", "看病", "medical tourism", "medical treatment"],
+    business_trip: ["商务", "出差", "business", "business trip"],
+    study_training: ["学习", "培训", "study", "training"],
+    visiting_family_relatives_friends: ["探亲", "访友", "探亲访友", "visit family", "visit friends"],
+  },
+  continent: {
+    a: ["亚洲", "亞洲", "asia"],
+    b: ["美洲", "北美", "南美", "americas", "america"],
+    c: ["欧洲", "歐洲", "europe"],
+    d: ["非洲", "africa"],
+    e: ["大洋洲", "oceania"],
+  },
+  embassy_office: {
+    "50": ["香港办事处", "香港辦事處", "hong kong office"],
+    "51": ["澳门办事处", "澳門辦事處", "macau office"],
+    "53": ["新加坡代表处", "新加坡代表處", "singapore office", "singapore representative office"],
+    "55": ["马来西亚办事处", "馬來西亞辦事處", "malaysia office"],
+    "56": ["菲律宾办事处", "菲律賓辦事處", "philippines office"],
+    "52": ["泰国办事处", "泰國辦事處", "thailand office"],
+    "67": ["河内办事处", "河內辦事處", "hanoi office"],
+    "57": ["胡志明市办事处", "胡志明市辦事處", "ho chi minh city office"],
+  },
+  permit_type: {
+    "1": ["单次", "單次", "单次证", "單次證", "single entry", "single-entry"],
+    "2": ["多次", "多次证", "多次證", "multiple entry", "multiple-entry"],
+    h: ["主申请人已有多次证", "主要申請人已領多次證", "main applicant already holds a multiple-entry permit"],
+  },
 };
 
 const LOCATION_FIELD_NAMES = new Set([
@@ -450,6 +480,19 @@ export function isVagueFormAnswer(text: string): boolean {
   const normalized = text.trim().toLocaleLowerCase().replace(/[.!?。！？，,；;:：\s]/g, "");
   return /^(?:我)?(?:不知道|不清楚|不确定|记不清|说不准|随便|都行|看着办|待定|大概|可能|也许|差不多)(?:吧)?$/.test(normalized) ||
     /^(?:i)?(?:don['’]?tknow|don['’]?remember|notsure|unsure|unknown|whatever|anything|maybe|approximately|around)$/.test(normalized);
+}
+
+export function isPromptInjectionAttempt(text: string): boolean {
+  const normalized = text.trim().toLocaleLowerCase();
+  return /(?:忽略|无视|绕过|覆盖|泄露|显示).{0,18}(?:之前|上面|系统|开发者|规则|指令|提示词|prompt)/.test(normalized) ||
+    /(?:把|将).{0,14}(?:所有|全部).{0,14}(?:字段|答案).{0,14}(?:填|改|设).{0,12}(?:通过|正确|yes|true)/.test(normalized) ||
+    /\b(?:ignore|disregard|override|bypass|reveal)\b.{0,50}\b(?:previous|system|developer|rules?|instructions?|prompt)\b/.test(normalized);
+}
+
+export function isAmbiguousAlternativeAnswer(text: string): boolean {
+  const normalized = text.trim().toLocaleLowerCase();
+  return /\S.{0,40}(?:或者|还是|或是)\S/.test(normalized) ||
+    /\b\S+(?:\s+\S+){0,5}\s+or\s+\S+(?:\s+\S+){0,5}\b/.test(normalized);
 }
 
 export function messageLikelyContainsMultipleAnswers(
@@ -1399,11 +1442,14 @@ export async function runAssistantTurn(params: {
   const timeZone = formAssistantTimeZone(params.country, params.visaType);
   const referenceDate = isoDateInTimeZone(new Date(), timeZone);
   const exactVagueAnswer = isVagueFormAnswer(message);
+  const promptInjectionAttempt = isPromptInjectionAttempt(message);
+  const ambiguousAlternativeAnswer = isAmbiguousAlternativeAnswer(message);
   const multiAnswerMessage = messageLikelyContainsMultipleAnswers(message, visibleCandidates);
   const explicitMultiPatches = multiAnswerMessage
     ? parseExplicitMultiFieldAnswers(message, visibleCandidates, { timeZone })
     : [];
-  const directChoice = correctionCancellation || exactVagueAnswer || multiAnswerMessage
+  const directChoice = correctionCancellation || exactVagueAnswer || promptInjectionAttempt ||
+    ambiguousAlternativeAnswer || multiAnswerMessage
     ? null
     : parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
   const accommodationCandidates = directChoice
@@ -1411,7 +1457,7 @@ export async function runAssistantTurn(params: {
     : correctionCancellation
       ? []
       : findAccommodationOptionCandidates(message, currentField);
-  const proposed = correctionCancellation || exactVagueAnswer
+  const proposed = correctionCancellation || exactVagueAnswer || promptInjectionAttempt || ambiguousAlternativeAnswer
     ? { reply: "", patches: [] }
     : explicitMultiPatches.length >= 2
       ? { reply: "", patches: explicitMultiPatches }
@@ -1519,6 +1565,14 @@ export async function runAssistantTurn(params: {
   let assistantMessage: string;
   if (correctionCancellation) {
     assistantMessage = [correctionCancellationMessage, nextQuestion].filter(Boolean).join("\n\n");
+  } else if (promptInjectionAttempt) {
+    assistantMessage = params.locale.startsWith("zh")
+      ? `这段话看起来是在要求更改助手规则，我不会把它当作表单答案。${nextQuestion}`
+      : `That looks like an instruction to change the assistant's rules, so I won't treat it as a form answer. ${nextQuestion}`;
+  } else if (ambiguousAlternativeAnswer) {
+    assistantMessage = params.locale.startsWith("zh")
+      ? `我看到你给了两个可能的答案，所以先不替你选择。请确认一个准确答案。${nextQuestion}`
+      : `I see two possible answers, so I won't choose one for you. Please confirm one exact answer. ${nextQuestion}`;
   } else if (exactVagueAnswer) {
     assistantMessage = params.locale.startsWith("zh")
       ? `没关系，这项我先不替你猜。${nextQuestion}`
