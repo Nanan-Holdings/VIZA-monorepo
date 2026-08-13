@@ -523,12 +523,15 @@ filling and one-shot submission for the applicant.
   challenge changes while solving, its input redraw cannot be confirmed, the
   official page rejects it, or refresh cannot be proven, discard the page and
   repeat the whole search in a new context under one shared timeout budget.
-  A stable challenge may be sent to the solver once even when the official Vue
-  SPA reuses its initial bitmap across fresh contexts. After that fingerprint
-  has been attempted or rejected, use the official reload control and prove
-  that the bitmap changed before another solver request. If a bounded reload
-  cannot produce a new fingerprint, stop without resending the challenge or
-  submitting the form.
+  A stable challenge may be sent to the solver even when the official Vue SPA
+  reuses its initial bitmap across fresh contexts. If 2captcha fails before it
+  returns any answer (bounded unsolvable/network/timeout outcomes), the same
+  stable bitmap may be retried within the shared solver/time budget because no
+  value reached the official portal. Once an answer exists, is entered, becomes
+  stale, or is rejected, keep the fingerprint registered, use the official
+  reload control, and prove that the bitmap changed before another solver
+  request. If a bounded reload cannot produce a new fingerprint, stop without
+  resending the answered/rejected challenge or submitting the form.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use
