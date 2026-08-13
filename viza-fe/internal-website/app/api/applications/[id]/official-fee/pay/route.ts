@@ -10,7 +10,12 @@ import {
 } from "@/lib/submission-queue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveOfficialFeeApplicantAuth } from "../auth";
-import { ensureVietnamCardWorkerReady } from "./cloud-worker-ready";
+import {
+  ensureVietnamCardWorkerReady,
+  VIETNAM_CARD_HANDOFF_BUDGET_MS,
+  vietnamCardPostTimeoutMs,
+  vietnamCardReadinessTimeoutMs,
+} from "./cloud-worker-ready";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -517,12 +522,19 @@ async function postOneTimeCardSession(input: {
   applicationId: string;
   card: OneTimeCardInput;
   token?: string;
+  deadlineAt?: number;
 }): Promise<
   | { ok: true; redactedCard: unknown; expiresAtIso: string | null }
   | { ok: false; error: string }
 > {
   let lastError = "unknown card-session error";
   for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const requestTimeoutMs = input.deadlineAt
+      ? vietnamCardPostTimeoutMs(input.deadlineAt)
+      : 15_000;
+    if (requestTimeoutMs <= 0) {
+      return { ok: false, error: "card_session_handoff_timeout" };
+    }
     try {
       const response = await fetch(input.endpoint, {
         method: "POST",
@@ -540,7 +552,7 @@ async function postOneTimeCardSession(input: {
           },
         }),
         cache: "no-store",
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(requestTimeoutMs),
       });
       const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
       if (response.ok) {
@@ -560,28 +572,50 @@ async function postOneTimeCardSession(input: {
     }
 
     if (attempt < 3) {
-      await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+      const remainingMs = input.deadlineAt
+        ? Math.max(0, input.deadlineAt - Date.now())
+        : attempt * 500;
+      const backoffMs = Math.min(attempt * 500, remainingMs);
+      if (backoffMs <= 0) break;
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
   }
 
   return { ok: false, error: lastError };
 }
 
-async function registerOneTimeCardSession(applicationId: string, application: ApplicationRow, card: OneTimeCardInput): Promise<
+async function registerOneTimeCardSession(
+  applicationId: string,
+  application: ApplicationRow,
+  card: OneTimeCardInput,
+  options: { vietnamDeadlineAt?: number } = {},
+): Promise<
   CardSessionResult
 > {
   const countryPath = officialFeeCardSessionPath(application);
   if (countryPath === "vietnam") {
     const cloud = getVietnamCloudCardSessionConfig();
     if (cloud) {
+      const deadlineAt = options.vietnamDeadlineAt
+        ?? Date.now() + VIETNAM_CARD_HANDOFF_BUDGET_MS;
       const ready = await ensureVietnamCardWorkerReady({
         baseUrl: cloud.baseUrl,
         wakeLegacy: () => ensureFlyMachineStarted("legacy"),
-        waitUntilReady: (url) => waitForHttpReady(url, {
-          timeoutMs: 30_000,
-          pollIntervalMs: 500,
-          requestTimeoutMs: 4_000,
-        }),
+        waitUntilReady: (url) => {
+          const timeoutMs = vietnamCardReadinessTimeoutMs(deadlineAt);
+          if (timeoutMs <= 0) {
+            return Promise.resolve({
+              ok: false as const,
+              attempts: 0,
+              reason: "readiness_timeout" as const,
+            });
+          }
+          return waitForHttpReady(url, {
+            timeoutMs,
+            pollIntervalMs: 500,
+            requestTimeoutMs: 3_000,
+          });
+        },
       });
       if (!ready.ok) {
         console.error("Vietnam cloud card-session worker unavailable", {
@@ -601,6 +635,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
         applicationId,
         card,
         token: cloud.token,
+        deadlineAt,
       });
       if (!result.ok) {
         console.error("Could not register Vietnam cloud card session", {
@@ -807,6 +842,7 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const vietnamCardHandoffDeadlineAt = Date.now() + VIETNAM_CARD_HANDOFF_BUDGET_MS;
   const { id: applicationId } = await context.params;
   if (!applicationId) {
     return NextResponse.json({ error: "Missing application id" }, { status: 400 });
@@ -947,7 +983,12 @@ export async function POST(
     return NextResponse.json({ error: `Official fee intent is not payable from status ${intentRow.status ?? "(empty)"}.` }, { status: 409 });
   }
 
-  const cardSession = await registerOneTimeCardSession(applicationId, application, card);
+  const cardSession = await registerOneTimeCardSession(
+    applicationId,
+    application,
+    card,
+    { vietnamDeadlineAt: vietnamCardHandoffDeadlineAt },
+  );
   if (!cardSession.ok) {
     return NextResponse.json(
       {
