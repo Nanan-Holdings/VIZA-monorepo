@@ -24,7 +24,7 @@ import {
 } from "./korea-kvac/live-session.js";
 import { observeChengduAvailableSlots } from "./korea-kvac/chengdu-slots.js";
 import { supabase } from "./supabase.js";
-import { putVietnamCardSession } from "./vietnam/card-session.js";
+import { discardVietnamCardSession, putVietnamCardSession } from "./vietnam/card-session.js";
 import { bookJapanVfsSingaporeSlot, observeJapanVfsSingaporeSlots } from "./jp-vfs-sg/runner.js";
 import { putJapanVfsPaymentSession } from "./jp-vfs-sg/payment-session.js";
 
@@ -172,6 +172,29 @@ async function handleVietnamCardSession(req: http.IncomingMessage, res: http.Ser
       },
     });
     sendJson(res, 200, { ok: true, ...session });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function handleVietnamCardSessionDiscard(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  const internalRequest = req.url === "/internal/vietnam/card-session";
+  const enabled = internalRequest
+    ? envEnabled(process.env.VN_CLOUD_CARD_SESSION_ENABLED)
+    : envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED);
+  if (!enabled) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (internalRequest ? !isVietnamInternalRequest(req) : !isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req)) as Record<string, unknown>;
+    const applicationId = typeof body.applicationId === "string" ? body.applicationId : "";
+    sendJson(res, 200, { ok: true, discarded: discardVietnamCardSession(applicationId) });
   } catch (error) {
     sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
   }
@@ -689,6 +712,14 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     }
     if (req.method === "POST" && url === "/internal/vietnam/card-session") {
       runTracked(handleVietnamCardSession(req, res));
+      return;
+    }
+    if (req.method === "DELETE" && url === "/local/vietnam/card-session") {
+      runTracked(handleVietnamCardSessionDiscard(req, res));
+      return;
+    }
+    if (req.method === "DELETE" && url === "/internal/vietnam/card-session") {
+      runTracked(handleVietnamCardSessionDiscard(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/submission-queue/wake") {

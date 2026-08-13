@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   clearVietnamCardSessions,
   consumeVietnamCardSession,
+  discardVietnamCardSession,
   hasVietnamCardSessions,
   peekVietnamCardSession,
   putVietnamCardSession,
@@ -63,6 +64,24 @@ test("vn.card-session: consume returns the card once and deletes it", () => {
   assert.equal(card?.pan, "4111111111111111");
   assert.equal(card?.cvv, "999");
   assert.equal(consumeVietnamCardSession("app_456", 2_000), null);
+});
+
+test("vn.card-session: discard deletes an unused card without exposing it", () => {
+  clearVietnamCardSessions();
+  putVietnamCardSession({
+    applicationId: "app_discard",
+    referenceTimeMs: 2_000,
+    card: {
+      pan: "4111111111111111",
+      expiry: "01/2031",
+      cvv: "123",
+      holderName: "CARD HOLDER",
+    },
+  });
+
+  assert.equal(discardVietnamCardSession("app_discard", 2_001), true);
+  assert.equal(peekVietnamCardSession("app_discard", 2_002), null);
+  assert.equal(discardVietnamCardSession("app_discard", 2_003), false);
 });
 
 test("vn.card-session: expired sessions are unavailable", () => {
