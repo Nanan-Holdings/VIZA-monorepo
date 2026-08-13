@@ -1936,6 +1936,7 @@ export default function ApplicationPage() {
     promise: ReturnType<typeof ensureDraftApplication>;
   } | null>(null);
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
+  const externalDraftProtectionRef = useRef<{ fieldNames: Set<string>; expiresAt: number } | null>(null);
   const draftVersionTimerRef = useRef<number | null>(null);
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const autosaveRequestRef = useRef(0);
@@ -2069,9 +2070,17 @@ export default function ApplicationPage() {
   }, []);
 
   const handleDynamicDraftChange = useCallback((stepId: number, data: Record<string, string>) => {
-    dynamicDraftRef.current[stepId] = data;
+    const protection = externalDraftProtectionRef.current;
+    let nextData = data;
+    if (protection && protection.expiresAt >= Date.now()) {
+      nextData = { ...data };
+      for (const fieldName of protection.fieldNames) delete nextData[fieldName];
+    } else if (protection) {
+      externalDraftProtectionRef.current = null;
+    }
+    dynamicDraftRef.current[stepId] = nextData;
     const manuallyChangedAiFields = new Set(
-      Object.entries(data)
+      Object.entries(nextData)
         .filter(([fieldName, value]) =>
           aiFilledFieldNames.includes(fieldName) && (dynamicAnswers[fieldName] ?? "") !== value,
         )
@@ -2080,7 +2089,7 @@ export default function ApplicationPage() {
     if (manuallyChangedAiFields.size > 0) {
       setAiFilledFieldNames((current) => current.filter((fieldName) => !manuallyChangedAiFields.has(fieldName)));
     }
-    const hasChangedValue = Object.entries(data).some(
+    const hasChangedValue = Object.entries(nextData).some(
       ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
     );
     if (hasChangedValue) {
@@ -3021,6 +3030,14 @@ export default function ApplicationPage() {
             }
           }
         }
+        externalDraftProtectionRef.current = {
+          fieldNames: new Set(payload.appliedPatches.flatMap((item) => [
+            item.fieldName,
+            `${item.fieldName}_zh`,
+            `${item.fieldName}_en`,
+          ])),
+          expiresAt: Date.now() + 5_000,
+        };
         setDynamicAnswers((current) => {
           const next = { ...current };
           for (const item of payload.appliedPatches) {
@@ -4196,6 +4213,10 @@ export default function ApplicationPage() {
     const { givenNames, surname } = splitUniversalFullName(fields.full_name);
 
     autosaveRequestRef.current += 1;
+    externalDraftProtectionRef.current = {
+      fieldNames: new Set(Object.keys(safeAnswerPatch)),
+      expiresAt: Date.now() + 5_000,
+    };
     for (const [stepIndexText, draft] of Object.entries(dynamicDraftRef.current)) {
       const nextDraft = { ...draft };
       let changed = false;
