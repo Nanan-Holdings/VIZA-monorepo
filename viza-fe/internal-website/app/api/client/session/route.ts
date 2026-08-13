@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import { getClientSession, getUserFromSupabaseSession } from "@/lib/client-session";
+import { cacheContinuityIdentity } from "@/lib/resilience/continuity-auth";
 
 async function validSessionResponse({
   userId,
@@ -36,6 +37,7 @@ export async function GET() {
   // Supabase Auth round-trip and remain usable during a transient outage.
   const cookieSession = await getClientSession();
   if (cookieSession) {
+    await cacheContinuityIdentity(cookieSession).catch(() => undefined);
     return validSessionResponse({
       userId: cookieSession.userId,
       sessionKind: "supabase",
@@ -45,6 +47,7 @@ export async function GET() {
 
   const session = await getUserFromSupabaseSession({ requestTimeoutMs: 1_500 });
   if (session) {
+    await cacheContinuityIdentity(session).catch(() => undefined);
     return validSessionResponse({
       userId: session.userId,
       sessionKind: "supabase",
