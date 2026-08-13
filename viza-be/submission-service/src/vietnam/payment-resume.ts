@@ -1,5 +1,14 @@
 import { chromium, type Browser, type Locator, type Page } from "@playwright/test";
-import { reportBadCaptcha, reportGoodCaptcha, solveImageCaptcha } from "../captcha";
+import {
+  reportBadCaptcha,
+  reportGoodCaptcha,
+  solveImageCaptcha,
+  TwoCaptchaApiError,
+  TwoCaptchaConfigError,
+  TwoCaptchaNetworkError,
+  TwoCaptchaSolveTimeoutError,
+  TwoCaptchaZeroBalanceError,
+} from "../captcha";
 import {
   loadVietnamFixedCardFromEnv,
   payVietnamPortalWithFixedCard,
@@ -25,6 +34,8 @@ export interface VietnamPaymentSearchCaptchaDiagnostic {
   refreshConfirmed?: boolean;
   refreshStrategy?: "search_reload_control" | "shared_fallback";
   freshContextRetry?: boolean;
+  solverErrorKind?: "unsolvable" | "network" | "timeout" | "configuration" | "balance" | "api" | "unknown";
+  sameChallengeRetry?: boolean;
 }
 
 export interface VietnamPaymentResumeDiagnostics {
@@ -432,6 +443,34 @@ export function registerVietnamSearchCaptchaChallenge(
   if (knownFingerprints.has(fingerprint)) return false;
   knownFingerprints.add(fingerprint);
   return true;
+}
+
+function classifyVietnamSearchCaptchaSolverError(error: unknown): {
+  kind: NonNullable<VietnamPaymentSearchCaptchaDiagnostic["solverErrorKind"]>;
+  retrySameChallenge: boolean;
+} {
+  if (error instanceof TwoCaptchaConfigError) {
+    return { kind: "configuration", retrySameChallenge: false };
+  }
+  if (error instanceof TwoCaptchaZeroBalanceError) {
+    return { kind: "balance", retrySameChallenge: false };
+  }
+  if (error instanceof TwoCaptchaNetworkError) {
+    return { kind: "network", retrySameChallenge: true };
+  }
+  if (error instanceof TwoCaptchaSolveTimeoutError) {
+    return { kind: "timeout", retrySameChallenge: true };
+  }
+  if (error instanceof TwoCaptchaApiError) {
+    return {
+      kind: error.apiErrorCode === "ERROR_CAPTCHA_UNSOLVABLE" || error.apiErrorCode === "ERROR_BAD_DUPLICATES"
+        ? "unsolvable"
+        : "api",
+      retrySameChallenge:
+        error.apiErrorCode === "ERROR_CAPTCHA_UNSOLVABLE" || error.apiErrorCode === "ERROR_BAD_DUPLICATES",
+    };
+  }
+  return { kind: "unknown", retrySameChallenge: false };
 }
 
 class VietnamSearchCaptchaSolveError extends Error {
@@ -882,15 +921,32 @@ export async function solveVietnamPaymentSearchCaptcha(
       await reportBad(solution.solveId).catch(() => undefined);
     } catch (error) {
       if (error instanceof VietnamSearchCaptchaSolveError) throw error;
+      const solverFailure = classifyVietnamSearchCaptchaSolverError(error);
+      const canRetrySameChallenge = solverFailure.retrySameChallenge && remainingMs() > 0;
       diagnostics.push({
         attempt,
         contextAttempt: options.contextAttempt,
         challengeFingerprintPrefix,
         outcome: "solver_error",
+        solverErrorKind: solverFailure.kind,
+        sameChallengeRetry: canRetrySameChallenge,
         ...(preSolveRefreshStrategy
           ? { refreshConfirmed: true, refreshStrategy: preSolveRefreshStrategy }
           : {}),
       });
+      if (!canRetrySameChallenge) {
+        throw new VietnamSearchCaptchaSolveError(
+          error instanceof Error ? error.message : String(error),
+          diagnostics,
+          false,
+        );
+      }
+      // The provider did not produce an answer, so nothing was entered into or
+      // rejected by the official portal. Release this fingerprint for one of
+      // the remaining bounded solver attempts. Once an answer exists, the
+      // unusable/rejected/stale branches keep the fingerprint registered and
+      // still require a proven official challenge rotation.
+      options.knownChallengeFingerprints?.delete(challengeFingerprint);
       if (localAttempt === maxAttempts) {
         throw new VietnamSearchCaptchaSolveError(
           error instanceof Error ? error.message : String(error),
@@ -898,6 +954,9 @@ export async function solveVietnamPaymentSearchCaptcha(
           true,
         );
       }
+      const retryDelayMs = Math.max(0, Math.min(1_500 * localAttempt, remainingMs()));
+      if (retryDelayMs > 0) await page.waitForTimeout(retryDelayMs);
+      continue;
     }
     if (localAttempt < maxAttempts) {
       const refreshStrategy = await refreshVietnamSearchCaptchaChallenge(

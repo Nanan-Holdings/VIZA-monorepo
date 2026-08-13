@@ -17,6 +17,10 @@ import {
   waitForVietnamSearchSubmissionOutcome,
 } from "../payment-resume";
 import { captureVietnamCaptchaFingerprint, fingerprintVietnamCaptchaImage } from "../captcha";
+import {
+  TwoCaptchaApiError,
+  TwoCaptchaConfigError,
+} from "../../captcha/two-captcha";
 
 test("vn.payment-resume: solves the first stable fresh-context challenge before requiring rotation", () => {
   assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(1), false);
@@ -54,6 +58,87 @@ test("vn.payment-resume: solves one stable initial challenge without a working r
     assert.equal(knownFingerprints.size, 1);
     assert.equal(result.diagnostics.at(-1)?.outcome, "solved");
     assert.equal(result.diagnostics.at(-1)?.refreshConfirmed, undefined);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: retries the same stable challenge when 2captcha never returned an answer", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const challenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    await page.setContent(`
+      <input id="basic_captcha" />
+      <img alt="captcha img" src="${challenge}" />
+      <button aria-label="reload captcha" type="button">Reload</button>
+    `);
+    const knownFingerprints = new Set<string>();
+    let solveCalls = 0;
+
+    const result = await solveVietnamPaymentSearchCaptcha(page, 10_000, {
+      maxAttempts: 3,
+      knownChallengeFingerprints: knownFingerprints,
+      solveCaptcha: async () => {
+        solveCalls += 1;
+        if (solveCalls < 3) throw new TwoCaptchaApiError("ERROR_CAPTCHA_UNSOLVABLE");
+        return { text: "123456", solveId: "fixture-solve", durationMs: 10 };
+      },
+    });
+
+    assert.equal(solveCalls, 3);
+    assert.equal(await page.locator("#basic_captcha").inputValue(), "123456");
+    assert.equal(knownFingerprints.size, 1);
+    assert.deepEqual(
+      result.diagnostics.map((diagnostic) => ({
+        outcome: diagnostic.outcome,
+        solverErrorKind: diagnostic.solverErrorKind,
+        sameChallengeRetry: diagnostic.sameChallengeRetry,
+      })),
+      [
+        { outcome: "solver_error", solverErrorKind: "unsolvable", sameChallengeRetry: true },
+        { outcome: "solver_error", solverErrorKind: "unsolvable", sameChallengeRetry: true },
+        { outcome: "solved", solverErrorKind: undefined, sameChallengeRetry: undefined },
+      ],
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: does not retry a stable challenge for a non-retryable 2captcha configuration error", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const challenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    await page.setContent(`<input id="basic_captcha" /><img alt="captcha img" src="${challenge}" />`);
+    let solveCalls = 0;
+
+    await assert.rejects(
+      solveVietnamPaymentSearchCaptcha(page, 5_000, {
+        maxAttempts: 3,
+        knownChallengeFingerprints: new Set<string>(),
+        solveCaptcha: async () => {
+          solveCalls += 1;
+          throw new TwoCaptchaConfigError();
+        },
+      }),
+      (error: unknown) => {
+        const diagnostics = (error as { diagnostics?: Array<{
+          solverErrorKind?: string;
+          sameChallengeRetry?: boolean;
+        }> }).diagnostics ?? [];
+        assert.equal(diagnostics.at(-1)?.solverErrorKind, "configuration");
+        assert.equal(diagnostics.at(-1)?.sameChallengeRetry, false);
+        return true;
+      },
+    );
+
+    assert.equal(solveCalls, 1);
   } finally {
     await browser.close();
   }
