@@ -47,7 +47,7 @@ export function SupportingDocumentCard({
           </span>
         ) : null}
       </h3>
-      {description ? (
+      {description || stacked ? (
         <div className="mt-[5px] min-h-[40px] text-[13px] leading-[1.55] text-black/55">
           {description}
         </div>
@@ -78,9 +78,10 @@ export function SupportingDocumentCard({
   /*
    * Stacked cards wrap their own content height, so a card with a rejection
    * reason is simply taller than its neighbours instead of padding them out.
-   * The description carries a two-line floor and the upload field is a fixed
-   * 190px, which keeps every field the same size and lines them up across a
-   * row for the common one-vs-two-line case.
+   * Every stacked card reserves the two-line description row, including cards
+   * without description copy. This keeps neighboring upload fields top-aligned
+   * while notes, statuses and rejection reasons can still make each card's
+   * total height independent.
    */
   return (
     <article
