@@ -103,6 +103,10 @@ filling and one-shot submission for the applicant.
   remains sticky for SMS, appointment, and continuous browser sessions.
 - `deploy/fly/` contains credential-free Fly templates and country mappings.
   Production endpoints and keys belong only in Fly Secrets.
+  Retained workers drain database queues only at startup or after the
+  authenticated `/internal/submission-queue/wake` endpoint. Deployment must
+  provide the same `SUBMISSION_QUEUE_INTERNAL_TOKEN` to Vercel and every
+  retained Fly target; do not reintroduce an idle database claim loop.
   `deploy/fly/fly.pool.toml` defines the retained shared pool without native
   Fly autostart/autostop; application enqueue wakes exact capacity and the
   scheduled reconciler is recovery-only.

@@ -249,13 +249,6 @@ interface ApplicationRow {
   official_fee_receipt_id: string | null;
 }
 
-interface SubmissionResultColumnRow {
-  id: string;
-  submission_result: unknown | null;
-  submission_result_status: string | null;
-  submission_result_updated_at: string | null;
-}
-
 interface PaymentRow {
   id: string;
   application_id: string | null;
@@ -366,7 +359,10 @@ const ARRIVAL_CARD_VISA_TYPES = new Set([
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
 const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
 const APPLICATION_STATUS_SELECT =
-  "id, applicant_id, country, visa_type, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, government_fee_cents, government_fee_currency, government_fee_mode";
+  "id, applicant_id, country, visa_type, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, submission_result, submission_result_status, submission_result_updated_at, government_fee_cents, government_fee_currency, government_fee_mode";
+
+const MAX_LIVE_STATUS_APPLICATIONS = 20;
+const MAX_RECENT_LIVE_STATUS_APPLICATIONS = 12;
 
 function normalizeStatus(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -664,33 +660,27 @@ async function readRows<T>(query: PromiseLike<QueryResult>): Promise<ReadRowsRes
   }
 }
 
-async function hydrateSubmissionResults(
-  adminClient: ReturnType<typeof createAdminClient>,
-  applications: ApplicationRow[],
-): Promise<{ applications: ApplicationRow[]; failed: boolean }> {
-  const applicationIds = applications.map((application) => application.id);
-  if (applicationIds.length === 0) return { applications, failed: false };
-
-  const { rows, failed } = await readRows<SubmissionResultColumnRow>(
-    adminClient
-      .from("applications")
-      .select("id, submission_result, submission_result_status, submission_result_updated_at")
-      .in("id", applicationIds),
+function isTerminalApplication(application: ApplicationRow): boolean {
+  const applicationStatus = normalizeStatus(application.status);
+  const resultStatus = normalizeStatus(application.submission_result_status);
+  return (
+    SUCCESS_SUBMISSION_RESULT_STATUSES.has(resultStatus) ||
+    APPROVED_RESULT_STATUSES.has(normalizeStatus(application.result_status)) ||
+    REJECTED_RESULT_STATUSES.has(normalizeStatus(application.result_status)) ||
+    ["completed", "submitted", "submitted_mock", "form_ready_for_agency", "failed", "stalled", "rejected"].includes(applicationStatus)
   );
-  const submissionResultsById = new Map(rows.map((row) => [row.id, row]));
-  return {
-    failed,
-    applications: applications.map((application) => {
-      const submissionResult = submissionResultsById.get(application.id);
-      if (!submissionResult) return application;
-      return {
-        ...application,
-        submission_result: submissionResult.submission_result,
-        submission_result_status: submissionResult.submission_result_status,
-        submission_result_updated_at: submissionResult.submission_result_updated_at,
-      };
-    }),
-  };
+}
+
+function getLiveStatusApplicationIds(applications: ApplicationRow[]): string[] {
+  const sorted = [...applications].sort(
+    (a, b) => new Date(b.updated_at ?? b.created_at ?? 0).getTime() - new Date(a.updated_at ?? a.created_at ?? 0).getTime(),
+  );
+  const active = sorted.filter((application) => !isTerminalApplication(application));
+  const recent = sorted.filter((application) => isTerminalApplication(application));
+  return [...new Set([
+    ...active.slice(0, MAX_LIVE_STATUS_APPLICATIONS - MAX_RECENT_LIVE_STATUS_APPLICATIONS),
+    ...recent.slice(0, MAX_RECENT_LIVE_STATUS_APPLICATIONS),
+  ].map((application) => application.id))].slice(0, MAX_LIVE_STATUS_APPLICATIONS);
 }
 
 function getLatestPayment(rows: PaymentRow[]): PaymentRow | null {
@@ -1596,16 +1586,19 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     }
   }
 
-  const hydratedApplications = await hydrateSubmissionResults(adminClient, applications);
-  partialData = partialData || hydratedApplications.failed;
-  applications = hydratedApplications.applications.filter(
+  // The application projection already includes the submission result fields;
+  // avoid a second fan-out read over every historical application. Keep the
+  // full application list for the history selector, but enrich only the
+  // current/recent subset with live queue data.
+  applications = applications.filter(
     (application) => !sgacEmailLinkedApplicationIds.has(application.id) || submissionResultIsSubmitted(application),
   );
 
   const applicationIds = applications.map((application) => application.id);
+  const liveStatusApplicationIds = getLiveStatusApplicationIds(applications);
   let liveSubmissionByApplication = new Map<string, LiveSubmissionSummary>();
   try {
-    liveSubmissionByApplication = await loadLiveSubmissionSummaries(adminClient, applicationIds);
+    liveSubmissionByApplication = await loadLiveSubmissionSummaries(adminClient, liveStatusApplicationIds);
   } catch {
     partialData = true;
   }

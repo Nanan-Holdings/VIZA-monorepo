@@ -92,4 +92,58 @@ describe("wakeCloudSubmissionWorker", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("uses the retained pool Fly endpoint when the pool URL is not configured", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/apps/viza-runner-pool/machines")) {
+        return Response.json([{ id: "machine-pool", state: "started" }]);
+      }
+      if (url === "https://viza-runner-pool.fly.dev/internal/submission-queue/wake") {
+        return new Response(null, { status: 202 });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    const result = await wakeCloudSubmissionWorker("job-pool", {
+      target: "pool",
+      env: {
+        NODE_ENV: "production",
+        FLY_SUBMISSION_ORG_TOKEN: "fly-token",
+        SUBMISSION_QUEUE_INTERNAL_TOKEN: "secret-token",
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://viza-runner-pool.fly.dev/internal/submission-queue/wake",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ jobId: "job-pool" }),
+      }),
+    );
+  });
+
+  it("does not report an already-running machine as woken when the endpoint fails", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/apps/viza-runner-pool/machines")) {
+        return Response.json([{ id: "machine-pool", state: "started" }]);
+      }
+      return new Response(null, { status: 503 });
+    });
+
+    const result = await wakeCloudSubmissionWorker("job-pool", {
+      target: "pool",
+      env: {
+        NODE_ENV: "production",
+        FLY_SUBMISSION_ORG_TOKEN: "fly-token",
+        SUBMISSION_QUEUE_INTERNAL_TOKEN: "secret-token",
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result).toEqual({ ok: false, reason: "request_failed" });
+  });
 });
