@@ -17,6 +17,7 @@ import {
   isVagueFormAnswer,
   isCorrectionCancellation,
   messageLikelyContainsMultipleAnswers,
+  parseExplicitMultiFieldAnswers,
   parseDirectCurrentFieldAnswer,
   parseDirectYesNoAnswer,
   runAssistantTurn,
@@ -70,6 +71,39 @@ describe("human-style assistant edge cases", () => {
       [passport, email, arrival],
     )).toBe(true);
     expect(messageLikelyContainsMultipleAnswers("E12345678", [passport, email, arrival])).toBe(false);
+  });
+
+  it("deterministically fills several explicit option and agreement answers", () => {
+    const registrationField = {
+      ...field("registration_for", "Registration for", "登记对象"),
+      fieldType: "radio",
+      options: [
+        { value: "self", text: "Self", label_zh: "本人" },
+        { value: "other", text: "Other", label_zh: "他人" },
+      ],
+    } as VisaFormFieldRow;
+    const transportField = {
+      ...field("departure_transport_mode", "Departure transport mode", "离境交通方式"),
+      fieldType: "radio",
+      options: [
+        { value: "air", text: "Air", label_zh: "航空" },
+        { value: "sea", text: "Sea", label_zh: "海路" },
+      ],
+    } as VisaFormFieldRow;
+    const privacyField = {
+      ...field("accepted_privacy", "I agree to the data privacy policy", "我同意数据隐私政策"),
+      fieldType: "checkbox",
+      validationRules: { label_zh: "我同意数据隐私政策", mustBeTrue: true },
+    } as VisaFormFieldRow;
+
+    expect(parseExplicitMultiFieldAnswers(
+      "登记对象是本人，离境交通方式是航空，我同意数据隐私政策",
+      [registrationField, transportField, privacyField],
+    )).toMatchObject([
+      { fieldName: "registration_for", value: "self" },
+      { fieldName: "departure_transport_mode", value: "air" },
+      { fieldName: "accepted_privacy", value: "true" },
+    ]);
   });
 
   it("finds a generic correction target from localized labels", () => {
