@@ -64,7 +64,7 @@ export interface PassportOcrUploadProps {
   title?: string;
   description?: string;
   presentation?: "standard" | "supporting-card";
-  onFieldsApplied?: (fields: UniversalProfileSnapshot) => void;
+  onFieldsApplied?: (fields: UniversalProfileSnapshot, appliedFieldNames?: string[]) => void;
   onUploaded?: (fileName: string) => void;
 }
 
@@ -492,6 +492,7 @@ export function PassportOcrUpload({
       const profileFields = buildProfileFields(payload);
       setStatus("verifying");
       setMessage(copy.verifying);
+      let appliedFieldNames: string[] | undefined;
       if (payload.extractionId) {
         const confirmResult = await confirmPassportOcrExtraction({
           applicationId,
@@ -499,9 +500,10 @@ export function PassportOcrUpload({
           saveToUniversalProfile: documentScope === "universal_profile",
         });
         if (!confirmResult.ok) throw new Error(confirmResult.error);
+        appliedFieldNames = confirmResult.appliedFieldNames;
       }
 
-      onFieldsApplied?.(profileFields);
+      onFieldsApplied?.(profileFields, appliedFieldNames);
       setStatus("done");
       setMessage(copy.done);
     } catch (error) {

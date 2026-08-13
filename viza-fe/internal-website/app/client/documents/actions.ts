@@ -55,7 +55,7 @@ export type DocumentCenterResult =
   | { ok: false; code: "not_authenticated" | "not_found" | "server_error"; error: string };
 
 export type DocumentMutationResult =
-  | { ok: true }
+  | { ok: true; appliedFieldNames?: string[] }
   | { ok: false; code: "not_authenticated" | "not_found" | "invalid_request" | "server_error"; error: string };
 
 export interface DocumentCenterData {
@@ -2338,6 +2338,23 @@ function buildPassportAnswerRows(applicationId: string, fields: JsonRecord) {
     }));
 }
 
+type PassportAnswerRow = ReturnType<typeof buildPassportAnswerRows>[number];
+
+function selectPassportOcrAnswerRowsToApply(
+  answerRows: PassportAnswerRow[],
+  existingRows: Array<{ field_name: string; value_text: string | null; source?: string | null }>,
+): PassportAnswerRow[] {
+  const existingByFieldName = new Map(existingRows.map((row) => [row.field_name, row]));
+  return answerRows.filter((row) => {
+    const existing = existingByFieldName.get(row.field_name);
+    if (!existing?.value_text?.trim()) return true;
+
+    // OCR may refresh a value that OCR filled previously, but must never
+    // replace an answer that the applicant or form assistant already supplied.
+    return existing.source === "passport_ocr";
+  });
+}
+
 export async function confirmPassportOcrExtraction(input: {
   applicationId: string;
   extractionId: string;
@@ -2449,16 +2466,53 @@ export async function confirmPassportOcrExtraction(input: {
       }
     }
 
+    let answerRowsToApply = answerRows;
     if (answerRows.length > 0) {
+      const answerFieldNames = answerRows.map((row) => row.field_name);
+      const existingResult = await adminClient
+        .from("visa_application_answers")
+        .select("field_name, value_text, source")
+        .eq("application_id", input.applicationId)
+        .in("field_name", answerFieldNames);
+
+      if (existingResult.error) {
+        if (!isMissingOcrAnswerProvenanceColumnError(existingResult.error.message)) {
+          return { ok: false, code: "server_error", error: existingResult.error.message };
+        }
+        const legacyExistingResult = await adminClient
+          .from("visa_application_answers")
+          .select("field_name, value_text")
+          .eq("application_id", input.applicationId)
+          .in("field_name", answerFieldNames);
+        if (legacyExistingResult.error) {
+          return { ok: false, code: "server_error", error: legacyExistingResult.error.message };
+        }
+        answerRowsToApply = selectPassportOcrAnswerRowsToApply(
+          answerRows,
+          (legacyExistingResult.data ?? []) as Array<{ field_name: string; value_text: string | null }>,
+        );
+      } else {
+        answerRowsToApply = selectPassportOcrAnswerRowsToApply(
+          answerRows,
+          (existingResult.data ?? []) as Array<{
+            field_name: string;
+            value_text: string | null;
+            source: string | null;
+          }>,
+        );
+      }
+    }
+
+    if (answerRowsToApply.length > 0) {
       const { error: answersError } = await adminClient
         .from("visa_application_answers")
-        .upsert(answerRows, { onConflict: "application_id,field_name" });
+        .upsert(answerRowsToApply, { onConflict: "application_id,field_name" });
 
       if (answersError) {
         if (!isMissingOcrAnswerProvenanceColumnError(answersError.message)) {
           return { ok: false, code: "server_error", error: answersError.message };
         }
-        const legacyAnswerRows = answerRows.map(({
+        const legacyAnswerRows = answerRowsToApply.map(({
           source: _source,
           source_profile_updated_at: _sourceProfileUpdatedAt,
           source_metadata: _sourceMetadata,
@@ -2483,7 +2537,7 @@ export async function confirmPassportOcrExtraction(input: {
 
     revalidatePath("/client/documents");
     revalidatePath("/client/application");
-    return { ok: true };
+    return { ok: true, appliedFieldNames: answerRowsToApply.map((row) => row.field_name) };
   } catch (error) {
     return {
       ok: false,
