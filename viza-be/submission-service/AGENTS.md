@@ -60,6 +60,7 @@ filling and one-shot submission for the applicant.
 
 ## Key Flows
 
+- `src/korea-vfs-shenyang/runner.ts`: Browserbase-backed Shenyang VFS account FSM. It requires explicit portal-term authorization, stores only an encrypted portal password, uses the managed alias for official activation email, preserves a five-minute SMS OTP session, records only current official slot observations, revalidates the exact user-selected slot, and requires a real confirmation number plus stored screenshot before success. The South Korea Fly machine and `/deploy-ready` protect active OTP sessions.
 - `src/index.ts`: polling loop, Supabase data loading, document download,
   per-country dispatch, retry/failure handling, queue status transitions.
 - `src/queue/arrival-card-runners.ts` and
@@ -713,6 +714,7 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/country-submissions/*`
 - `viza-be/submission-service/src/korea-eform/*`
 - `viza-be/submission-service/src/korea-kvac/*`
+- `viza-be/submission-service/src/korea-vfs-shenyang/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`

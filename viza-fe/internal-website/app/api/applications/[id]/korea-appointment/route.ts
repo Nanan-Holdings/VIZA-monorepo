@@ -260,6 +260,28 @@ async function readRoutingInput(
   };
 }
 
+interface ShenyangVfsResponse {
+  ok?: boolean;
+  error?: string;
+  status?: "checkpoint" | "appointment_slots_observed" | "appointment_booked";
+  accountId?: string;
+  checkpoint?: {
+    type?: "account_terms_required" | "email_verification_pending" | "phone_otp_required" | "login_required" | "captcha" | "waf" | "no_slots" | "payment" | "selector_drift";
+    expiresAtIso?: string;
+    phoneMasked?: string;
+  };
+  slots?: KoreaKvacSubmitSmsResponse["slots"];
+  observedAt?: string;
+  screenshotPath?: string | null;
+  confirmation?: {
+    confirmationNumber?: string;
+    appointmentDate?: string;
+    appointmentTime?: string;
+    appointmentLocation?: string;
+    confirmationPdfUrl?: string | null;
+  };
+}
+
 interface KoreaKvacObservedSlotsResponse extends KoreaKvacSubmitSmsResponse {
   observedAt?: string;
   centerCode?: string;
@@ -518,6 +540,7 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
     ? job.user_preferences_json.reviewConfirmedAt
     : null;
   const reviewConfirmed = effectiveReviewConfirmation(job);
+  const vfsPortalTermsAccepted = typeof job?.user_preferences_json?.vfsPortalTermsAcceptedAt === "string";
   const noSlots = persistedNoSlotsEvidence(job, applicationId);
   if (!job) {
     return {
@@ -525,6 +548,7 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
       review,
       reviewConfirmed: false,
       reviewConfirmedAt: null,
+      vfsPortalTermsAccepted: false,
       noSlots: null,
       job: null,
       slots: [],
@@ -631,6 +655,7 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
     review,
     reviewConfirmed,
     reviewConfirmedAt,
+    vfsPortalTermsAccepted,
     noSlots,
     job,
     slots: slots ?? [],
@@ -1239,6 +1264,179 @@ async function clearNoSlotsEvidence(
   if (error) throw new Error(error.message);
 }
 
+async function persistShenyangVfsResult(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  userId: string,
+  job: AppointmentJobRow,
+  result: ShenyangVfsResponse,
+) {
+  const observedAt = result.observedAt ?? new Date().toISOString();
+  if (result.accountId) {
+    const { error } = await admin.from("appointment_assistance_jobs").update({
+      appointment_account_id: result.accountId,
+      scheduling_provider: "vfs_korea_shenyang",
+      updated_at: observedAt,
+    }).eq("id", job.id);
+    if (error) throw new Error(error.message);
+  }
+
+  if (result.status === "appointment_slots_observed" && result.slots?.length) {
+    await admin.from("appointment_manual_actions").update({
+      status: "completed",
+      completed_at: observedAt,
+    }).eq("job_id", job.id).in("action_type", ["sms_verification_required", "vfs_account_verification_pending"])
+      .in("status", ["pending", "in_progress"]);
+    await admin.from("appointment_slots").delete().eq("job_id", job.id);
+    const { error: slotsError } = await admin.from("appointment_slots").insert(result.slots.map((slot) => ({
+      job_id: job.id,
+      application_id: applicationId,
+      appointment_date: slot.appointment_date,
+      appointment_time: slot.appointment_time,
+      appointment_location: slot.appointment_location,
+      appointment_type: slot.appointment_type,
+      source: "official_vfs_korea_shenyang",
+      status: "observed",
+      observed_at: observedAt,
+      metadata_redacted_json: {
+        ...slot.metadata_redacted_json,
+        providerSlotId: slot.id,
+        evidencePath: result.screenshotPath ?? null,
+      },
+    })));
+    if (slotsError) throw new Error(slotsError.message);
+    const { error: jobError } = await admin.from("appointment_assistance_jobs").update({
+      scheduling_provider: "vfs_korea_shenyang",
+      status: "appointment_slots_observed",
+      requires_user_action: false,
+      current_manual_action: null,
+      last_slot_check_at: observedAt,
+      user_preferences_json: {
+        ...(job.user_preferences_json ?? {}),
+        noSlotsEvidence: null,
+        noSlots: null,
+        lastOfficialObservation: {
+          centerCode: "shenyang",
+          observedAt,
+          evidencePath: result.screenshotPath ?? null,
+        },
+      },
+      updated_at: observedAt,
+    }).eq("id", job.id);
+    if (jobError) throw new Error(jobError.message);
+    await admin.from("applications").update({
+      appointment_assistance_status: "appointment_slots_observed",
+      appointment_assistance_job_id: job.id,
+    }).eq("id", applicationId);
+    await admin.from("appointment_audit_events").insert({
+      job_id: job.id,
+      application_id: applicationId,
+      user_id: userId,
+      event_type: "appointment_slots_observed",
+      event_message: "Official Shenyang VFS account session returned current appointment times.",
+      metadata_redacted_json: {
+        centerCode: "shenyang",
+        provider: "vfs_korea_shenyang",
+        slotCount: result.slots.length,
+        observedAt,
+        evidencePath: result.screenshotPath ?? null,
+      },
+    });
+    return;
+  }
+
+  const checkpoint = result.checkpoint?.type;
+  if (checkpoint === "no_slots") {
+    const evidence = {
+      verified: true,
+      evidencePath: result.screenshotPath ?? null,
+      lastCheckedAt: observedAt,
+      checkedAt: observedAt,
+      centerCode: "shenyang",
+      source: "official_vfs_korea_shenyang",
+    };
+    await admin.from("appointment_slots").delete().eq("job_id", job.id);
+    const { error: jobError } = await admin.from("appointment_assistance_jobs").update({
+      scheduling_provider: "vfs_korea_shenyang",
+      status: "appointment_no_slots_available",
+      requires_user_action: false,
+      current_manual_action: null,
+      last_slot_check_at: observedAt,
+      user_preferences_json: {
+        ...(job.user_preferences_json ?? {}),
+        noSlotsEvidence: evidence,
+        noSlots: evidence,
+      },
+      updated_at: observedAt,
+    }).eq("id", job.id);
+    if (jobError) throw new Error(jobError.message);
+    await admin.from("applications").update({
+      appointment_assistance_status: "appointment_no_slots_available",
+      appointment_assistance_job_id: job.id,
+    }).eq("id", applicationId);
+    await admin.from("appointment_audit_events").insert({
+      job_id: job.id,
+      application_id: applicationId,
+      user_id: userId,
+      event_type: "appointment_no_slots_available",
+      event_message: "The authenticated Shenyang VFS calendar showed no available appointment times.",
+      metadata_redacted_json: { centerCode: "shenyang", observedAt, evidencePath: result.screenshotPath ?? null },
+    });
+    return;
+  }
+
+  if (!checkpoint) throw new Error("Shenyang VFS did not return a supported state.");
+  const isOtp = checkpoint === "phone_otp_required";
+  const isEmailPending = checkpoint === "email_verification_pending";
+  const actionType = isOtp
+    ? "sms_verification_required"
+    : isEmailPending
+      ? "vfs_account_verification_pending"
+      : "official_account_login_required";
+  await admin.from("appointment_manual_actions").update({ status: "expired", completed_at: observedAt })
+    .eq("job_id", job.id)
+    .eq("action_type", actionType)
+    .in("status", ["pending", "in_progress"]);
+  const { data: manualAction, error: manualError } = await admin.from("appointment_manual_actions").insert({
+    job_id: job.id,
+    application_id: applicationId,
+    user_id: userId,
+    action_type: actionType,
+    status: "pending",
+    instruction: isOtp
+      ? "Enter the one-time mobile code while the same official VFS session remains active."
+      : isEmailPending
+        ? "VFS account activation is pending. Retry after the managed activation message arrives."
+        : "The official VFS account session reached an identity, security, login, payment, or unsupported page checkpoint.",
+    user_input_schema_json: isOtp
+      ? { type: "object", required: ["smsCode"], properties: { smsCode: { type: "string", pattern: "^[0-9]{4,8}$" } } }
+      : { type: "object", properties: { acknowledged: { type: "boolean" } } },
+    expires_at: result.checkpoint?.expiresAtIso ?? null,
+    metadata_redacted_json: {
+      centerCode: "shenyang",
+      provider: "vfs_korea_shenyang",
+      checkpoint,
+      phoneMasked: result.checkpoint?.phoneMasked ?? null,
+      evidencePath: result.screenshotPath ?? null,
+      nextStep: isOtp ? "submit_vfs_otp" : "retry_vfs_account_session",
+    },
+  }).select("id").single();
+  if (manualError || !manualAction) throw new Error(manualError?.message ?? "Could not save the Shenyang VFS checkpoint.");
+  const status = isOtp ? "sms_verification_required" : actionType;
+  const { error: jobError } = await admin.from("appointment_assistance_jobs").update({
+    scheduling_provider: "vfs_korea_shenyang",
+    status,
+    requires_user_action: true,
+    current_manual_action: manualAction.id,
+    updated_at: observedAt,
+  }).eq("id", job.id);
+  if (jobError) throw new Error(jobError.message);
+  await admin.from("applications").update({
+    appointment_assistance_status: status,
+    appointment_assistance_job_id: job.id,
+  }).eq("id", applicationId);
+}
+
 async function completeOfficialFinalBooking(
   admin: ReturnType<typeof createAdminClient>,
   applicationId: string,
@@ -1257,7 +1455,35 @@ async function completeOfficialFinalBooking(
   if (slotErr) throw new Error(slotErr.message);
   if (!slot) throw new Error("Select an official Korea KVAC slot before final booking.");
 
-  const officialComplete = await postSubmissionService<KoreaKvacCompleteBookingResponse>("/local/korea-kvac/sms/complete", {
+  const officialComplete = routing.recommended.code === "shenyang"
+    ? await (async (): Promise<KoreaKvacCompleteBookingResponse> => {
+        const result = await postSubmissionService<ShenyangVfsResponse>("/local/korea-kvac/shenyang/book", {
+          applicationId,
+          jobId: job.id,
+          selectedSlot: {
+            appointment_date: slot.appointment_date,
+            appointment_time: slot.appointment_time,
+            appointment_location: slot.appointment_location,
+            appointment_type: slot.appointment_type,
+          },
+        });
+        if (result.status !== "appointment_booked" || !result.confirmation?.confirmationNumber || !result.screenshotPath) {
+          throw new Error("The official Shenyang VFS booking did not return a confirmation number and stored evidence.");
+        }
+        return {
+          ok: true,
+          status: "appointment_booked",
+          officialSessionId: job.id,
+          confirmationNumber: result.confirmation.confirmationNumber,
+          appointmentDate: result.confirmation.appointmentDate,
+          appointmentTime: result.confirmation.appointmentTime,
+          appointmentLocation: result.confirmation.appointmentLocation,
+          appointmentType: slot.appointment_type,
+          screenshotPath: result.screenshotPath,
+          confirmationPdfUrl: result.confirmation.confirmationPdfUrl ?? null,
+        };
+      })()
+    : await postSubmissionService<KoreaKvacCompleteBookingResponse>("/local/korea-kvac/sms/complete", {
     applicationId,
     jobId: job.id,
     centerCode: routing.recommended.code,
@@ -1353,7 +1579,7 @@ async function startOfficialCancellationQuery(
     bookingSearchUrl: routing.recommended.bookingSearchUrl,
     applicantName,
     mobilePhone,
-  });
+    });
   if (!result.ok || !result.status) throw new Error("Official Korea KVAC cancellation query did not return a usable status.");
 
   if (officialQueryShowsNoAppointmentRecord(result)) {
@@ -1537,6 +1763,7 @@ export async function POST(
     action?: Action;
     slotId?: string;
     smsCode?: string;
+    portalTermsAccepted?: boolean;
     routingInput?: KvacRoutingInput;
   };
   const action = body.action;
@@ -2164,6 +2391,55 @@ export async function POST(
         return NextResponse.json({ error: "The Chengdu official appointment calendar could not be checked safely. Please retry." }, { status: 502 });
       }
     }
+    if (routing.recommended.code === "shenyang") {
+      try {
+        const storedTermsAcceptedAt = typeof job.user_preferences_json?.vfsPortalTermsAcceptedAt === "string"
+          ? job.user_preferences_json.vfsPortalTermsAcceptedAt
+          : null;
+        if (body.portalTermsAccepted !== true && !storedTermsAcceptedAt) {
+          return NextResponse.json({ error: "Accept the official VFS account terms before creating or using the Shenyang appointment account.", code: "vfs_terms_required" }, { status: 409 });
+        }
+        if (!storedTermsAcceptedAt) {
+          const acceptedAt = new Date().toISOString();
+          job.user_preferences_json = {
+            ...(job.user_preferences_json ?? {}),
+            vfsPortalTermsAcceptedAt: acceptedAt,
+            vfsPortalTermsVersion: "vfs-korea-china-live-2026-08-13",
+          };
+          const { error: termsError } = await auth.admin.from("appointment_assistance_jobs").update({
+            user_preferences_json: job.user_preferences_json,
+            updated_at: acceptedAt,
+          }).eq("id", job.id);
+          if (termsError) throw new Error(termsError.message);
+          await auth.admin.from("appointment_audit_events").insert({
+            job_id: job.id,
+            application_id: id,
+            user_id: auth.profile.id,
+            event_type: "vfs_portal_terms_accepted",
+            event_message: "Applicant explicitly authorized VIZA to create and operate the Shenyang VFS account using the official portal terms.",
+            metadata_redacted_json: { centerCode: "shenyang", acceptedAt, version: "vfs-korea-china-live-2026-08-13" },
+          });
+        }
+        const official = await postSubmissionService<ShenyangVfsResponse>("/local/korea-kvac/shenyang/start", {
+          applicationId: id,
+          jobId: job.id,
+          portalTermsAccepted: true,
+        });
+        if (!official.ok || !official.status) throw new Error("The official Shenyang VFS account flow did not return a supported state.");
+        await persistShenyangVfsResult(auth.admin, id, auth.profile.id, job, official);
+        return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+      } catch (error) {
+        console.error("[korea-appointment] Shenyang VFS account or slot lookup failed", error);
+        if (isSubmissionRunnerUnavailable(error)) {
+          await createWorkerUnavailableCheckpoint(auth.admin, id, auth.profile.id, job, routing, "booking", submissionServiceErrorMessage(error));
+          return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+        }
+        return NextResponse.json({
+          error: "The Shenyang official VFS account or calendar step could not be completed safely. No appointment was submitted.",
+          code: "shenyang_vfs_failed",
+        }, { status: 502 });
+      }
+    }
     if (routing.recommended.liveBookingMode !== "sms_sync_supported") {
       await createOrReuseCenterCheckpoint(auth.admin, id, auth.profile.id, job, routing);
       return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
@@ -2355,13 +2631,22 @@ export async function POST(
       await auth.admin.from("appointment_manual_actions").update({ status: "expired" }).eq("id", manualAction.id);
       return NextResponse.json({ error: "SMS verification checkpoint expired" }, { status: 409 });
     }
-    const officialSubmit = await postSubmissionService<KoreaKvacSubmitSmsResponse>("/local/korea-kvac/sms/submit", {
-      jobId: job.id,
-      smsCode,
-    });
+    const officialSubmit = routing.recommended.code === "shenyang"
+      ? await postSubmissionService<ShenyangVfsResponse>("/local/korea-kvac/shenyang/otp", { jobId: job.id, smsCode })
+      : await postSubmissionService<KoreaKvacSubmitSmsResponse>("/local/korea-kvac/sms/submit", { jobId: job.id, smsCode });
+    if (routing.recommended.code === "shenyang") {
+      await auth.admin.from("appointment_manual_actions").update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        user_input_redacted_json: { smsCode: "[REDACTED]", length: smsCode.length },
+      }).eq("id", manualAction.id);
+      await persistShenyangVfsResult(auth.admin, id, auth.profile.id, job, officialSubmit as ShenyangVfsResponse);
+      return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    }
     if (!officialSubmit.ok || officialSubmit.status !== "appointment_slots_observed" || !officialSubmit.slots?.length) {
       throw new Error("Official Korea KVAC SMS submission did not return observable slots.");
     }
+    const kvacSmsSubmit = officialSubmit as KoreaKvacSubmitSmsResponse;
 
     await auth.admin.from("appointment_manual_actions").update({
       status: "completed",
@@ -2374,7 +2659,7 @@ export async function POST(
     }).eq("id", manualAction.id);
     await auth.admin.from("appointment_slots").delete().eq("job_id", job.id).in("source", ["dry_run", "dry_run_after_sms", "official_kvac_after_sms"]);
     const { error: officialSlotErr } = await auth.admin.from("appointment_slots").insert(
-      officialSubmit.slots.map((slot) => ({
+      kvacSmsSubmit.slots!.map((slot) => ({
         job_id: job.id,
         application_id: id,
         appointment_date: slot.appointment_date,
@@ -2409,8 +2694,8 @@ export async function POST(
       metadata_redacted_json: {
         codeLength: smsCode.length,
         codeSuffix: smsCode.slice(-2),
-        officialSessionId: officialSubmit.officialSessionId ?? job.id,
-        screenshotPath: officialSubmit.screenshotPath,
+        officialSessionId: kvacSmsSubmit.officialSessionId ?? job.id,
+        screenshotPath: kvacSmsSubmit.screenshotPath,
         nextStep: "observe_slots",
       },
     });
@@ -2454,20 +2739,6 @@ export async function POST(
       event_message: "User approved Korea KVAC final booking click. Worker may proceed to the official final confirmation step.",
       metadata_redacted_json: { centerCode: routing.recommended.code },
     });
-    try {
-      await completeOfficialFinalBooking(auth.admin, id, auth.profile.id, { ...job, status: "final_booking_approved" }, routing);
-    } catch (error) {
-      console.error("[korea-appointment] complete final booking after approval failed", error);
-      return NextResponse.json(
-        {
-          error:
-            error instanceof Error
-              ? error.message
-              : "Korea KVAC final booking could not be completed. Restart SMS verification if the official session expired.",
-        },
-        { status: 409 },
-      );
-    }
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 

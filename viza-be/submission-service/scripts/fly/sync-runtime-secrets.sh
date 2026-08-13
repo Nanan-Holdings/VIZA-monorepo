@@ -62,7 +62,7 @@ case "$country" in
     )
     ;;
   south_korea)
-    capability=(KR_SUBMISSION_INTERNAL_TOKEN)
+    capability=(KR_SUBMISSION_INTERNAL_TOKEN BROWSERBASE_API_KEY)
     ;;
   vietnam)
     capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)

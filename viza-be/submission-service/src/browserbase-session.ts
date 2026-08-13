@@ -29,6 +29,7 @@ const DEFAULT_COUNTRY_BY_PREFIX: Readonly<Record<string, string>> = {
   FRANCE_TLS: "FR",
   FRANCE_VISAS: "FR",
   INDONESIA: "ID",
+  KR_KVAC_SHENYANG: "CN",
   MDAC: "MY",
   JP_VFS_SG: "SG",
   PH_ETRAVEL: "PH",

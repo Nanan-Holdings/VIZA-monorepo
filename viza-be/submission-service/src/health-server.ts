@@ -23,6 +23,12 @@ import {
   submitKoreaKvacOfficialSmsCode,
 } from "./korea-kvac/live-session.js";
 import { observeChengduAvailableSlots } from "./korea-kvac/chengdu-slots.js";
+import {
+  bookShenyangVfsSlot,
+  hasActiveShenyangVfsSessions,
+  startShenyangVfsBookingFlow,
+  submitShenyangVfsOtp,
+} from "./korea-vfs-shenyang/runner.js";
 import { supabase } from "./supabase.js";
 import { discardVietnamCardSession, putVietnamCardSession } from "./vietnam/card-session.js";
 import { bookJapanVfsSingaporeSlot, observeJapanVfsSingaporeSlots } from "./jp-vfs-sg/runner.js";
@@ -316,6 +322,79 @@ async function handleKoreaKvacChengduSlots(req: http.IncomingMessage, res: http.
     sendJson(res, 502, { error: error instanceof Error ? error.message : String(error) });
   } finally {
     await browser?.close().catch(() => undefined);
+  }
+}
+
+async function handleShenyangVfsStart(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_SHENYANG_VFS_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isKoreaInternalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const result = await startShenyangVfsBookingFlow({
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      portalTermsAccepted: body.portalTermsAccepted === true,
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : "Shenyang VFS account flow failed." });
+  }
+}
+
+async function handleShenyangVfsOtp(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_SHENYANG_VFS_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isKoreaInternalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 4096)) as Record<string, unknown>;
+    const result = await submitShenyangVfsOtp(
+      typeof body.jobId === "string" ? body.jobId : "",
+      typeof body.smsCode === "string" ? body.smsCode : "",
+    );
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : "Shenyang VFS verification failed." });
+  }
+}
+
+async function handleShenyangVfsBook(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_SHENYANG_VFS_LIVE_BOOKING_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isKoreaInternalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const selectedSlot = body.selectedSlot && typeof body.selectedSlot === "object" && !Array.isArray(body.selectedSlot)
+      ? body.selectedSlot as Record<string, unknown>
+      : {};
+    const result = await bookShenyangVfsSlot({
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      selectedSlot: {
+        appointment_date: typeof selectedSlot.appointment_date === "string" ? selectedSlot.appointment_date : null,
+        appointment_time: typeof selectedSlot.appointment_time === "string" ? selectedSlot.appointment_time : null,
+        appointment_location: typeof selectedSlot.appointment_location === "string" ? selectedSlot.appointment_location : null,
+        appointment_type: typeof selectedSlot.appointment_type === "string" ? selectedSlot.appointment_type : null,
+      },
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : "Shenyang VFS final booking failed." });
   }
 }
 
@@ -698,7 +777,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       const readiness = evaluateDeploymentReadiness({
         workerBusy: opts.isWorkerBusy?.() ?? false,
         oneTimeCardSessionsPresent: opts.hasOneTimeCardSessions?.() ?? false,
-        protectedBrowserSessionsPresent: hasActiveKoreaKvacOfficialSessions(),
+        protectedBrowserSessionsPresent: hasActiveKoreaKvacOfficialSessions() || hasActiveShenyangVfsSessions(),
       });
       sendJson(res, readiness.safeToDeploy ? 200 : 409, {
         status: readiness.safeToDeploy ? "safe" : "busy",
@@ -777,6 +856,18 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     }
     if (req.method === "POST" && url === "/local/korea-kvac/chengdu/slots") {
       runTracked(handleKoreaKvacChengduSlots(req, res));
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/shenyang/start") {
+      runTracked(handleShenyangVfsStart(req, res));
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/shenyang/otp") {
+      runTracked(handleShenyangVfsOtp(req, res));
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/shenyang/book") {
+      runTracked(handleShenyangVfsBook(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/sms/submit") {
@@ -885,6 +976,18 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       sendJson(res, 200, { ok: true, enabled: true });
       return;
     }
+    if (req.method === "GET" && url === "/local/korea-kvac/shenyang/start") {
+      if (!envEnabled(process.env.KR_KVAC_SHENYANG_VFS_ENABLED) || !isKoreaInternalRequest(req)) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      sendJson(res, 200, {
+        ok: true,
+        enabled: true,
+        finalBookingEnabled: envEnabled(process.env.KR_KVAC_SHENYANG_VFS_LIVE_BOOKING_ENABLED),
+      });
+      return;
+    }
     if (req.method === "GET" && url === "/local/korea-eform/generate") {
       if (!envEnabled(process.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED)) {
         sendJson(res, 404, { error: "not_found" });
@@ -959,6 +1062,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.ID_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/indonesia/card-session");
     if (envEnabled(process.env.ID_CLOUD_CARD_SESSION_ENABLED)) endpoints.push("/internal/indonesia/card-session");
     if (envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/korea-kvac/sms/start");
+    if (envEnabled(process.env.KR_KVAC_SHENYANG_VFS_ENABLED)) endpoints.push("/local/korea-kvac/shenyang/start");
     if (envEnabled(process.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED)) endpoints.push("/local/korea-eform/generate");
     if (envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/france-tls/check-slots");
     if (envEnabled(process.env.FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED)) endpoints.push("/internal/france-tls/register-account");

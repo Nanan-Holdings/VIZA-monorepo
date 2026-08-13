@@ -569,6 +569,11 @@
       "workerTitle": "Appointment lookup is temporarily unavailable",
       "workerBody": "The official lookup did not complete, so availability is unknown. Try again shortly.",
       "retry": "Retry official lookup"
+      ,"vfsTerms": "I authorize VIZA to use the confirmed application details to create and securely store an encrypted account in the VFS Global Korea appointment system, accept required portal terms, receive the activation email, sign in, and check Shenyang times. OTP, identity, payment, and final submission still require separate approval."
+      ,"vfsStart": "Create account and check times"
+      ,"vfsEmailTitle": "Waiting for official account activation"
+      ,"vfsEmailBody": "VFS reached email verification. VIZA reads only official activation mail sent to the managed alias and never exposes the activation link in the page or logs."
+      ,"vfsEmailRetry": "Continue verification and lookup"
     },
     "slots": {
       "title": "Choose an appointment time",
