@@ -3,16 +3,16 @@
 import { useState } from "react";
 import { useLocale } from "next-intl";
 import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock3,
-  FileWarning,
-  Loader2,
+  Warning as AlertTriangle,
+  CheckCircle as CheckCircle2,
+  Clock,
+  FileX as FileWarning,
+  CircleNotch as Loader2,
   ShieldCheck,
-  UploadCloud,
-  ExternalLink,
-  RotateCw,
-} from "lucide-react";
+  CloudArrowUp as UploadCloud,
+  ArrowSquareOut as ExternalLink,
+  ArrowClockwise as RotateCw,
+} from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -320,7 +320,7 @@ function StepPill({
             : "border-input bg-background text-muted-foreground",
       ].join(" ")}
     >
-      {complete ? <CheckCircle2 className="h-3.5 w-3.5" /> : active ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock3 className="h-3.5 w-3.5" />}
+      {complete ? <CheckCircle2 className="h-3.5 w-3.5" /> : active ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
       <span>{isZh ? STATUS_META[status].labelZh : STATUS_META[status].labelEn}</span>
     </div>
   );
