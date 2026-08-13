@@ -228,12 +228,17 @@ describe("Taiwan official login provider wiring", () => {
     assert.equal(loginResult.method, "approved_module_adapter");
   });
 
-  it("keeps Taiwan legacy real-submit fail-closed ahead of the old submit path", async () => {
-    const source = await readFile(join(process.cwd(), "src", "index.ts"), "utf8");
-    assert.match(source, /function isTaiwanLegacyRealSubmitQueueItem/);
-    assert.match(source, /provider === "taiwan_overseas_cn_entry_permit_live"/);
-    assert.match(source, /if \(isTaiwanLegacyRealSubmitQueueItem\(item\) && !isLegacyRealSubmitEnabled\(\)\)/);
-    assert.match(source, /tw_legacy_real_submit_disabled/);
+  it("routes Taiwan through the canonical runner_job path and requires official receipt evidence", async () => {
+    const dispatchSource = await readFile(join(process.cwd(), "src", "queue", "dispatch.ts"), "utf8");
+    const runnerSource = await readFile(join(process.cwd(), "src", "tw", "runner.ts"), "utf8");
+    const haltRunnerSource = await readFile(join(process.cwd(), "src", "queue", "halt-runners.ts"), "utf8");
+
+    assert.match(dispatchSource, /import \{ runOne as runTaiwan \} from "\.\.\/tw\/runner\.js"/);
+    assert.match(dispatchSource, /taiwan:\s*\(a, j\) => runTaiwan\(a, j\)/);
+    assert.match(runnerSource, /export \{ runTwHalt as runOne \}/);
+    assert.match(haltRunnerSource, /if \(!jobId\)/);
+    assert.match(haltRunnerSource, /mode:\s*"applicant_handoff"/);
+    assert.match(haltRunnerSource, /officialReceipt:\s*result\.officialReceipt/);
   });
 
   it("lets the normal email-verification entry continue without an official-login adapter", async () => {

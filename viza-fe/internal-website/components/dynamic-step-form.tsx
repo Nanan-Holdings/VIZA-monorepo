@@ -40,6 +40,7 @@ import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options
 import { localizePhEtravelOptions } from "@/features/ph-etravel/option-labels";
 import { normalizePhEtravelArrivalFormAnswers } from "@/features/ph-etravel/form-answer-normalization";
 import { countries } from "country-data-list";
+import type { FormAssistantFieldReviewIssue } from "@/types/form-assistant";
 
 interface DynamicStepFormProps {
   step: WizardStep;
@@ -47,6 +48,7 @@ interface DynamicStepFormProps {
   onComplete: (data: Record<string, string>) => void;
   onDraftChange?: (data: Record<string, string>) => void;
   saving?: boolean;
+  showContinueButton?: boolean;
   country?: string | null;
   visaType?: string;
   focusFieldName?: string | null;
@@ -57,6 +59,10 @@ interface DynamicStepFormProps {
    * step's value must be supplied through `prefill`.
    */
   externallyHandledFieldNames?: string[];
+  invalidFieldNames?: ReadonlySet<string>;
+  aiFilledFieldNames?: ReadonlySet<string>;
+  reviewIssues?: ReadonlyMap<string, FormAssistantFieldReviewIssue>;
+  onNavigateReviewIssue?: (targetFieldName: string | null) => void;
 }
 
 const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
@@ -2496,6 +2502,7 @@ export function DynamicStepForm({
   onComplete,
   onDraftChange,
   saving,
+  showContinueButton = true,
   country,
   visaType,
   focusFieldName,
@@ -4299,18 +4306,20 @@ export function DynamicStepForm({
         );
       })}
 
-      <BrandActionButton
-        type="submit"
-        disabled={!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue}
-        data-required-filled={requiredFilled ? "true" : "false"}
-        data-blocking-errors-clear={blockingErrorsClear ? "true" : "false"}
-        data-postal-lookup-blocked={indonesiaPostalLookupBlocksContinue ? "true" : "false"}
-        loading={saving}
-        loadingText={tButtons("saving")}
-        className="mt-2"
-      >
-        {tButtons("continue")}
-      </BrandActionButton>
+      {showContinueButton && (
+        <BrandActionButton
+          type="submit"
+          disabled={!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue}
+          data-required-filled={requiredFilled ? "true" : "false"}
+          data-blocking-errors-clear={blockingErrorsClear ? "true" : "false"}
+          data-postal-lookup-blocked={indonesiaPostalLookupBlocksContinue ? "true" : "false"}
+          loading={saving}
+          loadingText={tButtons("saving")}
+          className="mt-2"
+        >
+          {tButtons("continue")}
+        </BrandActionButton>
+      )}
       <div className="fixed bottom-4 right-4 z-40 flex max-w-[260px] items-center gap-2 rounded-lg border border-[#dbe7f5] bg-white/95 px-3 py-2 text-[12px] text-[#3f4652] shadow-lg backdrop-blur">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#03346E] text-white">
           <Bot className="h-4 w-4" />
