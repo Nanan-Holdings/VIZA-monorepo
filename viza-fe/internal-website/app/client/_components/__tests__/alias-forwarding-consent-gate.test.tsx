@@ -22,9 +22,12 @@ describe("AliasForwardingConsentGate", () => {
 
   it("does not interrupt users who already authorized account forwarding", async () => {
     initializeInbox.mockResolvedValue({
-      alias: "appl-test@viza.it.com",
-      destinationEmail: "user@example.com",
-      forwardingAuthorized: true,
+      ok: true,
+      data: {
+        alias: "appl-test@viza.it.com",
+        destinationEmail: "user@example.com",
+        forwardingAuthorized: true,
+      },
     });
 
     render(<AliasForwardingConsentGate enabled />);
@@ -41,10 +44,13 @@ describe("AliasForwardingConsentGate", () => {
       destinationEmail: "user@example.com",
       forwardingAuthorized: false,
     };
-    initializeInbox.mockResolvedValue(pending);
+    initializeInbox.mockResolvedValue({ ok: true, data: pending });
     authorizeForwarding.mockResolvedValue({
-      ...pending,
-      forwardingAuthorized: true,
+      ok: true,
+      data: {
+        ...pending,
+        forwardingAuthorized: true,
+      },
     });
 
     render(<AliasForwardingConsentGate enabled />);
@@ -64,5 +70,52 @@ describe("AliasForwardingConsentGate", () => {
       expect(authorizeForwarding).toHaveBeenCalledTimes(1);
       expect(screen.queryByText("授权申请专属邮箱转发")).not.toBeInTheDocument();
     });
+  });
+
+  it("shows localized copy instead of a production Server Action digest", async () => {
+    const pending = {
+      alias: "appl-test@viza.it.com",
+      destinationEmail: "user@example.com",
+      forwardingAuthorized: false,
+    };
+    initializeInbox.mockResolvedValue({ ok: true, data: pending });
+    authorizeForwarding.mockRejectedValue(
+      new Error(
+        "An error occurred in the Server Components render. The specific message is omitted in production builds.",
+      ),
+    );
+
+    render(<AliasForwardingConsentGate enabled />);
+
+    await screen.findByText("授权申请专属邮箱转发");
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "授权并继续" }));
+
+    expect(
+      await screen.findByText("邮箱授权服务暂时不可用，请稍后重试。你的申请资料不会丢失。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Server Components render/u)).not.toBeInTheDocument();
+  });
+
+  it("renders typed authorization failures without closing the gate", async () => {
+    const pending = {
+      alias: "appl-test@viza.it.com",
+      destinationEmail: "user@example.com",
+      forwardingAuthorized: false,
+    };
+    initializeInbox.mockResolvedValue({ ok: true, data: pending });
+    authorizeForwarding.mockResolvedValue({
+      ok: false,
+      error: { code: "AUTH_REQUIRED" },
+    });
+
+    render(<AliasForwardingConsentGate enabled />);
+
+    await screen.findByText("授权申请专属邮箱转发");
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "授权并继续" }));
+
+    expect(await screen.findByText("登录状态已失效，请刷新页面后重新登录。")).toBeInTheDocument();
+    expect(screen.getByText("授权申请专属邮箱转发")).toBeInTheDocument();
   });
 });
