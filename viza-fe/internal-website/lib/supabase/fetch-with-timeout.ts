@@ -1,7 +1,10 @@
+import { getSupabaseCircuitBreaker } from "./circuit-breaker";
+
 export type FetchWithTimeout = typeof fetch;
 
 const DEFAULT_TRANSIENT_RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
 const RETRYABLE_SUPABASE_STATUSES = new Set([503, 520]);
+const CIRCUIT_FAILURE_STATUSES = new Set([500, 502, 503, 504, 520, 522, 524]);
 
 type SupabaseFetchOptions = {
   requestTimeoutMs?: number;
@@ -121,6 +124,8 @@ export function createFetchWithTransientRetry(
     : (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init);
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const circuit = getSupabaseCircuitBreaker();
+    circuit.beforeRequest();
     const method = requestMethod(input, init);
     const canRetry = method === "GET" || method === "HEAD";
 
@@ -129,6 +134,11 @@ export function createFetchWithTransientRetry(
         const response = await fetchOnce(input, init);
         const retryDelay = retryDelaysMs[attempt];
         if (!canRetry || retryDelay === undefined || !RETRYABLE_SUPABASE_STATUSES.has(response.status)) {
+          if (CIRCUIT_FAILURE_STATUSES.has(response.status)) {
+            circuit.recordFailure();
+          } else {
+            circuit.recordSuccess();
+          }
           return response;
         }
 
@@ -142,6 +152,7 @@ export function createFetchWithTransientRetry(
           init?.signal?.aborted ||
           !isRetryableNetworkError(error)
         ) {
+          if (isRetryableNetworkError(error)) circuit.recordFailure();
           throw error;
         }
         await waitForRetry(retryDelay, init?.signal);

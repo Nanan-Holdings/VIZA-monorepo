@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getClientSessionWithFallback, type ClientSession } from "@/lib/client-session";
 import {
   resolveApplicantProfileForAuthUser,
   type ApplicantProfileIdentityRow,
@@ -22,6 +23,13 @@ import {
 import { getChineseLabel, getEnglishLabel } from "@/lib/ds160-translations";
 import { normalizeBilingualFormField } from "@/lib/bilingual-schema-contract";
 import { retryTransientSupabaseResult } from "@/lib/supabase/fetch-with-timeout";
+import {
+  cacheApplicationAnswers,
+  isResilienceEligibleError,
+  loadCachedApplicationAnswers,
+  queueApplicationAnswers,
+  type ApplicationAnswersEvent,
+} from "@/lib/resilience/application-answers";
 import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/types/visa-form-fields";
 
 type ApplicationOwnerProfile = {
@@ -501,34 +509,48 @@ async function seedNewApplicationFromUniversalProfile(
 async function saveDynamicAnswersOnce(
   applicationId: string,
   data: Record<string, unknown>
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; queued?: boolean }> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: "Not authenticated" };
+    const session = await getClientSessionWithFallback();
+    if (!session) return { error: "Not authenticated" };
+
+    const normalized = normalizeDynamicAnswers(data);
+    if (!normalized.ok) return { error: normalized.error };
+    const answers = normalized.data;
+    const savedAt = new Date().toISOString();
+    const resilienceEvent: ApplicationAnswersEvent = {
+      version: 1,
+      applicantId: session.userId,
+      applicationId,
+      answers,
+      savedAt,
+    };
 
     // Verify the user owns this application
-    const adminClient = createAdminClient();
-    const { data: app } = await adminClient
+    const adminClient = createAdminClient({ requestTimeoutMs: 4_000, retryDelaysMs: [] });
+    const { data: app, error: appError } = await adminClient
       .from("applications")
       .select("id, applicant_id")
       .eq("id", applicationId)
       .single();
 
+    if (appError) {
+      if (isResilienceEligibleError(appError.message)) {
+        await queueApplicationAnswers(resilienceEvent);
+        return { queued: true };
+      }
+      return { error: appError.message };
+    }
     if (!app) return { error: "Application not found" };
 
     const { profile, error: profileError } = await loadApplicationOwnerProfile(adminClient, app.applicant_id);
 
     if (profileError) return { error: profileError };
-    if (!ownsApplication(profile, user.id)) {
+    if (!ownsApplicationSession(profile, session)) {
       return { error: "Unauthorized" };
     }
 
-    const normalized = normalizeDynamicAnswers(data);
-    if (!normalized.ok) return { error: normalized.error };
-    const answers = normalized.data;
-
-    const now = new Date().toISOString();
+    const now = savedAt;
     const emptyFieldNames = Object.entries(answers)
       .filter(([fieldName, value]) => fieldName.trim() !== "" && value.trim() === "")
       .map(([fieldName]) => fieldName);
@@ -539,7 +561,13 @@ async function saveDynamicAnswersOnce(
         .delete()
         .eq("application_id", applicationId)
         .in("field_name", emptyFieldNames);
-      if (deleteError) return { error: deleteError.message };
+      if (deleteError) {
+        if (isResilienceEligibleError(deleteError.message)) {
+          await queueApplicationAnswers(resilienceEvent);
+          return { queued: true };
+        }
+        return { error: deleteError.message };
+      }
     }
 
     const upserts = Object.entries(answers)
@@ -563,23 +591,74 @@ async function saveDynamicAnswersOnce(
         .upsert(upserts, { onConflict: "application_id,field_name" });
       if (upsertError) {
         if (!isMissingSchemaFeatureError(upsertError, ["source", "source_profile_updated_at", "source_metadata"])) {
+          if (isResilienceEligibleError(upsertError.message)) {
+            await queueApplicationAnswers(resilienceEvent);
+            return { queued: true };
+          }
           return { error: upsertError.message };
         }
         const legacyUpserts = upserts.map(({ source: _source, source_profile_updated_at: _profileUpdatedAt, source_metadata: _metadata, ...row }) => row);
         const { error: legacyError } = await adminClient
           .from("visa_application_answers")
           .upsert(legacyUpserts, { onConflict: "application_id,field_name" });
-        if (legacyError) return { error: legacyError.message };
+        if (legacyError) {
+          if (isResilienceEligibleError(legacyError.message)) {
+            await queueApplicationAnswers(resilienceEvent);
+            return { queued: true };
+          }
+          return { error: legacyError.message };
+        }
       }
     }
 
     // Dynamic visa form saves are application-scoped. Universal Profile is a
     // reusable source for initial autofill and must only change through explicit
     // profile/OCR confirmation flows, not from arbitrary form answers.
+    await cacheApplicationAnswers(resilienceEvent).catch((error) => {
+      console.warn("Failed to refresh encrypted application answer cache", {
+        applicationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
     return {};
   } catch (err) {
+    if (isResilienceEligibleError(err)) {
+      const session = await getClientSessionWithFallback();
+      const normalized = normalizeDynamicAnswers(data);
+      if (session && normalized.ok) {
+        try {
+          await queueApplicationAnswers({
+            version: 1,
+            applicantId: session.userId,
+            applicationId,
+            answers: normalized.data,
+            savedAt: new Date().toISOString(),
+          });
+          return { queued: true };
+        } catch (queueError) {
+          console.error("Encrypted application answer outbox enqueue failed", {
+            applicationId,
+            error: queueError instanceof Error ? queueError.message : String(queueError),
+          });
+        }
+      }
+    }
     return { error: err instanceof Error ? err.message : "Failed to save" };
   }
+}
+
+function ownsApplicationSession(
+  profile: ApplicationOwnerProfile | null,
+  session: ClientSession,
+): profile is ApplicationOwnerProfile & { id: string } {
+  return Boolean(
+    profile?.id &&
+    (
+      profile.id === session.userId ||
+      (session.authUserId && profile.auth_user_id === session.authUserId) ||
+      profile.dependant_of_user_id === (session.authUserId ?? session.userId)
+    ),
+  );
 }
 
 export async function saveDynamicAnswers(
@@ -1201,24 +1280,34 @@ export async function loadDynamicAnswers(
   applicationId: string
 ): Promise<{ answers: Record<string, string>; error?: string }> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { answers: {}, error: "Not authenticated" };
+    const session = await getClientSessionWithFallback();
+    if (!session) return { answers: {}, error: "Not authenticated" };
 
-    const adminClient = createAdminClient();
+    const adminClient = createAdminClient({ requestTimeoutMs: 4_000, retryDelaysMs: [] });
 
-    const { data: app } = await adminClient
+    const { data: app, error: appError } = await adminClient
       .from("applications")
       .select("applicant_id")
       .eq("id", applicationId)
       .maybeSingle();
 
+    if (appError && isResilienceEligibleError(appError.message)) {
+      const cached = await loadCachedApplicationAnswers(session.userId, applicationId);
+      if (cached) return { answers: cached.answers };
+    }
+    if (appError) return { answers: {}, error: appError.message };
     if (!app?.applicant_id) return { answers: {}, error: "Application not found" };
 
     const { profile, error: profileError } = await loadApplicationOwnerProfile(adminClient, app.applicant_id);
 
-    if (profileError) return { answers: {}, error: profileError };
-    if (!ownsApplication(profile, user.id)) {
+    if (profileError) {
+      if (isResilienceEligibleError(profileError)) {
+        const cached = await loadCachedApplicationAnswers(session.userId, applicationId);
+        if (cached) return { answers: cached.answers };
+      }
+      return { answers: {}, error: profileError };
+    }
+    if (!ownsApplicationSession(profile, session)) {
       return { answers: {}, error: "Unauthorized" };
     }
 
@@ -1227,7 +1316,13 @@ export async function loadDynamicAnswers(
       .select("field_name, value_text")
       .eq("application_id", applicationId);
 
-    if (error) return { answers: {}, error: error.message };
+    if (error) {
+      if (isResilienceEligibleError(error.message)) {
+        const cached = await loadCachedApplicationAnswers(session.userId, applicationId);
+        if (cached) return { answers: cached.answers };
+      }
+      return { answers: {}, error: error.message };
+    }
 
     const answers: Record<string, string> = {};
     for (const row of rows ?? []) {
@@ -1236,6 +1331,14 @@ export async function loadDynamicAnswers(
       if (row.field_name.startsWith("__")) continue;
       answers[row.field_name] = row.value_text;
     }
+
+    await cacheApplicationAnswers({
+      version: 1,
+      applicantId: session.userId,
+      applicationId,
+      answers,
+      savedAt: new Date().toISOString(),
+    }).catch(() => undefined);
 
     if (app?.applicant_id) {
       await auditPiiRead(
@@ -1248,6 +1351,17 @@ export async function loadDynamicAnswers(
 
     return { answers };
   } catch (err) {
+    if (isResilienceEligibleError(err)) {
+      const session = await getClientSessionWithFallback();
+      if (session) {
+        try {
+          const cached = await loadCachedApplicationAnswers(session.userId, applicationId);
+          if (cached) return { answers: cached.answers };
+        } catch {
+          // Return the original provider error below.
+        }
+      }
+    }
     return { answers: {}, error: err instanceof Error ? err.message : "Failed to load" };
   }
 }

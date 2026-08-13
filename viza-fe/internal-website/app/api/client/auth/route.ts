@@ -5,6 +5,11 @@ import {
   getUserFromSupabaseSession,
 } from "@/lib/client-session";
 import { createClient } from "@/lib/supabase/server";
+import {
+  cacheContinuityIdentity,
+  sendContinuityOtp,
+  verifyContinuityOtp,
+} from "@/lib/resilience/continuity-auth";
 
 type AuthOperation = "password" | "send_otp" | "verify_otp";
 const SUPABASE_AUTH_TIMEOUT_MS = 6_000;
@@ -75,7 +80,14 @@ async function bootstrapClientSession(): Promise<void> {
       requestTimeoutMs: CLIENT_SESSION_BOOTSTRAP_TIMEOUT_MS,
       retryDelaysMs: [],
     });
-    if (session) await createClientSession(session.userId, session.email);
+    if (session) {
+      await createClientSession(session.userId, session.email, session.authUserId);
+      await cacheContinuityIdentity(session).catch((error) => {
+        console.warn("Failed to refresh continuity identity cache", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
   } catch {
     // Supabase authentication already succeeded. Keep its cookie session as a
     // fallback when applicant profile/session bootstrap is temporarily unavailable.
@@ -123,11 +135,21 @@ export async function POST(request: Request) {
         email,
         options: { shouldCreateUser: false },
       });
-      return error
-        ? isSupabaseUnavailable(error)
-          ? providerUnavailableResponse()
-          : jsonError(error.message, 400)
-        : NextResponse.json({ success: true });
+      if (!error) return NextResponse.json({ success: true });
+      if (!isSupabaseUnavailable(error)) return jsonError(error.message, 400);
+
+      try {
+        const sent = await sendContinuityOtp(email);
+        // Preserve non-enumeration: cached and unknown identities have the same
+        // response. Only an existing cached identity receives a message.
+        if (sent) return NextResponse.json({ success: true, continuity: true });
+        return NextResponse.json({ success: true, continuity: true });
+      } catch (continuityError) {
+        console.error("Continuity OTP send failed", {
+          error: continuityError instanceof Error ? continuityError.message : String(continuityError),
+        });
+      }
+      return providerUnavailableResponse();
     }
 
     if (operation === "verify_otp") {
@@ -136,9 +158,20 @@ export async function POST(request: Request) {
 
       const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
       if (error) {
-        return isSupabaseUnavailable(error)
-          ? providerUnavailableResponse()
-          : jsonError(error.message, 401);
+        if (!isSupabaseUnavailable(error)) return jsonError(error.message, 401);
+        try {
+          const session = await verifyContinuityOtp(email, token);
+          if (session) {
+            await clearClientSession();
+            await createClientSession(session.userId, session.email, session.authUserId);
+            return NextResponse.json({ success: true, continuity: true });
+          }
+        } catch (continuityError) {
+          console.error("Continuity OTP verification failed", {
+            error: continuityError instanceof Error ? continuityError.message : String(continuityError),
+          });
+        }
+        return providerUnavailableResponse();
       }
 
       await clearClientSession();
@@ -146,7 +179,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
   } catch (error) {
-    if (isSupabaseUnavailable(error)) return providerUnavailableResponse();
+    if (isSupabaseUnavailable(error)) {
+      if (operation === "send_otp") {
+        try {
+          await sendContinuityOtp(email);
+          return NextResponse.json({ success: true, continuity: true });
+        } catch {
+          // Return the controlled provider error below.
+        }
+      }
+      if (operation === "verify_otp") {
+        const token = readString(payload.token);
+        try {
+          const session = await verifyContinuityOtp(email, token);
+          if (session) {
+            await clearClientSession();
+            await createClientSession(session.userId, session.email, session.authUserId);
+            return NextResponse.json({ success: true, continuity: true });
+          }
+        } catch {
+          // Return the controlled provider error below.
+        }
+      }
+      return providerUnavailableResponse();
+    }
     return jsonError("Authentication service request failed", 500);
   }
 
