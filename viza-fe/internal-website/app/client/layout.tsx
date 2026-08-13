@@ -14,6 +14,10 @@ import clsx from "clsx";
 import { Loader2 } from "lucide-react";
 import { SimplifiedFormProvider } from "@/lib/context/simplified-form-context";
 import { isIgnorableClientSessionCheckError } from "./session-check-errors";
+import {
+  shouldBlockClientChildren,
+  shouldSkipFormRequestGateForRoute,
+} from "./client-layout-gating";
 
 // sessionStorage keys for tracking the session this browser tab has verified.
 // Browsers can copy sessionStorage into target=_blank tabs, so every stored
@@ -197,6 +201,7 @@ function ClientLayoutContent({
   const isAboutMeForm = pathname.startsWith("/client/about-me-form");
   const isApplicationFlow =
     pathname === "/client/application" || pathname.startsWith("/client/application/");
+  const skipFormRequestGate = shouldSkipFormRequestGateForRoute(pathname, searchParams);
 
   // Check session validity.
   // A per-tab id prevents new target=_blank tabs from inheriting another tab's
@@ -317,10 +322,17 @@ function ClientLayoutContent({
         sessionValid !== true ||
         pathname.startsWith("/client/login") ||
         isAboutMeForm ||
+        skipFormRequestGate ||
         searchParams.get("skipFormCheck") === "true" ||
         formRequestChecked
       ) {
-        if (!formRequestChecked && (pathname.startsWith("/client/login") || isAboutMeForm || searchParams.get("skipFormCheck") === "true")) {
+        if (
+          !formRequestChecked &&
+          (pathname.startsWith("/client/login") ||
+            isAboutMeForm ||
+            skipFormRequestGate ||
+            searchParams.get("skipFormCheck") === "true")
+        ) {
           setFormRequestChecked(true);
         }
         return;
@@ -358,7 +370,7 @@ function ClientLayoutContent({
     }
 
     checkFormRequests();
-  }, [sessionValid, pathname, isAboutMeForm, searchParams, formRequestChecked, router]);
+  }, [sessionValid, pathname, isAboutMeForm, skipFormRequestGate, searchParams, formRequestChecked, router]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -452,7 +464,11 @@ function ClientLayoutContent({
           isApplicationFlow && "lg:h-dvh lg:overflow-hidden"
         )}
       >
-        {sessionValid === null || (sessionValid === true && !formRequestChecked) ? (
+        {shouldBlockClientChildren({
+          sessionValid,
+          formRequestChecked,
+          skipFormRequestGate,
+        }) ? (
           // Show loading spinner while verifying session or checking form requests
           // This prevents data fetching and also handles the first-login redirect flow
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
