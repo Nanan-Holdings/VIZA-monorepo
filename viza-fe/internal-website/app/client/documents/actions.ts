@@ -100,9 +100,11 @@ export interface DocumentRequirement {
   labelZh: string;
   description: string | null;
   required: boolean;
+  applicability?: "required" | "conditional" | "optional";
   sortOrder: number;
   accept: string[];
   source: "document_requirements" | "package_metadata" | "fallback";
+  metadata?: JsonRecord | null;
 }
 
 export interface ApplicationDocument {
@@ -595,6 +597,135 @@ function isPhilippinesEtravelDocumentApplication(application: ApplicationRow): b
   );
 }
 
+function isTaiwanEntryPermitDocumentApplication(application: ApplicationRow): boolean {
+  return (
+    application.country.toLowerCase() === "taiwan" &&
+    resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country) === "TW_ENTRY_PERMIT"
+  );
+}
+
+/**
+ * Taiwan's "eligibility_supporting_document" requirement is split into 4
+ * rows in document_requirements — eligibility_supporting_document_1..4, one
+ * per eligibility_category value — because the exact required document
+ * genuinely differs per category (student proof / permanent residency proof
+ * / work proof / dependent residency proof) and lumping all 4 descriptions
+ * into one row just confuses applicants. This reads the applicant's actual
+ * eligibility_category answer and keeps only the matching row, hiding the
+ * other 3. If the answer isn't available yet (e.g. this step was opened
+ * before Basic Status was filled in), fails open and shows all 4 rather
+ * than silently hiding a document the applicant might need.
+ */
+async function applyTwDocumentRequirementRules(
+  application: ApplicationRow,
+  requirements: DocumentRequirement[],
+): Promise<DocumentRequirement[]> {
+  if (!isTaiwanEntryPermitDocumentApplication(application)) return requirements;
+
+  const answers = await loadTwDocumentConditionAnswers(application.id);
+  const eligibilityCategory = answers.eligibility_category;
+  if (!eligibilityCategory) return requirements;
+
+  const matchingKey = `eligibility_supporting_document_${eligibilityCategory}`;
+  return requirements
+    .filter(
+      (requirement) =>
+        requirement.key !== "eligibility_supporting_document" &&
+        (!requirement.key.startsWith("eligibility_supporting_document_") || requirement.key === matchingKey),
+    )
+    .map((requirement) => normalizeTwRequirementForAnswers(requirement, answers));
+}
+
+async function loadTwDocumentConditionAnswers(applicationId: string): Promise<Record<string, string>> {
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("visa_application_answers")
+    .select("field_name, value_text")
+    .eq("application_id", applicationId)
+    .in("field_name", [
+      "eligibility_category",
+      "embassy_office",
+      "has_other_nationality_passport",
+      "mainland_id_number_not_applicable",
+    ]);
+
+  if (error || !data) return {};
+  return Object.fromEntries(
+    (data as Array<{ field_name: string | null; value_text: string | null }>)
+      .filter((row) => row.field_name)
+      .map((row) => [row.field_name!, row.value_text?.trim() ?? ""]),
+  );
+}
+
+function normalizeTwRequirementForAnswers(
+  requirement: DocumentRequirement,
+  answers: Record<string, string>,
+): DocumentRequirement {
+  if (answers.eligibility_category !== "4") return requirement;
+
+  if (requirement.key === "mainland_travel_document") {
+    return {
+      ...requirement,
+      required: true,
+      labelZh: "大陆地区所发尚余6个月以上效期之旅行证件或香港、澳门政府核发之非永久性居民旅行证件",
+      description: "官网资格4附件表红星项目：大陆地区旅行证件须尚余6个月以上效期；如为香港、澳门政府核发之非永久性居民旅行证件，也可上传。",
+      applicability: "required",
+    };
+  }
+
+  if (requirement.key === "eligibility_supporting_document_4") {
+    return {
+      ...requirement,
+      required: true,
+      labelZh: "现住地依亲居留权证明及等值新台币十万元以上存款证明",
+      description: "官网资格4附件表红星项目：须上传现住地依亲居留权证明，以及金融机构一个月内出具、存款期间达一个月以上、等值新台币十万元以上之存款证明。",
+      applicability: "required",
+    };
+  }
+
+  if (requirement.key === "mainland_id_card_scan") {
+    return {
+      ...requirement,
+      required: true,
+      labelZh: "大陆身份证（正、反面）",
+      description: "官网资格4附件表红星项目：大陆身份证正、反面。",
+      applicability: "required",
+    };
+  }
+
+  if (requirement.key === "hk_macau_id_scan") {
+    return {
+      ...requirement,
+      required: false,
+      labelZh: "香港或澳门居民身份证（正、反面）及有效香港或澳门签证",
+      description: "官网资格4附件表情形适用项目：旅居香港或澳门之申请人须附；11岁以下免附。",
+      applicability: "conditional",
+    };
+  }
+
+  if (requirement.key === "other_nationality_passport_scan") {
+    return {
+      ...requirement,
+      required: ["yes", "true", "1"].includes((answers.has_other_nationality_passport ?? "").toLowerCase()),
+      labelZh: "具有他国国籍护（证）照文件",
+      description: "官网资格4附件表情形适用项目：具有他国国籍护（证）照时上传。",
+      applicability: ["yes", "true", "1"].includes((answers.has_other_nationality_passport ?? "").toLowerCase()) ? "required" : "conditional",
+    };
+  }
+
+  if (requirement.key === "other_supporting_document") {
+    return {
+      ...requirement,
+      required: false,
+      labelZh: "其他相关证明文件",
+      description: "官网资格4附件表情形适用项目：若无要求则免附；申请人如旅居日本，请上传3个月内住民票。",
+      applicability: "conditional",
+    };
+  }
+
+  return requirement;
+}
+
 function isIndonesiaB1OfficialPdfDocument(documentType: string, requirementKey?: string): boolean {
   return [documentType, requirementKey].some((value) =>
     value === "return_ticket" || value === "passport_validity_support",
@@ -742,11 +873,13 @@ function normalizeRequirementRow(row: DocumentRequirementRow): DocumentRequireme
     labelZh: row.label_zh || labels.labelZh,
     description: row.description ?? getString(metadata, ["description", "help_text", "helpText"]) ?? labels.description,
     required: row.required ?? true,
+    applicability: getString(metadata, ["applicability", "tw_applicability", "visibility"]) as DocumentRequirement["applicability"] | undefined,
     sortOrder: row.sort_order ?? 0,
     accept: getStringArray(metadata, ["accept", "accepted_file_types", "acceptedFileTypes", "mime_types", "mimeTypes"])
       .concat(labels.accept)
       .filter((value, index, list) => list.indexOf(value) === index),
     source: "document_requirements",
+    metadata,
   };
 }
 
@@ -787,12 +920,14 @@ function normalizeMetadataChecklistItem(
     labelZh: getString(item, ["label_zh", "labelZh", "zh", "name_zh", "nameZh"]) ?? labels.labelZh,
     description: getString(item, ["description", "help_text", "helpText"]) ?? labels.description,
     required,
+    applicability: getString(item, ["applicability", "visibility"]) as DocumentRequirement["applicability"] | undefined,
     sortOrder: getNumber(item, ["sort_order", "sortOrder", "order"]) ?? index * 10,
     accept:
       getStringArray(item, ["accept", "accepted_file_types", "acceptedFileTypes", "mime_types", "mimeTypes"]).length > 0
         ? getStringArray(item, ["accept", "accepted_file_types", "acceptedFileTypes", "mime_types", "mimeTypes"])
         : labels.accept,
     source: "package_metadata",
+    metadata: item,
   };
 }
 
@@ -1168,9 +1303,10 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
       .order("sort_order", { ascending: true });
 
     if (!error && data && data.length > 0) {
+      const normalized = normalizeRequirementsForApplication(application, (data as DocumentRequirementRow[]).map(normalizeRequirementRow).sort(sortRequirements));
       return {
         source: "document_requirements" as const,
-        requirements: normalizeRequirementsForApplication(application, (data as DocumentRequirementRow[]).map(normalizeRequirementRow).sort(sortRequirements)),
+        requirements: await applyTwDocumentRequirementRules(application, normalized),
       };
     }
   }
@@ -1183,9 +1319,10 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
     .order("sort_order", { ascending: true });
 
   if (!error && data && data.length > 0) {
+    const normalized = normalizeRequirementsForApplication(application, (data as DocumentRequirementRow[]).map(normalizeRequirementRow).sort(sortRequirements));
     return {
       source: "document_requirements" as const,
-        requirements: normalizeRequirementsForApplication(application, (data as DocumentRequirementRow[]).map(normalizeRequirementRow).sort(sortRequirements)),
+      requirements: await applyTwDocumentRequirementRules(application, normalized),
     };
   }
 
