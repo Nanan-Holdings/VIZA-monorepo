@@ -12,9 +12,15 @@ export type TwErrorCode =
   | "SESSION_BOOTSTRAP_FAILED"
   | "GATE_DETECTED"
   | "TERMS_MODAL_FAILED"
+  | "OFFICIAL_LOGIN_NOT_CONFIGURED"
+  | "OFFICIAL_LOGIN_FAILED"
   | "EMAIL_VERIFICATION_FAILED"
   | "FIELD_NOT_MAPPED"
   | "WIDGET_FILL_FAILED"
+  | "FIELD_VERIFICATION_FAILED"
+  | "FILE_UPLOAD_FAILED"
+  | "VALIDATION_FAILED"
+  | "DUPLICATE_RUN_BLOCKED"
   | "NORMALIZATION_FAILED";
 
 export interface TwErrorContext {
@@ -78,6 +84,20 @@ export class TwTermsModalError extends TwError {
   }
 }
 
+export class TwOfficialLoginConfigurationError extends TwError {
+  constructor(message = "TW official login provider is not configured", context: TwErrorContext = {}) {
+    super("OFFICIAL_LOGIN_NOT_CONFIGURED", message, context);
+    this.name = "TwOfficialLoginConfigurationError";
+  }
+}
+
+export class TwOfficialLoginError extends TwError {
+  constructor(message: string, context: TwErrorContext = {}) {
+    super("OFFICIAL_LOGIN_FAILED", message, context);
+    this.name = "TwOfficialLoginError";
+  }
+}
+
 /** Raised when the `/apply/verify` email-OTP step can't be completed
  *  (send-code failed, inbox timeout, code not extractable, or the portal
  *  never flips to "xxx@gmail.com 已認證"). */
@@ -105,6 +125,48 @@ export class TwWidgetFillError extends TwError {
   constructor(message: string, context: TwErrorContext = {}) {
     super("WIDGET_FILL_FAILED", message, context);
     this.name = "TwWidgetFillError";
+  }
+}
+
+export class TwFieldVerificationError extends TwError {
+  constructor(fieldName: string, reason: string, context: TwErrorContext = {}) {
+    super("FIELD_VERIFICATION_FAILED", `TW field verification failed for "${fieldName}": ${reason}`, {
+      ...context,
+      fieldName,
+    });
+    this.name = "TwFieldVerificationError";
+  }
+}
+
+export class TwFileUploadError extends TwError {
+  constructor(fieldName: string, reason: string, context: TwErrorContext = {}) {
+    super("FILE_UPLOAD_FAILED", `TW file upload verification failed for "${fieldName}": ${reason}`, {
+      ...context,
+      fieldName,
+    });
+    this.name = "TwFileUploadError";
+  }
+}
+
+export class TwOfficialValidationError extends TwError {
+  readonly validationKeys: string[];
+
+  constructor(validationKeys: string[], context: TwErrorContext = {}) {
+    const keys = [...new Set(validationKeys.filter(Boolean))].slice(0, 50);
+    super(
+      "VALIDATION_FAILED",
+      `Taiwan official form validation failed${keys.length ? ` (${keys.join(",")})` : ""}`,
+      { ...context, details: { ...context.details, validationKeys: keys } },
+    );
+    this.name = "TwOfficialValidationError";
+    this.validationKeys = keys;
+  }
+}
+
+export class TwDuplicateRunError extends TwError {
+  constructor(message: string, context: TwErrorContext = {}) {
+    super("DUPLICATE_RUN_BLOCKED", message, context);
+    this.name = "TwDuplicateRunError";
   }
 }
 

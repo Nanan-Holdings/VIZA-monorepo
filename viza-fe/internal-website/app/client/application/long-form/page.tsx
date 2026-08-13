@@ -57,6 +57,7 @@ import {
   type UniversalProfileSnapshot,
 } from "@/lib/universal-profile-prefill";
 import { SubmissionStatusStep } from "../_components/result-cards/SubmissionStatusStep";
+import { ApplicationCompletenessPanel } from "../_components/ApplicationCompletenessPanel";
 import {
   getTeamApplicationContext,
   markTeamCompanionReviewed,
@@ -65,12 +66,18 @@ import {
   buildApplicationFormHref,
   setRecentApplicationFormHref,
 } from "@/lib/client/recent-application-form";
+import { readApplicationRouteParam } from "@/lib/client/application-route-params";
 import {
   computeAllTabCompletion,
   getContiguousCompletedCount,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
 import { shouldShowSubmissionStatusStep } from "@/lib/application-submission-display";
+import type {
+  ApplicationCompletenessMissingDocument,
+  ApplicationCompletenessMissingField,
+  ApplicationCompletenessResult,
+} from "@/lib/application-completeness";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import {
   attemptStaleServerActionReload,
@@ -78,6 +85,7 @@ import {
 } from "@/lib/server-action-recovery";
 import {
   buildApplicationStepSections,
+  getApplicationStepSectionKey,
   getDynamicStepTranslationCandidates,
   type ApplicationStepSection,
   type ApplicationStepSectionKey,
@@ -99,6 +107,15 @@ import {
   submissionQueueRequiresServerEnqueue,
   type SubmissionMode,
 } from "@/lib/submission-queue";
+import {
+  isPhEtravelClientLiveSubmissionEnabled,
+  PH_ETRAVEL_REFRESH_POLICY,
+} from "@/features/ph-etravel/status";
+import {
+  getTaiwanEntryPermitExtraRequirements,
+  getTaiwanEntryPermitRequiredDocumentKeys,
+  getTaiwanEntryPermitVisibleDocumentKeys,
+} from "@/lib/taiwan-entry-permit-document-requirements";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -142,7 +159,7 @@ const TDAC_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_TDAC_LIVE_SUBMISSION_ENABLED !== "false";
 
 const PH_ETRAVEL_LIVE_ASSISTED_ENABLED =
-  process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
+  isPhEtravelClientLiveSubmissionEnabled();
 
 const UK_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_UK_LIVE_SUBMISSION_ENABLED !== "false";
@@ -250,6 +267,86 @@ const KOREA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
 
 type StepSectionKey = ApplicationStepSectionKey;
 type StepSectionDef = ApplicationStepSection<StepDef>;
+
+const TAIWAN_ENTRY_PERMIT_SECTION_TITLES = {
+  delivery: "递送地点",
+  overseasTourism: "旅居海外大陆地区人民申请来台观光",
+  applicant: "申请人资料",
+  kinship: "亲属状况（亲属资料）",
+  declaration: "申报事项",
+} as const;
+
+const TAIWAN_ENTRY_PERMIT_QUALIFICATION_STEP_SOURCE_NAME = "Photo & Basic Status";
+const TAIWAN_ENTRY_PERMIT_DOCUMENTS_STEP_SOURCE_NAME = "Supporting Documents";
+
+export function isTaiwanEntryPermitQualificationStepSource(sourceName?: string | null): boolean {
+  return sourceName === TAIWAN_ENTRY_PERMIT_QUALIFICATION_STEP_SOURCE_NAME;
+}
+
+export function shouldShowStandaloneDocumentStep(showDocumentStep: boolean, visaType?: string | null): boolean {
+  return showDocumentStep && visaType !== "TW_ENTRY_PERMIT";
+}
+
+export function getTaiwanEntryPermitInlineDocumentStepId(
+  steps: Array<{ id: number; sourceName?: string | null }>,
+): number | null {
+  return steps.find((step) => isTaiwanEntryPermitQualificationStepSource(step.sourceName))?.id ?? null;
+}
+
+export function buildTaiwanEntryPermitSections(steps: StepDef[]): StepSectionDef[] {
+  const sections: StepSectionDef[] = [
+    { id: "taiwan-delivery", key: "personal", title: TAIWAN_ENTRY_PERMIT_SECTION_TITLES.delivery, steps: [] },
+    { id: "taiwan-overseas-tourism", key: "travel", title: TAIWAN_ENTRY_PERMIT_SECTION_TITLES.overseasTourism, steps: [] },
+    { id: "taiwan-applicant", key: "personal", title: TAIWAN_ENTRY_PERMIT_SECTION_TITLES.applicant, steps: [] },
+    { id: "taiwan-kinship", key: "family", title: TAIWAN_ENTRY_PERMIT_SECTION_TITLES.kinship, steps: [] },
+    { id: "taiwan-declaration", key: "securityAndBackground", title: TAIWAN_ENTRY_PERMIT_SECTION_TITLES.declaration, steps: [] },
+  ];
+  const byId = new Map(sections.map((section) => [section.id, section]));
+  const fallbackSections: StepSectionDef[] = [];
+
+  for (const step of steps) {
+    switch (step.sourceName) {
+      case "Delivery Location":
+        byId.get("taiwan-delivery")?.steps.push({ ...step, name: "递送地点" });
+        break;
+      case TAIWAN_ENTRY_PERMIT_QUALIFICATION_STEP_SOURCE_NAME:
+        byId.get("taiwan-overseas-tourism")?.steps.push({
+          ...step,
+          name: "申请资格与证别",
+        });
+        break;
+      case TAIWAN_ENTRY_PERMIT_DOCUMENTS_STEP_SOURCE_NAME:
+        break;
+      case "Applicant Identity":
+        byId.get("taiwan-applicant")?.steps.push({ ...step, name: "申请人资料" });
+        break;
+      case "Taiwan Contact Address":
+        byId.get("taiwan-applicant")?.steps.push({ ...step, name: "在台联络地址" });
+        break;
+      case "Other Nationality":
+        byId.get("taiwan-applicant")?.steps.push({ ...step, name: "其他国籍护（证）照" });
+        break;
+      case "Kinship Information":
+        byId.get("taiwan-kinship")?.steps.push({ ...step, name: "亲属状况（亲属资料）" });
+        break;
+      case "Declaration":
+        byId.get("taiwan-declaration")?.steps.push({ ...step, name: "申报事项" });
+        break;
+      default:
+        fallbackSections.push({
+          id: `taiwan-${String(step.sourceName ?? step.name).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+          key: getApplicationStepSectionKey(step),
+          title: step.name,
+          steps: [step],
+        });
+    }
+  }
+
+  return [
+    ...sections.filter((section) => section.steps.length > 0),
+    ...fallbackSections,
+  ];
+}
 
 function collectDraftAnswers(drafts: Record<number, Record<string, string>>): Record<string, string> {
   return Object.values(drafts).reduce<Record<string, string>>(
@@ -1063,8 +1160,8 @@ function FinalConfirmationPanel({
                 : "Submitting creates a Thailand TDAC official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official reference, and confirmation evidence.")
             : isPhEtravel
               ? (isZh
-                  ? "提交后会创建 Philippines eTravel 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方 QR / 参考号和确认证据。"
-                  : "Submitting creates a Philippines eTravel official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official QR/reference, and confirmation evidence.")
+                  ? "菲律宾官方 eTravel 登记免费，且不是签证，也不保证边检准入。提交后会创建普通入境旅客的官方 eTravel 任务；页面会显示进度，只有后端保存官方参考号和独立 QR 后才应展示成功。"
+                  : "Official Philippines eTravel registration is free, is not a visa, and does not guarantee admission at border control. Submitting creates an ordinary-arrival-passenger eTravel task; progress appears here, and success should only appear after the official reference and standalone QR are saved.")
               : isIndonesia
                 ? (isZh
                     ? "提交后会创建 Indonesia e-Visa 官方提交任务；VIZA 会使用托管账号填写官网表单，并把流程推进到官方付款页。"
@@ -1239,6 +1336,17 @@ function FinalConfirmationPanel({
       {hasLiveAssistedTarget && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
           {liveDisabledReason ?? liveSafetyCopy}
+          {isPhEtravel ? (
+            <p className="mt-2">
+              {isZh
+                ? PH_ETRAVEL_REFRESH_POLICY.statusPollingCreatesQueue
+                  ? "刷新本页可能会创建新的官网任务。"
+                  : "刷新或重新打开本页只会查询已保存的提交状态，不会创建新的官网任务。"
+                : PH_ETRAVEL_REFRESH_POLICY.statusPollingCreatesQueue
+                  ? "Refreshing this page may create a new official job."
+                  : "Refreshing or reopening this page checks the saved submission status only and does not create a new official job."}
+            </p>
+          ) : null}
         </div>
       )}
     </div>
@@ -1644,16 +1752,19 @@ export default function ApplicationPage() {
   const t = useTranslations("application");
   const locale = useLocale();
   const searchParams = useSearchParams();
-  const jumpToReview = searchParams.get("step") === "review";
-  const jumpToTeam = searchParams.get("step") === "team";
-  const jumpToConfirmation = ["confirmation", "confirm", "status"].includes(searchParams.get("step") ?? "");
-  const explicitApplicationId = searchParams.get("applicationId")?.trim() || null;
-  const returnToParam = searchParams.get("returnTo")?.trim() || null;
+  const stepParam = readApplicationRouteParam(searchParams, "step");
+  const focusFieldParam = readApplicationRouteParam(searchParams, "field", "fieldName", "focusField");
+  const requirementKeyParam = readApplicationRouteParam(searchParams, "requirementKey", "requirement");
+  const jumpToReview = stepParam === "review";
+  const jumpToTeam = stepParam === "team";
+  const jumpToConfirmation = ["confirmation", "confirm", "status"].includes(stepParam ?? "");
+  const jumpToDocuments = ["documents", "supporting_documents"].includes(stepParam ?? "");
+  const explicitApplicationId = readApplicationRouteParam(searchParams, "applicationId");
+  const returnToParam = readApplicationRouteParam(searchParams, "returnTo");
   const isCompanionFlow = Boolean(explicitApplicationId && returnToParam);
-  const teamNotice = searchParams.get("teamNotice");
-  const explicitCountry = searchParams.get("country")?.trim().toLowerCase() || null;
-  const explicitVisaType =
-    searchParams.get("visaType")?.trim() || searchParams.get("visa_type")?.trim() || null;
+  const teamNotice = readApplicationRouteParam(searchParams, "teamNotice");
+  const explicitCountry = readApplicationRouteParam(searchParams, "country")?.toLowerCase() || null;
+  const explicitVisaType = readApplicationRouteParam(searchParams, "visaType", "visa_type");
   const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
   const isExplicitStatusView = Boolean(explicitApplicationId && jumpToConfirmation);
 
@@ -1734,6 +1845,10 @@ export default function ApplicationPage() {
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
   const [documentCenterLoaded, setDocumentCenterLoaded] = useState(false);
+  const [applicationCompleteness, setApplicationCompleteness] = useState<ApplicationCompletenessResult | null>(null);
+  const [applicationCompletenessLoading, setApplicationCompletenessLoading] = useState(false);
+  const [focusedFieldName, setFocusedFieldName] = useState<string | null>(focusFieldParam);
+  const [highlightRequirementKey, setHighlightRequirementKey] = useState<string | null>(requirementKeyParam);
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
   const initialStepResolvedRef = useRef(false);
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
@@ -1844,9 +1959,11 @@ export default function ApplicationPage() {
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
+  const isTaiwanEntryPermit = resolvedVisaType === "TW_ENTRY_PERMIT";
   const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
   const showDocumentStep = !isArrivalCardApplication || isPhilippinesEtravel;
+  const showStandaloneDocumentStep = shouldShowStandaloneDocumentStep(showDocumentStep, resolvedVisaType);
   const showTeamStep = !isCompanionFlow && !isArrivalCardApplication;
   const STEPS: StepDef[] = STEP_KEYS
     .filter((key) => showTeamStep || key !== "team")
@@ -1934,7 +2051,7 @@ export default function ApplicationPage() {
   const isZhInterface = locale.toLowerCase().startsWith("zh");
   // Indices for the extra steps appended after DB-driven form steps
   const documentStepIndex = dbSteps.length;
-  const reviewStepIndex = dbSteps.length + (showDocumentStep ? 1 : 0);
+  const reviewStepIndex = dbSteps.length + (showStandaloneDocumentStep ? 1 : 0);
   const teamStepIndex = reviewStepIndex + 1;
   const statusStepIndex = reviewStepIndex + (showTeamStep ? 2 : 1);
   const fallbackReviewStepIndex = 4;
@@ -2002,11 +2119,11 @@ export default function ApplicationPage() {
           }),
           description: tApp("dynamicStepDescription", { count: step.fields.length }),
         })),
-        ...(showDocumentStep
+        ...(showStandaloneDocumentStep
           ? [
               {
                 id: documentStepIndex,
-                sourceName: "Supporting Documents",
+                sourceName: TAIWAN_ENTRY_PERMIT_DOCUMENTS_STEP_SOURCE_NAME,
                 name: isPhilippinesEtravel && isZhInterface
                   ? "附加材料"
                   : tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : isZhInterface ? "材料" : "Documents",
@@ -2047,7 +2164,7 @@ export default function ApplicationPage() {
     [
       documentStepIndex,
       reviewStepIndex,
-      showDocumentStep,
+      showStandaloneDocumentStep,
       showTeamStep,
       statusStepIndex,
       STEPS,
@@ -2084,6 +2201,9 @@ export default function ApplicationPage() {
   const groupedSections = useMemo(
     () => {
       if (!useDynamic) return [];
+      if (resolvedVisaType === "TW_ENTRY_PERMIT") {
+        return buildTaiwanEntryPermitSections(sourceOrderedSteps);
+      }
       const sections = buildApplicationStepSections(sourceOrderedSteps, dynamicSectionTitles);
       if (isPhilippinesEtravel) {
         return sections.map((section) =>
@@ -2102,7 +2222,7 @@ export default function ApplicationPage() {
           : section,
       );
     },
-    [dynamicSectionTitles, isIndonesiaEVisa, isPhilippinesEtravel, isZhInterface, sourceOrderedSteps, useDynamic],
+    [dynamicSectionTitles, isIndonesiaEVisa, isPhilippinesEtravel, isZhInterface, resolvedVisaType, sourceOrderedSteps, useDynamic],
   );
 
   // Final list of steps in display order: flattened from grouped sections so
@@ -2111,6 +2231,13 @@ export default function ApplicationPage() {
   const effectiveSteps: StepDef[] = useDynamic
     ? groupedSections.flatMap((section) => section.steps)
     : sourceOrderedSteps;
+  const taiwanEntryPermitDocumentHostStepId = useMemo(
+    () => isTaiwanEntryPermit ? getTaiwanEntryPermitInlineDocumentStepId(effectiveSteps) : null,
+    [effectiveSteps, isTaiwanEntryPermit],
+  );
+  const documentNavigationStepId = useDynamic
+    ? (isTaiwanEntryPermit ? (taiwanEntryPermitDocumentHostStepId ?? firstFormStepId) : documentStepIndex)
+    : 3;
 
   const tabCompletion = useMemo(
     () => computeAllTabCompletion({
@@ -2127,7 +2254,7 @@ export default function ApplicationPage() {
       reviewStepId: reviewStepIndex,
       teamStepId: teamStepIndex,
       confirmationStepId: statusStepIndex,
-      showDocumentStep,
+      showDocumentStep: showStandaloneDocumentStep,
       showTeamStep,
     }),
     [
@@ -2137,12 +2264,13 @@ export default function ApplicationPage() {
       documentCenterData,
       documentCenterLoaded,
       documentStepIndex,
+      documentNavigationStepId,
       dynamicAnswerSnapshot,
       effectiveSteps,
       resolvedCountry,
       resolvedVisaType,
       reviewStepIndex,
-      showDocumentStep,
+      showStandaloneDocumentStep,
       showTeamStep,
       statusStepIndex,
       teamStepIndex,
@@ -2155,6 +2283,16 @@ export default function ApplicationPage() {
   const visibleMissingFields = submitMissingFields.length > 0
     ? submitMissingFields
     : tabCompletion.missingFields;
+  const completenessBlocksSubmission = Boolean(applicationCompleteness && !applicationCompleteness.complete);
+  const confirmationMissingFields = completenessBlocksSubmission && visibleMissingFields.length === 0
+    ? [{
+        stepId: useDynamic ? statusStepIndex : fallbackStatusStepIndex,
+        stepName: isZhInterface ? "最终确认" : "Final confirmation",
+        fieldName: "application_completeness",
+        label: isZhInterface ? "请先补齐上方缺失信息和材料" : "Complete the missing information and documents above",
+        reason: "required" as const,
+      }]
+    : visibleMissingFields;
   const showSubmissionStatusStep = shouldShowSubmissionStatusStep({
     submittedAt: appState.submittedAt,
     submissionResultStatus: appState.submissionResultStatus,
@@ -2322,14 +2460,16 @@ export default function ApplicationPage() {
   }, [isExplicitStatusView, loadData, packageLoaded]);
 
   // Honor deep links from redirects: once steps + any prefilled answers have
-  // loaded, jump directly to the requested Review/Team/Confirmation step.
+  // loaded, jump directly to the requested Review/Team/Confirmation/Documents step.
   const [reviewJumpHandled, setReviewJumpHandled] = useState(false);
   useEffect(() => {
-    if ((!jumpToReview && !jumpToTeam && !jumpToConfirmation) || reviewJumpHandled || loading) return;
+    if ((!jumpToReview && !jumpToTeam && !jumpToConfirmation && !jumpToDocuments) || reviewJumpHandled || loading) return;
     const targetId = jumpToConfirmation
       ? (useDynamic
           ? (effectiveSteps.find((s) => s.sourceName === "Confirmation")?.id ?? statusStepIndex)
           : fallbackStatusStepIndex)
+      : jumpToDocuments
+      ? documentNavigationStepId
       : jumpToTeam && showTeamStep
       ? (useDynamic
           ? (effectiveSteps.find((s) => s.sourceName === "Team")?.id ?? teamStepIndex)
@@ -2352,6 +2492,8 @@ export default function ApplicationPage() {
     fallbackStatusStepIndex,
     fallbackTeamStepIndex,
     jumpToConfirmation,
+    jumpToDocuments,
+    documentNavigationStepId,
     teamStepIndex,
     statusStepIndex,
     useDynamic,
@@ -2423,6 +2565,33 @@ export default function ApplicationPage() {
     t,
   ]);
 
+  const refreshApplicationCompleteness = useCallback(async (targetApplicationId?: string | null) => {
+    const applicationId = targetApplicationId ?? appState.applicationId;
+    if (!applicationId) return null;
+    setApplicationCompletenessLoading(true);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/completeness`, {
+        method: "GET",
+        headers: { "Accept": "application/json" },
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        completeness?: ApplicationCompletenessResult;
+        error?: string;
+      } | null;
+      if (!response.ok || !payload?.completeness) {
+        throw new Error(payload?.error ?? (isZhInterface ? "无法检查申请完整性。" : "Unable to check application completeness."));
+      }
+      setApplicationCompleteness(payload.completeness);
+      return payload.completeness;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : isZhInterface ? "无法检查申请完整性。" : "Unable to check application completeness.";
+      setError(message);
+      return null;
+    } finally {
+      setApplicationCompletenessLoading(false);
+    }
+  }, [appState.applicationId, isZhInterface]);
+
   const saveDynamicDraftForStep = useCallback(async (stepIndex: number) => {
     const data = dynamicDraftRef.current[stepIndex];
     if (!data) return;
@@ -2438,7 +2607,8 @@ export default function ApplicationPage() {
     if (saveResult.error) throw new Error(saveResult.error);
 
     setDynamicAnswers((prev) => ({ ...prev, ...data }));
-  }, [dynamicAnswers, ensureWritableApplicationId]);
+    void refreshApplicationCompleteness(applicationId);
+  }, [dynamicAnswers, ensureWritableApplicationId, refreshApplicationCompleteness]);
 
   const saveAllDynamicDrafts = useCallback(async () => {
     const mergedDraft = collectDraftAnswers(dynamicDraftRef.current);
@@ -2456,7 +2626,8 @@ export default function ApplicationPage() {
 
     setDynamicAnswers((prev) => ({ ...prev, ...mergedDraft }));
     setSubmitMissingFields([]);
-  }, [dynamicAnswers, ensureWritableApplicationId]);
+    void refreshApplicationCompleteness(applicationId);
+  }, [dynamicAnswers, ensureWritableApplicationId, refreshApplicationCompleteness]);
 
   const handleStepNavigation = useCallback(async (targetStepId: number) => {
     if (targetStepId === currentStep || navigationSaveInFlightRef.current) return;
@@ -2490,6 +2661,18 @@ export default function ApplicationPage() {
       setSaving(false);
     }
   }, [currentStep, dbSteps, documentStepIndex, saveDynamicDraftForStep, t, useDynamic]);
+
+  const handleGoToMissingField = useCallback((item: ApplicationCompletenessMissingField) => {
+    setFocusedFieldName(item.fieldName);
+    setCurrentStep(item.stepNumber);
+    setError(null);
+  }, []);
+
+  const handleGoToMissingDocument = useCallback((item: ApplicationCompletenessMissingDocument) => {
+    setHighlightRequirementKey(item.requirementKey);
+    setCurrentStep(documentNavigationStepId);
+    setError(null);
+  }, [documentNavigationStepId]);
 
   const handlePersonalComplete = async (data: PersonalInfoData) => {
     setSaving(true);
@@ -2679,6 +2862,7 @@ export default function ApplicationPage() {
 
   const handleDynamicDocumentsContinue = () => {
     setSubmitMissingFields([]);
+    void refreshApplicationCompleteness(appState.applicationId);
     const documentStepPosition = getVisibleStepIndex(effectiveSteps, documentStepIndex);
     setCompletedUpTo((c) => Math.max(c, documentStepPosition + 1));
     setCurrentStep(reviewStepIndex);
@@ -2699,6 +2883,7 @@ export default function ApplicationPage() {
 
   const handleReviewContinueToTeam = useCallback(() => {
     if (!showTeamStep) return;
+    void refreshApplicationCompleteness(appState.applicationId);
     const targetReviewStepIndex = useDynamic ? reviewStepIndex : fallbackReviewStepIndex;
     const targetTeamStepIndex = useDynamic ? teamStepIndex : fallbackTeamStepIndex;
     const reviewStepPosition = getVisibleStepIndex(effectiveSteps, targetReviewStepIndex);
@@ -2706,12 +2891,14 @@ export default function ApplicationPage() {
     setCurrentStep(targetTeamStepIndex);
   }, [
     effectiveSteps,
+    appState.applicationId,
     fallbackReviewStepIndex,
     fallbackTeamStepIndex,
     reviewStepIndex,
     showTeamStep,
     teamStepIndex,
     useDynamic,
+    refreshApplicationCompleteness,
   ]);
 
   const handleCompanionReviewComplete = useCallback(async () => {
@@ -2764,7 +2951,7 @@ export default function ApplicationPage() {
       reviewStepId: reviewStepIndex,
       teamStepId: teamStepIndex,
       confirmationStepId: statusStepIndex,
-      showDocumentStep,
+      showDocumentStep: showStandaloneDocumentStep,
       showTeamStep,
     }).missingFields,
     [
@@ -2778,12 +2965,29 @@ export default function ApplicationPage() {
       resolvedCountry,
       resolvedVisaType,
       reviewStepIndex,
-      showDocumentStep,
+      showStandaloneDocumentStep,
       showTeamStep,
       statusStepIndex,
       teamStepIndex,
     ],
   );
+
+  useEffect(() => {
+    if (!appState.applicationId) return;
+    const isCompletenessStep =
+      currentStep === statusStepIndex ||
+      currentStep === reviewStepIndex ||
+      currentStep === teamStepIndex;
+    if (!isCompletenessStep) return;
+    void refreshApplicationCompleteness(appState.applicationId);
+  }, [
+    appState.applicationId,
+    currentStep,
+    refreshApplicationCompleteness,
+    reviewStepIndex,
+    statusStepIndex,
+    teamStepIndex,
+  ]);
 
   const handleTeamConfirm = useCallback(async () => {
     setSaving(true);
@@ -2886,6 +3090,13 @@ export default function ApplicationPage() {
       if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
       await saveAllDynamicDrafts();
+      const completeness = await refreshApplicationCompleteness(applicationId);
+      if (completeness && !completeness.complete) {
+        setCurrentStep(statusStepIndex);
+        throw new Error(isZhInterface
+          ? "申请资料尚未完整，已在确认页列出需要补齐的信息和材料。"
+          : "The application is not complete yet. Review the missing information and documents on the confirmation step.");
+      }
       const missing = getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot());
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
@@ -3270,7 +3481,16 @@ export default function ApplicationPage() {
   const pageTitle = hasResolvedPackage
     ? getVisaPackageTitle(resolvedCountry, resolvedVisaType, locale)
     : t("title");
-  const isDocumentsStep = currentStep === (useDynamic ? documentStepIndex : 3);
+  const isDocumentsStep = currentStep === documentNavigationStepId;
+  const taiwanEntryPermitRequiredDocumentKeys = isTaiwanEntryPermit
+    ? getTaiwanEntryPermitRequiredDocumentKeys(dynamicAnswerSnapshot)
+    : undefined;
+  const taiwanEntryPermitVisibleDocumentKeys = isTaiwanEntryPermit
+    ? getTaiwanEntryPermitVisibleDocumentKeys(dynamicAnswerSnapshot)
+    : undefined;
+  const taiwanEntryPermitExtraRequirements = isTaiwanEntryPermit
+    ? getTaiwanEntryPermitExtraRequirements(dynamicAnswerSnapshot)
+    : undefined;
 
   return (
     <div className="flex min-h-screen pt-3 lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:overflow-hidden lg:overscroll-none">
@@ -3373,21 +3593,85 @@ export default function ApplicationPage() {
                       <>
                         {/* DB-driven form steps */}
                         {step.id < documentStepIndex && dbSteps[step.id] && (
-                          <DynamicStepForm
-                            key={step.id}
-                            step={dbSteps[step.id]}
-                            prefill={dynamicAnswers}
-                            onComplete={(data) => handleDynamicStepComplete(step.id, data)}
-                            onDraftChange={(data) => handleDynamicDraftChange(step.id, data)}
-                            saving={saving}
-                            country={activeCountry}
-                            visaType={activeVisaType}
-                            externallyHandledFieldNames={passportUploadHandledFields}
-                          />
+                          <>
+                            {isTaiwanEntryPermit && isTaiwanEntryPermitQualificationStepSource(step.sourceName) && (
+                              appState.applicationId ? (
+                                <DocumentCenterClient
+                                  initialData={documentCenterData}
+                                  initialError={documentCenterError}
+                                  applicationId={appState.applicationId}
+                                  country={activeCountry}
+                                  visaType={activeVisaType}
+                                  embedded
+                                  onlyRequirementKeys={["photo"]}
+                                  onDataChange={(nextData) => {
+                                    setDocumentCenterData(nextData);
+                                    void refreshApplicationCompleteness(appState.applicationId);
+                                  }}
+                                  onUploadComplete={() => void refreshApplicationCompleteness(appState.applicationId)}
+                                  highlightRequirementKey={highlightRequirementKey === "photo" ? highlightRequirementKey : null}
+                                />
+                              ) : (
+                                <div className="flex min-h-[160px] items-center justify-center">
+                                  <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
+                                </div>
+                              )
+                            )}
+                            <DynamicStepForm
+                              key={step.id}
+                              step={{
+                                ...dbSteps[step.id],
+                                fields: isTaiwanEntryPermit
+                                  ? dbSteps[step.id].fields.filter((field) => field.fieldName !== "household_revoked")
+                                  : dbSteps[step.id].fields,
+                              }}
+                              prefill={dynamicAnswers}
+                              onComplete={(data) => handleDynamicStepComplete(step.id, data)}
+                              onDraftChange={(data) => handleDynamicDraftChange(step.id, data)}
+                              saving={saving}
+                              country={activeCountry}
+                              visaType={activeVisaType}
+                              focusFieldName={focusedFieldName}
+                              externallyHandledFieldNames={passportUploadHandledFields}
+                            />
+                            {isTaiwanEntryPermit && isTaiwanEntryPermitQualificationStepSource(step.sourceName) && (
+                              appState.applicationId ? (
+                                <div className="mt-8 border-t border-[#e8e8e8] pt-7">
+                                  <h3 className="mb-4 font-heading text-[20px] font-medium text-[#3d3d3d]">
+                                    应检附文件
+                                  </h3>
+                                  <DocumentCenterClient
+                                    initialData={documentCenterData}
+                                    initialError={documentCenterError}
+                                    applicationId={appState.applicationId}
+                                    country={activeCountry}
+                                    visaType={activeVisaType}
+                                    embedded
+                                    onlyRequirementKeys={taiwanEntryPermitVisibleDocumentKeys}
+                                    excludeRequirementKeys={["photo"]}
+                                    extraRequirements={taiwanEntryPermitExtraRequirements}
+                                    hideOptionalDocuments
+                                    forceRequiredRequirementKeys={taiwanEntryPermitRequiredDocumentKeys}
+                                    presentation="taiwan-inline"
+                                    onDataChange={(nextData) => {
+                                      setDocumentCenterData(nextData);
+                                      void refreshApplicationCompleteness(appState.applicationId);
+                                    }}
+                                    onUploadComplete={() => void refreshApplicationCompleteness(appState.applicationId)}
+                                    highlightRequirementKey={highlightRequirementKey === "photo" ? null : highlightRequirementKey}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="mt-8 flex min-h-[240px] items-center justify-center border-t border-[#efefef] pt-8">
+                                  <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
+                                </div>
+                              )
+                            )}
+                          </>
                         )}
 
                         {/* Supporting documents step */}
-                        {showDocumentStep && step.id === documentStepIndex && (
+                        {showStandaloneDocumentStep && step.id === documentStepIndex && (
                           appState.applicationId ? (
                             <DocumentCenterClient
                               initialData={documentCenterData}
@@ -3396,7 +3680,17 @@ export default function ApplicationPage() {
                               country={activeCountry}
                               visaType={activeVisaType}
                               embedded
-                              onDataChange={setDocumentCenterData}
+                              onlyRequirementKeys={taiwanEntryPermitVisibleDocumentKeys}
+                              excludeRequirementKeys={isTaiwanEntryPermit ? ["photo"] : undefined}
+                              extraRequirements={taiwanEntryPermitExtraRequirements}
+                              hideOptionalDocuments={isTaiwanEntryPermit}
+                              forceRequiredRequirementKeys={taiwanEntryPermitRequiredDocumentKeys}
+                              onDataChange={(nextData) => {
+                                setDocumentCenterData(nextData);
+                                void refreshApplicationCompleteness(appState.applicationId);
+                              }}
+                              onUploadComplete={() => void refreshApplicationCompleteness(appState.applicationId)}
+                              highlightRequirementKey={highlightRequirementKey}
                               onContinue={handleDynamicDocumentsContinue}
                               continueLabel={t("dynamicButtons.continue")}
                             />
@@ -3415,7 +3709,7 @@ export default function ApplicationPage() {
                             dbSteps={dbSteps}
                             photoPath={appState.photo}
                             onEdit={(stepIdx) => setCurrentStep(stepIdx)}
-                            onPhotoEdit={() => setCurrentStep(showDocumentStep ? documentStepIndex : firstFormStepId)}
+                            onPhotoEdit={() => setCurrentStep(documentNavigationStepId)}
                             onComplete={
                               isCompanionFlow
                                 ? handleCompanionReviewComplete
@@ -3460,16 +3754,28 @@ export default function ApplicationPage() {
                               onResubmit={handleDynamicReviewComplete}
                             />
                           ) : (
-                            <FinalConfirmationPanel
-                              isZh={isZhInterface}
-                              liveAssistedTarget={liveAssistedTarget}
-                              liveAssistedEnabled={liveAssistedEnabled}
-                              missingFields={visibleMissingFields}
-                              requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
-                              submittingMode={saving ? submittingMode ?? "dry_run" : null}
-                              onEdit={handleStepNavigation}
-                              onSubmit={handleDynamicReviewComplete}
-                            />
+                            <div className="space-y-4">
+                              <ApplicationCompletenessPanel
+                                completeness={applicationCompleteness}
+                                checking={applicationCompletenessLoading}
+                                isZh={isZhInterface}
+                                onGoToField={handleGoToMissingField}
+                                onGoToDocument={handleGoToMissingDocument}
+                              />
+                              <FinalConfirmationPanel
+                                isZh={isZhInterface}
+                                liveAssistedTarget={liveAssistedTarget}
+                                liveAssistedEnabled={liveAssistedEnabled}
+                                missingFields={confirmationMissingFields}
+                                requirementsLoading={
+                                  applicationCompletenessLoading ||
+                                  (!documentCenterLoaded && Boolean(appState.applicationId))
+                                }
+                                submittingMode={saving ? submittingMode ?? "dry_run" : null}
+                                onEdit={handleStepNavigation}
+                                onSubmit={handleDynamicReviewComplete}
+                              />
+                            </div>
                           )
                         )}
                       </>
@@ -3585,5 +3891,3 @@ export default function ApplicationPage() {
     </div>
   );
 }
-
-

@@ -54,6 +54,37 @@ export async function tryCaptureTwScreenshot(
   }
 }
 
+export async function tryCaptureTwMaskedScreenshot(
+  page: Page,
+  options: CaptureTwScreenshotOptions,
+): Promise<TwScreenshotArtifact | null> {
+  try {
+    await fs.mkdir(options.outputDir, { recursive: true });
+    const slug = slugify(options.label);
+    const filename = `tw-${options.runId}-${slug}.png`;
+    const filepath = path.join(options.outputDir, filename);
+    const buffer = await page.screenshot({
+      fullPage: options.fullPage ?? true,
+      timeout: 10_000,
+      mask: [
+        page.locator("body"),
+      ],
+    });
+    await fs.writeFile(filepath, buffer);
+    let url = "";
+    let title = "";
+    try {
+      url = page.url();
+      title = await page.title();
+    } catch {
+      /* ignore */
+    }
+    return { path: filepath, bytes: buffer.length, url, title };
+  } catch {
+    return null;
+  }
+}
+
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "capture";
 }

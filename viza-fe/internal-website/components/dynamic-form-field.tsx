@@ -33,10 +33,10 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import { resolveLocalizedOptions, resolveLocalizedPlaceholder } from "@/lib/bilingual-schema-contract";
+import { convertSimplifiedToTraditional } from "@/lib/chinese-conversion";
 import { cn } from "@/lib/utils";
 
 const SEARCHABLE_SELECT_MIN_OPTIONS = 12;
-
 const SCHENGEN_MEMBER_ALPHA2_CODES = [
   "AT",
   "BE",
@@ -848,15 +848,23 @@ export function DynamicFormField({
           </FieldWrapper>
         );
       }
+      const selectedValue = value.trim() ? value : undefined;
       return (
         <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
-          <Select value={value} onValueChange={onChange} disabled={disabled}>
+          <Select
+            value={selectedValue}
+            onValueChange={(nextValue) => {
+              if (!nextValue || nextValue === value) return;
+              onChange(nextValue);
+            }}
+            disabled={disabled}
+          >
             <SelectTrigger className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass} ${disabled ? "opacity-70 cursor-not-allowed" : ""}`}>
               <SelectValue placeholder={localizedPlaceholder ?? selectFallback} />
             </SelectTrigger>
             <SelectContent>
-              {opts.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value || "_empty"}>
+              {opts.filter((opt) => opt.value.trim()).map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
                   {opt.text}
                 </SelectItem>
               ))}
@@ -1016,13 +1024,37 @@ export function DynamicFormField({
         const isOverridden = isDoNotKnow || isDoesNotApply;
         const hasSideCheckbox = allowDoNotKnow || allowDoesNotApply;
 
+        // Taiwan Online Entry Permit special cases: the government form
+        // requires the English name exactly as printed in the passport
+        // (uppercase) and the Chinese name in Traditional characters, but
+        // applicants type lowercase / Simplified naturally. field_name is
+        // unique to TW_ENTRY_PERMIT (not shared with other countries), so
+        // it's safe to key these transforms on fieldName alone.
+        const isTwUppercaseNameField = field.fieldName === "name_english";
+        const isTwChineseNameField = field.fieldName === "name_chinese";
+
         const inputNode = (
           <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""} ${(isOverridden || disabled) ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}>
             <InputGroupInput
               type={fieldType === "text" ? "text" : fieldType}
               placeholder={localizedPlaceholder}
               value={isOverridden ? "" : value}
-              onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
+              onChange={(e) => {
+                let nextValue = maxLength ? e.target.value.slice(0, maxLength) : e.target.value;
+                if (isTwUppercaseNameField) nextValue = nextValue.toUpperCase();
+                onChange(nextValue);
+              }}
+              onBlur={
+                isTwChineseNameField
+                  ? () => {
+                      // Convert on blur (not on every keystroke) so an active
+                      // Chinese IME composition never gets clobbered mid-type.
+                      convertSimplifiedToTraditional(value).then((converted) => {
+                        if (converted !== value) onChange(converted);
+                      });
+                    }
+                  : undefined
+              }
               required={required && !isOverridden}
               disabled={isOverridden || disabled}
               maxLength={maxLength}

@@ -106,7 +106,18 @@ const PERMIT_COUNTS = new Set(["1", "2"]);
 const GENDERS = new Set(["0", "1"]);
 const ELIGIBILITY_CATEGORIES = new Set(["1", "2", "3", "4"]);
 const BIRTH_PLACE = new Set(["mainland", "other"]);
+const BIRTH_PLACE_MAINLAND_REGIONS = new Set([
+  "湖南", "湖北", "四川", "上海", "南京", "漢口", "重慶", "山東", "山西", "河南",
+  "河北", "陝西", "甘肅", "青島", "天津", "北京", "西安", "遼寧", "遼北", "安東",
+  "吉林", "松江", "合江", "嫩江", "黑龍江", "興安", "大連", "瀋陽", "哈爾濱", "熱河",
+  "察哈爾", "綏遠", "寧夏回族自治區", "內蒙古自治區", "新疆維吾爾自治區", "青海", "西康",
+  "西藏自治區", "福建", "廣東", "廣西壯族自治區", "雲南", "貴州", "海南", "廣州", "江蘇",
+  "浙江", "安徽", "江西",
+]);
 const KINSHIP_STATUS = new Set(["1", "2", "3"]);
+const OCCUPATION_STUDENT = "14";
+const OCCUPATION_UNEMPLOYED = "61";
+const OCCUPATION_RETIRED = "62";
 
 /** Wizard gender word → seed's numeric enum (0=male, 1=female), used only as
  *  a profile fallback when the wizard didn't already send "0"/"1" directly. */
@@ -122,6 +133,10 @@ function genderWordToSeedCode(v: string | null | undefined): string | undefined 
 const KINSHIP_GROUPS = ["father", "mother", "spouse", "child1", "child2"] as const;
 type TwKinshipGroup = (typeof KINSHIP_GROUPS)[number];
 
+export function isTwHouseholdRevokedRequiredFromAnswers(answers: TwAnswerMap | Record<string, string>): boolean {
+  return clean(answers.eligibility_category) === "2" && ["50", "51"].includes(clean(answers.embassy_office));
+}
+
 /** Keys explicitly handled below — anything else present in the answer map
  *  is passed through verbatim (cleaned) so forward-compatible seed
  *  additions aren't silently dropped, mirroring uk/normalize.ts's
@@ -135,6 +150,7 @@ function buildHandledKeySet(): Set<string> {
     "permit_type",
     "permit_count",
     "has_other_nationality_passport",
+    "household_revoked",
     "eligibility_category",
     "name_chinese",
     "name_english",
@@ -146,6 +162,7 @@ function buildHandledKeySet(): Set<string> {
     "mainland_id_number_not_applicable",
     "mainland_id_number",
     "birth_place_is_mainland",
+    "birth_place_mainland_region",
     "birth_place_other_country",
     "local_mobile_phone",
     "current_occupation",
@@ -216,33 +233,48 @@ function normalizeKinshipGroup(
 ): void {
   const prefix = `kin_${group}_`;
   const statusField = `${prefix}status`;
-  // Father is displayed as required on the live portal, but per the seed
-  // contract every kin_* field is `required: false` at the row level
-  // (conditional UI logic decides display, not this normalizer) — validate
-  // the enum if present but don't hard-fail an entirely empty optional
-  // block. `requiredGroup` is accepted for parity/future use (e.g. once a
-  // wizard exists that can enforce "father block must be filled").
-  void requiredGroup;
-  const status = optionalEnum(a[statusField], statusField, KINSHIP_STATUS);
+  const status = requiredGroup
+    ? requireEnum(a[statusField], statusField, KINSHIP_STATUS)
+    : optionalEnum(a[statusField], statusField, KINSHIP_STATUS);
   if (status) put(out, statusField, status);
 
-  put(out, `${prefix}name`, a[`${prefix}name`]);
-  const dob = toIsoDate(a[`${prefix}date_of_birth`], `${prefix}date_of_birth`);
+  const requireLivingDetails = requiredGroup && status === "1";
+  const readDetail = (field: string): string | undefined =>
+    requireLivingDetails ? requireStr(a[field], field) : clean(a[field]) || undefined;
+
+  put(out, `${prefix}name`, readDetail(`${prefix}name`));
+  const rawDob = requireLivingDetails
+    ? requireStr(a[`${prefix}date_of_birth`], `${prefix}date_of_birth`)
+    : a[`${prefix}date_of_birth`];
+  const dob = toIsoDate(rawDob, `${prefix}date_of_birth`);
   if (dob) put(out, `${prefix}date_of_birth`, dob);
-  put(out, `${prefix}phone`, a[`${prefix}phone`]);
-  put(out, `${prefix}occupation`, a[`${prefix}occupation`]);
-  put(out, `${prefix}service_unit`, a[`${prefix}service_unit`]);
-  put(out, `${prefix}job_title`, a[`${prefix}job_title`]);
+  put(out, `${prefix}phone`, readDetail(`${prefix}phone`));
+  put(out, `${prefix}occupation`, readDetail(`${prefix}occupation`));
+  put(out, `${prefix}service_unit`, readDetail(`${prefix}service_unit`));
+  put(out, `${prefix}job_title`, readDetail(`${prefix}job_title`));
 
   const sameAsOverseas = toBoolStr(a[`${prefix}current_address_same_as_overseas`]);
   if (sameAsOverseas) put(out, `${prefix}current_address_same_as_overseas`, sameAsOverseas);
   if (sameAsOverseas === "true") {
     // Mirrors the portal's "同申請人海外地址" quick-fill button.
-    const overseas = clean(a.overseas_address);
+    const overseas = requireLivingDetails
+      ? requireStr(a.overseas_address, `${prefix}current_address`)
+      : clean(a.overseas_address);
     if (overseas) put(out, `${prefix}current_address`, overseas);
   } else {
-    put(out, `${prefix}current_address`, a[`${prefix}current_address`]);
+    put(out, `${prefix}current_address`, readDetail(`${prefix}current_address`));
   }
+}
+
+function requireApplicantChineseName(value: string | null | undefined): string {
+  const name = requireStr(value, "name_chinese");
+  if (/[A-Za-z]/.test(name) || !/\p{Script=Han}/u.test(name)) {
+    throw new TwNormalizationError(
+      "name_chinese",
+      "must contain applicant-provided Chinese characters; transliteration is not allowed",
+    );
+  }
+  return name;
 }
 
 /**
@@ -269,9 +301,12 @@ export function normalizeTwAnswers(input: TwNormalizeInput): Record<string, stri
     requireYesNo(a.has_other_nationality_passport, "has_other_nationality_passport"),
   );
   put(out, "eligibility_category", requireEnum(a.eligibility_category, "eligibility_category", ELIGIBILITY_CATEGORIES));
+  if (isTwHouseholdRevokedRequiredFromAnswers(out)) {
+    put(out, "household_revoked", requireYesNo(a.household_revoked, "household_revoked"));
+  }
 
   // ── Applicant identity ───────────────────────────────────────────────────
-  put(out, "name_chinese", requireStr(a.name_chinese, "name_chinese"));
+  put(out, "name_chinese", requireApplicantChineseName(a.name_chinese));
   // Passport-facing English name is conventionally uppercase.
   put(out, "name_english", requireStr(a.name_english, "name_english").toUpperCase());
   put(out, "date_of_birth", requireStr(toIsoDate(a.date_of_birth ?? profile?.date_of_birth, "date_of_birth"), "date_of_birth"));
@@ -293,15 +328,26 @@ export function normalizeTwAnswers(input: TwNormalizeInput): Record<string, stri
 
   const birthPlace = requireEnum(a.birth_place_is_mainland, "birth_place_is_mainland", BIRTH_PLACE);
   put(out, "birth_place_is_mainland", birthPlace);
-  if (birthPlace === "other") {
+  if (birthPlace === "mainland") {
+    put(
+      out,
+      "birth_place_mainland_region",
+      requireEnum(a.birth_place_mainland_region, "birth_place_mainland_region", BIRTH_PLACE_MAINLAND_REGIONS),
+    );
+  } else {
     put(out, "birth_place_other_country", requireStr(a.birth_place_other_country, "birth_place_other_country"));
   }
 
   put(out, "local_mobile_phone", requireStr(a.local_mobile_phone, "local_mobile_phone"));
-  put(out, "current_occupation", requireStr(a.current_occupation, "current_occupation"));
+  const currentOccupation = requireStr(a.current_occupation, "current_occupation");
+  put(out, "current_occupation", currentOccupation);
   put(out, "occupation_experience", a.occupation_experience);
-  put(out, "company_name", a.company_name);
-  put(out, "job_title", a.job_title);
+  if (currentOccupation === OCCUPATION_STUDENT) {
+    put(out, "company_name", requireStr(a.company_name, "company_name"));
+  } else if (currentOccupation !== OCCUPATION_RETIRED && currentOccupation !== OCCUPATION_UNEMPLOYED) {
+    put(out, "company_name", requireStr(a.company_name, "company_name"));
+    put(out, "job_title", requireStr(a.job_title, "job_title"));
+  }
   // Confirmed live to carry a required asterisk (see seed script comment).
   put(out, "is_taiwanese_spouse", requireYesNo(a.is_taiwanese_spouse, "is_taiwanese_spouse"));
   put(out, "traveling_with_parents", toYesNo(a.traveling_with_parents));
@@ -351,10 +397,10 @@ export function normalizeTwAnswers(input: TwNormalizeInput): Record<string, stri
     );
   }
 
-  // ── Kinship (5 repeated blocks — none are displayed as required; see the
-  // seed script's updated comment on this after a fresh live re-check) ──
-  normalizeKinshipGroup(out, a, "father", false);
-  normalizeKinshipGroup(out, a, "mother", false);
+  // Father/mother status is required. When either is living, the official
+  // form requires that parent's details; never synthesize missing answers.
+  normalizeKinshipGroup(out, a, "father", true);
+  normalizeKinshipGroup(out, a, "mother", true);
   normalizeKinshipGroup(out, a, "spouse", false);
   normalizeKinshipGroup(out, a, "child1", false);
   normalizeKinshipGroup(out, a, "child2", false);

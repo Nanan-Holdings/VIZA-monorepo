@@ -27,7 +27,7 @@ import {
   resolveLocalizedOptions,
   resolveLocalizedPlaceholder,
 } from "@/lib/bilingual-schema-contract";
-import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
+import { evaluateShowIf, isRequiredUnlessSatisfied, isRequiredWhenSatisfied } from "@/lib/form-utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import {
   useRealtimeBilingualTranslate,
@@ -35,8 +35,10 @@ import {
 } from "@/lib/translation/use-realtime-bilingual-translate";
 import { cn } from "@/lib/utils";
 import { VIETNAM_WARDS_BY_PROVINCE } from "@/lib/vietnam-administrative-units";
+import { TW_DISTRICTS_BY_CITY } from "@/lib/taiwan-administrative-units";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { localizePhEtravelOptions } from "@/features/ph-etravel/option-labels";
+import { normalizePhEtravelArrivalFormAnswers } from "@/features/ph-etravel/form-answer-normalization";
 import { countries } from "country-data-list";
 
 interface DynamicStepFormProps {
@@ -47,6 +49,7 @@ interface DynamicStepFormProps {
   saving?: boolean;
   country?: string | null;
   visaType?: string;
+  focusFieldName?: string | null;
   /**
    * Field names whose input is provided by an external control (e.g. the
    * passport OCR upload card rendered above the form). These are not rendered
@@ -62,6 +65,106 @@ const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
 
 /** Default max instances for repeatable groups without an explicit max_items */
 const REPEAT_GROUP_DEFAULT_MAX = 5;
+
+/**
+ * Visa types whose applicants are Chinese-speaking end to end (no English
+ * form is meaningful — e.g. Taiwan's Online Entry Permit is for mainland
+ * Chinese nationals residing abroad/HK/Macau). For these, the long-form
+ * renders a single Chinese-only column instead of the usual side-by-side
+ * Chinese/English bilingual field row.
+ */
+const CHINESE_ONLY_VISA_TYPES = new Set(["TW_ENTRY_PERMIT"]);
+
+const TAIWAN_ENTRY_PERMIT_NOTICE = [
+  <>请勿以手机或平板申请、上传文件及修改资料，否则系统将无法受理您的申请案。</>,
+  <>
+    本系统仅供旅居海外大陆地区人民以「观光」目的来台申请；如果来台目的属于「商务」或「专业」交流，请以「商务」或「专业」交流申请（请点选本署全球资讯网
+    <a
+      className="font-semibold text-emerald-700 underline underline-offset-2"
+      href="http://www.immigration.gov.tw/lp.asp?CtNode=32595&CtUnit=16735&BaseDSD=111&mp=1&xq_xCat=L"
+      rel="noreferrer"
+      target="_blank"
+    >
+      送件须知
+    </a>
+    ），以避免来台目的与申请证件不符而被拒绝入境。
+  </>,
+  <>
+    旅居香港之大陆居民，请先点选并参阅
+    <a
+      className="font-semibold text-emerald-700 underline underline-offset-2"
+      href="http://www.teco-hk.org/ct.asp?xItem=111583&CtNode=7511&mp=10"
+      rel="noreferrer"
+      target="_blank"
+    >
+      申请资格及应备文件
+    </a>
+    。
+  </>,
+  <>
+    递送地点非属下列驻外馆处者，请以书面资料向所辖驻外馆处申请。（驻
+    <span className="font-semibold text-red-600">横滨及墨尔本办事处申请案</span>
+    ，请至「大陆港澳地区短期入台线上申请平台」申请（请点选
+    <a
+      className="font-semibold text-emerald-700 underline underline-offset-2"
+      href="https://csts.immigration.gov.tw/HKMO/home/index"
+      rel="noreferrer"
+      target="_blank"
+    >
+      申请网站
+    </a>
+    ）。）
+  </>,
+  <>
+    申请资格/应检附文件相关问题，请洽所在
+    <a
+      className="font-semibold text-emerald-700 underline underline-offset-2"
+      href="https://www.immigration.gov.tw/5382/5385/5388/7181/7208/7211"
+      rel="noreferrer"
+      target="_blank"
+    >
+      驻外馆处
+    </a>
+    。
+  </>,
+  <span className="font-semibold text-red-600">
+    本系统无付费加急速件处理机制，为避免影响您的行程，建议您于取得入出境许可证之后，再安排行程。
+  </span>,
+] as const;
+
+const TAIWAN_ENTRY_PERMIT_FIELD_NOTICES: Record<string, readonly string[]> = {
+  permit_type: [
+    "最终以审核人员视申请人条件核可发给证别为准。",
+    "以依亲居留资格申请，居留证明效期未满 1 年，仅得申请单次证。",
+    "以工作资格申请，工作证明或居留证明未满 1 年，仅得申请单次证。",
+    "以留学资格申请，申请日离预定毕业日未满 1 年或居留效期未满 1 年，仅得申请单次证。",
+  ],
+  permit_count: [
+    "来台搭乘邮轮旅游者，得 1 次申请 2 张单次入出境许可证；申请人须检附邮轮船票或订位确认单，始得申请一次核发 2 张单次入出境许可证，所持第 2 张单次入出境许可证限搭乘邮轮使用；2 张单次入出境许可证之停留期间分开计算。但不得于入境后，为搭乘邮轮而再申请第 2 张单次入出境许可证。",
+    "如有随行申请人，请于主要申请人资料填写完成后，再填写随行申请人资料。",
+  ],
+};
+
+const TAIWAN_ENTRY_PERMIT_CONTACT_ADDRESS_NOTICE =
+  "可填写在台住宿酒店的地址；即使尚未预订酒店，也可以先填写预计入住的酒店地址。没有在台个人联系电话时，可将酒店电话填写在‘在台市内电话’。";
+
+function TaiwanEntryPermitFieldNotice({ fieldName }: { fieldName: string }) {
+  const items = TAIWAN_ENTRY_PERMIT_FIELD_NOTICES[fieldName];
+  if (!items) return null;
+  return (
+    <div className="mt-3 rounded-[8px] border border-sky-200 bg-sky-50 px-5 py-4 text-[14px] leading-7 text-sky-950">
+      <ol className="list-decimal space-y-1 pl-5">
+        {items.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function isTaiwanEntryPermitContactAddressStep(stepName: string | null | undefined): boolean {
+  return stepName?.trim().toLowerCase() === "taiwan contact address";
+}
 
 const SCHENGEN_DESTINATION_BY_COUNTRY_SLUG: Record<string, string> = {
   austria: "Austria",
@@ -108,6 +211,63 @@ function isIndonesiaOfficialEVisaContext(country: string | null | undefined, vis
   const normalizedCountry = country?.trim().toLowerCase();
   return (normalizedCountry === "indonesia" || normalizedCountry === "id") &&
     (visaType === "ID_B1_EVOA" || visaType === "ID_C1_TOURIST");
+}
+
+const TW_EMBASSY_OFFICES_BY_CONTINENT: Record<string, VisaFormFieldOption[]> = {
+  A: [
+    { value: "50", text: "Taipei Economic and Cultural Office / Hong Kong Office", label_zh: "台北经济文化办事处／香港办事处", official_label: "台北經濟文化辦事處／香港辦事處" },
+    { value: "51", text: "Taipei Economic and Cultural Office / Macau Office", label_zh: "台北经济文化办事处／澳门办事处", official_label: "台北經濟文化辦事處／澳門辦事處" },
+    { value: "5A", text: "Taipei Economic and Cultural Representative Office (Tokyo)", label_zh: "台北驻日经济文化代表处(东京)", official_label: "台北駐日經濟文化代表處(東京)" },
+    { value: "5C", text: "Taipei Economic and Cultural Office in Osaka", label_zh: "台北驻大阪经济文化办事处", official_label: "台北駐大阪經濟文化辦事處" },
+    { value: "5F", text: "Taipei Mission in Korea", label_zh: "驻韩国台北代表处", official_label: "駐韓國台北代表處" },
+    { value: "55", text: "Taipei Economic and Cultural Office in Malaysia", label_zh: "驻马来西亚台北经济文化办事处", official_label: "駐馬來西亞台北經濟文化辦事處" },
+    { value: "56", text: "Taipei Economic and Cultural Office in the Philippines", label_zh: "驻菲律宾台北经济文化办事处", official_label: "駐菲律賓台北經濟文化辦事處" },
+    { value: "53", text: "Taipei Representative Office in Singapore", label_zh: "驻新加坡台北代表处", official_label: "駐新加坡台北代表處" },
+    { value: "52", text: "Taipei Economic and Cultural Office in Thailand", label_zh: "驻泰国台北经济文化办事处", official_label: "駐泰國台北經濟文化辦事處" },
+    { value: "67", text: "Taipei Economic and Cultural Office (Hanoi)", label_zh: "驻越南代表处(河内)", official_label: "駐越南代表處(河內)" },
+    { value: "57", text: "Taipei Economic and Cultural Office in Ho Chi Minh City", label_zh: "驻胡志明市台北经济文化办事处", official_label: "駐胡志明市台北經濟文化辦事處" },
+    { value: "58", text: "Taipei Economic and Cultural Office in Myanmar", label_zh: "驻缅甸代表处", official_label: "駐緬甸代表處" },
+    { value: "66", text: "Taipei Economic and Cultural Center in India", label_zh: "驻印度代表处", official_label: "駐印度代表處" },
+    { value: "54", text: "Taipei Economic and Trade Office in Indonesia", label_zh: "驻印尼台北经济贸易代表处", official_label: "駐印尼台北經濟貿易代表處" },
+  ],
+  B: [
+    { value: "6A", text: "Taipei Economic and Cultural Office in Vancouver", label_zh: "驻温哥华台北经济文化办事处", official_label: "駐溫哥華台北經濟文化辦事處" },
+    { value: "6B", text: "Taipei Economic and Cultural Office in Toronto", label_zh: "驻多伦多台北经济文化办事处", official_label: "駐多倫多台北經濟文化辦事處" },
+    { value: "60", text: "Taipei Economic and Cultural Office in New York", label_zh: "驻纽约台北经济文化办事处", official_label: "駐紐約台北經濟文化辦事處" },
+    { value: "61", text: "Taipei Economic and Cultural Office in Los Angeles", label_zh: "驻洛杉矶台北经济文化办事处", official_label: "駐洛杉磯台北經濟文化辦事處" },
+    { value: "62", text: "Taipei Economic and Cultural Office in San Francisco", label_zh: "驻旧金山台北经济文化办事处", official_label: "駐舊金山台北經濟文化辦事處" },
+    { value: "64", text: "Taipei Economic and Cultural Representative Office in the United States (Washington, DC)", label_zh: "驻美国台北经济文化代表处(华盛顿特区)", official_label: "駐美國台北經濟文化代表處(華盛頓特區)" },
+    { value: "65", text: "Taipei Economic and Cultural Office in Miami", label_zh: "驻迈阿密台北经济文化办事处", official_label: "駐邁阿密台北經濟文化辦事處" },
+    { value: "70", text: "Embassy of the Republic of China (Taiwan) in Paraguay", label_zh: "驻巴拉圭共和国大使馆", official_label: "駐巴拉圭共和國大使館" },
+  ],
+  C: [
+    { value: "GP", text: "Taipei Representative Office in the EU and Belgium", label_zh: "驻欧盟兼驻比利时代表处", official_label: "駐歐盟兼駐比利時代表處" },
+    { value: "72", text: "Taipei Representative Office in France", label_zh: "驻法国台北代表处", official_label: "駐法國台北代表處" },
+    { value: "63", text: "Taipei Representative Office in the United Kingdom", label_zh: "驻英国台北代表处", official_label: "駐英國台北代表處" },
+  ],
+  D: [
+    { value: "71", text: "Taipei Liaison Office in the Republic of South Africa", label_zh: "驻南非共和国台北联络代表处", official_label: "駐南非共和國台北聯絡代表處" },
+  ],
+  E: [
+    { value: "73", text: "Taipei Economic and Cultural Office in Sydney", label_zh: "驻雪梨台北经济文化办事处", official_label: "駐雪梨台北經濟文化辦事處" },
+    { value: "74", text: "Taipei Economic and Cultural Office in Auckland", label_zh: "驻奥克兰台北经济文化办事处", official_label: "駐奧克蘭台北經濟文化辦事處" },
+  ],
+};
+
+const TW_EMPTY_EMBASSY_OFFICE_OPTIONS: VisaFormFieldOption[] = [];
+
+function getTaiwanEmbassyOfficeOptions(
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+  currentVisaType?: string
+): VisaFormFieldOption[] | null {
+  const isTaiwanEntryPermit =
+    field.visaType === "TW_ENTRY_PERMIT" || currentVisaType === "TW_ENTRY_PERMIT";
+
+  if (field.fieldName !== "embassy_office" || !isTaiwanEntryPermit) return null;
+  const continent = values.continent?.trim();
+  if (!continent) return TW_EMPTY_EMBASSY_OFFICE_OPTIONS;
+  return TW_EMBASSY_OFFICES_BY_CONTINENT[continent] ?? TW_EMPTY_EMBASSY_OFFICE_OPTIONS;
 }
 
 function normalizeIndonesiaMobileNumber(value: string): string {
@@ -268,8 +428,48 @@ function cloneTextPairs(pairs: Record<string, BilingualTextValue>): Record<strin
   );
 }
 
+function initialAppliedPrefillValues(
+  fields: VisaFormFieldRow[],
+  prefill: Record<string, string>,
+  groupCounts: Record<string, number>,
+): Record<string, string> {
+  const applied: Record<string, string> = {};
+  for (const field of fields) {
+    if (!isClearablePrefillField(field)) continue;
+    const group = getRepeatGroup(field);
+    const keys = group
+      ? Array.from({ length: groupCounts[group] ?? 1 }, (_, index) => instanceKey(field.fieldName, index))
+      : [field.fieldName];
+    for (const key of keys) {
+      const value = prefill[key]?.trim();
+      if (value) applied[key] = value;
+    }
+  }
+  return applied;
+}
+
 function isTextLikeField(field: VisaFormFieldRow): boolean {
   return field.fieldType === "text" || field.fieldType === "textarea";
+}
+
+const CLEARABLE_PREFILL_FIELD_TYPES = new Set([
+  "date",
+  "datetime-local",
+  "email",
+  "month",
+  "number",
+  "password",
+  "search",
+  "tel",
+  "text",
+  "textarea",
+  "time",
+  "url",
+  "week",
+]);
+
+function isClearablePrefillField(field: VisaFormFieldRow): boolean {
+  return CLEARABLE_PREFILL_FIELD_TYPES.has(String(field.fieldType));
 }
 
 function usesBilingualTextPair(field: VisaFormFieldRow): boolean {
@@ -1279,6 +1479,17 @@ function buildCurrentStepAnswerPatch(
   return answers;
 }
 
+function answerPatchesEqual(
+  previous: Record<string, string> | null,
+  next: Record<string, string>,
+): boolean {
+  if (!previous) return false;
+  const previousKeys = Object.keys(previous);
+  const nextKeys = Object.keys(next);
+  if (previousKeys.length !== nextKeys.length) return false;
+  return nextKeys.every((key) => previous[key] === next[key]);
+}
+
 function getLocalFieldIssue(
   field: VisaFormFieldRow,
   valueKey: string,
@@ -1587,6 +1798,10 @@ function normalizeOptionKey(value?: string | null): string {
     .replace(/^_+|_+$/g, "");
 }
 
+function stableOptionArray(options: readonly VisaFormFieldOption[] | undefined): VisaFormFieldOption[] {
+  return (options ?? []) as VisaFormFieldOption[];
+}
+
 function getDynamicDependentOptions(
   field: VisaFormFieldRow,
   values: Record<string, string>,
@@ -1611,7 +1826,13 @@ function getDynamicDependentOptions(
       : Array.isArray(normalizedOptions)
         ? normalizedOptions
         : null;
-    return dynamicOptions ? [...dynamicOptions] : [];
+    return stableOptionArray(dynamicOptions ?? []);
+  }
+
+  if (rules?.dependent_options_key === "taiwan_districts_by_city") {
+    const cityKey = parentValue?.trim();
+    if (!cityKey) return [];
+    return stableOptionArray(TW_DISTRICTS_BY_CITY[cityKey]);
   }
 
   if (rules?.dependent_options_key !== "vietnam_wards_by_province") return null;
@@ -1620,7 +1841,7 @@ function getDynamicDependentOptions(
   if (!provinceKey) return [];
 
   const wards = VIETNAM_WARDS_BY_PROVINCE[provinceKey as keyof typeof VIETNAM_WARDS_BY_PROVINCE];
-  return wards ? [...wards] : [];
+  return stableOptionArray(wards);
 }
 
 const VIETNAMESE_PLACE_TOKEN_ZH: Record<string, string> = {
@@ -2277,6 +2498,7 @@ export function DynamicStepForm({
   saving,
   country,
   visaType,
+  focusFieldName,
   externallyHandledFieldNames,
 }: DynamicStepFormProps) {
   const tButtons = useTranslations("application.dynamicButtons");
@@ -2286,7 +2508,10 @@ export function DynamicStepForm({
   );
   const locale = useLocale();
   const isChineseInterface = isChineseLocale(locale);
+  const isPhEtravelArrivalStep = visaType === "PH_ETRAVEL_ARRIVAL_CARD"
+    || step.fields.some((field) => field.visaType === "PH_ETRAVEL_ARRIVAL_CARD");
   const [activeGuidanceKey, setActiveGuidanceKey] = useState<string | null>(null);
+  const [highlightedFieldName, setHighlightedFieldName] = useState<string | null>(null);
 
   // Track how many instances each repeat_group has (min 1)
   const [groupCounts, setGroupCounts] = useState<Record<string, number>>(() => {
@@ -2332,9 +2557,12 @@ export function DynamicStepForm({
       }
     }
     const normalizedValues = normalizeTdacStepValues(step.fields, init, visaType);
-    return isVnPrearrivalContext(visaType) || step.fields.some((field) => isVnPrearrivalContext(undefined, field))
-      ? restoreVnPrearrivalHotelHierarchy(normalizedValues)
+    const phNormalizedValues = isPhEtravelArrivalStep
+      ? normalizePhEtravelArrivalFormAnswers(normalizedValues).values
       : normalizedValues;
+    return isVnPrearrivalContext(visaType) || step.fields.some((field) => isVnPrearrivalContext(undefined, field))
+      ? restoreVnPrearrivalHotelHierarchy(phNormalizedValues)
+      : phNormalizedValues;
   });
 
   const [textPairs, setTextPairs] = useState<Record<string, BilingualTextValue>>(() => {
@@ -2389,7 +2617,11 @@ export function DynamicStepForm({
   const groupCountsRef = useRef(groupCounts);
   const vnPrearrivalLoadingMoreRef = useRef<Record<string, boolean>>({});
   const onDraftChangeRef = useRef(onDraftChange);
+  const lastDraftPatchRef = useRef<Record<string, string> | null>(null);
   const previousPrefillRef = useRef(prefill);
+  const appliedPrefillValuesRef = useRef<Record<string, string>>(
+    initialAppliedPrefillValues(step.fields, prefill, groupCounts),
+  );
   const undoStackRef = useRef<FormHistorySnapshot[]>([]);
   const redoStackRef = useRef<FormHistorySnapshot[]>([]);
 
@@ -2934,7 +3166,20 @@ export function DynamicStepForm({
 
       const currentValue = valuesRef.current[key] ?? "";
       const previousValue = previousPrefill[key] ?? "";
+      const isClearableField = isClearablePrefillField(field);
+      const alreadyAppliedPrefill = appliedPrefillValuesRef.current[key];
+      if (
+        isClearableField &&
+        alreadyAppliedPrefill === nextPrefill &&
+        currentValue !== nextPrefill
+      ) {
+        return;
+      }
       if (currentValue.trim() && currentValue !== previousValue) return;
+
+      if (isClearableField) {
+        appliedPrefillValuesRef.current[key] = nextPrefill;
+      }
 
       if (nextValues[key] !== nextPrefill) {
         nextValues[key] = nextPrefill;
@@ -3019,10 +3264,30 @@ export function DynamicStepForm({
   }, [isVnPrearrivalStep, prefill, step.fields, visaType]);
 
   useEffect(() => {
-    onDraftChangeRef.current?.(
-      buildCurrentStepAnswerPatch(step.fields, values, groupCounts, textPairs),
-    );
+    const nextPatch = buildCurrentStepAnswerPatch(step.fields, values, groupCounts, textPairs);
+    if (answerPatchesEqual(lastDraftPatchRef.current, nextPatch)) return;
+    lastDraftPatchRef.current = nextPatch;
+    onDraftChangeRef.current?.(nextPatch);
   }, [groupCounts, step.fields, textPairs, values]);
+
+  useEffect(() => {
+    if (!focusFieldName) return;
+    const timer = window.setTimeout(() => {
+      const selector = `[data-field-name="${CSS.escape(focusFieldName)}"]`;
+      const container = document.querySelector<HTMLElement>(selector);
+      if (!container) return;
+      container.scrollIntoView?.({ block: "center", behavior: "smooth" });
+      const focusTarget = container.querySelector<HTMLElement>(
+        "input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex='-1'])",
+      );
+      focusTarget?.focus({ preventScroll: true });
+      setHighlightedFieldName(focusFieldName);
+      window.setTimeout(() => {
+        setHighlightedFieldName((current) => current === focusFieldName ? null : current);
+      }, 2500);
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [focusFieldName, step.stepNumber]);
 
   const undoLastFormChange = () => {
     const previous = undoStackRef.current.at(-1);
@@ -3120,6 +3385,7 @@ export function DynamicStepForm({
       : isIndonesiaOfficialEVisa && fieldName === "postal_code"
         ? value.replace(/\D/g, "").slice(0, 5)
         : value;
+    if (valuesRef.current[fieldName] === normalizedValue) return;
     if (options?.recordUndo !== false && valuesRef.current[fieldName] !== normalizedValue) {
       pushUndoSnapshot();
     }
@@ -3133,6 +3399,9 @@ export function DynamicStepForm({
     if (isVnPrearrivalStep && fieldName === "flight_number") {
       next.border_gate_airport = getAirportCodeFromFlightValue(value);
       next.custom_flight_number = "";
+    }
+    if (visaType === "TW_ENTRY_PERMIT" && fieldName === "continent") {
+      next.embassy_office = "";
     }
     const dependents = getDependentFields(fieldName);
     for (const dep of dependents) {
@@ -3168,8 +3437,11 @@ export function DynamicStepForm({
     }
 
     const normalizedNext = normalizeTdacStepValues(step.fields, next, visaType);
-    valuesRef.current = normalizedNext;
-    setValues(normalizedNext);
+    const phNormalizedNext = isPhEtravelArrivalStep
+      ? normalizePhEtravelArrivalFormAnswers(normalizedNext).values
+      : normalizedNext;
+    valuesRef.current = phNormalizedNext;
+    setValues(phNormalizedNext);
   };
 
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
@@ -3372,7 +3644,7 @@ export function DynamicStepForm({
     ) {
       return true;
     }
-    return field.required;
+    return field.required || isRequiredWhenSatisfied(field, values);
   };
 
   // Required validation: only check visible fields (and all instances of repeat groups)
@@ -3432,6 +3704,10 @@ export function DynamicStepForm({
       fieldOptions = field.fieldName === "intended_ward_commune"
         ? localizeVietnamWardOptions(dynamicOptions)
         : dynamicOptions;
+    }
+    const taiwanEmbassyOfficeOptions = getTaiwanEmbassyOfficeOptions(field, values, visaType);
+    if (taiwanEmbassyOfficeOptions) {
+      fieldOptions = taiwanEmbassyOfficeOptions;
     }
     const phEtravelSource = getPhEtravelOfficialOptionSource(field);
     if (phEtravelSource) {
@@ -3533,6 +3809,12 @@ export function DynamicStepForm({
     const isTextLike = usesBilingualTextPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
+    const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
+    const isChineseOnlyVisaType = CHINESE_ONLY_VISA_TYPES.has(resolvedVisaType);
+    const shouldExposeBaseFieldNameToControl =
+      isChineseInterface &&
+      isChineseOnlyVisaType &&
+      (field.fieldName === "name_english" || field.fieldName === "name_chinese");
 
     const renderSide = (side: BilingualSide) => {
       const isKoreaAddressSearchSelect =
@@ -3557,7 +3839,7 @@ export function DynamicStepForm({
         Boolean(vnReadOnlyRules?.read_only || (vnReadOnlyRules?.locked_by && lockedByValue));
       const sideField: VisaFormFieldRow = {
         ...field,
-        fieldName: `${valueKey}-${side}`,
+        fieldName: shouldExposeBaseFieldNameToControl ? valueKey : `${valueKey}-${side}`,
         fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
         label: getLocalizedFieldLabel(field, side),
         required: isRequiredField(field),
@@ -3650,7 +3932,6 @@ export function DynamicStepForm({
       : null;
     const issue = postalLookupIssue ?? localIssue;
     const panelOpen = activeGuidanceKey === valueKey;
-    const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
     const buttonLabel = panelOpen
       ? (isChineseInterface ? "收起 AI 帮助" : "Hide AI help")
       : (isChineseInterface ? "问 AI" : "Ask AI");
@@ -3658,15 +3939,70 @@ export function DynamicStepForm({
       isVnPrearrivalField &&
       field.fieldName === "visa_number" &&
       values.visa_type?.trim() === "EV";
+    const fieldFrameClassName = cn(
+      "py-3 transition-colors",
+      panelOpen ? "bg-[#fbfdff]" : "",
+      highlightedFieldName === field.fieldName ? "rounded-lg bg-amber-50 ring-2 ring-amber-300 ring-offset-2" : "",
+    );
+
+    if (isChineseInterface && isChineseOnlyVisaType) {
+      return (
+        <div
+          key={valueKey}
+          className={fieldFrameClassName}
+          data-field-name={field.fieldName}
+        >
+          <div className="min-w-0">
+            {renderSide("zh")}
+          </div>
+          <TaiwanEntryPermitFieldNotice fieldName={field.fieldName} />
+          <div className="mt-2 flex items-center justify-end gap-2">
+            {issue.severity !== "ok" && (
+              <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
+                {issue.message}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
+              }}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
+                copilotButtonClasses(),
+              )}
+              aria-expanded={panelOpen}
+              aria-label={buttonLabel}
+              data-copilot-trigger={valueKey}
+            >
+              <Bot className="h-3.5 w-3.5" />
+              {buttonLabel}
+            </button>
+          </div>
+          {panelOpen && (
+            <div className="mt-2 w-full" data-copilot-panel-frame={valueKey}>
+              <FieldGuidancePanel
+                country={country}
+                visaType={resolvedVisaType}
+                locale={locale}
+                field={guidanceField}
+                answer={values[valueKey] ?? ""}
+                allAnswers={values}
+                onClose={() => setActiveGuidanceKey(null)}
+              />
+            </div>
+          )}
+        </div>
+      );
+    }
 
     if (!isChineseInterface) {
       return (
         <div
           key={valueKey}
-          className={cn(
-            "py-3 transition-colors",
-            panelOpen ? "bg-[#fbfdff]" : "",
-          )}
+          className={fieldFrameClassName}
+          data-field-name={field.fieldName}
         >
           <div className="min-w-0">
             {renderSide("en")}
@@ -3719,10 +4055,8 @@ export function DynamicStepForm({
     return (
       <div
         key={valueKey}
-        className={cn(
-          "py-3 transition-colors",
-          panelOpen ? "bg-[#fbfdff]" : "",
-        )}
+        className={fieldFrameClassName}
+        data-field-name={field.fieldName}
       >
         <div className="grid min-w-0 gap-3 md:grid-cols-2">
           {renderSide("zh")}
@@ -3797,9 +4131,27 @@ export function DynamicStepForm({
   const renderedGroups = new Set<string>();
   const renderedInlineGroups = new Set<string>();
   const renderedBlockGroups = new Set<string>();
+  const formVisaType = visaType ?? step.fields[0]?.visaType;
+  const showTaiwanEntryPermitNotice = formVisaType === "TW_ENTRY_PERMIT" && step.stepName === "Delivery Location";
+  const showTaiwanContactAddressNotice =
+    formVisaType === "TW_ENTRY_PERMIT" && isTaiwanEntryPermitContactAddressStep(step.stepName);
 
   return (
     <form onSubmit={handleSubmit} onKeyDown={handleKeyboardShortcuts} className="flex flex-col gap-3">
+      {showTaiwanEntryPermitNotice && (
+        <section className="mb-2 rounded-[8px] border border-sky-200 bg-sky-50 px-5 py-4 text-[15px] leading-7 text-sky-950 shadow-sm">
+          <ol className="list-decimal space-y-1 pl-5">
+            {TAIWAN_ENTRY_PERMIT_NOTICE.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {showTaiwanContactAddressNotice && (
+        <section className="mb-2 rounded-[8px] border border-sky-200 bg-sky-50 px-5 py-4 text-[15px] leading-7 text-sky-950 shadow-sm">
+          {TAIWAN_ENTRY_PERMIT_CONTACT_ADDRESS_NOTICE}
+        </section>
+      )}
       {step.fields.map((field) => {
         // Skip fields handled by an external control (e.g. passport OCR upload
         // card). They stay in required validation but are not rendered here.
