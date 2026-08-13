@@ -4,28 +4,39 @@ Scope: Taiwan `TW_ENTRY_PERMIT` (旅居海外大陸地區人民申請來臺觀�
 official National Immigration Agency online entry-permit application at
 coa.immigration.gov.tw only.
 
-- **No CAPTCHA solving.** Fill every field, then stop at the CAPTCHA image
-  (`/coa-frontend/captcha`) + "請輸入驗證碼" input. Never attempt OCR, a
-  slider solve, or a third-party CAPTCHA service for this country.
-- **No final submit.** Never click "確認資料" (or any equivalent submit
-  control). The country-level halt status is `stopped_at_captcha`; at the
-  shared `DispatchOutcome` layer this maps to `halted_before_pay` (the same
-  generic bucket UK/France/Australia use, even though their real halt
-  reasons differ — see src/queue/types.ts).
-- **No persistent account.** Unlike UK/France (`uk_accounts`/`fv_accounts`),
-  the official portal has no account/password/resume-link model. Every run
-  is a single continuous browser session: terms modal → delivery location →
-  application form tab → one-time email OTP verification (not a
-  registration) → every field → CAPTCHA. Do not add a `tw_accounts` table or
-  any equivalent — see docs/tw-entry-permit-auto-submit-plan.md "架构修正"
-  for the full reasoning.
+- **Applicant final-submit handoff is the canonical runner path.** Fill every
+  field, verify every required field/file, solve the final image CAPTCHA
+  (`/coa-frontend/captcha`) via `src/captcha`, then expose the same short-lived
+  Browserbase session to the owning applicant. Only the applicant clicks the
+  official "確認資料" button. Do not add a Taiwan-only network client.
+- **Final submit is allowed only after verification passes.** The final submit
+  control is a real NIA POST, so the applicant handoff must be created only after the
+  authorized login hook, terms modal, delivery location, email OTP, field
+  verification, and file verification have all succeeded. While the live
+  handoff is active, persist `stopped_at_captcha` plus an opaque handoff id;
+  persist `submitted` only after the runner captures official receipt evidence.
+- **No VIZA-created persistent account.** Taiwan may use an authorized
+  official login through the replaceable `TwOfficialLoginProvider`, but this
+  runner must not create, store, fixture, log, or document any real official
+  username, password, OTP, cookie, or storage state. Every application fill
+  remains a single continuous Browserbase session: authorized login hook → terms
+  modal → delivery location → application form tab → one-time email OTP
+  verification → every field/file verified → CAPTCHA solve → applicant live
+  handoff → official receipt capture.
+- **Verify after every field/file.** Required fields, enum values, and uploads
+  must fail immediately when the official page's actual value/file input does
+  not match the normalized VIZA contract. Successful CAPTCHA-boundary metadata
+  may include field names, control names, counts, page fingerprint, and masked
+  screenshot references only; never persist applicant values or OTPs there.
 - Field/value contract lives in
   `viza-be/agent-backend/scripts/seed-tw-entry-permit-form-fields.ts` —
   `src/tw/normalize.ts`'s output keys/enum values must match it exactly.
-- If the official portal blocks access, changes layout, or the CAPTCHA
-  boundary can't be confirmed, return a precise `{ status: "failed" }`
-  result with the error and current URL. Do not fake reaching the CAPTCHA
-  boundary.
+- If the official portal blocks access, changes layout, the CAPTCHA boundary
+  can't be confirmed, or 2captcha fails, return a precise `{ status: "failed" }`
+  result with the error and current URL. Do not fake official submission.
+- `src/tw/captcha.ts` owns the Taiwan CAPTCHA selectors, screenshot solve,
+  retry/report-bad flow, and submit click. Persist solve telemetry only; never
+  persist the solved CAPTCHA text.
 - Label-based Playwright locators in `fillers.ts`/`apply.ts` are provisional
   (no concrete DOM ids/names were captured during the live walkthrough) —
   see the TODOs in those files. Verify against the live site before trusting

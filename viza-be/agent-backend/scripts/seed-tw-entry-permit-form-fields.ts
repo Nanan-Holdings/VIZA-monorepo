@@ -67,144 +67,182 @@ const YES_NO = [
 ];
 
 // ─── Real option lists captured live from the official portal ──────────────
+// (label_zh values below are Simplified Chinese for display on our site;
+// the official portal itself uses Traditional Chinese — see comments/plan
+// doc for the real on-page text.)
 
 const CONTINENTS = [
-  { value: "A", text: "Asia", label_zh: "亞洲" },
+  { value: "A", text: "Asia", label_zh: "亚洲" },
   { value: "B", text: "Americas", label_zh: "美洲" },
-  { value: "C", text: "Europe", label_zh: "歐洲" },
+  { value: "C", text: "Europe", label_zh: "欧洲" },
   { value: "D", text: "Africa", label_zh: "非洲" },
   { value: "E", text: "Oceania", label_zh: "大洋洲" },
 ];
 
 const EMBASSY_OFFICES = [
-  { value: "50", text: "Taipei Economic and Cultural Office / Hong Kong Office", label_zh: "台北經濟文化辦事處／香港辦事處" },
-  { value: "51", text: "Taipei Economic and Cultural Office / Macau Office", label_zh: "台北經濟文化辦事處／澳門辦事處" },
-  { value: "5A", text: "Taipei Economic and Cultural Representative Office (Tokyo)", label_zh: "台北駐日經濟文化代表處(東京)" },
-  { value: "5C", text: "Taipei Economic and Cultural Office in Osaka", label_zh: "台北駐大阪經濟文化辦事處" },
-  { value: "5F", text: "Taipei Mission in Korea", label_zh: "駐韓國台北代表處" },
-  { value: "55", text: "Taipei Economic and Cultural Office in Malaysia", label_zh: "駐馬來西亞台北經濟文化辦事處" },
-  { value: "56", text: "Taipei Economic and Cultural Office in the Philippines", label_zh: "駐菲律賓台北經濟文化辦事處" },
-  { value: "53", text: "Taipei Representative Office in Singapore", label_zh: "駐新加坡台北代表處" },
-  { value: "52", text: "Taipei Economic and Cultural Office in Thailand", label_zh: "駐泰國台北經濟文化辦事處" },
-  { value: "67", text: "Taipei Economic and Cultural Office (Hanoi)", label_zh: "駐越南代表處(河內)" },
-  { value: "57", text: "Taipei Economic and Cultural Office in Ho Chi Minh City", label_zh: "駐胡志明市台北經濟文化辦事處" },
-  { value: "58", text: "Taipei Economic and Cultural Office in Myanmar", label_zh: "駐緬甸代表處" },
-  { value: "66", text: "Taipei Economic and Cultural Center in India", label_zh: "駐印度代表處" },
-  { value: "54", text: "Taipei Economic and Trade Office in Indonesia", label_zh: "駐印尼台北經濟貿易代表處" },
+  { value: "50", text: "Taipei Economic and Cultural Office / Hong Kong Office", label_zh: "台北经济文化办事处／香港办事处" },
+  { value: "51", text: "Taipei Economic and Cultural Office / Macau Office", label_zh: "台北经济文化办事处／澳门办事处" },
+  { value: "5A", text: "Taipei Economic and Cultural Representative Office (Tokyo)", label_zh: "台北驻日经济文化代表处(东京)" },
+  { value: "5C", text: "Taipei Economic and Cultural Office in Osaka", label_zh: "台北驻大阪经济文化办事处" },
+  { value: "5F", text: "Taipei Mission in Korea", label_zh: "驻韩国台北代表处" },
+  { value: "55", text: "Taipei Economic and Cultural Office in Malaysia", label_zh: "驻马来西亚台北经济文化办事处" },
+  { value: "56", text: "Taipei Economic and Cultural Office in the Philippines", label_zh: "驻菲律宾台北经济文化办事处" },
+  { value: "53", text: "Taipei Representative Office in Singapore", label_zh: "驻新加坡台北代表处" },
+  { value: "52", text: "Taipei Economic and Cultural Office in Thailand", label_zh: "驻泰国台北经济文化办事处" },
+  { value: "67", text: "Taipei Economic and Cultural Office (Hanoi)", label_zh: "驻越南代表处(河内)" },
+  { value: "57", text: "Taipei Economic and Cultural Office in Ho Chi Minh City", label_zh: "驻胡志明市台北经济文化办事处" },
+  { value: "58", text: "Taipei Economic and Cultural Office in Myanmar", label_zh: "驻缅甸代表处" },
+  { value: "66", text: "Taipei Economic and Cultural Center in India", label_zh: "驻印度代表处" },
+  { value: "54", text: "Taipei Economic and Trade Office in Indonesia", label_zh: "驻印尼台北经济贸易代表处" },
+  { value: "6A", text: "Taipei Economic and Cultural Office in Vancouver", label_zh: "驻温哥华台北经济文化办事处" },
+  { value: "6B", text: "Taipei Economic and Cultural Office in Toronto", label_zh: "驻多伦多台北经济文化办事处" },
+  { value: "60", text: "Taipei Economic and Cultural Office in New York", label_zh: "驻纽约台北经济文化办事处" },
+  { value: "61", text: "Taipei Economic and Cultural Office in Los Angeles", label_zh: "驻洛杉矶台北经济文化办事处" },
+  { value: "62", text: "Taipei Economic and Cultural Office in San Francisco", label_zh: "驻旧金山台北经济文化办事处" },
+  { value: "64", text: "Taipei Economic and Cultural Representative Office in the United States (Washington, DC)", label_zh: "驻美国台北经济文化代表处(华盛顿特区)" },
+  { value: "65", text: "Taipei Economic and Cultural Office in Miami", label_zh: "驻迈阿密台北经济文化办事处" },
+  { value: "70", text: "Embassy of the Republic of China (Taiwan) in Paraguay", label_zh: "驻巴拉圭共和国大使馆" },
+  { value: "GP", text: "Taipei Representative Office in the EU and Belgium", label_zh: "驻欧盟兼驻比利时代表处" },
+  { value: "72", text: "Taipei Representative Office in France", label_zh: "驻法国台北代表处" },
+  { value: "63", text: "Taipei Representative Office in the United Kingdom", label_zh: "驻英国台北代表处" },
+  { value: "71", text: "Taipei Liaison Office in the Republic of South Africa", label_zh: "驻南非共和国台北联络代表处" },
+  { value: "73", text: "Taipei Economic and Cultural Office in Sydney", label_zh: "驻雪梨台北经济文化办事处" },
+  { value: "74", text: "Taipei Economic and Cultural Office in Auckland", label_zh: "驻奥克兰台北经济文化办事处" },
 ];
 
+const EMBASSY_OFFICES_BY_CONTINENT = {
+  A: EMBASSY_OFFICES.filter((office) => ["50", "51", "5A", "5C", "5F", "55", "56", "53", "52", "67", "57", "58", "66", "54"].includes(office.value)),
+  B: EMBASSY_OFFICES.filter((office) => ["6A", "6B", "60", "61", "62", "64", "65", "70"].includes(office.value)),
+  C: EMBASSY_OFFICES.filter((office) => ["GP", "72", "63"].includes(office.value)),
+  D: EMBASSY_OFFICES.filter((office) => ["71"].includes(office.value)),
+  E: EMBASSY_OFFICES.filter((office) => ["73", "74"].includes(office.value)),
+};
+
 const ELIGIBILITY_CATEGORIES = [
-  { value: "1", text: "Studying abroad or in Hong Kong/Macau", label_zh: "赴國外或香港、澳門留學生" },
-  { value: "2", text: "Obtained permanent residency abroad or in Hong Kong/Macau", label_zh: "旅居國外或香港、澳門取得當地永久居留權" },
-  { value: "3", text: "Resided abroad or in Hong Kong/Macau 1+ year with valid work proof", label_zh: "旅居國外或香港、澳門1年以上且領有工作證明" },
-  { value: "4", text: "Obtained dependent residency abroad or in Hong Kong/Macau with financial proof", label_zh: "旅居國外或香港、澳門取得當地依親居留權且有財力證明" },
+  { value: "1", text: "Studying abroad or in Hong Kong/Macau", label_zh: "赴国外或香港、澳门留学生" },
+  { value: "2", text: "Obtained permanent residency abroad or in Hong Kong/Macau", label_zh: "旅居国外或香港、澳门取得当地永久居留权" },
+  { value: "3", text: "Resided abroad or in Hong Kong/Macau 1+ year with valid work proof", label_zh: "旅居国外或香港、澳门1年以上且领有工作证明" },
+  { value: "4", text: "Obtained dependent residency abroad or in Hong Kong/Macau with financial proof", label_zh: "旅居国外或香港、澳门取得当地依亲居留权且有财力证明" },
 ];
 
 const OCCUPATIONS = [
-  { value: "1", text: "Military", label_zh: "軍人" }, { value: "2", text: "Civil servant", label_zh: "公務員" },
-  { value: "3", text: "Public/school staff", label_zh: "公教職員" }, { value: "4", text: "Private school faculty", label_zh: "私校教職" },
-  { value: "5", text: "Business", label_zh: "商" }, { value: "6", text: "Agriculture", label_zh: "農" },
-  { value: "7", text: "Industry", label_zh: "工" }, { value: "8", text: "Medical personnel", label_zh: "醫事人員" },
-  { value: "9", text: "Religious worker", label_zh: "宗教人士" }, { value: "10", text: "Entertainer", label_zh: "演藝人員" },
-  { value: "11", text: "Journalism", label_zh: "新聞事業" }, { value: "12", text: "Fishing vessel crew", label_zh: "漁船船員" },
-  { value: "13", text: "Ship crew", label_zh: "輪船船員" }, { value: "14", text: "Student", label_zh: "學生" },
-  { value: "15", text: "Freelance", label_zh: "自由業" }, { value: "16", text: "Other occupation", label_zh: "其他業" },
-  { value: "17", text: "None", label_zh: "無" }, { value: "18", text: "Police", label_zh: "警" },
-  { value: "19", text: "Seafarer", label_zh: "船員" }, { value: "20", text: "Homemaker", label_zh: "家庭主婦" },
-  { value: "21", text: "Technician (trade)", label_zh: "技工" }, { value: "22", text: "Artist", label_zh: "藝術家" },
-  { value: "23", text: "Nurse", label_zh: "護士" }, { value: "24", text: "Pilot", label_zh: "飛行員" },
-  { value: "25", text: "Specialist", label_zh: "專家" }, { value: "27", text: "Salesperson", label_zh: "推銷員" },
-  { value: "28", text: "Scientist", label_zh: "科學家" }, { value: "29", text: "Secretary", label_zh: "秘書" },
-  { value: "30", text: "Technician", label_zh: "技師" }, { value: "31", text: "Writer", label_zh: "作家" },
-  { value: "32", text: "Consultant", label_zh: "顧問" }, { value: "33", text: "Professor", label_zh: "教授" },
-  { value: "34", text: "Accountant", label_zh: "會計員" }, { value: "35", text: "Bank employee", label_zh: "銀行員" },
-  { value: "36", text: "Diver", label_zh: "潛水夫" }, { value: "37", text: "Lawyer", label_zh: "律師" },
-  { value: "38", text: "Diplomat", label_zh: "外交人員" }, { value: "39", text: "Musician", label_zh: "音樂家" },
-  { value: "40", text: "IT professional", label_zh: "資訊人員" }, { value: "41", text: "Researcher", label_zh: "研究人員" },
-  { value: "42", text: "Engineer", label_zh: "工程師" }, { value: "47", text: "White-collar seafarer", label_zh: "白領船員" },
-  { value: "48", text: "Blue-collar seafarer", label_zh: "藍領船員" }, { value: "49", text: "Caregiver", label_zh: "看護工" },
-  { value: "50", text: "Institutional caregiver", label_zh: "養護機構看護工" }, { value: "51", text: "Unspecified", label_zh: "未註明" },
-  { value: "52", text: "Staff/clerk", label_zh: "職員" }, { value: "53", text: "Teacher", label_zh: "教師" },
-  { value: "54", text: "Doctor", label_zh: "醫生" }, { value: "55", text: "Missionary", label_zh: "傳教士" },
-  { value: "56", text: "Journalist/reporter", label_zh: "記者" }, { value: "58", text: "Athlete", label_zh: "運動人員" },
-  { value: "61", text: "Unemployed / job-seeking", label_zh: "待業" }, { value: "62", text: "Retired", label_zh: "退休" },
+  { value: "1", text: "Military", label_zh: "军人" }, { value: "2", text: "Civil servant", label_zh: "公务员" },
+  { value: "3", text: "Public/school staff", label_zh: "公教职员" }, { value: "4", text: "Private school faculty", label_zh: "私校教职" },
+  { value: "5", text: "Business", label_zh: "商" }, { value: "6", text: "Agriculture", label_zh: "农" },
+  { value: "7", text: "Industry", label_zh: "工" }, { value: "8", text: "Medical personnel", label_zh: "医事人员" },
+  { value: "9", text: "Religious worker", label_zh: "宗教人士" }, { value: "10", text: "Entertainer", label_zh: "演艺人员" },
+  { value: "11", text: "Journalism", label_zh: "新闻事业" }, { value: "12", text: "Fishing vessel crew", label_zh: "渔船船员" },
+  { value: "13", text: "Ship crew", label_zh: "轮船船员" }, { value: "14", text: "Student", label_zh: "学生" },
+  { value: "15", text: "Freelance", label_zh: "自由业" }, { value: "16", text: "Other occupation", label_zh: "其他业" },
+  { value: "17", text: "None", label_zh: "无" }, { value: "18", text: "Police", label_zh: "警" },
+  { value: "19", text: "Seafarer", label_zh: "船员" }, { value: "20", text: "Homemaker", label_zh: "家庭主妇" },
+  { value: "21", text: "Technician (trade)", label_zh: "技工" }, { value: "22", text: "Artist", label_zh: "艺术家" },
+  { value: "23", text: "Nurse", label_zh: "护士" }, { value: "24", text: "Pilot", label_zh: "飞行员" },
+  { value: "25", text: "Specialist", label_zh: "专家" }, { value: "27", text: "Salesperson", label_zh: "推销员" },
+  { value: "28", text: "Scientist", label_zh: "科学家" }, { value: "29", text: "Secretary", label_zh: "秘书" },
+  { value: "30", text: "Technician", label_zh: "技师" }, { value: "31", text: "Writer", label_zh: "作家" },
+  { value: "32", text: "Consultant", label_zh: "顾问" }, { value: "33", text: "Professor", label_zh: "教授" },
+  { value: "34", text: "Accountant", label_zh: "会计员" }, { value: "35", text: "Bank employee", label_zh: "银行员" },
+  { value: "36", text: "Diver", label_zh: "潜水夫" }, { value: "37", text: "Lawyer", label_zh: "律师" },
+  { value: "38", text: "Diplomat", label_zh: "外交人员" }, { value: "39", text: "Musician", label_zh: "音乐家" },
+  { value: "40", text: "IT professional", label_zh: "信息人员" }, { value: "41", text: "Researcher", label_zh: "研究人员" },
+  { value: "42", text: "Engineer", label_zh: "工程师" }, { value: "47", text: "White-collar seafarer", label_zh: "白领船员" },
+  { value: "48", text: "Blue-collar seafarer", label_zh: "蓝领船员" }, { value: "49", text: "Caregiver", label_zh: "看护工" },
+  { value: "50", text: "Institutional caregiver", label_zh: "养护机构看护工" }, { value: "51", text: "Unspecified", label_zh: "未注明" },
+  { value: "52", text: "Staff/clerk", label_zh: "职员" }, { value: "53", text: "Teacher", label_zh: "教师" },
+  { value: "54", text: "Doctor", label_zh: "医生" }, { value: "55", text: "Missionary", label_zh: "传教士" },
+  { value: "56", text: "Journalist/reporter", label_zh: "记者" }, { value: "58", text: "Athlete", label_zh: "运动人员" },
+  { value: "61", text: "Unemployed / job-seeking", label_zh: "待业" }, { value: "62", text: "Retired", label_zh: "退休" },
 ];
 
 const TW_CITIES = [
   "臺北市", "基隆市", "新北市", "宜蘭縣", "新竹市", "新竹縣", "桃園市", "苗栗縣", "臺中市", "彰化縣",
   "南投縣", "嘉義市", "嘉義縣", "雲林縣", "臺南市", "高雄市", "澎湖縣", "屏東縣", "臺東縣", "花蓮縣",
   "金門縣", "連江縣",
-].map((c, i) => ({ value: String(i + 1), text: c, label_zh: c }));
+].map((c, i) => ({ value: String(i + 1), text: c, label_zh: c, official_label: c }));
 
-// Full "所具其他國籍為" nationality list, verbatim (value = numeric code used by the portal's <select>).
+const BIRTH_PLACE_MAINLAND_OPTIONS = [
+  "湖南", "湖北", "四川", "上海", "南京", "漢口", "重慶", "山東", "山西", "河南",
+  "河北", "陝西", "甘肅", "青島", "天津", "北京", "西安", "遼寧", "遼北", "安東",
+  "吉林", "松江", "合江", "嫩江", "黑龍江", "興安", "大連", "瀋陽", "哈爾濱", "熱河",
+  "察哈爾", "綏遠", "寧夏回族自治區", "內蒙古自治區", "新疆維吾爾自治區", "青海", "西康", "西藏自治區", "福建", "廣東",
+  "廣西壯族自治區", "雲南", "貴州", "海南", "廣州", "江蘇", "浙江", "安徽", "江西",
+].map((label) => ({ value: label, text: label, label_zh: label, official_label: label }));
+
+// Full "所具其他國籍為" nationality list — value = numeric code used by the
+// portal's <select> (unchanged). The same official numeric-code list is also
+// the "其他" branch source for 出生地(同所持旅遊證件) / traveller.birthPlace1.
+// Most labels are still Simplified Chinese pending a full official-label sync;
+// the 994/995/996/997/999 special identity rows below use Traditional labels
+// confirmed from the user's official screenshot.
 const NATIONALITY_OPTIONS: Array<{ value: string; text: string }> = [
-  { value: "1", text: "阿富汗" }, { value: "2", text: "不丹" }, { value: "3", text: "汶萊" }, { value: "4", text: "緬甸" },
-  { value: "5", text: "柬埔寨" }, { value: "6", text: "斯里蘭卡" }, { value: "7", text: "賽普勒斯" }, { value: "8", text: "印度" },
+  { value: "1", text: "阿富汗" }, { value: "2", text: "不丹" }, { value: "3", text: "文莱" }, { value: "4", text: "缅甸" },
+  { value: "5", text: "柬埔寨" }, { value: "6", text: "斯里兰卡" }, { value: "7", text: "赛普勒斯" }, { value: "8", text: "印度" },
   { value: "9", text: "印尼" }, { value: "10", text: "伊朗" }, { value: "11", text: "伊拉克" }, { value: "12", text: "以色列" },
-  { value: "13", text: "日本" }, { value: "14", text: "約旦" }, { value: "15", text: "南韓" }, { value: "16", text: "科威特" },
-  { value: "17", text: "寮國" }, { value: "18", text: "黎巴嫩" }, { value: "19", text: "馬來西亞" }, { value: "20", text: "馬爾地夫" },
-  { value: "21", text: "蒙古" }, { value: "22", text: "尼泊爾" }, { value: "23", text: "巴基斯坦" }, { value: "24", text: "菲律賓" },
-  { value: "25", text: "卡達" }, { value: "26", text: "沙烏地阿拉伯" }, { value: "27", text: "新加坡" }, { value: "28", text: "南葉門" },
-  { value: "29", text: "敘利亞" }, { value: "30", text: "泰國" }, { value: "31", text: "東帝汶" }, { value: "32", text: "土耳其" },
-  { value: "33", text: "北葉門" }, { value: "34", text: "越南" }, { value: "50", text: "孟加拉共和國" }, { value: "53", text: "阿曼" },
-  { value: "54", text: "吉里巴斯" }, { value: "55", text: "塞席爾" }, { value: "56", text: "吐瓦魯" }, { value: "59", text: "阿拉伯聯合大公國" },
-  { value: "60", text: "索羅門群島" }, { value: "62", text: "北韓" }, { value: "63", text: "葉門" }, { value: "92", text: "巴勒斯坦" },
-  { value: "101", text: "澳大利亞" }, { value: "102", text: "斐濟" }, { value: "103", text: "諾魯" }, { value: "104", text: "紐西蘭" },
-  { value: "106", text: "東加王國" }, { value: "107", text: "薩摩亞獨立國" }, { value: "113", text: "萬那杜" }, { value: "114", text: "科克群島" },
-  { value: "115", text: "紐威島" }, { value: "116", text: "百慕達" }, { value: "119", text: "澳屬椰子群島" }, { value: "120", text: "聖誕島" },
-  { value: "121", text: "北馬利亞納群島" }, { value: "122", text: "新喀里多尼亞島" }, { value: "123", text: "沃里斯與伏塔那島" }, { value: "124", text: "諾福克群島" },
-  { value: "125", text: "托克勞群島" }, { value: "126", text: "美國邊疆群島" }, { value: "127", text: "英屬皮特康島" }, { value: "128", text: "法屬玻里尼西亞" },
-  { value: "194", text: "密克羅尼西亞" }, { value: "196", text: "帛琉" }, { value: "201", text: "阿爾巴尼亞" }, { value: "202", text: "安道爾" },
-  { value: "203", text: "奧地利" }, { value: "204", text: "比利時" }, { value: "205", text: "保加利亞" }, { value: "206", text: "白俄羅斯" },
-  { value: "207", text: "捷克" }, { value: "208", text: "丹麥" }, { value: "209", text: "芬蘭" }, { value: "210", text: "法國" },
-  { value: "211", text: "德國" }, { value: "212", text: "希臘" }, { value: "213", text: "教廷" }, { value: "214", text: "匈牙利" },
-  { value: "215", text: "冰島" }, { value: "216", text: "愛爾蘭" }, { value: "217", text: "義大利" }, { value: "218", text: "列支敦斯登" },
-  { value: "219", text: "盧森堡" }, { value: "220", text: "馬爾他" }, { value: "221", text: "摩納哥" }, { value: "222", text: "荷蘭" },
-  { value: "223", text: "挪威" }, { value: "224", text: "波蘭" }, { value: "225", text: "葡萄牙" }, { value: "226", text: "羅馬尼亞" },
-  { value: "227", text: "聖馬利諾" }, { value: "228", text: "西班牙" }, { value: "229", text: "瑞典" }, { value: "230", text: "瑞士" },
-  { value: "231", text: "烏克蘭" }, { value: "232", text: "英國" }, { value: "236", text: "巴布亞紐幾內亞" }, { value: "238", text: "拉脫維亞" },
-  { value: "239", text: "愛沙尼亞" }, { value: "240", text: "亞美尼亞" }, { value: "241", text: "俄羅斯" }, { value: "242", text: "立陶宛" },
-  { value: "243", text: "烏茲別克" }, { value: "244", text: "哈薩克" }, { value: "245", text: "摩爾多瓦" }, { value: "246", text: "吉爾吉斯" },
-  { value: "247", text: "塔吉克" }, { value: "248", text: "土庫曼" }, { value: "249", text: "亞塞拜然" }, { value: "250", text: "喬治亞" },
-  { value: "251", text: "克羅埃西亞" }, { value: "252", text: "斯洛維尼亞" }, { value: "253", text: "北馬其頓" }, { value: "254", text: "波士尼亞與赫塞哥維納" },
-  { value: "256", text: "斯洛伐克" }, { value: "257", text: "蒙特內哥羅" }, { value: "258", text: "塞爾維亞" }, { value: "259", text: "科索沃" },
-  { value: "260", text: "丹麥屬法羅群島" }, { value: "261", text: "格林蘭" }, { value: "262", text: "挪威屬斯瓦爾巴特群島" }, { value: "301", text: "巴哈馬" },
-  { value: "302", text: "巴貝多" }, { value: "303", text: "加拿大" }, { value: "304", text: "哥斯大黎加" }, { value: "305", text: "古巴" },
-  { value: "306", text: "多明尼加" }, { value: "307", text: "薩爾瓦多" }, { value: "308", text: "瓜地馬拉" }, { value: "309", text: "海地" },
-  { value: "310", text: "宏都拉斯" }, { value: "311", text: "牙買加" }, { value: "312", text: "墨西哥" }, { value: "313", text: "尼加拉瓜" },
-  { value: "314", text: "巴拿馬" }, { value: "315", text: "美國" }, { value: "326", text: "格瑞那達" }, { value: "327", text: "馬紹爾群島共和國" },
-  { value: "395", text: "英屬維爾京群島" }, { value: "401", text: "阿根廷" }, { value: "402", text: "玻利維亞" }, { value: "403", text: "巴西" },
-  { value: "404", text: "智利" }, { value: "405", text: "哥倫比亞" }, { value: "406", text: "厄瓜多" }, { value: "407", text: "蓋亞那" },
-  { value: "408", text: "烏拉圭" }, { value: "409", text: "巴拉圭" }, { value: "410", text: "秘魯" }, { value: "411", text: "蘇利南" },
-  { value: "412", text: "千里達及托巴哥" }, { value: "413", text: "委內瑞拉" }, { value: "416", text: "安地卡及巴布達" }, { value: "417", text: "多米尼克" },
-  { value: "419", text: "法屬圭亞那" }, { value: "420", text: "聖馬丁(荷屬)" }, { value: "470", text: "古拉索" }, { value: "471", text: "阿魯巴" },
-  { value: "472", text: "荷屬安地列斯" }, { value: "473", text: "開曼群島" }, { value: "474", text: "福克蘭群島" }, { value: "475", text: "法屬瓜德魯普島" },
-  { value: "476", text: "英屬蒙瑟拉特島" }, { value: "477", text: "法屬馬丁尼克" }, { value: "478", text: "南喬治亞與南桑威奇群島" }, { value: "479", text: "法屬聖皮埃爾和密克隆群島" },
-  { value: "480", text: "英屬土克斯及開科斯群島" }, { value: "481", text: "美屬維爾京群島" }, { value: "501", text: "阿爾及利亞" }, { value: "502", text: "波札那" },
-  { value: "503", text: "蒲隆地" }, { value: "504", text: "中非共和國" }, { value: "505", text: "喀麥隆" }, { value: "506", text: "查德" },
-  { value: "507", text: "剛果共和國" }, { value: "509", text: "貝南共和國" }, { value: "510", text: "赤道幾內亞" }, { value: "511", text: "衣索比亞" },
-  { value: "512", text: "加彭" }, { value: "513", text: "甘比亞" }, { value: "514", text: "迦納" }, { value: "515", text: "幾內亞" },
-  { value: "516", text: "象牙海岸" }, { value: "517", text: "肯亞" }, { value: "518", text: "賴索托" }, { value: "519", text: "賴比瑞亞" },
-  { value: "520", text: "利比亞" }, { value: "521", text: "馬達加斯加" }, { value: "522", text: "馬拉威" }, { value: "523", text: "馬利" },
-  { value: "524", text: "茅利塔尼亞" }, { value: "525", text: "模里西斯" }, { value: "526", text: "摩洛哥" }, { value: "527", text: "尼日" },
-  { value: "528", text: "奈及利亞" }, { value: "529", text: "辛巴威" }, { value: "530", text: "盧安達" }, { value: "531", text: "塞內加爾" },
-  { value: "532", text: "獅子山" }, { value: "533", text: "索馬利亞" }, { value: "534", text: "南非" }, { value: "535", text: "蘇丹" },
-  { value: "536", text: "史瓦帝尼" }, { value: "537", text: "坦尚尼亞" }, { value: "538", text: "多哥" }, { value: "539", text: "突尼西亞" },
-  { value: "540", text: "烏干達" }, { value: "541", text: "埃及" }, { value: "542", text: "布吉納法索" }, { value: "543", text: "尚比亞" },
-  { value: "545", text: "巴林" }, { value: "546", text: "厄利垂亞" }, { value: "547", text: "莫三比克" }, { value: "548", text: "安哥拉" },
-  { value: "551", text: "維德角共和國" }, { value: "552", text: "吉布地" }, { value: "553", text: "葛摩聯邦" }, { value: "555", text: "西撒哈拉" },
-  { value: "557", text: "幾內亞比索共和國" }, { value: "558", text: "聖多美普林西比" }, { value: "560", text: "納米比亞" }, { value: "562", text: "剛果民主共和國" },
-  { value: "563", text: "南蘇丹" }, { value: "564", text: "英屬印度洋地區" }, { value: "565", text: "美亞特" }, { value: "566", text: "英屬聖赫勒拿島" },
-  { value: "567", text: "索馬利蘭" }, { value: "601", text: "聖文森及格瑞那丁" }, { value: "602", text: "聖露西亞" }, { value: "603", text: "聖克里斯多福及尼維斯" },
-  { value: "604", text: "貝里斯" }, { value: "881", text: "法屬南部屬地" }, { value: "882", text: "波維特島" }, { value: "883", text: "赫德及麥當勞群島" },
+  { value: "13", text: "日本" }, { value: "14", text: "约旦" }, { value: "15", text: "南韩" }, { value: "16", text: "科威特" },
+  { value: "17", text: "老挝" }, { value: "18", text: "黎巴嫩" }, { value: "19", text: "马来西亚" }, { value: "20", text: "马尔代夫" },
+  { value: "21", text: "蒙古" }, { value: "22", text: "尼泊尔" }, { value: "23", text: "巴基斯坦" }, { value: "24", text: "菲律宾" },
+  { value: "25", text: "卡塔尔" }, { value: "26", text: "沙特阿拉伯" }, { value: "27", text: "新加坡" }, { value: "28", text: "南也门" },
+  { value: "29", text: "叙利亚" }, { value: "30", text: "泰国" }, { value: "31", text: "东帝汶" }, { value: "32", text: "土耳其" },
+  { value: "33", text: "北也门" }, { value: "34", text: "越南" }, { value: "50", text: "孟加拉共和国" }, { value: "53", text: "阿曼" },
+  { value: "54", text: "基里巴斯" }, { value: "55", text: "塞舌尔" }, { value: "56", text: "图瓦卢" }, { value: "59", text: "阿拉伯联合酋长国" },
+  { value: "60", text: "索罗门群岛" }, { value: "62", text: "北韩" }, { value: "63", text: "也门" }, { value: "92", text: "巴勒斯坦" },
+  { value: "101", text: "澳大利亚" }, { value: "102", text: "斐济" }, { value: "103", text: "瑙鲁" }, { value: "104", text: "新西兰" },
+  { value: "106", text: "东加王国" }, { value: "107", text: "萨摩亚独立国" }, { value: "113", text: "瓦努阿图" }, { value: "114", text: "科克群岛" },
+  { value: "115", text: "纽威岛" }, { value: "116", text: "百慕达" }, { value: "119", text: "澳属椰子群岛" }, { value: "120", text: "圣诞岛" },
+  { value: "121", text: "北马利亚纳群岛" }, { value: "122", text: "新喀里多尼亚岛" }, { value: "123", text: "沃里斯与伏塔那岛" }, { value: "124", text: "诺福克群岛" },
+  { value: "125", text: "托克劳群岛" }, { value: "126", text: "美国边疆群岛" }, { value: "127", text: "英属皮特康岛" }, { value: "128", text: "法属玻里尼西亚" },
+  { value: "194", text: "密克罗尼西亚" }, { value: "196", text: "帕劳" }, { value: "201", text: "阿尔巴尼亚" }, { value: "202", text: "安道尔" },
+  { value: "203", text: "奥地利" }, { value: "204", text: "比利时" }, { value: "205", text: "保加利亚" }, { value: "206", text: "白俄罗斯" },
+  { value: "207", text: "捷克" }, { value: "208", text: "丹麦" }, { value: "209", text: "芬兰" }, { value: "210", text: "法国" },
+  { value: "211", text: "德国" }, { value: "212", text: "希腊" }, { value: "213", text: "教廷" }, { value: "214", text: "匈牙利" },
+  { value: "215", text: "冰岛" }, { value: "216", text: "爱尔兰" }, { value: "217", text: "意大利" }, { value: "218", text: "列支敦士登" },
+  { value: "219", text: "卢森堡" }, { value: "220", text: "马尔他" }, { value: "221", text: "摩纳哥" }, { value: "222", text: "荷兰" },
+  { value: "223", text: "挪威" }, { value: "224", text: "波兰" }, { value: "225", text: "葡萄牙" }, { value: "226", text: "罗马尼亚" },
+  { value: "227", text: "圣马力诺" }, { value: "228", text: "西班牙" }, { value: "229", text: "瑞典" }, { value: "230", text: "瑞士" },
+  { value: "231", text: "乌克兰" }, { value: "232", text: "英国" }, { value: "236", text: "巴布亚新几内亚" }, { value: "238", text: "拉脱维亚" },
+  { value: "239", text: "爱沙尼亚" }, { value: "240", text: "亚美尼亚" }, { value: "241", text: "俄罗斯" }, { value: "242", text: "立陶宛" },
+  { value: "243", text: "乌兹别克斯坦" }, { value: "244", text: "哈萨克斯坦" }, { value: "245", text: "摩尔多瓦" }, { value: "246", text: "吉尔吉斯" },
+  { value: "247", text: "塔吉克斯坦" }, { value: "248", text: "土库曼斯坦" }, { value: "249", text: "阿塞拜疆" }, { value: "250", text: "格鲁吉亚" },
+  { value: "251", text: "克罗地亚" }, { value: "252", text: "斯洛文尼亚" }, { value: "253", text: "北马其顿" }, { value: "254", text: "波士尼亚与赫塞哥维纳" },
+  { value: "256", text: "斯洛伐克" }, { value: "257", text: "蒙特内哥罗" }, { value: "258", text: "塞尔维亚" }, { value: "259", text: "科索沃" },
+  { value: "260", text: "丹麦属法罗群岛" }, { value: "261", text: "格林兰" }, { value: "262", text: "挪威属斯瓦尔巴特群岛" }, { value: "301", text: "巴哈马" },
+  { value: "302", text: "巴巴多斯" }, { value: "303", text: "加拿大" }, { value: "304", text: "哥斯达黎加" }, { value: "305", text: "古巴" },
+  { value: "306", text: "多米尼加" }, { value: "307", text: "萨尔瓦多" }, { value: "308", text: "危地马拉" }, { value: "309", text: "海地" },
+  { value: "310", text: "洪都拉斯" }, { value: "311", text: "牙买加" }, { value: "312", text: "墨西哥" }, { value: "313", text: "尼加拉瓜" },
+  { value: "314", text: "巴拿马" }, { value: "315", text: "美国" }, { value: "326", text: "格林纳达" }, { value: "327", text: "马绍尔群岛共和国" },
+  { value: "395", text: "英属维尔京群岛" }, { value: "401", text: "阿根廷" }, { value: "402", text: "玻利维亚" }, { value: "403", text: "巴西" },
+  { value: "404", text: "智利" }, { value: "405", text: "哥伦比亚" }, { value: "406", text: "厄瓜多尔" }, { value: "407", text: "圭亚那" },
+  { value: "408", text: "乌拉圭" }, { value: "409", text: "巴拉圭" }, { value: "410", text: "秘鲁" }, { value: "411", text: "苏里南" },
+  { value: "412", text: "特立尼达和多巴哥" }, { value: "413", text: "委内瑞拉" }, { value: "416", text: "安提瓜和巴布达" }, { value: "417", text: "多米尼克" },
+  { value: "419", text: "法属圭亚那" }, { value: "420", text: "圣马丁(荷属)" }, { value: "470", text: "古拉索" }, { value: "471", text: "阿鲁巴" },
+  { value: "472", text: "荷属安地列斯" }, { value: "473", text: "开曼群岛" }, { value: "474", text: "福克兰群岛" }, { value: "475", text: "法属瓜德鲁普岛" },
+  { value: "476", text: "英属蒙瑟拉特岛" }, { value: "477", text: "法属马丁尼克" }, { value: "478", text: "南乔治亚与南桑威奇群岛" }, { value: "479", text: "法属圣皮埃尔和密克隆群岛" },
+  { value: "480", text: "英属土克斯及开科斯群岛" }, { value: "481", text: "美属维尔京群岛" }, { value: "501", text: "阿尔及利亚" }, { value: "502", text: "博茨瓦纳" },
+  { value: "503", text: "布隆迪" }, { value: "504", text: "中非共和国" }, { value: "505", text: "喀麦隆" }, { value: "506", text: "乍得" },
+  { value: "507", text: "刚果共和国" }, { value: "509", text: "贝宁共和国" }, { value: "510", text: "赤道几内亚" }, { value: "511", text: "埃塞俄比亚" },
+  { value: "512", text: "加蓬" }, { value: "513", text: "冈比亚" }, { value: "514", text: "加纳" }, { value: "515", text: "几内亚" },
+  { value: "516", text: "科特迪瓦" }, { value: "517", text: "肯尼亚" }, { value: "518", text: "莱索托" }, { value: "519", text: "利比里亚" },
+  { value: "520", text: "利比亚" }, { value: "521", text: "马达加斯加" }, { value: "522", text: "马拉威" }, { value: "523", text: "马利" },
+  { value: "524", text: "毛里塔尼亚" }, { value: "525", text: "毛里求斯" }, { value: "526", text: "摩洛哥" }, { value: "527", text: "尼日尔" },
+  { value: "528", text: "尼日利亚" }, { value: "529", text: "津巴布韦" }, { value: "530", text: "卢旺达" }, { value: "531", text: "塞内加尔" },
+  { value: "532", text: "塞拉利昂" }, { value: "533", text: "索马里" }, { value: "534", text: "南非" }, { value: "535", text: "苏丹" },
+  { value: "536", text: "史瓦帝尼" }, { value: "537", text: "坦桑尼亚" }, { value: "538", text: "多哥" }, { value: "539", text: "突尼斯" },
+  { value: "540", text: "乌干达" }, { value: "541", text: "埃及" }, { value: "542", text: "布基纳法索" }, { value: "543", text: "赞比亚" },
+  { value: "545", text: "巴林" }, { value: "546", text: "厄立特里亚" }, { value: "547", text: "莫桑比克" }, { value: "548", text: "安哥拉" },
+  { value: "551", text: "佛得角共和国" }, { value: "552", text: "吉布堤" }, { value: "553", text: "科摩罗联邦" }, { value: "555", text: "西撒哈拉" },
+  { value: "557", text: "几内亚比绍共和国" }, { value: "558", text: "圣多美普林西比" }, { value: "560", text: "纳米比亚" }, { value: "562", text: "刚果民主共和国" },
+  { value: "563", text: "南苏丹" }, { value: "564", text: "英属印度洋地区" }, { value: "565", text: "美亚特" }, { value: "566", text: "英属圣赫勒拿岛" },
+  { value: "567", text: "索马利兰" }, { value: "601", text: "圣文森特和格林纳丁斯" }, { value: "602", text: "圣卢西亚" }, { value: "603", text: "圣基茨和尼维斯" },
+  { value: "604", text: "伯利兹" }, { value: "881", text: "法属南部属地" }, { value: "882", text: "波维特岛" }, { value: "883", text: "赫德及麦当劳群岛" },
   { value: "994", text: "無國籍-依1954年無國籍人士公約" }, { value: "995", text: "難民-依1954年難民公約所定義" }, { value: "996", text: "難民-非依1954年難民公約所定義" },
   { value: "997", text: "無國籍-不屬於代碼994、995及996者" }, { value: "999", text: "無國籍" },
 ];
 
 const KINSHIP_STATUS = [
   { value: "1", text: "Living", label_zh: "存" },
-  { value: "2", text: "Deceased", label_zh: "歿" },
-  { value: "3", text: "Divorced", label_zh: "離婚" },
+  { value: "2", text: "Deceased", label_zh: "殁" },
+  { value: "3", text: "Divorced", label_zh: "离婚" },
 ];
 
 /** Builds the 8 repeated fields for one kinship group (父/母/配偶/子女×2). */
@@ -216,16 +254,29 @@ function kinshipFields(
   startOrder: number
 ): FieldDef[] {
   const stepName = "Kinship Information";
+  const isParent = group === "father" || group === "mother";
+  const statusRequired = isParent ? true : requiredGroup;
+  const parentLivingCondition = `kin_${group}_status === 1`;
+  const parentAddressCondition = `${parentLivingCondition} && kin_${group}_current_address_same_as_overseas === false`;
+  const parentServiceUnitTitleCondition = `${parentLivingCondition} && kin_${group}_occupation not in [15,16,17]`;
+  const parentRequiredRules = (field: string) => isParent
+    ? {
+        block_group: `kin_${group}`,
+        required_when: parentLivingCondition,
+        note: `Official screenshot evidence: ${labelZh} ${field} is required when existence/status is 存.`,
+      }
+    : { block_group: `kin_${group}` };
+  const parentRequiredLogic = isParent ? { showIf: parentLivingCondition } : undefined;
   return [
-    { field_name: `kin_${group}_status`, label: `${labelZh} — Living/deceased/divorced`, field_type: "select", required: requiredGroup, step_number: stepNumber, step_name: stepName, display_order: startOrder, options: KINSHIP_STATUS, validation_rules: { block_group: `kin_${group}` } },
-    { field_name: `kin_${group}_name`, label: `${labelZh} — Name`, field_type: "text", required: false, step_number: stepNumber, step_name: stepName, display_order: startOrder + 1, validation_rules: { block_group: `kin_${group}` } },
-    { field_name: `kin_${group}_date_of_birth`, label: `${labelZh} — Date of birth`, field_type: "date", required: false, step_number: stepNumber, step_name: stepName, display_order: startOrder + 2, validation_rules: { block_group: `kin_${group}` } },
-    { field_name: `kin_${group}_phone`, label: `${labelZh} — Phone`, field_type: "text", required: false, step_number: stepNumber, step_name: stepName, display_order: startOrder + 3, validation_rules: { block_group: `kin_${group}` } },
-    { field_name: `kin_${group}_occupation`, label: `${labelZh} — Occupation`, field_type: "select", required: false, step_number: stepNumber, step_name: stepName, display_order: startOrder + 4, options: OCCUPATIONS, validation_rules: { block_group: `kin_${group}` } },
-    { field_name: `kin_${group}_service_unit`, label: `${labelZh} — Employer / unit`, field_type: "text", required: false, step_number: stepNumber, step_name: stepName, display_order: startOrder + 5, placeholder: "Required detail if occupation is Freelance/Other/None/Retired", validation_rules: { block_group: `kin_${group}` } },
-    { field_name: `kin_${group}_job_title`, label: `${labelZh} — Job title`, field_type: "text", required: false, step_number: stepNumber, step_name: stepName, display_order: startOrder + 6, validation_rules: { block_group: `kin_${group}` } },
-    { field_name: `kin_${group}_current_address_same_as_overseas`, label: `${labelZh} — Current address same as applicant's overseas address`, field_type: "checkbox", required: false, step_number: stepNumber, step_name: stepName, display_order: startOrder + 7, validation_rules: { block_group: `kin_${group}`, note: "Mirrors the portal's '同申請人海外地址' quick-fill button; src/tw/normalize.ts copies overseas_address into kin_*_current_address when true." } },
-    { field_name: `kin_${group}_current_address`, label: `${labelZh} — Current address`, field_type: "textarea", required: false, step_number: stepNumber, step_name: stepName, display_order: startOrder + 8, conditional_logic: { showIf: `kin_${group}_current_address_same_as_overseas === false` }, validation_rules: { block_group: `kin_${group}` } },
+    { field_name: `kin_${group}_status`, label: `${labelZh} — Living/deceased/divorced`, field_type: "select", required: statusRequired, step_number: stepNumber, step_name: stepName, display_order: startOrder, options: KINSHIP_STATUS, validation_rules: { block_group: `kin_${group}`, note: statusRequired ? "TW-A live DOM recheck found father/mother deadMark controls with aria-required and an asterisk; other kinship fields remain optional." : undefined } },
+    { field_name: `kin_${group}_name`, label: `${labelZh} — Name`, field_type: "text", required: isParent, step_number: stepNumber, step_name: stepName, display_order: startOrder + 1, conditional_logic: parentRequiredLogic, validation_rules: parentRequiredRules("name") },
+    { field_name: `kin_${group}_date_of_birth`, label: `${labelZh} — Date of birth`, field_type: "date", required: isParent, step_number: stepNumber, step_name: stepName, display_order: startOrder + 2, conditional_logic: parentRequiredLogic, validation_rules: parentRequiredRules("date of birth") },
+    { field_name: `kin_${group}_phone`, label: `${labelZh} — Phone`, field_type: "text", required: isParent, step_number: stepNumber, step_name: stepName, display_order: startOrder + 3, conditional_logic: parentRequiredLogic, validation_rules: parentRequiredRules("phone") },
+    { field_name: `kin_${group}_occupation`, label: `${labelZh} — Occupation`, field_type: "select", required: isParent, step_number: stepNumber, step_name: stepName, display_order: startOrder + 4, options: OCCUPATIONS, conditional_logic: parentRequiredLogic, validation_rules: parentRequiredRules("occupation") },
+    { field_name: `kin_${group}_service_unit`, label: `${labelZh} — Employer / unit`, field_type: "text", required: isParent, step_number: stepNumber, step_name: stepName, display_order: startOrder + 5, placeholder: "Required for employed occupations and retired-before unit; not required for Freelance/Other/None", conditional_logic: isParent ? { showIf: parentServiceUnitTitleCondition } : undefined, validation_rules: isParent ? { block_group: `kin_${group}`, required_when: parentServiceUnitTitleCondition, occupation_codes_not_required: ["15", "16", "17"], retired_code_requires_prior_detail: "62", note: "For parents marked 存, official occupation codes 自由業(15)、其他業(16)、無(17) do not require unit/title detail; 退休(62) requires retired-before unit/title." } : { block_group: `kin_${group}` } },
+    { field_name: `kin_${group}_job_title`, label: `${labelZh} — Job title`, field_type: "text", required: isParent, step_number: stepNumber, step_name: stepName, display_order: startOrder + 6, conditional_logic: isParent ? { showIf: parentServiceUnitTitleCondition } : undefined, validation_rules: isParent ? { block_group: `kin_${group}`, required_when: parentServiceUnitTitleCondition, occupation_codes_not_required: ["15", "16", "17"], retired_code_requires_prior_detail: "62", note: "For parents marked 存, official occupation codes 自由業(15)、其他業(16)、無(17) do not require unit/title detail; 退休(62) requires retired-before unit/title." } : { block_group: `kin_${group}` } },
+    { field_name: `kin_${group}_current_address_same_as_overseas`, label: `${labelZh} — Current address same as applicant's overseas address`, field_type: "checkbox", required: false, step_number: stepNumber, step_name: stepName, display_order: startOrder + 7, conditional_logic: parentRequiredLogic, validation_rules: { block_group: `kin_${group}`, note: "Mirrors the portal's '同申請人海外地址' quick-fill button; src/tw/normalize.ts copies overseas_address into kin_*_current_address when true." } },
+    { field_name: `kin_${group}_current_address`, label: `${labelZh} — Current address`, field_type: "textarea", required: isParent, step_number: stepNumber, step_name: stepName, display_order: startOrder + 8, conditional_logic: isParent ? { showIf: parentAddressCondition } : { showIf: `kin_${group}_current_address_same_as_overseas === false` }, validation_rules: isParent ? { block_group: `kin_${group}`, required_when: parentAddressCondition, note: "Official screenshot evidence: parent current address is required when existence/status is 存, unless the same-as-applicant address helper is used." } : { block_group: `kin_${group}` } },
   ];
 }
 
@@ -234,76 +285,79 @@ const FIELDS: FieldDef[] = [
   // STEP 0: Delivery Location (遞送地點) — first tab on the official portal
   // ═══════════════════════════════════════════════════════════════════════
   { field_name: "continent", label: "Continent", field_type: "select", required: true, step_number: 0, step_name: "Delivery Location", display_order: 1, options: CONTINENTS },
-  { field_name: "embassy_office", label: "Receiving embassy/office", field_type: "select", required: true, step_number: 0, step_name: "Delivery Location", display_order: 2, options: EMBASSY_OFFICES },
+  { field_name: "embassy_office", label: "Receiving embassy/office", field_type: "select", required: true, step_number: 0, step_name: "Delivery Location", display_order: 2, options: EMBASSY_OFFICES, validation_rules: { dependent_on: "continent", dependent_options: EMBASSY_OFFICES_BY_CONTINENT, official_dom_name: "overseaOfficeId", note: "Official portal repopulates overseaOfficeId options when continent changes; values captured from the live dropdown on 2026-08-03." } },
 
   // ═══════════════════════════════════════════════════════════════════════
-  // STEP 1: Photo & Basic Status
+  // STEP 1: Basic Status
+  //
+  // photo_upload and the 6 supporting-document fields (mainland_travel_
+  // document, eligibility_supporting_document, hk_macau_id_scan,
+  // other_nationality_passport_scan, mainland_id_card_scan,
+  // other_supporting_document) are deliberately NOT modeled here as
+  // field_type: "file" rows. Every country on this DynamicStepForm/long-form
+  // system (UK, Indonesia, PH-eTravel, etc.) renders file uploads exclusively
+  // via the separate Documents step (DocumentCenterClient), which reads its
+  // checklist from the document_requirements table — dynamic-form-field.tsx's
+  // "file" case only ever renders an inert "Upload: {label}" placeholder box
+  // (no real <input type="file">), so including these here just produces a
+  // dead, confusing control sitting next to real fields. Taiwan's matching
+  // document_requirements rows for all 7 of these were already added in
+  // drizzle/0122_tw_entry_permit_document_requirements.sql (requirement_keys:
+  // photo, mainland_travel_document, eligibility_supporting_document,
+  // hk_macau_id_scan, other_nationality_passport_scan, mainland_id_card_scan,
+  // other_supporting_document) — the Documents step already shows them
+  // automatically with no changes needed here.
   // ═══════════════════════════════════════════════════════════════════════
-  { field_name: "photo_upload", label: "Photo upload (2-inch color, white background)", field_type: "file", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 1, validation_rules: { accept: "image/jpeg", maxSizeKB: 512 } },
-  { field_name: "first_time_applying", label: "First time applying to visit Taiwan from abroad/HK/Macau?", field_type: "radio", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 2, options: YES_NO },
-  { field_name: "permit_type", label: "Permit type applied for", field_type: "radio", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 3, options: [
-    { value: "1", text: "Single-entry permit", label_zh: "單次證" },
-    { value: "2", text: "Multiple-entry permit", label_zh: "多次證" },
-    { value: "H", text: "Main applicant already holds a multiple-entry permit", label_zh: "主要申請人已領多次證" },
+  { field_name: "first_time_applying", label: "First time applying to visit Taiwan from abroad/HK/Macau?", field_type: "radio", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 1, options: YES_NO },
+  { field_name: "permit_type", label: "Permit type applied for", field_type: "radio", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 2, options: [
+    { value: "1", text: "Single-entry permit", label_zh: "单次证" },
+    { value: "2", text: "Multiple-entry permit", label_zh: "多次证" },
+    { value: "H", text: "Main applicant already holds a multiple-entry permit", label_zh: "主要申请人已领多次证" },
   ] },
-  { field_name: "permit_count", label: "Number of permits requested", field_type: "select", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 4, options: [{ value: "1", text: "1 permit", label_zh: "1張" }, { value: "2", text: "2 permits (cruise second-leg only)", label_zh: "2張" }] },
-  { field_name: "has_other_nationality_passport", label: "Do you hold a passport of another nationality?", field_type: "radio", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 5, options: YES_NO, validation_rules: { note: "Must be answered truthfully; concealment can void the application per the portal's own warning." } },
+  { field_name: "permit_count", label: "Number of permits requested", field_type: "select", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 3, options: [{ value: "1", text: "1 permit", label_zh: "1张" }, { value: "2", text: "2 permits (cruise second-leg only)", label_zh: "2张" }] },
+  { field_name: "has_other_nationality_passport", label: "Do you hold a passport of another nationality?", field_type: "radio", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 4, options: YES_NO, validation_rules: { note: "Must be answered truthfully; concealment can void the application per the portal's own warning." } },
+  { field_name: "household_revoked", label: "Current mainland household registration status", field_type: "radio", required: false, step_number: 1, step_name: "Photo & Basic Status", display_order: 5, options: [
+    { value: "no", text: "Not revoked, or revoked but have not yet obtained a Hong Kong/Macau passport", label_zh: "未注销户口登记，或已注销户口登记但尚未取得香港、澳门护照", official_label: "未註銷戶口登記/已註銷戶口登記，但尚未取得香港、澳門護照" },
+    { value: "yes", text: "Revoked", label_zh: "已注销户口登记", official_label: "已註銷戶口登記" },
+  ], validation_rules: { required_when: "eligibility_category === 2 && embassy_office in [50, 51]", official_dom_name: "householdRevoked", official_values: { no: "N", yes: "Y" }, note: "Official DOM hides #household-revoked-div unless applyQualification=5 (VIZA eligibility_category=2) and overseaOfficeId is 50/51 (HK/Macau office)." }, conditional_logic: { showIf: "eligibility_category === 2 && embassy_office in [50, 51]" } },
   { field_name: "eligibility_category", label: "Eligibility category", field_type: "radio", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 6, options: ELIGIBILITY_CATEGORIES },
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // STEP 1.5: Supporting Documents (應檢附文件) — confirmed live to be a real,
-  // required upload block. Each row's exact requirement was read directly
-  // off the portal for all four eligibility categories; general upload
-  // rules (JPG/JPEG/PNG/BMP/PDF, <1024K, non-CN/EN docs need a translation,
-  // rename to match content, scan both sides if double-sided) apply to all
-  // of them per the portal's own instructions banner.
-  // NOT modeled here (needs a human decision, not a guess): a "未成年且無
-  // 法定代理人或監護人陪同來臺者" (minor without accompanying guardian)
-  // document appeared for categories 1-2 during live testing but its
-  // presence across all 4 categories wasn't fully confirmed.
-  // ═══════════════════════════════════════════════════════════════════════
-  { field_name: "mainland_travel_document", label: "Mainland-issued travel document (6+ months validity) or Hong Kong/Macau non-permanent-resident travel document", field_type: "file", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 7, validation_rules: { accept: "image/jpeg,image/png,image/bmp,application/pdf", maxSizeKB: 1024 } },
-  { field_name: "eligibility_supporting_document", label: "Supporting document for your eligibility category (student visa + enrollment certificate / permanent residency proof / work visa + employment certificate / dependent residency + financial proof — content depends on eligibility_category)", field_type: "file", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 8, validation_rules: { accept: "image/jpeg,image/png,image/bmp,application/pdf", maxSizeKB: 1024, note: "Which exact document is required depends on eligibility_category; see docs/tw-entry-permit-auto-submit-plan.md for the per-category text." } },
-  { field_name: "hk_macau_id_scan", label: "Hong Kong/Macau resident ID (front + back) and valid Hong Kong/Macau visa (not required if under 11)", field_type: "file", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 9, conditional_logic: { showIf: "embassy_office in [50,51]" }, validation_rules: { accept: "image/jpeg,image/png,image/bmp,application/pdf", maxSizeKB: 1024 } },
-  { field_name: "other_nationality_passport_scan", label: "Scan of your other-nationality passport/document", field_type: "file", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 10, conditional_logic: { showIf: "has_other_nationality_passport === yes" }, validation_rules: { accept: "image/jpeg,image/png,image/bmp,application/pdf", maxSizeKB: 1024 } },
-  { field_name: "mainland_id_card_scan", label: "Mainland ID card (front + back)", field_type: "file", required: true, step_number: 1, step_name: "Photo & Basic Status", display_order: 11, conditional_logic: { showIf: "mainland_id_number_not_applicable === false" }, validation_rules: { accept: "image/jpeg,image/png,image/bmp,application/pdf", maxSizeKB: 1024 } },
-  { field_name: "other_supporting_document", label: "Other supporting document (optional unless applicable — e.g. a 3-month Japanese juminhyo if residing in Japan)", field_type: "file", required: false, step_number: 1, step_name: "Photo & Basic Status", display_order: 12, validation_rules: { accept: "image/jpeg,image/png,image/bmp,application/pdf", maxSizeKB: 1024 } },
 
   // ═══════════════════════════════════════════════════════════════════════
   // STEP 2: Applicant Identity
   // ═══════════════════════════════════════════════════════════════════════
-  { field_name: "name_chinese", label: "Name in Chinese (traditional characters)", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 1 },
+  { field_name: "name_chinese", label: "Name in Chinese (traditional characters)", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 1, validation_rules: { official_dom_name: "traveller.chineseName", requires_traditional_chinese_name: true, disallow_latin_only: true, disallow_latin_replacement: true, note: "Official field requires the applicant's real Chinese name in Traditional Chinese characters; a non-empty Latin placeholder or passport English name is not acceptable." } },
   { field_name: "name_english", label: "Name in English (as shown in passport, uppercase)", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 2 },
   { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 3 },
-  { field_name: "passport_number", label: "Passport / HK-Macau travel document / mainland travel document number", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 4 },
-  { field_name: "passport_expiry_date", label: "Passport / travel document expiry date", field_type: "date", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 5, validation_rules: { note: "Must have 6+ months validity remaining at entry." } },
+  { field_name: "passport_number", label: "Passport / HK visa identity document / Macau travel document / mainland travel document number", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 4 },
+  { field_name: "passport_expiry_date", label: "Passport / travel document validity expiry date (Gregorian calendar)", field_type: "date", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 5, validation_rules: { note: "Must have 6+ months validity remaining at entry." } },
   { field_name: "gender", label: "Gender", field_type: "select", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 6, options: [{ value: "0", text: "Male", label_zh: "男" }, { value: "1", text: "Female", label_zh: "女" }] },
-  { field_name: "overseas_residency_id_number", label: "Overseas residency ID number (e.g. permanent residency / work permit number)", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 7 },
+  { field_name: "overseas_residency_id_number", label: "Overseas Chinese residency identity number (e.g. permanent residence number, residence card number, or visa number)", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 7 },
   { field_name: "mainland_id_number_not_applicable", label: "No mainland ID number", field_type: "checkbox", required: false, step_number: 2, step_name: "Applicant Identity", display_order: 8 },
-  { field_name: "mainland_id_number", label: "Mainland ID number", field_type: "text", required: false, step_number: 2, step_name: "Applicant Identity", display_order: 9, conditional_logic: { showIf: "mainland_id_number_not_applicable === false" } },
-  { field_name: "birth_place_is_mainland", label: "Place of birth", field_type: "radio", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 10, options: [{ value: "mainland", text: "Mainland China", label_zh: "中國大陸" }, { value: "other", text: "Other", label_zh: "其他" }] },
-  { field_name: "birth_place_other_country", label: "Country/region of birth", field_type: "select", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 11, options: NATIONALITY_OPTIONS, conditional_logic: { showIf: "birth_place_is_mainland === other" } },
+  { field_name: "mainland_id_number", label: "Mainland ID number", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 9, conditional_logic: { showIf: "mainland_id_number_not_applicable === false" }, validation_rules: { note: "Required when shown; exempt only when mainland_id_number_not_applicable is checked." } },
+  { field_name: "birth_place_is_mainland", label: "Place of birth (same as travel document held)", field_type: "select", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 10, options: [{ value: "mainland", text: "Mainland China", label_zh: "中國大陸" }, { value: "other", text: "Other", label_zh: "其他" }], validation_rules: { official_dom_name: "traveller.birthPlaceCode", official_values: { mainland: "1", other: "5" }, branches: { mainland: { source: "BIRTH_PLACE_MAINLAND_OPTIONS", official_dom_name: "traveller.birthPlace1" }, other: { source: "NATIONALITY_OPTIONS", official_dom_name: "traveller.birthPlace1" } } } },
+  { field_name: "birth_place_mainland_region", label: "Mainland China birth province/city/region", field_type: "select", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 11, options: BIRTH_PLACE_MAINLAND_OPTIONS, conditional_logic: { showIf: "birth_place_is_mainland === mainland" }, validation_rules: { required_when: "birth_place_is_mainland === mainland", official_dom_name: "traveller.birthPlace1", branch_for: "birth_place_is_mainland === mainland", source: "BIRTH_PLACE_MAINLAND_OPTIONS", note: "Required second-level province/city/region select when birth_place_is_mainland is 中國大陸." } },
+  { field_name: "birth_place_other_country", label: "Country/region of birth", field_type: "select", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 11, options: NATIONALITY_OPTIONS, conditional_logic: { showIf: "birth_place_is_mainland === other" }, validation_rules: { official_dom_name: "traveller.birthPlace1", branch_for: "birth_place_is_mainland === other", source: "NATIONALITY_OPTIONS", note: "Do not replace Taiwan official numeric values with ISO alpha codes; options include official special identity codes 994/995/996/997/999." } },
   { field_name: "local_mobile_phone", label: "Mobile phone at current residence (include country code)", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 12, placeholder: "e.g. +65..." },
   { field_name: "current_occupation", label: "Current occupation", field_type: "select", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 13, options: OCCUPATIONS },
-  { field_name: "occupation_experience", label: "Experience (required detail if occupation is Freelance/Other/None/Retired)", field_type: "textarea", required: false, step_number: 2, step_name: "Applicant Identity", display_order: 14, conditional_logic: { showIf: "current_occupation in [15,16,17,62]" } },
-  { field_name: "company_name", label: "Company / organization / school full name", field_type: "text", required: false, step_number: 2, step_name: "Applicant Identity", display_order: 15 },
-  { field_name: "job_title", label: "Job title", field_type: "text", required: false, step_number: 2, step_name: "Applicant Identity", display_order: 16 },
-  { field_name: "is_taiwanese_spouse", label: "Are you the spouse of a Taiwanese national?", field_type: "select", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 17, options: YES_NO, validation_rules: { note: "This permit cannot be used to register a marriage in Taiwan. Confirmed live to carry a required asterisk, unlike traveling_with_parents below." } },
+  { field_name: "occupation_experience", label: "Experience", field_type: "textarea", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 14, conditional_logic: { showIf: "current_occupation === 62" }, validation_rules: { note: "TW-A live DOM/visible text recheck only supports the official retirement prompt: if current occupation is retired, fill prior service unit and job title. Freelance/other/none are no longer treated as triggers without submit-validation evidence." } },
+  { field_name: "company_name", label: "Company name and full organization/unit name or school name", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 15, conditional_logic: { showIf: "current_occupation not in [61,62]" }, validation_rules: { required_when: "current_occupation not in [61,62]", student_school_name_required_when: "current_occupation === 14", accepted_scripts_when_student: ["traditional_chinese", "english"], note: "Confirmed from local official-page screenshot: hidden/not required when current_occupation is 待業(61) or 退休(62). When current_occupation is 學生(14), this field remains required and must be the official full school name in Traditional Chinese or English; do not use an informal abbreviation." } },
+  { field_name: "job_title", label: "Job title", field_type: "text", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 16, conditional_logic: { showIf: "current_occupation not in [14,61,62]" }, validation_rules: { required_when: "current_occupation not in [14,61,62]", note: "Confirmed from local official-page screenshot: hidden/not required for 學生(14), 待業(61), and 退休(62); visible/required for ordinary occupations." } },
+  { field_name: "is_taiwanese_spouse", label: "Are you the spouse of a Taiwanese person?", field_type: "select", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 17, options: YES_NO, validation_rules: { note: "This permit cannot be used to register a marriage in Taiwan. Confirmed live to carry a required asterisk, unlike traveling_with_parents below." } },
   { field_name: "traveling_with_parents", label: "Are your parents traveling with you?", field_type: "select", required: false, step_number: 2, step_name: "Applicant Identity", display_order: 18, options: YES_NO },
-  { field_name: "overseas_address", label: "Hong Kong/Macau or overseas residential address", field_type: "textarea", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 19 },
+  { field_name: "overseas_address", label: "Hong Kong, Macau, or overseas address", field_type: "textarea", required: true, step_number: 2, step_name: "Applicant Identity", display_order: 19 },
 
   // ═══════════════════════════════════════════════════════════════════════
   // STEP 3: Taiwan Contact Address (在台聯絡地址 — 8 sub-fields on the portal)
   // ═══════════════════════════════════════════════════════════════════════
   { field_name: "tw_contact_city", label: "City/County", field_type: "select", required: true, step_number: 3, step_name: "Taiwan Contact Address", display_order: 1, options: TW_CITIES },
-  { field_name: "tw_contact_district", label: "District/township", field_type: "text", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 2 },
-  { field_name: "tw_contact_village", label: "Village (村/里)", field_type: "text", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 3 },
-  { field_name: "tw_contact_neighborhood", label: "Neighborhood (鄰, number only)", field_type: "text", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 4 },
-  { field_name: "tw_contact_road", label: "Road/street (路/街)", field_type: "text", required: true, step_number: 3, step_name: "Taiwan Contact Address", display_order: 5 },
+  { field_name: "tw_contact_district", label: "District/township", field_type: "select", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 2, options: [], validation_rules: { dependent_on: "tw_contact_city", dependent_options_key: "taiwan_districts_by_city", source: "taiwan_official_address_districts", note: "District/township options are constrained by the selected Taiwan city/county. Prior TW-A evidence confirms the city/county, road, and building fields as required; district remains optional until official submit-validation evidence says otherwise." } },
+  { field_name: "tw_contact_village", label: "Village (村/里, optional)", field_type: "text", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 3 },
+  { field_name: "tw_contact_neighborhood", label: "Neighborhood (邻, number only)", field_type: "text", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 4 },
+  { field_name: "tw_contact_road", label: "Street or road section", field_type: "text", required: true, step_number: 3, step_name: "Taiwan Contact Address", display_order: 5 },
   { field_name: "tw_contact_lane", label: "Lane (巷, number only)", field_type: "text", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 6 },
   { field_name: "tw_contact_alley", label: "Alley (弄, number only)", field_type: "text", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 7 },
-  { field_name: "tw_contact_building_number", label: "Building/floor/unit number (or hotel name if staying at a hotel)", field_type: "text", required: true, step_number: 3, step_name: "Taiwan Contact Address", display_order: 8 },
-  { field_name: "tw_local_phone", label: "Taiwan landline number", field_type: "text", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 9 },
+  { field_name: "tw_contact_building_number", label: "House number / floor / room number (or hotel name if staying at a hotel)", field_type: "text", required: true, step_number: 3, step_name: "Taiwan Contact Address", display_order: 8 },
+  { field_name: "tw_local_phone", label: "Taiwan landline number", field_type: "text", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 9, validation_rules: { required_when: "tw_contact_mobile_not_applicable === true", note: "Official screenshot confirms landline is required only after the applicant checks no Taiwan contact mobile number." } },
   { field_name: "tw_contact_mobile_not_applicable", label: "No Taiwan contact mobile number", field_type: "checkbox", required: false, step_number: 3, step_name: "Taiwan Contact Address", display_order: 10 },
   { field_name: "tw_contact_mobile", label: "Taiwan contact mobile number", field_type: "text", required: true, step_number: 3, step_name: "Taiwan Contact Address", display_order: 11, conditional_logic: { showIf: "tw_contact_mobile_not_applicable === false" }, validation_rules: { note: "Confirmed live to carry a required asterisk when shown (i.e. when tw_contact_mobile_not_applicable is unchecked)." } },
 
@@ -311,8 +365,8 @@ const FIELDS: FieldDef[] = [
   // STEP 4: Other Nationality (conditional block, shown only if Q "has_other_nationality_passport" = yes)
   // ═══════════════════════════════════════════════════════════════════════
   { field_name: "other_nationality_country", label: "Other nationality held", field_type: "select", required: true, step_number: 4, step_name: "Other Nationality", display_order: 1, options: NATIONALITY_OPTIONS, conditional_logic: { showIf: "has_other_nationality_passport === yes" } },
-  { field_name: "other_passport_number", label: "Other nationality passport/document number", field_type: "text", required: true, step_number: 4, step_name: "Other Nationality", display_order: 2, conditional_logic: { showIf: "has_other_nationality_passport === yes" } },
-  { field_name: "other_passport_expiry_date", label: "Other nationality passport/document expiry date", field_type: "date", required: true, step_number: 4, step_name: "Other Nationality", display_order: 3, conditional_logic: { showIf: "has_other_nationality_passport === yes" } },
+  { field_name: "other_passport_number", label: "Other country's passport/document number", field_type: "text", required: true, step_number: 4, step_name: "Other Nationality", display_order: 2, conditional_logic: { showIf: "has_other_nationality_passport === yes" } },
+  { field_name: "other_passport_expiry_date", label: "Other country's passport/document validity expiry date", field_type: "date", required: true, step_number: 4, step_name: "Other Nationality", display_order: 3, conditional_logic: { showIf: "has_other_nationality_passport === yes" } },
 
   // ═══════════════════════════════════════════════════════════════════════
   // STEP 5: Kinship Information (親屬狀況 — 父/母/配偶/子女×2, 5 repeated blocks)
@@ -331,12 +385,12 @@ const FIELDS: FieldDef[] = [
   // ═══════════════════════════════════════════════════════════════════════
   // STEP 6: Declaration (申報事項)
   // ═══════════════════════════════════════════════════════════════════════
-  { field_name: "past_mainland_political_military_role", label: "Have previously held a mainland party/administrative/military/political-organ role or membership", field_type: "checkbox", required: false, step_number: 6, step_name: "Declaration", display_order: 1 },
-  { field_name: "past_role_detail", label: "Previously held role/position at", field_type: "text", required: true, step_number: 6, step_name: "Declaration", display_order: 2, conditional_logic: { showIf: "past_mainland_political_military_role === true" } },
-  { field_name: "current_mainland_political_military_role", label: "Currently hold a mainland party/administrative/military/political-organ role or membership", field_type: "checkbox", required: false, step_number: 6, step_name: "Declaration", display_order: 3 },
-  { field_name: "current_role_detail", label: "Currently holds role/position at", field_type: "text", required: true, step_number: 6, step_name: "Declaration", display_order: 4, conditional_logic: { showIf: "current_mainland_political_military_role === true" } },
-  { field_name: "never_held_mainland_political_military_role", label: "Have never held any mainland party/administrative/military/political-organ role or membership", field_type: "checkbox", required: false, step_number: 6, step_name: "Declaration", display_order: 5 },
-  { field_name: "accepted_terms", label: "I have read and accept the terms and conditions", field_type: "checkbox", required: true, step_number: 6, step_name: "Declaration", display_order: 6, validation_rules: { mustBeTrue: true } },
+  { field_name: "past_mainland_political_military_role", label: "Applicant previously held a position or membership in a mainland China party, administrative, military, or politically affiliated organ/organization/group", field_type: "checkbox", required: false, step_number: 6, step_name: "Declaration", display_order: 1 },
+  { field_name: "past_role_detail", label: "Previously served at", field_type: "text", required: true, step_number: 6, step_name: "Declaration", display_order: 2, conditional_logic: { showIf: "past_mainland_political_military_role === true" } },
+  { field_name: "current_mainland_political_military_role", label: "Applicant currently holds a position or membership in a mainland China party, administrative, military, or politically affiliated organ/organization/group", field_type: "checkbox", required: false, step_number: 6, step_name: "Declaration", display_order: 3 },
+  { field_name: "current_role_detail", label: "Currently serving at", field_type: "text", required: true, step_number: 6, step_name: "Declaration", display_order: 4, conditional_logic: { showIf: "current_mainland_political_military_role === true" } },
+  { field_name: "never_held_mainland_political_military_role", label: "Applicant has never held such a mainland China party, administrative, military, or politically affiliated role or membership", field_type: "checkbox", required: false, step_number: 6, step_name: "Declaration", display_order: 5 },
+  { field_name: "accepted_terms", label: "I have read and accept the following terms and conditions", field_type: "checkbox", required: true, step_number: 6, step_name: "Declaration", display_order: 6, validation_rules: { mustBeTrue: true } },
 ];
 
 // ─── Seed Runner ────────────────────────────────────────────────────────────

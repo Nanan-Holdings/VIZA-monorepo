@@ -18,13 +18,26 @@
  * throwing and aborting the whole run.
  */
 
+import * as path from "node:path";
 import type { Locator, Page } from "@playwright/test";
+import { TwFieldVerificationError, TwFileUploadError } from "./errors";
 
 const SHORT_TIMEOUT = 5_000;
 
 /** Most primitives can operate against the whole page or a scoped Locator
  *  (used for the 5 repeated kinship blocks, which share field labels). */
 export type TwScope = Page | Locator;
+
+export type TwVerifiedFieldKind = "text" | "select" | "radio" | "checkbox" | "date" | "file";
+
+export interface TwFieldVerificationEntry {
+  fieldName: string;
+  controlName: string;
+  kind: TwVerifiedFieldKind;
+  status: "matched" | "skipped";
+  required: boolean;
+  actualPresent: boolean;
+}
 
 async function settle(page: Page): Promise<void> {
   await page.waitForTimeout(150);
@@ -62,6 +75,386 @@ function cssEscape(s: string): string {
   // context we build manually (names contain literal [ ] . which are fine
   // inside quotes, but escape quotes/backslashes defensively).
   return s.replace(/["\\]/g, "\\$&");
+}
+
+function pushMatched(
+  audit: TwFieldVerificationEntry[],
+  input: {
+    fieldName: string;
+    controlName: string;
+    kind: TwVerifiedFieldKind;
+    required?: boolean;
+    actualPresent?: boolean;
+  },
+): void {
+  audit.push({
+    fieldName: input.fieldName,
+    controlName: input.controlName,
+    kind: input.kind,
+    status: "matched",
+    required: input.required ?? true,
+    actualPresent: input.actualPresent ?? true,
+  });
+}
+
+function pushSkipped(
+  audit: TwFieldVerificationEntry[],
+  input: {
+    fieldName: string;
+    controlName: string;
+    kind: TwVerifiedFieldKind;
+  },
+): void {
+  audit.push({
+    fieldName: input.fieldName,
+    controlName: input.controlName,
+    kind: input.kind,
+    status: "skipped",
+    required: false,
+    actualPresent: false,
+  });
+}
+
+async function requireVisibleControl(scope: TwScope, name: string, fieldName: string, kind: TwVerifiedFieldKind): Promise<Locator> {
+  const control = byName(scope, name).first();
+  if ((await control.count().catch(() => 0)) === 0) {
+    throw new TwFieldVerificationError(fieldName, `${kind} control not found`, {
+      url: rootPage(scope).url(),
+      details: { controlName: name, kind },
+    });
+  }
+  return control;
+}
+
+function normalizeDateForCompare(value: string): string {
+  const s = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const slash = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(s) ?? /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+  if (!slash) return s;
+  if (slash[1].length === 4) {
+    return `${slash[1]}-${slash[2].padStart(2, "0")}-${slash[3].padStart(2, "0")}`;
+  }
+  return `${slash[3]}-${slash[2].padStart(2, "0")}-${slash[1].padStart(2, "0")}`;
+}
+
+export async function twFillByNameStrict(
+  scope: TwScope,
+  fieldName: string,
+  name: string,
+  value: string | undefined,
+  audit: TwFieldVerificationEntry[],
+  options: { required?: boolean } = {},
+): Promise<void> {
+  const required = options.required ?? true;
+  if (!value) {
+    if (required) {
+      throw new TwFieldVerificationError(fieldName, "missing required VIZA value", {
+        url: rootPage(scope).url(),
+        details: { controlName: name, kind: "text" },
+      });
+    }
+    pushSkipped(audit, { fieldName, controlName: name, kind: "text" });
+    return;
+  }
+  const input = await requireVisibleControl(scope, name, fieldName, "text");
+  await input.fill(value, { timeout: SHORT_TIMEOUT });
+  await settle(rootPage(scope));
+  const actual = await input.inputValue({ timeout: SHORT_TIMEOUT }).catch(() => "");
+  if (actual !== value) {
+    throw new TwFieldVerificationError(fieldName, "actual text value does not match normalized VIZA value", {
+      url: rootPage(scope).url(),
+      details: { controlName: name, kind: "text" },
+    });
+  }
+  pushMatched(audit, { fieldName, controlName: name, kind: "text", required });
+}
+
+export async function twSelectByNameStrict(
+  scope: TwScope,
+  fieldName: string,
+  name: string,
+  value: string | undefined,
+  audit: TwFieldVerificationEntry[],
+  options: { required?: boolean } = {},
+): Promise<void> {
+  const required = options.required ?? true;
+  if (!value) {
+    if (required) {
+      throw new TwFieldVerificationError(fieldName, "missing required VIZA value", {
+        url: rootPage(scope).url(),
+        details: { controlName: name, kind: "select" },
+      });
+    }
+    pushSkipped(audit, { fieldName, controlName: name, kind: "select" });
+    return;
+  }
+  const select = await requireVisibleControl(scope, name, fieldName, "select");
+  await selectTwOptionStrict(select, value);
+  await settle(rootPage(scope));
+  const actual = await select.inputValue({ timeout: SHORT_TIMEOUT }).catch(() => "");
+  if (actual !== value && !(await selectedOptionLabelEquals(select, value))) {
+    throw new TwFieldVerificationError(fieldName, "actual selected option does not match normalized VIZA value", {
+      url: rootPage(scope).url(),
+      details: { controlName: name, kind: "select" },
+    });
+  }
+  pushMatched(audit, { fieldName, controlName: name, kind: "select", required });
+}
+
+/**
+ * Selects a control whose options are populated after another official
+ * select changes. The locator is reacquired on every poll because the NIA
+ * page may replace the complete select during its dependent-field render.
+ */
+export async function twSelectDependentByNameStrict(
+  scope: TwScope,
+  fieldName: string,
+  name: string,
+  value: string | undefined,
+  audit: TwFieldVerificationEntry[],
+  options: { required?: boolean; timeoutMs?: number } = {},
+): Promise<void> {
+  const required = options.required ?? true;
+  if (!value) {
+    if (required) {
+      throw new TwFieldVerificationError(fieldName, "missing required VIZA value", {
+        url: rootPage(scope).url(),
+        details: { controlName: name, kind: "select" },
+      });
+    }
+    pushSkipped(audit, { fieldName, controlName: name, kind: "select" });
+    return;
+  }
+
+  const deadline = Date.now() + (options.timeoutMs ?? 8_000);
+  while (Date.now() < deadline) {
+    const select = byName(scope, name).first();
+    const available =
+      (await select.count().catch(() => 0)) > 0 &&
+      (await select.isVisible().catch(() => false)) &&
+      (await select.isEnabled().catch(() => false)) &&
+      (await select
+        .locator("option")
+        .evaluateAll(
+          (nodes, expected) =>
+            nodes.some((node) => {
+              const option = node as HTMLOptionElement;
+              return option.value === expected || (option.textContent ?? "").trim() === expected;
+            }),
+          value,
+        )
+        .catch(() => false));
+
+    if (available) {
+      await twSelectByNameStrict(scope, fieldName, name, value, audit, { required });
+      return;
+    }
+    await rootPage(scope).waitForTimeout(100);
+  }
+
+  throw new TwFieldVerificationError(fieldName, "dependent select option not available after bounded wait", {
+    url: rootPage(scope).url(),
+    details: { controlName: name, kind: "select" },
+  });
+}
+
+async function selectTwOptionStrict(select: Locator, value: string): Promise<void> {
+  try {
+    await select.selectOption(value, { timeout: SHORT_TIMEOUT });
+    return;
+  } catch (err) {
+    const matchedByLabel = await select.selectOption({ label: value }, { timeout: SHORT_TIMEOUT }).then(() => true).catch(() => false);
+    if (matchedByLabel) return;
+    throw err;
+  }
+}
+
+async function selectedOptionLabelEquals(select: Locator, value: string): Promise<boolean> {
+  return select.evaluate((node, expected) => {
+    const el = node as HTMLSelectElement;
+    const selected = el.options[el.selectedIndex];
+    return (selected?.textContent ?? "").trim() === expected;
+  }, value).catch(() => false);
+}
+
+export async function twPickRadioByValueStrict(
+  scope: TwScope,
+  fieldName: string,
+  name: string,
+  value: string | undefined,
+  audit: TwFieldVerificationEntry[],
+  options: { required?: boolean } = {},
+): Promise<void> {
+  const required = options.required ?? true;
+  if (!value) {
+    if (required) {
+      throw new TwFieldVerificationError(fieldName, "missing required VIZA value", {
+        url: rootPage(scope).url(),
+        details: { controlName: name, kind: "radio" },
+      });
+    }
+    pushSkipped(audit, { fieldName, controlName: name, kind: "radio" });
+    return;
+  }
+  const radio = scope.locator(`input[name="${cssEscape(name)}"][value="${cssEscape(value)}"]`).first();
+  if ((await radio.count().catch(() => 0)) === 0) {
+    throw new TwFieldVerificationError(fieldName, "radio option not found", {
+      url: rootPage(scope).url(),
+      details: { controlName: name, kind: "radio" },
+    });
+  }
+  if (!(await radio.isChecked().catch(() => false))) {
+    await radio.check({ timeout: SHORT_TIMEOUT, force: true });
+  }
+  await settle(rootPage(scope));
+  if (!(await radio.isChecked().catch(() => false))) {
+    throw new TwFieldVerificationError(fieldName, "radio option was not selected after fill", {
+      url: rootPage(scope).url(),
+      details: { controlName: name, kind: "radio" },
+    });
+  }
+  pushMatched(audit, { fieldName, controlName: name, kind: "radio", required });
+}
+
+export async function twPickCheckboxByNameStrict(
+  scope: TwScope,
+  fieldName: string,
+  name: string,
+  checked: boolean,
+  audit: TwFieldVerificationEntry[],
+  options: { required?: boolean } = {},
+): Promise<void> {
+  const required = options.required ?? true;
+  const box = await requireVisibleControl(scope, name, fieldName, "checkbox");
+  const isChecked = await box.isChecked().catch(() => false);
+  if (isChecked !== checked) {
+    if (checked) {
+      await box.check({ timeout: SHORT_TIMEOUT, force: true });
+    } else {
+      await box.uncheck({ timeout: SHORT_TIMEOUT, force: true });
+    }
+  }
+  await settle(rootPage(scope));
+  if ((await box.isChecked().catch(() => false)) !== checked) {
+    throw new TwFieldVerificationError(fieldName, "checkbox state does not match normalized VIZA value", {
+      url: rootPage(scope).url(),
+      details: { controlName: name, kind: "checkbox" },
+    });
+  }
+  pushMatched(audit, { fieldName, controlName: name, kind: "checkbox", required });
+}
+
+export async function twFillDateByNameStrict(
+  scope: TwScope,
+  fieldName: string,
+  name: string,
+  isoDate: string | undefined,
+  audit: TwFieldVerificationEntry[],
+  options: { required?: boolean } = {},
+): Promise<void> {
+  const required = options.required ?? true;
+  if (!isoDate) {
+    if (required) {
+      throw new TwFieldVerificationError(fieldName, "missing required VIZA value", {
+        url: rootPage(scope).url(),
+        details: { controlName: name, kind: "date" },
+      });
+    }
+    pushSkipped(audit, { fieldName, controlName: name, kind: "date" });
+    return;
+  }
+  const input = await requireVisibleControl(scope, name, fieldName, "date");
+  await twFillDateByName(scope, name, isoDate);
+  const actual = await input.inputValue({ timeout: SHORT_TIMEOUT }).catch(() => "");
+  if (normalizeDateForCompare(actual) !== isoDate) {
+    throw new TwFieldVerificationError(fieldName, "actual date value does not match normalized VIZA value", {
+      url: rootPage(scope).url(),
+      details: { controlName: name, kind: "date" },
+    });
+  }
+  pushMatched(audit, { fieldName, controlName: name, kind: "date", required });
+}
+
+async function verifyInputFile(input: Locator, filePath: string, fieldName: string, controlName: string, page: Page): Promise<void> {
+  const expectedName = path.basename(filePath);
+  const actualName = await input
+    .evaluate((el) => {
+      const inputEl = el as HTMLInputElement;
+      return inputEl.files?.[0]?.name ?? "";
+    })
+    .catch(() => "");
+  if (actualName !== expectedName) {
+    throw new TwFileUploadError(fieldName, "uploaded file is not present in the official page file input", {
+      url: page.url(),
+      details: { controlName, kind: "file" },
+    });
+  }
+}
+
+export async function twUploadFileByNameStrict(
+  scope: TwScope,
+  fieldName: string,
+  name: string,
+  filePath: string | undefined | null,
+  audit: TwFieldVerificationEntry[],
+  options: { required?: boolean } = {},
+): Promise<void> {
+  const required = options.required ?? true;
+  if (!filePath) {
+    if (required) {
+      throw new TwFileUploadError(fieldName, "missing required local file", {
+        url: rootPage(scope).url(),
+        details: { controlName: name, kind: "file" },
+      });
+    }
+    pushSkipped(audit, { fieldName, controlName: name, kind: "file" });
+    return;
+  }
+  const input = await requireVisibleControl(scope, name, fieldName, "file");
+  await input.setInputFiles(filePath, { timeout: SHORT_TIMEOUT });
+  await settle(rootPage(scope));
+  await verifyInputFile(input, filePath, fieldName, name, rootPage(scope));
+  pushMatched(audit, { fieldName, controlName: name, kind: "file", required });
+}
+
+export async function twUploadFileByDocumentDescriptionStrict(
+  page: Page,
+  fieldName: string,
+  descriptionSubstring: string,
+  filePath: string | undefined | null,
+  audit: TwFieldVerificationEntry[],
+  options: { required?: boolean } = {},
+): Promise<void> {
+  const required = options.required ?? true;
+  if (!filePath) {
+    if (required) {
+      throw new TwFileUploadError(fieldName, "missing required local file", {
+        url: page.url(),
+        details: { kind: "file" },
+      });
+    }
+    pushSkipped(audit, { fieldName, controlName: descriptionSubstring, kind: "file" });
+    return;
+  }
+  const fileInputs = page.locator('input[name^="documents["][name$="].attachs[0]"]');
+  const count = await fileInputs.count().catch(() => 0);
+  for (let i = 0; i < count; i++) {
+    const input = fileInputs.nth(i);
+    const descriptionRow = input.locator("xpath=ancestor::tr[1]/preceding-sibling::tr[1]");
+    const text = await descriptionRow.innerText({ timeout: SHORT_TIMEOUT }).catch(() => "");
+    if (text.includes(descriptionSubstring)) {
+      const controlName = (await input.getAttribute("name").catch(() => null)) ?? descriptionSubstring;
+      await input.setInputFiles(filePath, { timeout: SHORT_TIMEOUT });
+      await settle(page);
+      await verifyInputFile(input, filePath, fieldName, controlName, page);
+      pushMatched(audit, { fieldName, controlName, kind: "file", required });
+      return;
+    }
+  }
+  throw new TwFileUploadError(fieldName, "official document upload row was not found", {
+    url: page.url(),
+    details: { kind: "file" },
+  });
 }
 
 export async function twFillByName(scope: TwScope, name: string, value: string | undefined): Promise<void> {
