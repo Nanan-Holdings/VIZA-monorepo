@@ -353,18 +353,16 @@ export function VnResultCard({
     // new click reached the worker. Only set the last four digits again after
     // POST /pay confirms both the short-lived card session and queue job.
     setOneTimeCardLast4(null);
+    const controller = new AbortController();
+    // Stay below the route's 60 second platform ceiling. A missing response
+    // must restore the actionable card form instead of leaving the applicant
+    // on a local-only loading state with no durable queue row.
+    const deadline = window.setTimeout(() => controller.abort(), 55_000);
     try {
-      const authorize = await fetch(`/api/applications/${applicationId}/official-fee/authorize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accepted: true }),
-      });
-      const authorizePayload = (await authorize.json().catch(() => null)) as Record<string, unknown> | null;
-      if (!authorize.ok) {
-        throw new Error(typeof authorizePayload?.error === "string" ? authorizePayload.error : `official-fee/authorize returned ${authorize.status}`);
-      }
-      setOfficialFeeStatus((current) => ({ ...(current ?? {}), ...authorizePayload }));
-
+      // POST /pay already creates or reuses the consent, quote and payment
+      // intent before handing the one-time card to the worker. Keeping a
+      // separate /authorize round trip here created a failure window where
+      // consent succeeded but the card/queue request never started.
       const pay = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -375,6 +373,7 @@ export function VnResultCard({
             cvv: cardCvv,
           },
         }),
+        signal: controller.signal,
       });
       const payPayload = (await pay.json().catch(() => null)) as Record<string, unknown> | null;
       if (!pay.ok) {
@@ -411,8 +410,15 @@ export function VnResultCard({
         },
       }));
     } catch (error) {
-      setPaymentError(error instanceof Error ? error.message : String(error));
+      setPaymentError(
+        error instanceof DOMException && error.name === "AbortError"
+          ? "official_fee_payment_request_timeout"
+          : error instanceof Error
+            ? error.message
+            : String(error),
+      );
     } finally {
+      window.clearTimeout(deadline);
       setPaymentBusy(false);
     }
   };

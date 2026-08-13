@@ -540,16 +540,16 @@ describe("VnResultCard automated payment UI", () => {
     expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
   });
 
-  it("switches to the Fly loading UI immediately when the payment button is clicked", async () => {
-    let resolveAuthorize:
+  it("switches to the Fly loading UI immediately while the atomic payment request is pending", async () => {
+    let resolvePayment:
       | ((response: { ok: boolean; status: number; json: () => Promise<Record<string, unknown>> }) => void)
       | undefined;
-    const authorizeResponse = new Promise<{
+    const paymentResponse = new Promise<{
       ok: boolean;
       status: number;
       json: () => Promise<Record<string, unknown>>;
     }>((resolve) => {
-      resolveAuthorize = resolve;
+      resolvePayment = resolve;
     });
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.endsWith("/official-fee/status")) {
@@ -562,8 +562,8 @@ describe("VnResultCard automated payment UI", () => {
           }),
         };
       }
-      if (url.endsWith("/official-fee/authorize")) {
-        return authorizeResponse;
+      if (url.endsWith("/official-fee/pay")) {
+        return paymentResponse;
       }
       return {
         ok: true,
@@ -589,10 +589,19 @@ describe("VnResultCard automated payment UI", () => {
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
     expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
 
-    resolveAuthorize?.({
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/applications/app-vn/official-fee/authorize",
+      expect.anything(),
+    );
+
+    resolvePayment?.({
       ok: true,
       status: 200,
-      json: async () => ({}),
+      json: async () => ({
+        cardSession: { redactedCard: { last4: "1111" } },
+        queueId: "new-cloud-queue",
+        queueStatus: "vn_cloud_live_pending",
+      }),
     });
     await waitFor(() => {
       expect(screen.getByText("正在安全发送银行卡并启动 Fly 云端任务。")).toBeInTheDocument();
