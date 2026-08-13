@@ -52,6 +52,14 @@ export async function wakeCloudSubmissionWorker(
   const env = options.env ?? process.env;
   const fetchImpl = options.fetchImpl ?? fetch;
   const target = options.target ?? "legacy";
+  const normalizedTarget = target.trim().toLowerCase().replace(/[\s-]+/gu, "_");
+  const isRunnerPoolTarget = [
+    "pool", "runner_pool", "vn", "vietnam", "sg", "singapore",
+    "my", "malaysia", "th", "thailand",
+  ].includes(normalizedTarget);
+  const wakePath = isRunnerPoolTarget
+    ? "/internal/runner-job/wake"
+    : "/internal/submission-queue/wake";
   const machineWake = await ensureFlyMachineStarted(target, {
     env,
     fetchImpl,
@@ -68,7 +76,7 @@ export async function wakeCloudSubmissionWorker(
 
   try {
     const response = await fetchImpl(
-      `${config.baseUrl}/internal/submission-queue/wake`,
+      `${config.baseUrl}${wakePath}`,
       {
         method: "POST",
         headers: {
