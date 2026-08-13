@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { isOptionalRegistrationConsent } from "./runner.js";
 import { extractShenyangVfsSlotsFromTexts } from "./slots.js";
 
 test("extracts and deduplicates only date-and-time slot observations", () => {
@@ -23,4 +24,9 @@ test("extracts and deduplicates only date-and-time slot observations", () => {
 
 test("does not invent a slot from a date-only calendar label", () => {
   assert.deepEqual(extractShenyangVfsSlotsFromTexts(["18 August 2026", "No appointments available"]), []);
+});
+
+test("does not opt the applicant into optional marketing consent", () => {
+  assert.equal(isOptionalRegistrationConsent("I accept the mandatory terms and privacy policy"), false);
+  assert.equal(isOptionalRegistrationConsent("Receive promotional offers and newsletter updates"), true);
 });
