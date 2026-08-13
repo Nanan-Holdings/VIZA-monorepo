@@ -6,8 +6,8 @@ import {
 
 /** PAYP-004: payment-method availability resolves per country (config-driven). */
 describe("paymentMethodsFor", () => {
-  it("Indonesia/B211A offers card + WeChat + Alipay", () => {
-    const m = paymentMethodsFor("indonesia", "B211A");
+  it("Indonesia C1 offers card + WeChat + Alipay", () => {
+    const m = paymentMethodsFor("indonesia", "ID_C1_TOURIST");
     expect(m.card).toBe(true);
     expect(m.wechat).toBe(true);
     expect(m.alipay).toBe(true);
@@ -25,7 +25,7 @@ describe("paymentMethodsFor", () => {
   });
 
   it("maps eligible wallets to Stripe Checkout method names", () => {
-    expect(stripeCheckoutPaymentMethodsFor("indonesia", "B211A")).toEqual([
+    expect(stripeCheckoutPaymentMethodsFor("indonesia", "ID_C1_TOURIST")).toEqual([
       "card",
       "alipay",
       "wechat_pay",

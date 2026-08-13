@@ -403,12 +403,13 @@ export function PassportOcrUpload({
   });
 
   useEffect(() => {
-    if (!initialUploaded || busy) return;
-    setStatus("uploaded");
+    if (!initialUploaded) return;
+    setStatus((current) => (
+      current === "idle" || current === "error" ? "uploaded" : current
+    ));
     setFileName(initialFileName ?? null);
     setPreviewKind("document");
-    setMessage(null);
-  }, [busy, initialFileName, initialUploaded]);
+  }, [initialFileName, initialUploaded]);
 
   useEffect(() => {
     return () => {
