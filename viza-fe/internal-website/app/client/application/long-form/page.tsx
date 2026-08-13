@@ -1834,6 +1834,7 @@ export default function ApplicationPage() {
   const [forceDryRun, setForceDryRun] = useState(false);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
+  const [externalAnswerRevision, setExternalAnswerRevision] = useState(0);
   const [formAssistantState, setFormAssistantState] = useState<FormAssistantState | null>(null);
   const [formAssistantBusy, setFormAssistantBusy] = useState(false);
   const [formAssistantReloadKey, setFormAssistantReloadKey] = useState(0);
@@ -2945,6 +2946,7 @@ export default function ApplicationPage() {
           }
           return { ...next, ...patch };
         });
+        setExternalAnswerRevision((current) => current + 1);
         setAiFilledFieldNames((current) => Array.from(new Set([
           ...current,
           ...payload.appliedPatches.map((item) => item.fieldName),
@@ -4094,30 +4096,59 @@ export default function ApplicationPage() {
     };
   }, [appState.applicationId, loading, packageLoaded, resolvedCountry, resolvedVisaType, t]);
 
-  const handlePassportOcrFieldsApplied = useCallback((fields: UniversalProfileSnapshot) => {
+  const handlePassportOcrFieldsApplied = useCallback((
+    fields: UniversalProfileSnapshot,
+    appliedFieldNames?: string[],
+  ) => {
     const answerPatch = buildUniversalProfileAnswerPatch(fields);
+    const appliedFieldNameSet = appliedFieldNames ? new Set(appliedFieldNames) : null;
+    const safeAnswerPatch = Object.fromEntries(
+      Object.entries(answerPatch).filter(([fieldName, value]) => {
+        if (!value || (appliedFieldNameSet && !appliedFieldNameSet.has(fieldName))) return false;
+        // A locally edited value can exist before its autosave reaches the
+        // server. Preserve it just like a persisted manual answer.
+        return !(dynamicAnswers[fieldName] ?? "").trim();
+      }),
+    );
     const { givenNames, surname } = splitUniversalFullName(fields.full_name);
 
-    setDynamicAnswers((prev) => ({ ...prev, ...answerPatch }));
+    autosaveRequestRef.current += 1;
+    for (const [stepIndexText, draft] of Object.entries(dynamicDraftRef.current)) {
+      const nextDraft = { ...draft };
+      let changed = false;
+      for (const fieldName of Object.keys(safeAnswerPatch)) {
+        if (!Object.prototype.hasOwnProperty.call(nextDraft, fieldName)) continue;
+        delete nextDraft[fieldName];
+        changed = true;
+      }
+      if (changed) dynamicDraftRef.current[Number(stepIndexText)] = nextDraft;
+    }
+    setDynamicAnswers((prev) => ({ ...prev, ...safeAnswerPatch }));
+    if (Object.keys(safeAnswerPatch).length > 0) {
+      // Remount the current DB-driven step so its local controlled values are
+      // rebuilt from the confirmed OCR patch instead of emitting an older
+      // blank draft after confirmation.
+      setExternalAnswerRevision((current) => current + 1);
+    }
     setAppState((prev) => ({
       ...prev,
       personal: {
         ...prev.personal,
-        givenNames: givenNames || prev.personal.givenNames,
-        surname: surname || prev.personal.surname,
-        dateOfBirth: fields.date_of_birth ?? prev.personal.dateOfBirth,
-        sex: fields.gender ?? prev.personal.sex,
-        nationality: fields.nationality ?? prev.personal.nationality,
+        givenNames: prev.personal.givenNames || givenNames,
+        surname: prev.personal.surname || surname,
+        dateOfBirth: prev.personal.dateOfBirth || fields.date_of_birth || undefined,
+        sex: prev.personal.sex || fields.gender || undefined,
+        nationality: prev.personal.nationality || fields.nationality || undefined,
       },
       passport: {
         ...prev.passport,
-        passportNumber: fields.passport_number ?? prev.passport.passportNumber,
-        passportIssuingCountry: fields.passport_issuing_country ?? prev.passport.passportIssuingCountry,
-        passportIssuanceDate: fields.passport_issue_date ?? prev.passport.passportIssuanceDate,
-        passportExpirationDate: fields.passport_expiry_date ?? prev.passport.passportExpirationDate,
+        passportNumber: prev.passport.passportNumber || fields.passport_number || undefined,
+        passportIssuingCountry: prev.passport.passportIssuingCountry || fields.passport_issuing_country || undefined,
+        passportIssuanceDate: prev.passport.passportIssuanceDate || fields.passport_issue_date || undefined,
+        passportExpirationDate: prev.passport.passportExpirationDate || fields.passport_expiry_date || undefined,
       },
     }));
-  }, []);
+  }, [dynamicAnswers]);
 
   // When the first form step has a dedicated passport-upload field (e.g. the UK
   // "Passport Upload" step), the passport OCR card above the form is the real
@@ -4361,7 +4392,7 @@ export default function ApplicationPage() {
                         {/* DB-driven form steps */}
                         {step.id < documentStepIndex && dbSteps[step.id] && (
                           <DynamicStepForm
-                            key={step.id}
+                            key={`${step.id}:${externalAnswerRevision}`}
                             step={dbSteps[step.id]}
                             prefill={dynamicAnswers}
                             onComplete={(data) => handleDynamicStepComplete(step.id, data)}
