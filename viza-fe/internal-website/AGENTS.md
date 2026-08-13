@@ -355,6 +355,9 @@ Smoke URLs:
 - `components/field-guidance-panel.tsx`
 - `hooks/use-smooth-progress.ts`
 - `lib/supabase/*`
+- `lib/resilience/*`: server-only HMAC transport, AES-256-GCM envelopes,
+  continuity identity/OTP state, critical read cache, and encrypted outbox
+  client. Never import these modules into browser bundles or expose their keys.
 - `lib/admin-access.ts`
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`

@@ -35,6 +35,9 @@ reports, and workflow documentation for VIZA.
   and troubleshooting workflow for agents.
 - `operations/supabase-self-heal.md`: production Supabase health probes,
   guarded restart policy, GitHub Actions controls, and incident runbook.
+- `operations/viza-zero-ops-resilience.md`: three-layer database pressure,
+  encrypted continuity, independent watchdog, replay, and disaster-recovery
+  deployment runbook.
 - `AGENT_COMPLETION_CHECKLIST.md`: evidence checklist for database-backed and
   persistence-related completion claims.
 - `superpowers/plans/*`: implementation plans written before staged feature

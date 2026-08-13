@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "noEmit": true,
+    "isolatedModules": true,
+    "types": []
+  },
+  "include": ["src/**/*.ts", "worker-configuration.d.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}
