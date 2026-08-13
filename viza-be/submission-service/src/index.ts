@@ -54,7 +54,7 @@ import {
   runDryRunSubmission,
 } from "./country-submissions";
 import type { SubmissionPayload } from "./country-submissions/types";
-import { pollAndRun } from "./queue/worker";
+import { drainAndRun } from "./queue/worker";
 import { runnerJobHandler } from "./queue/handler";
 import { runUkHalt } from "./queue/halt-runners";
 import { NeedsHumanError } from "./queue/types";
@@ -7679,10 +7679,10 @@ async function processPendingQueueItem(rawItem: SubmissionQueueItem): Promise<vo
   }
 }
 
-async function pollOnce(): Promise<void> {
+async function pollOnce(runMaintenance = true): Promise<boolean> {
   console.log("[poll] Checking submission_queue for pending items...");
   const targetJobId = process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim();
-  if (!targetJobId) {
+  if (runMaintenance && !targetJobId) {
     try {
       const queuedDailyChecks = await enqueueDueVietnamStatusChecks();
       if (queuedDailyChecks > 0) {
@@ -7705,7 +7705,7 @@ async function pollOnce(): Promise<void> {
       console.error("[poll] Vietnam official status checks failed:", err);
     }
   }
-  if (LEGACY_US_APPOINTMENT_POLL_ENABLED) {
+  if (runMaintenance && LEGACY_US_APPOINTMENT_POLL_ENABLED) {
     try {
       const processedUsAppointmentJobs = await pollUSAppointmentAssistedJobs(
         createUSAppointmentRunnerRepository(),
@@ -7729,7 +7729,7 @@ async function pollOnce(): Promise<void> {
   } catch (err) {
     legacyQueueWorkInFlight = false;
     console.error("[poll] Failed to claim queue:", err);
-    return;
+    return false;
   }
 
   if (items.length === 0) {
@@ -7738,12 +7738,12 @@ async function pollOnce(): Promise<void> {
     if (!targetJobId) {
       await markStaleQueueItemsTimedOut();
     }
-    return;
+    return false;
   }
 
   if (targetJobId && items.length === 0) {
     console.log(`[poll] No claimable pending item matched target job ${redactIdentifier(targetJobId)}.`);
-    return;
+    return false;
   }
 
   console.log(`[poll] Found ${items.length} pending item(s).`);
@@ -7760,11 +7760,11 @@ async function pollOnce(): Promise<void> {
   if (!targetJobId) {
     await markStaleQueueItemsTimedOut();
   }
+  return true;
 }
 
 let pollInFlight = false;
 let immediatePollRequested = false;
-let legacyPollTimer: NodeJS.Timeout | null = null;
 let healthServer: ReturnType<typeof startHealthServer> | null = null;
 let shutdownRequested = false;
 let runnerJobInFlight = false;
@@ -7790,10 +7790,15 @@ async function poll(): Promise<void> {
 
   pollInFlight = true;
   try {
+    let runMaintenance = true;
     do {
       immediatePollRequested = false;
-      await pollOnce();
-    } while (immediatePollRequested);
+      const processedWork = await pollOnce(runMaintenance);
+      runMaintenance = false;
+      // A drain wake keeps claiming until the queue is empty. A wake arriving
+      // while a batch is running is coalesced by immediatePollRequested.
+      if (processedWork) immediatePollRequested = true;
+    } while (immediatePollRequested && !shutdownRequested);
   } finally {
     pollInFlight = false;
     if (shutdownRequested) closeHealthServer();
@@ -7811,6 +7816,8 @@ let runnerStarted = false;
 let runnerPoolDatabaseHealthy = true;
 let runnerSlotLease: RunnerSlotLease | null = null;
 let shutdownFinalizing = false;
+let runnerDrainInFlight: Promise<void> | null = null;
+let runnerWakeRequested = false;
 
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -7878,15 +7885,64 @@ function shutdownRunner(signal: string): void {
   console.log(`[main] ${signal} received — stopping queue consumers`);
   runnerAbort.abort();
   immediatePollRequested = false;
-  if (legacyPollTimer) {
-    clearInterval(legacyPollTimer);
-    legacyPollTimer = null;
-  }
   if (!pollInFlight && !runnerJobInFlight) {
     closeHealthServer();
   } else {
     console.log("[main] Waiting for active queue work to finish before shutdown");
   }
+}
+
+function wakeRunnerJobs(): void {
+  if (shutdownRequested || !RUNNER_JOB_CONSUMER_ENABLED) return;
+  if (runnerDrainInFlight) {
+    runnerWakeRequested = true;
+    return;
+  }
+
+  runnerWakeRequested = false;
+  const operation = drainAndRun({
+    workerId: RUNNER_WORKER_ID,
+    handler: runnerJobHandler,
+    signal: runnerAbort.signal,
+    onClaimHealthy: () => {
+      runnerPoolDatabaseHealthy = true;
+    },
+    onClaimError: () => {
+      runnerPoolDatabaseHealthy = false;
+    },
+    onJobStart: () => {
+      runnerJobInFlight = true;
+      idleExitController?.workStarted();
+    },
+    onJobFinish: () => {
+      runnerJobInFlight = false;
+      idleExitController?.workFinished();
+      if (shutdownRequested && !pollInFlight) {
+        closeHealthServer();
+      }
+    },
+  })
+    .then((result) => {
+      if (result.stoppedBecause === "claim_error") {
+        console.error("[main] runner_job drain stopped after claim failure");
+      }
+    })
+    .catch((error) => {
+      runnerPoolDatabaseHealthy = false;
+      console.error("[main] runner_job drain crashed", error);
+    })
+    .finally(() => {
+      runnerDrainInFlight = null;
+      if (runnerWakeRequested && !shutdownRequested) {
+        wakeRunnerJobs();
+      }
+    });
+  runnerDrainInFlight = operation;
+}
+
+function wakeQueues(): void {
+  wakeSubmissionQueue();
+  wakeRunnerJobs();
 }
 process.on("SIGTERM", () => shutdownRunner("SIGTERM"));
 process.on("SIGINT", () => shutdownRunner("SIGINT"));
@@ -7951,7 +8007,7 @@ async function main(): Promise<void> {
     isWorkerBusy: () => legacyQueueWorkInFlight || runnerJobInFlight || activeHttpWork > 0,
     hasOneTimeCardSessions: () =>
       hasVietnamCardSessions() || hasIndonesiaCardSessions(),
-    wakeSubmissionQueue,
+    wakeSubmissionQueue: wakeQueues,
     onWorkStart: () => {
       activeHttpWork += 1;
       idleExitController?.workStarted();
@@ -8099,38 +8155,15 @@ async function main(): Promise<void> {
     INDONESIA_QUEUE_ENABLED
   ) {
     await poll();
-    if (!shutdownRequested) {
-      legacyPollTimer = setInterval(poll, POLL_INTERVAL_MS);
-    }
   }
 
   // QUE-002: start the runner_job consumer (does not block the legacy poll).
   if (RUNNER_JOB_CONSUMER_ENABLED) {
     console.log(`[main] runner_job consumer active (workerId=${RUNNER_WORKER_ID})`);
     runnerStarted = true;
-    void pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
-      country: RUNNER_JOB_COUNTRY,
-      signal: runnerAbort.signal,
-      onClaimHealthy: () => {
-        runnerPoolDatabaseHealthy = true;
-      },
-      onClaimError: () => {
-        runnerPoolDatabaseHealthy = false;
-      },
-      onJobStart: () => {
-        runnerJobInFlight = true;
-        idleExitController?.workStarted();
-      },
-      onJobFinish: () => {
-        runnerJobInFlight = false;
-        idleExitController?.workFinished();
-        if (shutdownRequested && !pollInFlight) {
-          closeHealthServer();
-        }
-      },
-    }).catch((err) => {
-      console.error("[main] runner_job consumer crashed", err);
-    });
+    // Startup performs one explicit drain. There is no idle claim/poll loop;
+    // subsequent enqueues wake this process through /internal/submission-queue/wake.
+    wakeRunnerJobs();
   } else {
     runnerStarted = true;
   }

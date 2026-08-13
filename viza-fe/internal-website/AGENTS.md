@@ -145,7 +145,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Cloud submission worker wake requests use the authenticated
   `app/api/submission-worker/wake/route.ts` boundary and the server-only
   `lib/submission-worker-wake.server.ts` helper. Never expose the internal
-  bearer token to client components.
+  bearer token to client components. Every immediate `runner_job` or
+  `submission_queue` enqueue must POST the retained target's wake endpoint;
+  starting an already-running Fly Machine is not itself a wake signal.
 - Shared-pool retry submission resolves a typed flow through
   `lib/queue/flows.ts`, atomically enqueues through `lib/queue/enqueue.ts`, and
   starts only immediately claimable Fly pool capacity through

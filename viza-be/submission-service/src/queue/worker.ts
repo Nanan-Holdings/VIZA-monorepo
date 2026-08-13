@@ -1,10 +1,6 @@
 import { supabase } from "../supabase";
 import { sendAlert } from "../alerts/dispatch";
 import { emitRunnerMetric } from "../metrics/emit";
-import {
-  calculateQueueErrorBackoffMs,
-  summarizeQueueError,
-} from "./poll-backoff";
 
 /**
  * runner_job consumer (INFRA-002).
@@ -158,6 +154,26 @@ export async function markFailedWithRetry(
 
 export type JobHandler = (job: RunnerJob) => Promise<void>;
 
+export interface DrainOpts {
+  /** Stable id for this worker instance — lands in leased_by. */
+  workerId: string;
+  /** Job handler invoked for each atomically claimed row. */
+  handler: JobHandler;
+  /** Stop before the next claim when the process is shutting down. */
+  signal?: AbortSignal;
+  /** Lease duration in ms. Default 15 minutes. */
+  leaseMs?: number;
+  onJobStart?: (job: RunnerJob) => void;
+  onJobFinish?: (job: RunnerJob) => void;
+  onClaimHealthy?: () => void;
+  onClaimError?: (error: unknown) => void;
+}
+
+export interface DrainResult {
+  jobsProcessed: number;
+  stoppedBecause: "empty" | "aborted" | "claim_error";
+}
+
 async function renewJobLease(
   jobId: string,
   workerId: string,
@@ -176,52 +192,44 @@ async function renewJobLease(
 }
 
 /**
- * Convenience driver: poll for jobs and run `handler` on each. Stops
- * when `signal` is aborted.
+ * Drain the runner_job queue once, claiming until the database reports that
+ * no eligible row remains. This function deliberately has no sleep/retry
+ * loop: a later enqueue (or the startup/wake endpoint) starts another drain.
+ * A single caller owns the coalescing promise in index.ts, so concurrent
+ * endpoint wakes never create duplicate consumers.
  */
-export async function pollAndRun(
-  workerId: string,
-  handler: JobHandler,
-  opts: {
-    country?: string;
-    pollMs?: number;
-    signal?: AbortSignal;
-    onJobStart?: (job: RunnerJob) => void;
-    onJobFinish?: (job: RunnerJob) => void;
-    onClaimHealthy?: () => void;
-    onClaimError?: (error: unknown) => void;
-  } = {},
-): Promise<void> {
-  const pollMs = opts.pollMs ?? 5_000;
-  const leaseMs = DEFAULT_LEASE_MS;
-  let consecutiveClaimFailures = 0;
+export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
+  const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS;
+  let jobsProcessed = 0;
+
   for (;;) {
-    if (opts.signal?.aborted) return;
+    if (opts.signal?.aborted) {
+      return { jobsProcessed, stoppedBecause: "aborted" };
+    }
+
     let job: RunnerJob | null;
     try {
-      job = await claimNextJob({ workerId, country: opts.country });
-      consecutiveClaimFailures = 0;
+      job = await claimNextJob({ workerId: opts.workerId, leaseMs });
       opts.onClaimHealthy?.();
-    } catch (err) {
-      consecutiveClaimFailures += 1;
-      const retryMs = calculateQueueErrorBackoffMs(pollMs, consecutiveClaimFailures);
-      console.error(
-        `[queue] claim failed attempt=${consecutiveClaimFailures} retryMs=${retryMs} ${summarizeQueueError(err)}`,
-      );
-      opts.onClaimError?.(err);
-      await new Promise((r) => setTimeout(r, retryMs));
-      continue;
+    } catch (error) {
+      // Do not poll through an outage. The next explicit wake retries the
+      // claim and avoids an idle worker repeatedly reading Supabase.
+      console.error("[queue] runner_job claim failed", error);
+      opts.onClaimError?.(error);
+      return { jobsProcessed, stoppedBecause: "claim_error" };
     }
+
     if (!job) {
-      await new Promise((r) => setTimeout(r, pollMs));
-      continue;
+      return { jobsProcessed, stoppedBecause: "empty" };
     }
+
+    jobsProcessed += 1;
     opts.onJobStart?.(job);
     let leaseRenewing = false;
     const leaseTimer = setInterval(() => {
       if (leaseRenewing) return;
       leaseRenewing = true;
-      void renewJobLease(job.id, workerId, leaseMs)
+      void renewJobLease(job.id, opts.workerId, leaseMs)
         .then(() => opts.onClaimHealthy?.())
         .catch((error) => {
           console.error(`[queue] job ${job.id} lease renewal failed`, error);
@@ -233,15 +241,14 @@ export async function pollAndRun(
     }, 60_000);
     leaseTimer.unref?.();
     try {
-      await handler(job);
-      clearInterval(leaseTimer);
+      await opts.handler(job);
       await markSucceeded(job.id);
-    } catch (err) {
-      console.error(`[queue] job ${job.id} failed`, err);
+    } catch (error) {
+      console.error(`[queue] job ${job.id} failed`, error);
       try {
-        await markFailedWithRetry(job, err);
-      } catch (markErr) {
-        console.error(`[queue] mark failed write failed`, markErr);
+        await markFailedWithRetry(job, error);
+      } catch (markError) {
+        console.error("[queue] mark failed write failed", markError);
       }
     } finally {
       clearInterval(leaseTimer);

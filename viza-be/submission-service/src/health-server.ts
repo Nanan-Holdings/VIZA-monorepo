@@ -47,6 +47,7 @@ export interface HealthServerOptions {
   isWorkerBusy?: () => boolean;
   hasOneTimeCardSessions?: () => boolean;
   wakeSubmissionQueue?: () => void;
+  wakeRunnerJob?: () => void;
   onWorkStart?: () => void;
   onWorkFinish?: () => void;
   getLifecycle?: () => object;
@@ -723,13 +724,35 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       return;
     }
     if (req.method === "POST" && url === "/internal/submission-queue/wake") {
-      if (!opts.wakeSubmissionQueue || !isSubmissionQueueInternalRequest(req)) {
+      if ((!opts.wakeSubmissionQueue && !opts.wakeRunnerJob) || !isSubmissionQueueInternalRequest(req)) {
         sendJson(res, 403, { error: "forbidden" });
         return;
       }
       opts.onWorkStart?.();
       try {
-        opts.wakeSubmissionQueue();
+        // Existing producers use this endpoint for legacy rows. Also wake the
+        // runner_job drain so a shared-pool enqueue remains prompt during the
+        // migration; both callbacks are single-flight in the caller.
+        opts.wakeSubmissionQueue?.();
+        opts.wakeRunnerJob?.();
+        sendJson(res, 202, {
+          ok: true,
+          accepted: true,
+          workerBusy: opts.isWorkerBusy?.() ?? false,
+        });
+      } finally {
+        opts.onWorkFinish?.();
+      }
+      return;
+    }
+    if (req.method === "POST" && url === "/internal/runner-job/wake") {
+      if (!opts.wakeRunnerJob || !isSubmissionQueueInternalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      opts.onWorkStart?.();
+      try {
+        opts.wakeRunnerJob();
         sendJson(res, 202, {
           ok: true,
           accepted: true,
@@ -943,6 +966,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/japan-vfs-sg/observe");
     if (envEnabled(process.env.JP_VFS_SG_LIVE_BOOKING_ENABLED)) endpoints.push("/internal/japan-vfs-sg/book-selected-slot");
     if (opts.wakeSubmissionQueue) endpoints.push("/internal/submission-queue/wake");
+    if (opts.wakeRunnerJob) endpoints.push("/internal/runner-job/wake");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready, /deploy-ready${extra})`);
   });

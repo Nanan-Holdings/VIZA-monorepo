@@ -1738,15 +1738,35 @@ function SubmissionStatusStepContent({
     let pollingStoppedForAuth = false;
     let pollInFlight = false;
     let consecutiveFailures = 0;
+    let stablePollCount = 0;
+    let lastSnapshotFingerprint: string | null = null;
     let timer: number | null = null;
     const controller = new AbortController();
 
+    const clearScheduledPoll = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+    };
+
     const scheduleNextPoll = () => {
       if (cancelled || pollingStoppedForAuth) return;
+      clearScheduledPoll();
+      if (document.visibilityState !== "visible") return;
       timer = window.setTimeout(
         () => void poll(),
-        getSubmissionStatusPollDelay(consecutiveFailures),
+        getSubmissionStatusPollDelay(consecutiveFailures, stablePollCount),
       );
+    };
+
+    const pollWhenVisible = () => {
+      if (document.visibilityState !== "visible") {
+        clearScheduledPoll();
+        return;
+      }
+      clearScheduledPoll();
+      void poll();
     };
 
     const poll = async () => {
@@ -1788,9 +1808,27 @@ function SubmissionStatusStepContent({
         const body: unknown = await response.json();
         if (!isSnapshot(body)) return;
         consecutiveFailures = 0;
+        const bodyQueue = isRecord(body.queue) ? body.queue : null;
+        const fingerprint = JSON.stringify([
+          body.status,
+          body.stage,
+          body.progress,
+          body.updatedAt,
+          body.applicationStatus,
+          bodyQueue?.id,
+          bodyQueue?.status,
+          bodyQueue?.currentStage,
+          bodyQueue?.heartbeatAt,
+          bodyQueue?.updatedAt,
+          isRecord(body.result) ? body.result.status : null,
+        ]);
+        stablePollCount = fingerprint === lastSnapshotFingerprint
+          ? stablePollCount + 1
+          : 0;
+        lastSnapshotFingerprint = fingerprint;
         const polledQueueId =
-          isRecord(body.queue) && typeof body.queue.id === "string"
-            ? body.queue.id
+          bodyQueue && typeof bodyQueue.id === "string"
+            ? bodyQueue.id
             : null;
         // The status endpoint can briefly return the previous terminal queue
         // immediately after a new retry is accepted. Keep the new loading UI
@@ -1817,24 +1855,24 @@ function SubmissionStatusStepContent({
                 : null,
             country: typeof body.country === "string" ? body.country : null,
             visaType: typeof body.visaType === "string" ? body.visaType : null,
-            queue: isRecord(body.queue)
-              ? {
-                  id: typeof body.queue.id === "string" ? body.queue.id : "",
-                  status: typeof body.queue.status === "string" ? body.queue.status : "",
-                  mode: typeof body.queue.mode === "string" ? body.queue.mode : null,
-                  provider: typeof body.queue.provider === "string" ? body.queue.provider : null,
-                  currentStage:
-                    typeof body.queue.currentStage === "string" ? body.queue.currentStage : null,
-                  heartbeatAt:
-                    typeof body.queue.heartbeatAt === "string" ? body.queue.heartbeatAt : null,
-                  fieldFallbacks: Array.isArray(body.queue.fieldFallbacks)
-                    ? body.queue.fieldFallbacks
-                    : [],
-                  createdAt:
-                    typeof body.queue.createdAt === "string" ? body.queue.createdAt : null,
-                  updatedAt:
-                    typeof body.queue.updatedAt === "string" ? body.queue.updatedAt : null,
-                }
+             queue: bodyQueue
+               ? {
+                   id: typeof bodyQueue.id === "string" ? bodyQueue.id : "",
+                   status: typeof bodyQueue.status === "string" ? bodyQueue.status : "",
+                   mode: typeof bodyQueue.mode === "string" ? bodyQueue.mode : null,
+                   provider: typeof bodyQueue.provider === "string" ? bodyQueue.provider : null,
+                   currentStage:
+                     typeof bodyQueue.currentStage === "string" ? bodyQueue.currentStage : null,
+                   heartbeatAt:
+                     typeof bodyQueue.heartbeatAt === "string" ? bodyQueue.heartbeatAt : null,
+                   fieldFallbacks: Array.isArray(bodyQueue.fieldFallbacks)
+                     ? bodyQueue.fieldFallbacks
+                     : [],
+                   createdAt:
+                     typeof bodyQueue.createdAt === "string" ? bodyQueue.createdAt : null,
+                   updatedAt:
+                     typeof bodyQueue.updatedAt === "string" ? bodyQueue.updatedAt : null,
+                 }
               : null,
           });
         }
@@ -1853,17 +1891,19 @@ function SubmissionStatusStepContent({
               : current,
           );
         }
-      } finally {
+    } finally {
         pollInFlight = false;
         scheduleNextPoll();
       }
     };
 
-    void poll();
+    document.addEventListener("visibilitychange", pollWhenVisible);
+    if (document.visibilityState === "visible") void poll();
     return () => {
       cancelled = true;
       controller.abort();
-      if (timer !== null) window.clearTimeout(timer);
+      clearScheduledPoll();
+      document.removeEventListener("visibilitychange", pollWhenVisible);
     };
   }, [
     actionWithResult,
