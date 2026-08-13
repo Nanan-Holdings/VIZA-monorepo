@@ -7,25 +7,26 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type ComponentType,
   type ReactNode,
 } from "react";
 import { useLocale } from "next-intl";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowRight,
   Camera,
-  CheckCircle2,
-  Clock3,
-  ExternalLink,
-  FileCheck2,
+  CheckCircle as CheckCircle2,
+  Clock as Clock3,
+  ArrowSquareOut as ExternalLink,
+  File as FileCheck2,
   FileText,
-  Loader2,
-  Plane,
-  RefreshCw,
-  UploadCloud,
+  CircleNotch as Loader2,
+  Airplane as Plane,
+  ArrowClockwise as RefreshCw,
+  UploadSimple as UploadCloud,
   XCircle,
-  type LucideIcon,
-} from "lucide-react";
+  type IconProps,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -78,7 +79,7 @@ interface DocumentViewState {
 interface DocumentStatusView {
   label: string;
   description: string;
-  icon: LucideIcon;
+  icon: ComponentType<IconProps>;
   badgeClassName: string;
   ready: boolean;
   needsUpload: boolean;

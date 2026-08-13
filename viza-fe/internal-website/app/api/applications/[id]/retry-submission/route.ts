@@ -20,8 +20,8 @@ import {
 } from "@/features/sgac/date-window";
 import {
   evaluatePhEtravelSubmissionWindow,
-  validatePhEtravelFlightDates,
 } from "@/features/ph-etravel/date-window";
+import { decidePhEtravelLiveSchedule } from "@/features/ph-etravel/retry-schedule";
 import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
@@ -1301,91 +1301,6 @@ async function decideTdacLiveSchedule(input: {
         arrivalDate: travelDates.arrivalDate,
         departureDate: travelDates.departureDate,
         modeOfTravel: null,
-        transportNumber: null,
-        accommodationAddressProvided: false,
-      },
-    };
-    return {
-      action: "schedule",
-      arrivalDate: travelDates.arrivalDate,
-      departureDate: travelDates.departureDate,
-      earliestSubmissionDate: window.earliestSubmissionDate,
-      daysUntilOpen: window.daysUntilOpen,
-      result,
-    };
-  }
-
-  return {
-    action: "submit",
-    arrivalDate: travelDates.arrivalDate,
-    departureDate: travelDates.departureDate,
-  };
-}
-
-export async function decidePhEtravelLiveSchedule(input: {
-  admin: ReturnType<typeof createAdminClient>;
-  applicationId: string;
-  application: ApplicationForRetry;
-  now: string;
-}): Promise<SgacScheduleDecision> {
-  const isDepartureCard = input.application.visa_type?.trim().toUpperCase() === "PH_ETRAVEL_DEPARTURE_CARD";
-  const dates = await readSgacDateAnswers(input.admin, input.applicationId, input.application);
-  if (dates.error) {
-    return { action: "reject", status: 500, code: "phetravel_date_load_failed", message: dates.error };
-  }
-
-  const travelDates = validatePhEtravelFlightDates(dates.departureDate, dates.arrivalDate);
-  if (!travelDates.ok) {
-    return {
-      action: "reject",
-      status: 422,
-      code: `phetravel_${travelDates.code}`,
-      message: travelDates.message,
-    };
-  }
-
-  const submissionTravelDate = isDepartureCard ? travelDates.departureDate : travelDates.arrivalDate;
-  const travelDateLabel = isDepartureCard ? "departure" : "arrival";
-  const window = evaluatePhEtravelSubmissionWindow(submissionTravelDate, new Date(input.now));
-  if (window.status === "invalid") {
-    return {
-      action: "reject",
-      status: 422,
-      code: `phetravel_invalid_${travelDateLabel}_date`,
-      message: `Philippines eTravel ${travelDateLabel} date must use YYYY-MM-DD.`,
-    };
-  }
-  if (window.status === "past") {
-    return {
-      action: "reject",
-      status: 422,
-      code: `phetravel_${travelDateLabel}_date_past`,
-      message: `Philippines eTravel ${travelDateLabel} date is already in the past. Please update the travel dates before submitting.`,
-    };
-  }
-  if (window.status === "scheduled") {
-    const result = {
-      country: "PH",
-      visaType: isDepartureCard ? "PH_ETRAVEL_DEPARTURE_CARD" : "PH_ETRAVEL_ARRIVAL_CARD",
-      status: "scheduled",
-      mode: "live_assisted",
-      provider: "philippines_etravel_live",
-      applicationId: input.applicationId,
-      submitted: false,
-      confirmationNumber: null,
-      referenceNumber: null,
-      portalUrl: "https://etravel.gov.ph",
-      portalResponseSummary:
-        `Philippines eTravel accepts submissions within 72 hours before ${travelDateLabel}. This application is scheduled for ${window.earliestSubmissionDate}.`,
-      scheduledFor: window.earliestSubmissionDate,
-      arrivalDate: travelDates.arrivalDate,
-      departureDate: travelDates.departureDate,
-      artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
-      payloadSummary: {
-        arrivalDate: travelDates.arrivalDate,
-        departureDate: travelDates.departureDate,
-        modeOfTravel: dates.transportType,
-        dateSource: dates.transportType === "SEA" ? "voyage" : "flight",
         transportNumber: null,
         accommodationAddressProvided: false,
       },

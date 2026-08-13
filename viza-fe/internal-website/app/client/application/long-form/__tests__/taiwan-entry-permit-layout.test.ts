@@ -4,7 +4,7 @@ import {
   getTaiwanEntryPermitInlineDocumentStepId,
   isTaiwanEntryPermitQualificationStepSource,
   shouldShowStandaloneDocumentStep,
-} from "../page";
+} from "@/lib/taiwan-entry-permit-layout";
 import {
   getTaiwanEntryPermitExtraRequirements,
   getTaiwanEntryPermitVisibleDocumentKeys,

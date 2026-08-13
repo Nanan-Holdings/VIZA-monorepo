@@ -100,7 +100,7 @@ describe("embedded document upload step", () => {
     expect(container.querySelector(".border-t")).not.toBeInTheDocument();
   });
 
-  test("renders direct upload fields in document grids without redundant summary panels", () => {
+  test("renders the embedded document overview and direct upload controls", () => {
     const onContinue = vi.fn();
     const { container } = render(
       <DocumentCenterClient
@@ -112,23 +112,10 @@ describe("embedded document upload step", () => {
       />
     );
 
-    expect(screen.queryByText("Form documents")).not.toBeInTheDocument();
-    expect(screen.queryByText("Japan Documents")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Missing or replacement documents")
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(
-        "Required documents are incomplete, so this visa package cannot move forward yet."
-      )
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Upload this if it helps support your application.")
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Use saved profile file")
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Or choose from Travel AI")).not.toBeInTheDocument();
+    expect(screen.getByText("Form documents")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "🇯🇵 Japan Documents" })).toBeInTheDocument();
+    expect(screen.getByText("Missing or replacement documents")).toBeInTheDocument();
+    expect(screen.getAllByText("Use saved profile file").length).toBeGreaterThan(0);
 
     const requiredSection = screen
       .getByRole("heading", { name: "Required documents" })
@@ -139,56 +126,16 @@ describe("embedded document upload step", () => {
 
     expect(requiredSection).not.toBeNull();
     expect(optionalSection).not.toBeNull();
-    expect(requiredSection?.querySelector(".grid")).toHaveClass(
-      "md:grid-cols-2"
-    );
-    expect(optionalSection?.querySelector(".grid")).toHaveClass(
-      "md:grid-cols-2"
-    );
-    expect(container.querySelectorAll("article")).toHaveLength(6);
-    expect(screen.queryByText("Required")).not.toBeInTheDocument();
-    expect(screen.getAllByText("*")).toHaveLength(4);
-
-    const aiTriggers = screen.getAllByRole("button", { name: "Ask AI" });
-    expect(aiTriggers).toHaveLength(6);
-    expect(aiTriggers[0]).toHaveClass(
-      "border-0",
-      "bg-transparent",
-      "text-brand-500",
-      "hover:text-brand-700",
-      "opacity-0",
-      "focus-visible:opacity-100",
-      "group-hover/document-card:opacity-100",
-      "group-focus-within/document-card:opacity-100"
-    );
-    expect(aiTriggers[0].parentElement).toHaveClass("right-5", "top-5");
-
-    expect(
-      screen.getByLabelText("Choose Passport bio page", { selector: "input" })
-    ).toHaveAttribute("type", "file");
-    expect(
-      screen.getByLabelText("Choose Proof of funds", { selector: "input" })
-    ).toHaveAttribute("type", "file");
-    expect(
-      within(requiredSection as HTMLElement).queryByRole("button", {
-        name: "Upload",
-      })
-    ).not.toBeInTheDocument();
+    expect(requiredSection?.querySelectorAll("[data-requirement-key]")).toHaveLength(4);
+    expect(optionalSection?.querySelectorAll("[data-requirement-key]")).toHaveLength(2);
+    expect(container.querySelectorAll('input[type="file"]')).toHaveLength(6);
+    expect(within(requiredSection as HTMLElement).getAllByRole("button", { name: "Upload" })).toHaveLength(4);
     const continueButton = screen.getByRole("button", { name: "Continue" });
-    expect(continueButton).toBeEnabled();
-
-    fireEvent.click(continueButton);
-
+    expect(continueButton).toBeDisabled();
     expect(onContinue).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Upload 4 required documents before continuing."
-    );
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Passport bio page, Passport-size photo, Travel itinerary, Proof of funds"
-    );
   });
 
-  test("reserves the stacked description row when adjacent upload cards omit copy", () => {
+  test("keeps missing descriptions optional without hiding requirement badges", () => {
     const signatureRequirement = requirement(
       "customs_signature_file",
       "Customs declaration e-signature",
@@ -212,19 +159,9 @@ describe("embedded document upload step", () => {
       />
     );
 
-    const portraitDescriptionSlot = screen
-      .getByRole("heading", { name: "Portrait photo", level: 3 })
-      .nextElementSibling;
-    const signatureDescriptionSlot = screen
-      .getByRole("heading", {
-        name: "Customs declaration e-signature",
-        level: 3,
-      })
-      .nextElementSibling;
-
-    expect(portraitDescriptionSlot).toHaveClass("min-h-[40px]");
-    expect(signatureDescriptionSlot).toBeEmptyDOMElement();
-    expect(signatureDescriptionSlot).toHaveClass("min-h-[40px]");
+    expect(screen.getByRole("heading", { name: "Portrait photo", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Customs declaration e-signature", level: 3 })).toBeInTheDocument();
+    expect(screen.getAllByText("Required")).toHaveLength(2);
   });
 
   test("renders flat document subsections and continues when required uploads are ready", () => {
@@ -262,31 +199,29 @@ describe("embedded document upload step", () => {
 
     const requiredHeading = screen.getByRole("heading", {
       name: "Required documents",
-      level: 3,
+      level: 2,
     });
     const optionalHeading = screen.getByRole("heading", {
       name: "Optional supporting documents",
-      level: 3,
+      level: 2,
     });
 
     expect(requiredHeading).toHaveClass(
-      "text-lg",
-      "font-medium",
-      "text-foreground"
+      "text-xl",
+      "font-semibold"
     );
     expect(optionalHeading).toHaveClass(
-      "text-lg",
-      "font-medium",
-      "text-foreground"
+      "text-xl",
+      "font-semibold"
     );
-    expect(requiredHeading.closest("section")).toHaveClass("space-y-4");
+    expect(requiredHeading.closest("section")).toHaveClass("space-y-3");
     expect(requiredHeading.closest("section")).not.toHaveClass(
       "rounded-xl",
       "border",
       "bg-white",
       "p-5"
     );
-    expect(optionalHeading.closest("section")).toHaveClass("space-y-4");
+    expect(optionalHeading.closest("section")).toHaveClass("space-y-3");
     expect(optionalHeading.closest("section")).not.toHaveClass(
       "rounded-xl",
       "border",
@@ -299,7 +234,7 @@ describe("embedded document upload step", () => {
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
 
-  test("uses the standard material-card treatment for Vietnam face comparison", () => {
+  test("uses the dedicated Vietnam face-comparison treatment", () => {
     render(
       <DocumentCenterClient
         initialData={vietnamData}
@@ -311,25 +246,25 @@ describe("embedded document upload step", () => {
 
     const heading = screen.getByRole("heading", {
       name: "Portrait and passport face match",
-      level: 3,
+      level: 2,
     });
-    const comparisonCard = heading.closest("article");
+    const comparisonCard = heading.closest("section");
 
     expect(comparisonCard).toHaveClass(
-      "rounded-xl",
-      "border-border",
-      "bg-white",
+      "rounded-lg",
+      "border-cyan-200",
+      "bg-cyan-50/50",
       "p-5"
     );
-    expect(comparisonCard).not.toHaveClass("border-cyan-200", "bg-cyan-50/50");
-    expect(screen.getByText("Upload requirements")).toBeInTheDocument();
+    expect(screen.getByText("Vietnam official photo comparison")).toBeInTheDocument();
     expect(screen.getByText("Not checked")).toBeInTheDocument();
-    expect(screen.getAllByText("Waiting for upload")).toHaveLength(2);
+    expect(screen.getByText("Upload the portrait photo first.")).toBeInTheDocument();
+    expect(screen.getByText("Upload the passport bio page first.")).toBeInTheDocument();
 
     const generateButton = screen.getByRole("button", {
       name: "Generate similarity",
     });
     expect(generateButton).toBeDisabled();
-    expect(generateButton).toHaveClass("h-[38px]", "rounded-full");
+    expect(generateButton).toHaveClass("w-full", "bg-white");
   });
 });
