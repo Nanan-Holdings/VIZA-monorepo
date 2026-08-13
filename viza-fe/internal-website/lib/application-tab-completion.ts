@@ -63,6 +63,10 @@ function hasValue(value: string | null | undefined): boolean {
   return v.length > 0 && v !== "[]" && v !== "{}";
 }
 
+function isAcceptedCheckboxValue(value: string | null | undefined): boolean {
+  return ["true", "yes", "1", "on"].includes(normalizeAnswer(value));
+}
+
 function normalizeAnswer(value: string | null | undefined): string {
   return text(value).toLowerCase();
 }
@@ -115,6 +119,9 @@ function isVisibleRequiredField(field: VisaFormFieldRow, values: Record<string, 
 }
 
 function isFieldComplete(field: VisaFormFieldRow, values: Record<string, string>): boolean {
+  if (field.fieldType === "checkbox" && field.required) {
+    return isAcceptedCheckboxValue(values[field.fieldName]);
+  }
   const group = getRepeatGroup(field);
   if (!group) return hasValue(values[field.fieldName]);
 

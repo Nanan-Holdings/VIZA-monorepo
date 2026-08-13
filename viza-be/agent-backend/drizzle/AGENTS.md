@@ -173,6 +173,9 @@ The current internal automation migrations are:
 - `0135_retire_indonesia_b211a.sql`: retires obsolete Indonesia B211A catalog
   rows without deleting historical records, and changes application/form-field
   defaults to the canonical `ID_C1_TOURIST` product code.
+- `0136_form_assistant_required_checkbox_rules.sql`: marks the Philippines
+  eTravel privacy declarations and Taiwan permit terms as true-only required
+  acknowledgements for consistent form and assistant validation.
 
 ## Guardrails
 

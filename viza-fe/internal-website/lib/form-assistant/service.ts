@@ -478,7 +478,10 @@ function parseDirectCheckboxAgreement(
   text: string,
   field: VisaFormFieldRow,
 ): ProposedPatch | null {
-  if (field.fieldType !== "checkbox" || field.validationRules?.mustBeTrue !== true) return null;
+  if (
+    field.fieldType !== "checkbox" ||
+    (!field.required && field.validationRules?.mustBeTrue !== true)
+  ) return null;
   if (!messageExplicitlyMentionsField(text, field)) return null;
   const normalized = text.trim().toLocaleLowerCase();
   if (/(?:不同意|不接受|拒绝|不确定|不知道)|\b(?:disagree|decline|reject|do not agree|don't agree|not sure)\b/.test(normalized)) {
@@ -1213,11 +1216,39 @@ async function proposeTurn(params: {
   }
 }
 
-function validateProposal(field: VisaFormFieldRow, patch: ProposedPatch): boolean {
+function validateProposal(
+  field: VisaFormFieldRow,
+  patch: ProposedPatch,
+  answers: Record<string, string>,
+): boolean {
   if (patch.confidence !== "high" || !patch.value?.trim()) return false;
   if (isVagueFormAnswer(patch.value)) return false;
   if (field.fieldType === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(patch.value)) return false;
   if (field.options?.length && !field.options.map(optionValue).includes(patch.value)) return false;
+  if (typeof field.validationRules?.maxLength === "number" && patch.value.length > field.validationRules.maxLength) {
+    return false;
+  }
+  if (typeof field.validationRules?.minLength === "number" && patch.value.length < field.validationRules.minLength) {
+    return false;
+  }
+  if (
+    field.fieldType === "checkbox" &&
+    (field.required || field.validationRules?.mustBeTrue === true) &&
+    !["true", "yes", "1", "on"].includes(patch.value.trim().toLowerCase())
+  ) return false;
+  const numericLengthRule = field.validationRules?.numeric_length_when as {
+    field?: unknown;
+    equals?: unknown;
+    length?: unknown;
+  } | undefined;
+  if (
+    numericLengthRule &&
+    typeof numericLengthRule.field === "string" &&
+    typeof numericLengthRule.equals === "string" &&
+    typeof numericLengthRule.length === "number" &&
+    answers[numericLengthRule.field]?.trim() === numericLengthRule.equals &&
+    !new RegExp(`^\\d{${numericLengthRule.length}}$`).test(patch.value)
+  ) return false;
   const pattern = field.validationRules?.pattern;
   if (typeof pattern === "string") {
     try {
@@ -1406,7 +1437,7 @@ export async function runAssistantTurn(params: {
   const assistantMessageId = randomUUID();
   for (const patch of proposed.patches) {
     const field = fieldByName.get(patch.fieldName);
-    if (!field || !validateProposal(field, patch)) continue;
+    if (!field || !validateProposal(field, patch, existingValues)) continue;
     const current = params.answers[patch.fieldName];
     if (current?.value && current.source !== "form_assistant") {
       skippedConflicts.push(patch.fieldName);
