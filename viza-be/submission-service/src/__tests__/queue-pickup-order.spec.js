@@ -84,6 +84,20 @@ test("stale timeout scanning covers interrupted Indonesia payment workers", () =
   assert.match(statuses, /"id_b1_evoa_payment_processing"/);
 });
 
+test("legacy submission_queue polling covers Taiwan entry permit rows", () => {
+  const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
+  const statusesStart = source.indexOf("const STALE_QUEUE_STATUSES");
+  const statusesEnd = source.indexOf("function parseProviderAllowlist", statusesStart);
+  assert.notEqual(statusesStart, -1);
+  assert.notEqual(statusesEnd, -1);
+
+  const statuses = source.slice(statusesStart, statusesEnd);
+  assert.match(statuses, /"tw_dry_run_pending"/);
+  assert.match(statuses, /"tw_dry_run_processing"/);
+  assert.match(statuses, /"tw_live_assisted_pending"/);
+  assert.match(statuses, /"tw_live_assisted_processing"/);
+});
+
 test("Indonesia cloud processing refreshes its queue heartbeat until the run ends", () => {
   const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
   const indonesiaStart = source.indexOf("async function processIndonesiaItem");

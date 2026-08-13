@@ -181,7 +181,7 @@ describe("DigitalArrivalCardResultCard", () => {
     );
   });
 
-  it("renders a stored Philippines success immediately without polling or starting a new submission", () => {
+  it("keeps a Philippines screenshot and local reference in recovery until authoritative registration and QR evidence exist", () => {
     const result: DigitalArrivalCardSubmissionResult = {
       country: "PH",
       visaType: "PH_ETRAVEL_ARRIVAL_CARD",
@@ -214,16 +214,12 @@ describe("DigitalArrivalCardResultCard", () => {
       />,
     );
 
-    expect(screen.getByText("eTravel 提交成功")).toBeInTheDocument();
+    expect(screen.getByText("eTravel 未完成")).toBeInTheDocument();
     expect(screen.getByText("PH-REFERENCE")).toBeInTheDocument();
-    expect(screen.getByAltText("菲律宾 eTravel 官网确认页截图")).toHaveAttribute(
-      "src",
-      expect.stringContaining("ph-confirmation.png"),
-    );
-    expect(screen.getByRole("link", { name: "下载官网确认截图" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("ph-confirmation.png"),
-    );
+    expect(screen.queryByAltText("菲律宾 eTravel 官网确认页截图")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "下载官网确认截图" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "再次提交" })).not.toBeInTheDocument();
+    expect(screen.getByText("菲律宾 eTravel 免费，不是签证，也不保证边检准入。")).toBeInTheDocument();
     expect(screen.queryByText("正在提交您的申请")).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });

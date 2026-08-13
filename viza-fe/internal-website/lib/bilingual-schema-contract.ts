@@ -1,5 +1,4 @@
 import type { VisaFormFieldOption, VisaFormFieldRow } from "../types/visa-form-fields";
-import { countries } from "country-data-list";
 import {
   getChineseLabel,
   getChineseOptionText,
@@ -8,12 +7,13 @@ import {
   getEnglishOptionText,
   getEnglishPlaceholder,
 } from "./ds160-translations";
+import { TW_CITY_OPTIONS, TW_DISTRICTS_BY_CITY } from "./taiwan-administrative-units";
 
 type BilingualSide = "zh" | "en";
 
 type FieldLike = Pick<
   VisaFormFieldRow,
-  "visaType" | "fieldName" | "fieldType" | "label" | "placeholder" | "required" | "stepName" | "validationRules" | "options"
+  "fieldName" | "fieldType" | "label" | "placeholder" | "required" | "stepName" | "validationRules" | "options" | "visaType"
 >;
 
 type OptionObject = Extract<VisaFormFieldOption, { value: string }>;
@@ -34,128 +34,6 @@ export const VAGUE_CHINESE_LABELS = new Set([
   "填写",
   "说明",
 ]);
-
-const VISA_SPECIFIC_FIELD_NAME_ZH: Record<string, Record<string, string>> = {
-  DS160: {
-    has_social_media: "过去五年内是否使用过任何社交媒体平台？",
-    passport_has_expiry: "您的护照是否有明确的到期日期？",
-    vwp_denial: "您是否曾被拒绝美国免签计划（ESTA）授权？",
-  },
-  EU_SCHENGEN_C_SHORT_STAY: {
-    atv_airside_only: "您是否会一直停留在申根机场的国际中转区内，不办理入境手续？",
-    atv_annex_iv_acknowledged: "我已了解机场过境签证（ATV）及申根区过境规定",
-    directive_2004_38_acknowledged: "我已确认本申请是否适用欧盟、欧洲经济区或瑞士公民家庭成员的自由流动规则",
-    event_invitation_letter_held: "您是否持有活动主办方出具的邀请函？",
-    has_national_id: "您是否有国民身份证号码？",
-    medical_costs_prepaid: "医疗费用是否已经预付，或已由医疗机构确认付款安排？",
-    study_acceptance_letter_held: "您是否持有学校或教育机构出具的录取/接收证明？",
-    transit_onward_ticket_held: "您是否持有已确认的续程机票？",
-    visits_french_overseas_territories: "您是否计划前往法国海外领地？",
-  },
-  JP_TOURIST: {
-    accommodation_phone: "住宿地点/接待方联系电话",
-    employer_or_school_address: "雇主或学校地址",
-    employer_or_school_name: "雇主或学校名称",
-    employer_or_school_phone: "雇主或学校联系电话",
-    has_inviter_in_japan: "您在日本是否有邀请人或担保人？",
-    has_other_names_used: "您是否曾使用过其他姓名（如曾用名、笔名或别名）？",
-    has_overstayed_japan: "您是否曾逾期停留，或曾在日本非法居留？",
-    id_card_number: "本国身份证件号码（如适用）",
-    inviter_date_of_birth: "邀请人出生日期",
-    inviter_employer: "邀请人在日本的雇主名称及地址",
-    inviter_full_name: "邀请人完整姓名",
-    inviter_immigration_status: "邀请人在日本的居留身份（仅外国籍邀请人填写）",
-    inviter_relationship_to_applicant: "邀请人与申请人的关系",
-    inviter_sex: "邀请人性别",
-    other_passport_country: "其他护照的签发国家/地区",
-    prior_japan_visit_arrival_date: "上次赴日抵达日期",
-    prior_japan_visit_departure_date: "上次赴日离境日期",
-    prior_japan_visit_purpose: "上次赴日目的",
-    purpose_of_visit: "本次赴日目的",
-    remarks_special_circumstances: "备注或特殊情况（选填）",
-    spouse_date_of_birth: "配偶出生日期",
-    visited_japan_before: "您以前是否曾在日本停留？",
-  },
-  VN_E_VISA: {
-    has_relatives_in_vietnam: "您是否有亲属目前居住在越南？",
-  },
-};
-
-const TAIWAN_ENTRY_PERMIT_FIELD_ZH: Record<string, string> = {
-  accepted_terms: "我已阅读并同意以下条款与声明",
-  birth_place_is_mainland: "您的出生地是否在中国大陆？",
-  birth_place_mainland_region: "中国大陆出生省/市/地区",
-  birth_place_other_country: "出生国家/地区",
-  company_name: "任职单位、所属机构或就读学校全称",
-  continent: "所在大洲",
-  current_mainland_political_military_role: "您目前是否在中国大陆党政军机关、政治性组织或相关团体任职或具有成员身份？",
-  current_role_detail: "目前任职的机关、组织或团体全称",
-  eligibility_category: "申请资格类别",
-  embassy_office: "受理驻外馆处/办事处",
-  first_time_applying: "这是您首次在海外、香港或澳门申请赴台吗？",
-  household_revoked: "中国大陆户籍当前状态",
-  is_taiwanese_spouse: "您是否为台湾居民的配偶？",
-  local_mobile_phone: "现居地手机号码（含国家/地区区号）",
-  mainland_id_number: "中国大陆居民身份证号码",
-  mainland_id_number_not_applicable: "没有中国大陆居民身份证号码",
-  name_chinese: "中文姓名（繁体字）",
-  name_english: "英文姓名（按护照填写大写字母）",
-  never_held_mainland_political_military_role: "本人从未在中国大陆党政军机关、政治性组织或相关团体任职或具有成员身份",
-  occupation_experience: "工作经历",
-  other_nationality_country: "持有或曾持有的其他国籍",
-  overseas_address: "香港、澳门或海外现居地址",
-  overseas_residency_id_number: "海外居留身份证明号码（如永居证、居留卡或签证号码）",
-  passport_expiry_date: "护照/旅行证件有效期至（公历）",
-  passport_number: "护照或旅行证件号码",
-  past_mainland_political_military_role: "您过去是否曾在中国大陆党政军机关、政治性组织或相关团体任职或具有成员身份？",
-  past_role_detail: "过去任职的机关、组织或团体全称",
-  permit_count: "申请入台许可的次数",
-  permit_type: "申请的入台许可类型",
-  traveling_with_parents: "您的父母是否与您一同赴台？",
-  tw_contact_alley: "台湾地址—弄号（只填数字）",
-  tw_contact_building_number: "台湾地址—门牌、楼层及房号（入住酒店可填酒店名称）",
-  tw_contact_city: "台湾地址—县市",
-  tw_contact_district: "台湾地址—区/乡/镇",
-  tw_contact_lane: "台湾地址—巷号（只填数字）",
-  tw_contact_mobile: "台湾联系人手机号码",
-  tw_contact_mobile_not_applicable: "没有台湾联系人手机号码",
-  tw_contact_neighborhood: "台湾地址—邻号（只填数字）",
-  tw_contact_road: "台湾地址—街路及段",
-  tw_contact_village: "台湾地址—村/里（选填）",
-  tw_local_phone: "台湾市内电话号码",
-};
-
-const TAIWAN_KIN_LABELS: Record<string, string> = {
-  father: "父亲",
-  mother: "母亲",
-  spouse: "配偶",
-  child1: "第一名子女",
-  child2: "第二名子女",
-};
-
-const TAIWAN_KIN_FIELD_LABELS: Record<string, string> = {
-  current_address: "当前住址",
-  current_address_same_as_overseas: "当前住址是否与申请人的港澳或海外住址相同？",
-  date_of_birth: "出生日期",
-  job_title: "职务/职称",
-  name: "姓名",
-  occupation: "职业",
-  phone: "联系电话",
-  service_unit: "任职单位/所属机构",
-  status: "当前状况（在世、已故或离异）",
-};
-
-function getTaiwanEntryPermitChineseLabel(fieldName: string): string | null {
-  const normalized = normalizeFieldName(fieldName);
-  const direct = TAIWAN_ENTRY_PERMIT_FIELD_ZH[normalized];
-  if (direct) return direct;
-
-  const kinMatch = normalized.match(/^kin_(father|mother|spouse|child1|child2)_(.+)$/);
-  if (!kinMatch) return null;
-  const person = TAIWAN_KIN_LABELS[kinMatch[1]];
-  const detail = TAIWAN_KIN_FIELD_LABELS[kinMatch[2]];
-  return person && detail ? `${person}—${detail}` : null;
-}
 
 // UK Standard Visitor — complete, hand-checked field_name → Chinese label map.
 // The seed only ships English labels; without these entries the long-form fell
@@ -423,6 +301,327 @@ const UK_FIELD_NAME_ZH: Record<string, string> = {
   monthly_outgoings_currency: "每月支出——币种",
   monthly_outgoings_amount: "您每月支出的总金额",
 };
+
+// Taiwan Online Entry Permit (TW_ENTRY_PERMIT) — complete field_name → Chinese
+// label map. The seed only sets label_zh on OPTIONS (continents, embassy
+// offices, occupations, etc.), never at the field level, and this visa is
+// Chinese-only end to end (applicants are mainland Chinese nationals) — so
+// every one of its field labels needs an explicit entry here, same as the
+// UK map above, or the long-form falls back to the auto-generated
+// "请填写：Continent" pattern.
+const TW_FIELD_NAME_ZH: Record<string, string> = {
+  continent: "所在洲别",
+  embassy_office: "受理使领馆/代表处",
+  // photo_upload and the 6 supporting-document field names are deliberately
+  // NOT listed here — those field_type: "file" rows were removed from the
+  // seed (they only ever rendered a dead placeholder box); real uploads for
+  // Taiwan go through the Documents step (document_requirements), same as
+  // every other country.
+  first_time_applying: "是否为首次由境外/港澳申请来台观光",
+  permit_type: "申请证别",
+  permit_count: "申请证数",
+  has_other_nationality_passport: "是否持有其他国籍护照？",
+  eligibility_category: "申请资格类别",
+  name_chinese: "中文姓名（繁体字）",
+  name_english: "英文姓名（依护照大写拼写）",
+  household_revoked: "目前户口登记状态",
+  passport_number: "护照号码/香港签证身份证明书号码/澳门旅行证/大陆旅行证号码",
+  passport_expiry_date: "护照效期/旅行证效期（西元）",
+  overseas_residency_id_number: "侨居身份证号码（如永久居留证号码、居留证号码或签证号码）",
+  mainland_id_number_not_applicable: "无大陆身份证号码",
+  mainland_id_number: "大陆身份证号码",
+  birth_place_is_mainland: "出生地（同所持旅游证件）",
+  birth_place_other_country: "出生国家/地区",
+  local_mobile_phone: "居住地手机号码（需填写国码）",
+  current_occupation: "现职",
+  occupation_experience: "经历",
+  company_name: "公司名称及单位全衔或学校名称",
+  job_title: "职称",
+  is_taiwanese_spouse: "是否为台湾人民配偶？",
+  traveling_with_parents: "父母是否同行？",
+  overseas_address: "港、澳或海外地址",
+  tw_contact_city: "县市",
+  tw_contact_district: "乡镇市区",
+  tw_contact_village: "村/里（非必填）",
+  tw_contact_neighborhood: "邻（仅填数字）",
+  tw_contact_road: "街、路段",
+  tw_contact_lane: "巷（仅填数字）",
+  tw_contact_alley: "弄（仅填数字）",
+  tw_contact_building_number: "门牌号/楼/室（住饭店请填饭店名称）",
+  tw_local_phone: "在台联络电话",
+  tw_contact_mobile_not_applicable: "无在台联络手机号码",
+  tw_contact_mobile: "在台联络手机号码",
+  other_nationality_country: "所具其他国籍为",
+  other_passport_number: "他国护（证）照号码",
+  other_passport_expiry_date: "他国护（证）照有效期限",
+  past_mainland_political_military_role: "申请人曾任大陆地区党务、行政、军事或具政治性机关（构）、团体之职务或为其成员者",
+  past_role_detail: "曾任职于",
+  current_mainland_political_military_role: "申请人现任大陆地区党务、行政、军事或具政治性机关（构）、团体之职务或为其成员者",
+  current_role_detail: "现任职于",
+  never_held_mainland_political_military_role: "申请人未曾担任大陆地区党务、行政、军事或具政治性机关（构）、团体之职务或为其成员",
+  accepted_terms: "我已阅读并接受下列条款与条件",
+  kin_father_status: "父 — 存殁",
+  kin_father_name: "父亲 — 姓名",
+  kin_father_date_of_birth: "父亲 — 生日",
+  kin_father_phone: "父亲 — 电话",
+  kin_father_occupation: "父亲 — 现职",
+  kin_father_service_unit: "父亲 — 服务单位",
+  kin_father_job_title: "父亲 — 职称",
+  kin_father_current_address_same_as_overseas: "父亲 — 现住址是否与申请人海外地址相同",
+  kin_father_current_address: "父亲 — 现住址",
+  kin_mother_status: "母 — 存殁",
+  kin_mother_name: "母亲 — 姓名",
+  kin_mother_date_of_birth: "母亲 — 生日",
+  kin_mother_phone: "母亲 — 电话",
+  kin_mother_occupation: "母亲 — 现职",
+  kin_mother_service_unit: "母亲 — 服务单位",
+  kin_mother_job_title: "母亲 — 职称",
+  kin_mother_current_address_same_as_overseas: "母亲 — 现住址是否与申请人海外地址相同",
+  kin_mother_current_address: "母亲 — 现住址",
+  kin_spouse_status: "配偶 — 生存/已故/离婚状态",
+  kin_spouse_name: "配偶 — 姓名",
+  kin_spouse_date_of_birth: "配偶 — 出生日期",
+  kin_spouse_phone: "配偶 — 电话",
+  kin_spouse_occupation: "配偶 — 职业",
+  kin_spouse_service_unit: "配偶 — 服务单位",
+  kin_spouse_job_title: "配偶 — 职称",
+  kin_spouse_current_address_same_as_overseas: "配偶 — 现住址是否与申请人海外地址相同",
+  kin_spouse_current_address: "配偶 — 现住址",
+  kin_child1_status: "子女一 — 生存/已故/离婚状态",
+  kin_child1_name: "子女一 — 姓名",
+  kin_child1_date_of_birth: "子女一 — 出生日期",
+  kin_child1_phone: "子女一 — 电话",
+  kin_child1_occupation: "子女一 — 职业",
+  kin_child1_service_unit: "子女一 — 服务单位",
+  kin_child1_job_title: "子女一 — 职称",
+  kin_child1_current_address_same_as_overseas: "子女一 — 现住址是否与申请人海外地址相同",
+  kin_child1_current_address: "子女一 — 现住址",
+  kin_child2_status: "子女二 — 生存/已故/离婚状态",
+  kin_child2_name: "子女二 — 姓名",
+  kin_child2_date_of_birth: "子女二 — 出生日期",
+  kin_child2_phone: "子女二 — 电话",
+  kin_child2_occupation: "子女二 — 职业",
+  kin_child2_service_unit: "子女二 — 服务单位",
+  kin_child2_job_title: "子女二 — 职称",
+  kin_child2_current_address_same_as_overseas: "子女二 — 现住址是否与申请人海外地址相同",
+  kin_child2_current_address: "子女二 — 现住址",
+};
+
+const TW_REQUIRED_FIELD_OVERRIDES = new Set([
+  "mainland_id_number",
+  "company_name",
+  "job_title",
+  "kin_father_status",
+  "kin_mother_status",
+]);
+
+const TW_ADDRESS_TRADITIONAL_TO_SIMPLIFIED: Record<string, string> = {
+  臺: "台",
+  區: "区",
+  縣: "县",
+  鄉: "乡",
+  鎮: "镇",
+  內: "内",
+  愛: "爱",
+  車: "车",
+  達: "达",
+  島: "岛",
+  釣: "钓",
+  東: "东",
+  鳳: "凤",
+  豐: "丰",
+  貢: "贡",
+  關: "关",
+  龜: "龟",
+  國: "国",
+  後: "后",
+  華: "华",
+  環: "环",
+  雞: "鸡",
+  將: "将",
+  結: "结",
+  壢: "坜",
+  來: "来",
+  蓮: "莲",
+  連: "连",
+  蘆: "芦",
+  羅: "罗",
+  馬: "马",
+  門: "门",
+  萬: "万",
+  滿: "满",
+  瑪: "玛",
+  麥: "麦",
+  廟: "庙",
+  濃: "浓",
+  鳥: "鸟",
+  鵬: "鹏",
+  橋: "桥",
+  親: "亲",
+  軍: "军",
+  勢: "势",
+  樹: "树",
+  雙: "双",
+  頭: "头",
+  灣: "湾",
+  烏: "乌",
+  線: "线",
+  興: "兴",
+  學: "学",
+  鹽: "盐",
+  楊: "杨",
+  義: "义",
+  鶯: "莺",
+  嶼: "屿",
+  魚: "鱼",
+  園: "园",
+  雲: "云",
+  長: "长",
+  壯: "壮",
+  莊: "庄",
+  廣: "广",
+  龍: "龙",
+  復: "复",
+  獅: "狮",
+  銅: "铜",
+  彌: "弥",
+  霧: "雾",
+  恆: "恒",
+  綠: "绿",
+  濱: "滨",
+  壽: "寿",
+  榮: "荣",
+  歸: "归",
+  鑼: "锣",
+  館: "馆",
+  腳: "脚",
+  庫: "库",
+  崙: "仑",
+  巒: "峦",
+  頂: "顶",
+  邊: "边",
+  坵: "丘",
+  岡: "冈",
+  棲: "栖",
+  圍: "围",
+  觀: "观",
+  蘭: "兰",
+  蘇: "苏",
+  橫: "横",
+  寶: "宝",
+};
+
+function simplifyTaiwanAddressLabel(label: string): string {
+  return Array.from(label, (char) => TW_ADDRESS_TRADITIONAL_TO_SIMPLIFIED[char] ?? char).join("");
+}
+
+function localizeTaiwanAddressOption(option: VisaFormFieldOption): VisaFormFieldOption {
+  if (typeof option === "string") {
+    const simplified = simplifyTaiwanAddressLabel(option);
+    return {
+      value: option,
+      text: simplified,
+      label_zh: simplified,
+      label_en: simplified,
+      official_label: option,
+    };
+  }
+
+  const sourceLabel = option.official_label ?? option.text ?? option.label_zh ?? option.value;
+  const simplified = simplifyTaiwanAddressLabel(sourceLabel);
+  return {
+    ...option,
+    text: simplified,
+    label_zh: simplified,
+    label_en: option.label_en ?? sourceLabel,
+    official_label: sourceLabel,
+  };
+}
+
+function localizeTaiwanAddressOptions(options: VisaFormFieldOption[]): VisaFormFieldOption[] {
+  return options.map(localizeTaiwanAddressOption);
+}
+
+function localizeTaiwanDistrictsByCity(
+  districtsByCity: typeof TW_DISTRICTS_BY_CITY,
+): typeof TW_DISTRICTS_BY_CITY {
+  return Object.fromEntries(
+    Object.entries(districtsByCity).map(([cityValue, options]) => [
+      cityValue,
+      localizeTaiwanAddressOptions(options),
+    ]),
+  );
+}
+
+function normalizeTaiwanAddressField(field: VisaFormFieldRow): Partial<VisaFormFieldRow> {
+  const fieldName = normalizeFieldName(field.fieldName);
+  if (field.visaType !== "TW_ENTRY_PERMIT") return {};
+
+  if (fieldName === "tw_contact_city") {
+    return {
+      fieldType: "select",
+      options: localizeTaiwanAddressOptions(TW_CITY_OPTIONS),
+    };
+  }
+
+  if (fieldName === "tw_contact_district") {
+    return {
+      fieldType: "select",
+      validationRules: {
+        ...(field.validationRules ?? {}),
+        dependent_on: "tw_contact_city",
+        dependent_options_key: "taiwan_districts_by_city",
+        dependent_options: localizeTaiwanDistrictsByCity(TW_DISTRICTS_BY_CITY),
+        source: "taiwan_official_address_districts",
+      },
+      options: [],
+    };
+  }
+
+  if (fieldName === "tw_local_phone") {
+    return {
+      validationRules: {
+        ...(field.validationRules ?? {}),
+        required_when: "tw_contact_mobile_not_applicable === true",
+        helper_zh: "若勾选无在台联络手机号码，本项必须填写。",
+        helper_en: "Required only when no Taiwan contact mobile number is selected.",
+      },
+    };
+  }
+
+  return {};
+}
+
+function normalizeTaiwanOccupationDependentField(field: VisaFormFieldRow): Partial<VisaFormFieldRow> {
+  const fieldName = normalizeFieldName(field.fieldName);
+  if (field.visaType !== "TW_ENTRY_PERMIT") return {};
+
+  if (fieldName === "company_name") {
+    return {
+      conditionalLogic: { showIf: "current_occupation not in [61,62]" },
+      validationRules: {
+        ...(field.validationRules ?? {}),
+        required_when: "current_occupation not in [61,62]",
+        helper_zh: "现职为待业或退休时不需要填写。",
+        helper_en: "Hidden when current occupation is unemployed/job-seeking or retired.",
+      },
+    };
+  }
+
+  if (fieldName === "job_title") {
+    return {
+      conditionalLogic: { showIf: "current_occupation not in [14,61,62]" },
+      validationRules: {
+        ...(field.validationRules ?? {}),
+        required_when: "current_occupation not in [14,61,62]",
+        helper_zh: "现职为学生、待业或退休时不需要填写。",
+        helper_en: "Hidden when current occupation is student, unemployed/job-seeking, or retired.",
+      },
+    };
+  }
+
+  return {};
+}
 
 const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   full_name: "护照上的完整姓名",
@@ -725,7 +924,11 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   declaration_awareness_refusal: "我已知悉虚假陈述可能导致拒签、已发签证被撤销并承担法律责任",
   declaration_undertaking_to_leave: "我承诺在获发签证的有效期届满前离开成员国领土",
   final_declaration: "我声明以上信息真实、准确且完整，并愿对虚假申报承担相应责任",
-  trip_payer_type: "谁为您的旅行付费？",
+
+  // UK Standard Visitor — full field_name → zh set. Spread LAST so these win
+  // over any generic entry above for shared field names.
+  ...UK_FIELD_NAME_ZH,
+
 };
 
 const LABEL_ZH_OVERRIDES: Record<string, string> = {
@@ -829,51 +1032,6 @@ const HELPER_ZH_BY_FIELD_NAME: Record<string, string> = {
     "该项涉及安全、公共秩序或国家安全背景审查；请按官方题目如实回答，并在需要时说明事件、时间、地点和处理结果。",
 };
 
-const HELPER_EN_BY_FIELD_NAME: Record<string, string> = {
-  refused_visa_or_entry_japan:
-    "If you answer Yes, provide the date, place, reason, and outcome in the next field.",
-  refused_visa_other_country:
-    "If you answer Yes, provide the country, date, reason, and outcome in the next field.",
-  has_criminal_record:
-    "If you answer Yes, provide the country, date, offence, and sentence in the next field.",
-  has_been_deported:
-    "If you answer Yes, provide the country, date, reason, and outcome in the next field.",
-  has_overstayed_japan:
-    "If you answer Yes, explain when the overstay occurred and how it was resolved in the next field.",
-  has_drug_or_trafficking_history:
-    "Select Yes if any of the activities listed in the question apply to you.",
-};
-
-const JP_CHARACTER_FIELDS_WITHOUT_HELPERS = new Set([
-  "has_criminal_record",
-  "criminal_record_country",
-  "criminal_record_date",
-  "criminal_record_details",
-  "criminal_record_sentence",
-  "has_been_deported",
-  "deportation_country",
-  "deportation_date",
-  "deportation_details",
-  "deportation_outcome",
-  "has_overstayed_japan",
-  "overstay_date",
-  "overstay_details",
-  "overstay_resolution",
-  "has_drug_or_trafficking_history",
-  "prohibited_activity_type",
-  "prohibited_activity_country",
-  "prohibited_activity_date",
-  "prohibited_activity_details",
-  "remarks_special_circumstances",
-  "application_date",
-  "final_declaration",
-]);
-
-function suppressHelper(field: FieldLike): boolean {
-  return field.visaType === "JP_TOURIST"
-    && JP_CHARACTER_FIELDS_WITHOUT_HELPERS.has(normalizeFieldName(field.fieldName));
-}
-
 const OPTION_ZH_BY_VALUE: Record<string, string> = {
   yes: "是",
   no: "否",
@@ -883,11 +1041,6 @@ const OPTION_ZH_BY_VALUE: Record<string, string> = {
   female: "女",
   other: "其他",
   others: "其他",
-  drug_abuse: "吸毒",
-  prostitution: "卖淫",
-  human_trafficking: "人口贩运",
-  smuggling: "走私",
-  illegal_weapons: "持有非法武器",
   temporaryvisa: "我持有临时签证",
   permanentresident: "我是永久居民",
   own: "我拥有该住房",
@@ -942,40 +1095,6 @@ const OPTION_ZH_BY_VALUE: Record<string, string> = {
   imuga_arrival: "IMUGA 旅客申报 / 落地签",
   etravel_only: "eTravel 入境申报",
   form_id_936_single: "ID 936 访问签证（单次入境）",
-  "nile cruise / ship": "尼罗河游轮/船舶",
-  teaching: "教育/教学",
-  "trade; car and motorcycle repairs": "贸易及汽车、摩托车维修",
-  linggi: "林吉",
-  "p pinang": "槟城",
-  pekenu: "贝克努",
-  "pulau pinang": "槟城",
-  "klia2 / klia2 terminal": "吉隆坡第二国际机场航站楼（KLIA2）",
-  "sungai tujoh (brunei border, sarawak)": "双溪都九口岸（砂拉越—文莱边境）",
-  colds: "流鼻涕/感冒症状",
-  cough: "咳嗽",
-  diarrhea: "腹泻",
-  "difficulty of breathing": "呼吸困难",
-  dizziness: "头晕",
-  fever: "发热",
-  headache: "头痛",
-  "loss of appetite": "食欲不振",
-  "loss of smell": "嗅觉丧失",
-  "loss of taste": "味觉丧失",
-  "muscle pain": "肌肉疼痛",
-  nausea: "恶心",
-  "rashes, vesicles or blisters": "皮疹、水疱或疱疹",
-  "sore throat": "咽喉痛",
-  vomiting: "呕吐",
-  weakness: "乏力",
-  "jr.": "小（Jr.）",
-  ii: "第二代（II）",
-  iii: "第三代（III）",
-  iv: "第四代（IV）",
-  "subic bay freeport": "苏比克湾自由港",
-  "woodlands checkpoint (causeway / land)": "兀兰关卡（新柔长堤，陆路）",
-  "tuas checkpoint (second link / land)": "大士关卡（第二通道，陆路）",
-  "marina bay cruise centre (cruise)": "滨海湾邮轮中心（海路）",
-  "nong khai (lao border, mittraphap bridge)": "廊开口岸（泰老友谊大桥）",
 };
 
 const VIETNAM_PROVINCE_ZH_BY_VALUE: Record<string, string> = {
@@ -1069,7 +1188,6 @@ function getVietnamSpecificChineseOptionLabel(value: string, rawText: string): s
 }
 
 const COUNTRY_ZH: Record<string, string> = {
-  China: "中国",
   Australia: "澳大利亚",
   Canada: "加拿大",
   Cambodia: "柬埔寨",
@@ -1103,97 +1221,6 @@ const COUNTRY_ZH: Record<string, string> = {
   Vietnam: "越南",
   "Viet Nam": "越南",
 };
-
-interface CountryReference {
-  alpha2: string;
-  alpha3: string;
-  name: string;
-  status: string;
-}
-
-const COUNTRY_REGION_CODE_ALIASES: Record<string, string> = {
-  "bolivia plurinational state of": "BO",
-  "china hong kong sar": "HK",
-  "china macao sar": "MO",
-  "congo democratic republic of the": "CD",
-  "democratic peoples republic of korea": "KP",
-  "iran islamic republic of": "IR",
-  "moldova republic of": "MD",
-  "palestine state of": "PS",
-  "republic of korea": "KR",
-  "republic of moldova": "MD",
-  "russian federation": "RU",
-  "south korea": "KR",
-  "state of palestine": "PS",
-  "taiwan province of china": "TW",
-  "tanzania united republic of": "TZ",
-  "the bahamas": "BS",
-  "the gambia": "GM",
-  "united states of america": "US",
-  "venezuela bolivarian republic of": "VE",
-  "viet nam": "VN",
-};
-
-let countryRegionCodeByNameCache: Map<string, string> | null = null;
-const chineseCountryNameCache = new Map<string, string>();
-let countryTranslationEntriesCache: Array<readonly [string, string]> | null = null;
-let chineseRegionDisplayNames: Intl.DisplayNames | null = null;
-
-function normalizeCountryLookupKey(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/&/g, " and ")
-    .replace(/[^a-zA-Z0-9]+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-function getCountryRegionCodeByName(): Map<string, string> {
-  if (countryRegionCodeByNameCache) return countryRegionCodeByNameCache;
-
-  const lookup = new Map<string, string>(Object.entries(COUNTRY_REGION_CODE_ALIASES));
-  for (const country of countries.all as CountryReference[]) {
-    if (country.status === "deleted") continue;
-    lookup.set(normalizeCountryLookupKey(country.name), country.alpha2.toUpperCase());
-    lookup.set(country.alpha2.toLowerCase(), country.alpha2.toUpperCase());
-    lookup.set(country.alpha3.toLowerCase(), country.alpha2.toUpperCase());
-  }
-  countryRegionCodeByNameCache = lookup;
-  return lookup;
-}
-
-function getChineseCountryName(value: string): string | null {
-  const regionCode = getCountryRegionCodeByName().get(normalizeCountryLookupKey(value));
-  if (!regionCode) return null;
-
-  const cached = chineseCountryNameCache.get(regionCode);
-  if (cached) return cached;
-
-  try {
-    chineseRegionDisplayNames ??= new Intl.DisplayNames(["zh-CN"], { type: "region" });
-    const localized = chineseRegionDisplayNames.of(regionCode);
-    if (localized && localized !== regionCode) {
-      chineseCountryNameCache.set(regionCode, localized);
-      return localized;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function getCountryTranslationEntries(): Array<readonly [string, string]> {
-  if (countryTranslationEntriesCache) return countryTranslationEntriesCache;
-
-  countryTranslationEntriesCache = (countries.all as CountryReference[])
-    .filter((country) => country.status !== "deleted")
-    .map((country) => [country.name, getChineseCountryName(country.alpha2)] as const)
-    .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
-    .sort(([left], [right]) => right.length - left.length);
-
-  return countryTranslationEntriesCache;
-}
 
 const FIELD_TOKEN_ZH: Record<string, string> = {
   account: "账号",
@@ -1366,12 +1393,8 @@ function fieldNameToChinese(fieldName: string): string | null {
 }
 
 function countryNameToChinese(value: string): string {
-  const exactCountryName = getChineseCountryName(value);
-  if (exactCountryName) return exactCountryName;
-
   let output = value;
-  const entries = [...Object.entries(COUNTRY_ZH), ...getCountryTranslationEntries()]
-    .sort(([left], [right]) => right.length - left.length);
+  const entries = Object.entries(COUNTRY_ZH).sort(([left], [right]) => right.length - left.length);
   for (const [en, zh] of entries) {
     output = output.replace(new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), zh);
   }
@@ -1474,35 +1497,14 @@ function deriveChineseFromLabel(field: FieldLike): string | null {
 }
 
 export function deriveChineseFieldLabel(field: FieldLike): string {
-  const normalizedVisaType = field.visaType.toUpperCase();
-  const visaSpecificLabel = VISA_SPECIFIC_FIELD_NAME_ZH[normalizedVisaType]?.[normalizeFieldName(field.fieldName)];
-  if (visaSpecificLabel) return visaSpecificLabel;
-
-  const taiwanLabel = normalizedVisaType === "TW_ENTRY_PERMIT"
-    ? getTaiwanEntryPermitChineseLabel(field.fieldName)
-    : null;
-  if (taiwanLabel) return taiwanLabel;
-
-  const isDs160 = ["DS160", "B1_B2", "US_B1_B2"].includes(normalizedVisaType);
-  if (isDs160) {
-    const officialLabelTranslation = getChineseLabel(field.label, field.fieldName);
-    if (
-      hasCjk(officialLabelTranslation) &&
-      !isVagueChineseLabel(officialLabelTranslation) &&
-      officialLabelTranslation !== field.label
-    ) {
-      return officialLabelTranslation;
-    }
-  }
-
-  const isUkStandardVisitor = field.visaType.toUpperCase() === "UK_STANDARD_VISITOR";
-  const ukLabel = isUkStandardVisitor ? UK_FIELD_NAME_ZH[normalizeFieldName(field.fieldName)] : null;
-  if (ukLabel) return ukLabel;
+  const normalizedFieldName = normalizeFieldName(field.fieldName);
+  const direct = FIELD_NAME_ZH_OVERRIDES[normalizedFieldName];
+  const taiwanDirect = TW_FIELD_NAME_ZH[normalizedFieldName] ?? direct;
+  if (field.visaType === "TW_ENTRY_PERMIT" && taiwanDirect) return taiwanDirect;
 
   const metadataLabel = getRuleText(field, ["label_zh", "zh_label"]);
   if (metadataLabel && hasCjk(metadataLabel) && !isVagueChineseLabel(metadataLabel)) return metadataLabel;
 
-  const direct = FIELD_NAME_ZH_OVERRIDES[normalizeFieldName(field.fieldName)];
   if (direct) return direct;
 
   const labelDerived = deriveChineseFromLabel(field);
@@ -1576,10 +1578,8 @@ function needsHelper(field: FieldLike, labelEn: string): boolean {
 }
 
 function deriveHelperZh(field: FieldLike, labelZh: string, labelEn: string): string | null {
-  if (suppressHelper(field)) return null;
-
   const existing = getRuleText(field, ["helper_zh", "zh_helper", "description_zh"]);
-  if (existing && hasCjk(existing)) return clean(existing) === clean(labelZh) ? null : existing;
+  if (existing && hasCjk(existing)) return existing;
 
   const fieldName = normalizeFieldName(field.fieldName);
   const text = `${fieldName} ${labelEn}`;
@@ -1611,24 +1611,15 @@ function deriveHelperZh(field: FieldLike, labelZh: string, labelEn: string): str
     return "请按照上一题或本题要求填写国家/地区、日期、地点、原因和结果等具体情况。";
   }
 
-  // The full question is already rendered as the field label. Do not create a
-  // generic helper that repeats it; only distinct, actionable guidance belongs
-  // beneath the control.
-  return null;
+  if (labelZh.length > 60) return labelZh;
+  return `请完整阅读并确认该官方题目含义：${labelZh}`;
 }
 
 function deriveHelperEn(field: FieldLike, labelEn: string): string | null {
-  if (suppressHelper(field)) return null;
-
   const existing = getRuleText(field, ["helper_en", "en_helper", "description_en"]);
-  if (existing && !hasCjk(existing)) return clean(existing) === clean(labelEn) ? null : existing;
-
-  const direct = HELPER_EN_BY_FIELD_NAME[normalizeFieldName(field.fieldName)];
-  if (direct) return direct;
-
-  // Do not manufacture a helper by copying the question. Only curated or
-  // schema-supplied explanatory text belongs beneath the control.
-  return null;
+  if (existing && !hasCjk(existing)) return existing;
+  if (!needsHelper(field, labelEn)) return null;
+  return labelEn;
 }
 
 function optionText(option: VisaFormFieldOption): string {
@@ -1640,53 +1631,23 @@ function optionValue(option: VisaFormFieldOption): string {
   return typeof option === "string" ? option : option.value;
 }
 
-function removeRedundantEnglishGloss(label: string): string {
-  return label.replace(
-    /\s*[(（](\p{Script=Latin}[\p{Script=Latin}\s.'’/-]{2,})[)）]\s*$/u,
-    (_match, gloss: string) => {
-      const compact = gloss.replace(/[^A-Za-z0-9/+.-]/g, "");
-      const isOfficialCode =
-        !/\s/.test(gloss) &&
-        (compact.length <= 3 ||
-          /\d/.test(compact) ||
-          (compact.includes("/") && compact.split("/").every((part) => part.length <= 4)) ||
-          compact === "NATO");
-      return isOfficialCode ? ` (${gloss})` : "";
-    },
-  ).trim();
-}
-
-function deriveChineseOptionLabel(option: VisaFormFieldOption, field?: FieldLike): string {
-  const isDs160 = Boolean(
-    field && ["DS160", "B1_B2", "US_B1_B2"].includes(field.visaType.toUpperCase()),
-  );
+function deriveChineseOptionLabel(option: VisaFormFieldOption): string {
   if (typeof option !== "string") {
     const existing = clean(option.label_zh);
-    if (existing && hasCjk(existing)) {
-      return isDs160 ? removeRedundantEnglishGloss(existing) : existing;
-    }
+    if (existing && hasCjk(existing)) return existing;
   }
 
   const value = optionValue(option);
   const rawText = optionText(option);
-  if (isDs160) {
-    const translated = getChineseOptionText(rawText);
-    if (translated && hasCjk(translated) && translated !== rawText) {
-      return removeRedundantEnglishGloss(translated);
-    }
-  }
-
   const normalizedValue = value.toLowerCase();
   const exact = OPTION_ZH_BY_VALUE[normalizedValue] ?? OPTION_ZH_BY_VALUE[rawText.toLowerCase()];
-  if (exact) return isDs160 ? removeRedundantEnglishGloss(exact) : exact;
+  if (exact) return exact;
 
   const vietnamSpecific = getVietnamSpecificChineseOptionLabel(value, rawText);
   if (vietnamSpecific) return vietnamSpecific;
 
   const translated = getChineseOptionText(rawText);
-  if (translated && hasCjk(translated) && translated !== rawText) {
-    return isDs160 ? removeRedundantEnglishGloss(translated) : translated;
-  }
+  if (translated && hasCjk(translated) && translated !== rawText) return translated;
 
   const fromValue = fieldNameToChinese(value);
   if (fromValue && !isVagueChineseLabel(fromValue)) return fromValue;
@@ -1702,11 +1663,11 @@ function deriveEnglishOptionLabel(option: VisaFormFieldOption): string {
   return getEnglishOptionText(optionText(option));
 }
 
-export function normalizeBilingualOption(option: VisaFormFieldOption, field?: FieldLike): VisaFormFieldOption {
+export function normalizeBilingualOption(option: VisaFormFieldOption): VisaFormFieldOption {
   const value = optionValue(option);
   const text = optionText(option) || value;
   const labelEn = deriveEnglishOptionLabel(option);
-  const labelZh = deriveChineseOptionLabel(option, field);
+  const labelZh = deriveChineseOptionLabel(option);
 
   if (typeof option === "string") {
     return {
@@ -1729,24 +1690,32 @@ export function normalizeBilingualOption(option: VisaFormFieldOption, field?: Fi
 }
 
 export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T): T {
-  const labelZh = deriveChineseFieldLabel(field);
-  const labelEn = deriveEnglishFieldLabel(field);
-  const placeholderZh = deriveChinesePlaceholder(field, labelZh);
-  const placeholderEn = deriveEnglishPlaceholder(field, labelEn);
-  const helperZh = deriveHelperZh(field, labelZh, labelEn);
-  const helperEn = deriveHelperEn(field, labelEn);
-  const validationRules = { ...(field.validationRules ?? {}) };
-
-  // Canonicalize all helper aliases after deriving them. This also removes a
-  // stale helper whose only content was a copy of the field label.
-  for (const key of ["helper_zh", "zh_helper", "description_zh", "helper_en", "en_helper", "description_en"]) {
-    delete validationRules[key];
-  }
+  const taiwanAddressOverride = normalizeTaiwanAddressField(field);
+  const taiwanOccupationOverride = normalizeTaiwanOccupationDependentField(field);
+  const fieldWithOverrides = {
+    ...field,
+    ...taiwanAddressOverride,
+    ...taiwanOccupationOverride,
+    validationRules: {
+      ...(field.validationRules ?? {}),
+      ...(taiwanAddressOverride.validationRules ?? {}),
+      ...(taiwanOccupationOverride.validationRules ?? {}),
+    },
+  };
+  const labelZh = deriveChineseFieldLabel(fieldWithOverrides);
+  const labelEn = deriveEnglishFieldLabel(fieldWithOverrides);
+  const placeholderZh = deriveChinesePlaceholder(fieldWithOverrides, labelZh);
+  const placeholderEn = deriveEnglishPlaceholder(fieldWithOverrides, labelEn);
+  const helperZh = deriveHelperZh(fieldWithOverrides, labelZh, labelEn);
+  const helperEn = deriveHelperEn(fieldWithOverrides, labelEn);
+  const requiredOverride =
+    fieldWithOverrides.visaType === "TW_ENTRY_PERMIT" && TW_REQUIRED_FIELD_OVERRIDES.has(normalizeFieldName(fieldWithOverrides.fieldName));
 
   return {
-    ...field,
+    ...fieldWithOverrides,
+    required: requiredOverride ? true : fieldWithOverrides.required,
     validationRules: {
-      ...validationRules,
+      ...(fieldWithOverrides.validationRules ?? {}),
       label_zh: labelZh,
       label_en: labelEn,
       official_label_en: labelEn,
@@ -1755,7 +1724,7 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
       ...(helperZh ? { helper_zh: helperZh } : {}),
       ...(helperEn ? { helper_en: helperEn } : {}),
     },
-    options: field.options?.map((option) => normalizeBilingualOption(option, field)) ?? field.options,
+    options: fieldWithOverrides.options?.map(normalizeBilingualOption) ?? fieldWithOverrides.options,
   };
 }
 

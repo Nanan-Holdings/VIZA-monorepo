@@ -165,5 +165,5 @@ viza-fe/internal-website/.env.local.bak
 
 # Local secrets (PhotonPay RSA keys etc.) — never commit
 .secrets/
-
 /.env.local
+.env*

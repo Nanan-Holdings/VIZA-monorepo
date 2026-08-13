@@ -2,24 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { Warning as AlertTriangle, Clock, Download, ArrowSquareOut as ExternalLink, Flask as FlaskConical, CircleNotch as Loader2, Plus, ArrowClockwise as RotateCw, ShieldCheck } from "@phosphor-icons/react";
+import { AlertTriangle, Clock, Download, ExternalLink, FlaskConical, Loader2, Plus, RotateCw, ShieldCheck } from "lucide-react";
 import type {
   DigitalArrivalCardSubmissionResult,
   GenericEvisaSubmissionResult,
   GenericSubmissionResult,
   SubmissionResult,
   SubmissionResultStatus,
+  TwSubmissionResult,
   UkSubmissionResult,
   VnSubmissionResult,
 } from "@/lib/submission-result";
+import type { ApplicationCompletenessResult } from "@/lib/application-completeness";
 import {
-  Alert,
-  AlertAction,
-  AlertActions,
-  AlertDescription,
-  AlertIcon,
-  AlertTitle,
-} from "@/components/ui/alert";
+  createPhEtravelStoredResultRecoveryPresentation,
+  createPhEtravelUserStatusMessage,
+} from "@/features/ph-etravel/status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +35,7 @@ import { UkResultCard } from "./UkResultCard";
 import { VnResultCard } from "./VnResultCard";
 import { AuResultCard } from "./AuResultCard";
 import { JpResultCard } from "./JpResultCard";
-import { TwResultCard } from "./TwResultCard";
+import { normalizeTwStatus, TwResultCard } from "./TwResultCard";
 import { KrResultCard } from "./KrResultCard";
 import {
   isDs160VisaType,
@@ -62,7 +60,6 @@ import {
   shouldPreferDurableTerminalProps,
   shouldStopSubmissionStatusPolling,
 } from "./submission-status-poll";
-import { PostSubmissionInfoPanel } from "./PostSubmissionInfoPanel";
 
 interface SubmissionStatusStepProps {
   applicationId: string | null;
@@ -98,11 +95,6 @@ interface SubmissionStatusSnapshot {
     createdAt?: string | null;
     updatedAt?: string | null;
   } | null;
-}
-
-function submissionProgressPersistenceKey(queueId: string | null | undefined): string | null {
-  const normalizedQueueId = queueId?.trim();
-  return normalizedQueueId ? `submission-run:${normalizedQueueId}` : null;
 }
 
 type ManualAction = {
@@ -196,7 +188,12 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
     result.submitted &&
     result.status === "submitted" &&
     !qrPath;
-  const successful = result.submitted && result.status === "submitted" && !vietnamFinalizing;
+  const phRecovery = result.country === "PH"
+    ? createPhEtravelStoredResultRecoveryPresentation(result)
+    : null;
+  const successful = result.country === "PH"
+    ? phRecovery?.state === "submitted_candidate"
+    : result.submitted && result.status === "submitted" && !vietnamFinalizing;
   const hasOfficialPdfDownload =
     (result.country === "TH" || result.country === "VN") &&
     Boolean(storedPdfPath) &&
@@ -357,8 +354,20 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
                 : "The official portal has received the declaration and verified the email. VIZA keeps checking for the final QR code. Do not submit again; this page will show success and the download automatically."
             : scheduled
               ? result.portalResponseSummary
-            : result.errorDetails?.message || result.portalResponseSummary}
+            : result.country === "PH"
+              ? createPhEtravelUserStatusMessage(
+                  phRecovery?.state === "recovery_required" ? "recovery_required" : "action_required",
+                  isZh,
+                )
+              : result.errorDetails?.message || result.portalResponseSummary}
         </p>
+        {result.country === "PH" ? (
+          <p className="text-xs leading-5 text-muted-foreground">
+            {isZh
+              ? "菲律宾 eTravel 免费，不是签证，也不保证边检准入。"
+              : "Philippines eTravel is free, is not a visa, and does not guarantee admission at border control."}
+          </p>
+        ) : null}
         {successful && confirmationScreenshotUrl ? (
           <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
             <div>
@@ -409,7 +418,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
               </a>
             </Button>
           ) : null}
-          {!vietnamFinalizing ? (
+          {!vietnamFinalizing && result.country !== "PH" ? (
             <Button type="button" variant={pdfUrl ? "outline" : "default"} onClick={startAgain} disabled={startingAgain}>
               {startingAgain ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
               {isZh ? "再次提交" : `Submit another ${countryLabel}`}
@@ -584,6 +593,18 @@ function isFranceCountry(country: string | null | undefined): boolean {
   return normalized === "france" || normalized === "fr" || normalized === "法国";
 }
 
+function isTaiwanEntryPermitApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  const normalizedCountry = (country ?? "").trim().toLowerCase();
+  const normalizedVisaType = (visaType ?? "").trim().toUpperCase();
+  return (
+    ["taiwan", "tw", "中国台湾", "台湾"].includes(normalizedCountry) &&
+    normalizedVisaType === "TW_ENTRY_PERMIT"
+  );
+}
+
 function localizeActionText(value: string | null | undefined, isZh: boolean): string | null {
   if (!value) return null;
   if (!isZh) return value;
@@ -649,12 +670,57 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
     isMalaysiaMdacApplication(country, visaType) ||
     isThailandTdacApplication(country, visaType) ||
     isPhilippinesEtravelApplication(country, visaType) ||
-    isVietnamPrearrivalApplication(country, visaType)
+    isVietnamPrearrivalApplication(country, visaType) ||
+    isTaiwanEntryPermitApplication(country, visaType)
   );
 }
 
 function isActiveSnapshot(snapshot: SubmissionStatusSnapshot | null): boolean {
   return snapshot?.status === "scheduled" || snapshot?.status === "queued" || snapshot?.status === "running";
+}
+
+function isApplicationCompletenessResult(value: unknown): value is ApplicationCompletenessResult {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.complete === "boolean" &&
+    typeof value.missingInfoCount === "number" &&
+    typeof value.missingDocumentCount === "number" &&
+    Array.isArray(value.missingInfo) &&
+    Array.isArray(value.missingDocuments)
+  );
+}
+
+function buildTwResultFromStatus(input: {
+  result: SubmissionResult | null;
+  snapshot: SubmissionStatusSnapshot | null;
+  status: SubmissionVisualStatus | null;
+  error?: string | null;
+}): TwSubmissionResult {
+  if (isActiveSnapshot(input.snapshot)) {
+    return {
+      country: "TW",
+      status: normalizeTwStatus(input.status ?? input.snapshot?.status, input.snapshot?.queue?.currentStage),
+      currentStage: input.snapshot?.queue?.currentStage ?? null,
+    };
+  }
+
+  if (input.result && isRecord(input.result) && input.result.country === "TW") {
+    const existing = input.result as TwSubmissionResult;
+    return {
+      ...existing,
+      status: normalizeTwStatus(existing.status, existing.currentStage ?? input.snapshot?.queue?.currentStage),
+      currentStage: existing.currentStage ?? input.snapshot?.queue?.currentStage ?? null,
+      error: existing.error ?? input.error ?? input.snapshot?.error ?? undefined,
+    };
+  }
+
+  const status = normalizeTwStatus(input.status, input.snapshot?.queue?.currentStage);
+  return {
+    country: "TW",
+    status,
+    currentStage: input.snapshot?.queue?.currentStage ?? null,
+    error: status === "failed" ? input.error ?? input.snapshot?.error ?? undefined : undefined,
+  };
 }
 
 function GenericResultCard({
@@ -742,14 +808,14 @@ function GenericResultCard({
       ? (isZh ? "需要人工操作" : "Manual action required")
     : unsupported
       ? (isZh ? "暂不支持自动提交" : "Automated submission unavailable")
-      : (isZh ? "云端演练已完成" : "Dry-run submission complete");
+      : (isZh ? "Dry-run 已完成" : "Dry-run submission complete");
   const badge = isIndonesiaAction
     ? (isZh ? "自动处理中" : "Automating")
     : actionRequired
       ? (isZh ? "需操作" : "Action required")
     : unsupported
       ? (isZh ? "暂不支持" : "Unsupported")
-      : (isZh ? "演练" : "Dry run");
+      : "Dry run";
   const body = unsupported
     ? (isZh
         ? "自动提交暂未支持该国家，我们可以先帮你整理材料和生成申请草稿。"
@@ -759,9 +825,7 @@ function GenericResultCard({
           localizeActionText(result.message, isZh) ??
           result.actionInstructions ??
           result.message)
-      : isZh && result.mode === "dry_run" && result.status === "submitted_mock"
-        ? "云端演练已完成，提交链路运行正常；本次没有向任何外部官网提交申请。"
-        : result.message;
+      : result.message;
 
   useEffect(() => {
     if (!jobId || !officialManualAction) return;
@@ -963,9 +1027,7 @@ function GenericResultCard({
 
         {result.mode === "dry_run" && result.confirmationNumber && (
           <div className="rounded-md border border-brand-100 bg-brand-50 px-3 py-2">
-            <div className="text-xs text-brand-500">
-              {isZh ? "演练确认编号" : "Mock confirmation"}
-            </div>
+            <div className="text-xs text-brand-500">Mock confirmation</div>
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
               {result.confirmationNumber}
             </div>
@@ -1111,99 +1173,97 @@ function GenericResultCard({
         )}
 
         {liveError && (
-          <Alert variant="destructive">
-            <AlertIcon variant="destructive" />
-            <AlertTitle>{isZh ? "提交未完成" : "Submission did not complete"}</AlertTitle>
-            <AlertDescription>
-              <p>{liveError}</p>
-            </AlertDescription>
-          </Alert>
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {liveError}
+          </div>
         )}
 
         {actionRequired && result.actionType && (
-          <Alert variant="warning">
-            <AlertIcon variant="warning" />
-            <AlertTitle>{isZh ? "检查点" : "Checkpoint"}</AlertTitle>
-            <AlertDescription>
-              <p className="font-mono">
-                {localizeActionText(result.actionType, isZh) ?? result.actionType}
-              </p>
-            </AlertDescription>
-          </Alert>
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+            <div className="text-xs text-amber-700">{isZh ? "检查点" : "Checkpoint"}</div>
+            <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
+              {localizeActionText(result.actionType, isZh) ?? result.actionType}
+            </div>
+          </div>
         )}
 
         {officialManualAction && (
-          <Alert variant="warning">
-            <AlertIcon variant="warning" />
-            <AlertTitle>
-              {isFranceAction
-                ? (isZh ? "需要你完成 France-Visas 官网操作" : "France-Visas official action required")
-                : (isZh ? "需要你完成 CEAC 官网验证" : "CEAC official verification required")}
-            </AlertTitle>
-            <AlertDescription>
-              <p>
-                {localizeActionText(manualAction?.instruction, isZh) ??
-                  localizeActionText(result.actionInstructions, isZh) ??
-                  manualAction?.instruction ??
-                  result.actionInstructions ??
-                  (isFranceAction
-                    ? (isZh
-                        ? "请在 France-Visas 官方页面完成登录、验证码或邮箱验证，然后回到这里继续。"
-                        : "Complete login, CAPTCHA, or email verification on the official France-Visas page, then return here to continue.")
-                    : (isZh
-                        ? "请在打开的 CEAC 官方页面完成地点选择或 CAPTCHA，然后回到这里继续。"
-                        : "Complete the location or CAPTCHA checkpoint on the official CEAC page, then return here to continue."))}
-              </p>
+          <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+              <div>
+                <div className="text-sm font-medium text-amber-900">
+                  {isFranceAction
+                    ? (isZh ? "需要你完成 France-Visas 官网操作" : "France-Visas official action required")
+                    : (isZh ? "需要你完成 CEAC 官网验证" : "CEAC official verification required")}
+                </div>
+                <p className="mt-1 text-sm leading-relaxed text-amber-900">
+                  {localizeActionText(manualAction?.instruction, isZh) ??
+                    localizeActionText(result.actionInstructions, isZh) ??
+                    manualAction?.instruction ??
+                    result.actionInstructions ??
+                    (isFranceAction
+                      ? (isZh
+                          ? "请在 France-Visas 官方页面完成登录、验证码或邮箱验证，然后回到这里继续。"
+                          : "Complete login, CAPTCHA, or email verification on the official France-Visas page, then return here to continue.")
+                      : (isZh
+                          ? "请在打开的 CEAC 官方页面完成地点选择或 CAPTCHA，然后回到这里继续。"
+                          : "Complete the location or CAPTCHA checkpoint on the official CEAC page, then return here to continue."))}
+                </p>
+              </div>
+            </div>
 
-              {manualAction?.screenshotUrl && (
-                <p className="mt-2 break-all font-mono text-xs">
-                  {isZh ? "安全截图：" : "Safe screenshot: "}
+            {manualAction?.screenshotUrl && (
+              <div className="rounded-md border border-amber-200 bg-white px-3 py-2">
+                <div className="text-xs text-amber-700">{isZh ? "安全截图" : "Safe screenshot"}</div>
+                <div className="mt-0.5 break-all font-mono text-xs text-foreground">
                   {manualAction.screenshotUrl}
-                </p>
-              )}
+                </div>
+              </div>
+            )}
 
-              <AlertActions>
-                <AlertAction
-                  onClick={completeManualAction}
-                  disabled={!manualAction || completingManualAction}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button asChild variant="outline" className="bg-white">
+                <a
+                  href={
+                    isFranceAction
+                      ? "https://application-form.france-visas.gouv.fr/fv-fo-dde/"
+                      : "https://ceac.state.gov/genniv/"
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  {completingManualAction ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    <ShieldCheck />
-                  )}
-                  {isZh ? "我已完成，继续" : "I completed it, continue"}
-                </AlertAction>
-                <AlertAction asChild variant="secondary">
-                  <a
-                    href={
-                      isFranceAction
-                        ? "https://application-form.france-visas.gouv.fr/fv-fo-dde/"
-                        : "https://ceac.state.gov/genniv/"
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {isFranceAction
-                      ? (isZh ? "打开 France-Visas 官网" : "Open France-Visas")
-                      : (isZh ? "打开 CEAC 官网" : "Open CEAC")}
-                    <ExternalLink />
-                  </a>
-                </AlertAction>
-              </AlertActions>
+                  {isFranceAction
+                    ? (isZh ? "打开 France-Visas 官网" : "Open France-Visas")
+                    : (isZh ? "打开 CEAC 官网" : "Open CEAC")}
+                  <ExternalLink className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+              <Button
+                type="button"
+                onClick={completeManualAction}
+                disabled={!manualAction || completingManualAction}
+              >
+                {completingManualAction ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                )}
+                {isZh ? "我已完成，继续" : "I completed it, continue"}
+              </Button>
+            </div>
 
-              {!jobId && (
-                <p className="mt-2 text-xs">
-                  {isZh
-                    ? "正在同步当前 live job，请稍后刷新状态。"
-                    : "The current live job is still syncing. Refresh this status shortly."}
-                </p>
-              )}
-              {manualActionError && (
-                <p className="mt-2 font-medium !text-[hsl(0_72%_35%)]">{manualActionError}</p>
-              )}
-            </AlertDescription>
-          </Alert>
+            {!jobId && (
+              <p className="text-xs text-amber-800">
+                {isZh
+                  ? "正在同步当前 live job，请稍后刷新状态。"
+                  : "The current live job is still syncing. Refresh this status shortly."}
+              </p>
+            )}
+            {manualActionError && (
+              <p className="text-sm text-red-700">{manualActionError}</p>
+            )}
+          </div>
         )}
 
         {unsupported && (
@@ -1237,7 +1297,7 @@ function ArrivalCardPreparedResultCard({
   } | null>(null);
   const isMalaysia = country === "malaysia";
   const productName = isMalaysia ? "Malaysia Digital Arrival Card (MDAC)" : "Thailand Digital Arrival Card (TDAC)";
-  const productNameZh = isMalaysia ? "马来西亚数字入境卡" : "泰国数字入境卡";
+  const productNameZh = isMalaysia ? "马来西亚 MDAC 数字入境卡" : "泰国 TDAC 数字入境卡";
   const submitLive = useCallback(async () => {
     if (!applicationId || submitting || queuedSubmission) return;
     setSubmitting(true);
@@ -1425,7 +1485,7 @@ function UkResubmitPanel({
  * Completed results wait until the visual progress reaches 100; failed and
  * needs_user_action states stop immediately.
  */
-function SubmissionStatusStepContent({
+export function SubmissionStatusStep({
   applicationId,
   country,
   visaType,
@@ -1439,7 +1499,7 @@ function SubmissionStatusStepContent({
   const [resubmitting, setResubmitting] = useState(false);
   const [localRetryActive, setLocalRetryActive] = useState(false);
   const [activeRetryQueueId, setActiveRetryQueueId] = useState<string | null>(null);
-  const [activeProgressCycleKey, setActiveProgressCycleKey] = useState<string | null>(null);
+  const [retryCompleteness, setRetryCompleteness] = useState<ApplicationCompletenessResult | null>(null);
   const initialResultTargetsIndonesia = resultTargetsIndonesia(result);
 
   const handleRetry = useCallback(async (
@@ -1447,9 +1507,8 @@ function SubmissionStatusStepContent({
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
   ) => {
     if (!applicationId) return;
-    setActiveProgressCycleKey(`retry:${applicationId}:${Date.now()}`);
-    setActiveRetryQueueId(null);
     setRetryError(null);
+    setRetryCompleteness(null);
     setResubmitting(true);
     try {
       const retryCountry = snapshot?.country ?? country;
@@ -1487,15 +1546,12 @@ function SubmissionStatusStepContent({
         }
         const now = new Date().toISOString();
         const retryQueueId = typeof body?.queueId === "string" ? body.queueId : "";
-        const retryPaymentProgress = isVietnamEVisaApplication(retryCountry, retryVisaType)
-          ? 82
-          : 90;
         setLocalRetryActive(true);
         setActiveRetryQueueId(retryQueueId || null);
         setSnapshot({
           status: "queued",
-          stage: "payment_handoff",
-          progress: retryPaymentProgress,
+          stage: "preparing",
+          progress: fallbackProgressForStatus("queued", retryCountry, retryVisaType),
           message: isZh ? "银行卡已安全送入云端，正在启动自动付款。" : "The card was sent securely to the cloud; automated payment is starting.",
           result: null,
           error: null,
@@ -1517,13 +1573,11 @@ function SubmissionStatusStepContent({
         });
         return;
       }
-      // DS-160 and digital arrival cards already have durable answer sets.
-      // Retry them directly instead of re-running long-form validation before
-      // the queue write; that old path can fail before the worker is woken.
-      const retryFromPersistedAnswers =
-        isDs160VisaType(retryVisaType) ||
-        isArrivalCardTarget(retryCountry, retryVisaType);
-      if (onResubmit && !retryFromPersistedAnswers) {
+      // A failed DS-160 already has a persisted answer set. Retry it directly
+      // through the fresh-application endpoint instead of re-running the
+      // long-form save/validation callback before the queue write.
+      const isTaiwanRetry = isTaiwanEntryPermitApplication(retryCountry, retryVisaType);
+      if (onResubmit && !isDs160VisaType(retryVisaType) && !isTaiwanRetry) {
         await onResubmit(mode, vietnamPaymentCard);
         setSnapshot(null);
         return;
@@ -1543,14 +1597,19 @@ function SubmissionStatusStepContent({
       });
       const body = (await response.json().catch(() => null)) as {
         error?: unknown;
+        code?: unknown;
+        completeness?: unknown;
         jobId?: unknown;
         queueStatus?: unknown;
         provider?: unknown;
       } | null;
       if (!response.ok) {
         const message = typeof body?.error === "string" ? body.error : `Retry failed with ${response.status}`;
+        if (body?.code === "application_incomplete" && isApplicationCompletenessResult(body.completeness)) {
+          setRetryCompleteness(body.completeness);
+        }
         setRetryError(message);
-        throw new Error(message);
+        return;
       }
       const now = new Date().toISOString();
       const retryQueueId = typeof body?.jobId === "string" ? body.jobId : "";
@@ -1560,7 +1619,11 @@ function SubmissionStatusStepContent({
         status: "queued",
         stage: "preparing",
         progress: fallbackProgressForStatus("queued", snapshot?.country ?? country, snapshot?.visaType ?? visaType),
-        message: isZh ? "自动提交任务已启动。" : "Automated submission has started.",
+        message: isTaiwanRetry
+          ? isZh
+            ? "台湾官网自动填写任务已重新排队；仍不会处理 CAPTCHA 或最终提交。"
+            : "Taiwan official-site filling has been requeued; CAPTCHA and final submit are still not automated."
+          : isZh ? "自动提交任务已启动。" : "Automated submission has started.",
         result: null,
         error: null,
         updatedAt: now,
@@ -1605,8 +1668,11 @@ function SubmissionStatusStepContent({
     durableTerminalPropsAvailable,
     localRetryActive,
     snapshotIsActive,
-    snapshotAvailable: snapshot !== null,
   });
+  const parentHasTerminalSubmission =
+    Boolean(result) &&
+    fallbackVisualStatus !== "queued" &&
+    fallbackVisualStatus !== "running";
   const effectiveStatus = terminalPropsAvailable
     ? fallbackVisualStatus
     : snapshot?.status ?? fallbackVisualStatus;
@@ -1626,11 +1692,6 @@ function SubmissionStatusStepContent({
   const effectiveProgress = terminalPropsAvailable
     ? fallbackProgressForStatus(effectiveStatus, country, visaType)
     : snapshot?.progress ?? fallbackProgressForStatus(effectiveStatus, country, visaType);
-  const effectiveQueueId = localRetryActive
-    ? activeRetryQueueId
-    : snapshot?.queue?.id ?? null;
-  const effectiveProgressCycleKey = activeProgressCycleKey ?? effectiveQueueId;
-  const effectiveProgressPersistenceKey = submissionProgressPersistenceKey(effectiveQueueId);
   const polledVietnamPrearrivalHasQr =
     snapshot?.result &&
     isDigitalArrivalCardResult(snapshot.result) &&
@@ -1698,11 +1759,15 @@ function SubmissionStatusStepContent({
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
   );
+  const isTaiwanSubmission = isTaiwanEntryPermitApplication(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  ) || (isRecord(effectiveResult) && effectiveResult.country === "TW");
   const retryModes = isFranceSubmissionCurrent
     ? [{ mode: "live_assisted" as const, label: isZh ? "再次提交申请" : "Submit again" }]
     : isUkSubmission
       ? [{ mode: "live_assisted" as const, label: isZh ? "继续 gov.uk 填表" : "Continue gov.uk pre-fill" }]
-    : isSgacSubmission || isMdacSubmission || isTdacSubmission || isDs160Submission || isVnPrearrivalSubmission
+    : isSgacSubmission || isMdacSubmission || isTdacSubmission || isDs160Submission || isVnPrearrivalSubmission || isTaiwanSubmission
     ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
     : supportsLiveRetry(snapshot?.country ?? country, snapshot?.visaType ?? visaType)
       ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
@@ -1713,7 +1778,6 @@ function SubmissionStatusStepContent({
     setRetryError(null);
     setLocalRetryActive(false);
     setActiveRetryQueueId(null);
-    setActiveProgressCycleKey(null);
   }, [applicationId, country, visaType]);
 
   useEffect(() => {
@@ -1738,35 +1802,15 @@ function SubmissionStatusStepContent({
     let pollingStoppedForAuth = false;
     let pollInFlight = false;
     let consecutiveFailures = 0;
-    let stablePollCount = 0;
-    let lastSnapshotFingerprint: string | null = null;
     let timer: number | null = null;
     const controller = new AbortController();
 
-    const clearScheduledPoll = () => {
-      if (timer !== null) {
-        window.clearTimeout(timer);
-        timer = null;
-      }
-    };
-
     const scheduleNextPoll = () => {
       if (cancelled || pollingStoppedForAuth) return;
-      clearScheduledPoll();
-      if (document.visibilityState !== "visible") return;
       timer = window.setTimeout(
         () => void poll(),
-        getSubmissionStatusPollDelay(consecutiveFailures, stablePollCount),
+        getSubmissionStatusPollDelay(consecutiveFailures),
       );
-    };
-
-    const pollWhenVisible = () => {
-      if (document.visibilityState !== "visible") {
-        clearScheduledPoll();
-        return;
-      }
-      clearScheduledPoll();
-      void poll();
     };
 
     const poll = async () => {
@@ -1808,27 +1852,9 @@ function SubmissionStatusStepContent({
         const body: unknown = await response.json();
         if (!isSnapshot(body)) return;
         consecutiveFailures = 0;
-        const bodyQueue = isRecord(body.queue) ? body.queue : null;
-        const fingerprint = JSON.stringify([
-          body.status,
-          body.stage,
-          body.progress,
-          body.updatedAt,
-          body.applicationStatus,
-          bodyQueue?.id,
-          bodyQueue?.status,
-          bodyQueue?.currentStage,
-          bodyQueue?.heartbeatAt,
-          bodyQueue?.updatedAt,
-          isRecord(body.result) ? body.result.status : null,
-        ]);
-        stablePollCount = fingerprint === lastSnapshotFingerprint
-          ? stablePollCount + 1
-          : 0;
-        lastSnapshotFingerprint = fingerprint;
         const polledQueueId =
-          bodyQueue && typeof bodyQueue.id === "string"
-            ? bodyQueue.id
+          isRecord(body.queue) && typeof body.queue.id === "string"
+            ? body.queue.id
             : null;
         // The status endpoint can briefly return the previous terminal queue
         // immediately after a new retry is accepted. Keep the new loading UI
@@ -1855,24 +1881,24 @@ function SubmissionStatusStepContent({
                 : null,
             country: typeof body.country === "string" ? body.country : null,
             visaType: typeof body.visaType === "string" ? body.visaType : null,
-             queue: bodyQueue
-               ? {
-                   id: typeof bodyQueue.id === "string" ? bodyQueue.id : "",
-                   status: typeof bodyQueue.status === "string" ? bodyQueue.status : "",
-                   mode: typeof bodyQueue.mode === "string" ? bodyQueue.mode : null,
-                   provider: typeof bodyQueue.provider === "string" ? bodyQueue.provider : null,
-                   currentStage:
-                     typeof bodyQueue.currentStage === "string" ? bodyQueue.currentStage : null,
-                   heartbeatAt:
-                     typeof bodyQueue.heartbeatAt === "string" ? bodyQueue.heartbeatAt : null,
-                   fieldFallbacks: Array.isArray(bodyQueue.fieldFallbacks)
-                     ? bodyQueue.fieldFallbacks
-                     : [],
-                   createdAt:
-                     typeof bodyQueue.createdAt === "string" ? bodyQueue.createdAt : null,
-                   updatedAt:
-                     typeof bodyQueue.updatedAt === "string" ? bodyQueue.updatedAt : null,
-                 }
+            queue: isRecord(body.queue)
+              ? {
+                  id: typeof body.queue.id === "string" ? body.queue.id : "",
+                  status: typeof body.queue.status === "string" ? body.queue.status : "",
+                  mode: typeof body.queue.mode === "string" ? body.queue.mode : null,
+                  provider: typeof body.queue.provider === "string" ? body.queue.provider : null,
+                  currentStage:
+                    typeof body.queue.currentStage === "string" ? body.queue.currentStage : null,
+                  heartbeatAt:
+                    typeof body.queue.heartbeatAt === "string" ? body.queue.heartbeatAt : null,
+                  fieldFallbacks: Array.isArray(body.queue.fieldFallbacks)
+                    ? body.queue.fieldFallbacks
+                    : [],
+                  createdAt:
+                    typeof body.queue.createdAt === "string" ? body.queue.createdAt : null,
+                  updatedAt:
+                    typeof body.queue.updatedAt === "string" ? body.queue.updatedAt : null,
+                }
               : null,
           });
         }
@@ -1891,26 +1917,23 @@ function SubmissionStatusStepContent({
               : current,
           );
         }
-    } finally {
+      } finally {
         pollInFlight = false;
         scheduleNextPoll();
       }
     };
 
-    document.addEventListener("visibilitychange", pollWhenVisible);
-    if (document.visibilityState === "visible") void poll();
+    void poll();
     return () => {
       cancelled = true;
       controller.abort();
-      clearScheduledPoll();
-      document.removeEventListener("visibilitychange", pollWhenVisible);
+      if (timer !== null) window.clearTimeout(timer);
     };
   }, [
     actionWithResult,
     activeRetryQueueId,
     applicationId,
     completedWithResult,
-    effectiveError,
     failed,
     country,
     isZh,
@@ -1918,41 +1941,30 @@ function SubmissionStatusStepContent({
     visaType,
     result,
     snapshotHasQueue,
-    snapshot?.error,
     status,
   ]);
 
+  const ukStoredResult = useMemo(() => {
+    if (isUkPrefillSubmissionResult(result)) return result;
+    if (isUkPrefillSubmissionResult(snapshot?.result)) return snapshot.result;
+    if (isUkPrefillSubmissionResult(effectiveResult)) return effectiveResult;
+    return null;
+  }, [effectiveResult, result, snapshot?.result]);
+
   if (resubmitting) {
-    const isPaymentCardRetry =
-      isVietnamEVisaApplication(country, visaType) ||
-      isIndonesiaEVisaApplication(country, visaType) ||
-      initialResultTargetsIndonesia;
-    const paymentRetryProgress = isVietnamEVisaApplication(country, visaType) ? 82 : 90;
+    const isTaiwanResubmitting = isTaiwanEntryPermitApplication(snapshot?.country ?? country, snapshot?.visaType ?? visaType);
     return (
       <div className="space-y-4">
         <WaitingCard
           status="queued"
-          stage={isPaymentCardRetry ? "payment_handoff" : "preparing"}
-          serverProgress={
-            isPaymentCardRetry
-              ? Math.max(effectiveProgress, paymentRetryProgress)
-              : fallbackProgressForStatus("queued", country, visaType)
-          }
-          message={
-            isPaymentCardRetry
-              ? isZh
-                ? "正在安全发送银行卡信息并启动云端任务。"
-                : "Securely sending the card and starting the cloud job."
-              : isZh
-                ? "正在安全发送申请资料并启动云端任务。"
-                : "Securely sending the application data and starting the cloud job."
-          }
+          stage="preparing"
+          serverProgress={fallbackProgressForStatus("queued", country, visaType)}
+          message={isTaiwanResubmitting
+            ? isZh
+              ? "正在重新排队台湾官网自动填写任务；不会处理 CAPTCHA 或最终提交。"
+              : "Requeueing Taiwan official-site filling; CAPTCHA and final submit will not be automated."
+            : isZh ? "正在安全发送银行卡并启动 Fly 云端任务。" : "Securely sending the card and starting the Fly cloud job."}
           applicationId={applicationId}
-          persistenceKey={submissionProgressPersistenceKey(
-            activeRetryQueueId ?? snapshot?.queue?.id ?? null,
-          )}
-          progressCycleKey={activeProgressCycleKey}
-          resetProgressOnMount={Boolean(activeProgressCycleKey)}
           country={country}
           visaType={visaType}
         />
@@ -1982,14 +1994,6 @@ function SubmissionStatusStepContent({
             },
             paymentStatus: "manual_required",
           } as const)
-        : null;
-
-  const ukStoredResult = isUkPrefillSubmissionResult(result)
-    ? result
-    : isUkPrefillSubmissionResult(snapshot?.result)
-      ? snapshot.result
-      : isUkPrefillSubmissionResult(effectiveResult)
-        ? effectiveResult
         : null;
 
   const ukActionRequired =
@@ -2092,6 +2096,37 @@ function SubmissionStatusStepContent({
           onSubmitAgain={() => {
             void handleRetry("live_assisted").catch(() => undefined);
           }}
+        />
+      </div>
+    );
+  }
+
+  if (
+    isTaiwanSubmission &&
+    (
+      snapshotIsActive ||
+      effectiveStatus === "queued" ||
+      effectiveStatus === "running" ||
+      failed ||
+      stalled ||
+      actionWithResult ||
+      completedWithResult
+    )
+  ) {
+    return (
+      <div className="space-y-4">
+        <TwResultCard
+          applicationId={applicationId ?? undefined}
+          retryBusy={resubmitting}
+          retryError={retryError}
+          retryCompleteness={retryCompleteness}
+          onRetry={handleRetry}
+          result={buildTwResultFromStatus({
+            result: effectiveResult,
+            snapshot,
+            status: failed || stalled ? "failed" : effectiveStatus,
+            error: retryError ?? effectiveError,
+          })}
         />
       </div>
     );
@@ -2219,21 +2254,9 @@ function SubmissionStatusStepContent({
         }
         error={effectiveError}
         applicationId={applicationId}
-        persistenceKey={effectiveProgressPersistenceKey}
-        progressCycleKey={effectiveProgressCycleKey}
-        resetProgressOnMount={Boolean(activeProgressCycleKey)}
         country={country}
         visaType={visaType}
       />
-    </div>
-  );
-}
-
-export function SubmissionStatusStep(props: SubmissionStatusStepProps) {
-  return (
-    <div className="space-y-4">
-      <SubmissionStatusStepContent {...props} />
-      <PostSubmissionInfoPanel applicationId={props.applicationId} />
     </div>
   );
 }
@@ -2253,19 +2276,7 @@ function renderSubmissionResultCard(
   result: SubmissionResult | null,
   jobId: string | null = null,
 ) {
-  if (!result) {
-    const persistenceKey = submissionProgressPersistenceKey(jobId);
-    return (
-      <WaitingCard
-        status="running"
-        applicationId={applicationId}
-        persistenceKey={persistenceKey}
-        progressCycleKey={jobId}
-        country={country}
-        visaType={visaType}
-      />
-    );
-  }
+  if (!result) return <WaitingCard status="running" />;
 
   if (
     result.country === "GENERIC" &&
@@ -2333,7 +2344,7 @@ function renderSubmissionResultCard(
         <JpResultCard applicationId={applicationId} result={result} />
       ) : null;
     case "TW":
-      return <TwResultCard result={result} />;
+      return <TwResultCard applicationId={applicationId ?? undefined} result={result} />;
     case "KR":
       return applicationId ? (
         <KrResultCard applicationId={applicationId} result={result} />
@@ -2365,14 +2376,7 @@ function renderSubmissionResultCard(
           result={result}
         />
       ) : (
-        <WaitingCard
-          status="running"
-          applicationId={applicationId}
-          persistenceKey={submissionProgressPersistenceKey(jobId)}
-          progressCycleKey={jobId}
-          country={country}
-          visaType={visaType}
-        />
+        <WaitingCard status="running" />
       );
     case "AE":
     case "CA":
@@ -2387,25 +2391,9 @@ function renderSubmissionResultCard(
           result={result}
         />
       ) : (
-        <WaitingCard
-          status="running"
-          applicationId={applicationId}
-          persistenceKey={submissionProgressPersistenceKey(jobId)}
-          progressCycleKey={jobId}
-          country={country}
-          visaType={visaType}
-        />
+        <WaitingCard status="running" />
       );
     default:
-      return (
-        <WaitingCard
-          status="running"
-          applicationId={applicationId}
-          persistenceKey={submissionProgressPersistenceKey(jobId)}
-          progressCycleKey={jobId}
-          country={country}
-          visaType={visaType}
-        />
-      );
+      return <WaitingCard status="running" />;
   }
 }

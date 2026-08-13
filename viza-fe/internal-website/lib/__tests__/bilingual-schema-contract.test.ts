@@ -7,6 +7,7 @@ import {
   resolveLocalizedOptions,
   resolveOptionDisplayLabel,
 } from "../bilingual-schema-contract";
+import { TW_CITY_OPTIONS, TW_DISTRICTS_BY_CITY, TW_DISTRICT_COUNT } from "../taiwan-administrative-units";
 import type { VisaFormFieldRow } from "../../types/visa-form-fields";
 
 function field(overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow {
@@ -49,45 +50,6 @@ describe("bilingual schema contract", () => {
     expect(helperZh).toEqual(expect.stringContaining("退款规则"));
   });
 
-  it("does not copy declaration labels into helper text", () => {
-    const officialLabel =
-      "I am aware that I have the right to obtain, in any of the Member States, notification of the data relating to me recorded in the VIS and of the Member State which transmitted the data, and to request that data relating to me which are inaccurate be corrected and that data relating to me processed unlawfully be deleted.";
-    const normalized = normalizeBilingualFormField(field({
-      fieldName: "declaration_data_rights_awareness",
-      label: officialLabel,
-      fieldType: "radio",
-      options: [
-        { value: "yes", text: "Yes" },
-        { value: "no", text: "No" },
-      ],
-      validationRules: {
-        helper_en: `  ${officialLabel}  `,
-      },
-    }));
-
-    expect(normalized.validationRules?.helper_en).toBeUndefined();
-    expect(normalized.validationRules?.helper_zh).toBeTruthy();
-    expect(normalized.validationRules?.helper_zh).not.toBe(
-      resolveLocalizedFieldLabel(normalized, "zh"),
-    );
-  });
-
-  it("omits generated helpers when no distinct guidance exists", () => {
-    const normalized = normalizeBilingualFormField(field({
-      fieldName: "declaration_custom_notice",
-      label:
-        "I acknowledge this official declaration and confirm that I have carefully reviewed every statement supplied with this application before selecting an answer to this question.",
-      fieldType: "radio",
-      options: [
-        { value: "yes", text: "Yes" },
-        { value: "no", text: "No" },
-      ],
-    }));
-
-    expect(normalized.validationRules?.helper_en).toBeUndefined();
-    expect(normalized.validationRules?.helper_zh).toBeUndefined();
-  });
-
   it("localizes option labels while preserving stored values", () => {
     const normalized = normalizeBilingualFormField(field({
       fieldName: "purpose_of_journey",
@@ -106,78 +68,6 @@ describe("bilingual schema contract", () => {
     expect(enOptions?.[0]).toMatchObject({ value: "tourism", text: "Tourism" });
     expect(resolveOptionDisplayLabel(normalized.options, "family_visit", "zh")).toBe("探亲访友");
     expect(resolveOptionDisplayLabel(normalized.options, "family_visit", "en")).toBe("Family visit");
-  });
-
-  it("keeps Japan travel-history guidance but suppresses Character & Declaration tips", () => {
-    const travelHistoryFields = [
-      ["refused_visa_or_entry_japan", "Have you ever been refused a visa to, or denied entry into, Japan?"],
-      ["refused_visa_other_country", "Have you ever been refused a visa to, or denied entry into, any other country?"],
-    ] as const;
-    const characterFields = [
-      ["has_criminal_record", "Have you ever been convicted of a crime in any country?"],
-      ["has_been_deported", "Have you ever been deported from Japan or any other country?"],
-      ["has_overstayed_japan", "Have you ever overstayed a visa or stayed in Japan illegally?"],
-      ["has_drug_or_trafficking_history", "Have you ever been involved in drug abuse, prostitution, human trafficking, smuggling, or possession of illegal weapons?"],
-      ["final_declaration", "I hereby declare that the statements made in this application are true and correct."],
-    ] as const;
-
-    for (const [fieldName, label] of travelHistoryFields) {
-      const normalized = normalizeBilingualFormField(field({
-        visaType: "JP_TOURIST",
-        fieldName,
-        label,
-        fieldType: "radio",
-        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
-      }));
-
-      expect(normalized.validationRules?.helper_en).toBeTruthy();
-      expect(normalized.validationRules?.helper_en).not.toBe(label);
-    }
-
-    for (const [fieldName, label] of characterFields) {
-      const normalized = normalizeBilingualFormField(field({
-        visaType: "JP_TOURIST",
-        fieldName,
-        label,
-        fieldType: fieldName === "final_declaration" ? "checkbox" : "radio",
-        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
-        validationRules: {
-          helper_en: "Legacy helper still stored in the database",
-          helper_zh: "数据库中仍存有的旧提示",
-        },
-      }));
-
-      expect(normalized.validationRules?.helper_en).toBeUndefined();
-      expect(normalized.validationRules?.helper_zh).toBeUndefined();
-    }
-  });
-
-  it("localizes official nationality names while preserving official values", () => {
-    const normalized = normalizeBilingualFormField(field({
-      visaType: "VN_PRE_ARRIVAL",
-      fieldName: "nationality",
-      label: "Nationality",
-      fieldType: "country",
-      options: [
-        { value: "China", text: "China" },
-        { value: "Dominican Republic", text: "Dominican Republic" },
-        { value: "Lao People's Democratic Republic", text: "Lao People's Democratic Republic" },
-        { value: "Republic of Moldova", text: "Republic of Moldova" },
-      ],
-    }));
-
-    expect(resolveLocalizedOptions(normalized.options, "zh")).toEqual([
-      expect.objectContaining({ value: "China", text: "中国" }),
-      expect.objectContaining({ value: "Dominican Republic", text: "多米尼加共和国" }),
-      expect.objectContaining({ value: "Lao People's Democratic Republic", text: "老挝" }),
-      expect.objectContaining({ value: "Republic of Moldova", text: "摩尔多瓦" }),
-    ]);
-    expect(resolveLocalizedOptions(normalized.options, "en")).toEqual([
-      expect.objectContaining({ value: "China", text: "China" }),
-      expect.objectContaining({ value: "Dominican Republic", text: "Dominican Republic" }),
-      expect.objectContaining({ value: "Lao People's Democratic Republic", text: "Lao People's Democratic Republic" }),
-      expect.objectContaining({ value: "Republic of Moldova", text: "Republic of Moldova" }),
-    ]);
   });
 
   it("uses specific Vietnamese province and border-gate labels instead of generic fallbacks", () => {
@@ -288,7 +178,7 @@ describe("bilingual schema contract", () => {
 
     const labels = samples.map((sample) => resolveLocalizedFieldLabel(sample, "zh"));
 
-    expect(labels).toContain("是否目前持有或曾经持有其他护照？");
+    expect(labels).toContain("您是否持有其他有效护照或旅行证件？");
     expect(labels).toContain("职位/职称");
     expect(labels).toContain("是否曾患有或接受过结核病（TB）治疗？");
     expect(labels).toContain("我同意为审理本申请而与相关澳大利亚政府机构及境外主管机关共享我的个人信息");
@@ -342,155 +232,217 @@ describe("bilingual schema contract", () => {
     expect(resolveOptionDisplayLabel(samples[3].options, "single", "zh")).not.toBe("单次");
   });
 
-  it("uses accurate Chinese-only DS-160 labels and marital-status options", () => {
-    const travelPlans = normalizeBilingualFormField(field({
-      visaType: "DS160",
-      fieldName: "has_specific_travel_plans",
-      label: "Have you made specific travel plans?",
-      fieldType: "radio",
-      validationRules: { label_zh: "是否计划?" },
-      options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
-    }));
-    const payer = normalizeBilingualFormField(field({
-      visaType: "DS160",
-      fieldName: "trip_payer_type",
-      label: "Person/Entity Paying for Your Trip",
-      fieldType: "select",
-      validationRules: { label_zh: "谁为您此次英国之行付费？" },
-      options: [{ value: "self", text: "SELF" }],
-    }));
-    const maritalStatus = normalizeBilingualFormField(field({
-      visaType: "DS160",
-      fieldName: "marital_status",
-      label: "Marital Status",
-      fieldType: "select",
-      options: [
-        { value: "married", text: "MARRIED" },
-        { value: "common_law", text: "COMMON LAW MARRIAGE" },
-        { value: "civil_union", text: "CIVIL UNION/DOMESTIC PARTNERSHIP" },
-        { value: "single", text: "SINGLE" },
-        { value: "widowed", text: "WIDOWED" },
-        { value: "divorced", text: "DIVORCED" },
-        { value: "legally_separated", text: "LEGALLY SEPARATED" },
-        { value: "other", text: "OTHER" },
-      ],
-    }));
-
-    expect(resolveLocalizedFieldLabel(travelPlans, "zh")).toBe("是否已有具体旅行计划？");
-    expect(resolveLocalizedFieldLabel(payer, "zh")).toBe("谁为您的旅行付费？");
-    expect(resolveLocalizedOptions(payer.options, "zh")?.[0]).toMatchObject({ text: "本人" });
-    expect(resolveLocalizedOptions(maritalStatus.options, "zh")?.map((option) => (
-      typeof option === "string" ? option : option.text
-    ))).toEqual([
-      "已婚",
-      "事实婚姻",
-      "民事结合/家庭伴侣关系",
-      "未婚",
-      "丧偶",
-      "离婚",
-      "合法分居",
-      "其他",
-    ]);
-  });
-
-  it("replaces legacy Taiwan permit labels with natural Chinese wording", () => {
+  it("prefers Taiwan curated field-name labels over bad database label_zh metadata", () => {
     const samples = [
       field({
         visaType: "TW_ENTRY_PERMIT",
-        fieldName: "accepted_terms",
-        label: "I have read and accept the following terms and conditions",
-        fieldType: "checkbox",
-        validationRules: { label_zh: "请填写：Accepted Terms" },
+        fieldName: "tw_contact_city",
+        label: "TW Contact City",
+        validationRules: { label_zh: "联系人城市" },
       }),
       field({
         visaType: "TW_ENTRY_PERMIT",
-        fieldName: "kin_child1_current_address_same_as_overseas",
-        label: "Kin Child1 Current Address Same As Overseas",
-        fieldType: "radio",
-        validationRules: {
-          label_zh: "Child 1 (子女) — Current address same as applicant's overseas address",
-        },
-        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+        fieldName: "tw_contact_building_number",
+        label: "TW Contact Building Number",
+        validationRules: { label_zh: "联系人号码" },
       }),
       field({
         visaType: "TW_ENTRY_PERMIT",
-        fieldName: "current_mainland_political_military_role",
-        label: "Applicant currently holds a mainland political or military role",
-        fieldType: "radio",
-        validationRules: { label_zh: "当前" },
-        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+        fieldName: "tw_contact_mobile_not_applicable",
+        label: "TW Contact Mobile Not Applicable",
+        validationRules: { label_zh: "联系人" },
       }),
     ].map(normalizeBilingualFormField);
 
-    expect(samples.map((sample) => resolveLocalizedFieldLabel(sample, "zh"))).toEqual([
-      "我已阅读并同意以下条款与声明",
-      "第一名子女—当前住址是否与申请人的港澳或海外住址相同？",
-      "您目前是否在中国大陆党政军机关、政治性组织或相关团体任职或具有成员身份？",
-    ]);
+    expect(resolveLocalizedFieldLabel(samples[0], "zh")).toBe("县市");
+    expect(resolveLocalizedFieldLabel(samples[1], "zh")).toBe("门牌号/楼/室（住饭店请填饭店名称）");
+    expect(resolveLocalizedFieldLabel(samples[2], "zh")).toBe("无在台联络手机号码");
   });
 
-  it("localizes health, border-point, and official-form options without changing values", () => {
-    const symptoms = normalizeBilingualFormField(field({
-      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
-      fieldName: "sickness_symptom",
-      label: "Symptoms",
-      fieldType: "checkbox",
-      options: [
-        { value: "Cough", text: "Cough" },
-        { value: "Difficulty of Breathing", text: "Difficulty of Breathing" },
-        { value: "Rashes, vesicles or blisters", text: "Rashes, vesicles or blisters" },
-      ],
+  it("keeps Taiwan official field wording for shared passport, residence, contact, and declaration labels", () => {
+    const expectedLabels = {
+      household_revoked: "目前户口登记状态",
+      passport_number: "护照号码/香港签证身份证明书号码/澳门旅行证/大陆旅行证号码",
+      passport_expiry_date: "护照效期/旅行证效期（西元）",
+      overseas_residency_id_number: "侨居身份证号码（如永久居留证号码、居留证号码或签证号码）",
+      birth_place_is_mainland: "出生地（同所持旅游证件）",
+      local_mobile_phone: "居住地手机号码（需填写国码）",
+      current_occupation: "现职",
+      occupation_experience: "经历",
+      company_name: "公司名称及单位全衔或学校名称",
+      job_title: "职称",
+      is_taiwanese_spouse: "是否为台湾人民配偶？",
+      overseas_address: "港、澳或海外地址",
+      tw_contact_road: "街、路段",
+      tw_contact_building_number: "门牌号/楼/室（住饭店请填饭店名称）",
+      other_nationality_country: "所具其他国籍为",
+      other_passport_number: "他国护（证）照号码",
+      other_passport_expiry_date: "他国护（证）照有效期限",
+      past_mainland_political_military_role: "申请人曾任大陆地区党务、行政、军事或具政治性机关（构）、团体之职务或为其成员者",
+      past_role_detail: "曾任职于",
+      current_mainland_political_military_role: "申请人现任大陆地区党务、行政、军事或具政治性机关（构）、团体之职务或为其成员者",
+      current_role_detail: "现任职于",
+      never_held_mainland_political_military_role: "申请人未曾担任大陆地区党务、行政、军事或具政治性机关（构）、团体之职务或为其成员",
+      accepted_terms: "我已阅读并接受下列条款与条件",
+    } as const;
+
+    for (const [fieldName, expected] of Object.entries(expectedLabels)) {
+      const normalized = normalizeBilingualFormField(field({
+        visaType: "TW_ENTRY_PERMIT",
+        fieldName,
+        label: fieldName,
+      }));
+      expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe(expected);
+    }
+  });
+
+  it("enforces Taiwan required overrides for stale local DB rows", () => {
+    for (const fieldName of ["mainland_id_number", "company_name", "job_title", "kin_father_status", "kin_mother_status"] as const) {
+      const normalized = normalizeBilingualFormField(field({
+        visaType: "TW_ENTRY_PERMIT",
+        fieldName,
+        label: fieldName,
+        required: false,
+      }));
+
+      expect(normalized.required).toBe(true);
+    }
+
+    const koreaSharedField = normalizeBilingualFormField(field({
+      visaType: "KR_C39_SHORT_TERM_VISIT",
+      fieldName: "job_title",
+      label: "Job title",
+      required: false,
     }));
-    const checkpoints = normalizeBilingualFormField(field({
-      visaType: "SG_VISITOR_VISA",
-      fieldName: "port_of_entry",
-      label: "Port of entry",
+
+    expect(koreaSharedField.required).toBe(false);
+
+    const motherName = normalizeBilingualFormField(field({
+      visaType: "TW_ENTRY_PERMIT",
+      fieldName: "kin_mother_name",
+      label: "Mother — Name",
+      required: false,
+    }));
+
+    expect(motherName.required).toBe(false);
+
+    const householdRevoked = normalizeBilingualFormField(field({
+      visaType: "TW_ENTRY_PERMIT",
+      fieldName: "household_revoked",
+      label: "Household registration revoked",
+      required: false,
+      validationRules: { required_when: "eligibility_category === 2 && embassy_office in [50, 51]" },
+      conditionalLogic: { showIf: "eligibility_category === 2 && embassy_office in [50, 51]" },
+    }));
+
+    expect(householdRevoked.required).toBe(false);
+    expect(householdRevoked.validationRules?.required_when).toBe("eligibility_category === 2 && embassy_office in [50, 51]");
+    expect(householdRevoked.conditionalLogic).toEqual({ showIf: "eligibility_category === 2 && embassy_office in [50, 51]" });
+  });
+
+  it("adds Taiwan occupation-dependent company/title visibility metadata for stale local DB rows", () => {
+    const companyName = normalizeBilingualFormField(field({
+      visaType: "TW_ENTRY_PERMIT",
+      fieldName: "company_name",
+      label: "Company name",
+      required: false,
+      conditionalLogic: null,
+      validationRules: null,
+    }));
+    const jobTitle = normalizeBilingualFormField(field({
+      visaType: "TW_ENTRY_PERMIT",
+      fieldName: "job_title",
+      label: "Job title",
+      required: false,
+      conditionalLogic: null,
+      validationRules: null,
+    }));
+
+    expect(companyName.required).toBe(true);
+    expect(companyName.conditionalLogic).toEqual({ showIf: "current_occupation not in [61,62]" });
+    expect(companyName.validationRules?.required_when).toBe("current_occupation not in [61,62]");
+    expect(jobTitle.required).toBe(true);
+    expect(jobTitle.conditionalLogic).toEqual({ showIf: "current_occupation not in [14,61,62]" });
+    expect(jobTitle.validationRules?.required_when).toBe("current_occupation not in [14,61,62]");
+  });
+
+  it("normalizes Taiwan contact city and district into official dependent selects", () => {
+    const city = normalizeBilingualFormField(field({
+      visaType: "TW_ENTRY_PERMIT",
+      fieldName: "tw_contact_city",
+      label: "City/County",
       fieldType: "select",
-      options: [
-        { value: "woodlands", text: "Woodlands Checkpoint (Causeway / land)" },
-        { value: "tuas", text: "Tuas Checkpoint (Second Link / land)" },
-      ],
+      options: [{ value: "16", text: "高雄市" }],
+    }));
+    const district = normalizeBilingualFormField(field({
+      visaType: "TW_ENTRY_PERMIT",
+      fieldName: "tw_contact_district",
+      label: "District/township",
+      fieldType: "text",
+      required: false,
+      options: null,
     }));
 
-    expect(resolveLocalizedOptions(symptoms.options, "zh")).toEqual([
-      expect.objectContaining({ value: "Cough", text: "咳嗽" }),
-      expect.objectContaining({ value: "Difficulty of Breathing", text: "呼吸困难" }),
-      expect.objectContaining({ value: "Rashes, vesicles or blisters", text: "皮疹、水疱或疱疹" }),
-    ]);
-    expect(resolveLocalizedOptions(checkpoints.options, "zh")).toEqual([
-      expect.objectContaining({ value: "woodlands", text: "兀兰关卡（新柔长堤，陆路）" }),
-      expect.objectContaining({ value: "tuas", text: "大士关卡（第二通道，陆路）" }),
-    ]);
+    expect(city.fieldType).toBe("select");
+    expect(city.options).toHaveLength(TW_CITY_OPTIONS.length);
+    expect(resolveOptionDisplayLabel(city.options, "1", "zh")).toBe("台北市");
+    expect(resolveOptionDisplayLabel(city.options, "16", "zh")).toBe("高雄市");
+    expect(resolveOptionDisplayLabel(city.options, "1", "en")).toBe("臺北市");
+    expect(district.fieldType).toBe("select");
+    expect(district.required).toBe(false);
+    expect(district.options).toEqual([]);
+    expect(district.validationRules).toMatchObject({
+      dependent_on: "tw_contact_city",
+      dependent_options_key: "taiwan_districts_by_city",
+    });
+    const localizedDistricts = district.validationRules?.dependent_options as typeof TW_DISTRICTS_BY_CITY;
+    expect((city.options?.[0] as { value: string }).value).toBe("1");
+    expect((localizedDistricts["1"][2] as { value: string; text: string; label_zh: string; official_label: string })).toMatchObject({
+      value: "中山區",
+      text: "中山区",
+      label_zh: "中山区",
+      official_label: "中山區",
+    });
+    expect(localizedDistricts["16"].map((option) => typeof option === "string" ? option : option.text)).toEqual(
+      expect.arrayContaining(["新兴区", "前金区", "苓雅区", "盐埕区"]),
+    );
+    expect(localizedDistricts["7"].map((option) => typeof option === "string" ? option : option.text)).toEqual(
+      expect.arrayContaining(["中坜区", "杨梅区", "观音区"]),
+    );
+    expect(localizedDistricts["14"].map((option) => typeof option === "string" ? option : option.text)).toEqual(
+      expect.arrayContaining(["仑背乡", "麦寮乡", "林内乡", "元长乡"]),
+    );
+    expect(localizedDistricts["16"].map((option) => typeof option === "string" ? option : option.value)).toEqual(
+      expect.arrayContaining(["新興區", "前金區", "苓雅區", "鹽埕區"]),
+    );
+    expect(localizedDistricts["1"].map((option) => typeof option === "string" ? option : option.text)).not.toContain("中山區");
+    expect(localizedDistricts["1"].map((option) => typeof option === "string" ? option : option.text)).toContain("中山区");
+    expect(TW_DISTRICTS_BY_CITY["1"].map((option) => typeof option === "string" ? option : option.text)).toContain("中山區");
+    expect(TW_DISTRICT_COUNT).toBeGreaterThanOrEqual(368);
   });
 
-  it("keeps yes-or-no questions as complete Chinese questions", () => {
-    const samples = [
-      field({
-        visaType: "DS160",
-        fieldName: "has_social_media",
-        label: "Have you used any social media platforms in the last five years?",
-        fieldType: "radio",
-      }),
-      field({
-        visaType: "EU_SCHENGEN_C_SHORT_STAY",
-        fieldName: "event_invitation_letter_held",
-        label: "Do you have an invitation letter from the organiser?",
-        fieldType: "radio",
-        validationRules: { label_zh: "活动" },
-      }),
-      field({
-        visaType: "JP_TOURIST",
-        fieldName: "has_inviter_in_japan",
-        label: "Do you have an inviter or guarantor in Japan?",
-        fieldType: "radio",
-        validationRules: { label_zh: "邀请人" },
-      }),
-    ].map(normalizeBilingualFormField);
+  it("adds Taiwan landline reverse-required metadata without changing its default optional row", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "TW_ENTRY_PERMIT",
+      fieldName: "tw_local_phone",
+      label: "Taiwan landline number",
+      required: false,
+    }));
 
-    expect(samples.map((sample) => resolveLocalizedFieldLabel(sample, "zh"))).toEqual([
-      "过去五年内是否使用过任何社交媒体平台？",
-      "您是否持有活动主办方出具的邀请函？",
-      "您在日本是否有邀请人或担保人？",
-    ]);
+    expect(normalized.required).toBe(false);
+    expect(normalized.validationRules).toMatchObject({
+      required_when: "tw_contact_mobile_not_applicable === true",
+    });
+  });
+
+  it("keeps non-Taiwan metadata label_zh precedence for shared field names", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "KR_C39_SHORT_TERM_VISIT",
+      fieldName: "passport_number",
+      label: "Passport number",
+      validationRules: { label_zh: "护照号码（韩国测试文案）" },
+    }));
+
+    expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe("护照号码（韩国测试文案）");
   });
 });

@@ -1,11 +1,21 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  getRunOne,
-  normalizeCountry,
-  DISPATCH_META,
-  UnsupportedCountryError,
-} from "../dispatch.js";
+
+process.env.SUPABASE_URL ??= "http://localhost";
+process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-key";
+
+let getRunOne: typeof import("../dispatch.js").getRunOne;
+let normalizeCountry: typeof import("../dispatch.js").normalizeCountry;
+let DISPATCH_META: typeof import("../dispatch.js").DISPATCH_META;
+let UnsupportedCountryError: typeof import("../dispatch.js").UnsupportedCountryError;
+
+test.before(async () => {
+  const dispatch = await import("../dispatch.js");
+  getRunOne = dispatch.getRunOne;
+  normalizeCountry = dispatch.normalizeCountry;
+  DISPATCH_META = dispatch.DISPATCH_META;
+  UnsupportedCountryError = dispatch.UnsupportedCountryError;
+});
 
 test("dispatch: India job routes to runInPrefill", () => {
   // Routing metadata asserts the binding without executing the runner
@@ -35,12 +45,26 @@ test("dispatch: all launch countries resolve to a runOne", () => {
   const launch = [
     "indonesia", "egypt", "australia", "saudi_arabia", "united_kingdom", "vietnam",
     "malaysia", "japan", "united_states", "canada", "turkey", "thailand",
-    "singapore", "united_arab_emirates", "france", "italy", "india", "south_korea",
+    "singapore", "united_arab_emirates", "france", "italy", "india", "taiwan", "south_korea",
   ];
   for (const c of launch) {
     if (c === "indonesia") continue;
     assert.equal(typeof getRunOne(c), "function", `${c} resolves`);
   }
+});
+
+test("dispatch: Taiwan aliases route to canonical tw runner", () => {
+  assert.equal(normalizeCountry("TW"), "taiwan");
+  assert.equal(getRunOne("tw"), getRunOne("taiwan"));
+  assert.equal(DISPATCH_META.taiwan.runner, "tw/runner.runOne");
+  assert.equal(DISPATCH_META.taiwan.implemented, true);
+});
+
+test("dispatch: Philippines arrival aliases route to the canonical fail-closed runner_job handler", () => {
+  assert.equal(normalizeCountry("PH"), "philippines");
+  assert.equal(getRunOne("ph"), getRunOne("philippines"));
+  assert.equal(DISPATCH_META.philippines.runner, "ph-etravel/runner-job.runOne (arrival review/recovery only)");
+  assert.equal(DISPATCH_META.philippines.implemented, true);
 });
 
 test("dispatch: Singapore aliases normalize and resolve", () => {
