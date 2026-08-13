@@ -158,9 +158,24 @@ test("registry: resolves by country and visa type", () => {
   assert.equal(getCountrySubmissionProvider("unknownland", "NOPE"), null);
 });
 
+test("registry: Taiwan routes to canonical runner_job live submit path", () => {
+  const provider = getCountrySubmissionProvider("taiwan", "TW_ENTRY_PERMIT");
+  assert.ok(provider);
+  assert.equal(provider.realSubmitAvailable, true);
+  assert.equal(provider.routeStatus, "runner_job_dispatched");
+  assert.match(provider.notes, /2captcha final CAPTCHA solve/);
+  assert.match(provider.notes, /fail-closed official receipt capture/);
+  assert.doesNotMatch(provider.notes, /halting at the CAPTCHA/i);
+});
+
 test("registry: Philippines eTravel does not require removed questionnaire answers", () => {
   const provider = getCountrySubmissionProvider("philippines", "PH_ETRAVEL_ARRIVAL_CARD");
   assert.ok(provider);
+  assert.equal(provider.realSubmitAvailable, false);
+  assert.equal(provider.routeStatus, "runner_job_dispatched");
+  assert.match(provider.notes, /fail-closed at Review/i);
+  assert.match(provider.notes, /reference-derived QR validation/i);
+  assert.doesNotMatch(provider.notes, /independent QR artifact/i);
   const requiredKeys = provider.requiredFields
     .filter((field) => field.required)
     .map((field) => field.key);
