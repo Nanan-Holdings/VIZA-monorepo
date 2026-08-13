@@ -128,7 +128,7 @@ export function AliasForwardingConsentGate({
           </div>
         ) : null}
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-md border p-4 text-sm leading-6">
+        <label className="flex cursor-pointer items-start gap-3 text-sm leading-6">
           <Checkbox
             checked={accepted}
             onCheckedChange={(checked) => setAccepted(checked === true)}

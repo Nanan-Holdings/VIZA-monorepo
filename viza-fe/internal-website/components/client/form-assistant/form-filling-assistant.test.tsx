@@ -133,6 +133,21 @@ describe("FormFillingAssistant", () => {
     expect(composer.closest(".max-w-\\[760px\\]")).toBeInTheDocument();
   });
 
+  it("uses a flat robot-branded panel without the assistant badge and centers the composer controls", () => {
+    renderAssistant({ fillNotice: null });
+
+    const panel = screen.getByRole("region", { name: "Form filling assistant" });
+    const composer = screen.getByRole("textbox", { name: "Message for the form filling assistant" });
+    const composerRow = composer.parentElement;
+
+    expect(panel).toHaveClass("shadow-none");
+    expect(panel.querySelector(".lucide-bot")).toBeInTheDocument();
+    expect(screen.queryByText("AI assistant")).not.toBeInTheDocument();
+    expect(composerRow).toHaveClass("items-center", "shadow-none");
+    expect(composerRow).not.toHaveClass("items-end");
+    expect(screen.getByRole("button", { name: "Start voice input" }).parentElement?.parentElement).not.toHaveClass("pb-1");
+  });
+
   it("uses the shared VIZA Agent message treatment", () => {
     renderAssistant({
       messages: [

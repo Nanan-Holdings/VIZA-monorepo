@@ -53,6 +53,8 @@ const CURATED_HERO_THEMES: Record<string, CountryHeroTheme> = {
   japan: { from: "#9B1B30", to: "#E24A5B", image: `${HERO_IMAGE_DIR}/japan.png` },
   malaysia: { from: "#0B5563", to: "#1D8AA0", image: `${HERO_IMAGE_DIR}/malaysia.png` },
   saudi_arabia: { from: "#0B3D2E", to: "#17795A", image: `${HERO_IMAGE_DIR}/saudi_arabia.png` },
+  singapore: { from: "#1B2A6B", to: "#3D5AAE", image: `${HERO_IMAGE_DIR}/singapore.png` },
+  taiwan: { from: "#6A1B4D", to: "#B23A82", image: `${HERO_IMAGE_DIR}/taiwan.png` },
   thailand: { from: "#6A1B4D", to: "#B23A82", image: `${HERO_IMAGE_DIR}/thailand.png` },
   turkey: { from: "#8E1B2E", to: "#D23B4A", image: `${HERO_IMAGE_DIR}/turkey.png` },
   united_arab_emirates: { from: "#5C3A1E", to: "#A8763C", image: `${HERO_IMAGE_DIR}/united_arab_emirates.png` },
