@@ -4070,7 +4070,7 @@ export function DynamicStepForm({
     ) : null;
     const showIssue = issue.severity !== "ok" && issue.message !== "Required" && issue.message !== "必填项";
     const panelOpen = activeGuidanceKey === valueKey;
-    const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
+    const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "ID_C1_TOURIST";
     const buttonLabel = isChineseInterface ? "问 AI" : "Ask AI";
     const showVnPrearrivalEvisaHelp =
       isVnPrearrivalField &&

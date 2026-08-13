@@ -98,7 +98,7 @@ export const applications = pgTable("applications", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicantId: uuid("applicant_id").notNull(),
 	country: text("country").default("indonesia").notNull(),
-	visaType: text("visa_type").default("tourist_b211a").notNull(),
+	visaType: text("visa_type").default("ID_C1_TOURIST").notNull(),
 	status: text("status").default("draft").notNull(),
 	arrivalDate: date("arrival_date"),
 	departureDate: date("departure_date"),
@@ -1120,7 +1120,7 @@ export type NewVisaChunk = typeof visaChunks.$inferInsert;
 
 export const visaFormFields = pgTable("visa_form_fields", {
 	id: uuid("id").primaryKey().defaultRandom(),
-	visaType: text("visa_type").notNull().default("B211A"),
+	visaType: text("visa_type").notNull().default("ID_C1_TOURIST"),
 	fieldName: text("field_name").notNull(),
 	label: text("label").notNull(),
 	fieldType: text("field_type").notNull(),

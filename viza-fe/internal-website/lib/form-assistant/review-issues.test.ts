@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { FormAssistantValidationResponse } from "@/types/form-assistant";
 import type { VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
-import { buildFormAssistantFieldReviewIssues } from "./review-issues";
+import {
+  buildFormAssistantFieldReviewIssues,
+  normalizeFormAssistantValidationResponse,
+} from "./review-issues";
 
 function field(fieldName: string, displayOrder: number, visaType: string): VisaFormFieldRow {
   return {
@@ -35,6 +38,30 @@ function validation(
 }
 
 describe("buildFormAssistantFieldReviewIssues", () => {
+  it("normalizes legacy single-field issues from a rolling deployment", () => {
+    expect(normalizeFormAssistantValidationResponse({
+      errors: [{ code: "legacy", fieldName: "passport_number", message: "Check passport" }],
+      warnings: [{ code: "global", fieldNames: null, message: "Check all answers" }],
+      progress: null,
+      canReview: false,
+    })).toMatchObject({
+      errors: [{ code: "legacy", fieldNames: ["passport_number"], message: "Check passport" }],
+      warnings: [{ code: "global", fieldNames: [], message: "Check all answers" }],
+      progress: { completed: 0, total: 0 },
+      canReview: false,
+    });
+  });
+
+  it("drops malformed issues instead of crashing final review", () => {
+    expect(normalizeFormAssistantValidationResponse({
+      errors: [null, { fieldNames: [null, "arrival_date"], message: "  Check the date  " }],
+      warnings: "not-an-array",
+    })).toMatchObject({
+      errors: [{ fieldNames: ["arrival_date"], message: "Check the date" }],
+      warnings: [],
+    });
+  });
+
   it.each(["SG_ARRIVAL_CARD", "VN_E_VISA", "AU_VISITOR_600", "UK_STANDARD_VISITOR"]) (
     "orders navigation by the shared schema for %s",
     (visaType) => {

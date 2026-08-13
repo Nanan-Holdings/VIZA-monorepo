@@ -245,7 +245,7 @@ export default function OnboardingPage() {
         purpose: data.travel.purpose || null,
         status: "draft",
         country: assignedPackage?.country ?? "indonesia",
-        visa_type: assignedPackage?.visa_type ?? "tourist_b211a",
+        visa_type: assignedPackage?.visa_type ?? "ID_C1_TOURIST",
         visa_package_id: assignedPackage?.id ?? null,
       });
 
