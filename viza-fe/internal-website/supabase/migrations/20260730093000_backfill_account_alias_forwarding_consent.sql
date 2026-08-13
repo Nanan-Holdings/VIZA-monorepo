@@ -2,6 +2,15 @@
 -- account-level consent audit table. This lets one permanent applicant alias
 -- serve every current and future application without silently inventing
 -- consent for users who never accepted it.
+--
+-- Early website-only installs created consent_event with a closed doc_kind
+-- CHECK that predates alias_email_forwarding. The backend migration track and
+-- current production schema intentionally keep this audit field open-ended.
+-- Remove the legacy constraint before inserting the newer consent kind so a
+-- clean website migration replay cannot fail here.
+ALTER TABLE public.consent_event
+  DROP CONSTRAINT IF EXISTS consent_event_doc_kind_check;
+
 INSERT INTO public.consent_event (
   user_id,
   applicant_id,
