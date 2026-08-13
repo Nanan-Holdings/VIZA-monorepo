@@ -1,4 +1,11 @@
 import { DurableObject } from "cloudflare:workers";
+import {
+  evaluateHealth,
+  isAllowedManagementProjectResponse,
+  isTransientProbeStatus,
+  validateWatchdogConfiguration,
+} from "./watchdog-health";
+import type { Probe, ProbeResult, ScheduledStatus, StoredProbe } from "./watchdog-health";
 
 type RuntimeEnv = Env & {
   readonly VIZA_RESILIENCE_HMAC_SECRET: string;
@@ -8,8 +15,6 @@ type RuntimeEnv = Env & {
 
 type Circuit = "closed" | "open" | "half_open";
 type CacheKey = { userRef: string; scope: string; key: string };
-type ProbeResult = { auth: Probe; rest: Probe; control: Probe; healthy: boolean };
-type Probe = { ok: boolean; transient: boolean; status: number | null; latencyMs: number };
 
 type CachePutCommand = CacheKey & {
   blob: string;
@@ -24,6 +29,31 @@ type OutboxItem = {
   eventType: string;
   blob: string;
   availableAt?: number;
+};
+
+export type WorkloadType = "critical_notification" | "document_processing" | "status_sync" | "background";
+
+type QueueEnvelope = {
+  version: 1;
+  idempotencyKey: string;
+  workloadType: WorkloadType;
+};
+
+type ConcurrencyGateKey = {
+  scope: string;
+  resourceKey: string;
+};
+
+type GateLeaseRequest = {
+  capacity: number;
+  leaseMs: number;
+  ownerRef?: string;
+};
+
+type GateLeaseIdentity = {
+  leaseId: string;
+  fencingToken: number;
+  leaseMs?: number;
 };
 
 type ClaimedItem = OutboxItem & {
@@ -48,6 +78,24 @@ const DEFAULT_REPLAY_BATCH_SIZE = 25;
 const DEFAULT_REPLAY_LEASE_SECONDS = 120;
 const DEFAULT_REPLAY_TIMEOUT_MS = 8_000;
 const DEFAULT_AUTH_WINDOW_SECONDS = 300;
+const MAX_QUEUE_OPAQUE_BYTES = 96_000;
+const DEFAULT_QUEUE_LEASE_SECONDS = 120;
+const MIN_GATE_LEASE_SECONDS = 1;
+const MAX_GATE_LEASE_SECONDS = 60 * 60;
+const MAX_GATE_CAPACITY = 1_000;
+
+const QUEUE_NAMES = {
+  critical: "viza-resilience-critical-notifications",
+  documentStatus: "viza-resilience-document-status",
+  background: "viza-resilience-background",
+} as const;
+
+const WORKLOAD_QUEUE_NAMES: Record<WorkloadType, string> = {
+  critical_notification: QUEUE_NAMES.critical,
+  document_processing: QUEUE_NAMES.documentStatus,
+  status_sync: QUEUE_NAMES.documentStatus,
+  background: QUEUE_NAMES.background,
+};
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, {
@@ -171,6 +219,63 @@ function positiveInteger(value: unknown, name: string, min: number, max: number)
   return parsed;
 }
 
+function workloadType(value: unknown): WorkloadType {
+  if (value === "critical_notification" || value === "document_processing" || value === "status_sync" || value === "background") return value;
+  throw new InputError("workloadType is invalid");
+}
+
+function queueForWorkload(env: RuntimeEnv, workload: WorkloadType): Queue<QueueEnvelope> {
+  if (workload === "critical_notification") return env.CRITICAL_NOTIFICATIONS_QUEUE;
+  if (workload === "document_processing" || workload === "status_sync") return env.DOCUMENT_STATUS_QUEUE;
+  return env.BACKGROUND_QUEUE;
+}
+
+function queueEnvelope(value: unknown): QueueEnvelope {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new InputError("queue message is invalid");
+  const candidate = value as Record<string, unknown>;
+  if (candidate.version !== 1) throw new InputError("queue message version is invalid");
+  return {
+    version: 1,
+    idempotencyKey: boundedString(candidate.idempotencyKey, "idempotencyKey"),
+    workloadType: workloadType(candidate.workloadType),
+  };
+}
+
+function gateKey(body: Record<string, unknown>): ConcurrencyGateKey {
+  const scope = boundedString(body.scope, "scope", 128).trim().toLowerCase();
+  const resourceKey = boundedString(body.resourceKey, "resourceKey", 256).trim().toLowerCase();
+  if (!scope || !resourceKey) throw new InputError("gate shard is invalid");
+  return {
+    scope,
+    resourceKey,
+  };
+}
+
+function gateName(key: ConcurrencyGateKey): string {
+  // Each tuple resolves to a distinct coordination shard. Never route capacity
+  // through the watchdog/outbox singleton or a global gate instance.
+  return `v1:${encodeURIComponent(key.scope)}:${encodeURIComponent(key.resourceKey)}`;
+}
+
+function gateLeaseRequest(body: Record<string, unknown>): GateLeaseRequest {
+  return {
+    capacity: positiveInteger(body.capacity, "capacity", 1, MAX_GATE_CAPACITY),
+    leaseMs: positiveInteger(body.leaseSeconds, "leaseSeconds", MIN_GATE_LEASE_SECONDS, MAX_GATE_LEASE_SECONDS) * 1_000,
+    ownerRef: optionalBoundedString(body.ownerRef, "ownerRef", 256),
+  };
+}
+
+function gateLeaseIdentity(body: Record<string, unknown>, includeLeaseDuration: boolean): GateLeaseIdentity {
+  const identity: GateLeaseIdentity = {
+    leaseId: boundedString(body.leaseId, "leaseId", 128),
+    fencingToken: positiveInteger(body.fencingToken, "fencingToken", 1, Number.MAX_SAFE_INTEGER),
+  };
+  if (includeLeaseDuration) {
+    identity.leaseMs = positiveInteger(body.leaseSeconds, "leaseSeconds", MIN_GATE_LEASE_SECONDS, MAX_GATE_LEASE_SECONDS) * 1_000;
+  }
+  return identity;
+}
+
 function cachePut(body: Record<string, unknown>): CachePutCommand {
   const key = cacheKey(body);
   const blob = boundedString(body.blob, "blob", 450_000);
@@ -194,6 +299,14 @@ function outboxItem(body: Record<string, unknown>): OutboxItem {
   return item;
 }
 
+function queueOutboxItem(body: Record<string, unknown>): OutboxItem & { eventType: WorkloadType } {
+  const item = outboxItem({ ...body, eventType: workloadType(body.workloadType) });
+  if (new TextEncoder().encode(item.blob).byteLength > MAX_QUEUE_OPAQUE_BYTES) {
+    throw new InputError("blob exceeds queue workload limit");
+  }
+  return item as OutboxItem & { eventType: WorkloadType };
+}
+
 async function doCall(stub: DurableObjectStub<ResilienceState>, command: Record<string, unknown>): Promise<Record<string, unknown>> {
   const response = await stub.fetch("https://resilience-state/internal", {
     method: "POST",
@@ -209,6 +322,18 @@ function stateStub(env: RuntimeEnv): DurableObjectStub<ResilienceState> {
   return env.RESILIENCE_STATE.getByName(DO_NAME);
 }
 
+function gateStub(env: RuntimeEnv, key: ConcurrencyGateKey): DurableObjectStub<ConcurrencyGate> {
+  return env.CONCURRENCY_GATE.getByName(gateName(key));
+}
+
+async function gateCall(stub: DurableObjectStub<ConcurrencyGate>, command: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (command.op === "acquire") return await stub.acquire(command);
+  if (command.op === "renew") return await stub.renew(command);
+  if (command.op === "release") return await stub.release(command);
+  if (command.op === "inspect") return await stub.inspect(command);
+  throw new Error("unknown concurrency gate operation");
+}
+
 async function probe(url: string, headers: HeadersInit, timeoutMs: number): Promise<Probe> {
   const started = Date.now();
   const controller = new AbortController();
@@ -217,7 +342,7 @@ async function probe(url: string, headers: HeadersInit, timeoutMs: number): Prom
     const response = await fetch(url, { headers, signal: controller.signal, method: "GET" });
     return {
       ok: response.status >= 200 && response.status < 300,
-      transient: response.status === 408 || response.status === 429 || response.status >= 500,
+      transient: isTransientProbeStatus(response.status),
       status: response.status,
       latencyMs: Date.now() - started,
     };
@@ -229,19 +354,16 @@ async function probe(url: string, headers: HeadersInit, timeoutMs: number): Prom
 }
 
 async function watchdogRun(env: RuntimeEnv): Promise<void> {
-  const baseUrl = env.SUPABASE_URL.trim().replace(/\/$/, "");
-  const projectRef = env.SUPABASE_PROJECT_REF.trim();
-  let parsedBase: URL;
-  try {
-    parsedBase = new URL(baseUrl);
-  } catch {
-    log("warn", "watchdog_skipped", { reason: "SUPABASE_URL_invalid" });
+  const configuration = validateWatchdogConfiguration(
+    env.SUPABASE_URL ?? "",
+    env.SUPABASE_PROJECT_REF ?? "",
+    env.SUPABASE_ANON_KEY ?? "",
+  );
+  if (!configuration.ok) {
+    log("warn", "watchdog_skipped", { reason: configuration.reason });
     return;
   }
-  if (!baseUrl || parsedBase.protocol !== "https:" || !/^[a-z0-9]{20}$/.test(projectRef) || parsedBase.hostname !== `${projectRef}.supabase.co` || !env.SUPABASE_ANON_KEY.trim()) {
-    log("warn", "watchdog_skipped", { reason: "watchdog_probe_configuration_invalid" });
-    return;
-  }
+  const baseUrl = configuration.baseUrl;
   const state = stateStub(env);
   const rounds = numberVar(env.WATCHDOG_CONFIRMATIONS, DEFAULT_CONFIRMATIONS, 1, 5);
   const intervalMs = numberVar(env.WATCHDOG_CONFIRMATION_INTERVAL_MS, DEFAULT_CONFIRMATION_INTERVAL_MS, 100, 60_000);
@@ -288,6 +410,7 @@ async function watchdogRun(env: RuntimeEnv): Promise<void> {
   const statusController = new AbortController();
   const statusTimer = setTimeout(() => statusController.abort(), timeoutMs * 2);
   let projectStatus: string | null = null;
+  let managementStatusReason = "project_status_not_active_healthy";
   try {
     const statusResponse = await fetch(`${managementUrl}/v1/projects/${encodeURIComponent(ref)}`, {
       method: "GET",
@@ -296,8 +419,16 @@ async function watchdogRun(env: RuntimeEnv): Promise<void> {
     });
     if (statusResponse.status === 200) {
       const statusBody: unknown = await statusResponse.json();
-      if (statusBody && typeof statusBody === "object" && !Array.isArray(statusBody) && typeof (statusBody as { status?: unknown }).status === "string") {
-        projectStatus = (statusBody as { status: string }).status;
+      if (isAllowedManagementProjectResponse(statusBody)) {
+        projectStatus = statusBody.status;
+      } else if (
+        statusBody &&
+        typeof statusBody === "object" &&
+        !Array.isArray(statusBody) &&
+        "ref" in statusBody &&
+        (statusBody as { ref?: unknown }).ref !== undefined
+      ) {
+        managementStatusReason = "management_project_ref_mismatch";
       }
     }
   } catch {
@@ -308,7 +439,7 @@ async function watchdogRun(env: RuntimeEnv): Promise<void> {
   // Management status is a false-positive guard: do not try to restart a
   // deliberately paused, restoring, or otherwise non-healthy project.
   if (projectStatus !== "ACTIVE_HEALTHY") {
-    log("warn", "watchdog_restart_suppressed", { reason: "project_status_not_active_healthy" });
+    log("warn", "watchdog_restart_suppressed", { reason: managementStatusReason });
     return;
   }
   const lease = await doCall(state, {
@@ -418,11 +549,152 @@ async function replayOutbox(env: RuntimeEnv): Promise<void> {
   log("info", "outbox_replay", { claimed: items.length, acked: ack.length, nacked: nack.length });
 }
 
+function parseReplayResults(responsePayload: unknown, items: Record<string, unknown>[]): {
+  ack: Array<{ idempotencyKey: string; leaseId: string }>;
+  nack: Array<{ idempotencyKey: string; leaseId: string; errorCode?: string; retryAfterSeconds?: number }>;
+} {
+  const result = responsePayload && typeof responsePayload === "object" && !Array.isArray(responsePayload)
+    ? responsePayload as { results?: unknown; items?: unknown }
+    : {};
+  const results = Array.isArray(result.results) ? result.results : Array.isArray(result.items) ? result.items : [];
+  const claimedLeases = new Map(items.map((item) => [String(item.idempotencyKey), String(item.leaseId)] as const));
+  const ack: Array<{ idempotencyKey: string; leaseId: string }> = [];
+  const nack: Array<{ idempotencyKey: string; leaseId: string; errorCode?: string; retryAfterSeconds?: number }> = [];
+  for (const entry of results) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const item = entry as Record<string, unknown>;
+    if (typeof item.idempotencyKey !== "string" || typeof item.leaseId !== "string") continue;
+    if (claimedLeases.get(item.idempotencyKey) !== item.leaseId) continue;
+    const base = { idempotencyKey: item.idempotencyKey, leaseId: item.leaseId };
+    const outcome = item.outcome ?? item.status;
+    if (outcome === "ack") ack.push(base);
+    else if (outcome === "nack") nack.push({
+      ...base,
+      ...(typeof item.errorCode === "string" ? { errorCode: item.errorCode } : {}),
+      ...(typeof item.retryAfterSeconds === "number" ? { retryAfterSeconds: item.retryAfterSeconds } : {}),
+    });
+  }
+  return { ack, nack };
+}
+
+async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promise<"ack" | "retry"> {
+  const state = stateStub(env);
+  const claim = await doCall(state, {
+    op: "claimOutboxByKey",
+    idempotencyKey: envelope.idempotencyKey,
+    now: Date.now(),
+    leaseMs: numberVar(env.WATCHDOG_REPLAY_LEASE_SECONDS, DEFAULT_QUEUE_LEASE_SECONDS, 15, 900) * 1_000,
+  });
+  if (claim.outcome === "already_acked" || claim.outcome === "dead" || claim.outcome === "missing") return "ack";
+  if (claim.outcome !== "claimed" || !claim.item || typeof claim.item !== "object" || Array.isArray(claim.item)) return "retry";
+
+  const item = claim.item as Record<string, unknown>;
+  if (item.eventType !== envelope.workloadType) {
+    await doCall(state, {
+      op: "nackOutbox",
+      items: [{ idempotencyKey: envelope.idempotencyKey, leaseId: item.leaseId, errorCode: "queue_workload_mismatch", retryAfterSeconds: 60 }],
+      now: Date.now(),
+    });
+    return "retry";
+  }
+  const replayUrl = env.VIZA_RESILIENCE_REPLAY_URL.trim();
+  if (!replayUrl || !env.VIZA_RESILIENCE_HMAC_SECRET?.trim()) return "retry";
+  let url: URL;
+  try {
+    url = new URL(replayUrl);
+  } catch {
+    return "retry";
+  }
+  if (url.protocol !== "https:") return "retry";
+  const body = JSON.stringify({ items: [item] });
+  const timestamp = String(Math.floor(Date.now() / 1_000));
+  const nonce = crypto.randomUUID();
+  const signature = await hmacHex(env.VIZA_RESILIENCE_HMAC_SECRET, `POST\n${url.pathname}\n${timestamp}\n${nonce}\n${await sha256Hex(body)}`);
+  let responsePayload: unknown = null;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), DEFAULT_REPLAY_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        body,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Viza-Key-Id": env.VIZA_RESILIENCE_KEY_ID,
+          "X-Viza-Timestamp": timestamp,
+          "X-Viza-Nonce": nonce,
+          "X-Viza-Signature": signature,
+        },
+        signal: controller.signal,
+      });
+      responsePayload = response.ok ? await response.json() : null;
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    responsePayload = null;
+  }
+  const { ack, nack } = parseReplayResults(responsePayload, [item]);
+  if (ack.length) {
+    await doCall(state, { op: "ackOutbox", items: ack, now: Date.now() });
+    return "ack";
+  }
+  const retry = nack.length ? nack : [{
+    idempotencyKey: envelope.idempotencyKey,
+    leaseId: String(item.leaseId),
+    errorCode: "replay_unavailable",
+    retryAfterSeconds: 60,
+  }];
+  await doCall(state, { op: "nackOutbox", items: retry, now: Date.now() });
+  return "retry";
+}
+
+async function consumeQueue(batch: MessageBatch<unknown>, env: RuntimeEnv): Promise<void> {
+  for (const message of batch.messages) {
+    try {
+      const envelope = queueEnvelope(message.body);
+      if (WORKLOAD_QUEUE_NAMES[envelope.workloadType] !== batch.queue) {
+        log("warn", "queue_workload_mismatch", { queue: batch.queue });
+        message.ack();
+        continue;
+      }
+      const outcome = await replayQueueItem(env, envelope);
+      if (outcome === "ack") message.ack();
+      else message.retry({ delaySeconds: 60 });
+    } catch (error) {
+      // Invalid envelopes are poison messages and should not consume retries;
+      // transient state/replay failures remain eligible for Queue redelivery.
+      if (error instanceof InputError) message.ack();
+      else message.retry({ delaySeconds: 60 });
+      log(error instanceof InputError ? "warn" : "error", "queue_message_failed", {
+        queue: batch.queue,
+        reason: error instanceof InputError ? "invalid_envelope" : "transient_failure",
+      });
+    }
+  }
+}
+
 async function handleRequest(request: Request, env: RuntimeEnv): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/health") {
-    const status = await doCall(stateStub(env), { op: "health", now: Date.now() });
-    return json({ ok: true, service: "viza-resilience-worker", ...status });
+    try {
+      // `doCall` intentionally throws for non-2xx responses, but the health
+      // Durable Object uses 503 as a meaningful result that must reach the
+      // monitor unchanged.
+      const stateResponse = await stateStub(env).fetch("https://resilience-state/internal", {
+        method: "POST",
+        body: JSON.stringify({ op: "health", now: Date.now() }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const payload: unknown = await stateResponse.json();
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        return json({ ok: false, service: "viza-resilience-worker", reason: "invalid_health_state" }, 503);
+      }
+      const status = payload as Record<string, unknown>;
+      return json({ service: "viza-resilience-worker", ...status }, stateResponse.ok && status.ok === true ? 200 : 503);
+    } catch {
+      return json({ ok: false, service: "viza-resilience-worker", reason: "state_unavailable" }, 503);
+    }
   }
   if (request.method !== "POST" || !url.pathname.startsWith("/v1/")) return json({ ok: false, error: "not_found" }, 404);
   const maxBody = numberVar(env.WATCHDOG_MAX_BODY_BYTES, DEFAULT_MAX_BODY_BYTES, 1024, 2_000_000);
@@ -454,6 +726,25 @@ async function handleRequest(request: Request, env: RuntimeEnv): Promise<Respons
       const result = await doCall(state, { op: "enqueueOutbox", ...command, now: Date.now() });
       return json({ ok: true, ...result });
     }
+    if (url.pathname === "/v1/queue/enqueue") {
+      const command = queueOutboxItem(parsed);
+      const result = await doCall(state, { op: "enqueueOutbox", ...command, now: Date.now() });
+      const envelope: QueueEnvelope = { version: 1, idempotencyKey: command.idempotencyKey, workloadType: command.eventType };
+      try {
+        await queueForWorkload(env, command.eventType).send(envelope, {
+          contentType: "json",
+          ...(command.availableAt && command.availableAt > Date.now()
+            ? { delaySeconds: Math.min(MAX_RETRY_AFTER_SECONDS, Math.ceil((command.availableAt - Date.now()) / 1_000)) }
+            : {}),
+        });
+      } catch {
+        // The durable outbox is already persisted. Returning 503 invites a
+        // producer retry, while the scheduled replay remains a recovery path.
+        log("error", "queue_publish_failed", { workloadType: command.eventType });
+        return json({ ok: false, error: "queue_publish_failed", persisted: true, ...result }, 503);
+      }
+      return json({ ok: true, queued: true, queue: WORKLOAD_QUEUE_NAMES[command.eventType], ...result });
+    }
     if (url.pathname === "/v1/outbox/claim") {
       const result = await doCall(state, { op: "claimOutbox", now: Date.now(), limit: numberVar(String(parsed.limit ?? ""), DEFAULT_REPLAY_BATCH_SIZE, 1, 100), leaseMs: numberVar(String(parsed.leaseSeconds ?? ""), DEFAULT_REPLAY_LEASE_SECONDS, 15, 900) * 1000 });
       return json({ ok: true, ...result });
@@ -468,6 +759,24 @@ async function handleRequest(request: Request, env: RuntimeEnv): Promise<Respons
       if (!Array.isArray(parsed.items)) throw new InputError("items is required");
       const result = await doCall(state, { op: "nackOutbox", items: parsed.items, now: Date.now() });
       return json({ ok: true, ...result });
+    }
+    if (url.pathname === "/v1/concurrency/acquire") {
+      const key = gateKey(parsed);
+      const lease = gateLeaseRequest(parsed);
+      const result = await gateCall(gateStub(env, key), { op: "acquire", ...lease, now: Date.now() });
+      return json({ ok: true, shard: gateName(key), ...result });
+    }
+    if (url.pathname === "/v1/concurrency/renew") {
+      const key = gateKey(parsed);
+      const identity = gateLeaseIdentity(parsed, true);
+      const result = await gateCall(gateStub(env, key), { op: "renew", ...identity, now: Date.now() });
+      return json({ ok: true, shard: gateName(key), ...result });
+    }
+    if (url.pathname === "/v1/concurrency/release") {
+      const key = gateKey(parsed);
+      const identity = gateLeaseIdentity(parsed, false);
+      const result = await gateCall(gateStub(env, key), { op: "release", ...identity, now: Date.now() });
+      return json({ ok: true, shard: gateName(key), ...result });
     }
     return json({ ok: false, error: "not_found" }, 404);
   } catch (error) {
@@ -520,9 +829,11 @@ export class ResilienceState extends DurableObject<RuntimeEnv> {
         case "cacheConsume": return this.cacheGet(command, true);
         case "enqueueOutbox": return this.enqueueOutbox(command);
         case "claimOutbox": return this.claimOutbox(command);
+        case "claimOutboxByKey": return this.claimOutboxByKey(command);
         case "ackOutbox": return this.ackOutbox(command);
         case "nackOutbox": return this.nackOutbox(command);
         case "recordProbe": return this.recordProbe(command);
+        case "recordScheduled": return this.recordScheduled(command);
         case "acquireRestart": return this.acquireRestart(command);
         case "completeRestart": return this.completeRestart(command);
         case "health": return this.health(command);
@@ -605,6 +916,54 @@ export class ResilienceState extends DurableObject<RuntimeEnv> {
     return json({ items });
   }
 
+  private claimOutboxByKey(command: Record<string, unknown>): Response {
+    const idempotencyKey = boundedString(command.idempotencyKey, "idempotencyKey");
+    const now = Number(command.now);
+    const leaseMs = numberVar(String(command.leaseMs ?? ""), DEFAULT_QUEUE_LEASE_SECONDS * 1_000, 15_000, 900_000);
+    const row = this.ctx.storage.sql.exec<{
+      idempotency_key: string;
+      user_ref: string | null;
+      scope: string;
+      event_type: string;
+      blob: string;
+      available_at: number;
+      attempts: number;
+      status: string;
+      lease_until: number | null;
+    }>("SELECT idempotency_key,user_ref,scope,event_type,blob,available_at,attempts,status,lease_until FROM outbox WHERE idempotency_key=?", idempotencyKey).toArray()[0];
+    if (!row) return json({ outcome: "missing" });
+    if (row.status === "acked") return json({ outcome: "already_acked" });
+    if (row.status === "dead") return json({ outcome: "dead" });
+    if (row.available_at > now) return json({ outcome: "not_available", retryAt: row.available_at });
+    if (row.lease_until !== null && row.lease_until > now) return json({ outcome: "leased", retryAt: row.lease_until });
+    if (row.attempts >= MAX_OUTBOX_ATTEMPTS) {
+      this.ctx.storage.sql.exec("UPDATE outbox SET status='dead', lease_id=NULL, lease_until=NULL, last_error='attempt_limit', updated_at=? WHERE idempotency_key=? AND status='pending'", now, idempotencyKey);
+      return json({ outcome: "dead" });
+    }
+    const leaseId = crypto.randomUUID();
+    const leaseUntil = now + leaseMs;
+    const update = this.ctx.storage.sql.exec(
+      "UPDATE outbox SET lease_id=?, lease_until=?, attempts=attempts+1, updated_at=? WHERE idempotency_key=? AND status='pending' AND (lease_until IS NULL OR lease_until<=?)",
+      leaseId,
+      leaseUntil,
+      now,
+      idempotencyKey,
+      now,
+    );
+    if (update.rowsWritten !== 1) return json({ outcome: "leased" });
+    const item: ClaimedItem = {
+      idempotencyKey: row.idempotency_key,
+      ...(row.user_ref ? { userRef: row.user_ref } : {}),
+      scope: row.scope,
+      eventType: row.event_type,
+      blob: row.blob,
+      attempts: row.attempts + 1,
+      leaseId,
+      leaseUntil,
+    };
+    return json({ outcome: "claimed", item });
+  }
+
   private ackOutbox(command: Record<string, unknown>): Response {
     const rawItems = Array.isArray(command.items) ? command.items : [];
     let acknowledged = 0;
@@ -655,6 +1014,17 @@ export class ResilienceState extends DurableObject<RuntimeEnv> {
     return json({ saved: true });
   }
 
+  private recordScheduled(command: Record<string, unknown>): Response {
+    const at = Number(command.now ?? Date.now());
+    const ok = command.ok === true;
+    const errorCode = ok ? null : optionalBoundedString(command.errorCode, "errorCode", 128) ?? "scheduled_run_failed";
+    this.ctx.storage.sql.exec(
+      "INSERT INTO meta(key,value) VALUES('last_scheduled',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+      JSON.stringify({ at, ok, errorCode } satisfies ScheduledStatus),
+    );
+    return json({ saved: true });
+  }
+
   private acquireRestart(command: Record<string, unknown>): Response {
     const now = Number(command.now ?? Date.now());
     const cooldownMs = numberVar(String(command.cooldownMs ?? ""), DEFAULT_RESTART_COOLDOWN_SECONDS * 1000, 60_000, 86_400_000);
@@ -683,10 +1053,149 @@ export class ResilienceState extends DurableObject<RuntimeEnv> {
     this.ctx.storage.sql.exec("DELETE FROM nonces WHERE expires_at<=?", now);
     const circuit = this.ctx.storage.sql.exec<{ value: string }>("SELECT value FROM meta WHERE key='circuit'").toArray()[0]?.value ?? "closed";
     const lastProbeRaw = this.ctx.storage.sql.exec<{ value: string }>("SELECT value FROM meta WHERE key='last_probe'").toArray()[0]?.value;
+    const scheduledRaw = this.ctx.storage.sql.exec<{ value: string }>("SELECT value FROM meta WHERE key='last_scheduled'").toArray()[0]?.value;
+    const lastProbe = lastProbeRaw ? JSON.parse(lastProbeRaw) as StoredProbe : null;
+    const scheduledStatus = scheduledRaw ? JSON.parse(scheduledRaw) as ScheduledStatus : null;
+    const health = evaluateHealth(lastProbe, scheduledStatus, now);
     const latestRestart = this.ctx.storage.sql.exec<{ started_at: number; completed_at: number | null; ok: number | null; status: number | null }>("SELECT started_at,completed_at,ok,status FROM restart_events ORDER BY started_at DESC LIMIT 1").toArray()[0];
     const pending = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM outbox WHERE status='pending'").toArray()[0]?.count ?? 0;
     const dead = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM outbox WHERE status='dead'").toArray()[0]?.count ?? 0;
-    return json({ circuit: (circuit === "open" || circuit === "half_open" ? circuit : "closed") as Circuit, lastProbe: lastProbeRaw ? JSON.parse(lastProbeRaw) : null, lastRestart: latestRestart ?? null, outbox: { pending, dead } });
+    return json({
+      ok: health.ok,
+      circuit: (circuit === "open" || circuit === "half_open" ? circuit : "closed") as Circuit,
+      lastProbe,
+      lastScheduled: scheduledStatus,
+      lastRestart: latestRestart ?? null,
+      outbox: { pending, dead },
+      probeAgeMs: health.probeAgeMs,
+      ...(health.ok ? {} : { reason: !health.probeFresh ? "probe_stale" : !health.probeHealthy ? "probe_unhealthy" : "scheduled_run_failed" }),
+    }, health.ok ? 200 : 503);
+  }
+}
+
+export class ConcurrencyGate extends DurableObject<RuntimeEnv> {
+  constructor(ctx: DurableObjectState, env: RuntimeEnv) {
+    super(ctx, env);
+    ctx.blockConcurrencyWhile(async () => {
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS gate_meta (
+          singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+          capacity INTEGER NOT NULL,
+          next_fencing_token INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS gate_leases (
+          lease_id TEXT PRIMARY KEY,
+          fencing_token INTEGER UNIQUE NOT NULL,
+          owner_ref TEXT,
+          acquired_at INTEGER NOT NULL,
+          lease_until INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS gate_leases_expiry_idx ON gate_leases(lease_until);
+      `);
+    });
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    let command: Record<string, unknown>;
+    try {
+      const value: unknown = await request.json();
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new InputError("invalid command");
+      command = value as Record<string, unknown>;
+      if (command.op === "acquire") return json(await this.acquire(command));
+      if (command.op === "renew" || command.op === "lease") return json(await this.renew(command));
+      if (command.op === "release") return json(await this.release(command));
+      if (command.op === "inspect") return json(await this.inspect(command));
+      return json({ ok: false, error: "unknown_command" }, 400);
+    } catch (error) {
+      if (error instanceof InputError) return json({ ok: false, error: error.message }, 400);
+      log("error", "concurrency_gate_failed", { reason: error instanceof Error ? error.message : "unknown" });
+      return json({ ok: false, error: "concurrency_gate_failed" }, 500);
+    }
+  }
+
+  async alarm(): Promise<void> {
+    const now = Date.now();
+    this.deleteExpired(now);
+    await this.scheduleNextExpiry();
+  }
+
+  private deleteExpired(now: number): void {
+    this.ctx.storage.sql.exec("DELETE FROM gate_leases WHERE lease_until<=?", now);
+  }
+
+  private async scheduleNextExpiry(): Promise<void> {
+    const next = this.ctx.storage.sql.exec<{ lease_until: number }>("SELECT lease_until FROM gate_leases ORDER BY lease_until ASC LIMIT 1").toArray()[0]?.lease_until;
+    if (next === undefined) await this.ctx.storage.deleteAlarm();
+    else await this.ctx.storage.setAlarm(Math.max(Date.now() + 1, next));
+  }
+
+  private configureCapacity(requestedCapacity: number): { ok: true; capacity: number } | { ok: false; capacity: number } {
+    const meta = this.ctx.storage.sql.exec<{ capacity: number }>("SELECT capacity FROM gate_meta WHERE singleton=1").toArray()[0];
+    if (!meta) {
+      this.ctx.storage.sql.exec("INSERT INTO gate_meta(singleton,capacity,next_fencing_token) VALUES(1,?,1)", requestedCapacity);
+      return { ok: true, capacity: requestedCapacity };
+    }
+    if (meta.capacity === requestedCapacity) return { ok: true, capacity: meta.capacity };
+    const active = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM gate_leases").toArray()[0]?.count ?? 0;
+    if (active > 0) return { ok: false, capacity: meta.capacity };
+    this.ctx.storage.sql.exec("UPDATE gate_meta SET capacity=? WHERE singleton=1", requestedCapacity);
+    return { ok: true, capacity: requestedCapacity };
+  }
+
+  async acquire(command: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const now = Number(command.now ?? Date.now());
+    const capacity = positiveInteger(command.capacity, "capacity", 1, MAX_GATE_CAPACITY);
+    const leaseMs = positiveInteger(command.leaseMs, "leaseMs", 1_000, MAX_GATE_LEASE_SECONDS * 1_000);
+    const ownerRef = optionalBoundedString(command.ownerRef, "ownerRef", 256);
+    this.deleteExpired(now);
+    const configured = this.configureCapacity(capacity);
+    if (!configured.ok) return { acquired: false, reason: "capacity_mismatch", capacity: configured.capacity };
+    const active = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM gate_leases").toArray()[0]?.count ?? 0;
+    if (active >= configured.capacity) {
+      const retryAt = this.ctx.storage.sql.exec<{ lease_until: number }>("SELECT lease_until FROM gate_leases ORDER BY lease_until ASC LIMIT 1").toArray()[0]?.lease_until ?? now + leaseMs;
+      await this.scheduleNextExpiry();
+      return { acquired: false, reason: "at_capacity", capacity: configured.capacity, active, retryAt };
+    }
+    const fencingToken = this.ctx.storage.sql.exec<{ next_fencing_token: number }>("SELECT next_fencing_token FROM gate_meta WHERE singleton=1").one().next_fencing_token;
+    const leaseId = crypto.randomUUID();
+    const leaseUntil = now + leaseMs;
+    // These writes are synchronous with no intervening await, so Durable
+    // Object SQLite commits them together before another request is handled.
+    this.ctx.storage.sql.exec("UPDATE gate_meta SET next_fencing_token=next_fencing_token+1 WHERE singleton=1");
+    this.ctx.storage.sql.exec("INSERT INTO gate_leases(lease_id,fencing_token,owner_ref,acquired_at,lease_until) VALUES(?,?,?,?,?)", leaseId, fencingToken, ownerRef ?? null, now, leaseUntil);
+    await this.scheduleNextExpiry();
+    return { acquired: true, capacity: configured.capacity, active: active + 1, leaseId, fencingToken, leaseUntil };
+  }
+
+  async renew(command: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const now = Number(command.now ?? Date.now());
+    const leaseId = boundedString(command.leaseId, "leaseId", 128);
+    const fencingToken = positiveInteger(command.fencingToken, "fencingToken", 1, Number.MAX_SAFE_INTEGER);
+    const leaseMs = positiveInteger(command.leaseMs, "leaseMs", 1_000, MAX_GATE_LEASE_SECONDS * 1_000);
+    this.deleteExpired(now);
+    const leaseUntil = now + leaseMs;
+    const result = this.ctx.storage.sql.exec("UPDATE gate_leases SET lease_until=? WHERE lease_id=? AND fencing_token=? AND lease_until>?", leaseUntil, leaseId, fencingToken, now);
+    await this.scheduleNextExpiry();
+    return { renewed: result.rowsWritten === 1, ...(result.rowsWritten === 1 ? { leaseUntil, fencingToken } : { reason: "stale_lease" }) };
+  }
+
+  async release(command: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const now = Number(command.now ?? Date.now());
+    const leaseId = boundedString(command.leaseId, "leaseId", 128);
+    const fencingToken = positiveInteger(command.fencingToken, "fencingToken", 1, Number.MAX_SAFE_INTEGER);
+    this.deleteExpired(now);
+    const result = this.ctx.storage.sql.exec("DELETE FROM gate_leases WHERE lease_id=? AND fencing_token=?", leaseId, fencingToken);
+    await this.scheduleNextExpiry();
+    return { released: result.rowsWritten === 1, ...(result.rowsWritten === 1 ? {} : { reason: "stale_lease" }) };
+  }
+
+  async inspect(command: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const now = Number(command.now ?? Date.now());
+    this.deleteExpired(now);
+    const capacity = this.ctx.storage.sql.exec<{ capacity: number }>("SELECT capacity FROM gate_meta WHERE singleton=1").toArray()[0]?.capacity ?? null;
+    const active = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM gate_leases").toArray()[0]?.count ?? 0;
+    await this.scheduleNextExpiry();
+    return { capacity, active };
   }
 }
 
@@ -696,12 +1205,23 @@ export default {
   },
   async scheduled(_controller: ScheduledController, env: RuntimeEnv, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil((async () => {
+      const state = stateStub(env);
       try {
         await watchdogRun(env);
         await replayOutbox(env);
+        await doCall(state, { op: "recordScheduled", now: Date.now(), ok: true, errorCode: null });
       } catch (error) {
+        const errorCode = error instanceof Error ? error.name || "scheduled_run_failed" : "scheduled_run_failed";
+        try {
+          await doCall(state, { op: "recordScheduled", now: Date.now(), ok: false, errorCode });
+        } catch {
+          // Preserve the original scheduled error log if the DO is unavailable.
+        }
         log("error", "scheduled_run_failed", { reason: error instanceof Error ? error.message : "unknown" });
       }
     })());
+  },
+  async queue(batch: MessageBatch<unknown>, env: RuntimeEnv): Promise<void> {
+    await consumeQueue(batch, env);
   },
 } satisfies ExportedHandler<RuntimeEnv>;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getSupabaseCircuitBreaker,
   SupabaseCircuitBreaker,
   SupabaseCircuitOpenError,
 } from "./circuit-breaker";
@@ -33,5 +34,16 @@ describe("SupabaseCircuitBreaker", () => {
     circuit.beforeRequest();
     circuit.recordFailure();
     expect(circuit.snapshot().state).toBe("open");
+  });
+
+  it("isolates authentication failures from ordinary data requests", () => {
+    const authCircuit = getSupabaseCircuitBreaker(`auth-${crypto.randomUUID()}`);
+    const dataCircuit = getSupabaseCircuitBreaker(`data-${crypto.randomUUID()}`);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) authCircuit.recordFailure();
+
+    expect(authCircuit.snapshot().state).toBe("open");
+    expect(dataCircuit.snapshot().state).toBe("closed");
+    expect(() => dataCircuit.beforeRequest()).not.toThrow();
   });
 });

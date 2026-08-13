@@ -10,6 +10,7 @@ import {
   sendContinuityOtp,
   verifyContinuityOtp,
 } from "@/lib/resilience/continuity-auth";
+import { SupabaseCircuitOpenError } from "@/lib/supabase/circuit-breaker";
 
 type AuthOperation = "password" | "send_otp" | "verify_otp";
 const SUPABASE_AUTH_TIMEOUT_MS = 6_000;
@@ -26,11 +27,11 @@ function readString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function jsonError(error: string, _status = 200, code?: string) {
-  // Authentication failures are expected application states, not browser
-  // transport failures. Keep them as JSON so the login UI can recover without
-  // generating a browser console error for a 4xx/5xx response.
-  return NextResponse.json({ success: false, error, code });
+function jsonError(error: string, status = 400, code?: string) {
+  return NextResponse.json(
+    { success: false, error, code },
+    { status, headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 class SupabaseAuthUnavailableError extends Error {
@@ -40,7 +41,7 @@ class SupabaseAuthUnavailableError extends Error {
   }
 }
 
-function readErrorField(error: unknown, field: "name" | "message"): string {
+function readErrorField(error: unknown, field: "name" | "message" | "code"): string {
   if (typeof error !== "object" || error === null) return "";
 
   const value = (error as Record<string, unknown>)[field];
@@ -48,18 +49,28 @@ function readErrorField(error: unknown, field: "name" | "message"): string {
 }
 
 function isSupabaseUnavailable(error: unknown): boolean {
-  if (error instanceof SupabaseAuthUnavailableError) return true;
+  if (error instanceof SupabaseAuthUnavailableError || error instanceof SupabaseCircuitOpenError) {
+    return true;
+  }
 
   const name = readErrorField(error, "name");
+  const code = readErrorField(error, "code").toLowerCase();
   const message = readErrorField(error, "message").toLowerCase();
+  const status = typeof error === "object" && error !== null
+    ? Number((error as Record<string, unknown>).status)
+    : Number.NaN;
   return (
+    (Number.isFinite(status) && status >= 500) ||
     name === "AbortError" ||
     name === "TimeoutError" ||
     name === "AuthRetryableFetchError" ||
+    code === "unexpected_failure" ||
     message.includes("fetch failed") ||
     message.includes("network") ||
     message.includes("timeout") ||
-    message.includes("econnreset")
+    message.includes("econnreset") ||
+    message.includes("context canceled") ||
+    message.includes("database error querying")
   );
 }
 
@@ -70,8 +81,35 @@ function providerUnavailableResponse() {
       code: "provider_unavailable",
       error: "The authentication provider is temporarily unavailable.",
     },
-    { headers: { "Retry-After": "3" } }
+    {
+      status: 503,
+      headers: { "Retry-After": "3", "Cache-Control": "no-store" },
+    }
   );
+}
+
+async function passwordProviderUnavailableResponse(email: string, requestId: string) {
+  try {
+    await sendContinuityOtp(email);
+    // Keep cached and unknown identities indistinguishable. Known identities
+    // receive a code; unknown ones see the same response without an email.
+    return NextResponse.json(
+      {
+        success: false,
+        code: "continuity_otp_sent",
+        error: "A continuity sign-in code was sent because the authentication provider is unavailable.",
+      },
+      {
+        status: 503,
+        headers: { "Cache-Control": "no-store", "X-Viza-Request-Id": requestId },
+      },
+    );
+  } catch (continuityError) {
+    console.error("Continuity OTP send after password outage failed", {
+      error: continuityError instanceof Error ? continuityError.message : String(continuityError),
+    });
+  }
+  return providerUnavailableResponse();
 }
 
 async function bootstrapClientSession(): Promise<void> {
@@ -95,6 +133,8 @@ async function bootstrapClientSession(): Promise<void> {
 }
 
 export async function POST(request: Request) {
+  const requestId = crypto.randomUUID();
+  const startedAt = Date.now();
   let payload: ClientAuthRequest;
   try {
     payload = (await request.json()) as ClientAuthRequest;
@@ -112,6 +152,8 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient({
       requestTimeoutMs: SUPABASE_AUTH_TIMEOUT_MS,
+      retryDelaysMs: [],
+      circuitBreakerScope: "auth",
     });
 
     if (operation === "password") {
@@ -120,9 +162,19 @@ export async function POST(request: Request) {
 
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        return isSupabaseUnavailable(error)
-          ? providerUnavailableResponse()
-          : jsonError(error.message, 401);
+        if (isSupabaseUnavailable(error)) {
+          console.error("Supabase password sign-in dependency failure", {
+            requestId,
+            durationMs: Date.now() - startedAt,
+            errorName: readErrorField(error, "name"),
+            errorCode: readErrorField(error, "code"),
+            status: typeof error === "object" && error !== null
+              ? (error as unknown as Record<string, unknown>).status
+              : undefined,
+          });
+          return passwordProviderUnavailableResponse(email, requestId);
+        }
+        return jsonError(error.message, 401);
       }
 
       await clearClientSession();
@@ -180,6 +232,15 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     if (isSupabaseUnavailable(error)) {
+      if (operation === "password") {
+        console.error("Supabase password sign-in request failed", {
+          requestId,
+          durationMs: Date.now() - startedAt,
+          errorName: readErrorField(error, "name"),
+          errorCode: readErrorField(error, "code"),
+        });
+        return passwordProviderUnavailableResponse(email, requestId);
+      }
       if (operation === "send_otp") {
         try {
           await sendContinuityOtp(email);
@@ -206,5 +267,5 @@ export async function POST(request: Request) {
     return jsonError("Authentication service request failed", 500);
   }
 
-  return jsonError("Unsupported authentication operation");
+  return jsonError("Unsupported authentication operation", 400);
 }

@@ -157,6 +157,20 @@ describe("human-style assistant edge cases", () => {
       "Please update my email to new@example.com",
       [passport, email],
     )).toBe("email_address");
+    expect(inferRequestedCorrectionFieldNameFromFields(
+      "把刚才的大洲改成欧洲",
+      [{ ...field("continent", "Continent", "所在大洲"), options: ["Asia", "Europe"] }],
+    )).toBe("continent");
+    expect(inferRequestedCorrectionFieldNameFromFields(
+      "把受理驻外馆处改成台北驻大阪经济文化办事处。",
+      [{
+        ...field("embassy_office", "Receiving embassy/office", "受理驻外馆处/办事处"),
+        options: [
+          { value: "5A", text: "Taipei Representative Office in Tokyo", label_zh: "台北驻日经济文化代表处(东京)" },
+          { value: "5C", text: "Taipei Economic and Cultural Office in Osaka", label_zh: "台北驻大阪经济文化办事处" },
+        ],
+      }],
+    )).toBe("embassy_office");
   });
 });
 

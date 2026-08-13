@@ -7,7 +7,6 @@ import {
   claimPendingSubmissionQueueItems,
   claimPendingIndonesiaQueueItems,
   claimPendingVietnamCloudQueueItems,
-  isSubmissionQueueClaimRpcUnavailableError,
 } from "../submission-queue-claim";
 
 const repoRoot = path.resolve(__dirname, "..", "..", "..", "..");
@@ -52,6 +51,20 @@ const indonesiaStickyMigrationPath = path.join(
   "agent-backend",
   "drizzle",
   "0129_indonesia_sticky_runner.sql",
+);
+const queueWorkerLeaseMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0137_queue_worker_leases_and_runtime_claims.sql",
+);
+const submissionServiceIndexPath = path.join(
+  repoRoot,
+  "viza-be",
+  "submission-service",
+  "src",
+  "index.ts",
 );
 
 test("submission_queue claim migration uses skip-locked leases and service-role-only RPC access", () => {
@@ -135,6 +148,55 @@ test("generic submission retries atomically supersede only the same application"
   assert.match(sql, /grant execute on function public\.enqueue_submission_retry[\s\S]*to service_role/);
 });
 
+test("runtime claim migration filters providers inside the atomic skip-locked claim", () => {
+  const sql = readFileSync(queueWorkerLeaseMigrationPath, "utf8").toLowerCase();
+  const genericClaim = sql
+    .split("create or replace function public.claim_submission_queue_batch")[1]
+    ?.split("revoke all on function public.claim_submission_queue_batch")[0] ?? "";
+
+  assert.match(genericClaim, /p_provider_allowlist text\[\] default null/);
+  assert.match(genericClaim, /p_allow_failed boolean default false/);
+  assert.match(genericClaim, /cardinality\(p_provider_allowlist\)/);
+  assert.match(genericClaim, /sq\.provider = any \(p_provider_allowlist\)/);
+  assert.match(genericClaim, /p_allow_failed[\s\S]*p_target_job_id is not null/);
+  assert.match(genericClaim, /for update skip locked/);
+  assert.match(genericClaim, /update public\.submission_queue[\s\S]*locked_by = btrim\(p_worker_id\)/);
+  assert.match(
+    sql,
+    /grant execute on function public\.claim_submission_queue_batch\([\s\S]*text\[\], boolean[\s\S]*to service_role/,
+  );
+});
+
+test("Vietnam status migration leases claims and conditionally settles only live worker ownership", () => {
+  const sql = readFileSync(queueWorkerLeaseMigrationPath, "utf8").toLowerCase();
+  const claim = sql
+    .split("create or replace function public.claim_vn_official_status_checks")[1]
+    ?.split("create or replace function public.complete_vn_official_status_check")[0] ?? "";
+  const complete = sql
+    .split("create or replace function public.complete_vn_official_status_check")[1]
+    ?.split("create or replace function public.fail_vn_official_status_check")[0] ?? "";
+  const fail = sql
+    .split("create or replace function public.fail_vn_official_status_check")[1]
+    ?.split("revoke all on function public.claim_vn_official_status_checks")[0] ?? "";
+
+  assert.match(claim, /p_worker_id text/);
+  assert.match(claim, /p_lease_seconds integer default 300/);
+  assert.match(claim, /status = 'running'/);
+  assert.match(claim, /lease_expires_at < now\(\)/);
+  assert.match(claim, /for update skip locked/);
+
+  assert.match(complete, /p_patch jsonb default '\{\}'::jsonb/);
+  assert.match(complete, /p_patch\.status must be completed or cancelled/);
+  assert.match(complete, /checks\.worker_id = p_worker_id/);
+  assert.match(complete, /checks\.lease_expires_at > now\(\)/);
+  assert.match(complete, /worker_id = null[\s\S]*lease_expires_at = null/);
+
+  assert.match(fail, /status = 'failed'/);
+  assert.match(fail, /checks\.worker_id = p_worker_id/);
+  assert.match(fail, /checks\.lease_expires_at > now\(\)/);
+  assert.match(fail, /worker_id = null[\s\S]*lease_expires_at = null/);
+});
+
 test("claimPendingSubmissionQueueItems calls the DB claim RPC with worker and lease settings", async () => {
   const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
   const claimedRows = [
@@ -181,7 +243,115 @@ test("claimPendingSubmissionQueueItems calls the DB claim RPC with worker and le
     p_lease_seconds: 900,
     p_target_job_id: null,
     p_max_attempts: 3,
+    p_provider_allowlist: null,
+    p_allow_failed: false,
   });
+});
+
+test("generic claims send provider and failed-retry filters through the atomic RPC", async () => {
+  const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  const client = {
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      calls.push({ name, args });
+      return { data: [], error: null };
+    },
+  };
+
+  await claimPendingSubmissionQueueItems(client, {
+    workerId: "5ec4f2a6-7972-422f-989d-de907947aa55",
+    limit: 1,
+    leaseSeconds: 600,
+    maxAttempts: 4,
+    providerAllowlist: [" vietnam_evisa_live ", "", "sg_arrival_card_live"],
+    targetJobId: "00000000-0000-0000-0000-000000000001",
+    allowFailed: true,
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.name, "claim_submission_queue_batch");
+  assert.deepEqual(calls[0]?.args, {
+    p_worker_id: "5ec4f2a6-7972-422f-989d-de907947aa55",
+    p_limit: 1,
+    p_lease_seconds: 600,
+    p_target_job_id: "00000000-0000-0000-0000-000000000001",
+    p_max_attempts: 4,
+    p_provider_allowlist: ["vietnam_evisa_live", "sg_arrival_card_live"],
+    p_allow_failed: true,
+  });
+});
+
+test("generic claim RPC errors fail closed without a table-select fallback", async () => {
+  let rpcCalls = 0;
+  let tableReads = 0;
+  const client = {
+    rpc: async () => {
+      rpcCalls += 1;
+      return {
+        data: null,
+        error: {
+          code: "PGRST202",
+          message: "claim_submission_queue_batch is missing from the schema cache",
+        },
+      };
+    },
+    from: () => {
+      tableReads += 1;
+      throw new Error("unsafe table fallback invoked");
+    },
+  };
+
+  await assert.rejects(
+    claimPendingSubmissionQueueItems(client, {
+      workerId: "5ec4f2a6-7972-422f-989d-de907947aa55",
+      limit: 5,
+      leaseSeconds: 900,
+      providerAllowlist: ["vietnam_evisa_live"],
+    }),
+    /failed to claim submission_queue batch/i,
+  );
+  assert.equal(rpcCalls, 1);
+  assert.equal(tableReads, 0);
+});
+
+test("legacy production pickup contains no plain submission_queue select fallback", () => {
+  const source = readFileSync(submissionServiceIndexPath, "utf8");
+  const fetchStart = source.indexOf("async function fetchPendingItems");
+  const fetchEnd = source.indexOf("function queuePriority", fetchStart);
+  const fetchSource = source.slice(fetchStart, fetchEnd);
+
+  assert.ok(fetchStart >= 0 && fetchEnd > fetchStart);
+  assert.doesNotMatch(fetchSource, /\.from\(["']submission_queue["']\)[\s\S]*?\.select\(/);
+  assert.doesNotMatch(fetchSource, /selectPendingItemsFallback/);
+  assert.match(fetchSource, /claimPendingSubmissionQueueItems/);
+});
+
+test("two concurrent generic claimers cannot receive the same RPC-owned row", async () => {
+  const pending = [{ id: "queue-atomic-1" }];
+  let tableReads = 0;
+  const client = {
+    rpc: async () => ({ data: pending.splice(0, 1), error: null }),
+    from: () => {
+      tableReads += 1;
+      throw new Error("unsafe table fallback invoked");
+    },
+  };
+
+  const [first, second] = await Promise.all([
+    claimPendingSubmissionQueueItems(client, {
+      workerId: "worker-a",
+      limit: 1,
+      leaseSeconds: 900,
+    }),
+    claimPendingSubmissionQueueItems(client, {
+      workerId: "worker-b",
+      limit: 1,
+      leaseSeconds: 900,
+    }),
+  ]);
+
+  assert.equal([...first, ...second].length, 1);
+  assert.equal([...first, ...second][0]?.id, "queue-atomic-1");
+  assert.equal(tableReads, 0);
 });
 
 test("claimPendingVietnamCloudQueueItems calls only the cloud-isolated RPC", async () => {
@@ -233,27 +403,4 @@ test("claimPendingIndonesiaQueueItems calls only the sticky Indonesia RPC", asyn
     p_target_job_id: null,
     p_max_attempts: 3,
   });
-});
-
-test("isSubmissionQueueClaimRpcUnavailableError recognizes schema-cache and missing-function errors", () => {
-  assert.equal(
-    isSubmissionQueueClaimRpcUnavailableError(
-      new Error("Could not find the function public.claim_submission_queue_batch in the schema cache"),
-    ),
-    true,
-  );
-  assert.equal(
-    isSubmissionQueueClaimRpcUnavailableError({
-      code: "PGRST202",
-      message: "Could not find the function claim_submission_queue_batch",
-    }),
-    true,
-  );
-  assert.equal(
-    isSubmissionQueueClaimRpcUnavailableError(
-      new Error("function public.claim_submission_queue_batch(text, integer) does not exist"),
-    ),
-    true,
-  );
-  assert.equal(isSubmissionQueueClaimRpcUnavailableError(new Error("permission denied")), false);
 });

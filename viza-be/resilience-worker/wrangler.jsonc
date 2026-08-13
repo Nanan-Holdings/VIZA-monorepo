@@ -26,11 +26,57 @@
     "WATCHDOG_REPLAY_LEASE_SECONDS": "120",
     "WATCHDOG_MAX_BODY_BYTES": "524288"
   },
+  "queues": {
+    "producers": [
+      {
+        "binding": "CRITICAL_NOTIFICATIONS_QUEUE",
+        "queue": "viza-resilience-critical-notifications"
+      },
+      {
+        "binding": "DOCUMENT_STATUS_QUEUE",
+        "queue": "viza-resilience-document-status"
+      },
+      {
+        "binding": "BACKGROUND_QUEUE",
+        "queue": "viza-resilience-background"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "viza-resilience-critical-notifications",
+        "max_batch_size": 10,
+        "max_batch_timeout": 1,
+        "max_retries": 10,
+        "max_concurrency": 20,
+        "retry_delay": 60
+      },
+      {
+        "queue": "viza-resilience-document-status",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 10,
+        "max_concurrency": 10,
+        "retry_delay": 60
+      },
+      {
+        "queue": "viza-resilience-background",
+        "max_batch_size": 10,
+        "max_batch_timeout": 10,
+        "max_retries": 10,
+        "max_concurrency": 5,
+        "retry_delay": 60
+      }
+    ]
+  },
   "durable_objects": {
     "bindings": [
       {
         "name": "RESILIENCE_STATE",
         "class_name": "ResilienceState"
+      },
+      {
+        "name": "CONCURRENCY_GATE",
+        "class_name": "ConcurrencyGate"
       }
     ]
   },
@@ -38,6 +84,10 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["ResilienceState"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["ConcurrencyGate"]
     }
   ],
   "triggers": {

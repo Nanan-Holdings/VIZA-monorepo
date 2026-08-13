@@ -69,6 +69,7 @@ describe("POST /api/client/auth", () => {
     cacheContinuityIdentityMock.mockReset();
     cacheContinuityIdentityMock.mockResolvedValue(undefined);
     sendContinuityOtpMock.mockReset();
+    sendContinuityOtpMock.mockResolvedValue(false);
     verifyContinuityOtpMock.mockReset();
   });
 
@@ -145,19 +146,62 @@ describe("POST /api/client/auth", () => {
     expect(clearClientSessionMock).toHaveBeenCalledOnce();
   });
 
-  it("maps a plain Supabase timeout error to provider_unavailable", async () => {
+  it("maps a plain Supabase timeout error to the continuity OTP path", async () => {
     signInWithPasswordMock.mockResolvedValue({
       error: { name: "AuthRetryableFetchError", message: "Supabase request timed out" },
     });
 
     const response = await POST(passwordRequest());
 
+    expect(response.status).toBe(503);
+    expect(response.headers.get("x-viza-request-id")).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
     await expect(response.json()).resolves.toEqual({
       success: false,
-      code: "provider_unavailable",
-      error: "The authentication provider is temporarily unavailable.",
+      code: "continuity_otp_sent",
+      error: "A continuity sign-in code was sent because the authentication provider is unavailable.",
     });
+    expect(sendContinuityOtpMock).toHaveBeenCalledWith("applicant@example.com");
     expect(clearClientSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("maps an Auth 500 dependency failure to a continuity OTP", async () => {
+    signInWithPasswordMock.mockResolvedValue({
+      error: {
+        name: "AuthApiError",
+        message: "Database error querying schema",
+        code: "unexpected_failure",
+        status: 500,
+      },
+    });
+    sendContinuityOtpMock.mockResolvedValue(true);
+
+    const response = await POST(passwordRequest());
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      code: "continuity_otp_sent",
+      error: "A continuity sign-in code was sent because the authentication provider is unavailable.",
+    });
+    expect(sendContinuityOtpMock).toHaveBeenCalledWith("applicant@example.com");
+  });
+
+  it("preserves HTTP status semantics for invalid credentials and input", async () => {
+    signInWithPasswordMock.mockResolvedValue({
+      error: { name: "AuthApiError", message: "Invalid login credentials", status: 400 },
+    });
+
+    const authResponse = await POST(passwordRequest());
+    const inputResponse = await POST(new Request("http://localhost/api/client/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operation: "password", email: "invalid" }),
+    }));
+
+    expect(authResponse.status).toBe(401);
+    expect(inputResponse.status).toBe(400);
   });
 
   it("falls back to an independent continuity OTP when Supabase Auth times out", async () => {

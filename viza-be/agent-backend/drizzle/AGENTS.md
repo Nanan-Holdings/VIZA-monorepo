@@ -176,6 +176,10 @@ The current internal automation migrations are:
 - `0136_form_assistant_required_checkbox_rules.sql`: marks the Philippines
   eTravel privacy declarations and Taiwan permit terms as true-only required
   acknowledgements for consistent form and assistant validation.
+- `0137_queue_worker_leases_and_runtime_claims.sql`: adds atomic notification
+  claims with conditional ack/nack and DLQ settlement, Vietnam status-check
+  worker leases with safe completion/failure RPCs and rolling-deploy
+  compatibility, plus provider-filtered/targeted submission-queue claims.
 
 ## Guardrails
 

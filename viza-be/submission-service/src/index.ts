@@ -153,7 +153,6 @@ import {
   claimPendingIndonesiaQueueItems,
   claimPendingSubmissionQueueItems,
   claimPendingVietnamCloudQueueItems,
-  isSubmissionQueueClaimRpcUnavailableError,
 } from "./submission-queue-claim";
 import type { AuSubmissionResult } from "./submission-result";
 import {
@@ -469,27 +468,6 @@ async function fetchPendingItems(input: {
   concurrency: number;
   targetJobId?: string | null;
 }): Promise<SubmissionQueueItem[]> {
-  if (input.targetJobId && TARGET_FAILED_RETRY_ENABLED) {
-    let query = supabase
-      .from("submission_queue")
-      .select("*")
-      .eq("id", input.targetJobId)
-      .in("status", [
-        "mdac_live_assisted_failed",
-        "tdac_live_assisted_failed",
-        "phetravel_live_assisted_failed",
-      ])
-      .limit(1);
-    if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
-      query = query.in("provider", Array.from(SUBMISSION_PROVIDER_ALLOWLIST));
-    }
-    const { data, error } = await query;
-    if (error) {
-      throw new Error(`Failed targeted arrival-card retry select: ${error.message}`);
-    }
-    return (data ?? []) as SubmissionQueueItem[];
-  }
-
   const claimLimit = input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency);
   const indonesiaItems = INDONESIA_QUEUE_ENABLED
     ? await claimPendingIndonesiaQueueItems(supabase, {
@@ -503,10 +481,11 @@ async function fetchPendingItems(input: {
   if (input.targetJobId && indonesiaItems.length > 0) {
     return indonesiaItems;
   }
-  const cloudVietnamItems = VN_CLOUD_QUEUE_ENABLED
+  const remainingAfterIndonesia = Math.max(0, claimLimit - indonesiaItems.length);
+  const cloudVietnamItems = VN_CLOUD_QUEUE_ENABLED && remainingAfterIndonesia > 0
     ? await claimPendingVietnamCloudQueueItems(supabase, {
         workerId: SUBMISSION_QUEUE_WORKER_ID,
-        limit: claimLimit,
+        limit: remainingAfterIndonesia,
         leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
         targetJobId: input.targetJobId ?? null,
         maxAttempts: MAX_ATTEMPTS,
@@ -517,81 +496,27 @@ async function fetchPendingItems(input: {
   }
 
   const claimedDedicatedItems = [...indonesiaItems, ...cloudVietnamItems];
-  if (!LEGACY_SUBMISSION_QUEUE_ENABLED) {
+  if (!LEGACY_SUBMISSION_QUEUE_ENABLED || claimedDedicatedItems.length >= claimLimit) {
     return claimedDedicatedItems
       .slice(0, claimLimit)
       .sort((left, right) => queuePriority(left) - queuePriority(right));
   }
 
-  let items: SubmissionQueueItem[];
-  try {
-    if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
-      let query = supabase
-        .from("submission_queue")
-        .select("*")
-        .in("status", legacyPendingQueueStatuses())
-        .lt("attempts", MAX_ATTEMPTS)
-        .order("created_at", { ascending: true })
-        .limit(input.targetJobId ? 1 : claimLimit);
-      if (input.targetJobId) {
-        query = query.eq("id", input.targetJobId);
-      } else {
-        query = query.in("provider", Array.from(SUBMISSION_PROVIDER_ALLOWLIST));
-      }
-      const { data, error } = await query;
-      if (error) {
-        throw new Error(`Failed provider-filtered submission_queue select: ${error.message}`);
-      }
-      items = ((data ?? []) as SubmissionQueueItem[]).filter((item) =>
-        input.targetJobId ? SUBMISSION_PROVIDER_ALLOWLIST.has(item.provider ?? "") : true,
-      );
-      return items.sort((left, right) => queuePriority(left) - queuePriority(right));
-    }
-
-    items = await claimPendingSubmissionQueueItems(supabase, {
-      workerId: SUBMISSION_QUEUE_WORKER_ID,
-      limit: Math.max(1, claimLimit - claimedDedicatedItems.length),
-      leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
-      targetJobId: input.targetJobId ?? null,
-      maxAttempts: MAX_ATTEMPTS,
-    });
-    if (items.length === 0) {
-      items = await selectPendingItemsFallback(input);
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!isSubmissionQueueClaimRpcUnavailableError(error)) {
-      throw error;
-    }
-    console.warn(`[poll] claim_submission_queue_batch unavailable; using local select fallback: ${message}`);
-    items = await selectPendingItemsFallback(input);
-  }
+  const items = await claimPendingSubmissionQueueItems(supabase, {
+    workerId: SUBMISSION_QUEUE_WORKER_ID,
+    limit: claimLimit - claimedDedicatedItems.length,
+    leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+    targetJobId: input.targetJobId ?? null,
+    maxAttempts: MAX_ATTEMPTS,
+    providerAllowlist: Array.from(SUBMISSION_PROVIDER_ALLOWLIST),
+    allowFailed: Boolean(input.targetJobId && TARGET_FAILED_RETRY_ENABLED),
+  });
   const mergedItems = [...claimedDedicatedItems, ...items].filter(
     (item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index,
   );
   return mergedItems
     .slice(0, claimLimit)
     .sort((left, right) => queuePriority(left) - queuePriority(right));
-}
-
-async function selectPendingItemsFallback(input: {
-  concurrency: number;
-  targetJobId?: string | null;
-}): Promise<SubmissionQueueItem[]> {
-  const query = supabase
-    .from("submission_queue")
-    .select("*")
-    .in("status", legacyPendingQueueStatuses())
-    .lt("attempts", MAX_ATTEMPTS)
-    .order("created_at", { ascending: true })
-    .limit(input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency));
-  const { data, error: selectError } = input.targetJobId
-    ? await query.eq("id", input.targetJobId)
-    : await query;
-  if (selectError) {
-    throw new Error(`Failed fallback submission_queue select: ${selectError.message}`);
-  }
-  return (data ?? []) as SubmissionQueueItem[];
 }
 
 function queuePriority(item: SubmissionQueueItem): number {
@@ -7768,7 +7693,9 @@ async function pollOnce(): Promise<void> {
         idleExitController?.noteActivity();
         console.log(`[poll] Queued ${queuedEmailChecks} email-triggered Vietnam status check(s).`);
       }
-      const processedStatusChecks = await processQueuedVietnamStatusChecks();
+      const processedStatusChecks = await processQueuedVietnamStatusChecks(
+        SUBMISSION_QUEUE_WORKER_ID,
+      );
       if (processedStatusChecks > 0) {
         idleExitController?.noteActivity();
         console.log(`[poll] Processed ${processedStatusChecks} Vietnam official status check(s).`);

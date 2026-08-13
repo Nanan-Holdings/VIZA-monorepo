@@ -30,6 +30,11 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      # Runtime URL must use the Supabase transaction pooler. Three connections
+      # per instance keeps the database budget explicit across horizontal scale
+      # while leaving capacity for Auth, PostgREST, and operator connections.
+      - key: DB_POOL_MAX
+        value: "3"
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: CORS_ORIGINS

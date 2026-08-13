@@ -11,7 +11,8 @@ Supabase service-role client setup for the agent backend.
 ## Key Files
 
 - `schema.ts`: Drizzle table definitions and inferred TypeScript types.
-- `index.ts`: direct Postgres/Drizzle connection using `DATABASE_URL`.
+- `index.ts`: bounded Postgres/Drizzle runtime pool using the Supabase
+  transaction-pooler `DATABASE_URL` (three connections per instance by default).
 - `migrate.ts`: migration runner.
 - `supabase-client.ts`: service-role Supabase client and connection check.
 - `supabase-adapter.ts`: Supabase helper adapter for selected operations.
@@ -37,6 +38,9 @@ Supabase service-role client setup for the agent backend.
   Agent state versions, idempotent messages, model continuity, and preferences.
 - `../../drizzle/0134_form_assistant_sessions.sql`: durable application-scoped
   Form Filling Assistant state/messages with idempotency and ownership RLS.
+- `../../drizzle/0137_queue_worker_leases_and_runtime_claims.sql`: leased
+  notification and Vietnam status-check claims, conditional settlement RPCs,
+  and the extended atomic submission-queue claim contract.
 
 ## Ownership Boundaries
 

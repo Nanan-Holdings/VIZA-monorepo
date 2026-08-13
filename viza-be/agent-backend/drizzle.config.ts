@@ -10,9 +10,9 @@ dotenv.config({ path: ".env" });
  *   - `npm run db:generate` - Generate migration files
  *   - `npm run db:push` - Push schema to database
  *
- * For runtime database operations, you can use either:
- *   1. Supabase Client (supabase-client.ts) - Uses REST API, no DATABASE_URL needed
- *   2. Drizzle ORM (db/index.ts) - Direct PostgreSQL, requires DATABASE_URL
+ * Runtime services use the Supabase client for REST operations and the bounded
+ * Drizzle pool in db/index.ts with a transaction-pooler DATABASE_URL. This file
+ * is operator tooling and does not define the runtime connection budget.
  *
  * To get DATABASE_URL:
  *   1. Supabase Dashboard → Settings → Database → Connection String

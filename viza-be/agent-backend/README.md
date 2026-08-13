@@ -49,7 +49,10 @@ Notes:
 - `ANTHROPIC_API_KEY` powers streaming VIZA AI and AI-backed field guidance.
 - `OPENAI_API_KEY` powers embeddings for RAG retrieval.
 - `GOOGLE_AI_API_KEY` or `GOOGLE_TRANSLATE_API_KEY` powers translation routes.
-- `DATABASE_URL` is required for Drizzle direct Postgres access.
+- `DATABASE_URL` is required for Drizzle and must use the Supabase transaction
+  pooler at runtime. Direct database connections are operator-only for
+  migrations and diagnostics. `DB_POOL_MAX` defaults to 3 per service instance
+  (hard-clamped to 20); budget total connections against maximum instances.
 - `NEXT_PUBLIC_SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY` are required for
   Supabase service-role operations.
 

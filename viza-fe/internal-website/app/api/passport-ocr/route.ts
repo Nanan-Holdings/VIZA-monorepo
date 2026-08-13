@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserFromSupabaseSession } from "@/lib/client-session";
+import { getClientSessionWithFallback } from "@/lib/client-session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   extractPassportOcr,
@@ -15,6 +15,7 @@ import type {
   PassportOcrResponse,
   PassportOcrSuccessResponse,
   SupportedPassportMimeType,
+  IdentityOcrDocumentKind,
 } from "./types";
 
 export const runtime = "nodejs";
@@ -49,6 +50,7 @@ interface OcrAttemptMetadata {
   confidence?: number;
   warnings?: string[];
   failureCode?: string;
+  documentKind?: IdentityOcrDocumentKind;
 }
 
 function jsonFailure(error: PassportOcrError, status: number) {
@@ -91,6 +93,14 @@ function isPassportDocumentType(documentType: string): boolean {
   return ["passport_copy", "passport", "passport_bio_page", "passport_scan"].includes(documentType);
 }
 
+function getIdentityOcrDocumentKind(documentType: string): IdentityOcrDocumentKind | null {
+  if (isPassportDocumentType(documentType)) return "passport";
+  if (["national_identity_card", "identity_card", "id_card"].includes(documentType)) {
+    return "national_identity_card";
+  }
+  return null;
+}
+
 function safeExtractedFieldMetadata(
   status: "processing" | "succeeded" | "failed",
   metadata: OcrAttemptMetadata = {},
@@ -103,6 +113,7 @@ function safeExtractedFieldMetadata(
     confidence: metadata.confidence,
     warnings: metadata.warnings,
     failure_code: metadata.failureCode,
+    document_kind: metadata.documentKind,
   };
 }
 
@@ -115,6 +126,7 @@ function serializeProposedFields(fields: PassportOcrProposedFields) {
     given_names: fields.givenNames,
     surname: fields.surname,
     passport_number: fields.passportNumber,
+    identity_document_number: fields.identityDocumentNumber,
     date_of_birth: fields.dateOfBirth,
     place_of_birth: fields.placeOfBirth,
     nationality: fields.nationality,
@@ -299,7 +311,7 @@ function populatedFieldKeys(fields: PassportOcrSuccessResponse["proposedFields"]
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<PassportOcrResponse>> {
-  const session = await getUserFromSupabaseSession();
+  const session = await getClientSessionWithFallback();
   if (!session) {
     return jsonFailure(
       {
@@ -377,11 +389,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
     );
   }
 
-  if (!isPassportDocumentType(document.document_type)) {
+  const documentKind = getIdentityOcrDocumentKind(document.document_type);
+  if (!documentKind) {
     return jsonFailure(
       {
         code: "unsupported_file",
-        message: "Only passport documents can be processed by this OCR route.",
+        message: "Only passport or national identity card documents can be processed by this OCR route.",
       },
       415,
     );
@@ -413,13 +426,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
   });
 
   try {
-    const result = await extractPassportOcr(file);
+    const result = await extractPassportOcr(file, { documentKind });
     const metadata: OcrAttemptMetadata = {
       sourceMimeType: file.mimeType,
       sourceBytes: file.bytes.length,
       fieldKeys: populatedFieldKeys(result.fields),
       confidence: result.confidence,
       warnings: result.warnings,
+      documentKind,
     };
 
     if (!result.isReadable) {
@@ -434,7 +448,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
       return jsonFailure(
         {
           code: "unreadable",
-          message: "We could not read passport fields from this file. Please upload a clearer passport bio page.",
+          message: documentKind === "national_identity_card"
+            ? "We could not read identity card fields from this file. Please upload a clearer image."
+            : "We could not read passport fields from this file. Please upload a clearer passport bio page.",
         },
         422,
       );
@@ -458,6 +474,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
       proposedFields: result.fields,
       needsConfirmation: true,
       warnings: result.warnings,
+      documentKind,
     };
 
     return NextResponse.json(body);

@@ -26,6 +26,7 @@ export interface PassportOcrProposedFields {
   givenNames: PassportOcrFieldProposal;
   surname: PassportOcrFieldProposal;
   passportNumber: PassportOcrFieldProposal;
+  identityDocumentNumber: PassportOcrFieldProposal;
   dateOfBirth: PassportOcrFieldProposal;
   placeOfBirth: PassportOcrFieldProposal;
   nationality: PassportOcrFieldProposal;
@@ -34,6 +35,8 @@ export interface PassportOcrProposedFields {
   expiryDate: PassportOcrFieldProposal;
   gender: PassportOcrFieldProposal;
 }
+
+export type IdentityOcrDocumentKind = "passport" | "national_identity_card";
 
 export interface PassportOcrSuccessResponse {
   success: true;
@@ -45,6 +48,7 @@ export interface PassportOcrSuccessResponse {
   proposedFields: PassportOcrProposedFields;
   needsConfirmation: true;
   warnings: string[];
+  documentKind: IdentityOcrDocumentKind;
 }
 
 export interface PassportOcrFailureResponse {

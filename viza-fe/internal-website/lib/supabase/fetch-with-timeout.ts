@@ -9,6 +9,7 @@ const CIRCUIT_FAILURE_STATUSES = new Set([500, 502, 503, 504, 520, 522, 524]);
 type SupabaseFetchOptions = {
   requestTimeoutMs?: number;
   retryDelaysMs?: readonly number[];
+  circuitBreakerScope?: string;
 };
 
 type SupabaseResultWithError = {
@@ -124,7 +125,7 @@ export function createFetchWithTransientRetry(
     : (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init);
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
-    const circuit = getSupabaseCircuitBreaker();
+    const circuit = getSupabaseCircuitBreaker(options.circuitBreakerScope);
     circuit.beforeRequest();
     const method = requestMethod(input, init);
     const canRetry = method === "GET" || method === "HEAD";

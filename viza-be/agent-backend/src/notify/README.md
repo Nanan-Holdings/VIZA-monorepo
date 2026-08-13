@@ -1,12 +1,22 @@
 # Notification worker
 
-`startWorker()` (in `worker.ts`) is the long-running drain. It polls `notification_event_log` for `outcome='queued'` rows whose `next_attempt_at` has passed and dispatches them through the per-channel sender.
+`startWorker()` (in `worker.ts`) is the long-running drain. Each tick calls the
+service-role-only `claim_notification_event_batch` RPC. The RPC atomically
+claims due rows with `FOR UPDATE SKIP LOCKED`, assigns a worker identity and
+lease, and recovers abandoned `processing` rows after their lease expires.
 
 ## Contract
 
 - **Cadence**: poll every `POLL_INTERVAL_MS` (30s by default).
+- **Ownership**: `NOTIFICATION_WORKER_ID` may provide a stable deployment
+  identity; otherwise the process generates a unique host/PID/UUID identity.
+- **Lease**: 15 minutes by default in the TypeScript worker. A delivery settles
+  only through conditional ack/nack RPCs while its worker still owns a live
+  lease. This is at-least-once delivery; provider-side idempotency remains
+  advisable for the crash window after provider acceptance and before ack.
 - **Max attempts**: 5 per event. Backoff schedule `[1m, 5m, 15m, 30m, 1h]`.
-- **Terminal failure**: writes to `notification_dlq` (admin replay via `/admin/notifications/dlq`).
+- **Terminal failure**: conditional nack and DLQ insert occur in the same
+  database transaction (admin replay via `/admin/notifications/dlq`).
 - **Templates**: per-event under `src/notify/templates/*`. `resolveTemplate(key)` returns null on miss → row marked `failed_no_template:<key>`.
 - **Channels**: `email` → Resend, `sms` → Twilio. Both lazy-load their SDK so tsc passes without the dep installed.
 
@@ -15,7 +25,8 @@
 The worker installs **SIGTERM + SIGINT** handlers. On signal:
 
 1. `shutdownRequested` flag flips.
-2. Current in-flight `processOnce()` tick is allowed to finish.
+2. Current in-flight `processOnce()` tick is allowed to finish; unacknowledged
+   rows become claimable by another worker after lease expiry.
 3. Loop exits before the next `setTimeout`.
 4. Container exits cleanly within ≤30s of signal (worst case is the current tick's 50-row batch finishing).
 

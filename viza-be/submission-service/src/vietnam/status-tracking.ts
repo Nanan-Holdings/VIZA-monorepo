@@ -11,6 +11,11 @@ import {
   shouldPersistVietnamEvisaVersion,
   validateVietnamEvisaPdf,
 } from "./evisa-pdf.js";
+import {
+  claimVietnamOfficialStatusChecks,
+  completeVietnamOfficialStatusCheck,
+  failVietnamOfficialStatusCheck,
+} from "./status-check-lease.js";
 
 const OFFICIAL_STATUS_URL = "https://evisa.gov.vn/e-visa/search";
 const OFFICIAL_EMAIL_PATTERN =
@@ -95,14 +100,22 @@ function isSchemaMissing(error: unknown): boolean {
     typeof value?.message === "string"
       ? value.message.toLowerCase()
       : String(error).toLowerCase();
+  const namesTrackingSchemaObject =
+    message.includes("official_application_tracking") ||
+    message.includes("claim_vn_official_status_checks") ||
+    message.includes("complete_vn_official_status_check") ||
+    message.includes("fail_vn_official_status_check") ||
+    message.includes("enqueue_due_vn_official_status_checks");
   return (
     value?.code === "PGRST202" ||
     value?.code === "PGRST204" ||
     value?.code === "PGRST205" ||
-    message.includes("official_application_tracking") ||
-    message.includes("claim_vn_official_status_checks") ||
-    message.includes("enqueue_due_vn_official_status_checks") ||
-    message.includes("schema cache")
+    value?.code === "42P01" ||
+    value?.code === "42883" ||
+    (namesTrackingSchemaObject &&
+      (/schema cache/.test(message) ||
+        /could not find/.test(message) ||
+        /does not exist/.test(message)))
   );
 }
 
@@ -545,7 +558,10 @@ async function queueRetry(check: StatusCheckRow): Promise<void> {
   );
 }
 
-async function processClaimedCheck(check: StatusCheckRow): Promise<void> {
+async function processClaimedCheck(
+  check: StatusCheckRow,
+  workerId: string,
+): Promise<void> {
   const [
     { data: trackingData, error: trackingError },
     { data: applicationData, error: applicationError },
@@ -576,14 +592,14 @@ async function processClaimedCheck(check: StatusCheckRow): Promise<void> {
   const tracking = trackingData as TrackingRow;
   const application = applicationData as ApplicationRow;
   if (tracking.tracking_status !== ACTIVE_TRACKING_STATUS) {
-    await supabase
-      .from("official_status_checks")
-      .update({
-        status: "cancelled",
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", check.id);
+    const cancelled = await completeVietnamOfficialStatusCheck(supabase, {
+      checkId: check.id,
+      workerId,
+      patch: { status: "cancelled" },
+    });
+    if (!cancelled) {
+      throw new Error(`Vietnam official status check ${check.id} lease is no longer owned`);
+    }
     return;
   }
 
@@ -675,31 +691,34 @@ async function processClaimedCheck(check: StatusCheckRow): Promise<void> {
       .from("official_application_tracking")
       .update(trackingPatch)
       .eq("application_id", application.id),
-    supabase
-      .from("official_status_checks")
-      .update({
-        status: "completed",
-        official_reference: registrationCode,
-        official_status: result.status,
-        result_status: resultStatus,
-        checked_at: now,
-        completed_at: now,
-        artifact_storage_path: artifact?.storagePath ?? null,
-        artifact_sha256: artifact?.sha256 ?? null,
-        raw_status_json: {
-          source: "vietnam_evisa_search",
-          official_status: result.status,
-          visa_number_present: Boolean(result.visaNumber),
-          denial_reason_present: Boolean(result.deniedReason),
-          download_available: result.downloadAvailable,
-          document_ready: documentReady,
-        },
-        error_code: null,
-        error_message: null,
-        updated_at: now,
-      })
-      .eq("id", check.id),
   ]);
+
+  const completed = await completeVietnamOfficialStatusCheck(supabase, {
+    checkId: check.id,
+    workerId,
+    patch: {
+      status: "completed",
+      official_reference: registrationCode,
+      official_status: result.status,
+      result_status: resultStatus,
+      checked_at: now,
+      artifact_storage_path: artifact?.storagePath ?? null,
+      artifact_sha256: artifact?.sha256 ?? null,
+      raw_status_json: {
+        source: "vietnam_evisa_search",
+        official_status: result.status,
+        visa_number_present: Boolean(result.visaNumber),
+        denial_reason_present: Boolean(result.deniedReason),
+        download_available: result.downloadAvailable,
+        document_ready: documentReady,
+      },
+      error_code: null,
+      error_message: null,
+    },
+  });
+  if (!completed) {
+    throw new Error(`Vietnam official status check ${check.id} lease is no longer owned`);
+  }
 
   if (
     tracking.last_known_status !== result.status ||
@@ -719,38 +738,41 @@ async function processClaimedCheck(check: StatusCheckRow): Promise<void> {
   }
 }
 
-export async function processQueuedVietnamStatusChecks(): Promise<number> {
-  const { data, error } = await supabase.rpc(
-    "claim_vn_official_status_checks",
-    { p_limit: 5 },
-  );
-  if (error) {
+export async function processQueuedVietnamStatusChecks(workerId: string): Promise<number> {
+  let rows: StatusCheckRow[];
+  try {
+    rows = await claimVietnamOfficialStatusChecks<StatusCheckRow>(supabase, {
+      workerId,
+      limit: 5,
+      leaseSeconds: 300,
+    });
+  } catch (error) {
     if (isSchemaMissing(error)) return 0;
-    throw new Error(`Failed to claim Vietnam official status checks: ${error.message}`);
+    throw error;
   }
-  const rows = (data ?? []) as StatusCheckRow[];
   for (const check of rows) {
     try {
-      await processClaimedCheck(check);
+      await processClaimedCheck(check, workerId);
     } catch (errorValue) {
       const message =
         errorValue instanceof Error ? errorValue.message : String(errorValue);
       const now = new Date().toISOString();
-      await supabase
-        .from("official_status_checks")
-        .update({
-          status: "failed",
-          checked_at: now,
-          completed_at: now,
-          error_code: "official_status_check_failed",
-          error_message: message.slice(0, 500),
-          raw_status_json: {
-            source: "vietnam_evisa_search",
-            failed: true,
-          },
-          updated_at: now,
-        })
-        .eq("id", check.id);
+      const failed = await failVietnamOfficialStatusCheck(supabase, {
+        checkId: check.id,
+        workerId,
+        errorCode: "official_status_check_failed",
+        errorMessage: message.slice(0, 500),
+        rawStatusJson: {
+          source: "vietnam_evisa_search",
+          failed: true,
+        },
+      });
+      if (!failed) {
+        console.warn(
+          `[vn-status] Check ${check.id} failure was not persisted because the lease is no longer owned.`,
+        );
+        continue;
+      }
       const { data: tracking } = await supabase
         .from("official_application_tracking")
         .select("consecutive_failures")

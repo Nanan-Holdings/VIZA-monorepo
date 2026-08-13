@@ -11,7 +11,7 @@ export default defineConfig({
       bindings: {
         VIZA_RESILIENCE_HMAC_SECRET: "test-only-secret",
         SUPABASE_MANAGEMENT_API_TOKEN: "test-management-token",
-        VIZA_RESILIENCE_KEY_ID: "primary",
+        VIZA_RESILIENCE_KEY_ID: "viza-web-v1",
       },
     },
   })],

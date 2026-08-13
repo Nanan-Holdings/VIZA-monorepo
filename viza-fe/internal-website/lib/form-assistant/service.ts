@@ -423,6 +423,8 @@ const CORRECTION_FIELD_ALIASES: Record<string, string[]> = {
   mobile_number: ["手机号", "手机号码", "mobile number", "phone number"],
   telephone_number: ["电话", "电话号码", "telephone number", "phone number"],
   nationality: ["国籍", "nationality", "citizenship"],
+  continent: ["大洲", "洲别", "continent"],
+  embassy_office: ["受理驻外馆处", "驻外馆处", "办事处", "代表处", "embassy office", "receiving office"],
   date_of_birth: ["出生日期", "生日", "date of birth", "birthday"],
   arrival_date: ["抵达日期", "入境日期", "arrival date"],
   departure_date: ["离开日期", "出境日期", "departure date"],
@@ -440,9 +442,11 @@ function fieldCorrectionAliases(field: VisaFormFieldRow): string[] {
     ? field.validationRules.label_zh
     : "";
   const fieldNameWords = field.fieldName.replace(/_/g, " ");
+  const conciseZhLabel = zhLabel.replace(/^(?:申请人(?:的)?|当前|所在|预计|拟|本次|护照上的)/, "");
   return Array.from(new Set([
     field.label,
     zhLabel,
+    conciseZhLabel,
     fieldNameWords,
     ...(CORRECTION_FIELD_ALIASES[field.fieldName] ?? []),
   ].map((value) => value.trim()).filter((value) => value.length >= 2)));

@@ -1149,6 +1149,7 @@ export default function UniversalInfoPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [passportOcrApplicationId, setPassportOcrApplicationId] = useState<string | null>(null);
   const [passportUpload, setPassportUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
+  const [identityCardUpload, setIdentityCardUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
   const [photoUpload, setPhotoUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
   const [signatureUpload, setSignatureUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
   const [message, setMessage] = useState<string | null>(null);
@@ -1257,6 +1258,7 @@ export default function UniversalInfoPage() {
           loadUniversalProfileReusableDocumentStatuses(),
         ]);
         if (isMounted && reusableDocumentsResult.ok) {
+          setIdentityCardUpload(reusableDocumentsResult.documents.identityCard);
           setPhotoUpload(reusableDocumentsResult.documents.photo);
           setSignatureUpload(reusableDocumentsResult.documents.signature);
         }
@@ -1830,6 +1832,7 @@ export default function UniversalInfoPage() {
               <UniversalProfileDocumentsCarousel
                 applicationId={passportOcrApplicationId}
                 passport={passportUpload}
+                identityCard={identityCardUpload}
                 photo={photoUpload}
                 signature={signatureUpload}
                 onPassportFieldsApplied={applyPassportOcrFields}
@@ -1841,6 +1844,7 @@ export default function UniversalInfoPage() {
                     updatedAt: new Date().toISOString(),
                   };
                   if (type === "passport") setPassportUpload(nextState);
+                  if (type === "identityCard") setIdentityCardUpload(nextState);
                   if (type === "photo") setPhotoUpload(nextState);
                   if (type === "signature") setSignatureUpload(nextState);
                 }}

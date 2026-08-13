@@ -20,6 +20,7 @@ interface OpenAIMessageInput {
 
 interface OpenAIExtractionOptions {
   unreadableRetry?: boolean;
+  documentKind?: "passport" | "national_identity_card";
 }
 
 interface RawProviderFields {
@@ -28,6 +29,7 @@ interface RawProviderFields {
   given_names: string | null;
   surname: string | null;
   passport_number: string | null;
+  identity_document_number: string | null;
   date_of_birth: string | null;
   place_of_birth: string | null;
   nationality: string | null;
@@ -90,6 +92,7 @@ const PASSPORT_SCHEMA = {
         "given_names",
         "surname",
         "passport_number",
+        "identity_document_number",
         "date_of_birth",
         "place_of_birth",
         "nationality",
@@ -104,6 +107,7 @@ const PASSPORT_SCHEMA = {
         given_names: { type: ["string", "null"] },
         surname: { type: ["string", "null"] },
         passport_number: { type: ["string", "null"] },
+        identity_document_number: { type: ["string", "null"] },
         date_of_birth: { type: ["string", "null"] },
         place_of_birth: { type: ["string", "null"] },
         nationality: { type: ["string", "null"] },
@@ -122,6 +126,7 @@ const PASSPORT_SCHEMA = {
         "given_names",
         "surname",
         "passport_number",
+        "identity_document_number",
         "date_of_birth",
         "place_of_birth",
         "nationality",
@@ -136,6 +141,7 @@ const PASSPORT_SCHEMA = {
         given_names: { type: ["number", "null"], minimum: 0, maximum: 1 },
         surname: { type: ["number", "null"], minimum: 0, maximum: 1 },
         passport_number: { type: ["number", "null"], minimum: 0, maximum: 1 },
+        identity_document_number: { type: ["number", "null"], minimum: 0, maximum: 1 },
         date_of_birth: { type: ["number", "null"], minimum: 0, maximum: 1 },
         place_of_birth: { type: ["number", "null"], minimum: 0, maximum: 1 },
         nationality: { type: ["number", "null"], minimum: 0, maximum: 1 },
@@ -163,6 +169,7 @@ const EMPTY_FIELDS: PassportOcrProposedFields = {
   givenNames: { value: null, confidence: null },
   surname: { value: null, confidence: null },
   passportNumber: { value: null, confidence: null },
+  identityDocumentNumber: { value: null, confidence: null },
   dateOfBirth: { value: null, confidence: null },
   placeOfBirth: { value: null, confidence: null },
   nationality: { value: null, confidence: null },
@@ -414,6 +421,7 @@ function normalizeFields(raw: RawProviderOutput): { fields: PassportOcrProposedF
       givenNames: proposal(cleanText(fields.given_names), confidence.given_names),
       surname: proposal(cleanText(fields.surname), confidence.surname),
       passportNumber: proposal(cleanPassportNumber(fields.passport_number), confidence.passport_number),
+      identityDocumentNumber: proposal(cleanPassportNumber(fields.identity_document_number), confidence.identity_document_number),
       dateOfBirth: proposal(normalizeDate(fields.date_of_birth, warnings, "date_of_birth"), confidence.date_of_birth),
       placeOfBirth: proposal(cleanText(fields.place_of_birth), confidence.place_of_birth),
       nationality: proposal(cleanText(fields.nationality), confidence.nationality),
@@ -450,6 +458,7 @@ function parseRawProviderOutput(value: unknown): RawProviderOutput | null {
       given_names: nullableString(value.fields.given_names),
       surname: nullableString(value.fields.surname),
       passport_number: nullableString(value.fields.passport_number),
+      identity_document_number: nullableString(value.fields.identity_document_number),
       date_of_birth: nullableString(value.fields.date_of_birth),
       place_of_birth: nullableString(value.fields.place_of_birth),
       nationality: nullableString(value.fields.nationality),
@@ -464,6 +473,7 @@ function parseRawProviderOutput(value: unknown): RawProviderOutput | null {
       given_names: nullableConfidence(value.field_confidence.given_names),
       surname: nullableConfidence(value.field_confidence.surname),
       passport_number: nullableConfidence(value.field_confidence.passport_number),
+      identity_document_number: nullableConfidence(value.field_confidence.identity_document_number),
       date_of_birth: nullableConfidence(value.field_confidence.date_of_birth),
       place_of_birth: nullableConfidence(value.field_confidence.place_of_birth),
       nationality: nullableConfidence(value.field_confidence.nationality),
@@ -514,6 +524,7 @@ function buildFilePart(file: PassportOcrFile): OpenAIContentPart {
 }
 
 function buildOpenAIInput(file: PassportOcrFile, options: OpenAIExtractionOptions = {}): OpenAIMessageInput[] {
+  const isIdentityCard = options.documentKind === "national_identity_card";
   const retryText = options.unreadableRetry
     ? "The passport page may be sideways, upside down, photographed at an angle, or embedded inside a PDF page. Rotate it mentally as needed. If the passport bio page, visual inspection zone, or MRZ is visible enough to read any requested fields, set is_readable to true and return null only for fields that remain uncertain. Set is_readable to false only when no passport bio page is visible or all requested fields are genuinely illegible."
     : "";
@@ -525,7 +536,9 @@ function buildOpenAIInput(file: PassportOcrFile, options: OpenAIExtractionOption
         {
           type: "input_text",
           text:
-            "Extract only visible passport bio page fields. Return null for missing or uncertain fields. " +
+            (isIdentityCard
+              ? "Extract only visible national identity card fields. Return null for missing or uncertain fields. Set passport_number to null and put the card number in identity_document_number. "
+              : "Extract only visible passport bio page fields. Return null for missing or uncertain fields. Set identity_document_number to null. ") +
             "Do not infer values that are not visible. Dates must be YYYY-MM-DD when possible. " +
             "For full_name, given_names, and surname, return the Latin alphabet/romanized passport name from the visual inspection zone or MRZ; never return local-script names such as Chinese characters in those Latin fields. " +
             "For native_full_name, return the visible local-script/native name exactly as printed, such as Chinese characters, when present; otherwise return null. " +
@@ -540,8 +553,8 @@ function buildOpenAIInput(file: PassportOcrFile, options: OpenAIExtractionOption
         {
           type: "input_text",
           text:
-            "Read this passport document for a confirmation workflow. Extract proposed full name, given names, " +
-            "native full name/local-script name, surname, passport number, date of birth, place of birth, nationality, issuing country, issue date, expiry date, " +
+            (isIdentityCard ? "Read this national identity card" : "Read this passport document") + " for a confirmation workflow. Extract proposed full name, given names, " +
+            "native full name/local-script name, surname, document number, date of birth, place of birth, nationality, issuing country, issue date, expiry date, " +
             "gender, and MRZ lines if available. Latin name fields must use the Latin/MRZ spelling, and native_full_name must preserve the local-script name if visible. " +
             "This data will not be written until the applicant confirms it. " +
             retryText,
@@ -606,7 +619,10 @@ function isOpenAIConfigurationError(response: Response, body: OpenAIErrorBody | 
   );
 }
 
-async function extractWithOpenAI(file: PassportOcrFile): Promise<PassportOcrProviderResult> {
+async function extractWithOpenAI(
+  file: PassportOcrFile,
+  documentKind: "passport" | "national_identity_card" = "passport",
+): Promise<PassportOcrProviderResult> {
   const apiKey = process.env.PASSPORT_OCR_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
   if (!apiKey || apiKey === "your_openai_api_key_here") {
     throw new PassportOcrProviderError(
@@ -621,26 +637,35 @@ async function extractWithOpenAI(file: PassportOcrFile): Promise<PassportOcrProv
   for (let index = 0; index < modelCandidates.length; index += 1) {
     const model = modelCandidates[index];
     for (const unreadableRetry of [false, true]) {
-      const response = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          input: buildOpenAIInput(file, { unreadableRetry }),
-          max_output_tokens: 900,
-          text: {
-            format: {
-              type: "json_schema",
-              name: "passport_ocr_fields",
-              strict: true,
-              schema: PASSPORT_SCHEMA,
-            },
+      let response: Response;
+      try {
+        response = await fetch("https://api.openai.com/v1/responses", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
           },
-        }),
-      });
+          body: JSON.stringify({
+            model,
+            input: buildOpenAIInput(file, { unreadableRetry, documentKind }),
+            max_output_tokens: 900,
+            text: {
+              format: {
+                type: "json_schema",
+                name: "passport_ocr_fields",
+                strict: true,
+                schema: PASSPORT_SCHEMA,
+              },
+            },
+          }),
+        });
+      } catch {
+        throw new PassportOcrProviderError(
+          "provider_unavailable",
+          "Passport OCR provider is temporarily unavailable.",
+          true,
+        );
+      }
 
       if (!response.ok) {
         const errorBody = await parseOpenAIErrorBody(response);
@@ -716,11 +741,14 @@ export function getPassportOcrProviderName(): string {
   return process.env.PASSPORT_OCR_PROVIDER ?? "openai_vision";
 }
 
-export async function extractPassportOcr(file: PassportOcrFile): Promise<PassportOcrProviderResult> {
+export async function extractPassportOcr(
+  file: PassportOcrFile,
+  options: { documentKind?: "passport" | "national_identity_card" } = {},
+): Promise<PassportOcrProviderResult> {
   const provider = getPassportOcrProviderName();
 
   if (provider === "openai_vision") {
-    return extractWithOpenAI(file);
+    return extractWithOpenAI(file, options.documentKind);
   }
 
   if (provider === "disabled") {

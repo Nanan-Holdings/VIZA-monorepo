@@ -393,6 +393,38 @@ async function loadCurrentApplicantProfile(
   );
 }
 
+async function loadCurrentApplicantProfileForSession(
+  adminClient: ReturnType<typeof createAdminClient>,
+  session: ClientSession,
+) {
+  const { data: profileById, error: profileByIdError } = await adminClient
+    .from("applicant_profiles")
+    .select("*")
+    .eq("id", session.userId)
+    .maybeSingle();
+  if (profileByIdError) return { profile: null, error: profileByIdError.message };
+  if (profileById) return { profile: profileById as SeedableUniversalProfile };
+
+  if (session.authUserId) {
+    return loadCurrentApplicantProfile(adminClient, {
+      id: session.authUserId,
+      email: session.email,
+    });
+  }
+
+  const { data: profileByEmail, error: profileByEmailError } = await adminClient
+    .from("applicant_profiles")
+    .select("*")
+    .ilike("email", session.email)
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  return {
+    profile: (profileByEmail as SeedableUniversalProfile | null) ?? null,
+    error: profileByEmailError?.message,
+  };
+}
+
 function ownsApplication(
   profile: ApplicationOwnerProfile | null,
   userId: string,
@@ -1041,13 +1073,12 @@ export async function ensureDraftApplication(
   options: { preferExplicit?: boolean } = {}
 ): Promise<{ applicationId?: string; created?: boolean; error?: string }> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: "Not authenticated" };
+    const session = await getClientSessionWithFallback();
+    if (!session) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
 
-    const profileResult = await loadCurrentApplicantProfile(adminClient, user);
+    const profileResult = await loadCurrentApplicantProfileForSession(adminClient, session);
     if (profileResult.error) return { error: profileResult.error };
     const profile = profileResult.profile;
     if (!profile?.id) return { error: "Profile not found" };
@@ -1055,7 +1086,7 @@ export async function ensureDraftApplication(
     const { data: activePackage } = await adminClient
       .from("user_packages")
       .select("visa_package_id, visa_packages(id, country, visa_type)")
-      .eq("auth_user_id", user.id)
+      .eq("auth_user_id", session.authUserId ?? session.userId)
       .eq("status", "active")
       .order("assigned_at", { ascending: false })
       .limit(1)
@@ -1103,7 +1134,10 @@ export async function ensureDraftApplication(
 
     if (appError) return { error: appError.message };
 
-    const reusableResult = await loadReusableProfileAnswers(adminClient, user.id);
+    const reusableResult = await loadReusableProfileAnswers(
+      adminClient,
+      session.authUserId ?? profile.auth_user_id ?? session.userId,
+    );
     if (reusableResult.error) return { error: reusableResult.error };
     const seedProfile: SeedableUniversalProfile = {
       ...profile,
@@ -1128,12 +1162,11 @@ export async function loadApplicationFormContext(
   error?: string;
 }> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: "Not authenticated" };
+    const session = await getClientSessionWithFallback();
+    if (!session) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
-    const profileResult = await loadCurrentApplicantProfile(adminClient, user);
+    const profileResult = await loadCurrentApplicantProfileForSession(adminClient, session);
     if (profileResult.error) return { error: profileResult.error };
     const profile = profileResult.profile;
     if (!profile?.id) return { error: "Profile not found" };
@@ -1157,7 +1190,10 @@ export async function loadApplicationFormContext(
       ) ??
       (options.preferExplicit ? null : applications[0] ?? null);
 
-    const reusableResult = await loadReusableProfileAnswers(adminClient, user.id);
+    const reusableResult = await loadReusableProfileAnswers(
+      adminClient,
+      session.authUserId ?? profile.auth_user_id ?? session.userId,
+    );
     if (reusableResult.error) return { error: reusableResult.error };
 
     return {

@@ -1,6 +1,10 @@
 import { supabase } from "../supabase";
 import { sendAlert } from "../alerts/dispatch";
 import { emitRunnerMetric } from "../metrics/emit";
+import {
+  calculateQueueErrorBackoffMs,
+  summarizeQueueError,
+} from "./poll-backoff";
 
 /**
  * runner_job consumer (INFRA-002).
@@ -190,16 +194,22 @@ export async function pollAndRun(
 ): Promise<void> {
   const pollMs = opts.pollMs ?? 5_000;
   const leaseMs = DEFAULT_LEASE_MS;
+  let consecutiveClaimFailures = 0;
   for (;;) {
     if (opts.signal?.aborted) return;
     let job: RunnerJob | null;
     try {
       job = await claimNextJob({ workerId, country: opts.country });
+      consecutiveClaimFailures = 0;
       opts.onClaimHealthy?.();
     } catch (err) {
-      console.error("[queue] claim failed", err);
+      consecutiveClaimFailures += 1;
+      const retryMs = calculateQueueErrorBackoffMs(pollMs, consecutiveClaimFailures);
+      console.error(
+        `[queue] claim failed attempt=${consecutiveClaimFailures} retryMs=${retryMs} ${summarizeQueueError(err)}`,
+      );
       opts.onClaimError?.(err);
-      await new Promise((r) => setTimeout(r, pollMs));
+      await new Promise((r) => setTimeout(r, retryMs));
       continue;
     }
     if (!job) {

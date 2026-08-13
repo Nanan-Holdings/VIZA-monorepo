@@ -16,6 +16,9 @@ application flow.
 - Use a conservative fallback checklist only when package-specific requirements
   are missing.
 - Persist uploads to Supabase Storage bucket `application-documents`.
+- Confirm passport OCR into reusable profile columns and confirm national
+  identity-card OCR into `universal_profile_answers`; keep identity-card
+  numbers separate from passport-number fields.
 - Upsert `application_documents` by `(application_id, document_type)`.
 - Show upload, missing, approved/validated, rejected, and needs-replacement
   states.

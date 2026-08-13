@@ -27,6 +27,7 @@ describe("UniversalProfileDocumentsCarousel", () => {
       <UniversalProfileDocumentsCarousel
         applicationId="application-id"
         passport={emptyDocument}
+        identityCard={emptyDocument}
         photo={emptyDocument}
         signature={emptyDocument}
         onPassportFieldsApplied={vi.fn()}
@@ -34,7 +35,8 @@ describe("UniversalProfileDocumentsCarousel", () => {
       />,
     );
 
-    expect(screen.getByText("护照上传内容")).toBeInTheDocument();
+    expect(screen.getAllByText("护照上传内容")).toHaveLength(2);
+    expect(screen.getByRole("heading", { name: "身份证件" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "支持材料" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "电子签名" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "证件照" })).toBeInTheDocument();
@@ -47,6 +49,7 @@ describe("UniversalProfileDocumentsCarousel", () => {
       <UniversalProfileDocumentsCarousel
         applicationId="application-id"
         passport={emptyDocument}
+        identityCard={emptyDocument}
         photo={emptyDocument}
         signature={emptyDocument}
         onPassportFieldsApplied={vi.fn()}
@@ -55,9 +58,9 @@ describe("UniversalProfileDocumentsCarousel", () => {
     );
 
     const panel = screen.getByRole("region", { name: "支持材料" });
-    expect(panel).toHaveClass("rounded-xl", "bg-white", "shadow-sm");
+    expect(panel).toHaveClass("rounded-xl", "border", "bg-white");
     expect(panel.querySelector(".grid")).toHaveClass("md:grid-cols-2");
-    expect(container.querySelectorAll("article")).toHaveLength(3);
+    expect(container.querySelectorAll("article")).toHaveLength(4);
   });
 
   it("keeps privacy notes behind each AI help icon", () => {
@@ -66,6 +69,7 @@ describe("UniversalProfileDocumentsCarousel", () => {
       <UniversalProfileDocumentsCarousel
         applicationId="application-id"
         passport={emptyDocument}
+        identityCard={emptyDocument}
         photo={emptyDocument}
         signature={emptyDocument}
         onPassportFieldsApplied={vi.fn()}

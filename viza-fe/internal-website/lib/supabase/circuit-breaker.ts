@@ -62,13 +62,19 @@ export class SupabaseCircuitBreaker {
   }
 }
 
-const globalCircuitKey = Symbol.for("viza.supabase.circuit-breaker");
-type GlobalWithCircuit = typeof globalThis & {
-  [globalCircuitKey]?: SupabaseCircuitBreaker;
+const globalCircuitMapKey = Symbol.for("viza.supabase.circuit-breakers");
+type GlobalWithCircuits = typeof globalThis & {
+  [globalCircuitMapKey]?: Map<string, SupabaseCircuitBreaker>;
 };
 
-export function getSupabaseCircuitBreaker(): SupabaseCircuitBreaker {
-  const sharedGlobal = globalThis as GlobalWithCircuit;
-  sharedGlobal[globalCircuitKey] ??= new SupabaseCircuitBreaker();
-  return sharedGlobal[globalCircuitKey];
+export function getSupabaseCircuitBreaker(scope = "default"): SupabaseCircuitBreaker {
+  const sharedGlobal = globalThis as GlobalWithCircuits;
+  sharedGlobal[globalCircuitMapKey] ??= new Map();
+  const circuits = sharedGlobal[globalCircuitMapKey];
+  const existing = circuits.get(scope);
+  if (existing) return existing;
+
+  const circuit = new SupabaseCircuitBreaker();
+  circuits.set(scope, circuit);
+  return circuit;
 }
