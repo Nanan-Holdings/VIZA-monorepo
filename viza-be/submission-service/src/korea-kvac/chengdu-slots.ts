@@ -92,9 +92,9 @@ export function selectChengduBookableDates(
   });
 }
 
-function monthBounds(month: Date) {
-  const start = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 1));
-  const end = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1) - 1);
+export function chengduCalendarMonthBounds(month: Date) {
+  const start = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 1) - (8 * 60 * 60 * 1_000));
+  const end = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1) - (8 * 60 * 60 * 1_000) - 1);
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
@@ -105,7 +105,7 @@ export async function observeChengduAvailableSlots(
   const observed: ChengduObservedSlot[] = [];
   const bookableDates = new Set<string>();
   for (let monthOffset = 0; monthOffset < 3; monthOffset += 1) {
-    const bounds = monthBounds(addMonths(referenceTime, monthOffset));
+    const bounds = chengduCalendarMonthBounds(addMonths(referenceTime, monthOffset));
     const dates = await page.evaluate(async ({ start, end }) => {
       const response = await fetch(`https://be.koreavisa-cd.com/booking/CalendarDates?sDate=${encodeURIComponent(start)}&eDate=${encodeURIComponent(end)}`);
       if (!response.ok) throw new Error(`Chengdu official calendar returned HTTP ${response.status}.`);
