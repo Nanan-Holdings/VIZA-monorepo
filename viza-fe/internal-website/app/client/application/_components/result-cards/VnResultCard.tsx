@@ -57,6 +57,30 @@ export function localizeVietnamPaymentError(
 ): string | null {
   const normalized = error?.trim();
   if (!normalized) return null;
+  const phaseMessages: Record<string, { zh: string; en: string }> = {
+    worker_start_failed: {
+      zh: "云端付款机器暂时无法启动，请稍后重新提交。",
+      en: "The cloud payment worker could not start. Please resubmit shortly.",
+    },
+    worker_readiness_timeout: {
+      zh: "云端付款服务启动超时，本次未创建付款任务，请重新提交。",
+      en: "The cloud payment service timed out while starting. No payment job was created; please resubmit.",
+    },
+    card_handoff_failed: {
+      zh: "银行卡安全会话未能送达云端，本次未创建付款任务，请重新提交。",
+      en: "The secure card session did not reach the cloud worker. No payment job was created; please resubmit.",
+    },
+    queue_enqueue_failed: {
+      zh: "云端付款任务未能创建，本次银行卡会话已取消，请重新提交。",
+      en: "The cloud payment job could not be created. This card session was cancelled; please resubmit.",
+    },
+    card_session_not_configured: {
+      zh: "云端付款服务尚未配置，请联系 VIZA 支持。",
+      en: "The cloud payment service is not configured. Please contact VIZA support.",
+    },
+  };
+  const phaseMessage = phaseMessages[normalized];
+  if (phaseMessage) return isZh ? phaseMessage.zh : phaseMessage.en;
   if (!isZh || /\p{Script=Han}/u.test(normalized)) return normalized;
   if (isIgnorableRuntimeAbortError(new Error(normalized))) {
     return "状态查询暂时超时，系统会自动重新连接。";
@@ -325,6 +349,10 @@ export function VnResultCard({
     setActivePaymentQueueId(null);
     setPaymentBusy(true);
     setPaymentError(null);
+    // Never let a previous successful handoff imply that the card from this
+    // new click reached the worker. Only set the last four digits again after
+    // POST /pay confirms both the short-lived card session and queue job.
+    setOneTimeCardLast4(null);
     try {
       const authorize = await fetch(`/api/applications/${applicationId}/official-fee/authorize`, {
         method: "POST",
@@ -350,7 +378,13 @@ export function VnResultCard({
       });
       const payPayload = (await pay.json().catch(() => null)) as Record<string, unknown> | null;
       if (!pay.ok) {
-        throw new Error(typeof payPayload?.error === "string" ? payPayload.error : `official-fee/pay returned ${pay.status}`);
+        throw new Error(
+          typeof payPayload?.errorCode === "string"
+            ? payPayload.errorCode
+            : typeof payPayload?.error === "string"
+              ? payPayload.error
+              : `official-fee/pay returned ${pay.status}`,
+        );
       }
       const cardSession = payPayload?.cardSession as Record<string, unknown> | undefined;
       const redactedCard = cardSession?.redactedCard as Record<string, unknown> | undefined;
