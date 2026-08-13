@@ -1,20 +1,85 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import Link from "next/link";
 import type { InterviewReport } from "@/app/api/interview/report/route";
+import { useLiveTalking, type LiveTalkingStatus } from "./_hooks/use-live-talking";
 
 const TRANSCRIPT_KEY = "viza_interview_transcript";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type Message = { role: "user" | "assistant"; content: string };
-type PageState = "start" | "checklist" | "interview" | "report";
+type PageState = "start" | "checklist" | "officer" | "interview" | "report";
+type ApplicantProfile = {
+  purpose: string;
+  cities: string;
+  travelDates: string;
+  duration: string;
+  funding: string;
+  occupation: string;
+  familyTies: string;
+};
+type InterviewStep = {
+  topic: string;
+  question: string;
+  required: Array<"city" | "time" | "money" | "work" | "ties" | "detail">;
+  followUp: string;
+};
+type OfficerProfile = {
+  id: string;
+  name: string;
+  title: string;
+  style: string;
+  pressure: string;
+  description: string;
+  image: string;
+  avatarId: string;
+  voice: string;
+  voiceGender: "male" | "female";
+  speechRate: number;
+};
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const OFFICER_IMAGE =
   "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=560&h=800&fit=crop&crop=top";
+
+const OFFICERS: OfficerProfile[] = [
+  {
+    id: "miller", name: "Miller", title: "标准型", pressure: "标准",
+    style: "沉稳、中性、按真实窗口节奏核实核心事实",
+    description: "节奏均衡，适合第一次练习",
+    image: OFFICER_IMAGE, avatarId: "officer_miller", voice: "zh-CN-YunxiNeural", voiceGender: "male", speechRate: 0.88,
+  },
+  {
+    id: "chen", name: "Chen", title: "快速型", pressure: "较高",
+    style: "语速较快、问题极短、回答含糊时立即追问",
+    description: "问题短而快，训练临场反应",
+    image: "https://images.unsplash.com/photo-1573496799652-408c2ac9fe98?w=560&h=800&fit=crop&crop=top",
+    avatarId: "officer_chen", voice: "zh-CN-XiaoxiaoNeural", voiceGender: "female", speechRate: 1.02,
+  },
+  {
+    id: "williams", name: "Williams", title: "核验型", pressure: "较高",
+    style: "关注时间、金额、工作年限和前后陈述是否一致",
+    description: "重视细节和材料一致性",
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=560&h=800&fit=crop&crop=top",
+    avatarId: "officer_williams", voice: "zh-CN-YunjianNeural", voiceGender: "male", speechRate: 0.93,
+  },
+  {
+    id: "garcia", name: "Garcia", title: "自然型", pressure: "较低",
+    style: "语气自然但保持专业，通过简短对话了解旅行真实性",
+    description: "氛围自然，适合建立信心",
+    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=560&h=800&fit=crop&crop=top",
+    avatarId: "officer_garcia", voice: "zh-CN-XiaoyiNeural", voiceGender: "female", speechRate: 0.84,
+  },
+  {
+    id: "obama", name: "Obama", title: "总统风格", pressure: "标准",
+    style: "沉着、自信、善于用简短追问核实回答的逻辑和真实性；不模仿政治演讲",
+    description: "特别体验形象，沉着而有逻辑",
+    image: "/images/interview-officers/obama-simulation.png",
+    avatarId: "officer_obama", voice: "zh-CN-YunyangNeural", voiceGender: "male", speechRate: 0.9,
+  },
+];
 
 const QUESTIONS = [
   "这次去美国主要是什么打算？",
@@ -32,6 +97,116 @@ const QUESTIONS = [
 ];
 
 const ENDING_MESSAGE = "好的，今天的面试到这里就结束了，感谢您的配合。";
+
+const DEFAULT_PROFILE: ApplicantProfile = {
+  purpose: "",
+  cities: "",
+  travelDates: "",
+  duration: "",
+  funding: "",
+  occupation: "",
+  familyTies: "",
+};
+
+function compact(value: string, fallback: string) {
+  return value.trim() || fallback;
+}
+
+function buildInterviewPlan(profile: ApplicantProfile): InterviewStep[] {
+  const cities = compact(profile.cities, "美国");
+  const duration = compact(profile.duration, "这段时间");
+  const funding = compact(profile.funding, "这次费用");
+  const occupation = compact(profile.occupation, "目前的工作或身份");
+  const ties = compact(profile.familyTies, "国内安排");
+  const purpose = profile.purpose.toLowerCase();
+
+  const opening: InterviewStep = {
+    topic: "赴美目的",
+    question: "你去美国做什么？",
+    required: ["detail"],
+    followUp: "具体做什么？",
+  };
+
+  const purposeQuestions: InterviewStep[] = /探亲|访友|看望|亲戚|家人/.test(purpose)
+    ? [
+        { topic: "邀请关系", question: "你去看谁？", required: ["detail"], followUp: "你们是什么关系？" },
+        { topic: "邀请人情况", question: "他在美国做什么？", required: ["detail"], followUp: "他现在是什么身份？" },
+      ]
+    : /商务|会议|展会|客户|公司|培训/.test(purpose)
+    ? [
+        { topic: "商务事项", question: "你去参加什么商务活动？", required: ["detail"], followUp: "活动或对方公司的名称是什么？" },
+        { topic: "职位关联", question: "为什么必须由你去？", required: ["work", "detail"], followUp: "这和你的职责有什么关系？" },
+      ]
+    : [
+        { topic: "旅行安排", question: `你准备去${cities}哪些地方？`, required: ["city", "detail"], followUp: "最主要去哪个城市？" },
+        { topic: "同行人员", question: "谁和你一起去？", required: ["detail"], followUp: "你是一个人去吗？" },
+      ];
+
+  return [
+    opening,
+    ...purposeQuestions,
+    { topic: "停留时间", question: `你准备在美国待${duration}？`, required: ["time"], followUp: "具体待多少天？" },
+    { topic: "费用来源", question: `${funding}，谁承担费用？`, required: ["money"], followUp: "这次大约准备多少预算？" },
+    { topic: "工作情况", question: `${occupation}，你具体做什么工作？`, required: ["work", "detail"], followUp: "你在那里工作多久了？" },
+    { topic: "回国安排", question: `旅行结束后你回来做什么？`, required: ["ties", "detail"], followUp: `你提到${ties}，具体是什么安排？` },
+    { topic: "出境记录", question: "你以前出过国吗？", required: ["detail"], followUp: "最近一次去了哪里？" },
+  ];
+}
+
+function answerHasRequirement(answer: string, requirement: InterviewStep["required"][number]) {
+  const text = answer.trim();
+  if (requirement === "detail") return text.length >= 14;
+  if (requirement === "city") return /纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|城市|city/i.test(text);
+  if (requirement === "time") return /\d|天|周|月|号|日期|时间|行程|回程|机票/.test(text);
+  if (requirement === "money") return /\d|美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|自费|钱/.test(text);
+  if (requirement === "work") return /工作|公司|单位|机构|职位|老板|上班|请假|学生|学校|业务|生意/.test(text);
+  return /家人|父母|孩子|妻子|丈夫|配偶|家庭|房子|工作|公司|学校|回国|回来|项目/.test(text);
+}
+
+function needsFollowUp(answer: string, step: InterviewStep) {
+  if (answer.trim().length < 8) return true;
+  return step.required.some((requirement) => !answerHasRequirement(answer, requirement));
+}
+
+async function requestOfficerTurn(
+  messages: Message[],
+  profile: ApplicantProfile,
+  officer: OfficerProfile,
+  directive: { question: string; topic: string; isFollowUp?: boolean; shouldEnd?: boolean }
+) {
+  const response = await fetch("/api/interview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages,
+      profile,
+      directive,
+      officer: { name: officer.name, style: officer.style, pressure: officer.pressure },
+    }),
+  });
+  if (!response.ok || !response.body) throw new Error("Interview response unavailable");
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let reply = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+    for (const event of events) {
+      const data = event.split("\n").find((line) => line.startsWith("data:"))?.slice(5).trim();
+      if (!data || data === "[DONE]") continue;
+      try {
+        const payload = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
+        reply += payload.choices?.[0]?.delta?.content ?? "";
+      } catch { /* Ignore malformed upstream chunks. */ }
+    }
+    if (done) break;
+  }
+  return reply.trim() || directive.question;
+}
 
 // ─── Metric Bar ───────────────────────────────────────────────────────────────
 
@@ -238,7 +413,13 @@ const CHECKLIST_ITEMS = [
   { label: "在职证明 / 营业执照", desc: "证明您在国内有稳定的工作或业务" },
 ];
 
-function ChecklistPage({ onConfirm, onBack }: { onConfirm: () => void; onBack: () => void }) {
+function ChecklistPage({
+  onConfirm,
+  onBack,
+}: {
+  onConfirm: () => void;
+  onBack: () => void;
+}) {
   const [checked, setChecked] = useState<boolean[]>(CHECKLIST_ITEMS.map(() => false));
   const allChecked = checked.every(Boolean);
 
@@ -247,75 +428,123 @@ function ChecklistPage({ onConfirm, onBack }: { onConfirm: () => void; onBack: (
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa] flex flex-col">
+    <div className="min-h-screen bg-[#f4f7fb] flex flex-col">
       <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between flex-shrink-0">
         <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
         <button onClick={onBack} className="text-white/60 text-[12px] hover:text-white transition-colors">← 返回</button>
       </nav>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
-        <div className="w-full max-w-[560px]">
-          {/* Header */}
-          <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[#EEF3FA] mb-4">
-              <span className="text-[28px]">📋</span>
+      <main className="flex-1 px-5 py-10 sm:py-14">
+        <div className="mx-auto w-full max-w-[760px]">
+          <div className="mb-7">
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-[#537295] mb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">1</span>
+              <span>面试准备</span>
+              <span className="h-px flex-1 bg-[#d8e1ec]" />
+              <span className="text-[#9aa8b8]">2 选择面试官</span>
             </div>
-            <h1 className="text-[20px] font-bold text-[#1a1a1a] mb-2">面试前材料确认</h1>
-            <p className="text-[13px] text-[rgba(0,0,0,0.45)] leading-relaxed">
-              请确认您已准备好以下材料。真实面试时这些文件都需要随身携带。
-            </p>
+            <h1 className="text-[28px] font-bold text-[#10253f]">确认随身材料</h1>
+            <p className="mt-2 text-[13px] text-[#6b7b8f]">勾选你会带去领事馆的文件。这里只做准备确认，不需要填写个人档案。</p>
           </div>
 
-          {/* Checklist */}
-          <div className="bg-white border border-[#efefef] rounded-2xl overflow-hidden mb-6">
+          <div className="overflow-hidden rounded-lg border border-[#dfe6ef] bg-white shadow-[0_10px_30px_rgba(20,45,75,0.06)]">
             {CHECKLIST_ITEMS.map((item, i) => (
               <button
                 key={item.label}
                 onClick={() => toggle(i)}
-                className={`w-full flex items-center gap-4 px-5 py-4 text-left transition-colors border-b border-[#f5f5f5] last:border-0
-                  ${checked[i] ? "bg-[#f7fbf7]" : "bg-white hover:bg-[#fafafa]"}`}
+                className={`w-full flex items-center gap-4 px-5 sm:px-6 py-4 text-left border-b border-[#edf1f5] last:border-0 transition-colors ${checked[i] ? "bg-[#f4faf7]" : "hover:bg-[#f7f9fc]"}`}
               >
-                {/* Checkbox */}
-                <span className={`w-5 h-5 rounded-md flex items-center justify-center border-2 flex-shrink-0 transition-all
-                  ${checked[i] ? "bg-green-500 border-green-500" : "border-[#d0d0d0]"}`}>
-                  {checked[i] && <span className="text-white text-[11px] font-bold leading-none">✓</span>}
+                <span className={`h-6 w-6 rounded-[5px] border-2 flex items-center justify-center flex-shrink-0 ${checked[i] ? "border-[#16865c] bg-[#16865c]" : "border-[#bec9d6]"}`}>
+                  {checked[i] && <span className="text-[13px] font-bold text-white">✓</span>}
                 </span>
-                {/* Text */}
-                <div className="flex-1 min-w-0">
-                  <div className={`text-[13px] font-semibold transition-colors ${checked[i] ? "text-green-700" : "text-[#2d2d2d]"}`}>
-                    {item.label}
-                  </div>
-                  <div className="text-[11px] text-[rgba(0,0,0,0.4)] mt-0.5">{item.desc}</div>
+                <div className="min-w-0 flex-1">
+                  <div className={`text-[14px] font-semibold ${checked[i] ? "text-[#176b4f]" : "text-[#22364e]"}`}>{item.label}</div>
+                  <div className="mt-1 text-[11px] text-[#8190a1]">{item.desc}</div>
                 </div>
-                {/* Status dot */}
-                {checked[i] && <span className="text-green-500 text-[13px] flex-shrink-0">已准备</span>}
+                <span className={`hidden sm:block text-[11px] font-medium ${checked[i] ? "text-[#16865c]" : "text-[#a4afbc]"}`}>{checked[i] ? "已确认" : "待确认"}</span>
               </button>
             ))}
           </div>
 
-          {/* Progress hint */}
-          <div className="flex items-center justify-between mb-5 px-1">
-            <span className="text-[12px] text-[rgba(0,0,0,0.4)]">
-              已确认 {checked.filter(Boolean).length} / {CHECKLIST_ITEMS.length} 项
-            </span>
-            {!allChecked && (
-              <span className="text-[11px] text-amber-600">请勾选全部材料后继续</span>
-            )}
+          <div className="mt-5 flex items-center justify-between gap-4">
+            <span className="text-[12px] text-[#6f7f91]">已确认 {checked.filter(Boolean).length} / {CHECKLIST_ITEMS.length} 项</span>
+            <button
+              onClick={onConfirm}
+              disabled={!allChecked}
+              className="min-w-[190px] rounded-md bg-[#03346E] px-6 py-3 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#022b5c] disabled:cursor-not-allowed disabled:bg-[#cbd4df]"
+            >
+              下一步：选择面试官
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function OfficerSelectionPage({ officer, onChange, onConfirm, onBack }: {
+  officer: OfficerProfile;
+  onChange: (officer: OfficerProfile) => void;
+  onConfirm: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <div className="min-h-screen bg-[#f4f7fb] flex flex-col">
+      <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between">
+        <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
+        <button onClick={onBack} className="text-white/65 text-[12px] hover:text-white">← 返回材料确认</button>
+      </nav>
+      <main className="flex-1 px-5 py-10 sm:py-14">
+        <div className="mx-auto max-w-[1180px]">
+          <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-[#537295]">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#e2e9f2] text-[#537295]">✓</span>
+                <span>材料已确认</span><span className="h-px w-12 bg-[#cfd9e5]" />
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">2</span>
+                <span>选择面试官</span>
+              </div>
+              <h1 className="text-[30px] font-bold text-[#10253f]">你想和谁练习？</h1>
+              <p className="mt-2 text-[13px] text-[#6b7b8f]">每位面试官拥有不同节奏和追问习惯，报告使用同一套标准。</p>
+            </div>
+            <div className="rounded-md border border-[#d7e0ea] bg-white px-4 py-3 text-[12px] text-[#536579]">
+              当前选择：<span className="font-bold text-[#123a68]">{officer.name} · {officer.title}</span>
+            </div>
           </div>
 
-          {/* CTA */}
-          <button
-            onClick={onConfirm}
-            disabled={!allChecked}
-            className={`w-full py-3.5 rounded-full text-[14px] font-bold transition-all
-              ${allChecked
-                ? "bg-[#03346E] text-white hover:bg-[#022B5C] shadow-md"
-                : "bg-[#e8e8e8] text-[#aaa] cursor-not-allowed"}`}
-          >
-            {allChecked ? "材料已备齐，开始面试 →" : "请确认全部材料"}
-          </button>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {OFFICERS.map((item) => {
+              const selected = item.id === officer.id;
+              return (
+                <button key={item.id} onClick={() => onChange(item)} className={`group overflow-hidden rounded-lg border bg-white text-left transition-all ${selected ? "border-[#185FA5] shadow-[0_12px_28px_rgba(24,95,165,0.18)] ring-2 ring-[#185FA5]/20" : "border-[#dfe6ee] shadow-[0_6px_18px_rgba(20,45,75,0.06)] hover:-translate-y-1 hover:border-[#91a9c4]"}`}>
+                  <div className="relative aspect-[4/5] overflow-hidden bg-[#dfe7f0]">
+                    <img src={item.image} alt={`${item.name} 面试官`} className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.02]" />
+                    <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#071b31]/85 to-transparent" />
+                    <span className="absolute bottom-3 left-3 rounded-[4px] bg-white/92 px-2 py-1 text-[10px] font-bold text-[#143e6c]">{item.title}</span>
+                    {selected && <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#16865c] text-[13px] font-bold text-white">✓</span>}
+                  </div>
+                  <div className="p-4">
+                    <h2 className="text-[17px] font-bold text-[#172b43]">{item.name}</h2>
+                    <p className="mt-1.5 min-h-[36px] text-[11px] leading-[1.6] text-[#718195]">{item.description}</p>
+                    <div className="mt-3 flex items-center justify-between border-t border-[#edf1f5] pt-3 text-[10px]">
+                      <span className="text-[#8b98a7]">压力</span><span className="font-semibold text-[#3c5f83]">{item.pressure}</span>
+                    </div>
+                    {item.id === "obama" && <p className="mt-2 text-[9px] text-[#8a5a13]">AI 模拟形象，非本人或官方内容</p>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-7 flex flex-col items-start justify-between gap-4 rounded-lg border border-[#dce4ed] bg-white px-5 py-4 sm:flex-row sm:items-center">
+            <div>
+              <p className="text-[13px] font-bold text-[#21364e]">{officer.name} · {officer.title}</p>
+              <p className="mt-1 text-[11px] text-[#718195]">{officer.style}</p>
+            </div>
+            <button onClick={onConfirm} className="w-full rounded-md bg-[#03346E] px-7 py-3 text-[13px] font-bold text-white hover:bg-[#022b5c] sm:w-auto">开始模拟面试</button>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
@@ -323,15 +552,18 @@ function ChecklistPage({ onConfirm, onBack }: { onConfirm: () => void; onBack: (
 // ─── Interview Page ───────────────────────────────────────────────────────────
 
 function InterviewPage({
-  messages, isStreaming, isSpeaking, isMuted, input, questionIndex, interviewDone,
-  onInputChange, onSend, onEnd, onAbandon, onToggleMute,
+  messages, isStreaming, isSpeaking, isMuted, input, interviewDone,
+  officer, avatarStream, avatarStatus, onInputChange, onSend, onEnd, onAbandon, onToggleMute, onStartListening,
 }: {
   messages: Message[]; isStreaming: boolean; isSpeaking: boolean; isMuted: boolean;
-  input: string; questionIndex: number; interviewDone: boolean;
+  input: string; interviewDone: boolean;
+  officer: OfficerProfile;
+  avatarStream: MediaStream | null; avatarStatus: LiveTalkingStatus;
   onInputChange: (v: string) => void; onSend: (forceText?: string) => void;
-  onEnd: () => void; onAbandon: () => void; onToggleMute: () => void;
+  onEnd: () => void; onAbandon: () => void; onToggleMute: () => void; onStartListening: () => void;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const avatarVideoRef = useRef<HTMLVideoElement>(null);
   const [isListening, setIsListening] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -422,10 +654,13 @@ function InterviewPage({
   const onSendRef = useRef(onSend);       // always-fresh ref to avoid stale closure
   useEffect(() => { onSendRef.current = onSend; }, [onSend]);
 
-  const currentQuestion = Math.min(questionIndex, QUESTIONS.length);
   const lastOfficerMsg = [...messages].reverse().find((m) => m.role === "assistant");
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  useEffect(() => {
+    if (avatarVideoRef.current) avatarVideoRef.current.srcObject = avatarStream;
+  }, [avatarStream]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!isStreaming && input.trim()) onSend(); }
@@ -506,6 +741,7 @@ function InterviewPage({
     }
     accumulatedRef.current = "";   // reset for new utterance
     lastSpeechTimeRef.current = 0;
+    onStartListening();
     isListeningRef.current = true;
     setIsListening(true);
     void startAudioAnalysis();
@@ -515,7 +751,7 @@ function InterviewPage({
   return (
     <div className="h-screen bg-[#fafafa] flex flex-col overflow-hidden">
       <style>{`
-        @keyframes speaking-pulse { from { filter: brightness(0.93) saturate(1); } to { filter: brightness(1.07) saturate(1.06); } }
+        @keyframes speaking-pulse { from { transform: scale(1); filter: brightness(0.94) saturate(1); } to { transform: scale(1.012); filter: brightness(1.04) saturate(1.04); } }
         @keyframes live-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
         @keyframes wave-bar { 0%, 100% { transform: scaleY(0.35); opacity: 0.45; } 50% { transform: scaleY(1); opacity: 1; } }
       `}</style>
@@ -534,10 +770,10 @@ function InterviewPage({
         </div>
       </nav>
 
-      <div className="flex-1 grid grid-cols-[190px_1fr] grid-rows-[1fr] gap-3 p-4 bg-[#f5f7fa] overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[190px_minmax(0,1fr)_320px] grid-rows-[1fr] gap-3 p-4 bg-[#f5f7fa] overflow-hidden">
 
         {/* Left */}
-        <div className="flex flex-col gap-3 overflow-y-auto">
+        <div className="hidden xl:flex flex-col gap-3 overflow-y-auto">
           <div className="bg-white border border-[#efefef] rounded-xl p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             {/* Header row */}
             <div className="flex items-center justify-between mb-[14px]">
@@ -656,9 +892,17 @@ function InterviewPage({
               )}
             </div>
             {/* Real photo — absolute so it fills container regardless of height */}
-            {!imgError && (
+            {avatarStream ? (
+              <video
+                ref={avatarVideoRef}
+                autoPlay
+                playsInline
+                muted={isMuted}
+                className="absolute inset-0 h-full w-full object-cover object-center bg-[#07182d]"
+              />
+            ) : !imgError && (
               <img
-                src={OFFICER_IMAGE}
+                src={officer.image}
                 alt="Consular Officer"
                 className="absolute inset-0 w-full h-full object-contain object-bottom"
                 style={{
@@ -671,6 +915,14 @@ function InterviewPage({
                 onError={() => setImgError(true)}
               />
             )}
+            {!avatarStream && isSpeaking && (
+              <div className="absolute bottom-[94px] left-1/2 z-10 flex -translate-x-1/2 items-center gap-[3px] rounded-full bg-black/45 px-3 py-2 backdrop-blur-sm">
+                {[8, 14, 20, 12, 18, 9, 15].map((height, index) => (
+                  <span key={index} className="w-[3px] rounded-full bg-white" style={{ height, animation: `wave-bar .55s ease-in-out ${index * .08}s infinite` }} />
+                ))}
+                <span className="ml-1 text-[9px] font-semibold text-white/85">语音动画</span>
+              </div>
+            )}
             <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, transparent 40%, rgba(3,52,110,0.9) 100%)" }} />
             <div className="absolute inset-0 pointer-events-none opacity-[0.025]" style={{ backgroundImage: "repeating-linear-gradient(0deg, rgba(255,255,255,0.6) 0px, rgba(255,255,255,0.6) 1px, transparent 1px, transparent 3px)" }} />
 
@@ -679,7 +931,9 @@ function InterviewPage({
             <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
               <div className="flex items-center gap-1.5 bg-white/92 border border-[rgba(3,52,110,0.18)] rounded-[4px] px-2.5 py-1 shadow-sm">
                 <div className="w-[7px] h-[7px] rounded-full bg-red-500" style={{ boxShadow: "0 0 5px #ef4444", animation: "live-blink 1s infinite" }} />
-                <span className="text-[9px] font-bold text-[#03346E] tracking-[.08em] font-mono">LIVE: CONSULAR OFFICER</span>
+                <span className="text-[9px] font-bold text-[#03346E] tracking-[.08em] font-mono">
+                  {avatarStatus === "connected" ? `LIVE: OFFICER ${officer.name.toUpperCase()}` : avatarStatus === "connecting" ? "CONNECTING OFFICER" : `OFFICER ${officer.name.toUpperCase()}`}
+                </span>
               </div>
               <div className="flex items-center bg-white/92 border border-[rgba(3,52,110,0.18)] rounded-[4px] px-2.5 py-1 shadow-sm">
                 <span className="text-[9px] font-bold text-[#03346E] tracking-[.08em] font-mono">PROTOCOL: B1/B2</span>
@@ -774,11 +1028,92 @@ function InterviewPage({
             </div>
           )}
         </div>
+
+        {/* Right — transcript and typed answer */}
+        <div className="bg-white border border-[#efefef] rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col min-h-0">
+          <div className="px-4 py-3 border-b border-[#efefef] flex items-center justify-between flex-shrink-0">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[.07em] text-[#989898]">面试记录</p>
+              <p className="text-[11px] text-[rgba(0,0,0,0.42)] mt-0.5">文字和语音回答都会保留</p>
+            </div>
+            <span className="text-[10px] font-semibold text-[#3D6DAD] bg-[#EEF3FA] rounded-full px-2 py-1">
+              {messages.filter((m) => m.role === "user").length} 答
+            </span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#D4E0F0 transparent" }}>
+            {messages.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-center px-5">
+                <p className="text-[12px] text-[rgba(0,0,0,0.38)] leading-relaxed">
+                  面试开始后，问题和你的回答会显示在这里。
+                </p>
+              </div>
+            ) : messages.map((message, i) => (
+              <div
+                key={`${message.role}-${i}`}
+                className={`rounded-xl px-3 py-2.5 text-[12px] leading-relaxed ${
+                  message.role === "assistant"
+                    ? "bg-[#f1f5f9] text-[#24364a]"
+                    : "bg-[#03346E] text-white ml-5"
+                }`}
+              >
+                <div className={`text-[9px] font-semibold uppercase tracking-[.08em] mb-1 ${message.role === "assistant" ? "text-[#718096]" : "text-white/55"}`}>
+                  {message.role === "assistant" ? "Officer" : "You"}
+                </div>
+                {message.content || "…"}
+              </div>
+            ))}
+            <div ref={bottomRef} />
+          </div>
+
+          {!interviewDone ? (
+            <div className="border-t border-[#efefef] p-3 flex-shrink-0">
+              <textarea
+                value={input}
+                onChange={(event) => onInputChange(event.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isStreaming || isListening}
+                placeholder={isListening ? "正在听你说话…" : "输入回答，Enter 发送，Shift+Enter 换行"}
+                className="w-full min-h-[96px] resize-none rounded-xl border border-[#dfe7f1] bg-[#fbfcfe] px-3 py-2.5 text-[13px] leading-relaxed text-[#1a1a1a] outline-none transition-colors placeholder:text-[#a8b0bd] focus:border-[#3D6DAD] focus:bg-white disabled:bg-[#f5f7fa]"
+              />
+              <div className="flex items-center justify-between gap-2 mt-2">
+                <button
+                  onClick={toggleListening}
+                  type="button"
+                  className={`text-[11px] font-semibold px-3 py-2 rounded-full border transition-colors ${
+                    isListening
+                      ? "bg-blue-50 border-blue-200 text-blue-700"
+                      : "bg-white border-[#dfe7f1] text-[#3D6DAD] hover:bg-[#EEF3FA]"
+                  }`}
+                >
+                  {isListening ? "停止录音并发送" : "语音回答"}
+                </button>
+                <button
+                  onClick={() => onSend()}
+                  disabled={!input.trim() || isStreaming || isListening}
+                  type="button"
+                  className="bg-[#03346E] text-white text-[12px] font-bold px-4 py-2 rounded-full disabled:bg-[#d4dae4] disabled:text-white/80 hover:bg-[#022B5C] transition-colors"
+                >
+                  发送回答
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="border-t border-[#efefef] p-3 flex-shrink-0">
+              <button onClick={onEnd} className="w-full bg-[#03346E] text-white font-bold text-[13px] py-3 rounded-xl hover:bg-[#022B5C] transition-colors">
+                查看面试报告 →
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <footer className="border-t border-[#efefef] bg-white px-6 py-2 flex justify-between items-center flex-shrink-0">
         <div className="flex gap-4">
-          <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />连接正常</span>
+          <span className="text-[10px] text-[#989898] flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full inline-block ${avatarStatus === "connected" ? "bg-green-500" : avatarStatus === "connecting" ? "bg-amber-400 animate-pulse" : "bg-[#9aa7b8]"}`} />
+            {avatarStatus === "connected" ? "实时数字人已连接" : avatarStatus === "connecting" ? "正在连接数字人" : "语音动画模式"}
+          </span>
           <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />AI 引擎运行中</span>
         </div>
         <span className="text-[10px] text-[#989898]">B1/B2 签证模拟</span>
@@ -951,6 +1286,8 @@ function LoadingReport() {
 
 export default function InterviewPracticePage() {
   const [pageState, setPageState] = useState<PageState>("start");
+  const profile = DEFAULT_PROFILE;
+  const [officer, setOfficer] = useState<OfficerProfile>(OFFICERS[0]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -959,28 +1296,65 @@ export default function InterviewPracticePage() {
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
-  const interviewDone = questionIndex >= QUESTIONS.length;
+  const [followUpCounts, setFollowUpCounts] = useState<Record<number, number>>({});
+  const [interviewCompleted, setInterviewCompleted] = useState(false);
+  const interviewPlan = buildInterviewPlan(profile);
+  const interviewDone = interviewCompleted;
+  const {
+    status: avatarStatus,
+    stream: avatarStream,
+    isSpeaking: avatarSpeaking,
+    connect: connectAvatar,
+    disconnect: disconnectAvatar,
+    speak: speakThroughAvatar,
+    interrupt: interruptAvatar,
+  } = useLiveTalking(officer.avatarId, officer.voice);
 
   const isMutedRef = useRef(false);
 
   const handleToggleMute = useCallback(() => {
     setIsMuted((prev) => {
       isMutedRef.current = !prev;
-      if (!prev && typeof window !== "undefined") { window.speechSynthesis?.cancel(); setIsSpeaking(false); }
+      if (!prev && typeof window !== "undefined") {
+        window.speechSynthesis?.cancel();
+        void interruptAvatar();
+        setIsSpeaking(false);
+      }
       return !prev;
     });
-  }, []);
+  }, [interruptAvatar]);
 
   const speakText = useCallback((text: string) => {
-    if (isMutedRef.current || typeof window === "undefined" || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.lang = "zh-CN"; utt.rate = 0.88; utt.pitch = 0.95;
-    setIsSpeaking(true);
-    utt.onend = () => setIsSpeaking(false);
-    utt.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utt);
-  }, []);
+    if (isMutedRef.current || typeof window === "undefined") return;
+    const fallback = () => {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang = "zh-CN"; utt.rate = officer.speechRate; utt.pitch = 0.95;
+      const voices = window.speechSynthesis.getVoices();
+      const matchingVoice = voices.find((voice) => {
+        const chinese = voice.lang.toLowerCase().startsWith("zh");
+        if (!chinese) return false;
+        const likelyFemale = /xiaoxiao|xiaoyi|tingting|meijia|female|女/i.test(voice.name);
+        return officer.voiceGender === "female" ? likelyFemale : !likelyFemale;
+      });
+      if (matchingVoice) utt.voice = matchingVoice;
+      setIsSpeaking(true);
+      utt.onend = () => setIsSpeaking(false);
+      utt.onerror = () => setIsSpeaking(false);
+      window.speechSynthesis.speak(utt);
+    };
+    if (avatarStatus === "connected") {
+      void speakThroughAvatar(text).then((played) => { if (!played) fallback(); });
+    } else {
+      fallback();
+    }
+  }, [avatarStatus, speakThroughAvatar, officer.speechRate]);
+
+  useEffect(() => {
+    if (pageState === "interview") void connectAvatar();
+    else disconnectAvatar();
+  }, [pageState, connectAvatar, disconnectAvatar]);
 
   const addOfficerMessage = useCallback((text: string) => {
     setMessages((prev) => {
@@ -994,81 +1368,64 @@ export default function InterviewPracticePage() {
   useEffect(() => {
     if (pageState === "interview" && messages.length === 0) {
       setQuestionIndex(0);
-      setTimeout(() => addOfficerMessage(QUESTIONS[0]), 300);
+      setInterviewCompleted(false);
+      setFollowUpCounts({});
+      setTimeout(() => addOfficerMessage(interviewPlan[0]?.question ?? QUESTIONS[0]), 300);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageState]);
 
-  const fetchOfficerReply = useCallback(async (history: Message[]) => {
-    setIsStreaming(true);
-    let accumulated = "";
-    try {
-      const res = await fetch("/api/interview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history }) });
-      if (!res.ok || !res.body) throw new Error("Interview API error");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        for (const line of decoder.decode(value, { stream: true }).split("\n")) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6).trim();
-          if (data === "[DONE]") break;
-          try {
-            const chunk = JSON.parse(data) as { choices: Array<{ delta: { content?: string }; finish_reason?: string }> };
-            const delta = chunk.choices[0]?.delta?.content ?? "";
-            accumulated += delta;
-            setMessages((prev) => { const u = [...prev]; u[u.length - 1] = { role: "assistant", content: accumulated }; return u; });
-          } catch { /* ignore */ }
-        }
-      }
-      if (!isMutedRef.current && typeof window !== "undefined" && window.speechSynthesis && accumulated) {
-        window.speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(accumulated);
-        utt.lang = "zh-CN"; utt.rate = 0.88; utt.pitch = 0.95;
-        setIsSpeaking(true);
-        utt.onend = () => setIsSpeaking(false);
-        utt.onerror = () => setIsSpeaking(false);
-        window.speechSynthesis.speak(utt);
-      }
-    } catch (err) {
-      console.error("Interview fetch error:", err);
-      setMessages((prev) => [...prev, { role: "assistant", content: "抱歉，连接出现问题，请刷新页面后重试。" }]);
-    } finally {
-      setIsStreaming(false);
-    }
-  }, []);
-
   const isSendingRef = useRef(false);
-  const handleSend = useCallback((forceText?: string) => {
+  const handleSend = useCallback(async (forceText?: string) => {
     const trimmed = (forceText ?? input).trim();
     if (!trimmed || isStreaming || interviewDone || isSendingRef.current) return;
     isSendingRef.current = true;
+    const activeStep = interviewPlan[questionIndex] ?? interviewPlan[interviewPlan.length - 1];
+    const totalFollowUps = Object.values(followUpCounts).reduce((sum, count) => sum + count, 0);
+    const shouldFollowUp = activeStep
+      && needsFollowUp(trimmed, activeStep)
+      && (followUpCounts[questionIndex] ?? 0) < 1
+      && totalFollowUps < 3;
+    const turnMessages = [...messages, { role: "user" as const, content: trimmed }];
     setMessages((prev) => {
       if (prev.length > 0 && prev[prev.length - 1].role === "user") return prev;
       return [...prev, { role: "user", content: trimmed }];
     });
     setInput("");
-    const nextIndex = questionIndex + 1;
-    setQuestionIndex(nextIndex);
-    setTimeout(() => {
+    setIsStreaming(true);
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
+      let directive: { question: string; topic: string; isFollowUp?: boolean; shouldEnd?: boolean };
+      let nextIndex = questionIndex;
       isSendingRef.current = false;
-      if (nextIndex < QUESTIONS.length) {
-        addOfficerMessage(QUESTIONS[nextIndex]);
+      if (shouldFollowUp && activeStep) {
+        setFollowUpCounts((prev) => ({ ...prev, [questionIndex]: (prev[questionIndex] ?? 0) + 1 }));
+        directive = { question: activeStep.followUp, topic: activeStep.topic, isFollowUp: true };
+      } else if (questionIndex + 1 < interviewPlan.length) {
+        nextIndex = questionIndex + 1;
+        setQuestionIndex(nextIndex);
+        directive = { question: interviewPlan[nextIndex].question, topic: interviewPlan[nextIndex].topic };
       } else {
-        addOfficerMessage(ENDING_MESSAGE);
+        setQuestionIndex(interviewPlan.length);
+        setInterviewCompleted(true);
+        directive = { question: ENDING_MESSAGE, topic: "结束", shouldEnd: true };
       }
-    }, 400);
-  }, [input, isStreaming, interviewDone, questionIndex, addOfficerMessage]);
+      const reply = await requestOfficerTurn(turnMessages, profile, officer, directive).catch(() => directive.question);
+      addOfficerMessage(reply);
+    } finally {
+      isSendingRef.current = false;
+      setIsStreaming(false);
+    }
+  }, [input, isStreaming, interviewDone, interviewPlan, questionIndex, followUpCounts, messages, profile, officer, addOfficerMessage]);
 
   // Abandon: user manually quits mid-interview → back to start, no report
   const handleAbandon = useCallback(() => {
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
     setIsSpeaking(false);
-    setMessages([]); setInput(""); setIsStreaming(false); setQuestionIndex(0);
+    disconnectAvatar();
+    setMessages([]); setInput(""); setIsStreaming(false); setQuestionIndex(0); setFollowUpCounts({}); setInterviewCompleted(false);
     setPageState("start");
-  }, []);
+  }, [disconnectAvatar]);
 
   // End: interview naturally completed → generate report
   const handleEndInterview = useCallback(async () => {
@@ -1078,7 +1435,7 @@ export default function InterviewPracticePage() {
     // score and the report API would 400 ("对话记录不足"). Bail back to start.
     const answeredCount = messages.filter((m) => m.role === "user").length;
     if (messages.length < 2 || answeredCount === 0) { setPageState("start"); return; }
-    try { window.localStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(messages)); } catch {}
+    try { window.localStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(messages)); } catch { void 0; }
     setIsGeneratingReport(true); setPageState("report");
     try {
       const res = await fetch("/api/interview/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });
@@ -1091,7 +1448,7 @@ export default function InterviewPracticePage() {
         dimensions: { clarity: 75, confidence: 70, consistency: 68, narrativeAlignment: 76 },
         strengths: ["回答基本流畅，能够正常沟通", "部分问题回答较为直接清晰"],
         improvements: ["建议提前准备具体的行程安排细节", "资金来源说明需更加明确具体"],
-        questionAnalysis: messages.filter((m) => m.role === "assistant").slice(0, 5).map((m, i) => ({
+        questionAnalysis: messages.filter((m) => m.role === "assistant" && m.content !== ENDING_MESSAGE).slice(0, 8).map((m, i) => ({
           question: m.content, answer: messages.find((msg, idx) => msg.role === "user" && idx > messages.indexOf(m))?.content ?? "(未回答)",
           score: 70, flag: "neutral" as const, flagLabel: "中性", note: "回答基本符合要求", timestamp: `0${i + 1}:00`, topic: "综合评估",
         })),
@@ -1101,15 +1458,30 @@ export default function InterviewPracticePage() {
 
   const handleRetry = useCallback(() => {
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
-    setMessages([]); setReport(null); setInput(""); setIsStreaming(false); setIsSpeaking(false); setIsGeneratingReport(false); setQuestionIndex(0); setPageState("start");
+    setMessages([]); setReport(null); setInput(""); setIsStreaming(false); setIsSpeaking(false); setIsGeneratingReport(false); setQuestionIndex(0); setFollowUpCounts({}); setInterviewCompleted(false); setPageState("start");
   }, []);
 
   if (pageState === "start") return <StartPage onStart={() => setPageState("checklist")} />;
-  if (pageState === "checklist") return <ChecklistPage onConfirm={() => setPageState("interview")} onBack={() => setPageState("start")} />;
+  if (pageState === "checklist") return (
+    <ChecklistPage
+      onConfirm={() => setPageState("officer")}
+      onBack={() => setPageState("start")}
+    />
+  );
+  if (pageState === "officer") return (
+    <OfficerSelectionPage
+      officer={officer}
+      onChange={setOfficer}
+      onConfirm={() => setPageState("interview")}
+      onBack={() => setPageState("checklist")}
+    />
+  );
   if (pageState === "interview") return (
-    <InterviewPage messages={messages} isStreaming={isStreaming} isSpeaking={isSpeaking} isMuted={isMuted}
-      input={input} questionIndex={questionIndex} interviewDone={interviewDone}
-      onInputChange={setInput} onSend={handleSend} onEnd={handleEndInterview} onAbandon={handleAbandon} onToggleMute={handleToggleMute} />
+    <InterviewPage messages={messages} isStreaming={isStreaming} isSpeaking={isSpeaking || avatarSpeaking} isMuted={isMuted}
+      officer={officer}
+      input={input} interviewDone={interviewDone} avatarStream={avatarStream} avatarStatus={avatarStatus}
+      onInputChange={setInput} onSend={handleSend} onEnd={handleEndInterview} onAbandon={handleAbandon}
+      onToggleMute={handleToggleMute} onStartListening={() => { void interruptAvatar(); }} />
   );
   if (isGeneratingReport || !report) return <LoadingReport />;
   return <ReportPage report={report} onRetry={handleRetry} />;
