@@ -18,6 +18,18 @@ afterEach(() => {
 });
 
 describe("localizeVietnamPaymentError", () => {
+  it("explains the exact safe handoff phase without exposing internals", () => {
+    expect(localizeVietnamPaymentError("worker_readiness_timeout", true)).toBe(
+      "云端付款服务启动超时，本次未创建付款任务，请重新提交。",
+    );
+    expect(localizeVietnamPaymentError("card_handoff_failed", false)).toBe(
+      "The secure card session did not reach the cloud worker. No payment job was created; please resubmit.",
+    );
+    expect(localizeVietnamPaymentError("queue_enqueue_failed", true)).toBe(
+      "云端付款任务未能创建，本次银行卡会话已取消，请重新提交。",
+    );
+  });
+
   it("does not expose browser abort internals in the Chinese UI", () => {
     expect(localizeVietnamPaymentError("signal is aborted without reason", true)).toBe(
       "状态查询暂时超时，系统会自动重新连接。",
