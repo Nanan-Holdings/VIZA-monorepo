@@ -19,6 +19,8 @@ application lifecycle state.
 - `application-group.ts`: group application and team companion creation,
   companion review state, and authorized companion application reads.
 - `visa-application-answers.ts`: draft app creation and dynamic answer storage.
+  Critical answer reads refresh an encrypted independent cache; transient save
+  failures enqueue encrypted, idempotent replay events instead of losing work.
 - `visa-form-fields.ts`: loads DB-driven visa form fields.
 - `companion-sessions.ts`: VIZA chat sessions, messages, title markers, search,
   and history.

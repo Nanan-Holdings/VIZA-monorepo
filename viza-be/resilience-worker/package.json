@@ -1,0 +1,21 @@
+{
+  "name": "viza-resilience-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Independent Cloudflare Worker watchdog and encrypted resilience gateway for VIZA.",
+  "type": "module",
+  "scripts": {
+    "type-check": "npm run types && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "deploy:dry-run": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.21.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.121.0"
+  }
+}

@@ -1,7 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getClientSessionWithFallback } from "@/lib/client-session";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 
 /**
@@ -37,23 +37,18 @@ export async function getAuthenticatedUser(): Promise<{
     }
   }
 
-  // 2. Fall back to normal Supabase auth session
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  // 2. VIZA's signed, HttpOnly session is the continuity boundary. It was
+  // established only after a successful Supabase sign-in, so ordinary portal
+  // requests do not need to call Auth again on every render/action.
+  const session = await getClientSessionWithFallback();
+  if (!session) return null;
 
-  if (!authUser) {
-    return null;
-  }
-
-  // Use admin client to bypass RLS for auth_user_id lookup
-  const adminClient = createAdminClient();
+  const adminClient = createAdminClient({ requestTimeoutMs: 4_000, retryDelaysMs: [] });
   const { data: profile, error } = await adminClient
     .from("users")
     .select("id, name, email, date_of_birth, sex")
-    .eq("auth_user_id", authUser.id)
-    .single();
+    .eq("id", session.userId)
+    .maybeSingle();
 
   if (!error && profile) {
     return {
@@ -68,15 +63,13 @@ export async function getAuthenticatedUser(): Promise<{
   const { data: applicantProfile } = await adminClient
     .from("applicant_profiles")
     .select("id, full_name, email, date_of_birth, gender")
-    .eq("auth_user_id", authUser.id)
+    .eq("id", session.userId)
     .maybeSingle();
 
-  if (!applicantProfile && !authUser.email) return null;
-
   return {
-    id: applicantProfile?.id ?? authUser.id,
-    name: applicantProfile?.full_name ?? authUser.user_metadata?.name ?? authUser.email ?? "Applicant",
-    email: applicantProfile?.email ?? authUser.email ?? "",
+    id: applicantProfile?.id ?? session.userId,
+    name: applicantProfile?.full_name ?? session.userName ?? session.email ?? "Applicant",
+    email: applicantProfile?.email ?? session.email,
     date_of_birth: applicantProfile?.date_of_birth ?? null,
     sex: applicantProfile?.gender === "male" || applicantProfile?.gender === "M"
       ? "M"
@@ -109,36 +102,6 @@ export async function getAuthenticatedUserId(): Promise<string | null> {
     return impersonation.userId;
   }
 
-  // 2. Fall back to normal Supabase auth session
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  if (!authUser) {
-    return null;
-  }
-
-  const adminClient = createAdminClient();
-  const { data: profile, error } = await adminClient
-    .from("users")
-    .select("id")
-    .eq("auth_user_id", authUser.id)
-    .single();
-
-  if (!error && profile) {
-    return profile.id;
-  }
-
-  const { data: applicantProfile } = await adminClient
-    .from("applicant_profiles")
-    .select("id")
-    .eq("auth_user_id", authUser.id)
-    .maybeSingle();
-
-  return await resolveAuthenticatedUserId({
-    authUserId: authUser.id,
-    userRowId: null,
-    applicantProfileId: applicantProfile?.id ?? null,
-  });
+  const session = await getClientSessionWithFallback();
+  return session?.userId ?? null;
 }

@@ -18,6 +18,8 @@ type LoginMethod = 'password' | 'otp'
 
 const AUTH_REQUEST_TIMEOUT_MS = 9_000
 const AUTH_RETRY_DELAY_MS = 500
+const LOGIN_INPUT_GROUP_CLASS_NAME =
+  "isolate h-12 border-black [--application-control-border-color:theme(colors.black)] [--application-control-focus-color:theme(colors.black)] after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border-[var(--application-control-border-width)] after:border-black after:content-[''] focus-within:after:border-black"
 
 function getLocalizedAuthError(
   result: { error?: string; code?: string },
@@ -322,7 +324,7 @@ function ClientLoginContent() {
                     </button>
                   ))}
                 </div>
-                <ApplicationFormInputGroup className="h-12 [--application-control-border-color:theme(colors.brand.300)]" filled={Boolean(email)} forceWhiteBackground>
+                <ApplicationFormInputGroup className={LOGIN_INPUT_GROUP_CLASS_NAME} filled={Boolean(email)} forceWhiteBackground>
                   <InputGroupInput
                     type="email"
                     name="email"
@@ -338,7 +340,7 @@ function ClientLoginContent() {
                 </ApplicationFormInputGroup>
                 {loginMethod === 'password' && (
                   <div className="space-y-2">
-                    <ApplicationFormInputGroup className="h-12 [--application-control-border-color:theme(colors.brand.300)]" filled={Boolean(password)} forceWhiteBackground>
+                    <ApplicationFormInputGroup className={LOGIN_INPUT_GROUP_CLASS_NAME} filled={Boolean(password)} forceWhiteBackground>
                       <InputGroupInput
                         type={showPassword ? 'text' : 'password'}
                         name="password"

@@ -6,6 +6,9 @@ const verifyOtpMock = vi.hoisted(() => vi.fn());
 const getUserFromSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const createClientSessionMock = vi.hoisted(() => vi.fn());
 const clearClientSessionMock = vi.hoisted(() => vi.fn());
+const cacheContinuityIdentityMock = vi.hoisted(() => vi.fn());
+const sendContinuityOtpMock = vi.hoisted(() => vi.fn());
+const verifyContinuityOtpMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
@@ -21,6 +24,12 @@ vi.mock("@/lib/client-session", () => ({
   getUserFromSupabaseSession: getUserFromSupabaseSessionMock,
   createClientSession: createClientSessionMock,
   clearClientSession: clearClientSessionMock,
+}));
+
+vi.mock("@/lib/resilience/continuity-auth", () => ({
+  cacheContinuityIdentity: cacheContinuityIdentityMock,
+  sendContinuityOtp: sendContinuityOtpMock,
+  verifyContinuityOtp: verifyContinuityOtpMock,
 }));
 
 import { POST } from "./route";
@@ -57,6 +66,10 @@ describe("POST /api/client/auth", () => {
     getUserFromSupabaseSessionMock.mockReset();
     createClientSessionMock.mockReset();
     clearClientSessionMock.mockReset();
+    cacheContinuityIdentityMock.mockReset();
+    cacheContinuityIdentityMock.mockResolvedValue(undefined);
+    sendContinuityOtpMock.mockReset();
+    verifyContinuityOtpMock.mockReset();
   });
 
   it("bootstraps the signed client session after a successful password login", async () => {
@@ -64,6 +77,7 @@ describe("POST /api/client/auth", () => {
     getUserFromSupabaseSessionMock.mockResolvedValue({
       userId: "applicant-profile-id",
       email: "applicant@example.com",
+      authUserId: "supabase-auth-id",
     });
 
     const response = await POST(passwordRequest());
@@ -80,6 +94,7 @@ describe("POST /api/client/auth", () => {
     expect(createClientSessionMock).toHaveBeenCalledWith(
       "applicant-profile-id",
       "applicant@example.com",
+      "supabase-auth-id",
     );
   });
 
@@ -88,6 +103,7 @@ describe("POST /api/client/auth", () => {
     getUserFromSupabaseSessionMock.mockResolvedValue({
       userId: "applicant-profile-id",
       email: "applicant@example.com",
+      authUserId: "supabase-auth-id",
     });
 
     const response = await POST(verifyOtpRequest());
@@ -104,6 +120,7 @@ describe("POST /api/client/auth", () => {
     expect(createClientSessionMock).toHaveBeenCalledWith(
       "applicant-profile-id",
       "applicant@example.com",
+      "supabase-auth-id",
     );
   });
 
@@ -141,5 +158,41 @@ describe("POST /api/client/auth", () => {
       error: "The authentication provider is temporarily unavailable.",
     });
     expect(clearClientSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to an independent continuity OTP when Supabase Auth times out", async () => {
+    signInWithOtpMock.mockResolvedValue({
+      error: { name: "AuthRetryableFetchError", message: "request timed out" },
+    });
+    sendContinuityOtpMock.mockResolvedValue(true);
+
+    const response = await POST(new Request("http://localhost/api/client/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operation: "send_otp", email: "applicant@example.com" }),
+    }));
+
+    await expect(response.json()).resolves.toEqual({ success: true, continuity: true });
+    expect(sendContinuityOtpMock).toHaveBeenCalledWith("applicant@example.com");
+  });
+
+  it("creates a VIZA session after an atomic continuity OTP verification", async () => {
+    verifyOtpMock.mockResolvedValue({
+      error: { name: "AuthRetryableFetchError", message: "request timed out" },
+    });
+    verifyContinuityOtpMock.mockResolvedValue({
+      userId: "applicant-profile-id",
+      email: "applicant@example.com",
+      authUserId: "supabase-auth-id",
+    });
+
+    const response = await POST(verifyOtpRequest());
+
+    await expect(response.json()).resolves.toEqual({ success: true, continuity: true });
+    expect(createClientSessionMock).toHaveBeenCalledWith(
+      "applicant-profile-id",
+      "applicant@example.com",
+      "supabase-auth-id",
+    );
   });
 });
