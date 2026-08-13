@@ -194,7 +194,7 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(seedSource).toContain('field_name: "accommodation_floor_number", label: "Floor Number", field_type: "text", required: true');
     expect(seedSource).toContain('field_name: "accommodation_unit_number", label: "Unit Number", field_type: "text", required: true');
     expect(seedSource).toContain('rules("楼层", { allow_does_not_apply: true');
-    expect(seedSource).toContain('rules("单位号", { allow_does_not_apply: true');
+    expect(seedSource).toContain('rules("单元号", { allow_does_not_apply: true');
   });
 
   test("does not collect VIZA-only acknowledgements or non-ICA passport fields", () => {

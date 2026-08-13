@@ -460,7 +460,7 @@ describe("Thailand TDAC arrival-card schema seed", () => {
 
   test("uses Chinese step titles in the seeded TDAC wizard", () => {
     expect(new Set(TH_TDAC_FORM_FIELDS.map((item) => item.step_name))).toEqual(
-      new Set(["旅客信息", "抵达和离境信息", "住宿信息", "健康申报"]),
+      new Set(["旅客信息", "抵达及离境信息", "住宿信息", "健康申报"]),
     );
   });
 

@@ -105,10 +105,10 @@ describe("Vietnam Pre-Arrival official form schema", () => {
     expect(VN_PREARRIVAL_VISA_TYPE_OPTIONS.map((option) => option.label_zh)).toEqual([
       "免签证证明",
       "电子签证（E-Visa）",
-      "按国家的默认免签政策",
+      "按国籍适用的默认免签政策",
       "富国岛签证豁免",
       "旅游卡",
-      "ABTC卡",
+      "APEC商务旅行卡（ABTC）",
       "永久居留卡",
       "临时居留卡",
       "签证",
