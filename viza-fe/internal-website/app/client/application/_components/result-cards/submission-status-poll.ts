@@ -1,5 +1,8 @@
-export const SUBMISSION_STATUS_POLL_BASE_DELAY_MS = 3_000;
-export const SUBMISSION_STATUS_POLL_MAX_DELAY_MS = 15_000;
+// Submission workers can take several seconds to transition between stages.
+// Keep the initial refresh useful while avoiding a tight 3s request loop; the
+// client also backs off further while a snapshot remains unchanged.
+export const SUBMISSION_STATUS_POLL_BASE_DELAY_MS = 5_000;
+export const SUBMISSION_STATUS_POLL_MAX_DELAY_MS = 30_000;
 
 export function isRetryableSubmissionStatusResponse(status: number): boolean {
   return (
@@ -13,9 +16,13 @@ export function isRetryableSubmissionStatusResponse(status: number): boolean {
   );
 }
 
-export function getSubmissionStatusPollDelay(failureCount: number): number {
-  if (failureCount <= 0) return SUBMISSION_STATUS_POLL_BASE_DELAY_MS;
-  const exponent = Math.min(Math.max(Math.floor(failureCount) - 1, 0), 3);
+export function getSubmissionStatusPollDelay(
+  failureCount: number,
+  stablePollCount = 0,
+): number {
+  const exponent = failureCount > 0
+    ? Math.min(Math.max(Math.floor(failureCount) - 1, 0), 3)
+    : Math.min(Math.max(Math.floor(stablePollCount), 0), 3);
   return Math.min(
     SUBMISSION_STATUS_POLL_BASE_DELAY_MS * 2 ** exponent,
     SUBMISSION_STATUS_POLL_MAX_DELAY_MS,

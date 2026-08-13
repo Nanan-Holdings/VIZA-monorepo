@@ -58,6 +58,9 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUBMISSION_RESULT_SECRET_KEY: ${{ secrets.SUBMISSION_RESULT_SECRET_KEY }}
+      # Shared by Vercel and every retained Fly submission worker. Enqueue
+      # endpoints use it to trigger an authenticated, single-flight drain.
+      SUBMISSION_QUEUE_INTERNAL_TOKEN: ${{ secrets.SUBMISSION_QUEUE_INTERNAL_TOKEN }}
       # Optional capabilities are forwarded only when populated. The sync
       # script deliberately never overwrites Fly secrets with blank values.
       MDAC_BROWSER_API_ENDPOINT: ${{ secrets.MDAC_BROWSER_API_ENDPOINT }}

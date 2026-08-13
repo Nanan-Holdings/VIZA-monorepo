@@ -1,8 +1,8 @@
 import "server-only";
 
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getClientSessionWithFallback } from "@/lib/client-session";
 import {
   normalizeBilingualFormField,
   normalizeBilingualWizardSteps,
@@ -18,7 +18,10 @@ import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/ty
 
 export interface OwnedApplicationContext {
   admin: SupabaseClient;
-  user: User;
+  user: {
+    id: string;
+    email?: string;
+  };
   application: {
     id: string;
     applicant_id: string;
@@ -31,9 +34,8 @@ export interface OwnedApplicationContext {
 export async function requireOwnedApplication(
   applicationId: string,
 ): Promise<OwnedApplicationContext | { status: number; error: string }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { status: 401, error: "Not authenticated" };
+  const session = await getClientSessionWithFallback();
+  if (!session) return { status: 401, error: "Not authenticated" };
 
   const admin = createAdminClient();
   const { data: application } = await admin
@@ -48,13 +50,22 @@ export async function requireOwnedApplication(
     .select("id, auth_user_id, dependant_of_user_id")
     .eq("id", application.applicant_id)
     .maybeSingle();
-  if (!profile || (profile.auth_user_id !== user.id && profile.dependant_of_user_id !== user.id)) {
+  const ownsProfile = profile && (
+    profile.id === session.userId
+    || profile.auth_user_id === session.authUserId
+    || profile.dependant_of_user_id === session.authUserId
+    || profile.dependant_of_user_id === session.userId
+  );
+  if (!ownsProfile) {
     return { status: 403, error: "Unauthorized" };
   }
 
   return {
     admin,
-    user,
+    user: {
+      id: session.authUserId ?? session.userId,
+      email: session.email,
+    },
     application: application as OwnedApplicationContext["application"],
   };
 }

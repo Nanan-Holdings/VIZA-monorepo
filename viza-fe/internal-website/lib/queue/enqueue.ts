@@ -1,7 +1,6 @@
 import { withAdmin } from "@/lib/auth/with-admin";
 import {
   ensureFlyMachineCapacity,
-  ensureFlyMachineStarted,
 } from "@/lib/fly-machine-wake.server";
 import { assertKnownCountry } from "@/lib/queue/countries";
 import {
@@ -15,6 +14,7 @@ import {
   queueProviderForApplication,
   queueStatusForApplication,
 } from "@/lib/submission-queue";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 
 /**
  * Producers for shared-pool and sticky submission runners.
@@ -113,7 +113,9 @@ export async function enqueueRunnerPoolJob(
     if (!row.legacy_queue_id) {
       throw new Error("runner pool enqueue reported a legacy collision without a queue id");
     }
-    const wake = await ensureFlyMachineStarted("legacy");
+    const wake = await wakeCloudSubmissionWorker(row.legacy_queue_id, {
+      target: "legacy",
+    });
     return {
       transport: "submission_queue",
       id: row.legacy_queue_id,
@@ -131,12 +133,21 @@ export async function enqueueRunnerPoolJob(
     const desired = await desiredRunnerPoolCapacity();
     if (desired > 0) {
       const wake = await ensureFlyMachineCapacity("pool", desired);
-      workerTriggered = wake.ok;
+      const endpointWake = wake.ok
+        ? await wakeCloudSubmissionWorker(row.runner_job_id, { target: "pool" })
+        : { ok: false as const, reason: "request_failed" as const };
+      workerTriggered = endpointWake.ok;
       if (!wake.ok && wake.reason !== "not_configured") {
         console.warn("[runner-pool] Immediate Fly capacity wake failed; reconciler will recover.", {
           jobId: row.runner_job_id.slice(0, 8),
           reason: wake.reason,
           desired,
+        });
+      }
+      if (!endpointWake.ok && endpointWake.reason !== "not_configured") {
+        console.warn("[runner-pool] Runner endpoint wake failed; recovery reconciler will retry.", {
+          jobId: row.runner_job_id.slice(0, 8),
+          reason: endpointWake.reason,
         });
       }
     }
@@ -219,8 +230,8 @@ export async function enqueueSgacRunnerRetry(
 
   if (result.route === "legacy") return result;
 
-  const wake = await ensureFlyMachineStarted("singapore");
-  if (!wake.ok && wake.reason !== "unmanaged_target" && wake.reason !== "not_configured") {
+  const wake = await wakeCloudSubmissionWorker(result.id, { target: "pool" });
+  if (!wake.ok && wake.reason !== "not_configured") {
     console.warn("[runner-job] Singapore Fly wake failed; queued work remains recoverable.", {
       jobId: result.id.slice(0, 8),
       reason: wake.reason,
@@ -280,7 +291,7 @@ export async function enqueueRunnerJob(
         };
       },
     );
-    const wake = await ensureFlyMachineStarted("indonesia");
+    const wake = await wakeCloudSubmissionWorker(result.id, { target: "indonesia" });
     if (!wake.ok && wake.reason !== "not_configured") {
       console.warn("[indonesia] Sticky Fly wake failed; reconciler will recover.", {
         jobId: result.id.slice(0, 8),
@@ -314,7 +325,7 @@ export async function enqueueRunnerJob(
         };
       },
     );
-    const wake = await ensureFlyMachineStarted("legacy");
+    const wake = await wakeCloudSubmissionWorker(result.id, { target: "legacy" });
     if (!wake.ok && wake.reason !== "not_configured") {
       console.warn("[vietnam] Sticky Fly wake failed; reconciler will recover.", {
         jobId: result.id.slice(0, 8),
@@ -360,8 +371,10 @@ export async function enqueueRunnerJob(
     }
     return { id: data.id as string, created: true };
   });
-  const wake = await ensureFlyMachineStarted(normalizedCountry);
-  if (!wake.ok && wake.reason !== "unmanaged_target" && wake.reason !== "not_configured") {
+  const wake = await wakeCloudSubmissionWorker(result.id, {
+    target: "pool",
+  });
+  if (!wake.ok && wake.reason !== "not_configured") {
     console.warn("[runner-job] Fly wake failed; scheduled autoscaling remains available.", {
       country: normalizedCountry,
       jobId: result.id.slice(0, 8),

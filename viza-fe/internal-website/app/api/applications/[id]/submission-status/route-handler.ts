@@ -79,6 +79,15 @@ type RunnerJobRow = {
   finished_at: string | null;
 };
 
+// Keep the status endpoint on the smallest durable queue projection. The
+// status card only needs the current row; history remains available through
+// the application record and the dedicated history surfaces.
+const SUBMISSION_QUEUE_STATUS_SELECT =
+  "id, status, attempts, mode, provider, last_error, error_code, error_message, current_stage, heartbeat_at, manual_action_status, official_status, official_portal_url, payment_status, vn_result_payload, created_at, updated_at";
+
+const SGAC_RUNNER_STATUS_SELECT =
+  "id, status, attempts, last_error, enqueued_at, started_at, finished_at";
+
 type DerivedStatus = {
   status: SubmissionApiStatus;
   stage: SubmissionApiStage;
@@ -890,34 +899,41 @@ async function getSubmissionStatus(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data: queueRows, error: queueError } = await admin
+  const isSgArrivalCard = isSgArrivalCardApplication(application.country, application.visa_type);
+  const queueQuery = admin
     .from("submission_queue")
-    .select("*")
+    .select(SUBMISSION_QUEUE_STATUS_SELECT)
     .eq("application_id", applicationId)
     .order("updated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false, nullsFirst: false })
-    .limit(10);
+    .limit(1);
+  const runnerQuery = isSgArrivalCard
+    ? admin
+        .from("runner_job")
+        .select(SGAC_RUNNER_STATUS_SELECT)
+        .eq("application_id", applicationId)
+        .eq("country", "singapore")
+        .order("enqueued_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+    : null;
+  const [{ data: queueRows, error: queueError }, runnerResult] = await Promise.all([
+    queueQuery,
+    runnerQuery ?? Promise.resolve({ data: [], error: null }),
+  ]);
 
   if (queueError) {
     return NextResponse.json({ error: queueError.message }, { status: 500 });
+  }
+  if (runnerResult.error) {
+    return NextResponse.json({ error: runnerResult.error.message }, { status: 500 });
   }
 
   const candidateRows: QueueRow[] = ((queueRows ?? []) as QueueRow[]).map((row) => ({
     ...row,
     transport: "submission_queue" as const,
   }));
-  if (isSgArrivalCardApplication(application.country, application.visa_type)) {
-    const { data: runnerRows, error: runnerError } = await admin
-      .from("runner_job")
-      .select("id, status, attempts, last_error, enqueued_at, started_at, finished_at")
-      .eq("application_id", applicationId)
-      .eq("country", "singapore")
-      .order("enqueued_at", { ascending: false, nullsFirst: false })
-      .limit(10);
-    if (runnerError) {
-      return NextResponse.json({ error: runnerError.message }, { status: 500 });
-    }
-    candidateRows.push(...((runnerRows ?? []) as RunnerJobRow[]).map(sgacRunnerJobToQueueRow));
+  if (isSgArrivalCard) {
+    candidateRows.push(...((runnerResult.data ?? []) as RunnerJobRow[]).map(sgacRunnerJobToQueueRow));
   }
 
   const queue = selectQueueForSubmissionStatus(candidateRows);
