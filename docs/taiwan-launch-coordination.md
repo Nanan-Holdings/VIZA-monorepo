@@ -1,8 +1,8 @@
 # 台湾 Online Entry Permit 上线协调文档
 
-**状态：** 授权方称 CAPTCHA 服务已实施；本地台湾 runner 测试已通过，但**尚未完成真实提交验收，不能上线**。当前 P0 阻断为：VIZA 前端仍把刚提交的台湾任务作为 `submission_queue` dry-run 处理，实际消费后得到 `unsupported (TW)`；正确的官网自动填表入口是 `runner_job` → `tw/runner` → `runTwHalt`，但生产/本地启动日志仍显示 `TW_OFFICIAL_LOGIN_ADAPTER` 缺失（`missing_adapter`）。legacy real-submit 开关未获部署确认、`submitted` 未强制要求官方回执。台湾自动 tracking 尚未实现。  
-**创建日期：** 2026-08-01  
-**产品：** `taiwan` / `TW_ENTRY_PERMIT` — 旅居海外或港澳的大陆地区人民来台观光入境许可证。  
+**状态：** 授权方称 CAPTCHA 服务已实施；本地台湾 runner 测试已通过，但**尚未完成真实提交验收，不能上线**。当前 P0 阻断为：VIZA 前端仍把刚提交的台湾任务作为 `submission_queue` dry-run 处理，实际消费后得到 `unsupported (TW)`；正确的官网自动填表入口是 `runner_job` → `tw/runner` → `runTwHalt`，但生产/本地启动日志仍显示 `TW_OFFICIAL_LOGIN_ADAPTER` 缺失（`missing_adapter`）。legacy real-submit 开关未获部署确认、`submitted` 未强制要求官方回执。台湾自动 tracking 尚未实现。
+**创建日期：** 2026-08-01
+**产品：** `taiwan` / `TW_ENTRY_PERMIT` — 旅居海外或港澳的大陆地区人民来台观光入境许可证。
 **唯一状态负责人：** 主协调者。本文档对并行执行者只读；每个执行者只更新自己的独立 worklog，避免同时编辑同一文件。
 
 ## 1. 发布定义与不可跨越的边界

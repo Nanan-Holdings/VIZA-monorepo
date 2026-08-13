@@ -106,4 +106,3 @@ API 成功响应预期包含：
 
 - Frontend queue portion can be treated as closed: the frontend API/helper layer can create a traceable Taiwan live queue job id and focused regression tests pin provider, mode, status, stage, default rejection, and duplicate submission behavior.
 - This does not close Taiwan launch overall: real button clicking still depends on TW-G/deployment/routing resolving the long-form body render failure, and actual worker consumption/official submission still depends on TW-A/TW-02/TW-G backend and integration validation.
-
