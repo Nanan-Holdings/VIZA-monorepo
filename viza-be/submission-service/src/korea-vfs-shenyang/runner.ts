@@ -270,8 +270,15 @@ async function fillRegistration(page: Page, account: PortalAccountContext): Prom
   if (count < 1) throw new Error("The official VFS required-consent controls could not be identified.");
   for (let index = 0; index < count; index += 1) {
     const checkbox = requiredConsents.nth(index);
-    if (await checkbox.isVisible({ timeout: 300 }).catch(() => false)) await checkbox.check();
+    if (!await checkbox.isVisible({ timeout: 300 }).catch(() => false)) continue;
+    const context = await checkbox.locator("xpath=ancestor::*[self::label or self::div][1]").innerText().catch(() => "");
+    if (isOptionalRegistrationConsent(context)) continue;
+    await checkbox.check();
   }
+}
+
+export function isOptionalRegistrationConsent(context: string): boolean {
+  return /marketing|promotion|offers|newsletter/i.test(context);
 }
 
 function checkpointFromText(text: string): ShenyangVfsCheckpoint | null {
