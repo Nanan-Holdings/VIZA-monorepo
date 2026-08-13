@@ -7,7 +7,7 @@ on:
     - cron: "*/30 * * * *"
     # Wake the legacy worker briefly for email-triggered and periodic status
     # maintenance that is not represented by submission_queue depth.
-    - cron: "17 * * * *"
+    - cron: "17,47 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -21,7 +21,7 @@ env:
 
 jobs:
   scale:
-    if: github.event_name != 'schedule' || github.event.schedule != '17 * * * *'
+    if: github.event_name != 'schedule' || github.event.schedule != '17,47 * * * *'
     environment: production-submission_service
     runs-on: ubuntu-latest
     env:
@@ -47,7 +47,7 @@ jobs:
         working-directory: viza-be/agent-backend
 
   legacy-maintenance-pulse:
-    if: github.event_name == 'schedule' && github.event.schedule == '17 * * * *'
+    if: github.event_name == 'schedule' && github.event.schedule == '17,47 * * * *'
     environment: production-submission_service
     runs-on: ubuntu-latest
     env:

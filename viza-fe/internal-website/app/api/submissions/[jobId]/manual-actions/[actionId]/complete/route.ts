@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 
 export const dynamic = "force-dynamic";
 
@@ -352,6 +353,11 @@ export async function POST(
 
   if (applicationError) {
     return NextResponse.json({ error: applicationError.message }, { status: 500 });
+  }
+
+  const wake = await wakeCloudSubmissionWorker(jobId, { target: "legacy" });
+  if (!wake.ok) {
+    console.warn("[submission-queue] Manual-action requeue wake failed; durable queue remains recoverable.", wake);
   }
 
   return NextResponse.json({

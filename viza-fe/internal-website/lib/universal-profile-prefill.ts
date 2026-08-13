@@ -372,12 +372,24 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
   setAnswer(out, ["passport_number", "passportNumber", "travel_document_number"], profile.passport_number);
   setAnswer(
     out,
-    ["passport_issue_date", "passport_issuance_date", "date_of_issue", "passport_date_of_issue"],
+    [
+      "passport_issue_date",
+      "passport_issuance_date",
+      "date_of_issue",
+      "passport_date_of_issue",
+      "travel_document_issue_date",
+    ],
     profile.passport_issue_date,
   );
   setAnswer(
     out,
-    ["passport_expiry_date", "passport_expiration_date", "valid_until", "passport_date_of_expiry"],
+    [
+      "passport_expiry_date",
+      "passport_expiration_date",
+      "valid_until",
+      "passport_date_of_expiry",
+      "travel_document_expiry_date",
+    ],
     profile.passport_expiry_date,
   );
   setAnswer(
@@ -388,6 +400,7 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
       "passport_country",
       "passport_country_of_issue",
       "issued_by_country",
+      "travel_document_issuing_country",
     ],
     profile.passport_issuing_country,
   );

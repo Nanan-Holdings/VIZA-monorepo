@@ -1,5 +1,6 @@
 import "server-only";
 
+import { ProxyAgent, type Dispatcher } from "undici";
 import type {
   PassportOcrFieldProposal,
   PassportOcrFile,
@@ -77,6 +78,9 @@ const DEFAULT_OPENAI_MODEL = "gpt-4o";
 const DEFAULT_OPENAI_FALLBACK_MODELS = ["gpt-4o-mini"];
 const DEFAULT_OPENAI_TIMEOUT_MS = 45_000;
 const DEFAULT_OPENAI_ATTEMPTS = 2;
+
+let proxyAgent: ProxyAgent | null = null;
+let proxyAgentUrl: string | null = null;
 
 const PASSPORT_SCHEMA = {
   type: "object",
@@ -305,9 +309,36 @@ function normalizeMrzDate(value: string, kind: "birth" | "expiry"): string | nul
   return isValidIsoDate(normalized) ? normalized : null;
 }
 
+function mrzCharacterValue(character: string): number | null {
+  if (/^[0-9]$/.test(character)) return Number(character);
+  if (/^[A-Z]$/.test(character)) return character.charCodeAt(0) - 55;
+  if (character === "<") return 0;
+  return null;
+}
+
+function hasValidMrzCheckDigit(value: string, checkDigit: string): boolean {
+  if (!/^\d$/.test(checkDigit)) return false;
+  const weights = [7, 3, 1];
+  let sum = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const characterValue = mrzCharacterValue(value[index]);
+    if (characterValue === null) return false;
+    sum += characterValue * weights[index % weights.length];
+  }
+  return sum % 10 === Number(checkDigit);
+}
+
 function parseMrzLine2(line2: string | null): Partial<RawProviderFields> | null {
   const normalized = normalizeMrzDataLine(line2);
-  if (!normalized || normalized.length < 27) return null;
+  if (!normalized || normalized.length < 28) return null;
+
+  const passportNumberValid = hasValidMrzCheckDigit(normalized.slice(0, 9), normalized[9]);
+  const dateOfBirthValid = hasValidMrzCheckDigit(normalized.slice(13, 19), normalized[19]);
+  const expiryDateValid = hasValidMrzCheckDigit(normalized.slice(21, 27), normalized[27]);
+  // A visually copied or truncated line can still contain plausible-looking
+  // dates. Only let MRZ data override printed fields when all three core TD3
+  // check digits agree.
+  if (!passportNumberValid || !dateOfBirthValid || !expiryDateValid) return null;
 
   const passportNumber = cleanPassportNumber(normalized.slice(0, 9).replace(/</g, ""));
   const nationality = cleanText(normalized.slice(10, 13).replace(/</g, ""));
@@ -584,6 +615,39 @@ async function waitBeforeProviderRetry(attempt: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
+function getOpenAIProxyDispatcher(): Dispatcher | undefined {
+  const configuredProxy = (
+    process.env.PASSPORT_OCR_PROXY_URL
+    ?? process.env.HTTPS_PROXY
+    ?? process.env.https_proxy
+  )?.trim();
+  if (!configuredProxy) return undefined;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(configuredProxy);
+  } catch {
+    throw new PassportOcrProviderError(
+      "provider_unavailable",
+      "Passport OCR proxy configuration is invalid.",
+      false,
+    );
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new PassportOcrProviderError(
+      "provider_unavailable",
+      "Passport OCR proxy configuration is invalid.",
+      false,
+    );
+  }
+
+  if (!proxyAgent || proxyAgentUrl !== parsed.href) {
+    proxyAgent = new ProxyAgent(parsed.href);
+    proxyAgentUrl = parsed.href;
+  }
+  return proxyAgent;
+}
+
 async function fetchOpenAIResponse(apiKey: string, body: unknown): Promise<Response> {
   const timeoutMs = positiveIntegerSetting(
     process.env.PASSPORT_OCR_REQUEST_TIMEOUT_MS,
@@ -606,7 +670,8 @@ async function fetchOpenAIResponse(apiKey: string, body: unknown): Promise<Respo
         },
         body: JSON.stringify(body),
         signal: controller.signal,
-      });
+        dispatcher: getOpenAIProxyDispatcher(),
+      } as RequestInit & { dispatcher?: Dispatcher });
       if ((response.status === 429 || response.status >= 500) && attempt < attempts) {
         await response.body?.cancel().catch(() => undefined);
         await waitBeforeProviderRetry(attempt);

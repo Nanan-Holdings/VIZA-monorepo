@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/resend";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import {
   DS160_PROOF_QUEUE_STATUS,
   fileNameForKind,
@@ -273,6 +274,10 @@ export async function POST(
     }
     try {
       const job = await enqueueProofJob(loaded.admin, applicationId);
+      const wake = await wakeCloudSubmissionWorker(job.jobId, { target: "legacy" });
+      if (!wake.ok) {
+        console.warn("[submission-queue] DS-160 proof queue wake failed; durable queue remains recoverable.", wake);
+      }
       return NextResponse.json({
         ok: true,
         status: "queued",

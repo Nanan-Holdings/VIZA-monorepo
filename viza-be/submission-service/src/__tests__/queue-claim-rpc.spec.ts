@@ -59,6 +59,13 @@ const queueWorkerLeaseMigrationPath = path.join(
   "drizzle",
   "0137_queue_worker_leases_and_runtime_claims.sql",
 );
+const boundedMaintenanceMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0138_bounded_queue_maintenance.sql",
+);
 const submissionServiceIndexPath = path.join(
   repoRoot,
   "viza-be",
@@ -195,6 +202,27 @@ test("Vietnam status migration leases claims and conditionally settles only live
   assert.match(fail, /checks\.worker_id = p_worker_id/);
   assert.match(fail, /checks\.lease_expires_at > now\(\)/);
   assert.match(fail, /worker_id = null[\s\S]*lease_expires_at = null/);
+});
+
+test("stale queue maintenance is a bounded indexed atomic RPC", () => {
+  const sql = readFileSync(boundedMaintenanceMigrationPath, "utf8").toLowerCase();
+  const source = readFileSync(submissionServiceIndexPath, "utf8");
+
+  assert.match(sql, /create index if not exists submission_queue_stale_processing_idx/);
+  assert.match(sql, /coalesce\(heartbeat_at, updated_at, created_at\)/);
+  assert.match(sql, /create or replace function public\.mark_stale_submission_queue_batch/);
+  assert.match(sql, /limit greatest\(1, least\(coalesce\(p_limit, 100\), 500\)\)/);
+  assert.match(sql, /for update skip locked/);
+  assert.match(sql, /update public\.submission_queue/);
+  assert.match(sql, /update public\.applications/);
+  assert.match(sql, /grant execute on function public\.mark_stale_submission_queue_batch[\s\S]*to service_role/);
+
+  const maintenanceStart = source.indexOf("async function markStaleQueueItemsTimedOut");
+  const maintenanceEnd = source.indexOf("async function loadDs160Answers", maintenanceStart);
+  const maintenanceSource = source.slice(maintenanceStart, maintenanceEnd);
+  assert.doesNotMatch(maintenanceSource, /\.from\(["']submission_queue["']\)\.select\(["']\*["']\)/);
+  assert.match(maintenanceSource, /\.rpc\(["']mark_stale_submission_queue_batch["']/);
+  assert.match(source, /STALE_QUEUE_MAINTENANCE_INTERVAL_MS/);
 });
 
 test("claimPendingSubmissionQueueItems calls the DB claim RPC with worker and lease settings", async () => {

@@ -16,7 +16,13 @@ import { resolveTemplate, validatePayload, type NotificationTemplate } from "./t
 import { hostname } from "node:os";
 import { randomUUID } from "node:crypto";
 
-export const POLL_INTERVAL_MS = 30_000;
+const configuredPollIntervalMs = Number.parseInt(
+  process.env.NOTIFICATION_WORKER_POLL_INTERVAL_MS ?? String(30_000),
+  10,
+);
+export const POLL_INTERVAL_MS = Number.isFinite(configuredPollIntervalMs)
+  ? Math.max(5_000, Math.min(configuredPollIntervalMs, 15 * 60_000))
+  : 30_000;
 export const MAX_ATTEMPTS = 5;
 const BACKOFF_MS = [60_000, 300_000, 900_000, 1_800_000, 3_600_000];
 const DEFAULT_BATCH_SIZE = 20;
@@ -24,6 +30,8 @@ const DEFAULT_LEASE_SECONDS = 900;
 const PROCESS_WORKER_ID =
   process.env.NOTIFICATION_WORKER_ID?.trim() ||
   `notify-${hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`;
+
+const EMPTY_POLL_BACKOFF_MAX_MS = 60_000;
 
 interface QueuedEvent {
   id: number;
@@ -271,9 +279,12 @@ export async function startWorker(): Promise<void> {
   process.once("SIGTERM", onSignal);
   process.once("SIGINT", onSignal);
 
+  let emptyPollBackoffMs = 0;
   while (!shutdownRequested) {
+    let processed = 0;
     try {
       const result = await processOnce();
+      processed = result.processed;
       if (result.processed > 0) {
         console.log(
           `[notify-worker] tick processed=${result.processed} sent=${result.sent} dlq=${result.dlq}`,
@@ -283,7 +294,13 @@ export async function startWorker(): Promise<void> {
       console.error("[notify-worker] tick failed:", err instanceof Error ? err.message : String(err));
     }
     if (shutdownRequested) break;
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    emptyPollBackoffMs = processed > 0
+      ? 0
+      : Math.min(
+          EMPTY_POLL_BACKOFF_MAX_MS,
+          emptyPollBackoffMs === 0 ? POLL_INTERVAL_MS : emptyPollBackoffMs * 2,
+        );
+    await new Promise((r) => setTimeout(r, emptyPollBackoffMs || POLL_INTERVAL_MS));
   }
   console.log("[notify-worker] drained — bye");
 }

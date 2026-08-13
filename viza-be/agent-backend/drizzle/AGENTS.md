@@ -180,6 +180,9 @@ The current internal automation migrations are:
   claims with conditional ack/nack and DLQ settlement, Vietnam status-check
   worker leases with safe completion/failure RPCs and rolling-deploy
   compatibility, plus provider-filtered/targeted submission-queue claims.
+- `0138_bounded_queue_maintenance.sql`: adds a bounded, service-role-only
+  atomic stale-processing cleanup RPC and an index matching its heartbeat/status
+  cutoff scan; callers run it as low-frequency maintenance rather than per poll.
 
 ## Guardrails
 
