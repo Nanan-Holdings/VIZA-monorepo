@@ -1,8 +1,5 @@
-import { redirect } from "next/navigation";
-
-const PH_ETRAVEL_FORM_URL =
-  "/client/application/long-form?country=philippines&visaType=PH_ETRAVEL_ARRIVAL_CARD&skipFormCheck=true";
+import { PhilippinesArrivalEligibilityPage } from "@/features/ph-etravel/PhilippinesArrivalEligibilityPage";
 
 export default function PhilippinesEtravelArrivalCardPage() {
-  redirect(PH_ETRAVEL_FORM_URL);
+  return <PhilippinesArrivalEligibilityPage />;
 }

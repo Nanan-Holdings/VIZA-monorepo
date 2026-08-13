@@ -1,4 +1,5 @@
 import type { SubmissionPayload } from "../country-submissions/types";
+import { normalizePhEtravelCurrencyOwnerBranch } from "./attachment-owner-contract";
 import { evaluatePhEtravelSubmissionWindow } from "./date-window";
 
 export const PH_ETRAVEL_OFFICIAL_PORTAL_URL = "https://etravel.gov.ph";
@@ -9,6 +10,22 @@ export class PhEtravelPortalValidationError extends Error {
     super(message);
     this.name = "PhEtravelPortalValidationError";
   }
+}
+
+export function phEtravelDateFieldKeys(input: {
+  isDeparture: boolean;
+  transportType: "AIR" | "SEA" | "";
+}): { arrivalDateKey: string; departureDateKey: string } {
+  if (!input.isDeparture && input.transportType === "SEA") {
+    return {
+      arrivalDateKey: "voyage_arrival_date",
+      departureDateKey: "voyage_departure_date",
+    };
+  }
+  return {
+    arrivalDateKey: "flight_arrival_date",
+    departureDateKey: "flight_departure_date",
+  };
 }
 
 export interface PhEtravelPortalPayload {
@@ -39,8 +56,14 @@ export interface PhEtravelPortalPayload {
   travelType: string;
   transportType: string;
   passportHolderType: string | null;
+  arrivalBranch: {
+    transportType: "AIR" | "SEA";
+    passportHolderType: "FILIPINO" | "FOREIGNER";
+    travellerType: "AIRCRAFT_PASSENGER" | "VESSEL_PASSENGER";
+  } | null;
   registrationFor: string | null;
   isSpecialFlight: boolean;
+  isDisembarking: boolean | null;
   travellerType: string | null;
   flightNumber: string;
   airlineOrVesselName: string | null;
@@ -89,11 +112,34 @@ export interface PhEtravelPortalPayload {
     customsInformationAcknowledgement: boolean;
     hasGoodsToDeclare: boolean;
     hasCurrencyToDeclare: boolean;
+    amountOfGoodsCurrency: string | null;
+    amountOfGoodsAmount: string | null;
+    generalDeclarationResponses: Array<{
+      itemNumber: number;
+      key: string;
+      response: boolean;
+      details: string | null;
+    }>;
+    goodsItems: PhEtravelGoodsItem[];
     currencyType: string | null;
     currencyAmount: string | null;
     currencySource: string | null;
+    currencyOwnerNotApplicable: boolean;
+    currencyOwner: PhEtravelCurrencyParty | null;
+    currencyRecipient: PhEtravelCurrencyParty | null;
+    currencyItems: PhEtravelCurrencyItem[];
     bspAuthorizationNumber: string | null;
     bspAuthorizationDate: string | null;
+    currencySources: string[];
+    currencySourceOther: string | null;
+    currencyTransportPurposes: string[];
+    currencyTransportPurposeOther: string | null;
+    currencyTransportMethod: PhEtravelCurrencyTransportMethod | null;
+    noOfDaysInPhilippines: string | null;
+    lastTravelToPhilippines: string | null;
+    courierName: string | null;
+    airwayBillNumber: string | null;
+    airwayBillDate: string | null;
     customsSignatureDeclaration: boolean;
   };
   finalDeclaration: boolean;
@@ -103,6 +149,34 @@ export type PhEtravelDeparturePortalPayload = PhEtravelPortalPayload & {
   visaType: "PH_ETRAVEL_DEPARTURE_CARD";
   travelType: "DEPARTURE";
 };
+
+export interface PhEtravelGoodsItem {
+  description: string;
+  quantity: string;
+  amountUsd: string;
+}
+
+export interface PhEtravelCurrencyItem {
+  currency: string;
+  monetaryInstrument: string;
+  amount: string;
+}
+
+export interface PhEtravelCurrencyParty {
+  businessName: string | null;
+  firstName: string | null;
+  middleName: string | null;
+  lastName: string | null;
+  suffix: string | null;
+  occupationOrBusinessActivity: string | null;
+  country: string | null;
+  address: string | null;
+  postalCode: string | null;
+}
+
+export type PhEtravelCurrencyTransportMethod =
+  | "is_physically_transferred_by_person"
+  | "is_shipped_thru_courier_service";
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -188,6 +262,272 @@ function boolAnswer(value: unknown): boolean {
   return ["yes", "y", "true", "1", "on", "checked"].includes(normalized);
 }
 
+function normalizeCode(value: unknown): string {
+  return text(value).replace(/[\s-]+/g, "_").toUpperCase();
+}
+
+function normalizeOptionalIsoDate(value: unknown): string | null {
+  return normalizeIsoDate(value) || null;
+}
+
+function normalizeTransportType(value: unknown): "AIR" | "SEA" | "" {
+  const normalized = normalizeCode(value);
+  if (/^AIR|AIRCRAFT|FLIGHT$/.test(normalized)) return "AIR";
+  if (/^SEA|VESSEL|SHIP|SEAPORT|MARITIME$/.test(normalized)) return "SEA";
+  return "";
+}
+
+function isPhilippineIdentity(value: unknown): boolean {
+  return /^(?:PH|PHL|PHILIPPINES?|FILIPINO|PHILIPPINE\s+PASSPORT)$/i.test(text(value));
+}
+
+function normalizePassportHolderType(answers: Record<string, unknown>, payload: SubmissionPayload): "FILIPINO" | "FOREIGNER" | "" {
+  const direct = normalizeCode(firstText([
+    answers.passport_holder_type,
+    answers.nationality_type,
+    answers.traveller_nationality_type,
+    answers.nationality,
+    answers.travel_document_holder,
+    answers.passport_holder,
+  ]));
+  if (/FILIPINO|PHILIPPINE|PH_PASSPORT|PHILIPPINE_PASSPORT/.test(direct)) return "FILIPINO";
+  if (/FOREIGN|FOREIGNER|FOREIGN_PASSPORT/.test(direct)) return "FOREIGNER";
+  if (isPhilippineIdentity(firstText([answers.nationality, payload.personal.nationality]))) return "FILIPINO";
+  return "FOREIGNER";
+}
+
+function normalizeArrivalPassengerType(value: unknown, transportType: "AIR" | "SEA"): "AIRCRAFT_PASSENGER" | "VESSEL_PASSENGER" | "" {
+  const normalized = normalizeCode(value);
+  if (!normalized) return transportType === "AIR" ? "AIRCRAFT_PASSENGER" : "VESSEL_PASSENGER";
+  if (/AIRCRAFT_PASSENGER|AIR_PASSENGER|PASSENGER/.test(normalized) && transportType === "AIR") return "AIRCRAFT_PASSENGER";
+  if (/VESSEL_PASSENGER|SEA_PASSENGER|PASSENGER/.test(normalized) && transportType === "SEA") return "VESSEL_PASSENGER";
+  return "";
+}
+
+function unsupportedArrivalBranchFields(answers: Record<string, unknown>): string[] {
+  const unsupported: string[] = [];
+  const combined = [
+    answers.passport_holder_type,
+    answers.nationality,
+    answers.registration_type,
+    answers.travel_registration_type,
+    answers.registration_route,
+    answers.declaration_route,
+    answers.eligibility_category,
+    answers.eligibility_status,
+    answers.eligibility_traveller_type,
+    answers.eligibility_passport_type,
+    answers.eligibility_visa_type,
+    answers.arrival_registration_type,
+    answers.arrival_eligibility,
+    answers.traveller_type,
+    answers.passenger_type,
+    answers.passport_type,
+    answers.travel_document_type,
+    answers.travel_document_holder,
+    answers.passport_holder,
+    answers.visa_type,
+    answers.visa_category,
+    answers.official_status,
+    answers.exemption_status,
+    answers.exempt_status,
+    answers.special_identity,
+    answers.official_exemption_status,
+  ].map(text).join(" ");
+  const flags: Array<[string, unknown]> = [
+    ["is_special_registration", answers.is_special_registration],
+    ["is_special_travel_declaration", answers.is_special_travel_declaration],
+    ["special_registration", answers.special_registration],
+    ["special_travel_declaration", answers.special_travel_declaration],
+    ["is_crew", answers.is_crew],
+    ["crew", answers.crew],
+    ["is_cruise_passenger", answers.is_cruise_passenger],
+    ["cruise_passenger", answers.cruise_passenger],
+    ["is_cruise_travel", answers.is_cruise_travel],
+    ["cruise_travel", answers.cruise_travel],
+    ["is_foreign_diplomat", answers.is_foreign_diplomat],
+    ["foreign_diplomat", answers.foreign_diplomat],
+    ["foreign_diplomat_dependent", answers.foreign_diplomat_dependent],
+    ["is_foreign_diplomat_dependent", answers.is_foreign_diplomat_dependent],
+    ["foreign_diplomat_or_dependent", answers.foreign_diplomat_or_dependent],
+    ["is_foreign_dignitary", answers.is_foreign_dignitary],
+    ["foreign_dignitary", answers.foreign_dignitary],
+    ["foreign_dignitary_delegation", answers.foreign_dignitary_delegation],
+    ["is_foreign_dignitary_delegation", answers.is_foreign_dignitary_delegation],
+    ["foreign_delegation", answers.foreign_delegation],
+    ["is_9e_visa_holder", answers.is_9e_visa_holder],
+    ["visa_9e", answers.visa_9e],
+    ["has_9e_visa", answers.has_9e_visa],
+    ["is_official_passport_holder", answers.is_official_passport_holder],
+    ["official_passport_holder", answers.official_passport_holder],
+    ["service_passport_holder", answers.service_passport_holder],
+    ["diplomatic_passport_holder", answers.diplomatic_passport_holder],
+  ];
+  if (/flight[\s_]*crew|aircraft[\s_]*crew|vessel[\s_]*crew|cruise[\s_]*crew|\bcrew\b/i.test(combined)) unsupported.push("traveller_type");
+  if (/cruise[\s_]*passenger|cruise[\s_]*travel|new-cruise-travel-declaration/i.test(combined)) unsupported.push("cruise");
+  if (/special[\s_]*(?:travel[\s_]*)?(?:registration|declaration)|special-travel-declaration/i.test(combined)) unsupported.push("special_registration");
+  if (/\b9[\s_]*\(?e\)?\b|9E|diplomat|diplomatic|dependent|\bofficial\b|official[\s_]*passport|service[\s_]*passport|dignitar|delegation/i.test(combined)) unsupported.push("official_exemption_status");
+  for (const [key, value] of flags) {
+    if (boolAnswer(value)) unsupported.push(key);
+  }
+  return Array.from(new Set(unsupported));
+}
+
+function customsChecklistResponses(answers: Record<string, unknown>): Array<{
+  itemNumber: number;
+  key: string;
+  response: boolean;
+  details: string | null;
+}> {
+  const responses = [];
+  for (let itemNumber = 1; itemNumber <= 12; itemNumber += 1) {
+    const key = `customs_checklist_${itemNumber}`;
+    if (!(key in answers)) continue;
+    responses.push({
+      itemNumber,
+      key,
+      response: boolAnswer(answers[key]),
+      details: firstText([
+        answers[`${key}_details`],
+        answers[`customs_checklist_details_${itemNumber}`],
+      ]) || null,
+    });
+  }
+  return responses;
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function parsedJsonValue(value: unknown): unknown {
+  const raw = text(value);
+  if (!raw || !/^[\[{]/.test(raw)) return value;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+function repeatedObjectRows(
+  answers: Record<string, unknown>,
+  arrayKeys: string[],
+  fieldAliases: Record<string, string[]>,
+): Array<Record<string, string>> {
+  const rows: Array<Record<string, string>> = [];
+  for (const key of arrayKeys) {
+    const value = parsedJsonValue(answers[key]);
+    if (!Array.isArray(value)) continue;
+    for (const entry of value) {
+      const record = objectRecord(entry);
+      if (!record) continue;
+      const row: Record<string, string> = {};
+      for (const [target, aliases] of Object.entries(fieldAliases)) {
+        row[target] = firstText(aliases.map((alias) => record[alias]));
+      }
+      if (Object.values(row).some(Boolean)) rows.push(row);
+    }
+  }
+
+  const indexed = new Map<string, Record<string, string>>();
+  for (const [target, aliases] of Object.entries(fieldAliases)) {
+    for (const alias of aliases) {
+      for (const [answerKey, value] of Object.entries(answers)) {
+        if (answerKey !== alias && !answerKey.startsWith(`${alias}__`)) continue;
+        const normalized = text(value);
+        if (!normalized) continue;
+        const suffix = answerKey === alias ? "0" : answerKey.slice(alias.length + 2);
+        const row = indexed.get(suffix) ?? {};
+        row[target] = normalized;
+        indexed.set(suffix, row);
+      }
+    }
+  }
+
+  return [
+    ...rows,
+    ...Array.from(indexed.entries())
+      .sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true }))
+      .map(([, row]) => row),
+  ];
+}
+
+function normalizeGoodsItems(answers: Record<string, unknown>): PhEtravelGoodsItem[] {
+  return repeatedObjectRows(answers, ["goods_items", "customs_goods_items"], {
+    description: ["description", "goods_item_description", "customs_goods_item_description"],
+    quantity: ["quantity", "goods_item_quantity", "customs_goods_item_quantity"],
+    amountUsd: ["amount_usd", "amountInUsd", "amount", "value", "goods_item_value", "goods_item_amount_usd", "goods_item_amount"],
+  })
+    .filter((row) => row.description || row.quantity || row.amountUsd)
+    .map((row) => ({
+      description: row.description ?? "",
+      quantity: row.quantity ?? "",
+      amountUsd: row.amountUsd ?? "",
+    }));
+}
+
+function normalizeCurrencyItems(answers: Record<string, unknown>): PhEtravelCurrencyItem[] {
+  return repeatedObjectRows(answers, ["currency_items", "monetary_instruments"], {
+    currency: ["currency", "currency_name", "currency_type", "currency_item_currency"],
+    monetaryInstrument: ["monetary_instrument", "instrument", "currency_monetary_instrument", "currency_item_monetary_instrument"],
+    amount: ["amount", "currency_amount", "currency_item_amount"],
+  })
+    .filter((row) => row.currency || row.monetaryInstrument || row.amount)
+    .map((row) => ({
+      currency: row.currency ?? "",
+      monetaryInstrument: row.monetaryInstrument ?? "",
+      amount: row.amount ?? "",
+    }));
+}
+
+function repeatedTexts(answers: Record<string, unknown>, aliases: string[]): string[] {
+  const values: string[] = [];
+  for (const alias of aliases) {
+    const raw = parsedJsonValue(answers[alias]);
+    if (Array.isArray(raw)) {
+      values.push(...raw.map(text).filter(Boolean));
+    }
+    for (const [key, value] of Object.entries(answers)) {
+      if (key !== alias && !key.startsWith(`${alias}__`)) continue;
+      const normalized = text(value);
+      if (normalized) values.push(normalized);
+    }
+  }
+  return Array.from(new Set(values));
+}
+
+function currencyPartyFromAnswers(
+  answers: Record<string, unknown>,
+  prefix: "currency_owner" | "currency_recipient",
+): PhEtravelCurrencyParty | null {
+  const party: PhEtravelCurrencyParty = {
+    businessName: firstText([answers[`${prefix}_business_name`], answers[`${prefix}_business`]]) || null,
+    firstName: firstText([answers[`${prefix}_first_name`], answers[`${prefix}_given_name`]]) || null,
+    middleName: firstText([answers[`${prefix}_middle_name`]]) || null,
+    lastName: firstText([answers[`${prefix}_last_name`], answers[`${prefix}_family_name`], answers[`${prefix}_surname`]]) || null,
+    suffix: firstText([answers[`${prefix}_suffix`]]) || null,
+    occupationOrBusinessActivity: firstText([
+      answers[`${prefix}_occupation`],
+      answers[`${prefix}_business_activity`],
+      answers[`${prefix}_occupation_or_business_activity`],
+    ]) || null,
+    country: firstText([answers[`${prefix}_country`], answers[`${prefix}_country_code`]]) || null,
+    address: firstText([answers[`${prefix}_address`], answers[`${prefix}_street_address`]]) || null,
+    postalCode: firstText([answers[`${prefix}_postal_code`], answers[`${prefix}_zip_code`]]) || null,
+  };
+  return Object.values(party).some(Boolean) ? party : null;
+}
+
+function normalizeCurrencyTransportMethod(value: unknown): PhEtravelCurrencyTransportMethod | null {
+  const normalized = normalizeCode(value);
+  if (/PHYSICAL|PHYSICALLY|PERSON|HAND_CARRY|CARRIED/.test(normalized)) return "is_physically_transferred_by_person";
+  if (/COURIER|SHIPPED|SHIPMENT|AIRWAY|CARGO/.test(normalized)) return "is_shipped_thru_courier_service";
+  return null;
+}
+
 function dialCodeFromPhone(value: unknown): string {
   const normalized = text(value);
   if (!normalized) return "";
@@ -248,14 +588,34 @@ export function normalizePhEtravelPortalPayload(
 
   const answers = payload.countrySpecific;
   const missing: string[] = [];
+  const unsupported = !isDeparture ? unsupportedArrivalBranchFields(answers) : [];
+  if (unsupported.length > 0) {
+    throw new PhEtravelPortalValidationError(
+      `Philippines eTravel arrival branch is not supported for: ${unsupported.join(", ")}.`,
+      unsupported,
+    );
+  }
+  const transportType = normalizeTransportType(answers.transport_type);
+  const passportHolderType = normalizePassportHolderType(answers, payload);
+  if (!transportType) missing.push("transport_type");
+  if (!passportHolderType) missing.push("passport_holder_type");
+  const arrivalTravellerType = transportType
+    ? normalizeArrivalPassengerType(firstText([answers.traveller_type, answers.passenger_type]), transportType)
+    : "";
+  if (!isDeparture && !arrivalTravellerType) missing.push("traveller_type");
+  const dateKeys = phEtravelDateFieldKeys({ isDeparture, transportType });
   const arrivalDate = firstIsoDate(
-    [answers.flight_arrival_date, answers.arrival_date, payload.trip.arrivalDate],
-    "flight_arrival_date",
+    !isDeparture && transportType === "SEA"
+      ? [answers.voyage_arrival_date]
+      : [answers.flight_arrival_date, answers.arrival_date, payload.trip.arrivalDate],
+    dateKeys.arrivalDateKey,
     missing,
   );
   const departureDate = firstIsoDate(
-    [answers.flight_departure_date, answers.departure_date, payload.trip.departureDate],
-    "flight_departure_date",
+    !isDeparture && transportType === "SEA"
+      ? [answers.voyage_departure_date]
+      : [answers.flight_departure_date, answers.departure_date, payload.trip.departureDate],
+    dateKeys.departureDateKey,
     missing,
   );
   const windowDate = isDeparture ? departureDate : arrivalDate;
@@ -266,7 +626,7 @@ export function normalizePhEtravelPortalPayload(
       : window.status === "past"
         ? `Philippines eTravel ${isDeparture ? "departure" : "arrival"} date is already past.`
         : `Philippines eTravel ${isDeparture ? "departure" : "arrival"} date must use YYYY-MM-DD.`;
-    throw new PhEtravelPortalValidationError(reason, [isDeparture ? "flight_departure_date" : "flight_arrival_date"]);
+    throw new PhEtravelPortalValidationError(reason, [isDeparture ? dateKeys.departureDateKey : dateKeys.arrivalDateKey]);
   }
 
   const finalDeclaration = boolAnswer(answers.final_declaration);
@@ -282,8 +642,44 @@ export function normalizePhEtravelPortalPayload(
   const hasCheckedBaggage = boolAnswer(answers.has_checked_baggage) || checkedBaggageCount !== "" && checkedBaggageCount !== "0";
   const hasHandcarryBaggage = boolAnswer(answers.has_handcarry_baggage) || handcarryBaggageCount !== "" && handcarryBaggageCount !== "0";
   const hasBaggageOrCurrencyToDeclare = boolAnswer(answers.has_baggage_or_currency_to_declare);
-  const hasDutiableGoods = boolAnswer(answers.has_dutiable_goods);
-  const hasCurrencyOverThreshold = boolAnswer(answers.has_currency_over_threshold);
+  const generalDeclarationResponses = customsChecklistResponses(answers);
+  const hasGoodsChecklistPositive = generalDeclarationResponses.some((item) => item.itemNumber >= 3 && item.response);
+  const hasCurrencyChecklistPositive = generalDeclarationResponses.some((item) => item.itemNumber <= 2 && item.response);
+  const hasDutiableGoods = boolAnswer(answers.has_dutiable_goods) || hasGoodsChecklistPositive;
+  const hasCurrencyOverThreshold = boolAnswer(answers.has_currency_over_threshold) || hasCurrencyChecklistPositive;
+  const goodsItems = normalizeGoodsItems(answers);
+  const currencyItems = normalizeCurrencyItems(answers);
+  const currencySources = repeatedTexts(answers, ["currency_source", "currency_sources", "source_of_currency"]);
+  const currencyTransportPurposes = repeatedTexts(answers, [
+    "currency_transport_purpose",
+    "currency_transport_purposes",
+    "purpose_of_currency_transport",
+  ]);
+  const currencyTransportMethod = normalizeCurrencyTransportMethod(firstText([
+    answers.currency_transport_method,
+    answers.currency_transfer_method,
+    answers.currency_physical_or_courier,
+  ]));
+  const hasCompleteGoodsItem = goodsItems.some((item) => item.description && item.quantity && item.amountUsd);
+  const hasCompleteCurrencyItem = currencyItems.some((item) => item.currency && item.monetaryInstrument && item.amount);
+  if (generalDeclarationResponses.some((item) => item.itemNumber === 12 && item.response) && !hasCompleteGoodsItem) {
+    missing.push("goods_items");
+  }
+  if (hasCurrencyChecklistPositive || boolAnswer(answers.has_currency_to_declare)) {
+    if (!hasCompleteCurrencyItem) missing.push("currency_items");
+    if (currencySources.length === 0) missing.push("currency_sources");
+    if (currencyTransportPurposes.length === 0) missing.push("currency_transport_purposes");
+    if (!currencyTransportMethod) missing.push("currency_transport_method");
+    if (currencyTransportMethod === "is_physically_transferred_by_person") {
+      if (!text(answers.no_of_days_in_philippines)) missing.push("no_of_days_in_philippines");
+      if (!normalizeOptionalIsoDate(answers.last_travel_to_philippines)) missing.push("last_travel_to_philippines");
+    }
+    if (currencyTransportMethod === "is_shipped_thru_courier_service") {
+      if (!text(answers.courier_name)) missing.push("courier_name");
+      if (!text(answers.airway_bill_number ?? answers.airway_bill_no)) missing.push("airway_bill_number");
+      if (!normalizeOptionalIsoDate(answers.airway_bill_date)) missing.push("airway_bill_date");
+    }
+  }
   const hasHealthSymptoms =
     boolAnswer(answers.has_health_symptoms) ||
     boolAnswer(answers.has_recent_travel_history_30d) ||
@@ -311,20 +707,41 @@ export function normalizePhEtravelPortalPayload(
   });
   if (!fullName) missing.push("first_name");
   const hasTransit = boolAnswer(answers.with_transit);
-  const destinationType = firstText([answers.destination_type]) || null;
+  const isSeaArrival = !isDeparture && transportType === "SEA";
+  const hasDisembarkingAnswer = text(answers.is_disembarking) !== "";
+  const isDisembarking = isSeaArrival
+    ? hasDisembarkingAnswer
+      ? boolAnswer(answers.is_disembarking)
+      : Boolean(firstText([answers.destination_type, answers.disembarking_port_code]))
+    : null;
+  const hasArrivalDestinationBranch = !isDeparture && (!isSeaArrival || isDisembarking === true);
+  // `destination_port_code` selects the SEA arrival customs-flow metadata.
+  // `disembarking_port_code` belongs only to the conditional stay-location
+  // branch and must never stand in for the arrival seaport.
+  const seaDestinationPortCode = isSeaArrival
+    ? requireFirstText([answers.destination_port_code], "destination_port_code", missing)
+    : null;
+  const destinationType = hasArrivalDestinationBranch
+    ? firstText([answers.destination_type]) || null
+    : null;
+  if (hasArrivalDestinationBranch && !destinationType) missing.push("destination_type");
   const isTransitDestination = /transit/i.test(destinationType ?? "");
-  const philippinesAddress = isDeparture ? null : requireFirstText(
-    [
-      answers.philippines_address,
-      answers.destination_residence_address,
-      answers.destination_hotel_address,
-      answers.destination_hotel_name,
-      answers.destination_transit_airport,
-      payload.trip.accommodationAddress,
-    ],
-    "destination_type",
-    missing,
-  );
+  const isTravelPortDestination = /travel[_\s-]?port/i.test(destinationType ?? "");
+  const needsPhilippinesAddress = hasArrivalDestinationBranch && !isTransitDestination && !isTravelPortDestination;
+  const philippinesAddress = needsPhilippinesAddress
+    ? requireFirstText(
+        [
+          answers.philippines_address,
+          answers.destination_residence_address,
+          answers.destination_hotel_address,
+          answers.destination_hotel_name,
+          answers.destination_transit_airport,
+          payload.trip.accommodationAddress,
+        ],
+        "destination_type",
+        missing,
+      )
+    : null;
 
   const mapped = {
     fullName,
@@ -412,14 +829,23 @@ export function normalizePhEtravelPortalPayload(
       missing,
     ),
     travelType: isDeparture ? "DEPARTURE" : "ARRIVAL",
-    transportType: requireFirstText([answers.transport_type], "transport_type", missing),
-    passportHolderType: firstText([answers.passport_holder_type]) || null,
+    transportType: transportType || requireFirstText([answers.transport_type], "transport_type", missing),
+    passportHolderType,
+    arrivalBranch: isDeparture ? null : {
+      transportType: transportType as "AIR" | "SEA",
+      passportHolderType: passportHolderType as "FILIPINO" | "FOREIGNER",
+      travellerType: arrivalTravellerType as "AIRCRAFT_PASSENGER" | "VESSEL_PASSENGER",
+    },
     registrationFor: firstText([answers.registration_for]) || null,
-    isSpecialFlight: boolAnswer(answers.is_special_flight),
-    travellerType: firstText([answers.traveller_type]) || null,
+    isSpecialFlight: boolAnswer(answers.is_special_flight) || text(answers.flight_number).toUpperCase() === "SPECIAL FLIGHT",
+    isDisembarking,
+    travellerType: isDeparture ? firstText([answers.traveller_type]) || null : arrivalTravellerType,
     flightNumber: requireFirstText(
       [
-        answers.flight_number === "OTHER" ? answers.flight_number_other : answers.flight_number,
+        (boolAnswer(answers.is_special_flight) || text(answers.flight_number).toUpperCase() === "SPECIAL FLIGHT")
+          ? firstText([answers.flight_number_special, answers.special_flight_number])
+          : answers.flight_number === "OTHER" ? answers.flight_number_other : answers.flight_number,
+        answers.voyage_number,
         answers.vessel_name,
         answers.vehicle_or_vessel_number,
         answers.transport_number,
@@ -429,17 +855,25 @@ export function normalizePhEtravelPortalPayload(
     ),
     airlineOrVesselName: firstText([
       answers.airline_name === "OTHERS" ? answers.airline_name_other : answers.airline_name,
+      answers.travel_company_code,
       answers.vessel_name,
       answers.airline_or_vessel_name,
     ]) || null,
-    airportOfOrigin: firstText([answers.airport_of_origin]) || null,
-    portOfEntry: requireFirstText(
-      isDeparture
-        ? [answers.departure_airport, answers.departure_seaport]
-        : [answers.port_of_entry],
-      isDeparture ? "departure_port" : "port_of_entry",
-      missing,
-    ),
+    airportOfOrigin: firstText([
+      answers.airport_of_origin,
+      answers.origin_port,
+      answers.origin_port_code,
+      answers.seaport_of_origin,
+    ]) || null,
+    portOfEntry: isSeaArrival
+      ? seaDestinationPortCode!
+      : requireFirstText(
+          isDeparture
+            ? [answers.departure_airport, answers.departure_seaport]
+            : [answers.port_of_entry, answers.destination_port_code],
+          isDeparture ? "departure_port" : "port_of_entry",
+          missing,
+        ),
     arrivalDate,
     departureDate,
     originCountry: isDeparture
@@ -469,7 +903,9 @@ export function normalizePhEtravelPortalPayload(
         : null,
     destinationPort: isDeparture
       ? requireFirstText([answers.destination_port], "destination_port", missing)
-      : null,
+      : isTravelPortDestination
+        ? requireFirstText([answers.disembarking_port_code, answers.destination_port], "disembarking_port_code", missing)
+        : firstText([answers.disembarking_port_code, answers.destination_port]) || null,
     destinationAddress: isDeparture
       ? requireFirstText([answers.destination_address, answers.residence_address], "destination_address", missing)
       : null,
@@ -490,6 +926,12 @@ export function normalizePhEtravelPortalPayload(
   if (missing.length > 0) {
     throw new PhEtravelPortalValidationError(`Philippines eTravel payload is missing: ${missing.join(", ")}`, missing);
   }
+
+  const currencyOwnerBranch = normalizePhEtravelCurrencyOwnerBranch({
+    ownerNotApplicable: boolAnswer(answers.currency_owner_not_applicable),
+    owner: currencyPartyFromAnswers(answers, "currency_owner"),
+    recipient: currencyPartyFromAnswers(answers, "currency_recipient"),
+  });
 
   return {
     countryCode: "PH",
@@ -516,13 +958,40 @@ export function normalizePhEtravelPortalPayload(
       hasBaggageOrCurrencyToDeclare,
       customsSignatureFile: text(answers.customs_signature_file) || null,
       customsInformationAcknowledgement: boolAnswer(answers.customs_information_acknowledgement),
-      hasGoodsToDeclare: boolAnswer(answers.has_goods_to_declare),
-      hasCurrencyToDeclare: boolAnswer(answers.has_currency_to_declare),
+      hasGoodsToDeclare: boolAnswer(answers.has_goods_to_declare) || hasGoodsChecklistPositive || hasDutiableGoods,
+      hasCurrencyToDeclare: boolAnswer(answers.has_currency_to_declare) || hasCurrencyChecklistPositive || hasCurrencyOverThreshold,
+      amountOfGoodsCurrency: firstText([
+        answers.amount_of_goods_currency,
+        answers.goods_currency,
+      ]) || null,
+      amountOfGoodsAmount: firstText([
+        answers.amount_of_goods_amount,
+        answers.goods_amount,
+      ]) || null,
+      generalDeclarationResponses,
+      goodsItems,
       currencyType: firstText([answers.currency_type]) || null,
       currencyAmount: firstText([answers.currency_amount]) || null,
       currencySource: firstText([answers.currency_source]) || null,
+      currencyOwnerNotApplicable: currencyOwnerBranch.ownerNotApplicable,
+      currencyOwner: currencyOwnerBranch.owner,
+      currencyRecipient: currencyOwnerBranch.recipient,
+      currencyItems,
       bspAuthorizationNumber: firstText([answers.bsp_authorization_number]) || null,
-      bspAuthorizationDate: firstIsoDate([answers.bsp_authorization_date], "bsp_authorization_date", []) || null,
+      bspAuthorizationDate: normalizeOptionalIsoDate(answers.bsp_authorization_date),
+      currencySources,
+      currencySourceOther: firstText([answers.currency_source_other, answers.source_of_currency_other]) || null,
+      currencyTransportPurposes,
+      currencyTransportPurposeOther: firstText([
+        answers.currency_transport_purpose_other,
+        answers.purpose_of_currency_transport_other,
+      ]) || null,
+      currencyTransportMethod,
+      noOfDaysInPhilippines: firstText([answers.no_of_days_in_philippines]) || null,
+      lastTravelToPhilippines: normalizeOptionalIsoDate(answers.last_travel_to_philippines),
+      courierName: firstText([answers.courier_name]) || null,
+      airwayBillNumber: firstText([answers.airway_bill_number, answers.airway_bill_no]) || null,
+      airwayBillDate: normalizeOptionalIsoDate(answers.airway_bill_date),
       customsSignatureDeclaration: boolAnswer(answers.customs_signature_declaration),
     },
     finalDeclaration,
