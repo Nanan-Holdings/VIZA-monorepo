@@ -2911,6 +2911,11 @@ export default function ApplicationPage() {
         const fields = dbSteps.flatMap((step) => step.fields);
         const patch = Object.fromEntries(payload.appliedPatches.map((item) => [item.fieldName, item.value]));
         for (const item of payload.appliedPatches) {
+          // Assistant values are persisted in the schema's official value.
+          // Remove stale bilingual draft aliases so a prior manual `_zh` or
+          // `_en` value cannot visually override the correction on reload.
+          delete patch[`${item.fieldName}_zh`];
+          delete patch[`${item.fieldName}_en`];
           const stepIndex = dbSteps.findIndex((step) =>
             step.fields.some((field) => field.fieldName === item.fieldName),
           );
@@ -2922,12 +2927,24 @@ export default function ApplicationPage() {
             // like a conflict with manual input.
             const existingDraft = dynamicDraftRef.current[stepIndex];
             if (existingDraft && Object.prototype.hasOwnProperty.call(existingDraft, item.fieldName)) {
-              const { [item.fieldName]: _assistantPatchedField, ...remainingDraft } = existingDraft;
+              const {
+                [item.fieldName]: _assistantPatchedField,
+                [`${item.fieldName}_zh`]: _assistantPatchedFieldZh,
+                [`${item.fieldName}_en`]: _assistantPatchedFieldEn,
+                ...remainingDraft
+              } = existingDraft;
               dynamicDraftRef.current[stepIndex] = remainingDraft;
             }
           }
         }
-        setDynamicAnswers((current) => ({ ...current, ...patch }));
+        setDynamicAnswers((current) => {
+          const next = { ...current };
+          for (const item of payload.appliedPatches) {
+            delete next[`${item.fieldName}_zh`];
+            delete next[`${item.fieldName}_en`];
+          }
+          return { ...next, ...patch };
+        });
         setAiFilledFieldNames((current) => Array.from(new Set([
           ...current,
           ...payload.appliedPatches.map((item) => item.fieldName),

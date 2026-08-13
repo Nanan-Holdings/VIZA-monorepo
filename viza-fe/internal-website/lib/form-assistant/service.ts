@@ -1556,6 +1556,18 @@ export async function runAssistantTurn(params: {
       }
     }
     params.answers[patch.fieldName] = { value: patch.value, source: "form_assistant" };
+    const staleBilingualKeys = [`${patch.fieldName}_zh`, `${patch.fieldName}_en`]
+      .filter((fieldName) => Boolean(params.answers[fieldName]));
+    if (staleBilingualKeys.length > 0) {
+      const { error: bilingualDeleteError } = await params.admin
+        .from("visa_application_answers")
+        .delete()
+        .eq("application_id", params.applicationId)
+        .in("field_name", staleBilingualKeys);
+      if (!bilingualDeleteError) {
+        for (const fieldName of staleBilingualKeys) delete params.answers[fieldName];
+      }
+    }
     appliedPatches.push({
       fieldName: patch.fieldName,
       value: patch.value,
