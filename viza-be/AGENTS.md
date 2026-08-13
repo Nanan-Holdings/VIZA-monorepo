@@ -18,6 +18,9 @@ and Travel AI planning.
 - `email-worker`: Cloudflare Email Routing worker for applicant alias inboxes,
   Supabase/R2 ingestion, and forwarding official correspondence to the
   applicant's real email.
+- `resilience-worker`: independent Cloudflare watchdog and encrypted
+  server-to-server cache/outbox gateway. Its Durable Object stores only
+  encrypted blobs and operational metadata; it does not decrypt applicant data.
 - `travel-service`: Python FastAPI service for travel itineraries, travel chat,
   flight/hotel options, and Word/PDF export.
 
