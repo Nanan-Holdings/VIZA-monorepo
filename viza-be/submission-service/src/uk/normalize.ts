@@ -353,16 +353,13 @@ export function normalizeUkAnswers(input: UkNormalizeInput): Record<string, stri
   put(out, "monthly_outgoings_amount", clean(a.monthly_outgoings_amount));
   put(out, "monthly_outgoings_currency", clean(a.monthly_outgoings_currency));
 
-  // `trip_funding_source` never existed upstream (no such wizard field) —
-  // the real seed fields are `someone_paying_for_visit` (direct Yes/No) and
-  // `who_is_paying` (select: self/sponsor/employer/other). Without this fix,
-  // "others_paying_for_visit" was never set, so payingForYourVisit always
-  // defaulted to "No" regardless of the real answer.
+  // Prefer the current seed fields, while retaining the legacy wizard key
+  // because older saved applications can still reach the submission worker.
   const someonePaying = toYesNo(a.someone_paying_for_visit);
   if (someonePaying !== undefined) {
     put(out, "others_paying_for_visit", someonePaying);
   } else {
-    const whoIsPaying = clean(a.who_is_paying).toLowerCase();
+    const whoIsPaying = clean(a.who_is_paying || a.trip_funding_source).toLowerCase();
     if (whoIsPaying) put(out, "others_paying_for_visit", whoIsPaying === "self" ? "no" : "yes");
   }
 

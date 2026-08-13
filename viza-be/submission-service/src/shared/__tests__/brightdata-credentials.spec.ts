@@ -21,6 +21,7 @@ test("brightdata: explicit username + password", () => {
 test("brightdata: customer id + zone builds username", () => {
   delete process.env.BRIGHTDATA_USERNAME;
   delete process.env.BRIGHTDATA_USER;
+  delete process.env.BRIGHTDATA_PASSWORD;
   process.env.BRIGHTDATA_CUSTOMER_ID = "hl_abc123";
   process.env.BRIGHTDATA_ZONE = "viza_qa_local";
   process.env.BRIGHTDATA_ZONE_PASSWORD = "zone-secret";
