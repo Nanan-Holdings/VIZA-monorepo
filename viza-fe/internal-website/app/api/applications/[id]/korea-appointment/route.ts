@@ -1093,9 +1093,8 @@ async function createWorkerUnavailableCheckpoint(
     bookingSearchUrl: routing.recommended.bookingSearchUrl,
     officialUrl: routing.recommended.officialUrl,
     nextStep: kind === "cancel" || kind === "reschedule" ? "retry_cancel_query" : "retry_official_slot_query",
-    workerBaseUrl: submissionServiceBaseUrl(),
     workerUnavailable: true,
-    error: rawError,
+    errorClass: isSubmissionRunnerUnavailable(rawError) ? "runner_unavailable" : "runner_request_failed",
   };
 
   const { data: existingManualAction, error: existingManualErr } = await admin
@@ -1515,7 +1514,7 @@ async function completeOfficialFinalBooking(
       confirmation_pdf_url: officialComplete.confirmationPdfUrl ?? null,
       confirmation_screenshot_url: officialComplete.screenshotPath ?? null,
       raw_confirmation_redacted_json: {
-        mode: "official_kvac_live",
+        mode: routing.recommended.code === "shenyang" ? "official_vfs_live" : "official_kvac_live",
         center: routing.recommended.code,
         officialSessionId: officialComplete.officialSessionId ?? job.id,
         screenshotPath: officialComplete.screenshotPath,
