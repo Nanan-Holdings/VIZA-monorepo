@@ -346,7 +346,10 @@ export function TwResultCard({
   const failure = failed ? categorizeTwFailure(result) : null;
   const failureMeta = failure ? FAILURE_META[failure.category] : null;
   const handoffExpired = stopped && isExpiredTimestamp(result.handoffExpiresAt);
-  const canOpenHandoff = stopped && !handoffExpired;
+  const canOpenHandoff = Boolean(
+    stopped && applicationId && result.handoffExpiresAt && !handoffExpired,
+  );
+  const stoppedWithoutResumableHandoff = stopped && !canOpenHandoff && !handoffExpired;
   const recoverableFailure = isRecoverableTwFailure(result, failure);
   const canRetry = Boolean(applicationId && onRetry && !submitted && (handoffExpired || recoverableFailure));
 
@@ -398,6 +401,24 @@ export function TwResultCard({
             {STATUS_ORDER.map((item) => (
               <StepPill key={item} status={item} activeStatus={status} isZh={isZh} />
             ))}
+          </div>
+        )}
+
+        {stoppedWithoutResumableHandoff && (
+          <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            <div className="font-semibold">
+              {isZh ? "已停在官方验证码前，尚未提交" : "Stopped before the official CAPTCHA and not submitted"}
+            </div>
+            <p>
+              {isZh
+                ? "没有识别验证码，也没有点击「确认资料」最终提交。"
+                : "The CAPTCHA was not solved and the official final confirmation was not clicked."}
+            </p>
+            <p>
+              {isZh
+                ? "请勿把普通官网入口当成可接续链接；需要由 VIZA 生成有效的同一会话后才能打开。"
+                : "Do not treat a normal portal URL as a resumable session. VIZA must create a valid handoff for the same browser session."}
+            </p>
           </div>
         )}
 

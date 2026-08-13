@@ -1016,7 +1016,12 @@ async function readSgacDateAnswers(
   admin: ReturnType<typeof createAdminClient>,
   applicationId: string,
   application: ApplicationForRetry,
-): Promise<{ arrivalDate: string | null; departureDate: string | null; error: string | null }> {
+): Promise<{
+  arrivalDate: string | null;
+  departureDate: string | null;
+  transportType: string | null;
+  error: string | null;
+}> {
   const { data, error } = await admin
     .from("visa_application_answers")
     .select("field_name, value_text, value_json")
@@ -1026,13 +1031,23 @@ async function readSgacDateAnswers(
       "flight_arrival_date",
       "intended_arrival_date",
       "planned_arrival_date",
+      "voyage_arrival_date",
       "departure_date",
       "flight_departure_date",
       "intended_departure_date",
       "planned_departure_date",
+      "voyage_departure_date",
+      "transport_type",
     ]);
 
-  if (error) return { arrivalDate: null, departureDate: null, error: error.message };
+  if (error) {
+    return {
+      arrivalDate: null,
+      departureDate: null,
+      transportType: null,
+      error: error.message,
+    };
+  }
 
   const answers: Record<string, string> = {};
   for (const row of (data ?? []) as Array<{ field_name?: unknown; value_text?: unknown; value_json?: unknown }>) {
@@ -1041,21 +1056,25 @@ async function readSgacDateAnswers(
     if (value) answers[row.field_name] = value;
   }
 
+  const transportType = firstText([answers.transport_type])?.toUpperCase() ?? null;
+  const usesVoyageDates = transportType === "SEA";
+
   return {
     arrivalDate: firstText([
-      answers.flight_arrival_date,
+      usesVoyageDates ? answers.voyage_arrival_date : answers.flight_arrival_date,
       answers.arrival_date,
       answers.intended_arrival_date,
       answers.planned_arrival_date,
       application.arrival_date,
     ]),
     departureDate: firstText([
-      answers.flight_departure_date,
+      usesVoyageDates ? answers.voyage_departure_date : answers.flight_departure_date,
       answers.departure_date,
       answers.intended_departure_date,
       answers.planned_departure_date,
       application.departure_date,
     ]),
+    transportType,
     error: null,
   };
 }
@@ -1303,7 +1322,7 @@ async function decideTdacLiveSchedule(input: {
   };
 }
 
-async function decidePhEtravelLiveSchedule(input: {
+export async function decidePhEtravelLiveSchedule(input: {
   admin: ReturnType<typeof createAdminClient>;
   applicationId: string;
   application: ApplicationForRetry;
@@ -1365,7 +1384,8 @@ async function decidePhEtravelLiveSchedule(input: {
       payloadSummary: {
         arrivalDate: travelDates.arrivalDate,
         departureDate: travelDates.departureDate,
-        modeOfTravel: null,
+        modeOfTravel: dates.transportType,
+        dateSource: dates.transportType === "SEA" ? "voyage" : "flight",
         transportNumber: null,
         accommodationAddressProvided: false,
       },

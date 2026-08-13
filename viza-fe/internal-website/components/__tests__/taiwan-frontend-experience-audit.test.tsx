@@ -367,19 +367,19 @@ describe("Taiwan frontend experience audit", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /请选择/u }));
-    expect(screen.getByText("新興區")).toBeInTheDocument();
-    expect(screen.getByText("前金區")).toBeInTheDocument();
-    expect(screen.getByText("苓雅區")).toBeInTheDocument();
-    expect(screen.getByText("鹽埕區")).toBeInTheDocument();
-    expect(screen.queryByText("中正區")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "新興區" }));
+    expect(screen.getByText("新兴区")).toBeInTheDocument();
+    expect(screen.getByText("前金区")).toBeInTheDocument();
+    expect(screen.getByText("苓雅区")).toBeInTheDocument();
+    expect(screen.getByText("盐埕区")).toBeInTheDocument();
+    expect(screen.queryByText("中正区")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "新兴区" }));
 
     fireEvent.click(screen.getByRole("button", { name: /高雄市/u }));
-    fireEvent.click(screen.getByRole("button", { name: "臺北市" }));
+    fireEvent.click(screen.getByRole("button", { name: "台北市" }));
 
     fireEvent.click(screen.getByRole("button", { name: /请选择/u }));
-    expect(screen.getByText("中正區")).toBeInTheDocument();
-    expect(screen.queryByText("新興區")).not.toBeInTheDocument();
+    expect(screen.getByText("中正区")).toBeInTheDocument();
+    expect(screen.queryByText("新兴区")).not.toBeInTheDocument();
   });
 
   it("shows the hotel address guidance only on the Taiwan contact address step", () => {
@@ -491,8 +491,8 @@ describe("Taiwan frontend experience audit", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /新興區/u }));
-    expect(screen.getByText("前金區")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /新兴区/u }));
+    expect(screen.getByText("前金区")).toBeInTheDocument();
     expect(consoleError).not.toHaveBeenCalledWith(
       expect.stringContaining("Maximum update depth exceeded"),
     );

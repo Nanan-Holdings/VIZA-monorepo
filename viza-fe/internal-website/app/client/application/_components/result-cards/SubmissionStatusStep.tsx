@@ -1668,6 +1668,7 @@ export function SubmissionStatusStep({
     durableTerminalPropsAvailable,
     localRetryActive,
     snapshotIsActive,
+    snapshotAvailable: snapshot !== null,
   });
   const parentHasTerminalSubmission =
     Boolean(result) &&
