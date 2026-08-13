@@ -35,7 +35,10 @@ confirm extracted data before it updates profile or application answers.
   fields should remain surname/given-name authoritative when available. Calls
   use a bounded timeout and one transient retry by default; tune with
   `PASSPORT_OCR_REQUEST_TIMEOUT_MS`, `PASSPORT_OCR_REQUEST_ATTEMPTS`, and
-  `PASSPORT_OCR_RETRY_DELAY_MS` only when the deployment requires it.
+  `PASSPORT_OCR_RETRY_DELAY_MS` only when the deployment requires it. Networks
+  that require an outbound HTTPS proxy may set `PASSPORT_OCR_PROXY_URL` (or the
+  conventional `HTTPS_PROXY`); TLS still terminates against the official
+  `api.openai.com` origin.
 - `provider.test.ts`: mocked-provider regression tests for request payloads,
   model fallback, and structured parsing.
 - `types.ts`: response, proposal, provider, and error contracts.

@@ -854,7 +854,10 @@ async function getSubmissionStatus(
   const legacySession = await getClientSessionFromRequest(request);
   let authUserId: string | null = null;
   if (!legacySession) {
-    const supabase = await createClient();
+    const supabase = await createClient({
+      requestTimeoutMs: 3_000,
+      retryDelaysMs: [250],
+    });
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -864,7 +867,10 @@ async function getSubmissionStatus(
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({
+    requestTimeoutMs: 4_000,
+    retryDelaysMs: [250],
+  });
   const profileQuery = admin
     .from("applicant_profiles")
     .select("id");

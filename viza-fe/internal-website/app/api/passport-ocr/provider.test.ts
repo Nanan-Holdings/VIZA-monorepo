@@ -261,7 +261,7 @@ function mrzNoiseNameResponse() {
               field_confidence: fieldConfidence,
               mrz: {
                 line1: null,
-                line2: "EM74291070CHN0607270M3406245<<<<<<<<<<<<<<06",
+                line2: "EM74291078CHN0607270M3406245<<<<<<<<<<<<<<06",
               },
             }),
           },
@@ -407,6 +407,22 @@ describe("passport OCR provider", () => {
     expect(result.fields.passportNumber.value).toBe("L898902C3");
   });
 
+  it("uses an explicit HTTPS proxy for provider calls", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    vi.stubEnv("PASSPORT_OCR_PROXY_URL", "http://127.0.0.1:7890");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(successResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const file: PassportOcrFile = {
+      bytes: Buffer.from("synthetic image bytes"),
+      filename: "passport.jpg",
+      mimeType: "image/jpeg",
+    };
+
+    await extractPassportOcr(file);
+
+    expect(fetchMock.mock.calls[0]?.[1]).toHaveProperty("dispatcher");
+  });
+
   it("uses the Latin MRZ name when local-script name text is also visible", async () => {
     vi.stubEnv("OPENAI_API_KEY", "test-key");
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(chineseNameWithMrzResponse());
@@ -468,6 +484,57 @@ describe("passport OCR provider", () => {
     expect(result.fields.gender.value).toBe("M");
     expect(result.warnings).toContain("full_name_repaired_from_name_parts");
     expect(result.warnings).toContain("fields_verified_from_mrz");
+  });
+
+  it("does not overwrite visual fields from an invalid or truncated MRZ line", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    const fields = {
+      full_name: "ZHANG SAN",
+      native_full_name: null,
+      given_names: "SAN",
+      surname: "ZHANG",
+      passport_number: "E12345678",
+      identity_document_number: null,
+      date_of_birth: "1990-01-01",
+      place_of_birth: null,
+      nationality: "CHINESE",
+      issuing_country: "CHN",
+      issue_date: "2020-01-01",
+      expiry_date: "2030-01-01",
+      gender: "M",
+    };
+    const fieldConfidence = Object.fromEntries(FIELD_NAMES.map((field) => [field, 0.98]));
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+      output: [{
+        type: "message",
+        content: [{
+          type: "output_text",
+          text: JSON.stringify({
+            is_readable: true,
+            confidence: 0.98,
+            fields,
+            field_confidence: fieldConfidence,
+            mrz: {
+              line1: "P<CHNZHANG<<SAN<<<<<<<<<<<<<<<<<<<<<<<<",
+              line2: "E12345678CHN9001011M3001012<<<<<<<<<<<<<06",
+            },
+          }),
+        }],
+      }],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const file: PassportOcrFile = {
+      bytes: Buffer.from("synthetic passport image bytes"),
+      filename: "passport.jpg",
+      mimeType: "image/jpeg",
+    };
+
+    const result = await extractPassportOcr(file);
+
+    expect(result.fields.nationality.value).toBe("CHINESE");
+    expect(result.fields.dateOfBirth.value).toBe("1990-01-01");
+    expect(result.fields.expiryDate.value).toBe("2030-01-01");
+    expect(result.warnings).not.toContain("fields_verified_from_mrz");
   });
 
   it("keeps a national identity number separate from passport number", async () => {

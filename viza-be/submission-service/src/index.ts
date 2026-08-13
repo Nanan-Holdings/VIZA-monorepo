@@ -241,10 +241,6 @@ import {
   hasLegacyWorkerWork,
 } from "./work-availability.js";
 
-const POLL_INTERVAL_MS = Number.parseInt(
-  process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
-  10,
-);
 const MAX_ATTEMPTS = 3;
 const SUBMISSION_QUEUE_WORKER_ID =
   process.env.SUBMISSION_SERVICE_WORKER_ID?.trim() || `submission-service-${process.pid}`;
@@ -269,6 +265,20 @@ const VN_LIVE_PROCESSING_TIMEOUT_MS = Math.max(
 const DS160_LIVE_PROCESSING_TIMEOUT_MS = Math.max(
   STALE_QUEUE_TIMEOUT_MS,
   (Number.parseInt(process.env.DS160_LIVE_MAX_DURATION_SECONDS ?? "1800", 10) + 300) * 1000,
+);
+const STALE_QUEUE_MAINTENANCE_INTERVAL_MS = Math.max(
+  60_000,
+  Number.parseInt(
+    process.env.VIZA_SUBMISSION_QUEUE_STALE_MAINTENANCE_INTERVAL_MS ?? String(30 * 60 * 1000),
+    10,
+  ),
+);
+const STALE_QUEUE_MAINTENANCE_BATCH_SIZE = Math.max(
+  1,
+  Math.min(
+    500,
+    Number.parseInt(process.env.VIZA_SUBMISSION_QUEUE_STALE_MAINTENANCE_BATCH_SIZE ?? "100", 10),
+  ),
 );
 const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "pending",
@@ -1385,76 +1395,36 @@ function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): Subm
   return "failed";
 }
 
-function isPendingQueueStatus(status: SubmissionQueueItem["status"]): boolean {
-  return status === "pending" || status.endsWith("_pending");
-}
-
-function timeoutForQueueStatus(status: SubmissionQueueItem["status"]): number {
-  if (status === "ds160_live_assisted_processing") {
-    return DS160_LIVE_PROCESSING_TIMEOUT_MS;
-  }
-  if (status === "vn_live_assisted_processing" || status === "vn_payment_processing") {
-    return VN_LIVE_PROCESSING_TIMEOUT_MS;
-  }
-  return STALE_QUEUE_TIMEOUT_MS;
-}
+let lastStaleQueueMaintenanceAt = 0;
 
 async function markStaleQueueItemsTimedOut(): Promise<void> {
+  const nowMs = Date.now();
   if (!Number.isFinite(STALE_QUEUE_TIMEOUT_MS) || STALE_QUEUE_TIMEOUT_MS <= 0) return;
-  const { data, error } = await supabase
-    .from("submission_queue")
-    .select("*")
-    .in("status", STALE_QUEUE_STATUSES);
+  if (nowMs - lastStaleQueueMaintenanceAt < STALE_QUEUE_MAINTENANCE_INTERVAL_MS) return;
+  lastStaleQueueMaintenanceAt = nowMs;
 
+  const now = new Date(nowMs);
+  const { data, error } = await supabase.rpc("mark_stale_submission_queue_batch", {
+    p_stale_before: new Date(nowMs - STALE_QUEUE_TIMEOUT_MS).toISOString(),
+    p_vn_live_stale_before: new Date(nowMs - VN_LIVE_PROCESSING_TIMEOUT_MS).toISOString(),
+    p_ds160_live_stale_before: new Date(nowMs - DS160_LIVE_PROCESSING_TIMEOUT_MS).toISOString(),
+    p_limit: STALE_QUEUE_MAINTENANCE_BATCH_SIZE,
+  });
   if (error) {
-    console.error(`[queue-timeout] Failed to scan stale submission_queue rows: ${error.message}`);
+    console.error(`[queue-timeout] Failed to mark stale submission_queue rows: ${error.message}`);
     return;
   }
 
-  const staleItems = ((data ?? []) as SubmissionQueueItem[]).filter((item) => {
-    if (isPendingQueueStatus(item.status)) return false;
-    const timeoutMs = timeoutForQueueStatus(item.status);
-    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return false;
-    const cutoffMs = Date.now() - timeoutMs;
-    const lastTouched = item.heartbeat_at || item.updated_at || item.created_at;
-    const touchedMs = lastTouched ? Date.parse(lastTouched) : Number.NaN;
-    return Number.isFinite(touchedMs) && touchedMs < cutoffMs;
-  });
-  for (const item of staleItems) {
-    const timeoutMs = timeoutForQueueStatus(item.status);
-    const timedOutStatus = failedStatusForQueueStatus(item.status);
-    const reason = `Submission job failed: worker heartbeat stopped for ${Math.round(timeoutMs / 1000)}s in status ${item.status}.`;
-    const timedOutAt = new Date().toISOString();
-    const { data: updatedRows, error: updateError } = await supabase
-      .from("submission_queue")
-      .update({
-        status: timedOutStatus,
-        attempts: Math.max(item.attempts, MAX_ATTEMPTS),
-        last_error: reason,
-        error_code: "queue_processing_timed_out",
-        error_message: reason,
-        current_stage: "failed",
-        updated_at: timedOutAt,
-      })
-      .eq("id", item.id)
-      .eq("status", item.status)
-      .eq("updated_at", item.updated_at)
-      .select("id");
-    if (updateError) {
-      console.error(
-        `[queue-timeout] Failed to mark queue=${redactIdentifier(item.id)} timed out: ${updateError.message}`,
-      );
-      continue;
-    }
-    if (!updatedRows || updatedRows.length === 0) {
-      console.log(
-        `[queue-timeout] Skipped queue=${redactIdentifier(item.id)} because its heartbeat/status advanced during the stale scan.`,
-      );
-      continue;
-    }
-    await markSubmissionFailed(item.application_id, reason);
+  const rows = (Array.isArray(data) ? data : []) as Array<{
+    id: string;
+    application_id: string;
+    status: string;
+    timed_out_status: string;
+    timeout_seconds: number;
+  }>;
+  if (rows.length > 0) {
     console.warn(
-      `[queue-timeout] queue=${redactIdentifier(item.id)} application=${redactIdentifier(item.application_id)} -> ${timedOutStatus}: ${reason}`,
+      `[queue-timeout] Marked ${rows.length} stale queue item(s) timed out in one atomic maintenance batch at ${now.toISOString()}.`,
     );
   }
 }
@@ -7818,6 +7788,8 @@ let runnerSlotLease: RunnerSlotLease | null = null;
 let shutdownFinalizing = false;
 let runnerDrainInFlight: Promise<void> | null = null;
 let runnerWakeRequested = false;
+let runnerRetryWakeTimer: NodeJS.Timeout | null = null;
+let runnerRetryWakeAt = 0;
 
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -7885,6 +7857,11 @@ function shutdownRunner(signal: string): void {
   console.log(`[main] ${signal} received — stopping queue consumers`);
   runnerAbort.abort();
   immediatePollRequested = false;
+  if (runnerRetryWakeTimer) {
+    clearTimeout(runnerRetryWakeTimer);
+    runnerRetryWakeTimer = null;
+  }
+  runnerRetryWakeAt = 0;
   if (!pollInFlight && !runnerJobInFlight) {
     closeHealthServer();
   } else {
@@ -7909,6 +7886,21 @@ function wakeRunnerJobs(): void {
     },
     onClaimError: () => {
       runnerPoolDatabaseHealthy = false;
+    },
+    onRetryScheduled: (delayMs) => {
+      if (shutdownRequested) return;
+      const dueAt = Date.now() + Math.max(0, delayMs);
+      // Keep the earliest local retry wake when a drain fails multiple jobs;
+      // never postpone a row that became claimable sooner.
+      if (runnerRetryWakeTimer && runnerRetryWakeAt <= dueAt) return;
+      if (runnerRetryWakeTimer) clearTimeout(runnerRetryWakeTimer);
+      runnerRetryWakeAt = dueAt;
+      runnerRetryWakeTimer = setTimeout(() => {
+        runnerRetryWakeTimer = null;
+        runnerRetryWakeAt = 0;
+        wakeRunnerJobs();
+      }, Math.max(0, dueAt - Date.now()));
+      runnerRetryWakeTimer.unref?.();
     },
     onJobStart: () => {
       runnerJobInFlight = true;
@@ -7940,10 +7932,6 @@ function wakeRunnerJobs(): void {
   runnerDrainInFlight = operation;
 }
 
-function wakeQueues(): void {
-  wakeSubmissionQueue();
-  wakeRunnerJobs();
-}
 process.on("SIGTERM", () => shutdownRunner("SIGTERM"));
 process.on("SIGINT", () => shutdownRunner("SIGINT"));
 
@@ -8007,7 +7995,8 @@ async function main(): Promise<void> {
     isWorkerBusy: () => legacyQueueWorkInFlight || runnerJobInFlight || activeHttpWork > 0,
     hasOneTimeCardSessions: () =>
       hasVietnamCardSessions() || hasIndonesiaCardSessions(),
-    wakeSubmissionQueue: wakeQueues,
+    wakeSubmissionQueue,
+    wakeRunnerJob: wakeRunnerJobs,
     onWorkStart: () => {
       activeHttpWork += 1;
       idleExitController?.workStarted();
@@ -8053,7 +8042,7 @@ async function main(): Promise<void> {
   }
 
   console.log("[main] VIZA Submission Service starting...");
-  console.log(`[main] Polling every ${POLL_INTERVAL_MS / 1000}s`);
+  console.log("[main] Queue consumers run on startup and explicit enqueue wake; idle polling disabled");
   if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
     console.log(`[main] Provider allowlist active: ${Array.from(SUBMISSION_PROVIDER_ALLOWLIST).join(",")}`);
   }

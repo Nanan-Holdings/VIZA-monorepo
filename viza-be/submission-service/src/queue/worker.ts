@@ -105,7 +105,7 @@ export async function markSucceeded(jobId: string): Promise<void> {
 export async function markFailedWithRetry(
   job: RunnerJob,
   error: unknown,
-): Promise<void> {
+): Promise<number | null> {
   const message = error instanceof Error ? error.message : String(error);
   const newAttempts = job.attempts + 1;
   const exhausted = newAttempts >= job.max_attempts;
@@ -150,6 +150,7 @@ export async function markFailedWithRetry(
       timeToSubmitSeconds: null,
     });
   }
+  return exhausted ? null : Math.max(0, Date.parse(availableAt) - Date.now());
 }
 
 export type JobHandler = (job: RunnerJob) => Promise<void>;
@@ -167,6 +168,8 @@ export interface DrainOpts {
   onJobFinish?: (job: RunnerJob) => void;
   onClaimHealthy?: () => void;
   onClaimError?: (error: unknown) => void;
+  /** Schedule one local wake for a retry made available in the future. */
+  onRetryScheduled?: (delayMs: number) => void;
 }
 
 export interface DrainResult {
@@ -246,7 +249,8 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
     } catch (error) {
       console.error(`[queue] job ${job.id} failed`, error);
       try {
-        await markFailedWithRetry(job, error);
+        const retryDelayMs = await markFailedWithRetry(job, error);
+        if (retryDelayMs !== null) opts.onRetryScheduled?.(retryDelayMs);
       } catch (markError) {
         console.error("[queue] mark failed write failed", markError);
       }

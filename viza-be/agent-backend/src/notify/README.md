@@ -7,7 +7,9 @@ lease, and recovers abandoned `processing` rows after their lease expires.
 
 ## Contract
 
-- **Cadence**: poll every `POLL_INTERVAL_MS` (30s by default).
+- **Cadence**: poll every `NOTIFICATION_WORKER_POLL_INTERVAL_MS` (30s by
+  default, bounded to 5s–15m); empty polls use exponential backoff capped at
+  60s to reduce idle database load without delaying new mail for minutes.
 - **Ownership**: `NOTIFICATION_WORKER_ID` may provide a stable deployment
   identity; otherwise the process generates a unique host/PID/UUID identity.
 - **Lease**: 15 minutes by default in the TypeScript worker. A delivery settles
