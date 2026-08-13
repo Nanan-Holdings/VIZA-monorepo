@@ -9,9 +9,14 @@ import {
   isPhEtravelPublicLandingText,
   PhEtravelFormFillError,
 } from "./form-filler";
-import { PH_ETRAVEL_REFERENCE_PATTERNS } from "./official-options";
 import { PH_ETRAVEL_OFFICIAL_PORTAL_URL, type PhEtravelPortalPayload } from "./normalize";
 import { createPhEtravelMailboxProvider, type PhEtravelMailboxProvider } from "./mailbox-provider";
+import { safePhEtravelDiagnosticLogs } from "./error-safety";
+import {
+  gatePhEtravelAuthoritativeResult,
+  type PhEtravelAuthoritativeRegistrationRead,
+  type PhEtravelDerivedQrRenderMetadata,
+} from "./result-evidence";
 
 export interface PhEtravelPortalSubmissionResult {
   submitted: boolean;
@@ -24,6 +29,8 @@ export interface PhEtravelPortalSubmissionResult {
   qrCodes: string[];
   pdfs: string[];
   logs: string[];
+  authoritativeRead?: PhEtravelAuthoritativeRegistrationRead;
+  qrRender?: PhEtravelDerivedQrRenderMetadata;
 }
 
 export class PhEtravelPortalError extends Error {
@@ -59,12 +66,33 @@ export interface PhEtravelRunnerOptions {
   mailbox?: PhEtravelMailboxProvider;
   onOfficialAccountPassword?: (password: string) => Promise<void>;
   emailVerificationTimeoutMs?: number;
-  recoverReferenceNumber?: string;
 }
+
+/** E16: no browser final-submit path is enabled until controlled live evidence closes. */
+export const PH_ETRAVEL_FINAL_SUBMIT_ENABLED = false;
 
 export function isPhEtravelRemotePolicyBlockMessage(message: string): boolean {
   return /bright\s*data|proxy_error|classified\s+as\s+government|residential.*policy/i.test(message) &&
     /access denied|blocked|policy|government|proxy_error/i.test(message);
+}
+
+export function sanitizePhEtravelLog(value: string): string {
+  return value
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted-email]")
+    .replace(/\b(otp|one[-\s]?time[-\s]?(?:password|code)|mpin|token|cookie|cf-turnstile-response|captcha)=\S+/gi, "$1=[redacted]")
+    .replace(/\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi, "[redacted-auth-header]")
+    .replace(/ph_etravel_(?:screenshot|html_snapshot|official_qr_captured)\s+\S+/g, (match) =>
+      match.replace(/\s+\S+$/, " [local-artifact-redacted]"),
+    )
+    .replace(/\/(?:var\/folders|tmp|private\/var|Users)\/[^\s"'<>]+/g, "[local-path-redacted]");
+}
+
+export function sanitizePhEtravelLogs(logs: string[]): string[] {
+  return logs.map(sanitizePhEtravelLog);
+}
+
+export function isPhEtravelReviewStopError(error: unknown): error is PhEtravelPortalError {
+  return error instanceof PhEtravelPortalError && error.code === "ph_etravel_stopped_before_submit";
 }
 
 async function saveScreenshot(page: Page, name: string, logs: string[]): Promise<string> {
@@ -153,123 +181,6 @@ async function dismissDutyFreeAdvertisement(page: Page, logs: string[]): Promise
   return hidden;
 }
 
-async function captureOfficialQrCode(page: Page, logs: string[]): Promise<string | null> {
-  await page.locator("[role='dialog'], [aria-modal='true'], .modal, [class*='modal']").evaluateAll((dialogs) => {
-    for (const dialog of dialogs) {
-      const scrollables = [dialog, ...Array.from(dialog.querySelectorAll<HTMLElement>("*"))]
-        .filter((element) => element.scrollHeight > element.clientHeight + 20);
-      for (const scrollable of scrollables) scrollable.scrollTop = scrollable.scrollHeight;
-    }
-  }).catch(() => undefined);
-  await page.waitForTimeout(1_000);
-  const selectors = [
-    "img[alt*='qr' i]",
-    "img[src*='qr' i]",
-    "[class*='qr' i] img",
-    "[class*='qr' i] canvas",
-    "canvas",
-    "svg[aria-label*='qr' i]",
-    ".qr-code-content svg",
-    "[role='dialog'] img",
-    "[aria-modal='true'] img",
-    ".modal img",
-    "[class*='modal'] img",
-  ];
-  const candidates = page.locator(selectors.join(", "));
-  const count = await candidates.count().catch(() => 0);
-  for (let index = 0; index < count; index += 1) {
-    const candidate = candidates.nth(index);
-    const accepted = await candidate.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      if (rect.width < 90 || rect.height < 90) return false;
-      const ratio = rect.width / rect.height;
-      if (ratio < 0.75 || ratio > 1.33) return false;
-      const image = element instanceof HTMLImageElement ? element : null;
-      const source = `${image?.src ?? ""} ${image?.alt ?? ""}`;
-      if (/dutyfree|duty\s*free|egovph|app\s*store|google\s*play|profile|avatar|portrait|user-photo/i.test(source)) return false;
-      if (/qr\s*code|qrcode|\/qr[/?._-]/i.test(source)) return true;
-      if (rect.width >= 150 && rect.height >= 150 && element.closest("[role='dialog'], [aria-modal='true'], .modal, [class*='modal']")) {
-        return true;
-      }
-      let current: HTMLElement | null = element.parentElement;
-      for (let depth = 0; current && depth < 6; depth += 1, current = current.parentElement) {
-        const text = current.innerText || "";
-        if (/mabuhay|duty\s*free\s*philippines|shop\.dutyfree\.gov\.ph|entitled\s+to\s+shop/i.test(text)) return false;
-        if (/reference\s*(?:no|number)|immigration\s+officer|customs\s+officer\s+for\s+clearance|eTravel\s*(?:registration|QR)|qr\s*code/i.test(text)) return true;
-      }
-      return false;
-    }).catch(() => false);
-    if (!accepted || !await candidate.isVisible().catch(() => false)) continue;
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-ph-etravel-qr-"));
-    const filePath = path.join(dir, `official-qr-${Date.now()}.png`);
-    await candidate.screenshot({ path: filePath });
-    logs.push(`ph_etravel_official_qr_captured ${filePath}`);
-    return filePath;
-  }
-  logs.push("ph_etravel_official_qr_not_found");
-  return null;
-}
-
-async function openExistingTravelRecord(page: Page, referenceNumber: string, logs: string[]): Promise<void> {
-  let reference = page.getByText(referenceNumber, { exact: false }).first();
-  if (!await reference.isVisible().catch(() => false)) {
-    await clickFirstAvailable(page, [
-      page.getByRole("button", { name: /travel history|my travel/i }),
-      page.getByRole("link", { name: /travel history|my travel/i }),
-      page.locator("button, a").filter({ hasText: /travel history|my travel/i }),
-    ]);
-    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForTimeout(2_000);
-    reference = page.getByText(referenceNumber, { exact: false }).first();
-  }
-  if (!await reference.isVisible().catch(() => false)) {
-    throw new PhEtravelPortalError("The requested Philippines eTravel record was not visible in Travel History.", {
-      code: "ph_etravel_recovery_record_not_found",
-      portalSummary: (await bodyText(page)).slice(0, 700),
-    });
-  }
-  const openedByPosition = await page.evaluate((targetReference) => {
-    const visible = (element: Element): element is HTMLElement => {
-      if (!(element instanceof HTMLElement)) return false;
-      const rect = element.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0 && getComputedStyle(element).visibility !== "hidden";
-    };
-    const leaves = Array.from(document.querySelectorAll<HTMLElement>("body *"))
-      .filter((element) => visible(element) && element.children.length === 0);
-    const referenceLeaf = leaves.find((element) => element.innerText.includes(targetReference));
-    if (!referenceLeaf) return false;
-    const referenceTop = referenceLeaf.getBoundingClientRect().top;
-    const qrLeaves = leaves
-      .filter((element) => /^qr\s*code$/i.test(element.innerText.trim()))
-      .sort((left, right) =>
-        Math.abs(left.getBoundingClientRect().top - referenceTop) - Math.abs(right.getBoundingClientRect().top - referenceTop));
-    const qrLeaf = qrLeaves[0];
-    if (!qrLeaf) return false;
-    const clickable = qrLeaf.closest<HTMLElement>("button, a, [role='button']") ?? qrLeaf;
-    clickable.click();
-    return true;
-  }, referenceNumber).catch(() => false);
-  const opened = openedByPosition || await clickFirstAvailable(page, [
-    page.getByText(/^qr\s*code$/i).first(),
-  ]);
-  if (!opened) {
-    throw new PhEtravelPortalError("The requested Philippines eTravel record could not be opened from Travel History.", {
-      code: "ph_etravel_recovery_record_not_opened",
-      portalSummary: (await bodyText(page)).slice(0, 700),
-    });
-  }
-  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
-  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
-  await page.waitForFunction(() => {
-    const text = document.body?.innerText ?? "";
-    const hasQrSurface = /qr\s*code|reference\s*(?:no|number)|back\s+to\s+home/i.test(text) ||
-      document.querySelectorAll("img, canvas, svg").length > 8;
-    return hasQrSurface && !/^loading/i.test(text.trim());
-  }, undefined, { timeout: 30_000 }).catch(() => undefined);
-  await page.waitForTimeout(10_000);
-  logs.push("ph_etravel_recovery_record_opened");
-}
-
 async function saveHtmlSnapshot(page: Page, name: string, logs: string[]): Promise<string> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-ph-etravel-html-"));
   const filePath = path.join(dir, `${name}-${Date.now()}.html`);
@@ -297,18 +208,6 @@ async function firstSuccessful<T>(promises: Array<Promise<T>>): Promise<T> {
       });
     }
   });
-}
-
-function extractReference(text: string): string | null {
-  for (const pattern of PH_ETRAVEL_REFERENCE_PATTERNS) {
-    const match = text.match(pattern);
-    if (match?.[1]) return match[1].trim();
-  }
-  return null;
-}
-
-function hasQrEvidence(pageText: string): boolean {
-  return /qr\s*code|scan\s+this|eTravel\s+QR|border\s+control|reference/i.test(pageText);
 }
 
 function splitFullName(fullName: string): { firstName: string; lastName: string } {
@@ -1436,15 +1335,18 @@ async function completeEgovPersonalInformationOnboarding(
 
   logs.push("ph_etravel_egov_onboarding_personal_information_detected");
   const uploadedPhoto = await uploadEgovProfilePhoto(page, options.profilePhotoPath, logs);
-  const foreignPassportRadio = page.getByRole("radio", { name: /foreign passport holder/i }).first();
-  if (await foreignPassportRadio.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    await foreignPassportRadio.check({ force: true }).catch(() => undefined);
+  const passportHolderPattern = payload.arrivalBranch?.passportHolderType === "FILIPINO" || payload.passportHolderType === "FILIPINO"
+    ? /philippine passport holder|filipino/i
+    : /foreign passport holder/i;
+  const passportHolderRadio = page.getByRole("radio", { name: passportHolderPattern }).first();
+  if (await passportHolderRadio.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await passportHolderRadio.check({ force: true }).catch(() => undefined);
   }
-  const selectedForeignPassport = await foreignPassportRadio.isChecked().catch(() => false) || await clickFirstAvailable(page, [
-    page.locator("label").filter({ hasText: /foreign passport holder/i }),
-    page.locator("button, div").filter({ hasText: /^\s*foreign passport\s*holder\s*$/i }),
+  const selectedPassportHolder = await passportHolderRadio.isChecked().catch(() => false) || await clickFirstAvailable(page, [
+    page.locator("label").filter({ hasText: passportHolderPattern }),
+    page.locator("button, div").filter({ hasText: passportHolderPattern }),
   ]);
-  logs.push(`ph_etravel_egov_foreign_passport_selected=${selectedForeignPassport}`);
+  logs.push(`ph_etravel_egov_passport_holder_selected=${selectedPassportHolder}`);
 
   const name = splitFullName(payload.fullName);
   const filled = {
@@ -1494,8 +1396,8 @@ async function completeEgovPersonalInformationOnboarding(
     !filled.mobile ||
     !filled.passportNumber ||
     !filled.passportIssueDate ||
-    !uploadedPhoto ||
-    !selectedForeignPassport ||
+    (payload.passportHolderType === "FILIPINO" && !uploadedPhoto) ||
+    !selectedPassportHolder ||
     !choseSex ||
     !choseCitizenship ||
     !choseCountryOfBirth ||
@@ -1510,7 +1412,7 @@ async function completeEgovPersonalInformationOnboarding(
       chosePassportIssuingAuthority,
       choseOccupation,
       uploadedPhoto,
-      selectedForeignPassport,
+      selectedPassportHolder,
     })}`);
   }
 
@@ -2300,38 +2202,10 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       );
     }
     screenshots.push(await saveScreenshot(page, "after-auth", logs));
-    if (options.recoverReferenceNumber?.trim()) {
-      const referenceNumber = options.recoverReferenceNumber.trim();
-      await openExistingTravelRecord(page, referenceNumber, logs);
-      await dismissDutyFreeAdvertisement(page, logs);
-      const recoveredQr = await captureOfficialQrCode(page, logs);
-      screenshots.push(await saveScreenshot(page, "recovered-confirmation", logs));
-      if (!recoveredQr) {
-        await saveHtmlSnapshot(page, "recovery-qr-missing", logs).catch(() => undefined);
-        throw new PhEtravelPortalError(
-          "The existing Philippines eTravel record opened, but its official QR code could not be isolated.",
-          {
-            code: "ph_etravel_recovery_qr_missing",
-            screenshotPaths: screenshots,
-            portalSummary: (await bodyText(page)).slice(0, 700),
-          },
-        );
-      }
-      return buildPhEtravelSuccessFromPortalText(
-        payload,
-        `${await bodyText(page)}\nReference Number ${referenceNumber}\nQR Code`,
-        page.url(),
-        screenshots,
-        [recoveredQr],
-        [],
-        logs,
-        options.officialAccountPassword ?? undefined,
-      );
-    }
     let formResult;
     try {
       formResult = await fillPhEtravelOfficialDeclaration(page, payload, {
-        stopBeforeSubmit: options.stopBeforeSubmit !== false,
+        stopBeforeSubmit: !PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
         onStep: async (name) => {
           screenshots.push(await saveScreenshot(page, name, logs));
         },
@@ -2362,18 +2236,13 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       );
     }
 
-    await dismissDutyFreeAdvertisement(page, logs);
-    const qrPath = await captureOfficialQrCode(page, logs);
-    screenshots.push(await saveScreenshot(page, "confirmation-without-ad", logs));
-    return buildPhEtravelSuccessFromPortalText(
-      payload,
-      formResult.portalText,
-      page.url(),
-      screenshots,
-      qrPath ? [qrPath] : [],
-      [],
-      logs,
-      options.officialAccountPassword ?? undefined,
+    throw new PhEtravelPortalError(
+      "Philippines eTravel submission remains disabled until a controlled authoritative result-read flow is implemented.",
+      {
+        code: "ph_etravel_authoritative_result_read_required",
+        screenshotPaths: screenshots,
+        portalSummary: "ph_etravel_authoritative_result_read_required",
+      },
     );
   } catch (error) {
     if (
@@ -2394,10 +2263,10 @@ async function runPhEtravelPortalSubmissionWithBrowser(
         code: "ph_etravel_unexpected_portal_error",
         screenshotPaths: screenshots.filter(Boolean),
         portalSummary: (await bodyText(page)).slice(0, 700),
-        logs,
+        logs: sanitizePhEtravelLogs(logs),
       });
     }
-    error.logs = logs;
+    error.logs = sanitizePhEtravelLogs(logs);
     throw error;
   } finally {
     await browserSession.close();
@@ -2413,28 +2282,37 @@ export function buildPhEtravelSuccessFromPortalText(
   pdfs: string[],
   logs: string[],
   officialAccountPassword?: string,
+  resultEvidence?: {
+    authoritativeRead?: PhEtravelAuthoritativeRegistrationRead | null;
+    qrRender?: PhEtravelDerivedQrRenderMetadata | null;
+  },
 ): PhEtravelPortalSubmissionResult {
-  const referenceNumber = extractReference(portalText);
-  if (!referenceNumber || !hasQrEvidence(portalText) || qrCodes.length === 0) {
+  const resultGate = gatePhEtravelAuthoritativeResult({
+    authoritativeRead: resultEvidence?.authoritativeRead ?? undefined,
+    qrRender: resultEvidence?.qrRender ?? undefined,
+  });
+  if (resultGate.status !== "recoverable_submitted_candidate") {
     throw new PhEtravelPortalError(
-      "Official Philippines eTravel confirmation did not include both a reference and QR-code evidence.",
+      "Philippines eTravel final result needs an authoritative registration read and a reference-derived QR render.",
       {
-        code: "ph_etravel_confirmation_evidence_missing",
+        code: resultGate.code,
         screenshotPaths: screenshots,
-        portalSummary: portalText.slice(0, 700),
+        portalSummary: resultGate.code,
       },
     );
   }
   return {
     submitted: true,
-    confirmationNumber: referenceNumber,
-    referenceNumber,
+    confirmationNumber: null,
+    referenceNumber: resultGate.officialReference,
     ...(officialAccountPassword ? { officialAccountPassword } : {}),
     portalUrl,
-    portalResponseSummary: "Philippines eTravel official portal returned a QR/reference confirmation.",
+    portalResponseSummary: "Philippines eTravel authoritative registration result was read and its reference-derived QR render was validated.",
     screenshots,
     qrCodes,
     pdfs,
-    logs: [`ph_etravel_submitted application=${payload.applicationId}`, ...logs],
+    authoritativeRead: resultEvidence?.authoritativeRead ?? undefined,
+    qrRender: resultEvidence?.qrRender ?? undefined,
+    logs: safePhEtravelDiagnosticLogs(["ph_etravel_submitted", ...logs]),
   };
 }

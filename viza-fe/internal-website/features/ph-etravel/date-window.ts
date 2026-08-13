@@ -30,6 +30,32 @@ export type PhEtravelTravelDateValidation =
   | { ok: true; arrivalDate: string; departureDate: string }
   | { ok: false; code: "missing_date" | "invalid_date" | "departure_after_arrival"; message: string };
 
+export type PhEtravelTransportType = "AIR" | "SEA";
+
+export type PhEtravelTravelDateInput = {
+  transportType?: string | null;
+  flightDepartureDate?: string | null;
+  flightArrivalDate?: string | null;
+  voyageDepartureDate?: string | null;
+  voyageArrivalDate?: string | null;
+};
+
+export type PhEtravelResolvedTravelDates =
+  | {
+      ok: true;
+      transportType: PhEtravelTransportType;
+      departureDate: string;
+      arrivalDate: string;
+      dateSource: "flight" | "voyage";
+    }
+  | {
+      ok: false;
+      transportType: PhEtravelTransportType;
+      dateSource: "flight" | "voyage";
+      code: "missing_date" | "invalid_date" | "departure_after_arrival";
+      message: string;
+    };
+
 function parseIsoDateOnly(value: string | null | undefined): number | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
@@ -133,5 +159,39 @@ export function validatePhEtravelFlightDates(
     ok: true,
     arrivalDate: dayNumberToIso(arrivalDay),
     departureDate: dayNumberToIso(departureDay),
+  };
+}
+
+function normalizeTransportType(value: string | null | undefined): PhEtravelTransportType {
+  return value?.trim().toUpperCase() === "SEA" ? "SEA" : "AIR";
+}
+
+export function validatePhEtravelTravelDates(
+  input: PhEtravelTravelDateInput,
+): PhEtravelResolvedTravelDates {
+  const transportType = normalizeTransportType(input.transportType);
+  const dateSource = transportType === "SEA" ? "voyage" : "flight";
+  const validation = validatePhEtravelFlightDates(
+    dateSource === "voyage" ? input.voyageDepartureDate : input.flightDepartureDate,
+    dateSource === "voyage" ? input.voyageArrivalDate : input.flightArrivalDate,
+  );
+
+  if (!validation.ok) {
+    const label = dateSource === "voyage" ? "voyage" : "flight";
+    return {
+      ok: false,
+      transportType,
+      dateSource,
+      code: validation.code,
+      message: validation.message.replace(/flight/giu, label),
+    };
+  }
+
+  return {
+    ok: true,
+    transportType,
+    dateSource,
+    departureDate: validation.departureDate,
+    arrivalDate: validation.arrivalDate,
   };
 }

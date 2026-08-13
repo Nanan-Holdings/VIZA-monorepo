@@ -38,6 +38,7 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
       registration_for: "FOR_ME",
       travel_type: "ARRIVAL",
       transport_type: "AIR",
+      passport_holder_type: "FOREIGNER",
       first_name: "TEST",
       last_name: "USER",
       passport_issuing_authority: "China",
@@ -50,6 +51,7 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
       flight_departure_date: "2026-06-13",
       flight_arrival_date: "2026-06-13",
       port_of_entry: "TP1000",
+      destination_port_code: "TP1000",
       country_of_birth: "CN",
       country_of_residence: "CN",
       occupation: "OCC007",
@@ -84,8 +86,13 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
   assert.equal(payload.visaType, "PH_ETRAVEL_ARRIVAL_CARD");
   assert.equal(payload.travelType, "ARRIVAL");
   assert.equal(payload.transportType, "AIR");
+  assert.deepEqual(payload.arrivalBranch, {
+    transportType: "AIR",
+    passportHolderType: "FOREIGNER",
+    travellerType: "AIRCRAFT_PASSENGER",
+  });
   assert.equal(payload.flightNumber, "PR101");
-  assert.equal(payload.travellerType, "AIRCRAFT PASSENGER");
+  assert.equal(payload.travellerType, "AIRCRAFT_PASSENGER");
   assert.equal(payload.airlineOrVesselName, "TC002");
   assert.equal(payload.airportOfOrigin, "Singapore Changi Airport");
   assert.equal(payload.portOfEntry, "TP1000");
@@ -94,6 +101,442 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
   assert.equal(payload.customs.checkedBaggageCount, "1");
   assert.equal(payload.customs.hasDutiableGoods, false);
   assert.equal(payload.customs.hasCurrencyOverThreshold, false);
+});
+
+test("normalizePhEtravelPortalPayload keeps Special Flight as UI state and maps only its detail key", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      is_special_flight: "yes",
+      flight_number: "SPECIAL FLIGHT",
+      flight_number_special: "SPECIAL123",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.isSpecialFlight, true);
+  assert.equal(payload.flightNumber, "SPECIAL123");
+});
+
+test("normalizePhEtravelPortalPayload maps SEA Filipino arrival as its own branch", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    personal: {
+      ...basePayload().personal,
+      nationality: "Philippines",
+      passportIssuingCountry: "Philippines",
+    },
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      transport_type: "SEA",
+      passport_holder_type: "FILIPINO",
+      nationality: "PH",
+      passport_issuing_authority: "PH",
+      traveller_type: "VESSEL_PASSENGER",
+      flight_number: "",
+      flight_departure_date: "",
+      flight_arrival_date: "",
+      voyage_departure_date: "2026-06-12",
+      voyage_arrival_date: "2026-06-13",
+      return_date: "2026-06-18",
+      voyage_number: "VOY123",
+      airline_name: "",
+      vessel_name: "MV SAMPLE",
+      airport_of_origin: "",
+      origin_port: "Singapore Cruise Centre",
+      is_disembarking: "yes",
+      destination_type: "TRAVEL_PORT",
+      disembarking_port_code: "TP2000",
+      port_of_entry: "TP2000",
+      destination_port_code: "TP0103",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.deepEqual(payload.arrivalBranch, {
+    transportType: "SEA",
+    passportHolderType: "FILIPINO",
+    travellerType: "VESSEL_PASSENGER",
+  });
+  assert.equal(payload.flightNumber, "VOY123");
+  assert.equal(payload.isDisembarking, true);
+  assert.equal(payload.airlineOrVesselName, "MV SAMPLE");
+  assert.equal(payload.airportOfOrigin, "Singapore Cruise Centre");
+  assert.equal(payload.returnDate, "2026-06-18");
+  assert.equal(payload.destinationPort, "TP2000");
+  assert.equal(payload.portOfEntry, "TP0103");
+  assert.equal(payload.philippinesAddress, null);
+});
+
+test("normalizePhEtravelPortalPayload keeps SEA non-disembarking out of destination branch", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      transport_type: "SEA",
+      traveller_type: "VESSEL_PASSENGER",
+      flight_number: "",
+      flight_departure_date: "",
+      flight_arrival_date: "",
+      voyage_departure_date: "2026-06-12",
+      voyage_arrival_date: "2026-06-13",
+      voyage_number: "VOY123",
+      airline_name: "",
+      vessel_name: "MV SAMPLE",
+      airport_of_origin: "",
+      origin_port: "Singapore Cruise Centre",
+      port_of_entry: "TP2000",
+      destination_port_code: "TP0103",
+      is_disembarking: "no",
+      destination_type: "",
+      disembarking_port_code: "",
+      destination_hotel_name: "",
+      destination_hotel_address: "",
+      philippines_address: "",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.isDisembarking, false);
+  assert.equal(payload.destinationType, null);
+  assert.equal(payload.destinationPort, null);
+  assert.equal(payload.philippinesAddress, null);
+});
+
+test("normalizePhEtravelPortalPayload never uses disembarking_port_code as the SEA arrival port", () => {
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        transport_type: "SEA",
+        traveller_type: "VESSEL_PASSENGER",
+        flight_number: "",
+        flight_departure_date: "",
+        flight_arrival_date: "",
+        voyage_departure_date: "2026-06-12",
+        voyage_arrival_date: "2026-06-13",
+        voyage_number: "VOY123",
+        vessel_name: "MV SAMPLE",
+        origin_port: "Origin",
+        destination_port_code: "",
+        disembarking_port_code: "TP0103",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof PhEtravelPortalValidationError);
+      assert.ok(error.missingFields.includes("destination_port_code"));
+      return true;
+    },
+  );
+});
+
+test("normalizePhEtravelPortalPayload uses SEA voyage dates and ignores flight/trip fallbacks when open", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    trip: {
+      ...basePayload().trip,
+      arrivalDate: "2026-07-01",
+      departureDate: "2026-07-01",
+    },
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      transport_type: "SEA",
+      traveller_type: "VESSEL_PASSENGER",
+      flight_number: "",
+      flight_departure_date: "",
+      flight_arrival_date: "",
+      voyage_departure_date: "2026-06-12",
+      voyage_arrival_date: "2026-06-13",
+      voyage_number: "VOY123",
+      airline_name: "",
+      vessel_name: "MV SAMPLE",
+      airport_of_origin: "",
+      origin_port: "Singapore Cruise Centre",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.departureDate, "2026-06-12");
+  assert.equal(payload.arrivalDate, "2026-06-13");
+});
+
+test("normalizePhEtravelPortalPayload schedules SEA only from voyage arrival date", () => {
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      trip: {
+        ...basePayload().trip,
+        arrivalDate: "2026-06-13",
+        departureDate: "2026-06-13",
+      },
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        transport_type: "SEA",
+        traveller_type: "VESSEL_PASSENGER",
+        flight_number: "",
+        flight_departure_date: "",
+        flight_arrival_date: "",
+        voyage_departure_date: "2026-06-17",
+        voyage_arrival_date: "2026-06-20",
+        voyage_number: "VOY123",
+        airline_name: "",
+        vessel_name: "MV SAMPLE",
+        airport_of_origin: "",
+        origin_port: "Singapore Cruise Centre",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof PhEtravelPortalValidationError);
+      assert.deepEqual(error.missingFields, ["voyage_arrival_date"]);
+      assert.match(error.message, /72 hours/);
+      return true;
+    },
+  );
+});
+
+test("normalizePhEtravelPortalPayload rejects past SEA voyage arrival date", () => {
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      trip: {
+        ...basePayload().trip,
+        arrivalDate: "2026-06-20",
+        departureDate: "2026-06-20",
+      },
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        transport_type: "SEA",
+        traveller_type: "VESSEL_PASSENGER",
+        flight_number: "",
+        flight_departure_date: "",
+        flight_arrival_date: "",
+        voyage_departure_date: "2026-06-09",
+        voyage_arrival_date: "2026-06-10",
+        voyage_number: "VOY123",
+        airline_name: "",
+        vessel_name: "MV SAMPLE",
+        airport_of_origin: "",
+        origin_port: "Singapore Cruise Centre",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof PhEtravelPortalValidationError);
+      assert.deepEqual(error.missingFields, ["voyage_arrival_date"]);
+      assert.match(error.message, /already past/);
+      return true;
+    },
+  );
+});
+
+test("normalizePhEtravelPortalPayload rejects SEA when only flight or trip dates are present", () => {
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      trip: {
+        ...basePayload().trip,
+        arrivalDate: "2026-06-13",
+        departureDate: "2026-06-13",
+      },
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        transport_type: "SEA",
+        traveller_type: "VESSEL_PASSENGER",
+        flight_departure_date: "2026-06-12",
+        flight_arrival_date: "2026-06-13",
+        voyage_departure_date: "",
+        voyage_arrival_date: "",
+        voyage_number: "VOY123",
+        airline_name: "",
+        vessel_name: "MV SAMPLE",
+        airport_of_origin: "",
+        origin_port: "Singapore Cruise Centre",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof PhEtravelPortalValidationError);
+      assert.ok(error.missingFields.includes("voyage_arrival_date"));
+      return true;
+    },
+  );
+});
+
+test("normalizePhEtravelPortalPayload blocks unsupported arrival personas before the official runner", () => {
+  for (const [key, value] of [
+    ["traveller_type", "FLIGHT_CREW"],
+    ["traveller_type", "CRUISE_PASSENGER"],
+    ["is_special_registration", "yes"],
+    ["passport_type", "DIPLOMATIC PASSPORT"],
+    ["visa_category", "9(e)"],
+  ] as const) {
+    assert.throws(
+      () => normalizePhEtravelPortalPayload(basePayload({
+        countrySpecific: {
+          ...basePayload().countrySpecific,
+          [key]: value,
+        },
+      }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+      (error: unknown) => error instanceof PhEtravelPortalValidationError,
+      `${key}=${value} should be blocked`,
+    );
+  }
+});
+
+test("normalizePhEtravelPortalPayload blocks PH-A eligibility semantic and flat unsupported aliases", () => {
+  const unsupportedAliases: Array<Record<string, string>> = [
+    { eligibility_traveller_type: "VESSEL CREW" },
+    { passenger_type: "CRUISE CREW" },
+    { arrival_registration_type: "special_travel_declaration" },
+    { foreign_diplomat_dependent: "yes" },
+    { foreign_dignitary_delegation: "true" },
+    { visa_9e: "1" },
+    { travel_document_type: "OFFICIAL" },
+    { passport_holder_type: "SERVICE PASSPORT HOLDER" },
+    { diplomatic_passport_holder: "checked" },
+  ];
+  for (const countrySpecific of unsupportedAliases) {
+    assert.throws(
+      () => normalizePhEtravelPortalPayload(basePayload({
+        countrySpecific: {
+          ...basePayload().countrySpecific,
+          ...countrySpecific,
+        },
+      }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+      (error: unknown) => error instanceof PhEtravelPortalValidationError,
+      JSON.stringify(countrySpecific),
+    );
+  }
+});
+
+test("normalizePhEtravelPortalPayload maps official customs checklist and structured currency details", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      has_baggage_or_currency_to_declare: "yes",
+      customs_checklist_1: "yes",
+      customs_checklist_2: "no",
+      customs_checklist_3: "yes",
+      customs_checklist_3_details: "Plants",
+      customs_checklist_12: "no",
+      amount_of_goods_currency: "USD",
+      amount_of_goods_amount: "1200",
+      currency_type: "FOREIGN_CURRENCY",
+      currency_amount: "15000",
+      currency_monetary_instrument: "CASH",
+      currency_source: "Salary",
+      currency_source__2: "Business",
+      currency_transport_purpose: "Travel",
+      currency_transport_purpose__2: "Business",
+      currency_transport_method: "physically transferred by person",
+      no_of_days_in_philippines: "5",
+      last_travel_to_philippines: "2026-01-02",
+      currency_owner_not_applicable: "yes",
+      currency_owner_first_name: "TEST",
+      currency_owner_last_name: "OWNER",
+      currency_owner_country: "CN",
+      currency_recipient_business_name: "Recipient Co",
+      currency_recipient_country: "PH",
+      bsp_authorization_number: "BSP-TEST",
+      bsp_authorization_date: "2026-06-12",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.customs.hasBaggageOrCurrencyToDeclare, true);
+  assert.equal(payload.customs.hasCurrencyToDeclare, true);
+  assert.equal(payload.customs.hasCurrencyOverThreshold, true);
+  assert.equal(payload.customs.hasGoodsToDeclare, true);
+  assert.equal(payload.customs.hasDutiableGoods, true);
+  assert.deepEqual(payload.customs.generalDeclarationResponses.map((item) => [item.key, item.response, item.details]), [
+    ["customs_checklist_1", true, null],
+    ["customs_checklist_2", false, null],
+    ["customs_checklist_3", true, "Plants"],
+    ["customs_checklist_12", false, null],
+  ]);
+  assert.equal(payload.customs.amountOfGoodsCurrency, "USD");
+  assert.equal(payload.customs.currencyAmount, "15000");
+  assert.deepEqual(payload.customs.currencyItems, [
+    { currency: "FOREIGN_CURRENCY", monetaryInstrument: "CASH", amount: "15000" },
+  ]);
+  assert.deepEqual(payload.customs.currencySources, ["Salary", "Business"]);
+  assert.deepEqual(payload.customs.currencyTransportPurposes, ["Travel", "Business"]);
+  assert.equal(payload.customs.currencyTransportMethod, "is_physically_transferred_by_person");
+  assert.equal(payload.customs.noOfDaysInPhilippines, "5");
+  assert.equal(payload.customs.lastTravelToPhilippines, "2026-01-02");
+  assert.equal(payload.customs.currencyOwnerNotApplicable, true);
+  assert.equal(payload.customs.currencyOwner, null);
+  assert.equal(payload.customs.currencyRecipient, null);
+  assert.equal(payload.customs.bspAuthorizationNumber, "BSP-TEST");
+});
+
+test("normalizePhEtravelPortalPayload maps all 12 customs checklist answers and other goods items", () => {
+  const countrySpecific: Record<string, string> = {
+    ...basePayload().countrySpecific,
+    has_baggage_or_currency_to_declare: "yes",
+    amount_of_goods_currency: "USD",
+    amount_of_goods_amount: "2500",
+    customs_checklist_12: "yes",
+    goods_item_description: "Camera equipment",
+    goods_item_quantity: "1",
+    goods_item_value: "500",
+    goods_item_description__2: "Samples",
+    goods_item_quantity__2: "3",
+    goods_item_value__2: "150",
+  };
+  for (let item = 1; item <= 11; item += 1) {
+    countrySpecific[`customs_checklist_${item}`] = item > 2 && item % 2 === 0 ? "yes" : "no";
+  }
+
+  const payload = normalizePhEtravelPortalPayload({
+    ...basePayload(),
+    countrySpecific,
+  }, { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.deepEqual(payload.customs.generalDeclarationResponses.map((item) => item.itemNumber), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  assert.equal(payload.customs.generalDeclarationResponses.filter((item) => item.response).length, 5);
+  assert.deepEqual(payload.customs.goodsItems, [
+    { description: "Camera equipment", quantity: "1", amountUsd: "500" },
+    { description: "Samples", quantity: "3", amountUsd: "150" },
+  ]);
+});
+
+test("normalizePhEtravelPortalPayload maps courier currency declaration branch", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      has_baggage_or_currency_to_declare: "yes",
+      customs_checklist_1: "yes",
+      currency_items: JSON.stringify([
+        { currency: "USD", monetary_instrument: "Cash", amount: "12000" },
+      ]),
+      currency_sources: JSON.stringify(["Savings"]),
+      currency_transport_purposes: JSON.stringify(["Investment"]),
+      currency_transport_method: "shipped thru courier service",
+      courier_name: "TEST COURIER",
+      airway_bill_number: "AWB123",
+      airway_bill_date: "2026-06-11",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.deepEqual(payload.customs.currencyItems, [
+    { currency: "USD", monetaryInstrument: "Cash", amount: "12000" },
+  ]);
+  assert.equal(payload.customs.currencyTransportMethod, "is_shipped_thru_courier_service");
+  assert.equal(payload.customs.courierName, "TEST COURIER");
+  assert.equal(payload.customs.airwayBillNumber, "AWB123");
+  assert.equal(payload.customs.airwayBillDate, "2026-06-11");
+});
+
+test("normalizePhEtravelPortalPayload fail-closes positive customs/currency without structured fields", () => {
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        has_baggage_or_currency_to_declare: "yes",
+        customs_checklist_1: "yes",
+        customs_checklist_12: "yes",
+        currency_type: "FOREIGN_CURRENCY",
+        currency_amount: "15000",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof PhEtravelPortalValidationError);
+      assert.ok(error.missingFields.includes("goods_items"));
+      assert.ok(error.missingFields.includes("currency_items"));
+      assert.ok(error.missingFields.includes("currency_sources"));
+      assert.ok(error.missingFields.includes("currency_transport_purposes"));
+      assert.ok(error.missingFields.includes("currency_transport_method"));
+      return true;
+    },
+  );
 });
 
 test("normalizePhEtravelPortalPayload derives ARRIVAL when the fixed travel type question is absent", () => {
