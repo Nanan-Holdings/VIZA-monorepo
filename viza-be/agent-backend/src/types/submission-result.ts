@@ -274,24 +274,47 @@ export interface AuSubmissionResult {
  * Taiwan Online Entry Permit (旅居海外大陸地區人民申請來臺觀光入境許可). No persistent
  * portal account exists for this country (the official site verifies the
  * applicant's email via a one-time OTP inline during automation, not a
- * registered account like UkSubmissionResult). The automation stops right
- * before the official site's CAPTCHA and "確認資料" (confirm data) submit
- * button — it never solves the CAPTCHA and never clicks final submit. There
- * is no payment step to halt before: the real government fee (NT$600 /
- * NT$1,000) is only payable after National Immigration Agency approval, in a
- * separate later session on the official site. See
- * docs/tw-entry-permit-auto-submit-plan.md.
+ * registered account like UkSubmissionResult). Current automation solves the
+ * final image CAPTCHA through the shared 2captcha client and clicks
+ * "確認資料"; legacy rows may still show stopped_at_captcha. The real
+ * government fee (NT$600 / NT$1,000) is only payable after National
+ * Immigration Agency approval, in a separate later session on the official
+ * site.
  */
 export interface TwSubmissionResult {
   country: "TW";
-  status: "stopped_at_captcha" | "failed";
+  status: "stopped_at_captcha" | "submitted" | "failed";
   portalUrl?: string;
   caseNumber?: string;
   pagesFilled?: string[];
   capturedAt?: string;
-  /** Whether the CAPTCHA was auto-solved and pre-filled (best-effort,
-   *  unverified — the automation never clicks the real submit button). */
+  /** Opaque VIZA handoff id; the live URL is returned only after applicant ownership checks. */
+  handoffId?: string;
+  handoffExpiresAt?: string;
+  submittedAt?: string;
+  officialReceipt?: {
+    source: "official_success_page_with_application_number";
+    capturedAt: string;
+    portalUrl: string;
+    caseNumber: string;
+    confirmationText?: string;
+  };
+  /** Whether the CAPTCHA was auto-solved and final submit was attempted. */
   captchaAutoFilled?: boolean;
+  captchaSolve?: {
+    solve: {
+      solveId: string;
+      durationMs: number;
+      text: "[redacted]";
+      userAgent?: string;
+    };
+    telemetry: Array<{
+      solveId: string;
+      durationMs: number;
+      attempt: number;
+      outcome: "solved" | "wrong_answer_retry" | "failed";
+    }>;
+  };
   error?: string;
   url?: string;
 }

@@ -15,6 +15,7 @@ export interface BrowserbaseCloudSession {
 }
 
 export interface BrowserbaseCloudBrowser {
+  sessionId: string;
   browser: Browser;
   context: BrowserContext;
   page: Page;
@@ -33,6 +34,7 @@ const DEFAULT_COUNTRY_BY_PREFIX: Readonly<Record<string, string>> = {
   PH_ETRAVEL: "PH",
   SGAC: "SG",
   TDAC: "TH",
+  TW_ENTRY_PERMIT: "TW",
   VN: "VN",
   US_APPOINTMENT: "US",
 };
@@ -98,6 +100,8 @@ export function browserbaseEnabled(prefix: string, fallback = false): boolean {
 export async function createBrowserbaseCloudSession(options: {
   prefix: string;
   fetchImpl?: FetchLike;
+  keepAlive?: boolean;
+  timeoutSeconds?: number;
 }): Promise<BrowserbaseCloudSession> {
   const apiKey = process.env.BROWSERBASE_API_KEY?.trim();
   if (!apiKey) {
@@ -112,7 +116,7 @@ export async function createBrowserbaseCloudSession(options: {
   const country = process.env[`${options.prefix}_BROWSERBASE_COUNTRY`]?.trim().toUpperCase()
     || DEFAULT_COUNTRY_BY_PREFIX[options.prefix]
     || "US";
-  const timeout = readPositiveInteger(
+  const timeout = options.timeoutSeconds ?? readPositiveInteger(
     `${options.prefix}_BROWSERBASE_TIMEOUT_SECONDS`,
     readPositiveInteger("BROWSERBASE_SESSION_TIMEOUT_SECONDS", 900),
   );
@@ -128,7 +132,7 @@ export async function createBrowserbaseCloudSession(options: {
   }
 
   const body: Record<string, unknown> = {
-    keepAlive: false,
+    keepAlive: options.keepAlive ?? false,
     timeout,
     region,
     browserSettings: {
@@ -204,6 +208,8 @@ async function acquireBrowserbaseConnection(): Promise<() => void> {
 
 export async function connectBrowserbaseCloudBrowser(options: {
   prefix: string;
+  keepAlive?: boolean;
+  timeoutSeconds?: number;
 }): Promise<BrowserbaseCloudBrowser> {
   const release = await acquireBrowserbaseConnection();
   try {
@@ -213,6 +219,7 @@ export async function connectBrowserbaseCloudBrowser(options: {
     const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
     const page = context.pages()[0] ?? await context.newPage();
     return {
+      sessionId: cloudSession.id,
       browser,
       context,
       page,
@@ -224,4 +231,23 @@ export async function connectBrowserbaseCloudBrowser(options: {
     release();
     throw error;
   }
+}
+
+export async function getBrowserbaseLiveViewUrl(
+  sessionId: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<string> {
+  const apiKey = process.env.BROWSERBASE_API_KEY?.trim();
+  if (!apiKey) throw new BrowserbaseSessionError("BROWSERBASE_API_KEY is missing.");
+  const response = await fetchImpl(`https://api.browserbase.com/v1/sessions/${encodeURIComponent(sessionId)}/debug`, {
+    method: "GET",
+    signal: AbortSignal.timeout(15_000),
+    headers: { "X-BB-API-Key": apiKey },
+  });
+  if (!response.ok) throw new BrowserbaseSessionError(safeCreateFailure(response.status));
+  const payload = await response.json() as { debuggerFullscreenUrl?: unknown };
+  if (typeof payload.debuggerFullscreenUrl !== "string") {
+    throw new BrowserbaseSessionError("Browserbase returned an invalid live-view response.");
+  }
+  return payload.debuggerFullscreenUrl;
 }

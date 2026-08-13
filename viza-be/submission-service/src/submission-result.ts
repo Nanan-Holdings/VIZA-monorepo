@@ -28,10 +28,8 @@
  *   - unsupported            Controlled unsupported-country state
  *   - needs_user_action      Safe halt at a human checkpoint such as payment,
  *                            CAPTCHA, final review, or applicant submit
- *   - stopped_at_captcha     TW: every field filled, halted at the CAPTCHA +
- *                            "確認資料" submit boundary — no CAPTCHA solving,
- *                            no persistent account (single continuous
- *                            session with an email-OTP checkpoint instead)
+ *   - stopped_at_captcha     TW legacy rows: every field filled, halted at
+ *                            the CAPTCHA + "確認資料" submit boundary.
  */
 
 export type SubmissionResult =
@@ -177,29 +175,49 @@ export interface UkSubmissionResult {
  * Taiwan Online Entry Permit (旅居海外大陸地區人民申請來臺觀光入境許可). No persistent
  * portal account exists for this country (the official site verifies the
  * applicant's email via a one-time OTP inline during automation, not a
- * registered account like UkSubmissionResult). The automation stops right
- * before the official site's CAPTCHA and "確認資料" (confirm data) submit
- * button — it never solves the CAPTCHA and never clicks final submit. There
- * is no payment step to halt before: the real government fee (NT$600 /
- * NT$1,000) is only payable after National Immigration Agency approval, in a
- * separate later session on the official site, so the FE must not build any
- * "pay now" UI for this result. See docs/tw-entry-permit-auto-submit-plan.md.
+ * registered account like UkSubmissionResult). Current automation solves the
+ * final image CAPTCHA through the shared 2captcha client and clicks
+ * "確認資料"; legacy rows may still show stopped_at_captcha. The real
+ * government fee (NT$600 / NT$1,000) is only payable after National
+ * Immigration Agency approval, in a separate later session on the official
+ * site, so the FE must not build any "pay now" UI for this result.
  */
 export interface TwSubmissionResult {
   country: "TW";
-  status: "stopped_at_captcha" | "failed";
-  /** The official portal's application URL, for the applicant to finish themselves. Present on "stopped_at_captcha". */
+  status: "stopped_at_captcha" | "submitted" | "failed";
+  /** The official portal URL captured at the terminal state. */
   portalUrl?: string;
   /** 20-digit temporary save number or 12-digit submission number, if captured. */
   caseNumber?: string;
   pagesFilled?: string[];
   capturedAt?: string;
-  /** Whether the CAPTCHA was auto-solved and pre-filled (best-effort, never
-   *  verified against the real server — the automation never clicks the
-   *  real "確認資料" submit button, so there's no way to confirm the solve
-   *  was correct). The applicant should still check the value themselves
-   *  before submitting. */
+  /** Opaque VIZA handoff id; the live URL is never stored in this payload. */
+  handoffId?: string;
+  handoffExpiresAt?: string;
+  submittedAt?: string;
+  officialReceipt?: {
+    source: "official_success_page_with_application_number";
+    capturedAt: string;
+    portalUrl: string;
+    caseNumber: string;
+    confirmationText?: string;
+  };
+  /** Whether the CAPTCHA was auto-solved and final submit was attempted. */
   captchaAutoFilled?: boolean;
+  captchaSolve?: {
+    solve: {
+      solveId: string;
+      durationMs: number;
+      text: "[redacted]";
+      userAgent?: string;
+    };
+    telemetry: Array<{
+      solveId: string;
+      durationMs: number;
+      attempt: number;
+      outcome: "solved" | "wrong_answer_retry" | "failed";
+    }>;
+  };
   /** Present on "failed". */
   error?: string;
   url?: string;

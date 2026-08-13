@@ -9,6 +9,7 @@
  * throw RetryableRunnerError; missing portal accounts / unmappable data throw
  * NeedsHumanError.
  */
+import { createHash } from "node:crypto";
 import { supabase } from "../supabase.js";
 import {
   startCeacSession,
@@ -36,12 +37,25 @@ import { launchStealthBrowser } from "../ceac/stealth-browser.js";
 import { loadUkAccount, loadFvAccount, loadAuAccount } from "../account-loader.js";
 import {
   fillTwEntryPermitApplication,
+  type TwApplyInput,
+  type TwApplyOptions,
   normalizeTwAnswers,
   TwNormalizationError,
   HK_MACAU_EMBASSY_OFFICE_VALUES,
+  TwDuplicateRunError,
+  TwOfficialLoginConfigurationError,
+  createTwOfficialLoginProviderFromEnvironment,
+  createTwOfficialLoginOtpProviderFromEnvironment,
+  registerTwApplicantHandoff,
+  waitForTwApplicantSubmission,
 } from "../tw/index.js";
 import { resolveApplicationDocumentPaths } from "../documents/resolve-application-documents.js";
-import { ensureApplicantInboxAlias } from "../inbox/alias.js";
+import {
+  assertTwPrepareGuard,
+  TW_ACTIVE_HANDOFF_STATUSES,
+  TW_ACTIVE_RUNNER_JOB_STATUSES,
+  TW_APPLICANT_HANDOFF_KIND,
+} from "../tw/prepare-guard.js";
 import type { VisaApplicationAnswer, ApplicantProfile, Application } from "../types.js";
 import {
   RetryableRunnerError,
@@ -288,74 +302,112 @@ export const runFranceHalt: RunOne = async (applicationId, jobId) => {
 
 /* ----------------------------- Taiwan ----------------------------- */
 
+export interface PreparedTwEntryPermitApplication {
+  applicantId: string;
+  alias: string;
+  answers: Record<string, string>;
+  input: TwApplyInput;
+  applyOptions: Pick<TwApplyOptions, "photoFilePath" | "supportingDocuments">;
+  requiredDocumentCount: number;
+}
+
 /**
- * Taiwan Online Entry Permit (旅居海外大陸地區人民申請來臺觀光入境許可). Unlike
- * UK/France/Australia there is no persistent portal account — every run is a
- * single continuous session (terms modal → delivery location → application
- * form → email OTP verification → every field → CAPTCHA). See
- * docs/tw-entry-permit-auto-submit-plan.md "架构修正" and src/tw/AGENTS.md.
+ * Taiwan Online Entry Permit (旅居海外大陸地區人民申請來臺觀光入境許可). VIZA does
+ * not create Taiwan official accounts. Every run uses a deterministic,
+ * application-scoped VIZA managed inbox alias for the official email OTP.
+ * The optional official-login hook is only used if the NIA page actually
+ * presents a username/password login page. See src/tw/AGENTS.md.
  */
 export const runTwHalt: RunOne = async (applicationId, jobId) => {
+  if (!jobId) {
+    throw new NeedsHumanError("taiwan applicant handoff requires a runner_job id");
+  }
   const runId = jobId ?? applicationId;
-  const { applicantId, profile } = await loadProfileAndApp(applicationId);
-  const answerMap = buildAnswerMap(await loadRawAnswers(applicationId));
-
-  let answers: Record<string, string>;
+  let prepared: PreparedTwEntryPermitApplication;
   try {
-    answers = normalizeTwAnswers({ answers: answerMap, profile });
+    prepared = await prepareTwEntryPermitApplication(applicationId, { currentJobId: jobId });
   } catch (err) {
-    if (err instanceof TwNormalizationError) {
-      throw new NeedsHumanError(`taiwan: ${err.message}`);
+    if (err instanceof TwDuplicateRunError) throw new NeedsHumanError(err.message);
+    if (err instanceof TwNormalizationError) throw new NeedsHumanError(`taiwan: ${err.message}`);
+    throw err;
+  }
+
+  const { input, applyOptions } = prepared;
+
+  let result;
+  try {
+    result = await fillTwEntryPermitApplication(
+      input,
+      {
+        ...applyOptions,
+        headless: true,
+        runId,
+        mode: "applicant_handoff",
+        applicantHandoffTimeoutSeconds: Number.parseInt(
+          process.env.TW_ENTRY_PERMIT_HANDOFF_TIMEOUT_SECONDS ?? "1800",
+          10,
+        ),
+        officialLoginProvider: createTwOfficialLoginProviderFromEnvironment(),
+        officialLoginOtpProvider: createTwOfficialLoginOtpProviderFromEnvironment(),
+        onApplicantHandoffReady: async (ready) => {
+          if (!ready.session.handoff) {
+            throw new Error("taiwan applicant handoff session metadata is missing");
+          }
+          const handoff = await registerTwApplicantHandoff({
+            jobId,
+            applicationId,
+            applicantId: prepared.applicantId,
+            browserbaseSessionId: ready.session.handoff.sessionId,
+            liveViewUrl: ready.session.handoff.liveViewUrl,
+            expiresAt: ready.session.handoff.expiresAt,
+          });
+          const twPayload: TwSubmissionResult & { runMetadata: typeof ready.runMetadata } = {
+            country: "TW",
+            status: "stopped_at_captcha",
+            portalUrl: ready.portalUrl,
+            pagesFilled: ready.pagesFilled,
+            capturedAt: ready.capturedAt,
+            handoffId: handoff.takeoverId,
+            handoffExpiresAt: handoff.expiresAt,
+            runMetadata: ready.runMetadata,
+            captchaAutoFilled: true,
+            captchaSolve: {
+              telemetry: ready.captchaSolve.telemetry,
+              solve: {
+                solveId: ready.captchaSolve.solve.solveId,
+                durationMs: ready.captchaSolve.solve.durationMs,
+                text: "[redacted]",
+                ...(ready.captchaSolve.solve.userAgent ? { userAgent: ready.captchaSolve.solve.userAgent } : {}),
+              },
+            },
+          };
+          await writeSubmissionResult(applicationId, twPayload, "needs_user_action");
+          return waitForTwApplicantSubmission({
+            page: ready.page,
+            takeoverId: handoff.takeoverId,
+            expiresAt: handoff.expiresAt,
+          });
+        },
+      },
+    );
+  } catch (err) {
+    if (err instanceof TwOfficialLoginConfigurationError) {
+      throw new NeedsHumanError(err.message);
     }
     throw err;
   }
 
-  // The email OTP step needs an inbox the shared inbox infra actually
-  // watches — the applicant's monitored alias, not necessarily their real
-  // personal email (mirrors how uk/register.ts sources its account email).
-  const { alias } = await ensureApplicantInboxAlias(applicantId);
-
-  // Applicant-uploaded documents (photo + the "應檢附文件" supporting
-  // documents) live in application_documents, keyed by requirement_key —
-  // NOT in visa_application_answers, so they can't come through `answers`
-  // (see the comment on this in src/tw/normalize.ts). Resolve them here.
-  const documentPaths = await resolveApplicationDocumentPaths(applicationId);
-  const requiredDocMissing = (key: string, condition: boolean): void => {
-    if (condition && !documentPaths.get(key)) {
-      throw new NeedsHumanError(`taiwan: required document "${key}" has not been uploaded yet`);
-    }
-  };
-  requiredDocMissing("mainland_travel_document", true);
-  requiredDocMissing("eligibility_supporting_document", true);
-  requiredDocMissing("hk_macau_id_scan", HK_MACAU_EMBASSY_OFFICE_VALUES.has(answers.embassy_office));
-  requiredDocMissing("other_nationality_passport_scan", answers.has_other_nationality_passport === "yes");
-  requiredDocMissing("mainland_id_card_scan", answers.mainland_id_number_not_applicable !== "true");
-
-  const result = await fillTwEntryPermitApplication(
-    { applicantId, email: alias, answers },
-    {
-      headless: true,
-      runId,
-      photoFilePath: documentPaths.get("photo") ?? null,
-      supportingDocuments: {
-        mainlandTravelDocumentPath: documentPaths.get("mainland_travel_document"),
-        eligibilityProofPath: documentPaths.get("eligibility_supporting_document"),
-        hkMacauIdScanPath: documentPaths.get("hk_macau_id_scan"),
-        otherNationalityPassportScanPath: documentPaths.get("other_nationality_passport_scan"),
-        mainlandIdCardScanPath: documentPaths.get("mainland_id_card_scan"),
-        otherSupportingDocumentPath: documentPaths.get("other_supporting_document"),
-      },
-    },
-  );
-
+  if (result.status === "ready_to_submit") {
+    throw new RetryableRunnerError("taiwan unexpectedly stopped in pre-submit mode during runner execution");
+  }
   if (result.status === "stopped_at_captcha") {
-    const twPayload: TwSubmissionResult = {
+    const twPayload: TwSubmissionResult & { runMetadata: typeof result.runMetadata } = {
       country: "TW",
       status: "stopped_at_captcha",
       portalUrl: result.portalUrl,
       pagesFilled: result.pagesFilled,
       capturedAt: result.capturedAt,
-      captchaAutoFilled: result.captchaAutoFilled,
+      runMetadata: result.runMetadata,
       ...(result.caseNumber ? { caseNumber: result.caseNumber } : {}),
     };
     // "needs_user_action": CAPTCHA is exactly the human-checkpoint case this
@@ -363,11 +415,153 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
     await writeSubmissionResult(applicationId, twPayload, "needs_user_action");
     return HALTED(result.status);
   }
+  if (result.status === "submitted") {
+    const twPayload: TwSubmissionResult & { runMetadata: typeof result.runMetadata } = {
+      country: "TW",
+      status: "submitted",
+      portalUrl: result.portalUrl,
+      pagesFilled: result.pagesFilled,
+      capturedAt: result.capturedAt,
+      submittedAt: result.submittedAt,
+      officialReceipt: result.officialReceipt,
+      runMetadata: result.runMetadata,
+      captchaSolve: {
+        telemetry: result.captchaSolve.telemetry,
+        solve: {
+          solveId: result.captchaSolve.solve.solveId,
+          durationMs: result.captchaSolve.solve.durationMs,
+          text: "[redacted]",
+          ...(result.captchaSolve.solve.userAgent ? { userAgent: result.captchaSolve.solve.userAgent } : {}),
+        },
+      },
+      captchaAutoFilled: true,
+      ...(result.caseNumber ? { caseNumber: result.caseNumber } : {}),
+    };
+    await writeSubmissionResult(applicationId, twPayload, "completed");
+    return HALTED("submitted");
+  }
   if (result.status === "failed") {
     throw new RetryableRunnerError(`taiwan failed: ${result.error}`);
   }
   throw new Error(`unexpected taiwan status: ${(result as { status: string }).status}`);
 };
+
+export async function prepareTwEntryPermitApplication(
+  applicationId: string,
+  options: { currentJobId?: string } = {},
+): Promise<PreparedTwEntryPermitApplication> {
+  await assertTwPrepareIsAllowed(applicationId, options.currentJobId);
+  const { applicantId, profile } = await loadProfileAndApp(applicationId);
+  const answerMap = buildAnswerMap(await loadRawAnswers(applicationId));
+  const answers = normalizeTwAnswers({ answers: answerMap, profile });
+
+  // Deterministic per application so retries reuse the same generated alias.
+  // The current routable alias domain is viza.it.com unless overridden by env.
+  const alias = twApplicationInboxAlias(applicationId);
+
+  // Applicant-uploaded documents (photo + the "應檢附文件" supporting
+  // documents) live in application_documents, keyed by requirement_key —
+  // NOT in visa_application_answers, so they can't come through `answers`
+  // (see the comment on this in src/tw/normalize.ts). Resolve them here.
+  const documentPaths = await resolveApplicationDocumentPaths(applicationId);
+  let requiredDocumentCount = 0;
+  const requiredDocMissing = (key: string, condition: boolean): void => {
+    if (condition) requiredDocumentCount += 1;
+    if (condition && !documentPaths.get(key)) {
+      throw new NeedsHumanError(`taiwan: required document "${key}" has not been uploaded yet`);
+    }
+  };
+  // The "eligibility_supporting_document" requirement is split into 4
+  // category-specific document_requirements rows
+  // (eligibility_supporting_document_1..4, one per eligibility_category
+  // value) so the Documents step only shows the applicant the ONE document
+  // description relevant to their actual answer, instead of all 4 lumped
+  // together. Resolve the correct key from the answered category here.
+  const eligibilityDocKey = `eligibility_supporting_document_${answers.eligibility_category}`;
+  requiredDocMissing("photo", true);
+  requiredDocMissing("mainland_travel_document", true);
+  requiredDocMissing(eligibilityDocKey, true);
+  requiredDocMissing("hk_macau_id_scan", HK_MACAU_EMBASSY_OFFICE_VALUES.has(answers.embassy_office));
+  requiredDocMissing("other_nationality_passport_scan", answers.has_other_nationality_passport === "yes");
+  requiredDocMissing(
+    "mainland_id_card_scan",
+    answers.eligibility_category === "4" || answers.mainland_id_number_not_applicable !== "true",
+  );
+
+  return {
+    applicantId,
+    alias,
+    answers,
+    input: { applicantId, email: alias, answers },
+    applyOptions: {
+        photoFilePath: documentPaths.get("photo") ?? null,
+        supportingDocuments: {
+          mainlandTravelDocumentPath: documentPaths.get("mainland_travel_document"),
+          eligibilityProofPath: documentPaths.get(eligibilityDocKey),
+          hkMacauIdScanPath: documentPaths.get("hk_macau_id_scan"),
+          otherNationalityPassportScanPath: documentPaths.get("other_nationality_passport_scan"),
+          mainlandIdCardScanPath: documentPaths.get("mainland_id_card_scan"),
+          otherSupportingDocumentPath: documentPaths.get("other_supporting_document"),
+        },
+      },
+    requiredDocumentCount,
+  };
+}
+
+export function twApplicationInboxAlias(applicationId: string): string {
+  const domain = normalizeTwInboxDomain(
+    process.env.TW_ENTRY_PERMIT_ALIAS_DOMAIN ??
+    process.env.VIZA_MANAGED_INBOX_DOMAIN ??
+    "viza.it.com",
+  );
+  const digest = createHash("sha256")
+    .update(`tw-entry-permit:${applicationId}`)
+    .digest("hex")
+    .slice(0, 24);
+  return `tw-${digest}@${domain}`;
+}
+
+function normalizeTwInboxDomain(domain: string): string {
+  const normalized = domain.trim().toLowerCase();
+  return normalized.startsWith("@") ? normalized.slice(1) : normalized;
+}
+
+async function assertTwPrepareIsAllowed(applicationId: string, currentJobId?: string): Promise<void> {
+  const { data, error } = await supabase
+    .from("applications")
+    .select("submission_result_status, submission_result")
+    .eq("id", applicationId)
+    .single();
+  if (error) throw new Error(`taiwan duplicate-run guard lookup failed: ${error.message}`);
+  const row = data as { submission_result_status?: string | null; submission_result?: Record<string, unknown> | null } | null;
+
+  const [{ data: activeRunnerJobs, error: activeJobError }, { data: activeHandoffs, error: handoffError }] = await Promise.all([
+    supabase
+      .from("runner_job")
+      .select("id")
+      .eq("application_id", applicationId)
+      .eq("country", "taiwan")
+      .in("status", [...TW_ACTIVE_RUNNER_JOB_STATUSES]),
+    supabase
+      .from("takeover_session")
+      .select("expires_at")
+      .eq("application_id", applicationId)
+      .eq("handoff_kind", TW_APPLICANT_HANDOFF_KIND)
+      .in("status", [...TW_ACTIVE_HANDOFF_STATUSES]),
+  ]);
+  if (activeJobError) throw new Error(`taiwan active-job guard lookup failed: ${activeJobError.message}`);
+  if (handoffError) throw new Error(`taiwan handoff guard lookup failed: ${handoffError.message}`);
+
+  assertTwPrepareGuard({
+    submissionResultStatus: row?.submission_result_status ?? null,
+    submissionResult: row?.submission_result ?? null,
+    activeRunnerJobs: ((activeRunnerJobs ?? []) as Array<{ id: string }>),
+    activeHandoffs: ((activeHandoffs ?? []) as Array<{ expires_at?: string | null }>).map((handoff) => ({
+      expiresAt: handoff.expires_at ?? null,
+    })),
+    ...(currentJobId ? { currentJobId } : {}),
+  });
+}
 
 /* --------------------------- Australia --------------------------- */
 

@@ -7,6 +7,10 @@ import {
   ukPrefillProgressPercent,
 } from "@/lib/submission-queue";
 import { getClientSessionFromRequest } from "@/lib/client-session";
+import {
+  createPhEtravelUserStatusMessage,
+  phEtravelUserFacingError,
+} from "@/features/ph-etravel/status";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +64,18 @@ type QueueRow = {
   vn_result_payload?: unknown | null;
   created_at: string | null;
   updated_at: string | null;
+};
+
+type RunnerJobRow = {
+  id: string;
+  status: string;
+  attempts: number | null;
+  last_error: string | null;
+  enqueued_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  leased_until: string | null;
+  metadata: unknown | null;
 };
 
 type DerivedStatus = {
@@ -153,8 +169,101 @@ function normalizeVisaType(visaType: string | null | undefined): string {
   return (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
 }
 
+function normalizeCountry(country: string | null | undefined): string {
+  return (country ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
+}
+
+function isTaiwanEntryPermitApplication(country: string | null | undefined, visaType: string | null | undefined): boolean {
+  return (normalizeCountry(country) === "TAIWAN" || normalizeCountry(country) === "TW") &&
+    normalizeVisaType(visaType) === "TW_ENTRY_PERMIT";
+}
+
+function isPhilippinesEtravelArrivalApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  const normalizedCountry = normalizeCountry(country);
+  return (normalizedCountry === "PHILIPPINES" || normalizedCountry === "PH")
+    && normalizeVisaType(visaType) === "PH_ETRAVEL_ARRIVAL_CARD";
+}
+
 function isIndonesiaB1Evoa(visaType: string | null | undefined): boolean {
   return normalizeVisaType(visaType) === "ID_B1_EVOA";
+}
+
+function metadataString(metadata: unknown, key: string): string | null {
+  if (!isRecord(metadata)) return null;
+  const value = metadata[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function mapTaiwanRunnerJobToQueueRow(row: RunnerJobRow): QueueRow {
+  const normalizedStatus = normalizeStatus(row.status);
+  const active = normalizedStatus === "queued" || normalizedStatus === "running" || normalizedStatus === "needs_human" || normalizedStatus === "paused";
+  const queueStatus = normalizedStatus === "queued"
+    ? "tw_live_assisted_pending"
+    : active
+      ? "tw_live_assisted_processing"
+      : "tw_live_assisted_failed";
+  const currentStage =
+    metadataString(row.metadata, "currentStage") ??
+    metadataString(row.metadata, "current_stage") ??
+    metadataString(row.metadata, "queuedStage");
+  const updatedAt = latestTimestamp(row.finished_at, row.started_at, row.enqueued_at);
+  return {
+    id: row.id,
+    status: queueStatus,
+    attempts: row.attempts,
+    mode: "live_assisted",
+    provider: "taiwan_overseas_cn_entry_permit_live",
+    last_error: row.last_error,
+    error_code: null,
+    error_message: row.last_error,
+    current_stage: currentStage,
+    heartbeat_at: row.leased_until,
+    manual_action_status: null,
+    official_status: null,
+    created_at: row.enqueued_at,
+    updated_at: updatedAt,
+  };
+}
+
+function mapPhEtravelRunnerJobToQueueRow(row: RunnerJobRow): QueueRow {
+  const status = normalizeStatus(row.status);
+  const queuedStage = metadataString(row.metadata, "queuedStage");
+  const scheduled = status === "queued" && queuedStage === "scheduled_for_phetravel_window";
+  const queueStatus = scheduled
+    ? "phetravel_live_assisted_scheduled"
+    : status === "queued"
+      ? "phetravel_live_assisted_pending"
+      : status === "running"
+        ? "phetravel_live_assisted_processing"
+        : status === "needs_human" || status === "paused"
+          ? "phetravel_live_assisted_action_required"
+          : status === "succeeded" || status === "completed"
+            ? "phetravel_live_assisted_recovery_required"
+            : "phetravel_live_assisted_failed";
+  const safeError = queueStatus.endsWith("_failed")
+    ? phEtravelUserFacingError({ code: "submission_failed" })
+    : null;
+  return {
+    id: row.id,
+    status: queueStatus,
+    attempts: row.attempts,
+    mode: "live_assisted",
+    provider: "philippines_etravel_live",
+    last_error: safeError,
+    error_code: null,
+    error_message: safeError,
+    current_stage: metadataString(row.metadata, "currentStage")
+      ?? metadataString(row.metadata, "current_stage")
+      ?? queuedStage,
+    heartbeat_at: row.leased_until,
+    manual_action_status: null,
+    official_status: null,
+    created_at: row.enqueued_at,
+    updated_at: latestTimestamp(row.finished_at, row.started_at, row.enqueued_at),
+  };
 }
 
 function indonesiaProviderForQueue(queue: QueueRow | null, application: ApplicationForStatus): string {
@@ -417,6 +526,17 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     return { status: "scheduled", stage: "scheduled", progress: 0 };
   }
 
+  if (queueStatus === "phetravel_live_assisted_scheduled") {
+    return { status: "scheduled", stage: "scheduled", progress: 0 };
+  }
+
+  if (
+    queueStatus === "phetravel_live_assisted_action_required" ||
+    queueStatus === "phetravel_live_assisted_recovery_required"
+  ) {
+    return { status: "needs_user_action", stage: "confirming_result", progress: 99 };
+  }
+
   if (
     queueStatus === "failed" ||
     queueStatus.endsWith("_failed") ||
@@ -658,9 +778,9 @@ export function deriveNonTerminalStatus(
       status: "scheduled",
       stage: "scheduled",
       progress: 0,
-      message:
-        queueMessage ??
-        "SG Arrival Card is scheduled for automatic submission when the ICA three-day window opens.",
+      message: queueMessage ?? (queueStatus.startsWith("phetravel_")
+        ? createPhEtravelUserStatusMessage("scheduled")
+        : "SG Arrival Card is scheduled for automatic submission when the ICA three-day window opens."),
       error: null,
     };
   }
@@ -695,9 +815,15 @@ export function deriveNonTerminalStatus(
     status: queueDerived.status,
     stage: queueDerived.stage,
     progress: clampProgress(queueDerived.progress),
-    message:
-      error ??
-      (currentStage ? `Current stage: ${currentStage}.` : messageForStage(queueDerived.stage)),
+    message: error ?? (queueStatus === "phetravel_live_assisted_recovery_required"
+      ? createPhEtravelUserStatusMessage("recovery_required")
+      : queueStatus === "phetravel_live_assisted_action_required"
+        ? createPhEtravelUserStatusMessage("action_required")
+        : queueStatus === "phetravel_live_assisted_processing"
+          ? createPhEtravelUserStatusMessage("processing")
+          : queueStatus === "phetravel_live_assisted_pending"
+            ? createPhEtravelUserStatusMessage("queued")
+            : currentStage ? `Current stage: ${currentStage}.` : messageForStage(queueDerived.stage)),
     error: queueDerived.status === "failed" ? error ?? "Submission failed." : error,
   };
 }
@@ -763,6 +889,32 @@ async function getSubmissionStatus(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  let runnerQueue: QueueRow | null = null;
+  if (
+    isTaiwanEntryPermitApplication(application.country, application.visa_type) ||
+    isPhilippinesEtravelArrivalApplication(application.country, application.visa_type)
+  ) {
+    const runnerCountry = isTaiwanEntryPermitApplication(application.country, application.visa_type)
+      ? "taiwan"
+      : "philippines";
+    const { data: runnerRows, error: runnerError } = await admin
+      .from("runner_job")
+      .select("id, status, attempts, last_error, enqueued_at, started_at, finished_at, leased_until, metadata")
+      .eq("application_id", applicationId)
+      .eq("country", runnerCountry)
+      .order("enqueued_at", { ascending: false })
+      .limit(3);
+    if (runnerError) {
+      return NextResponse.json({ error: runnerError.message }, { status: 500 });
+    }
+    const latestRunnerJob = Array.isArray(runnerRows) ? runnerRows[0] as RunnerJobRow | undefined : undefined;
+    runnerQueue = latestRunnerJob
+      ? runnerCountry === "philippines"
+        ? mapPhEtravelRunnerJobToQueueRow(latestRunnerJob)
+        : mapTaiwanRunnerJobToQueueRow(latestRunnerJob)
+      : null;
+  }
+
   const { data: queueRows, error: queueError } = await admin
     .from("submission_queue")
     .select("*")
@@ -775,7 +927,12 @@ async function getSubmissionStatus(
     return NextResponse.json({ error: queueError.message }, { status: 500 });
   }
 
-  const queue = selectQueueForSubmissionStatus((queueRows ?? []) as QueueRow[]);
+  const submissionQueue = selectQueueForSubmissionStatus((queueRows ?? []) as QueueRow[]);
+  const runnerQueueUpdatedAt = latestTimestamp(runnerQueue?.heartbeat_at, runnerQueue?.updated_at, runnerQueue?.created_at);
+  const submissionQueueUpdatedAt = latestTimestamp(submissionQueue?.heartbeat_at, submissionQueue?.updated_at, submissionQueue?.created_at);
+  const queue = runnerQueue && isAfterOrEqual(runnerQueueUpdatedAt, submissionQueueUpdatedAt)
+    ? runnerQueue
+    : submissionQueue;
   const queueUpdatedAt = latestTimestamp(queue?.heartbeat_at, queue?.updated_at, queue?.created_at);
   const queueDerived = deriveQueueStage(normalizeStatus(queue?.status));
   // A newly created active queue represents an explicit retry. It must always

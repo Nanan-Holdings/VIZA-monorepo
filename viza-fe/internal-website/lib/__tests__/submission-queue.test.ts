@@ -6,6 +6,7 @@ import {
   isIndonesiaEVisaApplication,
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
+  isTaiwanEntryPermitApplication,
   isThailandTdacApplication,
   RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES,
   retryQueueInsertCanUseLegacyPayload,
@@ -172,6 +173,26 @@ describe("queueStatusForVisaType", () => {
     );
   });
 
+  it("routes Taiwan entry permits to explicit live and dry-run queues", () => {
+    expect(isTaiwanEntryPermitApplication("taiwan", "TW_ENTRY_PERMIT")).toBe(true);
+    expect(isTaiwanEntryPermitApplication("TW", "TW_ENTRY_PERMIT")).toBe(true);
+    expect(isTaiwanEntryPermitApplication("china", "TW_ENTRY_PERMIT")).toBe(false);
+
+    expect(queueStatusForVisaType("TW_ENTRY_PERMIT")).toBe("tw_dry_run_pending");
+    expect(queueStatusForApplication("taiwan", "TW_ENTRY_PERMIT", "dry_run")).toBe("tw_dry_run_pending");
+    expect(queueStatusForApplication("TW", "TW_ENTRY_PERMIT", "live_assisted")).toBe(
+      "tw_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("taiwan", "TW_ENTRY_PERMIT", "dry_run")).toBe(
+      "taiwan_overseas_cn_entry_permit_dry_run",
+    );
+    expect(queueProviderForApplication("taiwan", "TW_ENTRY_PERMIT", "live_assisted")).toBe(
+      "taiwan_overseas_cn_entry_permit_live",
+    );
+    expect(submissionQueueRequiresServerEnqueue("taiwan", "TW_ENTRY_PERMIT", "dry_run")).toBe(true);
+    expect(submitModeForPrimaryApplicationAction("taiwan", "TW_ENTRY_PERMIT")).toBe("live_assisted");
+  });
+
   it("routes Vietnam Pre-Arrival declarations separately from Vietnam eVisa", () => {
     expect(isDigitalArrivalCardApplication("vietnam", "VN_PREARRIVAL_DECLARATION")).toBe(true);
     expect(queueStatusForApplication("vietnam", "VN_PREARRIVAL_DECLARATION", "dry_run")).toBe(
@@ -223,6 +244,10 @@ describe("queueStatusForVisaType", () => {
     expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
       mode: "live_assisted",
       queueStatus: "id_b1_evoa_live_assisted_pending",
+    })).toBe(true);
+    expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
+      mode: "live_assisted",
+      queueStatus: "tw_live_assisted_pending",
     })).toBe(true);
   });
 });

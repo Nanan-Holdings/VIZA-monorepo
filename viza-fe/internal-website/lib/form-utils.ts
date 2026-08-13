@@ -62,13 +62,22 @@ export function evaluateExpression(
     }
     const eqMatch = atom.match(/^(\S+)\s*===\s*(\S+)$/);
     if (eqMatch) {
+      const target = resolveTarget(eqMatch[2]);
       const actual = readValue(eqMatch[1]).toLowerCase();
-      return actual === resolveTarget(eqMatch[2]);
+      // Checkbox fields write "" (not the literal "false") when unchecked —
+      // both at initial render and every time the box is toggled off (see
+      // dynamic-form-field.tsx's onCheckedChange). Treat "" as "false" so
+      // "checkboxField === false" showIf clauses work for the unchecked
+      // state, not just the checked ("=== true") state.
+      if (target === "false" && actual === "") return true;
+      return actual === target;
     }
     const neqMatch = atom.match(/^(\S+)\s*!==\s*(\S+)$/);
     if (neqMatch) {
+      const target = resolveTarget(neqMatch[2]);
       const actual = readValue(neqMatch[1]).toLowerCase();
-      return actual !== resolveTarget(neqMatch[2]);
+      if (target === "false" && actual === "") return false;
+      return actual !== target;
     }
     return false;
   };
@@ -93,6 +102,16 @@ export function isRequiredUnlessSatisfied(
 ): boolean {
   const rules = field.validationRules as { required_unless?: string } | null;
   const expr = rules?.required_unless;
+  if (!expr || typeof expr !== "string") return false;
+  return evaluateExpression(expr, values);
+}
+
+export function isRequiredWhenSatisfied(
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+): boolean {
+  const rules = field.validationRules as { required_when?: string; requiredWhen?: string } | null;
+  const expr = rules?.required_when ?? rules?.requiredWhen;
   if (!expr || typeof expr !== "string") return false;
   return evaluateExpression(expr, values);
 }

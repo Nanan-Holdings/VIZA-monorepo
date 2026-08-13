@@ -7,3 +7,4 @@ scripts/.env.migration
 scripts/migration-dump/
 scripts/logs/
 .vercel
+.env*
