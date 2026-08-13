@@ -61,7 +61,7 @@ describe("wakeCloudSubmissionWorker", () => {
       if (url.endsWith("/apps/viza-runner-pool/machines/machine-vn/start")) {
         return new Response(null, { status: 202 });
       }
-      if (url.endsWith("/internal/runner-job/wake")) {
+      if (url.endsWith("/internal/submission-queue/wake")) {
         return new Response(null, { status: 202 });
       }
       return new Response(null, { status: 404 });

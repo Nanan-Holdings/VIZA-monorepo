@@ -262,6 +262,7 @@ describe("generic natural-language model extraction", () => {
   it("translates a natural answer into a high-confidence field patch for a non-SG form", async () => {
     const originalKey = process.env.OPENAI_API_KEY;
     process.env.OPENAI_API_KEY = "test-key";
+    process.env.OPENAI_FORM_ASSISTANT_PROXY_URL = "http://127.0.0.1:7890";
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       json: async () => ({
@@ -317,7 +318,9 @@ describe("generic natural-language model extraction", () => {
       expect(requestBody.instructions).toContain("EU_SCHENGEN_C_SHORT_STAY");
       expect(requestBody.instructions).not.toContain("SG Arrival Card");
       expect(requestBody.input).toContain("current_occupation");
+      expect(fetchMock.mock.calls[0]?.[1]).toHaveProperty("dispatcher");
     } finally {
+      delete process.env.OPENAI_FORM_ASSISTANT_PROXY_URL;
       if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = originalKey;
       vi.unstubAllGlobals();

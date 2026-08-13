@@ -39,6 +39,9 @@ Scope: this file applies to `lib/form-assistant/**`.
 - Knowledge sources and prompts must remain bound to the owned application's
   exact `country + visaType`. Never return the SGAC ICA fallback source for a
   different Singapore product or another country.
+- Networks that require an outbound HTTPS proxy may set
+  `OPENAI_FORM_ASSISTANT_PROXY_URL` (or `HTTPS_PROXY`). Keep the request origin
+  on official `api.openai.com` so TLS verification remains intact.
 
 ## Validation
 
