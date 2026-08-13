@@ -42,6 +42,16 @@ type OneTimeCardInput = {
   holderName: string;
 };
 
+type CardSessionErrorCode =
+  | "worker_start_failed"
+  | "worker_readiness_timeout"
+  | "card_handoff_failed"
+  | "card_session_not_configured";
+
+type CardSessionResult =
+  | { ok: true; redactedCard: unknown; expiresAtIso: string | null }
+  | { ok: false; error: string; errorCode: CardSessionErrorCode };
+
 type OfficialFeeQueueResult = {
   queueId: string;
   queueStatus: string;
@@ -558,8 +568,7 @@ async function postOneTimeCardSession(input: {
 }
 
 async function registerOneTimeCardSession(applicationId: string, application: ApplicationRow, card: OneTimeCardInput): Promise<
-  | { ok: true; redactedCard: unknown; expiresAtIso: string | null }
-  | { ok: false; error: string }
+  CardSessionResult
 > {
   const countryPath = officialFeeCardSessionPath(application);
   if (countryPath === "vietnam") {
@@ -581,6 +590,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
         });
         return {
           ok: false,
+          errorCode: ready.reason === "wake_failed" ? "worker_start_failed" : "worker_readiness_timeout",
           error: ready.reason === "wake_failed"
             ? "越南云端付款服务暂时无法启动，请稍后重试。"
             : "越南云端付款服务仍在启动，请稍后重试。",
@@ -598,6 +608,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
         });
         return {
           ok: false,
+          errorCode: "card_handoff_failed",
           error: "越南云端付款会话暂时不可用，请稍后重试。",
         };
       }
@@ -607,6 +618,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
       console.error("Vietnam cloud card session is not configured.");
       return {
         ok: false,
+        errorCode: "card_session_not_configured",
         error: "越南云端付款会话尚未配置，请联系 VIZA 支持。",
       };
     }
@@ -627,6 +639,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
         });
         return {
           ok: false,
+          errorCode: "card_handoff_failed",
           error: "印尼云端付款会话暂时不可用，请稍后重试。",
         };
       }
@@ -635,6 +648,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
     console.error("Indonesia cloud card session is not configured.");
     return {
       ok: false,
+      errorCode: "card_session_not_configured",
       error: "印尼云端付款会话尚未配置，请联系 VIZA 支持。",
     };
   }
@@ -652,8 +666,39 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
   });
   return {
     ok: false,
+    errorCode: "card_handoff_failed",
     error: "本机 submission-service 没有运行，或未开启一次性银行卡会话端点。请启动对应 submission worker 后重试。",
   };
+}
+
+async function discardVietnamOneTimeCardSession(applicationId: string): Promise<boolean> {
+  const cloud = getVietnamCloudCardSessionConfig();
+  const targets = cloud
+    ? [{ endpoint: `${cloud.baseUrl}/internal/vietnam/card-session`, token: cloud.token }]
+    : getSubmissionServiceLocalUrlCandidates("vietnam").map((baseUrl) => ({
+        endpoint: `${baseUrl}/local/vietnam/card-session`,
+        token: undefined,
+      }));
+
+  for (const target of targets) {
+    try {
+      const response = await fetch(target.endpoint, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(target.token ? { Authorization: `Bearer ${target.token}` } : {}),
+        },
+        body: JSON.stringify({ applicationId }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (response.ok) return true;
+    } catch {
+      // The worker TTL remains the final safety boundary if compensation
+      // cannot reach the process. Do not expose or log card material here.
+    }
+  }
+  return false;
 }
 
 async function enqueueIndonesiaOfficialFeeCardJob(input: {
@@ -824,6 +869,7 @@ export async function POST(
       return NextResponse.json(
         {
           error: cardSession.error,
+          errorCode: cardSession.errorCode,
         },
         { status: 503 },
       );
@@ -908,6 +954,7 @@ export async function POST(
         error: process.env.NODE_ENV === "production"
           ? `无法把一次性银行卡会话发送给 VIZA 云端 submission-service：${cardSession.error}`
           : `无法把一次性银行卡会话发送给本机 submission-service：${cardSession.error}。请确认已运行 npm run vn:autopay:dev，且端口与 SUBMISSION_SERVICE_LOCAL_URL 匹配。`,
+        errorCode: cardSession.errorCode,
       },
       { status: 503 },
     );
@@ -941,8 +988,16 @@ export async function POST(
     now,
   });
   if (queueEnqueue.error || !queueEnqueue.result) {
+    const cardSessionDiscarded = await discardVietnamOneTimeCardSession(applicationId);
+    console.error("Could not enqueue Vietnam payment job after card handoff", {
+      reason: queueEnqueue.error ?? "missing queue result",
+      cardSessionDiscarded,
+    });
     return NextResponse.json(
-      { error: queueEnqueue.error ?? "Could not enqueue Vietnam payment job." },
+      {
+        error: "越南云端付款任务未能创建，本次银行卡会话已取消，请重新提交。",
+        errorCode: "queue_enqueue_failed",
+      },
       { status: 500 },
     );
   }
@@ -986,11 +1041,18 @@ export async function POST(
     ),
   ]);
 
+  const postEnqueueWarnings: string[] = [];
   if (applicationUpdateResult.error && !isSchemaMissing(applicationUpdateResult.error)) {
-    return NextResponse.json({ error: applicationUpdateResult.error.message }, { status: 500 });
+    postEnqueueWarnings.push("application_status_update_failed");
+    console.error("Vietnam payment job queued but application status update failed", {
+      reason: applicationUpdateResult.error.message,
+    });
   }
   if (eventResult.error && !isSchemaMissing(eventResult.error) && !isDuplicateKey(eventResult.error)) {
-    return NextResponse.json({ error: eventResult.error.message }, { status: 500 });
+    postEnqueueWarnings.push("application_event_insert_failed");
+    console.error("Vietnam payment job queued but audit event insert failed", {
+      reason: eventResult.error.message,
+    });
   }
 
   return NextResponse.json({
@@ -1004,6 +1066,7 @@ export async function POST(
       expiresAtIso: cardSession.expiresAtIso,
       redactedCard: cardSession.redactedCard,
     },
+    postEnqueueWarnings,
     schemaWarning: applicationUpdateResult.error ? "official_fee_application_columns_missing" : null,
   });
 }
