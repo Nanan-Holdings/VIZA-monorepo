@@ -64,6 +64,7 @@ describe("resilience gateway", () => {
   });
 
   it("only reports healthy when the latest probe is fresh and healthy", async () => {
+    expect(MAX_PROBE_AGE_MS).toBe(35 * 60 * 1_000);
     const now = Date.now();
     await stateCommand({ op: "recordProbe", probe: healthyProbe, circuit: "closed", now });
     const response = await worker.fetch(new Request("https://worker.test/health"), env);

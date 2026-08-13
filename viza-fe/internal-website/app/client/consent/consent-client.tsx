@@ -13,17 +13,17 @@ import {
   type PointerEvent,
 } from "react";
 import {
-  AlertTriangle,
+  Warning as AlertTriangle,
   ArrowRight,
-  CheckCircle2,
+  CheckCircle as CheckCircle2,
   Circle,
   Eraser,
-  ExternalLink,
-  FileSignature,
-  MailCheck,
-  PenLine,
+  ArrowSquareOut as ExternalLink,
+  Signature as FileSignature,
+  EnvelopeOpen as MailCheck,
+  PencilLine as PenLine,
   ShieldCheck,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { acceptConsentAndSignature } from "./actions";
 import {

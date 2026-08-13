@@ -370,6 +370,7 @@ describe("passport OCR provider", () => {
 
   it("reports network failures as provider unavailable instead of blaming file quality", async () => {
     vi.stubEnv("OPENAI_API_KEY", "test-key");
+    vi.stubEnv("PASSPORT_OCR_RETRY_DELAY_MS", "1");
     const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("fetch failed"));
     vi.stubGlobal("fetch", fetchMock);
     const file: PassportOcrFile = {
@@ -383,6 +384,27 @@ describe("passport OCR provider", () => {
       message: "Passport OCR provider is temporarily unavailable.",
       retryable: true,
     });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers from one transient provider connection failure", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    vi.stubEnv("PASSPORT_OCR_RETRY_DELAY_MS", "1");
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(successResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const file: PassportOcrFile = {
+      bytes: Buffer.from("synthetic image bytes"),
+      filename: "passport.jpg",
+      mimeType: "image/jpeg",
+    };
+
+    const result = await extractPassportOcr(file);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.fields.passportNumber.value).toBe("L898902C3");
   });
 
   it("uses the Latin MRZ name when local-script name text is also visible", async () => {

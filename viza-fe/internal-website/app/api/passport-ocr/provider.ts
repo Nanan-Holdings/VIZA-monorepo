@@ -75,6 +75,8 @@ export class PassportOcrProviderError extends Error {
 
 const DEFAULT_OPENAI_MODEL = "gpt-4o";
 const DEFAULT_OPENAI_FALLBACK_MODELS = ["gpt-4o-mini"];
+const DEFAULT_OPENAI_TIMEOUT_MS = 45_000;
+const DEFAULT_OPENAI_ATTEMPTS = 2;
 
 const PASSPORT_SCHEMA = {
   type: "object",
@@ -572,6 +574,66 @@ function splitModelList(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function positiveIntegerSetting(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+async function waitBeforeProviderRetry(attempt: number): Promise<void> {
+  const delayMs = positiveIntegerSetting(process.env.PASSPORT_OCR_RETRY_DELAY_MS, 250) * attempt;
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+async function fetchOpenAIResponse(apiKey: string, body: unknown): Promise<Response> {
+  const timeoutMs = positiveIntegerSetting(
+    process.env.PASSPORT_OCR_REQUEST_TIMEOUT_MS,
+    DEFAULT_OPENAI_TIMEOUT_MS,
+  );
+  const attempts = positiveIntegerSetting(
+    process.env.PASSPORT_OCR_REQUEST_ATTEMPTS,
+    DEFAULT_OPENAI_ATTEMPTS,
+  );
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      if ((response.status === 429 || response.status >= 500) && attempt < attempts) {
+        await response.body?.cancel().catch(() => undefined);
+        await waitBeforeProviderRetry(attempt);
+        continue;
+      }
+      return response;
+    } catch {
+      if (attempt >= attempts) {
+        throw new PassportOcrProviderError(
+          "provider_unavailable",
+          "Passport OCR provider is temporarily unavailable.",
+          true,
+        );
+      }
+      await waitBeforeProviderRetry(attempt);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  throw new PassportOcrProviderError(
+    "provider_unavailable",
+    "Passport OCR provider is temporarily unavailable.",
+    true,
+  );
+}
+
 function getOpenAIModelCandidates(): string[] {
   const configuredModel = process.env.PASSPORT_OCR_OPENAI_MODEL?.trim();
   const fallbackModels = splitModelList(process.env.PASSPORT_OCR_OPENAI_FALLBACK_MODELS);
@@ -637,35 +699,19 @@ async function extractWithOpenAI(
   for (let index = 0; index < modelCandidates.length; index += 1) {
     const model = modelCandidates[index];
     for (const unreadableRetry of [false, true]) {
-      let response: Response;
-      try {
-        response = await fetch("https://api.openai.com/v1/responses", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
+      const response = await fetchOpenAIResponse(apiKey, {
+        model,
+        input: buildOpenAIInput(file, { unreadableRetry, documentKind }),
+        max_output_tokens: 900,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "passport_ocr_fields",
+            strict: true,
+            schema: PASSPORT_SCHEMA,
           },
-          body: JSON.stringify({
-            model,
-            input: buildOpenAIInput(file, { unreadableRetry, documentKind }),
-            max_output_tokens: 900,
-            text: {
-              format: {
-                type: "json_schema",
-                name: "passport_ocr_fields",
-                strict: true,
-                schema: PASSPORT_SCHEMA,
-              },
-            },
-          }),
-        });
-      } catch {
-        throw new PassportOcrProviderError(
-          "provider_unavailable",
-          "Passport OCR provider is temporarily unavailable.",
-          true,
-        );
-      }
+        },
+      });
 
       if (!response.ok) {
         const errorBody = await parseOpenAIErrorBody(response);

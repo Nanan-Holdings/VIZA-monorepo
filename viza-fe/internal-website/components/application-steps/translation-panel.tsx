@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { Pencil, Check, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { Pencil, Check, CircleNotch as Loader2, WarningCircle as AlertCircle, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

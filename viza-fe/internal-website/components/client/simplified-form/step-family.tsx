@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, Flag, Globe2, Heart, Plus, Trash2, User, Users } from "lucide-react";
+import { Check, Flag, GlobeHemisphereWest as Globe2, Heart, Plus, Trash as Trash2, User, Users } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BrandField, BrandInput } from "@/components/client/brand-field";

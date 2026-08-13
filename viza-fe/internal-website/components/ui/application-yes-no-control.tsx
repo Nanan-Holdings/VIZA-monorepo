@@ -17,7 +17,7 @@ function ApplicationYesNoControl({
 }) {
   return (
     <div
-      className="application-form-control flex w-fit min-w-[min(20rem,100%)] max-w-full items-stretch gap-1 bg-white p-1"
+      className="application-form-control application-yes-no-control flex w-fit min-w-[min(20rem,100%)] max-w-full items-stretch gap-1 bg-white p-1"
       role="radiogroup"
     >
       {options.map((option) => {

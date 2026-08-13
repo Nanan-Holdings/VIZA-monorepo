@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Clock, CreditCard, Download, FileCheck2, Info, ShieldAlert } from "lucide-react";
+import { ArrowRight, Clock, CreditCard, Download, FileText as FileCheck2, Info, ShieldWarning as ShieldAlert } from "@phosphor-icons/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 

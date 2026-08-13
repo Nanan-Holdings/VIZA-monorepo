@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, CaretUpDown as ChevronsUpDown, MagnifyingGlass as Search } from "@phosphor-icons/react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";

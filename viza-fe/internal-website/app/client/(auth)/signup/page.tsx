@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'motion/react'
-import { ArrowLeft, CheckCircle2, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, CheckCircle as CheckCircle2, Eye, EyeSlash as EyeOff } from '@phosphor-icons/react';
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import createGlobe from 'cobe'

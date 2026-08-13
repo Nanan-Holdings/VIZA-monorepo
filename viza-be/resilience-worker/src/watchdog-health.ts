@@ -3,7 +3,9 @@ export type ProbeResult = { auth: Probe; rest: Probe; control: Probe; healthy: b
 export type ScheduledStatus = { at: number; ok: boolean; errorCode: string | null };
 export type StoredProbe = { at: number; probe: ProbeResult };
 
-export const MAX_PROBE_AGE_MS = 3 * 60 * 1_000;
+// The scheduled watchdog runs every 30 minutes. Allow five minutes of Cron
+// scheduling jitter before treating the last persisted probe as stale.
+export const MAX_PROBE_AGE_MS = 35 * 60 * 1_000;
 export const PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
 
 export function validateWatchdogConfiguration(

@@ -25,8 +25,9 @@ Requests outside the five-minute clock window or with a reused nonce are
 rejected. The Worker never decrypts, parses, or logs `blob`; VIZA owns the
 encryption key and plaintext handling.
 
-`GET /health` returns HTTP 200 only when a healthy probe is no more than three
-minutes old and the latest scheduled run succeeded. A stale, unhealthy, or
+`GET /health` returns HTTP 200 only when a healthy probe is no more than 35
+minutes old and the latest scheduled run succeeded. This matches the 30-minute
+Cron cadence with a five-minute scheduling-jitter allowance. A stale, unhealthy, or
 scheduled-failure state returns HTTP 503 and includes the persisted diagnostic
 state for monitoring.
 
@@ -99,8 +100,9 @@ Example acquire response:
 }
 ```
 
-Claimed items are POSTed by the scheduled handler to
-`VIZA_RESILIENCE_REPLAY_URL` every minute. The replay endpoint must return:
+Claimed items are POSTed by the scheduled recovery handler to
+`VIZA_RESILIENCE_REPLAY_URL` every 30 minutes. Queue consumers remain the
+normal low-latency delivery path. The replay endpoint must return:
 
 ```json
 {"results":[

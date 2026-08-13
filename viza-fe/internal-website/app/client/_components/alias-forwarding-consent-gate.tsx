@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, MailCheck } from "lucide-react";
+import { CheckCircle as CheckCircle2, CircleNotch as Loader2, EnvelopeOpen as MailCheck } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import {
   authorizeAuthenticatedApplicantInboxForwarding,

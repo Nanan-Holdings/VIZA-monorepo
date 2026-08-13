@@ -1,5 +1,7 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
+import type { IconProps } from "@phosphor-icons/react"
+import { CheckCircle, Info, Warning, WarningCircle } from "@phosphor-icons/react/ssr"
 
 import { ActionButton, type ActionButtonProps } from "@/components/ui/action-button"
 import { cn } from "@/lib/utils"
@@ -120,36 +122,29 @@ const AlertAction = React.forwardRef<HTMLButtonElement, AlertActionProps>(
 )
 AlertAction.displayName = "AlertAction"
 
-// Filled (not stroked) tone icons — the alert spec pairs a solid glyph with the
-// tone-coloured title. Lucide ships stroke-only outlines, so these are drawn here.
-const alertIconPaths = {
-  default:
-    "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z",
-  info: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z",
-  success:
-    "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z",
-  warning: "M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z",
-  destructive:
-    "M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z",
+const alertIcons = {
+  default: Info,
+  info: Info,
+  success: CheckCircle,
+  warning: Warning,
+  destructive: WarningCircle,
 } as const
 
 function AlertIcon({
   variant = "default",
   className,
   ...props
-}: React.SVGProps<SVGSVGElement> & {
-  variant?: keyof typeof alertIconPaths
+}: IconProps & {
+  variant?: keyof typeof alertIcons
 }) {
+  const Icon = alertIcons[variant]
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
+    <Icon
+      weight="fill"
       aria-hidden="true"
       className={cn("h-[18px] w-[18px] shrink-0", className)}
       {...props}
-    >
-      <path d={alertIconPaths[variant]} />
-    </svg>
+    />
   )
 }
 

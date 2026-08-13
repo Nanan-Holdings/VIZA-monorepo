@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, XCircle, ShieldCheck, Stethoscope } from "lucide-react";
+import { CheckCircle as CheckCircle2, XCircle, ShieldCheck, Stethoscope } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 /**

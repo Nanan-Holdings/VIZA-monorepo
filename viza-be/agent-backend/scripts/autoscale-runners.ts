@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Five-minute recovery reconciler for the hybrid Fly runner fleet.
+ * Thirty-minute recovery reconciler for the hybrid Fly runner fleet.
  *
  * The website performs the latency-sensitive first wake. This script repairs
  * missed wakes and scales the shared pool back to current claimable demand.

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ClipboardList, MessageCircle, Plane } from "lucide-react";
+import { ClipboardText as ClipboardList, ChatCircle as MessageCircle, Airplane as Plane } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 
 export function QuickActionsCard() {

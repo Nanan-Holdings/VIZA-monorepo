@@ -2,19 +2,19 @@
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowLeft,
   CalendarCheck,
-  CheckCircle2,
-  ExternalLink,
-  FileCheck2,
-  Loader2,
+  CheckCircle as CheckCircle2,
+  ArrowSquareOut as ExternalLink,
+  FileText as FileCheck2,
+  CircleNotch as Loader2,
   MapPin,
-  RefreshCw,
+  ArrowsClockwise as RefreshCw,
   ShieldCheck,
-  UserRound,
+  UserCircle as UserRound,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

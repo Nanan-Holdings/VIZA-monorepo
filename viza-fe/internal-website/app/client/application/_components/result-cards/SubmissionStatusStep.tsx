@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, Clock, Download, ExternalLink, FlaskConical, Loader2, Plus, RotateCw, ShieldCheck } from "lucide-react";
+import { Warning as AlertTriangle, Clock, Download, ArrowSquareOut as ExternalLink, Flask as FlaskConical, CircleNotch as Loader2, Plus, ArrowClockwise as RotateCw, ShieldCheck } from "@phosphor-icons/react";
 import type {
   DigitalArrivalCardSubmissionResult,
   GenericEvisaSubmissionResult,

@@ -13,7 +13,11 @@ import {
 import { SupabaseCircuitOpenError } from "@/lib/supabase/circuit-breaker";
 
 type AuthOperation = "password" | "send_otp" | "verify_otp";
-const SUPABASE_AUTH_TIMEOUT_MS = 6_000;
+// Hosted email OTP requests include SMTP delivery and can legitimately take
+// longer than password verification. Recent production requests completed in
+// 8-9 seconds, so the previous 6-second deadline reported a false outage and
+// abandoned successful code requests before the UI could advance.
+const SUPABASE_AUTH_TIMEOUT_MS = 20_000;
 const CLIENT_SESSION_BOOTSTRAP_TIMEOUT_MS = 500;
 
 interface ClientAuthRequest {

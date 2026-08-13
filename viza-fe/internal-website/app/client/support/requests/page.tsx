@@ -6,13 +6,13 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
-  Clock3,
-  Inbox,
-  Loader2,
-  MessageSquareText,
-  Send,
-} from "lucide-react";
+  CheckCircle as CheckCircle2,
+  Clock as Clock3,
+  Tray as Inbox,
+  CircleNotch as Loader2,
+  ChatText as MessageSquareText,
+  PaperPlaneTilt as Send,
+} from "@phosphor-icons/react";
 import { listMyTickets, type SupportTicketRow } from "@/app/actions/support";
 import { Button } from "@/components/ui/button";
 import {

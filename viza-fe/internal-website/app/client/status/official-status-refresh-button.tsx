@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, RotateCw } from "lucide-react";
+import { CircleNotch as Loader2, ArrowClockwise as RotateCw } from "@phosphor-icons/react";
 
 export function OfficialStatusRefreshButton({
   applicationId,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Lock } from "lucide-react";
+import { CheckCircle as CheckCircle2, Lock } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { JourneyPhaseView } from "@/app/actions/application-journey";

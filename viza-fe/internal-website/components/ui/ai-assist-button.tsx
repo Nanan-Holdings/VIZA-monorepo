@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Bot } from "lucide-react";
+import { Robot as Bot } from "@phosphor-icons/react/ssr";
 
 import { cn } from "@/lib/utils";
 

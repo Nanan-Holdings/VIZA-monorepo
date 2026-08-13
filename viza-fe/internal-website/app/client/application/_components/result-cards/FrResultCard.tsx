@@ -4,16 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import {
-  AlertTriangle,
+  Warning as AlertTriangle,
   CalendarCheck,
-  ExternalLink,
+  ArrowSquareOut as ExternalLink,
   Eye,
-  EyeOff,
-  FileDown,
-  Loader2,
+  EyeSlash as EyeOff,
+  FileArrowDown as FileDown,
+  CircleNotch as Loader2,
   MapPin,
   ShieldCheck,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

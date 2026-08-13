@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes, MouseEvent } from "react";
 

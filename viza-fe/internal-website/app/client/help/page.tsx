@@ -2,13 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Minus, Plus } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-
-const svgPaths = {
-  plus: "M12 20.1667H28.3333M20.1667 12V28.3333",
-};
 
 function QuickLinksSection() {
   const t = useTranslations("help");
@@ -168,25 +164,15 @@ function FAQSection() {
                 {faq.question}
               </p>
               <motion.div
-                className="relative shrink-0 size-[40.333px] flex items-center justify-center"
+                className="relative flex size-[40.333px] shrink-0 items-center justify-center rounded-full bg-black/[0.04]"
                 animate={{ rotate: openIndex === index ? 180 : 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <svg className="size-full" fill="none" viewBox="0 0 40.3333 40.3333">
-                  <rect
-                    fill="rgba(0,0,0,0.04)"
-                    height="40.3333"
-                    rx="20.1667"
-                    width="40.3333"
-                  />
-                  <path
-                    d={openIndex === index ? "M12 20.165H28.3333" : svgPaths.plus}
-                    stroke="black"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.75"
-                  />
-                </svg>
+                {openIndex === index ? (
+                  <Minus className="size-4" weight="regular" />
+                ) : (
+                  <Plus className="size-4" weight="regular" />
+                )}
               </motion.div>
             </div>
 

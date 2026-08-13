@@ -6,36 +6,12 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { AnimatedDropdown } from "@/components/ui/animated-dropdown";
 import { LOCALE_COOKIE, normalizeInterfaceLocale } from "@/lib/i18n/locale";
+import { Globe } from "@phosphor-icons/react";
 
 const languages = [
   { code: "en", label: "English" },
   { code: "zh", label: "中文" },
 ];
-
-function GlobeIcon({
-  className,
-  style,
-}: {
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <svg
-      className={className}
-      style={style}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20" />
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-  );
-}
 
 interface LanguageSelectorProps {
   size?: "desktop" | "mobile";
@@ -73,9 +49,10 @@ export function LanguageSelector({ size = "desktop" }: LanguageSelectorProps) {
       whileHover={{ scale: 1.1 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
-      <GlobeIcon
+      <Globe
         className={iconSize}
-        style={{ stroke: "var(--nav-stroke-color)" }}
+        style={{ color: "var(--nav-stroke-color)" }}
+        weight="regular"
       />
     </motion.button>
   );

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { format } from "date-fns";
 import { enUS, zhCN } from "date-fns/locale";
-import { CalendarDays } from "lucide-react";
+import { Calendar as CalendarDays } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 
 import { Button } from "@/components/ui/button";

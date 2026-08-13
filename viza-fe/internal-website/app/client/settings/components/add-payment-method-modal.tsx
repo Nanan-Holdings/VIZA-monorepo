@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { X, CreditCard } from "lucide-react";
+import { X, CreditCard } from "@phosphor-icons/react";
 import {
   Empty,
   EmptyHeader,

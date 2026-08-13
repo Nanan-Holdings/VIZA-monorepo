@@ -3,18 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  AlertCircle,
-  Ban,
+  WarningCircle as AlertCircle,
+  Prohibit as Ban,
   Camera,
   Check,
-  CheckCircle2,
+  CheckCircle as CheckCircle2,
   FileImage,
-  Loader2,
+  CircleNotch as Loader2,
   ShieldCheck,
   Sun,
   Upload,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
@@ -184,11 +184,11 @@ function ScanProgressPanel({
                 )}
               >
                 {done ? (
-                  <Check className="h-5 w-5" strokeWidth={3} />
+                  <Check className="size-5" weight="bold" />
                 ) : active ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
                 ) : (
-                  <Check className="h-5 w-5" strokeWidth={3} />
+                  <Check className="size-5" weight="bold" />
                 )}
               </span>
               <span

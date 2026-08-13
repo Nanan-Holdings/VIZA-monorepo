@@ -4,12 +4,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
-import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { ArrowLeft, Eye, EyeSlash as EyeOff, CircleNotch as Loader2 } from '@phosphor-icons/react';
 import { useState, useEffect, useRef, useCallback, Suspense, type FormEvent } from 'react'
 import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import createGlobe from 'cobe'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
 import { ActionButton } from '@/components/ui/action-button'
+import { Alert, AlertDescription, AlertIcon } from '@/components/ui/alert'
 import { ApplicationFormInputGroup } from '@/components/ui/application-form-input'
 import { Button } from '@/components/ui/button'
 import { InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
@@ -19,7 +20,10 @@ import { useTranslations } from 'next-intl'
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
 
-const AUTH_REQUEST_TIMEOUT_MS = 9_000
+// Keep the browser deadline above the server's Supabase/SMTP deadline so the
+// API can return the real Auth result instead of being misreported as an outage.
+const AUTH_REQUEST_TIMEOUT_MS = 25_000
+const AUTH_RETRY_DELAY_MS = 500
 const LOGIN_INPUT_GROUP_CLASS_NAME =
   "isolate h-12 border-black [--application-control-border-color:theme(colors.black)] [--application-control-focus-color:theme(colors.black)] after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border-[var(--application-control-border-width)] after:border-black after:content-[''] focus-within:after:border-black"
 
@@ -47,37 +51,52 @@ function getLocalizedAuthError(
 type ClientAuthOperation = 'password' | 'send_otp' | 'verify_otp'
 type ClientAuthResult = { success: boolean; error?: string; code?: string }
 
+function waitForRetry(): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, AUTH_RETRY_DELAY_MS))
+}
+
 async function requestClientAuth(
   operation: ClientAuthOperation,
   fields: { email: string; password?: string; token?: string },
 ): Promise<ClientAuthResult> {
-  // Authentication mutations can succeed upstream even when the response is
-  // lost. Do not create duplicate sessions or consume a one-time code twice.
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
-  try {
-    const response = await fetch('/api/client/auth', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ operation, ...fields }),
-      signal: controller.signal,
-    })
-    const payload: unknown = await response.json().catch(() => null)
-    if (!payload || typeof payload !== 'object') {
-      return { success: false, code: 'provider_unavailable' }
+  // Password and code verification are retryable. Sending a code is not, so
+  // an outage cannot generate duplicate email messages.
+  const maximumAttempts = operation === 'send_otp' ? 1 : 2
+
+  for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
+    try {
+      const response = await fetch('/api/client/auth', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operation, ...fields }),
+        signal: controller.signal,
+      })
+      const payload: unknown = await response.json().catch(() => null)
+      if (!payload || typeof payload !== 'object') {
+        return { success: false, code: 'provider_unavailable' }
+      }
+      const result = payload as { success?: unknown; error?: unknown; code?: unknown }
+      const normalized: ClientAuthResult = {
+        success: result.success === true,
+        error: typeof result.error === 'string' ? result.error : undefined,
+        code: typeof result.code === 'string' ? result.code : undefined,
+      }
+      if (normalized.code !== 'provider_unavailable' || attempt === maximumAttempts) {
+        return normalized
+      }
+    } catch {
+      if (attempt === maximumAttempts) return { success: false, code: 'provider_unavailable' }
+    } finally {
+      window.clearTimeout(timeout)
     }
-    const result = payload as { success?: unknown; error?: unknown; code?: unknown }
-    return {
-      success: result.success === true,
-      error: typeof result.error === 'string' ? result.error : undefined,
-      code: typeof result.code === 'string' ? result.code : undefined,
-    }
-  } catch {
-    return { success: false, code: 'provider_unavailable' }
-  } finally {
-    window.clearTimeout(timeout)
+
+    await waitForRetry()
   }
+
+  return { success: false, code: 'provider_unavailable' }
 }
 
 function ClientLoginContent() {
@@ -328,7 +347,7 @@ function ClientLoginContent() {
                     </Button>
                   ))}
                 </div>
-                <ApplicationFormInputGroup className={LOGIN_INPUT_GROUP_CLASS_NAME} filled={Boolean(email)} forceWhiteBackground>
+                <ApplicationFormInputGroup className="h-12" filled={Boolean(email)}>
                   <InputGroupInput
                     type="email"
                     name="email"
@@ -339,12 +358,12 @@ function ClientLoginContent() {
                     autoFocus
                     autoComplete="email"
                     disabled={isSubmitting}
-                    className="h-full min-h-0 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
+                    className="h-12 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
                   />
                 </ApplicationFormInputGroup>
                 {loginMethod === 'password' && (
                   <div className="space-y-2">
-                    <ApplicationFormInputGroup className={LOGIN_INPUT_GROUP_CLASS_NAME} filled={Boolean(password)} forceWhiteBackground>
+                    <ApplicationFormInputGroup className="h-12" filled={Boolean(password)}>
                       <InputGroupInput
                         type={showPassword ? 'text' : 'password'}
                         name="password"
@@ -354,7 +373,7 @@ function ClientLoginContent() {
                         required
                         autoComplete="current-password"
                         disabled={isSubmitting}
-                        className="h-full min-h-0 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
+                        className="h-12 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
                       />
                       <InputGroupAddon align="inline-end" className="pr-4">
                         <InputGroupButton
@@ -373,21 +392,16 @@ function ClientLoginContent() {
                   </div>
                 )}
                 {notice && (
-                  <motion.p
-                    className="rounded-[12px] border border-[#cfe8d5] bg-[#f0faf4] px-4 py-2 text-[13px] text-[#276749]"
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  >
-                    {notice}
-                  </motion.p>
+                  <Alert variant="success">
+                    <AlertIcon variant="success" />
+                    <AlertDescription>{notice}</AlertDescription>
+                  </Alert>
                 )}
                 {error && (
-                  <motion.p
-                    role="alert"
-                    className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  >
-                    {error}
-                  </motion.p>
+                  <Alert variant="destructive">
+                    <AlertIcon variant="destructive" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
                 <ActionButton
                   type="submit"
@@ -458,13 +472,10 @@ function ClientLoginContent() {
                     </InputOTPGroup>
                   </InputOTP>
                   {error && (
-                  <motion.p
-                    role="alert"
-                    className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-3 text-[14px] text-[#a13d2d]"
-                      initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                    >
-                      {error}
-                    </motion.p>
+                    <Alert variant="destructive">
+                      <AlertIcon variant="destructive" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
                   )}
                   <ActionButton
                     type="button"

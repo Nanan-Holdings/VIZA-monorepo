@@ -1,15 +1,16 @@
 "use client";
 
 import {
-  Building2,
-  Home,
+  Buildings as Building2,
+  House as Home,
   Users,
   Briefcase,
   GraduationCap,
-  HelpCircle,
+  Question as HelpCircle,
   MapPin,
   Phone,
-} from "lucide-react";
+  Lightbulb,
+} from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -143,7 +144,10 @@ export function StepUsStay({ value, onChange, onContinue }: StepUsStayProps) {
               placeholder={t("hotelNamePlaceholder")}
             />
           </BrandField>
-          <p className="text-xs text-muted-foreground">💡 {t("hotelHint")}</p>
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+            <Lightbulb className="mt-0.5 size-3.5 shrink-0" weight="duotone" />
+            {t("hotelHint")}
+          </p>
         </div>
       ) : null}
 
@@ -173,7 +177,10 @@ export function StepUsStay({ value, onChange, onContinue }: StepUsStayProps) {
               />
             </BrandField>
           </div>
-          <p className="text-xs text-muted-foreground">💡 {t("airbnbHint")}</p>
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+            <Lightbulb className="mt-0.5 size-3.5 shrink-0" weight="duotone" />
+            {t("airbnbHint")}
+          </p>
         </div>
       ) : null}
 
