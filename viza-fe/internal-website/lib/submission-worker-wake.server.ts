@@ -53,10 +53,9 @@ export async function wakeCloudSubmissionWorker(
   const fetchImpl = options.fetchImpl ?? fetch;
   const target = options.target ?? "legacy";
   const normalizedTarget = target.trim().toLowerCase().replace(/[\s-]+/gu, "_");
-  const isRunnerPoolTarget = [
-    "pool", "runner_pool", "vn", "vietnam", "sg", "singapore",
-    "my", "malaysia", "th", "thailand",
-  ].includes(normalizedTarget);
+  // Country aliases can also wake maintenance handled by the shared service.
+  // Only explicit runner-pool enqueues use the runner_job-only endpoint.
+  const isRunnerPoolTarget = normalizedTarget === "pool" || normalizedTarget === "runner_pool";
   const wakePath = isRunnerPoolTarget
     ? "/internal/runner-job/wake"
     : "/internal/submission-queue/wake";

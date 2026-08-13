@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ProxyAgent, type Dispatcher } from "undici";
 import { evaluateShowIf } from "@/lib/form-utils";
 import { getMissingDynamicFormFields } from "@/lib/application-tab-completion";
 import type { MissingApplicationField } from "@/lib/application-tab-completion";
@@ -22,6 +23,31 @@ const FORM_ASSISTANT_MODEL =
   process.env.OPENAI_MODEL ??
   "gpt-5.5";
 const MAX_MESSAGE_LENGTH = 4_000;
+
+let formAssistantProxyAgent: ProxyAgent | null = null;
+let formAssistantProxyUrl: string | null = null;
+
+function getFormAssistantProxyDispatcher(): Dispatcher | undefined {
+  const configuredProxy = (
+    process.env.OPENAI_FORM_ASSISTANT_PROXY_URL
+    ?? process.env.HTTPS_PROXY
+    ?? process.env.https_proxy
+  )?.trim();
+  if (!configuredProxy) return undefined;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(configuredProxy);
+  } catch {
+    return undefined;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return undefined;
+  if (!formAssistantProxyAgent || formAssistantProxyUrl !== parsed.href) {
+    formAssistantProxyAgent = new ProxyAgent(parsed.href);
+    formAssistantProxyUrl = parsed.href;
+  }
+  return formAssistantProxyAgent;
+}
 
 type SessionRow = {
   id: string;
@@ -1248,7 +1274,8 @@ async function proposeTurn(params: {
       }),
       signal: controller.signal,
       cache: "no-store",
-    });
+      dispatcher: getFormAssistantProxyDispatcher(),
+    } as RequestInit & { dispatcher?: Dispatcher });
     if (!response.ok) return { reply: fallback, patches: [] };
     const raw = parseOpenAiText(await response.json());
     const parsed = JSON.parse(raw) as { reply?: unknown; patches?: unknown };
