@@ -232,6 +232,27 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 Then smoke the changed endpoint or frontend route. Docs-only changes usually do
 not need type-checks.
 
+## Runner Infrastructure Cost Guardrails
+
+These rules apply whenever an agent creates, changes, or reviews hosted runner
+machines, runner queues, or deployment configuration:
+
+- Runner machines must use cold start/on-demand startup by default. Do not keep
+  idle runner machines continuously running unless an explicit operational
+  requirement has been documented and approved.
+- Every runner job must stop, destroy, or release its machine after the run
+  finishes, fails, times out, or is cancelled. Implement cleanup as a guaranteed
+  lifecycle step so an exception cannot leave a billable machine running.
+- Use the lowest machine configuration that can reliably complete the workload.
+  Increase CPU, memory, or machine count only after measurements show that the
+  lower configuration is insufficient.
+- Prefer a shared runner pool backed by one queue. Route straightforward jobs to
+  machines in that pool instead of creating separate always-on runners for each
+  country or workflow.
+- Before deploying runner changes, verify cold-start behavior, terminal-state
+  cleanup, idle timeout/TTL protection, queue routing, and machine sizing. Treat
+  any path that can leave an unused billable machine running as a release blocker.
+
 ## Required Smoke Testing
 
 Every user-facing feature or bug fix needs at least one self-test beyond static
