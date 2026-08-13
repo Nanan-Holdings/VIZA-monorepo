@@ -3,6 +3,7 @@ import type { DocumentCenterData } from "@/app/client/documents/actions";
 import {
   computeAllTabCompletion,
   getContiguousCompletedCount,
+  getMissingDynamicFormFields,
 } from "@/lib/application-tab-completion";
 import type { WizardStep } from "@/types/visa-form-fields";
 
@@ -169,6 +170,25 @@ function vietnamDocsWithRequiredUploads(): DocumentCenterData {
 }
 
 describe("computeAllTabCompletion", () => {
+  test("does not count a false required checkbox as complete", () => {
+    const checkbox = {
+      ...field("accepted_terms"),
+      visaType: "TW_ENTRY_PERMIT",
+      fieldType: "checkbox" as const,
+      validationRules: { mustBeTrue: true },
+    };
+    const declarationSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Declaration",
+      fields: [checkbox],
+    }];
+
+    expect(getMissingDynamicFormFields(declarationSteps, { accepted_terms: "false" }))
+      .toMatchObject([{ fieldName: "accepted_terms" }]);
+    expect(getMissingDynamicFormFields(declarationSteps, { accepted_terms: "true" }))
+      .toEqual([]);
+  });
+
   test("derives TDAC transit status from same-day dates before validating accommodation", () => {
     const tdacSteps: WizardStep[] = [
       {
