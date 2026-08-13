@@ -170,6 +170,9 @@ The current internal automation migrations are:
   Assistant sessions/messages, idempotency keys, validation state, indexes,
   answer provenance columns, explicit grants, and authenticated ownership RLS
   policies.
+- `0135_retire_indonesia_b211a.sql`: retires obsolete Indonesia B211A catalog
+  rows without deleting historical records, and changes application/form-field
+  defaults to the canonical `ID_C1_TOURIST` product code.
 
 ## Guardrails
 

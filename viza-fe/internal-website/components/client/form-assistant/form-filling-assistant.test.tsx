@@ -166,21 +166,21 @@ describe("FormFillingAssistant", () => {
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
   });
 
-  it("dismisses the fill notice after ten seconds", () => {
+  it("keeps undo available for thirty seconds", () => {
     vi.useFakeTimers();
     const { props } = renderAssistant();
 
-    act(() => vi.advanceTimersByTime(9_999));
+    act(() => vi.advanceTimersByTime(29_999));
     expect(props.onDismissFillNotice).not.toHaveBeenCalled();
     act(() => vi.advanceTimersByTime(1));
     expect(props.onDismissFillNotice).toHaveBeenCalledExactlyOnceWith("notice-1");
   });
 
-  it("starts a fresh ten-second window for a newer fill notice", () => {
+  it("starts a fresh thirty-second window for a newer fill notice", () => {
     vi.useFakeTimers();
     const { props, rerender } = renderAssistant();
 
-    act(() => vi.advanceTimersByTime(9_999));
+    act(() => vi.advanceTimersByTime(29_999));
     rerender(
       <NextIntlClientProvider locale="en" messages={messages}>
         <FormFillingAssistant
@@ -200,7 +200,7 @@ describe("FormFillingAssistant", () => {
 
     act(() => vi.advanceTimersByTime(1));
     expect(props.onDismissFillNotice).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(9_999));
+    act(() => vi.advanceTimersByTime(29_999));
     expect(props.onDismissFillNotice).toHaveBeenCalledExactlyOnceWith("notice-2");
   });
 

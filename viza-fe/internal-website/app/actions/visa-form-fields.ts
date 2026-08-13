@@ -31,7 +31,7 @@ const STEP_NAMES: Record<number, string> = {
  * Returns empty array on error (caller should fall back to hardcoded steps).
  */
 export async function getVisaFormSteps(
-  visaType = "B211A",
+  visaType = "ID_C1_TOURIST",
   options: { country?: string | null } = {},
 ): Promise<WizardStep[]> {
   try {

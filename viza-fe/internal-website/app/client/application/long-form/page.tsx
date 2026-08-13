@@ -74,6 +74,7 @@ import { canUseFormAssistant } from "@/lib/form-assistant/constants";
 import {
   buildFormAssistantFieldReviewIssues,
   getBaseAnswerFieldName,
+  normalizeFormAssistantValidationResponse,
 } from "@/lib/form-assistant/review-issues";
 import {
   buildMalaysiaMdacUniversalProfileAnswerPatch,
@@ -1785,7 +1786,7 @@ export default function ApplicationPage() {
     const stepsPromise = explicitVisaType
       ? getVisaFormSteps(explicitVisaType, { country: explicitCountry })
       : packagePromise.then((pkg) => getVisaFormSteps(
-          pkg?.visa_type ?? "tourist_b211a",
+          pkg?.visa_type ?? "ID_C1_TOURIST",
           { country: pkg?.country ?? null },
         ));
 
@@ -2005,7 +2006,7 @@ export default function ApplicationPage() {
   }, []);
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
-  const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
+  const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "ID_C1_TOURIST";
   const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
   const showDocumentStep = !isArrivalCardApplication || isPhilippinesEtravel;
@@ -2381,16 +2382,17 @@ export default function ApplicationPage() {
     const expand = (
       issues: FormAssistantValidationResponse["errors"],
       severity: "error" | "warning",
-    ): FormAssistantDisplayValidationIssue[] => issues.flatMap((issue) =>
-      issue.fieldNames.length > 0
-        ? issue.fieldNames.map((fieldName) => ({
+    ): FormAssistantDisplayValidationIssue[] => issues.flatMap((issue) => {
+      const fieldNames = issue.fieldNames ?? [];
+      return fieldNames.length > 0
+        ? fieldNames.map((fieldName) => ({
             id: `${issue.code}:${fieldName}`,
             fieldName,
             message: issue.message,
             severity,
           }))
-        : [{ id: issue.code, message: issue.message, severity }],
-    );
+        : [{ id: issue.code, message: issue.message, severity }];
+    });
     return {
       errors: expand(formAssistantValidation.errors, "error"),
       warnings: expand(formAssistantValidation.warnings, "warning"),
@@ -3092,8 +3094,14 @@ export default function ApplicationPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ locale }),
       });
-      const payload = await response.json() as FormAssistantValidationResponse & { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "Validation failed");
+      const rawPayload = await response.json() as unknown;
+      const responseError = rawPayload && typeof rawPayload === "object" && "error" in rawPayload &&
+        typeof (rawPayload as { error?: unknown }).error === "string"
+        ? (rawPayload as { error: string }).error
+        : null;
+      if (!response.ok) throw new Error(responseError ?? "Validation failed");
+      const payload = normalizeFormAssistantValidationResponse(rawPayload);
+      if (!payload) throw new Error("Invalid validation response");
       setFormAssistantValidation(payload);
       setFormAssistantValidationDirty(false);
       return payload;
@@ -4387,7 +4395,7 @@ export default function ApplicationPage() {
 
                       </>
                     ) : (
-                      /* Hardcoded B211A steps */
+                      /* Hardcoded Indonesia C1 steps */
                       <>
                         {step.id === 0 && (
                           <PersonalInfoStep

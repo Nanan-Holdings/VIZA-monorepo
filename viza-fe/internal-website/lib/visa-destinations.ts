@@ -317,7 +317,7 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     flag: "🇮🇩",
     region: "Asia",
     supportLabel: "Indonesia eVisa",
-    searchAliases: ["Indonesia C1", "B211A", "Tourist Single Entry", "evisa.imigrasi.go.id"],
+    searchAliases: ["Indonesia C1", "Tourist Single Entry", "evisa.imigrasi.go.id"],
   }),
   destination({
     country: "indonesia",
