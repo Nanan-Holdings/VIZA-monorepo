@@ -21,7 +21,7 @@ export interface VietnamPaymentSearchCaptchaDiagnostic {
   answerLength?: number;
   durationMs?: number;
   challengeFingerprintPrefix?: string;
-  outcome: "solved" | "unusable" | "solver_error" | "stale_challenge" | "input_unconfirmed" | "rejected";
+  outcome: "solved" | "unusable" | "solver_error" | "stale_challenge" | "refresh_unconfirmed" | "input_unconfirmed" | "rejected";
   refreshConfirmed?: boolean;
   refreshStrategy?: "search_reload_control" | "shared_fallback";
   freshContextRetry?: boolean;
@@ -33,6 +33,13 @@ export interface VietnamPaymentResumeDiagnostics {
 }
 
 export type VietnamSearchSubmissionOutcome = "accepted" | "captcha_rejected" | "unconfirmed";
+
+export function shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(
+  _contextAttempt: number,
+): boolean {
+  // A new browser context still mounts the same official default challenge.
+  return true;
+}
 
 interface VietnamSearchCaptchaSolveSuccess {
   diagnostics: VietnamPaymentSearchCaptchaDiagnostic[];
@@ -546,7 +553,7 @@ export async function refreshVietnamSearchCaptchaChallenge(
     control: Locator,
     dispatch: "trusted" | "vue_event_fallback",
   ): Promise<boolean> => {
-    const responseWaitMs = Math.max(1, Math.min(remainingMs(), 4_000));
+    const responseWaitMs = Math.max(1, Math.min(remainingMs(), 3_000));
     const captchaResponse = page.waitForResponse(
       (response) => {
         try {
@@ -575,44 +582,71 @@ export async function refreshVietnamSearchCaptchaChallenge(
         .catch(() => false);
     if (!clicked) return false;
 
-    const changed = await captureStableVietnamSearchCaptcha(
+    // Accept either an inline challenge rotation or the official API response
+    // as the first synchronization signal.  After the API answers, keep the
+    // rest of the caller's bounded deadline available for Vue to replace and
+    // paint the image.  The previous fixed 1.6 second bitmap window routinely
+    // expired on Fly before the successful API response reached the SPA.
+    const firstSignal = await Promise.race([
+      captchaResponse.then((responseObserved) => ({ kind: "response", responseObserved } as const)),
+      captureStableVietnamSearchCaptcha(
+        page,
+        Math.max(1, Math.min(remainingMs(), 2_600)),
+        previousFingerprint,
+      ).then((changed) => ({ kind: "capture", changed } as const)),
+    ]);
+    if (firstSignal.kind === "capture" && firstSignal.changed) return true;
+    const responseObserved = firstSignal.kind === "response"
+      ? firstSignal.responseObserved
+      : await captchaResponse;
+    if (!responseObserved) return false;
+
+    const changedAfterResponse = await captureStableVietnamSearchCaptcha(
       page,
-      Math.max(1, Math.min(remainingMs(), 1_600)),
+      Math.max(1, remainingMs()),
       previousFingerprint,
     );
-    // A newly stable bitmap is authoritative. The API observation is kept in
-    // the synchronization window so Vue has time to apply the response; some
-    // test fixtures and future portals may rotate an inline challenge instead.
-    void captchaResponse;
-    return changed !== null;
+    return changedAfterResponse !== null;
   };
 
   // The live portal occasionally accepts the trusted reload click without
   // rotating the bitmap (typically while the Vue request is still settling).
   // Re-resolve and retry the same annotated control a small number of times;
   // the old control-index loop clicked a page with one reload image only once.
-  for (let clickAttempt = 1; clickAttempt <= 3 && remainingMs() > 0; clickAttempt += 1) {
+  const resolveReloadControls = async (): Promise<Locator> => {
     const scopedReloadControls = page
       .locator("#basic_captcha")
       .locator("xpath=ancestor::form[1]")
       .locator('img[alt="reload" i]');
-    const reloadControls = await scopedReloadControls.count().catch(() => 0) > 0
+    return await scopedReloadControls.count().catch(() => 0) > 0
       ? scopedReloadControls
       : page.locator(VIETNAM_SEARCH_CAPTCHA_REFRESH_SELECTORS);
+  };
+
+  // Give a real pointer click two chances before the DOM fallback. Doing the
+  // synthetic click immediately after every no-op consumed the entire refresh
+  // budget and prevented the second trusted click that the live Vue control
+  // sometimes needs while mounting.
+  for (let clickAttempt = 1; clickAttempt <= 2 && remainingMs() > 0; clickAttempt += 1) {
+    const reloadControls = await resolveReloadControls();
     const count = Math.min(await reloadControls.count().catch(() => 0), 10);
     for (let index = 0; index < count && remainingMs() > 0; index += 1) {
       const control = reloadControls.nth(index);
       if (!(await control.isVisible({ timeout: Math.min(remainingMs(), 750) }).catch(() => false))) continue;
       if (await clickAndConfirm(control, "trusted")) return "search_reload_control";
-
-      // The official Vue bundle binds a plain onClick handler to the reload
-      // image. On some headless Fly sessions the trusted pointer click lands
-      // without dispatching that handler. A DOM click is a safe, scoped
-      // fallback; success still requires the official API response/new bitmap.
-      if (remainingMs() > 0 && await clickAndConfirm(control, "vue_event_fallback")) {
-        return "search_reload_control";
-      }
     }
+  }
+
+  // The official Vue bundle binds a plain onClick handler to the reload image.
+  // On some headless Fly sessions both pointer clicks land without dispatching
+  // that handler. A DOM click is a safe, scoped final fallback; success still
+  // requires the official API response and a new stable bitmap.
+  const fallbackControls = await resolveReloadControls();
+  const fallbackCount = Math.min(await fallbackControls.count().catch(() => 0), 10);
+  for (let index = 0; index < fallbackCount && remainingMs() > 0; index += 1) {
+    const control = fallbackControls.nth(index);
+    if (!(await control.isVisible({ timeout: Math.min(remainingMs(), 750) }).catch(() => false))) continue;
+    if (await clickAndConfirm(control, "vue_event_fallback")) return "search_reload_control";
   }
 
   if (remainingMs() <= 0) return null;
@@ -628,6 +662,7 @@ export async function solveVietnamPaymentSearchCaptcha(
     contextAttempt?: number;
     maxAttempts?: number;
     knownChallengeFingerprints?: Set<string>;
+    refreshInitialChallenge?: boolean;
     deadlineAt?: number;
     solveCaptcha?: typeof solveImageCaptcha;
     reportBad?: typeof reportBadCaptcha;
@@ -666,6 +701,49 @@ export async function solveVietnamPaymentSearchCaptcha(
     let challengeFingerprint = stableCapture.fingerprint;
     let challengeFingerprintPrefix = challengeFingerprint.slice(0, 12);
     let preSolveRefreshStrategy: "search_reload_control" | "shared_fallback" | null = null;
+    if (localAttempt === 1 && options.refreshInitialChallenge) {
+      preSolveRefreshStrategy = await refreshVietnamSearchCaptchaChallenge(
+        page,
+        challengeFingerprint,
+        Math.max(1, Math.min(10_000, remainingMs())),
+      ).catch(() => null);
+      if (!preSolveRefreshStrategy) {
+        diagnostics.push({
+          attempt,
+          contextAttempt: options.contextAttempt,
+          challengeFingerprintPrefix,
+          outcome: "refresh_unconfirmed",
+          refreshConfirmed: false,
+        });
+        throw new VietnamSearchCaptchaSolveError(
+          "The initial Vietnam search CAPTCHA refresh was not confirmed.",
+          diagnostics,
+          true,
+        );
+      }
+      stableCapture = await captureStableVietnamSearchCaptcha(
+        page,
+        Math.max(1, Math.min(remainingMs(), 5_000)),
+        challengeFingerprint,
+      );
+      if (!stableCapture) {
+        diagnostics.push({
+          attempt,
+          contextAttempt: options.contextAttempt,
+          challengeFingerprintPrefix,
+          outcome: "refresh_unconfirmed",
+          refreshConfirmed: false,
+        });
+        throw new VietnamSearchCaptchaSolveError(
+          "The refreshed Vietnam search CAPTCHA did not become stable.",
+          diagnostics,
+          true,
+        );
+      }
+      capture = { buffer: stableCapture.buffer };
+      challengeFingerprint = stableCapture.fingerprint;
+      challengeFingerprintPrefix = challengeFingerprint.slice(0, 12);
+    }
     if (options.knownChallengeFingerprints?.has(challengeFingerprint)) {
       const refreshAttempts = Math.min(2, Math.max(0, maxAttempts));
       for (let refreshAttempt = 1; refreshAttempt <= refreshAttempts && remainingMs() > 0; refreshAttempt += 1) {
@@ -1216,7 +1294,7 @@ export async function resumeVietnamOfficialPayment(
     const searchDeadlineAt = Date.now() + Math.max(1_000, input.timeoutMs ?? 120_000);
     const remainingSearchMs = () => Math.max(0, searchDeadlineAt - Date.now());
     const countSolverAttempts = () => combinedCaptchaDiagnostics.filter(
-      (attempt) => attempt.outcome !== "stale_challenge",
+      (attempt) => attempt.outcome !== "stale_challenge" && attempt.outcome !== "refresh_unconfirmed",
     ).length;
 
     const searchExecution = await retryVietnamSearchCaptchaInFreshContexts<Page, void>({
@@ -1275,6 +1353,12 @@ export async function resumeVietnamOfficialPayment(
               contextAttempt,
               maxAttempts: Math.min(3, remainingSolverAttempts),
               knownChallengeFingerprints,
+              // The official Vue SPA mounts the same fixed default CAPTCHA in
+              // every fresh page.  A fresh browser context is therefore not a
+              // fresh challenge: rotate it before the first solver request in
+              // every context, not only in context 1.
+              refreshInitialChallenge:
+                shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(contextAttempt),
               deadlineAt: searchDeadlineAt,
             },
           );

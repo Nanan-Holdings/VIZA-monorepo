@@ -3,6 +3,9 @@ name: deploy-submission-service-fly
 env:
   # Must match the lowercase GHCR repository emitted by the image workflow.
   SUBMISSION_IMAGE_REPOSITORY: ghcr.io/nanan-holdings/viza-submission-service
+  # Pin the deployment CLI so production rollouts do not depend on the
+  # moving setup-flyctl action or its Node runtime/download implementation.
+  FLYCTL_VERSION: 0.4.82
   FLY_RUNNER_POOL_APP: ${{ vars.FLY_RUNNER_POOL_APP }}
   FLY_SUBMISSION_LEGACY_APP: ${{ vars.FLY_SUBMISSION_LEGACY_APP }}
   FLY_RUNNER_INDONESIA_APP: ${{ vars.FLY_RUNNER_INDONESIA_APP }}
@@ -88,7 +91,20 @@ jobs:
       IMAGE: ghcr.io/nanan-holdings/viza-submission-service:${{ inputs.image_sha }}
     steps:
       - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Install pinned Fly CLI with bounded retries
+        shell: bash
+        run: |
+          archive="$RUNNER_TEMP/flyctl.tar.gz"
+          install_dir="$RUNNER_TEMP/flyctl-bin"
+          mkdir -p "$install_dir"
+          curl --fail --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            --connect-timeout 15 --max-time 180 \
+            --output "$archive" \
+            "https://github.com/superfly/flyctl/releases/download/v${FLYCTL_VERSION}/flyctl_${FLYCTL_VERSION}_Linux_x86_64.tar.gz"
+          tar -xzf "$archive" -C "$install_dir" flyctl
+          chmod +x "$install_dir/flyctl"
+          echo "$install_dir" >> "$GITHUB_PATH"
       - name: Expose Fly CLI under the deployment-script command name
         shell: bash
         run: |
