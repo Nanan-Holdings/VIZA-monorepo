@@ -93,6 +93,13 @@ export function consumeVietnamCardSession(applicationId: string, referenceTimeMs
   return session.card;
 }
 
+/** Delete an unused card without returning its sensitive contents. */
+export function discardVietnamCardSession(applicationId: string, referenceTimeMs = nowMs()): boolean {
+  const normalized = normalizeApplicationId(applicationId);
+  cleanupExpired(referenceTimeMs);
+  return sessions.delete(normalized);
+}
+
 export function hasVietnamCardSessions(referenceTimeMs = nowMs()): boolean {
   cleanupExpired(referenceTimeMs);
   return sessions.size > 0;
