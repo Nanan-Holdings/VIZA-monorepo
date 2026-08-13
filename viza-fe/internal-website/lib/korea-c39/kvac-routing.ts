@@ -21,7 +21,7 @@ export interface KvacCenter {
   consularPostZh: string;
   consularPostEn: string;
   serviceMode: "appointment_required" | "appointment_preferred" | "center_guidance_required";
-  liveBookingMode: "sms_sync_supported" | "direct_slot_sync_supported" | "site_recon_only" | "official_guidance_only";
+  liveBookingMode: "sms_sync_supported" | "direct_slot_sync_supported" | "vfs_account_sync_supported" | "site_recon_only" | "official_guidance_only";
   acceptsWalkIn: boolean | null;
   appointmentRuleZh: string;
   appointmentRuleEn: string;
@@ -231,12 +231,12 @@ export const KVAC_CENTERS: KvacCenter[] = [
     consularPostZh: "大韩民国驻沈阳总领事馆",
     consularPostEn: "Consulate General of the Republic of Korea in Shenyang",
     serviceMode: "appointment_preferred",
-    liveBookingMode: "site_recon_only",
+    liveBookingMode: "vfs_account_sync_supported",
     acceptsWalkIn: null,
     appointmentRuleZh: "沈阳中心由 VFS Global 运营，官网提供预约入口；电话渠道曾公告调整，预约前应核对最新联系方式。",
     appointmentRuleEn: "Shenyang is operated by VFS Global and provides a booking entry. Contact options have changed in notices, so confirm the latest contact details before booking.",
-    liveBookingRuleZh: "沈阳由 VFS Global 站点承载，当前 VIZA 只验证入口可达；账号、短信、实名或 VFS 队列必须作为 manual checkpoint。",
-    liveBookingRuleEn: "Shenyang is on a VFS Global site. VIZA currently validates entry reachability only; account, SMS, real-name, or VFS queue gates must become manual checkpoints.",
+    liveBookingRuleZh: "沈阳由 VFS Global 承载。资料确认并单独同意 VFS 条款后，VIZA 可创建加密账号、处理邮箱激活、登录并读取官网时段；短信、实名、验证码、付款或最终提交仍设置用户门槛。",
+    liveBookingRuleEn: "Shenyang uses VFS Global. After the applicant confirms details and separately accepts the VFS terms, VIZA can create an encrypted account, process email activation, sign in, and observe official times. SMS, identity, OTP, payment, and final submission remain user gates.",
     importantNoticesZh: [
       "沈阳中心页面可能按 VFS 流程跳转，worker 需按 VFS 页面 checkpoint 处理。",
       "如遇电话/SMS/账号验证，应暂停并让用户输入一次性验证码。",
@@ -246,7 +246,7 @@ export const KVAC_CENTERS: KvacCenter[] = [
       "Pause for user input when phone, SMS, or account verification appears.",
     ],
     sourceUrls: ["https://visaforkorea-sy030.com/"],
-    sourceCheckedAt: "2026-07-02",
+    sourceCheckedAt: "2026-08-13",
   },
   {
     code: "chengdu",

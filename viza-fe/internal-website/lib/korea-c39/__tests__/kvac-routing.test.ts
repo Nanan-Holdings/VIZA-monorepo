@@ -108,7 +108,7 @@ describe("resolveKvacCenter", () => {
     ]);
     expect(reconOnly.map((center) => center.liveBookingMode)).toEqual([
       "site_recon_only",
-      "site_recon_only",
+      "vfs_account_sync_supported",
     ]);
     expect(directSync.liveBookingMode).toBe("direct_slot_sync_supported");
     expect(guidanceOnly.liveBookingMode).toBe("official_guidance_only");

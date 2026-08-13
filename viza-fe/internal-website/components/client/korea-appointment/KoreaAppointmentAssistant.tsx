@@ -87,6 +87,7 @@ interface Snapshot {
   review?: ReviewData | null;
   reviewConfirmed?: boolean;
   reviewConfirmedAt?: string | null;
+  vfsPortalTermsAccepted?: boolean;
   noSlots?: NoSlotsEvidence | null;
   job: { id: string; status: string; mode?: string | null; updated_at?: string | null } | null;
   manualAction: {
@@ -143,6 +144,7 @@ async function requestSnapshot(
   slotId?: string,
   smsCode?: string,
   selectedCenterCode?: string,
+  portalTermsAccepted?: boolean,
 ): Promise<Snapshot> {
   const response = await fetch(`/api/applications/${applicationId}/korea-appointment`, {
     method: action ? "POST" : "GET",
@@ -152,6 +154,7 @@ async function requestSnapshot(
           action,
           slotId,
           smsCode,
+          portalTermsAccepted,
           routingInput: selectedCenterCode ? { selectedCenterCode } : undefined,
         })
       : undefined,
@@ -282,6 +285,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const [centerSheetOpen, setCenterSheetOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
   const [authorizationChecked, setAuthorizationChecked] = useState(false);
+  const [vfsTermsAccepted, setVfsTermsAccepted] = useState(false);
   const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);
   const shouldReduceMotion = useReducedMotion();
 
@@ -312,6 +316,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     : "cancel";
   const savedAppointment = isOfficialConfirmation(snapshot) ? snapshot?.confirmation ?? null : null;
   const isSmsCenter = center?.liveBookingMode === "sms_sync_supported";
+  const isShenyangVfs = center?.liveBookingMode === "vfs_account_sync_supported";
   const review = snapshot?.review;
   const reviewReady = Boolean(review?.applicantName && review?.phoneMasked && center);
   const reviewBasis = review?.routingBasis === "current_residence"
@@ -338,6 +343,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         slotId,
         code,
         centerCode ?? activeCenterCode,
+        action === "request-live-booking" ? vfsTermsAccepted : undefined,
       );
       setSnapshot(nextSnapshot);
       if (["submit-sms-code", "start-new-booking"].includes(action ?? "")) setSmsCode("");
@@ -367,7 +373,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     } finally {
       setBusy(null);
     }
-  }, [activeCenterCode, applicationId, t]);
+  }, [activeCenterCode, applicationId, t, vfsTermsAccepted]);
 
   useEffect(() => {
     let active = true;
@@ -712,6 +718,24 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                 <Button className="w-full" variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>{t("account.resend")}</Button>
               </div>
             </>
+          ) : isShenyangVfs && manualActionType === "vfs_account_verification_pending" ? (
+            <>
+              <Alert className="border-brand-200 bg-brand-50/60">
+                <Loader2 className="h-4 w-4 animate-spin text-brand-700" />
+                <AlertTitle>{t("account.vfsEmailTitle")}</AlertTitle>
+                <AlertDescription>{t("account.vfsEmailBody")}</AlertDescription>
+              </Alert>
+              <div className="mt-auto border-t pt-5">
+                <BrandActionButton
+                  className="w-full"
+                  loading={busy === "request-live-booking"}
+                  loadingText={t("account.checking")}
+                  onClick={() => void run("request-live-booking")}
+                >
+                  <RefreshCw />{t("account.vfsEmailRetry")}
+                </BrandActionButton>
+              </div>
+            </>
           ) : (
             <>
               <p className="text-sm leading-6 text-muted-foreground">
@@ -723,16 +747,26 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                 <p className="font-medium">{centerName}</p>
                 <p className="mt-1 text-muted-foreground">{centerRule}</p>
               </div>
+              {isShenyangVfs && !snapshot.vfsPortalTermsAccepted ? (
+                <label className="flex items-start gap-3 rounded-[8px] border border-brand-200 bg-brand-50/40 p-4 text-sm leading-6">
+                  <Checkbox
+                    checked={vfsTermsAccepted}
+                    onCheckedChange={(checked) => setVfsTermsAccepted(checked === true)}
+                    className="mt-0.5 h-5 w-5"
+                  />
+                  <span>{t("account.vfsTerms")}</span>
+                </label>
+              ) : null}
               <div className="mt-auto border-t pt-5">
                 <BrandActionButton
                   className="w-full"
                   loading={busy === "request-live-booking"}
                   loadingText={t("account.checking")}
-                  disabled={Boolean(busy)}
+                  disabled={Boolean(busy) || (isShenyangVfs && !snapshot.vfsPortalTermsAccepted && !vfsTermsAccepted)}
                   onClick={() => void run("request-live-booking")}
                 >
-                  {isSmsCenter ? <MessageSquareText /> : <ExternalLink />}
-                  {isSmsCenter ? t("account.start") : t("account.viewMethod")}
+                  {isSmsCenter ? <MessageSquareText /> : isShenyangVfs ? <ShieldCheck /> : <ExternalLink />}
+                  {isSmsCenter ? t("account.start") : isShenyangVfs ? t("account.vfsStart") : t("account.viewMethod")}
                 </BrandActionButton>
               </div>
               {busy === "request-live-booking" ? (
