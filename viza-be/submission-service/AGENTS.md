@@ -508,11 +508,12 @@ filling and one-shot submission for the applicant.
   challenge changes while solving, its input redraw cannot be confirmed, the
   official page rejects it, or refresh cannot be proven, discard the page and
   repeat the whole search in a new context under one shared timeout budget.
-  Every fresh context receives the official Vue SPA's fixed default challenge,
-  so use the official reload control before its first solver request and prove
-  that the fingerprint changed; send only the newly observed challenge to the
-  solver. If a bounded reload cannot produce a new fingerprint, stop without
-  another solver request or form submission.
+  A stable challenge may be sent to the solver once even when the official Vue
+  SPA reuses its initial bitmap across fresh contexts. After that fingerprint
+  has been attempted or rejected, use the official reload control and prove
+  that the bitmap changed before another solver request. If a bounded reload
+  cannot produce a new fingerprint, stop without resending the challenge or
+  submitting the form.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use

@@ -18,10 +18,45 @@ import {
 } from "../payment-resume";
 import { captureVietnamCaptchaFingerprint, fingerprintVietnamCaptchaImage } from "../captcha";
 
-test("vn.payment-resume: rotates the fixed default challenge in every fresh context", () => {
-  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(1), true);
-  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(2), true);
-  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(3), true);
+test("vn.payment-resume: solves the first stable fresh-context challenge before requiring rotation", () => {
+  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(1), false);
+  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(2), false);
+  assert.equal(shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(3), false);
+});
+
+test("vn.payment-resume: solves one stable initial challenge without a working reload control", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const challenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    await page.setContent(`
+      <input id="basic_captcha" />
+      <img alt="captcha img" src="${challenge}" />
+      <button aria-label="reload captcha" type="button">Reload</button>
+    `);
+    const knownFingerprints = new Set<string>();
+    let solveCalls = 0;
+
+    const result = await solveVietnamPaymentSearchCaptcha(page, 5_000, {
+      maxAttempts: 1,
+      refreshInitialChallenge: shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(1),
+      knownChallengeFingerprints: knownFingerprints,
+      solveCaptcha: async () => {
+        solveCalls += 1;
+        return { text: "123456", solveId: "fixture-solve", durationMs: 10 };
+      },
+    });
+
+    assert.equal(solveCalls, 1);
+    assert.equal(await page.locator("#basic_captcha").inputValue(), "123456");
+    assert.equal(knownFingerprints.size, 1);
+    assert.equal(result.diagnostics.at(-1)?.outcome, "solved");
+    assert.equal(result.diagnostics.at(-1)?.refreshConfirmed, undefined);
+  } finally {
+    await browser.close();
+  }
 });
 
 test("vn.payment-resume: constrains the search CAPTCHA to exactly six digits", () => {

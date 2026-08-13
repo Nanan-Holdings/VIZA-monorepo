@@ -37,8 +37,14 @@ export type VietnamSearchSubmissionOutcome = "accepted" | "captcha_rejected" | "
 export function shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(
   _contextAttempt: number,
 ): boolean {
-  // A new browser context still mounts the same official default challenge.
-  return true;
+  // The first stable challenge in a fresh payment-search run has not been
+  // rejected yet and is safe to solve.  Production telemetry showed that the
+  // portal can reuse this bitmap across fresh contexts while its reload
+  // control is temporarily a no-op.  Requiring an eager reload therefore
+  // prevented the first 2Captcha request from ever happening.  Once a
+  // fingerprint has been attempted, knownChallengeFingerprints below still
+  // requires a proven rotation before it can be sent to the solver again.
+  return false;
 }
 
 interface VietnamSearchCaptchaSolveSuccess {
@@ -1353,10 +1359,9 @@ export async function resumeVietnamOfficialPayment(
               contextAttempt,
               maxAttempts: Math.min(3, remainingSolverAttempts),
               knownChallengeFingerprints,
-              // The official Vue SPA mounts the same fixed default CAPTCHA in
-              // every fresh page.  A fresh browser context is therefore not a
-              // fresh challenge: rotate it before the first solver request in
-              // every context, not only in context 1.
+              // A stable challenge may be solved once. Repeated fingerprints
+              // are rejected by knownChallengeFingerprints and must rotate
+              // before another solver request, even in a fresh context.
               refreshInitialChallenge:
                 shouldRefreshVietnamSearchCaptchaBeforeFirstSolve(contextAttempt),
               deadlineAt: searchDeadlineAt,
