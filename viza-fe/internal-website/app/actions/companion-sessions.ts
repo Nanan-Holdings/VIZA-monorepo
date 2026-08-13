@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getImpersonationSession } from "@/lib/impersonation-session";
-import { getUserFromSupabaseSession } from "@/lib/client-session";
+import { getClientSessionWithFallback } from "@/lib/client-session";
 
 // =============================================================================
 // Types
@@ -130,8 +130,9 @@ async function getAuthenticatedUserId(): Promise<string | null> {
     return impersonation.userId;
   }
 
-  // Check Supabase session
-  const session = await getUserFromSupabaseSession();
+  // Prefer the signed VIZA continuity session; Supabase Auth is only the
+  // bootstrap fallback when an older browser has no local session yet.
+  const session = await getClientSessionWithFallback();
   if (session) {
     return session.userId;
   }
