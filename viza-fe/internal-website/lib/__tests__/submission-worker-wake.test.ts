@@ -55,10 +55,10 @@ describe("wakeCloudSubmissionWorker", () => {
   it("starts the country-specific Fly machine before calling the wake endpoint", async () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.endsWith("/apps/viza-runner-vietnam/machines")) {
+      if (url.endsWith("/apps/viza-runner-pool/machines")) {
         return Response.json([{ id: "machine-vn", state: "stopped" }]);
       }
-      if (url.endsWith("/apps/viza-runner-vietnam/machines/machine-vn/start")) {
+      if (url.endsWith("/apps/viza-runner-pool/machines/machine-vn/start")) {
         return new Response(null, { status: 202 });
       }
       if (url.endsWith("/internal/submission-queue/wake")) {
@@ -80,7 +80,7 @@ describe("wakeCloudSubmissionWorker", () => {
 
     expect(result).toEqual({ ok: true });
     expect(fetchImpl).toHaveBeenCalledWith(
-      "https://api.machines.dev/v1/apps/viza-runner-vietnam/machines",
+      "https://api.machines.dev/v1/apps/viza-runner-pool/machines",
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: "Bearer fly-token",
@@ -88,7 +88,7 @@ describe("wakeCloudSubmissionWorker", () => {
       }),
     );
     expect(fetchImpl).toHaveBeenCalledWith(
-      "https://api.machines.dev/v1/apps/viza-runner-vietnam/machines/machine-vn/start",
+      "https://api.machines.dev/v1/apps/viza-runner-pool/machines/machine-vn/start",
       expect.objectContaining({ method: "POST" }),
     );
   });

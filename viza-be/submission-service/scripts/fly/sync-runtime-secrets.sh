@@ -5,7 +5,7 @@ set -euo pipefail
 # into one Fly app. Values are never printed or written to disk.
 app="${1:?Fly app name is required}"
 country="${2:?country scope is required}"
-required=(SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUBMISSION_RESULT_SECRET_KEY)
+required=(SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUBMISSION_RESULT_SECRET_KEY SUBMISSION_QUEUE_INTERNAL_TOKEN)
 for key in "${required[@]}"; do
   if [[ -z "${!key:-}" ]]; then
     echo "Missing required runtime secret: $key" >&2
@@ -17,6 +17,7 @@ secret_args=(
   "SUPABASE_URL=$SUPABASE_URL"
   "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY"
   "SUBMISSION_RESULT_SECRET_KEY=$SUBMISSION_RESULT_SECRET_KEY"
+  "SUBMISSION_QUEUE_INTERNAL_TOKEN=$SUBMISSION_QUEUE_INTERNAL_TOKEN"
 )
 
 # Capability secrets are optional: only inject a value when the protected CI
