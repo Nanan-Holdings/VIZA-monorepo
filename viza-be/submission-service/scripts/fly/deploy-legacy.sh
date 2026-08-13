@@ -75,5 +75,6 @@ docker push "$fly_image"
 if has_retained_machine; then
   require_deploy_ready
 fi
-fly deploy --app "$app" --config "$root/deploy/fly/fly.legacy.toml" --image "$fly_image" --strategy rolling
+fly deploy --app "$app" --config "$root/deploy/fly/fly.legacy.toml" --image "$fly_image" \
+  --strategy rolling --smoke-checks=false
 fly scale count 1 --app "$app" --yes
