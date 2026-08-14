@@ -1945,6 +1945,21 @@ or create another job automatically.
 
 Status: **APPLICANT_HANDOFF_READY_AWAITING_APPLICANT_CONFIRMATION**.
 
+## 2026-08-14 Legacy Taiwan handoff runtime removal
+
+- Removed the Taiwan-only Browserbase applicant-handoff session branch from
+  the formal runner. Taiwan now uses the submission-service-owned Playwright
+  session through final official confirmation and receipt verification.
+- Removed Taiwan Browserbase/handoff variables from the country Fly template
+  and removed `BROWSERBASE_API_KEY` from Taiwan runtime secret requirements.
+  Other countries' Browserbase configuration was not changed.
+- Taiwan focused tests passed: 121/121. Submission-service type-check and build
+  also passed.
+- No runner job was created, no official site was accessed, and no application
+  submission or payment was attempted during this cleanup.
+
+Status: **LOCAL_FORMAL_SUBMIT_RUNTIME_VERIFIED; DEPLOYMENT_PENDING**.
+
 ## 2026-08-14 — VIZA-confirmed background formal submission
 
 - Replaced the canonical Taiwan runner's applicant live-handoff mode with the

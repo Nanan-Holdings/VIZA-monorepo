@@ -153,9 +153,3 @@ export {
   type TwPageFingerprint,
   type TwRunMetadata,
 } from "./run-metadata";
-
-export {
-  registerTwApplicantHandoff,
-  waitForTwApplicantSubmission,
-  type TwApplicantHandoffRegistration,
-} from "./applicant-handoff";
