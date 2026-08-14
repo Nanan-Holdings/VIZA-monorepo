@@ -1,6 +1,7 @@
 import type { JobHandler } from "./worker.js";
 import { getRunOne } from "./dispatch.js";
 import { emitRunnerEvent } from "../metrics/emit.js";
+import { isRunnerJobOwnershipLost } from "./worker.js";
 
 /**
  * runner_job JobHandler (QUE-003). Looks up the job's country in the
@@ -28,7 +29,11 @@ export const runnerJobHandler: JobHandler = async (job, execution) => {
       `[queue] cid=${cid} job=${job.id.slice(0, 8)} country=${job.country} -> ${outcome.outcome} @ ${outcome.reachedStep}`,
     );
   } catch (err) {
-    emitRunnerEvent(job.country, "failed", job.id);
+    if (isRunnerJobOwnershipLost(err) || execution.signal.aborted) {
+      emitRunnerEvent(job.country, "ownership_lost", job.id);
+    } else {
+      emitRunnerEvent(job.country, "failed", job.id);
+    }
     console.error(`[queue] cid=${cid} job=${job.id.slice(0, 8)} country=${job.country} threw`, err);
     throw err; // worker handles retry/dead-letter
   }

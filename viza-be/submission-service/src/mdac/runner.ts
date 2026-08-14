@@ -5,6 +5,7 @@ import { type Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { MDAC_OFFICIAL_PORTAL_URL, type MdacPortalPayload } from "./normalize";
 import type { RunnerExecutionContext } from "../queue/execution-context.js";
+import { acceptOwnedDialog, launchAbortableResource } from "../queue/portal-safety.js";
 
 export interface MdacPortalSubmissionResult {
   submitted: boolean;
@@ -531,12 +532,16 @@ async function submitMdacRegistrationForm(
 
   const beforeUrl = page.url();
   let dialogMessage: string | null = null;
+  let dialogOwnershipError: unknown = null;
   page.once("dialog", async (dialog) => {
     dialogMessage = dialog.message();
     logs.push(`mdac_dialog ${dialog.type()} ${dialogMessage}`);
-    await dialog.accept().catch((error) => {
+    try {
+      await acceptOwnedDialog(dialog, executionContext);
+    } catch (error) {
+      dialogOwnershipError = error;
       logs.push(`mdac_dialog_accept_failed ${error instanceof Error ? error.message : String(error)}`);
-    });
+    }
   });
 
   const submit = page.locator("#submit").first();
@@ -576,6 +581,7 @@ async function submitMdacRegistrationForm(
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(3_000);
 
+  if (dialogOwnershipError) throw dialogOwnershipError;
   if (dialogMessage) {
     await assertMdacOfficialFormValid(page, screenshots, logs, "after-dialog");
   }
@@ -592,16 +598,26 @@ export async function runMdacPortalSubmission(
   options.executionContext?.assertOwned();
   const logs: string[] = [`mdac_start application=${payload.applicationId}`];
   const screenshots: string[] = [];
-  const browserSession = await createArrivalCardBrowserSession({
-    prefix: "MDAC",
-    headless: options.headless,
-  });
+  const browserSession = await launchAbortableResource(
+    options.executionContext?.signal,
+    () => createArrivalCardBrowserSession({
+      prefix: "MDAC",
+      headless: options.headless,
+    }),
+    (resource) => resource.close(),
+  );
   const page = browserSession.page;
   const abortListener = (): void => {
     void browserSession.close().catch(() => undefined);
   };
-  options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
-  options.executionContext?.assertOwned();
+  try {
+    options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+    options.executionContext?.assertOwned();
+  } catch (error) {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
+    await browserSession.close().catch(() => undefined);
+    throw error;
+  }
   logs.push(`mdac_browser_provider=${browserSession.provider}`);
   logs.push(...browserSession.diagnostics);
 

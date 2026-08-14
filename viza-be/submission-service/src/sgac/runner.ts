@@ -16,6 +16,7 @@ import {
   RunnerJobOwnershipLostError,
   type RunnerExecutionContext,
 } from "../queue/execution-context.js";
+import { launchAbortableResource } from "../queue/portal-safety.js";
 
 export const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/fvipa";
 
@@ -601,9 +602,14 @@ async function checkReviewDeclaration(page: Page, artifactDir: string): Promise<
 
 async function launch(headless: boolean): Promise<Handles> {
   const session = await createArrivalCardBrowserSession({ prefix: "SGAC", headless });
-  await session.page.setViewportSize({ width: 1365, height: 950 });
-  session.page.setDefaultTimeout(30_000);
-  return { browser: session.browser, context: session.context, page: session.page };
+  try {
+    await session.page.setViewportSize({ width: 1365, height: 950 });
+    session.page.setDefaultTimeout(30_000);
+    return { browser: session.browser, context: session.context, page: session.page };
+  } catch (error) {
+    await session.close().catch(() => undefined);
+    throw error;
+  }
 }
 
 async function fillTravellerStep(page: Page, payload: SgacPortalPayload): Promise<void> {
@@ -791,12 +797,26 @@ export async function runSgacPortalSubmission(
   const screenshots: string[] = [];
   const logs: string[] = [];
   const headless = options.headless ?? process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false";
-  const handles = await launch(headless);
+  const handles = await launchAbortableResource(
+    options.executionContext?.signal,
+    () => launch(headless),
+    async (resource) => {
+      await resource.context.close().catch(() => undefined);
+      await resource.browser.close().catch(() => undefined);
+    },
+  );
   const abortListener = (): void => {
     void handles.browser.close().catch(() => undefined);
   };
-  options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
-  options.executionContext?.assertOwned();
+  try {
+    options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+    options.executionContext?.assertOwned();
+  } catch (error) {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
+    await handles.context.close().catch(() => undefined);
+    await handles.browser.close().catch(() => undefined);
+    throw error;
+  }
 
   try {
     const { page } = handles;

@@ -5,6 +5,12 @@ import { type Download, type Page, type Response } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { TDAC_OFFICIAL_PORTAL_URL, type TdacPortalPayload } from "./normalize";
 import type { RunnerExecutionContext } from "../queue/execution-context.js";
+import {
+  acceptOwnedDialog,
+  clickOwned,
+  launchAbortableResource,
+  runOwnedAction,
+} from "../queue/portal-safety.js";
 
 export interface TdacPortalSubmissionResult {
   submitted: boolean;
@@ -1118,7 +1124,12 @@ async function checkTransitPassenger(page: Page, logs: string[]): Promise<void> 
   }
 }
 
-async function clickFirstEnabledButton(page: Page, label: RegExp, logs: string[]): Promise<void> {
+async function clickFirstEnabledButton(
+  page: Page,
+  label: RegExp,
+  logs: string[],
+  executionContext?: RunnerExecutionContext,
+): Promise<void> {
   await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" }));
   await page.waitForTimeout(800);
   const buttons = page.locator("button, [role='button'], input[type='button'], input[type='submit']").filter({ hasText: label });
@@ -1132,7 +1143,7 @@ async function clickFirstEnabledButton(page: Page, label: RegExp, logs: string[]
     diagnostics.push(`${index}:${visible ? "visible" : "hidden"}:${disabled ? "disabled" : "enabled"}:${text}`);
     if (visible && !disabled) {
       await button.scrollIntoViewIfNeeded().catch(() => undefined);
-      await button.click({ timeout: 15_000 });
+      await clickOwned(button, executionContext, { timeout: 15_000 });
       logs.push(`tdac_clicked_button ${label} index=${index}`);
       return;
     }
@@ -1140,7 +1151,7 @@ async function clickFirstEnabledButton(page: Page, label: RegExp, logs: string[]
   const textButton = page.getByText(label).last();
   if (await textButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await textButton.scrollIntoViewIfNeeded().catch(() => undefined);
-    await textButton.click({ timeout: 15_000 });
+    await clickOwned(textButton, executionContext, { timeout: 15_000 });
     logs.push(`tdac_clicked_text_button ${label}`);
     return;
   }
@@ -1150,12 +1161,12 @@ async function clickFirstEnabledButton(page: Page, label: RegExp, logs: string[]
     await xpathText.scrollIntoViewIfNeeded().catch(() => undefined);
     const box = await xpathText.boundingBox().catch(() => null);
     if (box) {
-      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      await runOwnedAction(executionContext, () => page.mouse.click(box.x + box.width / 2, box.y + box.height / 2));
       logs.push(`tdac_clicked_xpath_text ${label}`);
       return;
     }
   }
-  const clickedByDom = await page.evaluate((expected) => {
+  const clickedByDom = await runOwnedAction(executionContext, () => page.evaluate((expected) => {
     const candidates = Array.from(document.querySelectorAll<HTMLElement>("*"))
       .filter((element) => element.textContent?.trim() === expected)
       .filter((element) => {
@@ -1167,7 +1178,7 @@ async function clickFirstEnabledButton(page: Page, label: RegExp, logs: string[]
     target?.scrollIntoView({ block: "center", inline: "center" });
     target?.click();
     return Boolean(target);
-  }, fallbackText);
+  }, fallbackText));
   if (clickedByDom) {
     logs.push(`tdac_clicked_dom_text ${label}`);
     return;
@@ -1178,7 +1189,13 @@ async function clickFirstEnabledButton(page: Page, label: RegExp, logs: string[]
   );
 }
 
-async function clickButtonIfVisible(page: Page, label: RegExp, logs: string[], timeoutMs = 8_000): Promise<boolean> {
+async function clickButtonIfVisible(
+  page: Page,
+  label: RegExp,
+  logs: string[],
+  timeoutMs = 8_000,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     const buttonGroups = [
@@ -1196,8 +1213,9 @@ async function clickButtonIfVisible(page: Page, label: RegExp, logs: string[], t
         const disabled = await button.isDisabled().catch(() => true);
         if (visible && !disabled && label.test(text)) {
           await button.scrollIntoViewIfNeeded().catch(() => undefined);
-          await button.click({ timeout: 5_000 }).catch(async () => {
-            await button.click({ timeout: 5_000, force: true });
+          await clickOwned(button, executionContext, { timeout: 5_000 }).catch(async (error) => {
+            if (executionContext?.signal.aborted) throw error;
+            await clickOwned(button, executionContext, { timeout: 5_000, force: true });
           });
           logs.push(`tdac_optional_button_clicked text=${text}`);
           return true;
@@ -1443,6 +1461,7 @@ async function prepareTdacFinalSubmit(
   payload: TdacPortalPayload,
   screenshots: string[],
   logs: string[],
+  executionContext?: RunnerExecutionContext,
 ): Promise<void> {
   let emailSelector: string;
   try {
@@ -1479,8 +1498,8 @@ async function prepareTdacFinalSubmit(
 
   const termsCheckbox = page.locator("mat-checkbox, .mat-mdc-checkbox, input[type='checkbox']").last();
   await termsCheckbox.scrollIntoViewIfNeeded().catch(() => undefined);
-  await termsCheckbox.click({ timeout: 10_000, force: true });
-  await clickButtonIfVisible(page, /^Agree$/i, logs, 10_000);
+  await clickOwned(termsCheckbox, executionContext, { timeout: 10_000, force: true });
+  await clickButtonIfVisible(page, /^Agree$/i, logs, 10_000, executionContext);
   logs.push("tdac_final_terms_checked");
   await page.waitForTimeout(1_000);
 }
@@ -1734,16 +1753,26 @@ export async function runTdacPortalSubmission(
   options.executionContext?.assertOwned();
   const logs: string[] = [`tdac_start application=${payload.applicationId}`];
   const screenshots: string[] = [];
-  let browserSession = await createArrivalCardBrowserSession({
-    prefix: "TDAC",
-    headless: options.headless,
-  });
+  let browserSession = await launchAbortableResource(
+    options.executionContext?.signal,
+    () => createArrivalCardBrowserSession({
+      prefix: "TDAC",
+      headless: options.headless,
+    }),
+    (resource) => resource.close(),
+  );
   let page = browserSession.page;
   const abortListener = (): void => {
     void browserSession.close().catch(() => undefined);
   };
-  options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
-  options.executionContext?.assertOwned();
+  try {
+    options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+    options.executionContext?.assertOwned();
+  } catch (error) {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
+    await browserSession.close().catch(() => undefined);
+    throw error;
+  }
   logs.push(`tdac_browser_provider=${browserSession.provider}`);
   logs.push(...browserSession.diagnostics);
 
@@ -1754,6 +1783,7 @@ export async function runTdacPortalSubmission(
       requestBody: unknown;
     }>();
     let initialOfficialData: Record<string, unknown> | null = null;
+    let dialogOwnershipError: unknown = null;
     const auditInitialOfficialResponse = async (response: Response): Promise<void> => {
       if (!options.onInitialOfficialApiResponse) return;
       const url = response.url();
@@ -1988,13 +2018,23 @@ export async function runTdacPortalSubmission(
       screenshots.push(await saveScreenshot(page, `browser-api-policy-blocked-retry-${retry}`, logs));
       await browserSession.close().catch(() => undefined);
       logs.push(`tdac_remote_browser_api_policy_blocked_retry_browser_api attempt=${retry}`);
-      browserSession = await createArrivalCardBrowserSession({
-        prefix: "TDAC",
-        headless: options.headless,
-      });
+      browserSession = await launchAbortableResource(
+        options.executionContext?.signal,
+        () => createArrivalCardBrowserSession({
+          prefix: "TDAC",
+          headless: options.headless,
+        }),
+        (resource) => resource.close(),
+      );
       page = browserSession.page;
-      options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
-      options.executionContext?.assertOwned();
+      try {
+        options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+        options.executionContext?.assertOwned();
+      } catch (error) {
+        options.executionContext?.signal.removeEventListener("abort", abortListener);
+        await browserSession.close().catch(() => undefined);
+        throw error;
+      }
       attachInitialOfficialResponseAudit();
       logs.push(`tdac_browser_provider=${browserSession.provider}`);
       logs.push(...browserSession.diagnostics);
@@ -2112,18 +2152,20 @@ export async function runTdacPortalSubmission(
 
     page.on("dialog", (dialog) => {
       logs.push(`tdac_dialog_${dialog.type()} ${dialog.message().slice(0, 300)}`);
-      void dialog.accept().catch((error) => {
+      void acceptOwnedDialog(dialog, options.executionContext).catch((error) => {
+        dialogOwnershipError = error;
         logs.push(`tdac_dialog_accept_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
       });
     });
-    await prepareTdacFinalSubmit(page, payload, screenshots, logs);
+    await prepareTdacFinalSubmit(page, payload, screenshots, logs, options.executionContext);
     screenshots.push(await saveScreenshot(page, "before-final-submit", logs));
     await assertTdacOfficialFormValid(page, screenshots, logs, "final-submit");
     options.executionContext?.assertOwned();
-    await clickFirstEnabledButton(page, /^Submit$/i, logs);
+    await clickFirstEnabledButton(page, /^Submit$/i, logs, options.executionContext);
     await page.waitForTimeout(2_000);
     options.executionContext?.assertOwned();
-    await clickButtonIfVisible(page, /^(Confirm|OK|Yes|Submit)$/i, logs, 10_000);
+    await clickButtonIfVisible(page, /^(Confirm|OK|Yes|Submit)$/i, logs, 10_000, options.executionContext);
+    if (dialogOwnershipError) throw dialogOwnershipError;
     const portalText = await waitForTdacSubmissionOutcome(page, screenshots, logs);
     const pdfs = await downloadTdacPdfIfAvailable(page, logs);
     return buildTdacSuccessFromPortalText(payload, portalText, page.url(), screenshots, pdfs, logs);

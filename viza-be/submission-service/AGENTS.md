@@ -98,6 +98,12 @@ filling and one-shot submission for the applicant.
   before final official submit/payment and before persisting a successful or
   failed local result. Cancellation/ownership errors must escape runner catch
   blocks without being converted into portal failures.
+- `src/queue/portal-safety.ts` is the shared boundary for cancellation-safe
+  portal clicks, dialog acceptance, and browser/session launch. Keep irreversible
+  actions behind its ownership checks, dismiss dialogs on lease loss, and close
+  resources when an abort races launch or listener handoff. The queue handler
+  reports ownership cancellation as `ownership_lost`, never as an ordinary
+  portal `failed` event.
 - `src/vietnam/status-check-lease.ts`: Vietnam official-status checks are
   worker-leased and may be completed or failed only by their claiming worker;
   the consumer must honor a false conditional-RPC result as lost ownership.

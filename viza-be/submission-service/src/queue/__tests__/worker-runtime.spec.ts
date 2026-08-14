@@ -337,6 +337,133 @@ test("settlement stops renewal scheduling before completion starts", async () =>
   }
 });
 
+test("successful renewals re-arm the local expiry before a long handler finishes", async () => {
+  const { worker, client } = await loadWorker();
+  const originalRpc = client.rpc;
+  let claimed = false;
+  let renewals = 0;
+  let completed = false;
+  client.rpc = async (name) => {
+    if (name === "claim_runner_pool_job") {
+      if (claimed) return { data: null, error: null };
+      claimed = true;
+      return { data: claimedJob(), error: null };
+    }
+    if (name === "renew_runner_pool_job") {
+      renewals += 1;
+      return { data: { leased_until: "2099-01-01T00:00:00.000Z" }, error: null };
+    }
+    if (name === "complete_runner_pool_job") {
+      completed = true;
+      return { data: claimedJob(), error: null };
+    }
+    return { data: claimedJob(), error: null };
+  };
+  try {
+    await worker.drainAndRun({
+      workerId: "worker-1",
+      leaseMs: 80,
+      renewEveryMs: 15,
+      handler: async () => new Promise((resolve) => setTimeout(resolve, 160)),
+    });
+    assert.ok(renewals >= 3);
+    assert.equal(completed, true);
+  } finally {
+    client.rpc = originalRpc;
+  }
+});
+
+test("queued expiry and renewal callbacks cannot start after settlement fencing begins", async () => {
+  const { worker, client } = await loadWorker();
+  const originalRpc = client.rpc;
+  const originalSetInterval = globalThis.setInterval;
+  const originalClearInterval = globalThis.clearInterval;
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  const events: string[] = [];
+  let claimed = false;
+  let intervalCallback: (() => void) | null = null;
+  let queuedTickAfterStop = false;
+  let renewalStarts = 0;
+  let expiryCallback: (() => void) | null = null;
+  let resolveRenewal: (() => void) | null = null;
+  const intervalToken = {} as ReturnType<typeof setInterval>;
+  const timeoutToken = {} as ReturnType<typeof setTimeout>;
+
+  globalThis.setInterval = ((callback: Parameters<typeof setInterval>[0]) => {
+    intervalCallback = callback as () => void;
+    return intervalToken;
+  }) as typeof setInterval;
+  globalThis.clearInterval = (() => {
+    events.push("clear-interval");
+    // Simulate an expiry timer callback already queued by the event loop.
+    queueMicrotask(() => expiryCallback?.());
+  }) as typeof clearInterval;
+  globalThis.setTimeout = ((callback: Parameters<typeof setTimeout>[0]) => {
+    expiryCallback = callback as () => void;
+    return timeoutToken;
+  }) as typeof setTimeout;
+  globalThis.clearTimeout = (() => {
+    events.push("clear-timeout");
+  }) as typeof clearTimeout;
+
+  client.rpc = async (name) => {
+    if (name === "claim_runner_pool_job") {
+      if (claimed) return { data: null, error: null };
+      claimed = true;
+      return { data: claimedJob(), error: null };
+    }
+    if (name === "renew_runner_pool_job") {
+      events.push("renew-start");
+      renewalStarts += 1;
+      await new Promise<void>((resolve) => {
+        resolveRenewal = resolve;
+      });
+      events.push("renew-end");
+      return { data: { leased_until: "2099-01-01T00:00:00.000Z" }, error: null };
+    }
+    if (name === "complete_runner_pool_job") {
+      events.push("complete-start");
+      // The interval callback is queued while settlement is in flight. The
+      // worker must have already fenced renewal scheduling, so this callback
+      // may be attempted but must not start a second RPC.
+      queueMicrotask(() => {
+        queuedTickAfterStop = true;
+        intervalCallback?.();
+      });
+      await Promise.resolve();
+      events.push("complete");
+      return { data: claimedJob(), error: null };
+    }
+    return { data: claimedJob(), error: null };
+  };
+
+  try {
+    const drain = worker.drainAndRun({
+      workerId: "worker-1",
+      leaseMs: 100,
+      renewEveryMs: 10,
+      handler: async () => {
+        intervalCallback?.();
+        setImmediate(() => resolveRenewal?.());
+      },
+    });
+    await drain;
+    assert.equal(events.includes("clear-interval"), true);
+    assert.equal(events.includes("clear-timeout"), true);
+    assert.equal(events.includes("renew-start"), true);
+    assert.equal(queuedTickAfterStop, true);
+    assert.equal(renewalStarts, 1);
+    assert.equal(events.includes("complete"), true);
+  } finally {
+    globalThis.setInterval = originalSetInterval;
+    globalThis.clearInterval = originalClearInterval;
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+    client.rpc = originalRpc;
+  }
+});
+
 test("ownership loss prevents both success and fallback failure settlement", async () => {
   const { worker, client } = await loadWorker();
   const originalRpc = client.rpc;
