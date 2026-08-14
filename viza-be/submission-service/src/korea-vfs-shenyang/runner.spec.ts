@@ -39,6 +39,43 @@ function fakeMobilePage(selectorHint: string, visibility: boolean[]): { page: Fa
   };
 }
 
+function delayedContactMobilePage(missingChecks: number): {
+  page: FakePage;
+  filled: string[];
+  contactLookups: () => number;
+} {
+  const filled: string[] = [];
+  let lookups = 0;
+  const contactField: FakeField = {
+    isVisible: async () => true,
+    fill: async (value: string) => {
+      filled.push(value);
+    },
+  };
+  return {
+    page: {
+      locator(selector: string): FakeFieldCollection {
+        if (selector !== "input[formcontrolname='contact']") {
+          return {
+            count: async () => 0,
+            nth: () => {
+              throw new Error("unreachable");
+            },
+          };
+        }
+        lookups += 1;
+        const matches = lookups > missingChecks ? [contactField] : [];
+        return {
+          count: async () => matches.length,
+          nth: (index: number) => matches[index],
+        };
+      },
+    },
+    filled,
+    contactLookups: () => lookups,
+  };
+}
+
 test("extracts and deduplicates only date-and-time slot observations", () => {
   const slots = extractShenyangVfsSlotsFromTexts([
     "18/08/2026 09:30 Available",
@@ -120,4 +157,27 @@ test("prefers the stable contact control when the generated mobile id is also vi
 
   await fillShenyangVfsRegistrationMobileField(page as unknown as import("playwright").Page, "13800138000");
   assert.deepEqual(filled, ["contact"]);
+});
+
+test("polls for a contact control that mounts after the first DOM checks", async () => {
+  const fixture = delayedContactMobilePage(2);
+  await fillShenyangVfsRegistrationMobileField(
+    fixture.page as unknown as import("playwright").Page,
+    "13800138000",
+    { timeoutMs: 40, pollIntervalMs: 1 },
+  );
+  assert.deepEqual(fixture.filled, ["13800138000"]);
+  assert.ok(fixture.contactLookups() >= 3);
+});
+
+test("keeps the original safe error when the mobile control never mounts", async () => {
+  const fixture = fakeMobilePage("never-matches", [true]);
+  await assert.rejects(
+    () => fillShenyangVfsRegistrationMobileField(
+      fixture.page as unknown as import("playwright").Page,
+      "13800138000",
+      { timeoutMs: 15, pollIntervalMs: 1 },
+    ),
+    { message: "The official VFS mobile-number field could not be identified." },
+  );
 });
