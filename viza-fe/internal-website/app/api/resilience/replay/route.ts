@@ -12,6 +12,7 @@ import {
   type RunnerJobWakeEvent,
   type RunnerWakeTarget,
 } from "@/lib/resilience/runner-job-wakeup";
+import { desiredRunnerPoolCapacity } from "@/lib/queue/enqueue";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 
 export const runtime = "nodejs";
@@ -58,6 +59,7 @@ type ReplayDbClient = {
 type RunnerWakeRecord = {
   id: string;
   status: string;
+  availableAt: string | null;
 };
 
 class ReplayTransientError extends Error {
@@ -98,7 +100,6 @@ const SUBMISSION_TERMINAL_STATUSES = new Set([
   "retry_superseded",
   "cancelled",
 ]);
-const POOL_WAKE_DESIRED_CAPACITY = 1;
 
 function isSafeRunnerJobId(value: unknown): value is string {
   return (
@@ -133,6 +134,15 @@ function isSubmissionWakeQueued(status: string): boolean {
   return status === "pending" || status.endsWith("_pending") || status.endsWith("_scheduled");
 }
 
+function retryAfterSecondsForAvailableAt(availableAt: string | null): number | null {
+  if (!availableAt) return null;
+  const dueAt = Date.parse(availableAt);
+  if (!Number.isFinite(dueAt)) return null;
+  const remainingSeconds = Math.ceil((dueAt - Date.now()) / 1_000);
+  if (remainingSeconds <= 0) return null;
+  return Math.max(1, Math.min(300, remainingSeconds));
+}
+
 async function loadRunnerWakeRecord(
   event: RunnerJobWakeEvent,
 ): Promise<RunnerWakeRecord | null> {
@@ -141,21 +151,27 @@ async function loadRunnerWakeRecord(
     retryDelaysMs: [],
   }) as unknown as ReplayDbClient;
   const table = event.target === "pool" ? "runner_job" : "submission_queue";
+  const columns = table === "runner_job" ? "id,status,available_at" : "id,status";
   const { data, error } = await admin
     .from(table)
-    .select("id,status")
+    .select(columns)
     .eq("id", event.jobId)
     .maybeSingle();
   if (error) throw new ReplayTransientError("database_unavailable");
   if (!data || typeof data !== "object") return null;
-  const row = data as { id?: unknown; status?: unknown };
+  const row = data as { id?: unknown; status?: unknown; available_at?: unknown };
   if (typeof row.id !== "string" || typeof row.status !== "string") return null;
-  return { id: row.id, status: row.status };
+  return {
+    id: row.id,
+    status: row.status,
+    availableAt: typeof row.available_at === "string" ? row.available_at : null,
+  };
 }
 
 type RunnerWakeReplayResult = {
-  outcome: "ack";
-  errorCode?: "job_not_found";
+  outcome: "ack" | "nack";
+  errorCode?: "job_not_found" | "job_not_due";
+  retryAfterSeconds?: number;
 };
 
 async function replayRunnerJobWake(event: RunnerJobWakeEvent): Promise<RunnerWakeReplayResult> {
@@ -169,7 +185,16 @@ async function replayRunnerJobWake(event: RunnerJobWakeEvent): Promise<RunnerWak
     }
     if (normalizedStatus !== "queued") return { outcome: "ack" };
 
-    const capacity = await ensureFlyMachineCapacity("pool", POOL_WAKE_DESIRED_CAPACITY);
+    const retryAfterSeconds = retryAfterSecondsForAvailableAt(record.availableAt);
+    if (retryAfterSeconds !== null) {
+      return {
+        outcome: "nack",
+        errorCode: "job_not_due",
+        retryAfterSeconds,
+      };
+    }
+    const desired = await desiredRunnerPoolCapacity();
+    const capacity = await ensureFlyMachineCapacity("pool", desired);
     if (!capacity.ok) {
       throw new ReplayTransientError("fly_capacity_unavailable");
     }
@@ -272,6 +297,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           leaseId,
           outcome: replay.outcome,
           ...(replay.errorCode ? { errorCode: replay.errorCode } : {}),
+          ...(replay.retryAfterSeconds ? { retryAfterSeconds: replay.retryAfterSeconds } : {}),
         });
         continue;
       }

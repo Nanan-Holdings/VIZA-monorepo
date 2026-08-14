@@ -16,7 +16,7 @@ vi.mock("@/lib/resilience/runner-job-wakeup", () => ({
   enqueueRunnerJobWake: enqueueRunnerJobWakeMock,
 }));
 
-import { enqueueRunnerPoolJob } from "./enqueue";
+import { desiredRunnerPoolCapacity, enqueueRunnerPoolJob } from "./enqueue";
 
 type RpcRow = {
   runner_job_id: string | null;
@@ -24,9 +24,15 @@ type RpcRow = {
   blocked_by_legacy: boolean;
   legacy_queue_id: string | null;
   legacy_queue_status: string | null;
+  legacy_queue_available_at?: string | null;
 };
 
-function configureAdmin(row: Partial<RpcRow> = {}) {
+function configureAdmin(row: Partial<RpcRow> = {}, depthRows = [{
+  max_concurrent: 10,
+  paused: false,
+  claimable: 1,
+  running: 0,
+}]) {
   const rpc = vi.fn().mockResolvedValue({
     data: {
       runner_job_id: "job-1",
@@ -40,7 +46,7 @@ function configureAdmin(row: Partial<RpcRow> = {}) {
   });
   const depthQuery = {
     select: vi.fn(() => depthQuery),
-    data: [{ max_concurrent: 10, paused: false, claimable: 1, running: 0 }],
+    data: depthRows,
     error: null,
   };
   withAdminMock.mockImplementation(async (_mode: string, actor: string, fn: (admin: unknown) => Promise<unknown>) => {
@@ -77,6 +83,16 @@ describe("runner pool enqueue wake transport", () => {
     expect(enqueueRunnerJobWakeMock).toHaveBeenCalledWith({ jobId: "job-1", target: "pool" });
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
     expect(result.workerTriggered).toBe(true);
+  });
+
+  it("reuses the bounded runner_pool_depth capacity policy", async () => {
+    configureAdmin({}, [
+      { max_concurrent: 4, paused: false, claimable: 3, running: 2 },
+      { max_concurrent: 20, paused: false, claimable: 8, running: 8 },
+      { max_concurrent: 10, paused: true, claimable: 10, running: 10 },
+    ]);
+
+    await expect(desiredRunnerPoolCapacity()).resolves.toBe(10);
   });
 
   it("falls back to a direct wake when Queue publishing throws", async () => {
@@ -121,6 +137,51 @@ describe("runner pool enqueue wake transport", () => {
 
     expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("job-1", { target: "pool" });
     expect(result.workerTriggered).toBe(true);
+  });
+
+  it("does not queue or directly wake future pool work when Queue mode is enabled", async () => {
+    process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "true";
+    const availableAt = new Date(Date.now() + 60_000).toISOString();
+
+    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa", { availableAt });
+
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(result.workerTriggered).toBe(false);
+  });
+
+  it("does not wake a future legacy collision when Queue mode is enabled", async () => {
+    process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "on";
+    configureAdmin({
+      blocked_by_legacy: true,
+      runner_job_id: null,
+      legacy_queue_id: "legacy-1",
+      legacy_queue_status: "sgac_live_assisted_scheduled",
+    });
+    const availableAt = new Date(Date.now() + 60_000).toISOString();
+
+    const result = await enqueueRunnerPoolJob("app-1", "singapore", "sgac", { availableAt });
+
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: false });
+  });
+
+  it("honors a future available_at returned for a legacy collision", async () => {
+    process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "1";
+    configureAdmin({
+      blocked_by_legacy: true,
+      runner_job_id: null,
+      legacy_queue_id: "legacy-1",
+      legacy_queue_status: "sgac_live_assisted_scheduled",
+      legacy_queue_available_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+
+    const result = await enqueueRunnerPoolJob("app-1", "singapore", "sgac");
+
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: false });
   });
 
   it("does not wake or publish when the enqueue RPC fails", async () => {

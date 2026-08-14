@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const createAdminClientMock = vi.hoisted(() => vi.fn());
 const ensureFlyMachineCapacityMock = vi.hoisted(() => vi.fn());
 const wakeCloudSubmissionWorkerMock = vi.hoisted(() => vi.fn());
+const desiredRunnerPoolCapacityMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: createAdminClientMock,
@@ -14,6 +15,9 @@ vi.mock("@/lib/fly-machine-wake.server", () => ({
 }));
 vi.mock("@/lib/submission-worker-wake.server", () => ({
   wakeCloudSubmissionWorker: wakeCloudSubmissionWorkerMock,
+}));
+vi.mock("@/lib/queue/enqueue", () => ({
+  desiredRunnerPoolCapacity: desiredRunnerPoolCapacityMock,
 }));
 
 import { POST } from "./route";
@@ -27,6 +31,8 @@ const hmacSecret = "replay-test-secret-that-is-at-least-thirty-two-characters";
 
 type AdminRow = Record<string, unknown> | null;
 
+const fromTables: string[] = [];
+
 function configureAdmin(row: AdminRow, options: { rpcError?: { message: string } | null } = {}) {
   const maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
   const query = {
@@ -36,7 +42,10 @@ function configureAdmin(row: AdminRow, options: { rpcError?: { message: string }
     single: maybeSingle,
   };
   createAdminClientMock.mockReturnValue({
-    from: vi.fn(() => query),
+    from: vi.fn((table: string) => {
+      fromTables.push(table);
+      return query;
+    }),
     rpc: vi.fn().mockResolvedValue({ data: null, error: options.rpcError ?? null }),
   });
 }
@@ -86,8 +95,11 @@ describe("resilience replay route", () => {
     process.env.VIZA_RESILIENCE_DATA_KEY = encodedKey;
     ensureFlyMachineCapacityMock.mockReset();
     wakeCloudSubmissionWorkerMock.mockReset();
+    desiredRunnerPoolCapacityMock.mockReset();
     ensureFlyMachineCapacityMock.mockResolvedValue({ ok: true, desired: 1 });
     wakeCloudSubmissionWorkerMock.mockResolvedValue({ ok: true });
+    desiredRunnerPoolCapacityMock.mockResolvedValue(1);
+    fromTables.length = 0;
     configureAdmin({ id: "job-1", status: "queued" });
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });
@@ -107,6 +119,20 @@ describe("resilience replay route", () => {
         leaseId: "lease-1",
         outcome: "ack",
       }],
+    });
+  });
+
+  it("uses the bounded server-side pool depth policy for capacity", async () => {
+    desiredRunnerPoolCapacityMock.mockResolvedValue(4);
+
+    const response = await POST(signedReplayRequest([
+      wakeItem({ version: 1, jobId: "job-1", target: "pool" }),
+    ]));
+
+    expect(ensureFlyMachineCapacityMock).toHaveBeenCalledWith("pool", 4);
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      results: [{ outcome: "ack" }],
     });
   });
 
@@ -182,6 +208,24 @@ describe("resilience replay route", () => {
     });
   });
 
+  it("nacks a queued pool pointer that arrives before its DB available_at", async () => {
+    const availableAt = new Date(Date.now() + 45_000).toISOString();
+    configureAdmin({ id: "job-1", status: "queued", available_at: availableAt });
+
+    const response = await POST(signedReplayRequest([
+      wakeItem({ version: 1, jobId: "job-1", target: "pool" }),
+    ]));
+    const body = await response.json() as {
+      results: [{ errorCode?: string; outcome?: string; retryAfterSeconds?: number }];
+    };
+
+    expect(ensureFlyMachineCapacityMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(body.results[0]).toMatchObject({ outcome: "nack", errorCode: "job_not_due" });
+    expect(body.results[0].retryAfterSeconds).toBeGreaterThanOrEqual(1);
+    expect(body.results[0].retryAfterSeconds).toBeLessThanOrEqual(300);
+  });
+
   it("rejects extra URL and target fields in the decrypted pointer", async () => {
     const response = await POST(signedReplayRequest([
       wakeItem({
@@ -198,6 +242,38 @@ describe("resilience replay route", () => {
       ok: true,
       results: [{ idempotencyKey: "runner-job-wakeup:job-1", outcome: "ack", errorCode: "invalid_event" }],
     });
+  });
+
+  it.each([
+    { target: "legacy", status: "pending" },
+    { target: "indonesia", status: "id_c1_live_assisted_pending" },
+    { target: "south_korea", status: "pending" },
+  ] as const)("looks up queued retained $target work in submission_queue", async ({ target, status }) => {
+    configureAdmin({ id: "job-1", status });
+
+    const response = await POST(signedReplayRequest([
+      wakeItem({ version: 1, jobId: "job-1", target }),
+    ]));
+
+    expect(fromTables).toContain("submission_queue");
+    expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("job-1", { target });
+    expect(await response.json()).toMatchObject({ ok: true, results: [{ outcome: "ack" }] });
+  });
+
+  it.each([
+    { target: "legacy", status: "processing" },
+    { target: "indonesia", status: "id_c1_live_assisted_processing" },
+    { target: "south_korea", status: "done" },
+  ] as const)("does not wake terminal/running retained $target work", async ({ target, status }) => {
+    configureAdmin({ id: "job-1", status });
+
+    const response = await POST(signedReplayRequest([
+      wakeItem({ version: 1, jobId: "job-1", target }),
+    ]));
+
+    expect(fromTables).toContain("submission_queue");
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(await response.json()).toMatchObject({ ok: true, results: [{ outcome: "ack" }] });
   });
 
   it("preserves application answer replay behavior", async () => {
