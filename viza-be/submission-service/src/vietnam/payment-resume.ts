@@ -694,6 +694,20 @@ export async function refreshVietnamSearchCaptchaChallenge(
     if (await clickAndConfirm(control, "vue_event_fallback")) return "search_reload_control";
   }
 
+  // A Fly-to-official API response can arrive after the per-click response
+  // observer expires. Keep a final bounded bitmap watch after all scoped
+  // clicks so a successful late Vue repaint is not classified as stale. This
+  // preserves the second trusted/synthetic click fallbacks instead of letting
+  // the first slow click consume the entire refresh budget.
+  if (remainingMs() > 0) {
+    const lateChanged = await captureStableVietnamSearchCaptcha(
+      page,
+      Math.max(1, Math.min(remainingMs(), 2_500)),
+      previousFingerprint,
+    );
+    if (lateChanged) return "search_reload_control";
+  }
+
   if (remainingMs() <= 0) return null;
   const sharedConfirmed = await refreshVietnamCaptchaChallenge(page, remainingMs()).catch(() => false);
   return sharedConfirmed ? "shared_fallback" : null;
