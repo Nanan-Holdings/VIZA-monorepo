@@ -156,6 +156,7 @@ test("vn.status-tracking: production batch defers provider denial without settle
       failCalls += 1;
       return true;
     },
+    afterFailure: async () => undefined,
   });
   assert.equal(processed, 0);
   assert.equal(deferCalls, 1);
@@ -223,6 +224,7 @@ test("vn.status-tracking: production batch skips all settlement when Postgres or
       failCalls += 1;
       return true;
     },
+    afterFailure: async () => undefined,
   });
   assert.equal(processed, 0);
   assert.equal(deferCalls, 0);
@@ -242,6 +244,7 @@ test("vn.status-tracking: production batch preserves generic portal failure sett
       failCalls += 1;
       return true;
     },
+    afterFailure: async () => undefined,
   });
   assert.equal(processed, 1);
   assert.equal(failCalls, 1);
