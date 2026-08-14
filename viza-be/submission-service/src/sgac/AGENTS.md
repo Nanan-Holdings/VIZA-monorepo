@@ -13,6 +13,7 @@ Scope: Singapore `SG_ARRIVAL_CARD` official ICA portal automation only.
   such as `AS223`, then send ICA the normalized carrier code and bare flight
   number. Keep land, cruise, and non-cruise vessel requirements branch-specific.
 - `runner.ts` drives the ICA SGAC e-Service, submits when enabled, and captures screenshots/PDF evidence.
+- Shared-pool runs receive a `RunnerExecutionContext`; check ownership before declaration/final verification clicks and abort the browser on lease loss. Do not wrap ownership-loss/abort errors as portal failures.
 - `__tests__/captcha-selector.spec.js` guards that the security verification
   solver captures the CAPTCHA image rather than the adjacent audio icon.
 - `date-window.ts` owns the ICA three-day submission-window calculation for worker scheduling.

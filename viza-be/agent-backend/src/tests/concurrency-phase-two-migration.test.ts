@@ -327,7 +327,7 @@ describe("runner pool concurrency phase two migration", () => {
     expect(completeFunctionBody).toMatch(/p_job_id IS NULL[\s\S]*?ERRCODE = '22023'/i);
     expect(completeFunctionBody).toMatch(/NULLIF\(BTRIM\(p_worker_id\), ''\) IS NULL[\s\S]*?ERRCODE = '22023'/i);
     expect(completeFunctionBody).toMatch(
-      /UPDATE public\.runner_job[\s\S]*?SET status = 'succeeded'[\s\S]*?finished_at = p_now[\s\S]*?leased_by = NULL[\s\S]*?leased_until = NULL[\s\S]*?WHERE[\s\S]*?id = p_job_id[\s\S]*?status = 'running'[\s\S]*?leased_by = p_worker_id[\s\S]*?leased_until > p_now[\s\S]*?RETURNING[\s\S]*?application_id[\s\S]*?country[\s\S]*?started_at/i,
+      /UPDATE public\.runner_job[\s\S]*?SET status = 'succeeded'[\s\S]*?finished_at = COALESCE\(p_now, v_now\)[\s\S]*?leased_by = NULL[\s\S]*?leased_until = NULL[\s\S]*?WHERE[\s\S]*?id = p_job_id[\s\S]*?status = 'running'[\s\S]*?leased_by = p_worker_id[\s\S]*?leased_until > v_now[\s\S]*?RETURNING[\s\S]*?application_id[\s\S]*?country[\s\S]*?started_at/i,
     );
     expect(canonicalSql).toMatch(
       /REVOKE ALL ON FUNCTION public\.complete_runner_pool_job\(UUID, TEXT, TIMESTAMPTZ\) FROM PUBLIC, anon, authenticated;/i,
@@ -338,6 +338,55 @@ describe("runner pool concurrency phase two migration", () => {
   });
 
   it("keeps the completion RPC byte-for-byte equivalent in the CLI mirror", () => {
+    const mirrorFiles = existsSync(mirrorDirectory)
+      ? readdirSync(mirrorDirectory).filter((fileName) => /_concurrency_phase_two\.sql$/i.test(fileName))
+      : [];
+    expect(mirrorFiles).toHaveLength(1);
+    const mirrorSql = readFileSync(`${mirrorDirectory}/${mirrorFiles[0]}`, "utf8");
+    expect(normalized(mirrorSql)).toBe(normalized(canonicalSql));
+  });
+
+  it("defines service-role-only DB-clock runner renew and failure RPCs", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.renew_runner_pool_job\(\s*p_job_id UUID,\s*p_worker_id TEXT,\s*p_lease_ms INTEGER DEFAULT 900000\s*\)/i,
+    );
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.fail_runner_pool_job\(\s*p_job_id UUID,\s*p_worker_id TEXT,\s*p_status TEXT,\s*p_attempts INTEGER,\s*p_last_error TEXT,\s*p_retry_after_seconds INTEGER DEFAULT 0\s*\)/i,
+    );
+    const renewBody = canonicalSql.match(
+      /CREATE OR REPLACE FUNCTION public\.renew_runner_pool_job\([\s\S]*?\n\$\$;/i,
+    )?.[0] ?? "";
+    const failBody = canonicalSql.match(
+      /CREATE OR REPLACE FUNCTION public\.fail_runner_pool_job\([\s\S]*?\n\$\$;/i,
+    )?.[0] ?? "";
+    expect(renewBody).toMatch(/clock_timestamp\(\)/i);
+    expect(renewBody).toMatch(/leased_until\s*>\s*v_now/i);
+    expect(renewBody).toMatch(/p_lease_ms IS NULL OR p_lease_ms < 10000 OR p_lease_ms > 7200000/i);
+    expect(failBody).toMatch(/clock_timestamp\(\)/i);
+    expect(failBody).toMatch(/leased_until\s*>\s*v_now/i);
+    expect(failBody).toMatch(/p_status IS NULL OR p_status NOT IN \('queued', 'failed'\)/i);
+    expect(failBody).toMatch(/p_retry_after_seconds IS NULL/i);
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.renew_runner_pool_job\(UUID, TEXT, INTEGER\) FROM PUBLIC, anon, authenticated;/i,
+    );
+    expect(canonicalSql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.renew_runner_pool_job\(UUID, TEXT, INTEGER\) TO service_role;/i,
+    );
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.fail_runner_pool_job\(UUID, TEXT, TEXT, INTEGER, TEXT, INTEGER\) FROM PUBLIC, anon, authenticated;/i,
+    );
+    expect(canonicalSql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.fail_runner_pool_job\(UUID, TEXT, TEXT, INTEGER, TEXT, INTEGER\) TO service_role;/i,
+    );
+  });
+
+  it("fences completion against the live database clock while retaining a controlled timestamp", () => {
+    expect(completeFunctionBody).toMatch(/v_now\s+TIMESTAMPTZ\s*:=\s*clock_timestamp\(\)/i);
+    expect(completeFunctionBody).toMatch(/leased_until\s*>\s*v_now/i);
+    expect(completeFunctionBody).toMatch(/finished_at\s*=\s*COALESCE\(p_now, v_now\)/i);
+  });
+
+  it("keeps the renew/failure RPCs byte-for-byte equivalent in the CLI mirror", () => {
     const mirrorFiles = existsSync(mirrorDirectory)
       ? readdirSync(mirrorDirectory).filter((fileName) => /_concurrency_phase_two\.sql$/i.test(fileName))
       : [];

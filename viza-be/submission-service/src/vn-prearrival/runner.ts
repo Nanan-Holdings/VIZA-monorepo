@@ -33,6 +33,7 @@ import {
   inbox,
   type InboundMessage,
 } from "../inbox/wait-for-message";
+import type { RunnerExecutionContext } from "../queue/execution-context";
 
 export interface VnPrearrivalPortalSubmissionResult {
   submitted: boolean;
@@ -527,7 +528,11 @@ async function waitForEmailVerificationOutcome(
   return "pending";
 }
 
-async function fillEmailVerificationCode(page: Page, code: string): Promise<boolean> {
+async function fillEmailVerificationCode(
+  page: Page,
+  code: string,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   const dialog = page.getByRole("dialog");
   const scope = (await dialog.count().catch(() => 0)) === 1 ? dialog : page.locator("body");
   const inputs = scope.locator("input");
@@ -551,6 +556,7 @@ async function fillEmailVerificationCode(page: Page, code: string): Promise<bool
   const verify = scope.getByRole("button", { name: /^verify$/i });
   const verifyCount = await verify.count().catch(() => 0);
   if (verifyCount !== 1 || !(await verify.isVisible().catch(() => false))) return false;
+  executionContext?.assertOwned();
   await verify.click({ timeout: 15_000 });
   return true;
 }
@@ -562,6 +568,7 @@ async function handleEmailVerification(
   screenshots: string[],
   logs: string[],
   tempDir: string,
+  executionContext?: RunnerExecutionContext,
 ): Promise<void> {
   if (!(await isEmailVerificationVisible(page))) return;
 
@@ -628,7 +635,7 @@ async function handleEmailVerification(
     );
   }
   const code = extractSixDigitCode(message);
-  if (!code || !(await fillEmailVerificationCode(page, code))) {
+  if (!code || !(await fillEmailVerificationCode(page, code, executionContext))) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival email verification code was received but could not be entered on the official portal.",
       "vn_prearrival_otp_fill_failed",
@@ -673,7 +680,9 @@ async function openOfficialReviewPage(
   screenshots: string[],
   logs: string[],
   tempDir: string,
+  executionContext?: RunnerExecutionContext,
 ): Promise<void> {
+  executionContext?.assertOwned();
   const reviewClicked = await clickOfficialButton(page, "Review & Submit")
     || await clickOfficialButton(page, "Review and Submit");
   if (!reviewClicked) {
@@ -710,7 +719,9 @@ async function completeOfficialSubmissionFromReview(
   screenshots: string[],
   logs: string[],
   tempDir: string,
+  executionContext?: RunnerExecutionContext,
 ): Promise<void> {
+  executionContext?.assertOwned();
   const confirmed = await clickFirstVisible(page, [
     /^i confirm that the information is correct\.?$/i,
     /^tôi xác nhận.*chính xác/i,
@@ -726,6 +737,10 @@ async function completeOfficialSubmissionFromReview(
   }
 
   const otpRequestedAfter = new Date(Date.now() - 5_000).toISOString();
+  // This is the irreversible official submission boundary. Re-check the
+  // lease immediately before clicking so a reclaimed job cannot submit in
+  // parallel with the new owner.
+  executionContext?.assertOwned();
   if (!(await clickOfficialButton(page, "Submit"))) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival final Submit control was not found on the review page.",
@@ -745,8 +760,16 @@ async function completeOfficialSubmissionFromReview(
   let finalizingLogged = false;
   while (Date.now() < deadline) {
     await page.waitForTimeout(750);
-    await handleEmailVerification(page, applicantId, otpRequestedAfter, screenshots, logs, tempDir);
-    await handleCaptchaGate(page, screenshots, logs, tempDir);
+    await handleEmailVerification(
+      page,
+      applicantId,
+      otpRequestedAfter,
+      screenshots,
+      logs,
+      tempDir,
+      executionContext,
+    );
+    await handleCaptchaGate(page, screenshots, logs, tempDir, executionContext);
     const successHeading = page.getByText(
       /^(?:your )?submission is successful!?$/i,
       { exact: true },
@@ -979,7 +1002,13 @@ async function downloadConfirmationPdf(page: Page, dir: string, logs: string[]):
   }
 }
 
-async function handleCaptchaGate(page: Page, screenshots: string[], logs: string[], tempDir: string): Promise<void> {
+async function handleCaptchaGate(
+  page: Page,
+  screenshots: string[],
+  logs: string[],
+  tempDir: string,
+  executionContext?: RunnerExecutionContext,
+): Promise<void> {
   const challengeVisible = await hasVisibleVietnamCaptchaChallenge(page);
   logs.push(`vn_prearrival_captcha_visible=${challengeVisible}`);
   if (!challengeVisible) return;
@@ -1005,6 +1034,7 @@ async function handleCaptchaGate(page: Page, screenshots: string[], logs: string
   // input's change/blur cycle. Tabbing out also avoids clicking a visible text
   // child inside a still-disabled button while the form state is settling.
   await page.keyboard.press("Tab").catch(() => undefined);
+  executionContext?.assertOwned();
   const verified = await clickFirstVisibleEnabled(page, [
     "button:has-text('Verify')",
     "button:has-text('Xác nhận')",
@@ -1089,9 +1119,10 @@ async function waitForPassengerForm(
   screenshots: string[],
   logs: string[],
   tempDir: string,
+  executionContext?: RunnerExecutionContext,
 ): Promise<boolean> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    await handleCaptchaGate(page, screenshots, logs, tempDir);
+    await handleCaptchaGate(page, screenshots, logs, tempDir, executionContext);
     const passengerHeading = page.getByText(/passenger information/i);
     const headingCount = await passengerHeading.count().catch(() => 0);
     if (headingCount > 0 && (await passengerHeading.first().isVisible().catch(() => false))) return true;
@@ -1145,18 +1176,26 @@ export async function runVietnamPrearrivalPortalSubmission(
     headless?: boolean;
     stopBeforeSubmit?: boolean;
     applicantId?: string;
+    executionContext?: RunnerExecutionContext;
   } = {},
 ): Promise<VnPrearrivalPortalSubmissionResult> {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `viza-vn-prearrival-${payload.applicationId}-`));
   let session: ArrivalCardBrowserSession | null = null;
+  let abortSession: (() => void) | null = null;
   const logs: string[] = [];
   const screenshots: string[] = [];
 
   try {
+    options.executionContext?.assertOwned();
     session = await createArrivalCardBrowserSession({
       prefix: "VN_PREARRIVAL",
       headless: options.headless,
     });
+    abortSession = () => {
+      void session?.close().catch(() => undefined);
+    };
+    options.executionContext?.signal.addEventListener("abort", abortSession, { once: true });
+    options.executionContext?.assertOwned();
     logs.push(...session.diagnostics);
     const { page } = session;
     await page.goto(VN_PREARRIVAL_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -1189,7 +1228,7 @@ export async function runVietnamPrearrivalPortalSubmission(
         logs,
       );
     }
-    await handleCaptchaGate(page, screenshots, logs, tempDir);
+    await handleCaptchaGate(page, screenshots, logs, tempDir, options.executionContext);
     if (!(await completeNationalityGate(page, payload.nationality))) {
       throw new VnPrearrivalPortalError(
         "Vietnam Pre-Arrival nationality selection could not be completed on the official portal.",
@@ -1201,7 +1240,14 @@ export async function runVietnamPrearrivalPortalSubmission(
     }
     // The official portal can present the image CAPTCHA again after the
     // nationality screen. Do not treat the modal as an empty declaration form.
-    if (!(await waitForPassengerForm(page, payload.nationality, screenshots, logs, tempDir))) {
+    if (!(await waitForPassengerForm(
+      page,
+      payload.nationality,
+      screenshots,
+      logs,
+      tempDir,
+      options.executionContext,
+    ))) {
       const waitingScreenshot = await saveScreenshot(page, tempDir, "passenger-form-not-ready", logs);
       if (waitingScreenshot) screenshots.push(waitingScreenshot);
       throw new VnPrearrivalPortalError(
@@ -1446,7 +1492,7 @@ export async function runVietnamPrearrivalPortalSubmission(
       );
     }
 
-    await openOfficialReviewPage(page, screenshots, logs, tempDir);
+    await openOfficialReviewPage(page, screenshots, logs, tempDir, options.executionContext);
     if (options.stopBeforeSubmit) {
       return {
         submitted: false,
@@ -1461,7 +1507,14 @@ export async function runVietnamPrearrivalPortalSubmission(
       };
     }
 
-    await completeOfficialSubmissionFromReview(page, options.applicantId, screenshots, logs, tempDir);
+    await completeOfficialSubmissionFromReview(
+      page,
+      options.applicantId,
+      screenshots,
+      logs,
+      tempDir,
+      options.executionContext,
+    );
     await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
     const submitScreenshot = await saveScreenshot(page, tempDir, "after-submit", logs);
     if (submitScreenshot) screenshots.push(submitScreenshot);
@@ -1505,6 +1558,7 @@ export async function runVietnamPrearrivalPortalSubmission(
       logs,
     };
   } finally {
+    if (abortSession) options.executionContext?.signal.removeEventListener("abort", abortSession);
     if (session) await session.close().catch(() => undefined);
   }
 }

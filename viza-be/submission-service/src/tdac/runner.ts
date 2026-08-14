@@ -4,6 +4,7 @@ import * as path from "path";
 import { type Download, type Page, type Response } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { TDAC_OFFICIAL_PORTAL_URL, type TdacPortalPayload } from "./normalize";
+import type { RunnerExecutionContext } from "../queue/execution-context.js";
 
 export interface TdacPortalSubmissionResult {
   submitted: boolean;
@@ -444,6 +445,7 @@ export interface TdacPortalRunOptions {
    * without recording action tokens or submitted applicant answers.
    */
   onInitialOfficialApiResponse?: (response: TdacOfficialApiResponse) => void | Promise<void>;
+  executionContext?: RunnerExecutionContext;
 }
 
 function tdacCountrySearchCandidates(value: string): string[] {
@@ -1729,6 +1731,7 @@ export async function runTdacPortalSubmission(
   payload: TdacPortalPayload,
   options: TdacPortalRunOptions = {},
 ): Promise<TdacPortalSubmissionResult> {
+  options.executionContext?.assertOwned();
   const logs: string[] = [`tdac_start application=${payload.applicationId}`];
   const screenshots: string[] = [];
   let browserSession = await createArrivalCardBrowserSession({
@@ -1736,6 +1739,11 @@ export async function runTdacPortalSubmission(
     headless: options.headless,
   });
   let page = browserSession.page;
+  const abortListener = (): void => {
+    void browserSession.close().catch(() => undefined);
+  };
+  options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+  options.executionContext?.assertOwned();
   logs.push(`tdac_browser_provider=${browserSession.provider}`);
   logs.push(...browserSession.diagnostics);
 
@@ -1802,6 +1810,7 @@ export async function runTdacPortalSubmission(
         requestBody: Record<string, unknown>,
         auditLabel: string,
       ): Promise<unknown> => {
+        options.executionContext?.assertOwned();
         const template = officialRequestTemplates.get(endpoint);
         if (!template) {
           throw new Error(`TDAC official dropdown audit request template was not observed: ${endpoint}`);
@@ -1984,6 +1993,8 @@ export async function runTdacPortalSubmission(
         headless: options.headless,
       });
       page = browserSession.page;
+      options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+      options.executionContext?.assertOwned();
       attachInitialOfficialResponseAudit();
       logs.push(`tdac_browser_provider=${browserSession.provider}`);
       logs.push(...browserSession.diagnostics);
@@ -2108,13 +2119,16 @@ export async function runTdacPortalSubmission(
     await prepareTdacFinalSubmit(page, payload, screenshots, logs);
     screenshots.push(await saveScreenshot(page, "before-final-submit", logs));
     await assertTdacOfficialFormValid(page, screenshots, logs, "final-submit");
+    options.executionContext?.assertOwned();
     await clickFirstEnabledButton(page, /^Submit$/i, logs);
     await page.waitForTimeout(2_000);
+    options.executionContext?.assertOwned();
     await clickButtonIfVisible(page, /^(Confirm|OK|Yes|Submit)$/i, logs, 10_000);
     const portalText = await waitForTdacSubmissionOutcome(page, screenshots, logs);
     const pdfs = await downloadTdacPdfIfAvailable(page, logs);
     return buildTdacSuccessFromPortalText(payload, portalText, page.url(), screenshots, pdfs, logs);
   } finally {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
     await browserSession.close();
   }
 }

@@ -32,3 +32,7 @@ Guardrails:
   portal autocomplete must be searched and matched with the bundled English
   labels from `administrative-label.ts`. Keep this mapping covered by
   `runner-administrative-options.spec.ts`.
+- Shared-pool runs receive a `RunnerExecutionContext`; close the browser on
+  lease-loss abort and assert ownership immediately before Review/Submit and
+  final Submit. Ownership-loss/AbortError paths must bypass portal-failure
+  persistence in the queue adapter.

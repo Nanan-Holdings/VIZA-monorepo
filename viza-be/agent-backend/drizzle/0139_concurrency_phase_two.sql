@@ -247,6 +247,8 @@ LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = ''
 AS $$
+DECLARE
+  v_now TIMESTAMPTZ := clock_timestamp();
 BEGIN
   IF p_job_id IS NULL THEN
     RAISE EXCEPTION 'p_job_id is required' USING ERRCODE = '22023';
@@ -261,14 +263,14 @@ BEGIN
   RETURN QUERY
   UPDATE public.runner_job AS job
   SET status = 'succeeded',
-    finished_at = p_now,
+    finished_at = COALESCE(p_now, v_now),
     leased_by = NULL,
     leased_until = NULL,
     last_error = NULL
   WHERE job.id = p_job_id
     AND job.status = 'running'
     AND job.leased_by = p_worker_id
-    AND job.leased_until > p_now
+    AND job.leased_until > v_now
   RETURNING job.application_id, job.country, job.started_at;
 END;
 $$;
@@ -278,6 +280,128 @@ GRANT EXECUTE ON FUNCTION public.complete_runner_pool_job(UUID, TEXT, TIMESTAMPT
 
 COMMENT ON FUNCTION public.complete_runner_pool_job(UUID, TEXT, TIMESTAMPTZ) IS
   'Completes a running pool job only for its owning worker and live lease.';
+
+-- Renew a claimed pool job only while the caller still owns its live lease.
+-- The database clock is intentionally authoritative; no caller timestamp is
+-- accepted, so network delay cannot extend a reclaimed lease.
+CREATE OR REPLACE FUNCTION public.renew_runner_pool_job(
+  p_job_id UUID,
+  p_worker_id TEXT,
+  p_lease_ms INTEGER DEFAULT 900000
+)
+RETURNS TABLE (
+  leased_until TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  v_now TIMESTAMPTZ := clock_timestamp();
+BEGIN
+  IF p_job_id IS NULL THEN
+    RAISE EXCEPTION 'p_job_id is required' USING ERRCODE = '22023';
+  END IF;
+  IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
+    RAISE EXCEPTION 'p_worker_id must not be blank' USING ERRCODE = '22023';
+  END IF;
+  IF p_lease_ms IS NULL OR p_lease_ms < 10000 OR p_lease_ms > 7200000 THEN
+    RAISE EXCEPTION 'Runner lease must be between 10 seconds and 2 hours'
+      USING ERRCODE = '22023';
+  END IF;
+
+  RETURN QUERY
+  UPDATE public.runner_job AS job
+  SET leased_until = v_now + p_lease_ms * INTERVAL '1 millisecond'
+  WHERE job.id = p_job_id
+    AND job.status = 'running'
+    AND job.leased_by = BTRIM(p_worker_id)
+    AND job.leased_until > v_now
+  RETURNING job.leased_until;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.renew_runner_pool_job(UUID, TEXT, INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.renew_runner_pool_job(UUID, TEXT, INTEGER) TO service_role;
+
+COMMENT ON FUNCTION public.renew_runner_pool_job(UUID, TEXT, INTEGER) IS
+  'Renews a running pool job only for its owning worker and live database-clock lease.';
+
+-- Settle a failed pool job only while the caller still owns its live lease.
+-- Retry availability and terminal timestamps are derived from clock_timestamp()
+-- inside SQL; p_retry_after_seconds preserves the existing backoff policy.
+CREATE OR REPLACE FUNCTION public.fail_runner_pool_job(
+  p_job_id UUID,
+  p_worker_id TEXT,
+  p_status TEXT,
+  p_attempts INTEGER,
+  p_last_error TEXT,
+  p_retry_after_seconds INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+  id UUID,
+  status TEXT,
+  available_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  v_now TIMESTAMPTZ := clock_timestamp();
+  v_available_at TIMESTAMPTZ;
+BEGIN
+  IF p_job_id IS NULL THEN
+    RAISE EXCEPTION 'p_job_id is required' USING ERRCODE = '22023';
+  END IF;
+  IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
+    RAISE EXCEPTION 'p_worker_id must not be blank' USING ERRCODE = '22023';
+  END IF;
+  IF p_status IS NULL OR p_status NOT IN ('queued', 'failed') THEN
+    RAISE EXCEPTION 'p_status must be queued or failed' USING ERRCODE = '22023';
+  END IF;
+  IF p_attempts IS NULL OR p_attempts < 1 THEN
+    RAISE EXCEPTION 'p_attempts must be positive' USING ERRCODE = '22023';
+  END IF;
+  IF p_retry_after_seconds IS NULL
+    OR p_retry_after_seconds < 0
+    OR p_retry_after_seconds > 300
+  THEN
+    RAISE EXCEPTION 'p_retry_after_seconds must be between 0 and 300'
+      USING ERRCODE = '22023';
+  END IF;
+
+  v_available_at := CASE
+    WHEN p_status = 'queued'
+      THEN v_now + p_retry_after_seconds * INTERVAL '1 second'
+    ELSE NULL
+  END;
+
+  RETURN QUERY
+  UPDATE public.runner_job AS job
+  SET status = p_status,
+      attempts = p_attempts,
+      last_error = p_last_error,
+      finished_at = CASE WHEN p_status = 'failed' THEN v_now ELSE NULL END,
+      leased_by = NULL,
+      leased_until = NULL,
+      available_at = CASE
+        WHEN p_status = 'queued' THEN v_available_at
+        ELSE job.available_at
+      END
+  WHERE job.id = p_job_id
+    AND job.status = 'running'
+    AND job.leased_by = BTRIM(p_worker_id)
+    AND job.leased_until > v_now
+  RETURNING job.id, job.status, job.available_at;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.fail_runner_pool_job(UUID, TEXT, TEXT, INTEGER, TEXT, INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.fail_runner_pool_job(UUID, TEXT, TEXT, INTEGER, TEXT, INTEGER) TO service_role;
+
+COMMENT ON FUNCTION public.fail_runner_pool_job(UUID, TEXT, TEXT, INTEGER, TEXT, INTEGER) IS
+  'Settles a failed running pool job only for its owning worker and live database-clock lease.';
 
 -- Match a bounded batch of official Vietnam status emails in one set-based
 -- operation. The service-role submission worker passes only parsed message

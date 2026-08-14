@@ -1,0 +1,369 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type {
+  RunnerExecutionContext,
+  RunnerJob,
+  RunnerPoolClient,
+} from "../worker.js";
+
+process.env.SUPABASE_URL ??= "https://worker-runtime-test.invalid";
+process.env.SUPABASE_SERVICE_ROLE_KEY ??= "worker-runtime-test-key";
+
+type RpcCall = { name: string; args: Record<string, unknown> };
+type QueryResult = { data: unknown; error: { message: string } | null };
+
+interface FakeQuery {
+  insert(values: unknown): Promise<QueryResult>;
+  update(values: Record<string, unknown>): FakeQuery;
+  eq(column: string, value: unknown): FakeQuery;
+  gt(column: string, value: unknown): FakeQuery;
+  select(columns: string): FakeQuery;
+  maybeSingle(): Promise<QueryResult>;
+}
+
+interface MutableSupabaseClient {
+  rpc(name: string, args: Record<string, unknown>): Promise<QueryResult>;
+  from(table: string): FakeQuery;
+}
+
+interface WorkerModule {
+  markSucceeded(jobId: string, workerId: string, dependencies?: unknown): Promise<void>;
+  markFailedWithRetry(
+    job: RunnerJob,
+    error: unknown,
+    workerId: string,
+    client?: RunnerPoolClient,
+  ): Promise<number | null>;
+  drainAndRun(options: {
+    workerId: string;
+    leaseMs: number;
+    renewEveryMs: number;
+    handler: (job: RunnerJob, execution: RunnerExecutionContext) => Promise<void>;
+  }): Promise<{ jobsProcessed: number; stoppedBecause: string }>;
+}
+
+function claimedJob() {
+  return {
+    id: "job-1",
+    application_id: "app-1",
+    country: "singapore",
+    flow_key: "sgac",
+    attempts: 0,
+    max_attempts: 3,
+    correlation_id: null,
+    metadata: null,
+  };
+}
+
+async function loadWorker(): Promise<{ worker: WorkerModule; client: MutableSupabaseClient }> {
+  const [{ supabase }, worker] = await Promise.all([
+    import("../../supabase.js"),
+    import("../worker.js"),
+  ]);
+  return {
+    worker: worker as unknown as WorkerModule,
+    client: supabase as unknown as MutableSupabaseClient,
+  };
+}
+
+function queryReturning(data: unknown, error: { message: string } | null = null): FakeQuery {
+  const chain: FakeQuery = {
+    insert: async () => ({ data: null, error: null }),
+    update: () => chain,
+    eq: () => chain,
+    gt: () => chain,
+    select: () => chain,
+    maybeSingle: async () => ({ data, error }),
+  };
+  return chain;
+}
+
+test("success settlement uses the DB clock and does not send client p_now", async () => {
+  const { worker, client } = await loadWorker();
+  const calls: RpcCall[] = [];
+  const originalRpc = client.rpc;
+  client.rpc = async (name, args) => {
+    calls.push({ name, args });
+    return {
+      data: { id: "job-1" },
+      error: null,
+    };
+  };
+  try {
+    await worker.markSucceeded("job-1", "worker-1");
+    assert.deepEqual(calls[0]?.name, "complete_runner_pool_job");
+    assert.equal("p_now" in (calls[0]?.args ?? {}), false);
+  } finally {
+    client.rpc = originalRpc;
+  }
+});
+
+test("failure settlement keeps retry and dead-letter backoff semantics", async () => {
+  const { worker } = await loadWorker();
+  const calls: RpcCall[] = [];
+  const client: RunnerPoolClient = {
+    rpc: async (name, args) => {
+      calls.push({ name, args });
+      return { data: { id: "job-1", status: args.p_status }, error: null };
+    },
+    from: () => queryReturning(null),
+  };
+  const retryDelayMs = await worker.markFailedWithRetry(
+    { ...claimedJob(), attempts: 0 },
+    new Error("temporary portal outage"),
+    "worker-1",
+    client,
+  );
+  assert.equal(retryDelayMs, 15_000);
+  assert.deepEqual(calls[0], {
+    name: "fail_runner_pool_job",
+    args: {
+      p_job_id: "job-1",
+      p_worker_id: "worker-1",
+      p_status: "queued",
+      p_attempts: 1,
+      p_last_error: "temporary portal outage",
+      p_retry_after_seconds: 15,
+    },
+  });
+
+  calls.length = 0;
+  const deadLetterDelayMs = await worker.markFailedWithRetry(
+    { ...claimedJob(), attempts: 2 },
+    new Error("permanent portal outage"),
+    "worker-1",
+    client,
+  );
+  assert.equal(deadLetterDelayMs, null);
+  assert.equal(calls[0]?.args.p_status, "failed");
+  assert.equal(calls[0]?.args.p_attempts, 3);
+  assert.equal(calls[0]?.args.p_retry_after_seconds, 0);
+});
+
+test("successful renew uses the typed DB-clock renewal RPC result", async () => {
+  const { worker, client } = await loadWorker();
+  const calls: RpcCall[] = [];
+  const originalRpc = client.rpc;
+  const originalFrom = client.from;
+  let claimed = false;
+  client.rpc = async (name, args) => {
+    calls.push({ name, args });
+    if (name === "claim_runner_pool_job") {
+      if (claimed) return { data: null, error: null };
+      claimed = true;
+      return { data: claimedJob(), error: null };
+    }
+    if (name === "complete_runner_pool_job") return { data: claimedJob(), error: null };
+    return { data: { leased_until: "2099-01-01T00:00:00.000Z" }, error: null };
+  };
+  client.from = () => queryReturning({ id: "job-1" });
+  try {
+    await worker.drainAndRun({
+      workerId: "worker-1",
+      leaseMs: 100,
+      renewEveryMs: 5,
+      handler: async () => new Promise((resolve) => setTimeout(resolve, 20)),
+    });
+    assert.ok(calls.some((call) => call.name === "renew_runner_pool_job"));
+  } finally {
+    client.rpc = originalRpc;
+    client.from = originalFrom;
+  }
+});
+
+test("renewal ownership loss aborts the active handler", async () => {
+  const { worker, client } = await loadWorker();
+  const originalRpc = client.rpc;
+  const originalFrom = client.from;
+  let claimed = false;
+  let renewalCalls = 0;
+  client.rpc = async (name) => {
+    if (name === "claim_runner_pool_job") {
+      if (claimed) return { data: null, error: null };
+      claimed = true;
+      return { data: claimedJob(), error: null };
+    }
+    if (name === "complete_runner_pool_job") return { data: claimedJob(), error: null };
+    return { data: null, error: null };
+  };
+  client.from = () => {
+    renewalCalls += 1;
+    return queryReturning(renewalCalls === 1 ? null : { id: "job-1" });
+  };
+  let observedAborted = false;
+  try {
+    await worker.drainAndRun({
+      workerId: "worker-1",
+      leaseMs: 100,
+      renewEveryMs: 5,
+      handler: async (_job, execution) => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        observedAborted = execution.signal.aborted;
+      },
+    });
+    assert.equal(observedAborted, true);
+  } finally {
+    client.rpc = originalRpc;
+    client.from = originalFrom;
+  }
+});
+
+test("handler checkpoint observes the aborted signal before an irreversible action", async () => {
+  const { worker, client } = await loadWorker();
+  const originalRpc = client.rpc;
+  const originalFrom = client.from;
+  let claimed = false;
+  client.rpc = async (name) => {
+    if (name === "claim_runner_pool_job") {
+      if (claimed) return { data: null, error: null };
+      claimed = true;
+      return { data: claimedJob(), error: null };
+    }
+    if (name === "complete_runner_pool_job") return { data: claimedJob(), error: null };
+    return { data: null, error: null };
+  };
+  client.from = () => queryReturning(null);
+  let irreversibleActionReached = false;
+  let missingExecutionContext = false;
+  try {
+    await worker.drainAndRun({
+      workerId: "worker-1",
+      leaseMs: 100,
+      renewEveryMs: 5,
+      handler: async (_job, execution) => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        if (!execution) {
+          missingExecutionContext = true;
+          return;
+        }
+        execution.assertOwned();
+        irreversibleActionReached = true;
+      },
+    });
+    assert.equal(missingExecutionContext, false);
+    assert.equal(irreversibleActionReached, false);
+  } finally {
+    client.rpc = originalRpc;
+    client.from = originalFrom;
+  }
+});
+
+test("settlement waits for in-flight renewal", async () => {
+  const { worker, client } = await loadWorker();
+  const originalRpc = client.rpc;
+  const originalFrom = client.from;
+  let claimed = false;
+  const events: string[] = [];
+  client.rpc = async (name) => {
+    if (name === "claim_runner_pool_job") {
+      if (claimed) return { data: null, error: null };
+      claimed = true;
+      return { data: claimedJob(), error: null };
+    }
+    if (name === "complete_runner_pool_job") {
+      events.push("complete");
+      return { data: claimedJob(), error: null };
+    }
+    if (name === "renew_runner_pool_job") {
+      events.push("renew-start");
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      events.push("renew-end");
+    }
+    return { data: { leased_until: "2099-01-01T00:00:00.000Z" }, error: null };
+  };
+  client.from = () => {
+    const query = queryReturning({ id: "job-1" });
+    return {
+      ...query,
+      maybeSingle: async () => {
+        events.push("renew-start");
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        events.push("renew-end");
+        return { data: { id: "job-1" }, error: null };
+      },
+    };
+  };
+  try {
+    await worker.drainAndRun({
+      workerId: "worker-1",
+      leaseMs: 100,
+      renewEveryMs: 1,
+      handler: async () => new Promise((resolve) => setTimeout(resolve, 5)),
+    });
+    assert.deepEqual(events.slice(-2), ["renew-end", "complete"]);
+  } finally {
+    client.rpc = originalRpc;
+    client.from = originalFrom;
+  }
+});
+
+test("settlement stops renewal scheduling before completion starts", async () => {
+  const { worker, client } = await loadWorker();
+  const originalRpc = client.rpc;
+  const events: string[] = [];
+  let claimed = false;
+  client.rpc = async (name) => {
+    if (name === "claim_runner_pool_job") {
+      if (claimed) return { data: null, error: null };
+      claimed = true;
+      return { data: claimedJob(), error: null };
+    }
+    if (name === "renew_runner_pool_job") {
+      events.push("renew");
+      return { data: { leased_until: "2099-01-01T00:00:00.000Z" }, error: null };
+    }
+    if (name === "complete_runner_pool_job") {
+      events.push("complete-start");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      events.push("complete-end");
+      return { data: { id: "job-1" }, error: null };
+    }
+    return { data: { id: "job-1" }, error: null };
+  };
+  try {
+    await worker.drainAndRun({
+      workerId: "worker-1",
+      leaseMs: 100,
+      renewEveryMs: 1,
+      handler: async () => undefined,
+    });
+    const completeStart = events.indexOf("complete-start");
+    const completeEnd = events.indexOf("complete-end");
+    assert.ok(completeStart >= 0);
+    assert.ok(completeEnd > completeStart);
+    assert.equal(events.slice(completeStart + 1, completeEnd).includes("renew"), false);
+  } finally {
+    client.rpc = originalRpc;
+  }
+});
+
+test("ownership loss prevents both success and fallback failure settlement", async () => {
+  const { worker, client } = await loadWorker();
+  const originalRpc = client.rpc;
+  const originalFrom = client.from;
+  let claimed = false;
+  const settlements: string[] = [];
+  client.rpc = async (name) => {
+    if (name === "claim_runner_pool_job") {
+      if (claimed) return { data: null, error: null };
+      claimed = true;
+      return { data: claimedJob(), error: null };
+    }
+    settlements.push(name);
+    return { data: claimedJob(), error: null };
+  };
+  client.from = () => queryReturning(null);
+  try {
+    await worker.drainAndRun({
+      workerId: "worker-1",
+      leaseMs: 100,
+      renewEveryMs: 5,
+      handler: async () => new Promise((resolve) => setTimeout(resolve, 20)),
+    });
+    assert.equal(settlements.includes("complete_runner_pool_job"), false);
+    assert.equal(settlements.includes("fail_runner_pool_job"), false);
+  } finally {
+    client.rpc = originalRpc;
+    client.from = originalFrom;
+  }
+});

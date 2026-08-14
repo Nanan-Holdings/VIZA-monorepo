@@ -84,9 +84,20 @@ filling and one-shot submission for the applicant.
   the same official submission.
 - `src/queue/worker.ts`: shared `runner_job` settlement must call the
   service-role-only `complete_runner_pool_job` RPC with the stable worker id.
-  Failure, renewal, and success writes are fenced by status, owner, and a live
-  lease; a typed `runner_job_ownership_lost` result skips fallback failure
-  writes, alerts, and metrics so a stale worker cannot mutate a reclaimed job.
+  Failure and renewal use the service-role-only `fail_runner_pool_job` and
+  `renew_runner_pool_job` RPCs, whose ownership predicates use PostgreSQL's
+  `clock_timestamp()` rather than a caller timestamp. Success omits `p_now` in
+  production; the completion RPC's optional controlled timestamp remains only
+  for staging/time-controlled harnesses. Failure, renewal, and success writes
+  are fenced by status, owner, and a live lease; a typed
+  `runner_job_ownership_lost` result skips fallback failure writes, alerts, and
+  metrics so a stale worker cannot mutate a reclaimed job.
+- Queue handlers receive a `RunnerExecutionContext` with an `AbortSignal` and
+  `assertOwned` checkpoints. Lease renewal loss or expiry aborts the active
+  portal session, and every shared-pool adapter checks ownership immediately
+  before final official submit/payment and before persisting a successful or
+  failed local result. Cancellation/ownership errors must escape runner catch
+  blocks without being converted into portal failures.
 - `src/vietnam/status-check-lease.ts`: Vietnam official-status checks are
   worker-leased and may be completed or failed only by their claiming worker;
   the consumer must honor a false conditional-RPC result as lost ownership.
