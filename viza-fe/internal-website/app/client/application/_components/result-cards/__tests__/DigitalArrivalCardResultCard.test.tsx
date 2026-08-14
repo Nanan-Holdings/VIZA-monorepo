@@ -190,6 +190,77 @@ describe("DigitalArrivalCardResultCard", () => {
     window.sessionStorage.removeItem(`viza:smooth-progress:${persistenceKey}`);
   });
 
+  it("keeps the Vietnam payment card mounted when the new payment queue becomes active", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/official-fee/status")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ paymentQueued: false }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: "running",
+          stage: "preparing",
+          progress: 12,
+          result: null,
+          error: null,
+          message: "Current stage: payment_authorized.",
+          updatedAt: new Date().toISOString(),
+          applicationStatus: "waiting",
+          country: "vietnam",
+          visaType: "evisa_tourism",
+          queue: {
+            id: "new-vietnam-payment-queue",
+            status: "vn_cloud_live_pending",
+            mode: "live_assisted",
+            provider: "vietnam_evisa_live",
+            currentStage: "payment_authorized",
+          },
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="vn-payment-application"
+        country="vietnam"
+        visaType="evisa_tourism"
+        status="action_required"
+        result={{
+          country: "VN",
+          status: "stopped_at_pay",
+          mode: "live_assisted",
+          provider: "vietnam_evisa_live",
+          portalUrl: "https://evisa.gov.vn/e-visa/foreigners",
+          checkpoint: "payment_page_visible",
+          manualAction: {
+            type: "payment_required",
+            status: "open",
+            instructions: "Authorize payment to continue.",
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText("银行卡号")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/vn-payment-application/submission-status",
+        expect.objectContaining({ cache: "no-store" }),
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByLabelText("银行卡号")).toBeInTheDocument();
+    expect(screen.queryByText("正在提交您的申请")).not.toBeInTheDocument();
+  });
+
   it("does not hide portal field-selection errors as browser launch failures", () => {
     const fieldError =
       "Official Vietnam e-Visa portal rejected this value: playwright_selection_not_confirmed for nationality";

@@ -2088,7 +2088,7 @@ export function SubmissionStatusStep({
 
   if (
     vietnamPaymentCheckpointResult &&
-    (failed || stalled || actionWithResult || completedWithResult)
+    (snapshotIsActive || failed || stalled || actionWithResult || completedWithResult)
   ) {
     return (
       <div className="space-y-4">
