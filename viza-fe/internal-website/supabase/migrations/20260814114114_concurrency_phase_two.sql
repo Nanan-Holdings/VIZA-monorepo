@@ -38,6 +38,11 @@ LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = ''
 AS $$
+DECLARE
+  v_locked_country TEXT;
+  v_last_country TEXT := '';
+  v_cap_iterations INTEGER := 0;
+  v_claimed_rows INTEGER := 0;
 BEGIN
   IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
     RAISE EXCEPTION 'Worker id is required' USING ERRCODE = '22023';
@@ -97,50 +102,86 @@ BEGIN
     AND job.status = 'running'
     AND job.leased_until <= p_now;
 
-  -- Scan the shared queue in stable FIFO order. The candidate and its country
-  -- cap are locked together, so a locked country is skipped and another
-  -- eligible country's row can be claimed by the same poll.
-  RETURN QUERY
-  WITH selected AS MATERIALIZED (
-    SELECT candidate.id, candidate.country
-    FROM public.runner_job AS candidate
-    JOIN public.runner_concurrency_cap AS cap
-      ON cap.country = candidate.country
-    WHERE candidate.status = 'queued'
-      AND candidate.available_at <= p_now
-      AND candidate.country IN (
+  -- Lock at most the five eligible country-cap rows in global country order.
+  -- The EXISTS predicate only finds work; capacity is checked after the cap
+  -- row is locked in a separate statement with a fresh READ COMMITTED snapshot.
+  WHILE v_cap_iterations < 5 LOOP
+    SELECT cap.country
+    INTO v_locked_country
+    FROM public.runner_concurrency_cap AS cap
+    WHERE cap.country > v_last_country
+      AND cap.country IN (
         'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
       )
       AND NOT cap.paused
-      AND (
-        SELECT COUNT(*)
-        FROM public.runner_job AS active
-        WHERE active.country = candidate.country
-          AND active.status = 'running'
-      ) < cap.max_concurrent
-    ORDER BY candidate.enqueued_at, candidate.id
+      AND EXISTS (
+        SELECT 1
+        FROM public.runner_job AS candidate
+        WHERE candidate.country = cap.country
+          AND candidate.status = 'queued'
+          AND candidate.available_at <= p_now
+      )
+    ORDER BY cap.country
     LIMIT 1
-    FOR UPDATE OF candidate, cap SKIP LOCKED
-  )
-  UPDATE public.runner_job AS claimed
-  SET status = 'running',
-      leased_by = p_worker_id,
-      leased_until = p_now + p_lease_ms * INTERVAL '1 millisecond',
-      started_at = p_now,
-      finished_at = NULL,
-      last_error = NULL
-  FROM selected
-  WHERE claimed.id = selected.id
-    AND claimed.status = 'queued'
-  RETURNING
-    claimed.id,
-    claimed.application_id,
-    claimed.country,
-    claimed.flow_key,
-    claimed.attempts,
-    claimed.max_attempts,
-    claimed.correlation_id,
-    claimed.metadata;
+    FOR UPDATE OF cap SKIP LOCKED;
+
+    IF NOT FOUND THEN
+      EXIT;
+    END IF;
+
+    v_last_country := v_locked_country;
+    v_cap_iterations := v_cap_iterations + 1;
+
+    -- This is a separate SQL statement after the cap-row lock. Its snapshot
+    -- sees any committed same-country claim before evaluating the count.
+    RETURN QUERY
+    WITH selected AS MATERIALIZED (
+      SELECT candidate.id, candidate.country
+      FROM public.runner_job AS candidate
+      JOIN public.runner_concurrency_cap AS cap
+        ON cap.country = candidate.country
+      WHERE candidate.country = v_locked_country
+        AND candidate.status = 'queued'
+        AND candidate.available_at <= p_now
+        AND candidate.country IN (
+          'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
+        )
+        AND NOT cap.paused
+        AND (
+          SELECT COUNT(*)
+          FROM public.runner_job AS active
+          WHERE active.country = candidate.country
+            AND active.status = 'running'
+        ) < cap.max_concurrent
+      ORDER BY candidate.enqueued_at, candidate.id
+      LIMIT 1
+      FOR UPDATE OF candidate, cap SKIP LOCKED
+    )
+    UPDATE public.runner_job AS claimed
+    SET status = 'running',
+        leased_by = p_worker_id,
+        leased_until = p_now + p_lease_ms * INTERVAL '1 millisecond',
+        started_at = p_now,
+        finished_at = NULL,
+        last_error = NULL
+    FROM selected
+    WHERE claimed.id = selected.id
+      AND claimed.status = 'queued'
+    RETURNING
+      claimed.id,
+      claimed.application_id,
+      claimed.country,
+      claimed.flow_key,
+      claimed.attempts,
+      claimed.max_attempts,
+      claimed.correlation_id,
+      claimed.metadata;
+
+    GET DIAGNOSTICS v_claimed_rows = ROW_COUNT;
+    IF v_claimed_rows > 0 THEN
+      RETURN;
+    END IF;
+  END LOOP;
 END;
 $$;
 

@@ -62,6 +62,25 @@ describe("runner pool concurrency phase two migration", () => {
     );
   });
 
+  it("rechecks capacity in a fresh statement after each locked cap and continues boundedly", () => {
+    const capLockIndex = functionBody.indexOf("FOR UPDATE OF cap SKIP LOCKED");
+    const selectedIndex = functionBody.indexOf("selected AS MATERIALIZED");
+    expect(capLockIndex).toBeGreaterThan(-1);
+    expect(selectedIndex).toBeGreaterThan(capLockIndex);
+    expect(functionBody.slice(0, capLockIndex)).not.toMatch(
+      /SELECT COUNT\(\*\)[\s\S]*?active\.country = candidate\.country[\s\S]*?active\.status = 'running'/i,
+    );
+    expect(functionBody).toMatch(
+      /SELECT cap\.country[\s\S]*?FROM public\.runner_concurrency_cap AS cap[\s\S]*?EXISTS \([\s\S]*?candidate\.status = 'queued'[\s\S]*?candidate\.available_at <= p_now[\s\S]*?ORDER BY cap\.country[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE OF cap SKIP LOCKED/i,
+    );
+    expect(functionBody).toMatch(/WHILE\s+v_cap_iterations\s*<\s*5\s+LOOP/i);
+    expect(functionBody).toMatch(/v_last_country/i);
+    expect(functionBody).toMatch(/GET DIAGNOSTICS v_claimed_rows = ROW_COUNT/i);
+    expect(functionBody).toMatch(
+      /IF v_claimed_rows > 0 THEN\s*RETURN;\s*END IF;/i,
+    );
+  });
+
   it("only considers due queued jobs below an unpaused per-country cap", () => {
     expect(functionBody).toMatch(/candidate\.status = 'queued'/i);
     expect(functionBody).toMatch(/candidate\.available_at <= p_now/i);
