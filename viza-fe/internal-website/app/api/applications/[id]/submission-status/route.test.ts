@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { deriveNonTerminalStatus, selectQueueForSubmissionStatus } from "./route";
+import {
+  deriveNonTerminalStatus,
+  hasTaiwanApplicantHandoffReady,
+  selectQueueForSubmissionStatus,
+} from "./route";
 
 const ukStoppedAtPayResult = {
   country: "UK",
@@ -378,5 +382,41 @@ describe("selectQueueForSubmissionStatus", () => {
     ]);
 
     expect(queue?.id).toBe("new_failed_retry");
+  });
+});
+
+describe("hasTaiwanApplicantHandoffReady", () => {
+  it("lets a durable Taiwan applicant handoff outrank the lease-holding runner", () => {
+    expect(
+      hasTaiwanApplicantHandoffReady({
+        country: "taiwan",
+        visa_type: "TW_ENTRY_PERMIT",
+        submission_result_status: "needs_user_action",
+        submission_result: {
+          country: "TW",
+          status: "stopped_at_captcha",
+          handoffId: "handoff_1",
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it("does not treat an incomplete or non-Taiwan result as a ready handoff", () => {
+    expect(
+      hasTaiwanApplicantHandoffReady({
+        country: "taiwan",
+        visa_type: "TW_ENTRY_PERMIT",
+        submission_result_status: "needs_user_action",
+        submission_result: { country: "TW", status: "stopped_at_captcha" },
+      }),
+    ).toBe(false);
+    expect(
+      hasTaiwanApplicantHandoffReady({
+        country: "vietnam",
+        visa_type: "evisa_tourism",
+        submission_result_status: "needs_user_action",
+        submission_result: { status: "stopped_at_captcha", handoffId: "handoff_1" },
+      }),
+    ).toBe(false);
   });
 });
