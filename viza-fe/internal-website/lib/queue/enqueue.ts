@@ -77,6 +77,10 @@ function availableAtIsDue(availableAt?: string): boolean {
   return !Number.isFinite(timestamp) || timestamp <= Date.now();
 }
 
+function shouldDeferWake(availableAt?: string): boolean {
+  return resilienceRunnerWakeEnabled() && !availableAtIsDue(availableAt);
+}
+
 type RunnerWakeQueueResponse = {
   accepted?: unknown;
   duplicate?: unknown;
@@ -108,7 +112,7 @@ async function tryQueueRunnerWake(
   return false;
 }
 
-async function desiredRunnerPoolCapacity(): Promise<number> {
+export async function desiredRunnerPoolCapacity(): Promise<number> {
   return withAdmin("system", "lib/queue:pool-depth", async (admin) => {
     const { data, error } = await admin
       .from("runner_pool_depth")
@@ -155,6 +159,7 @@ export async function enqueueRunnerPoolJob(
       blocked_by_legacy: boolean;
       legacy_queue_id: string | null;
       legacy_queue_status: string | null;
+      legacy_queue_available_at?: string | null;
     };
   });
 
@@ -162,7 +167,17 @@ export async function enqueueRunnerPoolJob(
     if (!row.legacy_queue_id) {
       throw new Error("runner pool enqueue reported a legacy collision without a queue id");
     }
-    if (await tryQueueRunnerWake(row.legacy_queue_id, "legacy")) {
+    const legacyAvailableAt = row.legacy_queue_available_at ?? opts.availableAt;
+    if (shouldDeferWake(legacyAvailableAt)) {
+      return {
+        transport: "submission_queue",
+        id: row.legacy_queue_id,
+        status: row.legacy_queue_status,
+        created: false,
+        workerTriggered: false,
+      };
+    }
+    if (await tryQueueRunnerWake(row.legacy_queue_id, "legacy", legacyAvailableAt)) {
       return {
         transport: "submission_queue",
         id: row.legacy_queue_id,
@@ -185,6 +200,14 @@ export async function enqueueRunnerPoolJob(
 
   if (!row.runner_job_id) {
     throw new Error("runner pool enqueue returned no runner job id");
+  }
+  if (shouldDeferWake(opts.availableAt)) {
+    return {
+      transport: "runner_job",
+      id: row.runner_job_id,
+      created: !row.reused_existing,
+      workerTriggered: false,
+    };
   }
   if (await tryQueueRunnerWake(row.runner_job_id, "pool", opts.availableAt)) {
     return {
@@ -295,6 +318,13 @@ export async function enqueueSgacRunnerRetry(
   });
 
   if (result.route === "legacy") return result;
+
+  if (shouldDeferWake(opts.availableAt)) {
+    return {
+      ...result,
+      workerTriggered: false,
+    };
+  }
 
   if (await tryQueueRunnerWake(result.id, "pool")) {
     return {
@@ -446,6 +476,7 @@ export async function enqueueRunnerJob(
     }
     return { id: data.id as string, created: true };
   });
+  if (shouldDeferWake(opts.availableAt)) return result;
   if (await tryQueueRunnerWake(result.id, "pool", opts.availableAt)) return result;
   const wake = await wakeCloudSubmissionWorker(result.id, {
     target: "pool",
