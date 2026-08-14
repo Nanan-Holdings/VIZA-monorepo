@@ -16,6 +16,7 @@ import {
   type VisaDestinationRegionGroup,
 } from "@/lib/visa-destinations";
 import { DestinationFlag } from "./DestinationFlag";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import {
   selectUserVisaDestination,
   type UserVisaPackage,
@@ -153,11 +154,7 @@ export function DestinationRegionPageClient({
             </label>
           </div>
 
-          {selectionError && (
-            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {selectionError}
-            </div>
-          )}
+          {selectionError ? <ClientErrorAlert className="mt-5" message={selectionError} /> : null}
 
           <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
             {filteredDestinations.map((destination) => {

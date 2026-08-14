@@ -383,6 +383,16 @@ Smoke URLs:
 - `lib/runtime-abort-retry.ts`
 - `lib/server-action-recovery.ts`
 - `supabase/migrations/*`
+- `supabase/migrations/20260813151857_photonpay_issuer_card_attempts.sql`:
+  durable application/allocation-scoped PhotonPay issuance attempts and guarded
+  service-role state transitions; card secrets are intentionally absent.
+- `supabase/migrations/20260813153500_photonpay_issuer_card_finish_idempotency.sql`:
+  replay-safe terminal issuer-card transitions after worker retries.
+- `supabase/migrations/20260813153754_photonpay_issuer_card_function_privileges.sql`:
+  explicitly removes issuer-card RPC execution from API roles because this
+  Supabase project grants new functions to them through default privileges.
+- `supabase/migrations/20260813160000_photonpay_managed_intent_guard.sql`:
+  prevents legacy client-entered-card intents from creating PhotonPay cards.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`

@@ -206,6 +206,11 @@ import { evaluatePhEtravelSubmissionWindow } from "./ph-etravel/date-window";
 import { PhEtravelPortalError, runPhEtravelPortalSubmission } from "./ph-etravel/runner";
 import { hasOfficialArrivalCardSuccess } from "./arrival-card-success-guard";
 import {
+  ensurePhotonPayEscrowCard,
+  finalizePhotonPayEscrowCard,
+  type EscrowCard as PhotonPayEscrowCard,
+} from "./issuing/photonpay-card-provider.js";
+import {
   VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
   VnPrearrivalPortalValidationError,
   normalizeVnPrearrivalPortalPayload,
@@ -3670,6 +3675,7 @@ type VnOfficialFeeIntentRow = {
   fee_quote_id: string | null;
   mode: string | null;
   provider: string | null;
+  payment_method_type: string | null;
   official_fee_amount: number | string | null;
   official_fee_currency: string | null;
   status: string | null;
@@ -3715,6 +3721,17 @@ function readAnswerValue(
   return null;
 }
 
+function photonPayCardToOneTimeCard(card: PhotonPayEscrowCard) {
+  const [expiryMonth = "", expiryYear = ""] = card.expiry.split("/");
+  return {
+    pan: card.pan,
+    expiryMonth,
+    expiryYear,
+    cvv: card.cvv,
+    holderName: card.holderName,
+  };
+}
+
 async function activateVietnamTracking(
   applicationId: string,
   officialLookupEmail?: string,
@@ -3733,7 +3750,7 @@ async function activateVietnamTracking(
 async function getLatestVnOfficialFeeIntent(applicationId: string): Promise<VnOfficialFeeIntentRow | null> {
   const { data, error } = await supabase
     .from("official_fee_payment_intents")
-    .select("id, user_id, fee_quote_id, mode, provider, official_fee_amount, official_fee_currency, status")
+    .select("id, user_id, fee_quote_id, mode, provider, payment_method_type, official_fee_amount, official_fee_currency, status")
     .eq("application_id", applicationId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -3742,6 +3759,12 @@ async function getLatestVnOfficialFeeIntent(applicationId: string): Promise<VnOf
     throw new Error(`Failed to load official fee intent: ${error.message}`);
   }
   return (data ?? null) as VnOfficialFeeIntentRow | null;
+}
+
+function isManagedVirtualCardIntent(
+  intent: VnOfficialFeeIntentRow | null,
+): intent is VnOfficialFeeIntentRow {
+  return intent?.payment_method_type === "viza_managed_virtual_card";
 }
 
 async function nextOfficialFeeAttemptNumber(intentId: string): Promise<number> {
@@ -3884,6 +3907,7 @@ async function hasVnOfficialFeeFallbackAuthorization(applicationId: string): Pro
 }
 
 async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
+  let managedIssuerCard: PhotonPayEscrowCard | null = null;
   const startedAt = new Date().toISOString();
   await updateVnQueueRow(
     item.id,
@@ -3932,7 +3956,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     const now = new Date().toISOString();
 
     if (autopayEnabled && !dryRunReceipt) {
-      const { profile } = await loadApplicantData(item.application_id);
+      const { profile, application } = await loadApplicantData(item.application_id);
       const answers = await loadDs160Answers(item.application_id).catch(() => ({}));
       const email = await getVietnamOfficialLookupEmail(profile.id);
       const dateOfBirth = readAnswerValue(answers, [
@@ -3951,6 +3975,15 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         item.application_id,
         vietnamCardSessionsEnabled(),
       );
+      if (!cardSession && isManagedVirtualCardIntent(intent)) {
+        managedIssuerCard = await ensurePhotonPayEscrowCard({
+          applicationId: item.application_id,
+          officialFeePaymentIntentId: intent.id,
+          workerId: item.id,
+          country: application.country ?? "vietnam",
+          visaType: application.visa_type ?? "VN_E_VISA",
+        });
+      }
       const payment = await resumeVietnamOfficialPayment({
         registrationCode,
         email,
@@ -3958,9 +3991,13 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         headless: readBooleanEnv("VN_PLAYWRIGHT_HEADLESS", false),
         screenshotPath,
         timeoutMs: readNumberEnv("VN_PAYMENT_RESUME_TIMEOUT_MS", 180_000),
-        card: cardSession,
+        card: cardSession ?? (managedIssuerCard ? photonPayCardToOneTimeCard(managedIssuerCard) : null),
       });
       if (payment.status === "paid") {
+        if (managedIssuerCard) {
+          await finalizePhotonPayEscrowCard(managedIssuerCard, item.id, "consumed");
+          managedIssuerCard = null;
+        }
         const receiptNumber = payment.receiptReference;
         const feeEvidence = intent
           ? await insertVnOfficialFeeAttempt({
@@ -4034,6 +4071,14 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       }
 
       const message = `Vietnam official payment resume did not complete automatically: ${payment.reason}`;
+      if (managedIssuerCard) {
+        await finalizePhotonPayEscrowCard(
+          managedIssuerCard,
+          item.id,
+          payment.status === "declined" ? "cancelled" : "review_required",
+        );
+        managedIssuerCard = null;
+      }
       await updateVnQueueRow(
         item.id,
         {
@@ -4194,6 +4239,10 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       await activateVietnamTracking(item.application_id);
     }
   } catch (err) {
+    if (managedIssuerCard) {
+      await finalizePhotonPayEscrowCard(managedIssuerCard, item.id, "review_required").catch(() => undefined);
+      managedIssuerCard = null;
+    }
     const message = err instanceof Error ? err.message : String(err);
     const failedAt = new Date().toISOString();
     await updateVnQueueRow(
@@ -4263,6 +4312,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   const now = new Date().toISOString();
   const currentVnProgressStage = { value: "starting" as string | null };
   let consumedOneTimeCardAuthorization = false;
+  let managedIssuerCard: PhotonPayEscrowCard | null = null;
 
   await updateVnQueueRow(
     item.id,
@@ -4307,6 +4357,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   try {
     const { profile, application, documents } = await loadApplicantData(item.application_id);
     const officialPaymentAutopayEnabled = liveAssisted && readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
+    const managedIssuingEnabled = officialPaymentAutopayEnabled && readBooleanEnv("PHOTONPAY_ENABLED", false);
     const oneTimeCardPaymentEnabled =
       officialPaymentAutopayEnabled &&
       vietnamCardSessionsEnabled();
@@ -4318,7 +4369,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     );
     let officialFeeIntent: VnOfficialFeeIntentRow | null = null;
     let officialFeeFallbackAuthorized = false;
-    if (oneTimeCardPaymentEnabled || envFixedCardPaymentEnabled) {
+    if (oneTimeCardPaymentEnabled || envFixedCardPaymentEnabled || managedIssuingEnabled) {
       try {
         officialFeeIntent = await getLatestVnOfficialFeeIntent(item.application_id);
       } catch (error) {
@@ -4373,6 +4424,9 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       answers.passport_copy = passportPath;
       answers.passport_photo = passportPath;
     }
+    const managedIssuingIntent = isManagedVirtualCardIntent(officialFeeIntent)
+      ? officialFeeIntent
+      : null;
     const result = await fillVietnamApplication(
       { answers },
       {
@@ -4389,6 +4443,18 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         ...(finalScreenshotPath ? { finalScreenshotPath } : {}),
         allowFixedCardPayment: isVnOfficialFeeIntentExecutable(officialFeeIntent) || officialFeeFallbackAuthorized,
         fixedCard: oneTimeFixedCard,
+        takeFixedCard: !oneTimeFixedCard && managedIssuingIntent && managedIssuingEnabled
+          ? async () => {
+              managedIssuerCard ??= await ensurePhotonPayEscrowCard({
+                applicationId: item.application_id,
+                officialFeePaymentIntentId: managedIssuingIntent.id,
+                workerId: item.id,
+                country: application.country ?? "vietnam",
+                visaType: application.visa_type ?? "VN_E_VISA",
+              });
+              return managedIssuerCard ? photonPayCardToOneTimeCard(managedIssuerCard) : null;
+            }
+          : undefined,
         onProgress: async (stage) => {
           await persistVietnamProgressStage(item.id, stage, currentVnProgressStage);
         },
@@ -4397,6 +4463,14 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
 
     if (result.status === "submitted_pending_pay" || result.status === "submitted_paid") {
       const paid = result.status === "submitted_paid";
+      if (managedIssuerCard) {
+        await finalizePhotonPayEscrowCard(
+          managedIssuerCard,
+          item.id,
+          paid ? "consumed" : "review_required",
+        );
+        managedIssuerCard = null;
+      }
       let officialFeeAttemptId: string | null = null;
       let officialFeeReceiptId: string | null = null;
       if (paid) {
@@ -4499,6 +4573,10 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     }
 
     if (result.status === "action_required") {
+      if (managedIssuerCard) {
+        await finalizePhotonPayEscrowCard(managedIssuerCard, item.id, "review_required");
+        managedIssuerCard = null;
+      }
       const actionResult = buildVietnamActionRequiredResult(result, finalScreenshotPath);
       await createVietnamManualAction(item, result, finalScreenshotPath);
       const actionAt = new Date().toISOString();
@@ -4633,6 +4711,10 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     }
     console.error(`[vn] Run ${runId} failed at ${result.failedStep}: ${errorMsg}`);
   } catch (err) {
+    if (managedIssuerCard) {
+      await finalizePhotonPayEscrowCard(managedIssuerCard, item.id, "review_required").catch(() => undefined);
+      managedIssuerCard = null;
+    }
     const errorMsg = err instanceof Error ? err.message : String(err);
     const newAttempts = nextVietnamQueueAttemptCount({
       currentAttempts: item.attempts,
@@ -6825,12 +6907,19 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
   }, 60_000);
 
   let consumedOneTimeCardAuthorization = false;
+  let managedIssuerCard: PhotonPayEscrowCard | null = null;
   try {
     const vaultOpts = {
       actor: "submission-service:indonesia",
       correlationId: item.id,
     };
     const { profile, application, documents } = await loadApplicantData(item.application_id);
+    const latestOfficialFeeIntent = readBooleanEnv("PHOTONPAY_ENABLED", false)
+      ? await getLatestVnOfficialFeeIntent(item.application_id)
+      : null;
+    const officialFeeIntent = isManagedVirtualCardIntent(latestOfficialFeeIntent)
+      ? latestOfficialFeeIntent
+      : null;
     const answers = await loadDs160Answers(item.application_id);
     const managedVaultEmail = await applicantVault.get(profile.id, "indonesia.portal.email", vaultOpts);
     const managedVaultPassword = await applicantVault.get(profile.id, "indonesia.portal.password", vaultOpts);
@@ -6982,7 +7071,19 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       enabled: userPaymentHandoffEnabled,
       waitTimeoutMs: Number.parseInt(process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? `${10 * 60 * 1000}`, 10),
       oneTimeCard: oneTimeIndonesiaCard,
-      takeOneTimeCard: () => consumeIndonesiaCardSession(item.application_id),
+      takeOneTimeCard: async () => {
+        const queuedCard = consumeIndonesiaCardSession(item.application_id);
+        if (queuedCard) return queuedCard;
+        if (!officialFeeIntent) return null;
+        managedIssuerCard ??= await ensurePhotonPayEscrowCard({
+          applicationId: item.application_id,
+          officialFeePaymentIntentId: officialFeeIntent.id,
+          workerId: item.id,
+          country: application.country ?? "indonesia",
+          visaType: application.visa_type ?? (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
+        });
+        return managedIssuerCard ? photonPayCardToOneTimeCard(managedIssuerCard) : null;
+      },
       beforeCardSubmit: async () => {
         const memory = process.memoryUsage();
         const rssMb = Math.round(memory.rss / 1024 / 1024);
@@ -7131,6 +7232,10 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     });
 
     if (result.country === "ID" && result.status === "submitted") {
+      if (managedIssuerCard) {
+        await finalizePhotonPayEscrowCard(managedIssuerCard, item.id, "consumed");
+        managedIssuerCard = null;
+      }
       const artifactStoragePath = await uploadArtifact({
         authUserId: profile.auth_user_id,
         applicationId: item.application_id,
@@ -7191,6 +7296,15 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const isPaymentFailed =
       result.status === "action_required" &&
       result.actionType === "official_fee_payment_failed";
+
+    if (managedIssuerCard) {
+      await finalizePhotonPayEscrowCard(
+        managedIssuerCard,
+        item.id,
+        isPaymentFailed ? "cancelled" : "review_required",
+      );
+      managedIssuerCard = null;
+    }
 
     const resultStatus = isPaymentFailed ? "failed" : result.status === "action_required" ? "action_required" : "unsupported";
     const nextQueueStatus = isPaymentAuthorizationRequired
@@ -7257,6 +7371,10 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       `[indonesia] ${provider} prepared managed alias for application=${redactIdentifier(item.application_id)}; action=${result.actionType ?? result.status}`,
     );
   } catch (err) {
+    if (managedIssuerCard) {
+      await finalizePhotonPayEscrowCard(managedIssuerCard, item.id, "review_required").catch(() => undefined);
+      managedIssuerCard = null;
+    }
     const errorMsg = err instanceof Error ? err.message : String(err);
     if (err instanceof IndonesiaAliasPreflightError) {
       const actionResult = {

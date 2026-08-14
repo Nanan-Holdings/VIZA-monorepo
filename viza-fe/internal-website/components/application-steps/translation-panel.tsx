@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { Pencil, Check, CircleNotch as Loader2, WarningCircle as AlertCircle, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
+import { Pencil, Check, CircleNotch as Loader2, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -232,22 +233,22 @@ export function TranslationPanel({ applicationId, originalData, translationStatu
   // Error / retry state
   if (error && !hasTranslations) {
     return (
-      <div className="mt-6 flex items-center gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4">
-        <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
-        <div className="flex-1">
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void retryTranslation()}
-          disabled={retrying}
-          className="shrink-0"
-        >
-          {retrying ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-          {t("translation.retryTranslation")}
-        </Button>
-      </div>
+      <ClientErrorAlert
+        className="mt-6"
+        message={error}
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void retryTranslation()}
+            disabled={retrying}
+            className="shrink-0"
+          >
+            {retrying ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+            {t("translation.retryTranslation")}
+          </Button>
+        }
+      />
     );
   }
 

@@ -7,6 +7,7 @@ import { FileText } from "@phosphor-icons/react";
 import { requestInvoice, type InvoiceRequestState } from "./actions";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -112,13 +113,13 @@ export function InvoiceRequestForm({
           </BrandField>
 
           {state.message ? (
-            <p
-              className={state.status === "error" ? "text-sm text-destructive" : "text-sm text-emerald-700"}
-              role={state.status === "error" ? "alert" : "status"}
-              aria-live="polite"
-            >
-              {state.message}
-            </p>
+            state.status === "error" ? (
+              <ClientErrorAlert message={state.message} />
+            ) : (
+              <p className="text-sm text-emerald-700" role="status" aria-live="polite">
+                {state.message}
+              </p>
+            )
           ) : null}
 
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">

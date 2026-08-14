@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle as CheckCircle2, CircleNotch as Loader2, XCircle } from "@phosphor-icons/react";
+import { CheckCircle as CheckCircle2, CircleNotch as Loader2 } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Button } from "@/components/ui/button";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";
@@ -94,10 +95,7 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
   if (status === "failed") {
     return (
       <div className="space-y-3">
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive">
-          <XCircle className="h-4 w-4" />
-          支付记录不可用，请返回订阅页重新发起。
-        </div>
+        <ClientErrorAlert message="支付记录不可用，请返回订阅页重新发起。" />
         <SmoothProgressBar
           displayedProgress={displayedProgress}
           label="确认进度"

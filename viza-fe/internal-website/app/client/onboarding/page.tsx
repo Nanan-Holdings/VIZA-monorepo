@@ -4,6 +4,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { ArrowLeft, CircleNotch as Loader2 } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { createClient } from "@/lib/supabase/client";
 import { getUserVisaPackage } from "@/app/actions/user-package";
 import { getOnboardingCopy, type OnboardingCopy } from "./copy";
@@ -444,11 +445,7 @@ export default function OnboardingPage() {
             )}
           </div>
 
-          {error && (
-            <div className="rounded-lg border border-[#e5e7eb] bg-white px-4 py-3 text-sm text-[#71717a]">
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
+          {error ? <ClientErrorAlert message={error} /> : null}
         </div>
       </div>
 

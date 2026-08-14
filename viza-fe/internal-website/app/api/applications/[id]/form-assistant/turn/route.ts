@@ -7,6 +7,7 @@ import {
   requireOwnedApplication,
 } from "@/lib/form-assistant/server-context";
 import { getOrCreateAssistantSession, runAssistantTurn } from "@/lib/form-assistant/service";
+import { FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE } from "@/types/form-assistant";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,7 @@ export async function POST(
   if (typeof body.message !== "string" || !body.message.trim()) {
     return Response.json({ error: "message is required." }, { status: 400 });
   }
+  const locale = typeof body.locale === "string" ? body.locale : "en";
 
   try {
     // Answers are deliberately re-read immediately before proposing and
@@ -69,7 +71,7 @@ export async function POST(
       steps,
       answers,
       text: body.message,
-      locale: typeof body.locale === "string" ? body.locale : "en",
+      locale,
       inputMode: body.inputMode === "voice" ? "voice" : "text",
       idempotencyKey: typeof body.idempotencyKey === "string" && body.idempotencyKey.trim()
         ? body.idempotencyKey.slice(0, 128)
@@ -81,6 +83,12 @@ export async function POST(
   } catch (error) {
     if (error instanceof Error && error.message === "FORM_ASSISTANT_TURN_IN_PROGRESS") {
       return Response.json({ error: "This message is already being processed." }, { status: 409 });
+    }
+    if (error instanceof Error && error.message === FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE) {
+      return Response.json({
+        code: FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE,
+        error: "The AI service is temporarily unavailable.",
+      }, { status: 503 });
     }
     console.error("[form-assistant] Turn failed", error);
     return Response.json({ error: "The assistant could not process this message." }, { status: 500 });

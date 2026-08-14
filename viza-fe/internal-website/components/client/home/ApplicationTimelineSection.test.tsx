@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { StatusApplication } from "@/app/client/status/status-data";
+import { getCountryHeroTheme } from "@/lib/client/country-hero-theme";
 import { ApplicationTimelineSection } from "./ApplicationTimelineSection";
 
 vi.mock("next/image", () => ({
@@ -57,6 +58,23 @@ const application = {
 } as StatusApplication;
 
 describe("ApplicationTimelineSection", () => {
+  it("uses the Indonesia blue gradient for every country while preserving artwork", () => {
+    const indonesiaTheme = getCountryHeroTheme("indonesia");
+    const japanTheme = getCountryHeroTheme("japan");
+    const unknownTheme = getCountryHeroTheme("new_destination");
+
+    expect(japanTheme).toMatchObject({
+      from: indonesiaTheme.from,
+      to: indonesiaTheme.to,
+      image: "/country-heroes/japan.png",
+    });
+    expect(unknownTheme).toMatchObject({
+      from: indonesiaTheme.from,
+      to: indonesiaTheme.to,
+      image: null,
+    });
+  });
+
   it("shows to-dos and completed tasks together as separate activity cards", () => {
     const { container } = render(<ApplicationTimelineSection application={application} />);
 

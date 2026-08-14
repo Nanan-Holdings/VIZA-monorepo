@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { isCountryLaunched } from "@/lib/launched-countries";
 import { DestinationFlag } from "@/components/client/home/DestinationFlag";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { selectUserVisaDestination } from "@/app/actions/user-package";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 import {
@@ -199,14 +200,7 @@ export function AddDestinationSection({
         })}
       </div>
 
-      {selectionError && (
-        <div
-          role="alert"
-          className="mb-4 rounded-xl border border-[#f4c7c3] bg-[#fff8f7] px-4 py-3 text-[14px] text-[#b42318]"
-        >
-          {selectionError}
-        </div>
-      )}
+      {selectionError ? <ClientErrorAlert className="mb-4" message={selectionError} /> : null}
 
       {visibleGroups.length === 0 ? (
         <div className="rounded-2xl border border-[#efefef] bg-white p-10 text-center">

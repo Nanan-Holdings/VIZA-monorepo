@@ -6,6 +6,7 @@ import { ArrowSquareOut as ExternalLink, Eye, EyeSlash as EyeOff, CircleNotch as
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { UkSubmissionResult } from "@/lib/submission-result";
 
@@ -166,9 +167,7 @@ export function UkResultCard({
                 ? (isZh ? "正在提交到 gov.uk" : "Submitting to gov.uk")
                 : (isZh ? "重新提交到 gov.uk" : "Retry gov.uk prefill")}
             </Button>
-            {retryError && (
-              <p className="mt-2 text-xs text-red-600">{retryError}</p>
-            )}
+            {retryError ? <ClientErrorAlert className="mt-2" message={retryError} /> : null}
           </div>
         )}
 
@@ -203,9 +202,7 @@ export function UkResultCard({
               {revealedPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
           </div>
-          {revealError && (
-            <p className="mt-1 text-xs text-red-600">{revealError}</p>
-          )}
+          {revealError ? <ClientErrorAlert className="mt-1" message={revealError} /> : null}
         </div>
 
         {result.applicationReference && (

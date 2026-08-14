@@ -12,6 +12,7 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { DestinationFlag } from "@/components/client/home/DestinationFlag";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import {
   Collapsible,
   CollapsibleContent,
@@ -314,14 +315,7 @@ export function ApplicationsList({
         </p>
       </div>
 
-      {switchError && (
-        <div
-          role="alert"
-          className="mb-3 rounded-xl border border-[#f4c7c3] bg-[#fff8f7] px-4 py-3 text-[14px] text-[#b42318]"
-        >
-          {switchError}
-        </div>
-      )}
+      {switchError ? <ClientErrorAlert className="mb-3" message={switchError} /> : null}
 
       {selectableItems.length > 0 ? (
         <ul className={APPLICATION_PANEL_CLASS}>

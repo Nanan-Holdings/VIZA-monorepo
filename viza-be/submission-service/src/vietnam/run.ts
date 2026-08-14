@@ -110,6 +110,8 @@ export interface FillVietnamOptions {
   allowFixedCardPayment?: boolean;
   /** One-time card captured from the local submission-service card-session endpoint. */
   fixedCard?: VietnamFixedCard | null;
+  /** Lazily resolves a managed card only after the official payment page is visible. */
+  takeFixedCard?: () => Promise<VietnamFixedCard | null>;
 }
 
 export type FillVietnamResult =
@@ -310,6 +312,7 @@ async function fillVietnamApplicationOnce(
   let mainRequestFailed = false;
   let lastSnapshot: VietnamPortalSnapshot | undefined;
   let reviewBlockers: VietnamReviewBlockerDiagnostics | undefined;
+  let fixedCardPromise: Promise<VietnamFixedCard | null> | null = null;
 
   const diagnostics = (): VietnamDiagnostics => ({
     consoleErrors: consoleErrors.slice(-20),
@@ -328,6 +331,15 @@ async function fillVietnamApplicationOnce(
   });
   const emitProgress = async (stage: VietnamProgressStage): Promise<void> => {
     await options.onProgress?.(stage);
+  };
+  const resolveFixedCard = async (): Promise<VietnamFixedCard | null> => {
+    if (!options.allowFixedCardPayment) return null;
+    fixedCardPromise ??= options.fixedCard
+      ? Promise.resolve(options.fixedCard)
+      : options.takeFixedCard
+        ? options.takeFixedCard()
+        : Promise.resolve(loadVietnamFixedCardFromEnv());
+    return fixedCardPromise;
   };
 
   try {
@@ -731,9 +743,7 @@ async function fillVietnamApplicationOnce(
     }
     if (stateAfterCaptcha === "payment_page_visible") {
       await emitProgress("payment_required");
-      const fixedCard = options.allowFixedCardPayment
-        ? options.fixedCard ?? loadVietnamFixedCardFromEnv()
-        : null;
+      const fixedCard = await resolveFixedCard();
       if (fixedCard) {
         await emitProgress("payment_handoff");
         const payment = await payVietnamPortalWithFixedCard({
@@ -825,9 +835,7 @@ async function fillVietnamApplicationOnce(
     const finalState = finalSnapshot ? classifyVietnamPortalSnapshot(finalSnapshot) : stateAfterCaptcha;
     if (finalState === "payment_page_visible") {
       await emitProgress("payment_required");
-      const fixedCard = options.allowFixedCardPayment
-        ? options.fixedCard ?? loadVietnamFixedCardFromEnv()
-        : null;
+      const fixedCard = await resolveFixedCard();
       if (fixedCard) {
         await emitProgress("payment_handoff");
         const payment = await payVietnamPortalWithFixedCard({

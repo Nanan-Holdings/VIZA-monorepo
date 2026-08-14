@@ -10,6 +10,7 @@ import {
 import { BilingualReviewPanel, type ReviewRow } from "@/components/application-steps/bilingual-review-panel";
 import { COUNTRY_OPTIONS } from "@/components/application-steps/bilingual-form-shared";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
 import { ApplicationFormField } from "@/components/ui/application-form-field";
 import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
@@ -317,7 +318,7 @@ export function UniversalProfileExtendedEditor({ category }: { category: Univers
       </div>
 
       {!schemaAvailable ? <p role="alert" className="mt-4 text-sm font-medium text-amber-700">{isZh ? "完整资料表尚未安装数据库迁移；现有基础资料仍可正常使用。" : "The expanded profile migration is not installed yet. Existing core profile data still works."}</p> : null}
-      {error ? <p role="alert" className="mt-4 text-sm font-medium text-red-600">{error}</p> : null}
+      {error ? <ClientErrorAlert className="mt-4" message={error} /> : null}
       {message ? <p role="status" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-emerald-700"><CheckCircle2 className="h-4 w-4" />{message}</p> : null}
 
       {savedFields.length > 0 ? (

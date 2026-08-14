@@ -54,6 +54,7 @@ interface DynamicStepFormProps {
   prefill: Record<string, string>;
   onComplete: (data: Record<string, string>) => void;
   onDraftChange?: (data: Record<string, string>) => void;
+  onUserChange?: () => void;
   saving?: boolean;
   showContinueButton?: boolean;
   country?: string | null;
@@ -2573,6 +2574,7 @@ export function DynamicStepForm({
   prefill,
   onComplete,
   onDraftChange,
+  onUserChange,
   saving,
   showContinueButton = true,
   country,
@@ -3481,6 +3483,7 @@ export function DynamicStepForm({
   const undoLastFormChange = () => {
     const previous = undoStackRef.current.at(-1);
     if (!previous) return false;
+    onUserChange?.();
     undoStackRef.current = undoStackRef.current.slice(0, -1);
     redoStackRef.current = [...redoStackRef.current.slice(-79), getSnapshot()];
     restoreSnapshot(previous);
@@ -3490,6 +3493,7 @@ export function DynamicStepForm({
   const redoLastFormChange = () => {
     const next = redoStackRef.current.at(-1);
     if (!next) return false;
+    onUserChange?.();
     redoStackRef.current = redoStackRef.current.slice(0, -1);
     undoStackRef.current = [...undoStackRef.current.slice(-79), getSnapshot()];
     restoreSnapshot(next);
@@ -3591,6 +3595,7 @@ export function DynamicStepForm({
         ? value.replace(/\D/g, "").slice(0, 5)
         : value;
     if (options?.recordUndo !== false && valuesRef.current[fieldName] !== normalizedValue) {
+      onUserChange?.();
       pushUndoSnapshot();
     }
 
@@ -3649,6 +3654,7 @@ export function DynamicStepForm({
       : { zh: currentPair.zh, en: value };
     if (currentPair.zh === nextPair.zh && currentPair.en === nextPair.en) return;
 
+    onUserChange?.();
     pushUndoSnapshot();
     if (side === "en") {
       const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: Boolean(value.trim()) };
@@ -3673,6 +3679,7 @@ export function DynamicStepForm({
     const max = repeatGroupMax[group] ?? Number.POSITIVE_INFINITY;
     if (currentCount >= max) return;
 
+    onUserChange?.();
     pushUndoSnapshot();
     const count = currentCount + 1;
     setGroupCounts((prev) => {
@@ -3705,6 +3712,7 @@ export function DynamicStepForm({
     const count = groupCounts[group] ?? 1;
     if (count <= 1) return;
 
+    onUserChange?.();
     pushUndoSnapshot();
     setValues((prev) => {
       const next = { ...prev };

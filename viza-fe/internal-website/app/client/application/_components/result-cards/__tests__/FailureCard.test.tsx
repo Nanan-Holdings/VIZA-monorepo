@@ -374,7 +374,7 @@ describe("VnResultCard automated payment UI", () => {
     },
   };
 
-  it("matches the simple Indonesia retry flow and hides internal payment details", async () => {
+  it("starts a managed-card retry without collecting card details", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
       if (url.endsWith("/official-fee/status")) {
         return {
@@ -398,25 +398,21 @@ describe("VnResultCard automated payment UI", () => {
 
     render(<VnResultCard applicationId="app-vn" result={paymentResult} />);
 
-    await screen.findByText("重新自动付款银行卡");
+    const retryButton = await screen.findByRole("button", { name: "重新自动付款" });
     expect(screen.queryByText("payment_page_visible")).not.toBeInTheDocument();
     expect(screen.queryByText(/72%/u)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("持卡人姓名（可选）")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
     expect(screen.queryByText("需要人工操作")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
-    fireEvent.click(screen.getByRole("button", { name: "重新自动付款" }));
+    fireEvent.click(retryButton);
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/applications/app-vn/official-fee/pay",
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({
-            card: { pan: "4111111111111111", expiry: "12/30", cvv: "123" },
-          }),
+          body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
         }),
       );
     });
@@ -476,7 +472,7 @@ describe("VnResultCard automated payment UI", () => {
     expect(
       await screen.findByText("付款失败，请在手机银行里确认。现在可重新提交。"),
     ).toBeInTheDocument();
-    expect(screen.getByText("重新自动付款银行卡")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新自动付款" })).toBeInTheDocument();
     expect(screen.queryByText("自动处理中")).not.toBeInTheDocument();
     expect(screen.queryByText("需要人工操作")).not.toBeInTheDocument();
     expect(screen.queryByText("Internal payment diagnostic that must stay hidden.")).not.toBeInTheDocument();
@@ -523,11 +519,7 @@ describe("VnResultCard automated payment UI", () => {
 
     render(<VnResultCard applicationId="app-vn" result={paymentResult} />);
 
-    await screen.findByText("重新自动付款银行卡");
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
-    fireEvent.click(screen.getByRole("button", { name: "重新自动付款" }));
+    fireEvent.click(await screen.findByRole("button", { name: "重新自动付款" }));
 
     expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
@@ -579,11 +571,7 @@ describe("VnResultCard automated payment UI", () => {
 
     render(<VnResultCard applicationId="app-vn" result={paymentResult} />);
 
-    await screen.findByText("重新自动付款银行卡");
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
-    fireEvent.click(screen.getByRole("button", { name: "重新自动付款" }));
+    fireEvent.click(await screen.findByRole("button", { name: "重新自动付款" }));
 
     expect(screen.getByText("正在提交您的申请")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
@@ -598,13 +586,12 @@ describe("VnResultCard automated payment UI", () => {
       ok: true,
       status: 200,
       json: async () => ({
-        cardSession: { redactedCard: { last4: "1111" } },
         queueId: "new-cloud-queue",
         queueStatus: "vn_cloud_live_pending",
       }),
     });
     await waitFor(() => {
-      expect(screen.getByText("正在安全发送银行卡并启动 Fly 云端任务。")).toBeInTheDocument();
+      expect(screen.getByText("正在启动云端任务；虚拟卡将在官网付款页按需开立。")).toBeInTheDocument();
     });
   });
 
@@ -619,7 +606,7 @@ describe("VnResultCard automated payment UI", () => {
 
     await screen.findByText("正在提交您的申请");
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
-    expect(screen.getByText("正在安全发送银行卡并启动 Fly 云端任务。")).toBeInTheDocument();
+    expect(screen.getByText("正在启动云端任务；虚拟卡将在官网付款页按需开立。")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "打开越南 e-Visa 官网" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
     expect(screen.queryByText("payment_page_visible")).not.toBeInTheDocument();

@@ -1,5 +1,8 @@
 import type { MissingApplicationField } from "@/lib/application-tab-completion";
 
+export const FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE =
+  "FORM_ASSISTANT_PROVIDERS_UNAVAILABLE" as const;
+
 export type FormAssistantSourceKind =
   | "user_chat"
   | "universal_profile"

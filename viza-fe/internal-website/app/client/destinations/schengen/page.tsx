@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CircleNotch as Loader2, MagnifyingGlass as Search } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { DestinationFlag } from "@/components/client/home/DestinationFlag";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import {
   SCHENGEN_VISA_DESTINATIONS,
   getVisaDestinationCountryName,
@@ -163,11 +164,7 @@ export default function SchengenDestinationsPage() {
           />
         </label>
 
-        {selectionError && (
-          <div className="mt-4 rounded-xl border border-[#f4c7c3] bg-[#fff8f7] px-4 py-3 text-[14px] text-[#b42318]">
-            {selectionError}
-          </div>
-        )}
+        {selectionError ? <ClientErrorAlert className="mt-4" message={selectionError} /> : null}
 
         {filteredDestinations.length > 0 ? (
           <ul className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
