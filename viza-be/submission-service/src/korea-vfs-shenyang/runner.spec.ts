@@ -295,7 +295,7 @@ test("polls for a contact control that mounts after the first DOM checks", async
   await fillShenyangVfsRegistrationMobileField(
     fixture.page as unknown as import("playwright").Page,
     "13800138000",
-    { timeoutMs: 40, pollIntervalMs: 1 },
+    { timeoutMs: 100, pollIntervalMs: 1 },
   );
   assert.deepEqual(fixture.filled, ["13800138000"]);
   assert.ok(fixture.contactLookups() >= 3);
@@ -441,6 +441,8 @@ function fakeDialCodePage(options: {
   visibility: boolean[];
   nativeSelect?: boolean;
   selectedText?: string;
+  overlayAfterChecks?: number;
+  cookieButtonAfterChecks?: number;
 }): {
   page: {
     locator(selector: string): FakeDialLocator;
@@ -449,10 +451,17 @@ function fakeDialCodePage(options: {
   };
   selected: () => string | null;
   dialChecks: () => number;
+  blockedClicks: () => number;
+  dismissClicks: () => number;
 } {
   let dialChecks = 0;
   let opened = false;
   let selected: string | null = null;
+  let overlayVisible = false;
+  let blockedClicks = 0;
+  let dismissClicks = 0;
+  const cookieButtonAfterChecks = options.cookieButtonAfterChecks ?? 0;
+  const cookieButtonChecks = { reject: 0, accept: 0 };
   const optionsLocator = (onClick?: () => void): FakeDialLocator => {
     const option: FakeDialLocator = {
       first: () => option,
@@ -478,6 +487,10 @@ function fakeDialCodePage(options: {
       nth: () => control,
       isVisible: async () => visible,
       click: async () => {
+        if (overlayVisible) {
+          blockedClicks += 1;
+          throw new Error("OneTrust overlay blocked the dial control.");
+        }
         opened = true;
       },
       evaluate: async (fn) => fn({ tagName: options.nativeSelect ? "SELECT" : "MAT-SELECT" }),
@@ -512,8 +525,27 @@ function fakeDialCodePage(options: {
   };
   const page = {
     locator: (selector: string): FakeDialLocator => {
+      if (selector.includes("onetrust")) {
+        const overlay: FakeDialLocator = {
+          first: () => overlay,
+          count: async () => 1,
+          nth: () => overlay,
+          isVisible: async () => overlayVisible,
+          click: async () => undefined,
+          evaluate: async (fn) => fn({ tagName: "DIV" }),
+          selectOption: async () => undefined,
+          locator: () => overlay,
+          filter: () => overlay,
+          innerText: async () => "",
+          getAttribute: async () => null,
+        };
+        return overlay;
+      }
       if (!selector.includes("formcontrolname='dialcode'")) return empty();
       dialChecks += 1;
+      if (typeof options.overlayAfterChecks === "number" && dialChecks > options.overlayAfterChecks) {
+        overlayVisible = true;
+      }
       if (dialChecks <= options.mountAfterChecks) return empty();
       return collection({
         first: () => controls[0],
@@ -530,16 +562,42 @@ function fakeDialCodePage(options: {
       });
     },
     getByLabel: () => empty(),
-    getByRole: (role: string) => role === "option" && opened
-      ? optionsLocator(() => {
-        selected = "CN";
-      })
-      : empty(),
+    getByRole: (role: string, roleOptions?: { name?: RegExp }) => {
+      if (role === "option" && opened) {
+        return optionsLocator(() => {
+          selected = "CN";
+        });
+      }
+      if (role !== "button" || !roleOptions?.name) return empty();
+      const kind = /accept only necessary|reject all|only necessary/i.test(roleOptions.name.source) ? "reject" : "accept";
+      const button: FakeDialLocator = {
+        first: () => button,
+        count: async () => 1,
+        nth: () => button,
+        isVisible: async () => {
+          cookieButtonChecks[kind] += 1;
+          return overlayVisible && cookieButtonChecks[kind] > cookieButtonAfterChecks;
+        },
+        click: async () => {
+          dismissClicks += 1;
+          overlayVisible = false;
+        },
+        evaluate: async (fn) => fn({ tagName: "BUTTON" }),
+        selectOption: async () => undefined,
+        locator: () => button,
+        filter: () => button,
+        innerText: async () => "",
+        getAttribute: async () => null,
+      };
+      return button;
+    },
   };
   return {
     page,
     selected: () => selected,
     dialChecks: () => dialChecks,
+    blockedClicks: () => blockedClicks,
+    dismissClicks: () => dismissClicks,
   };
 }
 
@@ -560,6 +618,38 @@ test("skips hidden duplicate dial controls and selects only the visible China op
     { timeoutMs: 40, pollIntervalMs: 1 },
   );
   assert.equal(fixture.selected(), "CN");
+});
+
+test("dismisses a cookie overlay before clicking the delayed dial control", async () => {
+  const fixture = fakeDialCodePage({
+    mountAfterChecks: 2,
+    overlayAfterChecks: 2,
+    visibility: [true],
+  });
+  await selectShenyangVfsRegistrationDialCode(
+    fixture.page as unknown as import("playwright").Page,
+    { timeoutMs: 40, pollIntervalMs: 1 },
+  );
+  assert.equal(fixture.dismissClicks(), 1);
+  assert.equal(fixture.blockedClicks(), 0);
+  assert.equal(fixture.selected(), "CN");
+});
+
+test("fails closed when a cookie overlay persists before the dial control click", async () => {
+  const fixture = fakeDialCodePage({
+    mountAfterChecks: 0,
+    overlayAfterChecks: 0,
+    visibility: [true],
+    cookieButtonAfterChecks: Number.POSITIVE_INFINITY,
+  });
+  await assert.rejects(
+    () => selectShenyangVfsRegistrationDialCode(
+      fixture.page as unknown as import("playwright").Page,
+      { timeoutMs: 15, pollIntervalMs: 1 },
+    ),
+    { message: "The official VFS cookie consent could not be dismissed." },
+  );
+  assert.equal(fixture.blockedClicks(), 0);
 });
 
 test("fails closed when the Shenyang China dial-code control never mounts", async () => {

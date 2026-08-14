@@ -648,8 +648,14 @@ async function selectChinaDialCodeFromControl(
     }
     return false;
   }
+  await dismissShenyangVfsCookies(page, {
+    timeoutMs: Math.min(SHENYANG_VFS_COOKIE_TIMEOUT_MS, Math.max(1, deadline - Date.now())),
+    pollIntervalMs,
+  });
+  const clickRemainingMs = deadline - Date.now();
+  if (clickRemainingMs <= 0) return false;
   try {
-    await control.click({ timeout: Math.min(5_000, Math.max(1, remainingMs)) });
+    await control.click({ timeout: Math.min(5_000, Math.max(1, clickRemainingMs)) });
   } catch {
     return false;
   }
