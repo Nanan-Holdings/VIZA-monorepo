@@ -109,16 +109,75 @@ function assertConfigured(): void {
   }
 }
 
-function generatePassword(): string {
-  const groups = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!@#$%_-+"];
+const SHENYANG_VFS_PASSWORD_SPECIALS = "$@#!%*?";
+const SHENYANG_VFS_PASSWORD_MIN_LENGTH = 8;
+const SHENYANG_VFS_PASSWORD_MAX_LENGTH = 15;
+const SHENYANG_VFS_PASSWORD_LENGTH = 12;
+const SHENYANG_VFS_PRE_REGISTRATION_STATUSES = new Set([
+  "account_prepared",
+  "alias_prepared",
+  "selector_drift",
+]);
+
+export function isShenyangVfsPasswordCompliant(value: string): boolean {
+  return value.length >= SHENYANG_VFS_PASSWORD_MIN_LENGTH
+    && value.length <= SHENYANG_VFS_PASSWORD_MAX_LENGTH
+    && /^[A-Za-z0-9$@#!%*?]+$/u.test(value)
+    && /[A-Z]/u.test(value)
+    && /[a-z]/u.test(value)
+    && /\d/u.test(value)
+    && /[$@#!%*?]/u.test(value);
+}
+
+export function generateShenyangVfsPassword(): string {
+  const groups = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", SHENYANG_VFS_PASSWORD_SPECIALS];
   const all = groups.join("");
   const chars = groups.map((group) => group[randomInt(group.length)]);
-  while (chars.length < 18) chars.push(all[randomInt(all.length)]);
+  while (chars.length < SHENYANG_VFS_PASSWORD_LENGTH) chars.push(all[randomInt(all.length)]);
   for (let index = chars.length - 1; index > 0; index -= 1) {
     const swapWith = randomInt(index + 1);
     [chars[index], chars[swapWith]] = [chars[swapWith], chars[index]];
   }
   return chars.join("");
+}
+
+export function shouldRotateShenyangVfsPassword(
+  accountStatus: string | null | undefined,
+  emailVerified: boolean,
+  password: string,
+): boolean {
+  return !emailVerified
+    && SHENYANG_VFS_PRE_REGISTRATION_STATUSES.has(accountStatus ?? "")
+    && !isShenyangVfsPasswordCompliant(password);
+}
+
+export interface ShenyangVfsPasswordStateInput {
+  password: string | null;
+  accountStatus: string;
+  emailVerified: boolean;
+}
+
+export interface ShenyangVfsPasswordState {
+  password: string;
+  accountStatus: string;
+  rotated: boolean;
+}
+
+export function resolveShenyangVfsPasswordState(
+  input: ShenyangVfsPasswordStateInput,
+): ShenyangVfsPasswordState {
+  const rotated = input.password !== null
+    && shouldRotateShenyangVfsPassword(input.accountStatus, input.emailVerified, input.password);
+  const password = input.password === null || rotated
+    ? generateShenyangVfsPassword()
+    : input.password;
+  return {
+    password,
+    accountStatus: rotated && input.accountStatus === "selector_drift"
+      ? "account_prepared"
+      : input.accountStatus,
+    rotated,
+  };
 }
 
 function mainlandPhone(value: string): string {
@@ -164,9 +223,15 @@ async function loadPortalAccount(applicationId: string, mobilePhone: string): Pr
     .maybeSingle();
   if (accountError) throw new Error("The Shenyang VFS account state could not be read.");
 
-  const password = existing?.encrypted_account_password
+  const existingPassword = existing?.encrypted_account_password
     ? decryptSecret(existing.encrypted_account_password)
-    : generatePassword();
+    : null;
+  const passwordState = resolveShenyangVfsPasswordState({
+    password: existingPassword,
+    accountStatus: existing?.account_status ?? "account_prepared",
+    emailVerified: Boolean(existing?.email_verified),
+  });
+  const password = passwordState.password;
   const now = new Date().toISOString();
   const payload = {
     user_id: profile.auth_user_id,
@@ -175,7 +240,7 @@ async function loadPortalAccount(applicationId: string, mobilePhone: string): Pr
     portal: "vfs_korea_shenyang",
     account_email: alias,
     encrypted_account_password: encryptSecret(password),
-    account_status: existing?.account_status ?? "account_prepared",
+    account_status: passwordState.accountStatus,
     email_verified: Boolean(existing?.email_verified),
     metadata_redacted_json: {
       aliasManagedByViza: true,
