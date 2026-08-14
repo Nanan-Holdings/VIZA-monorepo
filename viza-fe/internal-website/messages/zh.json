@@ -733,6 +733,7 @@
         "emptyTranscript": "没有识别到文字，请重试或输入答案。",
         "transcriptionFailed": "录音转写失败，请重试或输入答案。",
         "sendFailed": "消息未发送，输入内容已保留，请重试。",
+        "providersUnavailable": "AI 服务暂时不可用。答案尚未保存，输入内容已保留；你可以稍后重试，或直接在表单中填写。",
         "reviewFailed": "暂时无法检查答案或打开最终审核页面，请重试。"
       },
       "actions": {

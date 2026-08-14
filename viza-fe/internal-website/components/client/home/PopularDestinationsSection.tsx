@@ -17,6 +17,7 @@ import {
   type PopularVisaDestination,
 } from "@/lib/visa-destinations";
 import { DestinationFlag } from "./DestinationFlag";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import {
   selectUserVisaDestination,
   type UserVisaPackage,
@@ -269,11 +270,7 @@ export function PopularDestinationsSection({
         </div>
       </div>
 
-      {selectionError && (
-        <div className="mb-4 rounded-lg border border-[#e5e7eb] bg-white px-4 py-3 text-sm text-[#71717a]">
-          {selectionError}
-        </div>
-      )}
+      {selectionError ? <ClientErrorAlert className="mb-4" message={selectionError} /> : null}
 
       {normalizedSearch ? (
         <>

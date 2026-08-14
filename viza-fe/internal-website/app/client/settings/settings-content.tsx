@@ -41,6 +41,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ActionButton } from "@/components/ui/action-button";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
 import { PageBackButton } from "@/components/ui/page-back-button";
 import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
@@ -1231,18 +1232,13 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
           </div>
 
           {paymentMessage ? (
-            <p
-              className={cn(
-                "mt-4 rounded-lg border px-3 py-2 text-sm font-medium",
-                paymentMessage.tone === "success"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-red-200 bg-red-50 text-red-700"
-              )}
-              role="status"
-              aria-live="polite"
-            >
-              {paymentMessage.text}
-            </p>
+            paymentMessage.tone === "success" ? (
+              <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
+                {paymentMessage.text}
+              </p>
+            ) : (
+              <ClientErrorAlert className="mt-4" message={paymentMessage.text} />
+            )
           ) : null}
 
           <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.85fr]">
@@ -1734,18 +1730,13 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                   ) : null}
 
                   {securityMessage ? (
-                    <p
-                      className={cn(
-                        "rounded-lg border px-3 py-2 text-sm font-medium",
-                        securityMessage.tone === "success"
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-red-200 bg-red-50 text-red-700"
-                      )}
-                      role="status"
-                      aria-live="polite"
-                    >
-                      {securityMessage.text}
-                    </p>
+                    securityMessage.tone === "success" ? (
+                      <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
+                        {securityMessage.text}
+                      </p>
+                    ) : (
+                      <ClientErrorAlert message={securityMessage.text} />
+                    )
                   ) : null}
                 </div>
               </div>

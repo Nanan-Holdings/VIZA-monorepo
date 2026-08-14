@@ -14,6 +14,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { PageBackButton } from "@/components/ui/page-back-button";
 import type { CurrentSubscriptionState } from "@/lib/payments/commercial-records";
 import { cn } from "@/lib/utils";
@@ -181,18 +182,13 @@ export function SubscriptionManagement({
             <p className="mt-2 text-sm leading-6 text-muted-foreground">{t("actionsDescription")}</p>
 
             {message ? (
-              <p
-                className={cn(
-                  "mt-4 rounded-lg border px-3 py-2 text-sm font-medium",
-                  message.tone === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-red-200 bg-red-50 text-red-700",
-                )}
-                role="status"
-                aria-live="polite"
-              >
-                {message.text}
-              </p>
+              message.tone === "success" ? (
+                <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
+                  {message.text}
+                </p>
+              ) : (
+                <ClientErrorAlert className="mt-4" message={message.text} />
+              )
             ) : null}
 
             <div className="mt-5 grid gap-3">

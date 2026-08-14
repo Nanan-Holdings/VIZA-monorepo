@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { TwSubmissionResult, TwSubmissionStatus } from "@/lib/submission-result";
 import type { ApplicationCompletenessResult } from "@/lib/application-completeness";
@@ -451,7 +452,7 @@ export function TwResultCard({
                 ? isZh ? "正在重新排队" : "Requeueing"
                 : isZh ? "重新正式提交" : "Retry formal submission"}
             </Button>
-            {retryError && <p className="text-xs text-red-600">{retryError}</p>}
+            {retryError ? <ClientErrorAlert message={retryError} /> : null}
           </div>
         )}
 

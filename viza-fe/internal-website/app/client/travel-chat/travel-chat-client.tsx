@@ -28,6 +28,7 @@ import {
 } from "@phosphor-icons/react";
 import { ChatInput } from "@/components/client/companion/chat-input";
 import { ChatMessage } from "@/components/client/companion/chat-message";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { ThinkingIndicator } from "@/components/client/companion/thinking-indicator";
 import type { TravelItineraryStateUpdate } from "@/components/client/travel/travel-itinerary-experience";
@@ -6321,7 +6322,6 @@ export function TravelChatClient({
                       startConversationScrollDrag(event);
                     }}
                   >
-                    <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 rounded-full bg-slate-200" />
                     {scrollThumb.visible && (
                       <button
                         aria-label={
@@ -6594,34 +6594,33 @@ export function TravelChatClient({
                                 ))}
                               </div>
                             ) : googlePlacesStatus === "error" ? (
-                              <div
-                                className="rounded-lg border border-red-100 bg-red-50 px-3 py-3 text-sm text-red-700"
+                              <ClientErrorAlert
                                 data-testid="travel-google-places-error"
-                              >
-                                <p>
-                                  {googlePlacesError ||
-                                    (isZh
-                                      ? "景点暂时加载失败。"
-                                      : "Attractions are unavailable.")}
-                                </p>
-                                <Button
-                                  className="mt-3"
-                                  onClick={() => {
-                                    setGooglePlacesRequestedCity(
-                                      googlePlacesCity ?? ""
-                                    );
-                                    setGooglePlacesRetryNonce(
-                                      (value) => value + 1
-                                    );
-                                  }}
-                                  size="sm"
-                                  type="button"
-                                  variant="outline"
-                                >
-                                  <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                                  {isZh ? "重试" : "Retry"}
-                                </Button>
-                              </div>
+                                message={
+                                  googlePlacesError ||
+                                  (isZh
+                                    ? "景点暂时加载失败。"
+                                    : "Attractions are unavailable.")
+                                }
+                                action={
+                                  <Button
+                                    onClick={() => {
+                                      setGooglePlacesRequestedCity(
+                                        googlePlacesCity ?? ""
+                                      );
+                                      setGooglePlacesRetryNonce(
+                                        (value) => value + 1
+                                      );
+                                    }}
+                                    size="sm"
+                                    type="button"
+                                    variant="outline"
+                                  >
+                                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                    {isZh ? "重试" : "Retry"}
+                                  </Button>
+                                }
+                              />
                             ) : googlePlaceCards.length === 0 ? (
                               <div
                                 className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-center text-sm text-slate-600"

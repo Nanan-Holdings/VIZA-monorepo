@@ -1,10 +1,11 @@
 /**
- * Issue one PhotonPay UAT virtual card, validate it, then cancel it.
+ * Issue one PhotonPay virtual card through the Open API, validate it, then
+ * cancel it.
  *
  * This script is deliberately stricter than the normal provider:
- * - UAT host only;
- * - explicit operator confirmation;
- * - capped test amount;
+ * - explicit, environment-specific operator confirmation;
+ * - UAT recharge-card amount capped at USD 25;
+ * - production cross-currency recharge-card arrival capped at USD 20.01;
  * - no applicant vault writes;
  * - no runner or official-portal imports;
  * - PAN, expiry, and CVV are never printed or persisted.
@@ -16,8 +17,18 @@
 import { createPhotonPayClient, isSucceeded, type CardBin } from "../src/clients/photonpay.js";
 
 const UAT_BASE_URL = "https://x-api1.uat.photontech.cc";
-const CONFIRMATION = "ISSUE_ONE_UAT_CARD";
-const MAX_TEST_AMOUNT_USD = 25;
+const PROD_BASE_URL = "https://x-api.photonpay.com";
+const UAT_CONFIRMATION = "ISSUE_ONE_UAT_CARD";
+const PROD_CONFIRMATION = "ISSUE_ONE_PROD_CARD_AND_CANCEL";
+const UAT_MAX_TEST_AMOUNT_USD = 25;
+const PROD_MAX_TEST_AMOUNT_USD = 20.01;
+
+interface IssuanceTarget {
+  label: "UAT" | "production";
+  confirmation: string;
+  maxAmountUsd: number;
+  amountMode: "recharge" | "arrival";
+}
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -29,6 +40,28 @@ function maskPan(pan?: string): string {
   if (!pan) return "(not returned)";
   const compact = pan.replace(/\s/g, "");
   return compact.length <= 10 ? "****" : `${compact.slice(0, 6)}••••${compact.slice(-4)}`;
+}
+
+function resolveTarget(baseUrl: string): IssuanceTarget {
+  if (baseUrl === UAT_BASE_URL) {
+    return {
+      label: "UAT",
+      confirmation: UAT_CONFIRMATION,
+      maxAmountUsd: UAT_MAX_TEST_AMOUNT_USD,
+      amountMode: "recharge",
+    };
+  }
+  if (baseUrl === PROD_BASE_URL) {
+    return {
+      label: "production",
+      confirmation: PROD_CONFIRMATION,
+      maxAmountUsd: PROD_MAX_TEST_AMOUNT_USD,
+      amountMode: "arrival",
+    };
+  }
+  throw new Error(
+    `Refusing to issue: PHOTONPAY_BASE_URL must be ${UAT_BASE_URL} or ${PROD_BASE_URL}`,
+  );
 }
 
 function chooseUsdRechargeBin(bins: CardBin[]): CardBin {
@@ -43,7 +76,7 @@ function chooseUsdRechargeBin(bins: CardBin[]): CardBin {
   if (!selected) {
     throw new Error(
       requested
-        ? `PHOTONPAY_UAT_CARD_BIN=${requested} is not an eligible USD virtual recharge BIN`
+        ? "Requested BIN is not an eligible USD virtual recharge BIN"
         : "No eligible USD virtual recharge BIN is available",
     );
   }
@@ -52,35 +85,51 @@ function chooseUsdRechargeBin(bins: CardBin[]): CardBin {
 
 async function main(): Promise<void> {
   const baseUrl = required("PHOTONPAY_BASE_URL").replace(/\/$/, "");
-  if (baseUrl !== UAT_BASE_URL) {
-    throw new Error(`Refusing to issue: PHOTONPAY_BASE_URL must be ${UAT_BASE_URL}`);
-  }
-  if (process.env.PHOTONPAY_ISSUANCE_TEST_CONFIRM !== CONFIRMATION) {
+  const target = resolveTarget(baseUrl);
+  if (process.env.PHOTONPAY_ISSUANCE_TEST_CONFIRM !== target.confirmation) {
     throw new Error(
-      `Refusing to issue: set PHOTONPAY_ISSUANCE_TEST_CONFIRM=${CONFIRMATION} explicitly`,
+      `Refusing to issue: set PHOTONPAY_ISSUANCE_TEST_CONFIRM=${target.confirmation} explicitly`,
     );
   }
 
-  const amount = Number(process.env.PHOTONPAY_ISSUANCE_TEST_AMOUNT ?? "20");
-  if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_TEST_AMOUNT_USD) {
-    throw new Error(`PHOTONPAY_ISSUANCE_TEST_AMOUNT must be > 0 and <= ${MAX_TEST_AMOUNT_USD}`);
+  const defaultAmount = target.label === "production" ? "20.01" : "20";
+  const amount = Number(process.env.PHOTONPAY_ISSUANCE_TEST_AMOUNT ?? defaultAmount);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > target.maxAmountUsd) {
+    throw new Error(
+      `PHOTONPAY_ISSUANCE_TEST_AMOUNT must be > 0 and <= ${target.maxAmountUsd}`,
+    );
   }
 
-  const accountId = required("PHOTONPAY_UAT_USD_ACCOUNT");
-  if (!/^FA-USD/i.test(accountId)) throw new Error("PHOTONPAY_UAT_USD_ACCOUNT must be a USD funding account");
+  const accountId =
+    target.label === "UAT"
+      ? required("PHOTONPAY_UAT_USD_ACCOUNT")
+      : required("PHOTONPAY_ISSUANCE_TEST_FUNDING_ACCOUNT");
+  if (target.label === "UAT" && !/^FA-USD/i.test(accountId)) {
+    throw new Error("PHOTONPAY_UAT_USD_ACCOUNT must be a USD funding account");
+  }
+  const cardType = process.env.PHOTONPAY_ISSUANCE_TEST_CARD_TYPE === "share"
+    ? "share"
+    : "recharge";
+  const amountMode = /^FA-USD/i.test(accountId) ? "recharge" : target.amountMode;
 
   const client = createPhotonPayClient();
   if (!client) throw new Error("PHOTONPAY_ENABLED is off");
 
   const bins = await client.getCardBins();
   const bin = chooseUsdRechargeBin(bins);
-  const requestId = `viza-issuance-test-${Date.now()}`;
-  const cardholderId = process.env.PHOTONPAY_UAT_CARDHOLDER?.trim();
+  const requestId = `viza-${target.label.toLowerCase()}-issuance-test-${Date.now()}`;
+  const cardholderId =
+    process.env.PHOTONPAY_ISSUING_CARDHOLDER_ID?.trim() ||
+    process.env.PHOTONPAY_UAT_CARDHOLDER?.trim();
   let cardId: string | undefined;
   let cleanupError: Error | undefined;
 
-  console.log("PhotonPay issuance-only test → UAT");
-  console.log(`account=${accountId} bin=${bin.cardBin} currency=USD amount=${amount.toFixed(2)}`);
+  console.log(`PhotonPay issuance-only test → ${target.label}`);
+  console.log(
+    `mode=${cardType}/${cardType === "share" ? "limited" : amountMode} ` +
+      `bin=${bin.cardBin} currency=USD ` +
+      `maxSpend=${amount.toFixed(2)}`,
+  );
   console.log(`requestId=${requestId}`);
 
   try {
@@ -88,12 +137,15 @@ async function main(): Promise<void> {
       requestId,
       cardBin: bin.cardBin,
       cardCurrency: "USD",
-      cardType: "recharge",
+      cardType,
       ...(cardholderId ? { cardholderId } : {}),
       accountId,
-      rechargeAmount: amount,
-      transactionLimitType: "unlimited",
-      nickname: "VIZA UAT issuance test",
+      ...(cardType === "share"
+        ? { transactionLimitType: "limited" as const, transactionLimit: amount }
+        : amountMode === "recharge"
+          ? { rechargeAmount: amount, transactionLimitType: "unlimited" as const }
+          : { arrivalAmount: amount, transactionLimitType: "unlimited" as const }),
+      nickname: `VIZA ${target.label} API pilot`,
     });
     cardId = opened.card?.cardId;
     if (!isSucceeded(opened.status) || !cardId) {

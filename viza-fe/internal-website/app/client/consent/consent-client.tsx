@@ -25,6 +25,7 @@ import {
   ShieldCheck,
 } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { acceptConsentAndSignature } from "./actions";
 import {
   AGENCY_AUTHORISATION_DOCUMENT,
@@ -699,14 +700,7 @@ export function ConsentClient({
             </CardContent>
           </Card>
 
-          {formError && (
-            <div
-              className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
-              role="alert"
-            >
-              {formError}
-            </div>
-          )}
+          {formError ? <ClientErrorAlert message={formError} /> : null}
 
           {hasWorkToSubmit ? (
             <BrandActionButton

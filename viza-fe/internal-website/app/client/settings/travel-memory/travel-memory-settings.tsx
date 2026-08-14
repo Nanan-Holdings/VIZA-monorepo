@@ -3,6 +3,7 @@
 import { CircleNotch as Loader2, Trash as Trash2 } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
 import { PageBackButton } from "@/components/ui/page-back-button";
 
@@ -157,11 +158,7 @@ export function TravelMemorySettings() {
           ))
         )}
       </section>
-      {error ? (
-        <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
-      ) : null}
+      {error ? <ClientErrorAlert className="mt-4" message={error} /> : null}
     </main>
   );
 }

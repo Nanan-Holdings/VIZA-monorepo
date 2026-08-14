@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { Warning as AlertTriangle, CheckCircle as CheckCircle2, CreditCard, ArrowSquareOut as ExternalLink, FileText as FileCheck2, CircleNotch as Loader2, Envelope as Mail, ShieldCheck } from "@phosphor-icons/react";
+import { Warning as AlertTriangle, CheckCircle as CheckCircle2, ArrowSquareOut as ExternalLink, FileText as FileCheck2, CircleNotch as Loader2, Envelope as Mail, ShieldCheck } from "@phosphor-icons/react";
 import {
   Alert,
   AlertAction,
@@ -12,6 +12,7 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -109,10 +110,6 @@ export function VnResultCard({
   const [activePaymentQueueId, setActivePaymentQueueId] = useState<string | null>(null);
   const [paymentProgressCycleKey, setPaymentProgressCycleKey] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [oneTimeCardLast4, setOneTimeCardLast4] = useState<string | null>(null);
   const hasRegistrationCode = Boolean(result.registrationCode);
   const isPaymentCheckpoint = result.status === "stopped_at_pay" || hasRegistrationCode;
   const receipt = officialFeeStatus?.receipt as Record<string, unknown> | null | undefined;
@@ -179,7 +176,6 @@ export function VnResultCard({
     ? `submission-run:${cloudPaymentRunId}`
     : null;
   const cloudPaymentProgressCycleKey = paymentProgressCycleKey ?? cloudPaymentRunId;
-  const cardReady = cardNumber.replace(/\D/g, "").length >= 12 && cardExpiry.trim().length >= 4 && cardCvv.replace(/\D/g, "").length >= 3;
   const showPaymentForm =
     !paymentPaid &&
     !paymentBusy &&
@@ -349,30 +345,16 @@ export function VnResultCard({
     setActivePaymentQueueId(null);
     setPaymentBusy(true);
     setPaymentError(null);
-    // Never let a previous successful handoff imply that the card from this
-    // new click reached the worker. Only set the last four digits again after
-    // POST /pay confirms both the short-lived card session and queue job.
-    setOneTimeCardLast4(null);
     const controller = new AbortController();
     // Stay below the route's 60 second platform ceiling. A missing response
     // must restore the actionable card form instead of leaving the applicant
     // on a local-only loading state with no durable queue row.
     const deadline = window.setTimeout(() => controller.abort(), 55_000);
     try {
-      // POST /pay already creates or reuses the consent, quote and payment
-      // intent before handing the one-time card to the worker. Keeping a
-      // separate /authorize round trip here created a failure window where
-      // consent succeeded but the card/queue request never started.
       const pay = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          card: {
-            pan: cardNumber,
-            expiry: cardExpiry,
-            cvv: cardCvv,
-          },
-        }),
+        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
         signal: controller.signal,
       });
       const payPayload = (await pay.json().catch(() => null)) as Record<string, unknown> | null;
@@ -385,11 +367,6 @@ export function VnResultCard({
               : `official-fee/pay returned ${pay.status}`,
         );
       }
-      const cardSession = payPayload?.cardSession as Record<string, unknown> | undefined;
-      const redactedCard = cardSession?.redactedCard as Record<string, unknown> | undefined;
-      setOneTimeCardLast4(typeof redactedCard?.last4 === "string" ? redactedCard.last4 : null);
-      setCardNumber("");
-      setCardCvv("");
       const queuedStatus =
         typeof payPayload?.queueStatus === "string"
           ? payPayload.queueStatus
@@ -434,8 +411,8 @@ export function VnResultCard({
             ? "Fly 云端正在填写越南 e-Visa 官网表单。"
             : "The Fly cloud run is filling the official Vietnam e-Visa form."
           : isZh
-            ? "正在安全发送银行卡并启动 Fly 云端任务。"
-            : "Securely sending the card and starting the Fly cloud job.";
+            ? "正在启动云端任务；虚拟卡将在官网付款页按需开立。"
+            : "Starting the cloud job; the virtual card will be opened only at the official payment page.";
 
     return (
       <WaitingCard
@@ -476,8 +453,8 @@ export function VnResultCard({
                 : "VIZA has completed the official Vietnam e-Visa payment for this application."
               : isPaymentCheckpoint
               ? isZh
-                ? "VIZA 已完成官网表单。填写本次付款银行卡后，系统会自动支付官方费用；只有银行要求 3DS、OTP 或 App 验证时才会暂停。"
-                : "VIZA completed the official form. Add a one-time card to pay automatically; the flow pauses only for bank 3DS, OTP, or app verification."
+                ? "VIZA 已完成官网表单。确认后，系统会为本申请开立限额虚拟卡，并仅用于支付本次官方费用。"
+                : "VIZA completed the official form. After confirmation, VIZA opens a limited virtual card for this application and uses it only for this official fee."
               : result.manualAction?.instructions ??
                 (isZh
                   ? "后台已进入越南 e-Visa 官网流程，并停在付款或最终确认前的安全检查点。"
@@ -519,65 +496,24 @@ export function VnResultCard({
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   {isZh
-                    ? `越南 e-Visa 官方费用为 ${quoteCurrency} ${Number.isFinite(quoteAmount) ? quoteAmount.toFixed(2) : "25.00"}。银行卡只用于本次付款，不会保存卡号或 CVV。`
-                    : `The Vietnam e-Visa official fee is ${quoteCurrency} ${Number.isFinite(quoteAmount) ? quoteAmount.toFixed(2) : "25.00"}. Card number and CVV are never stored.`}
+                    ? `越南 e-Visa 官方费用为 ${quoteCurrency} ${Number.isFinite(quoteAmount) ? quoteAmount.toFixed(2) : "25.00"}。虚拟卡只在官网付款页按需开立，卡号和 CVV 不会保存。`
+                    : `The Vietnam e-Visa official fee is ${quoteCurrency} ${Number.isFinite(quoteAmount) ? quoteAmount.toFixed(2) : "25.00"}. The virtual card is opened only at the official payment page; PAN and CVV are never stored.`}
                 </p>
               </div>
             </div>
 
             {showPaymentForm && (
               <div className="space-y-3 rounded-md border border-brand-100 bg-white p-3">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <CreditCard className="h-4 w-4 text-brand-500" />
-                  {paymentNeedsOperator
-                    ? (isZh ? "重新自动付款银行卡" : "Restart automated payment card")
-                    : (isZh ? "本次付款银行卡" : "One-time payment card")}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
-                    <input
-                      value={cardNumber}
-                      onChange={(event) => setCardNumber(event.target.value)}
-                      autoComplete="cc-number"
-                      inputMode="numeric"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
-                    <input
-                      value={cardExpiry}
-                      onChange={(event) => setCardExpiry(event.target.value)}
-                      autoComplete="cc-exp"
-                      inputMode="numeric"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder="MM/YY"
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-xs text-muted-foreground">CVV</span>
-                    <input
-                      value={cardCvv}
-                      onChange={(event) => setCardCvv(event.target.value)}
-                      autoComplete="cc-csc"
-                      inputMode="numeric"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder="CVV"
-                    />
-                  </label>
-                </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   {isZh
-                    ? "卡号和 CVV 只用于本次官方付款，并通过短时安全会话发送；不会保存到数据库、日志或个人资料。"
-                    : "Card number and CVV are sent through a short-lived secure session for this payment only and are never stored."}
+                    ? "确认即表示你授权 VIZA 为本申请开立限额虚拟卡并支付上述官方费用。若官网付款结果不明确，系统会冻结重试并转入核对。"
+                    : "By confirming, you authorize VIZA to open a limited virtual card for this application and pay the fee above. An uncertain portal result is quarantined for reconciliation before any retry."}
                 </p>
                 <Button
                   type="button"
                   className="w-full"
                   onClick={authorizeAndPay}
-                  disabled={!applicationId || paymentBusy || !cardReady}
+                  disabled={!applicationId || paymentBusy}
                 >
                   {paymentBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
                   {paymentNeedsOperator
@@ -592,14 +528,6 @@ export function VnResultCard({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {isZh ? "正在自动付款" : "Automated payment in progress"}
               </Button>
-            )}
-
-            {oneTimeCardLast4 && !paymentPaid && (
-              <p className="rounded-md border border-brand-100 bg-white px-3 py-2 text-xs text-muted-foreground">
-                {isZh
-                  ? `已安全接收尾号 ${oneTimeCardLast4} 的银行卡。`
-                  : `Card ending ${oneTimeCardLast4} was received securely.`}
-              </p>
             )}
 
             {paymentPaid && receiptNumber && (
@@ -631,30 +559,30 @@ export function VnResultCard({
         )}
 
         {result.manualAction && !isPaymentCheckpoint && (
-          <Alert variant="warning">
-            <AlertIcon variant="warning" />
-            <AlertTitle>{isZh ? "需要人工操作" : "Manual action"}</AlertTitle>
-            <AlertDescription>
-              <p>{result.manualAction.instructions}</p>
-              {manualAction?.screenshotUrl && (
-                <p className="mt-2 break-all font-mono text-xs">
-                  {isZh ? "证据截图：" : "Screenshot: "}
-                  {manualAction.screenshotUrl}
-                </p>
-              )}
-              {manualAction && (
-                <AlertActions>
-                  <AlertAction onClick={completeManualAction} disabled={completing}>
-                    {completing && <Loader2 className="animate-spin" />}
-                    {isZh ? "我已在官网完成，继续" : "I completed this on the official page, continue"}
-                  </AlertAction>
-                </AlertActions>
-              )}
-              {localizedActionError && (
-                <p className="mt-2 font-medium !text-[hsl(0_72%_35%)]">{localizedActionError}</p>
-              )}
-            </AlertDescription>
-          </Alert>
+          <>
+            <Alert variant="warning">
+              <AlertIcon variant="warning" />
+              <AlertTitle>{isZh ? "需要人工操作" : "Manual action"}</AlertTitle>
+              <AlertDescription>
+                <p>{result.manualAction.instructions}</p>
+                {manualAction?.screenshotUrl && (
+                  <p className="mt-2 break-all font-mono text-xs">
+                    {isZh ? "证据截图：" : "Screenshot: "}
+                    {manualAction.screenshotUrl}
+                  </p>
+                )}
+                {manualAction && (
+                  <AlertActions>
+                    <AlertAction onClick={completeManualAction} disabled={completing}>
+                      {completing && <Loader2 className="animate-spin" />}
+                      {isZh ? "我已在官网完成，继续" : "I completed this on the official page, continue"}
+                    </AlertAction>
+                  </AlertActions>
+                )}
+              </AlertDescription>
+            </Alert>
+            {localizedActionError ? <ClientErrorAlert message={localizedActionError} /> : null}
+          </>
         )}
 
         {result.noticeText && (

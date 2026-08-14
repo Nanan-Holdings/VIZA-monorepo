@@ -9,15 +9,17 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { WarningCircle as AlertCircle, ArrowUp, Robot as Bot, CheckCircle as CheckCircle2, Microphone as Mic, Square, Warning as TriangleAlert } from "@phosphor-icons/react";
+import { ArrowUp, Robot as Bot, CheckCircle as CheckCircle2, Microphone as Mic, Square, Warning as TriangleAlert } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE } from "@/types/form-assistant";
 
 export interface FormAssistantMessage {
   id: string;
@@ -145,7 +147,7 @@ export function FormFillingAssistant({
   const validationTitleId = `form-assistant-${idPrefix}-validation-title`;
   const composerStorageKey = `viza:form-assistant:composer:${applicationId}`;
   const [draft, setDraft] = useState(() => {
-    if (typeof window === "undefined") return "";
+    if (typeof window === "undefined" || !window.localStorage) return "";
     return window.localStorage.getItem(`viza:form-assistant:composer:${applicationId}`) ?? "";
   });
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
@@ -336,6 +338,7 @@ export function FormFillingAssistant({
   }, [clearRecordingTimers, stopTracks]);
 
   useEffect(() => {
+    if (!window.localStorage) return;
     if (draft.trim()) {
       window.localStorage.setItem(composerStorageKey, draft);
     } else {
@@ -382,12 +385,20 @@ export function FormFillingAssistant({
   const handleSend = useCallback(() => {
     const trimmed = draft.trim();
     if (!trimmed || loading || recordingState !== "idle") return;
+    setRecordingError(null);
     setDraft("");
     const result = onSend(trimmed);
-    void Promise.resolve(result).catch(() => {
+    void Promise.resolve(result).catch((error: unknown) => {
       if (!mountedRef.current) return;
       setDraft((current) => current.trim() ? current : trimmed);
-      setRecordingError(t("errors.sendFailed"));
+      const code = error instanceof Error && "code" in error
+        ? (error as Error & { code?: unknown }).code
+        : null;
+      setRecordingError(t(
+        code === FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE
+          ? "errors.providersUnavailable"
+          : "errors.sendFailed",
+      ));
     });
   }, [draft, loading, onSend, recordingState, t]);
 
@@ -549,12 +560,9 @@ export function FormFillingAssistant({
                   {t("validation.title")}
                 </h3>
                 {errors.length > 0 ? (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-red-800">
-                      <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                      <p className="text-sm font-semibold">{t("validation.errors", { count: errors.length })}</p>
-                    </div>
-                    <ul className="space-y-3">
+                  <ClientErrorAlert
+                    title={t("validation.errors", { count: errors.length })}
+                    message={<ul className="space-y-3">
                       {errors.map((issue, index) => (
                         <li
                           key={issue.id ?? `${issue.fieldName ?? "error"}-${index}`}
@@ -576,8 +584,8 @@ export function FormFillingAssistant({
                           ) : null}
                         </li>
                       ))}
-                    </ul>
-                  </div>
+                    </ul>}
+                  />
                 ) : null}
                 {warnings.length > 0 ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -615,11 +623,7 @@ export function FormFillingAssistant({
                 ) : null}
               </section>
             ) : null}
-            {reviewActionError ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800" role="alert">
-                {reviewActionError}
-              </p>
-            ) : null}
+            {reviewActionError ? <ClientErrorAlert message={reviewActionError} /> : null}
             {(showReviewAction ?? (missingFields.length === 0 && progress.total > 0)) && !loading ? (
               <div
                 className="flex justify-start pb-1"
@@ -682,15 +686,11 @@ export function FormFillingAssistant({
                 {undoingFill ? t("filledNotice.undoing") : t("filledNotice.undo")}
               </Button>
             </div>
-            {undoFillError ? <p className="mt-2 text-sm text-red-700" role="alert">{undoFillError}</p> : null}
+            {undoFillError ? <ClientErrorAlert className="mt-2" message={undoFillError} /> : null}
           </section>
         ) : null}
 
-        {recordingError ? (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800" role="alert">
-            {recordingError}
-          </p>
-        ) : null}
+        {recordingError ? <ClientErrorAlert message={recordingError} /> : null}
 
         <div className="mx-auto w-full max-w-[760px]">
           <div className="flex items-center gap-2 rounded-[26px] border border-gray-200 bg-white px-3 py-2 shadow-none transition-all duration-200 hover:border-gray-300 focus-within:border-brand-500">
@@ -701,7 +701,7 @@ export function FormFillingAssistant({
               onKeyDown={handleComposerKeyDown}
               placeholder={t("composer.placeholder")}
               aria-label={t("composer.label")}
-              disabled={loading || recordingState === "transcribing"}
+              disabled={recordingState === "transcribing"}
               rows={1}
               className="min-h-11 max-h-[168px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-base leading-7 shadow-none outline-none placeholder:text-gray-400 focus-visible:ring-0"
             />

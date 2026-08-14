@@ -15,6 +15,7 @@ import {
   loadUniversalProfileReusableDocumentStatuses,
 } from "@/app/client/documents/actions";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { PageBackButton } from "@/components/ui/page-back-button";
 import { UniversalProfileDocumentsCarousel } from "@/components/client/universal-profile-documents-carousel";
 import { UniversalProfileExtendedEditor } from "@/components/client/universal-profile-extended-editor";
@@ -2362,7 +2363,7 @@ export default function UniversalInfoPage() {
                 </p>
               )}
               {warning && <p className="mt-1 max-w-2xl text-[14px] font-medium text-amber-700">{warning}</p>}
-              {error && <p className="text-[14px] font-medium text-red-600">{error}</p>}
+              {error ? <ClientErrorAlert message={error} /> : null}
               {!message && !warning && !error && dirtyProfileFields.size > 0 ? (
                 <p className="text-[14px] font-medium text-amber-700">
                   {copy(isZh, "有未保存更改", "Unsaved changes")}

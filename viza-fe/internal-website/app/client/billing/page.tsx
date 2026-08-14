@@ -18,6 +18,7 @@ import {
   XCircle,
 } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { cn } from "@/lib/utils";
 import {
   getDestinationDisplayNameForLocale,
@@ -563,15 +564,7 @@ function EmptyPayments({ copy }: { copy: BillingCopy }) {
 
 function ErrorBanner({ message, copy }: { message: string; copy: BillingCopy }) {
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-      <div className="flex gap-3">
-        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-        <div>
-          <p className="font-semibold">{copy.errors.unavailableTitle}</p>
-          <p className="mt-1">{message}</p>
-        </div>
-      </div>
-    </div>
+    <ClientErrorAlert message={message} title={copy.errors.unavailableTitle} />
   );
 }
 
