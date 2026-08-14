@@ -250,3 +250,172 @@ test("Vietnam gate renewal failure racing with portal failure still skips failur
     globalThis.clearTimeout = originalClearTimeout;
   }
 });
+
+test("Vietnam capacity denial defers before portal, complete, or fail settlement", async () => {
+  process.env.SUPABASE_URL ??= "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role";
+  const {
+    runVietnamStatusPortalCheckWithGate,
+    VietnamStatusGateDeferredError,
+  } = await import("../status-tracking.js");
+  const { ResilienceGateCapacityDeniedError } = await import("../../resilience-gate.js");
+  let portalCalls = 0;
+  let completeCalls = 0;
+  let failCalls = 0;
+  const gateClient = {
+    acquire: async () => {
+      throw new ResilienceGateCapacityDeniedError("at_capacity", 1_800_000_000_000);
+    },
+    renew: async () => null,
+    release: async () => true,
+  };
+  await assert.rejects(
+    runVietnamStatusPortalCheckWithGate(
+      {
+        workerId: "worker-a",
+        checkId: "check-denied",
+        runPortal: async () => {
+          portalCalls += 1;
+          completeCalls += 1;
+          failCalls += 1;
+          return {
+            status: "processing",
+            summary: "processing",
+            registrationCode: "VN-1",
+            passportNumber: null,
+            visaNumber: null,
+            deniedReason: null,
+            downloadAvailable: false,
+            pdfBytes: null,
+            rawText: "processing",
+          };
+        },
+      },
+      gateClient,
+    ),
+    (error: unknown) => error instanceof VietnamStatusGateDeferredError,
+  );
+  assert.equal(portalCalls, 0);
+  assert.equal(completeCalls, 0);
+  assert.equal(failCalls, 0);
+});
+
+test("Vietnam permanent gate configuration errors propagate without running portal work", async () => {
+  process.env.SUPABASE_URL ??= "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role";
+  const { runVietnamStatusPortalCheckWithGate } = await import("../status-tracking.js");
+  const { ResilienceGateConfigurationError } = await import("../../resilience-gate.js");
+  let portalCalls = 0;
+  const gateClient = {
+    acquire: async () => {
+      throw new ResilienceGateConfigurationError("gateway config invalid");
+    },
+    renew: async () => null,
+    release: async () => true,
+  };
+  await assert.rejects(
+    runVietnamStatusPortalCheckWithGate(
+      {
+        workerId: "worker-a",
+        checkId: "check-config",
+        runPortal: async () => {
+          portalCalls += 1;
+          return {
+            status: "processing",
+            summary: "processing",
+            registrationCode: "VN-1",
+            passportNumber: null,
+            visaNumber: null,
+            deniedReason: null,
+            downloadAvailable: false,
+            pdfBytes: null,
+            rawText: "processing",
+          };
+        },
+      },
+      gateClient,
+    ),
+    ResilienceGateConfigurationError,
+  );
+  assert.equal(portalCalls, 0);
+});
+
+test("Vietnam gate renews materially before half-life and asserts expiry", async () => {
+  process.env.SUPABASE_URL ??= "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role";
+  const { withVietnamStatusResilienceGate, VietnamStatusCheckOwnershipLostError } = await import("../status-tracking.js");
+  const lease = {
+    scope: "vietnam",
+    resourceKey: "evisa/status",
+    leaseId: "lease-4",
+    fencingToken: 12,
+    leaseUntil: Date.now() + 120_000,
+  };
+  let delayMs = 0;
+  const gateClient = {
+    acquire: async () => lease,
+    renew: async () => null,
+    release: async () => true,
+  };
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  globalThis.setTimeout = ((_callback: () => void, delay?: number) => {
+    delayMs = delay ?? 0;
+    return 4 as unknown as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+  globalThis.clearTimeout = (() => undefined) as typeof clearTimeout;
+  try {
+    await assert.rejects(
+      withVietnamStatusResilienceGate(
+        {
+          workerId: "worker-a",
+          checkId: "check-4",
+          operation: async ({ assertOwned }) => {
+            assertOwned();
+            throw new VietnamStatusCheckOwnershipLostError();
+          },
+        },
+        gateClient,
+      ),
+      VietnamStatusCheckOwnershipLostError,
+    );
+    assert.ok(delayMs < 50_000, `renew delay ${delayMs} should precede half-life`);
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});
+
+test("Vietnam gate treats an already-expired lease as lost before portal settlement", async () => {
+  process.env.SUPABASE_URL ??= "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role";
+  const {
+    withVietnamStatusResilienceGate,
+    VietnamStatusCheckOwnershipLostError,
+  } = await import("../status-tracking.js");
+  const lease = {
+    scope: "vietnam",
+    resourceKey: "evisa/status",
+    leaseId: "lease-expired",
+    fencingToken: 13,
+    leaseUntil: Date.now() - 1,
+  };
+  const gateClient = {
+    acquire: async () => lease,
+    renew: async () => null,
+    release: async () => true,
+  };
+  await assert.rejects(
+    withVietnamStatusResilienceGate(
+      {
+        workerId: "worker-a",
+        checkId: "check-expired",
+        operation: async ({ assertOwned }) => {
+          assertOwned();
+        },
+      },
+      gateClient,
+    ),
+    VietnamStatusCheckOwnershipLostError,
+  );
+});

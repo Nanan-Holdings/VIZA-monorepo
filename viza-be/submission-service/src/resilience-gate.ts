@@ -14,6 +14,10 @@ const ACQUIRE_PATH = "/v1/concurrency/acquire";
 const RENEW_PATH = "/v1/concurrency/renew";
 const RELEASE_PATH = "/v1/concurrency/release";
 
+export type ResilienceGateCapacityDenialReason =
+  | "at_capacity"
+  | "capacity_mismatch";
+
 type EnvLike = NodeJS.ProcessEnv;
 
 export interface GateLease {
@@ -47,6 +51,19 @@ export class ResilienceGateConfigurationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ResilienceGateConfigurationError";
+  }
+}
+
+export class ResilienceGateCapacityDeniedError extends Error {
+  readonly code = "resilience_gate_capacity_denied";
+  readonly reason: ResilienceGateCapacityDenialReason;
+  readonly retryAt: number | undefined;
+
+  constructor(reason: ResilienceGateCapacityDenialReason, retryAt?: number) {
+    super(`Resilience gate capacity denied: ${reason}`);
+    this.name = "ResilienceGateCapacityDeniedError";
+    this.reason = reason;
+    this.retryAt = retryAt;
   }
 }
 
@@ -121,7 +138,15 @@ function readConfig(options: ClientOptions): GateConfig | null {
   const rawUrl = env.VIZA_RESILIENCE_GATEWAY_URL?.trim();
   const keyId = env.VIZA_RESILIENCE_HMAC_KEY_ID?.trim();
   const secret = env.VIZA_RESILIENCE_HMAC_SECRET;
-  if (!rawUrl || !keyId || !secret) return null;
+  if (!rawUrl) {
+    throw new ResilienceGateConfigurationError("VIZA_RESILIENCE_GATEWAY_URL is required");
+  }
+  if (!keyId) {
+    throw new ResilienceGateConfigurationError("VIZA_RESILIENCE_HMAC_KEY_ID is required");
+  }
+  if (!secret || !secret.trim()) {
+    throw new ResilienceGateConfigurationError("VIZA_RESILIENCE_HMAC_SECRET is required");
+  }
 
   let gatewayUrl: URL;
   try {
@@ -138,9 +163,15 @@ function readConfig(options: ClientOptions): GateConfig | null {
   if (gatewayUrl.username || gatewayUrl.password) {
     throw new ResilienceGateConfigurationError("VIZA_RESILIENCE_GATEWAY_URL must not contain credentials");
   }
+  let normalizedKeyId: string;
+  try {
+    normalizedKeyId = boundedString(keyId, "VIZA_RESILIENCE_HMAC_KEY_ID", 128);
+  } catch {
+    throw new ResilienceGateConfigurationError("VIZA_RESILIENCE_HMAC_KEY_ID is invalid");
+  }
   return {
     gatewayUrl,
-    keyId: boundedString(keyId, "VIZA_RESILIENCE_HMAC_KEY_ID", 128),
+    keyId: normalizedKeyId,
     secret,
     capacity: readCapacity(env.RESILIENCE_VN_STATUS_GATE_CAPACITY, DEFAULT_CAPACITY),
   };
@@ -213,6 +244,23 @@ function leaseUntilField(payload: Record<string, unknown>): number {
     throw new ResilienceGateResponseError();
   }
   return value;
+}
+
+function denialReason(value: unknown): ResilienceGateCapacityDenialReason {
+  if (value === "at_capacity" || value === "capacity_mismatch") return value;
+  throw new ResilienceGateResponseError();
+}
+
+function optionalRetryAt(payload: Record<string, unknown>): number | undefined {
+  if (payload.retryAt === undefined) return undefined;
+  if (
+    typeof payload.retryAt !== "number" ||
+    !Number.isSafeInteger(payload.retryAt) ||
+    payload.retryAt < 0
+  ) {
+    throw new ResilienceGateResponseError();
+  }
+  return payload.retryAt;
 }
 
 function validateGateLease(lease: GateLease): {
@@ -294,12 +342,7 @@ export interface ResilienceGateClient {
 
 export function createResilienceGateClient(options: ClientOptions = {}): ResilienceGateClient {
   async function acquire(input: AcquireResilienceGateInput): Promise<GateLease | null> {
-    let config: GateConfig | null;
-    try {
-      config = readConfig(options);
-    } catch {
-      return null;
-    }
+    const config = readConfig(options);
     if (!config) return null;
     const scope = validateScope(input.scope);
     const resourceKey = validateResourceKey(input.resourceKey);
@@ -325,7 +368,12 @@ export function createResilienceGateClient(options: ClientOptions = {}): Resilie
     if (payload.ok !== true || typeof payload.acquired !== "boolean") {
       throw new ResilienceGateResponseError();
     }
-    if (!payload.acquired) return null;
+    if (!payload.acquired) {
+      throw new ResilienceGateCapacityDeniedError(
+        denialReason(payload.reason),
+        optionalRetryAt(payload),
+      );
+    }
     if (typeof payload.shard !== "string" || payload.shard !== expectedShard(scope, resourceKey)) {
       throw new ResilienceGateResponseError();
     }
@@ -336,12 +384,7 @@ export function createResilienceGateClient(options: ClientOptions = {}): Resilie
   }
 
   async function renew(lease: GateLease, leaseSeconds: number): Promise<GateLease | null> {
-    let config: GateConfig | null;
-    try {
-      config = readConfig(options);
-    } catch {
-      return null;
-    }
+    const config = readConfig(options);
     if (!config) return null;
     const { scope, resourceKey, leaseId, fencingToken } = validateGateLease(lease);
     const validLeaseSeconds = validateLeaseSeconds(leaseSeconds);
@@ -376,12 +419,7 @@ export function createResilienceGateClient(options: ClientOptions = {}): Resilie
   }
 
   async function release(lease: GateLease): Promise<boolean> {
-    let config: GateConfig | null;
-    try {
-      config = readConfig(options);
-    } catch {
-      return false;
-    }
+    const config = readConfig(options);
     if (!config) return false;
     const { scope, resourceKey, leaseId, fencingToken } = validateGateLease(lease);
     const result = await sendRequest(config, options, RELEASE_PATH, {
@@ -393,7 +431,7 @@ export function createResilienceGateClient(options: ClientOptions = {}): Resilie
     if (!result || result.response.status === 429 || result.response.status === 503 || result.response.status >= 500) {
       return false;
     }
-    if (!result.response.ok) return false;
+    if (!result.response.ok) throw new ResilienceGateResponseError();
     const payload = await parseResponse(result);
     if (payload.ok !== true || typeof payload.released !== "boolean") {
       throw new ResilienceGateResponseError();

@@ -4,6 +4,7 @@ import { extractAuto } from "../inbox/extractors/index.js";
 import {
   queryVietnamOfficialStatus,
   toVietnamDob,
+  type VietnamStatusCheckResult,
   type VietnamOfficialStatus,
 } from "./status-check.js";
 import { computeVietnamTrackingSlot } from "./status-tracking-schedule.js";
@@ -19,6 +20,10 @@ import {
 import { enqueueMatchedVietnamStatusEmails } from "./email-status-matcher.js";
 import {
   createResilienceGateClient,
+  ResilienceGateCapacityDeniedError,
+  ResilienceGateConfigurationError,
+  ResilienceGateResponseError,
+  RESILIENCE_GATE_REQUEST_TIMEOUT_MS,
   type GateLease,
   type ResilienceGateClient,
 } from "../resilience-gate.js";
@@ -38,8 +43,31 @@ export class VietnamStatusCheckOwnershipLostError extends Error {
   }
 }
 
+export class VietnamStatusGateDeferredError extends Error {
+  readonly code = "vietnam_status_gate_deferred";
+  readonly reason: "at_capacity" | "capacity_mismatch";
+  readonly retryAt: number | undefined;
+
+  constructor(input: {
+    reason: "at_capacity" | "capacity_mismatch";
+    retryAt?: number;
+  }) {
+    super(`Vietnam status provider gate deferred: ${input.reason}`);
+    this.name = "VietnamStatusGateDeferredError";
+    this.reason = input.reason;
+    this.retryAt = input.retryAt;
+  }
+}
+
 function isVietnamStatusCheckOwnershipLostError(error: unknown): boolean {
   return error instanceof VietnamStatusCheckOwnershipLostError;
+}
+
+function isPermanentResilienceGateError(error: unknown): boolean {
+  return (
+    error instanceof ResilienceGateConfigurationError ||
+    error instanceof ResilienceGateResponseError
+  );
 }
 
 function safeGateOwnerRef(workerId: string, checkId: string): string {
@@ -72,10 +100,14 @@ export async function withVietnamStatusResilienceGate<T>(input: {
       leaseSeconds: VIETNAM_STATUS_GATE_LEASE_SECONDS,
       ownerRef: safeGateOwnerRef(input.workerId, input.checkId),
     });
-  } catch {
-    // The provider gate is deliberately fail-open. PostgreSQL ownership remains
-    // the source of truth when the optional gateway is unavailable.
-    lease = null;
+  } catch (error) {
+    if (error instanceof ResilienceGateCapacityDeniedError) {
+      throw new VietnamStatusGateDeferredError({
+        reason: error.reason,
+        retryAt: error.retryAt,
+      });
+    }
+    throw error;
   }
 
   if (!lease) return input.operation({ assertOwned: () => undefined });
@@ -89,12 +121,19 @@ export async function withVietnamStatusResilienceGate<T>(input: {
     ownershipLost = true;
   };
   const assertOwned = (): void => {
-    if (ownershipLost) throw new VietnamStatusCheckOwnershipLostError();
+    if (ownershipLost || Date.now() >= currentLease.leaseUntil) {
+      ownershipLost = true;
+      throw new VietnamStatusCheckOwnershipLostError();
+    }
   };
   const scheduleRenew = (): void => {
     if (ownershipLost || stopped) return;
     const remainingMs = Math.max(1_000, currentLease.leaseUntil - Date.now());
-    const delayMs = Math.max(1_000, Math.floor(remainingMs / 2));
+    const jitterMs = Math.min(1_000, Math.max(250, Math.floor(remainingMs * 0.01)));
+    const delayMs = Math.max(
+      1_000,
+      Math.floor(remainingMs * 0.4) - RESILIENCE_GATE_REQUEST_TIMEOUT_MS - jitterMs,
+    );
     renewTimer = setTimeout(() => {
       renewTimer = null;
       renewInFlight = (async () => {
@@ -139,10 +178,35 @@ export async function withVietnamStatusResilienceGate<T>(input: {
     } catch {
       console.warn("[vn-status] resilience_gate_release_failed");
     }
+    if (Date.now() >= currentLease.leaseUntil) ownershipLost = true;
   }
   if (ownershipLost) throw new VietnamStatusCheckOwnershipLostError();
   if (operationFailed) throw operationError;
   return result as T;
+}
+
+export async function runVietnamStatusPortalCheckWithGate(
+  input: {
+    workerId: string;
+    checkId: string;
+    runPortal: () => Promise<VietnamStatusCheckResult>;
+  },
+  gateClient: ResilienceGateClient = createResilienceGateClient(),
+): Promise<VietnamStatusCheckResult> {
+  return withVietnamStatusResilienceGate(
+    {
+      workerId: input.workerId,
+      checkId: input.checkId,
+      operation: async () => {
+        const result = await input.runPortal();
+        if (!isTrustedStatus(result.status)) {
+          throw new Error("Vietnam official portal returned an unrecognized status.");
+        }
+        return result;
+      },
+    },
+    gateClient,
+  );
 }
 
 type TrackingRow = {
@@ -638,21 +702,18 @@ async function processClaimedCheck(
     );
   }
 
-  await withVietnamStatusResilienceGate({
+  const result = await runVietnamStatusPortalCheckWithGate({
     workerId,
     checkId: check.id,
-    operation: async ({ assertOwned }) => {
-      const result = await queryVietnamOfficialStatus({
-        registrationCode,
-        email: tracking.official_lookup_email,
-        dateOfBirth: toVietnamDob(dateOfBirth),
-        headless: process.env.VN_STATUS_PLAYWRIGHT_HEADLESS !== "false",
-        searchUrl: process.env.VN_OFFICIAL_STATUS_URL ?? OFFICIAL_STATUS_URL,
-        timeoutMs: Number(process.env.VN_STATUS_CHECK_TIMEOUT_MS ?? 180_000),
-      });
-  if (!isTrustedStatus(result.status)) {
-    throw new Error("Vietnam official portal returned an unrecognized status.");
-  }
+    runPortal: () => queryVietnamOfficialStatus({
+      registrationCode,
+      email: tracking.official_lookup_email,
+      dateOfBirth: toVietnamDob(dateOfBirth),
+      headless: process.env.VN_STATUS_PLAYWRIGHT_HEADLESS !== "false",
+      searchUrl: process.env.VN_OFFICIAL_STATUS_URL ?? OFFICIAL_STATUS_URL,
+      timeoutMs: Number(process.env.VN_STATUS_CHECK_TIMEOUT_MS ?? 180_000),
+    }),
+  });
 
   const artifact =
     result.status === "approved" && result.pdfBytes
@@ -704,7 +765,6 @@ async function processClaimedCheck(
     trackingPatch.completed_at = now;
   }
 
-  assertOwned();
   await Promise.all([
     supabase.from("applications").update(applicationPatch).eq("id", application.id),
     supabase
@@ -713,7 +773,6 @@ async function processClaimedCheck(
       .eq("application_id", application.id),
   ]);
 
-  assertOwned();
   const completed = await completeVietnamOfficialStatusCheck(supabase, {
     checkId: check.id,
     workerId,
@@ -757,8 +816,6 @@ async function processClaimedCheck(
   if (result.status === "approved" && !documentReady) {
     await queueRetry(check);
   }
-    },
-  });
 }
 
 export async function processQueuedVietnamStatusChecks(workerId: string): Promise<number> {
@@ -777,11 +834,19 @@ export async function processQueuedVietnamStatusChecks(workerId: string): Promis
     try {
       await processClaimedCheck(check, workerId);
     } catch (errorValue) {
+      if (errorValue instanceof VietnamStatusGateDeferredError) {
+        console.warn("[vn-status] resilience_gate_deferred");
+        continue;
+      }
       if (isVietnamStatusCheckOwnershipLostError(errorValue)) {
         console.warn(
           `[vn-status] Check ${check.id} ownership was lost; final settlement was skipped.`,
         );
         continue;
+      }
+      if (isPermanentResilienceGateError(errorValue)) {
+        console.error("[vn-status] resilience_gate_permanent_error");
+        throw errorValue;
       }
       const message =
         errorValue instanceof Error ? errorValue.message : String(errorValue);
