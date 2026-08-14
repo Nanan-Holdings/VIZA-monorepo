@@ -14,6 +14,7 @@ import {
   queueProviderForApplication,
   queueStatusForApplication,
 } from "@/lib/submission-queue";
+import { enqueueRunnerJobWake } from "@/lib/resilience/runner-job-wakeup";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 
 /**
@@ -57,6 +58,54 @@ type PoolDepthRow = {
 
 function poolMigrationEnabled(): boolean {
   return process.env.RUNNER_POOL_MIGRATION_ENABLED === "true";
+}
+
+/**
+ * Queue wake publication is opt-in. Keep the parser deliberately narrow so a
+ * typo or an arbitrary truthy environment value cannot switch transports.
+ * Accepted values are exactly `true`, `on`, and `1`; all other values keep the
+ * direct Fly wake path active.
+ */
+function resilienceRunnerWakeEnabled(): boolean {
+  const value = process.env.RESILIENCE_RUNNER_WAKE_ENABLED;
+  return value === "true" || value === "on" || value === "1";
+}
+
+function availableAtIsDue(availableAt?: string): boolean {
+  if (!availableAt) return true;
+  const timestamp = Date.parse(availableAt);
+  return !Number.isFinite(timestamp) || timestamp <= Date.now();
+}
+
+type RunnerWakeQueueResponse = {
+  accepted?: unknown;
+  duplicate?: unknown;
+};
+
+/**
+ * Publish a pointer only after Postgres has returned a durable ID. A false
+ * result deliberately leaves callers on the existing direct wake fallback.
+ */
+async function tryQueueRunnerWake(
+  jobId: string,
+  target: "pool" | "legacy" | "indonesia" | "south_korea",
+  availableAt?: string,
+): Promise<boolean> {
+  if (!resilienceRunnerWakeEnabled() || !availableAtIsDue(availableAt)) return false;
+  try {
+    const response = await enqueueRunnerJobWake({ jobId, target }) as RunnerWakeQueueResponse;
+    if (response.accepted === true || response.duplicate === true) return true;
+    console.warn("[runner-wake] Queue response unusable; using direct wake fallback.", {
+      jobId: jobId.slice(0, 8),
+      reason: "invalid_response",
+    });
+  } catch {
+    console.warn("[runner-wake] Queue publication failed; using direct wake fallback.", {
+      jobId: jobId.slice(0, 8),
+      reason: "publish_failed",
+    });
+  }
+  return false;
 }
 
 async function desiredRunnerPoolCapacity(): Promise<number> {
@@ -113,6 +162,15 @@ export async function enqueueRunnerPoolJob(
     if (!row.legacy_queue_id) {
       throw new Error("runner pool enqueue reported a legacy collision without a queue id");
     }
+    if (await tryQueueRunnerWake(row.legacy_queue_id, "legacy")) {
+      return {
+        transport: "submission_queue",
+        id: row.legacy_queue_id,
+        status: row.legacy_queue_status,
+        created: false,
+        workerTriggered: true,
+      };
+    }
     const wake = await wakeCloudSubmissionWorker(row.legacy_queue_id, {
       target: "legacy",
     });
@@ -127,6 +185,14 @@ export async function enqueueRunnerPoolJob(
 
   if (!row.runner_job_id) {
     throw new Error("runner pool enqueue returned no runner job id");
+  }
+  if (await tryQueueRunnerWake(row.runner_job_id, "pool", opts.availableAt)) {
+    return {
+      transport: "runner_job",
+      id: row.runner_job_id,
+      created: !row.reused_existing,
+      workerTriggered: true,
+    };
   }
   let workerTriggered = false;
   try {
@@ -230,6 +296,13 @@ export async function enqueueSgacRunnerRetry(
 
   if (result.route === "legacy") return result;
 
+  if (await tryQueueRunnerWake(result.id, "pool")) {
+    return {
+      ...result,
+      workerTriggered: true,
+    };
+  }
+
   const wake = await wakeCloudSubmissionWorker(result.id, { target: "pool" });
   if (!wake.ok && wake.reason !== "not_configured") {
     console.warn("[runner-job] Singapore Fly wake failed; queued work remains recoverable.", {
@@ -291,6 +364,7 @@ export async function enqueueRunnerJob(
         };
       },
     );
+    if (await tryQueueRunnerWake(result.id, "indonesia")) return result;
     const wake = await wakeCloudSubmissionWorker(result.id, { target: "indonesia" });
     if (!wake.ok && wake.reason !== "not_configured") {
       console.warn("[indonesia] Sticky Fly wake failed; reconciler will recover.", {
@@ -325,6 +399,7 @@ export async function enqueueRunnerJob(
         };
       },
     );
+    if (await tryQueueRunnerWake(result.id, "legacy")) return result;
     const wake = await wakeCloudSubmissionWorker(result.id, { target: "legacy" });
     if (!wake.ok && wake.reason !== "not_configured") {
       console.warn("[vietnam] Sticky Fly wake failed; reconciler will recover.", {
@@ -371,6 +446,7 @@ export async function enqueueRunnerJob(
     }
     return { id: data.id as string, created: true };
   });
+  if (await tryQueueRunnerWake(result.id, "pool", opts.availableAt)) return result;
   const wake = await wakeCloudSubmissionWorker(result.id, {
     target: "pool",
   });
