@@ -187,7 +187,10 @@ The current internal automation migrations are:
   claim lock with country-cap row serialization, bounded one-row lease recovery,
   and partial indexes for queued ordering, running-country counts, and lease
   expiry; the exact service-role-only `claim_runner_pool_job` signature remains
-  rolling-deploy compatible and excludes retired Indonesia pool work.
+  rolling-deploy compatible and excludes retired Indonesia pool work. It also
+  carries the service-role-only `defer_vn_official_status_check` RPC used to
+  return provider-gate-denied status checks to the queue without consuming an
+  admission attempt.
 
 ## Guardrails
 

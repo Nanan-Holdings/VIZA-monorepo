@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   claimVietnamOfficialStatusChecks,
   completeVietnamOfficialStatusCheck,
+  deferVietnamOfficialStatusCheck,
   failVietnamOfficialStatusCheck,
 } from "../status-check-lease.js";
 
@@ -83,6 +84,32 @@ test("Vietnam status failure is conditional and carries failure evidence", async
       p_raw_status_json: { source: "vietnam_evisa_search", failed: true },
     },
   });
+});
+
+test("Vietnam status defer calls the exact ownership-aware RPC and returns false on lost ownership", async () => {
+  const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  const client = {
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      calls.push({ name, args });
+      return { data: false, error: null };
+    },
+  };
+
+  const deferred = await deferVietnamOfficialStatusCheck(client, {
+    checkId: "check-1",
+    workerId: "worker-a",
+    retryAfterSeconds: 30,
+  });
+
+  assert.equal(deferred, false);
+  assert.deepEqual(calls, [{
+    name: "defer_vn_official_status_check",
+    args: {
+      p_check_id: "check-1",
+      p_worker_id: "worker-a",
+      p_retry_after_seconds: 30,
+    },
+  }]);
 });
 
 test("Vietnam gate ownership loss prevents final settlement and releases the exact lease", async () => {

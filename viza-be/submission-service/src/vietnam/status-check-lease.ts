@@ -7,7 +7,8 @@ export interface VietnamStatusCheckRpcClient {
     name:
       | "claim_vn_official_status_checks"
       | "complete_vn_official_status_check"
-      | "fail_vn_official_status_check",
+      | "fail_vn_official_status_check"
+      | "defer_vn_official_status_check",
     args: Record<string, unknown>,
   ): PromiseLike<{ data: unknown; error: VietnamStatusCheckRpcError | null }>;
 }
@@ -65,6 +66,32 @@ export async function failVietnamOfficialStatusCheck(
   });
   if (error) {
     throw new Error(`Failed to fail Vietnam official status check: ${error.message}`);
+  }
+  return data === true;
+}
+
+export async function deferVietnamOfficialStatusCheck(
+  client: VietnamStatusCheckRpcClient,
+  input: {
+    checkId: string;
+    workerId: string;
+    retryAfterSeconds: number;
+  },
+): Promise<boolean> {
+  if (
+    !Number.isSafeInteger(input.retryAfterSeconds) ||
+    input.retryAfterSeconds < 1 ||
+    input.retryAfterSeconds > 300
+  ) {
+    throw new RangeError("retryAfterSeconds must be between 1 and 300");
+  }
+  const { data, error } = await client.rpc("defer_vn_official_status_check", {
+    p_check_id: input.checkId,
+    p_worker_id: input.workerId,
+    p_retry_after_seconds: input.retryAfterSeconds,
+  });
+  if (error) {
+    throw new Error(`Failed to defer Vietnam official status check: ${error.message}`);
   }
   return data === true;
 }

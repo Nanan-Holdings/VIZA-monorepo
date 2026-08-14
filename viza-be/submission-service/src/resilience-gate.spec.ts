@@ -135,9 +135,9 @@ test("disabled acquire is a no-op and does not call the gateway", async () => {
   }
 });
 
-test("invalid capacity configuration falls back to the bounded default", async () => {
+test("missing capacity configuration uses the bounded default", async () => {
   enabledEnv();
-  process.env.RESILIENCE_VN_STATUS_GATE_CAPACITY = "not-a-number";
+  delete process.env.RESILIENCE_VN_STATUS_GATE_CAPACITY;
   let seenBody: Record<string, unknown> | undefined;
   const previousFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
@@ -163,6 +163,31 @@ test("invalid capacity configuration falls back to the bounded default", async (
       ResilienceGateCapacityDeniedError,
     );
     assert.equal(seenBody?.capacity, 1);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("invalid capacity configuration fails loudly before fetch", async () => {
+  enabledEnv();
+  process.env.RESILIENCE_VN_STATUS_GATE_CAPACITY = "not-a-number";
+  const previousFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return response({});
+  };
+  try {
+    await assert.rejects(
+      acquireResilienceGate({
+        scope: "vietnam",
+        resourceKey: "evisa/status",
+        leaseSeconds: 120,
+        ownerRef: "worker-1",
+      }),
+      ResilienceGateConfigurationError,
+    );
+    assert.equal(calls, 0);
   } finally {
     globalThis.fetch = previousFetch;
   }

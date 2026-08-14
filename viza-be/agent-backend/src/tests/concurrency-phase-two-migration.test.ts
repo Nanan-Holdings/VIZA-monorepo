@@ -16,6 +16,9 @@ const functionBody = canonicalSql.match(
 const emailFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.enqueue_vn_email_triggered_status_checks\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
+const deferFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.defer_vn_official_status_check\([\s\S]*?\n\$\$;/i,
+ )?.[0] ?? "";
 
 describe("runner pool concurrency phase two migration", () => {
   it("defines the exact service-role claim RPC identity and return contract", () => {
@@ -248,5 +251,55 @@ describe("runner pool concurrency phase two migration", () => {
       /tracking_updates[\s\S]*?FROM latest_tracking_emails[\s\S]*?row_number\s*=\s*1/i,
     );
     expect(emailFunctionBody).toMatch(/COUNT\(\*\)[\s\S]*?FROM classified WHERE candidate_count = 1/i);
+  });
+
+  it("defines the exact service-role defer RPC identity and return contract", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.defer_vn_official_status_check\(\s*p_check_id UUID,\s*p_worker_id TEXT,\s*p_retry_after_seconds INTEGER DEFAULT 30\s*\)/i,
+    );
+    expect(deferFunctionBody).toMatch(/RETURNS BOOLEAN/i);
+    expect(deferFunctionBody).toMatch(/SECURITY INVOKER/i);
+    expect(deferFunctionBody).toMatch(/SET search_path = ''/i);
+  });
+
+  it("validates defer inputs with SQLSTATE 22023 and bounds retry delay", () => {
+    expect(deferFunctionBody).toMatch(
+      /p_check_id IS NULL[\s\S]*?ERRCODE\s*=\s*'22023'/i,
+    );
+    expect(deferFunctionBody).toMatch(
+      /NULLIF\(BTRIM\(p_worker_id\), ''\) IS NULL[\s\S]*?ERRCODE\s*=\s*'22023'/i,
+    );
+    expect(deferFunctionBody).toMatch(
+      /p_retry_after_seconds IS NULL[\s\S]*?p_retry_after_seconds < 1[\s\S]*?p_retry_after_seconds > 300[\s\S]*?ERRCODE\s*=\s*'22023'/i,
+    );
+  });
+
+  it("revokes public execution and grants defer only to service_role", () => {
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.defer_vn_official_status_check\(UUID, TEXT, INTEGER\)\s+FROM PUBLIC, anon, authenticated;/i,
+    );
+    expect(canonicalSql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.defer_vn_official_status_check\(UUID, TEXT, INTEGER\)\s+TO service_role;/i,
+    );
+  });
+
+  it("conditionally requeues only a live worker-owned running check and reverses the admission attempt", () => {
+    expect(deferFunctionBody).toMatch(
+      /UPDATE public\.official_status_checks[\s\S]*?SET[\s\S]*?status\s*=\s*'queued'[\s\S]*?scheduled_for\s*=\s*NOW\(\)\s*\+[\s\S]*?attempt_count\s*=\s*GREATEST\(checks\.attempt_count\s*-\s*1,\s*0\)[\s\S]*?worker_id\s*=\s*NULL[\s\S]*?claimed_at\s*=\s*NULL[\s\S]*?lease_expires_at\s*=\s*NULL[\s\S]*?started_at\s*=\s*NULL[\s\S]*?updated_at\s*=\s*NOW\(\)/i,
+    );
+    expect(deferFunctionBody).toMatch(
+      /WHERE checks\.id\s*=\s*p_check_id[\s\S]*?checks\.status\s*=\s*'running'[\s\S]*?checks\.worker_id\s*=\s*BTRIM\(p_worker_id\)[\s\S]*?checks\.lease_expires_at\s*>\s*NOW\(\)/i,
+    );
+    expect(deferFunctionBody).toMatch(/GET DIAGNOSTICS updated_count\s*=\s*ROW_COUNT/i);
+    expect(deferFunctionBody).toMatch(/RETURN updated_count\s*=\s*1/i);
+  });
+
+  it("keeps the CLI mirror byte-for-byte equivalent after adding the defer RPC", () => {
+    const mirrorFiles = existsSync(mirrorDirectory)
+      ? readdirSync(mirrorDirectory).filter((fileName) => /_concurrency_phase_two\.sql$/i.test(fileName))
+      : [];
+    expect(mirrorFiles).toHaveLength(1);
+    const mirrorSql = readFileSync(`${mirrorDirectory}/${mirrorFiles[0]}`, "utf8");
+    expect(normalized(mirrorSql)).toBe(normalized(canonicalSql));
   });
 });

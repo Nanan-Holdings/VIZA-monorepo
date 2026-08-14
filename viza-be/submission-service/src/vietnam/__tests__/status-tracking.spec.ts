@@ -68,3 +68,146 @@ test("vn.status-tracking: rethrows non-duplicate plain insert errors", async () 
       caught instanceof Error && caught.message === error.message,
   );
 });
+
+test("vn.status-tracking: shares the gate capacity parser default and fail-loud validation", async () => {
+  const { vietnamStatusGateCapacity } = await import("../status-tracking.js");
+  assert.equal(vietnamStatusGateCapacity({}), 1);
+  assert.throws(
+    () => vietnamStatusGateCapacity({ RESILIENCE_VN_STATUS_GATE_CAPACITY: "0" }),
+    /RESILIENCE_VN_STATUS_GATE_CAPACITY/,
+  );
+  assert.throws(
+    () => vietnamStatusGateCapacity({ RESILIENCE_VN_STATUS_GATE_CAPACITY: "1.5" }),
+    /RESILIENCE_VN_STATUS_GATE_CAPACITY/,
+  );
+});
+
+const claimedCheck = {
+  id: "check-1",
+  application_id: "application-1",
+  user_id: "user-1",
+  trigger_source: "daily",
+  inbound_email_id: null,
+  attempt_count: 1,
+};
+
+test("vn.status-tracking: production batch defers provider denial without settlement or processed count", async () => {
+  const {
+    processQueuedVietnamStatusChecksWithDependencies,
+    VietnamStatusGateDeferredError,
+  } = await import("../status-tracking.js");
+  let deferCalls = 0;
+  let retryAfterSeconds = 0;
+  let completeCalls = 0;
+  let failCalls = 0;
+  const processed = await processQueuedVietnamStatusChecksWithDependencies("worker-a", {
+    claim: async () => [claimedCheck],
+    processCheck: async () => {
+      throw new VietnamStatusGateDeferredError({
+        reason: "at_capacity",
+        retryAt: Date.now() + 45_000,
+      });
+    },
+    defer: async (_check, _worker, retryAfter) => {
+      deferCalls += 1;
+      retryAfterSeconds = retryAfter;
+      return true;
+    },
+    complete: async () => {
+      completeCalls += 1;
+      return true;
+    },
+    fail: async () => {
+      failCalls += 1;
+      return true;
+    },
+  });
+  assert.equal(processed, 0);
+  assert.equal(deferCalls, 1);
+  assert.ok(retryAfterSeconds >= 44 && retryAfterSeconds <= 46);
+  assert.equal(completeCalls, 0);
+  assert.equal(failCalls, 0);
+});
+
+test("vn.status-tracking: production batch propagates permanent gate errors without defer or settlement", async () => {
+  const {
+    processQueuedVietnamStatusChecksWithDependencies,
+  } = await import("../status-tracking.js");
+  const { ResilienceGateConfigurationError } = await import("../../resilience-gate.js");
+  let deferCalls = 0;
+  let completeCalls = 0;
+  let failCalls = 0;
+  await assert.rejects(
+    processQueuedVietnamStatusChecksWithDependencies("worker-a", {
+      claim: async () => [claimedCheck],
+      processCheck: async () => {
+        throw new ResilienceGateConfigurationError("invalid gate config");
+      },
+      defer: async () => {
+        deferCalls += 1;
+        return true;
+      },
+      complete: async () => {
+        completeCalls += 1;
+        return true;
+      },
+      fail: async () => {
+        failCalls += 1;
+        return true;
+      },
+    }),
+    ResilienceGateConfigurationError,
+  );
+  assert.equal(deferCalls, 0);
+  assert.equal(completeCalls, 0);
+  assert.equal(failCalls, 0);
+});
+
+test("vn.status-tracking: production batch skips all settlement when Postgres or gate ownership is lost", async () => {
+  const {
+    processQueuedVietnamStatusChecksWithDependencies,
+    VietnamStatusCheckOwnershipLostError,
+  } = await import("../status-tracking.js");
+  let deferCalls = 0;
+  let completeCalls = 0;
+  let failCalls = 0;
+  const processed = await processQueuedVietnamStatusChecksWithDependencies("worker-a", {
+    claim: async () => [claimedCheck],
+    processCheck: async () => {
+      throw new VietnamStatusCheckOwnershipLostError();
+    },
+    defer: async () => {
+      deferCalls += 1;
+      return true;
+    },
+    complete: async () => {
+      completeCalls += 1;
+      return true;
+    },
+    fail: async () => {
+      failCalls += 1;
+      return true;
+    },
+  });
+  assert.equal(processed, 0);
+  assert.equal(deferCalls, 0);
+  assert.equal(completeCalls, 0);
+  assert.equal(failCalls, 0);
+});
+
+test("vn.status-tracking: production batch preserves generic portal failure settlement", async () => {
+  const { processQueuedVietnamStatusChecksWithDependencies } = await import("../status-tracking.js");
+  let failCalls = 0;
+  const processed = await processQueuedVietnamStatusChecksWithDependencies("worker-a", {
+    claim: async () => [claimedCheck],
+    processCheck: async () => {
+      throw new Error("portal unavailable");
+    },
+    fail: async () => {
+      failCalls += 1;
+      return true;
+    },
+  });
+  assert.equal(processed, 1);
+  assert.equal(failCalls, 1);
+});
