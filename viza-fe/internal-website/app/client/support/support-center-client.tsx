@@ -19,6 +19,7 @@ import {
   type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
 import { createSupportTicket } from "@/app/actions/support";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { AiAssistIcon } from "@/components/ui/ai-assist-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -424,11 +425,7 @@ export function SupportCenterClient() {
                       )}
                     </div>
 
-                    {requestError ? (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                        {requestError}
-                      </div>
-                    ) : null}
+                    {requestError ? <ClientErrorAlert message={requestError} /> : null}
 
                     <div className="flex flex-wrap items-center gap-3">
                       <Button type="submit" className="h-11" disabled={isSubmitting}>

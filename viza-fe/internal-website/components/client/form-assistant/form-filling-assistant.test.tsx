@@ -454,6 +454,53 @@ describe("FormFillingAssistant", () => {
     expect(trackStop).toHaveBeenCalled();
   });
 
+  it("renders transcription failures with the canonical client error alert", async () => {
+    const getUserMedia = vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
+
+    class FailedTranscriptionMediaRecorder {
+      static isTypeSupported = vi.fn(() => true);
+      state: "inactive" | "recording" = "inactive";
+      mimeType = "audio/webm";
+      ondataavailable: ((event: BlobEvent) => void) | null = null;
+      onstop: (() => void) | null = null;
+
+      constructor(_stream: MediaStream, _options?: MediaRecorderOptions) {}
+
+      start() {
+        this.state = "recording";
+      }
+
+      stop() {
+        this.state = "inactive";
+        this.ondataavailable?.({ data: new Blob(["audio"], { type: this.mimeType }) } as BlobEvent);
+        this.onstop?.();
+      }
+    }
+
+    Object.defineProperty(globalThis, "MediaRecorder", {
+      configurable: true,
+      value: FailedTranscriptionMediaRecorder,
+      writable: true,
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia },
+      writable: true,
+    });
+
+    renderAssistant({ onTranscribe: vi.fn().mockRejectedValue(new Error("provider failed")) });
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Stop voice input" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "The recording could not be transcribed. Please try again or type your answer."
+    );
+    expect(alert).toHaveAttribute("data-client-error-alert");
+    expect(screen.getByRole("textbox", { name: "Message for the form filling assistant" })).toBeEnabled();
+  });
+
   it("keeps typing available when microphone permission is denied", async () => {
     class PermissionMediaRecorder {
       static isTypeSupported = vi.fn(() => true);

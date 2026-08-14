@@ -12,6 +12,7 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -558,30 +559,30 @@ export function VnResultCard({
         )}
 
         {result.manualAction && !isPaymentCheckpoint && (
-          <Alert variant="warning">
-            <AlertIcon variant="warning" />
-            <AlertTitle>{isZh ? "需要人工操作" : "Manual action"}</AlertTitle>
-            <AlertDescription>
-              <p>{result.manualAction.instructions}</p>
-              {manualAction?.screenshotUrl && (
-                <p className="mt-2 break-all font-mono text-xs">
-                  {isZh ? "证据截图：" : "Screenshot: "}
-                  {manualAction.screenshotUrl}
-                </p>
-              )}
-              {manualAction && (
-                <AlertActions>
-                  <AlertAction onClick={completeManualAction} disabled={completing}>
-                    {completing && <Loader2 className="animate-spin" />}
-                    {isZh ? "我已在官网完成，继续" : "I completed this on the official page, continue"}
-                  </AlertAction>
-                </AlertActions>
-              )}
-              {localizedActionError && (
-                <p className="mt-2 font-medium !text-[hsl(0_72%_35%)]">{localizedActionError}</p>
-              )}
-            </AlertDescription>
-          </Alert>
+          <>
+            <Alert variant="warning">
+              <AlertIcon variant="warning" />
+              <AlertTitle>{isZh ? "需要人工操作" : "Manual action"}</AlertTitle>
+              <AlertDescription>
+                <p>{result.manualAction.instructions}</p>
+                {manualAction?.screenshotUrl && (
+                  <p className="mt-2 break-all font-mono text-xs">
+                    {isZh ? "证据截图：" : "Screenshot: "}
+                    {manualAction.screenshotUrl}
+                  </p>
+                )}
+                {manualAction && (
+                  <AlertActions>
+                    <AlertAction onClick={completeManualAction} disabled={completing}>
+                      {completing && <Loader2 className="animate-spin" />}
+                      {isZh ? "我已在官网完成，继续" : "I completed this on the official page, continue"}
+                    </AlertAction>
+                  </AlertActions>
+                )}
+              </AlertDescription>
+            </Alert>
+            {localizedActionError ? <ClientErrorAlert message={localizedActionError} /> : null}
+          </>
         )}
 
         {result.noticeText && (

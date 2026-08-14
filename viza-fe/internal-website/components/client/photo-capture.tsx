@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { validatePhotoAction } from "@/app/actions/photo";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 
 /**
  * Photo capture + validation component (DOC-001).
@@ -94,7 +95,7 @@ export function PhotoCapture({
         className="hidden"
       />
       {error ? (
-        <p className="text-sm text-red-700">{error}</p>
+        <ClientErrorAlert message={error} />
       ) : (
         <p className="text-xs text-[#6b6b6b]">
           JPEG · plain background · face fully visible · head centred ·

@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { TwSubmissionResult, TwSubmissionStatus } from "@/lib/submission-result";
 import type { ApplicationCompletenessResult } from "@/lib/application-completeness";
@@ -443,7 +444,7 @@ export function TwResultCard({
                 ? (isZh ? "正在打开" : "Opening")
                 : (isZh ? "打开已填写的台湾官网" : "Open prepared Taiwan application")}
             </Button>
-            {handoffError && <p className="text-xs text-red-600">{handoffError}</p>}
+            {handoffError ? <ClientErrorAlert message={handoffError} /> : null}
           </div>
         )}
 
@@ -478,7 +479,7 @@ export function TwResultCard({
                 ? isZh ? "正在重新排队" : "Requeueing"
                 : isZh ? "重新自动填写" : "Refill official session"}
             </Button>
-            {retryError && <p className="text-xs text-red-600">{retryError}</p>}
+            {retryError ? <ClientErrorAlert message={retryError} /> : null}
           </div>
         )}
 

@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
 import { countries } from "country-data-list";
 import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import {
   loadDocumentCenterData,
   type DocumentCenterData,
@@ -4409,9 +4410,7 @@ export default function ApplicationPage() {
               showSubmissionStatusStep &&
               (currentStep === statusStepIndex || currentStep === fallbackStatusStepIndex)
             ) && (
-            <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm mb-6">
-              {error}
-            </div>
+            <ClientErrorAlert className="mb-6" message={error} />
           )}
 
           {saving && (

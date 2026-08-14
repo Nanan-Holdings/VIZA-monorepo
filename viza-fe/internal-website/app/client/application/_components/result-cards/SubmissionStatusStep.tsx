@@ -31,6 +31,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { hasDurableTerminalSubmissionResult } from "@/lib/application-submission-display";
 import {
@@ -458,7 +459,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
                 : "No official downloadable confirmation PDF is available for this submission."}
           </p>
         ) : null}
-        {downloadError ? <p className="text-sm text-red-700">{downloadError}</p> : null}
+        {downloadError ? <ClientErrorAlert message={downloadError} /> : null}
         <Button asChild variant="ghost" className="w-full">
           <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
             {isZh ? "打开官方入境卡网站" : "Open official arrival card website"}
@@ -1102,11 +1103,7 @@ function GenericResultCard({
           </div>
         )}
 
-        {liveError && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {liveError}
-          </div>
-        )}
+        {liveError ? <ClientErrorAlert message={liveError} /> : null}
 
         {actionRequired && result.actionType && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
@@ -1190,9 +1187,7 @@ function GenericResultCard({
                   : "The current live job is still syncing. Refresh this status shortly."}
               </p>
             )}
-            {manualActionError && (
-              <p className="text-sm text-red-700">{manualActionError}</p>
-            )}
+            {manualActionError ? <ClientErrorAlert message={manualActionError} /> : null}
           </div>
         )}
 
@@ -1309,7 +1304,7 @@ function ArrivalCardPreparedResultCard({
           )}
           {submitting ? (isZh ? "正在提交" : "Submitting") : (isZh ? "提交" : "Submit")}
         </Button>
-        {submitError ? <p className="text-sm text-red-700">{submitError}</p> : null}
+        {submitError ? <ClientErrorAlert message={submitError} /> : null}
       </CardContent>
     </Card>
   );
@@ -1340,7 +1335,7 @@ function FranceResubmitPanel({
               ? "会先保存当前表单里的最新答案，再重新创建法国官网提交任务。"
               : "VIZA saves the latest answers from this form first, then creates a new France-Visas submission job."}
           </p>
-          {error && <p className="text-xs text-red-700">{error}</p>}
+          {error ? <ClientErrorAlert message={error} /> : null}
         </div>
         <Button
           type="button"
@@ -1387,7 +1382,7 @@ function UkResubmitPanel({
               ? "会先保存当前表单里的最新答案，再通过 UK 专用 worker 继续填写 gov.uk（与 France-Visas 一样走 live assisted 队列）。"
               : "VIZA saves your latest answers first, then enqueues a UK-specific live worker to continue gov.uk pre-fill (same live-assisted pattern as France-Visas)."}
           </p>
-          {error && <p className="text-xs text-red-700">{error}</p>}
+          {error ? <ClientErrorAlert message={error} /> : null}
         </div>
         <Button
           type="button"

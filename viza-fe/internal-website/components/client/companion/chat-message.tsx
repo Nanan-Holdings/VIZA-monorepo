@@ -1,6 +1,7 @@
 "use client";
 
 import { Warning as AlertTriangle } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { cn } from "@/lib/utils";
 
 interface ChatMessageProps {
@@ -104,14 +105,7 @@ export function ChatMessage({
   // Error message
   if (role === "error") {
     return (
-      <div className="w-full flex gap-3 items-start">
-        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-          <AlertTriangle className="w-4 h-4 text-red-600" />
-        </div>
-        <p className="text-red-700 text-base sm:text-lg whitespace-pre-wrap leading-relaxed">
-          {content}
-        </p>
-      </div>
+      <ClientErrorAlert className="w-full" message={content} />
     );
   }
 

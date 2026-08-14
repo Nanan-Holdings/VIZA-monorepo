@@ -23,6 +23,7 @@ import {
   reconcileStripeCheckoutSession,
 } from "./data";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -478,11 +479,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
       </header>
 
       {context.error ? (
-        <Alert className="border-destructive/30 bg-destructive/5 text-destructive">
-          <XCircle className="h-4 w-4" />
-          <AlertTitle>Checkout could not load</AlertTitle>
-          <AlertDescription>{context.error}</AlertDescription>
-        </Alert>
+        <ClientErrorAlert message={context.error} title="Checkout could not load" />
       ) : null}
 
       {context.selectedPackage ? (
