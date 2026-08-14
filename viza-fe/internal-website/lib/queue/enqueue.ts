@@ -91,45 +91,66 @@ type AuthoritativeRunnerJobState = {
   availableAt: string | null;
 };
 
+type AuthoritativeRunnerRead =
+  | { kind: "found"; state: AuthoritativeRunnerJobState }
+  | { kind: "missing" }
+  | { kind: "unavailable" };
+
 type RunnerWakeTarget = "pool" | "legacy" | "indonesia" | "south_korea";
 
 function runnerJobWakeable(state: AuthoritativeRunnerJobState, target: RunnerWakeTarget): boolean {
   const status = state.status.trim().toLowerCase();
   const queued = target === "pool"
     ? status === "queued"
-    : status === "pending" || status.endsWith("_pending") || status.endsWith("_scheduled");
+    : status === "pending" || status.endsWith("_pending");
   return queued && availableAtIsDue(state.availableAt ?? undefined);
 }
 
 async function loadAuthoritativeRunnerJobState(
   jobId: string,
   target: RunnerWakeTarget,
-): Promise<AuthoritativeRunnerJobState | null> {
+): Promise<AuthoritativeRunnerRead> {
   try {
-    const state = await withAdmin("system", "lib/queue:runner-wake-state", async (admin) => {
+    const read = await withAdmin("system", "lib/queue:runner-wake-state", async (admin) => {
       const table = target === "pool" ? "runner_job" : "submission_queue";
+      const columns = table === "runner_job" ? "id,status,available_at" : "id,status";
       const { data, error } = await admin
         .from(table)
-        .select("id,status,available_at")
+        .select(columns)
         .eq("id", jobId)
         .maybeSingle();
-      if (error || !data || typeof data !== "object") return null;
-      const row = data as { id?: unknown; status?: unknown; available_at?: unknown };
-      if (row.id !== jobId || typeof row.status !== "string") return null;
+      if (error) return { kind: "unavailable" as const };
+      if (!data || typeof data !== "object") return { kind: "missing" as const };
+      if (table === "runner_job") {
+        const row = data as { id?: unknown; status?: unknown; available_at?: unknown };
+        if (row.id !== jobId || typeof row.status !== "string") return { kind: "unavailable" as const };
+        return {
+          kind: "found" as const,
+          state: {
+            status: row.status,
+            availableAt: typeof row.available_at === "string" ? row.available_at : null,
+          },
+        };
+      }
+      const row = data as { id?: unknown; status?: unknown };
+      if (row.id !== jobId || typeof row.status !== "string") return { kind: "unavailable" as const };
       return {
-        status: row.status,
-        availableAt: typeof row.available_at === "string" ? row.available_at : null,
+        kind: "found" as const,
+        state: {
+          status: row.status,
+          availableAt: null,
+        },
       };
     });
-    if (state) return state;
+    if (read.kind !== "unavailable") return read;
   } catch {
-    // Keep the wake path fail-closed. The reconciler can retry from durable DB state.
+    // Keep Queue publication fail-closed; callers retain the authenticated direct wake fallback.
   }
   console.warn("[runner-pool] Authoritative runner state unavailable; reconciler will recover.", {
     jobId: jobId.slice(0, 8),
     reason: "authoritative_state_unavailable",
   });
-  return null;
+  return { kind: "unavailable" };
 }
 
 /**
@@ -212,10 +233,11 @@ export async function enqueueRunnerPoolJob(
     if (!row.legacy_queue_id) {
       throw new Error("runner pool enqueue reported a legacy collision without a queue id");
     }
-    const authority = resilienceRunnerWakeEnabled()
+    const queueEnabled = resilienceRunnerWakeEnabled();
+    const authority = queueEnabled
       ? await loadAuthoritativeRunnerJobState(row.legacy_queue_id, "legacy")
       : null;
-    if (resilienceRunnerWakeEnabled() && (!authority || !runnerJobWakeable(authority, "legacy"))) {
+    if (queueEnabled && authority?.kind === "missing") {
       return {
         transport: "submission_queue",
         id: row.legacy_queue_id,
@@ -224,14 +246,25 @@ export async function enqueueRunnerPoolJob(
         workerTriggered: false,
       };
     }
-    if (await tryQueueRunnerWake(row.legacy_queue_id, "legacy", authority?.availableAt ?? undefined)) {
-      return {
-        transport: "submission_queue",
-        id: row.legacy_queue_id,
-        status: row.legacy_queue_status,
-        created: false,
-        workerTriggered: true,
-      };
+    if (queueEnabled && authority?.kind === "found") {
+      if (!runnerJobWakeable(authority.state, "legacy")) {
+        return {
+          transport: "submission_queue",
+          id: row.legacy_queue_id,
+          status: row.legacy_queue_status,
+          created: false,
+          workerTriggered: false,
+        };
+      }
+      if (await tryQueueRunnerWake(row.legacy_queue_id, "legacy", authority.state.availableAt ?? undefined)) {
+        return {
+          transport: "submission_queue",
+          id: row.legacy_queue_id,
+          status: row.legacy_queue_status,
+          created: false,
+          workerTriggered: true,
+        };
+      }
     }
     const wake = await wakeCloudSubmissionWorker(row.legacy_queue_id, {
       target: "legacy",
@@ -248,10 +281,11 @@ export async function enqueueRunnerPoolJob(
   if (!row.runner_job_id) {
     throw new Error("runner pool enqueue returned no runner job id");
   }
-  const authority = resilienceRunnerWakeEnabled()
+  const queueEnabled = resilienceRunnerWakeEnabled();
+  const authority = queueEnabled
     ? await loadAuthoritativeRunnerJobState(row.runner_job_id, "pool")
     : null;
-  if (resilienceRunnerWakeEnabled() && (!authority || !runnerJobWakeable(authority, "pool"))) {
+  if (queueEnabled && authority?.kind === "missing") {
     return {
       transport: "runner_job",
       id: row.runner_job_id,
@@ -259,7 +293,7 @@ export async function enqueueRunnerPoolJob(
       workerTriggered: false,
     };
   }
-  if (shouldDeferWake(opts.availableAt)) {
+  if (queueEnabled && authority?.kind === "found" && !runnerJobWakeable(authority.state, "pool")) {
     return {
       transport: "runner_job",
       id: row.runner_job_id,
@@ -267,12 +301,29 @@ export async function enqueueRunnerPoolJob(
       workerTriggered: false,
     };
   }
-  if (await tryQueueRunnerWake(row.runner_job_id, "pool", authority?.availableAt ?? opts.availableAt)) {
+  if (queueEnabled && authority?.kind === "found") {
+    if (shouldDeferWake(opts.availableAt)) {
+      return {
+        transport: "runner_job",
+        id: row.runner_job_id,
+        created: !row.reused_existing,
+        workerTriggered: false,
+      };
+    }
+    if (await tryQueueRunnerWake(row.runner_job_id, "pool", authority.state.availableAt ?? undefined)) {
+      return {
+        transport: "runner_job",
+        id: row.runner_job_id,
+        created: !row.reused_existing,
+        workerTriggered: true,
+      };
+    }
+  } else if (!queueEnabled && shouldDeferWake(opts.availableAt)) {
     return {
       transport: "runner_job",
       id: row.runner_job_id,
       created: !row.reused_existing,
-      workerTriggered: true,
+      workerTriggered: false,
     };
   }
   let workerTriggered = false;
@@ -377,28 +428,36 @@ export async function enqueueSgacRunnerRetry(
 
   if (result.route === "legacy") return result;
 
-  const authority = resilienceRunnerWakeEnabled()
+  const queueEnabled = resilienceRunnerWakeEnabled();
+  const authority = queueEnabled
     ? await loadAuthoritativeRunnerJobState(result.id, "pool")
     : null;
-  if (resilienceRunnerWakeEnabled() && (!authority || !runnerJobWakeable(authority, "pool"))) {
+  if (queueEnabled && authority?.kind === "missing") {
+    return {
+      ...result,
+      workerTriggered: false,
+    };
+  }
+  if (queueEnabled && authority?.kind === "found" && !runnerJobWakeable(authority.state, "pool")) {
     return {
       ...result,
       workerTriggered: false,
     };
   }
 
-  if (shouldDeferWake(opts.availableAt)) {
-    return {
-      ...result,
-      workerTriggered: false,
-    };
-  }
-
-  if (await tryQueueRunnerWake(result.id, "pool", authority?.availableAt ?? undefined)) {
-    return {
-      ...result,
-      workerTriggered: true,
-    };
+  if (queueEnabled && authority?.kind === "found") {
+    if (shouldDeferWake(opts.availableAt)) {
+      return {
+        ...result,
+        workerTriggered: false,
+      };
+    }
+    if (await tryQueueRunnerWake(result.id, "pool", authority.state.availableAt ?? undefined)) {
+      return {
+        ...result,
+        workerTriggered: true,
+      };
+    }
   }
 
   const wake = await wakeCloudSubmissionWorker(result.id, { target: "pool" });
@@ -462,11 +521,15 @@ export async function enqueueRunnerJob(
         };
       },
     );
-    if (resilienceRunnerWakeEnabled()) {
-      const state = await loadAuthoritativeRunnerJobState(result.id, "indonesia");
-      if (!state || !runnerJobWakeable(state, "indonesia")) return result;
-      if (await tryQueueRunnerWake(result.id, "indonesia", state.availableAt ?? undefined)) return result;
-    } else if (await tryQueueRunnerWake(result.id, "indonesia")) return result;
+    const queueEnabled = resilienceRunnerWakeEnabled();
+    const authority = queueEnabled
+      ? await loadAuthoritativeRunnerJobState(result.id, "indonesia")
+      : null;
+    if (queueEnabled && authority?.kind === "missing") return result;
+    if (queueEnabled && authority?.kind === "found") {
+      if (!runnerJobWakeable(authority.state, "indonesia")) return result;
+      if (await tryQueueRunnerWake(result.id, "indonesia", authority.state.availableAt ?? undefined)) return result;
+    } else if (!queueEnabled && await tryQueueRunnerWake(result.id, "indonesia")) return result;
     const wake = await wakeCloudSubmissionWorker(result.id, { target: "indonesia" });
     if (!wake.ok && wake.reason !== "not_configured") {
       console.warn("[indonesia] Sticky Fly wake failed; reconciler will recover.", {
@@ -501,11 +564,15 @@ export async function enqueueRunnerJob(
         };
       },
     );
-    if (resilienceRunnerWakeEnabled()) {
-      const state = await loadAuthoritativeRunnerJobState(result.id, "legacy");
-      if (!state || !runnerJobWakeable(state, "legacy")) return result;
-      if (await tryQueueRunnerWake(result.id, "legacy", state.availableAt ?? undefined)) return result;
-    } else if (await tryQueueRunnerWake(result.id, "legacy")) return result;
+    const queueEnabled = resilienceRunnerWakeEnabled();
+    const authority = queueEnabled
+      ? await loadAuthoritativeRunnerJobState(result.id, "legacy")
+      : null;
+    if (queueEnabled && authority?.kind === "missing") return result;
+    if (queueEnabled && authority?.kind === "found") {
+      if (!runnerJobWakeable(authority.state, "legacy")) return result;
+      if (await tryQueueRunnerWake(result.id, "legacy", authority.state.availableAt ?? undefined)) return result;
+    } else if (!queueEnabled && await tryQueueRunnerWake(result.id, "legacy")) return result;
     const wake = await wakeCloudSubmissionWorker(result.id, { target: "legacy" });
     if (!wake.ok && wake.reason !== "not_configured") {
       console.warn("[vietnam] Sticky Fly wake failed; reconciler will recover.", {
@@ -552,12 +619,18 @@ export async function enqueueRunnerJob(
     }
     return { id: data.id as string, created: true };
   });
-  const authority = resilienceRunnerWakeEnabled()
+  const queueEnabled = resilienceRunnerWakeEnabled();
+  const authority = queueEnabled
     ? await loadAuthoritativeRunnerJobState(result.id, "pool")
     : null;
-  if (resilienceRunnerWakeEnabled() && (!authority || !runnerJobWakeable(authority, "pool"))) return result;
-  if (shouldDeferWake(opts.availableAt)) return result;
-  if (await tryQueueRunnerWake(result.id, "pool", authority?.availableAt ?? opts.availableAt)) return result;
+  if (queueEnabled && authority?.kind === "missing") return result;
+  if (queueEnabled && authority?.kind === "found") {
+    if (!runnerJobWakeable(authority.state, "pool")) return result;
+    if (shouldDeferWake(opts.availableAt)) return result;
+    if (await tryQueueRunnerWake(result.id, "pool", authority.state.availableAt ?? undefined)) return result;
+  } else if (!queueEnabled && shouldDeferWake(opts.availableAt)) {
+    return result;
+  }
   const wake = await wakeCloudSubmissionWorker(result.id, {
     target: "pool",
   });

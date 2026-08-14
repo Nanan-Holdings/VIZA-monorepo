@@ -131,7 +131,7 @@ function isSubmissionWakeRunning(status: string): boolean {
 }
 
 function isSubmissionWakeQueued(status: string): boolean {
-  return status === "pending" || status.endsWith("_pending") || status.endsWith("_scheduled");
+  return status === "pending" || status.endsWith("_pending");
 }
 
 function retryAfterSecondsForAvailableAt(availableAt: string | null): number | null {
@@ -151,19 +151,29 @@ async function loadRunnerWakeRecord(
     retryDelaysMs: [],
   }) as unknown as ReplayDbClient;
   const table = event.target === "pool" ? "runner_job" : "submission_queue";
+  const columns = table === "runner_job" ? "id,status,available_at" : "id,status";
   const { data, error } = await admin
     .from(table)
-    .select("id,status,available_at")
+    .select(columns)
     .eq("id", event.jobId)
     .maybeSingle();
   if (error) throw new ReplayTransientError("database_unavailable");
   if (!data || typeof data !== "object") return null;
-  const row = data as { id?: unknown; status?: unknown; available_at?: unknown };
+  if (table === "runner_job") {
+    const row = data as { id?: unknown; status?: unknown; available_at?: unknown };
+    if (typeof row.id !== "string" || typeof row.status !== "string") return null;
+    return {
+      id: row.id,
+      status: row.status,
+      availableAt: typeof row.available_at === "string" ? row.available_at : null,
+    };
+  }
+  const row = data as { id?: unknown; status?: unknown };
   if (typeof row.id !== "string" || typeof row.status !== "string") return null;
   return {
     id: row.id,
     status: row.status,
-    availableAt: typeof row.available_at === "string" ? row.available_at : null,
+    availableAt: null,
   };
 }
 
@@ -215,14 +225,6 @@ async function replayRunnerJobWake(event: RunnerJobWakeEvent): Promise<RunnerWak
     !isSubmissionWakeQueued(normalizedStatus)
   ) {
     return { outcome: "ack" };
-  }
-  const retryAfterSeconds = retryAfterSecondsForAvailableAt(record.availableAt);
-  if (retryAfterSeconds !== null) {
-    return {
-      outcome: "nack",
-      errorCode: "job_not_due",
-      retryAfterSeconds,
-    };
   }
   const wake = await wakeCloudSubmissionWorker(event.jobId, { target: event.target });
   if (!wake.ok) throw new ReplayTransientError("worker_wake_unavailable");
