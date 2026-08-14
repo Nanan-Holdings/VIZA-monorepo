@@ -191,6 +191,26 @@ export async function enqueueResilienceEvent(input: {
   return result;
 }
 
+export async function enqueueResilienceQueueEvent(input: {
+  idempotencyKey: string;
+  workloadType: "critical_notification" | "document_processing" | "status_sync" | "background";
+  eventType: "runner_job.wakeup.v1" | "vietnam_status_sync.v1" | "critical_notification.v1" | "document_processing.v1";
+  scope: string;
+  userRef?: string;
+  value: unknown;
+  availableAt?: number;
+}): Promise<{ accepted: boolean; duplicate: boolean; queued: boolean }> {
+  return await gatewayPost("/v1/queue/enqueue", {
+    idempotencyKey: input.idempotencyKey,
+    workloadType: input.workloadType,
+    eventType: input.eventType,
+    scope: input.scope,
+    userRef: input.userRef,
+    blob: encryptResilienceValue(input.value),
+    availableAt: input.availableAt,
+  });
+}
+
 const replayNonces = new Map<string, number>();
 
 export function verifyReplaySignature(request: Request, rawBody: string): boolean {
