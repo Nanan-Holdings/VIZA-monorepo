@@ -153,6 +153,7 @@ test("vn.payment-resume: constrains the search CAPTCHA to exactly six digits", (
     comment: "Vietnam e-Visa search CAPTCHA. Enter exactly the six visible digits.",
   });
   assert.equal(normalizeVietnamSearchCaptchaAnswer(" 898 309 "), "898309");
+  assert.equal(normalizeVietnamSearchCaptchaAnswer("８９８３０９"), "898309");
   assert.equal(isVietnamSearchCaptchaAnswerUsable("898309"), true);
   assert.equal(isVietnamSearchCaptchaAnswerUsable("89830"), false);
   assert.equal(isVietnamSearchCaptchaAnswerUsable("89830O"), false);
