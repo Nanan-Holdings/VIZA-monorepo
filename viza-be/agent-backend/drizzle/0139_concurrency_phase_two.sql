@@ -4,6 +4,8 @@
 -- check. A caller locks only the selected country's row, so unrelated country
 -- claims can proceed concurrently while the ten production machine slots
 -- remain the global cost guard.
+-- Callers should invoke this RPC in a short/autocommit transaction so its
+-- country-cap and machine-slot row locks are released immediately after claim.
 
 -- Keep runner_job_pool_claim_idx from 0127 for rolling compatibility with
 -- older claim readers; this country-leading index supplements it for cap scans.
@@ -49,8 +51,16 @@ BEGIN
   IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
     RAISE EXCEPTION 'Worker id is required' USING ERRCODE = '22023';
   END IF;
-  IF p_lease_ms < 10000 OR p_lease_ms > 7200000 THEN
+  IF p_lease_ms IS NULL OR p_lease_ms < 10000 OR p_lease_ms > 7200000 THEN
     RAISE EXCEPTION 'Runner lease must be between 10 seconds and 2 hours'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_require_slot IS NULL THEN
+    RAISE EXCEPTION 'Runner slot requirement is required'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_now IS NULL THEN
+    RAISE EXCEPTION 'Runner claim timestamp is required'
       USING ERRCODE = '22023';
   END IF;
 
