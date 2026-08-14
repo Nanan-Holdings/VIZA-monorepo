@@ -108,6 +108,11 @@ interface SubmissionStatusSnapshot {
   } | null;
 }
 
+function submissionProgressPersistenceKey(queueId: string | null | undefined): string | null {
+  const normalizedQueueId = queueId?.trim();
+  return normalizedQueueId ? `submission-run:${normalizedQueueId}` : null;
+}
+
 type ManualAction = {
   id: string;
   actionType: string;
@@ -1510,6 +1515,7 @@ export function SubmissionStatusStep({
   const [resubmitting, setResubmitting] = useState(false);
   const [localRetryActive, setLocalRetryActive] = useState(false);
   const [activeRetryQueueId, setActiveRetryQueueId] = useState<string | null>(null);
+  const [activeProgressCycleKey, setActiveProgressCycleKey] = useState<string | null>(null);
   const [retryCompleteness, setRetryCompleteness] = useState<ApplicationCompletenessResult | null>(null);
   const initialResultTargetsIndonesia = resultTargetsIndonesia(result);
 
@@ -1519,6 +1525,8 @@ export function SubmissionStatusStep({
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     if (!applicationId) return;
+    setActiveProgressCycleKey(`retry:${applicationId}:${Date.now()}`);
+    setActiveRetryQueueId(null);
     setRetryError(null);
     setRetryCompleteness(null);
     setResubmitting(true);
@@ -1706,6 +1714,11 @@ export function SubmissionStatusStep({
   const effectiveProgress = terminalPropsAvailable
     ? fallbackProgressForStatus(effectiveStatus, country, visaType)
     : snapshot?.progress ?? fallbackProgressForStatus(effectiveStatus, country, visaType);
+  const effectiveQueueId = localRetryActive
+    ? activeRetryQueueId
+    : snapshot?.queue?.id ?? null;
+  const effectiveProgressCycleKey = activeProgressCycleKey ?? effectiveQueueId;
+  const effectiveProgressPersistenceKey = submissionProgressPersistenceKey(effectiveQueueId);
   const polledVietnamPrearrivalHasQr =
     snapshot?.result &&
     isDigitalArrivalCardResult(snapshot.result) &&
@@ -1792,6 +1805,7 @@ export function SubmissionStatusStep({
     setRetryError(null);
     setLocalRetryActive(false);
     setActiveRetryQueueId(null);
+    setActiveProgressCycleKey(null);
   }, [applicationId, country, visaType]);
 
   useEffect(() => {
@@ -1979,6 +1993,11 @@ export function SubmissionStatusStep({
               : "Queueing the formal Taiwan submission; success is shown only after official receipt verification."
             : isZh ? "正在安全发送银行卡并启动 Fly 云端任务。" : "Securely sending the card and starting the Fly cloud job."}
           applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(
+            activeRetryQueueId ?? snapshot?.queue?.id ?? null,
+          )}
+          progressCycleKey={activeProgressCycleKey}
+          resetProgressOnMount={Boolean(activeProgressCycleKey)}
           country={country}
           visaType={visaType}
         />
@@ -2268,6 +2287,9 @@ export function SubmissionStatusStep({
         }
         error={effectiveError}
         applicationId={applicationId}
+        persistenceKey={effectiveProgressPersistenceKey}
+        progressCycleKey={effectiveProgressCycleKey}
+        resetProgressOnMount={Boolean(activeProgressCycleKey)}
         country={country}
         visaType={visaType}
       />
@@ -2290,7 +2312,19 @@ function renderSubmissionResultCard(
   result: SubmissionResult | null,
   jobId: string | null = null,
 ) {
-  if (!result) return <WaitingCard status="running" />;
+  if (!result) {
+    const persistenceKey = submissionProgressPersistenceKey(jobId);
+    return (
+      <WaitingCard
+        status="running"
+        applicationId={applicationId}
+        persistenceKey={persistenceKey}
+        progressCycleKey={jobId}
+        country={country}
+        visaType={visaType}
+      />
+    );
+  }
 
   if (
     result.country === "GENERIC" &&
@@ -2390,7 +2424,14 @@ function renderSubmissionResultCard(
           result={result}
         />
       ) : (
-        <WaitingCard status="running" />
+        <WaitingCard
+          status="running"
+          applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(jobId)}
+          progressCycleKey={jobId}
+          country={country}
+          visaType={visaType}
+        />
       );
     case "AE":
     case "CA":
@@ -2405,9 +2446,25 @@ function renderSubmissionResultCard(
           result={result}
         />
       ) : (
-        <WaitingCard status="running" />
+        <WaitingCard
+          status="running"
+          applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(jobId)}
+          progressCycleKey={jobId}
+          country={country}
+          visaType={visaType}
+        />
       );
     default:
-      return <WaitingCard status="running" />;
+      return (
+        <WaitingCard
+          status="running"
+          applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(jobId)}
+          progressCycleKey={jobId}
+          country={country}
+          visaType={visaType}
+        />
+      );
   }
 }

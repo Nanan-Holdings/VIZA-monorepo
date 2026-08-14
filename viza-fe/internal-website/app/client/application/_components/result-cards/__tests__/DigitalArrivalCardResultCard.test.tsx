@@ -127,6 +127,69 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(screen.getByText("正在等待官网检查点或最终结果。")).toBeInTheDocument();
   });
 
+  it("restores Vietnam submission progress after the status card remounts", async () => {
+    vi.useFakeTimers();
+    const persistenceKey = "submission-run:vn-remount-queue";
+    window.sessionStorage.removeItem(`viza:smooth-progress:${persistenceKey}`);
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: "running",
+        stage: "filling_form",
+        progress: 55,
+        result: null,
+        error: null,
+        message: "Current stage: filling_form.",
+        updatedAt: new Date().toISOString(),
+        applicationStatus: "waiting",
+        country: "vietnam",
+        visaType: "evisa_tourism",
+        queue: {
+          id: "vn-remount-queue",
+          status: "vn_live_assisted_processing",
+          mode: "live_assisted",
+          provider: "vietnam_evisa_live",
+          currentStage: "filling_form",
+        },
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const props = {
+      applicationId: "vn-remount-application",
+      country: "vietnam",
+      visaType: "evisa_tourism",
+      status: "waiting" as const,
+      result: null,
+    };
+    const first = render(<SubmissionStatusStep {...props} />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+    expect(window.sessionStorage.getItem(`viza:smooth-progress:${persistenceKey}`)).toBe("5");
+
+    first.unmount();
+    render(<SubmissionStatusStep {...props} />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+    window.sessionStorage.removeItem(`viza:smooth-progress:${persistenceKey}`);
+  });
+
   it("does not hide portal field-selection errors as browser launch failures", () => {
     const fieldError =
       "Official Vietnam e-Visa portal rejected this value: playwright_selection_not_confirmed for nationality";
