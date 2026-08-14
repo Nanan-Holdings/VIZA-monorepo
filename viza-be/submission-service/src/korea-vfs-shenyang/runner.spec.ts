@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   dismissShenyangVfsCookies,
   fillShenyangVfsRegistrationMobileField,
+  fillShenyangVfsRegistrationConsents,
   isOptionalRegistrationConsent,
 } from "./runner.js";
 import { extractShenyangVfsSlotsFromTexts } from "./slots.js";
@@ -135,6 +136,69 @@ function fakeCookiePage(options: {
     },
     clicked,
     buttonChecks,
+  };
+}
+
+function registrationConsentCookiePage(): {
+  page: {
+    getByRole(role: string, options: { name: RegExp }): FakeCookieLocator;
+    locator(selector: string): unknown;
+  };
+  showOverlay(): void;
+  checked: () => number;
+  blockedChecks: () => number;
+  dismissClicks: () => number;
+} {
+  let overlayVisible = false;
+  let checked = 0;
+  let blockedChecks = 0;
+  let dismissClicks = 0;
+  const consentCheckbox = {
+    isVisible: async () => true,
+    locator: () => ({ innerText: async () => "I accept the mandatory terms and privacy policy" }),
+    check: async () => {
+      if (overlayVisible) {
+        blockedChecks += 1;
+        throw new Error("OneTrust overlay blocked the consent checkbox.");
+      }
+      checked += 1;
+    },
+  };
+  const consentCollection = {
+    count: async () => 1,
+    nth: () => consentCheckbox,
+  };
+  const makeLocator = (visible: () => boolean, onClick?: () => void): FakeCookieLocator => {
+    const locator: FakeCookieLocator = {
+      first: () => locator,
+      count: async () => 1,
+      nth: () => locator,
+      isVisible: async () => visible(),
+      click: async () => {
+        onClick?.();
+      },
+    };
+    return locator;
+  };
+  return {
+    page: {
+      getByRole: () => makeLocator(
+        () => overlayVisible,
+        () => {
+          dismissClicks += 1;
+          overlayVisible = false;
+        },
+      ),
+      locator: (selector: string) => selector.includes("checkbox")
+        ? consentCollection
+        : makeLocator(() => selector.includes("onetrust") && overlayVisible),
+    },
+    showOverlay: () => {
+      overlayVisible = true;
+    },
+    checked: () => checked,
+    blockedChecks: () => blockedChecks,
+    dismissClicks: () => dismissClicks,
   };
 }
 
@@ -273,4 +337,17 @@ test("fails closed when a visible OneTrust overlay cannot be dismissed", async (
     ),
     { message: "The official VFS cookie consent could not be dismissed." },
   );
+});
+
+test("dismisses a cookie overlay again immediately before required consent checks", async () => {
+  const fixture = registrationConsentCookiePage();
+  const page = fixture.page as unknown as import("playwright").Page;
+
+  await dismissShenyangVfsCookies(page, { timeoutMs: 15, pollIntervalMs: 1 });
+  fixture.showOverlay();
+  await fillShenyangVfsRegistrationConsents(page);
+
+  assert.equal(fixture.dismissClicks(), 1);
+  assert.equal(fixture.blockedChecks(), 0);
+  assert.equal(fixture.checked(), 1);
 });
