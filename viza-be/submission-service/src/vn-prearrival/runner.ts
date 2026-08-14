@@ -34,6 +34,7 @@ import {
   type InboundMessage,
 } from "../inbox/wait-for-message";
 import type { RunnerExecutionContext } from "../queue/execution-context";
+import { clickOwned } from "../queue/portal-safety.js";
 
 export interface VnPrearrivalPortalSubmissionResult {
   submitted: boolean;
@@ -72,14 +73,18 @@ async function saveScreenshot(page: Page, dir: string, name: string, logs: strin
   }
 }
 
-async function clickFirstVisible(page: Page, selectors: Array<string | RegExp>): Promise<boolean> {
+async function clickFirstVisible(
+  page: Page,
+  selectors: Array<string | RegExp>,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   for (const selector of selectors) {
     const locator = typeof selector === "string" ? page.locator(selector) : page.getByText(selector);
     const count = await locator.count().catch(() => 0);
     for (let index = 0; index < count; index += 1) {
       const candidate = locator.nth(index);
       if (await candidate.isVisible().catch(() => false)) {
-        await candidate.click();
+        await clickOwned(candidate, executionContext);
         return true;
       }
     }
@@ -463,11 +468,15 @@ async function clickOfficialPrimaryAction(page: Page, labels: string[]): Promise
   return false;
 }
 
-async function clickOfficialButton(page: Page, name: string): Promise<boolean> {
+async function clickOfficialButton(
+  page: Page,
+  name: string,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   const button = page.getByRole("button", { name, exact: true });
   const buttonCount = await button.count().catch(() => 0);
   if (buttonCount !== 1 || !(await button.isVisible().catch(() => false))) return false;
-  await button.click({ timeout: 15_000 });
+  await clickOwned(button, executionContext, { timeout: 15_000 });
   return true;
 }
 
@@ -683,8 +692,8 @@ async function openOfficialReviewPage(
   executionContext?: RunnerExecutionContext,
 ): Promise<void> {
   executionContext?.assertOwned();
-  const reviewClicked = await clickOfficialButton(page, "Review & Submit")
-    || await clickOfficialButton(page, "Review and Submit");
+  const reviewClicked = await clickOfficialButton(page, "Review & Submit", executionContext)
+    || await clickOfficialButton(page, "Review and Submit", executionContext);
   if (!reviewClicked) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival Review & Submit control was not found.",
@@ -725,7 +734,7 @@ async function completeOfficialSubmissionFromReview(
   const confirmed = await clickFirstVisible(page, [
     /^i confirm that the information is correct\.?$/i,
     /^tôi xác nhận.*chính xác/i,
-  ]);
+  ], executionContext);
   if (!confirmed) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival final declaration checkbox was not found on the review page.",
@@ -741,7 +750,7 @@ async function completeOfficialSubmissionFromReview(
   // lease immediately before clicking so a reclaimed job cannot submit in
   // parallel with the new owner.
   executionContext?.assertOwned();
-  if (!(await clickOfficialButton(page, "Submit"))) {
+  if (!(await clickOfficialButton(page, "Submit", executionContext))) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival final Submit control was not found on the review page.",
       "vn_prearrival_submit_control_not_found",
@@ -1316,7 +1325,7 @@ export async function runVietnamPrearrivalPortalSubmission(
     }
 
     if (!(await selectOfficialRadio(page, payload.gender))) missingControls.push("gender");
-    if (!(await clickFirstVisible(page, [/^i have read and understood this information\.?$/i]))) {
+    if (!(await clickFirstVisible(page, [/^i have read and understood this information\.?$/i], options.executionContext))) {
       missingControls.push("visa_information_acknowledgement");
     }
 
@@ -1332,7 +1341,7 @@ export async function runVietnamPrearrivalPortalSubmission(
       );
     }
 
-    if (!(await clickOfficialButton(page, "Trip Information"))) {
+    if (!(await clickOfficialButton(page, "Trip Information", options.executionContext))) {
       throw new VnPrearrivalPortalError(
         "Vietnam Pre-Arrival Trip Information action was not found.",
         "vn_prearrival_trip_information_action_not_found",

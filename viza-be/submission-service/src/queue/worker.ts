@@ -237,7 +237,8 @@ export async function renewJobLease(
   workerId: string,
   leaseMs: number,
   client: RunnerPoolClient = defaultClient,
-): Promise<void> {
+): Promise<{ leasedUntil: Date; roundTripMs: number }> {
+  const startedAt = Date.now();
   const { data, error } = await client.rpc("renew_runner_pool_job", {
     p_job_id: jobId,
     p_worker_id: workerId,
@@ -248,6 +249,14 @@ export async function renewJobLease(
   if (!row || typeof row.leased_until !== "string") {
     throw new RunnerJobOwnershipLostError();
   }
+  const leasedUntilMs = Date.parse(row.leased_until);
+  if (!Number.isFinite(leasedUntilMs)) {
+    throw new RunnerJobOwnershipLostError("runner job renewal returned an invalid lease timestamp");
+  }
+  return {
+    leasedUntil: new Date(leasedUntilMs),
+    roundTripMs: Math.max(0, Date.now() - startedAt),
+  };
 }
 
 /**
@@ -268,8 +277,11 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
     }
 
     let job: RunnerJob | null;
+    let claimRoundTripMs = 0;
     try {
+      const claimStartedAt = Date.now();
       job = await claimNextJob({ workerId: opts.workerId, leaseMs, client });
+      claimRoundTripMs = Math.max(0, Date.now() - claimStartedAt);
       opts.onClaimHealthy?.();
     } catch (error) {
       // Do not poll through an outage. The next explicit wake retries the
@@ -289,6 +301,8 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
     let ownershipLostError: RunnerJobOwnershipLostError | null = null;
     let renewInFlight: Promise<void> | null = null;
     let renewalStopped = false;
+    let expiryStopped = false;
+    let expiryTimer: ReturnType<typeof setTimeout> | null = null;
     const controller = new AbortController();
     const markOwnershipLost = (error: unknown): void => {
       if (ownershipLost) return;
@@ -315,10 +329,30 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
         }
       },
     };
+    const expiryLeadMs = Math.min(1_000, Math.floor(leaseMs / 10));
+    const scheduleExpiry = (roundTripMs: number): void => {
+      if (expiryStopped || ownershipLost) return;
+      if (expiryTimer) clearTimeout(expiryTimer);
+      // The DB RPC's lease starts at the server's clock. Subtract the full
+      // observed round-trip plus a bounded safety margin locally so network
+      // delay can only make us stop early, never act after the DB lease.
+      const conservativeDelay = Math.max(
+        1,
+        leaseMs - Math.max(0, roundTripMs) - expiryLeadMs,
+      );
+      expiryTimer = setTimeout(() => {
+        if (expiryStopped) return;
+        markOwnershipLost(new RunnerJobOwnershipLostError("runner job lease expired"));
+      }, conservativeDelay);
+      expiryTimer.unref?.();
+    };
     const beginRenewal = (): void => {
       if (renewalStopped || renewInFlight || ownershipLost) return;
       renewInFlight = renewJobLease(job.id, opts.workerId, leaseMs, client)
-        .then(() => opts.onClaimHealthy?.())
+        .then((renewal) => {
+          scheduleExpiry(renewal.roundTripMs);
+          opts.onClaimHealthy?.();
+        })
         .catch((error) => {
           console.error(`[queue] job ${job.id} lease renewal failed`, error);
           opts.onClaimError?.(error);
@@ -330,15 +364,11 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
     };
     const renewEveryMs = Math.max(1, opts.renewEveryMs ?? 60_000);
     const leaseTimer = setInterval(beginRenewal, renewEveryMs);
-    // Claim latency is not included in the local lease timer. Abort a small
-    // bounded margin early so a delayed renewal cannot let the handler reach
-    // an irreversible action after the database lease has already expired.
-    const expiryLeadMs = Math.min(1_000, Math.floor(leaseMs / 10));
-    const expiryTimer = setTimeout(() => {
-      markOwnershipLost(new RunnerJobOwnershipLostError("runner job lease expired"));
-    }, Math.max(1, leaseMs - expiryLeadMs));
+    // Claim/renew latency is subtracted from the local lease timer. Abort a
+    // small bounded margin early so delayed network responses cannot let the
+    // handler reach an irreversible action after the database lease expires.
+    scheduleExpiry(claimRoundTripMs);
     leaseTimer.unref?.();
-    expiryTimer.unref?.();
     let handlerError: unknown = null;
     try {
       await opts.handler(job, execution);
@@ -350,7 +380,9 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
     // Otherwise an interval tick can start a renewal while completion/failure
     // settlement is already in flight, creating a stale-owner write race.
     renewalStopped = true;
+    expiryStopped = true;
     clearInterval(leaseTimer);
+    if (expiryTimer) clearTimeout(expiryTimer);
     // A renewal may have crossed the handler's completion boundary. Capture
     // and await that last promise before deciding whether terminal settlement
     // is safe; `renewalStopped` also guards a callback already queued by the
@@ -389,7 +421,7 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
         }
       }
     } finally {
-      clearTimeout(expiryTimer);
+      if (expiryTimer) clearTimeout(expiryTimer);
       opts.onJobFinish?.(job);
     }
   }
