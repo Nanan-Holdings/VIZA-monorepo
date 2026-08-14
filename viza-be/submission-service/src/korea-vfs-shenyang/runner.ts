@@ -171,9 +171,10 @@ export function resolveShenyangVfsPasswordState(
   const password = input.password === null || rotated
     ? generateShenyangVfsPassword()
     : input.password;
+  const shouldResetForRegistrationRetry = input.accountStatus === "selector_drift" && !input.emailVerified;
   return {
     password,
-    accountStatus: rotated && input.accountStatus === "selector_drift"
+    accountStatus: shouldResetForRegistrationRetry
       ? "account_prepared"
       : input.accountStatus,
     rotated,
