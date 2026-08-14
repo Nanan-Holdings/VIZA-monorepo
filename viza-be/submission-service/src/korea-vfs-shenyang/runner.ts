@@ -339,8 +339,84 @@ async function clickVisible(page: Page, labels: RegExp): Promise<boolean> {
   return false;
 }
 
+const SHENYANG_VFS_COOKIE_ERROR = "The official VFS cookie consent could not be dismissed.";
+const SHENYANG_VFS_COOKIE_OVERLAY_SELECTOR = ".onetrust-pc-dark-filter, #onetrust-banner-sdk, #onetrust-consent-sdk";
+
+export interface ShenyangVfsCookieDismissOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
+const SHENYANG_VFS_COOKIE_TIMEOUT_MS = 10_000;
+const SHENYANG_VFS_COOKIE_POLL_INTERVAL_MS = 200;
+
+async function shenyangVfsCookieOverlayVisible(page: Page, timeoutMs: number): Promise<boolean> {
+  let overlays: ReturnType<Page["locator"]>;
+  try {
+    overlays = page.locator(SHENYANG_VFS_COOKIE_OVERLAY_SELECTOR);
+  } catch {
+    return false;
+  }
+  const count = await overlays.count().catch(() => 0);
+  for (let index = 0; index < Math.min(count, 10); index += 1) {
+    if (await overlays.nth(index).isVisible({ timeout: Math.min(400, Math.max(1, timeoutMs)) }).catch(() => false)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function clickShenyangVfsCookieButton(page: Page, labels: RegExp, timeoutMs: number): Promise<boolean> {
+  let buttons: ReturnType<Page["getByRole"]>;
+  try {
+    buttons = page.getByRole("button", { name: labels });
+  } catch {
+    return false;
+  }
+  const count = await buttons.count().catch(() => 0);
+  for (let index = 0; index < Math.min(count, 10); index += 1) {
+    const button = buttons.nth(index);
+    if (!await button.isVisible({ timeout: Math.min(400, Math.max(1, timeoutMs)) }).catch(() => false)) continue;
+    if (await button.click({ timeout: Math.min(5_000, Math.max(1, timeoutMs)) }).then(() => true).catch(() => false)) return true;
+  }
+  return false;
+}
+
+export async function dismissShenyangVfsCookies(
+  page: Page,
+  options: ShenyangVfsCookieDismissOptions = {},
+): Promise<void> {
+  const timeoutMs = positivePollingValue(options.timeoutMs, SHENYANG_VFS_COOKIE_TIMEOUT_MS);
+  const pollIntervalMs = positivePollingValue(options.pollIntervalMs, SHENYANG_VFS_COOKIE_POLL_INTERVAL_MS);
+  const deadline = Date.now() + timeoutMs;
+  const rejectLabels = /accept only necessary|reject all|only necessary/i;
+  const acceptAllLabels = /accept all|allow all/i;
+
+  while (Date.now() < deadline) {
+    const remainingMs = deadline - Date.now();
+    if (!await shenyangVfsCookieOverlayVisible(page, remainingMs)) return;
+    if (await clickShenyangVfsCookieButton(page, rejectLabels, remainingMs)
+      || await clickShenyangVfsCookieButton(page, acceptAllLabels, remainingMs)) {
+      while (Date.now() < deadline) {
+        const closeRemainingMs = deadline - Date.now();
+        if (!await shenyangVfsCookieOverlayVisible(page, closeRemainingMs)) return;
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, Math.min(pollIntervalMs, closeRemainingMs));
+        });
+      }
+      throw new Error(SHENYANG_VFS_COOKIE_ERROR);
+    }
+    const nextRemainingMs = deadline - Date.now();
+    if (nextRemainingMs <= 0) break;
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.min(pollIntervalMs, nextRemainingMs));
+    });
+  }
+  if (await shenyangVfsCookieOverlayVisible(page, 1)) throw new Error(SHENYANG_VFS_COOKIE_ERROR);
+}
+
 async function dismissCookies(page: Page): Promise<void> {
-  await clickVisible(page, /accept only necessary|accept all|allow all/i).catch(() => false);
+  await dismissShenyangVfsCookies(page);
 }
 
 const SHENYANG_VFS_MOBILE_FIELD_ERROR = "The official VFS mobile-number field could not be identified.";

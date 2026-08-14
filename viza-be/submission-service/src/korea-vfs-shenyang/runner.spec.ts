@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fillShenyangVfsRegistrationMobileField, isOptionalRegistrationConsent } from "./runner.js";
+import {
+  dismissShenyangVfsCookies,
+  fillShenyangVfsRegistrationMobileField,
+  isOptionalRegistrationConsent,
+} from "./runner.js";
 import { extractShenyangVfsSlotsFromTexts } from "./slots.js";
 
 interface FakeField {
@@ -15,6 +19,19 @@ interface FakeFieldCollection {
 
 interface FakePage {
   locator(selector: string): FakeFieldCollection;
+}
+
+interface FakeCookieLocator {
+  first(): FakeCookieLocator;
+  count(): Promise<number>;
+  nth(index: number): FakeCookieLocator;
+  isVisible(options?: { timeout?: number }): Promise<boolean>;
+  click(options?: { timeout?: number }): Promise<void>;
+}
+
+interface FakeCookiePage {
+  getByRole(role: string, options: { name: RegExp }): FakeCookieLocator;
+  locator(selector: string): FakeCookieLocator;
 }
 
 function fakeMobilePage(selectorHint: string, visibility: boolean[]): { page: FakePage; filled: string[] } {
@@ -73,6 +90,51 @@ function delayedContactMobilePage(missingChecks: number): {
     },
     filled,
     contactLookups: () => lookups,
+  };
+}
+
+function fakeCookiePage(options: {
+  overlayVisible: boolean;
+  buttonAfterChecks?: number;
+}): {
+  page: FakeCookiePage;
+  clicked: string[];
+  buttonChecks: Record<"reject" | "accept", number>;
+} {
+  let overlayVisible = options.overlayVisible;
+  const buttonAfterChecks = options.buttonAfterChecks ?? Number.POSITIVE_INFINITY;
+  const clicked: string[] = [];
+  const buttonChecks: Record<"reject" | "accept", number> = { reject: 0, accept: 0 };
+  const makeLocator = (visible: () => boolean, onClick?: () => void): FakeCookieLocator => {
+    const locator: FakeCookieLocator = {
+      first: () => locator,
+      count: async () => 1,
+      nth: () => locator,
+      isVisible: async () => visible(),
+      click: async () => {
+        onClick?.();
+      },
+    };
+    return locator;
+  };
+  return {
+    page: {
+      getByRole(_role: string, { name }: { name: RegExp }): FakeCookieLocator {
+        const kind = /accept only necessary|reject all/i.test(name.source) ? "reject" : "accept";
+        return makeLocator(() => {
+          buttonChecks[kind] += 1;
+          return overlayVisible && buttonChecks[kind] > buttonAfterChecks;
+        }, () => {
+          clicked.push(kind);
+          overlayVisible = false;
+        });
+      },
+      locator(selector: string): FakeCookieLocator {
+        return makeLocator(() => selector.includes("onetrust") && overlayVisible);
+      },
+    },
+    clicked,
+    buttonChecks,
   };
 }
 
@@ -179,5 +241,36 @@ test("keeps the original safe error when the mobile control never mounts", async
       { timeoutMs: 15, pollIntervalMs: 1 },
     ),
     { message: "The official VFS mobile-number field could not be identified." },
+  );
+});
+
+test("waits for delayed OneTrust reject control and confirms the overlay disappears", async () => {
+  const fixture = fakeCookiePage({ overlayVisible: true, buttonAfterChecks: 2 });
+  await dismissShenyangVfsCookies(
+    fixture.page as unknown as import("playwright").Page,
+    { timeoutMs: 40, pollIntervalMs: 1 },
+  );
+  assert.deepEqual(fixture.clicked, ["reject"]);
+  assert.ok(fixture.buttonChecks.reject >= 3);
+});
+
+test("does not block a page with no cookie overlay", async () => {
+  const fixture = fakeCookiePage({ overlayVisible: false });
+  await dismissShenyangVfsCookies(
+    fixture.page as unknown as import("playwright").Page,
+    { timeoutMs: 15, pollIntervalMs: 1 },
+  );
+  assert.deepEqual(fixture.clicked, []);
+  assert.deepEqual(fixture.buttonChecks, { reject: 0, accept: 0 });
+});
+
+test("fails closed when a visible OneTrust overlay cannot be dismissed", async () => {
+  const fixture = fakeCookiePage({ overlayVisible: true });
+  await assert.rejects(
+    () => dismissShenyangVfsCookies(
+      fixture.page as unknown as import("playwright").Page,
+      { timeoutMs: 15, pollIntervalMs: 1 },
+    ),
+    { message: "The official VFS cookie consent could not be dismissed." },
   );
 });
