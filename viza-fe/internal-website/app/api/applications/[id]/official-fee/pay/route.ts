@@ -17,6 +17,7 @@ import {
   vietnamCardPostTimeoutMs,
   vietnamCardReadinessTimeoutMs,
   vietnamCardWakeTimeoutMs,
+  wakeQueuedVietnamPaymentJob,
 } from "./cloud-worker-ready";
 
 export const dynamic = "force-dynamic";
@@ -1058,6 +1059,15 @@ export async function POST(
     );
   }
   const queue = queueEnqueue.result;
+  const postEnqueueWarnings: string[] = [];
+
+  const queueWake = await wakeQueuedVietnamPaymentJob(queue.queueId);
+  if (!queueWake.ok) {
+    postEnqueueWarnings.push("queue_wake_failed");
+    console.error("Vietnam payment job queued but submission worker wake failed", {
+      reason: queueWake.reason,
+    });
+  }
 
   const [applicationUpdateResult, eventResult] = await Promise.all([
     admin
@@ -1097,7 +1107,6 @@ export async function POST(
     ),
   ]);
 
-  const postEnqueueWarnings: string[] = [];
   if (applicationUpdateResult.error && !isSchemaMissing(applicationUpdateResult.error)) {
     postEnqueueWarnings.push("application_status_update_failed");
     console.error("Vietnam payment job queued but application status update failed", {
