@@ -183,6 +183,11 @@ The current internal automation migrations are:
 - `0138_bounded_queue_maintenance.sql`: adds a bounded, service-role-only
   atomic stale-processing cleanup RPC and an index matching its heartbeat/status
   cutoff scan; callers run it as low-frequency maintenance rather than per poll.
+- `0139_concurrency_phase_two.sql`: supersedes the global runner-pool advisory
+  claim lock with country-cap row serialization, bounded one-row lease recovery,
+  and partial indexes for queued ordering, running-country counts, and lease
+  expiry; the exact service-role-only `claim_runner_pool_job` signature remains
+  rolling-deploy compatible and excludes retired Indonesia pool work.
 
 ## Guardrails
 
