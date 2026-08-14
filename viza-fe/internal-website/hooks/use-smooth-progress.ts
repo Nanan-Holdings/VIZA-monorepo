@@ -45,9 +45,11 @@ const WAITING_FOR_USER_STATUSES = new Set([
 
 const persistedProgress = new Map<string, number>();
 const resetProgressCycles = new Set<string>();
+const resetProgressPersistenceKeys = new Set<string>();
 const MAX_PERSISTED_PROGRESS_ENTRIES = 50;
 const MAX_RESET_PROGRESS_CYCLES = 100;
 const SESSION_STORAGE_PREFIX = "viza:smooth-progress:";
+const PROGRESS_CYCLE_KEY_PREFIX = "progress-cycle:";
 
 const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -114,7 +116,14 @@ export function useSmoothProgress({
   const normalizedStatus = (status ?? "running").trim().toLowerCase();
   const normalizedPersistenceKey = persistenceKey?.trim() || null;
   const normalizedProgressCycleKey = progressCycleKey?.trim() || null;
+  const progressCyclePersistenceKey = normalizedProgressCycleKey
+    ? `${PROGRESS_CYCLE_KEY_PREFIX}${normalizedProgressCycleKey}`
+    : null;
   const resetProgressCycleSignature =
+    resetPersistedProgressOnMount && normalizedProgressCycleKey
+      ? normalizedProgressCycleKey
+      : null;
+  const resetProgressPersistenceSignature =
     resetPersistedProgressOnMount &&
     normalizedPersistenceKey &&
     normalizedProgressCycleKey
@@ -123,12 +132,22 @@ export function useSmoothProgress({
   const shouldResetPersistedProgress = Boolean(
     resetProgressCycleSignature && !resetProgressCycles.has(resetProgressCycleSignature),
   );
+  const shouldClearPersistenceKey = Boolean(
+    resetProgressPersistenceSignature &&
+      !resetProgressPersistenceKeys.has(resetProgressPersistenceSignature),
+  );
   const [displayedProgress, setDisplayedProgress] = useState(() => {
     if (shouldResetPersistedProgress) return clampProgress(initialProgress);
     const persisted = normalizedPersistenceKey
       ? persistedProgress.get(normalizedPersistenceKey) ?? 0
       : 0;
-    return Math.max(clampProgress(initialProgress), persisted);
+    const cyclePersisted = progressCyclePersistenceKey
+      ? persistedProgress.get(progressCyclePersistenceKey) ?? 0
+      : 0;
+    return Math.max(
+      clampProgress(initialProgress),
+      resetPersistedProgressOnMount ? cyclePersisted : Math.max(persisted, cyclePersisted),
+    );
   });
   const displayedProgressRef = useRef(displayedProgress);
   const progressCycleKeyRef = useRef(normalizedProgressCycleKey);
@@ -172,11 +191,16 @@ export function useSmoothProgress({
     const persistenceKeyArrived = Boolean(
       !previousPersistenceKey && normalizedPersistenceKey,
     );
-    const resetPersistedProgress = Boolean(
-      normalizedPersistenceKey &&
-        (cycleChanged || shouldResetPersistedProgress),
+    const persistenceKeyChangedWithinCycle = Boolean(
+      previousPersistenceKey &&
+        normalizedPersistenceKey &&
+        previousPersistenceKey !== normalizedPersistenceKey &&
+        previousCycleKey === normalizedProgressCycleKey,
     );
-    if (resetPersistedProgress && normalizedPersistenceKey) {
+    if (shouldResetPersistedProgress && progressCyclePersistenceKey) {
+      clearPersistedProgress(progressCyclePersistenceKey);
+    }
+    if (shouldClearPersistenceKey && normalizedPersistenceKey) {
       clearPersistedProgress(normalizedPersistenceKey);
     }
     if (shouldResetPersistedProgress && resetProgressCycleSignature) {
@@ -186,8 +210,20 @@ export function useSmoothProgress({
         if (typeof oldestCycle === "string") resetProgressCycles.delete(oldestCycle);
       }
     }
+    if (shouldClearPersistenceKey && resetProgressPersistenceSignature) {
+      resetProgressPersistenceKeys.add(resetProgressPersistenceSignature);
+      if (resetProgressPersistenceKeys.size > MAX_RESET_PROGRESS_CYCLES) {
+        const oldestPersistenceKey = resetProgressPersistenceKeys.values().next().value;
+        if (typeof oldestPersistenceKey === "string") {
+          resetProgressPersistenceKeys.delete(oldestPersistenceKey);
+        }
+      }
+    }
     const persisted = normalizedPersistenceKey
       ? readPersistedProgress(normalizedPersistenceKey)
+      : 0;
+    const cyclePersisted = progressCyclePersistenceKey
+      ? readPersistedProgress(progressCyclePersistenceKey)
       : 0;
     const authoritativeFloor = syncToServerProgress
       ? isComplete
@@ -195,9 +231,15 @@ export function useSmoothProgress({
         : Math.min(clampProgress(serverProgress), safeMaxBeforeComplete)
       : 0;
 
-    const resetProgress = Math.max(persisted, authoritativeFloor);
+    const resetProgress = Math.max(
+      resetPersistedProgressOnMount ? cyclePersisted : Math.max(persisted, cyclePersisted),
+      authoritativeFloor,
+    );
     const resetDisplayedProgress =
-      cycleChanged || (resetPersistedProgress && !persistenceKeyArrived);
+      cycleChanged ||
+      (shouldResetPersistedProgress &&
+        !persistenceKeyArrived &&
+        !persistenceKeyChangedWithinCycle);
     if (resetDisplayedProgress) {
       pendingCycleResetProgressRef.current = resetProgress;
     }
@@ -214,22 +256,31 @@ export function useSmoothProgress({
     isComplete,
     normalizedPersistenceKey,
     normalizedProgressCycleKey,
+    progressCyclePersistenceKey,
     resetProgressCycleSignature,
+    resetProgressPersistenceSignature,
+    resetPersistedProgressOnMount,
     safeMaxBeforeComplete,
     serverProgress,
+    shouldClearPersistenceKey,
     shouldResetPersistedProgress,
     syncToServerProgress,
   ]);
 
   useEffect(() => {
-    if (!normalizedPersistenceKey) return;
+    if (!normalizedPersistenceKey && !progressCyclePersistenceKey) return;
     const pendingResetProgress = pendingCycleResetProgressRef.current;
     if (pendingResetProgress !== null) {
       if (displayedProgress !== pendingResetProgress) return;
       pendingCycleResetProgressRef.current = null;
     }
-    persistProgress(normalizedPersistenceKey, displayedProgress);
-  }, [displayedProgress, normalizedPersistenceKey]);
+    if (normalizedPersistenceKey) {
+      persistProgress(normalizedPersistenceKey, displayedProgress);
+    }
+    if (progressCyclePersistenceKey) {
+      persistProgress(progressCyclePersistenceKey, displayedProgress);
+    }
+  }, [displayedProgress, normalizedPersistenceKey, progressCyclePersistenceKey]);
 
   useBrowserLayoutEffect(() => {
     displayedProgressRef.current = displayedProgress;
