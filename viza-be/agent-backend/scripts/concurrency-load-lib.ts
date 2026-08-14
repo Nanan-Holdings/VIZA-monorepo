@@ -15,14 +15,26 @@ export interface ConcurrencyRunInput {
 	lockTimeouts: number;
 	connectionExhaustions: number;
 	claimLatenciesMs: readonly number[];
+	successfulClaimLatenciesMs?: readonly number[];
 	syntheticRowsRemaining: number;
-	claimedJobs?: number;
+	claimedJobs: number;
 }
 
 export interface ConcurrencyRunEvaluation extends ConcurrencyRunInput {
 	p95ClaimMs: number;
 	passed: boolean;
 	failures: string[];
+}
+
+const COMPLETE_LOAD_MATRIX = [100, 300, 600, 1000] as const;
+
+/** Return true only when every release load level is present exactly once. */
+export function isCompleteConcurrencyMatrix(levels: readonly number[]): boolean {
+	const normalized = [...new Set(levels)].sort((left, right) => left - right);
+	return (
+		normalized.length === COMPLETE_LOAD_MATRIX.length &&
+		normalized.every((level, index) => level === COMPLETE_LOAD_MATRIX[index])
+	);
 }
 
 /**
@@ -82,7 +94,8 @@ function isNonZero(value: number): boolean {
 export function evaluateConcurrencyRun(
 	input: ConcurrencyRunInput,
 ): ConcurrencyRunEvaluation {
-	const p95ClaimMs = percentile(input.claimLatenciesMs, 0.95);
+	const successfulClaimLatenciesMs = input.successfulClaimLatenciesMs ?? input.claimLatenciesMs;
+	const p95ClaimMs = percentile(successfulClaimLatenciesMs, 0.95);
 	const failures: string[] = [];
 
 	if (!Number.isFinite(input.jobs) || input.jobs < 0) {
@@ -96,7 +109,7 @@ export function evaluateConcurrencyRun(
 		}
 	}
 
-	if (input.jobs > 0 && input.claimLatenciesMs.length === 0) {
+	if (input.jobs > 0 && successfulClaimLatenciesMs.length === 0) {
 		failures.push("missing_claim_latencies");
 	}
 	if (p95ClaimMs >= 500) {
@@ -112,6 +125,7 @@ export function evaluateConcurrencyRun(
 	return {
 		...input,
 		claimLatenciesMs: [...input.claimLatenciesMs],
+		successfulClaimLatenciesMs: [...successfulClaimLatenciesMs],
 		p95ClaimMs,
 		passed: failures.length === 0,
 		failures,
