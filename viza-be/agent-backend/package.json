@@ -19,6 +19,7 @@
 		"test:field-guidance-copilot": "tsx scripts/run-field-guidance-copilot-evals.ts",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
+		"load:concurrency": "tsx scripts/concurrency-load.ts",
 		"test:db": "tsx src/db/migrate.ts",
 		"db:generate": "drizzle-kit generate",
 		"db:push": "drizzle-kit push",
