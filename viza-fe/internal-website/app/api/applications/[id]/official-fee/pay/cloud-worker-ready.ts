@@ -35,13 +35,42 @@ export type CloudWorkerReadyResult =
   | { ok: true }
   | { ok: false; reason: "wake_failed" | "readiness_timeout"; attempts?: number };
 
+export type VietnamCardSessionPostResult =
+  | { ok: true; redactedCard: unknown; expiresAtIso: string | null }
+  | { ok: false; error: string; retryable?: boolean };
+
+export type VietnamCardHandoffResult =
+  | Extract<VietnamCardSessionPostResult, { ok: true }>
+  | {
+      ok: false;
+      stage: "ready";
+      reason: Extract<CloudWorkerReadyResult, { ok: false }>["reason"];
+      attempts?: number;
+    }
+  | { ok: false; stage: "post"; error: string };
+
 export async function ensureVietnamCardWorkerReady(input: {
   baseUrl: string;
   wakeLegacy: WakeLegacy;
   waitUntilReady: WaitUntilReady;
+  wakeTimeoutMs?: number;
 }): Promise<CloudWorkerReadyResult> {
-  const wake = await input.wakeLegacy();
-  if (!wake.ok) return { ok: false, reason: "wake_failed" };
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const wakeTimeoutMs = input.wakeTimeoutMs;
+  const wake = wakeTimeoutMs === undefined
+    ? await input.wakeLegacy()
+    : await Promise.race([
+        input.wakeLegacy(),
+        new Promise<null>((resolve) => {
+          timeout = setTimeout(
+            () => resolve(null),
+            Math.max(0, wakeTimeoutMs),
+          );
+        }),
+      ]).finally(() => {
+        if (timeout) clearTimeout(timeout);
+      });
+  if (!wake?.ok) return { ok: false, reason: "wake_failed" };
 
   const ready = await input.waitUntilReady(`${input.baseUrl}/ready`);
   if (!ready.ok) {
@@ -52,4 +81,49 @@ export async function ensureVietnamCardWorkerReady(input: {
     };
   }
   return { ok: true };
+}
+
+export async function recoverVietnamCardHandoff(input: {
+  ensureReady: () => Promise<CloudWorkerReadyResult>;
+  postCardSession: () => Promise<VietnamCardSessionPostResult>;
+  maxAttempts?: number;
+  deadlineAt?: number;
+  now?: () => number;
+}): Promise<VietnamCardHandoffResult> {
+  const maxAttempts = Math.max(1, Math.min(3, input.maxAttempts ?? 3));
+  const now = input.now ?? Date.now;
+  let lastFailure: VietnamCardHandoffResult = {
+    ok: false,
+    stage: "post",
+    error: "card_session_handoff_timeout",
+  };
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (
+      input.deadlineAt !== undefined &&
+      input.deadlineAt - now() <= VIETNAM_CARD_SESSION_RESERVE_MS
+    ) {
+      break;
+    }
+    const ready = await input.ensureReady();
+    if (!ready.ok) {
+      lastFailure = {
+        ok: false,
+        stage: "ready",
+        reason: ready.reason,
+        attempts: ready.attempts,
+      };
+      continue;
+    }
+    if (input.deadlineAt !== undefined && now() >= input.deadlineAt) {
+      break;
+    }
+
+    const post = await input.postCardSession();
+    if (post.ok) return post;
+    lastFailure = { ok: false, stage: "post", error: post.error };
+    if (post.retryable === false) return lastFailure;
+  }
+
+  return lastFailure;
 }
