@@ -513,9 +513,14 @@ async function fillRegistration(page: Page, account: PortalAccountContext): Prom
   }
   await fillShenyangVfsRegistrationMobileField(page, account.phone);
 
+  await fillShenyangVfsRegistrationConsents(page);
+}
+
+export async function fillShenyangVfsRegistrationConsents(page: Page): Promise<void> {
   const requiredConsents = page.locator("form input[type='checkbox'], main input[type='checkbox']");
   const count = await requiredConsents.count();
   if (count < 1) throw new Error("The official VFS required-consent controls could not be identified.");
+  await dismissCookies(page);
   for (let index = 0; index < count; index += 1) {
     const checkbox = requiredConsents.nth(index);
     if (!await checkbox.isVisible({ timeout: 300 }).catch(() => false)) continue;
