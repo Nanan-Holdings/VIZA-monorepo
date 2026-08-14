@@ -34,8 +34,11 @@ type AdminRow = Record<string, unknown> | null;
 const fromTables: string[] = [];
 const selectedColumns: string[] = [];
 
-function configureAdmin(row: AdminRow, options: { rpcError?: { message: string } | null } = {}) {
-  const maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
+function configureAdmin(
+  row: AdminRow,
+  options: { queryError?: { message: string } | null; rpcError?: { message: string } | null } = {},
+) {
+  const maybeSingle = vi.fn().mockResolvedValue({ data: row, error: options.queryError ?? null });
   const query = {
     select: vi.fn((columns: string) => {
       selectedColumns.push(columns);
@@ -280,29 +283,38 @@ describe("resilience replay route", () => {
     ]));
 
     expect(fromTables).toContain("submission_queue");
-    expect(selectedColumns).toContain("id,status,available_at");
+    expect(selectedColumns).toContain("id,status");
+    expect(selectedColumns).not.toContain("id,status,available_at");
     expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("job-1", { target });
     expect(await response.json()).toMatchObject({ ok: true, results: [{ outcome: "ack" }] });
   });
 
-  it("nacks a future retained legacy row before waking it", async () => {
-    configureAdmin({
-      id: "job-1",
-      status: "sgac_live_assisted_scheduled",
-      available_at: new Date(Date.now() + 45_000).toISOString(),
-    });
+  it("acknowledges a scheduled retained pointer without waking it", async () => {
+    configureAdmin({ id: "job-1", status: "sgac_live_assisted_scheduled" });
 
     const response = await POST(signedReplayRequest([
       wakeItem({ version: 1, jobId: "job-1", target: "legacy" }),
     ]));
-    const body = await response.json() as {
-      results: [{ errorCode?: string; outcome?: string; retryAfterSeconds?: number }];
-    };
 
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
-    expect(body.results[0]).toMatchObject({ outcome: "nack", errorCode: "job_not_due" });
-    expect(body.results[0].retryAfterSeconds).toBeGreaterThanOrEqual(1);
-    expect(body.results[0].retryAfterSeconds).toBeLessThanOrEqual(300);
+    expect(await response.json()).toMatchObject({ ok: true, results: [{ outcome: "ack" }] });
+  });
+
+  it("nacks a retained lookup error without attempting a wake", async () => {
+    configureAdmin(
+      { id: "job-1", status: "pending" },
+      { queryError: { message: "database unavailable" } },
+    );
+
+    const response = await POST(signedReplayRequest([
+      wakeItem({ version: 1, jobId: "job-1", target: "legacy" }),
+    ]));
+
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      results: [{ outcome: "nack", errorCode: "database_unavailable", retryAfterSeconds: 30 }],
+    });
   });
 
   it.each([

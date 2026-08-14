@@ -5,6 +5,7 @@ const ensureFlyMachineCapacityMock = vi.hoisted(() => vi.fn());
 const wakeCloudSubmissionWorkerMock = vi.hoisted(() => vi.fn());
 const enqueueRunnerJobWakeMock = vi.hoisted(() => vi.fn());
 const authorityTables: string[] = [];
+const authoritySelects: string[] = [];
 
 vi.mock("@/lib/auth/with-admin", () => ({ withAdmin: withAdminMock }));
 vi.mock("@/lib/fly-machine-wake.server", () => ({
@@ -30,7 +31,7 @@ type RpcRow = {
 type RunnerJobState = {
   id: string;
   status: string;
-  available_at: string | null;
+  available_at?: string | null;
 };
 
 function configureAdmin(
@@ -65,7 +66,10 @@ function configureAdmin(
     error: null,
   };
   const runnerJobQuery = {
-    select: vi.fn(() => runnerJobQuery),
+    select: vi.fn((columns: string) => {
+      authoritySelects.push(columns);
+      return runnerJobQuery;
+    }),
     eq: vi.fn(() => runnerJobQuery),
     maybeSingle: vi.fn().mockResolvedValue({ data: authorityState, error: authorityError }),
   };
@@ -96,6 +100,7 @@ describe("runner pool enqueue wake transport", () => {
     wakeCloudSubmissionWorkerMock.mockReset();
     enqueueRunnerJobWakeMock.mockReset();
     authorityTables.length = 0;
+    authoritySelects.length = 0;
     ensureFlyMachineCapacityMock.mockResolvedValue({ ok: true, desired: 1 });
     wakeCloudSubmissionWorkerMock.mockResolvedValue({ ok: true });
     enqueueRunnerJobWakeMock.mockResolvedValue({ accepted: true, duplicate: false, queued: true });
@@ -180,7 +185,7 @@ describe("runner pool enqueue wake transport", () => {
     expect(result.workerTriggered).toBe(false);
   });
 
-  it("does not wake a future legacy collision when Queue mode is enabled", async () => {
+  it("does not wake a scheduled legacy collision when Queue mode is enabled", async () => {
     process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "on";
     configureAdmin({
       blocked_by_legacy: true,
@@ -190,28 +195,6 @@ describe("runner pool enqueue wake transport", () => {
     }, undefined, {
       id: "legacy-1",
       status: "sgac_live_assisted_scheduled",
-      available_at: new Date(Date.now() + 60_000).toISOString(),
-    });
-    const availableAt = new Date(Date.now() + 60_000).toISOString();
-
-    const result = await enqueueRunnerPoolJob("app-1", "singapore", "sgac", { availableAt });
-
-    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
-    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: false });
-  });
-
-  it("uses the canonical submission_queue available_at for a legacy collision", async () => {
-    process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "1";
-    configureAdmin({
-      blocked_by_legacy: true,
-      runner_job_id: null,
-      legacy_queue_id: "legacy-1",
-      legacy_queue_status: "sgac_live_assisted_scheduled",
-    }, undefined, {
-      id: "legacy-1",
-      status: "sgac_live_assisted_scheduled",
-      available_at: new Date(Date.now() + 60_000).toISOString(),
     });
 
     const result = await enqueueRunnerPoolJob("app-1", "singapore", "sgac");
@@ -231,12 +214,13 @@ describe("runner pool enqueue wake transport", () => {
     }, undefined, {
       id: "legacy-1",
       status: "sgac_live_assisted_pending",
-      available_at: null,
     });
 
     const result = await enqueueRunnerPoolJob("app-1", "singapore", "sgac");
 
     expect(authorityTables).toContain("submission_queue");
+    expect(authoritySelects).toContain("id,status");
+    expect(authoritySelects).not.toContain("id,status,available_at");
     expect(enqueueRunnerJobWakeMock).toHaveBeenCalledWith({ jobId: "legacy-1", target: "legacy" });
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
     expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: true });
@@ -257,12 +241,21 @@ describe("runner pool enqueue wake transport", () => {
     const result = await enqueueRunnerPoolJob("app-1", "singapore", "sgac");
 
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
-    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: false });
-    expect(warnSpy).toHaveBeenCalledWith(
-      "[runner-pool] Authoritative runner state unavailable; reconciler will recover.",
-      { jobId: "legacy-1", reason: "authoritative_state_unavailable" },
-    );
+    if (error) {
+      expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("legacy-1", { target: "legacy" });
+      expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: true });
+    } else {
+      expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: false });
+    }
+    if (error) {
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[runner-pool] Authoritative runner state unavailable; reconciler will recover.",
+        { jobId: "legacy-1", reason: "authoritative_state_unavailable" },
+      );
+    } else {
+      expect(warnSpy).not.toHaveBeenCalled();
+    }
   });
 
   it.each([
@@ -275,12 +268,22 @@ describe("runner pool enqueue wake transport", () => {
     const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa");
 
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
-    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
-    expect(result.workerTriggered).toBe(false);
-    expect(warnSpy).toHaveBeenCalledWith(
-      "[runner-pool] Authoritative runner state unavailable; reconciler will recover.",
-      { jobId: "job-1", reason: "authoritative_state_unavailable" },
-    );
+    if (error) {
+      expect(ensureFlyMachineCapacityMock).toHaveBeenCalledWith("pool", 1);
+      expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("job-1", { target: "pool" });
+      expect(result.workerTriggered).toBe(true);
+    } else {
+      expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+      expect(result.workerTriggered).toBe(false);
+    }
+    if (error) {
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[runner-pool] Authoritative runner state unavailable; reconciler will recover.",
+        { jobId: "job-1", reason: "authoritative_state_unavailable" },
+      );
+    } else {
+      expect(warnSpy).not.toHaveBeenCalled();
+    }
   });
 
   it("does not wake or publish when the enqueue RPC fails", async () => {
