@@ -4,7 +4,11 @@ import {
   dismissShenyangVfsCookies,
   fillShenyangVfsRegistrationMobileField,
   fillShenyangVfsRegistrationConsents,
+  generateShenyangVfsPassword,
+  isShenyangVfsPasswordCompliant,
   isOptionalRegistrationConsent,
+  resolveShenyangVfsPasswordState,
+  shouldRotateShenyangVfsPassword,
 } from "./runner.js";
 import { extractShenyangVfsSlotsFromTexts } from "./slots.js";
 
@@ -350,4 +354,56 @@ test("dismisses a cookie overlay again immediately before required consent check
   assert.equal(fixture.dismissClicks(), 1);
   assert.equal(fixture.blockedChecks(), 0);
   assert.equal(fixture.checked(), 1);
+});
+
+test("generates passwords accepted by the Shenyang VFS registration contract", () => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const password = generateShenyangVfsPassword();
+    assert.ok(password.length >= 8 && password.length <= 15);
+    assert.match(password, /^[A-Za-z0-9$@#!%*?]+$/);
+    assert.match(password, /[A-Z]/);
+    assert.match(password, /[a-z]/);
+    assert.match(password, /\d/);
+    assert.match(password, /[$@#!%*?]/);
+    assert.equal(isShenyangVfsPasswordCompliant(password), true);
+  }
+});
+
+test("rotates an invalid unverified selector-drift password and retries registration", () => {
+  const legacyPassword = "Aa1_aaaa";
+  assert.equal(shouldRotateShenyangVfsPassword("selector_drift", false, legacyPassword), true);
+  const state = resolveShenyangVfsPasswordState({
+    password: legacyPassword,
+    accountStatus: "selector_drift",
+    emailVerified: false,
+  });
+  assert.equal(state.rotated, true);
+  assert.equal(state.accountStatus, "account_prepared");
+  assert.notEqual(state.password, legacyPassword);
+  assert.equal(isShenyangVfsPasswordCompliant(state.password), true);
+});
+
+test("never rotates protected or already compliant Shenyang VFS credentials", () => {
+  const legacyPassword = "Aa1_aaaa";
+  for (const input of [
+    { accountStatus: "registered", emailVerified: false },
+    { accountStatus: "logged_in", emailVerified: false },
+    { accountStatus: "registration_submitting", emailVerified: false },
+    { accountStatus: "account_prepared", emailVerified: true },
+  ]) {
+    assert.equal(shouldRotateShenyangVfsPassword(input.accountStatus, input.emailVerified, legacyPassword), false);
+    const state = resolveShenyangVfsPasswordState({ ...input, password: legacyPassword });
+    assert.equal(state.rotated, false);
+    assert.equal(state.password, legacyPassword);
+    assert.equal(state.accountStatus, input.accountStatus);
+  }
+  const compliantPassword = "Aa1!aaaa";
+  const state = resolveShenyangVfsPasswordState({
+    password: compliantPassword,
+    accountStatus: "selector_drift",
+    emailVerified: false,
+  });
+  assert.equal(state.rotated, false);
+  assert.equal(state.password, compliantPassword);
+  assert.equal(state.accountStatus, "selector_drift");
 });
