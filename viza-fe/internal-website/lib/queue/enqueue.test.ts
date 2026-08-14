@@ -24,15 +24,29 @@ type RpcRow = {
   blocked_by_legacy: boolean;
   legacy_queue_id: string | null;
   legacy_queue_status: string | null;
-  legacy_queue_available_at?: string | null;
 };
 
-function configureAdmin(row: Partial<RpcRow> = {}, depthRows = [{
-  max_concurrent: 10,
-  paused: false,
-  claimable: 1,
-  running: 0,
-}]) {
+type RunnerJobState = {
+  id: string;
+  status: string;
+  available_at: string | null;
+};
+
+function configureAdmin(
+  row: Partial<RpcRow> = {},
+  depthRows = [{
+    max_concurrent: 10,
+    paused: false,
+    claimable: 1,
+    running: 0,
+  }],
+  runnerJobState: RunnerJobState | null = {
+    id: "job-1",
+    status: "queued",
+    available_at: null,
+  },
+  runnerJobError: { message: string } | null = null,
+) {
   const rpc = vi.fn().mockResolvedValue({
     data: {
       runner_job_id: "job-1",
@@ -49,11 +63,22 @@ function configureAdmin(row: Partial<RpcRow> = {}, depthRows = [{
     data: depthRows,
     error: null,
   };
+  const runnerJobQuery = {
+    select: vi.fn(() => runnerJobQuery),
+    eq: vi.fn(() => runnerJobQuery),
+    maybeSingle: vi.fn().mockResolvedValue({ data: runnerJobState, error: runnerJobError }),
+  };
   withAdminMock.mockImplementation(async (_mode: string, actor: string, fn: (admin: unknown) => Promise<unknown>) => {
     if (actor === "lib/queue:pool-depth") {
       return fn({ from: vi.fn(() => depthQuery) });
     }
-    return fn({ rpc });
+    return fn({
+      rpc,
+      from: vi.fn((table: string) => {
+        if (table !== "runner_job") throw new Error(`unexpected table: ${table}`);
+        return runnerJobQuery;
+      }),
+    });
   });
   return { rpc };
 }
@@ -167,14 +192,17 @@ describe("runner pool enqueue wake transport", () => {
     expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: false });
   });
 
-  it("honors a future available_at returned for a legacy collision", async () => {
+  it("uses the canonical runner_job available_at for a legacy collision", async () => {
     process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "1";
     configureAdmin({
       blocked_by_legacy: true,
-      runner_job_id: null,
+      runner_job_id: "job-1",
       legacy_queue_id: "legacy-1",
       legacy_queue_status: "sgac_live_assisted_scheduled",
-      legacy_queue_available_at: new Date(Date.now() + 60_000).toISOString(),
+    }, undefined, {
+      id: "job-1",
+      status: "queued",
+      available_at: new Date(Date.now() + 60_000).toISOString(),
     });
 
     const result = await enqueueRunnerPoolJob("app-1", "singapore", "sgac");
@@ -182,6 +210,24 @@ describe("runner pool enqueue wake transport", () => {
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
     expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: false });
+  });
+
+  it.each([
+    { label: "missing", state: null, error: null },
+    { label: "lookup error", state: null, error: { message: "database unavailable" } },
+  ])("fails closed when the canonical runner_job state is $label", async ({ state, error }) => {
+    process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "true";
+    configureAdmin({}, undefined, state, error);
+
+    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa");
+
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(result.workerTriggered).toBe(false);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[runner-pool] Authoritative runner state unavailable; reconciler will recover.",
+      { jobId: "job-1", reason: "authoritative_state_unavailable" },
+    );
   });
 
   it("does not wake or publish when the enqueue RPC fails", async () => {

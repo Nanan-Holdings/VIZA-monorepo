@@ -86,6 +86,42 @@ type RunnerWakeQueueResponse = {
   duplicate?: unknown;
 };
 
+type AuthoritativeRunnerJobState = {
+  status: string;
+  availableAt: string | null;
+};
+
+function runnerJobWakeable(state: AuthoritativeRunnerJobState): boolean {
+  return state.status.trim().toLowerCase() === "queued" && availableAtIsDue(state.availableAt ?? undefined);
+}
+
+async function loadAuthoritativeRunnerJobState(jobId: string): Promise<AuthoritativeRunnerJobState | null> {
+  try {
+    const state = await withAdmin("system", "lib/queue:runner-wake-state", async (admin) => {
+      const { data, error } = await admin
+        .from("runner_job")
+        .select("id,status,available_at")
+        .eq("id", jobId)
+        .maybeSingle();
+      if (error || !data || typeof data !== "object") return null;
+      const row = data as { id?: unknown; status?: unknown; available_at?: unknown };
+      if (row.id !== jobId || typeof row.status !== "string") return null;
+      return {
+        status: row.status,
+        availableAt: typeof row.available_at === "string" ? row.available_at : null,
+      };
+    });
+    if (state) return state;
+  } catch {
+    // Keep the wake path fail-closed. The reconciler can retry from durable DB state.
+  }
+  console.warn("[runner-pool] Authoritative runner state unavailable; reconciler will recover.", {
+    jobId: jobId.slice(0, 8),
+    reason: "authoritative_state_unavailable",
+  });
+  return null;
+}
+
 /**
  * Publish a pointer only after Postgres has returned a durable ID. A false
  * result deliberately leaves callers on the existing direct wake fallback.
@@ -159,7 +195,6 @@ export async function enqueueRunnerPoolJob(
       blocked_by_legacy: boolean;
       legacy_queue_id: string | null;
       legacy_queue_status: string | null;
-      legacy_queue_available_at?: string | null;
     };
   });
 
@@ -167,8 +202,19 @@ export async function enqueueRunnerPoolJob(
     if (!row.legacy_queue_id) {
       throw new Error("runner pool enqueue reported a legacy collision without a queue id");
     }
-    const legacyAvailableAt = row.legacy_queue_available_at ?? opts.availableAt;
-    if (shouldDeferWake(legacyAvailableAt)) {
+    if (resilienceRunnerWakeEnabled() && row.runner_job_id) {
+      const state = await loadAuthoritativeRunnerJobState(row.runner_job_id);
+      if (!state || !runnerJobWakeable(state)) {
+        return {
+          transport: "submission_queue",
+          id: row.legacy_queue_id,
+          status: row.legacy_queue_status,
+          created: false,
+          workerTriggered: false,
+        };
+      }
+    }
+    if (shouldDeferWake(opts.availableAt)) {
       return {
         transport: "submission_queue",
         id: row.legacy_queue_id,
@@ -177,7 +223,7 @@ export async function enqueueRunnerPoolJob(
         workerTriggered: false,
       };
     }
-    if (await tryQueueRunnerWake(row.legacy_queue_id, "legacy", legacyAvailableAt)) {
+    if (await tryQueueRunnerWake(row.legacy_queue_id, "legacy", opts.availableAt)) {
       return {
         transport: "submission_queue",
         id: row.legacy_queue_id,
@@ -200,6 +246,17 @@ export async function enqueueRunnerPoolJob(
 
   if (!row.runner_job_id) {
     throw new Error("runner pool enqueue returned no runner job id");
+  }
+  if (resilienceRunnerWakeEnabled()) {
+    const state = await loadAuthoritativeRunnerJobState(row.runner_job_id);
+    if (!state || !runnerJobWakeable(state)) {
+      return {
+        transport: "runner_job",
+        id: row.runner_job_id,
+        created: !row.reused_existing,
+        workerTriggered: false,
+      };
+    }
   }
   if (shouldDeferWake(opts.availableAt)) {
     return {
@@ -318,6 +375,16 @@ export async function enqueueSgacRunnerRetry(
   });
 
   if (result.route === "legacy") return result;
+
+  if (resilienceRunnerWakeEnabled()) {
+    const state = await loadAuthoritativeRunnerJobState(result.id);
+    if (!state || !runnerJobWakeable(state)) {
+      return {
+        ...result,
+        workerTriggered: false,
+      };
+    }
+  }
 
   if (shouldDeferWake(opts.availableAt)) {
     return {
@@ -476,6 +543,10 @@ export async function enqueueRunnerJob(
     }
     return { id: data.id as string, created: true };
   });
+  if (resilienceRunnerWakeEnabled()) {
+    const state = await loadAuthoritativeRunnerJobState(result.id);
+    if (!state || !runnerJobWakeable(state)) return result;
+  }
   if (shouldDeferWake(opts.availableAt)) return result;
   if (await tryQueueRunnerWake(result.id, "pool", opts.availableAt)) return result;
   const wake = await wakeCloudSubmissionWorker(result.id, {
