@@ -1364,3 +1364,15 @@ Currency page appeared after page 4 had item 1 Yes and item 2 Yes, with item 12 
 - 已有 authoritative registration read + matching reference-derived QR 仅走 feature-gated state-sync adapter；RPC off/unavailable/invalid/conflict、missing QR/reference 或 recovery read 失败一律 `recovery_required`，不回退旧 sequential success、不重发 final Submit。default browser path disabled；即使受控 adapter 被注入也固定 `stopBeforeSubmit=true`。
 - focused tests：PH + queue dispatch/target tests `160 passed`；`npm run type-check` passed。覆盖 72h、AIR/SEA、duplicate/restart、OTP/Turnstile safe state、Review-stop、authoritative read/QR mismatch、RPC recovery、no-submit/no-resubmit 与 PII-safe output。
 - 真实 blocker：`sync_ph_etravel_submission_state` v2 尚未部署/切换；authoritative registration read、reference QR render、post-Review official flow 仍无可启用的 controlled evidence。未执行 migration/deploy/env 修改、真实 runner_job、官网/账号/OTP/CAPTCHA 或 final Submit。
+
+## OTP / password creation gate（2026-08-14）
+
+- 将当前受控页面证据落实为本地合同：六个独立 OTP 输入、邮箱等待窗口至少 180 秒、倒计时可见期间不 resend；没有记录邮箱或 OTP。
+- 新增密码策略纯函数和生成器断言（至少 12 字符，含大写、小写、数字、符号）。创建页仅接受合规的受管密码，Password 与 Password Confirmation 固定填入同一值；不再用证件字段作密码后备。
+- focused tests：account + OTP/password `13 passed`；`npm run type-check` passed。真实 OTP/账号创建、后续官方页面、Review 和 final Submit 仍未启用。
+
+## Personal Information onboarding field correction（2026-08-14）
+
+- onboarding 改为直接使用 `firstName`、`middleName`、`lastName`、`suffix`（兼容 `extension_name`），不再拆分 `fullName`，也不会在 Last Name 为空时用 First Name 伪造。可选姓名字段仅在有值时填写。
+- Citizenship 使用 nationality/demonym 标签；Country of Birth 与 Passport Issuing Authority 使用 country-name 标签，Filipino 与 Philippines 保持隔离。Occupation 仍仅按已确认“字段存在”处理，未假设其选项集。
+- focused tests：normalize/onboarding/form-plan `68 passed`；`npm run type-check` passed。未访问官网或启用账号、浏览器、Review/final Submit。

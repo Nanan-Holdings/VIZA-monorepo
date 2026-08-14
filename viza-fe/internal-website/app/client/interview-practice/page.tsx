@@ -10,20 +10,9 @@ const TRANSCRIPT_KEY = "viza_interview_transcript";
 
 type Message = { role: "user" | "assistant"; content: string };
 type PageState = "start" | "checklist" | "officer" | "interview" | "report";
-type ApplicantProfile = {
-  purpose: string;
-  cities: string;
-  travelDates: string;
-  duration: string;
-  funding: string;
-  occupation: string;
-  familyTies: string;
-};
 type InterviewStep = {
   topic: string;
   question: string;
-  required: Array<"city" | "time" | "money" | "work" | "ties" | "detail">;
-  followUp: string;
 };
 type OfficerProfile = {
   id: string;
@@ -41,8 +30,7 @@ type OfficerProfile = {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const OFFICER_IMAGE =
-  "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=560&h=800&fit=crop&crop=top";
+const OFFICER_IMAGE = "/images/interview-officers/miller-public.jpg";
 
 const OFFICERS: OfficerProfile[] = [
   {
@@ -59,21 +47,7 @@ const OFFICERS: OfficerProfile[] = [
     avatarId: "officer_chen", voice: "zh-CN-XiaoxiaoNeural", voiceGender: "female", speechRate: 1.02,
   },
   {
-    id: "williams", name: "Williams", title: "核验型", pressure: "较高",
-    style: "关注时间、金额、工作年限和前后陈述是否一致",
-    description: "重视细节和材料一致性",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=560&h=800&fit=crop&crop=top",
-    avatarId: "officer_williams", voice: "zh-CN-YunjianNeural", voiceGender: "male", speechRate: 0.93,
-  },
-  {
-    id: "garcia", name: "Garcia", title: "自然型", pressure: "较低",
-    style: "语气自然但保持专业，通过简短对话了解旅行真实性",
-    description: "氛围自然，适合建立信心",
-    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=560&h=800&fit=crop&crop=top",
-    avatarId: "officer_garcia", voice: "zh-CN-XiaoyiNeural", voiceGender: "female", speechRate: 0.84,
-  },
-  {
-    id: "obama", name: "Obama", title: "总统风格", pressure: "标准",
+    id: "obama", name: "Obama", title: "沉稳核验型", pressure: "标准",
     style: "沉着、自信、善于用简短追问核实回答的逻辑和真实性；不模仿政治演讲",
     description: "特别体验形象，沉着而有逻辑",
     image: "/images/interview-officers/obama-simulation.png",
@@ -81,131 +55,21 @@ const OFFICERS: OfficerProfile[] = [
   },
 ];
 
-const QUESTIONS = [
-  "这次去美国主要是什么打算？",
-  "具体去做什么？",
-  "为什么选这个时间去？",
-  "计划去哪些城市？",
-  "打算在美国待多长时间？",
-  "回程机票订了吗？",
-  "住宿安排好了吗？",
-  "这次费用自己出还是有人资助？",
-  "大概预算多少？",
-  "目前在国内做什么工作？",
-  "在哪家公司或机构？",
-  "家里还有什么牵挂，回国后有什么安排？",
+const QUESTIONS: InterviewStep[] = [
+  { topic: "赴美目的", question: "你去美国做什么？" },
+  { topic: "旅行安排", question: "你准备去哪些城市？" },
+  { topic: "停留时间", question: "你准备在美国待多久？" },
+  { topic: "同行人员", question: "谁和你一起去？" },
+  { topic: "住宿安排", question: "你在美国住哪里？" },
+  { topic: "费用来源", question: "这次旅行谁承担费用？" },
+  { topic: "工作情况", question: "你现在做什么工作？" },
+  { topic: "回国安排", question: "旅行结束后你回来做什么？" },
 ];
 
 const ENDING_MESSAGE = "好的，今天的面试到这里就结束了，感谢您的配合。";
 
-const DEFAULT_PROFILE: ApplicantProfile = {
-  purpose: "",
-  cities: "",
-  travelDates: "",
-  duration: "",
-  funding: "",
-  occupation: "",
-  familyTies: "",
-};
-
-function compact(value: string, fallback: string) {
-  return value.trim() || fallback;
-}
-
-function buildInterviewPlan(profile: ApplicantProfile): InterviewStep[] {
-  const cities = compact(profile.cities, "美国");
-  const duration = compact(profile.duration, "这段时间");
-  const funding = compact(profile.funding, "这次费用");
-  const occupation = compact(profile.occupation, "目前的工作或身份");
-  const ties = compact(profile.familyTies, "国内安排");
-  const purpose = profile.purpose.toLowerCase();
-
-  const opening: InterviewStep = {
-    topic: "赴美目的",
-    question: "你去美国做什么？",
-    required: ["detail"],
-    followUp: "具体做什么？",
-  };
-
-  const purposeQuestions: InterviewStep[] = /探亲|访友|看望|亲戚|家人/.test(purpose)
-    ? [
-        { topic: "邀请关系", question: "你去看谁？", required: ["detail"], followUp: "你们是什么关系？" },
-        { topic: "邀请人情况", question: "他在美国做什么？", required: ["detail"], followUp: "他现在是什么身份？" },
-      ]
-    : /商务|会议|展会|客户|公司|培训/.test(purpose)
-    ? [
-        { topic: "商务事项", question: "你去参加什么商务活动？", required: ["detail"], followUp: "活动或对方公司的名称是什么？" },
-        { topic: "职位关联", question: "为什么必须由你去？", required: ["work", "detail"], followUp: "这和你的职责有什么关系？" },
-      ]
-    : [
-        { topic: "旅行安排", question: `你准备去${cities}哪些地方？`, required: ["city", "detail"], followUp: "最主要去哪个城市？" },
-        { topic: "同行人员", question: "谁和你一起去？", required: ["detail"], followUp: "你是一个人去吗？" },
-      ];
-
-  return [
-    opening,
-    ...purposeQuestions,
-    { topic: "停留时间", question: `你准备在美国待${duration}？`, required: ["time"], followUp: "具体待多少天？" },
-    { topic: "费用来源", question: `${funding}，谁承担费用？`, required: ["money"], followUp: "这次大约准备多少预算？" },
-    { topic: "工作情况", question: `${occupation}，你具体做什么工作？`, required: ["work", "detail"], followUp: "你在那里工作多久了？" },
-    { topic: "回国安排", question: `旅行结束后你回来做什么？`, required: ["ties", "detail"], followUp: `你提到${ties}，具体是什么安排？` },
-    { topic: "出境记录", question: "你以前出过国吗？", required: ["detail"], followUp: "最近一次去了哪里？" },
-  ];
-}
-
-function answerHasRequirement(answer: string, requirement: InterviewStep["required"][number]) {
-  const text = answer.trim();
-  if (requirement === "detail") return text.length >= 14;
-  if (requirement === "city") return /纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|城市|city/i.test(text);
-  if (requirement === "time") return /\d|天|周|月|号|日期|时间|行程|回程|机票/.test(text);
-  if (requirement === "money") return /\d|美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|自费|钱/.test(text);
-  if (requirement === "work") return /工作|公司|单位|机构|职位|老板|上班|请假|学生|学校|业务|生意/.test(text);
-  return /家人|父母|孩子|妻子|丈夫|配偶|家庭|房子|工作|公司|学校|回国|回来|项目/.test(text);
-}
-
-function needsFollowUp(answer: string, step: InterviewStep) {
-  if (answer.trim().length < 8) return true;
-  return step.required.some((requirement) => !answerHasRequirement(answer, requirement));
-}
-
-async function requestOfficerTurn(
-  messages: Message[],
-  profile: ApplicantProfile,
-  officer: OfficerProfile,
-  directive: { question: string; topic: string; isFollowUp?: boolean; shouldEnd?: boolean }
-) {
-  const response = await fetch("/api/interview", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages,
-      profile,
-      directive,
-      officer: { name: officer.name, style: officer.style, pressure: officer.pressure },
-    }),
-  });
-  if (!response.ok || !response.body) throw new Error("Interview response unavailable");
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let reply = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    buffer += decoder.decode(value, { stream: !done });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-    for (const event of events) {
-      const data = event.split("\n").find((line) => line.startsWith("data:"))?.slice(5).trim();
-      if (!data || data === "[DONE]") continue;
-      try {
-        const payload = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
-        reply += payload.choices?.[0]?.delta?.content ?? "";
-      } catch { /* Ignore malformed upstream chunks. */ }
-    }
-    if (done) break;
-  }
-  return reply.trim() || directive.question;
+function interviewClipPath(officerId: string, questionIndex: number) {
+  return `/videos/interview-officers/${officerId}/question-${String(questionIndex + 1).padStart(2, "0")}.mp4`;
 }
 
 // ─── Metric Bar ───────────────────────────────────────────────────────────────
@@ -553,11 +417,13 @@ function OfficerSelectionPage({ officer, onChange, onConfirm, onBack }: {
 
 function InterviewPage({
   messages, isStreaming, isSpeaking, isMuted, input, interviewDone,
-  officer, avatarStream, avatarStatus, onInputChange, onSend, onEnd, onAbandon, onToggleMute, onStartListening,
+  officer, questionIndex, prerecordedClip, avatarStream, avatarStatus, onInputChange, onSend, onEnd, onAbandon, onToggleMute, onStartListening,
 }: {
   messages: Message[]; isStreaming: boolean; isSpeaking: boolean; isMuted: boolean;
   input: string; interviewDone: boolean;
   officer: OfficerProfile;
+  questionIndex: number;
+  prerecordedClip: string | null;
   avatarStream: MediaStream | null; avatarStatus: LiveTalkingStatus;
   onInputChange: (v: string) => void; onSend: (forceText?: string) => void;
   onEnd: () => void; onAbandon: () => void; onToggleMute: () => void; onStartListening: () => void;
@@ -892,7 +758,16 @@ function InterviewPage({
               )}
             </div>
             {/* Real photo — absolute so it fills container regardless of height */}
-            {avatarStream ? (
+            {prerecordedClip ? (
+              <video
+                key={prerecordedClip}
+                src={prerecordedClip}
+                autoPlay
+                playsInline
+                muted={isMuted}
+                className="absolute inset-0 h-full w-full object-cover object-center bg-[#07182d]"
+              />
+            ) : avatarStream ? (
               <video
                 ref={avatarVideoRef}
                 autoPlay
@@ -932,7 +807,7 @@ function InterviewPage({
               <div className="flex items-center gap-1.5 bg-white/92 border border-[rgba(3,52,110,0.18)] rounded-[4px] px-2.5 py-1 shadow-sm">
                 <div className="w-[7px] h-[7px] rounded-full bg-red-500" style={{ boxShadow: "0 0 5px #ef4444", animation: "live-blink 1s infinite" }} />
                 <span className="text-[9px] font-bold text-[#03346E] tracking-[.08em] font-mono">
-                  {avatarStatus === "connected" ? `LIVE: OFFICER ${officer.name.toUpperCase()}` : avatarStatus === "connecting" ? "CONNECTING OFFICER" : `OFFICER ${officer.name.toUpperCase()}`}
+                  {prerecordedClip ? `CLIP ${questionIndex + 1}/${QUESTIONS.length} · ${officer.name.toUpperCase()}` : avatarStatus === "connected" ? `LIVE: OFFICER ${officer.name.toUpperCase()}` : avatarStatus === "connecting" ? "CONNECTING OFFICER" : `OFFICER ${officer.name.toUpperCase()}`}
                 </span>
               </div>
               <div className="flex items-center bg-white/92 border border-[rgba(3,52,110,0.18)] rounded-[4px] px-2.5 py-1 shadow-sm">
@@ -1112,7 +987,7 @@ function InterviewPage({
         <div className="flex gap-4">
           <span className="text-[10px] text-[#989898] flex items-center gap-1.5">
             <span className={`w-1.5 h-1.5 rounded-full inline-block ${avatarStatus === "connected" ? "bg-green-500" : avatarStatus === "connecting" ? "bg-amber-400 animate-pulse" : "bg-[#9aa7b8]"}`} />
-            {avatarStatus === "connected" ? "实时数字人已连接" : avatarStatus === "connecting" ? "正在连接数字人" : "语音动画模式"}
+            {prerecordedClip ? "预生成面试视频" : avatarStatus === "connected" ? "实时数字人已连接" : avatarStatus === "connecting" ? "正在连接数字人" : "语音动画模式"}
           </span>
           <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />AI 引擎运行中</span>
         </div>
@@ -1286,7 +1161,6 @@ function LoadingReport() {
 
 export default function InterviewPracticePage() {
   const [pageState, setPageState] = useState<PageState>("start");
-  const profile = DEFAULT_PROFILE;
   const [officer, setOfficer] = useState<OfficerProfile>(OFFICERS[0]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -1296,9 +1170,9 @@ export default function InterviewPracticePage() {
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [followUpCounts, setFollowUpCounts] = useState<Record<number, number>>({});
+  const [prerecordedClip, setPrerecordedClip] = useState<string | null>(null);
   const [interviewCompleted, setInterviewCompleted] = useState(false);
-  const interviewPlan = buildInterviewPlan(profile);
+  const interviewPlan = QUESTIONS;
   const interviewDone = interviewCompleted;
   const {
     status: avatarStatus,
@@ -1349,7 +1223,19 @@ export default function InterviewPracticePage() {
     } else {
       fallback();
     }
-  }, [avatarStatus, speakThroughAvatar, officer.speechRate]);
+  }, [avatarStatus, speakThroughAvatar, officer.speechRate, officer.voiceGender]);
+
+  const prepareQuestionMedia = useCallback((index: number, text: string) => {
+    if (typeof window === "undefined") return;
+    const clip = interviewClipPath(officer.id, index);
+    setPrerecordedClip(null);
+    fetch(clip, { method: "HEAD" })
+      .then((response) => {
+        if (response.ok) setPrerecordedClip(clip);
+        else { setPrerecordedClip(null); speakText(text); }
+      })
+      .catch(() => { setPrerecordedClip(null); speakText(text); });
+  }, [officer.id, speakText]);
 
   useEffect(() => {
     if (pageState === "interview") void connectAvatar();
@@ -1362,15 +1248,17 @@ export default function InterviewPracticePage() {
       if (prev.length > 0 && prev[prev.length - 1].role === "assistant" && prev[prev.length - 1].content === text) return prev;
       return [...prev, { role: "assistant", content: text }];
     });
-    speakText(text);
-  }, [speakText]);
+  }, []);
 
   useEffect(() => {
     if (pageState === "interview" && messages.length === 0) {
       setQuestionIndex(0);
       setInterviewCompleted(false);
-      setFollowUpCounts({});
-      setTimeout(() => addOfficerMessage(interviewPlan[0]?.question ?? QUESTIONS[0]), 300);
+      setTimeout(() => {
+        const question = interviewPlan[0].question;
+        addOfficerMessage(question);
+        prepareQuestionMedia(0, question);
+      }, 300);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageState]);
@@ -1380,13 +1268,6 @@ export default function InterviewPracticePage() {
     const trimmed = (forceText ?? input).trim();
     if (!trimmed || isStreaming || interviewDone || isSendingRef.current) return;
     isSendingRef.current = true;
-    const activeStep = interviewPlan[questionIndex] ?? interviewPlan[interviewPlan.length - 1];
-    const totalFollowUps = Object.values(followUpCounts).reduce((sum, count) => sum + count, 0);
-    const shouldFollowUp = activeStep
-      && needsFollowUp(trimmed, activeStep)
-      && (followUpCounts[questionIndex] ?? 0) < 1
-      && totalFollowUps < 3;
-    const turnMessages = [...messages, { role: "user" as const, content: trimmed }];
     setMessages((prev) => {
       if (prev.length > 0 && prev[prev.length - 1].role === "user") return prev;
       return [...prev, { role: "user", content: trimmed }];
@@ -1395,35 +1276,32 @@ export default function InterviewPracticePage() {
     setIsStreaming(true);
     try {
       await new Promise((resolve) => window.setTimeout(resolve, 300));
-      let directive: { question: string; topic: string; isFollowUp?: boolean; shouldEnd?: boolean };
-      let nextIndex = questionIndex;
       isSendingRef.current = false;
-      if (shouldFollowUp && activeStep) {
-        setFollowUpCounts((prev) => ({ ...prev, [questionIndex]: (prev[questionIndex] ?? 0) + 1 }));
-        directive = { question: activeStep.followUp, topic: activeStep.topic, isFollowUp: true };
-      } else if (questionIndex + 1 < interviewPlan.length) {
-        nextIndex = questionIndex + 1;
+      const nextIndex = questionIndex + 1;
+      if (nextIndex < interviewPlan.length) {
         setQuestionIndex(nextIndex);
-        directive = { question: interviewPlan[nextIndex].question, topic: interviewPlan[nextIndex].topic };
+        const question = interviewPlan[nextIndex].question;
+        addOfficerMessage(question);
+        prepareQuestionMedia(nextIndex, question);
       } else {
         setQuestionIndex(interviewPlan.length);
         setInterviewCompleted(true);
-        directive = { question: ENDING_MESSAGE, topic: "结束", shouldEnd: true };
+        setPrerecordedClip(null);
+        addOfficerMessage(ENDING_MESSAGE);
+        speakText(ENDING_MESSAGE);
       }
-      const reply = await requestOfficerTurn(turnMessages, profile, officer, directive).catch(() => directive.question);
-      addOfficerMessage(reply);
     } finally {
       isSendingRef.current = false;
       setIsStreaming(false);
     }
-  }, [input, isStreaming, interviewDone, interviewPlan, questionIndex, followUpCounts, messages, profile, officer, addOfficerMessage]);
+  }, [input, isStreaming, interviewDone, interviewPlan, questionIndex, addOfficerMessage, prepareQuestionMedia, speakText]);
 
   // Abandon: user manually quits mid-interview → back to start, no report
   const handleAbandon = useCallback(() => {
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
     setIsSpeaking(false);
     disconnectAvatar();
-    setMessages([]); setInput(""); setIsStreaming(false); setQuestionIndex(0); setFollowUpCounts({}); setInterviewCompleted(false);
+    setMessages([]); setInput(""); setIsStreaming(false); setQuestionIndex(0); setPrerecordedClip(null); setInterviewCompleted(false);
     setPageState("start");
   }, [disconnectAvatar]);
 
@@ -1458,7 +1336,7 @@ export default function InterviewPracticePage() {
 
   const handleRetry = useCallback(() => {
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
-    setMessages([]); setReport(null); setInput(""); setIsStreaming(false); setIsSpeaking(false); setIsGeneratingReport(false); setQuestionIndex(0); setFollowUpCounts({}); setInterviewCompleted(false); setPageState("start");
+    setMessages([]); setReport(null); setInput(""); setIsStreaming(false); setIsSpeaking(false); setIsGeneratingReport(false); setQuestionIndex(0); setPrerecordedClip(null); setInterviewCompleted(false); setPageState("start");
   }, []);
 
   if (pageState === "start") return <StartPage onStart={() => setPageState("checklist")} />;
@@ -1479,6 +1357,7 @@ export default function InterviewPracticePage() {
   if (pageState === "interview") return (
     <InterviewPage messages={messages} isStreaming={isStreaming} isSpeaking={isSpeaking || avatarSpeaking} isMuted={isMuted}
       officer={officer}
+      questionIndex={questionIndex} prerecordedClip={prerecordedClip}
       input={input} interviewDone={interviewDone} avatarStream={avatarStream} avatarStatus={avatarStatus}
       onInputChange={setInput} onSend={handleSend} onEnd={handleEndInterview} onAbandon={handleAbandon}
       onToggleMute={handleToggleMute} onStartListening={() => { void interruptAvatar(); }} />

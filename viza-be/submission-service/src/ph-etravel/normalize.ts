@@ -694,10 +694,10 @@ export function normalizePhEtravelPortalPayload(
     .map(([, value]) => text(value));
   const visitedCountries30d = hasRecentTravelHistory30d ? repeatedValues("visited_country_30d") : [];
   const sicknessSymptoms = hasBeenSick30d ? repeatedValues("sickness_symptom") : [];
-  const firstName = firstText([answers.first_name]);
-  const middleName = firstText([answers.middle_name]) || null;
-  const lastName = firstText([answers.last_name]) || null;
-  const suffix = firstText([answers.suffix]) || null;
+  const firstName = firstText([answers.first_name, answers.given_name]);
+  const middleName = firstText([answers.middle_name, answers.middle_names]) || null;
+  const lastName = firstText([answers.last_name, answers.family_name, answers.surname]) || null;
+  const suffix = firstText([answers.suffix, answers.extension_name]) || null;
   const fullName = combineNameParts({
     firstName,
     middleName,
@@ -705,7 +705,7 @@ export function normalizePhEtravelPortalPayload(
     suffix,
     fallback: firstText([answers.full_name, payload.personal.fullName]),
   });
-  if (!fullName) missing.push("first_name");
+  if (!firstName) missing.push("first_name");
   const hasTransit = boolAnswer(answers.with_transit);
   const isSeaArrival = !isDeparture && transportType === "SEA";
   const hasDisembarkingAnswer = text(answers.is_disembarking) !== "";
@@ -745,7 +745,7 @@ export function normalizePhEtravelPortalPayload(
 
   const mapped = {
     fullName,
-    firstName: firstName || fullName.split(/\s+/)[0] || fullName,
+    firstName,
     middleName,
     lastName,
     suffix,

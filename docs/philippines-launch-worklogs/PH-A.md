@@ -1043,6 +1043,15 @@
 - Not run: migration, seed, deploy, schema/runner/frontend tests, real OTP/CAPTCHA, payment, final Submit, commit, batch git add.
 - Browser session finalized after evidence collection; claimed Chrome tabs released.
 
+## 第二十八轮 E28 登录页最小证据追加（2026-08-14）
+
+- 已根据用户提供的当前官方登录页截图，追加 `Enter Email address`、`Password`、`Forgot Password`、`Login`、`Sign in to eTravel with eGovPH`、`Create an account` 与 Cloudflare `Success!` 的可见状态。
+- 合同已明确：上述均为 account/runtime/Turnstile 边界；`account.password` 是运行时秘密，所有这些项目均不是普通 arrival 的 applicant answer 或 `visa_form_fields`。
+- 未访问官网、未输入或记录任何账号/秘密/申请资料，未进行 OTP、CAPTCHA、上传、导航或 final Submit。
+- 同日用户提供的 Create account 与 OTP 截图补充确认：Create account 页显示 email 输入、`Continue`、已有账户登录入口及 Cloudflare `Success!`；邮件 Continue 后的 `Enter One-Time-Password` 页显示 6 个独立 OTP 格、Continue、登录入口、约两分钟的 resend 倒计时及至少等待三分钟的提示。邮箱及 OTP 均未转录或保留，且均为 runtime boundary，不是 applicant question。
+- 用户提供的 OTP Continue 后密码页补充确认：`Create your Password`、`Password Confirmation` 两个密码控件各有显隐按钮和 `Continue`；可见规则为至少 12 个字符、同时有大小写字母、至少一个符号及至少一个数字。未转录或保留任何邮箱或密码；`account.password` 仍仅为 runtime secret。
+- 用户提供的当前 onboarding Personal Information 截图补充确认：photo action、菲律宾/外国护照 holder radios、姓名/optional 标记、Birth Date 日历、可搜索 mobile dial-code picker、Citizenship 的 nationality/demonym 展示、Country of Birth/Passport Issuing Authority 的 country-name 展示、Passport Number、Passport Issued Date、Occupation 与 Next 均可见。Occupation 未展开，故 options 未确认。当前 Sex 下拉截图仅见 `FEMALE`/`MALE`；合同以此作为当前页面证据，历史 five-option 记录保留但不作为当前选项集。未记录任何用户值。
+
 ## 第十九轮 E18 S1 profile/persona/residence 受控验证（2026-08-04）
 
 ### 范围与安全边界

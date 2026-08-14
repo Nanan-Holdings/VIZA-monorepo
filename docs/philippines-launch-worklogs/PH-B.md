@@ -1192,6 +1192,13 @@ When PH-A publishes E10, PH-B must consume only: SEA electronic positive `Yes` b
 - **PH-A**：仅在新的受控 live/server evidence 明确给出 official key、option code、required/error、clear callback、file accept/size/count 或 final-result semantics 时，PH-B 才更新对应 manifest/field metadata；selector visibility 本身不关闭 requiredness。
 - **PH-C / PH-D**：消费 `PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_MANIFEST` 的 `requiredness.cross_layer_enforcement`、`option_contract`、condition 和 owner；不得回退使用裸 `required`、label、port metadata 或 runtime state 推断 payload/页面/提交行为。
 
+## E26 onboarding Personal Information screenshot delta（2026-08-14）
+
+- 修正字段 metadata：Sex canonical values 为 `MALE` / `FEMALE`；Citizenship 与 Birth/Passport Issuing Authority 均保留 country `code`，但前者显示 `nationality`/demonym，后两者显示 country `name`。护照 holder default `FILIPINO` 只作 UI evidence。Occupation 仅确认 select 存在，未改完整列表。
+- 更新定向 schema assertions，并修正 E26 profile-photo single-file-control evidence 的旧测试字符串；未记录申请人值。
+- Passed：定向 TypeScript static compile、`npm run type-check`。
+- Blocked：direct focused Vitest 在加载 `vitest.config.ts` 时试图写临时 bundled config，报 `EPERM`，未执行测试体；未安装依赖、请求审批或重试。
+
 ## 第二十三轮 E23 Health public-bundle schema consumption（2026-08-04）
 
 > 已读取适用 `AGENTS.md`、协调总览第 37 节、arrival field contract E23 与 PH-A/PH-B/PH-C/PH-D 最新记录。本轮只消费 PH-A 的 zero-login Health public-bundle evidence；没有浏览官网、session、草稿、写 API、申请人资料、文件、签名、付款或 final Submit。只修改 PH-B 的 schema/options/test/worklog。
