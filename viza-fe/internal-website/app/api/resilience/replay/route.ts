@@ -151,10 +151,9 @@ async function loadRunnerWakeRecord(
     retryDelaysMs: [],
   }) as unknown as ReplayDbClient;
   const table = event.target === "pool" ? "runner_job" : "submission_queue";
-  const columns = table === "runner_job" ? "id,status,available_at" : "id,status";
   const { data, error } = await admin
     .from(table)
-    .select(columns)
+    .select("id,status,available_at")
     .eq("id", event.jobId)
     .maybeSingle();
   if (error) throw new ReplayTransientError("database_unavailable");
@@ -216,6 +215,14 @@ async function replayRunnerJobWake(event: RunnerJobWakeEvent): Promise<RunnerWak
     !isSubmissionWakeQueued(normalizedStatus)
   ) {
     return { outcome: "ack" };
+  }
+  const retryAfterSeconds = retryAfterSecondsForAvailableAt(record.availableAt);
+  if (retryAfterSeconds !== null) {
+    return {
+      outcome: "nack",
+      errorCode: "job_not_due",
+      retryAfterSeconds,
+    };
   }
   const wake = await wakeCloudSubmissionWorker(event.jobId, { target: event.target });
   if (!wake.ok) throw new ReplayTransientError("worker_wake_unavailable");

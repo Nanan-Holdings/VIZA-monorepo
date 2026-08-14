@@ -4,6 +4,7 @@ const withAdminMock = vi.hoisted(() => vi.fn());
 const ensureFlyMachineCapacityMock = vi.hoisted(() => vi.fn());
 const wakeCloudSubmissionWorkerMock = vi.hoisted(() => vi.fn());
 const enqueueRunnerJobWakeMock = vi.hoisted(() => vi.fn());
+const authorityTables: string[] = [];
 
 vi.mock("@/lib/auth/with-admin", () => ({ withAdmin: withAdminMock }));
 vi.mock("@/lib/fly-machine-wake.server", () => ({
@@ -40,12 +41,12 @@ function configureAdmin(
     claimable: 1,
     running: 0,
   }],
-  runnerJobState: RunnerJobState | null = {
+  authorityState: RunnerJobState | null = {
     id: "job-1",
     status: "queued",
     available_at: null,
   },
-  runnerJobError: { message: string } | null = null,
+  authorityError: { message: string } | null = null,
 ) {
   const rpc = vi.fn().mockResolvedValue({
     data: {
@@ -66,7 +67,7 @@ function configureAdmin(
   const runnerJobQuery = {
     select: vi.fn(() => runnerJobQuery),
     eq: vi.fn(() => runnerJobQuery),
-    maybeSingle: vi.fn().mockResolvedValue({ data: runnerJobState, error: runnerJobError }),
+    maybeSingle: vi.fn().mockResolvedValue({ data: authorityState, error: authorityError }),
   };
   withAdminMock.mockImplementation(async (_mode: string, actor: string, fn: (admin: unknown) => Promise<unknown>) => {
     if (actor === "lib/queue:pool-depth") {
@@ -75,7 +76,10 @@ function configureAdmin(
     return fn({
       rpc,
       from: vi.fn((table: string) => {
-        if (table !== "runner_job") throw new Error(`unexpected table: ${table}`);
+        if (table !== "runner_job" && table !== "submission_queue") {
+          throw new Error(`unexpected table: ${table}`);
+        }
+        authorityTables.push(table);
         return runnerJobQuery;
       }),
     });
@@ -91,6 +95,7 @@ describe("runner pool enqueue wake transport", () => {
     ensureFlyMachineCapacityMock.mockReset();
     wakeCloudSubmissionWorkerMock.mockReset();
     enqueueRunnerJobWakeMock.mockReset();
+    authorityTables.length = 0;
     ensureFlyMachineCapacityMock.mockResolvedValue({ ok: true, desired: 1 });
     wakeCloudSubmissionWorkerMock.mockResolvedValue({ ok: true });
     enqueueRunnerJobWakeMock.mockResolvedValue({ accepted: true, duplicate: false, queued: true });
@@ -182,6 +187,10 @@ describe("runner pool enqueue wake transport", () => {
       runner_job_id: null,
       legacy_queue_id: "legacy-1",
       legacy_queue_status: "sgac_live_assisted_scheduled",
+    }, undefined, {
+      id: "legacy-1",
+      status: "sgac_live_assisted_scheduled",
+      available_at: new Date(Date.now() + 60_000).toISOString(),
     });
     const availableAt = new Date(Date.now() + 60_000).toISOString();
 
@@ -192,16 +201,16 @@ describe("runner pool enqueue wake transport", () => {
     expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: false });
   });
 
-  it("uses the canonical runner_job available_at for a legacy collision", async () => {
+  it("uses the canonical submission_queue available_at for a legacy collision", async () => {
     process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "1";
     configureAdmin({
       blocked_by_legacy: true,
-      runner_job_id: "job-1",
+      runner_job_id: null,
       legacy_queue_id: "legacy-1",
       legacy_queue_status: "sgac_live_assisted_scheduled",
     }, undefined, {
-      id: "job-1",
-      status: "queued",
+      id: "legacy-1",
+      status: "sgac_live_assisted_scheduled",
       available_at: new Date(Date.now() + 60_000).toISOString(),
     });
 
@@ -210,6 +219,50 @@ describe("runner pool enqueue wake transport", () => {
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
     expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: false });
+  });
+
+  it("publishes a due retained collision to its target-specific Queue", async () => {
+    process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "true";
+    configureAdmin({
+      blocked_by_legacy: true,
+      runner_job_id: null,
+      legacy_queue_id: "legacy-1",
+      legacy_queue_status: "sgac_live_assisted_pending",
+    }, undefined, {
+      id: "legacy-1",
+      status: "sgac_live_assisted_pending",
+      available_at: null,
+    });
+
+    const result = await enqueueRunnerPoolJob("app-1", "singapore", "sgac");
+
+    expect(authorityTables).toContain("submission_queue");
+    expect(enqueueRunnerJobWakeMock).toHaveBeenCalledWith({ jobId: "legacy-1", target: "legacy" });
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: true });
+  });
+
+  it.each([
+    { label: "missing", state: null, error: null },
+    { label: "lookup error", state: null, error: { message: "database unavailable" } },
+  ])("fails closed when retained authority is $label", async ({ state, error }) => {
+    process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "1";
+    configureAdmin({
+      blocked_by_legacy: true,
+      runner_job_id: null,
+      legacy_queue_id: "legacy-1",
+      legacy_queue_status: "sgac_live_assisted_pending",
+    }, undefined, state, error);
+
+    const result = await enqueueRunnerPoolJob("app-1", "singapore", "sgac");
+
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ transport: "submission_queue", workerTriggered: false });
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[runner-pool] Authoritative runner state unavailable; reconciler will recover.",
+      { jobId: "legacy-1", reason: "authoritative_state_unavailable" },
+    );
   });
 
   it.each([

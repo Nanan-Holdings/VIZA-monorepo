@@ -32,11 +32,15 @@ const hmacSecret = "replay-test-secret-that-is-at-least-thirty-two-characters";
 type AdminRow = Record<string, unknown> | null;
 
 const fromTables: string[] = [];
+const selectedColumns: string[] = [];
 
 function configureAdmin(row: AdminRow, options: { rpcError?: { message: string } | null } = {}) {
   const maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
   const query = {
-    select: vi.fn(() => query),
+    select: vi.fn((columns: string) => {
+      selectedColumns.push(columns);
+      return query;
+    }),
     eq: vi.fn(() => query),
     maybeSingle,
     single: maybeSingle,
@@ -100,6 +104,7 @@ describe("resilience replay route", () => {
     wakeCloudSubmissionWorkerMock.mockResolvedValue({ ok: true });
     desiredRunnerPoolCapacityMock.mockResolvedValue(1);
     fromTables.length = 0;
+    selectedColumns.length = 0;
     configureAdmin({ id: "job-1", status: "queued" });
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });
@@ -275,8 +280,29 @@ describe("resilience replay route", () => {
     ]));
 
     expect(fromTables).toContain("submission_queue");
+    expect(selectedColumns).toContain("id,status,available_at");
     expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("job-1", { target });
     expect(await response.json()).toMatchObject({ ok: true, results: [{ outcome: "ack" }] });
+  });
+
+  it("nacks a future retained legacy row before waking it", async () => {
+    configureAdmin({
+      id: "job-1",
+      status: "sgac_live_assisted_scheduled",
+      available_at: new Date(Date.now() + 45_000).toISOString(),
+    });
+
+    const response = await POST(signedReplayRequest([
+      wakeItem({ version: 1, jobId: "job-1", target: "legacy" }),
+    ]));
+    const body = await response.json() as {
+      results: [{ errorCode?: string; outcome?: string; retryAfterSeconds?: number }];
+    };
+
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(body.results[0]).toMatchObject({ outcome: "nack", errorCode: "job_not_due" });
+    expect(body.results[0].retryAfterSeconds).toBeGreaterThanOrEqual(1);
+    expect(body.results[0].retryAfterSeconds).toBeLessThanOrEqual(300);
   });
 
   it.each([
