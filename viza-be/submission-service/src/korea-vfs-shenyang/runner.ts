@@ -345,7 +345,23 @@ async function dismissCookies(page: Page): Promise<void> {
 
 const SHENYANG_VFS_MOBILE_FIELD_ERROR = "The official VFS mobile-number field could not be identified.";
 
-export async function fillShenyangVfsRegistrationMobileField(page: Page, phone: string): Promise<void> {
+export interface ShenyangVfsMobileFieldPollingOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
+const SHENYANG_VFS_MOBILE_FIELD_TIMEOUT_MS = 10_000;
+const SHENYANG_VFS_MOBILE_FIELD_POLL_INTERVAL_MS = 200;
+
+function positivePollingValue(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+export async function fillShenyangVfsRegistrationMobileField(
+  page: Page,
+  phone: string,
+  options: ShenyangVfsMobileFieldPollingOptions = {},
+): Promise<void> {
   const selectors = [
     "input[formcontrolname='contact']",
     "input[formcontrolname*='mobile' i]",
@@ -364,24 +380,37 @@ export async function fillShenyangVfsRegistrationMobileField(page: Page, phone: 
     ".intl-tel-input input",
     "[class*='intl-tel-input' i] input",
   ];
-  for (const selector of selectors) {
-    let fields: ReturnType<Page["locator"]>;
-    try {
-      fields = page.locator(selector);
-    } catch {
-      continue;
-    }
-    const count = await fields.count().catch(() => 0);
-    for (let index = 0; index < Math.min(count, 25); index += 1) {
-      const field = fields.nth(index);
-      if (!await field.isVisible({ timeout: 400 }).catch(() => false)) continue;
+  const timeoutMs = positivePollingValue(options.timeoutMs, SHENYANG_VFS_MOBILE_FIELD_TIMEOUT_MS);
+  const pollIntervalMs = positivePollingValue(options.pollIntervalMs, SHENYANG_VFS_MOBILE_FIELD_POLL_INTERVAL_MS);
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    for (const selector of selectors) {
+      let fields: ReturnType<Page["locator"]>;
       try {
-        await field.fill(phone);
+        fields = page.locator(selector);
       } catch {
-        throw new Error(SHENYANG_VFS_MOBILE_FIELD_ERROR);
+        continue;
       }
-      return;
+      const count = await fields.count().catch(() => 0);
+      for (let index = 0; index < Math.min(count, 25); index += 1) {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0) break;
+        const field = fields.nth(index);
+        if (!await field.isVisible({ timeout: Math.min(400, remainingMs) }).catch(() => false)) continue;
+        try {
+          await field.fill(phone);
+        } catch {
+          throw new Error(SHENYANG_VFS_MOBILE_FIELD_ERROR);
+        }
+        return;
+      }
     }
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.min(pollIntervalMs, remainingMs));
+    });
   }
   throw new Error(SHENYANG_VFS_MOBILE_FIELD_ERROR);
 }
