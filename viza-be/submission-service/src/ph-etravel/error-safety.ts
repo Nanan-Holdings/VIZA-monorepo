@@ -101,6 +101,8 @@ const PH_ETRAVEL_SAFE_ERROR_MESSAGES: Record<string, string> = {
     "Philippines eTravel could not continue because the official email verification checkpoint needs operator review.",
   ph_etravel_official_registration_verification_required:
     "Philippines eTravel could not continue because the official registration verification checkpoint needs operator review.",
+  ph_etravel_registration_password_policy_failed:
+    "Philippines eTravel could not continue because the managed account password did not satisfy the official password policy.",
   ph_etravel_registration_turnstile_blocked:
     "Philippines eTravel could not continue because the official Turnstile checkpoint needs operator review.",
   ph_etravel_official_portal_blocked:

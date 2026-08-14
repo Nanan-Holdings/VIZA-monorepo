@@ -12,6 +12,7 @@ import {
 import { PH_ETRAVEL_OFFICIAL_PORTAL_URL, type PhEtravelPortalPayload } from "./normalize";
 import { createPhEtravelMailboxProvider, type PhEtravelMailboxProvider } from "./mailbox-provider";
 import { safePhEtravelDiagnosticLogs } from "./error-safety";
+import { isPhEtravelAccountPasswordCompliant } from "./account";
 import {
   gatePhEtravelAuthoritativeResult,
   type PhEtravelAuthoritativeRegistrationRead,
@@ -89,6 +90,13 @@ export function sanitizePhEtravelLog(value: string): string {
 
 export function sanitizePhEtravelLogs(logs: string[]): string[] {
   return logs.map(sanitizePhEtravelLog);
+}
+
+export function phEtravelPasswordFieldValues(password: string): {
+  password: string;
+  confirmation: string;
+} {
+  return { password, confirmation: password };
 }
 
 export function isPhEtravelReviewStopError(error: unknown): error is PhEtravelPortalError {
@@ -210,12 +218,43 @@ async function firstSuccessful<T>(promises: Array<Promise<T>>): Promise<T> {
   });
 }
 
-function splitFullName(fullName: string): { firstName: string; lastName: string } {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length <= 1) return { firstName: parts[0] ?? fullName.trim(), lastName: "" };
+function normalizedOptionText(value: string | null | undefined): string {
+  return value?.trim() ?? "";
+}
+
+/** Citizenship options use demonyms; country fields use country names. */
+export function phEtravelCitizenshipLabel(value: string): string {
+  const normalized = normalizedOptionText(value);
+  if (/^(philippines|philippine|filipino|ph|phl)$/i.test(normalized)) return "Filipino";
+  if (/^(china|chinese|cn|chn)$/i.test(normalized)) return "Chinese";
+  return normalized;
+}
+
+export function phEtravelCountryNameLabel(value: string): string {
+  const normalized = normalizedOptionText(value);
+  if (/^(philippines|philippine|filipino|ph|phl)$/i.test(normalized)) return "Philippines";
+  if (/^(china|chinese|cn|chn)$/i.test(normalized)) return "China";
+  if (/^(singapore|singaporean|sg|sgp)$/i.test(normalized)) return "Singapore";
+  return normalized;
+}
+
+export function phEtravelPersonalInformationPlan(payload: PhEtravelPortalPayload): {
+  firstName: string;
+  middleName: string | null;
+  lastName: string | null;
+  suffix: string | null;
+  citizenshipLabel: string;
+  countryOfBirthLabel: string;
+  passportIssuingAuthorityLabel: string;
+} {
   return {
-    firstName: parts.slice(0, -1).join(" "),
-    lastName: parts[parts.length - 1],
+    firstName: payload.firstName,
+    middleName: payload.middleName,
+    lastName: payload.lastName,
+    suffix: payload.suffix,
+    citizenshipLabel: phEtravelCitizenshipLabel(payload.nationality),
+    countryOfBirthLabel: phEtravelCountryNameLabel(payload.countryOfBirth),
+    passportIssuingAuthorityLabel: phEtravelCountryNameLabel(payload.passportIssuingAuthority),
   };
 }
 
@@ -537,6 +576,41 @@ export function shouldRetryMissingPhEtravelResponse(pageText: string): boolean {
 }
 
 export const PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS = 90_000;
+export const PH_ETRAVEL_EMAIL_OTP_MIN_WAIT_MS = 180_000;
+
+export function phEtravelEmailOtpWaitMs(
+  requestedTimeoutMs: number | undefined,
+  environment: Record<string, string | undefined> = process.env,
+): number {
+  const configured = requestedTimeoutMs ?? Number(environment.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
+  return Math.max(
+    PH_ETRAVEL_EMAIL_OTP_MIN_WAIT_MS,
+    Number.isFinite(configured) ? configured : PH_ETRAVEL_EMAIL_OTP_MIN_WAIT_MS,
+  );
+}
+
+export function phEtravelOtpInputPlan(otp: string, visibleInputIndexes: readonly number[]):
+  | { mode: "six_individual_inputs"; indexes: number[]; digits: string[] }
+  | { mode: "single_input"; indexes: []; digits: string[] } {
+  const digits = otp.trim().split("");
+  if (digits.length === 6 && visibleInputIndexes.length >= 6) {
+    return {
+      mode: "six_individual_inputs",
+      indexes: visibleInputIndexes.slice(-6),
+      digits,
+    };
+  }
+  return { mode: "single_input", indexes: [], digits };
+}
+
+export function canResendPhEtravelEmailOtp(input: {
+  visible: boolean;
+  enabled: boolean;
+  pageText: string;
+}): boolean {
+  const countdown = /resend\s+(?:email\s+)?code\s*(?:in)?\s*\d{1,2}:\d{2}|resend\s+(?:email\s+)?code\s+(?:in|after)\s+\d+\s*(?:s|sec(?:ond)?s?|m|min(?:ute)?s?)/i;
+  return input.visible && input.enabled && !countdown.test(input.pageText);
+}
 
 async function fillFirstVisibleInput(page: Page, selectors: string[], value: string): Promise<boolean> {
   for (const selector of selectors) {
@@ -1103,9 +1177,7 @@ async function completeEgovPermanentResidenceOnboarding(
     barangay,
     new RegExp(barangay.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
   ) || await fillVisibleTextField(page, "Barangay", barangay);
-  const streetAddress = isPhilippineResidence
-    ? payload.residenceAddressLine1 || address
-    : payload.residenceAddressLine2 || payload.residenceAddressLine1 || address;
+  const streetAddress = payload.residenceAddressLine1 || address;
   const streetInput = page.locator('input[name="street"]').first();
   const filledAddress = await streetInput
     .fill(streetAddress, { timeout: 10_000 })
@@ -1231,7 +1303,6 @@ async function fillMpinInputs(page: Page, mpin: string): Promise<boolean> {
 }
 
 async function fillOtpInputs(page: Page, otp: string): Promise<boolean> {
-  const digits = otp.trim().split("");
   const inputs = page.locator("input:not([type='hidden'])");
   const count = await inputs.count().catch(() => 0);
   const visibleIndexes: number[] = [];
@@ -1240,15 +1311,16 @@ async function fillOtpInputs(page: Page, otp: string): Promise<boolean> {
       visibleIndexes.push(index);
     }
   }
-  if (visibleIndexes.length >= digits.length) {
-    const otpIndexes = visibleIndexes.slice(-digits.length);
+  const plan = phEtravelOtpInputPlan(otp, visibleIndexes);
+  if (plan.mode === "six_individual_inputs") {
+    const otpIndexes = plan.indexes;
     await inputs.nth(otpIndexes[0]).click({ timeout: 10_000 });
     await page.keyboard.type(otp.trim(), { delay: 40 });
     await page.waitForTimeout(300);
-    for (let index = 0; index < digits.length; index += 1) {
+    for (let index = 0; index < plan.digits.length; index += 1) {
       const value = await inputs.nth(otpIndexes[index]).inputValue({ timeout: 1_000 }).catch(() => "");
-      if (value !== digits[index]) {
-        await inputs.nth(otpIndexes[index]).fill(digits[index], { timeout: 10_000 });
+      if (value !== plan.digits[index]) {
+        await inputs.nth(otpIndexes[index]).fill(plan.digits[index], { timeout: 10_000 });
       }
     }
     return true;
@@ -1348,10 +1420,18 @@ async function completeEgovPersonalInformationOnboarding(
   ]);
   logs.push(`ph_etravel_egov_passport_holder_selected=${selectedPassportHolder}`);
 
-  const name = splitFullName(payload.fullName);
+  const personalInformation = phEtravelPersonalInformationPlan(payload);
   const filled = {
-    firstName: await fillVisibleTextField(page, "First Name", name.firstName),
-    lastName: await fillVisibleTextField(page, "Last Name", name.lastName || name.firstName),
+    firstName: await fillVisibleTextField(page, "First Name", personalInformation.firstName),
+    middleName: personalInformation.middleName
+      ? await fillVisibleTextField(page, "Middle Name", personalInformation.middleName)
+      : true,
+    lastName: personalInformation.lastName
+      ? await fillVisibleTextField(page, "Last Name", personalInformation.lastName)
+      : true,
+    suffix: personalInformation.suffix
+      ? await fillVisibleTextField(page, "Suffix", personalInformation.suffix)
+      : true,
     birthDate: await fillVisibleTextField(page, "Birth Date", formatUsDate(payload.dateOfBirth)),
     mobile: await fillMobileNumberField(page, payload.mobileCountryCode, payload.mobileNumber),
     passportNumber: await fillVisibleTextField(page, "Passport Number", payload.passportNumber),
@@ -1361,24 +1441,23 @@ async function completeEgovPersonalInformationOnboarding(
   await page.waitForTimeout(300);
   const sexText = /^m|male/i.test(payload.sex) ? "MALE" : /^f|female/i.test(payload.sex) ? "FEMALE" : payload.sex.toUpperCase();
   const choseSex = await chooseReactSelectByHiddenName(page, "gender", sexText, sexOptionPattern(payload.sex));
-  const citizenshipText = /china|chinese|cn|chn/i.test(payload.nationality) ? "Chinese" : payload.nationality;
   const choseCitizenship = await chooseHeadlessComboboxByInputName(
     page,
     "nationality_country_code",
-    citizenshipText,
-    countryOptionPattern(payload.nationality),
+    personalInformation.citizenshipLabel,
+    countryOptionPattern(personalInformation.citizenshipLabel),
   );
   const choseCountryOfBirth = await chooseDropdownOption(
     page,
     /country of birth/i,
-    countryOptionPattern(payload.countryOfBirth),
-    payload.countryOfBirth,
+    countryOptionPattern(personalInformation.countryOfBirthLabel),
+    personalInformation.countryOfBirthLabel,
   );
   const chosePassportIssuingAuthority = await chooseDropdownOption(
     page,
     /passport issuing authority/i,
-    countryOptionPattern(payload.passportIssuingAuthority),
-    payload.passportIssuingAuthority,
+    countryOptionPattern(personalInformation.passportIssuingAuthorityLabel),
+    personalInformation.passportIssuingAuthorityLabel,
   );
   const choseOccupation = await chooseDropdownOption(
     page,
@@ -1391,7 +1470,9 @@ async function completeEgovPersonalInformationOnboarding(
 
   if (
     !filled.firstName ||
+    !filled.middleName ||
     !filled.lastName ||
+    !filled.suffix ||
     !filled.birthDate ||
     !filled.mobile ||
     !filled.passportNumber ||
@@ -1643,8 +1724,7 @@ async function completeEgovEmailVerification(
   let text = await bodyText(page);
   if (/otp|code|verification|one[-\s]?time/i.test(text)) {
     const mailbox = options.mailbox ?? createPhEtravelMailboxProvider(applicantId);
-    const timeoutMs = options.emailVerificationTimeoutMs
-      ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
+    const timeoutMs = phEtravelEmailOtpWaitMs(options.emailVerificationTimeoutMs);
     const otp = await mailbox.waitForOtp({ timeoutMs, since });
     await fillOtpInputs(page, otp);
     const clickedOtpContinue = await clickFirstEnabledAvailable(page, [
@@ -1780,10 +1860,11 @@ async function maybeCreatePhEtravelAccount(
   }
   if (/enter one[-\s]?time[-\s]?password|resend email code/i.test(currentText)) {
     const resendButton = page.getByRole("button", { name: /resend email code/i }).first();
-    if (
-      await resendButton.isVisible({ timeout: 1_000 }).catch(() => false) &&
-      await resendButton.isEnabled({ timeout: 1_000 }).catch(() => false)
-    ) {
+    if (canResendPhEtravelEmailOtp({
+      visible: await resendButton.isVisible({ timeout: 1_000 }).catch(() => false),
+      enabled: await resendButton.isEnabled({ timeout: 1_000 }).catch(() => false),
+      pageText: currentText,
+    })) {
       since = new Date().toISOString();
       await resendButton.click({ timeout: 10_000 });
       logs.push("ph_etravel_registration_otp_resend_clicked");
@@ -1807,8 +1888,7 @@ async function maybeCreatePhEtravelAccount(
     );
   }
 
-  const timeoutMs = options.emailVerificationTimeoutMs
-    ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
+  const timeoutMs = phEtravelEmailOtpWaitMs(options.emailVerificationTimeoutMs);
   const waitForExistingAccountNotice = () => mailbox
     .waitForExistingAccountNotice({ timeoutMs, since })
     .then(async () => {
@@ -1939,15 +2019,26 @@ async function maybeCreatePhEtravelAccount(
   }
 
   if (/password|set password|create password/i.test(currentText)) {
-    const password = options.officialAccountPassword?.trim() || process.env.PH_ETRAVEL_ACCOUNT_PASSWORD?.trim() || payload.passportNumber;
+    const password = options.officialAccountPassword?.trim() || process.env.PH_ETRAVEL_ACCOUNT_PASSWORD?.trim();
+    if (!password || !isPhEtravelAccountPasswordCompliant(password)) {
+      throw new PhEtravelPortalError(
+        "Official eTravel account password did not satisfy the observed Create your password policy.",
+        {
+          code: "ph_etravel_registration_password_policy_failed",
+          screenshotPaths: screenshots,
+          portalSummary: (await bodyText(page)).slice(0, 700),
+        },
+      );
+    }
+    const passwordFields = phEtravelPasswordFieldValues(password);
     const passwordInput = page.locator("input[name='password'], input[type='password']").first();
     const confirmPassword = page
       .locator("input[name='password_confirmation'], input[type='password']")
       .filter({ visible: true })
       .last();
     const fillPasswordInputs = async (): Promise<void> => {
-      await passwordInput.fill(password, { timeout: 15_000 });
-      await confirmPassword.fill(password, { timeout: 15_000 });
+      await passwordInput.fill(passwordFields.password, { timeout: 15_000 });
+      await confirmPassword.fill(passwordFields.confirmation, { timeout: 15_000 });
       await confirmPassword.blur().catch(() => undefined);
       const valuesMatch =
         await passwordInput.inputValue({ timeout: 5_000 }).catch(() => "") === password &&

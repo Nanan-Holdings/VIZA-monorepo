@@ -299,6 +299,7 @@ export function getPhoneCountryCodeOptions(): VisaFormFieldOption[] {
     .filter((country) => country.status !== "deleted")
     .flatMap((country) =>
       country.countryCallingCodes
+        .map((code) => code.replace(/\s+/g, ""))
         .filter((code) => /^\+\d+$/.test(code))
         .map((code) => ({ country, code })),
     )
@@ -2401,6 +2402,14 @@ function getDefaultFieldValue(
     return SCHENGEN_DESTINATION_BY_COUNTRY_SLUG[normalizeCountrySlug(country)] ?? "";
   }
 
+  if (visaType === "PH_ETRAVEL_ARRIVAL_CARD" && field.fieldName === "mobile_country_code") {
+    return "+63";
+  }
+
+  if (visaType === "PH_ETRAVEL_ARRIVAL_CARD" && field.fieldName === "passport_holder_type") {
+    return "FILIPINO";
+  }
+
   if (!isPurposeOfTripField(field)) return "";
   return findBOptionValue(field.options) ?? "";
 }
@@ -3696,7 +3705,11 @@ export function DynamicStepForm({
 
     // Filter purpose of trip to only show "B" option
     let fieldOptions = field.options;
-    if (field.fieldName === "phone_country_code" && (!fieldOptions || fieldOptions.length === 0)) {
+    if (
+      (field.fieldName === "phone_country_code" ||
+        (isPhEtravelArrivalStep && field.fieldName === "mobile_country_code")) &&
+      (!fieldOptions || fieldOptions.length === 0)
+    ) {
       fieldOptions = getPhoneCountryCodeOptions();
     }
     const dynamicOptions = getDynamicDependentOptions(field, values);
@@ -3840,7 +3853,11 @@ export function DynamicStepForm({
       const sideField: VisaFormFieldRow = {
         ...field,
         fieldName: shouldExposeBaseFieldNameToControl ? valueKey : `${valueKey}-${side}`,
-        fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
+        fieldType: isVnPrearrivalArrivalDateField
+          ? "radio"
+          : isPhEtravelArrivalStep && field.fieldName === "mobile_country_code"
+            ? "select"
+            : field.fieldType,
         label: getLocalizedFieldLabel(field, side),
         required: isRequiredField(field),
         placeholder: getLocalizedPlaceholder(

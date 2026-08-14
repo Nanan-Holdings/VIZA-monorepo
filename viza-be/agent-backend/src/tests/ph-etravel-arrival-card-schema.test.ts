@@ -369,6 +369,22 @@ describe("Philippines eTravel arrival card schema", () => {
       expect(rulesOf(fieldName).canonical_source, fieldName).toMatch(/^official_/);
       expect(rulesOf(fieldName).accepts_profile_aliases, fieldName).toBe(false);
     }
+
+    expect(valuesOf("sex").sort()).toEqual(["FEMALE", "MALE"]);
+    expect(rulesOf("sex").e26_live_values).toEqual(["FEMALE", "MALE"]);
+    expect(rulesOf("passport_holder_type").e26_default_value).toBe("FILIPINO");
+    expect(rulesOf("nationality")).toMatchObject({
+      option_identity: "code",
+      option_label_projection: "nationality",
+      display_label_evidence: "E26_live_Citizenship_uses_nationality_or_demonym",
+    });
+    for (const fieldName of ["country_of_birth", "passport_issuing_authority"]) {
+      expect(rulesOf(fieldName), fieldName).toMatchObject({
+        option_identity: "code",
+        option_label_projection: "name",
+      });
+    }
+    expect(byName("occupation")).toMatchObject({ field_type: "select" });
   });
 
   it("consumes E19 S1 live profile evidence without creating a photo applicant file field", () => {
@@ -412,7 +428,7 @@ describe("Philippines eTravel arrival card schema", () => {
       applicant_answer: true,
       evidence_level: "needs_review",
       requiredness_evidence: "confirmed_live_E19_blank_Filipino_and_Foreigner_Required_marker_only",
-      file_contract_evidence: "E21_photo_url_client_Yup_URL_write_delete_and_generic_default_only_no_live_input_accept_mime_size_count_or_server_acceptance",
+      file_contract_evidence: "E21_E26_photo_url_client_wiring_and_live_single_file_control_only_no_accept_mime_size_content_or_server_acceptance",
     });
     expect(PH_ETRAVEL_OFFICIAL_FIELD_NAMES).not.toEqual(expect.arrayContaining([
       "profile_photo", "photo_url", "applicant_photo", "profile_photo_file",
@@ -483,8 +499,8 @@ describe("Philippines eTravel arrival card schema", () => {
     expect(byName("mobile_country_code").required).toBe(false);
     expect(rulesOf("mobile_country_code").e21_status).toBe("preexisting_VIZA_field_not_an_official_personal_profile_payload_key");
 
-    expect(byName("country_of_residence").required).toBe(false);
-    expect(byName("residence_address_line1").required).toBe(false);
+    expect(byName("country_of_residence").required).toBe(true);
+    expect(byName("residence_address_line1").required).toBe(true);
     expect(byName("residence_address_line2").required).toBe(false);
     expect(rulesOf("country_of_residence")).toMatchObject({
       official_key: "country_code",

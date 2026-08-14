@@ -2276,4 +2276,3 @@ export const applicationGroup = pgTable("application_group", {
 
 export type ApplicationGroup = typeof applicationGroup.$inferSelect;
 export type NewApplicationGroup = typeof applicationGroup.$inferInsert;
-

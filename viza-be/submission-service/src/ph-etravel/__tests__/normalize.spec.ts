@@ -103,6 +103,38 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
   assert.equal(payload.customs.hasCurrencyOverThreshold, false);
 });
 
+test("normalizePhEtravelPortalPayload preserves distinct onboarding name fields and extension alias", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      first_name: "GIVEN",
+      middle_name: "MIDDLE",
+      last_name: "",
+      extension_name: "SUFFIX",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.firstName, "GIVEN");
+  assert.equal(payload.middleName, "MIDDLE");
+  assert.equal(payload.lastName, null);
+  assert.equal(payload.suffix, "SUFFIX");
+});
+
+test("normalizePhEtravelPortalPayload does not derive a first name by splitting full_name", () => {
+  const input = basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      first_name: "",
+      full_name: "SYNTHETIC FULL NAME",
+    },
+  });
+
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(input, { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => error instanceof PhEtravelPortalValidationError && error.missingFields.includes("first_name"),
+  );
+});
+
 test("normalizePhEtravelPortalPayload keeps Special Flight as UI state and maps only its detail key", () => {
   const payload = normalizePhEtravelPortalPayload(basePayload({
     countrySpecific: {
