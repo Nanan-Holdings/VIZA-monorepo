@@ -212,3 +212,304 @@ GRANT EXECUTE ON FUNCTION public.claim_runner_pool_job(
 
 COMMENT ON FUNCTION public.claim_runner_pool_job(TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ) IS
   'Atomically recovers one expired lease and claims one country-sharded shared-pool job.';
+
+-- Match a bounded batch of official Vietnam status emails in one set-based
+-- operation. The service-role submission worker passes only parsed message
+-- identifiers and an optional normalized official reference; all applicant
+-- and tracking data is resolved inside this RPC under the caller's RLS.
+CREATE INDEX IF NOT EXISTS official_tracking_active_email_idx
+  ON public.official_application_tracking (LOWER(official_lookup_email))
+  WHERE tracking_status = 'active';
+
+-- The historical migration created a partial unique index. Keep it for
+-- compatibility and add a plain unique index so ON CONFLICT (idempotency_key)
+-- remains valid for this rolling-deploy function.
+CREATE UNIQUE INDEX IF NOT EXISTS official_status_checks_idempotency_key_unique_idx
+  ON public.official_status_checks (idempotency_key);
+
+CREATE OR REPLACE FUNCTION public.enqueue_vn_email_triggered_status_checks(
+  p_emails JSONB
+)
+RETURNS TABLE (
+  queued INTEGER,
+  ambiguous INTEGER,
+  unmatched INTEGER,
+  duplicates INTEGER
+)
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  v_unique INTEGER := 0;
+  v_queued INTEGER := 0;
+  v_ambiguous INTEGER := 0;
+  v_unmatched INTEGER := 0;
+BEGIN
+  IF p_emails IS NULL THEN
+    RAISE EXCEPTION 'p_emails is required' USING ERRCODE = '22023';
+  END IF;
+  IF JSONB_TYPEOF(p_emails) <> 'array' THEN
+    RAISE EXCEPTION 'p_emails must be a JSON array' USING ERRCODE = '22023';
+  END IF;
+  IF JSONB_ARRAY_LENGTH(p_emails) > 100 THEN
+    RAISE EXCEPTION 'p_emails cannot contain more than 100 emails'
+      USING ERRCODE = '22023';
+  END IF;
+  IF EXISTS (
+    SELECT 1
+    FROM JSONB_ARRAY_ELEMENTS(p_emails) AS item(value)
+    WHERE JSONB_TYPEOF(item.value) <> 'object'
+      OR NOT (item.value ? 'email_id')
+      OR JSONB_TYPEOF(item.value -> 'email_id') <> 'string'
+      OR NULLIF(BTRIM(item.value ->> 'email_id'), '') IS NULL
+      OR BTRIM(item.value ->> 'email_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      OR (
+        item.value ? 'normalized_reference'
+        AND JSONB_TYPEOF(item.value -> 'normalized_reference') NOT IN ('string', 'null')
+      )
+  ) THEN
+    RAISE EXCEPTION 'p_emails contains a malformed email row'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Count candidate classes before any writes. DISTINCT ON makes a repeated
+  -- inbound id idempotent within one caller batch.
+  WITH input_emails AS MATERIALIZED (
+    SELECT DISTINCT ON (parsed.email_id)
+      parsed.email_id,
+      NULLIF(
+        REGEXP_REPLACE(UPPER(BTRIM(parsed.normalized_reference)), '[^A-Z0-9]', '', 'g'),
+        ''
+      ) AS normalized_reference
+    FROM JSONB_TO_RECORDSET(p_emails) AS parsed(
+      email_id UUID,
+      normalized_reference TEXT
+    )
+    ORDER BY parsed.email_id
+  ),
+  candidate_rows AS MATERIALIZED (
+    SELECT
+      input.email_id,
+      tracking.application_id,
+      tracking.applicant_id,
+      tracking.auth_user_id,
+      tracking.country_code,
+      tracking.provider,
+      input.normalized_reference,
+      COUNT(*) OVER (PARTITION BY input.email_id) AS candidate_count
+    FROM input_emails AS input
+    JOIN public.inbound_email AS email
+      ON email.id = input.email_id
+    JOIN public.official_application_tracking AS tracking
+      ON tracking.tracking_status = 'active'
+      AND tracking.country_code = 'VN'
+      AND LOWER(tracking.official_lookup_email) = LOWER(email.to_addr)
+    JOIN public.applications AS application
+      ON application.id = tracking.application_id
+    WHERE input.normalized_reference IS NULL
+      OR NULLIF(
+        REGEXP_REPLACE(UPPER(COALESCE(application.external_reference, '')), '[^A-Z0-9]', '', 'g'),
+        ''
+      ) = input.normalized_reference
+  ),
+  candidate_summary AS (
+    SELECT
+      input.email_id,
+      COALESCE(MAX(candidate_rows.candidate_count), 0)::INTEGER AS candidate_count
+    FROM input_emails AS input
+    LEFT JOIN candidate_rows
+      ON candidate_rows.email_id = input.email_id
+    GROUP BY input.email_id
+  )
+  SELECT
+    COUNT(*) FILTER (WHERE candidate_count = 1)::INTEGER,
+    COUNT(*) FILTER (WHERE candidate_count > 1)::INTEGER,
+    COUNT(*) FILTER (WHERE candidate_count = 0)::INTEGER
+  INTO v_unique, v_ambiguous, v_unmatched
+  FROM candidate_summary;
+
+  WITH input_emails AS MATERIALIZED (
+    SELECT DISTINCT ON (parsed.email_id)
+      parsed.email_id,
+      NULLIF(
+        REGEXP_REPLACE(UPPER(BTRIM(parsed.normalized_reference)), '[^A-Z0-9]', '', 'g'),
+        ''
+      ) AS normalized_reference
+    FROM JSONB_TO_RECORDSET(p_emails) AS parsed(
+      email_id UUID,
+      normalized_reference TEXT
+    )
+    ORDER BY parsed.email_id
+  ),
+  candidate_rows AS MATERIALIZED (
+    SELECT
+      input.email_id,
+      tracking.application_id,
+      tracking.auth_user_id,
+      tracking.country_code,
+      tracking.provider,
+      input.normalized_reference,
+      COUNT(*) OVER (PARTITION BY input.email_id) AS candidate_count
+    FROM input_emails AS input
+    JOIN public.inbound_email AS email
+      ON email.id = input.email_id
+    JOIN public.official_application_tracking AS tracking
+      ON tracking.tracking_status = 'active'
+      AND tracking.country_code = 'VN'
+      AND LOWER(tracking.official_lookup_email) = LOWER(email.to_addr)
+    JOIN public.applications AS application
+      ON application.id = tracking.application_id
+    WHERE input.normalized_reference IS NULL
+      OR NULLIF(
+        REGEXP_REPLACE(UPPER(COALESCE(application.external_reference, '')), '[^A-Z0-9]', '', 'g'),
+        ''
+      ) = input.normalized_reference
+  ),
+  unique_matches AS (
+    SELECT DISTINCT ON (candidate_rows.email_id)
+      candidate_rows.email_id,
+      candidate_rows.application_id,
+      candidate_rows.auth_user_id,
+      candidate_rows.country_code,
+      candidate_rows.provider,
+      candidate_rows.normalized_reference
+    FROM candidate_rows
+    WHERE candidate_rows.candidate_count = 1
+    ORDER BY candidate_rows.email_id
+  )
+  INSERT INTO public.official_status_checks (
+    application_id,
+    user_id,
+    country_code,
+    provider,
+    status,
+    requested_by,
+    trigger_source,
+    idempotency_key,
+    inbound_email_id,
+    scheduled_for,
+    checked_at,
+    raw_status_json,
+    created_at,
+    updated_at
+  )
+  SELECT
+    match.application_id,
+    match.auth_user_id,
+    match.country_code,
+    match.provider,
+    'queued',
+    'system',
+    'email',
+    'vn:email:' || match.email_id::TEXT,
+    match.email_id,
+    NOW(),
+    NULL,
+    JSONB_BUILD_OBJECT(
+      'source', 'official_email',
+      'normalized_reference', match.normalized_reference
+    ),
+    NOW(),
+    NOW()
+  FROM unique_matches AS match
+  ON CONFLICT (idempotency_key) DO NOTHING;
+
+  GET DIAGNOSTICS v_queued = ROW_COUNT;
+
+  WITH input_emails AS MATERIALIZED (
+    SELECT DISTINCT ON (parsed.email_id)
+      parsed.email_id,
+      NULLIF(
+        REGEXP_REPLACE(UPPER(BTRIM(parsed.normalized_reference)), '[^A-Z0-9]', '', 'g'),
+        ''
+      ) AS normalized_reference
+    FROM JSONB_TO_RECORDSET(p_emails) AS parsed(
+      email_id UUID,
+      normalized_reference TEXT
+    )
+    ORDER BY parsed.email_id
+  ),
+  candidate_rows AS MATERIALIZED (
+    SELECT
+      input.email_id,
+      tracking.application_id,
+      tracking.applicant_id,
+      tracking.auth_user_id,
+      input.normalized_reference,
+      COUNT(*) OVER (PARTITION BY input.email_id) AS candidate_count
+    FROM input_emails AS input
+    JOIN public.inbound_email AS email
+      ON email.id = input.email_id
+    JOIN public.official_application_tracking AS tracking
+      ON tracking.tracking_status = 'active'
+      AND tracking.country_code = 'VN'
+      AND LOWER(tracking.official_lookup_email) = LOWER(email.to_addr)
+    JOIN public.applications AS application
+      ON application.id = tracking.application_id
+    WHERE input.normalized_reference IS NULL
+      OR NULLIF(
+        REGEXP_REPLACE(UPPER(COALESCE(application.external_reference, '')), '[^A-Z0-9]', '', 'g'),
+        ''
+      ) = input.normalized_reference
+  ),
+  unique_matches AS (
+    SELECT DISTINCT ON (candidate_rows.email_id)
+      candidate_rows.email_id,
+      candidate_rows.application_id,
+      candidate_rows.applicant_id,
+      candidate_rows.auth_user_id,
+      candidate_rows.normalized_reference
+    FROM candidate_rows
+    WHERE candidate_rows.candidate_count = 1
+    ORDER BY candidate_rows.email_id
+  )
+  INSERT INTO public.application_events (
+    application_id,
+    applicant_id,
+    auth_user_id,
+    event_type,
+    actor_type,
+    source,
+    visibility,
+    idempotency_key,
+    message,
+    metadata,
+    occurred_at,
+    created_at
+  )
+  SELECT
+    match.application_id,
+    match.applicant_id,
+    match.auth_user_id,
+    'official_email_status_check_queued',
+    'system',
+    'vietnam_official_email',
+    'staff',
+    'vn:email-event:' || match.email_id::TEXT,
+    'Official Vietnam email matched; status check queued.',
+    JSONB_BUILD_OBJECT(
+      'inbound_email_id', match.email_id,
+      'normalized_reference', match.normalized_reference
+    ),
+    NOW(),
+    NOW()
+  FROM unique_matches AS match
+  ON CONFLICT DO NOTHING;
+
+  RETURN QUERY
+  SELECT
+    v_queued,
+    v_ambiguous,
+    v_unmatched,
+    GREATEST(v_unique - v_queued, 0);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.enqueue_vn_email_triggered_status_checks(JSONB)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.enqueue_vn_email_triggered_status_checks(JSONB)
+  TO service_role;
+
+COMMENT ON FUNCTION public.enqueue_vn_email_triggered_status_checks(JSONB) IS
+  'Atomically matches up to 100 Vietnam official emails and queues unique status checks.';
