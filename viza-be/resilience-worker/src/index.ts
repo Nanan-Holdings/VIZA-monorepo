@@ -77,6 +77,7 @@ type ClaimedItem = OutboxItem & {
 const DO_NAME = "global";
 const MAX_TTL_SECONDS = 30 * 24 * 60 * 60;
 const MAX_RETRY_AFTER_SECONDS = 24 * 60 * 60;
+const MAX_QUEUE_RETRY_DELAY_SECONDS = 300;
 const MAX_OUTBOX_ATTEMPTS = 20;
 const DEFAULT_MAX_BODY_BYTES = 524_288;
 const DEFAULT_CONFIRMATIONS = 3;
@@ -92,6 +93,7 @@ const DEFAULT_REPLAY_TIMEOUT_MS = 8_000;
 const DEFAULT_AUTH_WINDOW_SECONDS = 300;
 const MAX_QUEUE_OPAQUE_BYTES = 96_000;
 const DEFAULT_QUEUE_LEASE_SECONDS = 120;
+const SEMANTIC_DEFERRAL_ERROR_CODES = new Set(["runner_pool_not_ready", "job_not_due"] as const);
 const MIN_GATE_LEASE_SECONDS = 1;
 const MAX_GATE_LEASE_SECONDS = 60 * 60;
 const MAX_GATE_CAPACITY = 1_000;
@@ -236,6 +238,15 @@ function positiveInteger(value: unknown, name: string, min: number, max: number)
 function workloadType(value: unknown): WorkloadType {
   if (value === "critical_notification" || value === "document_processing" || value === "status_sync" || value === "background") return value;
   throw new InputError("workloadType is invalid");
+}
+
+function isSemanticDeferralCode(value: unknown): value is "runner_pool_not_ready" | "job_not_due" {
+  return typeof value === "string" && SEMANTIC_DEFERRAL_ERROR_CODES.has(value as "runner_pool_not_ready" | "job_not_due");
+}
+
+function boundedRetryAfterSeconds(value: unknown, fallback = 60, max = MAX_RETRY_AFTER_SECONDS): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || !Number.isInteger(value)) return fallback;
+  return Math.min(max, Math.max(1, value));
 }
 
 function queueEventType(value: unknown): AllowedQueueEventType {
@@ -569,7 +580,7 @@ async function replayOutbox(env: RuntimeEnv): Promise<void> {
     const base = { idempotencyKey: item.idempotencyKey, leaseId };
     const outcome = item.outcome ?? item.status;
     if (outcome === "ack") ack.push(base);
-    else if (outcome === "nack") nack.push({ ...base, ...(typeof item.errorCode === "string" ? { errorCode: item.errorCode } : {}), ...(typeof item.retryAfterSeconds === "number" ? { retryAfterSeconds: item.retryAfterSeconds } : {}) });
+    else if (outcome === "nack") nack.push({ ...base, ...(typeof item.errorCode === "string" ? { errorCode: item.errorCode } : {}), ...(typeof item.retryAfterSeconds === "number" && Number.isFinite(item.retryAfterSeconds) && Number.isInteger(item.retryAfterSeconds) ? { retryAfterSeconds: item.retryAfterSeconds } : {}) });
   }
   if (ack.length) await doCall(state, { op: "ackOutbox", items: ack });
   if (nack.length) await doCall(state, { op: "nackOutbox", items: nack, now: Date.now() });
@@ -599,13 +610,15 @@ function parseReplayResults(responsePayload: unknown, items: Record<string, unkn
     else if (outcome === "nack") nack.push({
       ...base,
       ...(typeof item.errorCode === "string" ? { errorCode: item.errorCode } : {}),
-      ...(typeof item.retryAfterSeconds === "number" ? { retryAfterSeconds: item.retryAfterSeconds } : {}),
+      ...(typeof item.retryAfterSeconds === "number" && Number.isFinite(item.retryAfterSeconds) && Number.isInteger(item.retryAfterSeconds) ? { retryAfterSeconds: item.retryAfterSeconds } : {}),
     });
   }
   return { ack, nack };
 }
 
-async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promise<"ack" | "retry"> {
+type QueueReplayOutcome = { outcome: "ack" } | { outcome: "retry"; delaySeconds?: number };
+
+async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promise<QueueReplayOutcome> {
   const state = stateStub(env);
   const claim = await doCall(state, {
     op: "claimOutboxByKey",
@@ -613,8 +626,8 @@ async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promis
     now: Date.now(),
     leaseMs: numberVar(env.WATCHDOG_REPLAY_LEASE_SECONDS, DEFAULT_QUEUE_LEASE_SECONDS, 15, 900) * 1_000,
   });
-  if (claim.outcome === "already_acked" || claim.outcome === "dead" || claim.outcome === "missing") return "ack";
-  if (claim.outcome !== "claimed" || !claim.item || typeof claim.item !== "object" || Array.isArray(claim.item)) return "retry";
+  if (claim.outcome === "already_acked" || claim.outcome === "dead" || claim.outcome === "missing") return { outcome: "ack" };
+  if (claim.outcome !== "claimed" || !claim.item || typeof claim.item !== "object" || Array.isArray(claim.item)) return { outcome: "retry" };
 
   const item = claim.item as Record<string, unknown>;
   if (item.eventType !== envelope.eventType) {
@@ -623,17 +636,17 @@ async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promis
       items: [{ idempotencyKey: envelope.idempotencyKey, leaseId: item.leaseId, errorCode: "queue_event_mismatch", retryAfterSeconds: 60 }],
       now: Date.now(),
     });
-    return "retry";
+    return { outcome: "retry" };
   }
   const replayUrl = env.VIZA_RESILIENCE_REPLAY_URL.trim();
-  if (!replayUrl || !env.VIZA_RESILIENCE_HMAC_SECRET?.trim()) return "retry";
+  if (!replayUrl || !env.VIZA_RESILIENCE_HMAC_SECRET?.trim()) return { outcome: "retry" };
   let url: URL;
   try {
     url = new URL(replayUrl);
   } catch {
-    return "retry";
+    return { outcome: "retry" };
   }
-  if (url.protocol !== "https:") return "retry";
+  if (url.protocol !== "https:") return { outcome: "retry" };
   const body = JSON.stringify({ items: [item] });
   const timestamp = String(Math.floor(Date.now() / 1_000));
   const nonce = crypto.randomUUID();
@@ -665,7 +678,7 @@ async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promis
   const { ack, nack } = parseReplayResults(responsePayload, [item]);
   if (ack.length) {
     await doCall(state, { op: "ackOutbox", items: ack, now: Date.now() });
-    return "ack";
+    return { outcome: "ack" };
   }
   const retry = nack.length ? nack : [{
     idempotencyKey: envelope.idempotencyKey,
@@ -674,7 +687,10 @@ async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promis
     retryAfterSeconds: 60,
   }];
   await doCall(state, { op: "nackOutbox", items: retry, now: Date.now() });
-  return "retry";
+  const deferral = retry[0];
+  return isSemanticDeferralCode(deferral.errorCode)
+    ? { outcome: "retry", delaySeconds: boundedRetryAfterSeconds(deferral.retryAfterSeconds, 60, MAX_QUEUE_RETRY_DELAY_SECONDS) }
+    : { outcome: "retry" };
 }
 
 async function consumeQueue(batch: MessageBatch<unknown>, env: RuntimeEnv): Promise<void> {
@@ -687,8 +703,8 @@ async function consumeQueue(batch: MessageBatch<unknown>, env: RuntimeEnv): Prom
         continue;
       }
       const outcome = await replayQueueItem(env, envelope);
-      if (outcome === "ack") message.ack();
-      else message.retry({ delaySeconds: 60 });
+      if (outcome.outcome === "ack") message.ack();
+      else message.retry({ delaySeconds: outcome.delaySeconds ?? 60 });
     } catch (error) {
       // Invalid envelopes are poison messages and should not consume retries;
       // transient state/replay failures remain eligible for Queue redelivery.
@@ -1035,6 +1051,7 @@ export class ResilienceState extends DurableObject<RuntimeEnv> {
   private nackOutbox(command: Record<string, unknown>): Response {
     const rawItems = Array.isArray(command.items) ? command.items : [];
     let retried = 0;
+    let deferred = 0;
     let dead = 0;
     const now = Number(command.now ?? Date.now());
     for (const value of rawItems) {
@@ -1043,19 +1060,34 @@ export class ResilienceState extends DurableObject<RuntimeEnv> {
       const key = optionalBoundedString(item.idempotencyKey, "idempotencyKey");
       if (!key) continue;
       const leaseId = optionalBoundedString(item.leaseId, "leaseId");
-      const retryAfter = Math.min(numberVar(String(item.retryAfterSeconds ?? ""), 60, 1, MAX_RETRY_AFTER_SECONDS), MAX_RETRY_AFTER_SECONDS);
       const errorCode = optionalBoundedString(item.errorCode, "errorCode", 128) ?? "replay_failed";
+      const retryAfter = isSemanticDeferralCode(errorCode)
+        ? boundedRetryAfterSeconds(item.retryAfterSeconds)
+        : Math.min(numberVar(String(item.retryAfterSeconds ?? ""), 60, 1, MAX_RETRY_AFTER_SECONDS), MAX_RETRY_AFTER_SECONDS);
       const current = this.ctx.storage.sql.exec<{ attempts: number }>("SELECT attempts FROM outbox WHERE idempotency_key=? AND status='pending' AND (? IS NULL OR lease_id=?)", key, leaseId ?? null, leaseId ?? null).toArray()[0];
       if (!current) continue;
+      if (isSemanticDeferralCode(errorCode)) {
+        const result = this.ctx.storage.sql.exec(
+          "UPDATE outbox SET status='pending', lease_id=NULL, lease_until=NULL, attempts=MAX(attempts-1,0), available_at=?, last_error=?, updated_at=? WHERE idempotency_key=? AND status='pending' AND (? IS NULL OR lease_id=?)",
+          now + retryAfter * 1000,
+          errorCode,
+          now,
+          key,
+          leaseId ?? null,
+          leaseId ?? null,
+        );
+        if (result.rowsWritten === 1) deferred += 1;
+        continue;
+      }
       if (current.attempts >= MAX_OUTBOX_ATTEMPTS) {
-        this.ctx.storage.sql.exec("UPDATE outbox SET status='dead', lease_id=NULL, lease_until=NULL, last_error=?, updated_at=? WHERE idempotency_key=?", errorCode, now, key);
-        dead += 1;
+        const result = this.ctx.storage.sql.exec("UPDATE outbox SET status='dead', lease_id=NULL, lease_until=NULL, last_error=?, updated_at=? WHERE idempotency_key=? AND status='pending' AND (? IS NULL OR lease_id=?)", errorCode, now, key, leaseId ?? null, leaseId ?? null);
+        dead += result.rowsWritten;
       } else {
-        this.ctx.storage.sql.exec("UPDATE outbox SET status='pending', lease_id=NULL, lease_until=NULL, available_at=?, last_error=?, updated_at=? WHERE idempotency_key=? AND status='pending'", now + retryAfter * 1000, errorCode, now, key);
-        retried += 1;
+        const result = this.ctx.storage.sql.exec("UPDATE outbox SET status='pending', lease_id=NULL, lease_until=NULL, available_at=?, last_error=?, updated_at=? WHERE idempotency_key=? AND status='pending' AND (? IS NULL OR lease_id=?)", now + retryAfter * 1000, errorCode, now, key, leaseId ?? null, leaseId ?? null);
+        retried += result.rowsWritten;
       }
     }
-    return json({ retried, dead });
+    return json({ retried, deferred, dead });
   }
 
   private recordProbe(command: Record<string, unknown>): Response {
