@@ -2,9 +2,17 @@ import type {
   FlyMachineWakeResult,
   HttpReadinessResult,
 } from "@/lib/fly-machine-wake.server";
+import {
+  wakeCloudSubmissionWorker,
+  type SubmissionWorkerWakeResult,
+} from "@/lib/submission-worker-wake.server";
 
 type WakeLegacy = () => Promise<FlyMachineWakeResult>;
 type WaitUntilReady = (url: string) => Promise<HttpReadinessResult>;
+type WakeSubmissionJob = (
+  jobId: string | null,
+  options: { target: string },
+) => Promise<SubmissionWorkerWakeResult>;
 
 export const VIETNAM_CARD_HANDOFF_BUDGET_MS = 40_000;
 const VIETNAM_CARD_SESSION_RESERVE_MS = 10_000;
@@ -65,6 +73,13 @@ export type VietnamCardHandoffResult =
       wakeReason?: FlyWakeFailureReason;
     }
   | { ok: false; stage: "post"; error: string };
+
+export async function wakeQueuedVietnamPaymentJob(
+  queueId: string,
+  wakeSubmissionJob: WakeSubmissionJob = wakeCloudSubmissionWorker,
+): Promise<SubmissionWorkerWakeResult> {
+  return wakeSubmissionJob(queueId, { target: "legacy" });
+}
 
 export async function ensureVietnamCardWorkerReady(input: {
   baseUrl: string;
