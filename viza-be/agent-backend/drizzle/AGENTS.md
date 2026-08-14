@@ -185,12 +185,13 @@ The current internal automation migrations are:
   cutoff scan; callers run it as low-frequency maintenance rather than per poll.
 - `0139_concurrency_phase_two.sql`: supersedes the global runner-pool advisory
   claim lock with country-cap row serialization, bounded one-row lease recovery,
-  and partial indexes for queued ordering, running-country counts, and lease
-  expiry; the exact service-role-only `claim_runner_pool_job` signature remains
-  rolling-deploy compatible and excludes retired Indonesia pool work. It also
-  carries the service-role-only `defer_vn_official_status_check` RPC used to
-  return provider-gate-denied status checks to the queue without consuming an
-  admission attempt.
+  and partial indexes for queued ordering, running-country counts, lease
+  expiry, and one-live-job-per-worker fencing; the exact service-role-only
+  `claim_runner_pool_job` signature remains rolling-deploy compatible and
+  excludes retired Indonesia pool work. It also carries the fenced,
+  service-role-only `complete_runner_pool_job` settlement RPC and the
+  `defer_vn_official_status_check` RPC used to return provider-gate-denied
+  status checks to the queue without consuming an admission attempt.
 
 ## Guardrails
 

@@ -22,6 +22,10 @@ CREATE INDEX IF NOT EXISTS runner_job_running_lease_idx
   INCLUDE (country, attempts, max_attempts)
   WHERE status = 'running';
 
+CREATE INDEX IF NOT EXISTS runner_job_running_owner_lease_idx
+  ON public.runner_job (leased_by, leased_until)
+  WHERE status = 'running';
+
 CREATE OR REPLACE FUNCTION public.claim_runner_pool_job(
   p_worker_id TEXT,
   p_lease_ms INTEGER DEFAULT 900000,
@@ -73,6 +77,19 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
+      RETURN;
+    END IF;
+
+    -- A live worker may own at most one running pool job. The slot row lock
+    -- above serializes same-owner claims before this fresh READ COMMITTED
+    -- statement observes the existing lease.
+    IF EXISTS (
+      SELECT 1
+      FROM public.runner_job AS owned
+      WHERE owned.status = 'running'
+        AND owned.leased_by = p_worker_id
+        AND owned.leased_until > p_now
+    ) THEN
       RETURN;
     END IF;
   END IF;
@@ -212,6 +229,55 @@ GRANT EXECUTE ON FUNCTION public.claim_runner_pool_job(
 
 COMMENT ON FUNCTION public.claim_runner_pool_job(TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ) IS
   'Atomically recovers one expired lease and claims one country-sharded shared-pool job.';
+
+-- Complete a claimed pool job only while the caller still owns its live lease.
+-- The submission worker uses this service-role-only RPC so stale owners cannot
+-- terminally mutate a row reclaimed by another worker.
+CREATE OR REPLACE FUNCTION public.complete_runner_pool_job(
+  p_job_id UUID,
+  p_worker_id TEXT,
+  p_now TIMESTAMPTZ DEFAULT clock_timestamp()
+)
+RETURNS TABLE (
+  application_id UUID,
+  country TEXT,
+  started_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_job_id IS NULL THEN
+    RAISE EXCEPTION 'p_job_id is required' USING ERRCODE = '22023';
+  END IF;
+  IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
+    RAISE EXCEPTION 'p_worker_id must not be blank' USING ERRCODE = '22023';
+  END IF;
+  IF p_now IS NULL THEN
+    RAISE EXCEPTION 'p_now is required' USING ERRCODE = '22023';
+  END IF;
+
+  RETURN QUERY
+  UPDATE public.runner_job AS job
+  SET status = 'succeeded',
+    finished_at = p_now,
+    leased_by = NULL,
+    leased_until = NULL,
+    last_error = NULL
+  WHERE job.id = p_job_id
+    AND job.status = 'running'
+    AND job.leased_by = p_worker_id
+    AND job.leased_until > p_now
+  RETURNING job.application_id, job.country, job.started_at;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.complete_runner_pool_job(UUID, TEXT, TIMESTAMPTZ) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.complete_runner_pool_job(UUID, TEXT, TIMESTAMPTZ) TO service_role;
+
+COMMENT ON FUNCTION public.complete_runner_pool_job(UUID, TEXT, TIMESTAMPTZ) IS
+  'Completes a running pool job only for its owning worker and live lease.';
 
 -- Match a bounded batch of official Vietnam status emails in one set-based
 -- operation. The service-role submission worker passes only parsed message

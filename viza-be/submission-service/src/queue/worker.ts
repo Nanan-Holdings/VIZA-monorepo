@@ -41,6 +41,27 @@ export interface ClaimOpts {
 
 const DEFAULT_LEASE_MS = 15 * 60 * 1000;
 
+export class RunnerJobOwnershipLostError extends Error {
+  readonly code = "runner_job_ownership_lost" as const;
+
+  constructor(message = "runner job lease ownership was lost") {
+    super(message);
+    this.name = "RunnerJobOwnershipLostError";
+  }
+}
+
+export function isRunnerJobOwnershipLost(
+  error: unknown,
+): error is RunnerJobOwnershipLostError {
+  return (
+    error instanceof RunnerJobOwnershipLostError ||
+    (typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "runner_job_ownership_lost")
+  );
+}
+
 /**
  * Atomically claim the next queued job through claim_runner_pool_job.
  */
@@ -65,37 +86,35 @@ export async function claimNextJob(opts: ClaimOpts): Promise<RunnerJob | null> {
   return row ? (row as RunnerJob) : null;
 }
 
-export async function markSucceeded(jobId: string): Promise<void> {
-  const finishedAt = new Date().toISOString();
-  // Capture lifecycle stamps before the update so we can compute time-to-submit.
-  const { data: pre } = await supabase
-    .from("runner_job")
-    .select("application_id, country, started_at")
-    .eq("id", jobId)
-    .maybeSingle();
-  const { error } = await supabase
-    .from("runner_job")
-    .update({
-      status: "succeeded",
-      finished_at: finishedAt,
-      leased_by: null,
-      leased_until: null,
-    })
-    .eq("id", jobId);
-  if (error) throw new Error(`runner_job mark succeeded: ${error.message}`);
-  if (pre?.application_id && pre.country) {
-    const ttsSeconds = pre.started_at
+export async function markSucceeded(
+  jobId: string,
+  workerId: string,
+): Promise<void> {
+  const finishedAt = new Date();
+  const { data, error } = await supabase.rpc("complete_runner_pool_job", {
+    p_job_id: jobId,
+    p_worker_id: workerId,
+    p_now: finishedAt.toISOString(),
+  });
+  if (error) throw new Error(`runner_job complete RPC: ${error.message}`);
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { application_id?: string; country?: string; started_at?: string | null }
+    | null
+    | undefined;
+  if (!row) throw new RunnerJobOwnershipLostError();
+  if (row.application_id && row.country) {
+    const ttsSeconds = row.started_at
       ? Math.max(
           0,
           Math.round(
-            (Date.parse(finishedAt) - Date.parse(pre.started_at as string)) / 1000,
+            (finishedAt.getTime() - Date.parse(row.started_at)) / 1000,
           ),
         )
       : null;
     void emitRunnerMetric({
       jobId,
-      applicationId: pre.application_id as string,
-      country: pre.country as string,
+      applicationId: row.application_id,
+      country: row.country,
       success: true,
       timeToSubmitSeconds: ttsSeconds,
     });
@@ -105,6 +124,7 @@ export async function markSucceeded(jobId: string): Promise<void> {
 export async function markFailedWithRetry(
   job: RunnerJob,
   error: unknown,
+  workerId: string,
 ): Promise<number | null> {
   const message = error instanceof Error ? error.message : String(error);
   const newAttempts = job.attempts + 1;
@@ -112,21 +132,28 @@ export async function markFailedWithRetry(
   const availableAt = new Date(
     Date.now() + Math.min(300, 15 * newAttempts) * 1_000,
   ).toISOString();
-  const { error: updErr } = await supabase
+  const nowIso = new Date().toISOString();
+  const { data: updated, error: updErr } = await supabase
     .from("runner_job")
     .update({
       status: exhausted ? "failed" : "queued",
       attempts: newAttempts,
       last_error: message,
-      finished_at: exhausted ? new Date().toISOString() : null,
+      finished_at: exhausted ? nowIso : null,
       leased_by: null,
       leased_until: null,
       available_at: exhausted ? undefined : availableAt,
     })
-    .eq("id", job.id);
+    .eq("id", job.id)
+    .eq("status", "running")
+    .eq("leased_by", workerId)
+    .gt("leased_until", nowIso)
+    .select("id")
+    .maybeSingle();
   if (updErr) {
     throw new Error(`runner_job mark failed: ${updErr.message}`);
   }
+  if (!updated) throw new RunnerJobOwnershipLostError();
   if (exhausted) {
     // OPS-003: page on-call once retries are exhausted. Per-country
     // throttle absorbs portal-outage storms.
@@ -182,16 +209,18 @@ async function renewJobLease(
   workerId: string,
   leaseMs: number,
 ): Promise<void> {
+  const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("runner_job")
     .update({ leased_until: new Date(Date.now() + leaseMs).toISOString() })
     .eq("id", jobId)
     .eq("status", "running")
     .eq("leased_by", workerId)
+    .gt("leased_until", nowIso)
     .select("id")
     .maybeSingle();
   if (error) throw new Error(`runner_job lease renewal: ${error.message}`);
-  if (!data) throw new Error(`runner_job lease ${jobId.slice(0, 8)} is no longer owned`);
+  if (!data) throw new RunnerJobOwnershipLostError();
 }
 
 /**
@@ -245,13 +274,21 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
     leaseTimer.unref?.();
     try {
       await opts.handler(job);
-      await markSucceeded(job.id);
+      await markSucceeded(job.id, opts.workerId);
     } catch (error) {
       console.error(`[queue] job ${job.id} failed`, error);
+      if (isRunnerJobOwnershipLost(error)) {
+        console.warn(`[queue] job ${job.id} ownership lost; skipping fallback failure write`);
+        continue;
+      }
       try {
-        const retryDelayMs = await markFailedWithRetry(job, error);
+        const retryDelayMs = await markFailedWithRetry(job, error, opts.workerId);
         if (retryDelayMs !== null) opts.onRetryScheduled?.(retryDelayMs);
       } catch (markError) {
+        if (isRunnerJobOwnershipLost(markError)) {
+          console.warn(`[queue] job ${job.id} ownership lost; skipping alert/metric fallback`);
+          continue;
+        }
         console.error("[queue] mark failed write failed", markError);
       }
     } finally {

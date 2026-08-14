@@ -19,6 +19,9 @@ const emailFunctionBody = canonicalSql.match(
 const deferFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.defer_vn_official_status_check\([\s\S]*?\n\$\$;/i,
  )?.[0] ?? "";
+const completeFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.complete_runner_pool_job\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
 
 describe("runner pool concurrency phase two migration", () => {
   it("defines the exact service-role claim RPC identity and return contract", () => {
@@ -59,6 +62,15 @@ describe("runner pool concurrency phase two migration", () => {
   it("checks a live pool machine slot before claiming when required", () => {
     expect(functionBody).toMatch(
       /IF p_require_slot THEN[\s\S]*?PERFORM 1[\s\S]*?FROM public\.runner_machine_slot AS rms[\s\S]*?rms\.owner_machine_id = p_worker_id[\s\S]*?rms\.owner_kind = 'pool'[\s\S]*?rms\.lease_until > p_now[\s\S]*?FOR UPDATE[\s\S]*?IF NOT FOUND THEN[\s\S]*?RETURN;/i,
+    );
+  });
+
+  it("serializes one live running job per matching pool slot owner", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE INDEX IF NOT EXISTS runner_job_running_owner_lease_idx\s+ON public\.runner_job \(leased_by, leased_until\)\s+WHERE status = 'running';/i,
+    );
+    expect(functionBody).toMatch(
+      /IF p_require_slot THEN[\s\S]*?FOR UPDATE[\s\S]*?IF EXISTS \([\s\S]*?FROM public\.runner_job AS owned[\s\S]*?owned\.status = 'running'[\s\S]*?owned\.leased_by = p_worker_id[\s\S]*?owned\.leased_until > p_now[\s\S]*?THEN[\s\S]*?RETURN;/i,
     );
   });
 
@@ -295,6 +307,37 @@ describe("runner pool concurrency phase two migration", () => {
   });
 
   it("keeps the CLI mirror byte-for-byte equivalent after adding the defer RPC", () => {
+    const mirrorFiles = existsSync(mirrorDirectory)
+      ? readdirSync(mirrorDirectory).filter((fileName) => /_concurrency_phase_two\.sql$/i.test(fileName))
+      : [];
+    expect(mirrorFiles).toHaveLength(1);
+    const mirrorSql = readFileSync(`${mirrorDirectory}/${mirrorFiles[0]}`, "utf8");
+    expect(normalized(mirrorSql)).toBe(normalized(canonicalSql));
+  });
+
+  it("defines the fenced service-role runner completion RPC", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.complete_runner_pool_job\(\s*p_job_id UUID,\s*p_worker_id TEXT,\s*p_now TIMESTAMPTZ DEFAULT clock_timestamp\(\)\s*\)/i,
+    );
+    expect(completeFunctionBody).toMatch(
+      /RETURNS TABLE \(\s*application_id UUID,\s*country TEXT,\s*started_at TIMESTAMPTZ\s*\)/i,
+    );
+    expect(completeFunctionBody).toMatch(/SECURITY INVOKER/i);
+    expect(completeFunctionBody).toMatch(/SET search_path = ''/i);
+    expect(completeFunctionBody).toMatch(/p_job_id IS NULL[\s\S]*?ERRCODE = '22023'/i);
+    expect(completeFunctionBody).toMatch(/NULLIF\(BTRIM\(p_worker_id\), ''\) IS NULL[\s\S]*?ERRCODE = '22023'/i);
+    expect(completeFunctionBody).toMatch(
+      /UPDATE public\.runner_job[\s\S]*?SET status = 'succeeded'[\s\S]*?finished_at = p_now[\s\S]*?leased_by = NULL[\s\S]*?leased_until = NULL[\s\S]*?WHERE[\s\S]*?id = p_job_id[\s\S]*?status = 'running'[\s\S]*?leased_by = p_worker_id[\s\S]*?leased_until > p_now[\s\S]*?RETURNING[\s\S]*?application_id[\s\S]*?country[\s\S]*?started_at/i,
+    );
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.complete_runner_pool_job\(UUID, TEXT, TIMESTAMPTZ\) FROM PUBLIC, anon, authenticated;/i,
+    );
+    expect(canonicalSql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.complete_runner_pool_job\(UUID, TEXT, TIMESTAMPTZ\) TO service_role;/i,
+    );
+  });
+
+  it("keeps the completion RPC byte-for-byte equivalent in the CLI mirror", () => {
     const mirrorFiles = existsSync(mirrorDirectory)
       ? readdirSync(mirrorDirectory).filter((fileName) => /_concurrency_phase_two\.sql$/i.test(fileName))
       : [];
