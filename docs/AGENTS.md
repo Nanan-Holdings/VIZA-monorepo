@@ -44,6 +44,9 @@ reports, and workflow documentation for VIZA.
   work; keep them aligned with the current module guides and product scope.
 - `superpowers/specs/*`: approved design notes that record scope, alternatives,
   data flow, error handling, and verification criteria before implementation.
+- `superpowers/specs/2026-08-14-pre-958-dynamic-form-ui-rollback-design.md`:
+  exact frontend-only rollback boundary for the shared dynamic-form UI changed
+  by `958d69d6`, preserving that commit's submission-service fixes.
 - `prd-ds160-ceac-runtime-validation.md`: CEAC automation requirements.
 - `us-appointment-assistant-portal-mapping.md`: U.S. B1/B2 appointment
   assistant provider mapping, China gated assisted-live scope, dry-run fallback,
