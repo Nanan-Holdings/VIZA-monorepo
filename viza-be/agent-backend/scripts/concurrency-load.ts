@@ -925,17 +925,37 @@ function summaryLevel(level: LevelResult): SummaryDocument["levels"][number] {
 	};
 }
 
+/**
+ * Resolve the summary file from the checked-in script location, not from the
+ * caller's working directory. The working-directory argument is retained for
+ * pure tests that prove both supported invocation directories resolve equally.
+ */
+export function resolveLoadResultsPath(
+	runId: string,
+	_workingDirectory = process.cwd(),
+	scriptUrl = import.meta.url,
+): string {
+	if (!/^[a-z0-9][a-z0-9-]{1,63}$/u.test(runId)) {
+		throw new Error("Invalid concurrency load run id");
+	}
+	const scriptDirectory = path.dirname(fileURLToPath(scriptUrl));
+	const repositoryRoot = path.resolve(scriptDirectory, "..", "..", "..");
+	return path.join(
+		repositoryRoot,
+		"load-test-results",
+		"concurrency",
+		runId,
+		"summary.json",
+	);
+}
+
 async function writeSummary(
 	runId: string,
 	levels: readonly LevelResult[],
 	cleanup: CleanupResult,
 ): Promise<void> {
-	const outputDirectory = path.resolve(
-		process.cwd(),
-		"load-test-results",
-		"concurrency",
-		runId,
-	);
+	const summaryPath = resolveLoadResultsPath(runId);
+	const outputDirectory = path.dirname(summaryPath);
 	const summary: SummaryDocument = {
 		runId,
 		levels: levels.map(summaryLevel),
@@ -944,7 +964,7 @@ async function writeSummary(
 	};
 	await mkdir(outputDirectory, { recursive: true });
 	await writeFile(
-		path.join(outputDirectory, "summary.json"),
+		summaryPath,
 		`${JSON.stringify(summary, null, 2)}\n`,
 		"utf8",
 	);
