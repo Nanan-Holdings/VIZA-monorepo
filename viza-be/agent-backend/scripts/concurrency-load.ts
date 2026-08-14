@@ -6,6 +6,7 @@ import { Pool, type QueryResultRow } from "pg";
 
 import {
 	evaluateConcurrencyRun,
+	isCompleteConcurrencyMatrix,
 	type ConcurrencyRunEvaluation,
 	type ConcurrencyRunInput,
 } from "./concurrency-load-lib.js";
@@ -30,6 +31,8 @@ const FLOW_KEY_BY_COUNTRY: Record<(typeof LOAD_COUNTRIES)[number], string> = {
 
 const POOL_MAX = 10;
 const CLAIM_WORKER_COUNT = 10;
+const GLOBAL_PROBE_REQUESTS = 40;
+const SETTLE_CONCURRENCY = 10;
 const CLAIM_LEASE_MS = 10_000;
 const CONNECTION_TIMEOUT_MS = 2_000;
 const IDLE_TIMEOUT_MS = 30_000;
@@ -44,6 +47,7 @@ export interface ConcurrencyLoadConfig {
 	databaseUrl: string;
 	projectRef: string;
 	levels: number[];
+	matrixComplete: boolean;
 	poolMax: number;
 	claimWorkerCount: number;
 	claimLeaseMs: number;
@@ -51,6 +55,32 @@ export interface ConcurrencyLoadConfig {
 	queryTimeoutMs: number;
 	statementTimeoutMs: number;
 	lockTimeoutMs: number;
+}
+
+export interface StagingDatabaseMarker {
+	ok: boolean;
+	environment: string | null;
+	projectRef: string | null;
+	reason?: "environment_mismatch" | "project_ref_mismatch" | "missing_marker";
+}
+
+/** Parse the authoritative marker row without exposing database details. */
+export function parseStagingDatabaseMarker(
+	row: { environment?: unknown; project_ref?: unknown },
+	expectedProjectRef: string,
+): StagingDatabaseMarker {
+	const environment = typeof row.environment === "string" ? row.environment : null;
+	const projectRef = typeof row.project_ref === "string" ? row.project_ref : null;
+	if (!environment || !projectRef) {
+		return { ok: false, environment, projectRef, reason: "missing_marker" };
+	}
+	if (environment !== "staging") {
+		return { ok: false, environment, projectRef, reason: "environment_mismatch" };
+	}
+	if (projectRef !== expectedProjectRef) {
+		return { ok: false, environment, projectRef, reason: "project_ref_mismatch" };
+	}
+	return { ok: true, environment, projectRef };
 }
 
 export type DatabaseErrorKind =
@@ -103,6 +133,7 @@ interface RunningCountSample {
 
 interface MutableLevelMetrics extends ConcurrencyRunInput {
 	claimLatenciesMs: number[];
+	successfulClaimLatenciesMs: number[];
 	claimedJobs: number;
 	diagnostics: string[];
 	staleLeaseProbePerformed: boolean;
@@ -147,6 +178,7 @@ interface SummaryDocument {
 		diagnostics: string[];
 	}>;
 	cleanup: CleanupResult;
+	overallFailures: string[];
 	passed: boolean;
 }
 
@@ -224,15 +256,37 @@ export function validateConcurrencyLoadGuards(
 	if (!parsedDatabaseUrl.hostname) {
 		throw new Error("CONCURRENCY_LOAD_DATABASE_URL must include a hostname");
 	}
+	const hostname = parsedDatabaseUrl.hostname.toLowerCase();
 	const normalizedDatabaseUrl = databaseUrl.toLowerCase();
 	if (normalizedDatabaseUrl.includes(PRODUCTION_PROJECT_REF)) {
 		throw new Error("Concurrency load testing is forbidden on production");
 	}
+	const directMatch = hostname.match(/^db\.([a-z0-9][a-z0-9-]{2,62})\.supabase\.co$/u);
+	const isDirectBinding = directMatch?.[1] === projectRef;
+	const isPoolerHost = hostname.endsWith(".pooler.supabase.com");
+	let poolerUsername: string;
+	try {
+		poolerUsername = decodeURIComponent(parsedDatabaseUrl.username);
+	} catch {
+		throw new Error("CONCURRENCY_LOAD_DATABASE_URL has an invalid username");
+	}
+	const isPoolerBinding = isPoolerHost && poolerUsername === `postgres.${projectRef}`;
+	if (!isDirectBinding && !isPoolerBinding) {
+		throw new Error("CONCURRENCY_LOAD_DATABASE_URL host must match CONCURRENCY_LOAD_PROJECT_REF");
+	}
+	if (
+		directMatch?.[1] === PRODUCTION_PROJECT_REF ||
+		poolerUsername === `postgres.${PRODUCTION_PROJECT_REF}`
+	) {
+		throw new Error("Concurrency load testing is forbidden on production");
+	}
+	const levels = parseConfiguredLevels(envValue(env, "CONCURRENCY_LOAD_LEVELS"));
 
 	return {
 		databaseUrl,
 		projectRef,
-		levels: parseConfiguredLevels(envValue(env, "CONCURRENCY_LOAD_LEVELS")),
+		levels,
+		matrixComplete: isCompleteConcurrencyMatrix(levels),
 		poolMax: POOL_MAX,
 		claimWorkerCount: CLAIM_WORKER_COUNT,
 		claimLeaseMs: CLAIM_LEASE_MS,
@@ -302,10 +356,29 @@ function createPool(config: ConcurrencyLoadConfig): Pool {
 		query_timeout: config.queryTimeoutMs,
 		statement_timeout: config.statementTimeoutMs,
 		options: `-c lock_timeout=${config.lockTimeoutMs}ms`,
-		ssl: databaseUrl.hostname.endsWith(".supabase.co")
-			? { rejectUnauthorized: false }
+		ssl:
+			(databaseUrl.hostname.endsWith(".supabase.co") ||
+				databaseUrl.hostname.endsWith(".pooler.supabase.com"))
+			? { rejectUnauthorized: true }
 			: undefined,
 	});
+}
+
+async function assertStagingDatabaseMarker(
+	pool: Pool,
+	projectRef: string,
+): Promise<void> {
+	const result = await pool.query<{
+		environment: unknown;
+		project_ref: unknown;
+	}>(
+		`SELECT current_setting('app.viza_environment', true) AS environment,
+                current_setting('app.viza_project_ref', true) AS project_ref`,
+	);
+	const marker = parseStagingDatabaseMarker(result.rows[0] ?? {}, projectRef);
+	if (!marker.ok) {
+		throw new Error("Concurrency load database marker is not the guarded staging project");
+	}
 }
 
 function sleep(milliseconds: number): Promise<void> {
@@ -502,13 +575,15 @@ async function claimOne(
 	pool: Pool,
 	workerId: string,
 	leaseMs: number,
+	now = new Date(),
+	requireSlot = true,
 ): Promise<ClaimResult> {
 	const startedAt = performance.now();
 	try {
 		const result = await pool.query<ClaimRow>(
 			`SELECT *
-         FROM public.claim_runner_pool_job($1, $2, TRUE, NOW())`,
-			[workerId, leaseMs],
+			 FROM public.claim_runner_pool_job($1, $2, $3, $4)`,
+			[workerId, leaseMs, requireSlot, now],
 		);
 		return {
 			workerId,
@@ -605,29 +680,106 @@ async function countSyntheticRows(
 	};
 }
 
+async function countSyntheticIds(
+	pool: Pool,
+	jobIds: readonly string[],
+	applicationIds: readonly string[],
+): Promise<number> {
+	if (jobIds.length === 0 && applicationIds.length === 0) return 0;
+	const result = await pool.query<{ jobs: number; applications: number }>(
+		`SELECT
+           (SELECT COUNT(*)::int FROM public.runner_job WHERE id = ANY($1::uuid[])) AS jobs,
+           (SELECT COUNT(*)::int FROM public.applications WHERE id = ANY($2::uuid[])) AS applications`,
+		[jobIds, applicationIds],
+	);
+	return Number(result.rows[0]?.jobs ?? 0) + Number(result.rows[0]?.applications ?? 0);
+}
+
+async function cleanupLevelSyntheticData(
+	pool: Pool,
+	jobIds: readonly string[],
+	applicationIds: readonly string[],
+): Promise<number> {
+	if (jobIds.length > 0) {
+		await pool.query(
+			"DELETE FROM public.runner_job WHERE id = ANY($1::uuid[])",
+			[jobIds],
+		);
+	}
+	if (applicationIds.length > 0) {
+		await pool.query(
+			"DELETE FROM public.applications WHERE id = ANY($1::uuid[])",
+			[applicationIds],
+		);
+	}
+	return countSyntheticIds(pool, jobIds, applicationIds);
+}
+
+async function restoreUnexpectedClaim(
+	pool: Pool,
+	claim: ClaimResult,
+	metrics: MutableLevelMetrics,
+): Promise<void> {
+	if (!claim.row) return;
+	try {
+		const restored = await pool.query(
+			`UPDATE public.runner_job
+         SET status = 'queued',
+             leased_by = NULL,
+             leased_until = NULL,
+             started_at = NULL,
+             finished_at = NULL,
+             last_error = NULL,
+             available_at = clock_timestamp()
+         WHERE id = $1
+           AND status = 'running'
+           AND leased_by = $2
+           AND leased_until > clock_timestamp()`,
+			[claim.row.id, claim.workerId],
+		);
+		if ((restored.rowCount ?? 0) !== 1) {
+			metrics.staleLeaseWrites += 1;
+			metrics.diagnostics.push("claim:unexpected_restore_failed");
+		}
+	} catch (error) {
+		recordDatabaseError(metrics, error, "unexpected_restore");
+		metrics.staleLeaseWrites += 1;
+	}
+}
+
 async function settleClaim(
 	pool: Pool,
 	claim: ClaimResult,
-	purpose: string,
 ): Promise<number> {
 	if (!claim.row) return 0;
 	const result = await pool.query(
-		`UPDATE public.runner_job AS rj
-         SET status = 'succeeded',
-             finished_at = NOW(),
-             leased_by = NULL,
-             leased_until = NULL,
-             last_error = NULL
-         WHERE rj.id = $1
-           AND rj.application_id IN (
-             SELECT a.id FROM public.applications AS a WHERE a.purpose = $2
-           )
-           AND rj.status = 'running'
-           AND rj.leased_by = $3
-           AND rj.leased_until > NOW()`,
-		[claim.row.id, purpose, claim.workerId],
+		`SELECT * FROM public.complete_runner_pool_job($1, $2, clock_timestamp())`,
+		[claim.row.id, claim.workerId],
 	);
 	return result.rowCount ?? 0;
+}
+
+async function settleClaimsBounded(
+	pool: Pool,
+	claims: readonly ClaimResult[],
+	metrics: MutableLevelMetrics,
+): Promise<void> {
+	for (let offset = 0; offset < claims.length; offset += SETTLE_CONCURRENCY) {
+		const window = claims.slice(offset, offset + SETTLE_CONCURRENCY);
+		const outcomes = await Promise.all(
+			window.map(async (claim) => {
+				try {
+					return await settleClaim(pool, claim);
+				} catch (error) {
+					recordDatabaseError(metrics, error, "settle");
+					return 0;
+				}
+			}),
+		);
+		for (const settledRows of outcomes) {
+			if (settledRows !== 1) metrics.staleLeaseWrites += 1;
+		}
+	}
 }
 
 async function runStaleLeaseProbe(
@@ -635,65 +787,76 @@ async function runStaleLeaseProbe(
 	claim: ClaimResult,
 	purpose: string,
 	metrics: MutableLevelMetrics,
+	workerIds: readonly string[],
+	expectedJobIds: ReadonlySet<string>,
+	claimedJobIds: Set<string>,
 ): Promise<void> {
 	if (!claim.row) return;
 	const oldOwner = claim.workerId;
-	const newOwner = `${oldOwner}:takeover`;
-	const takeover = await pool.query(
-		`UPDATE public.runner_job AS rj
-         SET leased_by = $1,
-             leased_until = NOW() + INTERVAL '10 seconds'
-         WHERE rj.id = $2
-           AND rj.status = 'running'
-           AND rj.leased_by = $3
-           AND rj.leased_until > NOW()
-           AND rj.application_id IN (
-             SELECT a.id FROM public.applications AS a WHERE a.purpose = $4
-           )`,
-		[newOwner, claim.row.id, oldOwner, purpose],
-	);
-	if ((takeover.rowCount ?? 0) !== 1) {
+	const newOwner = workerIds.find((workerId) => workerId !== oldOwner);
+	if (!newOwner) {
 		metrics.staleLeaseWrites += 1;
 		return;
 	}
-
-	const staleWrite = await pool.query(
-		`UPDATE public.runner_job AS rj
-         SET status = 'succeeded',
-             finished_at = NOW(),
-             leased_by = NULL,
-             leased_until = NULL
-         WHERE rj.id = $1
-           AND rj.status = 'running'
-           AND rj.leased_by = $2
-           AND rj.leased_until > NOW()
-           AND rj.application_id IN (
-             SELECT a.id FROM public.applications AS a WHERE a.purpose = $3
-           )`,
-		[claim.row.id, oldOwner, purpose],
-	);
-	if ((staleWrite.rowCount ?? 0) !== 0) {
-		metrics.staleLeaseWrites += staleWrite.rowCount ?? 0;
+	const probeStart = Date.now();
+	let takeover: ClaimResult | null = null;
+	for (const offsetMs of [CLAIM_LEASE_MS + 1, CLAIM_LEASE_MS + 16_000, CLAIM_LEASE_MS + 32_000]) {
+		const candidate = await claimOne(
+			pool,
+			newOwner,
+			CLAIM_LEASE_MS,
+			new Date(probeStart + offsetMs),
+		);
+		if (candidate.errorKind) {
+			recordDatabaseError(metrics, candidate.errorKind, "stale_claim");
+			continue;
+		}
+		if (!candidate.row) continue;
+		if (expectedJobIds.has(candidate.row.id) && !claimedJobIds.has(candidate.row.id)) {
+			claimedJobIds.add(candidate.row.id);
+			metrics.claimedJobs += 1;
+			metrics.successfulClaimLatenciesMs.push(candidate.latencyMs);
+		}
+		if (candidate.row.id === claim.row.id) {
+			takeover = candidate;
+			break;
+		}
+		// The recovery poll may return another synthetic row first. Settle it
+		// through the same fenced RPC before retrying the probe timestamp.
+		if (
+			candidate.row.metadata?.concurrency_load_run_id !==
+			purpose.slice("concurrency-load:".length)
+		) {
+			metrics.databaseErrors += 1;
+			metrics.diagnostics.push("stale_claim:unexpected_job");
+			continue;
+		}
+		try {
+			if ((await settleClaim(pool, candidate)) !== 1) metrics.staleLeaseWrites += 1;
+		} catch (error) {
+			recordDatabaseError(metrics, error, "stale_settle");
+		}
+	}
+	if (!takeover?.row) {
+		metrics.staleLeaseWrites += 1;
+		try {
+			if ((await settleClaim(pool, claim)) !== 1) metrics.staleLeaseWrites += 1;
+		} catch (error) {
+			recordDatabaseError(metrics, error, "stale_original_settle");
+		}
+		return;
 	}
 
-	const newOwnerSettlement = await pool.query(
-		`UPDATE public.runner_job AS rj
-         SET status = 'succeeded',
-             finished_at = NOW(),
-             leased_by = NULL,
-             leased_until = NULL,
-             last_error = NULL
-         WHERE rj.id = $1
-           AND rj.status = 'running'
-           AND rj.leased_by = $2
-           AND rj.leased_until > NOW()
-           AND rj.application_id IN (
-             SELECT a.id FROM public.applications AS a WHERE a.purpose = $3
-           )`,
-		[claim.row.id, newOwner, purpose],
+	// Old owner must be fenced out after the real claim RPC reassigns the lease.
+	const staleWrite = await pool.query(
+		`SELECT * FROM public.complete_runner_pool_job($1, $2, clock_timestamp())`,
+		[claim.row.id, oldOwner],
 	);
-	if ((newOwnerSettlement.rowCount ?? 0) !== 1) {
-		metrics.staleLeaseWrites += 1;
+	if ((staleWrite.rowCount ?? 0) !== 0) metrics.staleLeaseWrites += staleWrite.rowCount ?? 0;
+	try {
+		if ((await settleClaim(pool, takeover)) !== 1) metrics.staleLeaseWrites += 1;
+	} catch (error) {
+		recordDatabaseError(metrics, error, "stale_new_owner_settle");
 	}
 }
 
@@ -708,6 +871,7 @@ function createLevelMetrics(jobs: number): MutableLevelMetrics {
 		lockTimeouts: 0,
 		connectionExhaustions: 0,
 		claimLatenciesMs: [],
+		successfulClaimLatenciesMs: [],
 		syntheticRowsRemaining: jobs,
 		claimedJobs: 0,
 		diagnostics: [],
@@ -729,13 +893,22 @@ async function runLevel(
 	const jobs = await insertSyntheticBatch(pool, applicantId, purpose, runId, level);
 	const expectedJobIds = new Set(jobs.map((job) => job.id));
 	const claimedJobIds = new Set<string>();
+	const applicationIds = jobs.map((job) => job.application_id);
 	let windows = 0;
+	let probedClaimId: string | undefined;
 
 	while (metrics.syntheticRowsRemaining > 0 && windows < MAX_CLAIM_WINDOWS) {
 		windows += 1;
 		await assertQueueIsolation(pool, purpose);
+		const requestWorkers =
+			windows === 1
+				? Array.from(
+						{ length: GLOBAL_PROBE_REQUESTS },
+						(_, index) => workerIds[index % workerIds.length] as string,
+					)
+				: workerIds;
 		const claims = await Promise.all(
-			workerIds.map((workerId) => claimOne(pool, workerId, config.claimLeaseMs)),
+			requestWorkers.map((workerId) => claimOne(pool, workerId, config.claimLeaseMs)),
 		);
 		for (const claim of claims) {
 			metrics.claimLatenciesMs.push(claim.latencyMs);
@@ -754,10 +927,12 @@ async function runLevel(
 		for (const claim of returnedClaims) {
 			const jobId = claim.row?.id;
 			if (!jobId || !expectedJobIds.has(jobId)) {
+				await restoreUnexpectedClaim(pool, claim, metrics);
 				metrics.databaseErrors += 1;
 				metrics.diagnostics.push("claim:unexpected_job");
 				throw new Error("Claim returned a non-synthetic runner job");
 			}
+			metrics.successfulClaimLatenciesMs.push(claim.latencyMs);
 			if (claimedJobIds.has(jobId)) metrics.duplicateClaims += 1;
 			else {
 				claimedJobIds.add(jobId);
@@ -777,22 +952,28 @@ async function runLevel(
 			for (const claim of returnedClaims) {
 				if (!claim.row || !expectedJobIds.has(claim.row.id)) continue;
 				if (!metrics.staleLeaseProbePerformed) {
+					probedClaimId = claim.row.id;
 					try {
-						await runStaleLeaseProbe(pool, claim, purpose, metrics);
+						await runStaleLeaseProbe(
+							pool,
+							claim,
+							purpose,
+							metrics,
+							workerIds,
+							expectedJobIds,
+							claimedJobIds,
+						);
 						metrics.staleLeaseProbePerformed = true;
 					} catch (error) {
 						recordDatabaseError(metrics, error, "stale_lease_probe");
 						metrics.staleLeaseProbePerformed = true;
 					}
-				} else {
-					try {
-						const settledRows = await settleClaim(pool, claim, purpose);
-						if (settledRows !== 1) metrics.staleLeaseWrites += 1;
-					} catch (error) {
-						recordDatabaseError(metrics, error, "settle");
-					}
 				}
 			}
+			const claimsToSettle = returnedClaims.filter(
+				(candidate) => candidate.row !== null && candidate.row.id !== probedClaimId,
+			);
+			await settleClaimsBounded(pool, claimsToSettle, metrics);
 		}
 
 		try {
@@ -819,6 +1000,16 @@ async function runLevel(
 		recordDatabaseError(metrics, error, "final_count");
 		metrics.syntheticRowsRemaining = level;
 	}
+	try {
+		metrics.syntheticRowsRemaining = await cleanupLevelSyntheticData(
+			pool,
+			jobs.map((job) => job.id),
+			applicationIds,
+		);
+	} catch (error) {
+		recordDatabaseError(metrics, error, "level_cleanup");
+		metrics.syntheticRowsRemaining = level;
+	}
 
 	const measured = evaluateConcurrencyRun(metrics);
 	return {
@@ -835,19 +1026,34 @@ async function cleanupSyntheticData(
 	workerIds: readonly string[],
 ): Promise<CleanupResult> {
 	let errorCode: string | undefined;
-	try {
-		await pool.query(
+	const runCleanupStep = async (step: () => Promise<unknown>): Promise<void> => {
+		let lastError: unknown;
+		for (let attempt = 0; attempt < 2; attempt += 1) {
+			try {
+				await step();
+				return;
+			} catch (error) {
+				lastError = error;
+				await sleep(25 * (attempt + 1));
+			}
+		}
+		if (!errorCode && lastError) errorCode = classifyDatabaseError(lastError);
+	};
+
+	// Every cleanup item is independent: a failed job delete must not prevent
+	// application, slot, or residue checks from running.
+	await runCleanupStep(() =>
+		pool.query(
 			`DELETE FROM public.runner_job
          WHERE application_id IN (
            SELECT id FROM public.applications WHERE purpose = $1
          )`,
 			[purpose],
-		);
-		await pool.query(
-			"DELETE FROM public.applications WHERE purpose = $1",
-			[purpose],
-		);
-		await pool.query(
+		),
+	);
+	await runCleanupStep(() => pool.query("DELETE FROM public.applications WHERE purpose = $1", [purpose]));
+	await runCleanupStep(() =>
+		pool.query(
 			`UPDATE public.runner_machine_slot
          SET owner_machine_id = NULL,
              owner_kind = NULL,
@@ -856,20 +1062,20 @@ async function cleanupSyntheticData(
              updated_at = NOW()
          WHERE owner_machine_id = ANY($1::text[])`,
 			[workerIds],
-		);
-	} catch (error) {
-		errorCode = classifyDatabaseError(error);
-	}
+		),
+	);
 
 	let applicationsRemaining = 0;
 	let runnerJobsRemaining = 0;
 	let slotsRemaining = 0;
-	try {
+	await runCleanupStep(async () => {
 		const applications = await pool.query<{ count: number }>(
 			"SELECT COUNT(*)::int AS count FROM public.applications WHERE purpose = $1",
 			[purpose],
 		);
 		applicationsRemaining = Number(applications.rows[0]?.count ?? 0);
+	});
+	await runCleanupStep(async () => {
 		const jobs = await pool.query<{ count: number }>(
 			`SELECT COUNT(*)::int AS count
          FROM public.runner_job
@@ -877,6 +1083,8 @@ async function cleanupSyntheticData(
 			[`${purpose}:%`],
 		);
 		runnerJobsRemaining = Number(jobs.rows[0]?.count ?? 0);
+	});
+	await runCleanupStep(async () => {
 		const slots = await pool.query<{ count: number }>(
 			`SELECT COUNT(*)::int AS count
          FROM public.runner_machine_slot
@@ -884,9 +1092,7 @@ async function cleanupSyntheticData(
 			[workerIds],
 		);
 		slotsRemaining = Number(slots.rows[0]?.count ?? 0);
-	} catch (error) {
-		errorCode ??= classifyDatabaseError(error);
-	}
+	});
 
 	return {
 		passed:
@@ -953,6 +1159,7 @@ async function writeSummary(
 	runId: string,
 	levels: readonly LevelResult[],
 	cleanup: CleanupResult,
+	overallFailures: readonly string[],
 ): Promise<void> {
 	const summaryPath = resolveLoadResultsPath(runId);
 	const outputDirectory = path.dirname(summaryPath);
@@ -960,7 +1167,12 @@ async function writeSummary(
 		runId,
 		levels: levels.map(summaryLevel),
 		cleanup,
-		passed: cleanup.passed && levels.length > 0 && levels.every((level) => level.measured.passed),
+		overallFailures: [...overallFailures],
+		passed:
+			cleanup.passed &&
+			overallFailures.length === 0 &&
+			levels.length > 0 &&
+			levels.every((level) => level.measured.passed),
 	};
 	await mkdir(outputDirectory, { recursive: true });
 	await writeFile(
@@ -998,6 +1210,9 @@ export async function runConcurrencyLoad(
 	);
 	const pool = createPool(config);
 	const levelResults: LevelResult[] = [];
+	const overallFailures: string[] = config.matrixComplete ? [] : ["matrix_incomplete"];
+	let writesStarted = false;
+	let databaseGuardPassed = false;
 	let cleanup: CleanupResult = {
 		passed: false,
 		applicationsRemaining: 0,
@@ -1007,9 +1222,12 @@ export async function runConcurrencyLoad(
 	};
 
 	try {
+		await assertStagingDatabaseMarker(pool, config.projectRef);
+		databaseGuardPassed = true;
 		await assertQueueIsolation(pool, purpose);
 		await assertCapsAvailable(pool);
 		const applicantId = await selectApplicantProfile(pool);
+		writesStarted = true;
 		await reserveSyntheticSlots(pool, workerIds);
 
 		for (const level of config.levels) {
@@ -1038,6 +1256,7 @@ export async function runConcurrencyLoad(
 				lockTimeouts: kind === "lock_timeout" ? 1 : 0,
 				connectionExhaustions: kind === "connection_exhaustion" ? 1 : 0,
 				claimLatenciesMs: [],
+				successfulClaimLatenciesMs: [],
 				syntheticRowsRemaining: 1,
 				claimedJobs: 0,
 			}),
@@ -1045,14 +1264,20 @@ export async function runConcurrencyLoad(
 			diagnostics: [`setup:${kind}`],
 		});
 	} finally {
-		cleanup = await cleanupSyntheticData(pool, purpose, workerIds);
+		if (writesStarted) cleanup = await cleanupSyntheticData(pool, purpose, workerIds);
 		await pool.end().catch(() => undefined);
 	}
 
 	printLevelTable(levelResults);
-	const passed = cleanup.passed && levelResults.length > 0 && levelResults.every((level) => level.measured.passed);
+	if (!databaseGuardPassed) return 1;
+	if (!cleanup.passed && cleanup.errorCode) overallFailures.push("cleanup_failed");
+	const passed =
+		cleanup.passed &&
+		overallFailures.length === 0 &&
+		levelResults.length > 0 &&
+		levelResults.every((level) => level.measured.passed);
 	try {
-		await writeSummary(runId, levelResults, cleanup);
+		await writeSummary(runId, levelResults, cleanup, overallFailures);
 	} catch {
 		return 1;
 	}

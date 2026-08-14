@@ -95,12 +95,15 @@ explicitly reintroduces another provider.
   verifies the Vietnam seed has clear bilingual labels and localized options.
 - Staging concurrency release gate: `scripts/concurrency-load.ts` is a guarded,
   staging-only harness for the `0139_concurrency_phase_two.sql` runner-pool
-  claim RPC. It requires `CONCURRENCY_LOAD_CONFIRM=staging-only`, an explicit
-  non-production `CONCURRENCY_LOAD_DATABASE_URL`, and a non-production
-  `CONCURRENCY_LOAD_PROJECT_REF` before it creates a database pool or writes
-  data. It refuses to run when non-synthetic eligible pool jobs or owned
-  machine slots are present, uses bounded workers/timeouts, and always cleans
-  up synthetic rows in `finally`. Results are written to the ignored
+  claim/settlement RPCs. It requires `CONCURRENCY_LOAD_CONFIRM=staging-only`,
+  a Supabase direct/pooler URL bound to the explicit non-production
+  `CONCURRENCY_LOAD_PROJECT_REF`, and authoritative database settings
+  `app.viza_environment=staging` plus `app.viza_project_ref=<ref>` before it
+  creates synthetic rows. The script never sets those markers. The default
+  release matrix is exactly 100/300/600/1000; subsets are diagnostics and fail
+  the release gate. It refuses to run when non-synthetic eligible pool jobs or
+  owned machine slots are present, uses bounded workers/timeouts, and always
+  cleans up synthetic rows in `finally`. Results are written to the ignored
   `load-test-results/concurrency/<runId>/summary.json`; never commit result
   files or credentials. Run only against an isolated staging database:
   `npm run load:concurrency`.
