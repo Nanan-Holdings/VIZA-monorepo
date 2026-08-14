@@ -16,6 +16,7 @@ import {
   completeVietnamOfficialStatusCheck,
   failVietnamOfficialStatusCheck,
 } from "./status-check-lease.js";
+import { enqueueMatchedVietnamStatusEmails } from "./email-status-matcher.js";
 
 const OFFICIAL_STATUS_URL = "https://evisa.gov.vn/e-visa/search";
 const OFFICIAL_EMAIL_PATTERN =
@@ -168,42 +169,6 @@ function normalizeReference(value: string | null | undefined): string {
   return (value ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
 }
 
-async function queueEmailTriggeredCheck(
-  email: InboundEmailRow,
-  tracking: TrackingRow,
-): Promise<boolean> {
-  const now = new Date().toISOString();
-  const { error } = await supabase.from("official_status_checks").insert({
-    application_id: tracking.application_id,
-    user_id: tracking.auth_user_id,
-    country_code: "VN",
-    provider: "vietnam_evisa",
-    status: "queued",
-    requested_by: "system",
-    trigger_source: "email",
-    idempotency_key: `vn:email:${email.id}`,
-    inbound_email_id: email.id,
-    scheduled_for: now,
-    checked_at: null,
-    raw_status_json: {
-      source: "official_email",
-      received_at: email.received_at,
-    },
-    created_at: now,
-    updated_at: now,
-  });
-  if (error) {
-    if (error.code === "23505") return false;
-    if (isSchemaMissing(error)) return false;
-    throw new Error(`Failed to queue Vietnam email status check: ${error.message}`);
-  }
-  await supabase
-    .from("official_application_tracking")
-    .update({ last_email_message_id: email.id, updated_at: now })
-    .eq("application_id", tracking.application_id);
-  return true;
-}
-
 export async function enqueueVietnamEmailTriggeredChecks(): Promise<number> {
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1_000).toISOString();
   const { data: messages, error: emailError } = await supabase
@@ -223,93 +188,21 @@ export async function enqueueVietnamEmailTriggeredChecks(): Promise<number> {
   );
   if (officialMessages.length === 0) return 0;
 
-  const aliases = [
-    ...new Set(officialMessages.map((message) => message.to_addr.toLowerCase())),
-  ];
-  const { data: trackingRows, error: trackingError } = await supabase
-    .from("official_application_tracking")
-    .select(
-      "application_id, applicant_id, auth_user_id, official_lookup_email, tracking_status, last_known_status, last_artifact_hash, last_artifact_storage_path, consecutive_failures",
-    )
-    .eq("tracking_status", ACTIVE_TRACKING_STATUS)
-    .in("official_lookup_email", aliases);
-  if (trackingError) {
-    if (isSchemaMissing(trackingError)) return 0;
-    throw new Error(`Failed to match Vietnam status emails: ${trackingError.message}`);
-  }
-
-  const tracking = (trackingRows ?? []) as TrackingRow[];
-  if (tracking.length === 0) return 0;
-  const { data: applications, error: applicationError } = await supabase
-    .from("applications")
-    .select("id, external_reference")
-    .in(
-      "id",
-      tracking.map((row) => row.application_id),
-    );
-  if (applicationError) {
-    throw new Error(`Failed to load tracked Vietnam references: ${applicationError.message}`);
-  }
-  const referenceByApplication = new Map(
-    ((applications ?? []) as Array<{ id: string; external_reference: string | null }>).map(
-      (row) => [row.id, normalizeReference(row.external_reference)],
-    ),
-  );
-
-  let queued = 0;
-  for (const email of officialMessages) {
-    const candidates = tracking.filter(
-      (row) =>
-        row.official_lookup_email.toLowerCase() === email.to_addr.toLowerCase(),
-    );
-    if (candidates.length === 0) continue;
+  const parsedEmails = officialMessages.map((email) => {
     const parsed = extractAuto({
       from: email.from_addr,
       subject: email.subject,
       text: email.text,
       html: email.html,
     });
-    const emailReference = normalizeReference(parsed.reference);
-    const matched = emailReference
-      ? candidates.filter(
-          (candidate) =>
-            referenceByApplication.get(candidate.application_id) === emailReference,
-        )
-      : candidates;
-    if (matched.length !== 1) {
-      console.warn(
-        `[vn-status] Official email ${email.id} matched ${matched.length} active applications; waiting for the daily check.`,
-      );
-      const alertTargets = matched.length > 0 ? matched : candidates;
-      await Promise.all(
-        alertTargets.map((candidate) =>
-          insertIgnoringDuplicate(
-            supabase.from("application_events").insert({
-              application_id: candidate.application_id,
-              applicant_id: candidate.applicant_id,
-              auth_user_id: candidate.auth_user_id,
-              event_type: "official_email_match_ambiguous",
-              actor_type: "system",
-              source: "vietnam_official_email",
-              visibility: "staff",
-              idempotency_key: `vn:email-ambiguous:${email.id}:${candidate.application_id}`,
-              message: "Official Vietnam email could not be uniquely matched; daily polling remains active.",
-              metadata: {
-                inbound_email_id: email.id,
-                candidate_count: matched.length,
-                reference_present: Boolean(emailReference),
-              },
-              occurred_at: new Date().toISOString(),
-              created_at: new Date().toISOString(),
-            }),
-          ),
-        ),
-      );
-      continue;
-    }
-    if (await queueEmailTriggeredCheck(email, matched[0])) queued += 1;
-  }
-  return queued;
+    const normalizedReference = normalizeReference(parsed.reference);
+    return {
+      emailId: email.id,
+      normalizedReference: normalizedReference || null,
+    };
+  });
+  const counts = await enqueueMatchedVietnamStatusEmails(supabase, parsedEmails);
+  return counts.queued;
 }
 
 async function loadAnswers(applicationId: string): Promise<Record<string, string>> {

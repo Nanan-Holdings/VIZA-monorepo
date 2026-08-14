@@ -306,7 +306,11 @@ filling and one-shot submission for the applicant.
   landing/NOTE/CAPTCHA/form/payment/white-screen checkpoints, fills the SPA
   when the official form is reached, uses a VIZA alias for official
   correspondence, tracks newly paid submissions through daily/email/user
-  official queries, and privately delivers validated official PDFs.
+  official queries, and privately delivers validated official PDFs. Email
+  status matching is parsed in `status-tracking.ts` and handed to the bounded
+  `email-status-matcher.ts` adapter, which calls the service-only batch RPC
+  once for up to 100 messages; matching, ambiguity, idempotency, and event
+  audit writes stay in the database function.
 - `src/sgac/**`: Singapore SG Arrival Card runner. Normalizes
   `SG_ARRIVAL_CARD` answers only, fills ICA SGAC Foreign Visitor pages, submits
   after Review in worker mode, and captures confirmation/error artifacts.
@@ -717,6 +721,7 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/korea-vfs-shenyang/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`
+- `viza-be/submission-service/src/vietnam/email-status-matcher.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`
 - `viza-be/submission-service/src/france-tls/*`
 - `viza-be/submission-service/src/tw/*`

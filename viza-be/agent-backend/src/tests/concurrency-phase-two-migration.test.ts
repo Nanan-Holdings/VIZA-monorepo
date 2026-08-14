@@ -13,6 +13,9 @@ const normalized = (source: string): string => source.replace(/\r\n/g, "\n").tri
 const functionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.claim_runner_pool_job\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
+const emailFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.enqueue_vn_email_triggered_status_checks\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
 
 describe("runner pool concurrency phase two migration", () => {
   it("defines the exact service-role claim RPC identity and return contract", () => {
@@ -157,5 +160,62 @@ describe("runner pool concurrency phase two migration", () => {
     expect(mirrorFiles).toHaveLength(1);
     const mirrorSql = readFileSync(`${mirrorDirectory}/${mirrorFiles[0]}`, "utf8");
     expect(normalized(mirrorSql)).toBe(normalized(canonicalSql));
+  });
+
+  it("defines the bounded Vietnam email matcher RPC and exact count contract", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.enqueue_vn_email_triggered_status_checks\(\s*p_emails JSONB\s*\)/i,
+    );
+    expect(emailFunctionBody).toMatch(
+      /RETURNS TABLE \(\s*queued INTEGER,\s*ambiguous INTEGER,\s*unmatched INTEGER,\s*duplicates INTEGER\s*\)/i,
+    );
+    expect(emailFunctionBody).toMatch(/LANGUAGE plpgsql/i);
+    expect(emailFunctionBody).toMatch(/SECURITY INVOKER/i);
+    expect(emailFunctionBody).toMatch(/SET search_path = ''/i);
+  });
+
+  it("rejects malformed and oversized email payloads with SQLSTATE 22023", () => {
+    expect(emailFunctionBody).toMatch(
+      /JSONB_TYPEOF\(p_emails\)\s*<>\s*'array'[\s\S]*?ERRCODE\s*=\s*'22023'/i,
+    );
+    expect(emailFunctionBody).toMatch(
+      /p_emails\s+IS\s+NULL[\s\S]*?ERRCODE\s*=\s*'22023'/i,
+    );
+    expect(emailFunctionBody).toMatch(
+      /jsonb_array_length\(p_emails\)\s*>\s*100[\s\S]*?ERRCODE\s*=\s*'22023'/i,
+    );
+    expect(emailFunctionBody).toMatch(/jsonb_to_recordset\(p_emails\)/i);
+  });
+
+  it("matches only inbound ids, active Vietnam tracking, and normalized references", () => {
+    expect(emailFunctionBody).toMatch(/LOWER\(tracking\.official_lookup_email\)\s*=\s*LOWER\(email\.to_addr\)/i);
+    expect(emailFunctionBody).toMatch(/normalized_reference/i);
+    expect(emailFunctionBody).toMatch(/inbound_email/i);
+    expect(emailFunctionBody).toMatch(/tracking_status\s*=\s*'active'/i);
+    expect(emailFunctionBody).toMatch(/applications/i);
+    expect(emailFunctionBody).toMatch(/candidate_count/i);
+  });
+
+  it("inserts unique matches idempotently and returns all four counts", () => {
+    expect(emailFunctionBody).toMatch(/ON CONFLICT\s*\(idempotency_key\)/i);
+    expect(emailFunctionBody).toMatch(/INSERT INTO public\.official_status_checks/i);
+    expect(emailFunctionBody).toMatch(/INSERT INTO public\.application_events/i);
+    expect(emailFunctionBody).toMatch(/RETURN QUERY/i);
+    expect(emailFunctionBody).toMatch(/queued/i);
+    expect(emailFunctionBody).toMatch(/ambiguous/i);
+    expect(emailFunctionBody).toMatch(/unmatched/i);
+    expect(emailFunctionBody).toMatch(/duplicates/i);
+  });
+
+  it("adds the active email expression index and service-role-only execution", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE INDEX IF NOT EXISTS official_tracking_active_email_idx\s+ON public\.official_application_tracking\s*\(LOWER\(official_lookup_email\)\)\s+WHERE tracking_status = 'active';/i,
+    );
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.enqueue_vn_email_triggered_status_checks\(JSONB\)\s+FROM PUBLIC, anon, authenticated;/i,
+    );
+    expect(canonicalSql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.enqueue_vn_email_triggered_status_checks\(JSONB\)\s+TO service_role;/i,
+    );
   });
 });
