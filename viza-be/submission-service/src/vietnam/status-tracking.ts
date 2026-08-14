@@ -15,11 +15,13 @@ import {
 import {
   claimVietnamOfficialStatusChecks,
   completeVietnamOfficialStatusCheck,
+  deferVietnamOfficialStatusCheck,
   failVietnamOfficialStatusCheck,
 } from "./status-check-lease.js";
 import { enqueueMatchedVietnamStatusEmails } from "./email-status-matcher.js";
 import {
   createResilienceGateClient,
+  parseResilienceGateCapacity,
   ResilienceGateCapacityDeniedError,
   ResilienceGateConfigurationError,
   ResilienceGateResponseError,
@@ -79,11 +81,7 @@ function safeGateOwnerRef(workerId: string, checkId: string): string {
 }
 
 export function vietnamStatusGateCapacity(env: NodeJS.ProcessEnv = process.env): number {
-  const raw = env.RESILIENCE_VN_STATUS_GATE_CAPACITY?.trim();
-  if (!raw) return 1;
-  if (!/^\d+$/.test(raw)) return 1;
-  const parsed = Number(raw);
-  return Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= 1_000 ? parsed : 1;
+  return parseResilienceGateCapacity(env.RESILIENCE_VN_STATUS_GATE_CAPACITY);
 }
 
 export async function withVietnamStatusResilienceGate<T>(input: {
@@ -229,6 +227,24 @@ type StatusCheckRow = {
   inbound_email_id: string | null;
   attempt_count: number;
 };
+
+export interface VietnamStatusCheckBatchDependencies {
+  claim: (workerId: string) => Promise<StatusCheckRow[]>;
+  processCheck: (check: StatusCheckRow, workerId: string) => Promise<void>;
+  defer?: (
+    check: StatusCheckRow,
+    workerId: string,
+    retryAfterSeconds: number,
+  ) => Promise<boolean>;
+  fail?: (
+    check: StatusCheckRow,
+    workerId: string,
+    message: string,
+  ) => Promise<boolean>;
+  afterFailure?: (check: StatusCheckRow, message: string) => Promise<void>;
+  /** Optional test/diagnostic hook; production settlement remains in processCheck. */
+  complete?: (check: StatusCheckRow, workerId: string) => Promise<boolean>;
+}
 
 type ApplicationRow = {
   id: string;
@@ -818,24 +834,95 @@ async function processClaimedCheck(
   }
 }
 
-export async function processQueuedVietnamStatusChecks(workerId: string): Promise<number> {
+function retryAfterSecondsFromGate(retryAt: number | undefined): number {
+  if (typeof retryAt !== "number" || !Number.isSafeInteger(retryAt)) return 30;
+  const remainingSeconds = Math.ceil((retryAt - Date.now()) / 1_000);
+  return Math.max(1, Math.min(300, remainingSeconds));
+}
+
+async function defaultVietnamStatusCheckFailure(
+  check: StatusCheckRow,
+  workerId: string,
+  message: string,
+): Promise<boolean> {
+  return failVietnamOfficialStatusCheck(supabase, {
+    checkId: check.id,
+    workerId,
+    errorCode: "official_status_check_failed",
+    errorMessage: message.slice(0, 500),
+    rawStatusJson: {
+      source: "vietnam_evisa_search",
+      failed: true,
+    },
+  });
+}
+
+async function recordVietnamStatusCheckFailure(
+  check: StatusCheckRow,
+  message: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const { data: tracking } = await supabase
+    .from("official_application_tracking")
+    .select("consecutive_failures")
+    .eq("application_id", check.application_id)
+    .maybeSingle();
+  await supabase
+    .from("official_application_tracking")
+    .update({
+      consecutive_failures:
+        Number((tracking as { consecutive_failures?: number } | null)?.consecutive_failures ?? 0) + 1,
+      updated_at: now,
+    })
+    .eq("application_id", check.application_id);
+  await queueRetry(check).catch(() => undefined);
+  console.error(
+    `[vn-status] Check ${check.id} failed without changing the last trusted customer status: ${message}`,
+  );
+}
+
+export async function processQueuedVietnamStatusChecksWithDependencies(
+  workerId: string,
+  dependencies: VietnamStatusCheckBatchDependencies,
+): Promise<number> {
   let rows: StatusCheckRow[];
   try {
-    rows = await claimVietnamOfficialStatusChecks<StatusCheckRow>(supabase, {
-      workerId,
-      limit: 5,
-      leaseSeconds: 300,
-    });
+    rows = await dependencies.claim(workerId);
   } catch (error) {
     if (isSchemaMissing(error)) return 0;
     throw error;
   }
+
+  const defer = dependencies.defer ?? (async (
+    check: StatusCheckRow,
+    owner: string,
+    retryAfterSeconds: number,
+  ) => deferVietnamOfficialStatusCheck(supabase, {
+    checkId: check.id,
+    workerId: owner,
+    retryAfterSeconds,
+  }));
+  const fail = dependencies.fail ?? defaultVietnamStatusCheckFailure;
+  const afterFailure = dependencies.afterFailure ?? recordVietnamStatusCheckFailure;
+  let processed = 0;
+
   for (const check of rows) {
     try {
-      await processClaimedCheck(check, workerId);
+      await dependencies.processCheck(check, workerId);
+      processed += 1;
     } catch (errorValue) {
       if (errorValue instanceof VietnamStatusGateDeferredError) {
-        console.warn("[vn-status] resilience_gate_deferred");
+        const retryAfterSeconds = retryAfterSecondsFromGate(errorValue.retryAt);
+        try {
+          const deferred = await defer(check, workerId, retryAfterSeconds);
+          if (!deferred) {
+            console.warn("[vn-status] resilience_gate_deferred_ownership_lost");
+          } else {
+            console.warn("[vn-status] resilience_gate_deferred");
+          }
+        } catch {
+          console.warn("[vn-status] resilience_gate_defer_failed");
+        }
         continue;
       }
       if (isVietnamStatusCheckOwnershipLostError(errorValue)) {
@@ -850,41 +937,27 @@ export async function processQueuedVietnamStatusChecks(workerId: string): Promis
       }
       const message =
         errorValue instanceof Error ? errorValue.message : String(errorValue);
-      const now = new Date().toISOString();
-      const failed = await failVietnamOfficialStatusCheck(supabase, {
-        checkId: check.id,
-        workerId,
-        errorCode: "official_status_check_failed",
-        errorMessage: message.slice(0, 500),
-        rawStatusJson: {
-          source: "vietnam_evisa_search",
-          failed: true,
-        },
-      });
+      const failed = await fail(check, workerId, message);
       if (!failed) {
         console.warn(
           `[vn-status] Check ${check.id} failure was not persisted because the lease is no longer owned.`,
         );
         continue;
       }
-      const { data: tracking } = await supabase
-        .from("official_application_tracking")
-        .select("consecutive_failures")
-        .eq("application_id", check.application_id)
-        .maybeSingle();
-      await supabase
-        .from("official_application_tracking")
-        .update({
-          consecutive_failures:
-            Number((tracking as { consecutive_failures?: number } | null)?.consecutive_failures ?? 0) + 1,
-          updated_at: now,
-        })
-        .eq("application_id", check.application_id);
-      await queueRetry(check).catch(() => undefined);
-      console.error(
-        `[vn-status] Check ${check.id} failed without changing the last trusted customer status: ${message}`,
-      );
+      processed += 1;
+      await afterFailure(check, message);
     }
   }
-  return rows.length;
+  return processed;
+}
+
+export async function processQueuedVietnamStatusChecks(workerId: string): Promise<number> {
+  return processQueuedVietnamStatusChecksWithDependencies(workerId, {
+    claim: async (owner) => claimVietnamOfficialStatusChecks<StatusCheckRow>(supabase, {
+      workerId: owner,
+      limit: 5,
+      leaseSeconds: 300,
+    }),
+    processCheck: processClaimedCheck,
+  });
 }

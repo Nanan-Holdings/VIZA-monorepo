@@ -503,3 +503,61 @@ GRANT EXECUTE ON FUNCTION public.enqueue_vn_email_triggered_status_checks(JSONB)
 
 COMMENT ON FUNCTION public.enqueue_vn_email_triggered_status_checks(JSONB) IS
   'Atomically matches up to 100 Vietnam official emails and queues unique status checks.';
+
+-- Return a provider-gate-denied status check to the queue without consuming
+-- the admission attempt. This is conditional on the same live Postgres lease
+-- that admitted the worker, so a stale worker cannot requeue another owner.
+CREATE OR REPLACE FUNCTION public.defer_vn_official_status_check(
+  p_check_id UUID,
+  p_worker_id TEXT,
+  p_retry_after_seconds INTEGER DEFAULT 30
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  updated_count INTEGER := 0;
+BEGIN
+  IF p_check_id IS NULL THEN
+    RAISE EXCEPTION 'p_check_id is required' USING ERRCODE = '22023';
+  END IF;
+  IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
+    RAISE EXCEPTION 'p_worker_id must not be blank' USING ERRCODE = '22023';
+  END IF;
+  IF p_retry_after_seconds IS NULL
+    OR p_retry_after_seconds < 1
+    OR p_retry_after_seconds > 300
+  THEN
+    RAISE EXCEPTION 'p_retry_after_seconds must be between 1 and 300'
+      USING ERRCODE = '22023';
+  END IF;
+
+  UPDATE public.official_status_checks AS checks
+  SET
+    status = 'queued',
+    scheduled_for = NOW() + p_retry_after_seconds * INTERVAL '1 second',
+    attempt_count = GREATEST(checks.attempt_count - 1, 0),
+    worker_id = NULL,
+    claimed_at = NULL,
+    lease_expires_at = NULL,
+    started_at = NULL,
+    updated_at = NOW()
+  WHERE checks.id = p_check_id
+    AND checks.status = 'running'
+    AND checks.worker_id = BTRIM(p_worker_id)
+    AND checks.lease_expires_at > NOW();
+
+  GET DIAGNOSTICS updated_count = ROW_COUNT;
+  RETURN updated_count = 1;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.defer_vn_official_status_check(UUID, TEXT, INTEGER)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.defer_vn_official_status_check(UUID, TEXT, INTEGER)
+  TO service_role;
+
+COMMENT ON FUNCTION public.defer_vn_official_status_check(UUID, TEXT, INTEGER) IS
+  'Requeues a provider-gate-denied Vietnam status check only while its live worker lease is owned.';

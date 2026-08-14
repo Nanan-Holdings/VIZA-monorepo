@@ -119,11 +119,19 @@ function positiveInteger(value: unknown, field: string, maximum: number): number
   return value;
 }
 
-function readCapacity(value: unknown, fallback: number): number {
-  if (value === undefined) return fallback;
-  if (typeof value !== "string" || !/^\d+$/.test(value.trim())) return fallback;
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > MAX_CAPACITY) return fallback;
+export function parseResilienceGateCapacity(value: unknown): number {
+  if (value === undefined) return DEFAULT_CAPACITY;
+  if (typeof value !== "string" || !/^\d+$/.test(value.trim())) {
+    throw new ResilienceGateConfigurationError(
+      "RESILIENCE_VN_STATUS_GATE_CAPACITY must be an integer between 1 and 1000",
+    );
+  }
+  const parsed = Number(value.trim());
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > MAX_CAPACITY) {
+    throw new ResilienceGateConfigurationError(
+      "RESILIENCE_VN_STATUS_GATE_CAPACITY must be an integer between 1 and 1000",
+    );
+  }
   return parsed;
 }
 
@@ -173,7 +181,7 @@ function readConfig(options: ClientOptions): GateConfig | null {
     gatewayUrl,
     keyId: normalizedKeyId,
     secret,
-    capacity: readCapacity(env.RESILIENCE_VN_STATUS_GATE_CAPACITY, DEFAULT_CAPACITY),
+    capacity: parseResilienceGateCapacity(env.RESILIENCE_VN_STATUS_GATE_CAPACITY),
   };
 }
 

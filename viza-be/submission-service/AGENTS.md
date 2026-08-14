@@ -85,6 +85,9 @@ filling and one-shot submission for the applicant.
 - `src/vietnam/status-check-lease.ts`: Vietnam official-status checks are
   worker-leased and may be completed or failed only by their claiming worker;
   the consumer must honor a false conditional-RPC result as lost ownership.
+  Provider-gate denial uses the service-role-only
+  `defer_vn_official_status_check` RPC to requeue the live claim, reverse the
+  admission attempt, and avoid consuming portal retry budget.
 - `src/resilience-gate.ts` and `src/vietnam/status-tracking.ts`: each Vietnam
   official status lookup optionally acquires the `vietnam`/`evisa/status`
   provider gate with a 120-second fenced lease around official-portal I/O only.
@@ -94,7 +97,10 @@ filling and one-shot submission for the applicant.
   malformed/non-retryable responses fail loudly without marking the check failed.
   PostgreSQL ownership remains authoritative for artifact/status settlement. A
   lost gate or database lease skips both final completion and failure settlement,
-  and the exact latest lease/fencing token is released in `finally`.
+  and the exact latest lease/fencing token is released in `finally`. A typed
+  gate denial defers the current Postgres claim for a bounded 1–300 seconds;
+  configuration/protocol errors remain fail-loud and are never converted into
+  a failed official check.
 - Resilience gate configuration is server-only and read from
   `VIZA_RESILIENCE_GATEWAY_URL`, `VIZA_RESILIENCE_HMAC_KEY_ID`,
   `VIZA_RESILIENCE_HMAC_SECRET`, `RESILIENCE_VN_STATUS_GATE_ENABLED`, and
