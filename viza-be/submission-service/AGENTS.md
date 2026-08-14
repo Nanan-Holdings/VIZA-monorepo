@@ -85,6 +85,20 @@ filling and one-shot submission for the applicant.
 - `src/vietnam/status-check-lease.ts`: Vietnam official-status checks are
   worker-leased and may be completed or failed only by their claiming worker;
   the consumer must honor a false conditional-RPC result as lost ownership.
+- `src/resilience-gate.ts` and `src/vietnam/status-tracking.ts`: each Vietnam
+  official status lookup optionally acquires the `vietnam`/`evisa/status`
+  provider gate with a 120-second fenced lease. The gate is disabled by default
+  and fail-open on temporary gateway unavailability; PostgreSQL ownership remains
+  authoritative. A lost gate or database lease skips both final completion and
+  failure settlement, and the exact current lease/fencing token is released in
+  `finally`.
+- Resilience gate configuration is server-only and read from
+  `VIZA_RESILIENCE_GATEWAY_URL`, `VIZA_RESILIENCE_HMAC_KEY_ID`,
+  `VIZA_RESILIENCE_HMAC_SECRET`, `RESILIENCE_VN_STATUS_GATE_ENABLED`, and
+  `RESILIENCE_VN_STATUS_GATE_CAPACITY`. Gateway requests use the Worker HMAC
+  contract and a three-second abort timeout; secrets, signatures, nonces, raw
+  bodies, and owner references must never be logged. This provider gate does not
+  create, retain, or scale runner machines.
 - Official-fee enqueue operations use migration
   `0118_official_fee_queue_isolation.sql`: the application row is the mutex,
   claimed/running jobs are reused, and stale jobs for only that application
@@ -722,6 +736,10 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`
 - `viza-be/submission-service/src/vietnam/email-status-matcher.ts`
+- `viza-be/submission-service/src/resilience-gate.ts`
+- `viza-be/submission-service/src/resilience-gate.spec.ts`
+- `viza-be/submission-service/src/vietnam/status-tracking.ts`
+- `viza-be/submission-service/src/vietnam/__tests__/status-check-lease.spec.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`
 - `viza-be/submission-service/src/france-tls/*`
 - `viza-be/submission-service/src/tw/*`
