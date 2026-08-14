@@ -145,9 +145,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Cloud submission worker wake requests use the authenticated
   `app/api/submission-worker/wake/route.ts` boundary and the server-only
   `lib/submission-worker-wake.server.ts` helper. Never expose the internal
-  bearer token to client components. Every immediate `runner_job` or
-  `submission_queue` enqueue must POST the retained target's wake endpoint;
-  starting an already-running Fly Machine is not itself a wake signal.
+  bearer token to client components. Queue-enabled immediate `runner_job` or
+  `submission_queue` enqueues publish an encrypted wake pointer after the
+  durable database write; direct POST to the retained target's wake endpoint
+  remains the fallback. Starting an already-running Fly Machine is not itself
+  a wake signal.
 - Shared-pool retry submission resolves a typed flow through
   `lib/queue/flows.ts`, atomically enqueues through `lib/queue/enqueue.ts`, and
   starts only immediately claimable Fly pool capacity through
@@ -365,7 +367,15 @@ Smoke URLs:
 - `lib/supabase/*`
 - `lib/resilience/*`: server-only HMAC transport, AES-256-GCM envelopes,
   continuity identity/OTP state, critical read cache, and encrypted outbox
-  client. Never import these modules into browser bundles or expose their keys.
+  client. The signed `/api/resilience/replay` route also handles the
+  allowlisted `runner_job.wakeup.v1` pointer; it re-checks Postgres state and
+  only wakes server-controlled runner targets. Never import these modules into
+  browser bundles or expose their keys.
+- `lib/queue/enqueue.ts`: every durable runner enqueue commits Postgres first;
+  `RESILIENCE_RUNNER_WAKE_ENABLED` is default-off and accepts only exact
+  `true`, `on`, or `1`. An accepted/duplicate Queue wake suppresses direct Fly
+  wake; Queue errors or unusable responses use the bounded direct-wake
+  fallback, and future `availableAt` work is never published early.
 - `lib/admin-access.ts`
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`
