@@ -12,6 +12,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveOfficialFeeApplicantAuth } from "../auth";
 import {
   ensureVietnamCardWorkerReady,
+  recoverVietnamCardHandoff,
   VIETNAM_CARD_HANDOFF_BUDGET_MS,
   vietnamCardPostTimeoutMs,
   vietnamCardReadinessTimeoutMs,
@@ -523,17 +524,23 @@ async function postOneTimeCardSession(input: {
   card: OneTimeCardInput;
   token?: string;
   deadlineAt?: number;
+  maxAttempts?: number;
 }): Promise<
   | { ok: true; redactedCard: unknown; expiresAtIso: string | null }
-  | { ok: false; error: string }
+  | { ok: false; error: string; retryable?: boolean }
 > {
   let lastError = "unknown card-session error";
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  const maxAttempts = Math.max(1, Math.min(3, input.maxAttempts ?? 3));
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const requestTimeoutMs = input.deadlineAt
       ? vietnamCardPostTimeoutMs(input.deadlineAt)
       : 15_000;
     if (requestTimeoutMs <= 0) {
-      return { ok: false, error: "card_session_handoff_timeout" };
+      return {
+        ok: false,
+        error: "card_session_handoff_timeout",
+        retryable: false,
+      };
     }
     try {
       const response = await fetch(input.endpoint, {
@@ -565,13 +572,13 @@ async function postOneTimeCardSession(input: {
 
       lastError = typeof payload?.error === "string" ? payload.error : `HTTP ${response.status}`;
       if (response.status < 500 && ![408, 425, 429].includes(response.status)) {
-        return { ok: false, error: lastError };
+        return { ok: false, error: lastError, retryable: false };
       }
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
     }
 
-    if (attempt < 3) {
+    if (attempt < maxAttempts) {
       const remainingMs = input.deadlineAt
         ? Math.max(0, input.deadlineAt - Date.now())
         : attempt * 500;
@@ -581,7 +588,7 @@ async function postOneTimeCardSession(input: {
     }
   }
 
-  return { ok: false, error: lastError };
+  return { ok: false, error: lastError, retryable: true };
 }
 
 async function registerOneTimeCardSession(
@@ -598,45 +605,54 @@ async function registerOneTimeCardSession(
     if (cloud) {
       const deadlineAt = options.vietnamDeadlineAt
         ?? Date.now() + VIETNAM_CARD_HANDOFF_BUDGET_MS;
-      const ready = await ensureVietnamCardWorkerReady({
-        baseUrl: cloud.baseUrl,
-        wakeLegacy: () => ensureFlyMachineStarted("legacy"),
-        waitUntilReady: (url) => {
-          const timeoutMs = vietnamCardReadinessTimeoutMs(deadlineAt);
-          if (timeoutMs <= 0) {
-            return Promise.resolve({
-              ok: false as const,
-              attempts: 0,
-              reason: "readiness_timeout" as const,
+      const result = await recoverVietnamCardHandoff({
+        maxAttempts: 3,
+        deadlineAt,
+        ensureReady: () => ensureVietnamCardWorkerReady({
+          baseUrl: cloud.baseUrl,
+          wakeLegacy: () => ensureFlyMachineStarted("legacy"),
+          wakeTimeoutMs: Math.min(
+            6_000,
+            vietnamCardReadinessTimeoutMs(deadlineAt),
+          ),
+          waitUntilReady: (url) => {
+            const timeoutMs = vietnamCardReadinessTimeoutMs(deadlineAt);
+            if (timeoutMs <= 0) {
+              return Promise.resolve({
+                ok: false as const,
+                attempts: 0,
+                reason: "readiness_timeout" as const,
+              });
+            }
+            return waitForHttpReady(url, {
+              timeoutMs,
+              pollIntervalMs: 500,
+              requestTimeoutMs: 3_000,
             });
-          }
-          return waitForHttpReady(url, {
-            timeoutMs,
-            pollIntervalMs: 500,
-            requestTimeoutMs: 3_000,
-          });
-        },
+          },
+        }),
+        postCardSession: () => postOneTimeCardSession({
+          endpoint: `${cloud.baseUrl}/internal/vietnam/card-session`,
+          applicationId,
+          card,
+          token: cloud.token,
+          deadlineAt,
+          maxAttempts: 1,
+        }),
       });
-      if (!ready.ok) {
+      if (!result.ok && result.stage === "ready") {
         console.error("Vietnam cloud card-session worker unavailable", {
-          reason: ready.reason,
-          attempts: "attempts" in ready ? ready.attempts : undefined,
+          reason: result.reason,
+          attempts: result.attempts,
         });
         return {
           ok: false,
-          errorCode: ready.reason === "wake_failed" ? "worker_start_failed" : "worker_readiness_timeout",
-          error: ready.reason === "wake_failed"
+          errorCode: result.reason === "wake_failed" ? "worker_start_failed" : "worker_readiness_timeout",
+          error: result.reason === "wake_failed"
             ? "越南云端付款服务暂时无法启动，请稍后重试。"
             : "越南云端付款服务仍在启动，请稍后重试。",
         };
       }
-      const result = await postOneTimeCardSession({
-        endpoint: `${cloud.baseUrl}/internal/vietnam/card-session`,
-        applicationId,
-        card,
-        token: cloud.token,
-        deadlineAt,
-      });
       if (!result.ok) {
         console.error("Could not register Vietnam cloud card session", {
           reason: result.error,
