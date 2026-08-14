@@ -4,6 +4,7 @@ import {
   recoverVietnamCardHandoff,
   vietnamCardPostTimeoutMs,
   vietnamCardReadinessTimeoutMs,
+  vietnamCardWakeTimeoutMs,
 } from "./cloud-worker-ready";
 
 describe("ensureVietnamCardWorkerReady", () => {
@@ -35,7 +36,11 @@ describe("ensureVietnamCardWorkerReady", () => {
         reason: "request_failed",
       }),
       waitUntilReady,
-    })).resolves.toEqual({ ok: false, reason: "wake_failed" });
+    })).resolves.toEqual({
+      ok: false,
+      reason: "wake_failed",
+      wakeReason: "request_failed",
+    });
 
     expect(waitUntilReady).not.toHaveBeenCalled();
   });
@@ -61,6 +66,7 @@ describe("ensureVietnamCardWorkerReady", () => {
       await expect(operation).resolves.toEqual({
         ok: false,
         reason: "wake_failed",
+        wakeReason: "timeout",
       });
       expect(waitUntilReady).not.toHaveBeenCalled();
     } finally {
@@ -91,6 +97,14 @@ describe("ensureVietnamCardWorkerReady", () => {
 });
 
 describe("Vietnam card handoff deadline", () => {
+  it("gives a cold Fly wake enough time to list, reserve, and start the Machine", () => {
+    const now = 1_000_000;
+
+    expect(vietnamCardWakeTimeoutMs(now + 40_000, now)).toBe(15_000);
+    expect(vietnamCardWakeTimeoutMs(now + 15_000, now)).toBe(5_000);
+    expect(vietnamCardWakeTimeoutMs(now + 9_000, now)).toBe(0);
+  });
+
   it("reserves time for the card post and the durable queue write", () => {
     const now = 1_000_000;
 
