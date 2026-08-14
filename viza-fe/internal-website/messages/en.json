@@ -541,7 +541,34 @@
       "missingBody": "Add the applicant's English name and mobile number, then confirm an eligible filing center.",
       "edit": "Edit application details",
       "confirm": "Confirm details and continue",
-      "confirming": "Saving confirmation…"
+      "confirming": "Saving confirmation…",
+      "shenyang": {
+        "intro": "Add the details required for a Shenyang appointment.",
+        "hint": "Resolved values are shown only in masked form; check each source.",
+        "fields": {
+          "surname": "Passport surname",
+          "givenNames": "Passport given names",
+          "dateOfBirth": "Date of birth",
+          "passportNumber": "Passport number",
+          "passportExpiryDate": "Passport expiry date",
+          "mobilePhone": "Mainland China mobile number"
+        },
+        "sources": {
+          "korea_form": "Korea application form",
+          "universal_profile": "Universal profile",
+          "appointment_supplement": "Appointment-page supplement"
+        },
+        "validation": {
+          "required": "Enter this field",
+          "latin_name_required": "Enter the English name shown on the passport",
+          "invalid_date": "Enter a valid date",
+          "date_in_future": "Date of birth cannot be in the future",
+          "invalid_passport": "Enter a valid passport number",
+          "passport_expired": "Passport expiry must be after today",
+          "invalid_mainland_phone": "Enter a valid mainland China mobile number"
+        },
+        "saveConfirm": "Save and confirm details"
+      }
     },
     "centerSheet": {
       "title": "Change filing center",

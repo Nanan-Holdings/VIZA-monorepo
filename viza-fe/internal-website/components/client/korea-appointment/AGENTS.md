@@ -39,3 +39,18 @@ applicants.
   has been verified and evidence persisted.
 - SMS codes are transient and must not be written to logs or the database.
 - Keep user-facing copy localized and use the existing portal UI primitives.
+
+## Shenyang review contract
+
+- For the exact Shenyang center, the single review card is assembled in this
+  order: application answers first, universal profile fallbacks second, and
+  unresolved required fields last. The card must show the resolved source and
+  the missing fields together so the applicant can complete one review task.
+- Any applicant supplements saved from this card apply only to the current
+  application. They must not mutate the universal profile or become defaults
+  for another application.
+- `GET` remains read-only: loading or revisiting the review card must not wake
+  Fly, create a job, or contact VFS. Keep source/redaction rules visible in the
+  card and expose one primary CTA for saving/continuing the review.
+- Non-Shenyang centers retain the existing review and routing behavior; do not
+  apply this fallback or supplement contract to them.

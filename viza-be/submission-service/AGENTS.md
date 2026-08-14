@@ -60,7 +60,7 @@ filling and one-shot submission for the applicant.
 
 ## Key Flows
 
-- `src/korea-vfs-shenyang/runner.ts`: Browserbase-backed Shenyang VFS account FSM. It requires explicit portal-term authorization, stores only an encrypted portal password, uses the managed alias for official activation email, preserves a five-minute SMS OTP session, records only current official slot observations, revalidates the exact user-selected slot, and requires a real confirmation number plus stored screenshot before success. The South Korea Fly machine and `/deploy-ready` protect active OTP sessions.
+- `src/korea-vfs-shenyang/runner.ts`: Browserbase-backed Shenyang VFS account FSM. It requires explicit portal-term authorization, stores only an encrypted portal password, uses the managed alias for official activation email, preserves a five-minute SMS OTP session, records only current official slot observations, revalidates the exact user-selected slot, and requires a real confirmation number plus stored screenshot before success. The South Korea Fly machine and `/deploy-ready` protect active OTP sessions. `src/korea-vfs-shenyang/applicant-details.ts` is fail-closed: validate the complete required answer set before any Browserbase call; the runner then uses typed field mappings and visible duplicate-selector/evidence checks without retaining raw applicant data. Only the selected Shenyang center may invoke this helper; other centers must not fall through to it.
 - `src/index.ts`: polling loop, Supabase data loading, document download,
   per-country dispatch, retry/failure handling, queue status transitions.
 - `src/queue/arrival-card-runners.ts` and
@@ -428,11 +428,15 @@ filling and one-shot submission for the applicant.
 - `src/kr/**`: Korea C-3-9 dispatch adapter. It writes the customer-facing
   `KR` result for KVAC/Annex-17 readiness and keeps live Korea Visa Portal
   e-Form completion behind the gated `src/korea-eform/**` automation.
-- `src/korea-kvac/**`: Korea C-3-9 KVAC appointment runner scaffold. Dry-run
-  observes deterministic slots and books only after a user-selected slot. Live
-  KVAC booking must be explicitly env-gated, use TWOCAPTCHA if CAPTCHA appears,
-  and stop with structured manual-required evidence for unsupported SMS,
-  real-name, WAF, or center-specific policy gates instead of marking success.
+- `src/korea-kvac/**`: Korea C-3-9 KVAC appointment flows with center-specific
+  maturity. Dry-run observes deterministic slots and books only after a
+  user-selected slot. Live KVAC booking must be explicitly env-gated, use
+  TWOCAPTCHA if CAPTCHA appears, and stop with structured manual-required
+  evidence for unsupported SMS, real-name, WAF, or center-specific policy
+  gates instead of marking success. Shenyang VFS is implemented separately in
+  `src/korea-vfs-shenyang/**` with its fail-closed applicant-details validation
+  and authenticated account/session flow; the remaining centers retain their
+  assisted/scaffold gates until their own selectors are validated.
   The Korea KVAC endpoints are
   `/local/korea-kvac/sms/start`, `/local/korea-kvac/sms/submit`, and
   `/local/korea-kvac/sms/complete`. They accept localhost calls or remote
@@ -610,7 +614,7 @@ filling and one-shot submission for the applicant.
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
-| Korea C-3-9 | Official e-Form + appointment scaffold | Frontend prioritizes Korea Visa Portal barcode e-Form generation/download and keeps Annex-17 only as fallback; `src/korea-eform/**` models official e-Form checkpoints and `src/korea-kvac/**` supports dry-run slot observation/booking after user selection. Live portal completion remains gated pending per-center/post selector validation and official PDF capture. |
+| Korea C-3-9 | Official e-Form + center-specific appointment flows | Frontend prioritizes Korea Visa Portal barcode e-Form generation/download and keeps Annex-17 only as fallback. `src/korea-eform/**` models official e-Form checkpoints; Shenyang VFS uses the fail-closed applicant-details contract and authenticated slot/account FSM, while other KVAC centers retain their dry-run/assisted gates pending per-center selector validation and official PDF capture. |
 
 ## Ownership Boundaries
 - France-Visas registration CAPTCHA solving is allowed only for the explicit
