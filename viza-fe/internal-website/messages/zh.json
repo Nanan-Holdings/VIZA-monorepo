@@ -541,7 +541,34 @@
       "missingBody": "请先补齐申请人英文姓名、手机号，并确认可证明的递签领区。",
       "edit": "修改申请资料",
       "confirm": "确认资料并继续",
-      "confirming": "正在保存确认…"
+      "confirming": "正在保存确认…",
+      "shenyang": {
+        "intro": "请补充沈阳预约所需的资料。",
+        "hint": "已解析的资料仅显示脱敏值；请核对来源。",
+        "fields": {
+          "surname": "护照英文姓",
+          "givenNames": "护照英文名",
+          "dateOfBirth": "出生日期",
+          "passportNumber": "护照号码",
+          "passportExpiryDate": "护照有效期至",
+          "mobilePhone": "中国大陆手机号"
+        },
+        "sources": {
+          "korea_form": "韩国申请表",
+          "universal_profile": "通用资料",
+          "appointment_supplement": "本页补充"
+        },
+        "validation": {
+          "required": "请填写此字段",
+          "latin_name_required": "请输入护照上的英文姓名",
+          "invalid_date": "请输入有效日期",
+          "date_in_future": "出生日期不能晚于今天",
+          "invalid_passport": "请输入有效的护照号码",
+          "passport_expired": "护照有效期必须晚于今天",
+          "invalid_mainland_phone": "请输入有效的中国大陆手机号"
+        },
+        "saveConfirm": "保存并确认资料"
+      }
     },
     "centerSheet": {
       "title": "更改递签领区",
