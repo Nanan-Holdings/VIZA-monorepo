@@ -5,7 +5,23 @@ import {
   vietnamCardPostTimeoutMs,
   vietnamCardReadinessTimeoutMs,
   vietnamCardWakeTimeoutMs,
+  wakeQueuedVietnamPaymentJob,
 } from "./cloud-worker-ready";
+
+describe("Vietnam queued payment wake", () => {
+  it("explicitly wakes the legacy submission queue after the durable enqueue", async () => {
+    const wakeSubmissionJob = vi.fn().mockResolvedValue({ ok: true });
+
+    await expect(wakeQueuedVietnamPaymentJob(
+      "queue-id",
+      wakeSubmissionJob,
+    )).resolves.toEqual({ ok: true });
+
+    expect(wakeSubmissionJob).toHaveBeenCalledWith("queue-id", {
+      target: "legacy",
+    });
+  });
+});
 
 describe("ensureVietnamCardWorkerReady", () => {
   it("waits for the legacy worker readiness endpoint after a cold start", async () => {
