@@ -1958,7 +1958,22 @@ Status: **APPLICANT_HANDOFF_READY_AWAITING_APPLICANT_CONFIRMATION**.
 - No runner job was created, no official site was accessed, and no application
   submission or payment was attempted during this cleanup.
 
-Status: **LOCAL_FORMAL_SUBMIT_RUNTIME_VERIFIED; DEPLOYMENT_PENDING**.
+### Production rollout
+
+- Pushed the formal-submit implementation and handoff-runtime cleanup to
+  `main` in commits `143c8850` and `ae0a6e0c`.
+- Vercel production deployment `dpl_3JYh1mmVzC8iHyWTDu7hKpWuuX73` is Ready
+  and owns the `app.viza.it.com` alias. The unauthenticated production retry
+  endpoint returns 401, confirming that the deployed route is reachable and
+  still protected by server authentication.
+- Fly image `deployment-01KZZWV0B8036THHY1RAXY1CBR` is deployed to the
+  existing `viza-runner-taiwan` app. `/health` reports ready and `/ready`
+  reports database reachable with the worker started. Runtime scope is
+  `country=taiwan`, legacy queue disabled, and runner-job consumer enabled.
+- No runner job was created, no official site was accessed, and no application
+  was submitted or paid during this rollout.
+
+Status: **PRODUCTION_FORMAL_SUBMIT_PATH_DEPLOYED; NO_LIVE_APPLICATION_RUN**.
 
 ## 2026-08-14 — VIZA-confirmed background formal submission
 
