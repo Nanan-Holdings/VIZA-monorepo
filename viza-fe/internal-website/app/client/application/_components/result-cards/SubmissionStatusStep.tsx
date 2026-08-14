@@ -61,6 +61,7 @@ import {
   isVietnamEVisaApplication,
   isIndonesiaEVisaApplication,
   type SubmissionMode,
+  type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
 import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
 import { SgArrivalCardResultCard } from "@/features/sgac/SgArrivalCardResultCard";
@@ -1515,6 +1516,7 @@ export function SubmissionStatusStep({
   const handleRetry = useCallback(async (
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
+    taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     if (!applicationId) return;
     setRetryError(null);
@@ -1603,6 +1605,7 @@ export function SubmissionStatusStep({
           // normal retry is intentionally idempotent and returns the previous
           // successful submission when this VIZA application has history.
           intent: isDs160VisaType(retryVisaType) ? "new_application" : "retry",
+          taiwanOfficialTermsConsent,
         }),
       });
       const body = (await response.json().catch(() => null)) as {
@@ -1631,8 +1634,8 @@ export function SubmissionStatusStep({
         progress: fallbackProgressForStatus("queued", snapshot?.country ?? country, snapshot?.visaType ?? visaType),
         message: isTaiwanRetry
           ? isZh
-            ? "台湾官网自动填写任务已重新排队；仍不会处理 CAPTCHA 或最终提交。"
-            : "Taiwan official-site filling has been requeued; CAPTCHA and final submit are still not automated."
+            ? "台湾官网正式提交任务已排队；只有取得官方回执编号才会显示成功，VIZA 不会自动付款。"
+            : "The formal Taiwan submission is queued. Success requires an official receipt number, and VIZA will not pay automatically."
           : isZh ? "自动提交任务已启动。" : "Automated submission has started.",
         result: null,
         error: null,
@@ -1972,8 +1975,8 @@ export function SubmissionStatusStep({
           serverProgress={fallbackProgressForStatus("queued", country, visaType)}
           message={isTaiwanResubmitting
             ? isZh
-              ? "正在重新排队台湾官网自动填写任务；不会处理 CAPTCHA 或最终提交。"
-              : "Requeueing Taiwan official-site filling; CAPTCHA and final submit will not be automated."
+              ? "正在排队台湾官网正式提交任务；只有官方回执验证通过后才会显示成功。"
+              : "Queueing the formal Taiwan submission; success is shown only after official receipt verification."
             : isZh ? "正在安全发送银行卡并启动 Fly 云端任务。" : "Securely sending the card and starting the Fly cloud job."}
           applicationId={applicationId}
           country={country}
@@ -2131,7 +2134,7 @@ export function SubmissionStatusStep({
           retryBusy={resubmitting}
           retryError={retryError}
           retryCompleteness={retryCompleteness}
-          onRetry={handleRetry}
+          onRetry={(mode, consent) => handleRetry(mode, undefined, consent)}
           result={buildTwResultFromStatus({
             result: effectiveResult,
             snapshot,

@@ -191,9 +191,16 @@ export interface TwSubmissionResult {
   caseNumber?: string;
   pagesFilled?: string[];
   capturedAt?: string;
-  /** Opaque VIZA handoff id; the live URL is never stored in this payload. */
+  /** Legacy handoff fields remain readable for historical rows only. */
   handoffId?: string;
   handoffExpiresAt?: string;
+  officialTermsConsent?: {
+    version: "tw_official_terms_v1";
+    entryPromptAccepted: true;
+    termsModalAccepted: true;
+    recordedAt: string;
+    source: "viza_final_confirmation";
+  };
   submittedAt?: string;
   officialReceipt?: {
     source: "official_success_page_with_application_number";

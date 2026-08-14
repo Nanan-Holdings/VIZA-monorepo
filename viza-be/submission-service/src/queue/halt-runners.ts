@@ -46,15 +46,13 @@ import {
   TwOfficialLoginConfigurationError,
   createTwOfficialLoginProviderFromEnvironment,
   createTwOfficialLoginOtpProviderFromEnvironment,
-  registerTwApplicantHandoff,
-  waitForTwApplicantSubmission,
+  parseTwOfficialTermsConsentAudit,
+  type TwOfficialTermsConsentAudit,
 } from "../tw/index.js";
 import { resolveApplicationDocumentPaths } from "../documents/resolve-application-documents.js";
 import {
   assertTwPrepareGuard,
-  TW_ACTIVE_HANDOFF_STATUSES,
   TW_ACTIVE_RUNNER_JOB_STATUSES,
-  TW_APPLICANT_HANDOFF_KIND,
 } from "../tw/prepare-guard.js";
 import type { VisaApplicationAnswer, ApplicantProfile, Application } from "../types.js";
 import {
@@ -324,8 +322,9 @@ export interface PreparedTwEntryPermitApplication {
  */
 export const runTwHalt: RunOne = async (applicationId, jobId) => {
   if (!jobId) {
-    throw new NeedsHumanError("taiwan applicant handoff requires a runner_job id");
+    throw new NeedsHumanError("taiwan formal submission requires a runner_job id");
   }
+  const officialTermsConsent = await loadTwOfficialTermsConsent(jobId, applicationId);
   const runId = jobId ?? applicationId;
   let prepared: PreparedTwEntryPermitApplication;
   try {
@@ -346,52 +345,10 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
         ...applyOptions,
         headless: true,
         runId,
-        mode: "applicant_handoff",
-        applicantHandoffTimeoutSeconds: Number.parseInt(
-          process.env.TW_ENTRY_PERMIT_HANDOFF_TIMEOUT_SECONDS ?? "1800",
-          10,
-        ),
+        mode: "submit",
+        officialTermsConsent,
         officialLoginProvider: createTwOfficialLoginProviderFromEnvironment(),
         officialLoginOtpProvider: createTwOfficialLoginOtpProviderFromEnvironment(),
-        onApplicantHandoffReady: async (ready) => {
-          if (!ready.session.handoff) {
-            throw new Error("taiwan applicant handoff session metadata is missing");
-          }
-          const handoff = await registerTwApplicantHandoff({
-            jobId,
-            applicationId,
-            applicantId: prepared.applicantId,
-            browserbaseSessionId: ready.session.handoff.sessionId,
-            liveViewUrl: ready.session.handoff.liveViewUrl,
-            expiresAt: ready.session.handoff.expiresAt,
-          });
-          const twPayload: TwSubmissionResult & { runMetadata: typeof ready.runMetadata } = {
-            country: "TW",
-            status: "stopped_at_captcha",
-            portalUrl: ready.portalUrl,
-            pagesFilled: ready.pagesFilled,
-            capturedAt: ready.capturedAt,
-            handoffId: handoff.takeoverId,
-            handoffExpiresAt: handoff.expiresAt,
-            runMetadata: ready.runMetadata,
-            captchaAutoFilled: true,
-            captchaSolve: {
-              telemetry: ready.captchaSolve.telemetry,
-              solve: {
-                solveId: ready.captchaSolve.solve.solveId,
-                durationMs: ready.captchaSolve.solve.durationMs,
-                text: "[redacted]",
-                ...(ready.captchaSolve.solve.userAgent ? { userAgent: ready.captchaSolve.solve.userAgent } : {}),
-              },
-            },
-          };
-          await writeSubmissionResult(applicationId, twPayload, "needs_user_action");
-          return waitForTwApplicantSubmission({
-            page: ready.page,
-            takeoverId: handoff.takeoverId,
-            expiresAt: handoff.expiresAt,
-          });
-        },
       },
     );
   } catch (err) {
@@ -405,19 +362,9 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
     throw new RetryableRunnerError("taiwan unexpectedly stopped in pre-submit mode during runner execution");
   }
   if (result.status === "stopped_at_captcha") {
-    const twPayload: TwSubmissionResult & { runMetadata: typeof result.runMetadata } = {
-      country: "TW",
-      status: "stopped_at_captcha",
-      portalUrl: result.portalUrl,
-      pagesFilled: result.pagesFilled,
-      capturedAt: result.capturedAt,
-      runMetadata: result.runMetadata,
-      ...(result.caseNumber ? { caseNumber: result.caseNumber } : {}),
-    };
-    // "needs_user_action": CAPTCHA is exactly the human-checkpoint case this
-    // shared status was documented for (see submission-result.ts header).
-    await writeSubmissionResult(applicationId, twPayload, "needs_user_action");
-    return HALTED(result.status);
+    throw new RetryableRunnerError(
+      "taiwan formal submission stopped before final confirmation without official receipt evidence",
+    );
   }
   if (result.status === "submitted") {
     const twPayload: TwSubmissionResult & { runMetadata: typeof result.runMetadata } = {
@@ -439,6 +386,7 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
         },
       },
       captchaAutoFilled: true,
+      officialTermsConsent,
       ...(result.caseNumber ? { caseNumber: result.caseNumber } : {}),
     };
     await writeSubmissionResult(applicationId, twPayload, "completed");
@@ -539,32 +487,46 @@ async function assertTwPrepareIsAllowed(applicationId: string, currentJobId?: st
   if (error) throw new Error(`taiwan duplicate-run guard lookup failed: ${error.message}`);
   const row = data as { submission_result_status?: string | null; submission_result?: Record<string, unknown> | null } | null;
 
-  const [{ data: activeRunnerJobs, error: activeJobError }, { data: activeHandoffs, error: handoffError }] = await Promise.all([
-    supabase
-      .from("runner_job")
-      .select("id")
-      .eq("application_id", applicationId)
-      .eq("country", "taiwan")
-      .in("status", [...TW_ACTIVE_RUNNER_JOB_STATUSES]),
-    supabase
-      .from("takeover_session")
-      .select("expires_at")
-      .eq("application_id", applicationId)
-      .eq("handoff_kind", TW_APPLICANT_HANDOFF_KIND)
-      .in("status", [...TW_ACTIVE_HANDOFF_STATUSES]),
-  ]);
+  const { data: activeRunnerJobs, error: activeJobError } = await supabase
+    .from("runner_job")
+    .select("id")
+    .eq("application_id", applicationId)
+    .eq("country", "taiwan")
+    .in("status", [...TW_ACTIVE_RUNNER_JOB_STATUSES]);
   if (activeJobError) throw new Error(`taiwan active-job guard lookup failed: ${activeJobError.message}`);
-  if (handoffError) throw new Error(`taiwan handoff guard lookup failed: ${handoffError.message}`);
 
   assertTwPrepareGuard({
     submissionResultStatus: row?.submission_result_status ?? null,
     submissionResult: row?.submission_result ?? null,
     activeRunnerJobs: ((activeRunnerJobs ?? []) as Array<{ id: string }>),
-    activeHandoffs: ((activeHandoffs ?? []) as Array<{ expires_at?: string | null }>).map((handoff) => ({
-      expiresAt: handoff.expires_at ?? null,
-    })),
     ...(currentJobId ? { currentJobId } : {}),
   });
+}
+
+async function loadTwOfficialTermsConsent(
+  jobId: string,
+  applicationId: string,
+): Promise<TwOfficialTermsConsentAudit> {
+  const { data, error } = await supabase
+    .from("runner_job")
+    .select("metadata")
+    .eq("id", jobId)
+    .eq("application_id", applicationId)
+    .eq("country", "taiwan")
+    .single();
+  if (error || !data) {
+    throw new NeedsHumanError(
+      `taiwan: official terms authorization lookup failed: ${error?.message ?? "job not found"}`,
+    );
+  }
+  const metadata = (data as { metadata?: Record<string, unknown> | null }).metadata;
+  const consent = parseTwOfficialTermsConsentAudit(metadata?.taiwanOfficialTermsConsent);
+  if (!consent) {
+    throw new NeedsHumanError(
+      "taiwan: both official entry-prompt and terms-modal authorizations are required before formal submission",
+    );
+  }
+  return consent;
 }
 
 /* --------------------------- Australia --------------------------- */

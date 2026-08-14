@@ -25,7 +25,7 @@ describe("TwResultCard", () => {
     expect(normalizeTwStatus("failed")).toBe("failed");
   });
 
-  it("opens the authenticated live handoff instead of linking to a fresh official portal", async () => {
+  it("treats legacy handoff state as incomplete and never opens the official portal", () => {
     const result: TwSubmissionResult = {
       country: "TW",
       status: "stopped_at_captcha",
@@ -36,35 +36,13 @@ describe("TwResultCard", () => {
       handoffExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     };
 
-    const replace = vi.fn();
-    const close = vi.fn();
-    vi.stubGlobal("open", vi.fn(() => ({ location: { replace }, close })));
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        liveViewUrl: "https://www.browserbase.com/live/session-123",
-        expiresAt: "2026-08-05T10:00:00.000Z",
-      }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
     render(<TwResultCard applicationId="application-id" result={result} />);
 
-    expect(screen.getByText("台湾官网申请已填写完成")).toBeInTheDocument();
-    expect(screen.getByText(/亲自核对并点击「确认资料」提交/u)).toBeInTheDocument();
-    expect(screen.getByText(/同一官网会话，不是空白申请/u)).toBeInTheDocument();
+    expect(screen.getByText("台湾官网提交尚未完成")).toBeInTheDocument();
+    expect(screen.getByText(/旧版接管流程留下的状态/u)).toBeInTheDocument();
     expect(screen.getByText("12345678901234567890")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "重新自动填写" })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "打开已填写的台湾官网" }));
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/applications/application-id/taiwan-handoff",
-        expect.objectContaining({ cache: "no-store", credentials: "same-origin" }),
-      );
-      expect(replace).toHaveBeenCalledWith("https://www.browserbase.com/live/session-123");
-    });
+    expect(screen.queryByRole("button", { name: "打开已填写的台湾官网" })).not.toBeInTheDocument();
   });
 
   it("does not keep an old open button after the Taiwan handoff expires and offers refill", async () => {
@@ -82,11 +60,19 @@ describe("TwResultCard", () => {
       />,
     );
 
-    expect(screen.getByText("台湾官网会话已过期")).toBeInTheDocument();
+    expect(screen.getByText("重新执行台湾官网正式提交")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "打开已填写的台湾官网" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "重新自动填写" }));
-    expect(onRetry).toHaveBeenCalledWith("live_assisted");
+    const retry = screen.getByRole("button", { name: "重新正式提交" });
+    expect(retry).toBeDisabled();
+    fireEvent.click(screen.getByLabelText(/蓝色 OK/u));
+    fireEvent.click(screen.getByLabelText(/勾选「同意上述条款」/u));
+    expect(retry).toBeEnabled();
+    fireEvent.click(retry);
+    expect(onRetry).toHaveBeenCalledWith("live_assisted", {
+      entryPromptAccepted: true,
+      termsModalAccepted: true,
+    });
   });
 
   it("shows submitted only as official receipt evidence, not approval or payment", () => {
@@ -113,7 +99,7 @@ describe("TwResultCard", () => {
     expect(screen.getByText("TW20260801ABC123")).toBeInTheDocument();
     expect(screen.queryByText(/自动查询/u)).not.toBeInTheDocument();
     expect(screen.queryByText("验证码前停止")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "重新自动填写" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重新正式提交" })).not.toBeInTheDocument();
   });
 
   it("lists completeness blockers with safe navigation links after retry is rejected", () => {
@@ -389,14 +375,16 @@ describe("TwResultCard", () => {
       />,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "重新自动填写" }));
+    fireEvent.click(await screen.findByLabelText(/蓝色 OK/u));
+    fireEvent.click(screen.getByLabelText(/勾选「同意上述条款」/u));
+    fireEvent.click(screen.getByRole("button", { name: "重新正式提交" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/applications/application-id/retry-submission",
         expect.objectContaining({
           method: "POST",
-          body: expect.stringContaining('"visaType":"TW_ENTRY_PERMIT"'),
+          body: expect.stringContaining('"taiwanOfficialTermsConsent":{"entryPromptAccepted":true,"termsModalAccepted":true}'),
         }),
       );
     });

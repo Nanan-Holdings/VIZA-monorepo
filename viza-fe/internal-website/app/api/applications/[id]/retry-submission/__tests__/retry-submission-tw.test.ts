@@ -148,7 +148,13 @@ function request(body: Record<string, unknown>): Request {
 }
 
 async function post(body: Record<string, unknown>) {
-  const response = await POST(request(body) as never, {
+  const response = await POST(request({
+    taiwanOfficialTermsConsent: {
+      entryPromptAccepted: true,
+      termsModalAccepted: true,
+    },
+    ...body,
+  }) as never, {
     params: Promise.resolve({ id: applicationId }),
   });
   return {
@@ -214,7 +220,13 @@ describe("Taiwan entry permit retry submission API", () => {
         source: "retry-submission",
         visaType: "TW_ENTRY_PERMIT",
         mode: "live_assisted",
-        queuedStage: "queued_for_tw_entry_permit_live",
+        queuedStage: "queued_for_tw_entry_permit_submit",
+        taiwanOfficialTermsConsent: {
+          version: "tw_official_terms_v1",
+          entryPromptAccepted: true,
+          termsModalAccepted: true,
+          source: "viza_final_confirmation",
+        },
       },
     });
     expect(lastApplicationUpdate).toMatchObject({
@@ -222,6 +234,36 @@ describe("Taiwan entry permit retry submission API", () => {
       submission_result_status: "waiting",
       submission_result: null,
     });
+  });
+
+  it("requires both official terms authorizations before enqueueing", async () => {
+    process.env.TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED = "true";
+
+    const missingEntryPrompt = await post({
+      mode: "live_assisted",
+      country: "taiwan",
+      visaType: "TW_ENTRY_PERMIT",
+      taiwanOfficialTermsConsent: {
+        entryPromptAccepted: false,
+        termsModalAccepted: true,
+      },
+    });
+    expect(missingEntryPrompt.status).toBe(422);
+    expect(missingEntryPrompt.body.code).toBe("tw_official_terms_consent_required");
+    expect(lastRunnerJobArgs).toBeNull();
+
+    const missingModal = await post({
+      mode: "live_assisted",
+      country: "taiwan",
+      visaType: "TW_ENTRY_PERMIT",
+      taiwanOfficialTermsConsent: {
+        entryPromptAccepted: true,
+        termsModalAccepted: false,
+      },
+    });
+    expect(missingModal.status).toBe(422);
+    expect(missingModal.body.code).toBe("tw_official_terms_consent_required");
+    expect(lastRunnerJobArgs).toBeNull();
   });
 
   it("rejects live Taiwan submission by default when the server flag is missing", async () => {
@@ -299,6 +341,10 @@ describe("Taiwan entry permit retry submission API", () => {
         status: "submitted",
         submitted: true,
         caseNumber: "TW-CASE-1",
+        officialReceipt: {
+          source: "official_success_page_with_application_number",
+          caseNumber: "TW-CASE-1",
+        },
       },
     };
 
@@ -367,7 +413,7 @@ describe("Taiwan entry permit retry submission API", () => {
     expect(lastApplicationUpdate).toBeNull();
   });
 
-  it("blocks Taiwan retry when a valid applicant handoff is still available", async () => {
+  it("does not let a legacy applicant handoff block the formal submit path", async () => {
     process.env.TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED = "true";
     activeHandoff = {
       id: "handoff_active",
@@ -381,14 +427,12 @@ describe("Taiwan entry permit retry submission API", () => {
       visaType: "TW_ENTRY_PERMIT",
     });
 
-    expect(result.status).toBe(409);
+    expect(result.status).toBe(200);
     expect(result.body).toMatchObject({
-      code: "tw_handoff_active",
-      handoffId: "handoff_active",
-      handoffStatus: "queued",
+      ok: true,
+      queueBackend: "runner_job",
     });
-    expect(lastRunnerJobArgs).toBeNull();
-    expect(lastApplicationUpdate).toBeNull();
+    expect(lastRunnerJobArgs).not.toBeNull();
   });
 
   it("allows Taiwan retry after the previous applicant handoff expired", async () => {
@@ -417,7 +461,7 @@ describe("Taiwan entry permit retry submission API", () => {
     });
   });
 
-  it("fails closed when Taiwan active job or handoff guard cannot be checked", async () => {
+  it("fails closed when the Taiwan active-job guard cannot be checked", async () => {
     process.env.TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED = "true";
     runnerJobQueryError = { message: "runner_job unavailable" };
 
@@ -430,24 +474,10 @@ describe("Taiwan entry permit retry submission API", () => {
     expect(runnerResult.status).toBe(500);
     expect(runnerResult.body).toMatchObject({
       code: "query_failed",
-      error: "runner_job unavailable",
+      error: "taiwan active-job guard: runner_job unavailable",
     });
     expect(lastRunnerJobArgs).toBeNull();
 
-    runnerJobQueryError = null;
-    handoffQueryError = { message: "takeover_session unavailable" };
-    const handoffResult = await post({
-      mode: "live_assisted",
-      country: "taiwan",
-      visaType: "TW_ENTRY_PERMIT",
-    });
-
-    expect(handoffResult.status).toBe(500);
-    expect(handoffResult.body).toMatchObject({
-      code: "query_failed",
-      error: "takeover_session unavailable",
-    });
-    expect(lastRunnerJobArgs).toBeNull();
   });
 
   it("does not create a Taiwan runner_job when application completeness is missing", async () => {

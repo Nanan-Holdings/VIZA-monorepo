@@ -127,6 +127,11 @@ export type SubmissionQueueStatus =
 export type SubmissionMode = "dry_run" | "live_assisted";
 export type SubmissionRetryIntent = "retry" | "new_application";
 
+export interface TaiwanOfficialTermsConsentInput {
+  entryPromptAccepted: boolean;
+  termsModalAccepted: boolean;
+}
+
 const DS160_VISA_TYPES = new Set([
   "DS160",
   "DS_160",
