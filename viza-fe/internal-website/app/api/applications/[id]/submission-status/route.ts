@@ -178,6 +178,19 @@ function isTaiwanEntryPermitApplication(country: string | null | undefined, visa
     normalizeVisaType(visaType) === "TW_ENTRY_PERMIT";
 }
 
+export function hasTaiwanApplicantHandoffReady(
+  application: Pick<ApplicationForStatus, "country" | "visa_type" | "submission_result" | "submission_result_status">,
+): boolean {
+  if (!isTaiwanEntryPermitApplication(application.country, application.visa_type)) return false;
+  if (normalizeStatus(application.submission_result_status) !== "needs_user_action") return false;
+  if (!isRecord(application.submission_result)) return false;
+  return (
+    normalizeStatus(application.submission_result.status) === "stopped_at_captcha" &&
+    typeof application.submission_result.handoffId === "string" &&
+    application.submission_result.handoffId.trim().length > 0
+  );
+}
+
 function isPhilippinesEtravelArrivalApplication(
   country: string | null | undefined,
   visaType: string | null | undefined,
@@ -938,7 +951,11 @@ async function getSubmissionStatus(
   // A newly created active queue represents an explicit retry. It must always
   // override an older terminal application result, even when the application
   // row has not yet been updated by the worker.
-  const activeQueueOverridesTerminal = isActiveQueue(queue);
+  // Taiwan keeps the runner lease active while the applicant handoff session
+  // is open. Once that durable handoff result exists, showing the runner as
+  // merely "running" hides the button the applicant needs to finish.
+  const activeQueueOverridesTerminal =
+    isActiveQueue(queue) && !hasTaiwanApplicantHandoffReady(application);
   const terminalQueueOverridesApplication =
     !activeQueueOverridesTerminal &&
     queueDerived.status !== "queued" &&
