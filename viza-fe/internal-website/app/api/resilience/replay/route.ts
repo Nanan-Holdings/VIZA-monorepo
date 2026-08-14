@@ -170,7 +170,7 @@ async function loadRunnerWakeRecord(
 
 type RunnerWakeReplayResult = {
   outcome: "ack" | "nack";
-  errorCode?: "job_not_found" | "job_not_due";
+  errorCode?: "job_not_found" | "job_not_due" | "runner_pool_not_ready";
   retryAfterSeconds?: number;
 };
 
@@ -194,6 +194,13 @@ async function replayRunnerJobWake(event: RunnerJobWakeEvent): Promise<RunnerWak
       };
     }
     const desired = await desiredRunnerPoolCapacity();
+    if (!Number.isFinite(desired) || desired <= 0) {
+      return {
+        outcome: "nack",
+        errorCode: "runner_pool_not_ready",
+        retryAfterSeconds: 30,
+      };
+    }
     const capacity = await ensureFlyMachineCapacity("pool", desired);
     if (!capacity.ok) {
       throw new ReplayTransientError("fly_capacity_unavailable");

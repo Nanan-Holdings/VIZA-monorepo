@@ -136,6 +136,25 @@ describe("resilience replay route", () => {
     });
   });
 
+  it("nacks a queued pool job when the server-side pool is paused or has no capacity", async () => {
+    desiredRunnerPoolCapacityMock.mockResolvedValue(0);
+
+    const response = await POST(signedReplayRequest([
+      wakeItem({ version: 1, jobId: "job-1", target: "pool" }),
+    ]));
+
+    expect(ensureFlyMachineCapacityMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      results: [{
+        outcome: "nack",
+        errorCode: "runner_pool_not_ready",
+        retryAfterSeconds: 30,
+      }],
+    });
+  });
+
   it.each(["succeeded", "running"])("acks a %s runner job without waking it", async (status) => {
     configureAdmin({ id: "job-1", status });
 
