@@ -70,7 +70,7 @@ case "$country" in
   taiwan)
     # Taiwan email verification reads the application-scoped alias from
     # inbound_email through Supabase. It does not use the legacy IMAP poller.
-    capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)
+    capability=(TWOCAPTCHA_API_KEY)
     ;;
   united_states)
     capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)

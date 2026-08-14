@@ -198,6 +198,25 @@ describe("Taiwan runner compliance boundary", () => {
     );
   });
 
+  it("does not depend on the legacy Taiwan Browserbase applicant handoff runtime", async () => {
+    const [sessionSource, indexSource, flyTemplate, secretSync] = await Promise.all([
+      readTwSource("session.ts"),
+      readTwSource("index.ts"),
+      readFile(join(process.cwd(), "deploy", "fly", "fly.country.toml.template"), "utf8"),
+      readFile(join(process.cwd(), "scripts", "fly", "sync-runtime-secrets.sh"), "utf8"),
+    ]);
+
+    assert.doesNotMatch(sessionSource, /applicantHandoff|handoffTimeoutSeconds|Browserbase/i);
+    assert.doesNotMatch(indexSource, /registerTwApplicantHandoff|waitForTwApplicantSubmission/);
+    assert.doesNotMatch(flyTemplate, /TW_ENTRY_PERMIT_BROWSERBASE|TW_ENTRY_PERMIT_HANDOFF/);
+    const taiwanSecrets = secretSync.slice(
+      secretSync.indexOf("taiwan)"),
+      secretSync.indexOf("united_states)"),
+    );
+    assert.doesNotMatch(taiwanSecrets, /BROWSERBASE_API_KEY/);
+    assert.match(taiwanSecrets, /TWOCAPTCHA_API_KEY/);
+  });
+
   it("exposes a no-job formal pre-submit CLI without enabling runner pre-submit mode", async () => {
     const [scriptSource, haltRunnerSource] = await Promise.all([
       readFile(join(process.cwd(), "scripts", "run-tw-pre-submit-e2e.ts"), "utf8"),
