@@ -429,7 +429,11 @@ export const VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS = {
 } as const;
 
 export function normalizeVietnamSearchCaptchaAnswer(value: string): string {
-  return value.replace(/\s+/g, "").trim();
+  // 2Captcha's numeric workers can enter visually identical full-width digits
+  // from an East Asian input method.  The official portal accepts only ASCII
+  // digits, so normalize compatibility forms before enforcing the exact
+  // six-digit contract.  Do not guess letters such as O/I/S as digits.
+  return value.normalize("NFKC").replace(/\s+/g, "").trim();
 }
 
 export function isVietnamSearchCaptchaAnswerUsable(value: string): boolean {
