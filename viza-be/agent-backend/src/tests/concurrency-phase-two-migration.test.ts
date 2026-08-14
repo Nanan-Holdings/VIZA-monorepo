@@ -188,6 +188,8 @@ describe("runner pool concurrency phase two migration", () => {
   });
 
   it("matches only inbound ids, active Vietnam tracking, and normalized references", () => {
+    expect(emailFunctionBody).toMatch(/"emailId"/i);
+    expect(emailFunctionBody).toMatch(/"normalizedReference"/i);
     expect(emailFunctionBody).toMatch(/LOWER\(tracking\.official_lookup_email\)\s*=\s*LOWER\(email\.to_addr\)/i);
     expect(emailFunctionBody).toMatch(/normalized_reference/i);
     expect(emailFunctionBody).toMatch(/inbound_email/i);
@@ -197,9 +199,13 @@ describe("runner pool concurrency phase two migration", () => {
   });
 
   it("inserts unique matches idempotently and returns all four counts", () => {
-    expect(emailFunctionBody).toMatch(/ON CONFLICT\s*\(idempotency_key\)/i);
+    expect(emailFunctionBody).toMatch(/ON CONFLICT\s*\(idempotency_key\)\s*WHERE\s+idempotency_key\s+IS\s+NOT\s+NULL/i);
     expect(emailFunctionBody).toMatch(/INSERT INTO public\.official_status_checks/i);
     expect(emailFunctionBody).toMatch(/INSERT INTO public\.application_events/i);
+    expect(emailFunctionBody).toMatch(/official_email_match_ambiguous/i);
+    expect(emailFunctionBody).toMatch(/last_email_message_id/i);
+    expect(emailFunctionBody).toMatch(/tracking_updates[\s\S]*?JOIN status_inserts/i);
+    expect(emailFunctionBody).toMatch(/'candidate_count', classification\.candidate_count/i);
     expect(emailFunctionBody).toMatch(/RETURN QUERY/i);
     expect(emailFunctionBody).toMatch(/queued/i);
     expect(emailFunctionBody).toMatch(/ambiguous/i);
@@ -217,5 +223,17 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).toMatch(
       /GRANT EXECUTE ON FUNCTION public\.enqueue_vn_email_triggered_status_checks\(JSONB\)\s+TO service_role;/i,
     );
+    expect(canonicalSql).not.toMatch(/official_status_checks_idempotency_key_unique_idx/i);
+  });
+
+  it("uses one classification CTE and rejects conflicting duplicate email references", () => {
+    expect(emailFunctionBody).toMatch(/candidate_matches\s+AS\s+MATERIALIZED/i);
+    expect(emailFunctionBody).toMatch(/classified\s+AS\s+MATERIALIZED/i);
+    expect(emailFunctionBody).toMatch(/inputs\s+AS\s+MATERIALIZED\s*\([\s\S]*?SELECT DISTINCT/i);
+    expect(emailFunctionBody).not.toMatch(/DISTINCT ON/i);
+    expect(emailFunctionBody).toMatch(/INSERT INTO public\.official_status_checks[\s\S]*?UPDATE public\.official_application_tracking[\s\S]*?INSERT INTO public\.application_events/i);
+    expect(emailFunctionBody).toMatch(/LOWER\(BTRIM\(item\.value ->> 'emailId'\)\)/i);
+    expect(emailFunctionBody).toMatch(/COUNT\(DISTINCT[\s\S]*?normalized_reference/i);
+    expect(emailFunctionBody).toMatch(/conflicting emailId references/i);
   });
 });

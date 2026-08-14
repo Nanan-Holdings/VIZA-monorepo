@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import {
   enqueueMatchedVietnamStatusEmails,
   type ParsedVietnamStatusEmail,
@@ -45,6 +46,16 @@ test("batches at most 100 parsed emails into one matcher RPC call", async () => 
       args: { p_emails: emails.slice(0, 100) },
     },
   ]);
+});
+
+test("keeps the camelCase email contract from status parsing through the RPC payload", () => {
+  const statusTrackingSource = readFileSync(
+    `${__dirname}/../status-tracking.ts`,
+    "utf8",
+  );
+
+  assert.match(statusTrackingSource, /emailId:\s*email\.id/);
+  assert.match(statusTrackingSource, /normalizedReference:\s*normalizedReference\s*\|\|\s*null/);
 });
 
 test("does not call the matcher RPC for an empty email batch", async () => {
