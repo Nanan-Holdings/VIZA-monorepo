@@ -195,8 +195,36 @@ describe("FieldGuidancePanel shortcuts", () => {
     renderPanel();
 
     const exampleCard = (await screen.findByText("示例")).parentElement?.parentElement;
-    expect(exampleCard).toHaveTextContent("护照号码：EM7429107");
-    expect(screen.getAllByText("EM7429107")).not.toHaveLength(0);
+    expect(exampleCard).toHaveTextContent("E12345678");
+    expect(screen.getAllByText("E12345678")).not.toHaveLength(0);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("uses the shared explanation policy in the initial field card", () => {
+    const addressField: VisaFormFieldRow = {
+      ...field,
+      id: "field-accommodation-address-line-1",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      fieldName: "accommodation_address_line_1",
+      label: "住宿地址——第1行",
+      placeholder: "Street and number",
+    };
+
+    render(
+      <FieldGuidancePanel
+        country="france"
+        visaType="EU_SCHENGEN_C_SHORT_STAY"
+        locale="zh"
+        field={addressField}
+        answer=""
+        allAnswers={{}}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/门牌号、街道名/)).toBeInTheDocument();
+    expect(screen.getByText(/酒店预订单/)).toBeInTheDocument();
+    expect(screen.getByText("15 Rue de Rivoli, Appartement 3B")).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
 

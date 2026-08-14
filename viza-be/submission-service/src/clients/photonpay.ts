@@ -176,6 +176,9 @@ export interface OpenCardInput {
   accountId?: string;
   /** For recharge cards: the amount to load, major units (e.g. 27.5). */
   rechargeAmount?: number;
+  /** For recharge cards: exact amount that should arrive on the card. Use this
+   * instead of rechargeAmount when the funding account currency differs. */
+  arrivalAmount?: number;
   /** "limited" | "unlimited". Recharge/virtual-share default "unlimited". */
   transactionLimitType?: "limited" | "unlimited";
   /** Required when transactionLimitType is "limited". */
@@ -531,6 +534,7 @@ export class PhotonPayClient {
     if (input.cardholderId) payload.cardholderId = input.cardholderId;
     if (input.accountId) payload.accountId = input.accountId;
     if (input.rechargeAmount !== undefined) payload.rechargeAmount = input.rechargeAmount;
+    if (input.arrivalAmount !== undefined) payload.arrivalAmount = input.arrivalAmount;
     if (input.transactionLimitType) payload.transactionLimitType = input.transactionLimitType;
     if (input.transactionLimit !== undefined) payload.transactionLimit = input.transactionLimit;
     if (input.nickname) payload.nickname = input.nickname;

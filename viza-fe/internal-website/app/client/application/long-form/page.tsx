@@ -69,6 +69,9 @@ import type {
   FormAssistantTranscriptionResponse,
   FormAssistantUndoResponse,
 } from "@/types/form-assistant";
+type FormAssistantRequestError = Error & {
+  code?: string;
+};
 import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
 import { canUseFormAssistant } from "@/lib/form-assistant/constants";
 import {
@@ -1863,11 +1866,15 @@ export default function ApplicationPage() {
   const formAssistantRef = useRef<HTMLDivElement | null>(null);
   const stepPanelRefs = useRef(new Map<number, HTMLDivElement>());
 
+  const markLiveSaveActivity = useCallback(() => {
+    hasLiveSaveActivityRef.current = true;
+    window.dispatchEvent(new CustomEvent("viza:live-save-status", {
+      detail: { status: "saving" },
+    }));
+  }, []);
+
   useEffect(() => {
     const hasActiveSave = saving || autosaving || autosaveFailed;
-    if (hasActiveSave) {
-      hasLiveSaveActivityRef.current = true;
-    }
     if (!hasLiveSaveActivityRef.current) return;
 
     window.dispatchEvent(new CustomEvent("viza:live-save-status", {
@@ -1879,6 +1886,7 @@ export default function ApplicationPage() {
 
   useEffect(() => {
     const resetLiveSaveStatus = () => {
+      hasLiveSaveActivityRef.current = false;
       window.dispatchEvent(new CustomEvent("viza:live-save-status", {
         detail: { status: "idle" },
       }));
@@ -1886,7 +1894,7 @@ export default function ApplicationPage() {
 
     resetLiveSaveStatus();
     return resetLiveSaveStatus;
-  }, []);
+  }, [explicitApplicationId, explicitCountry, explicitVisaType]);
 
   const setStepPanelRef = useCallback((stepId: number, node: HTMLDivElement | null) => {
     if (node) {
@@ -2870,8 +2878,15 @@ export default function ApplicationPage() {
           idempotencyKey: crypto.randomUUID(),
         }),
       });
-      const payload = await response.json() as FormAssistantTurnResponse & { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "Form assistant request failed");
+      const payload = await response.json() as FormAssistantTurnResponse & {
+        error?: string;
+        code?: string;
+      };
+      if (!response.ok) {
+        const requestError = new Error(payload.error ?? "Form assistant request failed") as FormAssistantRequestError;
+        requestError.code = payload.code;
+        throw requestError;
+      }
 
       if (payload.appliedPatches.length > 0) {
         const fields = dbSteps.flatMap((step) => step.fields);
@@ -3077,6 +3092,7 @@ export default function ApplicationPage() {
           prefill={dynamicAnswerSnapshot}
           onComplete={(data) => handleDynamicDraftChange(location.stepIndex, data)}
           onDraftChange={(data) => handleDynamicDraftChange(location.stepIndex, data)}
+          onUserChange={markLiveSaveActivity}
           saving={saving}
           showContinueButton={false}
           country={resolvedCountry}
@@ -3092,6 +3108,7 @@ export default function ApplicationPage() {
     formAssistantFieldLocations,
     formAssistantValidation?.validationId,
     handleDynamicDraftChange,
+    markLiveSaveActivity,
     resolvedCountry,
     resolvedVisaType,
     saving,
@@ -4299,6 +4316,7 @@ export default function ApplicationPage() {
                             prefill={dynamicAnswers}
                             onComplete={(data) => handleDynamicStepComplete(step.id, data)}
                             onDraftChange={(data) => handleDynamicDraftChange(step.id, data)}
+                            onUserChange={markLiveSaveActivity}
                             saving={saving}
                             showContinueButton={false}
                             country={activeCountry}

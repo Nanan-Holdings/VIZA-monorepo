@@ -45,7 +45,7 @@ export interface IndonesiaPortalProbeInput {
     enabled?: boolean;
     waitTimeoutMs?: number;
     oneTimeCard?: IndonesiaOneTimeCard | null;
-    takeOneTimeCard?: () => IndonesiaOneTimeCard | null;
+    takeOneTimeCard?: () => IndonesiaOneTimeCard | null | Promise<IndonesiaOneTimeCard | null>;
     beforeCardSubmit?: (snapshot: {
       url: string;
       title: string | null;
@@ -4888,22 +4888,22 @@ async function waitForUserPaymentCompletion(
   let text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   let url = activePage.url();
   let state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
-  const oneTimeCard =
-    input.userPaymentHandoff?.oneTimeCard ??
-    input.userPaymentHandoff?.takeOneTimeCard?.() ??
-    null;
-  if (oneTimeCard) {
-    const preflight = await input.userPaymentHandoff?.beforeCardSubmit?.({
+  const preflight = await input.userPaymentHandoff?.beforeCardSubmit?.({
       url,
       title,
       state,
     });
-    if (preflight && !preflight.allowed) {
-      diagnostics.push(
-        `indonesia_payment_resource_preflight_blocked ${preflight.reason ?? "unspecified"}`,
-      );
-      return { state: "payment_required", title, text, url };
-    }
+  if (preflight && !preflight.allowed) {
+    diagnostics.push(
+      `indonesia_payment_resource_preflight_blocked ${preflight.reason ?? "unspecified"}`,
+    );
+    return { state: "payment_required", title, text, url };
+  }
+  const oneTimeCard =
+    input.userPaymentHandoff?.oneTimeCard ??
+    await input.userPaymentHandoff?.takeOneTimeCard?.() ??
+    null;
+  if (oneTimeCard) {
     const cardSubmitted = await payIndonesiaPortalWithOneTimeCard(activePage, oneTimeCard, diagnostics);
     if (!cardSubmitted) {
       const controlsVisible = await hasIndonesiaPortalEmailOtpControls(activePage);

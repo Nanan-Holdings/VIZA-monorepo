@@ -24,6 +24,7 @@ import {
   type FieldGuidanceResponse,
   type FieldGuidanceChatMessage,
 } from "@/types/field-guidance";
+import { buildFieldExplanation } from "@/lib/form-assistant/constants";
 
 const MAX_HISTORY_MESSAGES = 8;
 const MAX_VISIBLE_OPTION_EXPLANATIONS = 2;
@@ -132,21 +133,8 @@ function buildLocalGuidance(
   isZh: boolean,
 ): FieldGuidanceResponse {
   const isDropdown = DROPDOWN_FIELD_TYPES.has(field.fieldType);
-  const summary = isPhotoField(field)
-    ? isZh
-      ? "请按当前目的地的官方照片规格上传清晰、完整且未经不当修改的照片。"
-      : "Upload a clear, complete image that follows the destination's official photo requirements."
-    : isPassportAuthorityField(field)
-      ? isZh
-        ? "请按护照资料页上的 Authority/签发机关原文填写，不要根据领取或办理城市推断。"
-        : "Copy the Authority exactly as printed on the passport biodata page; do not infer it from the pickup or application city."
-      : isDropdown
-        ? isZh
-          ? "请根据题目要求和你的官方材料，从下拉列表提供的选项中选择。"
-          : "Choose from the provided dropdown options according to the field and your official documents."
-        : isZh
-          ? "请按题目含义填写，并确保答案与护照、官方材料及其他表格答案一致。"
-          : "Answer according to the field meaning and keep it consistent with official documents and related answers.";
+  const explanation = buildFieldExplanation(field, isZh ? "zh" : "en");
+  const summary = explanation.summary;
 
   const formatHint = isDropdown
     ? isZh
@@ -156,27 +144,25 @@ function buildLocalGuidance(
       ? isZh
         ? "请核对日、月、年顺序，并使用页面日期选择器。"
         : "Check the day, month, and year order and use the date picker."
-      : isZh
-        ? "如证件已有英文或罗马化拼写，请以证件原文为准。"
-        : "Use the English or romanized spelling printed on the document when available.";
+      : null;
 
   return {
     guidance: {
       title: isZh ? `${field.label}填写帮助` : `${field.label} guidance`,
       summary,
-      examples: getLocalExamples(field, isZh),
+      examples: isDropdown
+        ? []
+        : explanation.example
+          ? [explanation.example]
+          : getLocalExamples(field, isZh),
       optionExplanations: [],
-      hints: [
-        field.required
-          ? isZh ? "此项为必填项。" : "This field is required."
-          : isZh ? "请仅在适用于你的情况下填写。" : "Complete this only when it applies to you.",
-      ],
+      hints: [explanation.sourceHint],
       officialWarnings: [
         isZh
           ? "本地提示只用于辅助填写；最终请以官方表单和证件信息为准。"
           : "This local guidance is only a filling aid; follow the official form and documents.",
       ],
-      formatHints: [formatHint],
+      formatHints: formatHint ? [formatHint] : [],
     },
     validation: {
       severity: field.required && !answer.trim() ? "warning" : "ok",

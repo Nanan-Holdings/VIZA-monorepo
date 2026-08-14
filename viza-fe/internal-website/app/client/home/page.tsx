@@ -248,6 +248,7 @@ export default function HomePage() {
   const t = useTranslations("home");
   const locale = useLocale();
   const PAGE_SCALE = 1;
+  const heroRef = useRef<HTMLDivElement>(null);
   const [applicantName, setApplicantName] = useState<string | null>(null);
   // Country code of the current application, shown in the hero subtitle.
   const [heroCountry, setHeroCountry] = useState<string | null>(null);
@@ -517,29 +518,33 @@ export default function HomePage() {
     };
   }, [authChecked, fetchData]);
 
-  // 顶部沉浸式导航颜色动态同步
+  // Keep the immersive navigation white until the hero has fully left the viewport.
   useEffect(() => {
-    const handleScroll = () => {
-      const isScrolled = window.scrollY > 320;
+    const syncNavColor = () => {
+      const isPastHero = (heroRef.current?.getBoundingClientRect().bottom ?? 0) <= 0;
       document.documentElement.style.setProperty(
         "--nav-text-color",
-        isScrolled ? "#000000" : "#ffffff"
+        isPastHero ? "#000000" : "#ffffff"
       );
       document.documentElement.style.setProperty(
         "--nav-stroke-color",
-        isScrolled ? "#000000" : "#ffffff"
+        isPastHero ? "#000000" : "#ffffff"
       );
     };
 
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    window.addEventListener("scroll", syncNavColor, { passive: true });
+    window.addEventListener("resize", syncNavColor);
+    syncNavColor();
+    return () => {
+      window.removeEventListener("scroll", syncNavColor);
+      window.removeEventListener("resize", syncNavColor);
+    };
+  }, [isLoading]);
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
 
-  // Hero background + graphic reflect the current application's country.
+  // The hero keeps the shared blue gradient and reflects the country through its artwork.
   const heroTheme = getCountryHeroTheme(heroCountry);
 
   const headingVariants = {
@@ -557,8 +562,12 @@ export default function HomePage() {
         width: `${100 / PAGE_SCALE}vw`,
       }}
     >
-      {/* Hero Background — gradient + graphic vary by the current country. */}
-      <div className="absolute left-0 right-0 top-0 z-0 h-[1080px] overflow-hidden xl:h-[538px]">
+      {/* Hero Background — shared blue gradient with country-specific artwork. */}
+      <div
+        ref={heroRef}
+        data-home-hero
+        className="absolute left-0 right-0 top-0 z-0 h-[1080px] overflow-hidden xl:h-[538px]"
+      >
         <div
           className="absolute inset-0"
           style={{ backgroundImage: heroGradientCss(heroTheme) }}
