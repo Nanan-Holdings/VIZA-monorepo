@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
 	evaluateConcurrencyRun,
 	percentile,
 } from "../../scripts/concurrency-load-lib.js";
-import { validateConcurrencyLoadGuards } from "../../scripts/concurrency-load.js";
+import {
+	resolveLoadResultsPath,
+	validateConcurrencyLoadGuards,
+} from "../../scripts/concurrency-load.js";
 
 describe("concurrency load release evaluator", () => {
 	it("blocks release when any concurrency invariant fails", () => {
@@ -166,5 +171,26 @@ describe("concurrency load release evaluator", () => {
 				CONCURRENCY_LOAD_LEVELS: "200",
 			}),
 		).toThrow("CONCURRENCY_LOAD_LEVELS");
+	});
+
+	it("anchors result paths at the repository root regardless of working directory", () => {
+		const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+		const repositoryRoot = path.resolve(testDirectory, "../../../..");
+		const agentBackendDirectory = path.join(repositoryRoot, "viza-be", "agent-backend");
+		const scriptUrl = new URL("../../scripts/concurrency-load.ts", import.meta.url).href;
+		const runId = "path-test";
+		const expectedPath = path.join(
+			repositoryRoot,
+			"load-test-results",
+			"concurrency",
+			runId,
+			"summary.json",
+		);
+
+		expect(resolveLoadResultsPath(runId, repositoryRoot, scriptUrl)).toBe(expectedPath);
+		expect(resolveLoadResultsPath(runId, agentBackendDirectory, scriptUrl)).toBe(expectedPath);
+		expect(path.relative(repositoryRoot, expectedPath)).toBe(
+			path.join("load-test-results", "concurrency", runId, "summary.json"),
+		);
 	});
 });
