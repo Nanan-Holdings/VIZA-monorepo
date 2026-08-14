@@ -389,6 +389,128 @@ describe("resilience gateway", () => {
     }
   });
 
+  it.each([
+    { errorCode: "runner_pool_not_ready", delaySeconds: 30, expectedDelaySeconds: 30 },
+    { errorCode: "job_not_due", delaySeconds: 45, expectedDelaySeconds: 45 },
+    { errorCode: "job_not_due", delaySeconds: 900, expectedDelaySeconds: 300 },
+  ] as const)("honors semantic replay deferral $errorCode without acknowledging the queue message", async ({ errorCode, delaySeconds, expectedDelaySeconds }) => {
+    const idempotencyKey = `queue-deferral-${errorCode}-${crypto.randomUUID()}`;
+    await stateCommand({
+      op: "enqueueOutbox",
+      idempotencyKey,
+      scope: "runner_job",
+      eventType: "runner_job.wakeup.v1",
+      blob: "opaque-ciphertext",
+      now: Date.now(),
+    });
+    const replay = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as { items: Array<{ idempotencyKey: string; leaseId: string }> };
+      return Response.json({
+        results: body.items.map((item) => ({
+          idempotencyKey: item.idempotencyKey,
+          leaseId: item.leaseId,
+          outcome: "nack",
+          errorCode,
+          retryAfterSeconds: delaySeconds,
+        })),
+      });
+    });
+    try {
+      const messageId = `deferral-${errorCode}`;
+      const acknowledge = vi.fn();
+      const retry = vi.fn();
+      const batch = {
+        queue: "viza-resilience-background",
+        messages: [{
+          id: messageId,
+          timestamp: new Date(),
+          attempts: 1,
+          body: {
+            version: 2,
+            idempotencyKey,
+            workloadType: "background",
+            eventType: "runner_job.wakeup.v1",
+          },
+          ack: acknowledge,
+          retry,
+        }],
+      } as unknown as MessageBatch<unknown>;
+      await worker.queue(batch, env, createExecutionContext());
+      expect(acknowledge).not.toHaveBeenCalled();
+      expect(retry).toHaveBeenCalledWith({ delaySeconds: expectedDelaySeconds });
+    } finally {
+      replay.mockRestore();
+    }
+  });
+
+  it("keeps semantic deferrals pending without consuming the failure budget", async () => {
+    const idempotencyKey = `semantic-deferral-budget-${crypto.randomUUID()}`;
+    const startedAt = Date.now();
+    await stateCommand({
+      op: "enqueueOutbox",
+      idempotencyKey,
+      scope: "runner_job",
+      eventType: "runner_job.wakeup.v1",
+      blob: "opaque-ciphertext",
+      now: startedAt,
+    });
+
+    for (let index = 0; index < 25; index += 1) {
+      const now = startedAt + index * 31_000;
+      const claim = await stateCommand({ op: "claimOutboxByKey", idempotencyKey, now, leaseMs: 15_000 });
+      expect(claim).toMatchObject({ outcome: "claimed" });
+      const item = claim.item as { idempotencyKey: string; leaseId: string };
+      const nacked = await stateCommand({
+        op: "nackOutbox",
+        items: [{ idempotencyKey: item.idempotencyKey, leaseId: item.leaseId, errorCode: "job_not_due", retryAfterSeconds: 30 }],
+        now,
+      });
+      expect(nacked).toMatchObject({ retried: 0, deferred: 1, dead: 0 });
+    }
+
+    const finalClaim = await stateCommand({
+      op: "claimOutboxByKey",
+      idempotencyKey,
+      now: startedAt + 25 * 31_000,
+      leaseMs: 15_000,
+    });
+    expect(finalClaim).toMatchObject({ outcome: "claimed", item: { idempotencyKey } });
+  });
+
+  it("continues counting ordinary failures and dead-letters at the existing limit", async () => {
+    const idempotencyKey = `ordinary-failure-budget-${crypto.randomUUID()}`;
+    const startedAt = Date.now();
+    await stateCommand({
+      op: "enqueueOutbox",
+      idempotencyKey,
+      scope: "runner_job",
+      eventType: "runner_job.wakeup.v1",
+      blob: "opaque-ciphertext",
+      now: startedAt,
+    });
+
+    for (let index = 0; index < 20; index += 1) {
+      const now = startedAt + index * 31_000;
+      const claim = await stateCommand({ op: "claimOutboxByKey", idempotencyKey, now, leaseMs: 15_000 });
+      expect(claim).toMatchObject({ outcome: "claimed" });
+      const item = claim.item as { idempotencyKey: string; leaseId: string };
+      const nacked = await stateCommand({
+        op: "nackOutbox",
+        items: [{ idempotencyKey: item.idempotencyKey, leaseId: item.leaseId, errorCode: "replay_unavailable", retryAfterSeconds: 30 }],
+        now,
+      });
+      expect(nacked).toMatchObject(index === 19 ? { retried: 0, dead: 1 } : { retried: 1, dead: 0 });
+    }
+
+    const finalClaim = await stateCommand({
+      op: "claimOutboxByKey",
+      idempotencyKey,
+      now: startedAt + 21 * 31_000,
+      leaseMs: 15_000,
+    });
+    expect(finalClaim).toMatchObject({ outcome: "dead" });
+  });
+
   it("acknowledges legacy v1 queue deliveries with an explicit rollout signal", async () => {
     const legacyLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
     try {
