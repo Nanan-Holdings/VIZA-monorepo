@@ -147,6 +147,8 @@ function optionalBoundedString(value: unknown, name: string, max = 256): string 
 
 class InputError extends Error {}
 
+class LegacyQueueEnvelopeError extends InputError {}
+
 async function readBody(request: Request, maxBytes: number): Promise<{ bytes: Uint8Array; text: string }> {
   const length = request.headers.get("content-length");
   if (length && Number.parseInt(length, 10) > maxBytes) throw new InputError("request body too large");
@@ -255,6 +257,7 @@ function queueForWorkload(env: RuntimeEnv, workload: WorkloadType): Queue<QueueE
 function queueEnvelope(value: unknown): QueueEnvelope {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new InputError("queue message is invalid");
   const candidate = value as Record<string, unknown>;
+  if (candidate.version === 1) throw new LegacyQueueEnvelopeError("legacy queue message version 1 is not supported");
   if (candidate.version !== 2) throw new InputError("queue message version is invalid");
   return {
     version: 2,
@@ -691,10 +694,21 @@ async function consumeQueue(batch: MessageBatch<unknown>, env: RuntimeEnv): Prom
       // transient state/replay failures remain eligible for Queue redelivery.
       if (error instanceof InputError) message.ack();
       else message.retry({ delaySeconds: 60 });
-      log(error instanceof InputError ? "warn" : "error", "queue_message_failed", {
-        queue: batch.queue,
-        reason: error instanceof InputError ? "invalid_envelope" : "transient_failure",
-      });
+      if (error instanceof LegacyQueueEnvelopeError) {
+        // v1 has no independent eventType and cannot be translated safely.
+        // Acknowledge it to avoid a retry hot-loop, while the explicit signal
+        // makes any violated pre-deploy drain guard an observable blocker.
+        log("error", "queue_legacy_v1_rejected", {
+          queue: batch.queue,
+          reason: "v1_not_translatable",
+          action: "ack",
+        });
+      } else {
+        log(error instanceof InputError ? "warn" : "error", "queue_message_failed", {
+          queue: batch.queue,
+          reason: error instanceof InputError ? "invalid_envelope" : "transient_failure",
+        });
+      }
     }
   }
 }

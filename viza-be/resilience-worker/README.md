@@ -40,10 +40,27 @@ state for monitoring.
 | `POST /v1/outbox/claim` | `{limit?,leaseSeconds?}` | `{ok,items:[...leaseId,attempts...]}` |
 | `POST /v1/outbox/ack` | `{idempotencyKeys}` or `{items:[{idempotencyKey,leaseId}]}` | `{ok,acknowledged}` |
 | `POST /v1/outbox/nack` | `{items:[{idempotencyKey,leaseId,errorCode?,retryAfterSeconds?}]}` | `{ok,retried,dead}` |
-| `POST /v1/queue/enqueue` | `{idempotencyKey,workloadType,scope,blob,userRef?,availableAt?}` | Persists the outbox item, then queues its bounded opaque pointer |
+| `POST /v1/queue/enqueue` | `{idempotencyKey,workloadType,eventType,scope,blob,userRef?,availableAt?}` | Persists the outbox item, then queues its bounded opaque pointer |
 | `POST /v1/concurrency/acquire` | `{scope,resourceKey,capacity,leaseSeconds,ownerRef?}` | Acquire capacity and receive `{leaseId,fencingToken,leaseUntil}` |
 | `POST /v1/concurrency/renew` | `{scope,resourceKey,leaseId,fencingToken,leaseSeconds}` | Extend a live lease when its fencing token still matches |
 | `POST /v1/concurrency/release` | `{scope,resourceKey,leaseId,fencingToken}` | Release a live fenced lease |
+
+## Mandatory v2 queue rollout guard (release blocker)
+
+Queue envelopes are strict v2 and are not backward-compatible. Before deploying
+the v2 consumer, operators must complete this sequence:
+
+1. Stop or disable every v1 queue producer.
+2. Let all three named queues drain completely under the old consumer.
+3. Confirm zero backlog for all three queues in Cloudflare Queue metrics.
+4. Deploy the v2 consumer, then enable only v2 producers.
+
+This is a mandatory release gate. A v1 envelope has no independent `eventType`
+and cannot be translated safely; v1 messages must not be present at cutover.
+If one appears after cutover, the consumer emits the structured
+`queue_legacy_v1_rejected` signal with reason `v1_not_translatable` and
+acknowledges it to avoid a retry loop. Treat that signal as a rollout incident,
+not as a migration path.
 
 ## Cloudflare Queue contracts
 
@@ -55,13 +72,15 @@ The Worker separates work across three real Queue bindings:
 | `document_processing`, `status_sync` | `viza-resilience-document-status` | Document and official-status work |
 | `background` | `viza-resilience-background` | Best-effort background work |
 
-`POST /v1/queue/enqueue` accepts only those four workload types. `blob` is an
-opaque string capped at 96,000 UTF-8 bytes. The existing SQLite outbox retains
-the blob and idempotency/lease state; Cloudflare Queues receives only this
-bounded pointer envelope:
+`POST /v1/queue/enqueue` accepts those four workload types and exactly these
+four business event types: `runner_job.wakeup.v1`, `vietnam_status_sync.v1`,
+`critical_notification.v1`, and `document_processing.v1`. `blob` is an opaque
+string capped at 96,000 UTF-8 bytes. The existing SQLite outbox retains the blob
+and idempotency/lease state; Cloudflare Queues receives only this bounded pointer
+envelope:
 
 ```json
-{"version":1,"idempotencyKey":"unique-operation-id","workloadType":"status_sync"}
+{"version":2,"idempotencyKey":"unique-operation-id","workloadType":"status_sync","eventType":"vietnam_status_sync.v1"}
 ```
 
 The Queue consumer claims the matching outbox record by idempotency key before
