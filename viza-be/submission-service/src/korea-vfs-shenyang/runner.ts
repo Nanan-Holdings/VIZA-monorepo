@@ -347,7 +347,6 @@ const SHENYANG_VFS_MOBILE_FIELD_ERROR = "The official VFS mobile-number field co
 
 export async function fillShenyangVfsRegistrationMobileField(page: Page, phone: string): Promise<void> {
   const selectors = [
-    "input#mat-input-3",
     "input[formcontrolname='contact']",
     "input[formcontrolname*='mobile' i]",
     "input[formcontrolname*='phone' i]",
