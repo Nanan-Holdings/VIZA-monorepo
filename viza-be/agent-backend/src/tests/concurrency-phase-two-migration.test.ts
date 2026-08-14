@@ -24,6 +24,18 @@ describe("runner pool concurrency phase two migration", () => {
     );
   });
 
+  it("rejects null lease, slot-policy, and clock inputs explicitly", () => {
+    expect(functionBody).toMatch(
+      /IF p_lease_ms IS NULL OR p_lease_ms < 10000 OR p_lease_ms > 7200000 THEN[\s\S]*?ERRCODE = '22023'/i,
+    );
+    expect(functionBody).toMatch(
+      /IF p_require_slot IS NULL THEN[\s\S]*?ERRCODE = '22023'/i,
+    );
+    expect(functionBody).toMatch(
+      /IF p_now IS NULL THEN[\s\S]*?ERRCODE = '22023'/i,
+    );
+  });
+
   it("removes both blocking and try-lock global advisory lock variants", () => {
     expect(canonicalSql).not.toContain("pg_advisory_xact_lock(hashtext('viza-runner-pool-claim'))");
     expect(canonicalSql).not.toContain("pg_try_advisory_xact_lock(hashtext('viza-runner-pool-claim'))");
