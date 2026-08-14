@@ -82,6 +82,11 @@ filling and one-shot submission for the applicant.
   atomic service-role claim RPC. Missing/unavailable claim RPCs fail closed;
   never add a plain table-select fallback because concurrent workers could run
   the same official submission.
+- `src/queue/worker.ts`: shared `runner_job` settlement must call the
+  service-role-only `complete_runner_pool_job` RPC with the stable worker id.
+  Failure, renewal, and success writes are fenced by status, owner, and a live
+  lease; a typed `runner_job_ownership_lost` result skips fallback failure
+  writes, alerts, and metrics so a stale worker cannot mutate a reclaimed job.
 - `src/vietnam/status-check-lease.ts`: Vietnam official-status checks are
   worker-leased and may be completed or failed only by their claiming worker;
   the consumer must honor a false conditional-RPC result as lost ownership.
