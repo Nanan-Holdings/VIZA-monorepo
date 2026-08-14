@@ -40,7 +40,7 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("checks a live pool machine slot before claiming when required", () => {
     expect(functionBody).toMatch(
-      /p_require_slot\s+AND\s+NOT EXISTS \([\s\S]*?FROM public\.runner_machine_slot AS rms[\s\S]*?rms\.owner_machine_id = p_worker_id[\s\S]*?rms\.owner_kind = 'pool'[\s\S]*?rms\.lease_until > p_now/i,
+      /IF p_require_slot THEN[\s\S]*?PERFORM 1[\s\S]*?FROM public\.runner_machine_slot AS rms[\s\S]*?rms\.owner_machine_id = p_worker_id[\s\S]*?rms\.owner_kind = 'pool'[\s\S]*?rms\.lease_until > p_now[\s\S]*?FOR UPDATE[\s\S]*?IF NOT FOUND THEN[\s\S]*?RETURN;/i,
     );
   });
 
@@ -71,14 +71,26 @@ describe("runner pool concurrency phase two migration", () => {
       /SELECT COUNT\(\*\)[\s\S]*?active\.country = candidate\.country[\s\S]*?active\.status = 'running'/i,
     );
     expect(functionBody).toMatch(
-      /SELECT cap\.country[\s\S]*?FROM public\.runner_concurrency_cap AS cap[\s\S]*?EXISTS \([\s\S]*?candidate\.status = 'queued'[\s\S]*?candidate\.available_at <= p_now[\s\S]*?ORDER BY cap\.country[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE OF cap SKIP LOCKED/i,
+      /SELECT cap\.country[\s\S]*?FROM public\.runner_concurrency_cap AS cap[\s\S]*?JOIN LATERAL \([\s\S]*?oldest_candidate\.status = 'queued'[\s\S]*?oldest_candidate\.available_at <= p_now[\s\S]*?ORDER BY oldest_candidate\.enqueued_at, oldest_candidate\.id, cap\.country[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE OF cap SKIP LOCKED/i,
     );
     expect(functionBody).toMatch(/WHILE\s+v_cap_iterations\s*<\s*5\s+LOOP/i);
-    expect(functionBody).toMatch(/v_last_country/i);
+    expect(functionBody).toMatch(/v_tried_countries/i);
     expect(functionBody).toMatch(/GET DIAGNOSTICS v_claimed_rows = ROW_COUNT/i);
     expect(functionBody).toMatch(
       /IF v_claimed_rows > 0 THEN\s*RETURN;\s*END IF;/i,
     );
+  });
+
+  it("orders untried cap locks by each country's oldest due queued candidate", () => {
+    expect(functionBody).not.toMatch(/v_last_country|ORDER BY cap\.country/i);
+    expect(functionBody).toMatch(/v_tried_countries\s+TEXT\[\]/i);
+    expect(functionBody).toMatch(
+      /LATERAL\s*\([\s\S]*?FROM public\.runner_job AS oldest_candidate[\s\S]*?oldest_candidate\.status = 'queued'[\s\S]*?oldest_candidate\.available_at <= p_now[\s\S]*?ORDER BY oldest_candidate\.enqueued_at, oldest_candidate\.id[\s\S]*?LIMIT 1/i,
+    );
+    expect(functionBody).toMatch(
+      /ORDER BY oldest_candidate\.enqueued_at, oldest_candidate\.id, cap\.country[\s\S]*?FOR UPDATE OF cap SKIP LOCKED/i,
+    );
+    expect(functionBody).toMatch(/v_tried_countries\s*\|\|\s*v_locked_country/i);
   });
 
   it("only considers due queued jobs below an unpaused per-country cap", () => {
@@ -102,7 +114,10 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("adds indexes matching queued ordering, running-country counts, and lease recovery", () => {
     expect(canonicalSql).toMatch(
-      /CREATE INDEX IF NOT EXISTS runner_job_queued_available_idx\s+ON public\.runner_job \(available_at, enqueued_at, id\)\s+WHERE status = 'queued';/i,
+      /CREATE INDEX IF NOT EXISTS runner_job_queued_available_idx\s+ON public\.runner_job \(country, available_at, enqueued_at, id\)\s+WHERE status = 'queued';/i,
+    );
+    expect(canonicalSql).toMatch(
+      /runner_job_pool_claim_idx[\s\S]*?rolling compatibility/i,
     );
     expect(canonicalSql).toMatch(
       /CREATE INDEX IF NOT EXISTS runner_job_running_country_idx\s+ON public\.runner_job \(country\)\s+WHERE status = 'running';/i,

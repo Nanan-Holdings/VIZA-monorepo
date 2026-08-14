@@ -5,8 +5,10 @@
 -- claims can proceed concurrently while the ten production machine slots
 -- remain the global cost guard.
 
+-- Keep runner_job_pool_claim_idx from 0127 for rolling compatibility with
+-- older claim readers; this country-leading index supplements it for cap scans.
 CREATE INDEX IF NOT EXISTS runner_job_queued_available_idx
-  ON public.runner_job (available_at, enqueued_at, id)
+  ON public.runner_job (country, available_at, enqueued_at, id)
   WHERE status = 'queued';
 
 CREATE INDEX IF NOT EXISTS runner_job_running_country_idx
@@ -40,7 +42,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_locked_country TEXT;
-  v_last_country TEXT := '';
+  v_tried_countries TEXT[] := ARRAY[]::TEXT[];
   v_cap_iterations INTEGER := 0;
   v_claimed_rows INTEGER := 0;
 BEGIN
@@ -52,14 +54,17 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  IF p_require_slot AND NOT EXISTS (
-    SELECT 1
+  IF p_require_slot THEN
+    PERFORM 1
     FROM public.runner_machine_slot AS rms
     WHERE rms.owner_machine_id = p_worker_id
       AND rms.owner_kind = 'pool'
       AND rms.lease_until > p_now
-  ) THEN
-    RETURN;
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RETURN;
+    END IF;
   END IF;
 
   -- Recover only one expired lease per poll. The conditional update protects
@@ -102,26 +107,29 @@ BEGIN
     AND job.status = 'running'
     AND job.leased_until <= p_now;
 
-  -- Lock at most the five eligible country-cap rows in global country order.
-  -- The EXISTS predicate only finds work; capacity is checked after the cap
-  -- row is locked in a separate statement with a fresh READ COMMITTED snapshot.
+  -- Lock at most the five eligible country-cap rows. The oldest due queued
+  -- candidate determines the next country, avoiding alphabetical starvation.
+  -- The cap lock is acquired without waiting; capacity is checked after the
+  -- cap row is locked in a separate statement with a fresh READ COMMITTED snapshot.
   WHILE v_cap_iterations < 5 LOOP
     SELECT cap.country
     INTO v_locked_country
     FROM public.runner_concurrency_cap AS cap
-    WHERE cap.country > v_last_country
-      AND cap.country IN (
+    JOIN LATERAL (
+      SELECT oldest_candidate.enqueued_at, oldest_candidate.id
+      FROM public.runner_job AS oldest_candidate
+      WHERE oldest_candidate.country = cap.country
+        AND oldest_candidate.status = 'queued'
+        AND oldest_candidate.available_at <= p_now
+      ORDER BY oldest_candidate.enqueued_at, oldest_candidate.id
+      LIMIT 1
+    ) AS oldest_candidate ON TRUE
+    WHERE cap.country IN (
         'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
       )
       AND NOT cap.paused
-      AND EXISTS (
-        SELECT 1
-        FROM public.runner_job AS candidate
-        WHERE candidate.country = cap.country
-          AND candidate.status = 'queued'
-          AND candidate.available_at <= p_now
-      )
-    ORDER BY cap.country
+      AND cap.country <> ALL(v_tried_countries)
+    ORDER BY oldest_candidate.enqueued_at, oldest_candidate.id, cap.country
     LIMIT 1
     FOR UPDATE OF cap SKIP LOCKED;
 
@@ -129,7 +137,7 @@ BEGIN
       EXIT;
     END IF;
 
-    v_last_country := v_locked_country;
+    v_tried_countries := v_tried_countries || v_locked_country;
     v_cap_iterations := v_cap_iterations + 1;
 
     -- This is a separate SQL statement after the cap-row lock. Its snapshot
