@@ -146,17 +146,49 @@ export const POOL_FLOW_COUNTRIES = {
   kr_eform: "south_korea",
 } as const;
 
-const POOL_FLOW_DISPATCH: Record<string, RunOne> = {
-  vn_evisa: (applicationId, jobId) => runVietnam(applicationId, jobId),
-  vn_prearrival: (applicationId, jobId) =>
-    runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "vn_prearrival"),
-  sgac: (applicationId, jobId) => runSingapore(applicationId, jobId),
-  mdac: (applicationId, jobId) =>
-    runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "mdac"),
-  tdac: (applicationId, jobId) =>
-    runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "tdac"),
-  kr_eform: (applicationId) => runKoreaEformBackground(applicationId),
-};
+export interface PoolFlowDispatchDependencies {
+  runVietnam: RunOne;
+  runSingapore: RunOne;
+  runArrivalCardPoolFlow: typeof runArrivalCardPoolFlow;
+  runKoreaEformBackground: typeof runKoreaEformBackground;
+}
+
+/**
+ * Build the shared-pool wrappers with injectable leaf runners. Besides
+ * keeping the production table explicit, this gives the queue contract tests
+ * a real execution path to prove that the ownership context reaches every
+ * pool flow without launching a browser or touching Supabase.
+ */
+export function createPoolFlowDispatch(
+  dependencies: PoolFlowDispatchDependencies = {
+    runVietnam,
+    runSingapore,
+    runArrivalCardPoolFlow,
+    runKoreaEformBackground,
+  },
+): Record<string, RunOne> {
+  return {
+    vn_evisa: (applicationId, jobId, execution) =>
+      dependencies.runVietnam(applicationId, jobId, execution),
+    vn_prearrival: (applicationId, jobId, execution) =>
+      dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        jobId ?? applicationId,
+        "vn_prearrival",
+        execution,
+      ),
+    sgac: (applicationId, jobId, execution) =>
+      dependencies.runSingapore(applicationId, jobId, execution),
+    mdac: (applicationId, jobId, execution) =>
+      dependencies.runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "mdac", execution),
+    tdac: (applicationId, jobId, execution) =>
+      dependencies.runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "tdac", execution),
+    kr_eform: (applicationId, _jobId, execution) =>
+      dependencies.runKoreaEformBackground(applicationId, execution),
+  };
+}
+
+export const POOL_FLOW_DISPATCH: Record<string, RunOne> = createPoolFlowDispatch();
 
 /**
  * Static routing metadata for tests/observability — which runner backs each

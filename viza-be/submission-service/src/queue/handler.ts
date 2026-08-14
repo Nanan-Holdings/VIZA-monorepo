@@ -16,13 +16,13 @@ import { emitRunnerEvent } from "../metrics/emit.js";
  * portal producer, lib/queue/enqueue.ts) so a run is traceable end-to-end
  * across portal → queue → runner. Format: docs/observability/logging.md.
  */
-export const runnerJobHandler: JobHandler = async (job) => {
+export const runnerJobHandler: JobHandler = async (job, execution) => {
   const cid = job.correlation_id ?? "-";
   emitRunnerEvent(job.country, "started", job.id);
   console.log(`[queue] cid=${cid} job=${job.id.slice(0, 8)} country=${job.country} dispatch`);
   try {
     const runOne = getRunOne(job.country, job.flow_key);
-    const outcome = await runOne(job.application_id, job.id);
+    const outcome = await runOne(job.application_id, job.id, execution);
     emitRunnerEvent(job.country, outcome.outcome === "halted_before_pay" ? "halted" : "succeeded", job.id);
     console.log(
       `[queue] cid=${cid} job=${job.id.slice(0, 8)} country=${job.country} -> ${outcome.outcome} @ ${outcome.reachedStep}`,

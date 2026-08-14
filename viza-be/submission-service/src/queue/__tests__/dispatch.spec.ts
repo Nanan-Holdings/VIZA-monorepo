@@ -8,6 +8,7 @@ let getRunOne: typeof import("../dispatch.js").getRunOne;
 let normalizeCountry: typeof import("../dispatch.js").normalizeCountry;
 let DISPATCH_META: typeof import("../dispatch.js").DISPATCH_META;
 let UnsupportedCountryError: typeof import("../dispatch.js").UnsupportedCountryError;
+let createPoolFlowDispatch: typeof import("../dispatch.js").createPoolFlowDispatch;
 
 test.before(async () => {
   const dispatch = await import("../dispatch.js");
@@ -15,6 +16,7 @@ test.before(async () => {
   normalizeCountry = dispatch.normalizeCountry;
   DISPATCH_META = dispatch.DISPATCH_META;
   UnsupportedCountryError = dispatch.UnsupportedCountryError;
+  createPoolFlowDispatch = dispatch.createPoolFlowDispatch;
 });
 
 test("dispatch: India job routes to runInPrefill", () => {
@@ -94,6 +96,63 @@ test("dispatch: shared-pool flow keys resolve only for their country", () => {
     () => getRunOne("malaysia", "tdac"),
     UnsupportedCountryError,
   );
+});
+
+test("dispatch: every shared-pool flow forwards the ownership execution context", async () => {
+  const calls: Array<{ kind: string; applicationId: string; jobId?: string; flow?: string; execution: unknown }> = [];
+  const outcome = {
+    outcome: "halted_before_pay" as const,
+    reachedStep: "test",
+    artefacts: [],
+  };
+  const runCountry = (kind: string) => async (
+    applicationId: string,
+    jobId?: string,
+    execution?: unknown,
+  ) => {
+    calls.push({ kind, applicationId, jobId, execution });
+    return outcome;
+  };
+  const runArrival = async (
+    applicationId: string,
+    jobId: string,
+    flow: string,
+    execution?: unknown,
+  ) => {
+    calls.push({ kind: "arrival", applicationId, jobId, flow, execution });
+    return outcome;
+  };
+  const runKorea = async (applicationId: string, execution?: unknown) => {
+    calls.push({ kind: "korea", applicationId, execution });
+    return outcome;
+  };
+  const dispatch = createPoolFlowDispatch({
+    runVietnam: runCountry("vietnam"),
+    runSingapore: runCountry("singapore"),
+    runArrivalCardPoolFlow: runArrival,
+    runKoreaEformBackground: runKorea,
+  });
+  const execution = {
+    signal: new AbortController().signal,
+    assertOwned: () => undefined,
+    checkpoint: () => undefined,
+  };
+
+  await dispatch.vn_evisa("app-vn", "job-vn", execution);
+  await dispatch.vn_prearrival("app-vn", "job-vn-pre", execution);
+  await dispatch.sgac("app-sg", "job-sg", execution);
+  await dispatch.mdac("app-my", "job-my", execution);
+  await dispatch.tdac("app-th", "job-th", execution);
+  await dispatch.kr_eform("app-kr", "job-kr", execution);
+
+  assert.deepEqual(calls, [
+    { kind: "vietnam", applicationId: "app-vn", jobId: "job-vn", execution },
+    { kind: "arrival", applicationId: "app-vn", jobId: "job-vn-pre", flow: "vn_prearrival", execution },
+    { kind: "singapore", applicationId: "app-sg", jobId: "job-sg", execution },
+    { kind: "arrival", applicationId: "app-my", jobId: "job-my", flow: "mdac", execution },
+    { kind: "arrival", applicationId: "app-th", jobId: "job-th", flow: "tdac", execution },
+    { kind: "korea", applicationId: "app-kr", execution },
+  ]);
 });
 
 test("dispatch: Indonesia cannot run through the simplified runner_job transport", () => {

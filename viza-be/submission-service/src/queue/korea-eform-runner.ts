@@ -3,6 +3,7 @@ import { writeSubmissionResult } from "../result-writer.js";
 import type { KrSubmissionResult } from "../submission-result.js";
 import { loadCountrySubmissionContext } from "./answers.js";
 import type { DispatchOutcome } from "./types.js";
+import type { RunnerExecutionContext } from "./execution-context.js";
 
 const KOREA_VISA_PORTAL_EFORM_URL =
   "https://www.visa.go.kr/openPage.do?MENU_ID=10204";
@@ -49,7 +50,9 @@ function previousKoreaResult(value: unknown): Partial<KrSubmissionResult> {
 
 export async function runKoreaEformBackground(
   applicationId: string,
+  executionContext?: RunnerExecutionContext,
 ): Promise<DispatchOutcome> {
+  executionContext?.assertOwned();
   const context = await loadCountrySubmissionContext(applicationId);
   const applicationWithResult = context.application as typeof context.application & {
     submission_result?: unknown;
@@ -65,7 +68,9 @@ export async function runKoreaEformBackground(
     officialPdfStoragePath: previous.officialEformPdfStoragePath ?? null,
     finalReviewApproved: false,
     pdfLanguage: "zh-CN",
+    executionContext,
   });
+  executionContext?.assertOwned();
 
   let submissionResult: KrSubmissionResult;
   if (result.status === "official_eform_ready") {
@@ -118,6 +123,7 @@ export async function runKoreaEformBackground(
     };
   }
 
+  executionContext?.assertOwned();
   await writeSubmissionResult(
     applicationId,
     submissionResult,

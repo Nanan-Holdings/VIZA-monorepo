@@ -189,7 +189,13 @@ The current internal automation migrations are:
   expiry, and one-live-job-per-worker fencing; the exact service-role-only
   `claim_runner_pool_job` signature remains rolling-deploy compatible and
   excludes retired Indonesia pool work. It also carries the fenced,
-  service-role-only `complete_runner_pool_job` settlement RPC and the
+  service-role-only `complete_runner_pool_job`, `renew_runner_pool_job`, and
+  `fail_runner_pool_job` settlement RPCs. Production renew/failure predicates
+  use `clock_timestamp()` inside SQL; production success omits `p_now` while
+  the completion RPC keeps its optional controlled timestamp for staging
+  harnesses. All three settlement functions are `SECURITY INVOKER`, use an
+  empty `search_path`, revoke PUBLIC/anon/authenticated execution, and grant
+  only to `service_role`. The migration also carries the
   `defer_vn_official_status_check` RPC used to return provider-gate-denied
   status checks to the queue without consuming an admission attempt.
 

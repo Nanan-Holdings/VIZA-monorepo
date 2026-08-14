@@ -18,6 +18,10 @@ import { normalizeVnPrearrivalPortalPayload, routeVnPrearrivalEmailAnswers, VnPr
 import { runVietnamPrearrivalPortalSubmission, VnPrearrivalPortalError } from "../vn-prearrival/runner.js";
 import { loadCountrySubmissionContext } from "./answers.js";
 import { NeedsHumanError, RetryableRunnerError, type DispatchOutcome } from "./types.js";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "./execution-context.js";
 
 export type ArrivalCardPoolFlow = "mdac" | "tdac" | "vn_prearrival";
 
@@ -148,17 +152,20 @@ async function executePortal(
   flow: ArrivalCardPoolFlow,
   payload: SubmissionPayload,
   applicantId: string,
+  executionContext?: RunnerExecutionContext,
 ): Promise<PortalResult> {
   if (flow === "mdac") {
     return runMdacPortalSubmission(normalizeMdacPortalPayload(payload), {
       headless: process.env.MDAC_WORKER_PLAYWRIGHT_HEADLESS !== "false",
       stopBeforeSubmit: process.env.MDAC_STOP_BEFORE_SUBMIT === "1",
+      executionContext,
     });
   }
   if (flow === "tdac") {
     return runTdacPortalSubmission(normalizeTdacPortalPayload(payload), {
       headless: process.env.TDAC_PLAYWRIGHT_HEADLESS !== "false",
       stopBeforeSubmit: process.env.TDAC_STOP_BEFORE_SUBMIT === "1",
+      executionContext,
     });
   }
   return runVietnamPrearrivalPortalSubmission(
@@ -167,6 +174,7 @@ async function executePortal(
       headless: process.env.VN_PREARRIVAL_PLAYWRIGHT_HEADLESS !== "false",
       stopBeforeSubmit: process.env.VN_PREARRIVAL_STOP_BEFORE_SUBMIT === "1",
       applicantId,
+      executionContext,
     },
   );
 }
@@ -228,11 +236,15 @@ export async function runArrivalCardPoolFlow(
   applicationId: string,
   jobId: string,
   flow: ArrivalCardPoolFlow,
+  executionContext?: RunnerExecutionContext,
 ): Promise<DispatchOutcome> {
+  executionContext?.assertOwned();
   const identity = flowIdentity(flow);
   try {
     const { payload, applicantId } = await preparePayload(applicationId, jobId, flow);
-    const portal = await executePortal(flow, payload, applicantId);
+    executionContext?.assertOwned();
+    const portal = await executePortal(flow, payload, applicantId, executionContext);
+    executionContext?.assertOwned();
     const screenshots = await persistFiles(
       jobId,
       `${flow}/screenshots`,
@@ -273,6 +285,7 @@ export async function runArrivalCardPoolFlow(
         traces: [],
       },
     };
+    executionContext?.assertOwned();
     await writeSubmissionResult(applicationId, result, portal.submitted ? "submitted" : "failed");
     if (!portal.submitted) {
       throw new NeedsHumanError(
@@ -285,8 +298,14 @@ export async function runArrivalCardPoolFlow(
       artefacts: [...pdfs, ...qrCodes],
     };
   } catch (error) {
+    const isAbortError = error instanceof Error && error.name === "AbortError";
+    if (error instanceof RunnerJobOwnershipLostError || isAbortError || executionContext?.signal.aborted) {
+      const abortReason = executionContext?.signal.reason;
+      throw abortReason instanceof Error ? abortReason : error;
+    }
     if (error instanceof NeedsHumanError) throw error;
     const detail = portalErrorDetails(error);
+    executionContext?.assertOwned();
     const screenshots = await persistFiles(
       jobId,
       `${flow}/errors`,
@@ -315,6 +334,7 @@ export async function runArrivalCardPoolFlow(
       errorDetails: { code: detail.code, message: detail.message },
       artifacts: { screenshots, pdfs: [], logs: detail.logs, traces: [] },
     };
+    executionContext?.assertOwned();
     await writeSubmissionResult(applicationId, result, "failed");
     if (detail.retryable) throw new RetryableRunnerError(detail.message);
     throw new NeedsHumanError(detail.message);

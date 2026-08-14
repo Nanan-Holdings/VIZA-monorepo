@@ -15,14 +15,15 @@ test("runner success settlement uses the fenced completion RPC and emits metrics
 });
 
 test("failure settlement and lease renewal require live ownership", () => {
-  assert.match(workerSource, /\.eq\("status",\s*"running"\)/);
-  assert.match(workerSource, /\.eq\("leased_by",\s*workerId\)/);
-  assert.match(workerSource, /\.gt\("leased_until",/);
+  assert.match(workerSource, /renew_runner_pool_job/);
+  assert.match(workerSource, /fail_runner_pool_job/);
+  assert.match(workerSource, /p_worker_id:\s*workerId/);
+  assert.match(workerSource, /p_lease_ms:\s*leaseMs/);
   assert.match(workerSource, /markFailedWithRetry\([\s\S]*?workerId/);
 });
 
 test("drain passes worker ownership and does not retry a lost success lease", () => {
-  assert.match(workerSource, /markSucceeded\(job\.id,\s*opts\.workerId\)/);
-  assert.match(workerSource, /markFailedWithRetry\(job,\s*error,\s*opts\.workerId\)/);
+  assert.match(workerSource, /markSucceeded\(job\.id,\s*opts\.workerId,\s*client\)/);
+  assert.match(workerSource, /markFailedWithRetry\(job,\s*handlerError,\s*opts\.workerId,\s*client\)/);
   assert.match(workerSource, /isRunnerJobOwnershipLost\(error\)/);
 });

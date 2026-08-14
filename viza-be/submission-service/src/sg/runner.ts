@@ -1,6 +1,10 @@
 import { getCountrySubmissionProvider } from "../country-submissions/index.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
 import { NeedsHumanError, RetryableRunnerError, type DispatchOutcome } from "../queue/types.js";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "../queue/execution-context.js";
 import { writeSubmissionResult } from "../result-writer.js";
 import {
   normalizeSgacPortalPayload,
@@ -47,7 +51,12 @@ function toSgacApplication(applicationId: string, answers: Record<string, string
 }
 
 /** Cloud runner_job adapter for ICA SG Arrival Card. */
-export async function runOne(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+export async function runOne(
+  applicationId: string,
+  jobId?: string,
+  executionContext?: RunnerExecutionContext,
+): Promise<DispatchOutcome> {
+  executionContext?.assertOwned();
   const answers = await loadCanonicalAnswers(applicationId);
   const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
   if (!provider) throw new NeedsHumanError("SGAC provider is not registered");
@@ -66,7 +75,9 @@ export async function runOne(applicationId: string, jobId?: string): Promise<Dis
     const portal = await runSgacPortalSubmission(normalizeSgacPortalPayload(payload), {
       headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
       stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
+      executionContext,
     });
+    executionContext?.assertOwned();
     const result: SgArrivalCardSubmissionResult = {
       country: "SG",
       visaType: "SG_ARRIVAL_CARD",
@@ -81,12 +92,18 @@ export async function runOne(applicationId: string, jobId?: string): Promise<Dis
       portalResponseSummary: portal.portalResponseSummary,
       artifacts: { screenshots: portal.screenshots, pdfs: portal.pdfs, logs: portal.logs },
     };
+    executionContext?.assertOwned();
     await writeSubmissionResult(applicationId, result, portal.submitted ? "submitted" : "failed");
     if (!portal.submitted) {
       throw new NeedsHumanError("sgac: ICA runner stopped before official confirmation");
     }
     return { outcome: "submitted_pending_pay", reachedStep: "official_confirmation", artefacts: portal.pdfs };
   } catch (error) {
+    const isAbortError = error instanceof Error && error.name === "AbortError";
+    if (error instanceof RunnerJobOwnershipLostError || isAbortError || executionContext?.signal.aborted) {
+      const abortReason = executionContext?.signal.reason;
+      throw abortReason instanceof Error ? abortReason : error;
+    }
     if (error instanceof SgacPortalValidationError) {
       throw new NeedsHumanError(`sgac: ${error.message}`);
     }

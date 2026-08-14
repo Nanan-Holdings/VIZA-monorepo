@@ -78,3 +78,6 @@ Important patterns to mirror in the Playwright runner:
   click the frontend submit/retry button, confirm the worker picks up the queue
   and the UI progresses, then preserve the official portal trace/screenshot and
   DB result. If the browser-click test is blocked, report the exact reason.
+- Shared-pool runs receive a `RunnerExecutionContext`; abort the browser on
+  lease loss and assert ownership before CAPTCHA/payment actions. The runner
+  must propagate cancellation rather than mapping it to `RetryableRunnerError`.
