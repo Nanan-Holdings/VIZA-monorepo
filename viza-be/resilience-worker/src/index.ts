@@ -33,10 +33,22 @@ type OutboxItem = {
 
 export type WorkloadType = "critical_notification" | "document_processing" | "status_sync" | "background";
 
-type QueueEnvelope = {
-  version: 1;
+export type AllowedQueueEventType =
+  | "runner_job.wakeup.v1"
+  | "vietnam_status_sync.v1"
+  | "critical_notification.v1"
+  | "document_processing.v1";
+
+export type QueueEnvelope = {
+  version: 2;
   idempotencyKey: string;
   workloadType: WorkloadType;
+  eventType: AllowedQueueEventType;
+};
+
+type QueueOutboxItem = Omit<OutboxItem, "eventType"> & {
+  workloadType: WorkloadType;
+  eventType: AllowedQueueEventType;
 };
 
 type ConcurrencyGateKey = {
@@ -224,6 +236,16 @@ function workloadType(value: unknown): WorkloadType {
   throw new InputError("workloadType is invalid");
 }
 
+function queueEventType(value: unknown): AllowedQueueEventType {
+  if (
+    value === "runner_job.wakeup.v1" ||
+    value === "vietnam_status_sync.v1" ||
+    value === "critical_notification.v1" ||
+    value === "document_processing.v1"
+  ) return value;
+  throw new InputError("eventType is invalid");
+}
+
 function queueForWorkload(env: RuntimeEnv, workload: WorkloadType): Queue<QueueEnvelope> {
   if (workload === "critical_notification") return env.CRITICAL_NOTIFICATIONS_QUEUE;
   if (workload === "document_processing" || workload === "status_sync") return env.DOCUMENT_STATUS_QUEUE;
@@ -233,11 +255,12 @@ function queueForWorkload(env: RuntimeEnv, workload: WorkloadType): Queue<QueueE
 function queueEnvelope(value: unknown): QueueEnvelope {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new InputError("queue message is invalid");
   const candidate = value as Record<string, unknown>;
-  if (candidate.version !== 1) throw new InputError("queue message version is invalid");
+  if (candidate.version !== 2) throw new InputError("queue message version is invalid");
   return {
-    version: 1,
+    version: 2,
     idempotencyKey: boundedString(candidate.idempotencyKey, "idempotencyKey"),
     workloadType: workloadType(candidate.workloadType),
+    eventType: queueEventType(candidate.eventType),
   };
 }
 
@@ -299,12 +322,14 @@ function outboxItem(body: Record<string, unknown>): OutboxItem {
   return item;
 }
 
-function queueOutboxItem(body: Record<string, unknown>): OutboxItem & { eventType: WorkloadType } {
-  const item = outboxItem({ ...body, eventType: workloadType(body.workloadType) });
+function queueOutboxItem(body: Record<string, unknown>): QueueOutboxItem {
+  const workload = workloadType(body.workloadType);
+  const eventType = queueEventType(body.eventType);
+  const item = outboxItem({ ...body, eventType });
   if (new TextEncoder().encode(item.blob).byteLength > MAX_QUEUE_OPAQUE_BYTES) {
     throw new InputError("blob exceeds queue workload limit");
   }
-  return item as OutboxItem & { eventType: WorkloadType };
+  return { ...item, workloadType: workload, eventType };
 }
 
 async function doCall(stub: DurableObjectStub<ResilienceState>, command: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -589,10 +614,10 @@ async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promis
   if (claim.outcome !== "claimed" || !claim.item || typeof claim.item !== "object" || Array.isArray(claim.item)) return "retry";
 
   const item = claim.item as Record<string, unknown>;
-  if (item.eventType !== envelope.workloadType) {
+  if (item.eventType !== envelope.eventType) {
     await doCall(state, {
       op: "nackOutbox",
-      items: [{ idempotencyKey: envelope.idempotencyKey, leaseId: item.leaseId, errorCode: "queue_workload_mismatch", retryAfterSeconds: 60 }],
+      items: [{ idempotencyKey: envelope.idempotencyKey, leaseId: item.leaseId, errorCode: "queue_event_mismatch", retryAfterSeconds: 60 }],
       now: Date.now(),
     });
     return "retry";
@@ -729,9 +754,14 @@ async function handleRequest(request: Request, env: RuntimeEnv): Promise<Respons
     if (url.pathname === "/v1/queue/enqueue") {
       const command = queueOutboxItem(parsed);
       const result = await doCall(state, { op: "enqueueOutbox", ...command, now: Date.now() });
-      const envelope: QueueEnvelope = { version: 1, idempotencyKey: command.idempotencyKey, workloadType: command.eventType };
+      const envelope: QueueEnvelope = {
+        version: 2,
+        idempotencyKey: command.idempotencyKey,
+        workloadType: command.workloadType,
+        eventType: command.eventType,
+      };
       try {
-        await queueForWorkload(env, command.eventType).send(envelope, {
+        await queueForWorkload(env, command.workloadType).send(envelope, {
           contentType: "json",
           ...(command.availableAt && command.availableAt > Date.now()
             ? { delaySeconds: Math.min(MAX_RETRY_AFTER_SECONDS, Math.ceil((command.availableAt - Date.now()) / 1_000)) }
@@ -740,10 +770,17 @@ async function handleRequest(request: Request, env: RuntimeEnv): Promise<Respons
       } catch {
         // The durable outbox is already persisted. Returning 503 invites a
         // producer retry, while the scheduled replay remains a recovery path.
-        log("error", "queue_publish_failed", { workloadType: command.eventType });
+        log("error", "queue_publish_failed", { workloadType: command.workloadType });
         return json({ ok: false, error: "queue_publish_failed", persisted: true, ...result }, 503);
       }
-      return json({ ok: true, queued: true, queue: WORKLOAD_QUEUE_NAMES[command.eventType], ...result });
+      return json({
+        ok: true,
+        queued: true,
+        queue: WORKLOAD_QUEUE_NAMES[command.workloadType],
+        workloadType: command.workloadType,
+        eventType: command.eventType,
+        ...result,
+      });
     }
     if (url.pathname === "/v1/outbox/claim") {
       const result = await doCall(state, { op: "claimOutbox", now: Date.now(), limit: numberVar(String(parsed.limit ?? ""), DEFAULT_REPLAY_BATCH_SIZE, 1, 100), leaseMs: numberVar(String(parsed.leaseSeconds ?? ""), DEFAULT_REPLAY_LEASE_SECONDS, 15, 900) * 1000 });
@@ -1176,7 +1213,7 @@ export class ConcurrencyGate extends DurableObject<RuntimeEnv> {
     const leaseUntil = now + leaseMs;
     const result = this.ctx.storage.sql.exec("UPDATE gate_leases SET lease_until=? WHERE lease_id=? AND fencing_token=? AND lease_until>?", leaseUntil, leaseId, fencingToken, now);
     await this.scheduleNextExpiry();
-    return { renewed: result.rowsWritten === 1, ...(result.rowsWritten === 1 ? { leaseUntil, fencingToken } : { reason: "stale_lease" }) };
+    return { renewed: result.rowsWritten > 0, ...(result.rowsWritten > 0 ? { leaseUntil, fencingToken } : { reason: "stale_lease" }) };
   }
 
   async release(command: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -1186,7 +1223,7 @@ export class ConcurrencyGate extends DurableObject<RuntimeEnv> {
     this.deleteExpired(now);
     const result = this.ctx.storage.sql.exec("DELETE FROM gate_leases WHERE lease_id=? AND fencing_token=?", leaseId, fencingToken);
     await this.scheduleNextExpiry();
-    return { released: result.rowsWritten === 1, ...(result.rowsWritten === 1 ? {} : { reason: "stale_lease" }) };
+    return { released: result.rowsWritten > 0, ...(result.rowsWritten > 0 ? {} : { reason: "stale_lease" }) };
   }
 
   async inspect(command: Record<string, unknown>): Promise<Record<string, unknown>> {

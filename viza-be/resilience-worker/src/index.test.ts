@@ -48,10 +48,10 @@ async function sign(path: string, body: string, timestamp = Math.floor(Date.now(
   return new Headers({ "Content-Type": "application/json", "X-Viza-Key-Id": keyId, "X-Viza-Timestamp": timestamp, "X-Viza-Nonce": nonce, "X-Viza-Signature": signature });
 }
 
-async function request(path: string, value: Record<string, unknown>, nonce?: string): Promise<Response> {
+async function request(path: string, value: Record<string, unknown>, nonce?: string, requestEnv: typeof env = env): Promise<Response> {
   const body = JSON.stringify(value);
   const headers = await sign(path, body, undefined, nonce);
-  return worker.fetch(new Request(`https://worker.test${path}`, { method: "POST", headers, body }), env);
+  return worker.fetch(new Request(`https://worker.test${path}`, { method: "POST", headers, body }), requestEnv);
 }
 
 describe("resilience gateway", () => {
@@ -194,13 +194,87 @@ describe("resilience gateway", () => {
     expect(payload.items[0].leaseId).toEqual(expect.any(String));
   });
 
+  it("accepts a signed v2 queue request while preserving workload and event semantics", async () => {
+    const idempotencyKey = `queue-v2-${crypto.randomUUID()}`;
+    const response = await request("/v1/queue/enqueue", {
+      idempotencyKey,
+      workloadType: "background",
+      eventType: "runner_job.wakeup.v1",
+      scope: "runner_job",
+      blob: "opaque-ciphertext",
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      accepted: true,
+      queued: true,
+      workloadType: "background",
+      eventType: "runner_job.wakeup.v1",
+    });
+
+    const claim = await stateCommand({
+      op: "claimOutboxByKey",
+      idempotencyKey,
+      now: Date.now(),
+      leaseMs: 30_000,
+    });
+    expect(claim).toMatchObject({
+      outcome: "claimed",
+      item: { idempotencyKey, eventType: "runner_job.wakeup.v1", blob: "opaque-ciphertext" },
+    });
+    const item = claim.item as { idempotencyKey: string; leaseId: string };
+    await stateCommand({ op: "ackOutbox", items: [item], now: Date.now() });
+  });
+
+  it("rejects an arbitrary queue event type at the signed HTTP boundary", async () => {
+    const response = await request("/v1/queue/enqueue", {
+      idempotencyKey: `queue-invalid-event-${crypto.randomUUID()}`,
+      workloadType: "background",
+      eventType: "arbitrary.event.v1",
+      scope: "runner_job",
+      blob: "opaque-ciphertext",
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "eventType is invalid" });
+  });
+
+  it("returns queue publish failures after persisting a claimable outbox record", async () => {
+    const idempotencyKey = `queue-publish-failure-${crypto.randomUUID()}`;
+    const failingEnv = {
+      ...env,
+      BACKGROUND_QUEUE: { send: vi.fn().mockRejectedValue(new Error("queue unavailable")) },
+    } as unknown as typeof env;
+    const response = await request("/v1/queue/enqueue", {
+      idempotencyKey,
+      workloadType: "background",
+      eventType: "runner_job.wakeup.v1",
+      scope: "runner_job",
+      blob: "opaque-ciphertext",
+    }, undefined, failingEnv);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ ok: false, persisted: true, error: "queue_publish_failed" });
+
+    const claim = await stateCommand({
+      op: "claimOutboxByKey",
+      idempotencyKey,
+      now: Date.now(),
+      leaseMs: 30_000,
+    });
+    expect(claim).toMatchObject({
+      outcome: "claimed",
+      item: { idempotencyKey, eventType: "runner_job.wakeup.v1" },
+    });
+    const item = claim.item as { idempotencyKey: string; leaseId: string };
+    await stateCommand({ op: "ackOutbox", items: [item], now: Date.now() });
+  });
+
   it("acks duplicate queue deliveries after one idempotent outbox replay", async () => {
     const idempotencyKey = `queue-duplicate-${crypto.randomUUID()}`;
     await stateCommand({
       op: "enqueueOutbox",
       idempotencyKey,
       scope: "notifications",
-      eventType: "critical_notification",
+      eventType: "critical_notification.v1",
       blob: "opaque-ciphertext",
       now: Date.now(),
     });
@@ -216,7 +290,12 @@ describe("resilience gateway", () => {
           id: messageId,
           timestamp: new Date(),
           attempts: 1,
-          body: { version: 1, idempotencyKey, workloadType: "critical_notification" },
+          body: {
+            version: 2,
+            idempotencyKey,
+            workloadType: "critical_notification",
+            eventType: "critical_notification.v1",
+          },
         }]);
         const context = createExecutionContext();
         await worker.queue(batch, env, context);
@@ -228,6 +307,91 @@ describe("resilience gateway", () => {
     } finally {
       replay.mockRestore();
     }
+  });
+
+  it("keeps signed concurrency operations isolated by shard and rejects stale fencing", async () => {
+    const scope = `http-gate-${crypto.randomUUID()}`;
+    const firstKey = "provider-a";
+    const secondKey = "provider-b";
+    const firstAcquire = await request("/v1/concurrency/acquire", {
+      scope,
+      resourceKey: firstKey,
+      capacity: 1,
+      leaseSeconds: 60,
+      ownerRef: "owner-a",
+    });
+    expect(firstAcquire.status).toBe(200);
+    const firstPayload = await firstAcquire.json() as { acquired: boolean; leaseId: string; fencingToken: number; shard: string };
+    expect(firstPayload).toMatchObject({ acquired: true });
+
+    const sameShard = await request("/v1/concurrency/acquire", {
+      scope,
+      resourceKey: firstKey,
+      capacity: 1,
+      leaseSeconds: 60,
+      ownerRef: "owner-a-second",
+    });
+    expect(sameShard.status).toBe(200);
+    expect(await sameShard.json()).toMatchObject({ acquired: false, reason: "at_capacity", shard: firstPayload.shard });
+
+    const separateShard = await request("/v1/concurrency/acquire", {
+      scope,
+      resourceKey: secondKey,
+      capacity: 1,
+      leaseSeconds: 60,
+      ownerRef: "owner-b",
+    });
+    expect(separateShard.status).toBe(200);
+    const separatePayload = await separateShard.json() as { acquired: boolean; leaseId: string; fencingToken: number; shard: string };
+    expect(separatePayload).toMatchObject({ acquired: true });
+    expect(separatePayload.shard).not.toBe(firstPayload.shard);
+
+    const staleRenew = await request("/v1/concurrency/renew", {
+      scope,
+      resourceKey: firstKey,
+      leaseId: firstPayload.leaseId,
+      fencingToken: firstPayload.fencingToken + 1,
+      leaseSeconds: 60,
+    });
+    expect(staleRenew.status).toBe(200);
+    expect(await staleRenew.json()).toMatchObject({ renewed: false, reason: "stale_lease" });
+
+    const renewed = await request("/v1/concurrency/renew", {
+      scope,
+      resourceKey: firstKey,
+      leaseId: firstPayload.leaseId,
+      fencingToken: firstPayload.fencingToken,
+      leaseSeconds: 60,
+    });
+    expect(renewed.status).toBe(200);
+    expect(await renewed.json()).toMatchObject({ renewed: true, fencingToken: firstPayload.fencingToken });
+
+    const staleRelease = await request("/v1/concurrency/release", {
+      scope,
+      resourceKey: firstKey,
+      leaseId: firstPayload.leaseId,
+      fencingToken: firstPayload.fencingToken + 1,
+    });
+    expect(staleRelease.status).toBe(200);
+    expect(await staleRelease.json()).toMatchObject({ released: false, reason: "stale_lease" });
+
+    const releaseFirst = await request("/v1/concurrency/release", {
+      scope,
+      resourceKey: firstKey,
+      leaseId: firstPayload.leaseId,
+      fencingToken: firstPayload.fencingToken,
+    });
+    expect(releaseFirst.status).toBe(200);
+    expect(await releaseFirst.json()).toMatchObject({ released: true });
+
+    const releaseSecond = await request("/v1/concurrency/release", {
+      scope,
+      resourceKey: secondKey,
+      leaseId: separatePayload.leaseId,
+      fencingToken: separatePayload.fencingToken,
+    });
+    expect(releaseSecond.status).toBe(200);
+    expect(await releaseSecond.json()).toMatchObject({ released: true });
   });
 
   it("enforces capacity concurrently and recovers expired gate leases with fencing", async () => {
