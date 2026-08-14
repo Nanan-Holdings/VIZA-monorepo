@@ -91,15 +91,25 @@ type AuthoritativeRunnerJobState = {
   availableAt: string | null;
 };
 
-function runnerJobWakeable(state: AuthoritativeRunnerJobState): boolean {
-  return state.status.trim().toLowerCase() === "queued" && availableAtIsDue(state.availableAt ?? undefined);
+type RunnerWakeTarget = "pool" | "legacy" | "indonesia" | "south_korea";
+
+function runnerJobWakeable(state: AuthoritativeRunnerJobState, target: RunnerWakeTarget): boolean {
+  const status = state.status.trim().toLowerCase();
+  const queued = target === "pool"
+    ? status === "queued"
+    : status === "pending" || status.endsWith("_pending") || status.endsWith("_scheduled");
+  return queued && availableAtIsDue(state.availableAt ?? undefined);
 }
 
-async function loadAuthoritativeRunnerJobState(jobId: string): Promise<AuthoritativeRunnerJobState | null> {
+async function loadAuthoritativeRunnerJobState(
+  jobId: string,
+  target: RunnerWakeTarget,
+): Promise<AuthoritativeRunnerJobState | null> {
   try {
     const state = await withAdmin("system", "lib/queue:runner-wake-state", async (admin) => {
+      const table = target === "pool" ? "runner_job" : "submission_queue";
       const { data, error } = await admin
-        .from("runner_job")
+        .from(table)
         .select("id,status,available_at")
         .eq("id", jobId)
         .maybeSingle();
@@ -202,19 +212,10 @@ export async function enqueueRunnerPoolJob(
     if (!row.legacy_queue_id) {
       throw new Error("runner pool enqueue reported a legacy collision without a queue id");
     }
-    if (resilienceRunnerWakeEnabled() && row.runner_job_id) {
-      const state = await loadAuthoritativeRunnerJobState(row.runner_job_id);
-      if (!state || !runnerJobWakeable(state)) {
-        return {
-          transport: "submission_queue",
-          id: row.legacy_queue_id,
-          status: row.legacy_queue_status,
-          created: false,
-          workerTriggered: false,
-        };
-      }
-    }
-    if (shouldDeferWake(opts.availableAt)) {
+    const authority = resilienceRunnerWakeEnabled()
+      ? await loadAuthoritativeRunnerJobState(row.legacy_queue_id, "legacy")
+      : null;
+    if (resilienceRunnerWakeEnabled() && (!authority || !runnerJobWakeable(authority, "legacy"))) {
       return {
         transport: "submission_queue",
         id: row.legacy_queue_id,
@@ -223,7 +224,7 @@ export async function enqueueRunnerPoolJob(
         workerTriggered: false,
       };
     }
-    if (await tryQueueRunnerWake(row.legacy_queue_id, "legacy", opts.availableAt)) {
+    if (await tryQueueRunnerWake(row.legacy_queue_id, "legacy", authority?.availableAt ?? undefined)) {
       return {
         transport: "submission_queue",
         id: row.legacy_queue_id,
@@ -247,16 +248,16 @@ export async function enqueueRunnerPoolJob(
   if (!row.runner_job_id) {
     throw new Error("runner pool enqueue returned no runner job id");
   }
-  if (resilienceRunnerWakeEnabled()) {
-    const state = await loadAuthoritativeRunnerJobState(row.runner_job_id);
-    if (!state || !runnerJobWakeable(state)) {
-      return {
-        transport: "runner_job",
-        id: row.runner_job_id,
-        created: !row.reused_existing,
-        workerTriggered: false,
-      };
-    }
+  const authority = resilienceRunnerWakeEnabled()
+    ? await loadAuthoritativeRunnerJobState(row.runner_job_id, "pool")
+    : null;
+  if (resilienceRunnerWakeEnabled() && (!authority || !runnerJobWakeable(authority, "pool"))) {
+    return {
+      transport: "runner_job",
+      id: row.runner_job_id,
+      created: !row.reused_existing,
+      workerTriggered: false,
+    };
   }
   if (shouldDeferWake(opts.availableAt)) {
     return {
@@ -266,7 +267,7 @@ export async function enqueueRunnerPoolJob(
       workerTriggered: false,
     };
   }
-  if (await tryQueueRunnerWake(row.runner_job_id, "pool", opts.availableAt)) {
+  if (await tryQueueRunnerWake(row.runner_job_id, "pool", authority?.availableAt ?? opts.availableAt)) {
     return {
       transport: "runner_job",
       id: row.runner_job_id,
@@ -376,14 +377,14 @@ export async function enqueueSgacRunnerRetry(
 
   if (result.route === "legacy") return result;
 
-  if (resilienceRunnerWakeEnabled()) {
-    const state = await loadAuthoritativeRunnerJobState(result.id);
-    if (!state || !runnerJobWakeable(state)) {
-      return {
-        ...result,
-        workerTriggered: false,
-      };
-    }
+  const authority = resilienceRunnerWakeEnabled()
+    ? await loadAuthoritativeRunnerJobState(result.id, "pool")
+    : null;
+  if (resilienceRunnerWakeEnabled() && (!authority || !runnerJobWakeable(authority, "pool"))) {
+    return {
+      ...result,
+      workerTriggered: false,
+    };
   }
 
   if (shouldDeferWake(opts.availableAt)) {
@@ -393,7 +394,7 @@ export async function enqueueSgacRunnerRetry(
     };
   }
 
-  if (await tryQueueRunnerWake(result.id, "pool")) {
+  if (await tryQueueRunnerWake(result.id, "pool", authority?.availableAt ?? undefined)) {
     return {
       ...result,
       workerTriggered: true,
@@ -461,7 +462,11 @@ export async function enqueueRunnerJob(
         };
       },
     );
-    if (await tryQueueRunnerWake(result.id, "indonesia")) return result;
+    if (resilienceRunnerWakeEnabled()) {
+      const state = await loadAuthoritativeRunnerJobState(result.id, "indonesia");
+      if (!state || !runnerJobWakeable(state, "indonesia")) return result;
+      if (await tryQueueRunnerWake(result.id, "indonesia", state.availableAt ?? undefined)) return result;
+    } else if (await tryQueueRunnerWake(result.id, "indonesia")) return result;
     const wake = await wakeCloudSubmissionWorker(result.id, { target: "indonesia" });
     if (!wake.ok && wake.reason !== "not_configured") {
       console.warn("[indonesia] Sticky Fly wake failed; reconciler will recover.", {
@@ -496,7 +501,11 @@ export async function enqueueRunnerJob(
         };
       },
     );
-    if (await tryQueueRunnerWake(result.id, "legacy")) return result;
+    if (resilienceRunnerWakeEnabled()) {
+      const state = await loadAuthoritativeRunnerJobState(result.id, "legacy");
+      if (!state || !runnerJobWakeable(state, "legacy")) return result;
+      if (await tryQueueRunnerWake(result.id, "legacy", state.availableAt ?? undefined)) return result;
+    } else if (await tryQueueRunnerWake(result.id, "legacy")) return result;
     const wake = await wakeCloudSubmissionWorker(result.id, { target: "legacy" });
     if (!wake.ok && wake.reason !== "not_configured") {
       console.warn("[vietnam] Sticky Fly wake failed; reconciler will recover.", {
@@ -543,12 +552,12 @@ export async function enqueueRunnerJob(
     }
     return { id: data.id as string, created: true };
   });
-  if (resilienceRunnerWakeEnabled()) {
-    const state = await loadAuthoritativeRunnerJobState(result.id);
-    if (!state || !runnerJobWakeable(state)) return result;
-  }
+  const authority = resilienceRunnerWakeEnabled()
+    ? await loadAuthoritativeRunnerJobState(result.id, "pool")
+    : null;
+  if (resilienceRunnerWakeEnabled() && (!authority || !runnerJobWakeable(authority, "pool"))) return result;
   if (shouldDeferWake(opts.availableAt)) return result;
-  if (await tryQueueRunnerWake(result.id, "pool", opts.availableAt)) return result;
+  if (await tryQueueRunnerWake(result.id, "pool", authority?.availableAt ?? opts.availableAt)) return result;
   const wake = await wakeCloudSubmissionWorker(result.id, {
     target: "pool",
   });
