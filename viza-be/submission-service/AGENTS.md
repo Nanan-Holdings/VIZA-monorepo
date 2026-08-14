@@ -533,6 +533,15 @@ filling and one-shot submission for the applicant.
   reload control, and prove that the bitmap changed before another solver
   request. If a bounded reload cannot produce a new fingerprint, stop without
   resending the answered/rejected challenge or submitting the form.
+- `src/issuing/photonpay-card-provider.ts` owns durable just-in-time virtual
+  card issuance. Scope cards to `government_fee_allocations` and
+  `official_fee_payment_intents`, use the database issuer request id for
+  restart recovery, and persist only card id plus masked PAN. PAN, expiry, CVV,
+  and OTP must stay in memory. Do not call it for `client_in_portal`,
+  `applicant_direct_link`, or `paper_only_no_fee` routes.
+- Vietnam and Indonesia may acquire a PhotonPay card only after the official
+  payment page is visible. An uncertain provider or portal result must enter
+  `review_required`; never issue a second card while that state is unresolved.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use

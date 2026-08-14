@@ -610,7 +610,7 @@ describe("cloud submission retry routing", () => {
     });
   });
 
-  it("requires a fresh one-time card when restarting an Indonesia account checkpoint", async () => {
+  it("authorizes a managed virtual card when restarting an Indonesia account checkpoint", async () => {
     const accountCheckpoint = {
       country: "GENERIC",
       targetCountry: "ID",
@@ -644,16 +644,8 @@ describe("cloud submission retry routing", () => {
       />,
     );
 
-    expect(screen.getByText("本次官方流程与付款银行卡")).toBeInTheDocument();
+    expect(screen.getByText("本申请专用限额虚拟卡")).toBeInTheDocument();
     const restartButton = screen.getByRole("button", { name: "重新开始并自动付款" });
-    expect(restartButton).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
-    fireEvent.change(screen.getByLabelText("持卡人姓名（必填，按银行卡）"), {
-      target: { value: "REAL CARDHOLDER" },
-    });
     expect(restartButton).toBeEnabled();
     fireEvent.click(restartButton);
 
@@ -662,14 +654,7 @@ describe("cloud submission retry routing", () => {
         "/api/applications/application-id/official-fee/pay",
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({
-            card: {
-              pan: "4111111111111111",
-              expiry: "12/30",
-              cvv: "123",
-              holderName: "REAL CARDHOLDER",
-            },
-          }),
+          body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
         }),
       );
     });
@@ -825,14 +810,18 @@ describe("cloud submission retry routing", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
     fireEvent.click(screen.getByRole("button", { name: "开始自动付款" }));
 
     expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
-    expect(screen.getByText("正在安全发送银行卡并启动 Fly 云端任务。")).toBeInTheDocument();
+    expect(screen.getByText("正在启动云端任务；虚拟卡将在官网付款页按需开立。")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/applications/application-id/official-fee/pay",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
+      }),
+    );
 
     await act(async () => {
       resolvePayment?.({

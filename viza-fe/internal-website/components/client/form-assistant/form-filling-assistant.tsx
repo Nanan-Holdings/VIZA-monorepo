@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE } from "@/types/form-assistant";
 
 export interface FormAssistantMessage {
   id: string;
@@ -145,7 +146,7 @@ export function FormFillingAssistant({
   const validationTitleId = `form-assistant-${idPrefix}-validation-title`;
   const composerStorageKey = `viza:form-assistant:composer:${applicationId}`;
   const [draft, setDraft] = useState(() => {
-    if (typeof window === "undefined") return "";
+    if (typeof window === "undefined" || !window.localStorage) return "";
     return window.localStorage.getItem(`viza:form-assistant:composer:${applicationId}`) ?? "";
   });
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
@@ -336,6 +337,7 @@ export function FormFillingAssistant({
   }, [clearRecordingTimers, stopTracks]);
 
   useEffect(() => {
+    if (!window.localStorage) return;
     if (draft.trim()) {
       window.localStorage.setItem(composerStorageKey, draft);
     } else {
@@ -382,12 +384,20 @@ export function FormFillingAssistant({
   const handleSend = useCallback(() => {
     const trimmed = draft.trim();
     if (!trimmed || loading || recordingState !== "idle") return;
+    setRecordingError(null);
     setDraft("");
     const result = onSend(trimmed);
-    void Promise.resolve(result).catch(() => {
+    void Promise.resolve(result).catch((error: unknown) => {
       if (!mountedRef.current) return;
       setDraft((current) => current.trim() ? current : trimmed);
-      setRecordingError(t("errors.sendFailed"));
+      const code = error instanceof Error && "code" in error
+        ? (error as Error & { code?: unknown }).code
+        : null;
+      setRecordingError(t(
+        code === FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE
+          ? "errors.providersUnavailable"
+          : "errors.sendFailed",
+      ));
     });
   }, [draft, loading, onSend, recordingState, t]);
 
@@ -701,7 +711,7 @@ export function FormFillingAssistant({
               onKeyDown={handleComposerKeyDown}
               placeholder={t("composer.placeholder")}
               aria-label={t("composer.label")}
-              disabled={loading || recordingState === "transcribing"}
+              disabled={recordingState === "transcribing"}
               rows={1}
               className="min-h-11 max-h-[168px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-base leading-7 shadow-none outline-none placeholder:text-gray-400 focus-visible:ring-0"
             />

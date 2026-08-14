@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../messages/en.json";
 import zhMessages from "../../../messages/zh.json";
+import { FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE } from "@/types/form-assistant";
 import {
   FormFillingAssistant,
   type FormFillingAssistantProps,
@@ -372,6 +373,37 @@ describe("FormFillingAssistant", () => {
 
     expect(props.onSend).toHaveBeenCalledWith("My passport number is A1234567");
     expect(textarea).toHaveValue("");
+  });
+
+  it("allows drafting the next answer while the assistant is thinking", () => {
+    const { props } = renderAssistant({ loading: true });
+    const textarea = screen.getByRole("textbox", { name: "Message for the form filling assistant" });
+    const sendButton = screen.getByRole("button", { name: "Send message" });
+
+    expect(textarea).toBeEnabled();
+    fireEvent.change(textarea, { target: { value: "My next answer" } });
+
+    expect(textarea).toHaveValue("My next answer");
+    expect(sendButton).toBeDisabled();
+    fireEvent.keyDown(textarea, { key: "Enter", code: "Enter" });
+    expect(props.onSend).not.toHaveBeenCalled();
+    expect(textarea).toHaveValue("My next answer");
+  });
+
+  it("keeps the answer and shows a provider outage instead of repeating the question", async () => {
+    const providerError = Object.assign(new Error("Provider unavailable"), {
+      code: FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE,
+    });
+    renderAssistant({ onSend: vi.fn().mockRejectedValue(providerError) });
+    const textarea = screen.getByRole("textbox", { name: "Message for the form filling assistant" });
+
+    fireEvent.change(textarea, { target: { value: "张" } });
+    fireEvent.keyDown(textarea, { key: "Enter", code: "Enter" });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The AI service is temporarily unavailable. Your answer was not saved",
+    );
+    expect(textarea).toHaveValue("张");
   });
 
   it("transcribes a recording into the composer without sending it", async () => {
