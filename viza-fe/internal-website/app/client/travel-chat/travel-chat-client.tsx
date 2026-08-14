@@ -6321,7 +6321,6 @@ export function TravelChatClient({
                       startConversationScrollDrag(event);
                     }}
                   >
-                    <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 rounded-full bg-slate-200" />
                     {scrollThumb.visible && (
                       <button
                         aria-label={

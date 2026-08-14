@@ -752,11 +752,6 @@ function GenericResultCard({
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
   const [manualActionError, setManualActionError] = useState<string | null>(null);
   const [completingManualAction, setCompletingManualAction] = useState(false);
-  const [indonesiaCardNumber, setIndonesiaCardNumber] = useState("");
-  const [indonesiaCardExpiry, setIndonesiaCardExpiry] = useState("");
-  const [indonesiaCardCvv, setIndonesiaCardCvv] = useState("");
-  const [indonesiaCardHolderName, setIndonesiaCardHolderName] = useState("");
-  const [indonesiaCardLast4, setIndonesiaCardLast4] = useState<string | null>(null);
   const unsupported = result.status === "unsupported";
   const actionRequired = result.status === "action_required";
   const isDs160Action =
@@ -795,16 +790,7 @@ function GenericResultCard({
     isUkStandardVisitorApplication(applicationCountry, applicationVisaType ?? result.visaType);
   const canContinueIndonesiaLive = Boolean(applicationId) && isIndonesiaAction;
   const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : canContinueIndonesiaLive ? "indonesia" : null;
-  // Indonesia recovery jobs always need a fresh one-time card session. The
-  // previous session is destroyed as soon as the cloud worker consumes it, so
-  // retrying an account/application checkpoint without a card can never reach
-  // the official payment gateway.
   const indonesiaPaymentAction = isIndonesiaAction;
-  const indonesiaCardReady =
-    indonesiaCardNumber.replace(/\D/g, "").length >= 12 &&
-    indonesiaCardExpiry.trim().length >= 4 &&
-    indonesiaCardCvv.replace(/\D/g, "").length >= 3 &&
-    indonesiaCardHolderName.trim().length >= 2;
   const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
   const title = isIndonesiaAction
     ? result.actionType === "official_fee_otp_required"
@@ -946,33 +932,19 @@ function GenericResultCard({
   };
 
   const restartIndonesiaOfficialPayment = async () => {
-    if (!applicationId || !indonesiaCardReady) return;
+    if (!applicationId) return;
     setStartingLive(true);
     setLiveError(null);
     try {
       const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          card: {
-            pan: indonesiaCardNumber,
-            expiry: indonesiaCardExpiry,
-            cvv: indonesiaCardCvv,
-            holderName: indonesiaCardHolderName.trim(),
-          },
-        }),
+        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
       });
       const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
       if (!response.ok) {
         throw new Error(typeof payload?.error === "string" ? payload.error : `official-fee/pay returned ${response.status}`);
       }
-      const cardSession = payload?.cardSession as Record<string, unknown> | undefined;
-      const redactedCard = cardSession?.redactedCard as Record<string, unknown> | undefined;
-      setIndonesiaCardLast4(typeof redactedCard?.last4 === "string" ? redactedCard.last4 : null);
-      setIndonesiaCardNumber("");
-      setIndonesiaCardExpiry("");
-      setIndonesiaCardCvv("");
-      setIndonesiaCardHolderName("");
       window.setTimeout(() => window.location.reload(), 250);
     } catch (error) {
       setLiveError(error instanceof Error ? error.message : String(error));
@@ -1065,72 +1037,20 @@ function GenericResultCard({
             {indonesiaPaymentAction ? (
               <div className="mt-3 space-y-3 rounded-md border border-brand-100 bg-white p-3">
                 <div className="text-sm font-semibold text-foreground">
-                  {isZh ? "本次官方流程与付款银行卡" : "Card for this official application and payment"}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
-                    <input
-                      value={indonesiaCardNumber}
-                      onChange={(event) => setIndonesiaCardNumber(event.target.value)}
-                      autoComplete="cc-number"
-                      inputMode="numeric"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
-                    <input
-                      value={indonesiaCardExpiry}
-                      onChange={(event) => setIndonesiaCardExpiry(event.target.value)}
-                      autoComplete="cc-exp"
-                      inputMode="numeric"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder="MM/YY"
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-xs text-muted-foreground">CVV</span>
-                    <input
-                      value={indonesiaCardCvv}
-                      onChange={(event) => setIndonesiaCardCvv(event.target.value)}
-                      autoComplete="cc-csc"
-                      inputMode="numeric"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder="CVV"
-                    />
-                  </label>
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-muted-foreground">
-                      {isZh ? "持卡人姓名（必填，按银行卡）" : "Cardholder name (required, as on card)"}
-                    </span>
-                    <input
-                      value={indonesiaCardHolderName}
-                      onChange={(event) => setIndonesiaCardHolderName(event.target.value)}
-                      autoComplete="cc-name"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder={isZh ? "请输入银行卡上的姓名" : "Name printed on card"}
-                    />
-                  </label>
+                  {isZh ? "本申请专用限额虚拟卡" : "Limited virtual card for this application"}
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   {isZh
-                    ? "卡号和 CVV 只用于本次官方付款，会发送到 VIZA 云端 submission-service 的短时内存会话；不会保存到数据库、日志或个人资料。"
-                    : "Card number and CVV are used only for this official payment through a short-lived VIZA cloud submission-service session."}
+                    ? "确认后，VIZA 只会在印尼官网付款页准备就绪时开立虚拟卡。卡片绑定本申请和本次官方费用；卡号、有效期和 CVV 不会保存。"
+                    : "After confirmation, VIZA opens the virtual card only when the Indonesia official payment page is ready. It is bound to this application and fee; PAN, expiry, and CVV are never stored."}
                 </p>
-                {indonesiaCardLast4 ? (
-                  <p className="text-xs text-brand-600">
-                    {isZh ? `已刷新一次性卡会话：尾号 ${indonesiaCardLast4}` : `One-time card session refreshed: ending ${indonesiaCardLast4}`}
-                  </p>
-                ) : null}
               </div>
             ) : null}
             <Button
               type="button"
               className="mt-3 w-full"
               onClick={indonesiaPaymentAction ? restartIndonesiaOfficialPayment : startLiveAssisted}
-              disabled={startingLive || (indonesiaPaymentAction && !indonesiaCardReady)}
+              disabled={startingLive}
             >
               {startingLive ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1587,7 +1507,13 @@ export function SubmissionStatusStep({
       // through the fresh-application endpoint instead of re-running the
       // long-form save/validation callback before the queue write.
       const isTaiwanRetry = isTaiwanEntryPermitApplication(retryCountry, retryVisaType);
-      if (onResubmit && !isDs160VisaType(retryVisaType) && !isTaiwanRetry) {
+      const isVietnamPrearrivalRetry = isVietnamPrearrivalApplication(retryCountry, retryVisaType);
+      if (
+        onResubmit &&
+        !isDs160VisaType(retryVisaType) &&
+        !isTaiwanRetry &&
+        !isVietnamPrearrivalRetry
+      ) {
         await onResubmit(mode, vietnamPaymentCard);
         setSnapshot(null);
         return;
