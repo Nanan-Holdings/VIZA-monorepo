@@ -19,6 +19,33 @@ const healthyProbe = {
   healthy: true,
 };
 
+const allowedQueueEventCases = [
+  {
+    workloadType: "background",
+    eventType: "runner_job.wakeup.v1",
+    scope: "runner_job",
+    queue: "viza-resilience-background",
+  },
+  {
+    workloadType: "status_sync",
+    eventType: "vietnam_status_sync.v1",
+    scope: "vietnam_status",
+    queue: "viza-resilience-document-status",
+  },
+  {
+    workloadType: "critical_notification",
+    eventType: "critical_notification.v1",
+    scope: "critical_notification",
+    queue: "viza-resilience-critical-notifications",
+  },
+  {
+    workloadType: "document_processing",
+    eventType: "document_processing.v1",
+    scope: "document_processing",
+    queue: "viza-resilience-document-status",
+  },
+] as const;
+
 async function stateCommand(command: Record<string, unknown>): Promise<Record<string, unknown>> {
   const response = await env.RESILIENCE_STATE.getByName("global").fetch("https://resilience-state/internal", {
     method: "POST",
@@ -196,21 +223,36 @@ describe("resilience gateway", () => {
 
   it("accepts a signed v2 queue request while preserving workload and event semantics", async () => {
     const idempotencyKey = `queue-v2-${crypto.randomUUID()}`;
+    const send = vi.fn(async (_body: unknown, _options?: unknown): Promise<void> => undefined);
+    const producerEnv = {
+      ...env,
+      BACKGROUND_QUEUE: { send },
+    } as unknown as typeof env;
     const response = await request("/v1/queue/enqueue", {
       idempotencyKey,
       workloadType: "background",
       eventType: "runner_job.wakeup.v1",
       scope: "runner_job",
       blob: "opaque-ciphertext",
-    });
+    }, undefined, producerEnv);
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       ok: true,
       accepted: true,
       queued: true,
+      queue: "viza-resilience-background",
       workloadType: "background",
       eventType: "runner_job.wakeup.v1",
     });
+    expect(send).toHaveBeenCalledTimes(1);
+    const [envelope, options] = send.mock.calls[0] ?? [];
+    expect(envelope).toMatchObject({
+      version: 2,
+      idempotencyKey,
+      workloadType: "background",
+      eventType: "runner_job.wakeup.v1",
+    });
+    expect(options).toMatchObject({ contentType: "json" });
 
     const claim = await stateCommand({
       op: "claimOutboxByKey",
@@ -222,6 +264,44 @@ describe("resilience gateway", () => {
       outcome: "claimed",
       item: { idempotencyKey, eventType: "runner_job.wakeup.v1", blob: "opaque-ciphertext" },
     });
+    const item = claim.item as { idempotencyKey: string; leaseId: string };
+    await stateCommand({ op: "ackOutbox", items: [item], now: Date.now() });
+  });
+
+  it.each(allowedQueueEventCases)("accepts allowlisted queue event $eventType on its workload binding", async ({ workloadType, eventType, scope, queue }) => {
+    const sends = {
+      critical: vi.fn(async (_body: unknown, _options?: unknown): Promise<void> => undefined),
+      documentStatus: vi.fn(async (_body: unknown, _options?: unknown): Promise<void> => undefined),
+      background: vi.fn(async (_body: unknown, _options?: unknown): Promise<void> => undefined),
+    };
+    const producerEnv = {
+      ...env,
+      CRITICAL_NOTIFICATIONS_QUEUE: { send: sends.critical },
+      DOCUMENT_STATUS_QUEUE: { send: sends.documentStatus },
+      BACKGROUND_QUEUE: { send: sends.background },
+    } as unknown as typeof env;
+    const idempotencyKey = `queue-allowed-${crypto.randomUUID()}`;
+    const response = await request("/v1/queue/enqueue", {
+      idempotencyKey,
+      workloadType,
+      eventType,
+      scope,
+      blob: "opaque-ciphertext",
+    }, undefined, producerEnv);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, accepted: true, queued: true, queue, workloadType, eventType });
+
+    const selectedSend = workloadType === "critical_notification"
+      ? sends.critical
+      : workloadType === "background"
+        ? sends.background
+        : sends.documentStatus;
+    expect(selectedSend).toHaveBeenCalledTimes(1);
+    const [envelope] = selectedSend.mock.calls[0] ?? [];
+    expect(envelope).toMatchObject({ version: 2, idempotencyKey, workloadType, eventType });
+
+    const claim = await stateCommand({ op: "claimOutboxByKey", idempotencyKey, now: Date.now(), leaseMs: 30_000 });
+    expect(claim).toMatchObject({ outcome: "claimed", item: { idempotencyKey, eventType } });
     const item = claim.item as { idempotencyKey: string; leaseId: string };
     await stateCommand({ op: "ackOutbox", items: [item], now: Date.now() });
   });
@@ -306,6 +386,28 @@ describe("resilience gateway", () => {
       expect(replay).toHaveBeenCalledTimes(1);
     } finally {
       replay.mockRestore();
+    }
+  });
+
+  it("acknowledges legacy v1 queue deliveries with an explicit rollout signal", async () => {
+    const legacyLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const batch = createMessageBatch("viza-resilience-background", [{
+        id: "legacy-v1-delivery",
+        timestamp: new Date(),
+        attempts: 1,
+        body: { version: 1, idempotencyKey: "legacy-v1", workloadType: "background" },
+      }]);
+      const context = createExecutionContext();
+      await worker.queue(batch, env, context);
+      const result = await getQueueResult(batch, context);
+      expect(result.explicitAcks).toStrictEqual(["legacy-v1-delivery"]);
+      expect(result.retryMessages).toStrictEqual([]);
+
+      const entries = legacyLog.mock.calls.flat().map((entry) => String(entry));
+      expect(entries.some((entry) => entry.includes('"event":"queue_legacy_v1_rejected"') && entry.includes('"reason":"v1_not_translatable"'))).toBe(true);
+    } finally {
+      legacyLog.mockRestore();
     }
   });
 
