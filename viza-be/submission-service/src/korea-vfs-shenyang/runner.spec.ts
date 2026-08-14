@@ -384,12 +384,25 @@ test("rotates an invalid unverified selector-drift password and retries registra
   assert.equal(isShenyangVfsPasswordCompliant(state.password), true);
 });
 
+test("resets unverified selector-drift with a compliant password without rotating it", () => {
+  const compliantPassword = "Aa1!aaaa";
+  const state = resolveShenyangVfsPasswordState({
+    password: compliantPassword,
+    accountStatus: "selector_drift",
+    emailVerified: false,
+  });
+  assert.equal(state.rotated, false);
+  assert.equal(state.password, compliantPassword);
+  assert.equal(state.accountStatus, "account_prepared");
+});
+
 test("never rotates protected or already compliant Shenyang VFS credentials", () => {
   const legacyPassword = "Aa1_aaaa";
   for (const input of [
     { accountStatus: "registered", emailVerified: false },
     { accountStatus: "logged_in", emailVerified: false },
     { accountStatus: "registration_submitting", emailVerified: false },
+    { accountStatus: "selector_drift", emailVerified: true },
     { accountStatus: "account_prepared", emailVerified: true },
   ]) {
     assert.equal(shouldRotateShenyangVfsPassword(input.accountStatus, input.emailVerified, legacyPassword), false);
@@ -406,7 +419,7 @@ test("never rotates protected or already compliant Shenyang VFS credentials", ()
   });
   assert.equal(state.rotated, false);
   assert.equal(state.password, compliantPassword);
-  assert.equal(state.accountStatus, "selector_drift");
+  assert.equal(state.accountStatus, "account_prepared");
 });
 
 interface FakeDialLocator {
