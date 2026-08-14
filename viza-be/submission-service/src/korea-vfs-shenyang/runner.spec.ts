@@ -8,6 +8,7 @@ import {
   isShenyangVfsPasswordCompliant,
   isOptionalRegistrationConsent,
   resolveShenyangVfsPasswordState,
+  selectShenyangVfsRegistrationDialCode,
   shouldRotateShenyangVfsPassword,
 } from "./runner.js";
 import { extractShenyangVfsSlotsFromTexts } from "./slots.js";
@@ -406,4 +407,166 @@ test("never rotates protected or already compliant Shenyang VFS credentials", ()
   assert.equal(state.rotated, false);
   assert.equal(state.password, compliantPassword);
   assert.equal(state.accountStatus, "selector_drift");
+});
+
+interface FakeDialLocator {
+  first(): FakeDialLocator;
+  count(): Promise<number>;
+  nth(index: number): FakeDialLocator;
+  isVisible(options?: { timeout?: number }): Promise<boolean>;
+  click(options?: { timeout?: number }): Promise<void>;
+  evaluate(fn: (element: { tagName: string }) => string): Promise<string>;
+  selectOption(value: string | { label: string }): Promise<void>;
+  locator(selector: string): FakeDialLocator;
+  filter(options: { hasText: RegExp }): FakeDialLocator;
+  innerText(): Promise<string>;
+  getAttribute(name: string): Promise<string | null>;
+}
+
+function fakeDialCodePage(options: {
+  mountAfterChecks: number;
+  visibility: boolean[];
+  nativeSelect?: boolean;
+  selectedText?: string;
+}): {
+  page: {
+    locator(selector: string): FakeDialLocator;
+    getByLabel(label: RegExp): FakeDialLocator;
+    getByRole(role: string, options?: { name?: RegExp }): FakeDialLocator;
+  };
+  selected: () => string | null;
+  dialChecks: () => number;
+} {
+  let dialChecks = 0;
+  let opened = false;
+  let selected: string | null = null;
+  const optionsLocator = (onClick?: () => void): FakeDialLocator => {
+    const option: FakeDialLocator = {
+      first: () => option,
+      count: async () => 1,
+      nth: () => option,
+      isVisible: async () => true,
+      click: async () => {
+        onClick?.();
+      },
+      evaluate: async (fn) => fn({ tagName: "MAT-OPTION" }),
+      selectOption: async () => undefined,
+      locator: () => option,
+      filter: () => option,
+      innerText: async () => "China (+86)",
+      getAttribute: async (name) => name === "value" ? "CN" : null,
+    };
+    return option;
+  };
+  const controls = options.visibility.map((visible) => {
+    const control: FakeDialLocator = {
+      first: () => control,
+      count: async () => 1,
+      nth: () => control,
+      isVisible: async () => visible,
+      click: async () => {
+        opened = true;
+      },
+      evaluate: async (fn) => fn({ tagName: options.nativeSelect ? "SELECT" : "MAT-SELECT" }),
+      selectOption: async (value) => {
+        selected = typeof value === "string" ? value : value.label;
+      },
+      locator: (selector) => selector === "option" ? optionsLocator(() => {
+        selected = "CN";
+      }) : control,
+      filter: () => control,
+        innerText: async () => selected ? options.selectedText ?? "China (+86)" : "",
+      getAttribute: async () => null,
+    };
+    return control;
+  });
+  const collection = (items: FakeDialLocator): FakeDialLocator => items;
+  const empty = (): FakeDialLocator => {
+    const locator: FakeDialLocator = {
+      first: () => locator,
+      count: async () => 0,
+      nth: () => locator,
+      isVisible: async () => false,
+      click: async () => undefined,
+      evaluate: async (fn) => fn({ tagName: "DIV" }),
+      selectOption: async () => undefined,
+      locator: () => locator,
+      filter: () => locator,
+      innerText: async () => "",
+      getAttribute: async () => null,
+    };
+    return locator;
+  };
+  const page = {
+    locator: (selector: string): FakeDialLocator => {
+      if (!selector.includes("formcontrolname='dialcode'")) return empty();
+      dialChecks += 1;
+      if (dialChecks <= options.mountAfterChecks) return empty();
+      return collection({
+        first: () => controls[0],
+        count: async () => controls.length,
+        nth: (index) => controls[index],
+        isVisible: async () => controls.some((control) => control === controls[0]),
+        click: async () => undefined,
+        evaluate: async (fn) => fn({ tagName: "DIV" }),
+        selectOption: async () => undefined,
+        locator: () => empty(),
+        filter: () => empty(),
+        innerText: async () => "",
+        getAttribute: async () => null,
+      });
+    },
+    getByLabel: () => empty(),
+    getByRole: (role: string) => role === "option" && opened
+      ? optionsLocator(() => {
+        selected = "CN";
+      })
+      : empty(),
+  };
+  return {
+    page,
+    selected: () => selected,
+    dialChecks: () => dialChecks,
+  };
+}
+
+test("polls for the stable dialcode control before selecting China (+86)", async () => {
+  const fixture = fakeDialCodePage({ mountAfterChecks: 2, visibility: [true] });
+  await selectShenyangVfsRegistrationDialCode(
+    fixture.page as unknown as import("playwright").Page,
+    { timeoutMs: 40, pollIntervalMs: 1 },
+  );
+  assert.equal(fixture.selected(), "CN");
+  assert.ok(fixture.dialChecks() >= 3);
+});
+
+test("skips hidden duplicate dial controls and selects only the visible China option", async () => {
+  const fixture = fakeDialCodePage({ mountAfterChecks: 0, visibility: [false, true] });
+  await selectShenyangVfsRegistrationDialCode(
+    fixture.page as unknown as import("playwright").Page,
+    { timeoutMs: 40, pollIntervalMs: 1 },
+  );
+  assert.equal(fixture.selected(), "CN");
+});
+
+test("fails closed when the Shenyang China dial-code control never mounts", async () => {
+  const fixture = fakeDialCodePage({ mountAfterChecks: Number.POSITIVE_INFINITY, visibility: [true] });
+  await assert.rejects(
+    () => selectShenyangVfsRegistrationDialCode(
+      fixture.page as unknown as import("playwright").Page,
+      { timeoutMs: 15, pollIntervalMs: 1 },
+    ),
+    { message: "The official VFS China dial-code control could not be identified or selected." },
+  );
+});
+
+test("fails closed when the dial control cannot confirm China (+86) after selection", async () => {
+  const fixture = fakeDialCodePage({ mountAfterChecks: 0, visibility: [true], selectedText: "86" });
+  await assert.rejects(
+    () => selectShenyangVfsRegistrationDialCode(
+      fixture.page as unknown as import("playwright").Page,
+      { timeoutMs: 15, pollIntervalMs: 1 },
+    ),
+    { message: "The official VFS China dial-code control could not be identified or selected." },
+  );
 });
