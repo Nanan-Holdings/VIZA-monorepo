@@ -89,3 +89,35 @@ test("skips hidden duplicate mobile controls and fills the first visible one", a
   await fillShenyangVfsRegistrationMobileField(fixture.page as unknown as import("playwright").Page, "13800138000");
   assert.deepEqual(fixture.filled, ["13800138000"]);
 });
+
+test("prefers the stable contact control when the generated mobile id is also visible", async () => {
+  const filled: string[] = [];
+  const dynamicIdField: FakeField = {
+    isVisible: async () => true,
+    fill: async () => {
+      filled.push("dynamic-id");
+    },
+  };
+  const contactField: FakeField = {
+    isVisible: async () => true,
+    fill: async () => {
+      filled.push("contact");
+    },
+  };
+  const page: FakePage = {
+    locator(selector: string): FakeFieldCollection {
+      const matches = selector === "input#mat-input-3"
+        ? [dynamicIdField]
+        : selector === "input[formcontrolname='contact']"
+          ? [contactField]
+          : [];
+      return {
+        count: async () => matches.length,
+        nth: (index: number) => matches[index],
+      };
+    },
+  };
+
+  await fillShenyangVfsRegistrationMobileField(page as unknown as import("playwright").Page, "13800138000");
+  assert.deepEqual(filled, ["contact"]);
+});
