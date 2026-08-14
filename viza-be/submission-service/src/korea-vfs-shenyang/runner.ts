@@ -343,6 +343,50 @@ async function dismissCookies(page: Page): Promise<void> {
   await clickVisible(page, /accept only necessary|accept all|allow all/i).catch(() => false);
 }
 
+const SHENYANG_VFS_MOBILE_FIELD_ERROR = "The official VFS mobile-number field could not be identified.";
+
+export async function fillShenyangVfsRegistrationMobileField(page: Page, phone: string): Promise<void> {
+  const selectors = [
+    "input#mat-input-3",
+    "input[formcontrolname='contact']",
+    "input[formcontrolname*='mobile' i]",
+    "input[formcontrolname*='phone' i]",
+    "input[aria-label*='mobile' i]",
+    "input[aria-label*='phone' i]",
+    "input[aria-label*='telephone' i]",
+    "input[placeholder*='mobile' i]",
+    "input[placeholder*='phone' i]",
+    "input[placeholder*='telephone' i]",
+    "input[name*='mobile' i]",
+    "input[name*='phone' i]",
+    "input[name*='telephone' i]",
+    "input[type='tel']",
+    "input.iti__tel-input",
+    ".intl-tel-input input",
+    "[class*='intl-tel-input' i] input",
+  ];
+  for (const selector of selectors) {
+    let fields: ReturnType<Page["locator"]>;
+    try {
+      fields = page.locator(selector);
+    } catch {
+      continue;
+    }
+    const count = await fields.count().catch(() => 0);
+    for (let index = 0; index < Math.min(count, 25); index += 1) {
+      const field = fields.nth(index);
+      if (!await field.isVisible({ timeout: 400 }).catch(() => false)) continue;
+      try {
+        await field.fill(phone);
+      } catch {
+        throw new Error(SHENYANG_VFS_MOBILE_FIELD_ERROR);
+      }
+      return;
+    }
+  }
+  throw new Error(SHENYANG_VFS_MOBILE_FIELD_ERROR);
+}
+
 async function fillRegistration(page: Page, account: PortalAccountContext): Promise<void> {
   const email = page.locator("#inputEmail").or(page.getByLabel(/^email\*?$/i)).first();
   const password = page.locator("#password").or(page.getByLabel(/^password\*?$/i)).first();
@@ -363,11 +407,7 @@ async function fillRegistration(page: Page, account: PortalAccountContext): Prom
       if (await option.isVisible({ timeout: 3_000 }).catch(() => false)) await option.click();
     }
   }
-  const phone = page.locator("#mat-input-3, input[type='tel'], input[formcontrolname*='mobile' i], input[placeholder*='mobile' i]").first();
-  if (!await phone.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    throw new Error("The official VFS mobile-number field could not be identified.");
-  }
-  await phone.fill(account.phone);
+  await fillShenyangVfsRegistrationMobileField(page, account.phone);
 
   const requiredConsents = page.locator("form input[type='checkbox'], main input[type='checkbox']");
   const count = await requiredConsents.count();
