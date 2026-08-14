@@ -162,7 +162,7 @@ describe("Taiwan runner compliance boundary", () => {
     assert.match(diagnosticsSource, /mask:\s*\[/);
   });
 
-  it("guards Taiwan prepare with submitted, active-job, and reusable-handoff state", async () => {
+  it("guards Taiwan prepare with submitted and active-job state without legacy handoff blocking", async () => {
     const [haltRunnerSource, guardSource] = await Promise.all([
       readFile(join(SRC_DIR, "queue", "halt-runners.ts"), "utf8"),
       readTwSource("prepare-guard.ts"),
@@ -172,11 +172,30 @@ describe("Taiwan runner compliance boundary", () => {
     assert.match(haltRunnerSource, /\.eq\("application_id", applicationId\)/);
     assert.match(haltRunnerSource, /\.eq\("country", "taiwan"\)/);
     assert.match(haltRunnerSource, /TW_ACTIVE_RUNNER_JOB_STATUSES/);
-    assert.match(haltRunnerSource, /TW_APPLICANT_HANDOFF_KIND/);
     assert.match(guardSource, /result\?\.country === "TW" && result\.status === "submitted"/);
     assert.match(guardSource, /job\.id !== snapshot\.currentJobId/);
-    assert.match(guardSource, /Date\.parse\(expiresAt\) > nowMs/);
+    assert.doesNotMatch(guardSource, /activeHandoffs|takeover_session|handoff/i);
     assert.doesNotMatch(guardSource, /stopped_at_captcha[^\n]+throw/);
+  });
+
+  it("requires both audited VIZA terms authorizations before canonical final submit", async () => {
+    const [haltRunnerSource, consentSource, termsSource] = await Promise.all([
+      readFile(join(SRC_DIR, "queue", "halt-runners.ts"), "utf8"),
+      readTwSource("official-terms-consent.ts"),
+      readTwSource("terms-modal.ts"),
+    ]);
+
+    assert.match(haltRunnerSource, /loadTwOfficialTermsConsent\(jobId, applicationId\)/);
+    assert.match(haltRunnerSource, /mode:\s*"submit"/);
+    assert.match(haltRunnerSource, /officialTermsConsent/);
+    assert.match(consentSource, /entryPromptAccepted !== true/);
+    assert.match(consentSource, /termsModalAccepted !== true/);
+    assert.match(consentSource, /viza_final_confirmation/);
+    assert.match(termsSource, /await ensureTermsCheckboxChecked/);
+    assert.ok(
+      termsSource.indexOf("await ensureTermsCheckboxChecked") <
+        termsSource.indexOf("await okButton.click"),
+    );
   });
 
   it("exposes a no-job formal pre-submit CLI without enabling runner pre-submit mode", async () => {

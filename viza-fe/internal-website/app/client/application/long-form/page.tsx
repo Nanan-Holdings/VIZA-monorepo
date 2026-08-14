@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
+import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
 import { InputGroupInput } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
@@ -137,6 +138,7 @@ import {
   queueStatusForApplication,
   submissionQueueRequiresServerEnqueue,
   type SubmissionMode,
+  type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
 import {
   getTaiwanEntryPermitExtraRequirements,
@@ -246,6 +248,9 @@ const UK_LIVE_ASSISTED_ENABLED =
 const INDONESIA_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED !== "false";
 
+const TAIWAN_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED !== "false";
+
 type LiveAssistedTarget =
   | "ds160"
   | "france"
@@ -257,6 +262,7 @@ type LiveAssistedTarget =
   | "phetravel"
   | "uk"
   | "indonesia"
+  | "taiwan"
   | null;
 
 interface VietnamOneTimePaymentCard {
@@ -1040,12 +1046,18 @@ function FinalConfirmationPanel({
   requirementsLoading: boolean;
   submittingMode: SubmissionMode | null;
   submitCheckState: SubmitCheckState;
-  onSubmit: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => void | Promise<void>;
+  onSubmit: (
+    mode: SubmissionMode,
+    vietnamPaymentCard?: VietnamOneTimePaymentCard,
+    taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
+  ) => void | Promise<void>;
 }) {
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
   const [cardHolderName, setCardHolderName] = useState("");
+  const [taiwanEntryPromptAccepted, setTaiwanEntryPromptAccepted] = useState(false);
+  const [taiwanTermsModalAccepted, setTaiwanTermsModalAccepted] = useState(false);
   const hasMissing = missingFields.length > 0;
   const isSubmitting = submittingMode !== null;
   const isChecking = submitCheckState === "checking";
@@ -1059,6 +1071,7 @@ function FinalConfirmationPanel({
   const isTdac = liveAssistedTarget === "tdac";
   const isPhEtravel = liveAssistedTarget === "phetravel";
   const isIndonesia = liveAssistedTarget === "indonesia";
+  const isTaiwan = liveAssistedTarget === "taiwan";
   // Indonesia opens its official payment gateway only after the application is
   // created. A card must not block an initial submission or a pre-payment retry.
   const requiresOneTimeOfficialPaymentCard = isVietnam;
@@ -1108,6 +1121,10 @@ function FinalConfirmationPanel({
                     ? (isZh
                         ? "本地 Indonesia live handoff 已关闭。请确认 INDONESIA_LIVE_SUBMISSION_ENABLED。"
                         : "Indonesia live handoff is disabled locally. Check INDONESIA_LIVE_SUBMISSION_ENABLED.")
+                  : isTaiwan
+                    ? (isZh
+                        ? "台湾官网后台提交暂时未启用。"
+                        : "Taiwan official background submission is currently disabled.")
         : (isZh
             ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"
             : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
@@ -1117,7 +1134,9 @@ function FinalConfirmationPanel({
   // Missing answers are checked after the click so the final action never
   // becomes an unexplained dead end. Only an in-flight check/submission locks
   // the control against duplicate requests.
-  const submitDisabled = isSubmitting || isChecking;
+  const taiwanTermsReady =
+    !isTaiwan || (taiwanEntryPromptAccepted && taiwanTermsModalAccepted);
+  const submitDisabled = isSubmitting || isChecking || !taiwanTermsReady;
   const officialPaymentCard: VietnamOneTimePaymentCard | undefined = requiresOneTimeOfficialPaymentCard
     ? {
         pan: cardNumber,
@@ -1273,11 +1292,52 @@ function FinalConfirmationPanel({
         </div>
       )}
 
+      {isTaiwan && (
+        <div className="space-y-4 border-y border-[#d7e6fb] py-5">
+          <div>
+            <h3 className="text-base font-semibold text-[#0b2545]">
+              {isZh ? "台湾官网条款授权" : "Taiwan official terms authorization"}
+            </h3>
+            <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
+              {isZh
+                ? "两项授权会分别记录。确认后，VIZA 将在后台自动完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。后续审核与缴费仍以官网通知为准，VIZA 不会自动付款。"
+                : "Each authorization is recorded separately. VIZA will then complete the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified. Review and payment remain subject to official notice, and VIZA will not pay automatically."}
+            </p>
+          </div>
+          <ApplicationCheckbox
+            id="tw-entry-prompt-consent"
+            name="tw-entry-prompt-consent"
+            checked={taiwanEntryPromptAccepted}
+            onCheckedChange={setTaiwanEntryPromptAccepted}
+            required
+            label={isZh
+              ? "我同意 VIZA 确认台湾官网进入申请时显示的提示（蓝色 OK）。"
+              : "I authorize VIZA to accept the official entry prompt (blue OK)."}
+          />
+          <ApplicationCheckbox
+            id="tw-terms-modal-consent"
+            name="tw-terms-modal-consent"
+            checked={taiwanTermsModalAccepted}
+            onCheckedChange={setTaiwanTermsModalAccepted}
+            required
+            label={isZh
+              ? "我同意台湾官网条款弹窗，并授权 VIZA 勾选「同意上述条款」后点击「确定」。"
+              : "I accept the official terms modal and authorize VIZA to check “Agree to the terms above” before clicking Confirm."}
+          />
+        </div>
+      )}
+
       <button
         type="button"
         disabled={submitDisabled}
         onClick={() => {
-          void Promise.resolve(onSubmit(submitMode, officialPaymentCard))
+          const taiwanOfficialTermsConsent = isTaiwan
+            ? {
+                entryPromptAccepted: taiwanEntryPromptAccepted,
+                termsModalAccepted: taiwanTermsModalAccepted,
+              }
+            : undefined;
+          void Promise.resolve(onSubmit(submitMode, officialPaymentCard, taiwanOfficialTermsConsent))
             .catch(() => undefined)
             .finally(() => {
               if (requiresOneTimeOfficialPaymentCard) setCardCvv("");
@@ -1347,6 +1407,7 @@ interface SubmissionQueueJobInput {
   visaType: string;
   mode: SubmissionMode;
   createdAt: string;
+  taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput;
 }
 
 type SubmissionQueueJobResult = {
@@ -1400,6 +1461,7 @@ async function markApplicationSubmissionQueued(
     applicationId: string;
     submittedAt: string;
     queueJob: SubmissionQueueJobResult;
+    officialSubmissionPending?: boolean;
   },
 ): Promise<ApplicationSubmissionState> {
   const selectColumns = "submitted_at, submission_result_status, submission_result, confirmation_number";
@@ -1407,7 +1469,7 @@ async function markApplicationSubmissionQueued(
     .from("applications")
     .update({
       status: applicationStatusForQueuedSubmission(input.queueJob),
-      submitted_at: input.submittedAt,
+      submitted_at: input.officialSubmissionPending ? null : input.submittedAt,
       submission_result_status: input.queueJob.submissionResultStatus,
       submission_result: input.queueJob.submissionResult,
       confirmation_number: null,
@@ -1431,7 +1493,8 @@ async function markApplicationSubmissionQueued(
     .maybeSingle()).data;
 
   return {
-    submittedAt: application?.submitted_at ?? input.submittedAt,
+    submittedAt: application?.submitted_at ??
+      (input.officialSubmissionPending ? undefined : input.submittedAt),
     submissionResultStatus:
       (application?.submission_result_status as SubmissionResultStatus | null | undefined) ??
       input.queueJob.submissionResultStatus,
@@ -1461,6 +1524,7 @@ async function insertSubmissionQueueJob(
         // VIZA application already has an older successful submission. This
         // helper is also used by the result card's onResubmit path.
         intent: isDs160VisaType(input.visaType) ? "new_application" : "retry",
+        taiwanOfficialTermsConsent: input.taiwanOfficialTermsConsent,
       }),
     });
     if (!response.ok) {
@@ -2161,6 +2225,8 @@ export default function ApplicationPage() {
                 ? "phetravel"
                 : isIndonesiaEVisa
                   ? "indonesia"
+                  : isTaiwanEntryPermit
+                    ? "taiwan"
                   : null;
   const liveAssistedEnabled = liveAssistedTarget === "ds160"
     ? DS160_LIVE_ASSISTED_ENABLED
@@ -2182,6 +2248,8 @@ export default function ApplicationPage() {
                 ? PH_ETRAVEL_LIVE_ASSISTED_ENABLED
                 : liveAssistedTarget === "indonesia"
                   ? INDONESIA_LIVE_ASSISTED_ENABLED
+                  : liveAssistedTarget === "taiwan"
+                    ? TAIWAN_LIVE_ASSISTED_ENABLED
                   : false;
 
   useEffect(() => {
@@ -3674,6 +3742,7 @@ export default function ApplicationPage() {
   const handleDynamicReviewComplete = async (
     mode: SubmissionMode = "dry_run",
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
+    taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     setSaving(true);
     setSubmittingMode(mode);
@@ -3744,6 +3813,7 @@ export default function ApplicationPage() {
                 visaType: resolvedVisaType,
                 mode,
                 createdAt: new Date().toISOString(),
+                taiwanOfficialTermsConsent,
               });
             })();
         const submittedAt = new Date().toISOString();
@@ -3751,6 +3821,8 @@ export default function ApplicationPage() {
           applicationId,
           submittedAt,
           queueJob,
+          officialSubmissionPending:
+            mode === "live_assisted" && isTaiwanEntryPermit,
         });
 
         setAppState((prev) => ({
@@ -3852,6 +3924,7 @@ export default function ApplicationPage() {
   const handleReviewComplete = async (
     mode: SubmissionMode = "dry_run",
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
+    taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     setSaving(true);
     setSubmittingMode(mode);
@@ -3906,6 +3979,7 @@ export default function ApplicationPage() {
               visaType: resolvedVisaType,
               mode,
               createdAt: new Date().toISOString(),
+              taiwanOfficialTermsConsent,
             });
           })();
 
@@ -3914,6 +3988,8 @@ export default function ApplicationPage() {
         applicationId,
         submittedAt,
         queueJob,
+        officialSubmissionPending:
+          mode === "live_assisted" && isTaiwanEntryPermit,
       });
 
       setAppState((prev) => ({
@@ -3969,9 +4045,14 @@ export default function ApplicationPage() {
   };
 
   const checkAndSubmit = async (
-    submit: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => void | Promise<void>,
+    submit: (
+      mode: SubmissionMode,
+      vietnamPaymentCard?: VietnamOneTimePaymentCard,
+      taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
+    ) => void | Promise<void>,
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
+    taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     if (saving || submitCheckState === "checking") return;
 
@@ -4032,7 +4113,7 @@ export default function ApplicationPage() {
     }
 
     setSubmitCheckState("idle");
-    await submit(mode, vietnamPaymentCard);
+    await submit(mode, vietnamPaymentCard, taiwanOfficialTermsConsent);
   };
 
   const activeCountry = resolvedCountry;
@@ -4581,7 +4662,8 @@ export default function ApplicationPage() {
                                   requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
-                                  onSubmit={(mode, paymentCard) => checkAndSubmit(handleDynamicReviewComplete, mode, paymentCard)}
+                                  onSubmit={(mode, paymentCard, taiwanConsent) =>
+                                    checkAndSubmit(handleDynamicReviewComplete, mode, paymentCard, taiwanConsent)}
                                 />
                               ) : null}
                             </div>
@@ -4718,7 +4800,8 @@ export default function ApplicationPage() {
                                   requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
-                                  onSubmit={(mode, paymentCard) => checkAndSubmit(handleReviewComplete, mode, paymentCard)}
+                                  onSubmit={(mode, paymentCard, taiwanConsent) =>
+                                    checkAndSubmit(handleReviewComplete, mode, paymentCard, taiwanConsent)}
                                 />
                               ) : null}
                             </div>

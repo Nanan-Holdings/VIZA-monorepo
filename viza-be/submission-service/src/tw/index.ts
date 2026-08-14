@@ -91,6 +91,13 @@ export {
 } from "./apply";
 
 export {
+  TW_OFFICIAL_TERMS_CONSENT_VERSION,
+  assertTwOfficialTermsConsentAudit,
+  parseTwOfficialTermsConsentAudit,
+  type TwOfficialTermsConsentAudit,
+} from "./official-terms-consent";
+
+export {
   runTwFormalRunnerPreflight,
   type TwFormalPreflightDiagnostic,
   type TwFormalPreflightInput,
