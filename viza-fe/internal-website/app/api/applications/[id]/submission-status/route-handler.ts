@@ -205,6 +205,32 @@ function normalizeVisaType(visaType: string | null | undefined): string {
   return (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
 }
 
+function isTaiwanEntryPermitApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    normalizeStatus(country) === "taiwan" &&
+    normalizeVisaType(visaType) === "TW_ENTRY_PERMIT"
+  );
+}
+
+export function hasTaiwanApplicantHandoffReady(
+  application: Pick<
+    ApplicationForStatus,
+    "country" | "visa_type" | "submission_result" | "submission_result_status"
+  >,
+): boolean {
+  if (!isTaiwanEntryPermitApplication(application.country, application.visa_type)) return false;
+  if (normalizeStatus(application.submission_result_status) !== "needs_user_action") return false;
+  if (!isRecord(application.submission_result)) return false;
+  return (
+    normalizeStatus(application.submission_result.status as string | undefined) === "stopped_at_captcha" &&
+    typeof application.submission_result.handoffId === "string" &&
+    application.submission_result.handoffId.trim().length > 0
+  );
+}
+
 function isIndonesiaB1Evoa(visaType: string | null | undefined): boolean {
   return normalizeVisaType(visaType) === "ID_B1_EVOA";
 }
@@ -948,7 +974,11 @@ async function getSubmissionStatus(
   // A newly created active queue represents an explicit retry. It must always
   // override an older terminal application result, even when the application
   // row has not yet been updated by the worker.
-  const activeQueueOverridesTerminal = isActiveQueue(queue);
+  // Taiwan deliberately keeps the worker lease active while the applicant's
+  // Browserbase handoff is open. The durable handoff must win so the applicant
+  // sees the button needed to finish on the official portal.
+  const activeQueueOverridesTerminal =
+    isActiveQueue(queue) && !hasTaiwanApplicantHandoffReady(application);
   const terminalQueueOverridesApplication =
     !activeQueueOverridesTerminal &&
     queueDerived.status !== "queued" &&
