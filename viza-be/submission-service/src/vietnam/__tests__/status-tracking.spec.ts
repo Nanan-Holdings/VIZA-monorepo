@@ -82,6 +82,41 @@ test("vn.status-tracking: shares the gate capacity parser default and fail-loud 
   );
 });
 
+test("vn.status-tracking: disabled gate ignores an invalid capacity environment", async () => {
+  const { withVietnamStatusResilienceGate } = await import("../status-tracking.js");
+  const previousEnabled = process.env.RESILIENCE_VN_STATUS_GATE_ENABLED;
+  const previousCapacity = process.env.RESILIENCE_VN_STATUS_GATE_CAPACITY;
+  process.env.RESILIENCE_VN_STATUS_GATE_ENABLED = "false";
+  process.env.RESILIENCE_VN_STATUS_GATE_CAPACITY = "not-an-integer";
+  let operationCalls = 0;
+  try {
+    await withVietnamStatusResilienceGate(
+      {
+        workerId: "worker-disabled",
+        checkId: "check-disabled",
+        operation: async () => {
+          operationCalls += 1;
+          return "ok";
+        },
+      },
+      {
+        acquire: async (input) => {
+          assert.equal(input.capacity, 1);
+          return null;
+        },
+        renew: async () => null,
+        release: async () => true,
+      },
+    );
+  } finally {
+    if (previousEnabled === undefined) delete process.env.RESILIENCE_VN_STATUS_GATE_ENABLED;
+    else process.env.RESILIENCE_VN_STATUS_GATE_ENABLED = previousEnabled;
+    if (previousCapacity === undefined) delete process.env.RESILIENCE_VN_STATUS_GATE_CAPACITY;
+    else process.env.RESILIENCE_VN_STATUS_GATE_CAPACITY = previousCapacity;
+  }
+  assert.equal(operationCalls, 1);
+});
+
 const claimedCheck = {
   id: "check-1",
   application_id: "application-1",

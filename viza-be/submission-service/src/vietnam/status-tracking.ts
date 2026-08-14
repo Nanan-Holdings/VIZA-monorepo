@@ -91,10 +91,12 @@ export async function withVietnamStatusResilienceGate<T>(input: {
 }, gateClient: ResilienceGateClient = createResilienceGateClient()): Promise<T> {
   let lease: GateLease | null = null;
   try {
+    const gateEnabled =
+      process.env.RESILIENCE_VN_STATUS_GATE_ENABLED?.trim().toLowerCase() === "true";
     lease = await gateClient.acquire({
       scope: "vietnam",
       resourceKey: "evisa/status",
-      capacity: vietnamStatusGateCapacity(),
+      capacity: gateEnabled ? vietnamStatusGateCapacity() : 1,
       leaseSeconds: VIETNAM_STATUS_GATE_LEASE_SECONDS,
       ownerRef: safeGateOwnerRef(input.workerId, input.checkId),
     });
