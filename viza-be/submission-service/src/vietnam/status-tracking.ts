@@ -17,11 +17,133 @@ import {
   failVietnamOfficialStatusCheck,
 } from "./status-check-lease.js";
 import { enqueueMatchedVietnamStatusEmails } from "./email-status-matcher.js";
+import {
+  createResilienceGateClient,
+  type GateLease,
+  type ResilienceGateClient,
+} from "../resilience-gate.js";
 
 const OFFICIAL_STATUS_URL = "https://evisa.gov.vn/e-visa/search";
 const OFFICIAL_EMAIL_PATTERN =
   /(?:evisa\.gov\.vn|xuatnhapcanh\.gov\.vn|immigration\.gov\.vn)/i;
 const ACTIVE_TRACKING_STATUS = "active";
+const VIETNAM_STATUS_GATE_LEASE_SECONDS = 120;
+
+export class VietnamStatusCheckOwnershipLostError extends Error {
+  readonly code = "vietnam_status_check_ownership_lost";
+
+  constructor(message = "Vietnam official status check ownership was lost") {
+    super(message);
+    this.name = "VietnamStatusCheckOwnershipLostError";
+  }
+}
+
+function isVietnamStatusCheckOwnershipLostError(error: unknown): boolean {
+  return error instanceof VietnamStatusCheckOwnershipLostError;
+}
+
+function safeGateOwnerRef(workerId: string, checkId: string): string {
+  const normalize = (value: string, fallback: string): string => {
+    const normalized = value.replace(/[^A-Za-z0-9._:-]/g, "").slice(0, 96);
+    return normalized || fallback;
+  };
+  return `vn-status:${normalize(workerId, "worker")}:${normalize(checkId, "check")}`;
+}
+
+export function vietnamStatusGateCapacity(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env.RESILIENCE_VN_STATUS_GATE_CAPACITY?.trim();
+  if (!raw) return 1;
+  if (!/^\d+$/.test(raw)) return 1;
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= 1_000 ? parsed : 1;
+}
+
+export async function withVietnamStatusResilienceGate<T>(input: {
+  workerId: string;
+  checkId: string;
+  operation: (context: { assertOwned: () => void }) => Promise<T>;
+}, gateClient: ResilienceGateClient = createResilienceGateClient()): Promise<T> {
+  let lease: GateLease | null = null;
+  try {
+    lease = await gateClient.acquire({
+      scope: "vietnam",
+      resourceKey: "evisa/status",
+      capacity: vietnamStatusGateCapacity(),
+      leaseSeconds: VIETNAM_STATUS_GATE_LEASE_SECONDS,
+      ownerRef: safeGateOwnerRef(input.workerId, input.checkId),
+    });
+  } catch {
+    // The provider gate is deliberately fail-open. PostgreSQL ownership remains
+    // the source of truth when the optional gateway is unavailable.
+    lease = null;
+  }
+
+  if (!lease) return input.operation({ assertOwned: () => undefined });
+
+  let ownershipLost = false;
+  let stopped = false;
+  let renewTimer: ReturnType<typeof setTimeout> | null = null;
+  let renewInFlight: Promise<void> | null = null;
+  let currentLease = lease;
+  const markOwnershipLost = (): void => {
+    ownershipLost = true;
+  };
+  const assertOwned = (): void => {
+    if (ownershipLost) throw new VietnamStatusCheckOwnershipLostError();
+  };
+  const scheduleRenew = (): void => {
+    if (ownershipLost || stopped) return;
+    const remainingMs = Math.max(1_000, currentLease.leaseUntil - Date.now());
+    const delayMs = Math.max(1_000, Math.floor(remainingMs / 2));
+    renewTimer = setTimeout(() => {
+      renewTimer = null;
+      renewInFlight = (async () => {
+        if (ownershipLost || stopped) return;
+        try {
+          const renewed = await gateClient.renew(
+            currentLease,
+            VIETNAM_STATUS_GATE_LEASE_SECONDS,
+          );
+          if (!renewed) {
+            markOwnershipLost();
+            return;
+          }
+          currentLease = renewed;
+          if (!stopped) scheduleRenew();
+        } catch {
+          markOwnershipLost();
+        }
+      })().catch(() => {
+        markOwnershipLost();
+      });
+    }, delayMs);
+  };
+
+  scheduleRenew();
+  let result: T | undefined;
+  let operationError: unknown;
+  let operationFailed = false;
+  try {
+    result = await input.operation({ assertOwned });
+    assertOwned();
+  } catch (error) {
+    operationFailed = true;
+    operationError = error;
+  } finally {
+    stopped = true;
+    if (renewTimer) clearTimeout(renewTimer);
+    if (renewInFlight) await renewInFlight;
+    try {
+      const released = await gateClient.release(currentLease);
+      if (!released) console.warn("[vn-status] resilience_gate_release_failed");
+    } catch {
+      console.warn("[vn-status] resilience_gate_release_failed");
+    }
+  }
+  if (ownershipLost) throw new VietnamStatusCheckOwnershipLostError();
+  if (operationFailed) throw operationError;
+  return result as T;
+}
 
 type TrackingRow = {
   application_id: string;
@@ -491,7 +613,7 @@ async function processClaimedCheck(
       patch: { status: "cancelled" },
     });
     if (!cancelled) {
-      throw new Error(`Vietnam official status check ${check.id} lease is no longer owned`);
+      throw new VietnamStatusCheckOwnershipLostError();
     }
     return;
   }
@@ -516,14 +638,18 @@ async function processClaimedCheck(
     );
   }
 
-  const result = await queryVietnamOfficialStatus({
-    registrationCode,
-    email: tracking.official_lookup_email,
-    dateOfBirth: toVietnamDob(dateOfBirth),
-    headless: process.env.VN_STATUS_PLAYWRIGHT_HEADLESS !== "false",
-    searchUrl: process.env.VN_OFFICIAL_STATUS_URL ?? OFFICIAL_STATUS_URL,
-    timeoutMs: Number(process.env.VN_STATUS_CHECK_TIMEOUT_MS ?? 180_000),
-  });
+  await withVietnamStatusResilienceGate({
+    workerId,
+    checkId: check.id,
+    operation: async ({ assertOwned }) => {
+      const result = await queryVietnamOfficialStatus({
+        registrationCode,
+        email: tracking.official_lookup_email,
+        dateOfBirth: toVietnamDob(dateOfBirth),
+        headless: process.env.VN_STATUS_PLAYWRIGHT_HEADLESS !== "false",
+        searchUrl: process.env.VN_OFFICIAL_STATUS_URL ?? OFFICIAL_STATUS_URL,
+        timeoutMs: Number(process.env.VN_STATUS_CHECK_TIMEOUT_MS ?? 180_000),
+      });
   if (!isTrustedStatus(result.status)) {
     throw new Error("Vietnam official portal returned an unrecognized status.");
   }
@@ -578,6 +704,7 @@ async function processClaimedCheck(
     trackingPatch.completed_at = now;
   }
 
+  assertOwned();
   await Promise.all([
     supabase.from("applications").update(applicationPatch).eq("id", application.id),
     supabase
@@ -586,6 +713,7 @@ async function processClaimedCheck(
       .eq("application_id", application.id),
   ]);
 
+  assertOwned();
   const completed = await completeVietnamOfficialStatusCheck(supabase, {
     checkId: check.id,
     workerId,
@@ -610,7 +738,7 @@ async function processClaimedCheck(
     },
   });
   if (!completed) {
-    throw new Error(`Vietnam official status check ${check.id} lease is no longer owned`);
+    throw new VietnamStatusCheckOwnershipLostError();
   }
 
   if (
@@ -629,6 +757,8 @@ async function processClaimedCheck(
   if (result.status === "approved" && !documentReady) {
     await queueRetry(check);
   }
+    },
+  });
 }
 
 export async function processQueuedVietnamStatusChecks(workerId: string): Promise<number> {
@@ -647,6 +777,12 @@ export async function processQueuedVietnamStatusChecks(workerId: string): Promis
     try {
       await processClaimedCheck(check, workerId);
     } catch (errorValue) {
+      if (isVietnamStatusCheckOwnershipLostError(errorValue)) {
+        console.warn(
+          `[vn-status] Check ${check.id} ownership was lost; final settlement was skipped.`,
+        );
+        continue;
+      }
       const message =
         errorValue instanceof Error ? errorValue.message : String(errorValue);
       const now = new Date().toISOString();
