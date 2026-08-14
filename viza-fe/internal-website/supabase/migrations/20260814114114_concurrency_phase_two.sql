@@ -282,9 +282,9 @@ BEGIN
       FROM JSONB_ARRAY_ELEMENTS(p_emails) AS item(value)
     ) AS duplicate_inputs
     GROUP BY duplicate_inputs.email_id
-    HAVING COUNT(DISTINCT duplicate_inputs.normalized_reference) > 1
+    HAVING COUNT(*) > 1
   ) THEN
-    RAISE EXCEPTION 'conflicting emailId references are not allowed'
+    RAISE EXCEPTION 'duplicate emailId values are not allowed'
       USING ERRCODE = '22023';
   END IF;
 
@@ -299,7 +299,7 @@ BEGIN
     )
   ),
   inputs AS MATERIALIZED (
-    SELECT DISTINCT
+    SELECT
       BTRIM(parsed.email_id_text)::UUID AS email_id,
       NULLIF(
         REGEXP_REPLACE(
@@ -417,16 +417,26 @@ BEGIN
     ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
     RETURNING idempotency_key, application_id, inbound_email_id
   ),
+  latest_tracking_emails AS MATERIALIZED (
+    SELECT
+      inserted.application_id,
+      inserted.inbound_email_id AS email_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY inserted.application_id
+        ORDER BY inbound.received_at DESC, inserted.inbound_email_id DESC
+      ) AS row_number
+    FROM status_inserts AS inserted
+    JOIN public.inbound_email AS inbound
+      ON inbound.id = inserted.inbound_email_id
+  ),
   tracking_updates AS (
     UPDATE public.official_application_tracking AS tracking
     SET
-      last_email_message_id = match.email_id,
+      last_email_message_id = latest.email_id,
       updated_at = NOW()
-    FROM unique_matches AS match
-    JOIN status_inserts AS inserted
-      ON inserted.inbound_email_id = match.email_id
-      AND inserted.application_id = match.application_id
-    WHERE tracking.application_id = match.application_id
+    FROM latest_tracking_emails AS latest
+    WHERE latest.row_number = 1
+      AND tracking.application_id = latest.application_id
     RETURNING tracking.application_id
   ),
   ambiguous_events AS (

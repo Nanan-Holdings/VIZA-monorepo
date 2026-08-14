@@ -204,7 +204,7 @@ describe("runner pool concurrency phase two migration", () => {
     expect(emailFunctionBody).toMatch(/INSERT INTO public\.application_events/i);
     expect(emailFunctionBody).toMatch(/official_email_match_ambiguous/i);
     expect(emailFunctionBody).toMatch(/last_email_message_id/i);
-    expect(emailFunctionBody).toMatch(/tracking_updates[\s\S]*?JOIN status_inserts/i);
+    expect(emailFunctionBody).toMatch(/tracking_updates[\s\S]*?FROM latest_tracking_emails/i);
     expect(emailFunctionBody).toMatch(/'candidate_count', classification\.candidate_count/i);
     expect(emailFunctionBody).toMatch(/RETURN QUERY/i);
     expect(emailFunctionBody).toMatch(/queued/i);
@@ -226,14 +226,27 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).not.toMatch(/official_status_checks_idempotency_key_unique_idx/i);
   });
 
-  it("uses one classification CTE and rejects conflicting duplicate email references", () => {
+  it("uses one classification CTE and rejects duplicate normalized email ids", () => {
     expect(emailFunctionBody).toMatch(/candidate_matches\s+AS\s+MATERIALIZED/i);
     expect(emailFunctionBody).toMatch(/classified\s+AS\s+MATERIALIZED/i);
-    expect(emailFunctionBody).toMatch(/inputs\s+AS\s+MATERIALIZED\s*\([\s\S]*?SELECT DISTINCT/i);
+    expect(emailFunctionBody).not.toMatch(/inputs\s+AS\s+MATERIALIZED\s*\([\s\S]*?SELECT DISTINCT/i);
     expect(emailFunctionBody).not.toMatch(/DISTINCT ON/i);
     expect(emailFunctionBody).toMatch(/INSERT INTO public\.official_status_checks[\s\S]*?UPDATE public\.official_application_tracking[\s\S]*?INSERT INTO public\.application_events/i);
     expect(emailFunctionBody).toMatch(/LOWER\(BTRIM\(item\.value ->> 'emailId'\)\)/i);
-    expect(emailFunctionBody).toMatch(/COUNT\(DISTINCT[\s\S]*?normalized_reference/i);
-    expect(emailFunctionBody).toMatch(/conflicting emailId references/i);
+    expect(emailFunctionBody).toMatch(/GROUP BY duplicate_inputs\.email_id[\s\S]*?HAVING COUNT\(\*\)\s*>\s*1/i);
+    expect(emailFunctionBody).toMatch(/duplicate emailId values/i);
+    expect(emailFunctionBody).toMatch(/duplicate_inputs[\s\S]*?RETURN QUERY/i);
+  });
+
+  it("updates each tracking row from the newest inserted email deterministically", () => {
+    expect(emailFunctionBody).toMatch(/latest_tracking_emails\s+AS\s+MATERIALIZED/i);
+    expect(emailFunctionBody).toMatch(
+      /latest_tracking_emails[\s\S]*?FROM status_inserts[\s\S]*?JOIN public\.inbound_email/i,
+    );
+    expect(emailFunctionBody).toMatch(/ORDER BY inbound\.received_at\s+DESC, inserted\.inbound_email_id\s+DESC/i);
+    expect(emailFunctionBody).toMatch(
+      /tracking_updates[\s\S]*?FROM latest_tracking_emails[\s\S]*?row_number\s*=\s*1/i,
+    );
+    expect(emailFunctionBody).toMatch(/COUNT\(\*\)[\s\S]*?FROM classified WHERE candidate_count = 1/i);
   });
 });
