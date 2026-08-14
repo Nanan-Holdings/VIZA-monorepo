@@ -620,6 +620,45 @@ test("vn.payment-resume: waits beyond the old 1.6s window for a delayed Vue CAPT
   }
 });
 
+test("vn.payment-resume: observes a CAPTCHA repaint after the response observer expires", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const firstChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">111111</text></svg>',
+    );
+    const secondChallenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">222222</text></svg>',
+    );
+    await page.setContent(`
+      <form>
+        <input id="basic_captcha" />
+        <img alt="captcha img" src="${firstChallenge}" />
+        <img alt="reload" src="${firstChallenge}" />
+      </form>
+      <script>
+        const reload = document.querySelector('img[alt="reload"]');
+        reload.addEventListener("click", (event) => {
+          if (!event.isTrusted) return;
+          reload.remove();
+          setTimeout(() => {
+            document.querySelector('img[alt="captcha img"]').src = ${JSON.stringify(secondChallenge)};
+          }, 3_400);
+        });
+      </script>
+    `);
+    const previousFingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
+    assert.ok(previousFingerprint);
+
+    const strategy = await refreshVietnamSearchCaptchaChallenge(page, previousFingerprint, 7_500);
+
+    assert.equal(strategy, "search_reload_control");
+    assert.notEqual(await captureVietnamCaptchaFingerprint(page, 2_000), previousFingerprint);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.payment-resume: falls back to the Vue click handler when pointer clicks do not rotate the challenge", async () => {
   const browser = await chromium.launch({ headless: true });
   try {
