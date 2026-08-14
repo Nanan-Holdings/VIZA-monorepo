@@ -46,9 +46,20 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("locks one candidate and its country cap through a materialized ordered CTE", () => {
     expect(functionBody).toMatch(
-      /selected AS MATERIALIZED \([\s\S]*?FROM public\.runner_job AS candidate[\s\S]*?JOIN public\.runner_concurrency_cap AS cap[\s\S]*?FOR UPDATE OF candidate, cap SKIP LOCKED/i,
+      /selected AS MATERIALIZED \([\s\S]*?SELECT candidate\.id, candidate\.country[\s\S]*?FROM public\.runner_job AS candidate[\s\S]*?JOIN public\.runner_concurrency_cap AS cap[\s\S]*?ORDER BY candidate\.enqueued_at, candidate\.id[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE OF candidate, cap SKIP LOCKED/i,
     );
-    expect(functionBody).toMatch(/ORDER BY candidate\.country, candidate\.enqueued_at, candidate\.id/i);
+  });
+
+  it("scans across unlocked countries instead of preselecting one cap row", () => {
+    expect(functionBody).not.toMatch(/v_candidate_country|v_cap_country/i);
+    expect(functionBody).not.toMatch(/candidate\.country\s*=\s*v_cap_country/i);
+    expect(functionBody).not.toMatch(
+      /SELECT candidate\.country[\s\S]*?INTO v_candidate_country[\s\S]*?LIMIT 1/i,
+    );
+    expect((functionBody.match(/selected AS MATERIALIZED/gi) ?? []).length).toBe(1);
+    expect(functionBody).toMatch(
+      /selected AS MATERIALIZED \([\s\S]*?SELECT candidate\.id, candidate\.country[\s\S]*?candidate\.country IN \([\s\S]*?'vietnam'[\s\S]*?'south_korea'[\s\S]*?\)[\s\S]*?ORDER BY candidate\.enqueued_at, candidate\.id[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE OF candidate, cap SKIP LOCKED/i,
+    );
   });
 
   it("only considers due queued jobs below an unpaused per-country cap", () => {

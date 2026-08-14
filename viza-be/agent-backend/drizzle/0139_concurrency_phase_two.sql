@@ -38,9 +38,6 @@ LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = ''
 AS $$
-DECLARE
-  v_candidate_country TEXT;
-  v_cap_country TEXT;
 BEGIN
   IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
     RAISE EXCEPTION 'Worker id is required' USING ERRCODE = '22023';
@@ -100,58 +97,17 @@ BEGIN
     AND job.status = 'running'
     AND job.leased_until <= p_now;
 
-  -- Pick a country deterministically before taking its cap row. This first
-  -- read is only a hint; the selected CTE below repeats every predicate after
-  -- the cap lock so the running-count decision uses a fresh snapshot.
-  SELECT candidate.country
-  INTO v_candidate_country
-  FROM public.runner_job AS candidate
-  JOIN public.runner_concurrency_cap AS cap
-    ON cap.country = candidate.country
-  WHERE candidate.status = 'queued'
-    AND candidate.available_at <= p_now
-    AND candidate.country IN (
-      'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
-    )
-    AND NOT cap.paused
-    AND (
-      SELECT COUNT(*)
-      FROM public.runner_job AS active
-      WHERE active.country = candidate.country
-        AND active.status = 'running'
-    ) < cap.max_concurrent
-  ORDER BY candidate.country, candidate.enqueued_at, candidate.id
-  LIMIT 1;
-
-  IF v_candidate_country IS NULL THEN
-    RETURN;
-  END IF;
-
-  -- Only one country cap row is locked. SKIP LOCKED lets another poller move
-  -- on without waiting when this country is already being claimed.
-  SELECT cap.country
-  INTO v_cap_country
-  FROM public.runner_concurrency_cap AS cap
-  WHERE cap.country = v_candidate_country
-    AND NOT cap.paused
-  FOR UPDATE SKIP LOCKED;
-
-  IF v_cap_country IS NULL THEN
-    RETURN;
-  END IF;
-
-  -- The cap row is already held by this transaction. Re-evaluate the count in
-  -- this statement's snapshot, lock candidate and cap in stable country order,
-  -- then update the same row atomically.
+  -- Scan the shared queue in stable FIFO order. The candidate and its country
+  -- cap are locked together, so a locked country is skipped and another
+  -- eligible country's row can be claimed by the same poll.
   RETURN QUERY
   WITH selected AS MATERIALIZED (
-    SELECT candidate.id
+    SELECT candidate.id, candidate.country
     FROM public.runner_job AS candidate
     JOIN public.runner_concurrency_cap AS cap
       ON cap.country = candidate.country
     WHERE candidate.status = 'queued'
       AND candidate.available_at <= p_now
-      AND candidate.country = v_cap_country
       AND candidate.country IN (
         'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
       )
@@ -162,7 +118,7 @@ BEGIN
         WHERE active.country = candidate.country
           AND active.status = 'running'
       ) < cap.max_concurrent
-    ORDER BY candidate.country, candidate.enqueued_at, candidate.id
+    ORDER BY candidate.enqueued_at, candidate.id
     LIMIT 1
     FOR UPDATE OF candidate, cap SKIP LOCKED
   )
