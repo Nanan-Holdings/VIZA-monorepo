@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import type { Browser, Page } from "playwright";
+import type { Browser, Locator, Page } from "playwright";
 import { browserbaseEnabled, connectBrowserbaseCloudBrowser } from "../browserbase-session.js";
 import { ensureApplicantInboxAlias } from "../inbox/alias.js";
 import { extractAuto } from "../inbox/extractors/index.js";
@@ -556,6 +556,166 @@ export async function fillShenyangVfsRegistrationMobileField(
   throw new Error(SHENYANG_VFS_MOBILE_FIELD_ERROR);
 }
 
+const SHENYANG_VFS_DIAL_CODE_ERROR = "The official VFS China dial-code control could not be identified or selected.";
+const SHENYANG_VFS_DIAL_CODE_TIMEOUT_MS = 10_000;
+const SHENYANG_VFS_DIAL_CODE_POLL_INTERVAL_MS = 200;
+const SHENYANG_VFS_DIAL_CODE_SELECTORS = [
+  "mat-select[formcontrolname='dialcode']",
+  "[role='combobox'][formcontrolname='dialcode']",
+  "select[formcontrolname='dialcode']",
+  "mat-select[formcontrolname='countryCode']",
+  "[role='combobox'][formcontrolname='countryCode']",
+  "select[formcontrolname='countryCode']",
+  "mat-select[formcontrolname*='country' i]",
+  "[role='combobox'][formcontrolname*='country' i]",
+  "select[formcontrolname*='country' i]",
+  "mat-select[formcontrolname*='dial' i]",
+  "[role='combobox'][formcontrolname*='dial' i]",
+  "select[formcontrolname*='dial' i]",
+  "mat-select[formcontrolname*='phone' i]",
+  "[role='combobox'][formcontrolname*='phone' i]",
+  "select[formcontrolname*='phone' i]",
+  "mat-select[aria-label*='country code' i]",
+  "[role='combobox'][aria-label*='country code' i]",
+  "select[aria-label*='country code' i]",
+  "mat-select[aria-label*='dial' i]",
+  "[role='combobox'][aria-label*='dial' i]",
+  "select[aria-label*='dial' i]",
+];
+const SHENYANG_VFS_DIAL_CODE_LABELS = [
+  /country\s*code/i,
+  /dial(?:ling|ing)?\s*code/i,
+  /phone\s*(?:country|dial(?:ling|ing)?)?\s*code/i,
+  /mobile\s*(?:country|dial(?:ling|ing)?)?\s*code/i,
+];
+
+export interface ShenyangVfsDialCodePollingOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
+function isShenyangChinaDialCodeText(text: string): boolean {
+  const normalized = text.replace(/\s+/gu, " ").trim();
+  return /(?:china|中国)/iu.test(normalized) && /\+?86\b/u.test(normalized);
+}
+
+async function readVisibleShenyangLocatorText(locator: Locator): Promise<string> {
+  return locator.innerText({ timeout: 400 }).catch(() => "");
+}
+
+async function waitForShenyangSelectedDialCode(
+  locator: Locator,
+  tagName: string,
+  deadline: number,
+  pollIntervalMs: number,
+): Promise<boolean> {
+  const selected = tagName === "select" ? locator.locator("option:checked").first() : locator;
+  while (Date.now() < deadline) {
+    if (isShenyangChinaDialCodeText(await readVisibleShenyangLocatorText(selected))) return true;
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.min(pollIntervalMs, remainingMs));
+    });
+  }
+  return false;
+}
+
+async function selectChinaDialCodeFromControl(
+  page: Page,
+  control: Locator,
+  deadline: number,
+  pollIntervalMs: number,
+): Promise<boolean> {
+  const remainingMs = deadline - Date.now();
+  if (remainingMs <= 0 || !await control.isVisible({ timeout: Math.min(400, remainingMs) }).catch(() => false)) return false;
+  const tagName = await control.evaluate((element) => element.tagName.toLowerCase()).catch(() => "");
+  if (tagName === "select") {
+    const options = control.locator("option");
+    const count = await options.count().catch(() => 0);
+    for (let index = 0; index < Math.min(count, 100); index += 1) {
+      const option = options.nth(index);
+      const text = await readVisibleShenyangLocatorText(option);
+      if (!isShenyangChinaDialCodeText(text)) continue;
+      const value = await option.getAttribute("value").catch(() => null);
+      try {
+        await control.selectOption(value ?? { label: text });
+      } catch {
+        return false;
+      }
+      return await waitForShenyangSelectedDialCode(control, tagName, deadline, pollIntervalMs);
+    }
+    return false;
+  }
+  try {
+    await control.click({ timeout: Math.min(5_000, Math.max(1, remainingMs)) });
+  } catch {
+    return false;
+  }
+  let optionCollections: Locator[];
+  try {
+    optionCollections = [page.getByRole("option"), page.locator("mat-option")];
+  } catch {
+    return false;
+  }
+  for (const options of optionCollections) {
+    const count = await options.count().catch(() => 0);
+    for (let index = 0; index < Math.min(count, 100); index += 1) {
+      const option = options.nth(index);
+      if (!await option.isVisible({ timeout: Math.min(400, Math.max(1, deadline - Date.now())) }).catch(() => false)) continue;
+      if (!isShenyangChinaDialCodeText(await readVisibleShenyangLocatorText(option))) continue;
+      try {
+        await option.click({ timeout: Math.min(5_000, Math.max(1, deadline - Date.now())) });
+      } catch {
+        return false;
+      }
+      return await waitForShenyangSelectedDialCode(control, tagName, deadline, pollIntervalMs);
+    }
+  }
+  return false;
+}
+
+export async function selectShenyangVfsRegistrationDialCode(
+  page: Page,
+  options: ShenyangVfsDialCodePollingOptions = {},
+): Promise<void> {
+  const timeoutMs = positivePollingValue(options.timeoutMs, SHENYANG_VFS_DIAL_CODE_TIMEOUT_MS);
+  const pollIntervalMs = positivePollingValue(options.pollIntervalMs, SHENYANG_VFS_DIAL_CODE_POLL_INTERVAL_MS);
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    for (const selector of SHENYANG_VFS_DIAL_CODE_SELECTORS) {
+      let controls: Locator;
+      try {
+        controls = page.locator(selector);
+      } catch {
+        continue;
+      }
+      const count = await controls.count().catch(() => 0);
+      for (let index = 0; index < Math.min(count, 25); index += 1) {
+        if (await selectChinaDialCodeFromControl(page, controls.nth(index), deadline, pollIntervalMs)) return;
+      }
+    }
+    for (const label of SHENYANG_VFS_DIAL_CODE_LABELS) {
+      let controls: Locator;
+      try {
+        controls = page.getByLabel(label);
+      } catch {
+        continue;
+      }
+      const count = await controls.count().catch(() => 0);
+      for (let index = 0; index < Math.min(count, 25); index += 1) {
+        if (await selectChinaDialCodeFromControl(page, controls.nth(index), deadline, pollIntervalMs)) return;
+      }
+    }
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.min(pollIntervalMs, remainingMs));
+    });
+  }
+  throw new Error(SHENYANG_VFS_DIAL_CODE_ERROR);
+}
+
 async function fillRegistration(page: Page, account: PortalAccountContext): Promise<void> {
   const email = page.locator("#inputEmail").or(page.getByLabel(/^email\*?$/i)).first();
   const password = page.locator("#password").or(page.getByLabel(/^password\*?$/i)).first();
@@ -564,18 +724,7 @@ async function fillRegistration(page: Page, account: PortalAccountContext): Prom
   await password.fill(account.password);
   await confirmation.fill(account.password);
 
-  const dial = page.locator("[role='combobox'], mat-select, select").first();
-  if (await dial.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    const tagName = await dial.evaluate((element) => element.tagName.toLowerCase());
-    if (tagName === "select") {
-      const value = await dial.locator("option").evaluateAll((options) => options.find((option) => /china|中国|\+?86/i.test(option.textContent ?? ""))?.getAttribute("value") ?? null);
-      if (value) await dial.selectOption(value);
-    } else {
-      await dial.click();
-      const option = page.getByRole("option").filter({ hasText: /china|中国|\+?86/i }).first();
-      if (await option.isVisible({ timeout: 3_000 }).catch(() => false)) await option.click();
-    }
-  }
+  await selectShenyangVfsRegistrationDialCode(page);
   await fillShenyangVfsRegistrationMobileField(page, account.phone);
 
   await fillShenyangVfsRegistrationConsents(page);
