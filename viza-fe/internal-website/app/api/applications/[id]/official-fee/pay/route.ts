@@ -16,6 +16,7 @@ import {
   VIETNAM_CARD_HANDOFF_BUDGET_MS,
   vietnamCardPostTimeoutMs,
   vietnamCardReadinessTimeoutMs,
+  vietnamCardWakeTimeoutMs,
 } from "./cloud-worker-ready";
 
 export const dynamic = "force-dynamic";
@@ -611,10 +612,7 @@ async function registerOneTimeCardSession(
         ensureReady: () => ensureVietnamCardWorkerReady({
           baseUrl: cloud.baseUrl,
           wakeLegacy: () => ensureFlyMachineStarted("legacy"),
-          wakeTimeoutMs: Math.min(
-            6_000,
-            vietnamCardReadinessTimeoutMs(deadlineAt),
-          ),
+          wakeTimeoutMs: vietnamCardWakeTimeoutMs(deadlineAt),
           waitUntilReady: (url) => {
             const timeoutMs = vietnamCardReadinessTimeoutMs(deadlineAt);
             if (timeoutMs <= 0) {
@@ -644,6 +642,7 @@ async function registerOneTimeCardSession(
         console.error("Vietnam cloud card-session worker unavailable", {
           reason: result.reason,
           attempts: result.attempts,
+          wakeReason: result.wakeReason,
         });
         return {
           ok: false,
