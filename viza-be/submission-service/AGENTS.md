@@ -87,11 +87,14 @@ filling and one-shot submission for the applicant.
   the consumer must honor a false conditional-RPC result as lost ownership.
 - `src/resilience-gate.ts` and `src/vietnam/status-tracking.ts`: each Vietnam
   official status lookup optionally acquires the `vietnam`/`evisa/status`
-  provider gate with a 120-second fenced lease. The gate is disabled by default
-  and fail-open on temporary gateway unavailability; PostgreSQL ownership remains
-  authoritative. A lost gate or database lease skips both final completion and
-  failure settlement, and the exact current lease/fencing token is released in
-  `finally`.
+  provider gate with a 120-second fenced lease around official-portal I/O only.
+  The gate is disabled by default and fail-open only on transport/429/5xx
+  acquisition unavailability; an `at_capacity` or `capacity_mismatch` response
+  defers the check without opening the portal. Missing/invalid enabled config or
+  malformed/non-retryable responses fail loudly without marking the check failed.
+  PostgreSQL ownership remains authoritative for artifact/status settlement. A
+  lost gate or database lease skips both final completion and failure settlement,
+  and the exact latest lease/fencing token is released in `finally`.
 - Resilience gate configuration is server-only and read from
   `VIZA_RESILIENCE_GATEWAY_URL`, `VIZA_RESILIENCE_HMAC_KEY_ID`,
   `VIZA_RESILIENCE_HMAC_SECRET`, `RESILIENCE_VN_STATUS_GATE_ENABLED`, and
