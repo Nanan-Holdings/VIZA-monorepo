@@ -11,11 +11,12 @@ import {
   useState,
 } from "react";
 import {
-  WarningCircle as AlertCircle,
   CircleNotch as Loader2,
   PaperPlaneTilt as Send,
   X,
 } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { AlertAction } from "@/components/ui/alert";
 import { AiAssistIcon } from "@/components/ui/ai-assist-button";
 import { Textarea } from "@/components/ui/textarea";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
@@ -556,24 +557,25 @@ export function FieldGuidancePanel({
         </button>
       </div>
 
-      {error && (
-        <div className="flex items-center gap-2 px-4 py-4 text-[11px] text-black/45">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-[#989898]" />
-          <span className="min-w-0 break-words">{error}</span>
-          <button
-            type="button"
-            onClick={() => {
-              const failedRequest = failedRequestRef.current;
-              if (failedRequest) {
-                void fetchGuidance(failedRequest.question, failedRequest.history);
-              }
-            }}
-            className="ml-auto shrink-0 text-[11px] font-medium text-brand-500 underline-offset-2 hover:underline"
-          >
-            {labels.retry}
-          </button>
-        </div>
-      )}
+      {error ? (
+        <ClientErrorAlert
+          className="mx-4 my-4"
+          message={error}
+          action={(
+            <AlertAction
+              type="button"
+              onClick={() => {
+                const failedRequest = failedRequestRef.current;
+                if (failedRequest) {
+                  void fetchGuidance(failedRequest.question, failedRequest.history);
+                }
+              }}
+            >
+              {labels.retry}
+            </AlertAction>
+          )}
+        />
+      ) : null}
 
       <>
         <p className="min-w-0 text-pretty break-words px-4 py-4 text-[13px] leading-[1.5] text-[#3d3d3d]">

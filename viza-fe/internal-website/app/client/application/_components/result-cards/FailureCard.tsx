@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { SubmissionMode } from "@/lib/submission-queue";
 import { translateOfficialImagePortalError } from "@/lib/document-image-validation";
@@ -414,11 +415,11 @@ export function FailureCard({
                 : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything.")}
         </p>
         {vnPrearrivalVisaNumberError ? (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-relaxed text-red-950">
-            {isZh
+          <ClientErrorAlert
+            message={isZh
               ? "正确格式示例：106527303（共 9 位，只能包含数字）。修改并保存后再重新提交。"
               : "Correct format example: 106527303 (exactly 9 digits, numbers only). Save the corrected value before retrying."}
-          </div>
+          />
         ) : vnPrearrivalOtpErrorKind ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
             {vnPrearrivalOtpErrorKind === "consent_required"

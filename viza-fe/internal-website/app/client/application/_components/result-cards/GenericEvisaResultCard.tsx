@@ -6,6 +6,7 @@ import { useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { GenericEvisaSubmissionResult } from "@/lib/submission-result";
 
@@ -169,7 +170,7 @@ export function GenericEvisaResultCard({
                 ? isZh ? "我已完成银行验证，刷新状态" : "I finished bank verification, refresh status"
                 : isZh ? "我已完成官方付款，刷新状态" : "I completed the official payment, refresh status"}
             </Button>
-            {locateError ? <p className="text-sm text-red-700">{locateError}</p> : null}
+            {locateError ? <ClientErrorAlert message={locateError} /> : null}
           </div>
         ) : result.status === "stopped_at_pay" && portalUrl && !isIndonesiaHomePaymentUrl ? (
           <Button asChild className="w-full">
@@ -196,7 +197,7 @@ export function GenericEvisaResultCard({
                 ? isZh ? "正在定位官方付款页" : "Locating official payment page"
                 : isZh ? "定位官方付款页" : "Locate official payment page"}
             </Button>
-            {locateError ? <p className="text-sm text-red-700">{locateError}</p> : null}
+            {locateError ? <ClientErrorAlert message={locateError} /> : null}
           </div>
         ) : (
           <div className="rounded-md border border-brand-100 bg-brand-50 p-3">

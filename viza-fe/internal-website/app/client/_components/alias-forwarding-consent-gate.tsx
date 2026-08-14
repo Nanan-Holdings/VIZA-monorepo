@@ -10,6 +10,7 @@ import {
   type ApplicantInboxSetupState,
 } from "@/app/actions/applicant-inbox";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -155,11 +156,7 @@ export function AliasForwardingConsentGate({
           </span>
         </label>
 
-        {error ? (
-          <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </p>
-        ) : null}
+        {error ? <ClientErrorAlert message={error} /> : null}
 
         <DialogFooter>
           <Button

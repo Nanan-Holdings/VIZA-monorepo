@@ -9,6 +9,7 @@ import {
   getTravelCityImage,
 } from "@/components/client/travel/travel-attraction-knowledge";
 import type { TravelPlaceAttribution } from "@/lib/travel/google-places";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Bed, CaretRight, Fire, ForkKnife, MapPin, MoonStars, Star, type Icon } from "@phosphor-icons/react";
 
 export type TripMapPoint = {
@@ -3252,9 +3253,16 @@ export function TripRouteMap({
         </div>
       ) : null}
       {loadError ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-100/85 p-4 text-center text-sm text-slate-700">
-          {isZh ? "地图加载失败：" : "Map failed to load: "}
-          {loadError}
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-100/85 p-4">
+          <ClientErrorAlert
+            className="max-w-md"
+            message={
+              <>
+                {isZh ? "地图加载失败：" : "Map failed to load: "}
+                {loadError}
+              </>
+            }
+          />
         </div>
       ) : null}
     </div>

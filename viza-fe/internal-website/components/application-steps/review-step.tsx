@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
-import { CheckCircle as CheckCircle2, WarningCircle as AlertCircle, Warning as AlertTriangle, Pencil } from "@phosphor-icons/react";
+import { CheckCircle as CheckCircle2, Warning as AlertTriangle, Pencil } from "@phosphor-icons/react";
 import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
@@ -199,17 +200,16 @@ export function ValidationPanel({ applicationId, onProceed, fieldLabels }: Valid
     <div className="flex flex-col gap-3">
       {/* Errors */}
       {state === "done" && hasErrors && (
-        <div className="rounded-lg border border-[#e5e7eb] bg-white p-3">
-          <div className="flex items-center gap-2 mb-2 text-red-700">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <p className="text-sm font-semibold">{t("review.validation.hasErrors")} / Application has errors</p>
-          </div>
-          <ul className="flex flex-col gap-1">
-            {result!.errors.map((e, i) => (
-              <li key={i} className="text-xs text-red-600">• <span className="font-medium">{displayValidationField(e.field, fieldLabels, side)}:</span> {e.message}</li>
-            ))}
-          </ul>
-        </div>
+        <ClientErrorAlert
+          title={`${t("review.validation.hasErrors")} / Application has errors`}
+          message={
+            <ul className="flex flex-col gap-1">
+              {result!.errors.map((e, i) => (
+                <li key={i}>• <span className="font-medium">{displayValidationField(e.field, fieldLabels, side)}:</span> {e.message}</li>
+              ))}
+            </ul>
+          }
+        />
       )}
 
       {/* Warnings */}
@@ -236,9 +236,7 @@ export function ValidationPanel({ applicationId, onProceed, fieldLabels }: Valid
       )}
 
       {/* Validation error */}
-      {error && (
-        <p className="text-xs text-red-500">{t("review.validation.errorFallback", { error })}</p>
-      )}
+      {error ? <ClientErrorAlert message={t("review.validation.errorFallback", { error })} /> : null}
 
       {/* Actions */}
       <div className="flex flex-col gap-2">

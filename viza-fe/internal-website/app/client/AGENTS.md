@@ -54,6 +54,10 @@ applicant info, and help pages.
 - `chat/page.tsx` and `chat/chat-client.tsx`: VIZA AI and Travel AI tabbed chat.
 - `support/**`: customer service help center, self-service support bot, and
   human/email handoff. This must remain separate from the visa/travel AI chat.
+- `components/client/client-error-alert.tsx`: canonical applicant-facing error
+  notice adapter around the destructive `Alert` demonstrated at
+  `/ui-components`; use it for notice-level client errors instead of local red
+  boxes or standalone red paragraphs.
 - `travel-chat/page.tsx` and `travel-chat/travel-chat-client.tsx`: dedicated
   Travel AI route.
 - `applications/[applicationId]/us-appointment/page.tsx`: U.S. B1/B2

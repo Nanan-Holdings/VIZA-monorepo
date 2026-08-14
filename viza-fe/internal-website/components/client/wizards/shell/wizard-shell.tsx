@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CircleNotch as Loader2 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import {
   loadDocumentCenterData,
   type DocumentCenterData,
@@ -438,11 +439,7 @@ export function WizardShell<TForm>({
         </AnimatePresence>
       </div>
 
-      {error ? (
-        <p role="alert" className="text-center text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <ClientErrorAlert message={error} /> : null}
 
       <p className="text-center text-xs text-muted-foreground">
         {tShared("openLongFormLead")}{" "}

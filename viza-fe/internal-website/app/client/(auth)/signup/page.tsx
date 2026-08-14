@@ -10,6 +10,7 @@ import createGlobe from 'cobe'
 import { createClient } from '@/lib/supabase/client'
 import { prepareAuthEmailLocale } from '@/app/actions/client-auth'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
+import { ClientErrorAlert } from '@/components/client/client-error-alert'
 import { ActionButton } from '@/components/ui/action-button'
 import { ApplicationCheckbox } from '@/components/ui/application-checkbox'
 import { ApplicationFormInputGroup } from '@/components/ui/application-form-input'
@@ -539,14 +540,11 @@ export default function ClientSignupPage() {
                     </span>
                   )}
                 />
-                {error && (
-                  <motion.p
-                    className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  >
-                    {error}
-                  </motion.p>
-                )}
+                {error ? (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+                    <ClientErrorAlert message={error} />
+                  </motion.div>
+                ) : null}
                 <ActionButton
                   type="submit"
                   size="lg"
@@ -608,14 +606,11 @@ export default function ClientSignupPage() {
                   </InputOTPGroup>
                 </InputOTP>
 
-                {error && (
-                  <motion.p
-                    className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  >
-                    {error}
-                  </motion.p>
-                )}
+                {error ? (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+                    <ClientErrorAlert message={error} />
+                  </motion.div>
+                ) : null}
 
                 <ActionButton
                   type="button"
@@ -731,14 +726,11 @@ export default function ClientSignupPage() {
                   <p className="text-[12px] text-[#a13d2d]" role="alert">{t('passwordMismatch')}</p>
                 )}
 
-                {error && (
-                  <motion.p
-                    className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  >
-                    {error}
-                  </motion.p>
-                )}
+                {error ? (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+                    <ClientErrorAlert message={error} />
+                  </motion.div>
+                ) : null}
 
                 <ActionButton
                   type="submit"

@@ -7,6 +7,7 @@ import { CircleNotch as Loader2, CheckCircle as CheckCircle2, Clock as Clock3, E
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -446,7 +447,7 @@ export function WaitingCard({
               )}
               {isZh ? "取消提交" : "Cancel submission"}
             </Button>
-            {cancelError ? <p className="text-sm text-red-700">{cancelError}</p> : null}
+            {cancelError ? <ClientErrorAlert message={cancelError} /> : null}
           </div>
         </CardContent>
       </Card>

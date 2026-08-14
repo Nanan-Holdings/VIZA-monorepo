@@ -26,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import {
   createFrequentTraveler,
   deleteFrequentTraveler,
@@ -266,17 +267,13 @@ export function FrequentTravelersTab() {
       </div>
 
       {notice ? (
-        <div
-          className={`rounded-lg border px-4 py-3 text-sm font-medium ${
-            notice.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-red-200 bg-red-50 text-red-700"
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          {notice.message}
-        </div>
+        notice.tone === "success" ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
+            {notice.message}
+          </div>
+        ) : (
+          <ClientErrorAlert message={notice.message} />
+        )
       ) : null}
 
       {formOpen ? (

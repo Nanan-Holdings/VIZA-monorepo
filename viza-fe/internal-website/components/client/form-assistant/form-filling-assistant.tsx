@@ -9,9 +9,10 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { WarningCircle as AlertCircle, ArrowUp, Robot as Bot, CheckCircle as CheckCircle2, Microphone as Mic, Square, Warning as TriangleAlert } from "@phosphor-icons/react";
+import { ArrowUp, Robot as Bot, CheckCircle as CheckCircle2, Microphone as Mic, Square, Warning as TriangleAlert } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { Button } from "@/components/ui/button";
@@ -559,12 +560,9 @@ export function FormFillingAssistant({
                   {t("validation.title")}
                 </h3>
                 {errors.length > 0 ? (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-red-800">
-                      <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                      <p className="text-sm font-semibold">{t("validation.errors", { count: errors.length })}</p>
-                    </div>
-                    <ul className="space-y-3">
+                  <ClientErrorAlert
+                    title={t("validation.errors", { count: errors.length })}
+                    message={<ul className="space-y-3">
                       {errors.map((issue, index) => (
                         <li
                           key={issue.id ?? `${issue.fieldName ?? "error"}-${index}`}
@@ -586,8 +584,8 @@ export function FormFillingAssistant({
                           ) : null}
                         </li>
                       ))}
-                    </ul>
-                  </div>
+                    </ul>}
+                  />
                 ) : null}
                 {warnings.length > 0 ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -625,11 +623,7 @@ export function FormFillingAssistant({
                 ) : null}
               </section>
             ) : null}
-            {reviewActionError ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800" role="alert">
-                {reviewActionError}
-              </p>
-            ) : null}
+            {reviewActionError ? <ClientErrorAlert message={reviewActionError} /> : null}
             {(showReviewAction ?? (missingFields.length === 0 && progress.total > 0)) && !loading ? (
               <div
                 className="flex justify-start pb-1"
@@ -692,15 +686,11 @@ export function FormFillingAssistant({
                 {undoingFill ? t("filledNotice.undoing") : t("filledNotice.undo")}
               </Button>
             </div>
-            {undoFillError ? <p className="mt-2 text-sm text-red-700" role="alert">{undoFillError}</p> : null}
+            {undoFillError ? <ClientErrorAlert className="mt-2" message={undoFillError} /> : null}
           </section>
         ) : null}
 
-        {recordingError ? (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800" role="alert">
-            {recordingError}
-          </p>
-        ) : null}
+        {recordingError ? <ClientErrorAlert message={recordingError} /> : null}
 
         <div className="mx-auto w-full max-w-[760px]">
           <div className="flex items-center gap-2 rounded-[26px] border border-gray-200 bg-white px-3 py-2 shadow-none transition-all duration-200 hover:border-gray-300 focus-within:border-brand-500">
