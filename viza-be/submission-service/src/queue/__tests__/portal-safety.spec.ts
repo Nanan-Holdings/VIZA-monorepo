@@ -63,3 +63,37 @@ test("abortable launch closes a resource that resolves after cancellation", asyn
   await assert.rejects(() => launch, (error: unknown) => error === ownershipLost);
   assert.equal(closeCount, 1);
 });
+
+test("abortable launch swallows a rejected close without replacing ownership cancellation", async () => {
+  const module = await import("../portal-safety.js");
+  const launchAbortableResource = module.launchAbortableResource;
+  const controller = new AbortController();
+  const ownershipLost = new RunnerJobOwnershipLostError("lease lost during browser launch");
+  let resolveLaunch: ((resource: { id: string }) => void) | null = null;
+  let closeCount = 0;
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", onUnhandled);
+  const launch = launchAbortableResource(
+    controller.signal,
+    () => new Promise<{ id: string }>((resolve) => {
+      resolveLaunch = resolve;
+    }),
+    () => {
+      closeCount += 1;
+      throw new Error("browser close failed");
+    },
+  );
+  try {
+    controller.abort(ownershipLost);
+    (resolveLaunch as ((resource: { id: string }) => void) | null)?.({ id: "browser" });
+    await assert.rejects(() => launch, (error: unknown) => error === ownershipLost);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(closeCount, 1);
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
+  }
+});

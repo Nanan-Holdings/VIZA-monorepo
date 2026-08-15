@@ -24,3 +24,28 @@ export interface RunnerExecutionContext {
   /** Named checkpoint alias for readability at irreversible boundaries. */
   checkpoint(name?: string): void;
 }
+
+/**
+ * Require a live shared-pool identity before any runner-owned work begins.
+ * The queue job id is deliberately compared with the context id so a caller
+ * cannot accidentally persist or submit on behalf of a different claim.
+ */
+export function requirePoolExecutionIdentity(
+  executionContext: RunnerExecutionContext | undefined,
+  jobId: string | undefined,
+  label: string,
+): { executionContext: RunnerExecutionContext; jobId: string } {
+  if (
+    !executionContext
+    || !executionContext.jobId
+    || !executionContext.workerId
+    || !jobId
+    || executionContext.jobId !== jobId
+  ) {
+    throw new RunnerJobOwnershipLostError(
+      `${label} requires a matching job and worker ownership context`,
+    );
+  }
+  executionContext.assertOwned();
+  return { executionContext, jobId };
+}

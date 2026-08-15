@@ -1,5 +1,6 @@
 import { supabase } from "../supabase.js";
 import { sendAlert } from "../alerts/dispatch.js";
+import { RunnerJobOwnershipLostError } from "./execution-context.js";
 
 /**
  * Request operator takeover (CS-003).
@@ -26,15 +27,22 @@ export interface RequestTakeoverInput {
 export async function requestHumanTakeover(
   input: RequestTakeoverInput,
 ): Promise<{ takeoverId: string }> {
-  const { error: jobErr } = await supabase
+  const { data: updatedJob, error: jobErr } = await supabase
     .from("runner_job")
     .update({
       status: "needs_human",
       last_error: input.reason,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", input.jobId);
+    .eq("id", input.jobId)
+    .select("id")
+    .maybeSingle();
   if (jobErr) throw new Error(`runner_job update: ${jobErr.message}`);
+  if (!updatedJob?.id) {
+    throw new RunnerJobOwnershipLostError(
+      "runner job ownership was lost before opening a human takeover",
+    );
+  }
 
   const { data, error } = await supabase
     .from("takeover_session")

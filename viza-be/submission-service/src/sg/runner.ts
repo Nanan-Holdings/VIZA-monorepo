@@ -3,6 +3,7 @@ import { loadCanonicalAnswers } from "../queue/answers.js";
 import { NeedsHumanError, RetryableRunnerError, type DispatchOutcome } from "../queue/types.js";
 import {
   RunnerJobOwnershipLostError,
+  requirePoolExecutionIdentity,
   type RunnerExecutionContext,
 } from "../queue/execution-context.js";
 import { writeRunnerPoolSubmissionResult } from "../result-writer.js";
@@ -56,12 +57,12 @@ export async function runOne(
   jobId?: string,
   executionContext?: RunnerExecutionContext,
 ): Promise<DispatchOutcome> {
-  if (!executionContext || !executionContext.jobId || !executionContext.workerId) {
-    throw new RunnerJobOwnershipLostError(
-      "SG Arrival Card pool execution requires an ownership context",
-    );
-  }
-  executionContext.assertOwned();
+  const identity = requirePoolExecutionIdentity(
+    executionContext,
+    jobId,
+    "SG Arrival Card pool execution",
+  );
+  const poolExecutionContext = identity.executionContext;
   const answers = await loadCanonicalAnswers(applicationId);
   const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
   if (!provider) throw new NeedsHumanError("SGAC provider is not registered");
@@ -74,15 +75,15 @@ export async function runOne(
 
   const payload = provider.mapToSubmissionPayload(sgacApplication, {
     dryRun: false,
-    idempotencyKey: `runner-job:${jobId ?? applicationId}`,
+    idempotencyKey: `runner-job:${identity.jobId}`,
   });
   try {
     const portal = await runSgacPortalSubmission(normalizeSgacPortalPayload(payload), {
       headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
       stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
-      executionContext,
+      executionContext: poolExecutionContext,
     });
-    executionContext?.assertOwned();
+    poolExecutionContext.assertOwned();
     const result: SgArrivalCardSubmissionResult = {
       country: "SG",
       visaType: "SG_ARRIVAL_CARD",
@@ -97,17 +98,17 @@ export async function runOne(
       portalResponseSummary: portal.portalResponseSummary,
       artifacts: { screenshots: portal.screenshots, pdfs: portal.pdfs, logs: portal.logs },
     };
-    executionContext.assertOwned();
+    poolExecutionContext.assertOwned();
     const resultStatus = portal.submitted ? "submitted" : "failed";
-    await writeRunnerPoolSubmissionResult(executionContext, result, resultStatus);
+    await writeRunnerPoolSubmissionResult(poolExecutionContext, result, resultStatus);
     if (!portal.submitted) {
       throw new NeedsHumanError("sgac: ICA runner stopped before official confirmation");
     }
     return { outcome: "submitted_pending_pay", reachedStep: "official_confirmation", artefacts: portal.pdfs };
   } catch (error) {
     const isAbortError = error instanceof Error && error.name === "AbortError";
-    if (error instanceof RunnerJobOwnershipLostError || isAbortError || executionContext?.signal.aborted) {
-      const abortReason = executionContext?.signal.reason;
+    if (error instanceof RunnerJobOwnershipLostError || isAbortError || poolExecutionContext.signal.aborted) {
+      const abortReason = poolExecutionContext.signal.reason;
       throw abortReason instanceof Error ? abortReason : error;
     }
     if (error instanceof SgacPortalValidationError) {
