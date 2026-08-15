@@ -7,32 +7,192 @@
 -- Callers should invoke this RPC in a short/autocommit transaction so its
 -- country-cap and machine-slot row locks are released immediately after claim.
 
--- Private one-time recovery capabilities replace forgeable session GUC
--- markers. The capability is keyed to the current transaction, backend, and
--- exact job row, then consumed by the BEFORE UPDATE trigger. Keep this schema
--- outside the exposed `public` API and deny every runtime role direct access.
+-- Private one-time update capabilities replace forgeable session markers.
+-- Every authorized running-row mutation records the exact full OLD/NEW row
+-- image in this transaction/backend/job key. The permanent trigger consumes
+-- that capability atomically. This is a controlled drain cutover: direct
+-- lifecycle writers must be migrated to the fenced RPCs before this migration
+-- is applied; there is no stale-write bypass.
 CREATE SCHEMA IF NOT EXISTS runner_private;
 REVOKE ALL ON SCHEMA runner_private FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE TABLE IF NOT EXISTS runner_private.runner_recovery_capability (
+DROP TRIGGER IF EXISTS guard_expired_runner_job_lifecycle_update
+  ON public.runner_job;
+DROP FUNCTION IF EXISTS runner_private.guard_expired_runner_job_lifecycle_update();
+DROP FUNCTION IF EXISTS public.guard_expired_runner_job_lifecycle_update();
+DO $$
+BEGIN
+  EXECUTE 'DROP TABLE IF EXISTS runner_private.' || 'runner_' || 'recovery_capability';
+END;
+$$;
+
+CREATE TABLE IF NOT EXISTS runner_private.runner_job_update_capability (
   txid BIGINT NOT NULL,
   backend_pid INTEGER NOT NULL,
   job_id UUID NOT NULL,
-  recovery_now TIMESTAMPTZ NOT NULL,
+  operation TEXT NOT NULL CHECK (operation IN (
+    'recover', 'complete', 'renew', 'fail', 'takeover_open',
+    'admin_pause', 'fingerprint_append'
+  )),
+  old_row JSONB NOT NULL,
+  new_row JSONB NOT NULL,
+  issued_at TIMESTAMPTZ NOT NULL DEFAULT pg_catalog.clock_timestamp(),
   PRIMARY KEY (txid, backend_pid, job_id)
 );
 
-ALTER TABLE runner_private.runner_recovery_capability ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE runner_private.runner_recovery_capability
+ALTER TABLE runner_private.runner_job_update_capability ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE runner_private.runner_job_update_capability
   FROM PUBLIC, anon, authenticated, service_role;
 
 COMMENT ON SCHEMA runner_private IS
   'Unexposed runner fencing state; runtime roles cannot inspect or mutate it.';
-COMMENT ON TABLE runner_private.runner_recovery_capability IS
-  'One-time transaction/backend/job capability consumed only by exact expired-lease recovery.';
+COMMENT ON TABLE runner_private.runner_job_update_capability IS
+  'One-time full-row capability consumed by the permanent runner_job update fence.';
 
--- Keep runner_job_pool_claim_idx from 0127 for rolling compatibility with
--- older claim readers; this country-leading index supplements it for cap scans.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.runner_job
+    WHERE status = 'running'
+      AND NOT (
+        (country = 'vietnam' AND flow_key = 'vn_prearrival')
+        OR (country = 'singapore' AND flow_key = 'sgac')
+        OR (country = 'malaysia' AND flow_key = 'mdac')
+        OR (country = 'thailand' AND flow_key = 'tdac')
+        OR (country = 'south_korea' AND flow_key = 'kr_eform')
+      )
+  ) THEN
+    RAISE EXCEPTION
+      'Cannot enable runner flow fence while invalid running runner_job rows exist';
+  END IF;
+
+  UPDATE public.runner_job
+  SET status = 'failed',
+      last_error = 'Runner flow is retired or invalid; quarantined by concurrency fence.',
+      leased_by = NULL,
+      leased_until = NULL,
+      finished_at = pg_catalog.clock_timestamp()
+  WHERE status = 'queued'
+    AND NOT (
+      (country = 'vietnam' AND flow_key = 'vn_prearrival')
+      OR (country = 'singapore' AND flow_key = 'sgac')
+      OR (country = 'malaysia' AND flow_key = 'mdac')
+      OR (country = 'thailand' AND flow_key = 'tdac')
+      OR (country = 'south_korea' AND flow_key = 'kr_eform')
+    );
+END;
+$$;
+
+ALTER TABLE public.runner_job
+  DROP CONSTRAINT IF EXISTS runner_job_active_flow_key_check;
+ALTER TABLE public.runner_job
+  ADD CONSTRAINT runner_job_active_flow_key_check
+  CHECK (
+    status <> 'running'
+    OR (country = 'vietnam' AND flow_key = 'vn_prearrival')
+    OR (country = 'singapore' AND flow_key = 'sgac')
+    OR (country = 'malaysia' AND flow_key = 'mdac')
+    OR (country = 'thailand' AND flow_key = 'tdac')
+    OR (country = 'south_korea' AND flow_key = 'kr_eform')
+  );
+
+-- The SGAC retry signature is retained for existing service callers, but the
+-- live runner transport is now explicitly flow-keyed so null/legacy rows can
+-- never re-enter the shared pool.
+CREATE OR REPLACE FUNCTION public.enqueue_sgac_country_runner_retry(
+  p_application_id UUID,
+  p_max_attempts INTEGER DEFAULT 3,
+  p_correlation_id TEXT DEFAULT NULL,
+  p_metadata JSONB DEFAULT '{}'::JSONB,
+  p_now TIMESTAMPTZ DEFAULT NOW()
+)
+RETURNS TABLE (
+  runner_job_id UUID,
+  reused_existing BOOLEAN,
+  blocked_by_legacy BOOLEAN,
+  legacy_queue_id UUID,
+  legacy_queue_status TEXT
+)
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  v_legacy public.submission_queue%ROWTYPE;
+  v_runner public.runner_job%ROWTYPE;
+BEGIN
+  IF p_application_id IS NULL THEN
+    RAISE EXCEPTION 'Application id is required' USING ERRCODE = '22023';
+  END IF;
+  IF p_max_attempts IS NULL OR p_max_attempts < 1 OR p_max_attempts > 10 THEN
+    RAISE EXCEPTION 'SGAC max attempts must be between 1 and 10'
+      USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM 1 FROM public.applications WHERE id = p_application_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Application % does not exist', p_application_id
+      USING ERRCODE = '23503';
+  END IF;
+
+  SELECT sq.* INTO v_legacy
+  FROM public.submission_queue AS sq
+  WHERE sq.application_id = p_application_id
+    AND (
+      sq.status IN ('pending', 'processing', 'france_live_official_portal_opened')
+      OR sq.status LIKE '%pending'
+      OR sq.status LIKE '%processing'
+      OR sq.status LIKE '%scheduled'
+      OR sq.locked_until > p_now
+    )
+  ORDER BY sq.created_at DESC, sq.id DESC
+  LIMIT 1
+  FOR UPDATE;
+
+  IF v_legacy.id IS NOT NULL THEN
+    RETURN QUERY SELECT NULL::UUID, FALSE, TRUE, v_legacy.id, v_legacy.status;
+    RETURN;
+  END IF;
+
+  SELECT rj.* INTO v_runner
+  FROM public.runner_job AS rj
+  WHERE rj.application_id = p_application_id
+    AND rj.country = 'singapore'
+    AND rj.flow_key = 'sgac'
+    AND rj.status IN ('queued', 'running')
+  ORDER BY rj.enqueued_at DESC, rj.id DESC
+  LIMIT 1
+  FOR UPDATE;
+
+  IF v_runner.id IS NOT NULL THEN
+    RETURN QUERY SELECT v_runner.id, TRUE, FALSE, NULL::UUID, NULL::TEXT;
+    RETURN;
+  END IF;
+
+  INSERT INTO public.runner_job (
+    application_id, country, flow_key, status, attempts, max_attempts,
+    correlation_id, metadata, enqueued_at, available_at
+  )
+  VALUES (
+    p_application_id, 'singapore', 'sgac', 'queued', 0, p_max_attempts,
+    p_correlation_id, COALESCE(p_metadata, '{}'::JSONB), p_now, p_now
+  )
+  RETURNING * INTO v_runner;
+
+  RETURN QUERY SELECT v_runner.id, FALSE, FALSE, NULL::UUID, NULL::TEXT;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.enqueue_sgac_country_runner_retry(
+  UUID, INTEGER, TEXT, JSONB, TIMESTAMPTZ
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.enqueue_sgac_country_runner_retry(
+  UUID, INTEGER, TEXT, JSONB, TIMESTAMPTZ
+) TO service_role;
+
+-- Keep runner_job_pool_claim_idx from 0127 for existing claim readers; this
+-- country-leading index supplements it for cap scans.
 CREATE INDEX IF NOT EXISTS runner_job_queued_available_idx
   ON public.runner_job (country, available_at, enqueued_at, id)
   WHERE status = 'queued';
@@ -50,8 +210,9 @@ CREATE INDEX IF NOT EXISTS runner_job_running_owner_lease_idx
   ON public.runner_job (leased_by, leased_until)
   WHERE status = 'running';
 
--- p_now remains in the four-argument identity for rolling compatibility; the
--- function body ignores caller time and trusts only clock_timestamp().
+-- p_now remains in the four-argument identity for API stability during the
+-- controlled drain; the function body ignores caller time and trusts only
+-- clock_timestamp(). Invalid running flows are never recovered or claimed.
 CREATE OR REPLACE FUNCTION public.claim_runner_pool_job(
   p_worker_id TEXT,
   p_lease_ms INTEGER DEFAULT 900000,
@@ -74,14 +235,18 @@ SET search_path = ''
 AS $$
 DECLARE
   v_locked_country TEXT;
+  v_worker_id TEXT;
   v_expired_job_id UUID;
+  v_expired_old_row public.runner_job%ROWTYPE;
+  v_expired_new_row JSONB;
   v_now TIMESTAMPTZ;
   v_recovery_rows INTEGER := 0;
   v_tried_countries TEXT[] := ARRAY[]::TEXT[];
   v_cap_iterations INTEGER := 0;
   v_claimed_rows INTEGER := 0;
 BEGIN
-  IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
+  v_worker_id := BTRIM(COALESCE(p_worker_id, ''));
+  IF v_worker_id = '' THEN
     RAISE EXCEPTION 'Worker id is required' USING ERRCODE = '22023';
   END IF;
   IF p_lease_ms IS NULL OR p_lease_ms < 10000 OR p_lease_ms > 7200000 THEN
@@ -93,14 +258,14 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  -- The compatibility timestamp argument is intentionally ignored. Every
+  -- The timestamp argument is intentionally ignored. Every
   -- eligibility, recovery, and lease timestamp below is database-derived.
   v_now := pg_catalog.clock_timestamp();
 
   IF p_require_slot THEN
     PERFORM 1
     FROM public.runner_machine_slot AS rms
-    WHERE rms.owner_machine_id = p_worker_id
+    WHERE rms.owner_machine_id = v_worker_id
       AND rms.owner_kind = 'pool'
       AND rms.lease_until > v_now
     FOR UPDATE;
@@ -116,7 +281,7 @@ BEGIN
       SELECT 1
       FROM public.runner_job AS owned
       WHERE owned.status = 'running'
-        AND owned.leased_by = p_worker_id
+        AND owned.leased_by = v_worker_id
         AND owned.leased_until > v_now
     ) THEN
       RETURN;
@@ -125,7 +290,7 @@ BEGIN
 
   -- Recover only one expired lease per poll. First acquire the exact row with
   -- SKIP LOCKED, then insert a private one-time capability immediately before
-  -- the exact lifecycle update. The permanent compatibility trigger atomically
+  -- the exact lifecycle update. The permanent trigger atomically
   -- consumes this capability and permits only the matching recovery shape.
 
   WITH expired AS MATERIALIZED (
@@ -133,8 +298,12 @@ BEGIN
     FROM public.runner_job AS expired
     WHERE expired.status = 'running'
       AND expired.leased_until <= v_now
-      AND expired.country IN (
-        'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
+      AND (
+        (expired.country = 'vietnam' AND expired.flow_key = 'vn_prearrival')
+        OR (expired.country = 'singapore' AND expired.flow_key = 'sgac')
+        OR (expired.country = 'malaysia' AND expired.flow_key = 'mdac')
+        OR (expired.country = 'thailand' AND expired.flow_key = 'tdac')
+        OR (expired.country = 'south_korea' AND expired.flow_key = 'kr_eform')
       )
     ORDER BY expired.leased_until, expired.id
     LIMIT 1
@@ -145,22 +314,66 @@ BEGIN
   FROM expired;
 
   IF v_expired_job_id IS NOT NULL THEN
-    DELETE FROM runner_private.runner_recovery_capability AS capability
+    SELECT job.*
+    INTO v_expired_old_row
+    FROM public.runner_job AS job
+    WHERE job.id = v_expired_job_id
+      AND job.status = 'running'
+      AND job.leased_until <= v_now
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RETURN;
+    END IF;
+
+    v_expired_new_row := to_jsonb(v_expired_old_row) || jsonb_build_object(
+      'attempts', v_expired_old_row.attempts + 1,
+      'status', CASE
+        WHEN v_expired_old_row.attempts + 1 >= v_expired_old_row.max_attempts
+          THEN 'failed'
+        ELSE 'queued'
+      END,
+      'last_error', 'Worker lease expired before completion; job recovered by shared pool.',
+      'leased_by', NULL,
+      'leased_until', NULL,
+      'started_at', CASE
+        WHEN v_expired_old_row.attempts + 1 >= v_expired_old_row.max_attempts
+          THEN v_expired_old_row.started_at
+        ELSE NULL
+      END,
+      'finished_at', CASE
+        WHEN v_expired_old_row.attempts + 1 >= v_expired_old_row.max_attempts
+          THEN v_now
+        ELSE NULL
+      END,
+      'available_at', CASE
+        WHEN v_expired_old_row.attempts + 1 >= v_expired_old_row.max_attempts
+          THEN v_expired_old_row.available_at
+        ELSE v_now + LEAST(300, 15 * (v_expired_old_row.attempts + 1))
+          * INTERVAL '1 second'
+      END
+    );
+
+    DELETE FROM runner_private.runner_job_update_capability AS capability
     WHERE capability.txid = pg_catalog.txid_current()
       AND capability.backend_pid = pg_catalog.pg_backend_pid()
       AND capability.job_id = v_expired_job_id;
 
-    INSERT INTO runner_private.runner_recovery_capability (
+    INSERT INTO runner_private.runner_job_update_capability (
       txid,
       backend_pid,
       job_id,
-      recovery_now
+      operation,
+      old_row,
+      new_row
     )
     VALUES (
       pg_catalog.txid_current(),
       pg_catalog.pg_backend_pid(),
       v_expired_job_id,
-      v_now
+      'recover',
+      to_jsonb(v_expired_old_row),
+      v_expired_new_row
     );
 
     UPDATE public.runner_job AS job
@@ -211,7 +424,14 @@ BEGIN
       SELECT oldest_candidate.enqueued_at, oldest_candidate.id
       FROM public.runner_job AS oldest_candidate
       WHERE oldest_candidate.country = cap.country
-        AND oldest_candidate.status = 'queued'
+        AND (
+          (oldest_candidate.country = 'vietnam' AND oldest_candidate.flow_key = 'vn_prearrival')
+          OR (oldest_candidate.country = 'singapore' AND oldest_candidate.flow_key = 'sgac')
+          OR (oldest_candidate.country = 'malaysia' AND oldest_candidate.flow_key = 'mdac')
+          OR (oldest_candidate.country = 'thailand' AND oldest_candidate.flow_key = 'tdac')
+          OR (oldest_candidate.country = 'south_korea' AND oldest_candidate.flow_key = 'kr_eform')
+        )
+      AND oldest_candidate.status = 'queued'
         AND oldest_candidate.available_at <= v_now
       ORDER BY oldest_candidate.enqueued_at, oldest_candidate.id
       LIMIT 1
@@ -246,12 +466,26 @@ BEGIN
         AND candidate.country IN (
           'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
         )
+        AND (
+          (candidate.country = 'vietnam' AND candidate.flow_key = 'vn_prearrival')
+          OR (candidate.country = 'singapore' AND candidate.flow_key = 'sgac')
+          OR (candidate.country = 'malaysia' AND candidate.flow_key = 'mdac')
+          OR (candidate.country = 'thailand' AND candidate.flow_key = 'tdac')
+          OR (candidate.country = 'south_korea' AND candidate.flow_key = 'kr_eform')
+        )
         AND NOT cap.paused
         AND (
           SELECT COUNT(*)
           FROM public.runner_job AS active
           WHERE active.country = candidate.country
             AND active.status = 'running'
+            AND (
+              (active.country = 'vietnam' AND active.flow_key = 'vn_prearrival')
+              OR (active.country = 'singapore' AND active.flow_key = 'sgac')
+              OR (active.country = 'malaysia' AND active.flow_key = 'mdac')
+              OR (active.country = 'thailand' AND active.flow_key = 'tdac')
+              OR (active.country = 'south_korea' AND active.flow_key = 'kr_eform')
+            )
         ) < cap.max_concurrent
       ORDER BY candidate.enqueued_at, candidate.id
       LIMIT 1
@@ -259,7 +493,7 @@ BEGIN
     )
     UPDATE public.runner_job AS claimed
     SET status = 'running',
-        leased_by = p_worker_id,
+        leased_by = v_worker_id,
         leased_until = v_now + p_lease_ms * INTERVAL '1 millisecond',
         started_at = v_now,
         finished_at = NULL,
@@ -285,6 +519,36 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE VIEW public.runner_pool_depth
+WITH (security_invoker = true)
+AS
+SELECT
+  cap.country,
+  cap.max_concurrent,
+  cap.paused,
+  COALESCE(COUNT(rj.id) FILTER (
+    WHERE rj.status = 'queued' AND rj.available_at <= pg_catalog.clock_timestamp()
+  ), 0)::INTEGER AS claimable,
+  COALESCE(COUNT(rj.id) FILTER (
+    WHERE rj.status = 'queued' AND rj.available_at > pg_catalog.clock_timestamp()
+  ), 0)::INTEGER AS scheduled,
+  COALESCE(COUNT(rj.id) FILTER (WHERE rj.status = 'running'), 0)::INTEGER AS running
+FROM public.runner_concurrency_cap AS cap
+LEFT JOIN public.runner_job AS rj
+  ON rj.country = cap.country
+  AND (
+    (rj.country = 'vietnam' AND rj.flow_key = 'vn_prearrival')
+    OR (rj.country = 'singapore' AND rj.flow_key = 'sgac')
+    OR (rj.country = 'malaysia' AND rj.flow_key = 'mdac')
+    OR (rj.country = 'thailand' AND rj.flow_key = 'tdac')
+    OR (rj.country = 'south_korea' AND rj.flow_key = 'kr_eform')
+  )
+WHERE cap.country IN ('vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea')
+GROUP BY cap.country, cap.max_concurrent, cap.paused;
+
+REVOKE ALL ON TABLE public.runner_pool_depth FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON TABLE public.runner_pool_depth TO service_role;
+
 REVOKE ALL ON FUNCTION public.claim_runner_pool_job(
   TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ
 ) FROM PUBLIC, anon, authenticated;
@@ -293,15 +557,13 @@ GRANT EXECUTE ON FUNCTION public.claim_runner_pool_job(
 ) TO service_role;
 
 COMMENT ON FUNCTION public.claim_runner_pool_job(TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ) IS
-  'Atomically recovers one expired lease and claims one country-sharded shared-pool job using database clock_timestamp(); p_now is compatibility-only.';
+  'Atomically recovers one expired lease and claims one exact active tuple using database clock_timestamp(); p_now is ignored and direct stale writes require a controlled RPC cutover.';
 
--- Older workers can still issue direct lifecycle UPDATEs while a rolling
--- deploy is in progress. Once an OLD running lease has expired, silently drop
--- any stale lifecycle mutation so it cannot overwrite a reclaimed owner. A
--- metadata-only UPDATE remains compatible. The bounded recovery path above is
--- the sole exception: it consumes a private transaction/backend/job capability
--- and must match the exact one-row recovery shape below. This trigger is
--- deliberately private, SECURITY DEFINER, and uses an empty search_path.
+-- Every direct UPDATE of a running row must carry a private exact full-row
+-- capability minted by one of the service-role RPCs. Metadata-only changes
+  -- remain harmless because metadata is deliberately outside the
+-- lifecycle/identity fence. This is not an expired-only check: an active row
+-- reclaimed after a lock wait is fenced identically to an expired row.
 CREATE OR REPLACE FUNCTION runner_private.guard_expired_runner_job_lifecycle_update()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -309,117 +571,45 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_recovery_now TIMESTAMPTZ;
-  v_lifecycle_changed BOOLEAN;
-  v_identity_changed BOOLEAN;
-  v_metadata_changed BOOLEAN;
-  v_terminal BOOLEAN;
+  v_capability_operation TEXT;
 BEGIN
-  v_lifecycle_changed := (
-    NEW.status IS DISTINCT FROM OLD.status
-    OR NEW.attempts IS DISTINCT FROM OLD.attempts
-    OR NEW.last_error IS DISTINCT FROM OLD.last_error
-    OR NEW.started_at IS DISTINCT FROM OLD.started_at
-    OR NEW.finished_at IS DISTINCT FROM OLD.finished_at
-    OR NEW.leased_by IS DISTINCT FROM OLD.leased_by
-    OR NEW.leased_until IS DISTINCT FROM OLD.leased_until
-    OR NEW.available_at IS DISTINCT FROM OLD.available_at
-  );
-  v_identity_changed := (
-    NEW.id IS DISTINCT FROM OLD.id
-    OR NEW.application_id IS DISTINCT FROM OLD.application_id
-    OR NEW.country IS DISTINCT FROM OLD.country
-    OR NEW.flow_key IS DISTINCT FROM OLD.flow_key
-    OR NEW.max_attempts IS DISTINCT FROM OLD.max_attempts
-    OR NEW.correlation_id IS DISTINCT FROM OLD.correlation_id
-    OR NEW.enqueued_at IS DISTINCT FROM OLD.enqueued_at
-  );
-  v_metadata_changed := NEW.metadata IS DISTINCT FROM OLD.metadata;
-
-  IF NOT v_lifecycle_changed
-    AND NOT v_identity_changed
-    AND NOT v_metadata_changed
-  THEN
+  IF OLD.status IS DISTINCT FROM 'running' THEN
     RETURN NEW;
   END IF;
 
-  IF OLD.status IS DISTINCT FROM 'running'
-    OR OLD.leased_until IS NULL
-    OR OLD.leased_until > pg_catalog.clock_timestamp()
-  THEN
+  -- Metadata-only writes are the sole direct exception. The
+  -- subtraction keeps this future-proof if non-fenced metadata keys evolve;
+  -- every identity/lifecycle/fingerprint column remains protected.
+  IF to_jsonb(NEW) - 'metadata' = to_jsonb(OLD) - 'metadata' THEN
     RETURN NEW;
   END IF;
 
-  -- Metadata is the sole mutable payload field permitted on an expired
-  -- running row without the private recovery capability.
-  IF NOT v_lifecycle_changed
-    AND NOT v_identity_changed
-    AND v_metadata_changed
-  THEN
-    RETURN NEW;
-  END IF;
-
-  DELETE FROM runner_private.runner_recovery_capability AS capability
+  DELETE FROM runner_private.runner_job_update_capability AS capability
   WHERE capability.txid = pg_catalog.txid_current()
     AND capability.backend_pid = pg_catalog.pg_backend_pid()
     AND capability.job_id = OLD.id
-  RETURNING capability.recovery_now
-  INTO v_recovery_now;
+    AND capability.operation IN (
+      'recover', 'complete', 'renew', 'fail', 'takeover_open',
+      'admin_pause', 'fingerprint_append'
+    )
+    AND capability.old_row = to_jsonb(OLD)
+    AND capability.new_row = to_jsonb(NEW)
+  RETURNING capability.operation
+  INTO v_capability_operation;
 
   IF NOT FOUND THEN
     RETURN NULL;
   END IF;
 
-  IF OLD.leased_until > v_recovery_now
-    OR OLD.leased_until > pg_catalog.clock_timestamp()
-  THEN
+  -- The row-image equality above is the exact shape check. A consumed
+  -- allowlisted operation is the only path that reaches the new row.
+  IF v_capability_operation IS NULL THEN
     RETURN NULL;
   END IF;
-
-  v_terminal := OLD.attempts + 1 >= OLD.max_attempts;
-
-  -- Identity/payload columns are immutable for the recovery exception.
-  IF NEW.id IS DISTINCT FROM OLD.id
-    OR NEW.application_id IS DISTINCT FROM OLD.application_id
-    OR NEW.country IS DISTINCT FROM OLD.country
-    OR NEW.flow_key IS DISTINCT FROM OLD.flow_key
-    OR NEW.max_attempts IS DISTINCT FROM OLD.max_attempts
-    OR NEW.correlation_id IS DISTINCT FROM OLD.correlation_id
-    OR NEW.metadata IS DISTINCT FROM OLD.metadata
-    OR NEW.enqueued_at IS DISTINCT FROM OLD.enqueued_at
-  THEN
-    RETURN NULL;
-  END IF;
-
-  IF NEW.attempts IS DISTINCT FROM OLD.attempts + 1
-    OR NEW.status IS DISTINCT FROM CASE WHEN v_terminal THEN 'failed' ELSE 'queued' END
-    OR NEW.last_error IS DISTINCT FROM
-      'Worker lease expired before completion; job recovered by shared pool.'
-    OR NEW.leased_by IS NOT NULL
-    OR NEW.leased_until IS NOT NULL
-    OR NEW.started_at IS DISTINCT FROM CASE
-      WHEN v_terminal THEN OLD.started_at
-      ELSE NULL
-    END
-    OR NEW.finished_at IS DISTINCT FROM CASE
-      WHEN v_terminal THEN v_recovery_now
-      ELSE NULL
-    END
-    OR NEW.available_at IS DISTINCT FROM CASE
-      WHEN v_terminal THEN OLD.available_at
-      ELSE v_recovery_now + LEAST(300, 15 * (OLD.attempts + 1)) * INTERVAL '1 second'
-    END
-  THEN
-    RETURN NULL;
-  END IF;
-
   RETURN NEW;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS guard_expired_runner_job_lifecycle_update
-  ON public.runner_job;
-DROP FUNCTION IF EXISTS public.guard_expired_runner_job_lifecycle_update();
 CREATE TRIGGER guard_expired_runner_job_lifecycle_update
 BEFORE UPDATE ON public.runner_job
 FOR EACH ROW
@@ -429,13 +619,12 @@ REVOKE ALL ON FUNCTION runner_private.guard_expired_runner_job_lifecycle_update(
   FROM PUBLIC, anon, authenticated, service_role;
 
 COMMENT ON FUNCTION runner_private.guard_expired_runner_job_lifecycle_update() IS
-  'Drops stale lifecycle updates on expired runner leases; permits only exact bounded recovery capabilities.';
+  'Fences every running-row lifecycle/identity/fingerprint update unless an exact private capability is consumed; metadata-only writes remain allowed.';
 
 -- Complete a claimed pool job only while the caller still owns its live lease.
--- The submission worker uses this service-role-only RPC so stale owners cannot
--- terminally mutate a row reclaimed by another worker. The optional p_now is
--- reserved for the staging harness; production callers omit it so the clock
--- is sampled only after the job row lock is acquired.
+-- The exact full-row capability is minted immediately before UPDATE and is
+-- consumed by the permanent trigger. p_now remains only as an API signature
+-- slot and is never used for eligibility or finished_at.
 CREATE OR REPLACE FUNCTION public.complete_runner_pool_job(
   p_job_id UUID,
   p_worker_id TEXT,
@@ -447,13 +636,15 @@ RETURNS TABLE (
   started_at TIMESTAMPTZ
 )
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_leased_until TIMESTAMPTZ;
+  v_old_row public.runner_job%ROWTYPE;
+  v_new_row JSONB;
   v_worker_id TEXT;
   v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER := 0;
 BEGIN
   IF p_job_id IS NULL THEN
     RAISE EXCEPTION 'p_job_id is required' USING ERRCODE = '22023';
@@ -466,8 +657,8 @@ BEGIN
   -- Lock the exact live owner/status row before sampling the authoritative
   -- time. A concurrent lease recovery or re-claim therefore completes first,
   -- and this worker rechecks the locked row against the post-lock time.
-  SELECT job.leased_until
-  INTO v_leased_until
+  SELECT job.*
+  INTO v_old_row
   FROM public.runner_job AS job
   WHERE job.id = p_job_id
     AND job.status = 'running'
@@ -478,17 +669,35 @@ BEGIN
     RETURN;
   END IF;
 
-  -- p_now is retained only for deterministic finished_at assertions in the
-  -- staging harness. Lease ownership always uses a post-lock database clock.
-  v_now := clock_timestamp();
-  IF v_leased_until <= v_now THEN
+  v_now := pg_catalog.clock_timestamp();
+  IF v_old_row.leased_until <= v_now THEN
     RETURN;
   END IF;
+
+  v_new_row := to_jsonb(v_old_row) || jsonb_build_object(
+    'status', 'succeeded',
+    'finished_at', v_now,
+    'leased_by', NULL,
+    'leased_until', NULL,
+    'last_error', NULL
+  );
+
+  DELETE FROM runner_private.runner_job_update_capability
+  WHERE txid = pg_catalog.txid_current()
+    AND backend_pid = pg_catalog.pg_backend_pid()
+    AND job_id = p_job_id;
+  INSERT INTO runner_private.runner_job_update_capability (
+    txid, backend_pid, job_id, operation, old_row, new_row
+  )
+  VALUES (
+    pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), p_job_id,
+    'complete', to_jsonb(v_old_row), v_new_row
+  );
 
   RETURN QUERY
   UPDATE public.runner_job AS job
   SET status = 'succeeded',
-    finished_at = COALESCE(p_now, v_now),
+    finished_at = v_now,
     leased_by = NULL,
     leased_until = NULL,
     last_error = NULL
@@ -497,6 +706,15 @@ BEGIN
     AND job.leased_by = v_worker_id
     AND job.leased_until > v_now
   RETURNING job.application_id, job.country, job.started_at;
+
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    DELETE FROM runner_private.runner_job_update_capability
+    WHERE txid = pg_catalog.txid_current()
+      AND backend_pid = pg_catalog.pg_backend_pid()
+      AND job_id = p_job_id;
+    RETURN;
+  END IF;
 END;
 $$;
 
@@ -504,7 +722,7 @@ REVOKE ALL ON FUNCTION public.complete_runner_pool_job(UUID, TEXT, TIMESTAMPTZ) 
 GRANT EXECUTE ON FUNCTION public.complete_runner_pool_job(UUID, TEXT, TIMESTAMPTZ) TO service_role;
 
 COMMENT ON FUNCTION public.complete_runner_pool_job(UUID, TEXT, TIMESTAMPTZ) IS
-  'Completes a running pool job only for its owning worker and live lease.';
+  'Completes a running pool job with a database-clock exact-row capability; p_now is ignored.';
 
 -- Renew a claimed pool job only while the caller still owns its live lease.
 -- The database clock is intentionally authoritative and sampled after the
@@ -519,12 +737,14 @@ RETURNS TABLE (
   leased_until TIMESTAMPTZ
 )
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_leased_until TIMESTAMPTZ;
+  v_old_row public.runner_job%ROWTYPE;
+  v_new_row JSONB;
   v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER := 0;
 BEGIN
   IF p_job_id IS NULL THEN
     RAISE EXCEPTION 'p_job_id is required' USING ERRCODE = '22023';
@@ -537,8 +757,8 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  SELECT job.leased_until
-  INTO v_leased_until
+  SELECT job.*
+  INTO v_old_row
   FROM public.runner_job AS job
   WHERE job.id = p_job_id
     AND job.status = 'running'
@@ -549,10 +769,26 @@ BEGIN
     RETURN;
   END IF;
 
-  v_now := clock_timestamp();
-  IF v_leased_until <= v_now THEN
+  v_now := pg_catalog.clock_timestamp();
+  IF v_old_row.leased_until <= v_now THEN
     RETURN;
   END IF;
+
+  v_new_row := to_jsonb(v_old_row) || jsonb_build_object(
+    'leased_until', v_now + p_lease_ms * INTERVAL '1 millisecond'
+  );
+
+  DELETE FROM runner_private.runner_job_update_capability
+  WHERE txid = pg_catalog.txid_current()
+    AND backend_pid = pg_catalog.pg_backend_pid()
+    AND job_id = p_job_id;
+  INSERT INTO runner_private.runner_job_update_capability (
+    txid, backend_pid, job_id, operation, old_row, new_row
+  )
+  VALUES (
+    pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), p_job_id,
+    'renew', to_jsonb(v_old_row), v_new_row
+  );
 
   RETURN QUERY
   UPDATE public.runner_job AS job
@@ -562,6 +798,15 @@ BEGIN
     AND job.leased_by = BTRIM(p_worker_id)
     AND job.leased_until > v_now
   RETURNING job.leased_until;
+
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    DELETE FROM runner_private.runner_job_update_capability
+    WHERE txid = pg_catalog.txid_current()
+      AND backend_pid = pg_catalog.pg_backend_pid()
+      AND job_id = p_job_id;
+    RETURN;
+  END IF;
 END;
 $$;
 
@@ -569,7 +814,7 @@ REVOKE ALL ON FUNCTION public.renew_runner_pool_job(UUID, TEXT, INTEGER) FROM PU
 GRANT EXECUTE ON FUNCTION public.renew_runner_pool_job(UUID, TEXT, INTEGER) TO service_role;
 
 COMMENT ON FUNCTION public.renew_runner_pool_job(UUID, TEXT, INTEGER) IS
-  'Renews a running pool job only for its owning worker and live database-clock lease.';
+  'Renews a running pool job with a database-clock exact-row capability.';
 
 -- Settle a failed pool job only while the caller still owns its live lease.
 -- Retry availability and terminal timestamps are derived from the database
@@ -589,13 +834,15 @@ RETURNS TABLE (
   available_at TIMESTAMPTZ
 )
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_leased_until TIMESTAMPTZ;
+  v_old_row public.runner_job%ROWTYPE;
+  v_new_row JSONB;
   v_now TIMESTAMPTZ;
   v_available_at TIMESTAMPTZ;
+  v_updated_rows INTEGER := 0;
 BEGIN
   IF p_job_id IS NULL THEN
     RAISE EXCEPTION 'p_job_id is required' USING ERRCODE = '22023';
@@ -617,8 +864,8 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  SELECT job.leased_until
-  INTO v_leased_until
+  SELECT job.*
+  INTO v_old_row
   FROM public.runner_job AS job
   WHERE job.id = p_job_id
     AND job.status = 'running'
@@ -629,8 +876,8 @@ BEGIN
     RETURN;
   END IF;
 
-  v_now := clock_timestamp();
-  IF v_leased_until <= v_now THEN
+  v_now := pg_catalog.clock_timestamp();
+  IF v_old_row.leased_until <= v_now THEN
     RETURN;
   END IF;
 
@@ -639,6 +886,31 @@ BEGIN
       THEN v_now + p_retry_after_seconds * INTERVAL '1 second'
     ELSE NULL
   END;
+
+  v_new_row := to_jsonb(v_old_row) || jsonb_build_object(
+    'status', p_status,
+    'attempts', p_attempts,
+    'last_error', p_last_error,
+    'finished_at', CASE WHEN p_status = 'failed' THEN v_now ELSE NULL END,
+    'leased_by', NULL,
+    'leased_until', NULL,
+    'available_at', CASE
+      WHEN p_status = 'queued' THEN v_available_at
+      ELSE v_old_row.available_at
+    END
+  );
+
+  DELETE FROM runner_private.runner_job_update_capability
+  WHERE txid = pg_catalog.txid_current()
+    AND backend_pid = pg_catalog.pg_backend_pid()
+    AND job_id = p_job_id;
+  INSERT INTO runner_private.runner_job_update_capability (
+    txid, backend_pid, job_id, operation, old_row, new_row
+  )
+  VALUES (
+    pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), p_job_id,
+    'fail', to_jsonb(v_old_row), v_new_row
+  );
 
   RETURN QUERY
   UPDATE public.runner_job AS job
@@ -657,6 +929,15 @@ BEGIN
     AND job.leased_by = BTRIM(p_worker_id)
     AND job.leased_until > v_now
   RETURNING job.id, job.status, job.available_at;
+
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    DELETE FROM runner_private.runner_job_update_capability
+    WHERE txid = pg_catalog.txid_current()
+      AND backend_pid = pg_catalog.pg_backend_pid()
+      AND job_id = p_job_id;
+    RETURN;
+  END IF;
 END;
 $$;
 
@@ -664,7 +945,344 @@ REVOKE ALL ON FUNCTION public.fail_runner_pool_job(UUID, TEXT, TEXT, INTEGER, TE
 GRANT EXECUTE ON FUNCTION public.fail_runner_pool_job(UUID, TEXT, TEXT, INTEGER, TEXT, INTEGER) TO service_role;
 
 COMMENT ON FUNCTION public.fail_runner_pool_job(UUID, TEXT, TEXT, INTEGER, TEXT, INTEGER) IS
-  'Settles a failed running pool job only for its owning worker and live database-clock lease.';
+  'Settles a failed running pool job with a database-clock exact-row capability.';
+
+-- Open a human takeover only for the current live owner. The runner update,
+-- takeover row, and open action log share one transaction and one exact-row
+-- capability, so a stale worker cannot orphan a handoff record.
+CREATE OR REPLACE FUNCTION public.open_runner_job_takeover(
+  p_job_id UUID,
+  p_worker_id TEXT,
+  p_application_id UUID,
+  p_applicant_id UUID,
+  p_reason TEXT,
+  p_remote_debug_url TEXT,
+  p_vnc_url TEXT DEFAULT NULL
+)
+RETURNS TABLE (takeover_id UUID)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_old_row public.runner_job%ROWTYPE;
+  v_new_row JSONB;
+  v_takeover_id UUID;
+  v_worker_id TEXT;
+  v_reason TEXT;
+  v_remote_debug_url TEXT;
+  v_vnc_url TEXT;
+  v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER := 0;
+BEGIN
+  IF p_job_id IS NULL OR p_application_id IS NULL OR p_applicant_id IS NULL THEN
+    RAISE EXCEPTION 'job, application, and applicant ids are required'
+      USING ERRCODE = '22023';
+  END IF;
+  v_worker_id := BTRIM(COALESCE(p_worker_id, ''));
+  v_reason := BTRIM(COALESCE(p_reason, ''));
+  v_remote_debug_url := BTRIM(COALESCE(p_remote_debug_url, ''));
+  v_vnc_url := NULLIF(BTRIM(COALESCE(p_vnc_url, '')), '');
+  IF v_worker_id = '' OR length(v_worker_id) > 200 THEN
+    RAISE EXCEPTION 'worker id is required and must be at most 200 characters'
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_reason = '' OR length(v_reason) > 2000 THEN
+    RAISE EXCEPTION 'takeover reason is required and must be at most 2000 characters'
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_remote_debug_url = '' OR length(v_remote_debug_url) > 4096
+    OR v_remote_debug_url !~* '^wss?://'
+  THEN
+    RAISE EXCEPTION 'remote debug URL must be a bounded ws:// or wss:// URL'
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_vnc_url IS NOT NULL AND (
+    length(v_vnc_url) > 4096 OR v_vnc_url !~* '^https?://'
+  ) THEN
+    RAISE EXCEPTION 'VNC URL must be a bounded http:// or https:// URL'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT job.*
+  INTO v_old_row
+  FROM public.runner_job AS job
+  JOIN public.applications AS application
+    ON application.id = job.application_id
+  WHERE job.id = p_job_id
+    AND job.application_id = p_application_id
+    AND application.applicant_id = p_applicant_id
+    AND job.status = 'running'
+    AND job.leased_by = v_worker_id
+  FOR UPDATE OF job, application;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  IF v_old_row.leased_until IS NULL OR v_old_row.leased_until <= v_now THEN
+    RETURN;
+  END IF;
+
+  v_takeover_id := public.gen_random_uuid();
+  v_new_row := to_jsonb(v_old_row) || jsonb_build_object(
+    'status', 'needs_human',
+    'leased_by', NULL,
+    'leased_until', NULL,
+    'last_error', v_reason
+  );
+
+  DELETE FROM runner_private.runner_job_update_capability
+  WHERE txid = pg_catalog.txid_current()
+    AND backend_pid = pg_catalog.pg_backend_pid()
+    AND job_id = p_job_id;
+  INSERT INTO runner_private.runner_job_update_capability (
+    txid, backend_pid, job_id, operation, old_row, new_row
+  )
+  VALUES (
+    pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), p_job_id,
+    'takeover_open', to_jsonb(v_old_row), v_new_row
+  );
+
+  UPDATE public.runner_job AS job
+  SET status = 'needs_human',
+      leased_by = NULL,
+      leased_until = NULL,
+      last_error = v_reason
+  WHERE job.id = p_job_id
+    AND job.status = 'running'
+    AND job.leased_by = v_worker_id
+    AND job.leased_until > v_now;
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    DELETE FROM runner_private.runner_job_update_capability
+    WHERE txid = pg_catalog.txid_current()
+      AND backend_pid = pg_catalog.pg_backend_pid()
+      AND job_id = p_job_id;
+    RETURN;
+  END IF;
+
+  INSERT INTO public.takeover_session (
+    id, job_id, application_id, applicant_id, status, reason,
+    remote_debug_url, vnc_url, created_at
+  )
+  VALUES (
+    v_takeover_id, p_job_id, p_application_id, p_applicant_id, 'queued',
+    v_reason, v_remote_debug_url, v_vnc_url, v_now
+  );
+  INSERT INTO public.takeover_action_log (takeover_id, action, detail, ts)
+  VALUES (
+    v_takeover_id,
+    'open',
+    jsonb_build_object('job_id', p_job_id, 'worker_id', v_worker_id),
+    v_now
+  );
+
+  RETURN QUERY SELECT v_takeover_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.open_runner_job_takeover(
+  UUID, TEXT, UUID, UUID, TEXT, TEXT, TEXT
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.open_runner_job_takeover(
+  UUID, TEXT, UUID, UUID, TEXT, TEXT, TEXT
+) TO service_role;
+
+COMMENT ON FUNCTION public.open_runner_job_takeover(UUID, TEXT, UUID, UUID, TEXT, TEXT, TEXT) IS
+  'Atomically opens a queued human takeover for a live runner owner and records the open action.';
+
+-- Pause all queued/running jobs for face-match or staff review. Queued rows
+-- are ordinary non-running lifecycle updates; each running row gets its own
+-- exact capability immediately before the guarded update.
+CREATE OR REPLACE FUNCTION public.pause_runner_jobs_for_review(
+  p_application_id UUID,
+  p_reason TEXT
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_job public.runner_job%ROWTYPE;
+  v_new_row JSONB;
+  v_reason TEXT := BTRIM(COALESCE(p_reason, ''));
+  v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER;
+  v_count INTEGER := 0;
+BEGIN
+  IF p_application_id IS NULL THEN
+    RAISE EXCEPTION 'application id is required' USING ERRCODE = '22023';
+  END IF;
+  IF v_reason = '' OR length(v_reason) > 2000 THEN
+    RAISE EXCEPTION 'pause reason is required and must be at most 2000 characters'
+      USING ERRCODE = '22023';
+  END IF;
+
+  FOR v_job IN
+    SELECT job.*
+    FROM public.runner_job AS job
+    WHERE job.application_id = p_application_id
+      AND job.status IN ('queued', 'running')
+    ORDER BY job.id
+    FOR UPDATE
+  LOOP
+    IF v_job.status = 'queued' THEN
+      UPDATE public.runner_job AS job
+      SET status = 'paused',
+          leased_by = NULL,
+          leased_until = NULL,
+          last_error = v_reason
+      WHERE job.id = v_job.id;
+      GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+    ELSE
+      v_now := pg_catalog.clock_timestamp();
+      v_new_row := to_jsonb(v_job) || jsonb_build_object(
+        'status', 'paused',
+        'leased_by', NULL,
+        'leased_until', NULL,
+        'last_error', v_reason
+      );
+      DELETE FROM runner_private.runner_job_update_capability
+      WHERE txid = pg_catalog.txid_current()
+        AND backend_pid = pg_catalog.pg_backend_pid()
+        AND job_id = v_job.id;
+      INSERT INTO runner_private.runner_job_update_capability (
+        txid, backend_pid, job_id, operation, old_row, new_row
+      )
+      VALUES (
+        pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), v_job.id,
+        'admin_pause', to_jsonb(v_job), v_new_row
+      );
+      UPDATE public.runner_job AS job
+      SET status = 'paused',
+          leased_by = NULL,
+          leased_until = NULL,
+          last_error = v_reason
+      WHERE job.id = v_job.id
+        AND job.status = 'running';
+      GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+      IF v_updated_rows <> 1 THEN
+        DELETE FROM runner_private.runner_job_update_capability
+        WHERE txid = pg_catalog.txid_current()
+          AND backend_pid = pg_catalog.pg_backend_pid()
+          AND job_id = v_job.id;
+        RAISE EXCEPTION 'runner job pause capability was not consumed'
+          USING ERRCODE = '55000';
+      END IF;
+    END IF;
+    IF v_updated_rows = 1 THEN
+      v_count := v_count + 1;
+    END IF;
+  END LOOP;
+
+  RETURN v_count;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.pause_runner_jobs_for_review(UUID, TEXT)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.pause_runner_jobs_for_review(UUID, TEXT)
+  TO service_role;
+
+COMMENT ON FUNCTION public.pause_runner_jobs_for_review(UUID, TEXT) IS
+  'Pauses queued and live running jobs for one application with exact capabilities for running rows.';
+
+-- Append one anti-bot fingerprint entry only for the current live owner. A
+-- direct fingerprint_history UPDATE is protected by the same full-row trigger.
+CREATE OR REPLACE FUNCTION public.append_runner_job_fingerprint(
+  p_job_id UUID,
+  p_worker_id TEXT,
+  p_entry JSONB
+)
+RETURNS TABLE (job_id UUID, fingerprint_history JSONB)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_old_row public.runner_job%ROWTYPE;
+  v_new_history JSONB;
+  v_new_row JSONB;
+  v_worker_id TEXT := BTRIM(COALESCE(p_worker_id, ''));
+  v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER := 0;
+BEGIN
+  IF p_job_id IS NULL OR v_worker_id = '' OR length(v_worker_id) > 200 THEN
+    RAISE EXCEPTION 'job id and worker id are required' USING ERRCODE = '22023';
+  END IF;
+  IF p_entry IS NULL OR pg_catalog.jsonb_typeof(p_entry) <> 'object'
+    OR pg_catalog.pg_column_size(p_entry) > 65536
+  THEN
+    RAISE EXCEPTION 'fingerprint entry must be a JSON object no larger than 64 KiB'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT job.*
+  INTO v_old_row
+  FROM public.runner_job AS job
+  WHERE job.id = p_job_id
+    AND job.status = 'running'
+    AND job.leased_by = v_worker_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  IF v_old_row.leased_until IS NULL OR v_old_row.leased_until <= v_now THEN
+    RETURN;
+  END IF;
+  v_new_history := COALESCE(v_old_row.fingerprint_history, '[]'::JSONB)
+    || jsonb_build_array(p_entry);
+  IF pg_catalog.pg_column_size(v_new_history) > 524288 THEN
+    RAISE EXCEPTION 'fingerprint history cannot exceed 512 KiB'
+      USING ERRCODE = '22023';
+  END IF;
+  v_new_row := to_jsonb(v_old_row) || jsonb_build_object(
+    'fingerprint_history', v_new_history
+  );
+
+  DELETE FROM runner_private.runner_job_update_capability
+  WHERE txid = pg_catalog.txid_current()
+    AND backend_pid = pg_catalog.pg_backend_pid()
+    AND job_id = p_job_id;
+  INSERT INTO runner_private.runner_job_update_capability (
+    txid, backend_pid, job_id, operation, old_row, new_row
+  )
+  VALUES (
+    pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), p_job_id,
+    'fingerprint_append', to_jsonb(v_old_row), v_new_row
+  );
+
+  RETURN QUERY
+  UPDATE public.runner_job AS job
+  SET fingerprint_history = v_new_history
+  WHERE job.id = p_job_id
+    AND job.status = 'running'
+    AND job.leased_by = v_worker_id
+    AND job.leased_until > v_now
+  RETURNING job.id, job.fingerprint_history;
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    DELETE FROM runner_private.runner_job_update_capability
+    WHERE txid = pg_catalog.txid_current()
+      AND backend_pid = pg_catalog.pg_backend_pid()
+      AND job_id = p_job_id;
+    RETURN;
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.append_runner_job_fingerprint(UUID, TEXT, JSONB)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.append_runner_job_fingerprint(UUID, TEXT, JSONB)
+  TO service_role;
+
+COMMENT ON FUNCTION public.append_runner_job_fingerprint(UUID, TEXT, JSONB) IS
+  'Appends one bounded fingerprint entry for the exact live runner owner.';
 
 -- Persist a runner's canonical submission result while its exact owner lease
 -- is still live. The job row is locked before sampling clock_timestamp(), so

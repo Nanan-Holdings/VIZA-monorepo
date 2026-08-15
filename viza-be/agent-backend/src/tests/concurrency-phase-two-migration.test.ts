@@ -58,7 +58,7 @@ const assertSettlementLocksBeforeClock = (functionSql: string): void => {
   );
 
   const leaseRecheckIndex = body.search(
-    /IF\s+v_leased_until\s*<=\s*v_now\s+THEN[\s\S]*?RETURN;/i,
+    /IF\s+(?:v_leased_until|v_old_row\.leased_until)\s*<=\s*v_now\s+THEN[\s\S]*?RETURN;/i,
   );
   expect(leaseRecheckIndex).toBeGreaterThan(clockIndex);
 
@@ -102,14 +102,14 @@ describe("runner pool concurrency phase two migration", () => {
       /WITH expired AS MATERIALIZED \([\s\S]*?SELECT expired\.id[\s\S]*?FROM public\.runner_job AS expired[\s\S]*?ORDER BY[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE SKIP LOCKED[\s\S]*?\)[\s\S]*?SELECT expired\.id[\s\S]*?INTO v_expired_job_id/i,
     );
     expect(canonicalSql).toMatch(
-      /INSERT INTO runner_private\.runner_recovery_capability\s*\([\s\S]*?txid[\s\S]*?backend_pid[\s\S]*?job_id[\s\S]*?recovery_now[\s\S]*?pg_catalog\.txid_current\(\)[\s\S]*?pg_catalog\.pg_backend_pid\(\)[\s\S]*?v_expired_job_id[\s\S]*?v_now[\s\S]*?UPDATE public\.runner_job AS job[\s\S]*?WHERE job\.id = v_expired_job_id[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_until <= v_now/i,
+      /INSERT INTO runner_private\.runner_job_update_capability[\s\S]*?'recover'[\s\S]*?old_row[\s\S]*?new_row[\s\S]*?UPDATE public\.runner_job AS job[\s\S]*?WHERE job\.id = v_expired_job_id[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_until <= v_now/i,
     );
     expect(canonicalSql).not.toMatch(/(?:set_config|current_setting)\(/i);
   });
 
   it("checks a live pool machine slot before claiming when required", () => {
     expect(functionBody).toMatch(
-      /IF p_require_slot THEN[\s\S]*?PERFORM 1[\s\S]*?FROM public\.runner_machine_slot AS rms[\s\S]*?rms\.owner_machine_id = p_worker_id[\s\S]*?rms\.owner_kind = 'pool'[\s\S]*?rms\.lease_until > v_now[\s\S]*?FOR UPDATE[\s\S]*?IF NOT FOUND THEN[\s\S]*?RETURN;/i,
+      /IF p_require_slot THEN[\s\S]*?PERFORM 1[\s\S]*?FROM public\.runner_machine_slot AS rms[\s\S]*?rms\.owner_machine_id = v_worker_id[\s\S]*?rms\.owner_kind = 'pool'[\s\S]*?rms\.lease_until > v_now[\s\S]*?FOR UPDATE[\s\S]*?IF NOT FOUND THEN[\s\S]*?RETURN;/i,
     );
   });
 
@@ -118,7 +118,7 @@ describe("runner pool concurrency phase two migration", () => {
       /CREATE INDEX IF NOT EXISTS runner_job_running_owner_lease_idx\s+ON public\.runner_job \(leased_by, leased_until\)\s+WHERE status = 'running';/i,
     );
     expect(functionBody).toMatch(
-      /IF p_require_slot THEN[\s\S]*?FOR UPDATE[\s\S]*?IF EXISTS \([\s\S]*?FROM public\.runner_job AS owned[\s\S]*?owned\.status = 'running'[\s\S]*?owned\.leased_by = p_worker_id[\s\S]*?owned\.leased_until > v_now[\s\S]*?THEN[\s\S]*?RETURN;/i,
+      /IF p_require_slot THEN[\s\S]*?FOR UPDATE[\s\S]*?IF EXISTS \([\s\S]*?FROM public\.runner_job AS owned[\s\S]*?owned\.status = 'running'[\s\S]*?owned\.leased_by = v_worker_id[\s\S]*?owned\.leased_until > v_now[\s\S]*?THEN[\s\S]*?RETURN;/i,
     );
   });
 
@@ -183,7 +183,7 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("updates queued jobs into leased running rows and returns the established columns", () => {
     expect(functionBody).toMatch(
-      /UPDATE public\.runner_job AS claimed[\s\S]*?SET status = 'running'[\s\S]*?leased_by = p_worker_id[\s\S]*?leased_until = v_now \+ p_lease_ms \* INTERVAL '1 millisecond'[\s\S]*?started_at = v_now[\s\S]*?finished_at = NULL[\s\S]*?last_error = NULL/i,
+      /UPDATE public\.runner_job AS claimed[\s\S]*?SET status = 'running'[\s\S]*?leased_by = v_worker_id[\s\S]*?leased_until = v_now \+ p_lease_ms \* INTERVAL '1 millisecond'[\s\S]*?started_at = v_now[\s\S]*?finished_at = NULL[\s\S]*?last_error = NULL/i,
     );
     expect(functionBody).toMatch(
       /RETURNING[\s\S]*?claimed\.id[\s\S]*?claimed\.application_id[\s\S]*?claimed\.country[\s\S]*?claimed\.flow_key[\s\S]*?claimed\.attempts[\s\S]*?claimed\.max_attempts[\s\S]*?claimed\.correlation_id[\s\S]*?claimed\.metadata/i,
@@ -195,7 +195,7 @@ describe("runner pool concurrency phase two migration", () => {
       /CREATE INDEX IF NOT EXISTS runner_job_queued_available_idx\s+ON public\.runner_job \(country, available_at, enqueued_at, id\)\s+WHERE status = 'queued';/i,
     );
     expect(canonicalSql).toMatch(
-      /runner_job_pool_claim_idx[\s\S]*?rolling compatibility/i,
+      /runner_job_pool_claim_idx[\s\S]*?existing claim readers/i,
     );
     expect(canonicalSql).toMatch(
       /CREATE INDEX IF NOT EXISTS runner_job_running_country_idx\s+ON public\.runner_job \(country\)\s+WHERE status = 'running';/i,
@@ -370,12 +370,12 @@ describe("runner pool concurrency phase two migration", () => {
     expect(completeFunctionBody).toMatch(
       /RETURNS TABLE \(\s*application_id UUID,\s*country TEXT,\s*started_at TIMESTAMPTZ\s*\)/i,
     );
-    expect(completeFunctionBody).toMatch(/SECURITY INVOKER/i);
+    expect(completeFunctionBody).toMatch(/SECURITY DEFINER/i);
     expect(completeFunctionBody).toMatch(/SET search_path = ''/i);
     expect(completeFunctionBody).toMatch(/p_job_id IS NULL[\s\S]*?ERRCODE = '22023'/i);
     expect(completeFunctionBody).toMatch(/NULLIF\(BTRIM\(p_worker_id\), ''\) IS NULL[\s\S]*?ERRCODE = '22023'/i);
     expect(completeFunctionBody).toMatch(
-      /UPDATE public\.runner_job[\s\S]*?SET status = 'succeeded'[\s\S]*?finished_at = COALESCE\(p_now, v_now\)[\s\S]*?leased_by = NULL[\s\S]*?leased_until = NULL[\s\S]*?WHERE[\s\S]*?id = p_job_id[\s\S]*?status = 'running'[\s\S]*?leased_by = v_worker_id[\s\S]*?leased_until > v_now[\s\S]*?RETURNING[\s\S]*?application_id[\s\S]*?country[\s\S]*?started_at/i,
+      /UPDATE public\.runner_job[\s\S]*?SET status = 'succeeded'[\s\S]*?finished_at = v_now[\s\S]*?leased_by = NULL[\s\S]*?leased_until = NULL[\s\S]*?WHERE[\s\S]*?id = p_job_id[\s\S]*?status = 'running'[\s\S]*?leased_by = v_worker_id[\s\S]*?leased_until > v_now[\s\S]*?RETURNING[\s\S]*?application_id[\s\S]*?country[\s\S]*?started_at/i,
     );
     expect(canonicalSql).toMatch(
       /REVOKE ALL ON FUNCTION public\.complete_runner_pool_job\(UUID, TEXT, TIMESTAMPTZ\) FROM PUBLIC, anon, authenticated;/i,
@@ -437,7 +437,7 @@ describe("runner pool concurrency phase two migration", () => {
     expect(completeFunctionBody).toMatch(/v_worker_id\s*:=\s*BTRIM\(p_worker_id\)/i);
     expect(completeFunctionBody).toMatch(/leased_by\s*=\s*v_worker_id/i);
     expect(completeFunctionBody).toMatch(/leased_until\s*>\s*v_now/i);
-    expect(completeFunctionBody).toMatch(/finished_at\s*=\s*COALESCE\(p_now, v_now\)/i);
+    expect(completeFunctionBody).toMatch(/finished_at\s*=\s*v_now/i);
   });
 
   it("never uses an explicit p_now/coalesced clock as the lease predicate", () => {
@@ -474,25 +474,20 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).toMatch(
       /CREATE OR REPLACE FUNCTION runner_private\.guard_expired_runner_job_lifecycle_update\(\)\s*RETURNS trigger[\s\S]*?SECURITY DEFINER[\s\S]*?SET search_path = ''/i,
     );
-    expect(triggerFunctionBody).toMatch(
-      /NEW\.status IS DISTINCT FROM OLD\.status[\s\S]*?NEW\.available_at IS DISTINCT FROM OLD\.available_at/i,
-    );
+    expect(triggerFunctionBody).toMatch(/OLD\.status IS DISTINCT FROM 'running'/i);
     expect(triggerFunctionBody).toMatch(/RETURN NEW;/i);
     expect(triggerFunctionBody).toMatch(/RETURN NULL;/i);
     expect(triggerFunctionBody).toMatch(
-      /DELETE FROM runner_private\.runner_recovery_capability[\s\S]*?txid = pg_catalog\.txid_current\(\)[\s\S]*?backend_pid = pg_catalog\.pg_backend_pid\(\)[\s\S]*?job_id = OLD\.id[\s\S]*?RETURNING capability\.recovery_now/i,
+      /DELETE FROM runner_private\.runner_job_update_capability[\s\S]*?txid = pg_catalog\.txid_current\(\)[\s\S]*?backend_pid = pg_catalog\.pg_backend_pid\(\)[\s\S]*?job_id = OLD\.id[\s\S]*?operation IN[\s\S]*?'recover'[\s\S]*?'fingerprint_append'[\s\S]*?old_row = to_jsonb\(OLD\)[\s\S]*?new_row = to_jsonb\(NEW\)/i,
     );
     expect(triggerFunctionBody).toMatch(
-      /v_identity_changed\s*:=\s*\([\s\S]*?NEW\.id IS DISTINCT FROM OLD\.id[\s\S]*?NEW\.enqueued_at IS DISTINCT FROM OLD\.enqueued_at/i,
+      /to_jsonb\(NEW\) - 'metadata'\s*=\s*to_jsonb\(OLD\) - 'metadata'/i,
     );
     expect(triggerFunctionBody).toMatch(
-      /IF NOT v_lifecycle_changed\s+AND NOT v_identity_changed\s+AND v_metadata_changed[\s\S]*?RETURN NEW;/i,
+      /IF to_jsonb\(NEW\) - 'metadata'\s*=\s*to_jsonb\(OLD\) - 'metadata'[\s\S]*?RETURN NEW;/i,
     );
     expect(triggerFunctionBody).not.toMatch(/current_setting\(|set_config\(/i);
-    expect(triggerFunctionBody).toMatch(/NEW\.application_id IS DISTINCT FROM OLD\.application_id/i);
-    expect(triggerFunctionBody).toMatch(/NEW\.metadata IS DISTINCT FROM OLD\.metadata/i);
-    expect(triggerFunctionBody).toMatch(/NEW\.attempts IS DISTINCT FROM OLD\.attempts \+ 1/i);
-    expect(triggerFunctionBody).toMatch(/NEW\.leased_by IS NOT NULL/i);
+    expect(triggerFunctionBody).toMatch(/operation IN\s*\([\s\S]*?'takeover_open'[\s\S]*?'admin_pause'[\s\S]*?'fingerprint_append'/i);
     expect(canonicalSql).toMatch(
       /CREATE TRIGGER guard_expired_runner_job_lifecycle_update\s*BEFORE UPDATE ON public\.runner_job/i,
     );
@@ -503,7 +498,7 @@ describe("runner pool concurrency phase two migration", () => {
       /REVOKE ALL ON FUNCTION runner_private\.guard_expired_runner_job_lifecycle_update\(\)\s*FROM PUBLIC, anon, authenticated, service_role;/i,
     );
     expect(canonicalSql).toMatch(
-      /REVOKE ALL ON TABLE runner_private\.runner_recovery_capability\s*FROM PUBLIC, anon, authenticated, service_role;/i,
+      /REVOKE ALL ON TABLE runner_private\.runner_job_update_capability\s*FROM PUBLIC, anon, authenticated, service_role;/i,
     );
   });
 
@@ -537,6 +532,48 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).toMatch(
       /GRANT EXECUTE ON FUNCTION public\.write_runner_pool_submission_result\(\s*UUID, TEXT, JSONB, TEXT\s*\) TO service_role;/i,
     );
+  });
+
+  it("requires generalized full-row capabilities for every running-row mutation", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE TABLE IF NOT EXISTS runner_private\.runner_job_update_capability[\s\S]*?operation TEXT NOT NULL CHECK[\s\S]*?'recover'[\s\S]*?'complete'[\s\S]*?'renew'[\s\S]*?'fail'[\s\S]*?'takeover_open'[\s\S]*?'admin_pause'[\s\S]*?'fingerprint_append'[\s\S]*?old_row JSONB NOT NULL[\s\S]*?new_row JSONB NOT NULL[\s\S]*?issued_at TIMESTAMPTZ/i,
+    );
+    expect(canonicalSql).not.toMatch(/set_config\(|current_setting\(/i);
+    expect(canonicalSql).not.toMatch(/runner_recovery_capability/i);
+    for (const body of [completeFunctionBody, renewFunctionBody, failFunctionBody]) {
+      expect(body).toMatch(/SECURITY DEFINER/i);
+      expect(body).toMatch(/INSERT INTO runner_private\.runner_job_update_capability/i);
+      expect(body).toMatch(/old_row, new_row/i);
+      expect(body).toMatch(/GET DIAGNOSTICS[\s\S]*?ROW_COUNT/i);
+    }
+  });
+
+  it("fails closed on exact active flow tuples and quarantines invalid queued work", () => {
+    expect(canonicalSql).toMatch(/Cannot enable runner flow fence while invalid running runner_job rows exist/i);
+    expect(canonicalSql).toMatch(/runner_job_active_flow_key_check/i);
+    for (const tuple of ["vn_prearrival", "sgac", "mdac", "tdac", "kr_eform"]) {
+      expect(canonicalSql).toContain(tuple);
+    }
+    expect(canonicalSql).not.toMatch(/country = 'vietnam'\s+AND\s+flow_key = 'vn_evisa'/i);
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.enqueue_sgac_country_runner_retry[\s\S]*?country, flow_key, status[\s\S]*?'singapore', 'sgac'/i,
+    );
+    expect(canonicalSql).toMatch(/CREATE OR REPLACE VIEW public\.runner_pool_depth[\s\S]*?flow_key = 'sgac'/i);
+  });
+
+  it("defines service-role takeover, review pause, and fingerprint RPCs", () => {
+    expect(canonicalSql).toMatch(/CREATE OR REPLACE FUNCTION public\.open_runner_job_takeover/i);
+    expect(canonicalSql).toMatch(/'takeover_open'/i);
+    expect(canonicalSql).toMatch(/INSERT INTO public\.takeover_session/i);
+    expect(canonicalSql).toMatch(/INSERT INTO public\.takeover_action_log/i);
+    expect(canonicalSql).toMatch(/CREATE OR REPLACE FUNCTION public\.pause_runner_jobs_for_review/i);
+    expect(canonicalSql).toMatch(/'admin_pause'/i);
+    expect(canonicalSql).toMatch(/CREATE OR REPLACE FUNCTION public\.append_runner_job_fingerprint/i);
+    expect(canonicalSql).toMatch(/'fingerprint_append'/i);
+    expect(canonicalSql).toMatch(/fingerprint_history = v_new_history/i);
+    expect(canonicalSql).toMatch(/REVOKE ALL ON FUNCTION public\.open_runner_job_takeover/i);
+    expect(canonicalSql).toMatch(/REVOKE ALL ON FUNCTION public\.pause_runner_jobs_for_review/i);
+    expect(canonicalSql).toMatch(/REVOKE ALL ON FUNCTION public\.append_runner_job_fingerprint/i);
   });
 
   it("gates real Postgres smoke on the actual local database URL and DB environment", () => {
