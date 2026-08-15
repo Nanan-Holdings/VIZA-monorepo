@@ -190,7 +190,9 @@ The current internal automation migrations are:
   `claim_runner_pool_job` signature remains rolling-deploy compatible and
   excludes retired Indonesia pool work. It also carries the fenced,
   service-role-only `complete_runner_pool_job`, `renew_runner_pool_job`, and
-  `fail_runner_pool_job` settlement RPCs. Production renew/failure predicates
+  `fail_runner_pool_job` settlement RPCs. Each settlement function locks the
+  exact running owner row before sampling its authoritative lease clock, then
+  rechecks `leased_until` before updating. Production renew/failure predicates
   use `clock_timestamp()` inside SQL; production success omits `p_now` while
   the completion RPC keeps its optional controlled timestamp for staging
   harnesses. All three settlement functions are `SECURITY INVOKER`, use an

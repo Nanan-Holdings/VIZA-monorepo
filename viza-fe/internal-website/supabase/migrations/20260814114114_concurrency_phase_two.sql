@@ -232,11 +232,13 @@ COMMENT ON FUNCTION public.claim_runner_pool_job(TEXT, INTEGER, BOOLEAN, TIMESTA
 
 -- Complete a claimed pool job only while the caller still owns its live lease.
 -- The submission worker uses this service-role-only RPC so stale owners cannot
--- terminally mutate a row reclaimed by another worker.
+-- terminally mutate a row reclaimed by another worker. The optional p_now is
+-- reserved for the staging harness; production callers omit it so the clock
+-- is sampled only after the job row lock is acquired.
 CREATE OR REPLACE FUNCTION public.complete_runner_pool_job(
   p_job_id UUID,
   p_worker_id TEXT,
-  p_now TIMESTAMPTZ DEFAULT clock_timestamp()
+  p_now TIMESTAMPTZ DEFAULT NULL
 )
 RETURNS TABLE (
   application_id UUID,
@@ -248,7 +250,8 @@ SECURITY INVOKER
 SET search_path = ''
 AS $$
 DECLARE
-  v_now TIMESTAMPTZ := clock_timestamp();
+  v_leased_until TIMESTAMPTZ;
+  v_now TIMESTAMPTZ;
 BEGIN
   IF p_job_id IS NULL THEN
     RAISE EXCEPTION 'p_job_id is required' USING ERRCODE = '22023';
@@ -256,8 +259,25 @@ BEGIN
   IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
     RAISE EXCEPTION 'p_worker_id must not be blank' USING ERRCODE = '22023';
   END IF;
-  IF p_now IS NULL THEN
-    RAISE EXCEPTION 'p_now is required' USING ERRCODE = '22023';
+
+  -- Lock the exact live owner/status row before sampling the authoritative
+  -- time. A concurrent lease recovery or re-claim therefore completes first,
+  -- and this worker rechecks the locked row against the post-lock time.
+  SELECT job.leased_until
+  INTO v_leased_until
+  FROM public.runner_job AS job
+  WHERE job.id = p_job_id
+    AND job.status = 'running'
+    AND job.leased_by = p_worker_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := COALESCE(p_now, clock_timestamp());
+  IF v_leased_until <= v_now THEN
+    RETURN;
   END IF;
 
   RETURN QUERY
@@ -282,8 +302,9 @@ COMMENT ON FUNCTION public.complete_runner_pool_job(UUID, TEXT, TIMESTAMPTZ) IS
   'Completes a running pool job only for its owning worker and live lease.';
 
 -- Renew a claimed pool job only while the caller still owns its live lease.
--- The database clock is intentionally authoritative; no caller timestamp is
--- accepted, so network delay cannot extend a reclaimed lease.
+-- The database clock is intentionally authoritative and sampled after the
+-- exact owner/status row is locked, so network delay cannot extend a reclaimed
+-- lease.
 CREATE OR REPLACE FUNCTION public.renew_runner_pool_job(
   p_job_id UUID,
   p_worker_id TEXT,
@@ -297,7 +318,8 @@ SECURITY INVOKER
 SET search_path = ''
 AS $$
 DECLARE
-  v_now TIMESTAMPTZ := clock_timestamp();
+  v_leased_until TIMESTAMPTZ;
+  v_now TIMESTAMPTZ;
 BEGIN
   IF p_job_id IS NULL THEN
     RAISE EXCEPTION 'p_job_id is required' USING ERRCODE = '22023';
@@ -308,6 +330,23 @@ BEGIN
   IF p_lease_ms IS NULL OR p_lease_ms < 10000 OR p_lease_ms > 7200000 THEN
     RAISE EXCEPTION 'Runner lease must be between 10 seconds and 2 hours'
       USING ERRCODE = '22023';
+  END IF;
+
+  SELECT job.leased_until
+  INTO v_leased_until
+  FROM public.runner_job AS job
+  WHERE job.id = p_job_id
+    AND job.status = 'running'
+    AND job.leased_by = BTRIM(p_worker_id)
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := clock_timestamp();
+  IF v_leased_until <= v_now THEN
+    RETURN;
   END IF;
 
   RETURN QUERY
@@ -328,8 +367,9 @@ COMMENT ON FUNCTION public.renew_runner_pool_job(UUID, TEXT, INTEGER) IS
   'Renews a running pool job only for its owning worker and live database-clock lease.';
 
 -- Settle a failed pool job only while the caller still owns its live lease.
--- Retry availability and terminal timestamps are derived from clock_timestamp()
--- inside SQL; p_retry_after_seconds preserves the existing backoff policy.
+-- Retry availability and terminal timestamps are derived from the database
+-- clock sampled after the exact owner/status row is locked;
+-- p_retry_after_seconds preserves the existing backoff policy.
 CREATE OR REPLACE FUNCTION public.fail_runner_pool_job(
   p_job_id UUID,
   p_worker_id TEXT,
@@ -348,7 +388,8 @@ SECURITY INVOKER
 SET search_path = ''
 AS $$
 DECLARE
-  v_now TIMESTAMPTZ := clock_timestamp();
+  v_leased_until TIMESTAMPTZ;
+  v_now TIMESTAMPTZ;
   v_available_at TIMESTAMPTZ;
 BEGIN
   IF p_job_id IS NULL THEN
@@ -369,6 +410,23 @@ BEGIN
   THEN
     RAISE EXCEPTION 'p_retry_after_seconds must be between 0 and 300'
       USING ERRCODE = '22023';
+  END IF;
+
+  SELECT job.leased_until
+  INTO v_leased_until
+  FROM public.runner_job AS job
+  WHERE job.id = p_job_id
+    AND job.status = 'running'
+    AND job.leased_by = BTRIM(p_worker_id)
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := clock_timestamp();
+  IF v_leased_until <= v_now THEN
+    RETURN;
   END IF;
 
   v_available_at := CASE

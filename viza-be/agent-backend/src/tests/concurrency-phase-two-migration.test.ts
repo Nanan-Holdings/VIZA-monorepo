@@ -22,6 +22,40 @@ const deferFunctionBody = canonicalSql.match(
 const completeFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.complete_runner_pool_job\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
+const renewFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.renew_runner_pool_job\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const failFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.fail_runner_pool_job\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+
+const plpgsqlBody = (functionSql: string): string =>
+  functionSql.slice(functionSql.indexOf("AS $$"));
+
+const assertSettlementLocksBeforeClock = (functionSql: string): void => {
+  const body = plpgsqlBody(functionSql);
+  const lockIndex = body.search(
+    /SELECT[\s\S]*?FROM public\.runner_job AS job[\s\S]*?WHERE[\s\S]*?job\.id\s*=\s*p_job_id[\s\S]*?job\.status\s*=\s*'running'[\s\S]*?job\.leased_by\s*=\s*(?:BTRIM\(p_worker_id\)|p_worker_id)[\s\S]*?FOR UPDATE\s*;/i,
+  );
+  expect(lockIndex).toBeGreaterThan(-1);
+
+  const clockIndex = body.search(
+    /v_now\s*(?:TIMESTAMPTZ\s*)?:=\s*(?:COALESCE\(p_now\s*,\s*)?clock_timestamp\(\)/i,
+  );
+  expect(clockIndex).toBeGreaterThan(lockIndex);
+  expect(body).not.toMatch(
+    /DECLARE[\s\S]*?v_now\s+TIMESTAMPTZ\s*:=\s*clock_timestamp\(\)/i,
+  );
+
+  const leaseRecheckIndex = body.search(
+    /IF\s+v_leased_until\s*<=\s*v_now\s+THEN[\s\S]*?RETURN;/i,
+  );
+  expect(leaseRecheckIndex).toBeGreaterThan(clockIndex);
+
+  const updateIndex = body.search(/UPDATE public\.runner_job AS job/i);
+  expect(updateIndex).toBeGreaterThan(leaseRecheckIndex);
+  expect(body.slice(updateIndex)).toMatch(/job\.leased_until\s*>\s*v_now/i);
+};
 
 describe("runner pool concurrency phase two migration", () => {
   it("defines the exact service-role claim RPC identity and return contract", () => {
@@ -317,7 +351,7 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("defines the fenced service-role runner completion RPC", () => {
     expect(canonicalSql).toMatch(
-      /CREATE OR REPLACE FUNCTION public\.complete_runner_pool_job\(\s*p_job_id UUID,\s*p_worker_id TEXT,\s*p_now TIMESTAMPTZ DEFAULT clock_timestamp\(\)\s*\)/i,
+      /CREATE OR REPLACE FUNCTION public\.complete_runner_pool_job\(\s*p_job_id UUID,\s*p_worker_id TEXT,\s*p_now TIMESTAMPTZ DEFAULT NULL\s*\)/i,
     );
     expect(completeFunctionBody).toMatch(
       /RETURNS TABLE \(\s*application_id UUID,\s*country TEXT,\s*started_at TIMESTAMPTZ\s*\)/i,
@@ -381,9 +415,24 @@ describe("runner pool concurrency phase two migration", () => {
   });
 
   it("fences completion against the live database clock while retaining a controlled timestamp", () => {
-    expect(completeFunctionBody).toMatch(/v_now\s+TIMESTAMPTZ\s*:=\s*clock_timestamp\(\)/i);
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.complete_runner_pool_job\(\s*p_job_id UUID,\s*p_worker_id TEXT,\s*p_now TIMESTAMPTZ DEFAULT NULL\s*\)/i,
+    );
+    expect(completeFunctionBody).toMatch(/v_now\s*:=\s*COALESCE\(p_now,\s*clock_timestamp\(\)\)/i);
     expect(completeFunctionBody).toMatch(/leased_until\s*>\s*v_now/i);
     expect(completeFunctionBody).toMatch(/finished_at\s*=\s*COALESCE\(p_now, v_now\)/i);
+  });
+
+  it("locks the completion row before taking its post-lock clock snapshot", () => {
+    assertSettlementLocksBeforeClock(completeFunctionBody);
+  });
+
+  it("locks the renewal row before taking its post-lock clock snapshot", () => {
+    assertSettlementLocksBeforeClock(renewFunctionBody);
+  });
+
+  it("locks the failure row before taking its post-lock clock snapshot", () => {
+    assertSettlementLocksBeforeClock(failFunctionBody);
   });
 
   it("keeps the renew/failure RPCs byte-for-byte equivalent in the CLI mirror", () => {
