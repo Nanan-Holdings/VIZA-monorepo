@@ -30,6 +30,8 @@ test("runnerJobHandler emits ownership_lost instead of ordinary failed on cancel
           metadata: null,
         },
         {
+          jobId: "job-handler-test",
+          workerId: "worker-handler-test",
           signal: controller.signal,
           assertOwned: () => {
             throw ownershipLost;

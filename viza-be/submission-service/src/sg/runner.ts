@@ -5,7 +5,7 @@ import {
   RunnerJobOwnershipLostError,
   type RunnerExecutionContext,
 } from "../queue/execution-context.js";
-import { writeSubmissionResult } from "../result-writer.js";
+import { writeRunnerPoolSubmissionResult } from "../result-writer.js";
 import {
   normalizeSgacPortalPayload,
   runSgacPortalSubmission,
@@ -56,7 +56,12 @@ export async function runOne(
   jobId?: string,
   executionContext?: RunnerExecutionContext,
 ): Promise<DispatchOutcome> {
-  executionContext?.assertOwned();
+  if (!executionContext || !executionContext.jobId || !executionContext.workerId) {
+    throw new RunnerJobOwnershipLostError(
+      "SG Arrival Card pool execution requires an ownership context",
+    );
+  }
+  executionContext.assertOwned();
   const answers = await loadCanonicalAnswers(applicationId);
   const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
   if (!provider) throw new NeedsHumanError("SGAC provider is not registered");
@@ -92,8 +97,9 @@ export async function runOne(
       portalResponseSummary: portal.portalResponseSummary,
       artifacts: { screenshots: portal.screenshots, pdfs: portal.pdfs, logs: portal.logs },
     };
-    executionContext?.assertOwned();
-    await writeSubmissionResult(applicationId, result, portal.submitted ? "submitted" : "failed");
+    executionContext.assertOwned();
+    const resultStatus = portal.submitted ? "submitted" : "failed";
+    await writeRunnerPoolSubmissionResult(executionContext, result, resultStatus);
     if (!portal.submitted) {
       throw new NeedsHumanError("sgac: ICA runner stopped before official confirmation");
     }

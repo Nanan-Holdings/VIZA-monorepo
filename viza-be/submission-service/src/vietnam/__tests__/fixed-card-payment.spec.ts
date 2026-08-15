@@ -405,6 +405,8 @@ test("vn.fixed-card-payment: ownership loss blocks the first Payment action", as
     `);
     const ownershipLost = new RunnerJobOwnershipLostError("lease lost before payment");
     const execution: RunnerExecutionContext = {
+      jobId: "job-vietnam-payment-test",
+      workerId: "worker-vietnam-payment-test",
       signal: new AbortController().signal,
       assertOwned: () => {
         throw ownershipLost;

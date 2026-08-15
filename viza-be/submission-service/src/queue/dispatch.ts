@@ -183,8 +183,10 @@ export function createPoolFlowDispatch(
       dependencies.runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "mdac", execution),
     tdac: (applicationId, jobId, execution) =>
       dependencies.runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "tdac", execution),
-    kr_eform: (applicationId, _jobId, execution) =>
-      dependencies.runKoreaEformBackground(applicationId, execution),
+    kr_eform: (applicationId, jobId, execution) =>
+      jobId
+        ? dependencies.runKoreaEformBackground(applicationId, jobId, execution)
+        : dependencies.runKoreaEformBackground(applicationId, execution),
   };
 }
 

@@ -317,6 +317,8 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
       controller.abort(ownershipLostError);
     };
     const execution: RunnerExecutionContext = {
+      jobId: job.id,
+      workerId: opts.workerId,
       signal: controller.signal,
       assertOwned: () => {
         if (ownershipLost || controller.signal.aborted) {

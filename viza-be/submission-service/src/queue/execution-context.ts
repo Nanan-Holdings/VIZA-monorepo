@@ -15,6 +15,9 @@ export class RunnerJobOwnershipLostError extends Error {
 }
 
 export interface RunnerExecutionContext {
+  /** Stable queue identity used to fence every pool-owned result write. */
+  readonly jobId: string;
+  readonly workerId: string;
   readonly signal: AbortSignal;
   /** Throw when the worker no longer owns the live database lease. */
   assertOwned(): void;

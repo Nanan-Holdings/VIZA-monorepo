@@ -9,7 +9,9 @@ import { hasAliasEmailForwardingConsent } from "../inbox/forwarding-consent.js";
 import { assertInboxAliasDomainRoutable } from "../inbox/wait-for-message.js";
 import { MdacPortalValidationError, normalizeMdacPortalPayload } from "../mdac/normalize.js";
 import { MdacPortalError, runMdacPortalSubmission } from "../mdac/runner.js";
-import { writeSubmissionResult } from "../result-writer.js";
+import {
+  writeRunnerPoolSubmissionResult,
+} from "../result-writer.js";
 import type { DigitalArrivalCardSubmissionResult } from "../submission-result.js";
 import { supabase } from "../supabase.js";
 import { normalizeTdacPortalPayload, TdacPortalValidationError } from "../tdac/normalize.js";
@@ -238,7 +240,12 @@ export async function runArrivalCardPoolFlow(
   flow: ArrivalCardPoolFlow,
   executionContext?: RunnerExecutionContext,
 ): Promise<DispatchOutcome> {
-  executionContext?.assertOwned();
+  if (!executionContext || !executionContext.jobId || !executionContext.workerId) {
+    throw new RunnerJobOwnershipLostError(
+      "Arrival-card pool execution requires an ownership context",
+    );
+  }
+  executionContext.assertOwned();
   const identity = flowIdentity(flow);
   try {
     const { payload, applicantId } = await preparePayload(applicationId, jobId, flow);
@@ -285,8 +292,9 @@ export async function runArrivalCardPoolFlow(
         traces: [],
       },
     };
-    executionContext?.assertOwned();
-    await writeSubmissionResult(applicationId, result, portal.submitted ? "submitted" : "failed");
+    executionContext.assertOwned();
+    const resultStatus = portal.submitted ? "submitted" : "failed";
+    await writeRunnerPoolSubmissionResult(executionContext, result, resultStatus);
     if (!portal.submitted) {
       throw new NeedsHumanError(
         `${identity.visaType} stopped without an official confirmation.`,
@@ -334,8 +342,8 @@ export async function runArrivalCardPoolFlow(
       errorDetails: { code: detail.code, message: detail.message },
       artifacts: { screenshots, pdfs: [], logs: detail.logs, traces: [] },
     };
-    executionContext?.assertOwned();
-    await writeSubmissionResult(applicationId, result, "failed");
+    executionContext.assertOwned();
+    await writeRunnerPoolSubmissionResult(executionContext, result, "failed");
     if (detail.retryable) throw new RetryableRunnerError(detail.message);
     throw new NeedsHumanError(detail.message);
   }

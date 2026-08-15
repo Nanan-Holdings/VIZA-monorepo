@@ -39,6 +39,8 @@ test("vn.review: ownership is checked immediately before Save/Next", async () =>
     `);
     const ownershipLost = new RunnerJobOwnershipLostError("lease lost before review transition");
     const execution: RunnerExecutionContext = {
+      jobId: "job-vietnam-apply-test",
+      workerId: "worker-vietnam-apply-test",
       signal: new AbortController().signal,
       assertOwned: () => {
         throw ownershipLost;

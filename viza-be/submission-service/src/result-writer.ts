@@ -1,5 +1,64 @@
 import { supabase } from "./supabase";
 import type { SubmissionResult, SubmissionResultStatus } from "./submission-result";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "./queue/execution-context.js";
+
+const MAX_POOL_RESULT_ERROR_LENGTH = 500;
+
+function boundedErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.slice(0, MAX_POOL_RESULT_ERROR_LENGTH);
+}
+
+function firstRpcRow(data: unknown): Record<string, unknown> | null {
+  const row = Array.isArray(data) ? data[0] : data;
+  return row && typeof row === "object" ? (row as Record<string, unknown>) : null;
+}
+
+/**
+ * Persist a result for a claimed shared-pool job through the ownership-fenced
+ * service-role RPC. The database checks the live lease and updates the
+ * application row atomically; no direct applications update is safe here.
+ */
+export async function writeRunnerPoolSubmissionResult(
+  execution: RunnerExecutionContext,
+  result: SubmissionResult,
+  status: SubmissionResultStatus,
+): Promise<void> {
+  execution.assertOwned();
+  if (!execution.jobId || !execution.workerId) {
+    throw new Error("runner pool result persistence requires job and worker identity");
+  }
+
+  let data: unknown;
+  let error: { message?: string } | null;
+  try {
+    const response = await supabase.rpc("write_runner_pool_submission_result", {
+      p_job_id: execution.jobId,
+      p_worker_id: execution.workerId,
+      p_submission_result: result as unknown as Record<string, unknown>,
+      p_submission_result_status: status,
+    });
+    data = response.data;
+    error = response.error;
+  } catch (rpcError) {
+    throw new Error(
+      `write_runner_pool_submission_result failed: ${boundedErrorMessage(rpcError)}`,
+    );
+  }
+  if (error) {
+    throw new Error(
+      `write_runner_pool_submission_result failed: ${boundedErrorMessage(error.message ?? error)}`,
+    );
+  }
+  if (!firstRpcRow(data)) {
+    throw new RunnerJobOwnershipLostError(
+      "runner job lease ownership was lost while persisting the submission result",
+    );
+  }
+}
 
 /**
  * Persist the canonical per-country result payload to applications.submission_result

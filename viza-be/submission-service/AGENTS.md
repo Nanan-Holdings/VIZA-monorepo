@@ -98,6 +98,11 @@ filling and one-shot submission for the applicant.
   before final official submit/payment and before persisting a successful or
   failed local result. Cancellation/ownership errors must escape runner catch
   blocks without being converted into portal failures.
+- `src/result-writer.ts` keeps `writeSubmissionResult` for explicitly non-pool
+  callers. Shared-pool adapters must use `writeRunnerPoolSubmissionResult`
+  with the required `jobId`/`workerId` execution identity; a missing identity,
+  rejected RPC, or zero-row RPC result must fail closed without a direct
+  `applications` update.
 - `src/queue/portal-safety.ts` is the shared boundary for cancellation-safe
   portal clicks, dialog acceptance, and browser/session launch. Keep irreversible
   actions behind its ownership checks, dismiss dialogs on lease loss, and close
@@ -755,6 +760,9 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/README.md`
 - `viza-be/submission-service/.env.example`
 - `viza-be/submission-service/src/index.ts`
+- `viza-be/submission-service/src/result-writer.ts`
+- `viza-be/submission-service/src/__tests__/result-writer.spec.ts`
+- `viza-be/submission-service/src/queue/__tests__/pool-result-writes.spec.ts`
 - `viza-be/submission-service/src/queue-scheduler.ts`
 - `viza-be/submission-service/src/submission-queue-claim.ts`
 - `viza-be/submission-service/src/__tests__/queue-pickup-order.spec.js`
