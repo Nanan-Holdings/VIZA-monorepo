@@ -1,11 +1,12 @@
 import "server-only";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
 export type SubmissionWorkerWakeResult =
   | { ok: true }
-  | { ok: false; reason: "not_configured" | "insecure_url" | "request_failed" };
+  | { ok: false; reason: "cutover_paused" | "not_configured" | "insecure_url" | "request_failed" };
 
 function resolveWakeBaseUrl(env: WakeEnvironment, target: string): string | null {
   const normalized = target.trim().toLowerCase().replace(/[\s-]+/gu, "_");
@@ -50,6 +51,9 @@ export async function wakeCloudSubmissionWorker(
   } = {},
 ): Promise<SubmissionWorkerWakeResult> {
   const env = options.env ?? process.env;
+  if (isRunnerCutoverPaused(env)) {
+    return { ok: false, reason: "cutover_paused" };
+  }
   const fetchImpl = options.fetchImpl ?? fetch;
   const target = options.target ?? "legacy";
   const normalizedTarget = target.trim().toLowerCase().replace(/[\s-]+/gu, "_");

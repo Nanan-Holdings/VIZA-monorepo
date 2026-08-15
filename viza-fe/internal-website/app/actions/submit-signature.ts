@@ -4,6 +4,7 @@ import sharp from "sharp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 /**
  * Persist the applicant's signature PNG and queue the AU runner to push past
@@ -72,6 +73,13 @@ export async function submitSignature(
     .single();
   if (!profile || profile.id !== app.applicant_id) {
     return { ok: false, error: "Unauthorized" };
+  }
+
+  if (isRunnerCutoverPaused()) {
+    return {
+      ok: false,
+      error: "Signature submission is temporarily paused for a controlled runner cutover.",
+    };
   }
 
   const storagePath = signaturePathForApplication(applicationId);

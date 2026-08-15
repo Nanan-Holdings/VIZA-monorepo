@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import { compareFaces } from "@/lib/face/match";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import {
   enqueueRunnerJob,
@@ -1543,6 +1544,16 @@ export async function POST(
       alreadySubmitted: true,
       result: ownedApplication.submission_result,
     });
+  }
+
+  if (isRunnerCutoverPaused()) {
+    return NextResponse.json(
+      {
+        error: "Submission retries are temporarily paused for a controlled runner cutover.",
+        code: "runner_cutover_paused",
+      },
+      { status: 503 },
+    );
   }
 
   if (isDs160VisaType(ownedApplication.visa_type)) {

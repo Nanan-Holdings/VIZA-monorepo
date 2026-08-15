@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 export const dynamic = "force-dynamic";
 
@@ -312,6 +313,16 @@ export async function POST(
   const action = found.action;
   if (action.application_id !== authorized.queue.application_id) {
     return NextResponse.json({ error: "Manual action not found" }, { status: 404 });
+  }
+
+  if (isRunnerCutoverPaused()) {
+    return NextResponse.json(
+      {
+        error: "Submission resume is temporarily paused for a controlled runner cutover.",
+        code: "runner_cutover_paused",
+      },
+      { status: 503 },
+    );
   }
 
   const now = new Date().toISOString();
