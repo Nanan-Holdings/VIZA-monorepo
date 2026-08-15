@@ -36,3 +36,5 @@ Guardrails:
   lease-loss abort and assert ownership immediately before Review/Submit and
   final Submit. Ownership-loss/AbortError paths must bypass portal-failure
   persistence in the queue adapter.
+- Browser/session acquisition must use `launchAbortableResource`; keep the
+  delayed-launch cancellation and cleanup coverage in `runner-launch.spec.ts`.

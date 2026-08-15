@@ -336,10 +336,16 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
       // The DB RPC's lease starts at the server's clock. Subtract the full
       // observed round-trip plus a bounded safety margin locally so network
       // delay can only make us stop early, never act after the DB lease.
-      const conservativeDelay = Math.max(
-        1,
-        leaseMs - Math.max(0, roundTripMs) - expiryLeadMs,
-      );
+      const conservativeDelay =
+        leaseMs - Math.max(0, roundTripMs) - expiryLeadMs;
+      if (conservativeDelay <= 0) {
+        // The observed claim/renewal round trip has already consumed the
+        // conservative lease budget. Fence ownership in this call stack so
+        // the handler cannot observe a live signal for one event-loop turn
+        // (or a queued microtask) before a zero/one-millisecond timer fires.
+        markOwnershipLost(new RunnerJobOwnershipLostError("runner job lease expired"));
+        return;
+      }
       expiryTimer = setTimeout(() => {
         if (expiryStopped) return;
         markOwnershipLost(new RunnerJobOwnershipLostError("runner job lease expired"));
