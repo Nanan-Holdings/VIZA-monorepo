@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const enqueueResilienceQueueEventMock = vi.hoisted(() => vi.fn());
 
@@ -18,6 +18,10 @@ describe("runner job wake resilience events", () => {
       duplicate: false,
       queued: true,
     });
+  });
+
+  afterEach(() => {
+    delete process.env.RUNNER_CUTOVER_PAUSED;
   });
 
   it("blocks Queue publication during a controlled cutover", async () => {

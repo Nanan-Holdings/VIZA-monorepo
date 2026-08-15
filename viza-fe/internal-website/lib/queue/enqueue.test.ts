@@ -141,7 +141,10 @@ describe("runner pool enqueue wake transport", () => {
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });
 
-  afterEach(() => warnSpy.mockRestore());
+  afterEach(() => {
+    delete process.env.RUNNER_CUTOVER_PAUSED;
+    warnSpy.mockRestore();
+  });
 
   it.each([
     ["pool", () => enqueueRunnerPoolJob("app-paused", "vietnam", "vn_prearrival")],
