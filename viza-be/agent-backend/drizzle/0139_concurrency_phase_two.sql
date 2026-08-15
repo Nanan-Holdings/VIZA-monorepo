@@ -7,6 +7,30 @@
 -- Callers should invoke this RPC in a short/autocommit transaction so its
 -- country-cap and machine-slot row locks are released immediately after claim.
 
+-- Private one-time recovery capabilities replace forgeable session GUC
+-- markers. The capability is keyed to the current transaction, backend, and
+-- exact job row, then consumed by the BEFORE UPDATE trigger. Keep this schema
+-- outside the exposed `public` API and deny every runtime role direct access.
+CREATE SCHEMA IF NOT EXISTS runner_private;
+REVOKE ALL ON SCHEMA runner_private FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE TABLE IF NOT EXISTS runner_private.runner_recovery_capability (
+  txid BIGINT NOT NULL,
+  backend_pid INTEGER NOT NULL,
+  job_id UUID NOT NULL,
+  recovery_now TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (txid, backend_pid, job_id)
+);
+
+ALTER TABLE runner_private.runner_recovery_capability ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE runner_private.runner_recovery_capability
+  FROM PUBLIC, anon, authenticated, service_role;
+
+COMMENT ON SCHEMA runner_private IS
+  'Unexposed runner fencing state; runtime roles cannot inspect or mutate it.';
+COMMENT ON TABLE runner_private.runner_recovery_capability IS
+  'One-time transaction/backend/job capability consumed only by exact expired-lease recovery.';
+
 -- Keep runner_job_pool_claim_idx from 0127 for rolling compatibility with
 -- older claim readers; this country-leading index supplements it for cap scans.
 CREATE INDEX IF NOT EXISTS runner_job_queued_available_idx
@@ -43,7 +67,7 @@ RETURNS TABLE (
   metadata JSONB
 )
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
@@ -97,13 +121,9 @@ BEGIN
   END IF;
 
   -- Recover only one expired lease per poll. First acquire the exact row with
-  -- SKIP LOCKED, then set transaction-local recovery markers while performing
-  -- the one exact lifecycle update. The permanent compatibility trigger allows
-  -- this shape only for this locked row and marker timestamp.
-  -- Clear any caller-provided session marker before selecting the row so a
-  -- stale marker cannot authorize a later direct UPDATE in this transaction.
-  PERFORM pg_catalog.set_config('viza.runner_recovery_job_id', '', TRUE);
-  PERFORM pg_catalog.set_config('viza.runner_recovery_now', '', TRUE);
+  -- SKIP LOCKED, then insert a private one-time capability immediately before
+  -- the exact lifecycle update. The permanent compatibility trigger atomically
+  -- consumes this capability and permits only the matching recovery shape.
 
   WITH expired AS MATERIALIZED (
     SELECT expired.id
@@ -122,52 +142,58 @@ BEGIN
   FROM expired;
 
   IF v_expired_job_id IS NOT NULL THEN
-    PERFORM pg_catalog.set_config(
-      'viza.runner_recovery_job_id',
-      v_expired_job_id::TEXT,
-      TRUE
+    DELETE FROM runner_private.runner_recovery_capability AS capability
+    WHERE capability.txid = pg_catalog.txid_current()
+      AND capability.backend_pid = pg_catalog.pg_backend_pid()
+      AND capability.job_id = v_expired_job_id;
+
+    INSERT INTO runner_private.runner_recovery_capability (
+      txid,
+      backend_pid,
+      job_id,
+      recovery_now
+    )
+    VALUES (
+      pg_catalog.txid_current(),
+      pg_catalog.pg_backend_pid(),
+      v_expired_job_id,
+      p_now
     );
-    PERFORM pg_catalog.set_config(
-      'viza.runner_recovery_now',
-      p_now::TEXT,
-      TRUE
-    );
 
-    BEGIN
-      UPDATE public.runner_job AS job
-      SET attempts = job.attempts + 1,
-          status = CASE
-            WHEN job.attempts + 1 >= job.max_attempts THEN 'failed'
-            ELSE 'queued'
-          END,
-          last_error = 'Worker lease expired before completion; job recovered by shared pool.',
-          leased_by = NULL,
-          leased_until = NULL,
-          started_at = CASE
-            WHEN job.attempts + 1 >= job.max_attempts THEN job.started_at
-            ELSE NULL
-          END,
-          finished_at = CASE
-            WHEN job.attempts + 1 >= job.max_attempts THEN p_now
-            ELSE NULL
-          END,
-          available_at = CASE
-            WHEN job.attempts + 1 >= job.max_attempts THEN job.available_at
-            ELSE p_now + LEAST(300, 15 * (job.attempts + 1)) * INTERVAL '1 second'
-          END
-      WHERE job.id = v_expired_job_id
-        AND job.status = 'running'
-        AND job.leased_until <= p_now;
+    UPDATE public.runner_job AS job
+    SET attempts = job.attempts + 1,
+        status = CASE
+          WHEN job.attempts + 1 >= job.max_attempts THEN 'failed'
+          ELSE 'queued'
+        END,
+        last_error = 'Worker lease expired before completion; job recovered by shared pool.',
+        leased_by = NULL,
+        leased_until = NULL,
+        started_at = CASE
+          WHEN job.attempts + 1 >= job.max_attempts THEN job.started_at
+          ELSE NULL
+        END,
+        finished_at = CASE
+          WHEN job.attempts + 1 >= job.max_attempts THEN p_now
+          ELSE NULL
+        END,
+        available_at = CASE
+          WHEN job.attempts + 1 >= job.max_attempts THEN job.available_at
+          ELSE p_now + LEAST(300, 15 * (job.attempts + 1)) * INTERVAL '1 second'
+        END
+    WHERE job.id = v_expired_job_id
+      AND job.status = 'running'
+      AND job.leased_until <= p_now;
 
-      GET DIAGNOSTICS v_recovery_rows = ROW_COUNT;
-    EXCEPTION WHEN OTHERS THEN
-      PERFORM pg_catalog.set_config('viza.runner_recovery_job_id', '', TRUE);
-      PERFORM pg_catalog.set_config('viza.runner_recovery_now', '', TRUE);
-      RAISE;
-    END;
+    GET DIAGNOSTICS v_recovery_rows = ROW_COUNT;
 
-    PERFORM pg_catalog.set_config('viza.runner_recovery_job_id', '', TRUE);
-    PERFORM pg_catalog.set_config('viza.runner_recovery_now', '', TRUE);
+    IF v_recovery_rows <> 1 THEN
+      -- A capability that was not consumed must never survive a successful
+      -- claim transaction. Raise so the surrounding transaction rolls back
+      -- the insert (and any accidental partial recovery) atomically.
+      RAISE EXCEPTION 'Runner lease recovery capability was not consumed'
+        USING ERRCODE = '55000';
+    END IF;
   END IF;
 
   -- Lock at most the five eligible country-cap rows. The oldest due queued
@@ -270,20 +296,17 @@ COMMENT ON FUNCTION public.claim_runner_pool_job(TEXT, INTEGER, BOOLEAN, TIMESTA
 -- deploy is in progress. Once an OLD running lease has expired, silently drop
 -- any stale lifecycle mutation so it cannot overwrite a reclaimed owner. A
 -- metadata-only UPDATE remains compatible. The bounded recovery path above is
--- the sole exception: it sets transaction-local row/timestamp markers and must
--- match the exact one-row recovery shape below. This trigger is deliberately
--- SECURITY DEFINER with an empty search_path and has no public EXECUTE grant.
-CREATE OR REPLACE FUNCTION public.guard_expired_runner_job_lifecycle_update()
+-- the sole exception: it consumes a private transaction/backend/job capability
+-- and must match the exact one-row recovery shape below. This trigger is
+-- deliberately private, SECURITY DEFINER, and uses an empty search_path.
+CREATE OR REPLACE FUNCTION runner_private.guard_expired_runner_job_lifecycle_update()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_marker_job_id TEXT;
-  v_marker_uuid UUID;
-  v_marker_now_text TEXT;
-  v_marker_now TIMESTAMPTZ;
+  v_recovery_now TIMESTAMPTZ;
   v_terminal BOOLEAN;
 BEGIN
   IF NOT (
@@ -306,28 +329,18 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  v_marker_job_id := NULLIF(
-    pg_catalog.current_setting('viza.runner_recovery_job_id', TRUE),
-    ''
-  );
-  v_marker_now_text := NULLIF(
-    pg_catalog.current_setting('viza.runner_recovery_now', TRUE),
-    ''
-  );
+  DELETE FROM runner_private.runner_recovery_capability AS capability
+  WHERE capability.txid = pg_catalog.txid_current()
+    AND capability.backend_pid = pg_catalog.pg_backend_pid()
+    AND capability.job_id = OLD.id
+  RETURNING capability.recovery_now
+  INTO v_recovery_now;
 
-  IF v_marker_job_id IS NULL OR v_marker_now_text IS NULL THEN
+  IF NOT FOUND THEN
     RETURN NULL;
   END IF;
 
-  BEGIN
-    v_marker_uuid := v_marker_job_id::UUID;
-    v_marker_now := v_marker_now_text::TIMESTAMPTZ;
-  EXCEPTION WHEN OTHERS THEN
-    RETURN NULL;
-  END;
-
-  IF v_marker_uuid IS DISTINCT FROM OLD.id
-    OR OLD.leased_until > v_marker_now
+  IF OLD.leased_until > v_recovery_now
     OR OLD.leased_until > pg_catalog.clock_timestamp()
   THEN
     RETURN NULL;
@@ -359,12 +372,12 @@ BEGIN
       ELSE NULL
     END
     OR NEW.finished_at IS DISTINCT FROM CASE
-      WHEN v_terminal THEN v_marker_now
+      WHEN v_terminal THEN v_recovery_now
       ELSE NULL
     END
     OR NEW.available_at IS DISTINCT FROM CASE
       WHEN v_terminal THEN OLD.available_at
-      ELSE v_marker_now + LEAST(300, 15 * (OLD.attempts + 1)) * INTERVAL '1 second'
+      ELSE v_recovery_now + LEAST(300, 15 * (OLD.attempts + 1)) * INTERVAL '1 second'
     END
   THEN
     RETURN NULL;
@@ -376,16 +389,17 @@ $$;
 
 DROP TRIGGER IF EXISTS guard_expired_runner_job_lifecycle_update
   ON public.runner_job;
+DROP FUNCTION IF EXISTS public.guard_expired_runner_job_lifecycle_update();
 CREATE TRIGGER guard_expired_runner_job_lifecycle_update
 BEFORE UPDATE ON public.runner_job
 FOR EACH ROW
-EXECUTE FUNCTION public.guard_expired_runner_job_lifecycle_update();
+EXECUTE FUNCTION runner_private.guard_expired_runner_job_lifecycle_update();
 
-REVOKE ALL ON FUNCTION public.guard_expired_runner_job_lifecycle_update()
+REVOKE ALL ON FUNCTION runner_private.guard_expired_runner_job_lifecycle_update()
   FROM PUBLIC, anon, authenticated, service_role;
 
-COMMENT ON FUNCTION public.guard_expired_runner_job_lifecycle_update() IS
-  'Drops stale lifecycle updates on expired runner leases; permits only exact bounded recovery markers.';
+COMMENT ON FUNCTION runner_private.guard_expired_runner_job_lifecycle_update() IS
+  'Drops stale lifecycle updates on expired runner leases; permits only exact bounded recovery capabilities.';
 
 -- Complete a claimed pool job only while the caller still owns its live lease.
 -- The submission worker uses this service-role-only RPC so stale owners cannot
@@ -644,6 +658,8 @@ SET search_path = ''
 AS $$
 DECLARE
   v_application_id UUID;
+  v_locked_application_id UUID;
+  v_locked_job_application_id UUID;
   v_leased_until TIMESTAMPTZ;
   v_worker_id TEXT;
   v_result_status TEXT;
@@ -658,20 +674,64 @@ BEGIN
   END IF;
   IF p_submission_result IS NULL
     OR pg_catalog.jsonb_typeof(p_submission_result) <> 'object'
+    OR pg_catalog.pg_column_size(p_submission_result) > 524288
   THEN
-    RAISE EXCEPTION 'p_submission_result must be a JSON object'
+    RAISE EXCEPTION 'p_submission_result must be a JSON object no larger than 512 KiB'
       USING ERRCODE = '22023';
   END IF;
-  IF NULLIF(BTRIM(p_submission_result_status), '') IS NULL THEN
-    RAISE EXCEPTION 'p_submission_result_status must not be blank'
+  IF NULLIF(BTRIM(p_submission_result_status), '') IS NULL
+    OR LOWER(BTRIM(p_submission_result_status)) NOT IN (
+      'waiting',
+      'scheduled',
+      'processing',
+      'needs_user_action',
+      'completed',
+      'stalled',
+      'submitted',
+      'submitted_mock',
+      'unsupported',
+      'action_required',
+      'stopped_at_sign',
+      'stopped_at_pay',
+      'stopped_at_review',
+      'final_review_required',
+      'form_ready_for_agency',
+      'form_ready_for_kvac',
+      'failed'
+    )
+  THEN
+    RAISE EXCEPTION 'p_submission_result_status is not a supported submission result status'
       USING ERRCODE = '22023';
   END IF;
 
   v_worker_id := BTRIM(p_worker_id);
   v_result_status := LOWER(BTRIM(p_submission_result_status));
 
+  -- Match enqueue_runner_pool_job's application -> runner_job lock order.
+  -- The initial job read is deliberately unlocked; ownership is verified only
+  -- after the application row is locked, so an app writer cannot be stranded
+  -- behind a lease that expires while this RPC waits.
+  SELECT job.application_id
+  INTO v_application_id
+  FROM public.runner_job AS job
+  WHERE job.id = p_job_id;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT application.id
+  INTO v_locked_application_id
+  FROM public.applications AS application
+  WHERE application.id = v_application_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
   SELECT job.application_id, job.leased_until
-  INTO v_application_id, v_leased_until
+  INTO v_locked_job_application_id, v_leased_until
   FROM public.runner_job AS job
   WHERE job.id = p_job_id
     AND job.status = 'running'
@@ -679,6 +739,10 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  IF v_locked_job_application_id IS DISTINCT FROM v_application_id THEN
     RETURN;
   END IF;
 
@@ -692,10 +756,10 @@ BEGIN
       submission_result_status = v_result_status,
       submission_result_updated_at = v_now,
       status = CASE
-        WHEN v_result_status = 'submitted' THEN 'submitted'
-        ELSE application.status
-      END
-  WHERE application.id = v_application_id
+       WHEN v_result_status = 'submitted' THEN 'submitted'
+       ELSE application.status
+     END
+  WHERE application.id = v_locked_application_id
   RETURNING application.submission_result_updated_at
   INTO v_updated_at;
 
@@ -704,7 +768,7 @@ BEGIN
   END IF;
 
   RETURN QUERY
-  SELECT p_job_id, v_application_id, v_updated_at;
+  SELECT p_job_id, v_locked_application_id, v_updated_at;
 END;
 $$;
 
