@@ -133,9 +133,6 @@ import {
   isUkStandardVisitorApplication,
   isVietnamEVisaApplication,
   isVietnamPrearrivalApplication,
-  queueProviderForApplication,
-  queueStatusForApplication,
-  submissionQueueRequiresServerEnqueue,
   type SubmissionMode,
 } from "@/lib/submission-queue";
 import {
@@ -1381,19 +1378,6 @@ function applicationStatusForQueuedSubmission(queueJob: SubmissionQueueJobResult
     : "processing";
 }
 
-function isMissingSubmissionModeColumnError(error: { message?: string; code?: string }): boolean {
-  const message = (error.message ?? "").toLowerCase();
-  return (
-    error.code === "PGRST204" ||
-    message.includes("submission_queue.mode") ||
-    message.includes("submission_queue.provider") ||
-    message.includes("column submission_queue.mode does not exist") ||
-    message.includes("column submission_queue.provider does not exist") ||
-    message.includes("could not find the 'mode' column") ||
-    message.includes("could not find the 'provider' column")
-  );
-}
-
 async function markApplicationSubmissionQueued(
   supabase: ReturnType<typeof createClient>,
   input: {
@@ -1446,123 +1430,46 @@ async function markApplicationSubmissionQueued(
 }
 
 async function insertSubmissionQueueJob(
-  supabase: ReturnType<typeof createClient>,
   input: SubmissionQueueJobInput,
 ): Promise<SubmissionQueueJobResult> {
-  if (submissionQueueRequiresServerEnqueue(input.country, input.visaType, input.mode)) {
-    const response = await fetch(`/api/applications/${input.applicationId}/retry-submission`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        mode: input.mode,
-        country: input.country,
-        visaType: input.visaType,
-        // DS-160 retries must start a fresh CEAC application even when this
-        // VIZA application already has an older successful submission. This
-        // helper is also used by the result card's onResubmit path.
-        intent: isDs160VisaType(input.visaType) ? "new_application" : "retry",
-      }),
-    });
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
-      throw new Error(
-        typeof payload?.error === "string"
-          ? payload.error
-          : `Submission queue creation failed with ${response.status}`,
-      );
-    }
-    const payload = (await response.json().catch(() => null)) as {
-      scheduled?: boolean;
-      scheduledFor?: string | null;
-      jobId?: unknown;
-      queueStatus?: unknown;
-      provider?: unknown;
-      result?: SubmissionResult | null;
-    } | null;
-    return {
-      scheduled: Boolean(payload?.scheduled),
-      scheduledFor: payload?.scheduledFor ?? null,
-      jobId: typeof payload?.jobId === "string" ? payload.jobId : null,
-      queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : null,
-      provider: typeof payload?.provider === "string" ? payload.provider : null,
-      submissionResultStatus: payload?.scheduled ? "scheduled" : "waiting",
-      submissionResult: payload?.result ?? null,
-    };
-  }
-
-  const status = queueStatusForApplication(input.country, input.visaType, input.mode);
-  const provider = queueProviderForApplication(input.country, input.visaType, input.mode);
-
-  const enrichedPayload = {
-    application_id: input.applicationId,
-    status,
-    mode: input.mode,
-    provider,
-    attempts: 0,
-    created_at: input.createdAt,
-  };
-
-  const { error } = await supabase.from("submission_queue").insert(enrichedPayload);
-  if (!error) {
-    await requestCloudSubmissionWorkerWake(null);
-    return {
-      scheduled: false,
-      scheduledFor: null,
-      jobId: null,
-      queueStatus: status,
-      provider,
-      submissionResultStatus: "waiting",
-      submissionResult: null,
-    };
-  }
-
-  const canUseLegacyPayload =
-    isMissingSubmissionModeColumnError(error) &&
-    (input.mode === "dry_run" ||
-      status === "ds160_live_assisted_pending" ||
-      status === "uk_live_assisted_pending" ||
-      status === "vn_live_assisted_pending" ||
-      status === "vn_cloud_live_pending" ||
-      status === "sgac_live_assisted_pending" ||
-      status === "mdac_live_assisted_pending" ||
-      status === "tdac_live_assisted_pending");
-  if (!canUseLegacyPayload) {
-    throw new Error(error.message);
-  }
-
-  const { error: legacyError } = await supabase.from("submission_queue").insert({
-    application_id: input.applicationId,
-    status,
-    attempts: 0,
-    created_at: input.createdAt,
+  const response = await fetch(`/api/applications/${input.applicationId}/retry-submission`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      mode: input.mode,
+      country: input.country,
+      visaType: input.visaType,
+      // DS-160 retries must start a fresh CEAC application even when this
+      // VIZA application already has an older successful submission. This
+      // helper is also used by the result card's onResubmit path.
+      intent: isDs160VisaType(input.visaType) ? "new_application" : "retry",
+    }),
   });
-  if (legacyError) throw new Error(legacyError.message);
-  await requestCloudSubmissionWorkerWake(null);
-  return {
-    scheduled: false,
-    scheduledFor: null,
-    jobId: null,
-    queueStatus: status,
-    provider,
-    submissionResultStatus: "waiting",
-    submissionResult: null,
-  };
-}
-
-async function requestCloudSubmissionWorkerWake(jobId: string | null): Promise<void> {
-  try {
-    const response = await fetch("/api/submission-worker/wake", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jobId }),
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      console.warn(`[submission-queue] Cloud worker wake returned ${response.status}; scheduled fallback will retry.`);
-    }
-  } catch (error) {
-    console.warn("[submission-queue] Cloud worker wake failed; scheduled fallback will retry.", error);
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+    throw new Error(
+      typeof payload?.error === "string"
+        ? payload.error
+        : `Submission queue creation failed with ${response.status}`,
+    );
   }
+  const payload = (await response.json().catch(() => null)) as {
+    scheduled?: boolean;
+    scheduledFor?: string | null;
+    jobId?: unknown;
+    queueStatus?: unknown;
+    provider?: unknown;
+    result?: SubmissionResult | null;
+  } | null;
+  return {
+    scheduled: Boolean(payload?.scheduled),
+    scheduledFor: payload?.scheduledFor ?? null,
+    jobId: typeof payload?.jobId === "string" ? payload.jobId : null,
+    queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : null,
+    provider: typeof payload?.provider === "string" ? payload.provider : null,
+    submissionResultStatus: payload?.scheduled ? "scheduled" : "waiting",
+    submissionResult: payload?.result ?? null,
+  };
 }
 
 async function insertOfficialFeeSubmissionQueueJobWithCard(
@@ -3738,7 +3645,7 @@ export default function ApplicationPage() {
               await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
               // Standard automated-submission countries enqueue a job for the
               // submission-service worker to drive the per-country portal.
-              return insertSubmissionQueueJob(supabase, {
+              return insertSubmissionQueueJob({
                 applicationId,
                 country: resolvedCountry,
                 visaType: resolvedVisaType,
@@ -3900,7 +3807,7 @@ export default function ApplicationPage() {
         ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
         : await (async () => {
             await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
-            return insertSubmissionQueueJob(supabase, {
+            return insertSubmissionQueueJob({
               applicationId,
               country: resolvedCountry,
               visaType: resolvedVisaType,

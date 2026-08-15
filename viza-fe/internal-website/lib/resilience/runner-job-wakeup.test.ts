@@ -11,12 +11,21 @@ import { enqueueRunnerJobWake } from "./runner-job-wakeup";
 
 describe("runner job wake resilience events", () => {
   beforeEach(() => {
+    delete process.env.RUNNER_CUTOVER_PAUSED;
     enqueueResilienceQueueEventMock.mockReset();
     enqueueResilienceQueueEventMock.mockResolvedValue({
       accepted: true,
       duplicate: false,
       queued: true,
     });
+  });
+
+  it("blocks Queue publication during a controlled cutover", async () => {
+    process.env.RUNNER_CUTOVER_PAUSED = "true";
+
+    await expect(enqueueRunnerJobWake({ jobId: "job-1", target: "pool" }))
+      .rejects.toMatchObject({ code: "runner_cutover_paused" });
+    expect(enqueueResilienceQueueEventMock).not.toHaveBeenCalled();
   });
 
   it("publishes an encrypted background pointer for a pool job", async () => {

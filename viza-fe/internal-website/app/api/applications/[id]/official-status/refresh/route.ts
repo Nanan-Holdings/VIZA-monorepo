@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +142,16 @@ export async function POST(
       status: "cooldown",
       retryAfterSeconds,
     });
+  }
+
+  if (isRunnerCutoverPaused()) {
+    return NextResponse.json(
+      {
+        error: "Official status refresh is temporarily paused for a controlled runner cutover.",
+        code: "runner_cutover_paused",
+      },
+      { status: 503 },
+    );
   }
 
   const now = new Date().toISOString();

@@ -96,6 +96,7 @@ describe("resilience replay route", () => {
   let warnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    delete process.env.RUNNER_CUTOVER_PAUSED;
     process.env.VIZA_RESILIENCE_GATEWAY_URL = "https://resilience.test";
     process.env.VIZA_RESILIENCE_HMAC_KEY_ID = "replay-test-key";
     process.env.VIZA_RESILIENCE_HMAC_SECRET = hmacSecret;
@@ -113,6 +114,26 @@ describe("resilience replay route", () => {
   });
 
   afterEach(() => warnSpy.mockRestore());
+
+  it("nacks runner wake replay without reads or wakes during cutover pause", async () => {
+    process.env.RUNNER_CUTOVER_PAUSED = "true";
+
+    const response = await POST(signedReplayRequest([
+      wakeItem({ version: 1, jobId: "job-1", target: "pool" }),
+    ]));
+
+    expect(fromTables).toHaveLength(0);
+    expect(ensureFlyMachineCapacityMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      results: [{
+        outcome: "nack",
+        errorCode: "runner_cutover_paused",
+        retryAfterSeconds: 30,
+      }],
+    });
+  });
 
   it("wakes a queued pool runner job and echoes the lease", async () => {
     const response = await POST(signedReplayRequest([

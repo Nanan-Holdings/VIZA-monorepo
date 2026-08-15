@@ -14,6 +14,10 @@ import {
 } from "@/lib/resilience/runner-job-wakeup";
 import { desiredRunnerPoolCapacity } from "@/lib/queue/enqueue";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import {
+  isRunnerCutoverPaused,
+  RUNNER_CUTOVER_PAUSED_CODE,
+} from "@/lib/runner-cutover-pause.server";
 
 export const runtime = "nodejs";
 
@@ -66,12 +70,14 @@ class ReplayTransientError extends Error {
   readonly code:
     | "database_unavailable"
     | "fly_capacity_unavailable"
+    | typeof RUNNER_CUTOVER_PAUSED_CODE
     | "worker_wake_unavailable";
 
   constructor(
     code:
       | "database_unavailable"
       | "fly_capacity_unavailable"
+      | typeof RUNNER_CUTOVER_PAUSED_CODE
       | "worker_wake_unavailable",
   ) {
     super(code);
@@ -184,6 +190,9 @@ type RunnerWakeReplayResult = {
 };
 
 async function replayRunnerJobWake(event: RunnerJobWakeEvent): Promise<RunnerWakeReplayResult> {
+  if (isRunnerCutoverPaused()) {
+    throw new ReplayTransientError(RUNNER_CUTOVER_PAUSED_CODE);
+  }
   const record = await loadRunnerWakeRecord(event);
   if (!record) return { outcome: "ack", errorCode: "job_not_found" };
 

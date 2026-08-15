@@ -3,6 +3,12 @@
 `lib/submission-worker-wake.server.ts` centralizes authenticated Fly worker
 wake requests; its focused tests live under `lib/__tests__/`.
 
+`lib/runner-cutover-pause.server.ts` owns the server-only controlled-cutover
+guard. `RUNNER_CUTOVER_PAUSED=true` must reject every new durable runner or
+submission enqueue and suppress Queue/Fly wakes before any partial side effect;
+status reads, cancellation, and guarded settlement remain available. Keep the
+flag server-only, exact-value parsed, and default-off in `.env.example`.
+
 Scope: this file applies to `viza-fe/internal-website/**`.
 
 Production Vercel Functions are pinned by `vercel.json` to `bom1` (Mumbai),
