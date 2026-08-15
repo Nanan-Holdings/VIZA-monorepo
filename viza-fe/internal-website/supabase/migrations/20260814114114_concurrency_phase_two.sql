@@ -486,6 +486,10 @@ DECLARE
   v_locked_country TEXT;
   v_worker_id TEXT;
   v_expired_job_id UUID;
+  v_expired_application_id UUID;
+  v_expired_application_status TEXT;
+  v_expired_application_purpose TEXT;
+  v_expired_application_visa_type TEXT;
   v_expired_old_row public.runner_job%ROWTYPE;
   v_expired_new_row JSONB;
   v_claimed_job_id UUID;
@@ -552,13 +556,12 @@ BEGIN
     END IF;
   END IF;
 
-  -- Recover only one expired lease per poll. First acquire the exact row with
-  -- SKIP LOCKED, then insert a private one-time capability immediately before
-  -- the exact lifecycle update. The permanent trigger atomically
-  -- consumes this capability and permits only the matching recovery shape.
+  -- Recover only one expired lease per poll. Select only its ids first: do not
+  -- hold a job lock before taking the application mutex. The pause/review
+  -- path locks application -> job, so recovery must use that same order.
 
   WITH expired AS MATERIALIZED (
-    SELECT expired.id
+    SELECT expired.id, expired.application_id
     FROM public.runner_job AS expired
     JOIN public.applications AS application
       ON application.id = expired.application_id
@@ -585,22 +588,73 @@ BEGIN
       )
     ORDER BY expired.leased_until, expired.id
     LIMIT 1
-    FOR UPDATE OF expired SKIP LOCKED
   )
-  SELECT expired.id
-  INTO v_expired_job_id
+  SELECT expired.id, expired.application_id
+  INTO v_expired_job_id, v_expired_application_id
   FROM expired;
 
   IF v_expired_job_id IS NOT NULL THEN
+    -- Lock the application first. A concurrent pause can therefore either
+    -- commit before this check or wait behind this transaction; it cannot
+    -- deadlock against a recovery that already holds the job row.
+    SELECT application.status, application.purpose, application.visa_type
+    INTO v_expired_application_status,
+         v_expired_application_purpose,
+         v_expired_application_visa_type
+    FROM public.applications AS application
+    WHERE application.id = v_expired_application_id
+    FOR UPDATE;
+
+    IF NOT FOUND OR v_expired_application_status = 'staff_action_required' THEN
+      RETURN;
+    END IF;
+
+    IF p_scope_run_id IS NOT NULL AND NOT COALESCE((
+      v_expired_application_purpose = 'concurrency-load:' || p_scope_run_id::TEXT
+      AND v_expired_application_visa_type = 'CONCURRENCY_LOAD'
+    ), FALSE) THEN
+      RETURN;
+    END IF;
+
+    -- Only now lock the exact candidate. SKIP LOCKED keeps one poll bounded
+    -- when another claimant has already taken this row while we waited on the
+    -- application mutex.
     SELECT job.*
     INTO v_expired_old_row
     FROM public.runner_job AS job
     WHERE job.id = v_expired_job_id
+      AND job.application_id = v_expired_application_id
       AND job.status = 'running'
-      AND job.leased_until <= v_now
-    FOR UPDATE;
+    FOR UPDATE SKIP LOCKED;
 
     IF NOT FOUND THEN
+      RETURN;
+    END IF;
+
+    -- Refresh after both locks and recheck every recovery boundary. A row
+    -- selected as expired may have been renewed, changed to a non-canonical
+    -- flow, or lost its exact synthetic marker while lock acquisition waited.
+    v_now := pg_catalog.clock_timestamp();
+    IF v_expired_old_row.leased_until IS NULL
+      OR v_expired_old_row.leased_until > v_now
+    THEN
+      RETURN;
+    END IF;
+    IF NOT COALESCE((
+      (v_expired_old_row.country = 'vietnam' AND v_expired_old_row.flow_key = 'vn_prearrival')
+      OR (v_expired_old_row.country = 'singapore' AND v_expired_old_row.flow_key = 'sgac')
+      OR (v_expired_old_row.country = 'malaysia' AND v_expired_old_row.flow_key = 'mdac')
+      OR (v_expired_old_row.country = 'thailand' AND v_expired_old_row.flow_key = 'tdac')
+      OR (v_expired_old_row.country = 'south_korea' AND v_expired_old_row.flow_key = 'kr_eform')
+      OR (v_expired_old_row.country = 'taiwan' AND v_expired_old_row.flow_key = 'tw_entry_permit')
+    ), FALSE) THEN
+      RETURN;
+    END IF;
+    IF p_scope_run_id IS NOT NULL AND NOT COALESCE((
+      v_expired_old_row.metadata -> 'concurrency_load_synthetic' = 'true'::JSONB
+      AND v_expired_old_row.metadata ->> 'concurrency_load_run_id' = p_scope_run_id::TEXT
+      AND v_expired_old_row.correlation_id LIKE 'concurrency-load:' || p_scope_run_id::TEXT || ':%'
+    ), FALSE) THEN
       RETURN;
     END IF;
 

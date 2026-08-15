@@ -503,6 +503,234 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
     },
   );
 
+  it.skipIf(process.env.RUNNER_LOAD_GATE_DB_CONFIRM !== "local-test")(
+    "rechecks scoped expired recovery after app and marker changes without a pause deadlock",
+    async () => {
+      const expectedProjectRef = process.env.RUNNER_LOAD_GATE_PROJECT_REF ?? "";
+      const config = await query<{ project_ref: string; enabled: boolean }>(
+        "SELECT project_ref, enabled FROM runner_private.runner_load_test_config WHERE id",
+      );
+      expect(config.rows).toHaveLength(1);
+      expect(config.rows[0].project_ref).toBe(expectedProjectRef);
+      expect(config.rows[0].enabled).toBe(true);
+
+      const runIdResult = await query<{ run_id: string }>(
+        "SELECT gen_random_uuid()::text AS run_id",
+      );
+      const runId = runIdResult.rows[0].run_id;
+      const purpose = `concurrency-load:${runId}`;
+      const workers: string[] = [];
+      const fixtures: Array<Fixture & { workerId: string }> = [];
+
+      const createExpiredScopedFixture = async (label: string): Promise<Fixture & { workerId: string }> => {
+        const suffix = `${runId}-${label}`;
+        const applicant = await query<{ id: string }>(
+          `INSERT INTO public.applicant_profiles (email, full_name)
+           VALUES ($1, $2) RETURNING id`,
+          [`${suffix}@invalid.test`, "Scoped recovery integration"],
+        );
+        const applicantId = applicant.rows[0].id;
+        const application = await query<{ id: string }>(
+          `INSERT INTO public.applications (
+             applicant_id, country, visa_type, status, purpose
+           ) VALUES ($1, 'vietnam', 'CONCURRENCY_LOAD', 'draft', $2)
+           RETURNING id`,
+          [applicantId, purpose],
+        );
+        const applicationId = application.rows[0].id;
+        const workerId = `${purpose}:worker-${String(workers.length + 1).padStart(2, "0")}`;
+        workers.push(workerId);
+        const job = await query<{ id: string }>(
+          `INSERT INTO public.runner_job (
+             application_id, country, flow_key, status, attempts, max_attempts,
+             correlation_id, metadata, available_at, enqueued_at
+           ) VALUES ($1, 'vietnam', 'vn_prearrival', 'queued', 0, 3,
+                     $2, jsonb_build_object(
+                       'concurrency_load_run_id', $3,
+                       'concurrency_load_synthetic', true
+                     ), NOW(), NOW())
+           RETURNING id`,
+          [applicationId, `${purpose}:${label}`, runId],
+        );
+        const jobId = job.rows[0].id;
+        fixtureIds.add(jobId);
+        fixtureIds.add(applicationId);
+        fixtureIds.add(applicantId);
+
+        const slotClient = await pool!.connect();
+        try {
+          await slotClient.query("BEGIN");
+          const slot = await slotClient.query<{ slot_number: number }>(
+            `SELECT slot_number
+             FROM public.runner_machine_slot
+             WHERE owner_machine_id IS NULL AND owner_kind IS NULL AND lease_until IS NULL
+             ORDER BY slot_number
+             LIMIT 1
+             FOR UPDATE`,
+          );
+          expect(slot.rows).toHaveLength(1);
+          await slotClient.query(
+            `UPDATE public.runner_machine_slot
+             SET owner_machine_id = $1, owner_kind = 'pool',
+                 lease_until = clock_timestamp() + INTERVAL '10 minutes',
+                 acquired_at = clock_timestamp(), updated_at = clock_timestamp()
+             WHERE slot_number = $2`,
+            [workerId, slot.rows[0].slot_number],
+          );
+          await slotClient.query("COMMIT");
+        } finally {
+          await slotClient.query("ROLLBACK").catch(() => undefined);
+          slotClient.release();
+        }
+
+        const claimed = await query<{ id: string }>(
+          `SELECT *
+           FROM public.claim_runner_pool_load_test_job($1::text, $2::uuid, $3::text, 10000, FALSE)`,
+          [workerId, runId, expectedProjectRef],
+        );
+        expect(claimed.rows).toEqual([expect.objectContaining({ id: jobId })]);
+
+        const adjuster = await pool!.connect();
+        try {
+          await adjuster.query("BEGIN");
+          await adjuster.query("SET LOCAL session_replication_role = 'replica'");
+          await adjuster.query(
+            "UPDATE public.runner_job SET leased_until = clock_timestamp() - INTERVAL '1 second' WHERE id = $1",
+            [jobId],
+          );
+          await adjuster.query("COMMIT");
+        } finally {
+          await adjuster.query("ROLLBACK").catch(() => undefined);
+          adjuster.release();
+        }
+        const fixture = { applicantId, applicationId, jobId, workerId };
+        fixtures.push(fixture);
+        return fixture;
+      };
+
+      const releaseFixture = async (fixture: Fixture & { workerId: string }): Promise<void> => {
+        await query(
+          `UPDATE public.runner_machine_slot
+           SET owner_machine_id = NULL, owner_kind = NULL, lease_until = NULL,
+               acquired_at = NULL, updated_at = clock_timestamp()
+           WHERE owner_machine_id = $1`,
+          [fixture.workerId],
+        );
+      };
+
+      try {
+        const purposeChanged = await createExpiredScopedFixture("purpose");
+        await query(
+          "UPDATE public.applications SET purpose = 'real-load-row' WHERE id = $1",
+          [purposeChanged.applicationId],
+        );
+        const purposeBefore = await query<{ status: string; attempts: number; leased_by: string | null }>(
+          "SELECT status, attempts, leased_by FROM public.runner_job WHERE id = $1",
+          [purposeChanged.jobId],
+        );
+        const purposeResult = await query(
+          "SELECT * FROM public.claim_runner_pool_load_test_job($1::text, $2::uuid, $3::text, 10000, FALSE)",
+          [purposeChanged.workerId, runId, expectedProjectRef],
+        );
+        expect(purposeResult.rows).toHaveLength(0);
+        const purposeAfter = await query<{ status: string; attempts: number; leased_by: string | null }>(
+          "SELECT status, attempts, leased_by FROM public.runner_job WHERE id = $1",
+          [purposeChanged.jobId],
+        );
+        expect(purposeAfter.rows).toEqual(purposeBefore.rows);
+        await releaseFixture(purposeChanged);
+
+        const statusChanged = await createExpiredScopedFixture("status");
+        await query(
+          "UPDATE public.applications SET status = 'staff_action_required' WHERE id = $1",
+          [statusChanged.applicationId],
+        );
+        const statusResult = await query(
+          "SELECT * FROM public.claim_runner_pool_load_test_job($1::text, $2::uuid, $3::text, 10000, FALSE)",
+          [statusChanged.workerId, runId, expectedProjectRef],
+        );
+        expect(statusResult.rows).toHaveLength(0);
+        const statusAfter = await query<{ status: string; attempts: number }>(
+          "SELECT status, attempts FROM public.runner_job WHERE id = $1",
+          [statusChanged.jobId],
+        );
+        expect(statusAfter.rows[0]).toEqual({ status: "running", attempts: 0 });
+        await releaseFixture(statusChanged);
+
+        const markerChanged = await createExpiredScopedFixture("marker");
+        await query(
+          "UPDATE public.runner_job SET metadata = jsonb_build_object('concurrency_load_synthetic', false) WHERE id = $1",
+          [markerChanged.jobId],
+        );
+        const markerResult = await query(
+          "SELECT * FROM public.claim_runner_pool_load_test_job($1::text, $2::uuid, $3::text, 10000, FALSE)",
+          [markerChanged.workerId, runId, expectedProjectRef],
+        );
+        expect(markerResult.rows).toHaveLength(0);
+        const markerAfter = await query<{ status: string; attempts: number }>(
+          "SELECT status, attempts FROM public.runner_job WHERE id = $1",
+          [markerChanged.jobId],
+        );
+        expect(markerAfter.rows[0]).toEqual({ status: "running", attempts: 0 });
+        await releaseFixture(markerChanged);
+
+        const pauseFixture = await createExpiredScopedFixture("pause");
+        const blocker = await pool!.connect();
+        const pauseClient = await pool!.connect();
+        const recoveryClient = await pool!.connect();
+        try {
+          await blocker.query("BEGIN");
+          await blocker.query(
+            "SELECT id FROM public.applications WHERE id = $1 FOR UPDATE",
+            [pauseFixture.applicationId],
+          );
+          const pausePid = await backendPid(pauseClient);
+          const pausePending = pauseClient.query(
+            "SELECT public.pause_runner_jobs_for_review($1::uuid, $2::text)",
+            [pauseFixture.applicationId, "scoped recovery pause race"],
+          );
+          await waitForLockWait(pausePid);
+          const recoveryPid = await backendPid(recoveryClient);
+          const recoveryPending = recoveryClient.query(
+            "SELECT * FROM public.claim_runner_pool_load_test_job($1::text, $2::uuid, $3::text, 10000, FALSE)",
+            [pauseFixture.workerId, runId, expectedProjectRef],
+          );
+          await waitForLockWait(recoveryPid);
+          await blocker.query("COMMIT");
+          const [pauseResult, recoveryResult] = await Promise.all([
+            pausePending,
+            recoveryPending,
+          ]);
+          expect(pauseResult.rows).toHaveLength(1);
+          expect(recoveryResult.rows).toHaveLength(0);
+        } finally {
+          await blocker.query("ROLLBACK").catch(() => undefined);
+          blocker.release();
+          pauseClient.release();
+          recoveryClient.release();
+        }
+        const pausedState = await query<{ app_status: string; job_status: string; attempts: number }>(
+          `SELECT application.status AS app_status, job.status AS job_status, job.attempts
+           FROM public.applications AS application
+           JOIN public.runner_job AS job ON job.application_id = application.id
+           WHERE application.id = $1 AND job.id = $2`,
+          [pauseFixture.applicationId, pauseFixture.jobId],
+        );
+        expect(pausedState.rows[0]).toEqual({
+          app_status: "staff_action_required",
+          job_status: "paused",
+          attempts: 0,
+        });
+        await releaseFixture(pauseFixture);
+      } finally {
+        await query("DELETE FROM public.runner_job WHERE application_id IN (SELECT id FROM public.applications WHERE purpose = $1 OR id = ANY($2::uuid[]))", [purpose, fixtures.map((fixture) => fixture.applicationId)]).catch(() => undefined);
+        await query("DELETE FROM public.applications WHERE purpose = $1 OR id = ANY($2::uuid[])", [purpose, fixtures.map((fixture) => fixture.applicationId)]).catch(() => undefined);
+        await query("DELETE FROM public.applicant_profiles WHERE id = ANY($1::uuid[])", [fixtures.map((fixture) => fixture.applicantId)]).catch(() => undefined);
+        await query("UPDATE public.runner_machine_slot SET owner_machine_id = NULL, owner_kind = NULL, lease_until = NULL, acquired_at = NULL, updated_at = clock_timestamp() WHERE owner_machine_id = ANY($1::text[])", [workers]).catch(() => undefined);
+      }
+    },
+  );
+
   afterAll(async () => {
     if (pool) {
       for (const id of fixtureIds) {
