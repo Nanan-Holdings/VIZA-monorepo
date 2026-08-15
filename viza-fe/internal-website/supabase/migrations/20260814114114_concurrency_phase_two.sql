@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS runner_private.runner_job_update_capability (
   backend_pid INTEGER NOT NULL,
   job_id UUID NOT NULL,
   operation TEXT NOT NULL CHECK (operation IN (
-    'claim', 'recover', 'complete', 'renew', 'fail', 'takeover_open',
+    'claim', 'recover', 'requeue', 'complete', 'renew', 'fail', 'takeover_open',
     'admin_pause', 'fingerprint_append'
   )),
   old_row JSONB NOT NULL,
@@ -45,6 +45,15 @@ CREATE TABLE IF NOT EXISTS runner_private.runner_job_update_capability (
   issued_at TIMESTAMPTZ NOT NULL DEFAULT pg_catalog.clock_timestamp(),
   PRIMARY KEY (txid, backend_pid, job_id)
 );
+
+ALTER TABLE runner_private.runner_job_update_capability
+  DROP CONSTRAINT IF EXISTS runner_job_update_capability_operation_check;
+ALTER TABLE runner_private.runner_job_update_capability
+  ADD CONSTRAINT runner_job_update_capability_operation_check
+  CHECK (operation IN (
+    'claim', 'recover', 'requeue', 'complete', 'renew', 'fail', 'takeover_open',
+    'admin_pause', 'fingerprint_append'
+  ));
 
 ALTER TABLE runner_private.runner_job_update_capability ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE runner_private.runner_job_update_capability
@@ -634,7 +643,9 @@ BEGIN
           OR (oldest_candidate.country = 'south_korea' AND oldest_candidate.flow_key = 'kr_eform')
         ), FALSE)
       AND oldest_candidate.status = 'queued'
-        AND oldest_candidate.available_at <= v_now
+      AND oldest_candidate.attempts >= 0
+      AND oldest_candidate.attempts < oldest_candidate.max_attempts
+      AND oldest_candidate.available_at <= v_now
       ORDER BY oldest_candidate.enqueued_at, oldest_candidate.id
       LIMIT 1
     ) AS oldest_candidate ON TRUE
@@ -666,6 +677,8 @@ BEGIN
         AND application.status <> 'staff_action_required'
       WHERE candidate.country = v_locked_country
         AND candidate.status = 'queued'
+        AND candidate.attempts >= 0
+        AND candidate.attempts < candidate.max_attempts
         AND candidate.available_at <= v_now
         AND candidate.country IN (
           'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
@@ -810,10 +823,16 @@ SELECT
   cap.max_concurrent,
   cap.paused,
   COALESCE(COUNT(rj.id) FILTER (
-    WHERE rj.status = 'queued' AND rj.available_at <= pg_catalog.clock_timestamp()
+    WHERE rj.status = 'queued'
+      AND rj.attempts >= 0
+      AND rj.attempts < rj.max_attempts
+      AND rj.available_at <= pg_catalog.clock_timestamp()
   ), 0)::INTEGER AS claimable,
   COALESCE(COUNT(rj.id) FILTER (
-    WHERE rj.status = 'queued' AND rj.available_at > pg_catalog.clock_timestamp()
+    WHERE rj.status = 'queued'
+      AND rj.attempts >= 0
+      AND rj.attempts < rj.max_attempts
+      AND rj.available_at > pg_catalog.clock_timestamp()
   ), 0)::INTEGER AS scheduled,
   COALESCE(COUNT(rj.id) FILTER (WHERE rj.status = 'running'), 0)::INTEGER AS running
 FROM public.runner_concurrency_cap AS cap
@@ -878,6 +897,24 @@ BEGIN
       RAISE EXCEPTION 'Application % is paused for staff review', NEW.application_id
         USING ERRCODE = '55000';
     END IF;
+
+    -- Failed/dead-letter requeues are admitted only through the dedicated
+    -- service-role RPC. The exact full OLD/NEW image prevents a direct update
+    -- from bypassing attempt/quarantine policy.
+    DELETE FROM runner_private.runner_job_update_capability AS capability
+    WHERE capability.txid = pg_catalog.txid_current()
+      AND capability.backend_pid = pg_catalog.pg_backend_pid()
+      AND capability.job_id = OLD.id
+      AND capability.operation = 'requeue'
+      AND capability.old_row = to_jsonb(OLD)
+      AND capability.new_row = to_jsonb(NEW)
+    RETURNING capability.operation
+    INTO v_capability_operation;
+
+    IF NOT FOUND OR v_capability_operation IS NULL THEN
+      RETURN NULL;
+    END IF;
+    RETURN NEW;
   END IF;
 
   -- Queued -> running is the one non-running lifecycle transition that must
@@ -937,7 +974,7 @@ BEGIN
     AND capability.backend_pid = pg_catalog.pg_backend_pid()
     AND capability.job_id = OLD.id
     AND capability.operation IN (
-      'claim', 'recover', 'complete', 'renew', 'fail', 'takeover_open',
+      'claim', 'recover', 'requeue', 'complete', 'renew', 'fail', 'takeover_open',
       'admin_pause', 'fingerprint_append'
     )
     AND capability.old_row = to_jsonb(OLD)
@@ -997,6 +1034,18 @@ BEGIN
       OR (NEW.country = 'south_korea' AND NEW.flow_key = 'kr_eform')
     ), FALSE) THEN
       RAISE EXCEPTION 'Queued runner_job flow tuple is invalid'
+        USING ERRCODE = '23514';
+    END IF;
+    IF NEW.attempts < 0 OR NEW.max_attempts <= 0
+      OR NEW.attempts >= NEW.max_attempts
+    THEN
+      RAISE EXCEPTION 'Queued runner_job attempts must be between zero and max_attempts'
+        USING ERRCODE = '23514';
+    END IF;
+    IF NEW.leased_by IS NOT NULL OR NEW.leased_until IS NOT NULL
+      OR NEW.started_at IS NOT NULL OR NEW.finished_at IS NOT NULL
+    THEN
+      RAISE EXCEPTION 'Queued runner_job rows cannot carry a lease or lifecycle timestamps'
         USING ERRCODE = '23514';
     END IF;
   END IF;
@@ -1519,9 +1568,10 @@ GRANT EXECUTE ON FUNCTION public.open_runner_job_takeover(
 COMMENT ON FUNCTION public.open_runner_job_takeover(UUID, TEXT, UUID, UUID, TEXT, TEXT, TEXT) IS
   'Atomically opens a queued human takeover for a live runner owner and records the open action.';
 
--- Pause all queued/running jobs for face-match or staff review. Queued rows
--- are ordinary non-running lifecycle updates; each running row gets its own
--- exact capability immediately before the guarded update.
+-- Pause one application atomically for face-match or staff review. The
+-- application mutex is acquired first, then matching legacy queue rows, then
+-- runner jobs; the application status and every transport update commit or
+-- roll back together.
 CREATE OR REPLACE FUNCTION public.pause_runner_jobs_for_review(
   p_application_id UUID,
   p_reason TEXT
@@ -1538,6 +1588,7 @@ DECLARE
   v_now TIMESTAMPTZ;
   v_updated_rows INTEGER;
   v_count INTEGER := 0;
+  v_legacy_rows INTEGER := 0;
 BEGIN
   IF p_application_id IS NULL THEN
     RAISE EXCEPTION 'application id is required' USING ERRCODE = '22023';
@@ -1548,7 +1599,8 @@ BEGIN
   END IF;
 
   -- Match enqueue/result/takeover writers: lock the application before any
-  -- runner jobs so a review pause cannot deadlock against app-first writers.
+  -- queue or runner rows so a review pause cannot deadlock against app-first
+  -- writers and cannot leave the application status half-updated.
   PERFORM 1
   FROM public.applications AS application
   WHERE application.id = p_application_id
@@ -1556,6 +1608,37 @@ BEGIN
   IF NOT FOUND THEN
     RETURN 0;
   END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  UPDATE public.applications AS application
+  SET status = 'staff_action_required',
+      updated_at = v_now
+  WHERE application.id = p_application_id;
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RAISE EXCEPTION 'Application % disappeared during review pause', p_application_id
+      USING ERRCODE = '55000';
+  END IF;
+
+  -- Pause every active legacy submission transport for this application. The
+  -- broad suffix checks cover country-specific scheduled/pending/processing
+  -- states while excluding terminal, already-paused, and cancelled rows.
+  UPDATE public.submission_queue AS queue
+  SET status = 'paused',
+      paused_reason = v_reason,
+      locked_by = NULL,
+      locked_at = NULL,
+      locked_until = NULL,
+      updated_at = v_now
+  WHERE queue.application_id = p_application_id
+    AND (
+      queue.status IN ('pending', 'queued', 'processing', 'france_live_official_portal_opened')
+      OR queue.status LIKE '%_scheduled'
+      OR queue.status LIKE '%_pending'
+      OR queue.status LIKE '%_processing'
+    );
+  GET DIAGNOSTICS v_legacy_rows = ROW_COUNT;
+  v_count := v_legacy_rows;
 
   FOR v_job IN
     SELECT job.*
@@ -1624,7 +1707,225 @@ GRANT EXECUTE ON FUNCTION public.pause_runner_jobs_for_review(UUID, TEXT)
   TO service_role;
 
 COMMENT ON FUNCTION public.pause_runner_jobs_for_review(UUID, TEXT) IS
-  'Pauses queued and live running jobs for one application with exact capabilities for running rows.';
+  'Atomically marks one application for staff review, pauses active legacy queue rows, and pauses queued/running runner jobs under an application-first mutex.';
+
+-- Requeue one failed/dead-letter runner job through a policy-checked,
+-- application-first RPC. Direct non-running -> queued updates are fenced by
+-- the exact `requeue` capability minted here.
+CREATE OR REPLACE FUNCTION public.requeue_runner_job(
+  p_job_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_application_id UUID;
+  v_application_status TEXT;
+  v_old_row public.runner_job%ROWTYPE;
+  v_new_row JSONB;
+  v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER;
+BEGIN
+  IF p_job_id IS NULL THEN
+    RAISE EXCEPTION 'job id is required' USING ERRCODE = '22023';
+  END IF;
+
+  -- Read the application key before taking either row lock, then always lock
+  -- application -> job. This matches enqueue/pause writers and avoids a
+  -- planner-dependent reverse-order deadlock.
+  SELECT job.application_id
+  INTO v_application_id
+  FROM public.runner_job AS job
+  WHERE job.id = p_job_id;
+  IF NOT FOUND THEN
+    RETURN FALSE;
+  END IF;
+
+  SELECT application.status
+  INTO v_application_status
+  FROM public.applications AS application
+  WHERE application.id = v_application_id
+  FOR UPDATE;
+  IF NOT FOUND OR v_application_status = 'staff_action_required' THEN
+    RETURN FALSE;
+  END IF;
+
+  SELECT job.*
+  INTO v_old_row
+  FROM public.runner_job AS job
+  WHERE job.id = p_job_id
+    AND job.application_id = v_application_id
+    AND job.status IN ('failed', 'dead_letter')
+    AND job.attempts >= 0
+    AND job.attempts < job.max_attempts
+    AND NOT (
+      COALESCE(job.last_error, '') ILIKE '%quarantined%'
+      OR COALESCE(job.last_error, '') ILIKE '%quarantine%'
+    )
+    AND COALESCE((
+      (job.country = 'vietnam' AND job.flow_key = 'vn_prearrival')
+      OR (job.country = 'singapore' AND job.flow_key = 'sgac')
+      OR (job.country = 'malaysia' AND job.flow_key = 'mdac')
+      OR (job.country = 'thailand' AND job.flow_key = 'tdac')
+      OR (job.country = 'south_korea' AND job.flow_key = 'kr_eform')
+    ), FALSE)
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN FALSE;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  v_new_row := to_jsonb(v_old_row) || jsonb_build_object(
+    'status', 'queued',
+    'available_at', v_now,
+    'enqueued_at', v_now,
+    'leased_by', NULL,
+    'leased_until', NULL,
+    'started_at', NULL,
+    'finished_at', NULL,
+    'last_error', NULL
+  );
+
+  DELETE FROM runner_private.runner_job_update_capability
+  WHERE txid = pg_catalog.txid_current()
+    AND backend_pid = pg_catalog.pg_backend_pid()
+    AND job_id = p_job_id;
+  INSERT INTO runner_private.runner_job_update_capability (
+    txid, backend_pid, job_id, operation, old_row, new_row
+  )
+  VALUES (
+    pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), p_job_id,
+    'requeue', to_jsonb(v_old_row), v_new_row
+  );
+
+  UPDATE public.runner_job AS job
+  SET status = 'queued',
+      available_at = v_now,
+      enqueued_at = v_now,
+      leased_by = NULL,
+      leased_until = NULL,
+      started_at = NULL,
+      finished_at = NULL,
+      last_error = NULL
+  WHERE job.id = p_job_id
+    AND job.application_id = v_application_id
+    AND job.status IN ('failed', 'dead_letter')
+    AND job.attempts >= 0
+    AND job.attempts < job.max_attempts;
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    DELETE FROM runner_private.runner_job_update_capability
+    WHERE txid = pg_catalog.txid_current()
+      AND backend_pid = pg_catalog.pg_backend_pid()
+      AND job_id = p_job_id;
+    RETURN FALSE;
+  END IF;
+
+  RETURN TRUE;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.requeue_runner_job(UUID)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.requeue_runner_job(UUID)
+  TO service_role;
+
+COMMENT ON FUNCTION public.requeue_runner_job(UUID) IS
+  'Requeues one exact non-quarantined failed/dead-letter runner job when attempts remain.';
+
+-- Claim one queued takeover under its row mutex. A repeated claim by the same
+-- operator is idempotent and does not append a second action-log row; another
+-- operator or a handoff-kind mismatch returns zero rows.
+CREATE OR REPLACE FUNCTION public.claim_takeover_session(
+  p_takeover_id UUID,
+  p_claimant_id UUID,
+  p_expected_handoff_kind TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+  claimed BOOLEAN,
+  job_id UUID,
+  application_id UUID,
+  handoff_kind TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_session public.takeover_session%ROWTYPE;
+  v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER;
+BEGIN
+  IF p_takeover_id IS NULL OR p_claimant_id IS NULL THEN
+    RAISE EXCEPTION 'takeover id and claimant id are required'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT session.*
+  INTO v_session
+  FROM public.takeover_session AS session
+  WHERE session.id = p_takeover_id
+  FOR UPDATE;
+  IF NOT FOUND
+    OR v_session.handoff_kind IS DISTINCT FROM p_expected_handoff_kind
+  THEN
+    RETURN;
+  END IF;
+
+  IF v_session.status = 'claimed'
+    AND v_session.claimed_by = p_claimant_id
+  THEN
+    RETURN QUERY SELECT TRUE, v_session.job_id, v_session.application_id,
+      v_session.handoff_kind;
+    RETURN;
+  END IF;
+
+  IF v_session.status <> 'queued' THEN
+    RETURN;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  UPDATE public.takeover_session AS session
+  SET status = 'claimed',
+      claimed_by = p_claimant_id,
+      claimed_at = v_now
+  WHERE session.id = p_takeover_id
+    AND session.status = 'queued';
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO public.takeover_action_log (
+    takeover_id, action, actor_user_id, detail, ts
+  )
+  VALUES (
+    p_takeover_id,
+    'claim',
+    p_claimant_id,
+    jsonb_build_object('handoff_kind', v_session.handoff_kind),
+    v_now
+  );
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RAISE EXCEPTION 'Takeover claim action log write failed'
+      USING ERRCODE = '55000';
+  END IF;
+
+  RETURN QUERY SELECT TRUE, v_session.job_id, v_session.application_id,
+    v_session.handoff_kind;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_takeover_session(UUID, UUID, TEXT)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_takeover_session(UUID, UUID, TEXT)
+  TO service_role;
+
+COMMENT ON FUNCTION public.claim_takeover_session(UUID, UUID, TEXT) IS
+  'Claims one queued takeover by exact handoff kind; same-claimant retries are idempotent.';
 
 -- Atomically cancel one still-queued submission. The application row is the
 -- mutex for both transports; the exact queue/job row is then locked and
@@ -1792,14 +2093,19 @@ GRANT EXECUTE ON FUNCTION public.cancel_application_submission(UUID, UUID, TEXT)
 COMMENT ON FUNCTION public.cancel_application_submission(UUID, UUID, TEXT) IS
   'Cancels one exact null-lease queued submission and resets its application atomically; policy is server-derived.';
 
--- Close one operator takeover and its exact needs_human runner job in one
--- transaction. The lock order is always session -> application -> job.
+-- Settle one claimed operator takeover and its exact needs_human runner job in
+-- one transaction. The lock order is always session -> application -> job.
+-- Completed answers are a bounded JSON object whose values are strings; the
+-- same transaction upserts those values and records the derived count.
+DROP FUNCTION IF EXISTS public.settle_runner_job_takeover(
+  UUID, UUID, TEXT, TEXT, INTEGER
+);
 CREATE OR REPLACE FUNCTION public.settle_runner_job_takeover(
   p_takeover_id UUID,
   p_actor_user_id UUID,
   p_outcome TEXT,
   p_operator_notes TEXT DEFAULT NULL,
-  p_answers_written INTEGER DEFAULT 0
+  p_answers JSONB DEFAULT '{}'::JSONB
 )
 RETURNS TABLE (
   settled BOOLEAN,
@@ -1818,6 +2124,7 @@ DECLARE
   v_job_status TEXT;
   v_action TEXT;
   v_now TIMESTAMPTZ;
+  v_answers_written INTEGER := 0;
   v_updated_rows INTEGER;
 BEGIN
   IF p_takeover_id IS NULL OR p_actor_user_id IS NULL THEN
@@ -1828,8 +2135,30 @@ BEGIN
     RAISE EXCEPTION 'takeover outcome must be completed or abandoned'
       USING ERRCODE = '22023';
   END IF;
-  IF p_answers_written IS NULL OR p_answers_written < 0 THEN
-    RAISE EXCEPTION 'answers written must be non-negative'
+  IF p_answers IS NULL OR pg_catalog.jsonb_typeof(p_answers) <> 'object' THEN
+    RAISE EXCEPTION 'answers must be a JSON object'
+      USING ERRCODE = '22023';
+  END IF;
+  IF pg_catalog.pg_column_size(p_answers) > 262144 THEN
+    RAISE EXCEPTION 'answers JSON must be at most 256 KiB'
+      USING ERRCODE = '22023';
+  END IF;
+  IF EXISTS (
+    SELECT 1
+    FROM pg_catalog.jsonb_each(p_answers) AS answer(key, value)
+    WHERE length(answer.key) = 0
+      OR length(answer.key) > 200
+      OR pg_catalog.jsonb_typeof(answer.value) <> 'string'
+      OR length(answer.value #>> '{}') > 4000
+  ) THEN
+    RAISE EXCEPTION 'answer keys must be 1-200 chars and values must be strings up to 4000 chars'
+      USING ERRCODE = '22023';
+  END IF;
+  SELECT COUNT(*)::INTEGER
+  INTO v_answers_written
+  FROM pg_catalog.jsonb_object_keys(p_answers);
+  IF p_outcome = 'abandoned' AND v_answers_written <> 0 THEN
+    RAISE EXCEPTION 'abandoned takeovers cannot write answers'
       USING ERRCODE = '22023';
   END IF;
   IF p_operator_notes IS NOT NULL AND length(p_operator_notes) > 4000 THEN
@@ -1843,7 +2172,10 @@ BEGIN
   FROM public.takeover_session AS session
   WHERE session.id = p_takeover_id
   FOR UPDATE;
-  IF NOT FOUND OR v_session.status NOT IN ('queued', 'claimed') THEN
+  IF NOT FOUND
+    OR v_session.status <> 'claimed'
+    OR v_session.claimed_by IS DISTINCT FROM p_actor_user_id
+  THEN
     RETURN;
   END IF;
 
@@ -1872,12 +2204,32 @@ BEGIN
   v_job_status := CASE WHEN p_outcome = 'completed' THEN 'succeeded' ELSE 'failed' END;
   v_action := CASE WHEN p_outcome = 'completed' THEN 'complete' ELSE 'abandon' END;
 
+  IF p_outcome = 'completed' AND v_answers_written > 0 THEN
+    INSERT INTO public.visa_application_answers (
+      application_id, field_name, value_text, value_json, source, updated_at
+    )
+    SELECT
+      v_application_id,
+      answer.key,
+      answer.value #>> '{}',
+      NULL,
+      'takeover',
+      v_now
+    FROM pg_catalog.jsonb_each(p_answers) AS answer(key, value)
+    ON CONFLICT (application_id, field_name) DO UPDATE
+      SET value_text = EXCLUDED.value_text,
+          value_json = NULL,
+          source = EXCLUDED.source,
+          updated_at = EXCLUDED.updated_at;
+  END IF;
+
   UPDATE public.takeover_session AS session
   SET status = p_outcome,
       operator_notes = p_operator_notes,
       closed_at = v_now
   WHERE session.id = p_takeover_id
-    AND session.status IN ('queued', 'claimed');
+    AND session.status = 'claimed'
+    AND session.claimed_by = p_actor_user_id;
   GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
   IF v_updated_rows <> 1 THEN
     RETURN;
@@ -1910,7 +2262,7 @@ BEGIN
     p_actor_user_id,
     jsonb_build_object(
       'outcome', p_outcome,
-      'answers_written', p_answers_written,
+      'answers_written', v_answers_written,
       'operator_notes_present', p_operator_notes IS NOT NULL
     ),
     v_now
@@ -1926,14 +2278,14 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.settle_runner_job_takeover(
-  UUID, UUID, TEXT, TEXT, INTEGER
+  UUID, UUID, TEXT, TEXT, JSONB
 ) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.settle_runner_job_takeover(
-  UUID, UUID, TEXT, TEXT, INTEGER
+  UUID, UUID, TEXT, TEXT, JSONB
 ) TO service_role;
 
-COMMENT ON FUNCTION public.settle_runner_job_takeover(UUID, UUID, TEXT, TEXT, INTEGER) IS
-  'Atomically settles an open takeover and its exact needs_human runner job using session -> application -> job locks.';
+COMMENT ON FUNCTION public.settle_runner_job_takeover(UUID, UUID, TEXT, TEXT, JSONB) IS
+  'Atomically settles a claimed takeover owned by the actor; completed answers are bounded string JSON and written with the session/job/action log.';
 
 -- Append one anti-bot fingerprint entry only for the current live owner. A
 -- direct fingerprint_history UPDATE is protected by the same full-row trigger.

@@ -38,6 +38,9 @@ const triggerFunctionBody = canonicalSql.match(
 const takeoverFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.open_runner_job_takeover\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
+const takeoverClaimFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.claim_takeover_session\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
 const resultFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.write_runner_pool_submission_result\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
@@ -52,6 +55,9 @@ const cancelFunctionBody = canonicalSql.match(
 )?.[0] ?? "";
 const takeoverSettlementFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.settle_runner_job_takeover\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const requeueFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.requeue_runner_job\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
 const insertGuardFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION runner_private\.guard_runner_job_running_insert\([\s\S]*?\n\$\$;/i,
@@ -581,6 +587,7 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("defines service-role takeover, review pause, and fingerprint RPCs", () => {
     expect(canonicalSql).toMatch(/CREATE OR REPLACE FUNCTION public\.open_runner_job_takeover/i);
+    expect(canonicalSql).toMatch(/CREATE OR REPLACE FUNCTION public\.claim_takeover_session/i);
     expect(canonicalSql).toMatch(/'takeover_open'/i);
     expect(canonicalSql).toMatch(/INSERT INTO public\.takeover_session/i);
     expect(canonicalSql).toMatch(/INSERT INTO public\.takeover_action_log/i);
@@ -590,6 +597,7 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).toMatch(/'fingerprint_append'/i);
     expect(canonicalSql).toMatch(/fingerprint_history = v_new_history/i);
     expect(canonicalSql).toMatch(/REVOKE ALL ON FUNCTION public\.open_runner_job_takeover/i);
+    expect(canonicalSql).toMatch(/REVOKE ALL ON FUNCTION public\.claim_takeover_session/i);
     expect(canonicalSql).toMatch(/REVOKE ALL ON FUNCTION public\.pause_runner_jobs_for_review/i);
     expect(canonicalSql).toMatch(/REVOKE ALL ON FUNCTION public\.append_runner_job_fingerprint/i);
   });
@@ -733,7 +741,29 @@ describe("runner pool concurrency phase two migration", () => {
     const jobLock = pauseFunctionBody.search(/FOR v_job IN[\s\S]*?FOR UPDATE/i);
     expect(applicationLock).toBeGreaterThan(-1);
     expect(jobLock).toBeGreaterThan(applicationLock);
+    expect(pauseFunctionBody).toMatch(/UPDATE public\.applications AS application[\s\S]*?status = 'staff_action_required'/i);
+    expect(pauseFunctionBody).toMatch(/UPDATE public\.submission_queue AS queue[\s\S]*?status = 'paused'/i);
     expect(pauseFunctionBody).toMatch(/RETURN 0;/i);
+  });
+
+  it("claims takeover sessions with an exact kind and idempotent claimant", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.claim_takeover_session\(\s*p_takeover_id UUID,\s*p_claimant_id UUID,\s*p_expected_handoff_kind TEXT DEFAULT NULL\s*\)/i,
+    );
+    expect(takeoverClaimFunctionBody).toMatch(
+      /RETURNS TABLE \(\s*claimed BOOLEAN,\s*job_id UUID,\s*application_id UUID,\s*handoff_kind TEXT\s*\)/i,
+    );
+    expect(takeoverClaimFunctionBody).toMatch(/SECURITY DEFINER/i);
+    expect(takeoverClaimFunctionBody).toMatch(/SET search_path = ''/i);
+    expect(takeoverClaimFunctionBody).toMatch(/FOR UPDATE;/i);
+    expect(takeoverClaimFunctionBody).toMatch(/handoff_kind IS DISTINCT FROM p_expected_handoff_kind/i);
+    expect(takeoverClaimFunctionBody).toMatch(/status = 'claimed'[\s\S]*?claimed_by = p_claimant_id[\s\S]*?claimed_at = v_now/i);
+    expect(takeoverClaimFunctionBody).toMatch(/status = 'claimed'[\s\S]*?v_session\.claimed_by = p_claimant_id[\s\S]*?RETURN QUERY/i);
+    expect(takeoverClaimFunctionBody).toMatch(/INSERT INTO public\.takeover_action_log/i);
+    expect(takeoverClaimFunctionBody).toMatch(/GET DIAGNOSTICS v_updated_rows = ROW_COUNT/i);
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.claim_takeover_session\(UUID, UUID, TEXT\)[\s\S]*?GRANT EXECUTE ON FUNCTION public\.claim_takeover_session\(UUID, UUID, TEXT\)\s+TO service_role;/i,
+    );
   });
 
   it("defines service-role-only atomic cancellation with policy-derived status", () => {
@@ -758,27 +788,54 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("defines deterministic session-application-job takeover settlement", () => {
     expect(canonicalSql).toMatch(
-      /CREATE OR REPLACE FUNCTION public\.settle_runner_job_takeover\(\s*p_takeover_id UUID,\s*p_actor_user_id UUID,\s*p_outcome TEXT,\s*p_operator_notes TEXT DEFAULT NULL,\s*p_answers_written INTEGER DEFAULT 0\s*\)/i,
+      /DROP FUNCTION IF EXISTS public\.settle_runner_job_takeover\(\s*UUID, UUID, TEXT, TEXT, INTEGER\s*\);[\s\S]*?CREATE OR REPLACE FUNCTION public\.settle_runner_job_takeover\(\s*p_takeover_id UUID,\s*p_actor_user_id UUID,\s*p_outcome TEXT,\s*p_operator_notes TEXT DEFAULT NULL,\s*p_answers JSONB DEFAULT '\{\}'::JSONB\s*\)/i,
     );
     expect(takeoverSettlementFunctionBody).toMatch(
       /RETURNS TABLE \(\s*settled BOOLEAN,\s*job_id UUID,\s*application_id UUID,\s*job_status TEXT\s*\)/i,
     );
     expect(takeoverSettlementFunctionBody).toMatch(/p_outcome NOT IN \('completed', 'abandoned'\)/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/p_answers IS NULL[\s\S]*?jsonb_typeof\(p_answers\) <> 'object'/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/jsonb_each\(p_answers\)[\s\S]*?jsonb_typeof\(answer\.value\) <> 'string'/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/p_outcome = 'abandoned'[\s\S]*?v_answers_written <> 0/i);
     const sessionLock = takeoverSettlementFunctionBody.search(/FROM public\.takeover_session AS session[\s\S]*?FOR UPDATE;/i);
     const applicationLock = takeoverSettlementFunctionBody.search(/FROM public\.applications AS application[\s\S]*?FOR UPDATE;/i);
     const jobLock = takeoverSettlementFunctionBody.search(/FROM public\.runner_job AS job[\s\S]*?FOR UPDATE;/i);
     expect(sessionLock).toBeGreaterThan(-1);
     expect(applicationLock).toBeGreaterThan(sessionLock);
     expect(jobLock).toBeGreaterThan(applicationLock);
-    expect(takeoverSettlementFunctionBody).toMatch(/session\.status NOT IN \('queued', 'claimed'\)/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/session\.status <> 'claimed'[\s\S]*?v_session\.claimed_by IS DISTINCT FROM p_actor_user_id/i);
     expect(takeoverSettlementFunctionBody).toMatch(/UPDATE public\.takeover_session[\s\S]*?GET DIAGNOSTICS v_updated_rows = ROW_COUNT[\s\S]*?UPDATE public\.runner_job[\s\S]*?GET DIAGNOSTICS v_updated_rows = ROW_COUNT/i);
     expect(takeoverSettlementFunctionBody).toMatch(/Takeover action log write failed/i);
     expect(takeoverSettlementFunctionBody).toMatch(/job\.status = 'needs_human'/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/INSERT INTO public\.visa_application_answers/i);
     expect(takeoverSettlementFunctionBody).toMatch(/INSERT INTO public\.takeover_action_log/i);
     expect(takeoverSettlementFunctionBody).toMatch(/status = p_outcome[\s\S]*?closed_at = v_now/i);
     expect(takeoverSettlementFunctionBody).toMatch(/status = v_job_status[\s\S]*?finished_at = v_now/i);
     expect(canonicalSql).toMatch(
-      /REVOKE ALL ON FUNCTION public\.settle_runner_job_takeover\(\s*UUID, UUID, TEXT, TEXT, INTEGER\s*\)[\s\S]*?GRANT EXECUTE ON FUNCTION public\.settle_runner_job_takeover\([\s\S]*?\) TO service_role;/i,
+      /REVOKE ALL ON FUNCTION public\.settle_runner_job_takeover\(\s*UUID, UUID, TEXT, TEXT, JSONB\s*\)[\s\S]*?GRANT EXECUTE ON FUNCTION public\.settle_runner_job_takeover\([\s\S]*?\) TO service_role;/i,
+    );
+  });
+
+  it("fences policy-checked failed/dead-letter requeues", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.requeue_runner_job\(\s*p_job_id UUID\s*\)\s*RETURNS BOOLEAN/i,
+    );
+    expect(requeueFunctionBody).toMatch(/SECURITY DEFINER/i);
+    expect(requeueFunctionBody).toMatch(/SET search_path = ''/i);
+    expect(requeueFunctionBody).toMatch(/application -> job/i);
+    expect(requeueFunctionBody).toMatch(/job\.status IN \('failed', 'dead_letter'\)/i);
+    expect(requeueFunctionBody).toMatch(/job\.attempts < job\.max_attempts/i);
+    expect(requeueFunctionBody).toMatch(/ILIKE '%quarantined%'/i);
+    expect(requeueFunctionBody).toMatch(/operation, old_row, new_row[\s\S]*?'requeue'/i);
+    expect(requeueFunctionBody).toMatch(/status = 'queued'[\s\S]*?started_at = NULL[\s\S]*?finished_at = NULL/i);
+    expect(triggerFunctionBody).toMatch(
+      /NEW\.status IS NOT DISTINCT FROM 'queued'[\s\S]*?operation = 'requeue'[\s\S]*?old_row = to_jsonb\(OLD\)[\s\S]*?new_row = to_jsonb\(NEW\)/i,
+    );
+    expect(insertGuardFunctionBody).toMatch(/NEW\.attempts < 0[\s\S]*?NEW\.attempts >= NEW\.max_attempts/i);
+    expect(insertGuardFunctionBody).toMatch(/NEW\.leased_by IS NOT NULL[\s\S]*?NEW\.started_at IS NOT NULL[\s\S]*?NEW\.finished_at IS NOT NULL/i);
+    expect(functionBody).toMatch(/candidate\.attempts < candidate\.max_attempts/i);
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.requeue_runner_job\(UUID\)[\s\S]*?GRANT EXECUTE ON FUNCTION public\.requeue_runner_job\(UUID\)\s+TO service_role;/i,
     );
   });
 });

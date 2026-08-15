@@ -954,6 +954,42 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
     }
   });
 
+  it("claims takeover sessions exactly once and returns zero for conflicts", async () => {
+    const workerId = `runner-fence-takeover-claim-${Date.now()}`;
+    const fixture = await createFixture({ workerId });
+    try {
+      const opened = await query<{ takeover_id: string }>(
+        "SELECT * FROM public.open_runner_job_takeover($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, NULL)",
+        [fixture.jobId, workerId, fixture.applicationId, fixture.applicantId, "claim test", "wss://runner.invalid/debug"],
+      );
+      const takeoverId = opened.rows[0].takeover_id;
+      const first = await query(
+        "SELECT * FROM public.claim_takeover_session($1::uuid, $2::uuid, NULL::text)",
+        [takeoverId, fixture.applicantId],
+      );
+      expect(first.rows).toEqual([
+        { claimed: true, job_id: fixture.jobId, application_id: fixture.applicationId, handoff_kind: null },
+      ]);
+      const retry = await query(
+        "SELECT * FROM public.claim_takeover_session($1::uuid, $2::uuid, NULL::text)",
+        [takeoverId, fixture.applicantId],
+      );
+      expect(retry.rows).toEqual(first.rows);
+      const wrongClaimant = await query(
+        "SELECT * FROM public.claim_takeover_session($1::uuid, $2::uuid, NULL::text)",
+        [takeoverId, fixture.applicationId],
+      );
+      expect(wrongClaimant.rows).toHaveLength(0);
+      const actions = await query<{ count: string }>(
+        "SELECT COUNT(*)::text AS count FROM public.takeover_action_log WHERE takeover_id = $1",
+        [takeoverId],
+      );
+      expect(actions.rows[0].count).toBe("2");
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
   it("settles takeovers atomically, rejects conflicts, and rolls back invalid input", async () => {
     const workerId = `runner-fence-takeover-settle-${Date.now()}`;
     const fixture = await createFixture({ workerId });
@@ -964,9 +1000,16 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
       );
       expect(opened.rows).toHaveLength(1);
       const takeoverId = opened.rows[0].takeover_id;
+      const claimed = await query(
+        "SELECT * FROM public.claim_takeover_session($1::uuid, $2::uuid, NULL::text)",
+        [takeoverId, fixture.applicantId],
+      );
+      expect(claimed.rows).toEqual([
+        { claimed: true, job_id: fixture.jobId, application_id: fixture.applicationId, handoff_kind: null },
+      ]);
       const settled = await query<{ settled: boolean; job_id: string; application_id: string; job_status: string }>(
-        "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'completed', $3::text, 2)",
-        [takeoverId, fixture.applicantId, "completed by test"],
+        "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'completed', $3::text, $4::jsonb)",
+        [takeoverId, fixture.applicantId, "completed by test", { surname: "CHEN", given_name: "TEST" }],
       );
       expect(settled.rows).toEqual([
         { settled: true, job_id: fixture.jobId, application_id: fixture.applicationId, job_status: "succeeded" },
@@ -980,9 +1023,17 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
         [takeoverId],
       );
       expect(finalState.rows[0]).toEqual({ session_status: "completed", job_status: "succeeded", actions: "2" });
+      const answers = await query<{ field_name: string; value_text: string }>(
+        "SELECT field_name, value_text FROM public.visa_application_answers WHERE application_id = $1 ORDER BY field_name",
+        [fixture.applicationId],
+      );
+      expect(answers.rows).toEqual([
+        { field_name: "given_name", value_text: "TEST" },
+        { field_name: "surname", value_text: "CHEN" },
+      ]);
 
       const conflict = await query(
-        "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'abandoned', NULL, 0)",
+        "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'abandoned', NULL, '{}'::jsonb)",
         [takeoverId, fixture.applicantId],
       );
       expect(conflict.rows).toHaveLength(0);
@@ -1003,10 +1054,25 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
         [rollbackFixture.jobId, rollbackWorker, rollbackFixture.applicationId, rollbackFixture.applicantId, "rollback test", "wss://runner.invalid/debug"],
       );
       const takeoverId = opened.rows[0].takeover_id;
+      await query(
+        "SELECT * FROM public.claim_takeover_session($1::uuid, $2::uuid, NULL::text)",
+        [takeoverId, rollbackFixture.applicantId],
+      );
+      const actorMismatch = await query(
+        "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'completed', NULL, $3::jsonb)",
+        [takeoverId, rollbackFixture.applicationId, { mismatch: "must not write" }],
+      );
+      expect(actorMismatch.rows).toHaveLength(0);
       await expect(
         query(
-          "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'completed', $3::text, 1)",
-          [takeoverId, rollbackFixture.applicantId, "x".repeat(4001)],
+          "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'abandoned', NULL, $3::jsonb)",
+          [takeoverId, rollbackFixture.applicantId, { stray: "answer" }],
+        ),
+      ).rejects.toMatchObject({ code: "22023" });
+      await expect(
+        query(
+          "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'completed', $3::text, $4::jsonb)",
+          [takeoverId, rollbackFixture.applicantId, "x".repeat(4001), { answer: "value" }],
         ),
       ).rejects.toMatchObject({ code: "22023" });
       const unchanged = await query<{ session_status: string; job_status: string; actions: string }>(
@@ -1017,9 +1083,151 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
          WHERE session.id = $1`,
         [takeoverId],
       );
-      expect(unchanged.rows[0]).toEqual({ session_status: "queued", job_status: "needs_human", actions: "1" });
+      expect(unchanged.rows[0]).toEqual({ session_status: "claimed", job_status: "needs_human", actions: "2" });
+      const answerCount = await query<{ count: string }>(
+        "SELECT COUNT(*)::text AS count FROM public.visa_application_answers WHERE application_id = $1",
+        [rollbackFixture.applicationId],
+      );
+      expect(answerCount.rows[0].count).toBe("0");
     } finally {
       await cleanupFixture(rollbackFixture);
+    }
+  });
+
+  it("pauses application, legacy queue, and runner transports in one transaction", async () => {
+    const workerId = `runner-fence-pause-atomic-${Date.now()}`;
+    const fixture = await createFixture({ workerId });
+    try {
+      const legacy = await query<{ id: string }>(
+        `INSERT INTO public.submission_queue (application_id, status)
+         VALUES ($1, 'sgac_live_assisted_pending')
+         RETURNING id`,
+        [fixture.applicationId],
+      );
+      const paused = await query<{ pause_runner_jobs_for_review: number }>(
+        "SELECT public.pause_runner_jobs_for_review($1::uuid, $2::text)",
+        [fixture.applicationId, "face-match review"],
+      );
+      expect(paused.rows[0].pause_runner_jobs_for_review).toBe(2);
+      const state = await query<{ app_status: string; queue_status: string; paused_reason: string; job_status: string }>(
+        `SELECT application.status AS app_status,
+                queue.status AS queue_status,
+                queue.paused_reason,
+                job.status AS job_status
+         FROM public.applications AS application
+         JOIN public.submission_queue AS queue ON queue.application_id = application.id
+         JOIN public.runner_job AS job ON job.application_id = application.id
+         WHERE application.id = $1 AND queue.id = $2 AND job.id = $3`,
+        [fixture.applicationId, legacy.rows[0].id, fixture.jobId],
+      );
+      expect(state.rows[0]).toEqual({
+        app_status: "staff_action_required",
+        queue_status: "paused",
+        paused_reason: "face-match review",
+        job_status: "paused",
+      });
+    } finally {
+      await query("DELETE FROM public.submission_queue WHERE application_id = $1", [fixture.applicationId]);
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("blocks direct requeues, permits policy-checked retries, and quarantines exhausted work", async () => {
+    const workerId = `runner-fence-requeue-${Date.now()}`;
+    const fixture = await createFixture({ workerId, maxAttempts: 3 });
+    try {
+      await query(
+        "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'failed', 1, 'retry me', 0)",
+        [fixture.jobId, workerId],
+      );
+      const direct = await query(
+        "UPDATE public.runner_job SET status = 'queued' WHERE id = $1 RETURNING id",
+        [fixture.jobId],
+      );
+      expect(direct.rows).toHaveLength(0);
+      const stillFailed = await query<{ status: string }>(
+        "SELECT status FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      expect(stillFailed.rows[0].status).toBe("failed");
+
+      const requeued = await query<{ requeue_runner_job: boolean }>(
+        "SELECT public.requeue_runner_job($1::uuid)",
+        [fixture.jobId],
+      );
+      expect(requeued.rows[0].requeue_runner_job).toBe(true);
+      const queued = await query<{ status: string; attempts: number; leased_by: string | null; started_at: string | null; finished_at: string | null }>(
+        "SELECT status, attempts, leased_by, started_at, finished_at FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      expect(queued.rows[0]).toMatchObject({ status: "queued", attempts: 1, leased_by: null, started_at: null, finished_at: null });
+
+      await query("UPDATE public.runner_job SET status = 'failed', last_error = $2 WHERE id = $1", [fixture.jobId, "quarantined by test"]);
+      const quarantined = await query<{ requeue_runner_job: boolean }>(
+        "SELECT public.requeue_runner_job($1::uuid)",
+        [fixture.jobId],
+      );
+      expect(quarantined.rows[0].requeue_runner_job).toBe(false);
+    } finally {
+      await cleanupFixture(fixture);
+    }
+
+    const exhaustedWorker = `runner-fence-requeue-exhausted-${Date.now()}`;
+    const exhausted = await createFixture({ workerId: exhaustedWorker, maxAttempts: 1 });
+    try {
+      await query(
+        "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'failed', 1, 'exhausted', 0)",
+        [exhausted.jobId, exhaustedWorker],
+      );
+      const result = await query<{ requeue_runner_job: boolean }>(
+        "SELECT public.requeue_runner_job($1::uuid)",
+        [exhausted.jobId],
+      );
+      expect(result.rows[0].requeue_runner_job).toBe(false);
+    } finally {
+      await cleanupFixture(exhausted);
+    }
+  });
+
+  it("rejects malformed queued inserts and excludes exhausted queued claims", async () => {
+    const workerId = `runner-fence-queued-guard-${Date.now()}`;
+    const fixture = await createFixture({ workerId });
+    try {
+      await expect(
+        query(
+          `INSERT INTO public.runner_job (
+             application_id, country, flow_key, status, attempts, max_attempts,
+             available_at, leased_by
+           ) VALUES ($1, 'vietnam', 'vn_prearrival', 'queued', 3, 3, NOW(), 'forged')`,
+          [fixture.applicationId],
+        ),
+      ).rejects.toMatchObject({ code: "23514" });
+
+      const adjuster = await pool!.connect();
+      try {
+        await adjuster.query("BEGIN");
+        await adjuster.query("SET LOCAL session_replication_role = 'replica'");
+        await adjuster.query(
+          "UPDATE public.runner_job SET status = 'queued', attempts = max_attempts, leased_by = NULL, leased_until = NULL, started_at = NULL, finished_at = NULL WHERE id = $1",
+          [fixture.jobId],
+        );
+        await adjuster.query("COMMIT");
+      } finally {
+        await adjuster.query("ROLLBACK").catch(() => undefined);
+        adjuster.release();
+      }
+      const claim = await query(
+        "SELECT * FROM public.claim_runner_pool_job($1::text, 60000, FALSE, NOW() + INTERVAL '1 day')",
+        [workerId],
+      );
+      expect(claim.rows).toHaveLength(0);
+      const state = await query<{ status: string; attempts: number }>(
+        "SELECT status, attempts FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      expect(state.rows[0]).toEqual({ status: "queued", attempts: 3 });
+    } finally {
+      await cleanupFixture(fixture);
     }
   });
 

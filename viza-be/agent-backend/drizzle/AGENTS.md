@@ -209,10 +209,15 @@ The current internal automation migrations are:
   running trigger takes the application mutex with `NOWAIT` before consuming a
   claim capability. Claiming mints and consumes a full old/new-row `claim`
   capability, and a `BEFORE INSERT` guard rejects direct running rows. The
-  service-role-only
-  `cancel_application_submission` and `settle_runner_job_takeover` RPCs lock
-  application/session/job rows in deterministic order and atomically update
-  queue/job, application, session, and takeover action-log state.
+  service-role-only `claim_takeover_session`,
+  `cancel_application_submission`, `requeue_runner_job`, and
+  `settle_runner_job_takeover` RPCs use exact row locks/capabilities. Takeover
+  claims are kind-fenced and same-claimant idempotent; settlement requires the
+  claimant's `claimed` session, writes only bounded string-valued answer JSON,
+  derives the answer count, and atomically updates answers, queue/job,
+  application, session, and takeover action-log state. Review pause atomically
+  marks the application, pauses active legacy queue rows, and then pauses
+  runner jobs under the application-first mutex.
   Apply this as a controlled-drain-only migration: pause enqueue/wakes, drain
   running jobs to zero, stop BASE workers, apply the migration, deploy strict
   RPC callers, smoke test, then resume workers.
