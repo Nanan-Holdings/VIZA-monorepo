@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { supabase } from "../../src/supabase";
 import { normalizeCountry } from "../../src/queue/dispatch";
+import { deriveBackfillPoolFlow } from "../../src/queue/backfill-flow";
 
 /**
  * QUE-009: one-time recovery for the orphaned-paid-orders incident.
@@ -68,17 +69,28 @@ async function main(): Promise<void> {
 
     const { data: app } = await supabase
       .from("applications")
-      .select("country")
+      .select("country, visa_type")
       .eq("id", applicationId)
       .maybeSingle();
-    if (!app?.country) {
-      console.warn(`  skip ${applicationId}: no country on application`);
+    if (
+      typeof app?.country !== "string" || app.country.trim().length === 0
+      || typeof app.visa_type !== "string" || app.visa_type.trim().length === 0
+    ) {
+      console.warn(`  skip ${applicationId}: missing country or visa_type on application`);
       skipped += 1;
       continue;
     }
     const country = normalizeCountry(app.country as string);
+    const flowKey = deriveBackfillPoolFlow(app.country as string, app.visa_type as string);
+    if (!flowKey) {
+      console.warn(
+        `  skip ${applicationId}: unsupported or ambiguous pool flow country=${country} visa_type=${String(app.visa_type)}`,
+      );
+      skipped += 1;
+      continue;
+    }
 
-    console.log(`  ${confirm ? "enqueue" : "would enqueue"} app=${applicationId} country=${country}`);
+    console.log(`  ${confirm ? "enqueue" : "would enqueue"} app=${applicationId} country=${country} flow=${flowKey}`);
     if (!confirm) {
       enqueued += 1;
       continue;
@@ -86,6 +98,7 @@ async function main(): Promise<void> {
     const { error: insErr } = await supabase.from("runner_job").insert({
       application_id: applicationId,
       country,
+      flow_key: flowKey,
       status: "queued",
       attempts: 0,
       max_attempts: 3,

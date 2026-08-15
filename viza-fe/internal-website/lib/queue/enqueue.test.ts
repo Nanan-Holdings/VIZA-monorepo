@@ -18,7 +18,7 @@ vi.mock("@/lib/resilience/runner-job-wakeup", () => ({
   enqueueRunnerJobWake: enqueueRunnerJobWakeMock,
 }));
 
-import { desiredRunnerPoolCapacity, enqueueRunnerPoolJob } from "./enqueue";
+import { desiredRunnerPoolCapacity, enqueueRunnerJob, enqueueRunnerPoolJob } from "./enqueue";
 
 type RpcRow = {
   runner_job_id: string | null;
@@ -48,6 +48,7 @@ function configureAdmin(
     available_at: null,
   },
   authorityError: { message: string } | null = null,
+  applicationVisaType: string | null = null,
 ) {
   const rpc = vi.fn().mockResolvedValue({
     data: {
@@ -73,9 +74,34 @@ function configureAdmin(
     eq: vi.fn(() => runnerJobQuery),
     maybeSingle: vi.fn().mockResolvedValue({ data: authorityState, error: authorityError }),
   };
+  const applicationQuery = {
+    select: vi.fn(() => applicationQuery),
+    eq: vi.fn(() => applicationQuery),
+    single: vi.fn().mockResolvedValue({ data: { visa_type: applicationVisaType }, error: null }),
+  };
+  const insertedRunnerJobs: unknown[] = [];
+  const rollbackQuery = {
+    select: vi.fn(() => rollbackQuery),
+    eq: vi.fn(() => rollbackQuery),
+    in: vi.fn(() => rollbackQuery),
+    order: vi.fn(() => rollbackQuery),
+    limit: vi.fn(() => rollbackQuery),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    insert: vi.fn((values: unknown) => {
+      insertedRunnerJobs.push(values);
+      return rollbackQuery;
+    }),
+    single: vi.fn().mockResolvedValue({ data: { id: "job-rollback" }, error: null }),
+  };
   withAdminMock.mockImplementation(async (_mode: string, actor: string, fn: (admin: unknown) => Promise<unknown>) => {
     if (actor === "lib/queue:pool-depth") {
       return fn({ from: vi.fn(() => depthQuery) });
+    }
+    if (actor === "lib/queue:application-flow") {
+      return fn({ from: vi.fn(() => applicationQuery) });
+    }
+    if (actor === "lib/queue:enqueue-rollback") {
+      return fn({ from: vi.fn(() => rollbackQuery) });
     }
     return fn({
       rpc,
@@ -88,7 +114,7 @@ function configureAdmin(
       }),
     });
   });
-  return { rpc };
+  return { rpc, insertedRunnerJobs };
 }
 
 describe("runner pool enqueue wake transport", () => {
@@ -96,6 +122,7 @@ describe("runner pool enqueue wake transport", () => {
 
   beforeEach(() => {
     delete process.env.RESILIENCE_RUNNER_WAKE_ENABLED;
+    delete process.env.RUNNER_POOL_MIGRATION_ENABLED;
     ensureFlyMachineCapacityMock.mockReset();
     wakeCloudSubmissionWorkerMock.mockReset();
     enqueueRunnerJobWakeMock.mockReset();
@@ -301,5 +328,35 @@ describe("runner pool enqueue wake transport", () => {
     await expect(enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa")).rejects.toThrow("no runner job id");
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed before insert or wake when a shared-pool country has no resolved flow", async () => {
+    const { rpc, insertedRunnerJobs } = configureAdmin({}, undefined, undefined, null, "MY_TOURIST_E_VISA");
+
+    await expect(enqueueRunnerJob("app-unsupported", "malaysia")).rejects.toThrow(
+      "unsupported or ambiguous shared-pool visa flow",
+    );
+    expect(rpc).not.toHaveBeenCalled();
+    expect(insertedRunnerJobs).toHaveLength(0);
+    expect(ensureFlyMachineCapacityMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+  });
+
+  it("writes the exact resolved flow key on the rollback insert when migration is off", async () => {
+    delete process.env.RUNNER_POOL_MIGRATION_ENABLED;
+    const { insertedRunnerJobs } = configureAdmin({}, undefined, undefined, null, "MY_MDAC_ARRIVAL_CARD");
+
+    const result = await enqueueRunnerJob("app-mdac", "malaysia");
+
+    expect(result).toEqual({ id: "job-rollback", created: true });
+    expect(insertedRunnerJobs).toEqual([
+      expect.objectContaining({
+        application_id: "app-mdac",
+        country: "malaysia",
+        flow_key: "mdac",
+      }),
+    ]);
+    expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("job-rollback", { target: "pool" });
   });
 });

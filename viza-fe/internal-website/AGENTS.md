@@ -375,7 +375,10 @@ Smoke URLs:
   `RESILIENCE_RUNNER_WAKE_ENABLED` is default-off and accepts only exact
   `true`, `on`, or `1`. An accepted/duplicate Queue wake suppresses direct Fly
   wake; Queue errors or unusable responses use the bounded direct-wake
-  fallback, and future `availableAt` work is never published early.
+  fallback, and future `availableAt` work is never published early. Shared
+  pool countries must resolve an exact package flow before any rollback
+  insert/wake; migration-off inserts still carry that non-null `flow_key`,
+  while Vietnam eVisa remains on its sticky legacy policy.
 - `lib/admin-access.ts`
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`

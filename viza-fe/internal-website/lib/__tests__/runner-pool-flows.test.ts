@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isSharedRunnerPoolCountry,
   resolveRunnerPoolFlow,
   shouldUseSharedRunnerPool,
 } from "@/lib/queue/flows";
@@ -21,6 +22,19 @@ describe("resolveRunnerPoolFlow", () => {
     expect(resolveRunnerPoolFlow("france", "FR_SHORT_STAY")).toBeNull();
     expect(resolveRunnerPoolFlow("indonesia", "ID_C1_TOURIST")).toBeNull();
     expect(resolveRunnerPoolFlow("indonesia", "ID_B1_EVOA")).toBeNull();
+  });
+});
+
+describe("isSharedRunnerPoolCountry", () => {
+  it.each(["vietnam", "vn", "singapore", "sg", "malaysia", "my", "thailand", "th", "south_korea", "kr"])(
+    "recognizes %s",
+    (country) => {
+      expect(isSharedRunnerPoolCountry(country)).toBe(true);
+    },
+  );
+
+  it.each(["indonesia", "france", "new_zealand"])("does not classify %s as shared pool", (country) => {
+    expect(isSharedRunnerPoolCountry(country)).toBe(false);
   });
 });
 

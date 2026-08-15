@@ -104,3 +104,16 @@ export async function launchAbortableResource<T>(
     signal?.removeEventListener("abort", abortListener);
   }
 }
+
+/**
+ * Close a browser/session during final cleanup without masking the original
+ * portal or ownership error. Cleanup is deliberately best effort because the
+ * resource may already be gone after an abort or provider disconnect.
+ */
+export async function closeResourceBestEffort(
+  resource: { close: () => Promise<unknown> | unknown },
+): Promise<void> {
+  await Promise.resolve()
+    .then(() => resource.close())
+    .catch(() => undefined);
+}

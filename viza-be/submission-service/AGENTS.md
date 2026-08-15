@@ -115,6 +115,12 @@ filling and one-shot submission for the applicant.
   the typed ownership cancellation. The queue handler
   reports ownership cancellation as `ownership_lost`, never as an ordinary
   portal `failed` event.
+- `src/queue/handler.ts` treats `runner_job.flow_key` as required pool
+  identity. Null/blank flow keys fail before dispatch, so the pool consumer
+  never falls through to the legacy country dispatch table. The paid-order
+  backfill derives only explicit supported pool flows and always inserts the
+  exact non-null `flow_key`; Vietnam eVisa remains excluded because it uses
+  the sticky worker.
 - `src/queue/takeover.ts` requires the claiming `workerId` and filters the
   update by `runner_job.id`, `status='running'`, and `leased_by` before
   inserting a takeover session or sending an alert. A zero-row/`RETURN NULL`

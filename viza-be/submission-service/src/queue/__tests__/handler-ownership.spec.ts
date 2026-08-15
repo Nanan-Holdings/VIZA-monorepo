@@ -54,3 +54,40 @@ test("runnerJobHandler emits ownership_lost instead of ordinary failed on cancel
   assert.equal(eventNames.includes("ownership_lost"), true);
   assert.equal(eventNames.includes("failed"), false);
 });
+
+test("runnerJobHandler rejects a missing pool flow key before resolving any runner", async () => {
+  const { createRunnerJobHandler } = await import("../handler.js");
+  let resolverCalls = 0;
+  const handler = createRunnerJobHandler(() => {
+    resolverCalls += 1;
+    return async () => ({
+      outcome: "halted_before_pay" as const,
+      reachedStep: "test",
+      artefacts: [],
+    });
+  });
+  const execution = {
+    jobId: "job-missing-flow",
+    workerId: "worker-handler-test",
+    signal: new AbortController().signal,
+    assertOwned: () => undefined,
+    checkpoint: () => undefined,
+  };
+
+  for (const flowKey of [null, "   "] as const) {
+    await assert.rejects(
+      () => handler({
+        id: "job-missing-flow",
+        application_id: "app-missing-flow",
+        country: "singapore",
+        flow_key: flowKey,
+        attempts: 0,
+        max_attempts: 3,
+        correlation_id: null,
+        metadata: null,
+      }, execution),
+      /missing flow_key/,
+    );
+  }
+  assert.equal(resolverCalls, 0);
+});

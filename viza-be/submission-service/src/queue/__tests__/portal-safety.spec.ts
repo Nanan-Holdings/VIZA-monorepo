@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import { RunnerJobOwnershipLostError, type RunnerExecutionContext } from "../execution-context.js";
 
@@ -95,5 +97,36 @@ test("abortable launch swallows a rejected close without replacing ownership can
     assert.deepEqual(unhandled, []);
   } finally {
     process.off("unhandledRejection", onUnhandled);
+  }
+});
+
+test("best-effort browser cleanup swallows a rejected final close", async () => {
+  const module = await import("../portal-safety.js");
+  const closeResourceBestEffort = module.closeResourceBestEffort;
+  const portalError = new Error("portal failure");
+  let closeCalls = 0;
+
+  await assert.rejects(
+    async () => {
+      try {
+        throw portalError;
+      } finally {
+        await closeResourceBestEffort({
+          close: async () => {
+            closeCalls += 1;
+            throw new Error("browser close failed");
+          },
+        });
+      }
+    },
+    (error: unknown) => error === portalError,
+  );
+  assert.equal(closeCalls, 1);
+});
+
+test("MDAC and TDAC final cleanup use the best-effort close boundary", () => {
+  for (const runner of ["mdac", "tdac"]) {
+    const source = fs.readFileSync(path.resolve(__dirname, `../../${runner}/runner.ts`), "utf8");
+    assert.match(source, /await closeResourceBestEffort\(browserSession\)/, runner);
   }
 });

@@ -5,7 +5,11 @@ import { type Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { MDAC_OFFICIAL_PORTAL_URL, type MdacPortalPayload } from "./normalize";
 import type { RunnerExecutionContext } from "../queue/execution-context.js";
-import { acceptOwnedDialog, launchAbortableResource } from "../queue/portal-safety.js";
+import {
+  acceptOwnedDialog,
+  closeResourceBestEffort,
+  launchAbortableResource,
+} from "../queue/portal-safety.js";
 
 export interface MdacPortalSubmissionResult {
   submitted: boolean;
@@ -676,7 +680,7 @@ export async function runMdacPortalSubmission(
     return buildMdacSuccessFromPortalText(payload, portalText, page.url(), screenshots, pdfs, logs);
   } finally {
     options.executionContext?.signal.removeEventListener("abort", abortListener);
-    await browserSession.close();
+    await closeResourceBestEffort(browserSession);
   }
 }
 

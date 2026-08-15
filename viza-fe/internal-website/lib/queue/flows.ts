@@ -5,6 +5,7 @@ import {
   isVietnamEVisaApplication,
   isVietnamPrearrivalApplication,
 } from "@/lib/submission-queue";
+import { normalizeCountry } from "./countries";
 
 export const RUNNER_POOL_FLOW_KEYS = [
   "vn_evisa",
@@ -16,6 +17,18 @@ export const RUNNER_POOL_FLOW_KEYS = [
 ] as const;
 
 export type RunnerPoolFlowKey = (typeof RUNNER_POOL_FLOW_KEYS)[number];
+
+const SHARED_RUNNER_POOL_COUNTRIES = new Set([
+  "vietnam",
+  "singapore",
+  "malaysia",
+  "thailand",
+  "south_korea",
+]);
+
+export function isSharedRunnerPoolCountry(country: string): boolean {
+  return SHARED_RUNNER_POOL_COUNTRIES.has(normalizeCountry(country));
+}
 
 /**
  * Production placement policy for typed runner flows.

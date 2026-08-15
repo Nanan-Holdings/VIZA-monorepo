@@ -8,6 +8,7 @@ import type { RunnerExecutionContext } from "../queue/execution-context.js";
 import {
   acceptOwnedDialog,
   clickOwned,
+  closeResourceBestEffort,
   launchAbortableResource,
   runOwnedAction,
 } from "../queue/portal-safety.js";
@@ -2171,7 +2172,7 @@ export async function runTdacPortalSubmission(
     return buildTdacSuccessFromPortalText(payload, portalText, page.url(), screenshots, pdfs, logs);
   } finally {
     options.executionContext?.signal.removeEventListener("abort", abortListener);
-    await browserSession.close();
+    await closeResourceBestEffort(browserSession);
   }
 }
 
