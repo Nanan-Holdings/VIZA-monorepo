@@ -108,6 +108,12 @@ and must fail closed; callers must not perform a direct table settlement.
   are fenced by status, owner, and a live lease; a typed
   `runner_job_ownership_lost` result skips fallback failure writes, alerts, and
   metrics so a stale worker cannot mutate a reclaimed job.
+- `src/tw/applicant-handoff.ts`: Taiwan's `tw_entry_permit` applicant handoff
+  is RPC-only. The runner passes its exact `RunnerExecutionContext` and
+  bounded stopped payload to `open_tw_applicant_handoff`, polls with ownership
+  checkpoints, and settles completion/expiry through
+  `settle_tw_applicant_handoff`; it must not write `applications`,
+  `takeover_session`, or `takeover_action_log` directly.
 - Queue handlers receive a `RunnerExecutionContext` with an `AbortSignal` and
   `assertOwned` checkpoints. Lease renewal loss or expiry aborts the active
   portal session, and every shared-pool adapter checks ownership immediately
@@ -176,7 +182,8 @@ and must fail closed; callers must not perform a direct table settlement.
   transaction, one application has at most one active browser job, and
   different application IDs remain independent queue items.
 - Shared cloud topology uses `viza-runner-pool` for Vietnam Pre-Arrival,
-  Singapore, Malaysia, Thailand, and Korea background `runner_job` flows.
+  Singapore, Malaysia, Thailand, Korea background, and Taiwan Entry Permit
+  `runner_job` flows.
   Indonesia B1/C1 uses one retained sticky `viza-runner-indonesia` Machine and
   its dedicated `submission_queue` claim RPC so its account, OTP, card and
   payment state stay on one process. `src/runner-slot-lease.ts` binds every

@@ -37,6 +37,13 @@ coa.immigration.gov.tw only.
 - `src/tw/captcha.ts` owns the Taiwan CAPTCHA selectors, screenshot solve,
   retry/report-bad flow, and submit click. Persist solve telemetry only; never
   persist the solved CAPTCHA text.
+- `src/tw/applicant-handoff.ts` is the only handoff lifecycle boundary. Open,
+  poll, and settle through the typed `open_tw_applicant_handoff`,
+  `claim_tw_applicant_handoff` (frontend), and
+  `settle_tw_applicant_handoff` RPC contracts. Require the exact runner job,
+  worker, application, applicant, takeover, and expiry identity at every
+  checkpoint; a zero or malformed row is a typed conflict and must not fall
+  back to direct `takeover_session`, `applications`, or audit-log writes.
 - Label-based Playwright locators in `fillers.ts`/`apply.ts` are provisional
   (no concrete DOM ids/names were captured during the live walkthrough) —
   see the TODOs in those files. Verify against the live site before trusting

@@ -380,20 +380,22 @@ describe("runner pool enqueue wake transport", () => {
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
   });
 
-  it("writes the exact resolved flow key on the rollback insert when migration is off", async () => {
+  it("uses the atomic pool RPC even when the migration flag is off", async () => {
     delete process.env.RUNNER_POOL_MIGRATION_ENABLED;
-    const { insertedRunnerJobs } = configureAdmin({}, undefined, undefined, null, "MY_MDAC_ARRIVAL_CARD");
+    const { rpc, insertedRunnerJobs } = configureAdmin({ runner_job_id: "job-mdac" }, undefined, {
+      id: "job-mdac",
+      status: "queued",
+      available_at: null,
+    }, null, "MY_MDAC_ARRIVAL_CARD");
 
     const result = await enqueueRunnerJob("app-mdac", "malaysia");
 
-    expect(result).toEqual({ id: "job-rollback", created: true });
-    expect(insertedRunnerJobs).toEqual([
-      expect.objectContaining({
-        application_id: "app-mdac",
-        country: "malaysia",
-        flow_key: "mdac",
-      }),
-    ]);
-    expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("job-rollback", { target: "pool" });
+    expect(result).toEqual({ id: "job-mdac", created: true });
+    expect(rpc).toHaveBeenCalledWith("enqueue_runner_pool_job", expect.objectContaining({
+      p_application_id: "app-mdac",
+      p_country: "malaysia",
+      p_flow_key: "mdac",
+    }));
+    expect(insertedRunnerJobs).toHaveLength(0);
   });
 });

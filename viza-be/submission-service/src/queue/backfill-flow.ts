@@ -9,6 +9,7 @@ export const BACKFILL_POOL_FLOW_KEYS = [
   "mdac",
   "tdac",
   "kr_eform",
+  "tw_entry_permit",
 ] as const;
 
 export type BackfillPoolFlowKey = (typeof BACKFILL_POOL_FLOW_KEYS)[number];
@@ -58,6 +59,12 @@ export function deriveBackfillPoolFlow(
     && (normalizedVisaType === "KR_C39_SHORT_TERM_VISIT" || normalizedVisaType === "KR_C_3_9")
   ) {
     return "kr_eform";
+  }
+  if (
+    (normalizedCountry === "TW" || normalizedCountry === "TAIWAN")
+    && normalizedVisaType === "TW_ENTRY_PERMIT"
+  ) {
+    return "tw_entry_permit";
   }
   return null;
 }

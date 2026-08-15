@@ -22,7 +22,7 @@ import {
 } from "../ceac/index.js";
 import { resumeUkApplication, normalizeUkAnswers, UkNormalizationError } from "../uk/index.js";
 import { registerUkAccount } from "../uk/register.js";
-import { writeSubmissionResult } from "../result-writer.js";
+import { writeRunnerPoolSubmissionResult, writeSubmissionResult } from "../result-writer.js";
 import { encryptSecret } from "../secret-cipher.js";
 import type { UkSubmissionResult, TwSubmissionResult } from "../submission-result.js";
 import {
@@ -63,6 +63,9 @@ import {
   type RunOne,
   type DispatchOutcome,
 } from "./types.js";
+import {
+  requirePoolExecutionIdentity,
+} from "./execution-context.js";
 
 const HALTED: (reachedStep: string, artefacts?: string[]) => DispatchOutcome = (
   reachedStep,
@@ -322,14 +325,13 @@ export interface PreparedTwEntryPermitApplication {
  * The optional official-login hook is only used if the NIA page actually
  * presents a username/password login page. See src/tw/AGENTS.md.
  */
-export const runTwHalt: RunOne = async (applicationId, jobId) => {
-  if (!jobId) {
-    throw new NeedsHumanError("taiwan applicant handoff requires a runner_job id");
-  }
-  const runId = jobId ?? applicationId;
+export const runTwHalt: RunOne = async (applicationId, jobId, execution) => {
+  const identity = requirePoolExecutionIdentity(execution, jobId, "taiwan runner");
+  const { executionContext } = identity;
+  const runId = identity.jobId;
   let prepared: PreparedTwEntryPermitApplication;
   try {
-    prepared = await prepareTwEntryPermitApplication(applicationId, { currentJobId: jobId });
+    prepared = await prepareTwEntryPermitApplication(applicationId, { currentJobId: identity.jobId });
   } catch (err) {
     if (err instanceof TwDuplicateRunError) throw new NeedsHumanError(err.message);
     if (err instanceof TwNormalizationError) throw new NeedsHumanError(`taiwan: ${err.message}`);
@@ -338,6 +340,7 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
 
   const { input, applyOptions } = prepared;
 
+  let handoffSettled = false;
   let result;
   try {
     result = await fillTwEntryPermitApplication(
@@ -354,25 +357,16 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
         officialLoginProvider: createTwOfficialLoginProviderFromEnvironment(),
         officialLoginOtpProvider: createTwOfficialLoginOtpProviderFromEnvironment(),
         onApplicantHandoffReady: async (ready) => {
+          executionContext.checkpoint("taiwan applicant handoff open");
           if (!ready.session.handoff) {
             throw new Error("taiwan applicant handoff session metadata is missing");
           }
-          const handoff = await registerTwApplicantHandoff({
-            jobId,
-            applicationId,
-            applicantId: prepared.applicantId,
-            browserbaseSessionId: ready.session.handoff.sessionId,
-            liveViewUrl: ready.session.handoff.liveViewUrl,
-            expiresAt: ready.session.handoff.expiresAt,
-          });
-          const twPayload: TwSubmissionResult & { runMetadata: typeof ready.runMetadata } = {
+          const stoppedResult: TwSubmissionResult & { runMetadata: typeof ready.runMetadata } = {
             country: "TW",
             status: "stopped_at_captcha",
             portalUrl: ready.portalUrl,
             pagesFilled: ready.pagesFilled,
             capturedAt: ready.capturedAt,
-            handoffId: handoff.takeoverId,
-            handoffExpiresAt: handoff.expiresAt,
             runMetadata: ready.runMetadata,
             captchaAutoFilled: true,
             captchaSolve: {
@@ -385,12 +379,36 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
               },
             },
           };
-          await writeSubmissionResult(applicationId, twPayload, "needs_user_action");
-          return waitForTwApplicantSubmission({
+          const handoff = await registerTwApplicantHandoff({
+            jobId: identity.jobId,
+            workerId: executionContext.workerId,
+            applicationId,
+            applicantId: prepared.applicantId,
+            browserbaseSessionId: ready.session.handoff.sessionId,
+            liveViewUrl: ready.session.handoff.liveViewUrl,
+            expiresAt: ready.session.handoff.expiresAt,
+            stoppedResult: stoppedResult as unknown as Record<string, unknown>,
+            execution: executionContext,
+          });
+          const receipt = await waitForTwApplicantSubmission({
             page: ready.page,
             takeoverId: handoff.takeoverId,
             expiresAt: handoff.expiresAt,
+            jobId: identity.jobId,
+            workerId: executionContext.workerId,
+            applicationId,
+            execution: executionContext,
+            buildSubmissionResult: (officialReceipt) => ({
+              ...stoppedResult,
+              status: "submitted",
+              submittedAt: officialReceipt.capturedAt,
+              officialReceipt,
+              handoffId: handoff.takeoverId,
+              handoffExpiresAt: handoff.expiresAt,
+            }),
           });
+          handoffSettled = true;
+          return receipt;
         },
       },
     );
@@ -416,7 +434,7 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
     };
     // "needs_user_action": CAPTCHA is exactly the human-checkpoint case this
     // shared status was documented for (see submission-result.ts header).
-    await writeSubmissionResult(applicationId, twPayload, "needs_user_action");
+    await writeRunnerPoolSubmissionResult(executionContext, twPayload, "needs_user_action");
     return HALTED(result.status);
   }
   if (result.status === "submitted") {
@@ -441,7 +459,9 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
       captchaAutoFilled: true,
       ...(result.caseNumber ? { caseNumber: result.caseNumber } : {}),
     };
-    await writeSubmissionResult(applicationId, twPayload, "completed");
+    if (!handoffSettled) {
+      await writeRunnerPoolSubmissionResult(executionContext, twPayload, "completed");
+    }
     return HALTED("submitted");
   }
   if (result.status === "failed") {

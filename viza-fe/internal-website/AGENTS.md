@@ -382,9 +382,11 @@ Smoke URLs:
   `true`, `on`, or `1`. An accepted/duplicate Queue wake suppresses direct Fly
   wake; Queue errors or unusable responses use the bounded direct-wake
   fallback, and future `availableAt` work is never published early. Shared
-  pool countries must resolve an exact package flow before any rollback
-  insert/wake; migration-off inserts still carry that non-null `flow_key`,
-  while Vietnam eVisa remains on its sticky legacy policy.
+  pool countries must resolve an exact package flow before enqueue/wake. The
+  strict active flows (`vn_prearrival`, `sgac`, `mdac`, `tdac`, `kr_eform`,
+  `tw_entry_permit`) always use the atomic pool RPC even when the migration flag
+  is false; no direct `runner_job` rollback insert is permitted. Vietnam eVisa
+  remains on its explicitly sticky legacy policy.
 - `lib/admin-access.ts`
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`

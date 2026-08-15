@@ -13,6 +13,7 @@ describe("resolveRunnerPoolFlow", () => {
     ["vietnam", "VN_PREARRIVAL_DECLARATION", "vn_prearrival"],
     ["vietnam", "VN_E_VISA", "vn_evisa"],
     ["south_korea", "KR_C39_SHORT_TERM_VISIT", "kr_eform"],
+    ["taiwan", "TW_ENTRY_PERMIT", "tw_entry_permit"],
   ])("maps %s/%s to %s", (country, visaType, expected) => {
     expect(resolveRunnerPoolFlow(country, visaType)).toBe(expected);
   });
@@ -26,7 +27,7 @@ describe("resolveRunnerPoolFlow", () => {
 });
 
 describe("isSharedRunnerPoolCountry", () => {
-  it.each(["vietnam", "vn", "singapore", "sg", "malaysia", "my", "thailand", "th", "south_korea", "kr"])(
+  it.each(["vietnam", "vn", "singapore", "sg", "malaysia", "my", "thailand", "th", "south_korea", "kr", "taiwan", "tw"])(
     "recognizes %s",
     (country) => {
       expect(isSharedRunnerPoolCountry(country)).toBe(true);
@@ -43,14 +44,14 @@ describe("shouldUseSharedRunnerPool", () => {
     expect(shouldUseSharedRunnerPool("vn_evisa", true)).toBe(false);
   });
 
-  it("keeps Vietnam pre-arrival pool-only while the global migration gate is closed", () => {
+  it("keeps Vietnam pre-arrival pool-only while the legacy flag is closed", () => {
     expect(shouldUseSharedRunnerPool("vn_prearrival", false)).toBe(true);
   });
 
-  it.each(["sgac", "mdac", "tdac", "kr_eform"] as const)(
-    "uses the migration gate for %s",
+  it.each(["sgac", "mdac", "tdac", "kr_eform", "tw_entry_permit"] as const)(
+    "keeps strict pool flow %s on the atomic transport regardless of the legacy flag",
     (flowKey) => {
-      expect(shouldUseSharedRunnerPool(flowKey, false)).toBe(false);
+      expect(shouldUseSharedRunnerPool(flowKey, false)).toBe(true);
       expect(shouldUseSharedRunnerPool(flowKey, true)).toBe(true);
     },
   );

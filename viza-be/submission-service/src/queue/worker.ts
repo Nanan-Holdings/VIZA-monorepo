@@ -10,6 +10,21 @@ export { RunnerJobOwnershipLostError } from "./execution-context.js";
 export type { RunnerExecutionContext } from "./execution-context.js";
 
 /**
+ * A non-empty RPC payload that does not match the lifecycle contract is a
+ * schema/protocol failure, not an empty queue or an ownership miss. Keeping
+ * this distinction visible prevents a malformed response from silently
+ * stopping a worker drain.
+ */
+export class RunnerPoolRpcSchemaError extends Error {
+  readonly code = "runner_pool_rpc_schema_error" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "RunnerPoolRpcSchemaError";
+  }
+}
+
+/**
  * runner_job consumer (INFRA-002).
  *
  * Postgres-backed FIFO claimed through one service-role-only RPC using
@@ -83,8 +98,7 @@ export async function claimNextJob(opts: ClaimOpts): Promise<RunnerJob | null> {
   if (error) {
     throw new Error(`runner pool claim RPC: ${error.message}`);
   }
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ? (row as RunnerJob) : null;
+  return parseClaimedRunnerJob(data);
 }
 
 export interface RunnerPoolRpcResult {
@@ -112,9 +126,119 @@ export interface RunnerQueueDependencies {
 
 const defaultClient = supabase as unknown as RunnerPoolClient;
 
-function asRpcRow(data: unknown): Record<string, unknown> | null {
-  const row = Array.isArray(data) ? data[0] : data;
-  return row && typeof row === "object" ? (row as Record<string, unknown>) : null;
+const ACTIVE_POOL_FLOW_COUNTRIES = {
+  vn_prearrival: "vietnam",
+  sgac: "singapore",
+  mdac: "malaysia",
+  tdac: "thailand",
+  kr_eform: "south_korea",
+  tw_entry_permit: "taiwan",
+} as const;
+
+const ACTIVE_POOL_COUNTRIES = new Set<string>(Object.values(ACTIVE_POOL_FLOW_COUNTRIES));
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isInteger(value: unknown): value is number {
+  return Number.isInteger(value);
+}
+
+function asRpcRow(data: unknown, operation: string): Record<string, unknown> | null {
+  if (data === null || data === undefined) return null;
+  let row: unknown = data;
+  if (Array.isArray(data)) {
+    if (data.length === 0) return null;
+    if (data.length !== 1) {
+      throw new RunnerPoolRpcSchemaError(
+        `${operation} RPC returned ${data.length} rows; expected at most one`,
+      );
+    }
+    row = data[0];
+  }
+  if (!row || typeof row !== "object" || Array.isArray(row)) {
+    throw new RunnerPoolRpcSchemaError(`${operation} RPC returned a malformed row`);
+  }
+  return row as Record<string, unknown>;
+}
+
+function parseClaimedRunnerJob(data: unknown): RunnerJob | null {
+  const row = asRpcRow(data, "claim_runner_pool_job");
+  if (!row) return null;
+  if (
+    !isNonBlankString(row.id)
+    || !isNonBlankString(row.application_id)
+    || !isNonBlankString(row.country)
+    || !isNonBlankString(row.flow_key)
+    || !isInteger(row.attempts)
+    || !isInteger(row.max_attempts)
+  ) {
+    throw new RunnerPoolRpcSchemaError("claim_runner_pool_job RPC returned an invalid job row");
+  }
+  if (row.attempts < 0 || row.max_attempts <= row.attempts) {
+    throw new RunnerPoolRpcSchemaError("claim_runner_pool_job RPC returned invalid attempt bounds");
+  }
+  if (
+    ACTIVE_POOL_FLOW_COUNTRIES[row.flow_key as keyof typeof ACTIVE_POOL_FLOW_COUNTRIES]
+      !== row.country
+  ) {
+    throw new RunnerPoolRpcSchemaError(
+      "claim_runner_pool_job RPC returned an unsupported country/flow tuple",
+    );
+  }
+  if (row.correlation_id !== null && !isNonBlankString(row.correlation_id)) {
+    throw new RunnerPoolRpcSchemaError(
+      "claim_runner_pool_job RPC returned an invalid correlation_id",
+    );
+  }
+  if (
+    row.metadata !== null
+    && (typeof row.metadata !== "object" || Array.isArray(row.metadata))
+  ) {
+    throw new RunnerPoolRpcSchemaError("claim_runner_pool_job RPC returned invalid metadata");
+  }
+  return row as unknown as RunnerJob;
+}
+
+function parseCompletedRunnerJob(data: unknown): {
+  application_id: string;
+  country: string;
+  started_at: string | null;
+} | null {
+  const row = asRpcRow(data, "complete_runner_pool_job");
+  if (
+    !row
+    || !isNonBlankString(row.application_id)
+    || !isNonBlankString(row.country)
+    || !ACTIVE_POOL_COUNTRIES.has(row.country)
+    || (row.started_at !== null && typeof row.started_at !== "string")
+  ) {
+    if (!row) return null;
+    throw new RunnerPoolRpcSchemaError(
+      "complete_runner_pool_job RPC returned an invalid completion row",
+    );
+  }
+  return row as {
+    application_id: string;
+    country: string;
+    started_at: string | null;
+  };
+}
+
+function parseFailedRunnerJob(data: unknown, expectedJobId: string): boolean {
+  const row = asRpcRow(data, "fail_runner_pool_job");
+  if (!row) return false;
+  if (
+    !isNonBlankString(expectedJobId)
+    || !isNonBlankString(row.id)
+    || row.id !== expectedJobId
+    || (row.status !== "queued" && row.status !== "failed")
+    || (row.available_at !== null && typeof row.available_at !== "string")
+  ) {
+    throw new RunnerPoolRpcSchemaError("fail_runner_pool_job RPC returned an invalid failure row");
+  }
+  return true;
 }
 
 export async function markSucceeded(
@@ -130,9 +254,7 @@ export async function markSucceeded(
     p_worker_id: workerId,
   });
   if (error) throw new Error(`runner_job complete RPC: ${error.message}`);
-  const row = asRpcRow(data) as
-    | { application_id?: string; country?: string; started_at?: string | null }
-    | null;
+  const row = parseCompletedRunnerJob(data);
   if (!row) throw new RunnerJobOwnershipLostError();
   if (row.application_id && row.country) {
     const ttsSeconds = row.started_at
@@ -174,7 +296,7 @@ export async function markFailedWithRetry(
   if (updErr) {
     throw new Error(`runner_job mark failed: ${updErr.message}`);
   }
-  if (!asRpcRow(updated)) throw new RunnerJobOwnershipLostError();
+  if (!parseFailedRunnerJob(updated, job.id)) throw new RunnerJobOwnershipLostError();
   if (exhausted) {
     // OPS-003: page on-call once retries are exhausted. Per-country
     // throttle absorbs portal-outage storms.
@@ -245,7 +367,7 @@ export async function renewJobLease(
     p_lease_ms: leaseMs,
   });
   if (error) throw new Error(`runner_job lease renewal: ${error.message}`);
-  const row = asRpcRow(data);
+  const row = asRpcRow(data, "renew_runner_pool_job");
   if (!row || typeof row.leased_until !== "string") {
     throw new RunnerJobOwnershipLostError();
   }

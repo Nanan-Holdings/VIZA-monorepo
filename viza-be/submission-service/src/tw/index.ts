@@ -150,5 +150,7 @@ export {
 export {
   registerTwApplicantHandoff,
   waitForTwApplicantSubmission,
+  TwApplicantHandoffConflictError,
+  TwApplicantHandoffExpiredError,
   type TwApplicantHandoffRegistration,
 } from "./applicant-handoff";

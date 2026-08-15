@@ -40,9 +40,11 @@ ports directly.
 
 - `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.ts`
-  claims applicant Taiwan live-view sessions through `claim_takeover_session`
-  with the expected handoff kind before returning a verified URL; its focused
-  zero-row/claim-race coverage lives in the adjacent `route.test.ts`.
+  claims the authoritative Taiwan handoff through
+  `claim_tw_applicant_handoff` with the exact application, applicant, and
+  takeover ID returned in `submission_result.handoffId`. It must not query a
+  latest takeover session or write an audit row; strict zero-row, identity,
+  expiry, and URL-allowlist coverage lives in the adjacent `route.test.ts`.
 - `viza-fe/internal-website/app/api/applications/[id]/cancel-submission/route.ts`
   resolves exact shared-runner flow/country tuples before using the atomic
   cancellation RPC, while unmapped arrival-card flows remain on legacy queue.
