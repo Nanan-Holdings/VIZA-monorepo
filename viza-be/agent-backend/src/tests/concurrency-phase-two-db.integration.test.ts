@@ -130,6 +130,68 @@ const createFixture = async (options: FixtureOptions = {}): Promise<Fixture> => 
   return { applicantId, applicationId, jobId };
 };
 
+const createTaiwanFixture = async (options: {
+  workerId?: string;
+  maxAttempts?: number;
+  leaseUntil?: Date;
+} = {}): Promise<Fixture> => {
+  const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const applicant = await query<{ id: string }>(
+    `INSERT INTO public.applicant_profiles (email, full_name)
+     VALUES ($1, $2)
+     RETURNING id`,
+    [`runner-fence-tw-${suffix}@invalid.test`, "Taiwan runner fence integration"],
+  );
+  const applicantId = applicant.rows[0].id;
+  const application = await query<{ id: string }>(
+    `INSERT INTO public.applications (
+       applicant_id, country, visa_type, status, submission_result,
+       submission_result_status, submission_result_updated_at
+     ) VALUES ($1, 'taiwan', 'tw_entry_permit', 'processing',
+       '{"country":"TW","status":"stopped_at_captcha"}'::jsonb,
+       'needs_user_action', NULL)
+     RETURNING id`,
+    [applicantId],
+  );
+  const applicationId = application.rows[0].id;
+  const workerId = options.workerId ?? `runner-fence-tw-worker-${suffix}`;
+  const job = await query<{ id: string }>(
+    `INSERT INTO public.runner_job (
+       application_id, country, flow_key, status, attempts, max_attempts,
+       available_at, metadata
+     ) VALUES ($1, 'taiwan', 'tw_entry_permit', 'queued', 0, $2, NOW(), $3::jsonb)
+     RETURNING id`,
+    [applicationId, options.maxAttempts ?? 3, JSON.stringify({ synthetic: true })],
+  );
+  const jobId = job.rows[0].id;
+  const claimed = await query<{ id: string }>(
+    "SELECT id FROM public.claim_runner_pool_job($1::text, 60000, FALSE, NOW())",
+    [workerId],
+  );
+  if (claimed.rows[0]?.id !== jobId) {
+    throw new Error("runner fence integration could not claim its synthetic Taiwan fixture");
+  }
+  if (options.leaseUntil) {
+    const adjuster = await pool!.connect();
+    try {
+      await adjuster.query("BEGIN");
+      await adjuster.query("SET LOCAL session_replication_role = 'replica'");
+      await adjuster.query(
+        "UPDATE public.runner_job SET leased_until = $2 WHERE id = $1",
+        [jobId, options.leaseUntil],
+      );
+      await adjuster.query("COMMIT");
+    } finally {
+      await adjuster.query("ROLLBACK").catch(() => undefined);
+      adjuster.release();
+    }
+  }
+  fixtureIds.add(jobId);
+  fixtureIds.add(applicationId);
+  fixtureIds.add(applicantId);
+  return { applicantId, applicationId, jobId };
+};
+
 const cleanupFixture = async (fixture: Fixture): Promise<void> => {
   if (!pool) return;
   await pool.query("DELETE FROM public.runner_job WHERE id = $1", [fixture.jobId]);
@@ -1279,6 +1341,249 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
       expect(paused.rows[0].status).toBe("paused");
     } finally {
       await cleanupFixture(fixture);
+    }
+  });
+
+  it("enqueues and claims the Taiwan tuple, then clears started_at on retry", async () => {
+    const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const applicant = await query<{ id: string }>(
+      `INSERT INTO public.applicant_profiles (email, full_name)
+       VALUES ($1, 'Taiwan enqueue fixture') RETURNING id`,
+      [`runner-fence-tw-enqueue-${suffix}@invalid.test`],
+    );
+    const application = await query<{ id: string }>(
+      `INSERT INTO public.applications (applicant_id, country, visa_type, status)
+       VALUES ($1, 'taiwan', 'tw_entry_permit', 'processing') RETURNING id`,
+      [applicant.rows[0].id],
+    );
+    let fixture: Fixture | undefined;
+    try {
+      const enqueued = await query<{ runner_job_id: string }>(
+        `SELECT * FROM public.enqueue_runner_pool_job(
+           $1::uuid, 'taiwan', 'tw_entry_permit', NOW(), 3, NULL, '{}'::jsonb, NOW()
+         )`,
+        [application.rows[0].id],
+      );
+      expect(enqueued.rows).toHaveLength(1);
+      fixture = {
+        applicantId: applicant.rows[0].id,
+        applicationId: application.rows[0].id,
+        jobId: enqueued.rows[0].runner_job_id,
+      };
+      fixtureIds.add(fixture.jobId);
+      fixtureIds.add(fixture.applicationId);
+      fixtureIds.add(fixture.applicantId);
+      const workerId = `runner-fence-tw-enqueue-worker-${suffix}`;
+      const claimed = await query<{ id: string; country: string; flow_key: string }>(
+        "SELECT id, country, flow_key FROM public.claim_runner_pool_job($1::text, 60000, FALSE, NOW())",
+        [workerId],
+      );
+      expect(claimed.rows).toEqual([
+        { id: fixture.jobId, country: "taiwan", flow_key: "tw_entry_permit" },
+      ]);
+      const failed = await query(
+        "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'queued', 1, 'retry', 0)",
+        [fixture.jobId, workerId],
+      );
+      expect(failed.rows).toHaveLength(1);
+      const row = await query<{ status: string; started_at: string | null; finished_at: string | null }>(
+        "SELECT status, started_at, finished_at FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      expect(row.rows[0]).toEqual({ status: "queued", started_at: null, finished_at: null });
+    } finally {
+      if (fixture) await cleanupFixture(fixture);
+    }
+  });
+
+  it("serializes Taiwan opens, never supersedes a claimed session, and rejects a different job", async () => {
+    const workerId = `runner-fence-tw-open-${Date.now()}`;
+    const fixture = await createTaiwanFixture({ workerId });
+    const other = await createTaiwanFixture({ workerId: `${workerId}-other` });
+    try {
+      const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
+      const stopped = { country: "TW", status: "stopped_at_captcha", portalUrl: "https://nia.invalid" };
+      const openArgs = [fixture.jobId, workerId, fixture.applicationId, fixture.applicantId, "bb-session", "https://live.invalid/view", expiresAt, stopped];
+      const opened = await query<{ opened: boolean; takeover_id: string }>(
+        "SELECT * FROM public.open_tw_applicant_handoff($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, $7::timestamptz, $8::jsonb)",
+        openArgs,
+      );
+      expect(opened.rows).toHaveLength(1);
+      expect(opened.rows[0].opened).toBe(true);
+      const takeoverId = opened.rows[0].takeover_id;
+
+      const concurrent = await Promise.all([
+        query<{ opened: boolean; takeover_id: string }>(
+          "SELECT * FROM public.open_tw_applicant_handoff($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, $7::timestamptz, $8::jsonb)",
+          openArgs,
+        ),
+        query<{ opened: boolean; takeover_id: string }>(
+          "SELECT * FROM public.open_tw_applicant_handoff($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, $7::timestamptz, $8::jsonb)",
+          openArgs,
+        ),
+      ]);
+      expect(concurrent.flatMap((result) => result.rows)).toHaveLength(2);
+      expect(concurrent.flatMap((result) => result.rows).map((row) => row.takeover_id)).toEqual([takeoverId, takeoverId]);
+      const openActions = await query<{ count: string }>(
+        "SELECT COUNT(*)::text AS count FROM public.takeover_action_log WHERE takeover_id = $1 AND action = 'open'",
+        [takeoverId],
+      );
+      expect(openActions.rows[0].count).toBe("1");
+
+      const claimed = await query<{ claimed: boolean; vnc_url: string }>(
+        "SELECT * FROM public.claim_tw_applicant_handoff($1::uuid, $2::uuid, $3::uuid)",
+        [takeoverId, fixture.applicationId, fixture.applicantId],
+      );
+      expect(claimed.rows).toHaveLength(1);
+      expect(claimed.rows[0]).toMatchObject({ claimed: true, vnc_url: "https://live.invalid/view" });
+      const claimedReopen = await query<{ opened: boolean; takeover_id: string }>(
+        "SELECT * FROM public.open_tw_applicant_handoff($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, $7::timestamptz, $8::jsonb)",
+        openArgs,
+      );
+      expect(claimedReopen.rows).toEqual([
+        expect.objectContaining({ opened: true, takeover_id: takeoverId }),
+      ]);
+
+      // The partial unique index permits only one active row per application;
+      // close the first handoff before modelling an orphaned active session
+      // left by an older terminal job. The open RPC must still fail closed on
+      // the exact job mismatch rather than reusing that session.
+      await query(
+        "UPDATE public.takeover_session SET status = 'abandoned', closed_at = NOW() WHERE id = $1",
+        [takeoverId],
+      );
+      await query(
+        `INSERT INTO public.takeover_session (
+           job_id, application_id, applicant_id, status, reason,
+           remote_debug_url, vnc_url, handoff_kind, expires_at
+         ) VALUES ($1, $2, $3, 'queued', 'different job', 'browserbase-session:other',
+           'https://live.invalid/other', 'taiwan_applicant_final_submit', $4)`,
+        [other.jobId, fixture.applicationId, fixture.applicantId, expiresAt],
+      );
+      const blocked = await query(
+        "SELECT * FROM public.open_tw_applicant_handoff($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, $7::timestamptz, $8::jsonb)",
+        openArgs,
+      );
+      expect(blocked.rows).toHaveLength(0);
+    } finally {
+      await cleanupFixture(fixture);
+      await cleanupFixture(other);
+    }
+  });
+
+  it("fences Taiwan claim and settlement ownership, receipt evidence, expiry, and generic operator paths", async () => {
+    const workerId = `runner-fence-tw-settle-${Date.now()}`;
+    const fixture = await createTaiwanFixture({ workerId });
+    try {
+      const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
+      const stopped = { country: "TW", status: "stopped_at_captcha" };
+      const opened = await query<{ takeover_id: string }>(
+        "SELECT * FROM public.open_tw_applicant_handoff($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, $7::timestamptz, $8::jsonb)",
+        [fixture.jobId, workerId, fixture.applicationId, fixture.applicantId, "bb-session-settle", "https://live.invalid/settle", expiresAt, stopped],
+      );
+      const takeoverId = opened.rows[0].takeover_id;
+      const wrongApplicant = await query(
+        "SELECT * FROM public.claim_tw_applicant_handoff($1::uuid, $2::uuid, $3::uuid)",
+        [takeoverId, fixture.applicationId, fixture.applicationId],
+      );
+      expect(wrongApplicant.rows).toHaveLength(0);
+      const claimed = await query(
+        "SELECT * FROM public.claim_tw_applicant_handoff($1::uuid, $2::uuid, $3::uuid)",
+        [takeoverId, fixture.applicationId, fixture.applicantId],
+      );
+      expect(claimed.rows[0].claimed).toBe(true);
+
+      const genericClaim = await query(
+        "SELECT * FROM public.claim_takeover_session($1::uuid, $2::uuid, 'taiwan_applicant_final_submit')",
+        [takeoverId, fixture.applicantId],
+      );
+      expect(genericClaim.rows).toHaveLength(0);
+      const genericSettle = await query(
+        "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'abandoned', NULL, '{}'::jsonb)",
+        [takeoverId, fixture.applicantId],
+      );
+      expect(genericSettle.rows).toHaveLength(0);
+
+      await expect(
+        query(
+          "SELECT * FROM public.settle_tw_applicant_handoff($1::uuid, $2::uuid, $3::text, 'completed', $4::jsonb)",
+          [takeoverId, fixture.jobId, `${workerId}-stale`, { country: "TW", status: "submitted" }],
+        ),
+      ).resolves.toMatchObject({ rows: [] });
+      await expect(
+        query(
+          "SELECT * FROM public.settle_tw_applicant_handoff($1::uuid, $2::uuid, $3::text, 'completed', $4::jsonb)",
+          [takeoverId, fixture.jobId, workerId, { country: "TW", status: "submitted" }],
+        ),
+      ).rejects.toMatchObject({ code: "22023" });
+      const unchanged = await query<{ app_status: string; session_status: string; job_status: string }>(
+        `SELECT application.submission_result_status AS app_status,
+                session.status AS session_status, job.status AS job_status
+         FROM public.applications AS application
+         JOIN public.takeover_session AS session ON session.application_id = application.id
+         JOIN public.runner_job AS job ON job.id = session.job_id
+         WHERE application.id = $1 AND session.id = $2`,
+        [fixture.applicationId, takeoverId],
+      );
+      expect(unchanged.rows[0]).toEqual({ app_status: "needs_user_action", session_status: "claimed", job_status: "running" });
+
+      const receipt = {
+        country: "TW",
+        status: "submitted",
+        officialReceipt: {
+          source: "official_success_page_with_application_number",
+          capturedAt: new Date().toISOString(),
+          portalUrl: "https://nia.invalid/success",
+          caseNumber: "TW20260801ABC123",
+          confirmationText: "送出成功",
+        },
+      };
+      const completed = await query<{ settled: boolean; handoff_status: string }>(
+        "SELECT * FROM public.settle_tw_applicant_handoff($1::uuid, $2::uuid, $3::text, 'completed', $4::jsonb)",
+        [takeoverId, fixture.jobId, workerId, receipt],
+      );
+      expect(completed.rows).toEqual([{ settled: true, job_id: fixture.jobId, application_id: fixture.applicationId, handoff_status: "completed" }]);
+      const state = await query<{ app_status: string; session_status: string; job_status: string }>(
+        `SELECT application.submission_result_status AS app_status,
+                session.status AS session_status, job.status AS job_status
+         FROM public.applications AS application
+         JOIN public.takeover_session AS session ON session.application_id = application.id
+         JOIN public.runner_job AS job ON job.id = session.job_id
+         WHERE application.id = $1 AND session.id = $2`,
+        [fixture.applicationId, takeoverId],
+      );
+      expect(state.rows[0]).toEqual({ app_status: "completed", session_status: "completed", job_status: "running" });
+    } finally {
+      await cleanupFixture(fixture);
+    }
+
+    const expiredWorker = `runner-fence-tw-expired-${Date.now()}`;
+    const expired = await createTaiwanFixture({ workerId: expiredWorker });
+    try {
+      const expiredAt = new Date(Date.now() - 1_000).toISOString();
+      const opened = await query<{ takeover_id: string }>(
+        "SELECT * FROM public.open_tw_applicant_handoff($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, $7::timestamptz, $8::jsonb)",
+        [expired.jobId, expiredWorker, expired.applicationId, expired.applicantId, "bb-session-expired", "https://live.invalid/expired", new Date(Date.now() + 60_000).toISOString(), { country: "TW", status: "stopped_at_captcha" }],
+      );
+      const takeoverId = opened.rows[0].takeover_id;
+      await query("UPDATE public.takeover_session SET expires_at = $2 WHERE id = $1", [takeoverId, expiredAt]);
+      const abandoned = await query<{ settled: boolean; handoff_status: string }>(
+        "SELECT * FROM public.settle_tw_applicant_handoff($1::uuid, $2::uuid, $3::text, 'abandoned', NULL)",
+        [takeoverId, expired.jobId, expiredWorker],
+      );
+      expect(abandoned.rows).toEqual([{ settled: true, job_id: expired.jobId, application_id: expired.applicationId, handoff_status: "abandoned" }]);
+      const state = await query<{ app_status: string; session_status: string; job_status: string }>(
+        `SELECT application.submission_result_status AS app_status,
+                session.status AS session_status, job.status AS job_status
+         FROM public.applications AS application
+         JOIN public.takeover_session AS session ON session.application_id = application.id
+         JOIN public.runner_job AS job ON job.id = session.job_id
+         WHERE application.id = $1 AND session.id = $2`,
+        [expired.applicationId, takeoverId],
+      );
+      expect(state.rows[0]).toEqual({ app_status: "needs_user_action", session_status: "abandoned", job_status: "running" });
+    } finally {
+      await cleanupFixture(expired);
     }
   });
 });
