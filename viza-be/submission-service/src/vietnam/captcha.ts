@@ -120,6 +120,21 @@ export async function captureVietnamCaptchaImage(
   image: Locator,
   timeoutMs: number,
 ): Promise<VietnamCaptchaCapture> {
+  const imageState = await image
+    .evaluate((element) => {
+      if (!(element instanceof HTMLImageElement)) return { isImage: false, loaded: true };
+      return {
+        isImage: true,
+        loaded: element.complete && element.naturalWidth > 0 && element.naturalHeight > 0,
+      };
+    })
+    .catch(() => ({ isImage: true, loaded: false }));
+  if (imageState.isImage && !imageState.loaded) {
+    // A locator screenshot of a broken <img> captures only the browser's alt
+    // text placeholder.  2Captcha can still invent a shape-valid answer for
+    // that placeholder, which the official portal will always reject.
+    throw new Error("Vietnam CAPTCHA image is not loaded; refusing to solve a browser placeholder.");
+  }
   // The official challenge is displayed inside a CSS-sized box whose aspect
   // ratio does not necessarily match the image's intrinsic pixels. Drawing
   // into that CSS box stretches the glyphs. Upscale the intrinsic bitmap so
@@ -129,9 +144,9 @@ export async function captureVietnamCaptchaImage(
       if (!(element instanceof HTMLImageElement || element instanceof HTMLCanvasElement)) return null;
       const rect = element.getBoundingClientRect();
       const sourceWidth =
-        element instanceof HTMLImageElement ? element.naturalWidth || rect.width : element.width || rect.width;
+        element instanceof HTMLImageElement ? element.naturalWidth : element.width || rect.width;
       const sourceHeight =
-        element instanceof HTMLImageElement ? element.naturalHeight || rect.height : element.height || rect.height;
+        element instanceof HTMLImageElement ? element.naturalHeight : element.height || rect.height;
       if (sourceWidth <= 0 || sourceHeight <= 0) return null;
       const scale = Math.max(
         2,
@@ -862,7 +877,15 @@ async function describeVietnamCaptchaDom(page: Page): Promise<string> {
       inputs: descriptors,
     });
   }
-  return `captchaDom=${JSON.stringify({ pageUrl: page.url().slice(0, 200), frames }).slice(0, 4_000)}`;
+  const pageUrl = (() => {
+    try {
+      const url = new URL(page.url());
+      return `${url.origin}${url.pathname}`;
+    } catch {
+      return page.url().split("?")[0].slice(0, 160);
+    }
+  })();
+  return `captchaDom=${JSON.stringify({ pageUrl, frames }).slice(0, 4_000)}`;
 }
 
 async function refreshVietnamCaptcha(input: Locator): Promise<void> {

@@ -457,6 +457,13 @@ test("vn.payment-resume: distinguishes an official CAPTCHA rejection from a vali
       await waitForVietnamSearchSubmissionOutcome(noResultPage, undefined, 1_000),
       "accepted",
     );
+
+    const pluralNoResultPage = await browser.newPage();
+    await pluralNoResultPage.setContent('<p>No results were found</p>');
+    assert.equal(
+      await waitForVietnamSearchSubmissionOutcome(pluralNoResultPage, undefined, 1_000),
+      "accepted",
+    );
   } finally {
     await browser.close();
   }
@@ -616,6 +623,82 @@ test("vn.payment-resume: waits beyond the old 1.6s window for a delayed Vue CAPT
 
     assert.equal(strategy, "search_reload_control");
     assert.notEqual(await captureVietnamCaptchaFingerprint(page, 2_000), previousFingerprint);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: ignores a stale broken CAPTCHA node when Vue mounts a loaded replacement", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const challenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    await page.setContent(`
+      <input id="basic_captcha" />
+      <img alt="captcha old" src="data:image/png;base64,broken" />
+      <img alt="captcha img" src="${challenge}" />
+    `);
+    let solveCalls = 0;
+
+    const result = await solveVietnamPaymentSearchCaptcha(page, 8_000, {
+      maxAttempts: 1,
+      solveCaptcha: async () => {
+        solveCalls += 1;
+        return { text: "123456", solveId: "loaded-replacement", durationMs: 10 };
+      },
+    });
+
+    assert.equal(solveCalls, 1);
+    assert.equal(await page.locator("#basic_captcha").inputValue(), "123456");
+    assert.equal(result.diagnostics.at(-1)?.outcome, "solved");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: retries the same stable challenge after an unusable answer was never submitted", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const challenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    await page.setContent(`
+      <input id="basic_captcha" />
+      <img alt="captcha img" src="${challenge}" />
+      <button aria-label="reload captcha" type="button">Reload</button>
+    `);
+    let solveCalls = 0;
+    let badReports = 0;
+
+    const result = await solveVietnamPaymentSearchCaptcha(page, 10_000, {
+      maxAttempts: 2,
+      knownChallengeFingerprints: new Set<string>(),
+      solveCaptcha: async () => {
+        solveCalls += 1;
+        return solveCalls === 1
+          ? { text: "123", solveId: "bad-shape", durationMs: 10 }
+          : { text: "123456", solveId: "good-shape", durationMs: 10 };
+      },
+      reportBad: async () => { badReports += 1; },
+    });
+
+    assert.equal(solveCalls, 2);
+    assert.equal(badReports, 1);
+    assert.equal(await page.locator("#basic_captcha").inputValue(), "123456");
+    assert.deepEqual(
+      result.diagnostics.map((diagnostic) => ({
+        outcome: diagnostic.outcome,
+        answerLength: diagnostic.answerLength,
+        sameChallengeRetry: diagnostic.sameChallengeRetry,
+      })),
+      [
+        { outcome: "unusable", answerLength: 3, sameChallengeRetry: true },
+        { outcome: "solved", answerLength: 6, sameChallengeRetry: undefined },
+      ],
+    );
   } finally {
     await browser.close();
   }
@@ -1049,6 +1132,35 @@ test("vn.payment-resume: advances the default Vietnamese detail and payment step
 
     assert.match(await page.locator('body').innerText(), /Payment gateway/);
     assert.equal(await page.locator('input[type="checkbox"]').count(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: does not invent a review CAPTCHA from inactive step labels", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div class="ant-steps-item-process">Fill out the Application form</div>
+      <div>Review application form</div><div>Payment</div>
+      <button id="next">Next</button>
+      <script>
+        document.querySelector('#next').addEventListener('click', () => {
+          document.body.innerHTML = '<div class="ant-steps-item-process">Review application form</div><button id="review-next">Next</button>';
+          document.querySelector('#review-next').addEventListener('click', () => {
+            document.body.innerHTML = '<label><input type="checkbox" /> I agree to pay</label><button id="pay">Payment</button>';
+            document.querySelector('#pay').addEventListener('click', () => {
+              document.body.innerHTML = '<h1>Payment gateway</h1><input autocomplete="cc-number" />';
+            });
+          });
+        });
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 10_000);
+
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
   } finally {
     await browser.close();
   }

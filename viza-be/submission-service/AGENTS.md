@@ -466,7 +466,8 @@ filling and one-shot submission for the applicant.
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
 - `scripts/run-fv-smoke.ts`, `scripts/run-au-smoke.ts`,
-  `scripts/run-vn-smoke.ts`, `scripts/run-sgac-smoke.ts`,
+  `scripts/run-vn-smoke.ts`, `scripts/run-vn-payment-pre-card-smoke.ts`,
+  `scripts/run-sgac-smoke.ts`,
   `scripts/run-mdac-smoke.ts`, `scripts/run-tdac-smoke.ts`: local live smoke
   entry points for official portal reach/fill validation. Arrival-card smokes
   stop before final submit unless run with `--submit` and real applicant data.
@@ -532,8 +533,10 @@ filling and one-shot submission for the applicant.
   reuses its initial bitmap across fresh contexts. If 2captcha fails before it
   returns any answer (bounded unsolvable/network/timeout outcomes), the same
   stable bitmap may be retried within the shared solver/time budget because no
-  value reached the official portal. Once an answer exists, is entered, becomes
-  stale, or is rejected, keep the fingerprint registered, use the official
+  value reached the official portal. A structurally unusable answer that was
+  never entered may retry the same stable bitmap within the bounded solver
+  budget. Once an answer is entered, becomes stale, or is rejected, keep the
+  fingerprint registered, use the official
   reload control, and prove that the bitmap changed before another solver
   request. If a bounded reload cannot produce a new fingerprint, stop without
   resending the answered/rejected challenge or submitting the form.
