@@ -117,7 +117,7 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("recovers at most one expired lease with an ordered SKIP LOCKED CTE and conditional update", () => {
     expect(canonicalSql).toMatch(
-      /WITH expired AS MATERIALIZED \([\s\S]*?SELECT expired\.id[\s\S]*?FROM public\.runner_job AS expired[\s\S]*?ORDER BY[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE SKIP LOCKED[\s\S]*?\)[\s\S]*?SELECT expired\.id[\s\S]*?INTO v_expired_job_id/i,
+      /WITH expired AS MATERIALIZED \([\s\S]*?SELECT expired\.id[\s\S]*?FROM public\.runner_job AS expired[\s\S]*?ORDER BY[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE(?: OF expired)? SKIP LOCKED[\s\S]*?\)[\s\S]*?SELECT expired\.id[\s\S]*?INTO v_expired_job_id/i,
     );
     expect(canonicalSql).toMatch(
       /INSERT INTO runner_private\.runner_job_update_capability[\s\S]*?'recover'[\s\S]*?old_row[\s\S]*?new_row[\s\S]*?UPDATE public\.runner_job AS job[\s\S]*?WHERE job\.id = v_expired_job_id[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_until <= v_now/i,
@@ -698,6 +698,17 @@ describe("runner pool concurrency phase two migration", () => {
     expect(functionBody).toMatch(
       /v_claimed_old_row\.available_at > v_now[\s\S]*?owner_machine_id = v_worker_id[\s\S]*?owner_kind = 'pool'[\s\S]*?lease_until > v_now[\s\S]*?FOR UPDATE;/i,
     );
+    expect((functionBody.match(/application\.status <> 'staff_action_required'/gi) ?? []).length).toBeGreaterThanOrEqual(3);
+    const claimApplicationLock = triggerFunctionBody.search(
+      /SELECT application\.status[\s\S]*?application\.id = NEW\.application_id[\s\S]*?FOR UPDATE NOWAIT;/i,
+    );
+    const claimCapabilityConsume = triggerFunctionBody.search(
+      /DELETE FROM runner_private\.runner_job_update_capability AS capability[\s\S]*?operation = 'claim'/i,
+    );
+    expect(claimApplicationLock).toBeGreaterThan(-1);
+    expect(claimCapabilityConsume).toBeGreaterThan(claimApplicationLock);
+    expect(canonicalSql).toMatch(/controlled-drain-only migration/i);
+    expect(canonicalSql).not.toMatch(/controlled drain cutover|rolling[- ]deploy|staging harness/i);
     expect(triggerFunctionBody).toMatch(
       /OLD\.status IS DISTINCT FROM 'running'[\s\S]*?NEW\.status IS NOT DISTINCT FROM 'running'[\s\S]*?operation = 'claim'[\s\S]*?old_row = to_jsonb\(OLD\)[\s\S]*?new_row = to_jsonb\(NEW\)/i,
     );

@@ -10,9 +10,12 @@
 -- Private one-time update capabilities replace forgeable session markers.
 -- Every authorized running-row mutation records the exact full OLD/NEW row
 -- image in this transaction/backend/job key. The permanent trigger consumes
--- that capability atomically. This is a controlled drain cutover: direct
--- lifecycle writers must be migrated to the fenced RPCs before this migration
--- is applied; there is no stale-write bypass.
+-- that capability atomically. This is a controlled-drain-only migration:
+-- direct lifecycle writes have no stale-write bypass, and recovery is only one
+-- operation in the generalized capability set.
+-- Apply only in this order: pause enqueue/wakes, drain running jobs to zero,
+-- stop BASE workers, apply the migration, deploy strict RPC callers, smoke
+-- test, then resume workers.
 CREATE SCHEMA IF NOT EXISTS runner_private;
 REVOKE ALL ON SCHEMA runner_private FROM PUBLIC, anon, authenticated, service_role;
 
@@ -102,10 +105,9 @@ ALTER TABLE public.runner_job
     ), FALSE)
   );
 
--- Replace the rolling enqueue producer with the strict five-tuple contract.
--- The application row is always locked before any queue/job row, and the
--- database clock is authoritative; p_now remains only for signature
--- compatibility with rolling callers.
+-- Install the strict five-tuple enqueue producer. The application row is
+-- always locked before any queue/job row, and the database clock is
+-- authoritative; p_now is retained only as an ignored timestamp input.
 CREATE OR REPLACE FUNCTION public.enqueue_runner_pool_job(
   p_application_id UUID,
   p_country TEXT,
@@ -260,9 +262,8 @@ COMMENT ON FUNCTION public.enqueue_runner_pool_job(
 ) IS
   'Atomically reuses or enqueues one exact five-tuple runner flow with application-first locking and database time.';
 
--- The SGAC retry signature is retained for existing service callers, but the
--- live runner transport is now explicitly flow-keyed so null/legacy rows can
--- never re-enter the shared pool.
+-- The SGAC retry producer is explicitly flow-keyed and uses database time so
+-- null/legacy rows can never re-enter the shared pool.
 CREATE OR REPLACE FUNCTION public.enqueue_sgac_country_runner_retry(
   p_application_id UUID,
   p_max_attempts INTEGER DEFAULT 3,
@@ -398,9 +399,9 @@ CREATE INDEX IF NOT EXISTS runner_job_running_owner_lease_idx
   ON public.runner_job (leased_by, leased_until)
   WHERE status = 'running';
 
--- p_now remains in the four-argument identity for API stability during the
--- controlled drain; the function body ignores caller time and trusts only
--- clock_timestamp(). Invalid running flows are never recovered or claimed.
+-- p_now remains in the four-argument identity but is intentionally ignored;
+-- the function trusts only clock_timestamp(). Invalid running flows are never
+-- recovered or claimed.
 CREATE OR REPLACE FUNCTION public.claim_runner_pool_job(
   p_worker_id TEXT,
   p_lease_ms INTEGER DEFAULT 900000,
@@ -487,6 +488,9 @@ BEGIN
   WITH expired AS MATERIALIZED (
     SELECT expired.id
     FROM public.runner_job AS expired
+    JOIN public.applications AS application
+      ON application.id = expired.application_id
+      AND application.status <> 'staff_action_required'
     WHERE expired.status = 'running'
       AND expired.leased_until <= v_now
       AND COALESCE((
@@ -498,7 +502,7 @@ BEGIN
       ), FALSE)
     ORDER BY expired.leased_until, expired.id
     LIMIT 1
-    FOR UPDATE SKIP LOCKED
+    FOR UPDATE OF expired SKIP LOCKED
   )
   SELECT expired.id
   INTO v_expired_job_id
@@ -618,6 +622,9 @@ BEGIN
     JOIN LATERAL (
       SELECT oldest_candidate.enqueued_at, oldest_candidate.id
       FROM public.runner_job AS oldest_candidate
+      JOIN public.applications AS application
+        ON application.id = oldest_candidate.application_id
+        AND application.status <> 'staff_action_required'
       WHERE oldest_candidate.country = cap.country
         AND COALESCE((
           (oldest_candidate.country = 'vietnam' AND oldest_candidate.flow_key = 'vn_prearrival')
@@ -654,6 +661,9 @@ BEGIN
       FROM public.runner_job AS candidate
       JOIN public.runner_concurrency_cap AS cap
         ON cap.country = candidate.country
+      JOIN public.applications AS application
+        ON application.id = candidate.application_id
+        AND application.status <> 'staff_action_required'
       WHERE candidate.country = v_locked_country
         AND candidate.status = 'queued'
         AND candidate.available_at <= v_now
@@ -830,11 +840,11 @@ GRANT EXECUTE ON FUNCTION public.claim_runner_pool_job(
 ) TO service_role;
 
 COMMENT ON FUNCTION public.claim_runner_pool_job(TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ) IS
-  'Atomically recovers one expired lease and claims one exact active tuple using database clock_timestamp(); p_now is ignored and direct stale writes require a controlled RPC cutover.';
+  'Atomically recovers one lease and claims one exact active tuple using database clock_timestamp(); p_now is ignored and every lifecycle write requires a full-row capability.';
 
 -- Every direct UPDATE of a running row must carry a private exact full-row
 -- capability minted by one of the service-role RPCs. Metadata-only changes
-  -- remain harmless because metadata is deliberately outside the
+-- remain harmless because metadata is deliberately outside the
 -- lifecycle/identity fence. This is not an expired-only check: an active row
 -- reclaimed after a lock wait is fenced identically to an expired row.
 CREATE OR REPLACE FUNCTION runner_private.guard_expired_runner_job_lifecycle_update()
@@ -876,6 +886,25 @@ BEGIN
   IF OLD.status IS DISTINCT FROM 'running'
     AND NEW.status IS NOT DISTINCT FROM 'running'
   THEN
+    -- The job row is already locked by the UPDATE. Lock the application with
+    -- NOWAIT before consuming the capability so a review pause (application
+    -- then job) cannot deadlock with a claim (job then application). A status
+    -- changed to staff review after candidate selection therefore aborts the
+    -- claim without consuming its capability.
+    SELECT application.status
+    INTO v_application_status
+    FROM public.applications AS application
+    WHERE application.id = NEW.application_id
+    FOR UPDATE NOWAIT;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Application % does not exist', NEW.application_id
+        USING ERRCODE = '23503';
+    END IF;
+    IF v_application_status = 'staff_action_required' THEN
+      RAISE EXCEPTION 'Application % is paused for staff review', NEW.application_id
+        USING ERRCODE = '55000';
+    END IF;
+
     DELETE FROM runner_private.runner_job_update_capability AS capability
     WHERE capability.txid = pg_catalog.txid_current()
       AND capability.backend_pid = pg_catalog.pg_backend_pid()
@@ -995,8 +1024,8 @@ COMMENT ON FUNCTION runner_private.guard_expired_runner_job_lifecycle_update() I
 
 -- Complete a claimed pool job only while the caller still owns its live lease.
 -- The exact full-row capability is minted immediately before UPDATE and is
--- consumed by the permanent trigger. p_now remains only as an API signature
--- slot and is never used for eligibility or finished_at.
+-- consumed by the permanent trigger. p_now is intentionally ignored and is
+-- never used for eligibility or finished_at.
 CREATE OR REPLACE FUNCTION public.complete_runner_pool_job(
   p_job_id UUID,
   p_worker_id TEXT,

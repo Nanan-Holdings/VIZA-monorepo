@@ -178,29 +178,24 @@ The current internal automation migrations are:
   acknowledgements for consistent form and assistant validation.
 - `0137_queue_worker_leases_and_runtime_claims.sql`: adds atomic notification
   claims with conditional ack/nack and DLQ settlement, Vietnam status-check
-  worker leases with safe completion/failure RPCs and rolling-deploy
-  compatibility, plus provider-filtered/targeted submission-queue claims.
+  worker leases with safe completion/failure RPCs and provider-filtered/
+  targeted submission-queue claims.
 - `0138_bounded_queue_maintenance.sql`: adds a bounded, service-role-only
   atomic stale-processing cleanup RPC and an index matching its heartbeat/status
   cutoff scan; callers run it as low-frequency maintenance rather than per poll.
 - `0139_concurrency_phase_two.sql`: supersedes the global runner-pool advisory
   claim lock with country-cap row serialization, bounded one-row lease recovery,
   and partial indexes for queued ordering, running-country counts, lease
-  expiry, and one-live-job-per-worker fencing; the exact service-role-only
-  `claim_runner_pool_job` signature remains rolling-deploy compatible and
-  excludes retired Indonesia pool work. It also carries the fenced,
-  service-role-only `complete_runner_pool_job`, `renew_runner_pool_job`, and
-  `fail_runner_pool_job` settlement RPCs. Each settlement function locks the
-  exact running owner row before sampling its authoritative lease clock, then
-  rechecks `leased_until` before updating. Production renew/failure predicates
-  use `clock_timestamp()` inside SQL; production success omits `p_now` while
-  the completion RPC keeps its optional controlled timestamp for staging
-  harnesses. All three settlement functions are `SECURITY INVOKER`, use an
-  empty `search_path`, revoke PUBLIC/anon/authenticated execution, and grant
-  only to `service_role`. A permanent `BEFORE UPDATE` compatibility trigger
-  drops stale lifecycle writes on expired running rows while allowing
-  metadata-only updates; bounded recovery uses transaction-local row/time
-  markers and an exact recovery shape so it remains the only lifecycle bypass.
+  expiry, and one-live-job-per-worker fencing. The service-role-only
+  `claim_runner_pool_job`, `complete_runner_pool_job`, `renew_runner_pool_job`,
+  and `fail_runner_pool_job` RPCs are `SECURITY DEFINER`, use an empty
+  `search_path`, ignore caller-supplied timestamps in favor of
+  `clock_timestamp()`, and grant execution only to `service_role`. Each locks
+  the exact owner row, mints a generalized full OLD/NEW-row capability, and
+  lets the permanent `BEFORE UPDATE` fence consume only that capability;
+  metadata-only writes are the sole direct exception. Recovery is just one
+  capability operation among the full-row lifecycle set, not a separate
+  expired-row bypass.
   The service-role-only `write_runner_pool_submission_result` RPC locks the
   exact live owner, samples the post-lock database clock, and atomically writes
   the application result while changing application status only for
@@ -210,11 +205,17 @@ The current internal automation migrations are:
   admission is restricted to the five canonical country/flow tuples and uses
   application-first locking; queued inserts and requeues are guarded against
   staff-review races, while active reuse requires an exact country/flow match.
-  Claiming mints and consumes a full old/new-row `claim` capability, and a
-  `BEFORE INSERT` guard rejects direct running rows. The service-role-only
+  Claim candidate scans exclude staff-review applications, and the queued to
+  running trigger takes the application mutex with `NOWAIT` before consuming a
+  claim capability. Claiming mints and consumes a full old/new-row `claim`
+  capability, and a `BEFORE INSERT` guard rejects direct running rows. The
+  service-role-only
   `cancel_application_submission` and `settle_runner_job_takeover` RPCs lock
   application/session/job rows in deterministic order and atomically update
   queue/job, application, session, and takeover action-log state.
+  Apply this as a controlled-drain-only migration: pause enqueue/wakes, drain
+  running jobs to zero, stop BASE workers, apply the migration, deploy strict
+  RPC callers, smoke test, then resume workers.
 
 ## Guardrails
 
