@@ -236,7 +236,9 @@ describe("Taiwan official login provider wiring", () => {
     assert.match(dispatchSource, /import \{ runOne as runTaiwan \} from "\.\.\/tw\/runner\.js"/);
     assert.match(dispatchSource, /taiwan:\s*\(a, j\) => runTaiwan\(a, j\)/);
     assert.match(runnerSource, /export \{ runTwHalt as runOne \}/);
-    assert.match(haltRunnerSource, /if \(!jobId\)/);
+    assert.match(haltRunnerSource, /requirePoolExecutionIdentity\(execution, jobId, "taiwan runner"\)/);
+    assert.match(haltRunnerSource, /currentJobId:\s*identity\.jobId/);
+    assert.doesNotMatch(haltRunnerSource, /if \(!jobId\)/);
     assert.match(haltRunnerSource, /mode:\s*"applicant_handoff"/);
     assert.match(haltRunnerSource, /officialReceipt:\s*result\.officialReceipt/);
   });

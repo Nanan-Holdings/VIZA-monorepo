@@ -415,9 +415,13 @@ test("settlement stops renewal scheduling before completion starts", async () =>
 test("successful renewals re-arm the local expiry before a long handler finishes", async () => {
   const { worker, client } = await loadWorker();
   const originalRpc = client.rpc;
+  const originalSetInterval = globalThis.setInterval;
+  const originalClearInterval = globalThis.clearInterval;
   let claimed = false;
   let renewals = 0;
   let completed = false;
+  let renewalTick: (() => void) | undefined;
+  let resolveRenewRpc: (() => void) | undefined;
   client.rpc = async (name) => {
     if (name === "claim_runner_pool_job") {
       if (claimed) return { data: null, error: null };
@@ -426,6 +430,9 @@ test("successful renewals re-arm the local expiry before a long handler finishes
     }
     if (name === "renew_runner_pool_job") {
       renewals += 1;
+      await new Promise<void>((resolve) => {
+        resolveRenewRpc = resolve;
+      });
       return { data: { leased_until: "2099-01-01T00:00:00.000Z" }, error: null };
     }
     if (name === "complete_runner_pool_job") {
@@ -435,16 +442,36 @@ test("successful renewals re-arm the local expiry before a long handler finishes
     return { data: claimedJob(), error: null };
   };
   try {
+    // Drive heartbeat ticks as explicit events instead of relying on host
+    // timer scheduling. Full-suite CPU/network load must not turn this lease
+    // contract test into a wall-clock race.
+    globalThis.setInterval = ((callback: () => void) => {
+      renewalTick = callback;
+      return 1 as unknown as ReturnType<typeof setInterval>;
+    }) as typeof setInterval;
+    globalThis.clearInterval = (() => undefined) as typeof clearInterval;
     await worker.drainAndRun({
       workerId: "worker-1",
       leaseMs: 80,
       renewEveryMs: 15,
-      handler: async () => new Promise((resolve) => setTimeout(resolve, 160)),
+      handler: async () => {
+        for (let index = 0; index < 3; index += 1) {
+          renewalTick?.();
+          assert.equal(renewals, index + 1);
+          resolveRenewRpc?.();
+          for (let attempt = 0; attempt < 10; attempt += 1) {
+            await Promise.resolve();
+          }
+          assert.equal(renewals, index + 1);
+        }
+      },
     });
     assert.ok(renewals >= 3);
     assert.equal(completed, true);
   } finally {
     client.rpc = originalRpc;
+    globalThis.setInterval = originalSetInterval;
+    globalThis.clearInterval = originalClearInterval;
   }
 });
 
