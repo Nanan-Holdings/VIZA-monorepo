@@ -343,6 +343,31 @@ describe("runner pool enqueue wake transport", () => {
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a shared-pool country and flow tuple mismatch before the RPC", async () => {
+    const { rpc } = configureAdmin();
+
+    await expect(enqueueRunnerPoolJob("app-mismatch", "vietnam", "mdac")).rejects.toThrow(
+      "runner pool flow mismatch",
+    );
+    expect(rpc).not.toHaveBeenCalled();
+    expect(ensureFlyMachineCapacityMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed for every generic country with no explicit supported flow", async () => {
+    const { rpc, insertedRunnerJobs } = configureAdmin({}, undefined, undefined, null, null);
+
+    await expect(enqueueRunnerJob("app-unsupported-generic", "japan")).rejects.toThrow(
+      "unsupported or ambiguous runner flow",
+    );
+    expect(rpc).not.toHaveBeenCalled();
+    expect(insertedRunnerJobs).toHaveLength(0);
+    expect(ensureFlyMachineCapacityMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+  });
+
   it("writes the exact resolved flow key on the rollback insert when migration is off", async () => {
     delete process.env.RUNNER_POOL_MIGRATION_ENABLED;
     const { insertedRunnerJobs } = configureAdmin({}, undefined, undefined, null, "MY_MDAC_ARRIVAL_CARD");

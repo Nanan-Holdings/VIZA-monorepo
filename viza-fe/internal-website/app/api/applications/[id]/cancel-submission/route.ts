@@ -40,17 +40,6 @@ const CANCELABLE_SGAC_QUEUE_STATUSES = [
   "phetravel_dry_run_pending",
 ] as const;
 
-function cancelledStatusForVisaType(visaType: string | null): string {
-  const normalized = (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
-  if (normalized === "MY_MDAC_ARRIVAL_CARD") return "mdac_live_assisted_cancelled";
-  if (normalized === "TH_TDAC_ARRIVAL_CARD") return "tdac_live_assisted_cancelled";
-  if (normalized === "PH_ETRAVEL_ARRIVAL_CARD" || normalized === "PH_ETRAVEL_DEPARTURE_CARD") {
-    return "phetravel_live_assisted_cancelled";
-  }
-  if (normalized === "VN_PREARRIVAL_DECLARATION") return "vn_prearrival_live_assisted_cancelled";
-  return "sgac_live_assisted_cancelled";
-}
-
 export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -148,57 +137,53 @@ export async function POST(
     );
   }
 
-  const now = new Date().toISOString();
-  const cancelledStatus = cancelledStatusForVisaType(application.visa_type);
-  const { error: queueUpdateError } = queue
-    ? await admin
-        .from("submission_queue")
-        .update({
-          status: cancelledStatus,
-          current_stage: "cancelled_by_user",
-          last_error: "Cancelled by user before official arrival card submission.",
-          updated_at: now,
-        })
-        .eq("id", queue.id)
-        .in("status", [...CANCELABLE_SGAC_QUEUE_STATUSES])
-    : await admin
-        .from("runner_job")
-        .update({
-          status: "cancelled",
-          last_error: "Cancelled by user before official SG Arrival Card submission.",
-          finished_at: now,
-          leased_by: null,
-          leased_until: null,
-        })
-        .eq("id", runnerQueue!.id)
-        .eq("status", "queued");
-
-  if (queueUpdateError) {
-    return NextResponse.json({ error: queueUpdateError.message }, { status: 500 });
+  const queueId = queue?.id ?? runnerQueue!.id;
+  const queueTransport = queue ? "submission_queue" : "runner_job";
+  const { data: cancelData, error: cancelError } = await admin.rpc(
+    "cancel_application_submission",
+    {
+      p_application_id: applicationId,
+      p_queue_id: queueId,
+      p_transport: queueTransport,
+    },
+  );
+  if (cancelError) {
+    return NextResponse.json({ error: cancelError.message }, { status: 500 });
   }
 
-  const { error: applicationUpdateError } = await admin
-    .from("applications")
-    .update({
-      status: "draft",
-      submitted_at: null,
-      submission_result_status: null,
-      submission_result: null,
-      submission_result_updated_at: now,
-      updated_at: now,
-    })
-    .eq("id", applicationId);
-
-  if (applicationUpdateError) {
-    return NextResponse.json({ error: applicationUpdateError.message }, { status: 500 });
+  const cancelRow = (Array.isArray(cancelData) ? cancelData[0] : cancelData) as
+    | {
+        cancelled?: unknown;
+        queue_id?: unknown;
+        queue_transport?: unknown;
+        cancelled_at?: unknown;
+      }
+    | null;
+  if (!cancelRow || cancelRow.cancelled !== true) {
+    return NextResponse.json(
+      {
+        error:
+          "The submission could not be cancelled because it is already processing or has changed.",
+      },
+      { status: 409 },
+    );
   }
+
+  const cancelledAt =
+    typeof cancelRow.cancelled_at === "string"
+      ? cancelRow.cancelled_at
+      : new Date().toISOString();
 
   return NextResponse.json({
     ok: true,
     applicationId,
-    queueId: queue?.id ?? runnerQueue!.id,
-    queueTransport: queue ? "submission_queue" : "runner_job",
+    queueId:
+      typeof cancelRow.queue_id === "string" ? cancelRow.queue_id : queueId,
+    queueTransport:
+      cancelRow.queue_transport === "submission_queue" || cancelRow.queue_transport === "runner_job"
+        ? cancelRow.queue_transport
+        : queueTransport,
     cancelled: true,
-    cancelledAt: now,
+    cancelledAt,
   });
 }
