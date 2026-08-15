@@ -300,6 +300,7 @@ export const officialStatusChecks = pgTable("official_status_checks", {
 	workerId: text("worker_id"),
 	claimedAt: timestamp("claimed_at", { withTimezone: true }),
 	leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+	leaseGeneration: bigint("lease_generation", { mode: "number" }).default(0).notNull(),
 	artifactStoragePath: text("artifact_storage_path"),
 	artifactSha256: text("artifact_sha256"),
 	rawStatusJson: jsonb("raw_status_json").default({}).notNull(),

@@ -438,14 +438,19 @@ export async function withVietnamStatusCheckLease<T>(input: {
   assertOwned();
   schedule();
   if (ownershipLost) throw new VietnamStatusCheckOwnershipLostError();
-  const operationPromise = input.operation({
-    signal: controller.signal,
-    get lease() {
-      return currentLease;
-    },
-    assertOwned,
-    stopRenewal,
-  });
+  let operationPromise: Promise<T>;
+  try {
+    operationPromise = input.operation({
+      signal: controller.signal,
+      get lease() {
+        return currentLease;
+      },
+      assertOwned,
+      stopRenewal,
+    });
+  } catch (error) {
+    operationPromise = Promise.reject(error);
+  }
   let operationResult: T | undefined;
   let operationError: unknown;
   try {
