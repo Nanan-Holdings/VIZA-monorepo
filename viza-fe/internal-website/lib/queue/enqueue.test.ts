@@ -140,7 +140,7 @@ describe("runner pool enqueue wake transport", () => {
   it("publishes a Queue wake after a committed runner_job", async () => {
     process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "true";
 
-    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa");
+    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_prearrival");
 
     expect(enqueueRunnerJobWakeMock).toHaveBeenCalledWith({ jobId: "job-1", target: "pool" });
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
@@ -161,7 +161,7 @@ describe("runner pool enqueue wake transport", () => {
     process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "on";
     enqueueRunnerJobWakeMock.mockRejectedValue(new Error("gateway unavailable"));
 
-    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa");
+    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_prearrival");
 
     expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("job-1", { target: "pool" });
     expect(result.workerTriggered).toBe(true);
@@ -171,7 +171,7 @@ describe("runner pool enqueue wake transport", () => {
     if (flag === undefined) delete process.env.RESILIENCE_RUNNER_WAKE_ENABLED;
     else process.env.RESILIENCE_RUNNER_WAKE_ENABLED = flag;
 
-    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa");
+    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_prearrival");
 
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
     expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("job-1", { target: "pool" });
@@ -185,7 +185,7 @@ describe("runner pool enqueue wake transport", () => {
     process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "1";
     enqueueRunnerJobWakeMock.mockResolvedValue(queueResult);
 
-    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa");
+    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_prearrival");
 
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
     expect(result.workerTriggered).toBe(true);
@@ -195,7 +195,7 @@ describe("runner pool enqueue wake transport", () => {
     process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "true";
     enqueueRunnerJobWakeMock.mockResolvedValue({ accepted: false, duplicate: false, queued: false });
 
-    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa");
+    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_prearrival");
 
     expect(wakeCloudSubmissionWorkerMock).toHaveBeenCalledWith("job-1", { target: "pool" });
     expect(result.workerTriggered).toBe(true);
@@ -205,7 +205,7 @@ describe("runner pool enqueue wake transport", () => {
     process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "true";
     const availableAt = new Date(Date.now() + 60_000).toISOString();
 
-    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa", { availableAt });
+    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_prearrival", { availableAt });
 
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
@@ -292,7 +292,7 @@ describe("runner pool enqueue wake transport", () => {
     process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "true";
     configureAdmin({}, undefined, state, error);
 
-    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa");
+    const result = await enqueueRunnerPoolJob("app-1", "vietnam", "vn_prearrival");
 
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
     if (error) {
@@ -317,7 +317,7 @@ describe("runner pool enqueue wake transport", () => {
     const { rpc } = configureAdmin();
     rpc.mockRejectedValue(new Error("database unavailable"));
 
-    await expect(enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa")).rejects.toThrow("database unavailable");
+    await expect(enqueueRunnerPoolJob("app-1", "vietnam", "vn_prearrival")).rejects.toThrow("database unavailable");
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
   });
@@ -325,7 +325,7 @@ describe("runner pool enqueue wake transport", () => {
   it("does not wake or publish without a durable runner job id", async () => {
     configureAdmin({ runner_job_id: null });
 
-    await expect(enqueueRunnerPoolJob("app-1", "vietnam", "vn_evisa")).rejects.toThrow("no runner job id");
+    await expect(enqueueRunnerPoolJob("app-1", "vietnam", "vn_prearrival")).rejects.toThrow("no runner job id");
     expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
   });
@@ -347,6 +347,18 @@ describe("runner pool enqueue wake transport", () => {
     const { rpc } = configureAdmin();
 
     await expect(enqueueRunnerPoolJob("app-mismatch", "vietnam", "mdac")).rejects.toThrow(
+      "runner pool flow mismatch",
+    );
+    expect(rpc).not.toHaveBeenCalled();
+    expect(ensureFlyMachineCapacityMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects the retired sticky Vietnam eVisa flow from the shared-pool caller", async () => {
+    const { rpc } = configureAdmin();
+
+    await expect(enqueueRunnerPoolJob("app-retired", "vietnam", "vn_evisa")).rejects.toThrow(
       "runner pool flow mismatch",
     );
     expect(rpc).not.toHaveBeenCalled();

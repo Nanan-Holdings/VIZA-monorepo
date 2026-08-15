@@ -88,7 +88,7 @@ type RunnerWakeQueueResponse = {
 };
 
 const SHARED_POOL_FLOW_KEYS_BY_COUNTRY: Record<string, readonly RunnerPoolFlowKey[]> = {
-  vietnam: ["vn_evisa", "vn_prearrival"],
+  vietnam: ["vn_prearrival"],
   singapore: ["sgac"],
   malaysia: ["mdac"],
   thailand: ["tdac"],
