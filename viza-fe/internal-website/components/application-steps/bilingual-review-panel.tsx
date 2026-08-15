@@ -1,8 +1,9 @@
 "use client";
 
-import { CircleNotch as Loader2, Pencil, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
+import { CircleNotch as Loader2, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { ReviewEditButton } from "@/components/ui/review-edit-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -234,16 +235,10 @@ export function BilingualReviewPanel({
                 {section.section}
               </h3>
               {section.editStepIndex !== undefined && onEditSection ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 justify-end p-0 text-brand-500 hover:bg-brand-50 hover:text-brand-600"
+                <ReviewEditButton
                   onClick={() => onEditSection(section.editStepIndex!)}
-                  aria-label={isZh ? `修改${section.section}` : `Edit ${section.section}`}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                  label={isZh ? `修改${section.section}` : `Edit ${section.section}`}
+                />
               ) : null}
             </div>
             <Table className="table-fixed">

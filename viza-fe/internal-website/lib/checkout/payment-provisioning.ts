@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ensureAccountAndMagicLinkWithAdmin, type ProvisionedAccount } from "@/app/actions/wechat-provisioning";
 import { assignApplicantInboxAlias } from "@/app/actions/applicant-inbox";
+import { officialFeeCatalogFor, officialFeeCatalogKey } from "@/lib/payments/official-fee-catalog";
+import { pricingFor } from "@/lib/pricing";
 import { enqueueRunnerJob } from "@/lib/queue/enqueue";
 
 export type CommercialPaymentProvider = "stripe" | "photonpay" | "wechat" | "free";
@@ -43,6 +45,40 @@ function errorMessage(error: unknown): string {
 
 function rpcRow<T>(data: T | T[] | null): T | null {
   return Array.isArray(data) ? data[0] ?? null : data;
+}
+
+export interface GovernmentFeeAllocationPlan {
+  amountCents: number;
+  currency: string;
+  catalogKey: string;
+  payee: string;
+  description: string;
+}
+
+export function governmentFeeAllocationPlan(
+  country: string,
+  visaType: string,
+): GovernmentFeeAllocationPlan | null {
+  const catalog = officialFeeCatalogFor(country, visaType);
+  const pricing = pricingFor(
+    country,
+    visaType.trim().toUpperCase() === "B211A" ? "ID_C1_TOURIST" : visaType,
+  );
+  if (
+    catalog?.fundingClass !== "viza_managed_card"
+    || !pricing
+    || !Number.isSafeInteger(pricing.govtFeeCents)
+    || pricing.govtFeeCents <= 0
+  ) {
+    return null;
+  }
+  return {
+    amountCents: pricing.govtFeeCents,
+    currency: pricing.currency.trim().toUpperCase(),
+    catalogKey: officialFeeCatalogKey(catalog.country, catalog.visaType),
+    payee: catalog.targetPayee,
+    description: `Government fee reserve — ${catalog.country}/${catalog.visaType}`,
+  };
 }
 
 /**
@@ -166,39 +202,90 @@ async function updateJobStep(
   if (error) throw new Error(`payment provisioning step update: ${error.message}`);
 }
 
-async function ensureGovernmentFeeAllocation(admin: SupabaseClient, orderId: string): Promise<void> {
+export async function ensureGovernmentFeeAllocation(admin: SupabaseClient, orderId: string): Promise<void> {
   const { data: order, error: orderError } = await admin
     .from("order")
-    .select("id, application_id, govt_fee_cents, currency")
+    .select("id, application_id")
     .eq("id", orderId)
     .single();
   if (orderError || !order) throw new Error(`allocation order lookup: ${orderError?.message ?? "not found"}`);
-  if (Number(order.govt_fee_cents ?? 0) <= 0) return;
+
+  const { data: application, error: applicationError } = await admin
+    .from("applications")
+    .select("country, visa_type")
+    .eq("id", order.application_id)
+    .single();
+  if (applicationError || !application) {
+    throw new Error(`allocation application lookup: ${applicationError?.message ?? "not found"}`);
+  }
+  const plan = governmentFeeAllocationPlan(
+    String(application.country ?? ""),
+    String(application.visa_type ?? ""),
+  );
+  if (!plan) return;
 
   const { data: existing, error: existingError } = await admin
     .from("government_fee_allocations")
-    .select("id")
+    .select("id, amount_cents, currency")
     .eq("order_id", orderId)
     .maybeSingle();
   if (existingError) throw new Error(`allocation lookup: ${existingError.message}`);
-  if (existing) return;
+  if (existing) {
+    if (
+      Number(existing.amount_cents) !== plan.amountCents
+      || String(existing.currency ?? "").toUpperCase() !== plan.currency
+    ) {
+      throw new Error("existing government-fee allocation does not match package pricing");
+    }
+    return;
+  }
 
   const { data: line, error: lineError } = await admin
     .from("order_line")
-    .select("id")
+    .select("id, amount_cents, currency")
     .eq("order_id", orderId)
     .eq("kind", "govt")
     .maybeSingle();
   if (lineError) throw new Error(`allocation line lookup: ${lineError.message}`);
-  if (!line) throw new Error("allocation requires one government-fee order line");
+  let orderLine = line;
+  if (orderLine) {
+    if (
+      Number(orderLine.amount_cents) !== plan.amountCents
+      || String(orderLine.currency ?? "").toUpperCase() !== plan.currency
+    ) {
+      throw new Error("existing government-fee order line does not match package pricing");
+    }
+  } else {
+    const { data: insertedLine, error: insertLineError } = await admin
+      .from("order_line")
+      .insert({
+        order_id: orderId,
+        kind: "govt",
+        amount_cents: plan.amountCents,
+        currency: plan.currency,
+        payee: plan.payee,
+        description: plan.description,
+      })
+      .select("id, amount_cents, currency")
+      .single();
+    if (insertLineError || !insertedLine) {
+      throw new Error(`allocation line insert: ${insertLineError?.message ?? "no row"}`);
+    }
+    orderLine = insertedLine;
+  }
 
   const { error: insertError } = await admin.from("government_fee_allocations").insert({
     order_id: orderId,
-    order_line_id: line.id,
+    order_line_id: orderLine.id,
     application_id: order.application_id,
-    amount_cents: Number(order.govt_fee_cents),
-    currency: String(order.currency ?? "USD").toUpperCase(),
+    amount_cents: plan.amountCents,
+    currency: plan.currency,
     state: "reserved_pending_treasury",
+    metadata_redacted: {
+      funding_class: "viza_managed_card",
+      official_fee_catalog_key: plan.catalogKey,
+      created_by: "payment_provisioning",
+    },
   });
   if (insertError && insertError.code !== "23505") throw new Error(`allocation insert: ${insertError.message}`);
 }

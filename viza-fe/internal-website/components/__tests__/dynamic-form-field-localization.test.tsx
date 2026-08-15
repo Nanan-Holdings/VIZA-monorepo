@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DynamicFormField } from "../dynamic-form-field";
 import type { VisaFormFieldRow } from "@/types/visa-form-fields";
@@ -30,7 +30,7 @@ function field(overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow {
 }
 
 describe("DynamicFormField localization", () => {
-  it("renders localized radio labels while preserving official stored values", () => {
+  it("renders localized radio labels while preserving official stored values", async () => {
     const onChange = vi.fn();
     const purposeField = field({
       options: [
@@ -54,7 +54,7 @@ describe("DynamicFormField localization", () => {
     expect(screen.queryByText("Tourism")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText("旅游"));
-    expect(onChange).toHaveBeenCalledWith("tourism");
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("tourism"));
 
     mockLocale = "en";
     rerender(
@@ -68,6 +68,67 @@ describe("DynamicFormField localization", () => {
 
     expect(screen.getByText("Tourism")).toBeInTheDocument();
     expect(screen.getByText("Business")).toBeInTheDocument();
+  });
+
+  it("shows multi-option radio selections before the parent value catches up", async () => {
+    const onChange = vi.fn();
+    const genderField = field({
+      id: "gender",
+      fieldName: "gender",
+      label: "Gender",
+      options: [
+        { value: "male", label_zh: "男", label_en: "Male" },
+        { value: "female", label_zh: "女", label_en: "Female" },
+        { value: "other", label_zh: "其他", label_en: "Other" },
+      ],
+    });
+
+    const { container } = render(
+      <DynamicFormField
+        field={genderField}
+        value="male"
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("女"));
+
+    const indicators = container.querySelectorAll("[data-application-radio]");
+    expect(indicators[0]).toBeEmptyDOMElement();
+    expect(indicators[1]).not.toBeEmptyDOMElement();
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("female"));
+  });
+
+  it("shows dropdown selections before the parent value catches up", async () => {
+    const onChange = vi.fn();
+    const genderField = field({
+      id: "gender-select",
+      fieldName: "gender_select",
+      label: "Gender",
+      fieldType: "select",
+      options: [
+        { value: "male", label_zh: "男", label_en: "Male" },
+        { value: "female", label_zh: "女", label_en: "Female" },
+        { value: "other", label_zh: "其他", label_en: "Other" },
+      ],
+    });
+
+    render(
+      <DynamicFormField
+        field={genderField}
+        value="male"
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "女" }));
+
+    expect(screen.getByRole("combobox")).toHaveTextContent("女");
+    expect(onChange).not.toHaveBeenCalled();
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("female"));
   });
 
   it("does not let empty dependent selects fall back to a free-text input", () => {
@@ -222,7 +283,65 @@ describe("DynamicFormField localization", () => {
     expect(screen.getByText("酒店 468")).toBeInTheDocument();
   });
 
-  it("shows optional fields and enforces maxLength hints in Chinese", () => {
+  it("does not repeat configured field guidance below the control", () => {
+    const helperText = "该项确认您理解虚假陈述可能导致拒签、已发签证被撤销，并可能产生法律责任。";
+    const declarationField = field({
+      id: "declaration-awareness",
+      fieldName: "declaration_awareness_refusal",
+      label: "我已知悉虚假陈述可能导致拒签、已发签证被撤销并承担法律责任",
+      validationRules: {
+        helper_zh: helperText,
+        helper_en: "This confirms that you understand the consequences of false statements.",
+      },
+      options: [
+        { value: "yes", text: "Yes" },
+        { value: "no", text: "No" },
+      ],
+    });
+
+    render(
+      <DynamicFormField
+        field={declarationField}
+        value=""
+        onChange={vi.fn()}
+        displayLocale="zh"
+      />,
+    );
+
+    expect(screen.getByText(declarationField.label)).toBeInTheDocument();
+    expect(screen.queryByText(helperText)).not.toBeInTheDocument();
+  });
+
+  it("shows configured guidance inline only when the schema marks it critical", () => {
+    const criticalHelper = "提交前必须确认此项，否则申请无法受理。";
+    const criticalField = field({
+      id: "critical-declaration",
+      fieldName: "critical_declaration",
+      label: "重要声明",
+      validationRules: {
+        helper_zh: criticalHelper,
+        helper_en: "Confirm this before submission or the application cannot be processed.",
+        helper_priority: "critical",
+      },
+      options: [
+        { value: "yes", text: "Yes" },
+        { value: "no", text: "No" },
+      ],
+    });
+
+    render(
+      <DynamicFormField
+        field={criticalField}
+        value=""
+        onChange={vi.fn()}
+        displayLocale="zh"
+      />,
+    );
+
+    expect(screen.getByText(criticalHelper)).toBeInTheDocument();
+  });
+
+  it("renders optional fields without a pill and keeps maxLength feedback inside the control", () => {
     const onChange = vi.fn();
     const addressField = field({
       id: "address",
@@ -242,8 +361,9 @@ describe("DynamicFormField localization", () => {
       />,
     );
 
-    expect(screen.getByText("选填")).toBeInTheDocument();
-    expect(screen.getByText("最多 215 个字符，当前 3/215")).toBeInTheDocument();
+    expect(screen.queryByText("选填")).not.toBeInTheDocument();
+    expect(screen.queryByText("最多 215 个字符，当前 3/215")).not.toBeInTheDocument();
+    expect(screen.getByText("3/215")).toBeInTheDocument();
 
     const textarea = screen.getByRole("textbox");
     expect(textarea).toHaveAttribute("maxLength", "215");

@@ -16,6 +16,9 @@ reports, and workflow documentation for VIZA.
 - `prd-backend-data-schema.md`: backend data model requirements.
 - `application/DG.md`: application form developer guide.
 - `application/UG.md`: application form user guide.
+- `application/schema-ui-contract.md`: canonical mapping from scraped master
+  schema fields to frozen application components, conditional-panel ownership,
+  strict audit workflow, and the edge-case component backlog.
 - `viza-ai-chat-development-guide.md`: VIZA AI chat guide.
 - `travel-agent-development-guide.md`: Travel AI guide.
 - `TRAVEL_AGENT_QA.md`: Travel Agent QA findings, smoke prompts,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -166,6 +166,7 @@ export function ApplicationsList({
   const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const isNavigatingToSelection = useRef(false);
 
   const ongoingRecords = useMemo(
     () =>
@@ -175,6 +176,11 @@ export function ApplicationsList({
 
   useEffect(() => {
     const synchronizeSelection = () => {
+      // Keep the status-page panels stable while the selected application is
+      // persisted and Home is loading. The destination page reads the new
+      // selection directly from storage after navigation.
+      if (isNavigatingToSelection.current) return;
+
       const stored = readActiveApplicationSelection();
       const storedRecord = stored?.applicationId
         ? ongoingRecords.find(
@@ -211,12 +217,10 @@ export function ApplicationsList({
   ) {
     setSwitchError(null);
     setSwitchingId(record.selectionKey);
-    setActiveApplicationSelection(recordSelection(record));
-    setCurrentApplicationId(record.applicationId);
-    setCurrentPackageId(record.packageId);
 
     if (!destinationId) {
-      setSwitchingId(null);
+      isNavigatingToSelection.current = true;
+      setActiveApplicationSelection(recordSelection(record));
       router.push("/client/home");
       return;
     }
@@ -226,7 +230,8 @@ export function ApplicationsList({
       if (!result.success) {
         setSwitchError(result.error ?? t("switchError"));
       } else {
-        setExpandedCountry(null);
+        isNavigatingToSelection.current = true;
+        setActiveApplicationSelection(recordSelection(record));
         router.push("/client/home");
       }
       setSwitchingId(null);

@@ -280,8 +280,10 @@ filling and one-shot submission for the applicant.
 - `src/vn-prearrival/data/`: build-owned snapshots of the official Vietnam
   Pre-Arrival option catalogs used by the cloud worker. Keep these synchronized
   with the frontend catalogs whenever the official portal options are refreshed.
-- `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
-  still a known gap.
+- `src/uk/**`: UKVI saved-application resume and allocation-bound managed-card
+  official-fee flow. It verifies the displayed portal amount/currency before
+  card acquisition or PAN entry and sends unsupported/uncertain outcomes to
+  staff review without exposing an applicant portal handoff.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
   appointment runner. Polls `appointment_assistance_jobs` when
   `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, reads VIZA-created
@@ -546,8 +548,38 @@ filling and one-shot submission for the applicant.
   restart recovery, and persist only card id plus masked PAN. PAN, expiry, CVV,
   and OTP must stay in memory. Do not call it for `client_in_portal`,
   `applicant_direct_link`, or `paper_only_no_fee` routes.
-- Vietnam and Indonesia may acquire a PhotonPay card only after the official
-  payment page is visible. An uncertain provider or portal result must enter
+- `src/issuing/managed-card-provider.ts` selects an issuer before the durable
+  claim. Prefer PhotonPay only with an exact currency BIN/account pair; use the
+  vault-free `src/issuing/airwallex-card-provider.ts` fallback only for an
+  explicitly configured currency capability. Active attempts never switch
+  issuer on retry, and neither adapter may persist PAN, CVV, or expiry.
+  Airwallex creation is application/allocation/attempt-idempotent, accepts only
+  exact two-decimal official-fee amounts in explicitly allowlisted currencies,
+  and requires a configured per-currency card maximum before any API call;
+  it must also pass Airwallex Config Read with Remote Auth version 2 enabled
+  and `default_action=DECLINED` before it claims an issuer-card attempt;
+  `src/clients/airwallex-issuing.spec.ts` keeps those client-side guards covered
+  without network access.
+- The historical applicant-vault Airwallex adapter
+  `src/issuing/escrow-card-provider.ts` was removed. Do not restore a path that
+  stores PAN/CVV or creates a generic issuer card; every runtime card must pass
+  through the durable application/allocation-bound issuer router above.
+- `src/official-fee/execution-context.ts` resolves one explicitly consented
+  VIZA-managed payment intent to one exact issuer-ready government-fee
+  allocation. Issuer claims must carry that allocation id and fail closed on
+  ambiguous, mismatched, unconsented, or non-issuable financial state.
+- `src/official-fee/managed-payment-hooks.ts` adapts that exact execution
+  context and the country-neutral issuer router into lazy card/finalizer
+  callbacks for generic country runners.
+- `src/official-fee/accounting.ts` records redacted official-fee attempts and
+  receipts, intent outcomes, allocation review quarantine, and application
+  official-fee status for country runner payments.
+- `src/runners/managed-payment-boundary.ts` provides the lazy managed-card
+  contract for generic e-Visa runners, strict amount/currency and receipt
+  evidence gates, and an explicit staff-review state when no payment controls
+  have been evidenced.
+- Vietnam and Indonesia may acquire a managed issuer card only after the
+  official payment page is visible. An uncertain provider or portal result must enter
   `review_required`; never issue a second card while that state is unresolved.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development

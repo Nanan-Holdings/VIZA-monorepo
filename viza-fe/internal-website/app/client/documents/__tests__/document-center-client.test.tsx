@@ -100,7 +100,7 @@ describe("embedded document upload step", () => {
     expect(container.querySelector(".border-t")).not.toBeInTheDocument();
   });
 
-  test("renders the embedded document overview and direct upload controls", () => {
+  test("omits redundant document overview UI and renders direct upload controls", () => {
     const onContinue = vi.fn();
     const { container } = render(
       <DocumentCenterClient
@@ -112,9 +112,16 @@ describe("embedded document upload step", () => {
       />
     );
 
-    expect(screen.getByText("Form documents")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "🇯🇵 Japan Documents" })).toBeInTheDocument();
-    expect(screen.getByText("Missing or replacement documents")).toBeInTheDocument();
+    expect(screen.queryByText("Form documents")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "🇯🇵 Japan Documents" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Complete required and optional supporting documents inside this form. Travel itinerary evidence can be uploaded manually or selected from an existing Travel AI English PDF."
+      )
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Application status: Draft")).not.toBeInTheDocument();
+    expect(screen.queryByText("Checklist source: Default checklist")).not.toBeInTheDocument();
+    expect(screen.queryByText("Missing or replacement documents")).not.toBeInTheDocument();
     expect(screen.getAllByText("Use saved profile file").length).toBeGreaterThan(0);
 
     const requiredSection = screen
@@ -128,14 +135,19 @@ describe("embedded document upload step", () => {
     expect(optionalSection).not.toBeNull();
     expect(requiredSection?.querySelectorAll("[data-requirement-key]")).toHaveLength(4);
     expect(optionalSection?.querySelectorAll("[data-requirement-key]")).toHaveLength(2);
+    expect(requiredSection?.querySelectorAll("article")).toHaveLength(4);
+    expect(optionalSection?.querySelectorAll("article")).toHaveLength(2);
     expect(container.querySelectorAll('input[type="file"]')).toHaveLength(6);
-    expect(within(requiredSection as HTMLElement).getAllByRole("button", { name: "Upload" })).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: "Ask AI" })).toHaveLength(6);
+    expect(
+      within(requiredSection as HTMLElement).getAllByText("Drop file or browse")
+    ).toHaveLength(4);
     const continueButton = screen.getByRole("button", { name: "Continue" });
     expect(continueButton).toBeDisabled();
     expect(onContinue).not.toHaveBeenCalled();
   });
 
-  test("keeps missing descriptions optional without hiding requirement badges", () => {
+  test("uses the canonical card treatment when descriptions are missing", () => {
     const signatureRequirement = requirement(
       "customs_signature_file",
       "Customs declaration e-signature",
@@ -144,7 +156,7 @@ describe("embedded document upload step", () => {
     );
     signatureRequirement.description = null;
 
-    render(
+    const { container } = render(
       <DocumentCenterClient
         initialData={{
           ...initialData,
@@ -161,10 +173,12 @@ describe("embedded document upload step", () => {
 
     expect(screen.getByRole("heading", { name: "Portrait photo", level: 3 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Customs declaration e-signature", level: 3 })).toBeInTheDocument();
-    expect(screen.getAllByText("Required")).toHaveLength(2);
+    expect(screen.queryByText("Required")).not.toBeInTheDocument();
+    expect(container.querySelectorAll("article.rounded-xl.border.bg-white.p-5")).toHaveLength(2);
+    expect(container.querySelectorAll(".min-h-\\[40px\\]")).toHaveLength(2);
   });
 
-  test("renders flat document subsections and continues when required uploads are ready", () => {
+  test("renders the canonical two-column upload-card grids and continues when ready", () => {
     const onContinue = vi.fn();
     const readyData: DocumentCenterData = {
       ...initialData,
@@ -179,7 +193,10 @@ describe("embedded document upload step", () => {
           status: "uploaded",
           rejectionReason: null,
           required: true,
-          reviewNotes: null,
+          reviewNotes:
+            item.key === "passport_copy"
+              ? "Uploaded by applicant. Awaiting VIZA review."
+              : null,
           reviewedAt: null,
           createdAt: null,
           updatedAt: null,
@@ -214,20 +231,23 @@ describe("embedded document upload step", () => {
       "text-xl",
       "font-semibold"
     );
-    expect(requiredHeading.closest("section")).toHaveClass("space-y-3");
-    expect(requiredHeading.closest("section")).not.toHaveClass(
-      "rounded-xl",
-      "border",
-      "bg-white",
-      "p-5"
-    );
-    expect(optionalHeading.closest("section")).toHaveClass("space-y-3");
-    expect(optionalHeading.closest("section")).not.toHaveClass(
-      "rounded-xl",
-      "border",
-      "bg-white",
-      "p-5"
-    );
+    const requiredGrid = requiredHeading.closest("section")?.querySelector(".grid");
+    const optionalGrid = optionalHeading.closest("section")?.querySelector(".grid");
+    expect(requiredGrid).toHaveClass("grid-cols-1", "items-start", "gap-4", "md:grid-cols-2");
+    expect(optionalGrid).toHaveClass("grid-cols-1", "items-start", "gap-4", "md:grid-cols-2");
+    expect(requiredGrid?.querySelectorAll("article.rounded-xl")).toHaveLength(4);
+    expect(optionalGrid?.querySelectorAll("article.rounded-xl")).toHaveLength(2);
+    expect(requiredGrid?.querySelectorAll(".h-\\[190px\\]")).toHaveLength(4);
+    expect(
+      screen.queryByText("Uploaded by applicant. Awaiting VIZA review.")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Review note:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Required documents complete")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Required documents are complete. VIZA can continue reviewing the application packet."
+      )
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 

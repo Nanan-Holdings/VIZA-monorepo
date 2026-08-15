@@ -4,8 +4,10 @@ Status: durable provider wired to Vietnam and Indonesia payment-page seams
 Author: drafted with Claude, July 2026
 Scope: `viza-be/submission-service` escrow-card payment path
 
-PhotonPay (光子易) replaces Airwallex as the card issuer for the
-`runner_escrow_card` payment mechanism — see
+PhotonPay (光子易) is the preferred card issuer for the
+`runner_escrow_card` payment mechanism when an exact currency BIN/account pair
+is configured. Airwallex is the durable fallback for explicitly validated
+currencies — see
 [airwallex-issuing-integration.md](./airwallex-issuing-integration.md) for the
 design this supersedes. Everything below is derived from the vendor's
 「API 对接指南」/「签名⽂档」/「回调通知验签」PDFs and the signed acceptance
@@ -306,11 +308,26 @@ PHOTONPAY_PLATFORM_PUBLIC_KEY= | PHOTONPAY_PLATFORM_PUBLIC_KEY_PATH=
 PHOTONPAY_ISSUING_BIN=
 PHOTONPAY_ISSUING_CURRENCY=USD
 PHOTONPAY_ISSUING_ACCOUNT=          # funding accountNo, FA-USD…
+PHOTONPAY_ISSUING_BIN_USD=
+PHOTONPAY_ISSUING_ACCOUNT_USD=
+PHOTONPAY_ISSUING_BIN_EUR=
+PHOTONPAY_ISSUING_ACCOUNT_EUR=
+PHOTONPAY_ISSUING_BIN_GBP=
+PHOTONPAY_ISSUING_ACCOUNT_GBP=
 PHOTONPAY_ISSUING_CARDHOLDER_ID=    # optional; empty = account default holder
 PHOTONPAY_ISSUING_CARDHOLDER_NAME=  # name submitted to official card forms
-PHOTONPAY_ISSUING_ALLOW_PENDING_TREASURY=false
 PHOTONPAY_ISSUING_FX_BUFFER_PCT=0
 ```
+
+Airwallex fallback additionally requires
+`AIRWALLEX_ISSUING_ENABLED=true`, credentials, a cardholder id, and an explicit
+comma-separated `AIRWALLEX_ISSUING_SUPPORTED_CURRENCIES` allowlist. Currency
+codes outside that validated list fail closed; they are never inferred from
+Airwallex's general network coverage.
+
+The worker has no pending-treasury override. It resolves one exact allocation
+for the consented managed-card intent and requires that allocation to be in an
+issuer-ready state before PhotonPay is called.
 
 Credentials live in `.secrets/` (gitignored), one file per environment —
 `prod.env` and `uat.env`. Neither is committed:

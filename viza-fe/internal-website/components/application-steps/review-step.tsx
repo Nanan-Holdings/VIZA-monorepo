@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
-import { Button } from "@/components/ui/button";
-import { CheckCircle as CheckCircle2, Warning as AlertTriangle, Pencil } from "@phosphor-icons/react";
+import { ReviewEditButton } from "@/components/ui/review-edit-button";
+import { CheckCircle as CheckCircle2, Warning as AlertTriangle } from "@phosphor-icons/react";
 import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
@@ -94,16 +94,10 @@ function ReviewSummarySection({
       <div className="flex min-h-8 items-center justify-between gap-3">
         <h3 className="font-heading text-sm font-semibold text-brand-500">{title}</h3>
         {onEdit ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
+          <ReviewEditButton
             onClick={onEdit}
-            className="h-8 w-8 shrink-0 justify-end p-0 text-brand-500 hover:bg-brand-50 hover:text-brand-600"
-            aria-label={`修改${title} / Edit ${title}`}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
+            label={`修改${title} / Edit ${title}`}
+          />
         ) : null}
       </div>
       <Table className="table-fixed">

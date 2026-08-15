@@ -7,13 +7,17 @@ Scope: this file applies to `viza-fe/internal-website/app/client/checkout/**`.
 This module owns applicant checkout for VIZA agency fees. It starts payment and
 activates the internal preparation workflow after Stripe confirms payment.
 
-Government portal payments are not processed here. Show government fees and
-payment mode clearly, but do not implement official-portal fee relay.
+Government portal payments are not processed by this Stripe checkout. Explain
+clearly that VIZA provisions an application-scoped virtual card and pays the
+official portal on the applicant's behalf when that later step becomes due.
 
 ## Key Responsibilities
 
 - Render eligible `visa_packages` with agency fee, currency, and government
   fee display notes.
+- When `applicationId` is present, lock checkout to that exact application's
+  package. Do not show an active-package chooser or allow checkout to fall back
+  silently to another application.
 - Start Stripe Checkout through trusted server actions or route handlers.
 - Create/update `payment_records` for pending and paid sessions.
 - After successful payment, move the application toward the next internal
@@ -44,6 +48,9 @@ Required for real checkout:
   defines that behavior.
 - Do not store raw payment method details.
 - Do not add a dependency on official portal automation.
+- Never ask applicants for official-portal card details or tell them to pay an
+  official portal directly. VIZA's submission worker owns just-in-time virtual
+  card issuance and official-fee payment.
 
 ## Validation
 
@@ -65,5 +72,6 @@ gracefully.
   agency fees only.
 - `data.ts`: server-only checkout data loading, payment-state reconciliation,
   government-fee disclosure helpers, and scoped Supabase typing.
+- `data.test.ts`: regression coverage for exact application/package selection.
 - `submit-button.tsx`: client submit button with pending state for the Stripe
   Checkout form.

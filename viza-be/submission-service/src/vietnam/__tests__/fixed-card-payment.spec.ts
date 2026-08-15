@@ -12,6 +12,7 @@ import {
   redactVietnamFixedCard,
   waitForStandardCharteredBankAppChallenge,
   vietnamPaymentNeedsHuman,
+  verifyVietnamOfficialFeeText,
 } from "../fixed-card-payment";
 
 test("vn.fixed-card-payment: pre-payment QA stops at an empty card field", async () => {
@@ -51,6 +52,8 @@ test("vn.fixed-card-payment: disabled unless both fixed card and autopay flags a
 
 test("vn.fixed-card-payment: loads and normalizes a fixed card from env", () => {
   const card = loadVietnamFixedCardFromEnv({
+    NODE_ENV: "test",
+    VN_LOCAL_CARD_SESSION_ENABLED: "true",
     VN_FIXED_CARD_ENABLED: "true",
     VN_OFFICIAL_PAYMENT_AUTOPAY: "true",
     VN_FIXED_CARD_PAN: "4111 1111 1111 1111",
@@ -70,6 +73,8 @@ test("vn.fixed-card-payment: loads and normalizes a fixed card from env", () => 
 
 test("vn.fixed-card-payment: redaction never returns PAN or CVV", () => {
   const card = loadVietnamFixedCardFromEnv({
+    NODE_ENV: "test",
+    VN_LOCAL_CARD_SESSION_ENABLED: "true",
     VN_FIXED_CARD_ENABLED: "true",
     VN_OFFICIAL_PAYMENT_AUTOPAY: "true",
     VN_FIXED_CARD_PAN: "4111111111111111",
@@ -86,6 +91,41 @@ test("vn.fixed-card-payment: redaction never returns PAN or CVV", () => {
   });
   assert.equal(JSON.stringify(redactVietnamFixedCard(card)).includes("4111111111111111"), false);
   assert.equal(JSON.stringify(redactVietnamFixedCard(card)).includes("123"), false);
+});
+
+test("vn.fixed-card-payment: rejects process-wide card secrets in production", () => {
+  assert.equal(loadVietnamFixedCardFromEnv({
+    NODE_ENV: "production",
+    VN_LOCAL_CARD_SESSION_ENABLED: "true",
+    VN_FIXED_CARD_ENABLED: "true",
+    VN_OFFICIAL_PAYMENT_AUTOPAY: "true",
+    VN_FIXED_CARD_PAN: "4111111111111111",
+    VN_FIXED_CARD_EXPIRY: "01/31",
+    VN_FIXED_CARD_CVV: "123",
+  }), null);
+});
+
+test("vn.fixed-card-payment: verifies visible amount and currency exactly", () => {
+  assert.deepEqual(
+    verifyVietnamOfficialFeeText({
+      bodyText: "Payment information Amount paid (USD): 25.00 I agree to pay",
+      expectedAmountCents: 2_500,
+      expectedCurrency: "USD",
+    }),
+    { verified: true, amountCents: 2_500, currency: "USD" },
+  );
+  assert.deepEqual(
+    verifyVietnamOfficialFeeText({
+      bodyText: "Amount paid (USD): 26.00",
+      expectedAmountCents: 2_500,
+      expectedCurrency: "USD",
+    }),
+    { verified: false, reason: "amount_mismatch" },
+  );
+  assert.deepEqual(
+    verifyVietnamOfficialFeeText({ bodyText: "Payment", expectedAmountCents: null, expectedCurrency: "USD" }),
+    { verified: false, reason: "expectation_missing" },
+  );
 });
 
 test("vn.fixed-card-payment: parses one-time frontend card input", () => {
@@ -108,6 +148,8 @@ test("vn.fixed-card-payment: parses one-time frontend card input", () => {
 test("vn.fixed-card-payment: rejects malformed sensitive fields", () => {
   assert.throws(
     () => loadVietnamFixedCardFromEnv({
+      NODE_ENV: "test",
+      VN_LOCAL_CARD_SESSION_ENABLED: "true",
       VN_FIXED_CARD_ENABLED: "true",
       VN_OFFICIAL_PAYMENT_AUTOPAY: "true",
       VN_FIXED_CARD_PAN: "not-a-card",
@@ -118,6 +160,8 @@ test("vn.fixed-card-payment: rejects malformed sensitive fields", () => {
   );
   assert.throws(
     () => loadVietnamFixedCardFromEnv({
+      NODE_ENV: "test",
+      VN_LOCAL_CARD_SESSION_ENABLED: "true",
       VN_FIXED_CARD_ENABLED: "true",
       VN_OFFICIAL_PAYMENT_AUTOPAY: "true",
       VN_FIXED_CARD_PAN: "4111111111111111",
@@ -128,6 +172,8 @@ test("vn.fixed-card-payment: rejects malformed sensitive fields", () => {
   );
   assert.throws(
     () => loadVietnamFixedCardFromEnv({
+      NODE_ENV: "test",
+      VN_LOCAL_CARD_SESSION_ENABLED: "true",
       VN_FIXED_CARD_ENABLED: "true",
       VN_OFFICIAL_PAYMENT_AUTOPAY: "true",
       VN_FIXED_CARD_PAN: "4111111111111111",

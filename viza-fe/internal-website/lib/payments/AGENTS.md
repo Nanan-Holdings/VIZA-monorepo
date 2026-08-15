@@ -15,9 +15,14 @@ This module holds shared payment-domain helpers used by client and API routes.
 - `refund-rules.ts`: refund eligibility helpers for existing payment records.
 - `method-availability.ts`: package/currency policy for direct wallets and
   Stripe Checkout Alipay/WeChat Pay method selection.
+- `official-fee-catalog.ts`: typed country/visa classification for VIZA-managed
+  virtual-card payments and explicit offline/free exceptions.
 
 ## Guardrails
 
 - Store prices in minor units (`amountFen` for CNY) and format at the UI edge.
 - Keep official government fees separate from commercial VIZA service fees.
+- Official portal payments use VIZA-managed, application-scoped virtual cards;
+  any `portal_direct` value is legacy data, not an instruction for applicants
+  to enter their own card.
 - Do not import client components from this module.

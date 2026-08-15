@@ -8,16 +8,18 @@ import { classifyPage, type KhRunnerError } from "./errors";
 import { KH_SELECTORS } from "./selectors";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
 import { extractAuto } from "../inbox/extractors/index.js";
+import {
+  unavailableManagedPaymentBoundary,
+  type ManagedPaymentHooks,
+} from "../runners/managed-payment-boundary.js";
 
 /**
  * Cambodia e-Visa prefill runner (AUTO-KH-01 + AUTO-KH-02).
  *
  * Drives the public evisa.gov.kh form from the canonical answer set
  * for KH_TOURIST_E_VISA and **stops before payment**. The runner
- * never clicks the final submit / pay button — the applicant signs
- * + pays in their own session, or VIZA's escrow card pays via the
- * runner once the payment-routing escrow flow is wired in
- * (PAY-003 mechanism `runner_escrow_card`).
+ * never clicks the final submit / pay button until evidenced managed-payment
+ * controls are available. Missing controls terminate in staff review.
  *
  * Public form, no auth gate, no per-applicant credentials. Each run
  * captures a screenshot + HAR + console log under
@@ -50,10 +52,11 @@ export interface KhRunInput {
   answers: KhCanonicalAnswers;
   /** Override headless mode for ops triage. Defaults to true. */
   headless?: boolean;
+  paymentHooks?: ManagedPaymentHooks;
 }
 
 export interface KhRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
+  status: "managed_payment_adapter_unavailable" | "blocked" | "anti_bot_gate" | "needs_human";
   reason: string;
   /** Last step the runner reached. */
   reachedStep: string;
@@ -228,8 +231,14 @@ export async function runKhPrefill(input: KhRunInput): Promise<KhRunResult> {
 
     // 05 — STOP before final submit / pay. We deliberately do NOT
     // click any button matching /pay|submit|confirm/i.
-    result.status = "stopped_before_pay";
-    result.reason = "runner halted at the review step before payment";
+    const payment = await unavailableManagedPaymentBoundary({
+      country: "cambodia",
+      visaType: "KH_TOURIST_E_VISA",
+      hooks: input.paymentHooks,
+    });
+    result.status = payment.status;
+    result.reason = payment.reason;
+    result.reachedStep = "managed_payment_review_required";
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

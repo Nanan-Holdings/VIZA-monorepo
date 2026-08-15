@@ -1,21 +1,21 @@
 # Vietnam e-Visa runbook (AUTO-VN-04)
 
-> Last reviewed: 2026-05-08.
+> Last reviewed: 2026-08-15.
 
 Production handoff for VN_E_VISA flow.
 
-## Hand-off lifecycle (PAY-003 = applicant_direct_link)
+## VIZA-managed payment lifecycle
 
 | Stage | Status | Trigger |
 |---|---|---|
-| Runner prefills, captures registrationCode | `awaiting_government_payment` | `run.ts` halts before Pay/Submit; surfaces code to applicant. |
-| Applicant pays on evisa.gov.vn | `submitted_to_government` | Applicant action; we don't observe directly. |
+| Runner prefills and captures registrationCode | `awaiting_government_payment` | `run.ts` reaches the official payment boundary and keeps the application in VIZA's managed workflow. |
+| VIZA pays on evisa.gov.vn | `submitted_to_government` | The worker provisions an application-scoped virtual card from an authorized official-fee intent and records the portal result. |
 | Email arrives with e-Visa PDF (~3 working days) | `delivered` | `waitForVietnamEvisa` + `persistVnDelivered`. |
 
-VN does NOT use the runner-escrow-card mechanism — applicants pay
-directly on the government portal because chargeback risk to our
-escrow card was high during the 2026-Q1 pilot. The runner stops at
-the captured registrationCode and the applicant takes over.
+VN uses the managed virtual-card path. Applicants never enter official-portal
+card details. The runner issues the limited card only after an authorized
+official-fee intent exists and the official payment page is ready; uncertain
+provider or portal outcomes enter manual review instead of issuing another card.
 
 ## Architecture pointers
 
@@ -50,10 +50,10 @@ KH/LA/LK/ZA/IN/AU runners, NOT used by the VN flow itself.
 |---|---|---|
 | vn.validation.captcha_required | Portal captcha challenge | Operator takeover (CS-003); rotate proxy. |
 | vn.anti_bot.cloudflare on landing | Portal Cloudflare gate | Wait + rotate proxy. |
-| Applicant ignores payment link (3+ days) | Reminders not sent | Reminder cron + email + SMS escalation. |
+| Official payment remains pending (3+ days) | Intent, issuing, or portal flow stalled | Inspect the official-fee intent and payment attempt; route uncertain outcomes to manual review. |
 | PDF email arrives but payload is .htm not .pdf | Some sub-flows wrap PDF in HTML | Extractor fallback in `extractors/evisa-gov-vn`. |
 
 ## Linked from
 
-- [docs/payments/government-fee-routing.md](../payments/government-fee-routing.md) — VN = `applicant_direct_link`.
+- [docs/payments/government-fee-routing.md](../payments/government-fee-routing.md) — VN = `runner_escrow_card`.
 - [docs/runbooks/](.) — sibling runbooks.

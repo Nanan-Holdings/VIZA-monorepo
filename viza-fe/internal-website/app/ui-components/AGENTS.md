@@ -5,8 +5,9 @@ Scope: this file applies to `viza-fe/internal-website/app/ui-components/**`.
 ## Purpose
 
 `/ui-components` is a lightweight visual gallery for reusable application
-form primitives, supporting-document cards, AI assist triggers, and the
-canonical `components/ui/country-dropdown.tsx`. Keep it
+form primitives, canonical dropdown- and radio-controlled conditional groups,
+supporting-document cards, AI assist triggers, and the canonical
+`components/ui/country-dropdown.tsx`. Keep it
 limited to demonstrative local state; it must not load applicant data, invoke
 server actions, or become an alternate application form.
 

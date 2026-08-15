@@ -16,6 +16,7 @@ import {
   isPhotonPayEnabled,
 } from "@/lib/photonpay/client";
 import { encodeReqId } from "@/lib/photonpay/reqid";
+import { findOngoingApplicationByIdentity } from "@/lib/applications/ongoing-application";
 
 /**
  * Pre-authentication guest card checkout (Stripe Checkout).
@@ -70,7 +71,10 @@ function minorUnits(amountCents: number, currency: string): number {
 function shopperIpFrom(hdrs: { get(name: string): string | null }): string {
   const xff = (hdrs.get("x-forwarded-for") ?? "").split(",")[0].trim();
   const ip = xff || (hdrs.get("x-real-ip") ?? "").trim();
-  if (!ip || /^(::1|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip)) {
+  if (
+    !ip ||
+    /^(::1|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip)
+  ) {
     return "203.0.113.10";
   }
   return ip;
@@ -83,7 +87,7 @@ function siteUrl(): string {
 }
 
 export async function startCardCheckout(
-  input: StartCardCheckoutInput,
+  input: StartCardCheckoutInput
 ): Promise<StartCardCheckoutOutput> {
   const email = input.email.toLowerCase().trim();
   if (!EMAIL_RE.test(email)) throw new Error("Invalid email");
@@ -93,7 +97,7 @@ export async function startCardCheckout(
   const pricing = pricingFor(input.country, input.visaType);
   if (!pricing) {
     throw new Error(
-      `No pricing for package ${input.country}/${input.visaType}`,
+      `No pricing for package ${input.country}/${input.visaType}`
     );
   }
   const passthroughGovt =
@@ -135,16 +139,21 @@ export async function startCardCheckout(
     }
 
     // 2. Ensure a draft application for this (applicant, country, visa).
-    const { data: existingApp } = await admin
+    const { data: existingApps, error: existingAppsError } = await admin
       .from("applications")
-      .select("id")
+      .select(
+        "id, country, visa_type, status, submission_result_status, result_status, submission_result"
+      )
       .eq("applicant_id", applicantId)
-      .eq("country", input.country)
-      .eq("visa_type", input.visaType)
-      .in("status", ["draft", "pending"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    if (existingAppsError)
+      throw new Error(`application lookup: ${existingAppsError.message}`);
+    const existingApp = findOngoingApplicationByIdentity(
+      existingApps ?? [],
+      input.country,
+      input.visaType
+    );
 
     let applicationId: string;
     if (existingApp) {
@@ -160,10 +169,29 @@ export async function startCardCheckout(
         })
         .select("id")
         .single();
-      if (appErr || !appIns) {
+      if (appErr?.code === "23505") {
+        const { data: concurrentApps, error: concurrentAppsError } = await admin
+          .from("applications")
+          .select(
+            "id, country, visa_type, status, submission_result_status, result_status, submission_result"
+          )
+          .eq("applicant_id", applicantId)
+          .order("updated_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false });
+        if (concurrentAppsError)
+          throw new Error(`application lookup: ${concurrentAppsError.message}`);
+        const concurrentApp = findOngoingApplicationByIdentity(
+          concurrentApps ?? [],
+          input.country,
+          input.visaType
+        );
+        if (concurrentApp) applicationId = concurrentApp.id as string;
+        else throw new Error(`application insert: ${appErr.message}`);
+      } else if (appErr || !appIns) {
         throw new Error(`application insert: ${appErr?.message}`);
+      } else {
+        applicationId = appIns.id as string;
       }
-      applicationId = appIns.id as string;
     }
 
     // 3. Reuse an open order for this application, else create one.
@@ -226,7 +254,11 @@ export async function startCardCheckout(
     //     best-effort, never blocks the payment redirect.
     const prefill = decodeCheckoutPrefill(input.prefill);
     if (prefill) {
-      await applyCheckoutPrefill(admin, { applicantId, applicationId }, prefill);
+      await applyCheckoutPrefill(
+        admin,
+        { applicantId, applicationId },
+        prefill
+      );
     }
 
     // 4. Mint the checkout session. success → check-your-email;
@@ -235,7 +267,7 @@ export async function startCardCheckout(
     const origin = siteUrl();
     const successUrl = `${origin}/checkout/card/check-your-email?locale=${input.locale}`;
     const cancelUrl = `${origin}/checkout/card?country=${encodeURIComponent(
-      input.country,
+      input.country
     )}&visa=${encodeURIComponent(input.visaType)}&locale=${input.locale}`;
 
     // Free demo package — nothing to collect: mark the order paid and run
@@ -255,7 +287,9 @@ export async function startCardCheckout(
       const photon = getPhotonPayClient();
       const siteId = getPhotonPaySiteId();
       if (!photon || !siteId) {
-        throw new Error("PhotonPay is enabled but PHOTONPAY_* env is incomplete");
+        throw new Error(
+          "PhotonPay is enabled but PHOTONPAY_* env is incomplete"
+        );
       }
       const reqId = encodeReqId(orderId, Date.now().toString(36));
       const hdrs = await headers();
@@ -300,7 +334,9 @@ export async function startCardCheckout(
         .eq("id", orderId)
         .maybeSingle();
       const existingMetadata =
-        existing?.metadata && typeof existing.metadata === "object" && !Array.isArray(existing.metadata)
+        existing?.metadata &&
+        typeof existing.metadata === "object" &&
+        !Array.isArray(existing.metadata)
           ? (existing.metadata as Record<string, unknown>)
           : {};
       await admin
@@ -336,7 +372,7 @@ export async function startCardCheckout(
       customerEmail: email,
       paymentMethodTypes: stripeCheckoutPaymentMethodsFor(
         input.country,
-        input.visaType,
+        input.visaType
       ),
       guestCheckout: true,
       successUrl,

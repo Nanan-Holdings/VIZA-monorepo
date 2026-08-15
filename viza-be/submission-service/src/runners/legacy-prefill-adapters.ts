@@ -6,6 +6,8 @@ import { runLkPrefill } from "../lk/runner.js";
 import { runKhPrefill } from "../kh/runner.js";
 import { runLaPrefill } from "../la/runner.js";
 import { runZaPrefill } from "../za/runner.js";
+import { createManagedPaymentHooks } from "../official-fee/managed-payment-hooks.js";
+import type { ManagedPaymentHooks } from "./managed-payment-boundary.js";
 
 /**
  * runOne adapters for the dedicated-CanonicalAnswers prefill runners
@@ -15,7 +17,11 @@ import { runZaPrefill } from "../za/runner.js";
  * `runOne` from each country's runner.ts and bound in dispatch.ts.
  */
 
-export async function runIndia(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+export async function runIndia(
+  applicationId: string,
+  jobId?: string,
+  paymentHooks?: ManagedPaymentHooks,
+): Promise<DispatchOutcome> {
   const rec = await loadCanonicalAnswers(applicationId);
   const result = await runInPrefill({
     jobId: jobId ?? applicationId,
@@ -35,11 +41,21 @@ export async function runIndia(applicationId: string, jobId?: string): Promise<D
       occupation: pick(rec, "occupation") || undefined,
       visa_purpose: "tourism",
     },
+    paymentHooks: paymentHooks ?? createManagedPaymentHooks({
+      applicationId,
+      workerId: jobId ?? applicationId,
+      country: "india",
+      visaType: "IN_E_VISA",
+    }),
   });
   return mapStandardToOutcome(result);
 }
 
-export async function runSriLanka(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+export async function runSriLanka(
+  applicationId: string,
+  jobId?: string,
+  paymentHooks?: ManagedPaymentHooks,
+): Promise<DispatchOutcome> {
   const rec = await loadCanonicalAnswers(applicationId);
   const result = await runLkPrefill({
     jobId: jobId ?? applicationId,
@@ -60,11 +76,21 @@ export async function runSriLanka(applicationId: string, jobId?: string): Promis
       address_in_sri_lanka: pick(rec, "address_in_sri_lanka"),
       visa_variant: pick(rec, "visa_variant", "tourist_double"),
     },
+    paymentHooks: paymentHooks ?? createManagedPaymentHooks({
+      applicationId,
+      workerId: jobId ?? applicationId,
+      country: "sri_lanka",
+      visaType: "LK_ETA",
+    }),
   });
   return mapStandardToOutcome(result);
 }
 
-export async function runCambodia(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+export async function runCambodia(
+  applicationId: string,
+  jobId?: string,
+  paymentHooks?: ManagedPaymentHooks,
+): Promise<DispatchOutcome> {
   const rec = await loadCanonicalAnswers(applicationId);
   const result = await runKhPrefill({
     jobId: jobId ?? applicationId,
@@ -80,11 +106,21 @@ export async function runCambodia(applicationId: string, jobId?: string): Promis
       email: pick(rec, "email"),
       phone: pick(rec, "phone"),
     },
+    paymentHooks: paymentHooks ?? createManagedPaymentHooks({
+      applicationId,
+      workerId: jobId ?? applicationId,
+      country: "cambodia",
+      visaType: "KH_TOURIST_E_VISA",
+    }),
   });
   return mapStandardToOutcome(result);
 }
 
-export async function runLaos(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+export async function runLaos(
+  applicationId: string,
+  jobId?: string,
+  paymentHooks?: ManagedPaymentHooks,
+): Promise<DispatchOutcome> {
   const rec = await loadCanonicalAnswers(applicationId);
   const result = await runLaPrefill({
     jobId: jobId ?? applicationId,
@@ -103,11 +139,21 @@ export async function runLaos(applicationId: string, jobId?: string): Promise<Di
       port_of_entry: pick(rec, "port_of_entry", "VTE"),
       occupation: pick(rec, "occupation"),
     },
+    paymentHooks: paymentHooks ?? createManagedPaymentHooks({
+      applicationId,
+      workerId: jobId ?? applicationId,
+      country: "laos",
+      visaType: "LA_TOURIST_E_VISA",
+    }),
   });
   return mapStandardToOutcome(result);
 }
 
-export async function runSouthAfrica(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+export async function runSouthAfrica(
+  applicationId: string,
+  jobId?: string,
+  paymentHooks?: ManagedPaymentHooks,
+): Promise<DispatchOutcome> {
   const rec = await loadCanonicalAnswers(applicationId);
   const result = await runZaPrefill({
     jobId: jobId ?? applicationId,
@@ -127,6 +173,12 @@ export async function runSouthAfrica(applicationId: string, jobId?: string): Pro
       purpose_of_visit: pick(rec, "purpose_of_visit", "Tourism"),
       occupation: pick(rec, "occupation"),
     },
+    paymentHooks: paymentHooks ?? createManagedPaymentHooks({
+      applicationId,
+      workerId: jobId ?? applicationId,
+      country: "south_africa",
+      visaType: "ZA_VISITOR_VISA",
+    }),
   });
   return mapStandardToOutcome(result);
 }

@@ -37,6 +37,7 @@ change:
 - `country-dropdown.tsx`
 - `supporting-document-card.tsx`
 - `page-back-button.tsx`
+- `review-edit-button.tsx`
 
 This freeze covers code, public props, behavior, layout, styling, copy, icons,
 spacing, colors, borders, motion, hover states, and focus states. Do not
@@ -67,14 +68,20 @@ Smoke at least one route that uses the changed primitive.
   controls sharing the `.application-form-control` CSS contract. The select
   primitive owns regular, searchable single-select, and searchable multi-select
   behavior used by both `/ui-components` and `/client/application`.
-- `application-conditional-fields-panel.tsx`: nested panel for fields revealed
-  by a parent answer, including the closely coupled repeat-group add action.
+- `application-conditional-fields-panel.tsx`: the single nested panel for all
+  fields revealed by one parent answer, including dropdown-controlled branches,
+  radio-controlled branches, and the closely coupled repeat-group add action.
+  Fields that share a conditional root stay inside one panel even when one of
+  them also depends on another field for loading or deriving its value.
 - `date-picker.tsx`: compatibility wrapper for the shared application form date
   picker used by existing client flows.
 - `application-form-panel.tsx` and `application-form-field.tsx`: shared form
   container and label/helper wrappers. The field wrapper exposes a fixed-size
   `labelAction` slot that owns exact right-edge alignment and hover/focus reveal
-  for controls such as the AI field trigger.
+  for controls such as the AI field trigger. Optional fields are identified by
+  the absence of the required asterisk; never add an `Optional`/`选填` pill,
+  badge, or secondary label. Confirm the product rationale with Edward and
+  obtain his explicit approval before proposing any future optional marker.
   `application-form-controls.tsx` remains a compatibility re-export only.
 - `supporting-document-card.tsx`: shared visual shell for individual document
   upload cards; upload behavior remains owned by the consuming feature.
@@ -93,4 +100,7 @@ Smoke at least one route that uses the changed primitive.
   browser history when possible and uses the fallback only for a direct entry.
   Its navigation and accessible-name contract is covered by
   `__tests__/page-back-button.test.tsx`.
+- `review-edit-button.tsx`: canonical icon-only edit action for application
+  review sections. Like the field AI robot trigger, its background remains
+  transparent on hover and only the brand-colored icon darkens.
 - `viza-fe/internal-website/frontend.md`

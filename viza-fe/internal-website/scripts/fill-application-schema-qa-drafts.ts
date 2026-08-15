@@ -11,6 +11,10 @@ import {
   type VisaFormFieldRow,
   type WizardStep,
 } from "@/types/visa-form-fields";
+import {
+  isDedicatedQaApplicantEmail,
+  isLocalSupabaseUrl,
+} from "@/lib/applications/qa-safety";
 
 const DRY_RUN_PURPOSE = "VIZA_PLACEHOLDER_DRY_RUN";
 const PASSPORT_PATH = "/Users/edward/Images/Personal/Passport.jpg";
@@ -235,6 +239,11 @@ async function main() {
     );
   }
   const env = readLocalEnv();
+  if (!isLocalSupabaseUrl(env.NEXT_PUBLIC_SUPABASE_URL)) {
+    throw new Error(
+      "Refusing to fill persistent QA drafts outside local Supabase. Use an isolated local database instead of a hosted customer database.",
+    );
+  }
   const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -244,6 +253,11 @@ async function main() {
     .eq("id", applicantId)
     .single();
   if (profileError || !profile) throw new Error(profileError?.message ?? "Applicant profile not found");
+  if (!isDedicatedQaApplicantEmail(profile.email)) {
+    throw new Error(
+      "Refusing to fill QA drafts for a normal applicant. Use a dedicated @viza.test account in local Supabase.",
+    );
+  }
 
   const { data: rows, error: applicationError } = await supabase
     .from("applications")

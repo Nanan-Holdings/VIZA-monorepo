@@ -15,6 +15,10 @@ import {
   queueStatusForApplication,
 } from "@/lib/submission-queue";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import {
+  isQaDryRunPurpose,
+  isSyntheticQaValue,
+} from "@/lib/applications/qa-safety";
 
 /**
  * Producers for shared-pool and sticky submission runners.
@@ -59,6 +63,46 @@ function poolMigrationEnabled(): boolean {
   return process.env.RUNNER_POOL_MIGRATION_ENABLED === "true";
 }
 
+async function assertApplicationHasNoSyntheticQaData(
+  applicationId: string
+): Promise<void> {
+  await withAdmin("system", "lib/queue:qa-safety", async (admin) => {
+    const [{ data: application, error: applicationError }, { data: answers, error: answerError }] =
+      await Promise.all([
+        admin
+          .from("applications")
+          .select("purpose")
+          .eq("id", applicationId)
+          .single(),
+        admin
+          .from("visa_application_answers")
+          .select("field_name, value_text, value_json")
+          .eq("application_id", applicationId),
+      ]);
+    if (applicationError || !application) {
+      throw new Error(
+        `submission safety application lookup: ${applicationError?.message ?? "no data"}`
+      );
+    }
+    if (answerError) {
+      throw new Error(`submission safety answer lookup: ${answerError.message}`);
+    }
+    if (isQaDryRunPurpose(application.purpose)) {
+      throw new Error("Synthetic QA applications cannot enter a live runner queue.");
+    }
+    const unsafe = (answers ?? []).find(
+      (answer) =>
+        isSyntheticQaValue(answer.value_text) ||
+        isSyntheticQaValue(JSON.stringify(answer.value_json ?? null))
+    );
+    if (unsafe) {
+      throw new Error(
+        `Application contains synthetic QA data in ${unsafe.field_name}; live submission is blocked.`
+      );
+    }
+  });
+}
+
 async function desiredRunnerPoolCapacity(): Promise<number> {
   return withAdmin("system", "lib/queue:pool-depth", async (admin) => {
     const { data, error } = await admin
@@ -84,6 +128,7 @@ export async function enqueueRunnerPoolJob(
   flowKey: RunnerPoolFlowKey,
   opts: EnqueueOpts = {},
 ): Promise<EnqueueRunnerPoolResult> {
+  await assertApplicationHasNoSyntheticQaData(applicationId);
   const normalizedCountry = assertKnownCountry(country);
   const row = await withAdmin("system", "lib/queue:enqueue-pool", async (admin) => {
     const { data, error } = await admin.rpc("enqueue_runner_pool_job", {
@@ -191,6 +236,7 @@ export async function enqueueSgacRunnerRetry(
   applicationId: string,
   opts: EnqueueOpts = {},
 ): Promise<EnqueueSgacRetryResult> {
+  await assertApplicationHasNoSyntheticQaData(applicationId);
   const result = await withAdmin("system", "lib/queue:enqueue-sgac-retry", async (admin) => {
     const { data, error } = await admin.rpc("enqueue_sgac_country_runner_retry", {
       p_application_id: applicationId,
@@ -248,6 +294,7 @@ export async function enqueueRunnerJob(
   country: string,
   opts: EnqueueOpts = {},
 ): Promise<{ id: string; created: boolean }> {
+  await assertApplicationHasNoSyntheticQaData(applicationId);
   const normalizedCountry = assertKnownCountry(country);
   const visaType = await withAdmin("system", "lib/queue:application-flow", async (admin) => {
     const { data, error } = await admin

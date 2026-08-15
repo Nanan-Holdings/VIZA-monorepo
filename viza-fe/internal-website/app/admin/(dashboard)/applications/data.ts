@@ -8,6 +8,7 @@ import {
   loadLiveSubmissionSummaries,
   type LiveSubmissionSummary,
 } from "@/lib/submission-live-status";
+import { isQaDryRunPurpose } from "@/lib/applications/qa-safety";
 
 export type LifecycleState =
   | "intake"
@@ -43,6 +44,7 @@ interface ApplicationRow {
   applicant_id: string;
   country: string;
   visa_type: string;
+  purpose: string | null;
   status: string;
   arrival_date: string | null;
   departure_date: string | null;
@@ -440,7 +442,7 @@ const RESULT_RECEIVED_STATUSES = new Set(["received", "available", "ready"]);
 const RESULT_PENDING_STATUSES = new Set(["pending", "processing"]);
 
 const APPLICATION_BASE_SELECT =
-  "id, applicant_id, country, visa_type, status, arrival_date, departure_date, confirmation_number, submitted_at, visa_package_id, created_at, updated_at";
+  "id, applicant_id, country, visa_type, purpose, status, arrival_date, departure_date, confirmation_number, submitted_at, visa_package_id, created_at, updated_at";
 
 const APPLICATION_AUTOMATION_SELECT = `${APPLICATION_BASE_SELECT}, packet_status, packet_manifest, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, result_notes, government_fee_cents, government_fee_currency, government_fee_mode`;
 
@@ -479,6 +481,7 @@ function withApplicationDefaults(row: Partial<ApplicationRow> & Pick<
     applicant_id: row.applicant_id,
     country: row.country,
     visa_type: row.visa_type,
+    purpose: row.purpose ?? null,
     status: row.status,
     arrival_date: row.arrival_date ?? null,
     departure_date: row.departure_date ?? null,
@@ -1357,7 +1360,8 @@ export async function fetchAdminApplicationQueue(): Promise<{
     if (error) throw new Error(error.message);
 
     const applicationRows = ((data ?? []) as Array<Partial<ApplicationRow> & Pick<ApplicationRow, "id" | "applicant_id" | "country" | "visa_type" | "status">>)
-      .map(withApplicationDefaults);
+      .map(withApplicationDefaults)
+      .filter((application) => !isQaDryRunPurpose(application.purpose));
     const rows = await buildModels(applicationRows);
     rows.sort((a, b) => {
       const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();

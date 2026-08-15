@@ -13,6 +13,7 @@ import {
   advanceVietnamPortalToCardEntry,
   loadVietnamFixedCardFromEnv,
   payVietnamPortalWithFixedCard,
+  verifyVietnamOfficialFeeText,
   type VietnamFixedCard,
   type VietnamFixedCardPaymentResult,
 } from "./fixed-card-payment";
@@ -81,7 +82,7 @@ export type VietnamPaymentResumeResult =
       diagnostics?: VietnamPaymentResumeDiagnostics;
     }
   | {
-      status: "needs_human" | "declined" | "unavailable";
+      status: "needs_human" | "declined" | "unavailable" | "review_required";
       reason: string;
       url: string;
       screenshotPath?: string;
@@ -104,6 +105,9 @@ export interface VietnamPaymentResumeInput {
   timeoutMs?: number;
   card?: VietnamFixedCard | null;
   stopBeforeCardEntry?: boolean;
+  takeCard?: () => Promise<VietnamFixedCard | null>;
+  expectedPaymentAmountCents?: number | null;
+  expectedPaymentCurrency?: string | null;
 }
 
 const DEFAULT_SEARCH_URL = "https://evisa.gov.vn/e-visa/search";
@@ -1416,8 +1420,10 @@ function mapPaymentResult(payment: VietnamFixedCardPaymentResult, page: Page): V
 export async function resumeVietnamOfficialPayment(
   input: VietnamPaymentResumeInput,
 ): Promise<VietnamPaymentResumeResult> {
-  const card = input.stopBeforeCardEntry ? null : input.card ?? loadVietnamFixedCardFromEnv();
-  if (!input.stopBeforeCardEntry && !card) {
+  const initialCard = input.stopBeforeCardEntry
+    ? null
+    : input.card ?? (input.takeCard ? null : loadVietnamFixedCardFromEnv());
+  if (!input.stopBeforeCardEntry && !initialCard && !input.takeCard) {
     return {
       status: "unavailable",
       reason: "No one-time card session or Vietnam fixed-card payment env is configured for this worker process.",
@@ -1619,9 +1625,33 @@ export async function resumeVietnamOfficialPayment(
       };
     }
 
+    const paymentText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    const feeVerification = verifyVietnamOfficialFeeText({
+      bodyText: paymentText,
+      expectedAmountCents: input.expectedPaymentAmountCents,
+      expectedCurrency: input.expectedPaymentCurrency,
+    });
+    if (!feeVerification.verified) {
+      return {
+        status: "review_required",
+        reason: `Visible Vietnam official fee could not be verified (${feeVerification.reason}); no payment card was acquired.`,
+        url: page.url(),
+        diagnostics,
+      };
+    }
+    const card = initialCard ?? await input.takeCard?.() ?? loadVietnamFixedCardFromEnv();
+    if (!card) {
+      return {
+        status: "review_required",
+        reason: "The verified Vietnam payment page was reached, but managed card acquisition was unavailable.",
+        url: page.url(),
+        diagnostics,
+      };
+    }
+
     const payment = await payVietnamPortalWithFixedCard({
       page,
-      card: card!,
+      card,
       contactEmail: input.email,
     });
     return { ...mapPaymentResult(payment, page), diagnostics };

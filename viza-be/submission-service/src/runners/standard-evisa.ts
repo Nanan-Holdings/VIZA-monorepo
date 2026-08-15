@@ -4,9 +4,13 @@ import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
-import { routingFor, policyFor, collectorFor, feeCentsFor } from "../payment-routing.js";
 import { solveCaptcha } from "../captcha/index.js";
 import { __INTERNALS as TRANSLATION_INTERNALS } from "../translation-gate.js";
+import { createManagedPaymentHooks } from "../official-fee/managed-payment-hooks.js";
+import {
+  unavailableManagedPaymentBoundary,
+  type ManagedPaymentHooks,
+} from "./managed-payment-boundary.js";
 import {
   NeedsHumanError,
   RetryableRunnerError,
@@ -169,7 +173,12 @@ export interface StdRunnerConfig {
 }
 
 export interface StdRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
+  status:
+    | "managed_payment_adapter_unavailable"
+    | "managed_payment_review_required"
+    | "blocked"
+    | "anti_bot_gate"
+    | "needs_human";
   reason: string;
   reachedStep: string;
   artefacts: string[];
@@ -181,11 +190,16 @@ export interface StdRunInput {
   answers: Record<string, string>;
   visaType?: string;
   headless?: boolean;
+  paymentHooks?: ManagedPaymentHooks;
 }
 
 export function makeStandardEvisaRunner(cfg: StdRunnerConfig): {
   runRunner: (input: StdRunInput) => Promise<StdRunResult>;
-  runOne: (applicationId: string, jobId?: string) => Promise<DispatchOutcome>;
+  runOne: (
+    applicationId: string,
+    jobId?: string,
+    paymentHooks?: ManagedPaymentHooks,
+  ) => Promise<DispatchOutcome>;
 } {
   const baseUrl = process.env[cfg.baseUrlEnv] ?? cfg.baseUrlDefault;
 
@@ -238,9 +252,17 @@ export function makeStandardEvisaRunner(cfg: StdRunnerConfig): {
 
       reachedStep = "pre_payment";
       const visaType = input.visaType ?? cfg.defaultVisaType;
-      const routing = routingFor(cfg.country, visaType);
-      const reason = `halted before payment; policy=${policyFor(routing.mechanism)} collector=${collectorFor(routing.mechanism)} fee=${feeCentsFor(cfg.country, visaType) ?? "?"}c`;
-      return { status: "stopped_before_pay", reason, reachedStep, artefacts };
+      const payment = await unavailableManagedPaymentBoundary({
+        country: cfg.country,
+        visaType,
+        hooks: input.paymentHooks,
+      });
+      return {
+        status: payment.status,
+        reason: payment.reason,
+        reachedStep: "managed_payment_review_required",
+        artefacts,
+      };
     } catch (err) {
       return { status: "blocked", reason: err instanceof Error ? err.message : String(err), reachedStep, artefacts };
     } finally {
@@ -249,11 +271,26 @@ export function makeStandardEvisaRunner(cfg: StdRunnerConfig): {
     }
   }
 
-  async function runOne(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+  async function runOne(
+    applicationId: string,
+    jobId?: string,
+    paymentHooks?: ManagedPaymentHooks,
+  ): Promise<DispatchOutcome> {
     const answers = await loadCanonicalAnswers(applicationId);
-    const result = await runRunner({ jobId: jobId ?? applicationId, applicationId, answers });
+    const result = await runRunner({
+      jobId: jobId ?? applicationId,
+      applicationId,
+      answers,
+      paymentHooks: paymentHooks ?? createManagedPaymentHooks({
+        applicationId,
+        workerId: jobId ?? applicationId,
+        country: cfg.country,
+        visaType: cfg.defaultVisaType,
+      }),
+    });
     switch (result.status) {
-      case "stopped_before_pay":
+      case "managed_payment_adapter_unavailable":
+      case "managed_payment_review_required":
         return { outcome: "halted_before_pay", reachedStep: result.reachedStep, artefacts: result.artefacts };
       case "blocked":
       case "anti_bot_gate":

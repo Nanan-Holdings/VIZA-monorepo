@@ -37,6 +37,7 @@ const CURATED_HERO_IMAGES: Record<string, string> = {
   canada: `${HERO_IMAGE_DIR}/canada.png`,
   egypt: `${HERO_IMAGE_DIR}/egypt.png`,
   france: `${HERO_IMAGE_DIR}/france.png`,
+  germany: `${HERO_IMAGE_DIR}/germany.png`,
   india: `${HERO_IMAGE_DIR}/india.png`,
   indonesia: GENERIC_HERO_IMAGE,
   italy: `${HERO_IMAGE_DIR}/italy.png`,

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle as CheckCircle2, CircleNotch as Loader2, Pencil, FloppyDisk as Save } from "@phosphor-icons/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CircleNotch as Loader2, Pencil } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import {
   loadUniversalProfileWorkspace,
@@ -35,6 +35,8 @@ import {
 import type { VisaFormFieldOption } from "@/types/visa-form-fields";
 
 type DraftValue = { value: string; zh: string; en: string };
+
+const UNIVERSAL_PROFILE_AUTOSAVE_DELAY_MS = 800;
 
 const LEGACY_CORE_KEYS = new Set([
   "full_name",
@@ -146,7 +148,13 @@ function buildDraft(answer?: UniversalProfileAnswerRecord): DraftValue {
   };
 }
 
-export function UniversalProfileExtendedEditor({ category }: { category: UniversalProfileCategory }) {
+export function UniversalProfileExtendedEditor({
+  category,
+  onSaveStatusChange,
+}: {
+  category: UniversalProfileCategory;
+  onSaveStatusChange?: (status: "idle" | "saving" | "saved") => void;
+}) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const [fields, setFields] = useState<UniversalProfileFieldDefinition[]>([]);
@@ -157,22 +165,28 @@ export function UniversalProfileExtendedEditor({ category }: { category: Univers
   const [expandedCategories, setExpandedCategories] = useState<Set<UniversalProfileCategory>>(new Set());
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [savingCategory, setSavingCategory] = useState<UniversalProfileCategory | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [schemaAvailable, setSchemaAvailable] = useState(true);
+  const draftsRef = useRef(drafts);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const activeSavesRef = useRef(0);
+  const hasSaveActivityRef = useRef(false);
 
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("viza:live-save-status", {
-      detail: { status: savingCategory ? "saving" : "saved" },
-    }));
-  }, [savingCategory]);
+    if (!hasSaveActivityRef.current) return;
+    onSaveStatusChange?.(saving || dirtyKeys.size > 0 ? "saving" : "saved");
+  }, [dirtyKeys, onSaveStatusChange, saving]);
 
   useEffect(() => () => {
-    window.dispatchEvent(new CustomEvent("viza:live-save-status", {
-      detail: { status: "saved" },
-    }));
-  }, []);
+    onSaveStatusChange?.("idle");
+  }, [onSaveStatusChange]);
+
+  useEffect(() => {
+    setEditingCategories(new Set());
+  }, [category]);
+
+  draftsRef.current = drafts;
 
   useEffect(() => {
     let active = true;
@@ -209,67 +223,88 @@ export function UniversalProfileExtendedEditor({ category }: { category: Univers
 
 
   function updateDraft(key: string, next: DraftValue) {
+    hasSaveActivityRef.current = true;
     setDrafts((current) => ({ ...current, [key]: next }));
     setDirtyKeys((current) => new Set(current).add(key));
-    setMessage(null);
+    setEditingCategories((current) => new Set(current).add(category));
+    setError(null);
   }
 
-  async function saveCategory(category: UniversalProfileCategory) {
-    const categoryFields = fields.filter((field) => field.category === category && dirtyKeys.has(field.canonicalKey));
-    if (categoryFields.length === 0) return;
-    setSavingCategory(category);
-    setError(null);
-    const answersToSave = categoryFields.map((field) => ({
+  useEffect(() => {
+    if (loading || dirtyKeys.size === 0) return;
+
+    const dirtyKeysSnapshot = new Set(dirtyKeys);
+    const fieldsToSave = fields.filter((field) => dirtyKeysSnapshot.has(field.canonicalKey));
+    const answersToSave = fieldsToSave.map((field) => ({
       canonicalKey: field.canonicalKey,
       value: drafts[field.canonicalKey]?.value ?? "",
       valueZh: drafts[field.canonicalKey]?.zh ?? "",
       valueEn: drafts[field.canonicalKey]?.en ?? "",
     }));
-    let saveError: string | undefined;
-    for (let from = 0; from < answersToSave.length; from += 200) {
-      const result = await saveUniversalProfileAnswerValues({
-        answers: answersToSave.slice(from, from + 200),
+    if (answersToSave.length === 0) return;
+
+    const autosaveTimer = window.setTimeout(() => {
+      activeSavesRef.current += 1;
+      setSaving(true);
+      setError(null);
+
+      const runAutosave = saveQueueRef.current.then(async () => {
+        for (let from = 0; from < answersToSave.length; from += 200) {
+          const result = await saveUniversalProfileAnswerValues({
+            answers: answersToSave.slice(from, from + 200),
+          });
+          if (result.error) throw new Error(result.error);
+        }
       });
-      if (result.error) {
-        saveError = result.error;
-        break;
-      }
-    }
-    setSavingCategory(null);
-    if (saveError) {
-      setError(saveError);
-      return;
-    }
-    setAnswers((current) => {
-      const next = new Map(current.map((answer) => [answer.canonicalKey, answer]));
-      for (const field of categoryFields) {
-        const draft = drafts[field.canonicalKey];
-        if (!draft?.value.trim()) next.delete(field.canonicalKey);
-        else next.set(field.canonicalKey, {
-          canonicalKey: field.canonicalKey,
-          value: draft.value,
-          valueZh: draft.zh,
-          valueEn: draft.en,
-          labelZh: getChineseLabel(field.label),
-          labelEn: getEnglishLabel(field.label),
-          fieldType: field.fieldType,
-          category: field.category,
+
+      saveQueueRef.current = runAutosave.then(
+        () => undefined,
+        () => undefined,
+      );
+
+      void runAutosave.then(() => {
+        setAnswers((current) => {
+          const next = new Map(current.map((answer) => [answer.canonicalKey, answer]));
+          for (const field of fieldsToSave) {
+            const savedDraft = answersToSave.find((answer) => answer.canonicalKey === field.canonicalKey);
+            if (!savedDraft?.value.trim()) next.delete(field.canonicalKey);
+            else next.set(field.canonicalKey, {
+              canonicalKey: field.canonicalKey,
+              value: savedDraft.value,
+              valueZh: savedDraft.valueZh,
+              valueEn: savedDraft.valueEn,
+              labelZh: getChineseLabel(field.label),
+              labelEn: getEnglishLabel(field.label),
+              fieldType: field.fieldType,
+              category: field.category,
+            });
+          }
+          return Array.from(next.values());
         });
-      }
-      return Array.from(next.values());
-    });
-    setDirtyKeys((current) => {
-      const next = new Set(current);
-      categoryFields.forEach((field) => next.delete(field.canonicalKey));
-      return next;
-    });
-    setEditingCategories((current) => {
-      const next = new Set(current);
-      next.delete(category);
-      return next;
-    });
-    setMessage(isZh ? "通用资料已保存。" : "Universal Profile saved.");
-  }
+        setDirtyKeys((current) => {
+          const next = new Set(current);
+          for (const savedDraft of answersToSave) {
+            const latestDraft = draftsRef.current[savedDraft.canonicalKey];
+            if (
+              latestDraft?.value === savedDraft.value &&
+              latestDraft.zh === savedDraft.valueZh &&
+              latestDraft.en === savedDraft.valueEn
+            ) {
+              next.delete(savedDraft.canonicalKey);
+            }
+          }
+          return next;
+        });
+      }, (saveError: unknown) => {
+        setError(saveError instanceof Error ? saveError.message : isZh ? "自动保存失败，请稍后重试。" : "Autosave failed. Please try again later.");
+      }).finally(() => {
+        activeSavesRef.current = Math.max(0, activeSavesRef.current - 1);
+        setSaving(activeSavesRef.current > 0);
+      });
+    }, UNIVERSAL_PROFILE_AUTOSAVE_DELAY_MS);
+
+    return () => window.clearTimeout(autosaveTimer);
+  }, [dirtyKeys, drafts, fields, isZh, loading]);
 
   if (loading) {
     return <ApplicationFormPanel className="flex min-h-52 items-center justify-center gap-3 p-6 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-brand-500" />{isZh ? "正在加载此分类..." : "Loading this category..."}</ApplicationFormPanel>;
@@ -319,7 +354,6 @@ export function UniversalProfileExtendedEditor({ category }: { category: Univers
 
       {!schemaAvailable ? <p role="alert" className="mt-4 text-sm font-medium text-amber-700">{isZh ? "完整资料表尚未安装数据库迁移；现有基础资料仍可正常使用。" : "The expanded profile migration is not installed yet. Existing core profile data still works."}</p> : null}
       {error ? <ClientErrorAlert className="mt-4" message={error} /> : null}
-      {message ? <p role="status" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-emerald-700"><CheckCircle2 className="h-4 w-4" />{message}</p> : null}
 
       {savedFields.length > 0 ? (
         <div className="mt-5 [&_tr]:border-0">
@@ -331,27 +365,23 @@ export function UniversalProfileExtendedEditor({ category }: { category: Univers
         <div className="mt-5 flex flex-col gap-6">
           {editableFields.map((field) => {
             const draft = drafts[field.canonicalKey] ?? buildDraft();
+            const displaySide = isZh ? "zh" : "en";
             return (
-              <div key={field.canonicalKey} className="grid gap-4 md:grid-cols-2">
-                {isZh ? (
-                  <ApplicationFormField label={getChineseLabel(field.label)} required={false}>
-                    <FieldControl field={field} side="zh" draft={draft} onChange={(next) => updateDraft(field.canonicalKey, next)} />
-                  </ApplicationFormField>
-                ) : null}
-                <ApplicationFormField label={getEnglishLabel(field.label)} required={false} className={isZh ? undefined : "md:col-span-2"}>
-                  <FieldControl field={field} side="en" draft={draft} onChange={(next) => updateDraft(field.canonicalKey, next)} />
+              <div key={field.canonicalKey}>
+                <ApplicationFormField
+                  label={isZh ? getChineseLabel(field.label) : getEnglishLabel(field.label)}
+                  required={false}
+                >
+                  <FieldControl
+                    field={field}
+                    side={displaySide}
+                    draft={draft}
+                    onChange={(next) => updateDraft(field.canonicalKey, next)}
+                  />
                 </ApplicationFormField>
               </div>
             );
           })}
-          {categoryFields.some((field) => dirtyKeys.has(field.canonicalKey)) ? (
-            <div className="flex justify-end pt-1">
-              <BrandActionButton type="button" onClick={() => saveCategory(category)} disabled={savingCategory !== null}>
-                {savingCategory === category ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {savingCategory === category ? isZh ? "保存中" : "Saving" : isZh ? "保存此部分" : "Save section"}
-              </BrandActionButton>
-            </div>
-          ) : null}
         </div>
       ) : null}
 

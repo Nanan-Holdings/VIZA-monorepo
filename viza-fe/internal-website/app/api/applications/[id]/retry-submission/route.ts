@@ -48,6 +48,10 @@ import {
   type SubmissionRetryIntent,
   type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
+import {
+  isQaDryRunPurpose,
+  isSyntheticQaValue,
+} from "@/lib/applications/qa-safety";
 
 type ApplicationForRetry = {
   id: string;
@@ -1473,9 +1477,32 @@ export async function POST(
   // Never allow a client retry button to upgrade its synthetic answers into a
   // live CEAC task, even if an older failure card requests live_assisted.
   const mode: SubmissionMode =
-    ownedApplication.purpose === "VIZA_PLACEHOLDER_DRY_RUN"
+    isQaDryRunPurpose(ownedApplication.purpose)
       ? "dry_run"
       : requestedMode;
+
+  if (!isQaDryRunPurpose(ownedApplication.purpose)) {
+    const { data: answerRows, error: answerError } = await admin
+      .from("visa_application_answers")
+      .select("field_name, value_text, value_json")
+      .eq("application_id", applicationId);
+    if (answerError) {
+      return NextResponse.json({ error: answerError.message }, { status: 500 });
+    }
+    const unsafeAnswer = (answerRows ?? []).find(
+      (answer) =>
+        isSyntheticQaValue(answer.value_text) ||
+        isSyntheticQaValue(JSON.stringify(answer.value_json ?? null)),
+    );
+    if (unsafeAnswer) {
+      return NextResponse.json(
+        {
+          error: `Application contains synthetic QA data in ${unsafeAnswer.field_name}. Clear it and enter the applicant's real information before submission.`,
+        },
+        { status: 409 },
+      );
+    }
+  }
 
   if (!requestedValueMatchesApplication(requestedSubmission.country, ownedApplication.country)) {
     return NextResponse.json(

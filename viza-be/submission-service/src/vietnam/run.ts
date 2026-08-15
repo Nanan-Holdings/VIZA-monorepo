@@ -46,6 +46,7 @@ import {
   loadVietnamFixedCardFromEnv,
   payVietnamPortalWithFixedCard,
   redactVietnamFixedCard,
+  verifyVietnamOfficialFeeText,
   type RedactedVietnamFixedCard,
   type VietnamFixedCard,
 } from "./fixed-card-payment";
@@ -112,6 +113,9 @@ export interface FillVietnamOptions {
   fixedCard?: VietnamFixedCard | null;
   /** Lazily resolves a managed card only after the official payment page is visible. */
   takeFixedCard?: () => Promise<VietnamFixedCard | null>;
+  /** Durable managed-intent amount expected on the visible official page. */
+  expectedPaymentAmountCents?: number | null;
+  expectedPaymentCurrency?: string | null;
 }
 
 export type FillVietnamResult =
@@ -138,6 +142,7 @@ export type FillVietnamResult =
         | "captcha_required"
         | "upload_required"
         | "payment_required"
+        | "official_fee_payment_review_required"
         | "final_submit_required"
         | "layout_changed"
         | "official_portal_error"
@@ -340,6 +345,15 @@ async function fillVietnamApplicationOnce(
         ? options.takeFixedCard()
         : Promise.resolve(loadVietnamFixedCardFromEnv());
     return fixedCardPromise;
+  };
+  const verifyVisibleOfficialFee = async (): Promise<string | null> => {
+    const bodyText = await page?.locator("body").innerText({ timeout: 5_000 }).catch(() => "") ?? "";
+    const verification = verifyVietnamOfficialFeeText({
+      bodyText,
+      expectedAmountCents: options.expectedPaymentAmountCents,
+      expectedCurrency: options.expectedPaymentCurrency,
+    });
+    return verification.verified ? null : verification.reason;
   };
 
   try {
@@ -743,6 +757,20 @@ async function fillVietnamApplicationOnce(
     }
     if (stateAfterCaptcha === "payment_page_visible") {
       await emitProgress("payment_required");
+      const feeVerificationFailure = await verifyVisibleOfficialFee();
+      if (feeVerificationFailure) {
+        return {
+          status: "action_required",
+          runId,
+          actionType: "official_fee_payment_review_required",
+          checkpoint: "payment_page_visible",
+          instruction:
+            `VIZA paused before acquiring a payment card because the visible official fee could not be verified (${feeVerificationFailure}). Staff review is required; do not pay the portal directly.`,
+          url: page.url(),
+          registrationCode: registrationCode ?? null,
+          diagnostics: diagnostics(),
+        };
+      }
       const fixedCard = await resolveFixedCard();
       if (fixedCard) {
         await emitProgress("payment_handoff");
@@ -772,7 +800,7 @@ async function fillVietnamApplicationOnce(
           actionType: "payment_required",
           checkpoint: "payment_page_visible",
           instruction:
-            `The official Vietnam e-Visa portal reached payment, but fixed-card payment could not complete automatically: ${payment.reason ?? payment.status}`,
+            `VIZA could not confirm the managed Vietnam official-fee payment: ${payment.reason ?? payment.status}. Staff review is required; do not pay the portal directly.`,
           url: page.url(),
           registrationCode: registrationCode ?? null,
           diagnostics: diagnostics(),
@@ -785,7 +813,7 @@ async function fillVietnamApplicationOnce(
           actionType: "payment_required",
           checkpoint: "payment_page_visible",
           instruction:
-            "The official Vietnam e-Visa portal reached payment, but VIZA has not recorded an authorized official-fee payment intent for this application. Authorize payment in VIZA before continuing.",
+            "VIZA paused because this application has no executable managed official-fee intent and allocation. Staff review is required; do not pay the portal directly.",
           url: page.url(),
           registrationCode: registrationCode ?? null,
           diagnostics: diagnostics(),
@@ -797,7 +825,7 @@ async function fillVietnamApplicationOnce(
         actionType: "payment_required",
         checkpoint: "payment_page_visible",
         instruction:
-          "The official Vietnam e-Visa portal reached payment. VIZA stopped before Pay/Submit; complete payment manually only if you intend to proceed.",
+          "VIZA could not acquire a managed payment card for the verified official fee. Staff review is required; do not pay the portal directly.",
         url: page.url(),
         registrationCode: registrationCode ?? null,
         diagnostics: diagnostics(),
@@ -810,7 +838,7 @@ async function fillVietnamApplicationOnce(
         actionType: "final_submit_required",
         checkpoint: "final_submit_visible",
         instruction:
-          "The official Vietnam e-Visa portal is at a final submission confirmation. VIZA stopped before the irreversible submit action; review and submit manually only if you intend to proceed.",
+          "The official Vietnam e-Visa portal is at final confirmation. VIZA paused the automated run for staff review and will not ask the applicant to submit or pay directly.",
         url: page.url(),
         diagnostics: diagnostics(),
       };
@@ -835,6 +863,20 @@ async function fillVietnamApplicationOnce(
     const finalState = finalSnapshot ? classifyVietnamPortalSnapshot(finalSnapshot) : stateAfterCaptcha;
     if (finalState === "payment_page_visible") {
       await emitProgress("payment_required");
+      const feeVerificationFailure = await verifyVisibleOfficialFee();
+      if (feeVerificationFailure) {
+        return {
+          status: "action_required",
+          runId,
+          actionType: "official_fee_payment_review_required",
+          checkpoint: "payment_page_visible",
+          instruction:
+            `VIZA paused before acquiring a payment card because the visible official fee could not be verified (${feeVerificationFailure}). Staff review is required; do not pay the portal directly.`,
+          url: page.url(),
+          registrationCode,
+          diagnostics: diagnostics(),
+        };
+      }
       const fixedCard = await resolveFixedCard();
       if (fixedCard) {
         await emitProgress("payment_handoff");
@@ -864,7 +906,7 @@ async function fillVietnamApplicationOnce(
           actionType: "payment_required",
           checkpoint: "payment_page_visible",
           instruction:
-            `The official Vietnam e-Visa portal reached payment, but fixed-card payment could not complete automatically: ${payment.reason ?? payment.status}`,
+            `VIZA could not confirm the managed Vietnam official-fee payment: ${payment.reason ?? payment.status}. Staff review is required; do not pay the portal directly.`,
           url: page.url(),
           registrationCode: registrationCode ?? null,
           diagnostics: diagnostics(),

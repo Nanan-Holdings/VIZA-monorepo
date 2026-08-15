@@ -3,6 +3,39 @@
 > **UI work on `/client/*` — read `frontend.md` in this directory first.**
 > It is the source of truth for design tokens (brand scale, typography, radius), shadcn conventions, client-shell patterns, and the UX rules distilled from ui-ux-pro-max. Loading it before any `/client` UI change is mandatory.
 
+## ⛔ Edward-Owned Application Upload UI — Approval Required
+
+Edward is VIZA's UI/UX designer. The upload-file section demonstrated at
+`/ui-components` is the frozen source of truth for every supporting-materials
+section under `/client/application`, including country-specific and inline
+document steps.
+
+- Every application document item must compose the existing
+  `components/ui/supporting-document-card.tsx` and
+  `components/ui/document-upload-field.tsx` components. Never replace them
+  with a hand-built row, drop zone, upload button, status badge, or alternate
+  card/grid treatment.
+- Do not change or work around their visual contract: card chrome, two-column
+  responsive grid, title/description spacing, required asterisk, 190px upload
+  field, preview, status dot/label, rejection reason, and secondary action all
+  come from the canonical components.
+- Before changing any styling, layout, copy presentation, icon, interaction,
+  responsive behavior, or component selection in this surface, **stop and get
+  Edward's explicit approval for that exact change first**. Approval from
+  another contributor is not sufficient.
+- Functional country requirements may add data and behavior through the
+  canonical component props, but must not restyle or replace the upload UI.
+- Application supporting-material steps begin directly with the required,
+  conditional, and optional upload groups. Do not reintroduce a document
+  overview card, country/visa/status/source badges, completion panel, or
+  required-documents complete/missing summary above those groups. Taiwan's
+  official upload instructions are the only approved exception.
+- Upload state is rendered only by `DocumentUploadField`'s canonical status
+  row. Never surface machine audit text such as "Uploaded by applicant.
+  Awaiting VIZA review." as a review note or second status line. Actionable
+  rejection feedback belongs in the canonical red rejection-reason slot.
+- Reviews must treat divergence from `/ui-components` as a blocking regression.
+
 ## 📋 Project Overview
 
 **VIZA Admin Website** is a comprehensive visa practitioner management system built with Next.js 16, featuring separate portals for admins and administrative staff. The system manages users, visa orders, consultations, services, and visa timelines.

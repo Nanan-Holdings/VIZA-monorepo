@@ -117,7 +117,7 @@ describe("FailureCard", () => {
     expect(submitButton).toBeEnabled();
     fireEvent.click(submitButton);
     await waitFor(() => {
-      expect(onRetry).toHaveBeenCalledWith("live_assisted", undefined);
+      expect(onRetry).toHaveBeenCalledWith("live_assisted");
     });
     expect(screen.queryByText(/private-applicant-id/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/inbox\.waitForMessage/u)).not.toBeInTheDocument();
@@ -152,7 +152,7 @@ describe("FailureCard", () => {
     expect(screen.queryByText(/haggstorm\.com/u)).not.toBeInTheDocument();
   });
 
-  it("collects a one-time Vietnam payment card before live-assisted retry", async () => {
+  it("retries Vietnam managed payment without collecting applicant card details", async () => {
     const onRetry = vi.fn().mockResolvedValue(undefined);
     const TestFailureCard = FailureCard as ComponentType<Record<string, unknown>>;
 
@@ -166,23 +166,17 @@ describe("FailureCard", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
-    fireEvent.change(screen.getByLabelText("持卡人姓名（可选）"), { target: { value: "VIZA TEST" } });
+    expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("CVV")).not.toBeInTheDocument();
+    expect(screen.getByText("VIZA 将处理官方付款")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /提交/u }));
 
     await waitFor(() => {
-      expect(onRetry).toHaveBeenCalledWith("live_assisted", {
-        pan: "4111111111111111",
-        expiry: "12/30",
-        cvv: "123",
-        holderName: "VIZA TEST",
-      });
+      expect(onRetry).toHaveBeenCalledWith("live_assisted");
     });
   });
 
-  it("requires and forwards the real cardholder name for an Indonesia payment retry", async () => {
+  it("retries Indonesia managed payment without collecting applicant card details", async () => {
     const onRetry = vi.fn().mockResolvedValue(undefined);
 
     render(
@@ -195,30 +189,17 @@ describe("FailureCard", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
-    expect(screen.getByRole("button", { name: /提交/u })).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: /提交/u }));
-    expect(screen.getByText("重试失败").closest('[role="alert"]')).toHaveTextContent("持卡人姓名");
-    expect(screen.getByLabelText("持卡人姓名（必填，按银行卡）")).toHaveFocus();
-
-    fireEvent.change(screen.getByLabelText("持卡人姓名（必填，按银行卡）"), {
-      target: { value: "REAL CARDHOLDER" },
-    });
+    expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("CVV")).not.toBeInTheDocument();
+    expect(screen.getByText(/无需输入银行卡资料/u)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /提交/u }));
 
     await waitFor(() => {
-      expect(onRetry).toHaveBeenCalledWith("live_assisted", {
-        pan: "4111111111111111",
-        expiry: "12/30",
-        cvv: "123",
-        holderName: "REAL CARDHOLDER",
-      });
+      expect(onRetry).toHaveBeenCalledWith("live_assisted");
     });
   });
 
-  it("shows a visible retry error and keeps the in-memory card after startup fails", async () => {
+  it("shows a visible retry error after managed payment startup fails", async () => {
     let rejectRetry: ((reason?: unknown) => void) | undefined;
     const onRetry = vi.fn().mockImplementation(() => new Promise<void>((_resolve, reject) => {
       rejectRetry = reject;
@@ -234,56 +215,18 @@ describe("FailureCard", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
     fireEvent.click(screen.getByRole("button", { name: /提交/u }));
 
     expect(screen.getByRole("button", { name: /提交/u })).toBeDisabled();
     rejectRetry?.(new Error("越南云端付款会话暂时不可用，请稍后重试。"));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("越南云端付款会话暂时不可用");
+    expect(await screen.findByText(/越南云端付款会话暂时不可用/u)).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByLabelText("银行卡号")).toHaveValue("4111111111111111");
-      expect(screen.getByLabelText("有效期")).toHaveValue("12/30");
-      expect(screen.getByLabelText("CVV")).toHaveValue("123");
       expect(screen.getByRole("button", { name: /提交/u })).toBeEnabled();
     });
   });
 
-  it("submits native browser-autofilled card values even without React change events", async () => {
-    const onRetry = vi.fn().mockResolvedValue(undefined);
-
-    render(
-      <FailureCard
-        applicationId="app-vn"
-        errorMessage="Official Vietnam e-Visa portal validation blocked submission."
-        retryModes={[{ mode: "live_assisted", label: "提交" }]}
-        onRetry={onRetry}
-        requiresVietnamPaymentCard
-      />,
-    );
-
-    const cardNumber = screen.getByLabelText("银行卡号") as HTMLInputElement;
-    const cardExpiry = screen.getByLabelText("有效期") as HTMLInputElement;
-    const cardCvv = screen.getByLabelText("CVV") as HTMLInputElement;
-    cardNumber.value = "4111111111111111";
-    cardExpiry.value = "12/30";
-    cardCvv.value = "123";
-
-    fireEvent.click(screen.getByRole("button", { name: /提交/u }));
-
-    await waitFor(() => {
-      expect(onRetry).toHaveBeenCalledWith("live_assisted", {
-        pan: "4111111111111111",
-        expiry: "12/30",
-        cvv: "123",
-        holderName: "",
-      });
-    });
-  });
-
-  it("keeps the submit action clickable and focuses the first missing card field", () => {
+  it("keeps the managed-payment retry action clickable without card fields", async () => {
     const onRetry = vi.fn();
 
     render(
@@ -300,9 +243,10 @@ describe("FailureCard", () => {
     expect(submitButton).toBeEnabled();
     fireEvent.click(submitButton);
 
-    expect(screen.getByText("重试失败").closest('[role="alert"]')).toHaveTextContent("请填写银行卡号、有效期和 CVV");
-    expect(screen.getByLabelText("银行卡号")).toHaveFocus();
-    expect(onRetry).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onRetry).toHaveBeenCalledWith("live_assisted");
+    });
+    expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
   });
 });
 

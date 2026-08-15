@@ -77,6 +77,21 @@ describe("universal profile prefill", () => {
     expect(patch).toEqual({});
   });
 
+  it("does not copy synthetic QA profile values into a new application", () => {
+    const patch = buildUniversalProfileAnswerPatch({
+      full_name_en: "Xiaoming Li",
+      address: "1 VIZA QA Road, Singapore 119077",
+      address_zh: "新加坡 VIZA QA 路 1 号",
+      address_en: "1 VIZA QA ROAD, SINGAPORE 119077",
+    });
+
+    expect(patch.full_name).toBe("Xiaoming Li");
+    expect(patch).not.toHaveProperty("address");
+    expect(patch).not.toHaveProperty("address_zh");
+    expect(patch).not.toHaveProperty("address_en");
+    expect(patch).not.toHaveProperty("home_address_line1");
+  });
+
   it("maps a reusable national identity number without populating passport number", () => {
     const patch = buildUniversalProfileAnswerPatch({
       national_identity_number: "TESTID19900101X",

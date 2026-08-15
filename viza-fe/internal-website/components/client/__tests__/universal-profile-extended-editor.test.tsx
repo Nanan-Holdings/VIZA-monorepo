@@ -4,9 +4,11 @@ import { UniversalProfileExtendedEditor } from "../universal-profile-extended-ed
 
 const loadWorkspace = vi.fn();
 const saveAnswers = vi.fn();
+const saveStatusChange = vi.fn();
+let locale = "en";
 
 vi.mock("next-intl", () => ({
-  useLocale: () => "en",
+  useLocale: () => locale,
   useTranslations: () => (key: string) => key,
 }));
 
@@ -38,6 +40,8 @@ function field(fieldName: string, label: string, category: "identity" | "family"
 
 describe("UniversalProfileExtendedEditor", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    locale = "en";
     loadWorkspace.mockResolvedValue({
       fields: [
         field("civil_status", "Civil status", "identity"),
@@ -70,5 +74,40 @@ describe("UniversalProfileExtendedEditor", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Family" })).toBeInTheDocument());
     expect(screen.getByPlaceholderText("Enter or select")).toBeInTheDocument();
     expect(screen.queryByText("Civil status")).not.toBeInTheDocument();
+  });
+
+  it("shows only Chinese fields and options while editing in Chinese", async () => {
+    locale = "zh";
+    loadWorkspace.mockResolvedValue({
+      fields: [{
+        ...field("civil_status", "Civil status", "identity"),
+        fieldType: "select",
+        options: [
+          { value: "single", label_zh: "未婚", label_en: "Single" },
+          { value: "married", label_zh: "已婚", label_en: "Married" },
+        ],
+      }],
+      answers: [],
+      schemaAvailable: true,
+    });
+
+    render(<UniversalProfileExtendedEditor category="identity" onSaveStatusChange={saveStatusChange} />);
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "身份与国籍" })).toBeInTheDocument());
+    expect(screen.getByText("婚姻状况")).toBeInTheDocument();
+    expect(screen.queryByText("Civil status")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "请输入或选择" })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "请输入或选择" }));
+    expect(await screen.findByText("未婚")).toBeInTheDocument();
+    expect(screen.queryByText("Single")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("未婚"));
+    expect(screen.queryByRole("button", { name: "保存此部分" })).not.toBeInTheDocument();
+    expect(saveStatusChange).toHaveBeenCalledWith("saving");
+    await waitFor(() => expect(saveAnswers).toHaveBeenCalledWith({
+      answers: [{ canonicalKey: "civil_status", value: "single", valueZh: "single", valueEn: "single" }],
+    }), { timeout: 2_000 });
+    await waitFor(() => expect(saveStatusChange).toHaveBeenCalledWith("saved"));
   });
 });

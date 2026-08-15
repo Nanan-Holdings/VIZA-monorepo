@@ -1,12 +1,54 @@
 # ADR-PAY-008: Link commercial collection, treasury funding, and government-fee card issuance
 
-**Status:** Proposed
+**Status:** Accepted; expanded by the 2026-08-15 product decision below
 
 **Date:** 2026-08-01
 
 **Deciders:** VIZA product, finance, security, and engineering owners
 
 ## Executive decision
+
+### 2026-08-15 product decision
+
+Every electronically payable official fee uses an application-scoped, limited
+virtual card provisioned by VIZA at the official payment step. Applicants do
+not enter card details on government portals and must not be instructed to pay
+an official portal directly. Routes still marked `client_in_portal` or
+`applicant_direct_link` are legacy implementation gaps to migrate; they are not
+approved applicant-facing payment modes. Paper, in-person, and genuinely free
+flows remain non-card exceptions.
+
+Issuer selection is PhotonPay first and Airwallex second. Airwallex may be used
+only when PhotonPay has an explicit pre-issuance capability/configuration
+failure for the exact currency. A timeout, ambiguous response, issued/unknown
+card state, or portal uncertainty must enter review and must never switch
+issuers, because doing so could create two spendable cards for one allocation.
+
+Airwallex's company wallet is not a safe application-level blast radius: an API
+credential with Cards Write could create many individually limited cards. The
+Airwallex fallback therefore remains production-disabled until all of these
+independent controls are true:
+
+1. The issuing API key is held only by the production submission worker, never
+   developer laptops, preview deployments, frontend code, or general-purpose
+   automation services.
+2. Airwallex Remote Authorization v2 is enabled with provider-side
+   `default_action=DECLINED`. The VIZA endpoint verifies the nonce HMAC and
+   authorizes only a known, portal-processing issuer attempt whose exact
+   amount, currency, account, and purchase category match its allocation.
+3. The Airwallex account manager sets conservative account-level maximum card
+   limits. Every VIZA card is virtual, single-use, exact-amount, single-currency,
+   and short-lived.
+4. VIZA uses a dedicated supplementary/connected Airwallex account with its own
+   wallet and a small, finance-approved float. The main operating wallet must
+   not fund the fallback. Automatic conversion is permitted only inside that
+   isolated low-balance wallet.
+5. Production secret changes and deployment of the credential-bearing worker
+   require an owner-approved environment. Code contributors do not receive the
+   Airwallex API key or permission to change the remote-authorization config.
+
+Per-card limits and application checks are defense in depth, not substitutes
+for the isolated wallet and provider-side default-decline authorization.
 
 Treat a successful customer checkout as a **commercial entitlement and ledger
 event**, not as an instruction to move that customer's money directly into a
@@ -43,9 +85,10 @@ flow.
   pooled PhotonPay funding account.  PAN, expiry, and CVV remain in worker
   memory only.
 
-This decision covers Vietnam e-Visa first and Indonesia second.  It does not
-expand payment automation to countries whose routing policy requires the
-applicant to pay the official portal directly.
+Vietnam e-Visa remains the reference rollout and Indonesia the second rollout.
+The same application-scoped virtual-card boundary is the target for every
+other electronically payable official fee as its runner becomes production-
+ready.
 
 ## Current architecture
 

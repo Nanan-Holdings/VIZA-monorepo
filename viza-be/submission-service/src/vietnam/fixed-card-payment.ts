@@ -23,6 +23,10 @@ export interface VietnamFixedCardPaymentResult {
   redactedCard?: RedactedVietnamFixedCard;
 }
 
+export type VietnamOfficialFeeVerification =
+  | { verified: true; amountCents: number; currency: string }
+  | { verified: false; reason: "expectation_missing" | "amount_missing" | "amount_mismatch" };
+
 type EnvLike = Record<string, string | undefined>;
 export type VietnamFixedCardInput = {
   pan?: string | null;
@@ -72,7 +76,12 @@ function parseExpiry(value: string | undefined): { month: string; year: string }
 }
 
 export function loadVietnamFixedCardFromEnv(env: EnvLike = process.env): VietnamFixedCard | null {
-  if (!envEnabled(env.VN_FIXED_CARD_ENABLED) || !envEnabled(env.VN_OFFICIAL_PAYMENT_AUTOPAY)) {
+  if (
+    env.NODE_ENV === "production" ||
+    !envEnabled(env.VN_LOCAL_CARD_SESSION_ENABLED) ||
+    !envEnabled(env.VN_FIXED_CARD_ENABLED) ||
+    !envEnabled(env.VN_OFFICIAL_PAYMENT_AUTOPAY)
+  ) {
     return null;
   }
 
@@ -89,6 +98,58 @@ export function loadVietnamFixedCardFromEnv(env: EnvLike = process.env): Vietnam
       cvvLabel: "VN_FIXED_CARD_CVV",
     },
   );
+}
+
+function parseDisplayedAmount(token: string, currency: string): number | null {
+  let normalized = token.replace(/\s/g, "");
+  if (!normalized) return null;
+  const lastComma = normalized.lastIndexOf(",");
+  const lastDot = normalized.lastIndexOf(".");
+  const separator = Math.max(lastComma, lastDot);
+  if (separator >= 0) {
+    const decimals = normalized.length - separator - 1;
+    if (decimals === 2 && currency !== "IDR") {
+      normalized = `${normalized.slice(0, separator).replace(/[.,]/g, "")}.${normalized.slice(separator + 1)}`;
+    } else {
+      normalized = normalized.replace(/[.,]/g, "");
+    }
+  }
+  const major = Number(normalized);
+  return Number.isFinite(major) ? Math.round(major * 100) : null;
+}
+
+/** Fail closed unless the official page visibly contains the allocated amount and currency. */
+export function verifyVietnamOfficialFeeText(input: {
+  bodyText: string;
+  expectedAmountCents?: number | null;
+  expectedCurrency?: string | null;
+}): VietnamOfficialFeeVerification {
+  const expectedAmountCents = input.expectedAmountCents;
+  const currency = input.expectedCurrency?.trim().toUpperCase();
+  if (!Number.isSafeInteger(expectedAmountCents) || !expectedAmountCents || !currency) {
+    return { verified: false, reason: "expectation_missing" };
+  }
+  const escaped = currency.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const amountToken = "([0-9][0-9.,\\s]*)";
+  const patterns = [
+    new RegExp(`(?:${escaped}|US\\$|USD\\s*\\$)\\s*${amountToken}`, "gi"),
+    new RegExp(`${amountToken}\\s*(?:${escaped}|US\\$)`, "gi"),
+    new RegExp(`amount(?:\\s+paid)?\\s*\\(\\s*${escaped}\\s*\\)\\s*[:=-]?\\s*${amountToken}`, "gi"),
+  ];
+  let sawAmount = false;
+  for (const pattern of patterns) {
+    for (const match of input.bodyText.matchAll(pattern)) {
+      const token = match[1];
+      if (!token) continue;
+      const amountCents = parseDisplayedAmount(token, currency);
+      if (amountCents === null) continue;
+      sawAmount = true;
+      if (amountCents === expectedAmountCents) {
+        return { verified: true, amountCents, currency };
+      }
+    }
+  }
+  return { verified: false, reason: sawAmount ? "amount_mismatch" : "amount_missing" };
 }
 
 export function parseVietnamFixedCardInput(

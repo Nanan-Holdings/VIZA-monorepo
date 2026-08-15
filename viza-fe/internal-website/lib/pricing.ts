@@ -21,7 +21,7 @@ export interface PackagePricing {
   govtFeeCents: number;
   /** Currency the government collects in (matches portal). */
   currency: string;
-  /** Whether the government fee is collected by VIZA (Stripe) or paid on the portal directly. */
+  /** Legacy collection route. Applicant-facing flows always describe VIZA-managed payment. */
   govtFeeChannel: "viza_passthrough" | "portal_direct";
   /**
    * WeChat Pay total in 分 (1 CNY = 100 fen). When set, the package is
@@ -69,7 +69,7 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     country: "france",
     visaType: "EU_SCHENGEN_C_SHORT_STAY",
     agencyFeeCents: AGENCY_USD,
-    govtFeeCents: 9000, // ≈ EUR 90 Schengen short-stay; applicant pays at VAC
+    govtFeeCents: 9000, // ≈ EUR 90; legacy portal_direct until VIZA virtual-card routing is wired
     currency: "USD",
     govtFeeChannel: "portal_direct",
     // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
@@ -80,7 +80,7 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     country: "italy",
     visaType: "EU_SCHENGEN_C_SHORT_STAY",
     agencyFeeCents: AGENCY_USD,
-    govtFeeCents: 9000, // ≈ EUR 90 Schengen short-stay; applicant pays at VFS
+    govtFeeCents: 9000, // ≈ EUR 90; legacy portal_direct until VIZA virtual-card routing is wired
     currency: "USD",
     govtFeeChannel: "portal_direct",
     // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —

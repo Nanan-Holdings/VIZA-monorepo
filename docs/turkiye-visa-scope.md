@@ -13,9 +13,10 @@
 
 The Republic of Türkiye Tourist e-Visa is issued by the Ministry of
 Foreign Affairs (T.C. Dışişleri Bakanlığı) via
-`https://www.evisa.gov.tr`. The portal does not require an account —
-applicants enter the form directly, complete payment, and receive the
-e-Visa PDF by email.
+`https://www.evisa.gov.tr`. The portal does not require an account. VIZA
+completes the form and, when an electronic official fee is due, pays with an
+application-scoped limited virtual card before delivering the e-Visa PDF from
+the official email flow.
 
 Two variants on `visa_type_requested`:
 - **Single-entry e-Visa** (~USD 50, 180-day validity, 30 or 90-day stay)

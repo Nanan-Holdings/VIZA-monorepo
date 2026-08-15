@@ -99,37 +99,55 @@
       "steps": {
         "payment": {
           "title": "Complete service-fee payment",
-          "description": "Payment must be confirmed before VIZA prepares the application."
+          "descriptions": {
+            "pending": "Confirm the service-fee payment so VIZA can start preparing your application.",
+            "completed": "Your service-fee payment was confirmed, and VIZA started preparing your application."
+          }
         },
         "consent": {
           "title": "Confirm consent and authority",
-          "description": "Complete the service authority and required electronic signature."
+          "descriptions": {
+            "pending": "Review the service authority and complete the required electronic signature.",
+            "completed": "Your service authority and required electronic signature were completed."
+          }
         },
         "form": {
           "title": "Complete the application form",
-          "description": "Enter and review the information required for the application."
+          "descriptions": {
+            "pending": "Continue entering and reviewing your application information. {count} answers saved so far.",
+            "completed": "Your required application information was entered, reviewed, and saved."
+          }
         },
         "documents": {
           "title": "Upload required documents",
-          "description": "Upload the passport, photo, and destination-specific evidence."
+          "descriptions": {
+            "pending": "Upload the required passport, photo, and supporting evidence. {ready}/{total} documents are ready.",
+            "completed": "All required documents were uploaded or validated ({ready}/{total}).",
+            "completedNoRequirements": "No additional document uploads were required for this application."
+          }
         },
         "packet": {
           "title": "Prepare the application packet",
-          "description": "VIZA prepares the packet when the core requirements are ready."
+          "descriptions": {
+            "pending": "Complete the form and document requirements so VIZA can prepare your application packet.",
+            "completed": "VIZA prepared your application packet from the completed information and documents."
+          }
         },
         "handoff": {
           "title": "Submit to the official portal",
-          "description": "The prepared application enters the official submission flow."
+          "descriptions": {
+            "pending": "Complete the earlier tasks so VIZA can submit your application through the official portal.",
+            "completed": "VIZA submitted your application through the official portal.",
+            "completedWithReference": "VIZA submitted your application through the official portal. Official reference: {reference}."
+          }
         },
         "result": {
           "title": "Wait for the application result",
-          "description": "Approval, visa, refusal, or result files appear when received."
+          "descriptions": {
+            "pending": "After submission, check here for the official result and any available files.",
+            "completed": "The official application result was received, and the latest status or files are available."
+          }
         }
-      },
-      "metrics": {
-        "answers": "{count} saved answers",
-        "documents": "{ready}/{total} documents uploaded or validated",
-        "reference": "Official reference: {reference}"
       },
       "relative": {
         "justNow": "Just now",
