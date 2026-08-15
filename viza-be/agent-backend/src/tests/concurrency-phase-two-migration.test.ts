@@ -81,16 +81,15 @@ describe("runner pool concurrency phase two migration", () => {
     );
   });
 
-  it("rejects null lease, slot-policy, and clock inputs explicitly", () => {
+  it("retains the timestamp parameter for compatibility but trusts database time", () => {
     expect(functionBody).toMatch(
       /IF p_lease_ms IS NULL OR p_lease_ms < 10000 OR p_lease_ms > 7200000 THEN[\s\S]*?ERRCODE = '22023'/i,
     );
     expect(functionBody).toMatch(
       /IF p_require_slot IS NULL THEN[\s\S]*?ERRCODE = '22023'/i,
     );
-    expect(functionBody).toMatch(
-      /IF p_now IS NULL THEN[\s\S]*?ERRCODE = '22023'/i,
-    );
+    expect(functionBody).toMatch(/v_now\s*:=\s*(?:pg_catalog\.)?clock_timestamp\(\)/i);
+    expect(plpgsqlBody(functionBody).replace(/--[^\r\n]*/g, "")).not.toMatch(/\bp_now\b/i);
   });
 
   it("removes both blocking and try-lock global advisory lock variants", () => {
@@ -103,14 +102,14 @@ describe("runner pool concurrency phase two migration", () => {
       /WITH expired AS MATERIALIZED \([\s\S]*?SELECT expired\.id[\s\S]*?FROM public\.runner_job AS expired[\s\S]*?ORDER BY[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE SKIP LOCKED[\s\S]*?\)[\s\S]*?SELECT expired\.id[\s\S]*?INTO v_expired_job_id/i,
     );
     expect(canonicalSql).toMatch(
-      /INSERT INTO runner_private\.runner_recovery_capability\s*\([\s\S]*?txid[\s\S]*?backend_pid[\s\S]*?job_id[\s\S]*?recovery_now[\s\S]*?pg_catalog\.txid_current\(\)[\s\S]*?pg_catalog\.pg_backend_pid\(\)[\s\S]*?v_expired_job_id[\s\S]*?p_now[\s\S]*?UPDATE public\.runner_job AS job[\s\S]*?WHERE job\.id = v_expired_job_id[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_until <= p_now/i,
+      /INSERT INTO runner_private\.runner_recovery_capability\s*\([\s\S]*?txid[\s\S]*?backend_pid[\s\S]*?job_id[\s\S]*?recovery_now[\s\S]*?pg_catalog\.txid_current\(\)[\s\S]*?pg_catalog\.pg_backend_pid\(\)[\s\S]*?v_expired_job_id[\s\S]*?v_now[\s\S]*?UPDATE public\.runner_job AS job[\s\S]*?WHERE job\.id = v_expired_job_id[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_until <= v_now/i,
     );
     expect(canonicalSql).not.toMatch(/(?:set_config|current_setting)\(/i);
   });
 
   it("checks a live pool machine slot before claiming when required", () => {
     expect(functionBody).toMatch(
-      /IF p_require_slot THEN[\s\S]*?PERFORM 1[\s\S]*?FROM public\.runner_machine_slot AS rms[\s\S]*?rms\.owner_machine_id = p_worker_id[\s\S]*?rms\.owner_kind = 'pool'[\s\S]*?rms\.lease_until > p_now[\s\S]*?FOR UPDATE[\s\S]*?IF NOT FOUND THEN[\s\S]*?RETURN;/i,
+      /IF p_require_slot THEN[\s\S]*?PERFORM 1[\s\S]*?FROM public\.runner_machine_slot AS rms[\s\S]*?rms\.owner_machine_id = p_worker_id[\s\S]*?rms\.owner_kind = 'pool'[\s\S]*?rms\.lease_until > v_now[\s\S]*?FOR UPDATE[\s\S]*?IF NOT FOUND THEN[\s\S]*?RETURN;/i,
     );
   });
 
@@ -119,7 +118,7 @@ describe("runner pool concurrency phase two migration", () => {
       /CREATE INDEX IF NOT EXISTS runner_job_running_owner_lease_idx\s+ON public\.runner_job \(leased_by, leased_until\)\s+WHERE status = 'running';/i,
     );
     expect(functionBody).toMatch(
-      /IF p_require_slot THEN[\s\S]*?FOR UPDATE[\s\S]*?IF EXISTS \([\s\S]*?FROM public\.runner_job AS owned[\s\S]*?owned\.status = 'running'[\s\S]*?owned\.leased_by = p_worker_id[\s\S]*?owned\.leased_until > p_now[\s\S]*?THEN[\s\S]*?RETURN;/i,
+      /IF p_require_slot THEN[\s\S]*?FOR UPDATE[\s\S]*?IF EXISTS \([\s\S]*?FROM public\.runner_job AS owned[\s\S]*?owned\.status = 'running'[\s\S]*?owned\.leased_by = p_worker_id[\s\S]*?owned\.leased_until > v_now[\s\S]*?THEN[\s\S]*?RETURN;/i,
     );
   });
 
@@ -150,7 +149,7 @@ describe("runner pool concurrency phase two migration", () => {
       /SELECT COUNT\(\*\)[\s\S]*?active\.country = candidate\.country[\s\S]*?active\.status = 'running'/i,
     );
     expect(functionBody).toMatch(
-      /SELECT cap\.country[\s\S]*?FROM public\.runner_concurrency_cap AS cap[\s\S]*?JOIN LATERAL \([\s\S]*?oldest_candidate\.status = 'queued'[\s\S]*?oldest_candidate\.available_at <= p_now[\s\S]*?ORDER BY oldest_candidate\.enqueued_at, oldest_candidate\.id, cap\.country[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE OF cap SKIP LOCKED/i,
+      /SELECT cap\.country[\s\S]*?FROM public\.runner_concurrency_cap AS cap[\s\S]*?JOIN LATERAL \([\s\S]*?oldest_candidate\.status = 'queued'[\s\S]*?oldest_candidate\.available_at <= v_now[\s\S]*?ORDER BY oldest_candidate\.enqueued_at, oldest_candidate\.id, cap\.country[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE OF cap SKIP LOCKED/i,
     );
     expect(functionBody).toMatch(/WHILE\s+v_cap_iterations\s*<\s*5\s+LOOP/i);
     expect(functionBody).toMatch(/v_tried_countries/i);
@@ -164,7 +163,7 @@ describe("runner pool concurrency phase two migration", () => {
     expect(functionBody).not.toMatch(/v_last_country|ORDER BY cap\.country/i);
     expect(functionBody).toMatch(/v_tried_countries\s+TEXT\[\]/i);
     expect(functionBody).toMatch(
-      /LATERAL\s*\([\s\S]*?FROM public\.runner_job AS oldest_candidate[\s\S]*?oldest_candidate\.status = 'queued'[\s\S]*?oldest_candidate\.available_at <= p_now[\s\S]*?ORDER BY oldest_candidate\.enqueued_at, oldest_candidate\.id[\s\S]*?LIMIT 1/i,
+      /LATERAL\s*\([\s\S]*?FROM public\.runner_job AS oldest_candidate[\s\S]*?oldest_candidate\.status = 'queued'[\s\S]*?oldest_candidate\.available_at <= v_now[\s\S]*?ORDER BY oldest_candidate\.enqueued_at, oldest_candidate\.id[\s\S]*?LIMIT 1/i,
     );
     expect(functionBody).toMatch(
       /ORDER BY oldest_candidate\.enqueued_at, oldest_candidate\.id, cap\.country[\s\S]*?FOR UPDATE OF cap SKIP LOCKED/i,
@@ -174,7 +173,7 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("only considers due queued jobs below an unpaused per-country cap", () => {
     expect(functionBody).toMatch(/candidate\.status = 'queued'/i);
-    expect(functionBody).toMatch(/candidate\.available_at <= p_now/i);
+    expect(functionBody).toMatch(/candidate\.available_at <= v_now/i);
     expect(functionBody).toMatch(/NOT cap\.paused/i);
     expect(functionBody).toMatch(
       /SELECT COUNT\(\*\)[\s\S]*?active\.country = candidate\.country[\s\S]*?active\.status = 'running'[\s\S]*?< cap\.max_concurrent/i,
@@ -184,7 +183,7 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("updates queued jobs into leased running rows and returns the established columns", () => {
     expect(functionBody).toMatch(
-      /UPDATE public\.runner_job AS claimed[\s\S]*?SET status = 'running'[\s\S]*?leased_by = p_worker_id[\s\S]*?leased_until = p_now \+ p_lease_ms \* INTERVAL '1 millisecond'[\s\S]*?started_at = p_now[\s\S]*?finished_at = NULL[\s\S]*?last_error = NULL/i,
+      /UPDATE public\.runner_job AS claimed[\s\S]*?SET status = 'running'[\s\S]*?leased_by = p_worker_id[\s\S]*?leased_until = v_now \+ p_lease_ms \* INTERVAL '1 millisecond'[\s\S]*?started_at = v_now[\s\S]*?finished_at = NULL[\s\S]*?last_error = NULL/i,
     );
     expect(functionBody).toMatch(
       /RETURNING[\s\S]*?claimed\.id[\s\S]*?claimed\.application_id[\s\S]*?claimed\.country[\s\S]*?claimed\.flow_key[\s\S]*?claimed\.attempts[\s\S]*?claimed\.max_attempts[\s\S]*?claimed\.correlation_id[\s\S]*?claimed\.metadata/i,
@@ -483,6 +482,12 @@ describe("runner pool concurrency phase two migration", () => {
     expect(triggerFunctionBody).toMatch(
       /DELETE FROM runner_private\.runner_recovery_capability[\s\S]*?txid = pg_catalog\.txid_current\(\)[\s\S]*?backend_pid = pg_catalog\.pg_backend_pid\(\)[\s\S]*?job_id = OLD\.id[\s\S]*?RETURNING capability\.recovery_now/i,
     );
+    expect(triggerFunctionBody).toMatch(
+      /v_identity_changed\s*:=\s*\([\s\S]*?NEW\.id IS DISTINCT FROM OLD\.id[\s\S]*?NEW\.enqueued_at IS DISTINCT FROM OLD\.enqueued_at/i,
+    );
+    expect(triggerFunctionBody).toMatch(
+      /IF NOT v_lifecycle_changed\s+AND NOT v_identity_changed\s+AND v_metadata_changed[\s\S]*?RETURN NEW;/i,
+    );
     expect(triggerFunctionBody).not.toMatch(/current_setting\(|set_config\(/i);
     expect(triggerFunctionBody).toMatch(/NEW\.application_id IS DISTINCT FROM OLD\.application_id/i);
     expect(triggerFunctionBody).toMatch(/NEW\.metadata IS DISTINCT FROM OLD\.metadata/i);
@@ -540,7 +545,16 @@ describe("runner pool concurrency phase two migration", () => {
     expect(integrationSource).toMatch(
       /current_setting\('app\.viza_environment', true\)/i,
     );
-    expect(integrationSource).toMatch(/refuses a production database/i);
+    expect(integrationSource).toMatch(
+      /allowedDatabaseEnvironments = new Set\(\[[\s\S]*?local[\s\S]*?local-test[\s\S]*?test[\s\S]*?development/i,
+    );
+    expect(integrationSource).toMatch(
+      /if \(!allowedDatabaseEnvironments\.has\(databaseEnvironment\)\)[\s\S]*?throw new Error/i,
+    );
+    const environmentCheckIndex = integrationSource.indexOf("current_setting('app.viza_environment'");
+    const advisoryLockIndex = integrationSource.indexOf("pg_advisory_lock");
+    expect(environmentCheckIndex).toBeGreaterThan(-1);
+    expect(advisoryLockIndex).toBeGreaterThan(environmentCheckIndex);
   });
 
   it("keeps the trigger and result RPC in the CLI mirror", () => {
