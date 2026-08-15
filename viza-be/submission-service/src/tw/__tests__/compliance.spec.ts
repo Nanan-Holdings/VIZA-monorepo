@@ -168,7 +168,8 @@ describe("Taiwan runner compliance boundary", () => {
       readTwSource("prepare-guard.ts"),
     ]);
 
-    assert.match(haltRunnerSource, /prepareTwEntryPermitApplication\(applicationId, \{ currentJobId: jobId \}\)/);
+    assert.match(haltRunnerSource, /requirePoolExecutionIdentity\(execution, jobId, "taiwan runner"\)/);
+    assert.match(haltRunnerSource, /prepareTwEntryPermitApplication\(applicationId, \{ currentJobId: identity\.jobId \}\)/);
     assert.match(haltRunnerSource, /\.eq\("application_id", applicationId\)/);
     assert.match(haltRunnerSource, /\.eq\("country", "taiwan"\)/);
     assert.match(haltRunnerSource, /TW_ACTIVE_RUNNER_JOB_STATUSES/);
