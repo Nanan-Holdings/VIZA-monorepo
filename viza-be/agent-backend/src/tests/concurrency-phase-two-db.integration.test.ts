@@ -9,13 +9,11 @@ import {
 
 const confirm = process.env.RUNNER_FENCE_DB_CONFIRM === "local-test";
 const databaseUrl = process.env.RUNNER_FENCE_DATABASE_URL ?? process.env.DATABASE_URL ?? "";
-const supabaseUrl =
-  process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? databaseUrl;
 const nonProductionMarker = (process.env.RUNNER_FENCE_DB_NONPRODUCTION ?? "").toLowerCase();
 
 const localHost = (() => {
   try {
-    const host = new URL(supabaseUrl).hostname.toLowerCase();
+    const host = new URL(databaseUrl).hostname.toLowerCase();
     return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "supabase";
   } catch {
     return false;
@@ -159,6 +157,33 @@ const invokeAfterLockWait = async <T extends Record<string, unknown>>(
   }
 };
 
+const invokeAfterApplicationLockWait = async <T extends Record<string, unknown>>(
+  fixture: Fixture,
+  sql: string,
+  values: unknown[],
+): Promise<QueryResult<T>> => {
+  if (!pool) throw new Error("integration pool is not initialized");
+  const blocker = await pool.connect();
+  const waiter = await pool.connect();
+  try {
+    await blocker.query("BEGIN");
+    await blocker.query(
+      "SELECT id FROM public.applications WHERE id = $1 FOR UPDATE",
+      [fixture.applicationId],
+    );
+    const waiterPid = await backendPid(waiter);
+    const pending = waiter.query<T>(sql, values);
+    await waitForLockWait(waiterPid);
+    await sleep(350);
+    await blocker.query("COMMIT");
+    return await pending;
+  } finally {
+    await blocker.query("ROLLBACK").catch(() => undefined);
+    blocker.release();
+    waiter.release();
+  }
+};
+
 const integrationSuite = describe.skipIf(!liveGateEnabled);
 
 integrationSuite("runner pool concurrency phase two real Postgres fence", () => {
@@ -166,6 +191,12 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
     pool = new Pool({ connectionString: databaseUrl, max: 8 });
     suiteLockClient = await pool.connect();
     await suiteLockClient.query("SELECT pg_advisory_lock(hashtext($1))", [suiteLockName]);
+    const environment = await suiteLockClient.query<{ viza_environment: string | null }>(
+      "SELECT current_setting('app.viza_environment', true) AS viza_environment",
+    );
+    if (environment.rows[0]?.viza_environment?.toLowerCase() === "production") {
+      throw new Error("runner fence integration refuses a production database");
+    }
   });
 
   afterAll(async () => {
@@ -351,6 +382,31 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
     }
   });
 
+  it("returns zero when the application-row lock wait crosses the lease expiry", async () => {
+    const workerId = "runner-fence-app-lock-expiry";
+    const fixture = await createFixture({
+      workerId,
+      leaseUntil: new Date(Date.now() + 200),
+      submissionResult: { keep: true },
+      submissionResultStatus: "processing",
+    });
+    try {
+      const result = await invokeAfterApplicationLockWait(
+        fixture,
+        "SELECT * FROM public.write_runner_pool_submission_result($1::uuid, $2::text, $3::jsonb, $4::text)",
+        [fixture.jobId, workerId, { stale: true }, "submitted"],
+      );
+      expect(result.rows).toHaveLength(0);
+      const app = await query<{ status: string; submission_result: Record<string, unknown> }>(
+        "SELECT status, submission_result FROM public.applications WHERE id = $1",
+        [fixture.applicationId],
+      );
+      expect(app.rows[0]).toMatchObject({ status: "processing", submission_result: { keep: true } });
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
   it("drops stale direct lifecycle writes but permits metadata-only writes", async () => {
     const fixture = await createFixture({ leaseUntil: new Date(Date.now() - 1000) });
     try {
@@ -369,7 +425,7 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
     }
   });
 
-  it("recovers exactly one expired row with exact markers and clears them", async () => {
+  it("recovers exactly one expired row with an exact one-time capability", async () => {
     const fixture = await createFixture({
       leaseUntil: new Date(Date.now() - 1000),
       maxAttempts: 3,
@@ -387,11 +443,15 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
       );
       expect(row.rows[0]).toMatchObject({ status: "queued", attempts: 1, leased_by: null });
       expect(row.rows[0].last_error).toContain("lease expired");
-      const markers = await client.query<{ job_id: string; recovery_now: string }>(
-        "SELECT current_setting('viza.runner_recovery_job_id', true) AS job_id, current_setting('viza.runner_recovery_now', true) AS recovery_now",
+      const capabilities = await client.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM runner_private.runner_recovery_capability
+         WHERE txid = txid_current()
+           AND backend_pid = pg_backend_pid()
+           AND job_id = $1`,
+        [fixture.jobId],
       );
-      expect(markers.rows[0].job_id ?? "").toBe("");
-      expect(markers.rows[0].recovery_now ?? "").toBe("");
+      expect(capabilities.rows[0].count).toBe("0");
     } finally {
       client.release();
       await cleanupFixture(fixture);

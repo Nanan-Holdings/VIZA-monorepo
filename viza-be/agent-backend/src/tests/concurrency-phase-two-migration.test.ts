@@ -8,7 +8,11 @@ const canonicalPath = fileURLToPath(
 const mirrorDirectory = fileURLToPath(
   new URL("../../../../viza-fe/internal-website/supabase/migrations/", import.meta.url),
 );
+const integrationPath = fileURLToPath(
+  new URL("./concurrency-phase-two-db.integration.test.ts", import.meta.url),
+);
 const canonicalSql = existsSync(canonicalPath) ? readFileSync(canonicalPath, "utf8") : "";
+const integrationSource = existsSync(integrationPath) ? readFileSync(integrationPath, "utf8") : "";
 const normalized = (source: string): string => source.replace(/\r\n/g, "\n").trimEnd();
 const functionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.claim_runner_pool_job\([\s\S]*?\n\$\$;/i,
@@ -29,7 +33,7 @@ const failFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.fail_runner_pool_job\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
 const triggerFunctionBody = canonicalSql.match(
-  /CREATE OR REPLACE FUNCTION public\.guard_expired_runner_job_lifecycle_update\([\s\S]*?\n\$\$;/i,
+  /CREATE OR REPLACE FUNCTION runner_private\.guard_expired_runner_job_lifecycle_update\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
 const resultFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.write_runner_pool_submission_result\([\s\S]*?\n\$\$;/i,
@@ -71,6 +75,10 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).toMatch(
       /RETURNS TABLE \(\s*id UUID,\s*application_id UUID,\s*country TEXT,\s*flow_key TEXT,\s*attempts INTEGER,\s*max_attempts INTEGER,\s*correlation_id TEXT,\s*metadata JSONB\s*\)/i,
     );
+    expect(functionBody).toMatch(/SECURITY DEFINER/i);
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON SCHEMA runner_private FROM PUBLIC, anon, authenticated, service_role;/i,
+    );
   });
 
   it("rejects null lease, slot-policy, and clock inputs explicitly", () => {
@@ -95,8 +103,9 @@ describe("runner pool concurrency phase two migration", () => {
       /WITH expired AS MATERIALIZED \([\s\S]*?SELECT expired\.id[\s\S]*?FROM public\.runner_job AS expired[\s\S]*?ORDER BY[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE SKIP LOCKED[\s\S]*?\)[\s\S]*?SELECT expired\.id[\s\S]*?INTO v_expired_job_id/i,
     );
     expect(canonicalSql).toMatch(
-      /set_config\(\s*'viza\.runner_recovery_job_id'[\s\S]*?set_config\(\s*'viza\.runner_recovery_now'[\s\S]*?UPDATE public\.runner_job AS job[\s\S]*?WHERE job\.id = v_expired_job_id[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_until <= p_now[\s\S]*?set_config\(\s*'viza\.runner_recovery_job_id',\s*'',\s*TRUE[\s\S]*?set_config\(\s*'viza\.runner_recovery_now',\s*'',\s*TRUE/i,
+      /INSERT INTO runner_private\.runner_recovery_capability\s*\([\s\S]*?txid[\s\S]*?backend_pid[\s\S]*?job_id[\s\S]*?recovery_now[\s\S]*?pg_catalog\.txid_current\(\)[\s\S]*?pg_catalog\.pg_backend_pid\(\)[\s\S]*?v_expired_job_id[\s\S]*?p_now[\s\S]*?UPDATE public\.runner_job AS job[\s\S]*?WHERE job\.id = v_expired_job_id[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_until <= p_now/i,
     );
+    expect(canonicalSql).not.toMatch(/(?:set_config|current_setting)\(/i);
   });
 
   it("checks a live pool machine slot before claiming when required", () => {
@@ -198,7 +207,7 @@ describe("runner pool concurrency phase two migration", () => {
   });
 
   it("hardens execution privileges and function search path", () => {
-    expect(functionBody).toMatch(/SECURITY INVOKER/i);
+    expect(functionBody).toMatch(/SECURITY DEFINER/i);
     expect(functionBody).toMatch(/SET search_path = ''/i);
     expect(canonicalSql).toMatch(
       /REVOKE ALL ON FUNCTION public\.claim_runner_pool_job\(\s*TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ\s*\) FROM PUBLIC, anon, authenticated;/i,
@@ -432,6 +441,15 @@ describe("runner pool concurrency phase two migration", () => {
     expect(completeFunctionBody).toMatch(/finished_at\s*=\s*COALESCE\(p_now, v_now\)/i);
   });
 
+  it("never uses an explicit p_now/coalesced clock as the lease predicate", () => {
+    expect(canonicalSql).not.toMatch(
+      /(?:leased_until|lease_expires_at)\s*(?:>|<=)\s*COALESCE\(\s*p_now\s*,\s*(?:pg_catalog\.)?clock_timestamp\(\)\s*\)/i,
+    );
+    expect(canonicalSql).not.toMatch(
+      /COALESCE\(\s*p_now\s*,\s*(?:pg_catalog\.)?clock_timestamp\(\)\s*\)\s*(?:>|<=)\s*(?:leased_until|lease_expires_at)/i,
+    );
+  });
+
   it("locks the completion row before taking its post-lock clock snapshot", () => {
     assertSettlementLocksBeforeClock(completeFunctionBody);
   });
@@ -455,17 +473,17 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("installs the permanent expired-row compatibility trigger with metadata-only escape", () => {
     expect(canonicalSql).toMatch(
-      /CREATE OR REPLACE FUNCTION public\.guard_expired_runner_job_lifecycle_update\(\)\s*RETURNS trigger[\s\S]*?SECURITY DEFINER[\s\S]*?SET search_path = ''/i,
+      /CREATE OR REPLACE FUNCTION runner_private\.guard_expired_runner_job_lifecycle_update\(\)\s*RETURNS trigger[\s\S]*?SECURITY DEFINER[\s\S]*?SET search_path = ''/i,
     );
     expect(triggerFunctionBody).toMatch(
       /NEW\.status IS DISTINCT FROM OLD\.status[\s\S]*?NEW\.available_at IS DISTINCT FROM OLD\.available_at/i,
     );
     expect(triggerFunctionBody).toMatch(/RETURN NEW;/i);
     expect(triggerFunctionBody).toMatch(/RETURN NULL;/i);
-    expect(triggerFunctionBody).toMatch(/current_setting\('viza\.runner_recovery_job_id', TRUE\)/i);
-    expect(triggerFunctionBody).toMatch(/current_setting\('viza\.runner_recovery_now', TRUE\)/i);
-    expect(triggerFunctionBody).toMatch(/v_marker_job_id::UUID/i);
-    expect(triggerFunctionBody).toMatch(/v_marker_now_text::TIMESTAMPTZ/i);
+    expect(triggerFunctionBody).toMatch(
+      /DELETE FROM runner_private\.runner_recovery_capability[\s\S]*?txid = pg_catalog\.txid_current\(\)[\s\S]*?backend_pid = pg_catalog\.pg_backend_pid\(\)[\s\S]*?job_id = OLD\.id[\s\S]*?RETURNING capability\.recovery_now/i,
+    );
+    expect(triggerFunctionBody).not.toMatch(/current_setting\(|set_config\(/i);
     expect(triggerFunctionBody).toMatch(/NEW\.application_id IS DISTINCT FROM OLD\.application_id/i);
     expect(triggerFunctionBody).toMatch(/NEW\.metadata IS DISTINCT FROM OLD\.metadata/i);
     expect(triggerFunctionBody).toMatch(/NEW\.attempts IS DISTINCT FROM OLD\.attempts \+ 1/i);
@@ -474,7 +492,13 @@ describe("runner pool concurrency phase two migration", () => {
       /CREATE TRIGGER guard_expired_runner_job_lifecycle_update\s*BEFORE UPDATE ON public\.runner_job/i,
     );
     expect(canonicalSql).toMatch(
-      /REVOKE ALL ON FUNCTION public\.guard_expired_runner_job_lifecycle_update\(\)\s*FROM PUBLIC, anon, authenticated, service_role;/i,
+      /DROP FUNCTION IF EXISTS public\.guard_expired_runner_job_lifecycle_update\(\);/i,
+    );
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION runner_private\.guard_expired_runner_job_lifecycle_update\(\)\s*FROM PUBLIC, anon, authenticated, service_role;/i,
+    );
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON TABLE runner_private\.runner_recovery_capability\s*FROM PUBLIC, anon, authenticated, service_role;/i,
     );
   });
 
@@ -489,12 +513,16 @@ describe("runner pool concurrency phase two migration", () => {
     expect(resultFunctionBody).toMatch(/SET search_path = ''/i);
     expect(resultFunctionBody).toMatch(/p_submission_result IS NULL/i);
     expect(resultFunctionBody).toMatch(/jsonb_typeof\(p_submission_result\) <> 'object'/i);
+    expect(resultFunctionBody).toMatch(/pg_column_size\(p_submission_result\) > 524288/i);
     expect(resultFunctionBody).toMatch(/NULLIF\(BTRIM\(p_submission_result_status\), ''\) IS NULL/i);
     expect(resultFunctionBody).toMatch(
-      /SELECT job\.application_id, job\.leased_until[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_by = v_worker_id[\s\S]*?FOR UPDATE/i,
+      /SELECT job\.application_id\s*\n\s*INTO v_application_id[\s\S]*?FROM public\.runner_job AS job[\s\S]*?WHERE job\.id = p_job_id[\s\S]*?;[\s\S]*?SELECT application\.id[\s\S]*?FROM public\.applications AS application[\s\S]*?WHERE application\.id = v_application_id[\s\S]*?FOR UPDATE;[\s\S]*?SELECT job\.application_id, job\.leased_until[\s\S]*?FROM public\.runner_job AS job[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_by = v_worker_id[\s\S]*?FOR UPDATE/i,
     );
     expect(resultFunctionBody).toMatch(/v_now\s*:=\s*(?:pg_catalog\.)?clock_timestamp\(\)/i);
     expect(resultFunctionBody).toMatch(/v_leased_until IS NULL OR v_leased_until <= v_now/i);
+    expect(resultFunctionBody).toMatch(
+      /'waiting'[\s\S]*?'scheduled'[\s\S]*?'processing'[\s\S]*?'needs_user_action'[\s\S]*?'completed'[\s\S]*?'stalled'[\s\S]*?'submitted'[\s\S]*?'submitted_mock'[\s\S]*?'unsupported'[\s\S]*?'action_required'[\s\S]*?'stopped_at_sign'[\s\S]*?'stopped_at_pay'[\s\S]*?'stopped_at_review'[\s\S]*?'final_review_required'[\s\S]*?'form_ready_for_agency'[\s\S]*?'form_ready_for_kvac'[\s\S]*?'failed'/i,
+    );
     expect(resultFunctionBody).toMatch(
       /UPDATE public\.applications AS application[\s\S]*?submission_result = p_submission_result[\s\S]*?submission_result_status = v_result_status[\s\S]*?submission_result_updated_at = v_now[\s\S]*?WHEN v_result_status = 'submitted' THEN 'submitted'[\s\S]*?ELSE application\.status/i,
     );
@@ -504,6 +532,15 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).toMatch(
       /GRANT EXECUTE ON FUNCTION public\.write_runner_pool_submission_result\(\s*UUID, TEXT, JSONB, TEXT\s*\) TO service_role;/i,
     );
+  });
+
+  it("gates real Postgres smoke on the actual local database URL and DB environment", () => {
+    expect(integrationSource).toMatch(/new URL\(databaseUrl\)/i);
+    expect(integrationSource).not.toMatch(/SUPABASE_URL|NEXT_PUBLIC_SUPABASE_URL/);
+    expect(integrationSource).toMatch(
+      /current_setting\('app\.viza_environment', true\)/i,
+    );
+    expect(integrationSource).toMatch(/refuses a production database/i);
   });
 
   it("keeps the trigger and result RPC in the CLI mirror", () => {
