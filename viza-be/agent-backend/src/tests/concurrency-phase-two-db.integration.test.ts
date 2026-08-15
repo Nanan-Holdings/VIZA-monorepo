@@ -77,7 +77,7 @@ const createFixture = async (options: FixtureOptions = {}): Promise<Fixture> => 
        applicant_id, country, visa_type, status, submission_result,
        submission_result_status, submission_result_updated_at
      )
-     VALUES ($1, 'vietnam', 'vn_evisa', $2, $3::jsonb, $4, NULL)
+       VALUES ($1, 'vietnam', 'vn_prearrival', $2, $3::jsonb, $4, NULL)
      RETURNING id`,
     [
       applicantId,
@@ -94,7 +94,7 @@ const createFixture = async (options: FixtureOptions = {}): Promise<Fixture> => 
        application_id, country, flow_key, status, attempts, max_attempts,
        leased_by, leased_until, started_at, available_at, metadata
      )
-     VALUES ($1, 'vietnam', 'vn_evisa', 'running', 0, $2, $3, $4, NOW(), NOW(), $5::jsonb)
+     VALUES ($1, 'vietnam', 'vn_prearrival', 'running', 0, $2, $3, $4, NOW(), NOW(), $5::jsonb)
      RETURNING id`,
     [applicationId, options.maxAttempts ?? 3, workerId, leaseUntil, JSON.stringify({ synthetic: true })],
   );
@@ -301,7 +301,9 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
         [fixture.jobId],
       );
       expect(row.rows[0].status).toBe("succeeded");
-      expect(new Date(row.rows[0].finished_at).toISOString()).toBe(staleNow);
+      expect(new Date(row.rows[0].finished_at).getTime()).toBeGreaterThan(
+        Date.now() - 5_000,
+      );
     } finally {
       await cleanupFixture(fixture);
     }
@@ -451,13 +453,10 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
       expect(new Date(after.rows[0].leased_until).getTime()).toBe(
         new Date(before.rows[0].leased_until).getTime(),
       );
-      const capabilities = await client.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count
-         FROM runner_private.runner_recovery_capability
-         WHERE job_id = $1`,
-        [fixture.jobId],
+      const capabilities = await client.query<{ allowed: boolean }>(
+        "SELECT has_table_privilege(current_user, 'runner_private.runner_job_update_capability', 'SELECT') AS allowed",
       );
-      expect(capabilities.rows[0].count).toBe("0");
+      expect(capabilities.rows[0].allowed).toBe(false);
     } finally {
       client.release();
       await cleanupFixture(fixture);
@@ -505,17 +504,103 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
       );
       expect(row.rows[0]).toMatchObject({ status: "queued", attempts: 1, leased_by: null });
       expect(row.rows[0].last_error).toContain("lease expired");
-      const capabilities = await client.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count
-         FROM runner_private.runner_recovery_capability
-         WHERE txid = txid_current()
-           AND backend_pid = pg_backend_pid()
-           AND job_id = $1`,
-        [fixture.jobId],
+      const capabilities = await client.query<{ allowed: boolean }>(
+        "SELECT has_table_privilege(current_user, 'runner_private.runner_job_update_capability', 'SELECT') AS allowed",
       );
-      expect(capabilities.rows[0].count).toBe("0");
+      expect(capabilities.rows[0].allowed).toBe(false);
     } finally {
       client.release();
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("blocks BASE direct lifecycle writes on an active row", async () => {
+    const workerId = "runner-fence-direct-active";
+    const updates = [
+      "UPDATE public.runner_job SET leased_until = leased_until + INTERVAL '1 minute' WHERE id = $1 RETURNING id",
+      "UPDATE public.runner_job SET status = 'succeeded' WHERE id = $1 RETURNING id",
+      "UPDATE public.runner_job SET last_error = 'direct stale failure' WHERE id = $1 RETURNING id",
+    ];
+    for (const update of updates) {
+      const fixture = await createFixture({ workerId });
+      try {
+        const result = await query(update, [fixture.jobId]);
+        expect(result.rows).toHaveLength(0);
+        const row = await query<{ status: string; leased_by: string }>(
+          "SELECT status, leased_by FROM public.runner_job WHERE id = $1",
+          [fixture.jobId],
+        );
+        expect(row.rows[0]).toEqual({ status: "running", leased_by: workerId });
+      } finally {
+        await cleanupFixture(fixture);
+      }
+    }
+  });
+
+  it("appends fingerprints only through the exact live-owner RPC", async () => {
+    const workerId = "runner-fence-fingerprint";
+    const fixture = await createFixture({ workerId });
+    try {
+      const direct = await query(
+        "UPDATE public.runner_job SET fingerprint_history = jsonb_build_array(jsonb_build_object('forged', true)) WHERE id = $1 RETURNING id",
+        [fixture.jobId],
+      );
+      expect(direct.rows).toHaveLength(0);
+      const result = await query<{ job_id: string; fingerprint_history: Array<Record<string, unknown>> }>(
+        "SELECT * FROM public.append_runner_job_fingerprint($1::uuid, $2::text, $3::jsonb)",
+        [fixture.jobId, ` ${workerId} `, { challenge: "turnstile", at: "synthetic" }],
+      );
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].fingerprint_history).toEqual([
+        { challenge: "turnstile", at: "synthetic" },
+      ]);
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("exposes no capability schema/table/function privileges to the runtime role", async () => {
+    const privileges = await query<{
+      schema_usage: boolean;
+      table_select: boolean;
+      trigger_execute: boolean;
+    }>(
+      `SELECT
+         has_schema_privilege(current_user, 'runner_private', 'USAGE') AS schema_usage,
+         has_table_privilege(current_user, 'runner_private.runner_job_update_capability', 'SELECT') AS table_select,
+         has_function_privilege(current_user, 'runner_private.guard_expired_runner_job_lifecycle_update()', 'EXECUTE') AS trigger_execute`,
+    );
+    expect(privileges.rows[0]).toEqual({
+      schema_usage: false,
+      table_select: false,
+      trigger_execute: false,
+    });
+  });
+
+  it("never claims or counts a null/retired flow tuple", async () => {
+    const fixture = await createFixture({ workerId: "runner-fence-invalid-flow" });
+    try {
+      await query(
+        "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'failed', 1, 'synthetic invalid-flow setup', 0)",
+        [fixture.jobId, "runner-fence-invalid-flow"],
+      );
+      await query(
+        `INSERT INTO public.runner_job (
+           application_id, country, flow_key, status, attempts, max_attempts,
+           available_at, enqueued_at, metadata
+         ) VALUES ($1, 'vietnam', NULL, 'queued', 0, 3, NOW(), NOW(), '{}'::jsonb)`,
+        [fixture.applicationId],
+      );
+      const claimed = await query(
+        "SELECT * FROM public.claim_runner_pool_job($1::text, 60000, FALSE, NOW() + INTERVAL '1 day')",
+        ["runner-fence-invalid-claim"],
+      );
+      expect(claimed.rows).toHaveLength(0);
+      const depth = await query<{ claimable: number; scheduled: number; running: number }>(
+        "SELECT claimable, scheduled, running FROM public.runner_pool_depth WHERE country = 'vietnam'",
+      );
+      expect(depth.rows[0]).toMatchObject({ claimable: 0, scheduled: 0, running: 0 });
+    } finally {
       await cleanupFixture(fixture);
     }
   });
