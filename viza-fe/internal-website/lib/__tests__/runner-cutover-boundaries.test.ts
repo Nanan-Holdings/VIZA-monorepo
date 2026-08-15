@@ -50,6 +50,42 @@ describe("runner cutover guarded boundary source contract", () => {
     expect(longForm).not.toContain("/api/submission-worker/wake");
   });
 
+  it("guards direct Korea and local submission-service routes before worker side effects", () => {
+    expectGuardBefore(
+      "app/api/applications/[id]/korea-official-eform/route.ts",
+      "isRunnerCutoverPaused()",
+      "readAnswerMap(auth.admin",
+      "export async function POST",
+    );
+    expectGuardBefore(
+      "app/api/applications/[id]/korea-official-eform/route.ts",
+      "assertRunnerCutoverActive();",
+      "ensureFlyMachineStarted(\"south_korea\")",
+      "async function postSubmissionService",
+    );
+    expect(source("app/api/applications/[id]/korea-official-eform/route.ts"))
+      .toContain("if (!wakeResult.ok)");
+
+    expectGuardBefore(
+      "app/api/applications/[id]/korea-appointment/route.ts",
+      "isRunnerCutoverPaused()",
+      "req.json()",
+      "export async function POST",
+    );
+    expectGuardBefore(
+      "app/api/applications/[id]/korea-appointment/route.ts",
+      "assertRunnerCutoverActive();",
+      "submissionServiceBaseUrl()",
+      "async function postSubmissionService",
+    );
+    expectGuardBefore(
+      "app/api/applications/[id]/local-submission-worker/route.ts",
+      "isRunnerCutoverPaused()",
+      "request.json()",
+      "export async function POST",
+    );
+  });
+
   it("guards the centralized Queue, Fly, authenticated wake, and replay sinks", () => {
     expectGuardBefore(
       "lib/resilience/runner-job-wakeup.ts",

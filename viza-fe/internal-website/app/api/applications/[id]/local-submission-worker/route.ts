@@ -4,6 +4,7 @@ import { promisify } from "util";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 export const dynamic = "force-dynamic";
 
@@ -146,6 +147,16 @@ export async function POST(
   }
   if (application.applicant_id !== profile.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (isRunnerCutoverPaused()) {
+    return NextResponse.json(
+      {
+        error: "Local submission worker startup is temporarily paused for a controlled runner cutover.",
+        code: "runner_cutover_paused",
+      },
+      { status: 503 },
+    );
   }
 
   try {

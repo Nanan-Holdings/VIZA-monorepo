@@ -113,7 +113,10 @@ describe("resilience replay route", () => {
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });
 
-  afterEach(() => warnSpy.mockRestore());
+  afterEach(() => {
+    delete process.env.RUNNER_CUTOVER_PAUSED;
+    warnSpy.mockRestore();
+  });
 
   it("nacks runner wake replay without reads or wakes during cutover pause", async () => {
     process.env.RUNNER_CUTOVER_PAUSED = "true";
