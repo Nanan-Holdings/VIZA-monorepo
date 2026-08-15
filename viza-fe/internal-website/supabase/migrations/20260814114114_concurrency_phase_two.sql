@@ -50,6 +50,8 @@ CREATE INDEX IF NOT EXISTS runner_job_running_owner_lease_idx
   ON public.runner_job (leased_by, leased_until)
   WHERE status = 'running';
 
+-- p_now remains in the four-argument identity for rolling compatibility; the
+-- function body ignores caller time and trusts only clock_timestamp().
 CREATE OR REPLACE FUNCTION public.claim_runner_pool_job(
   p_worker_id TEXT,
   p_lease_ms INTEGER DEFAULT 900000,
@@ -73,6 +75,7 @@ AS $$
 DECLARE
   v_locked_country TEXT;
   v_expired_job_id UUID;
+  v_now TIMESTAMPTZ;
   v_recovery_rows INTEGER := 0;
   v_tried_countries TEXT[] := ARRAY[]::TEXT[];
   v_cap_iterations INTEGER := 0;
@@ -89,17 +92,17 @@ BEGIN
     RAISE EXCEPTION 'Runner slot requirement is required'
       USING ERRCODE = '22023';
   END IF;
-  IF p_now IS NULL THEN
-    RAISE EXCEPTION 'Runner claim timestamp is required'
-      USING ERRCODE = '22023';
-  END IF;
+
+  -- The compatibility timestamp argument is intentionally ignored. Every
+  -- eligibility, recovery, and lease timestamp below is database-derived.
+  v_now := pg_catalog.clock_timestamp();
 
   IF p_require_slot THEN
     PERFORM 1
     FROM public.runner_machine_slot AS rms
     WHERE rms.owner_machine_id = p_worker_id
       AND rms.owner_kind = 'pool'
-      AND rms.lease_until > p_now
+      AND rms.lease_until > v_now
     FOR UPDATE;
 
     IF NOT FOUND THEN
@@ -114,7 +117,7 @@ BEGIN
       FROM public.runner_job AS owned
       WHERE owned.status = 'running'
         AND owned.leased_by = p_worker_id
-        AND owned.leased_until > p_now
+        AND owned.leased_until > v_now
     ) THEN
       RETURN;
     END IF;
@@ -129,7 +132,7 @@ BEGIN
     SELECT expired.id
     FROM public.runner_job AS expired
     WHERE expired.status = 'running'
-      AND expired.leased_until <= p_now
+      AND expired.leased_until <= v_now
       AND expired.country IN (
         'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
       )
@@ -157,7 +160,7 @@ BEGIN
       pg_catalog.txid_current(),
       pg_catalog.pg_backend_pid(),
       v_expired_job_id,
-      p_now
+      v_now
     );
 
     UPDATE public.runner_job AS job
@@ -174,16 +177,16 @@ BEGIN
           ELSE NULL
         END,
         finished_at = CASE
-          WHEN job.attempts + 1 >= job.max_attempts THEN p_now
+          WHEN job.attempts + 1 >= job.max_attempts THEN v_now
           ELSE NULL
         END,
         available_at = CASE
           WHEN job.attempts + 1 >= job.max_attempts THEN job.available_at
-          ELSE p_now + LEAST(300, 15 * (job.attempts + 1)) * INTERVAL '1 second'
+          ELSE v_now + LEAST(300, 15 * (job.attempts + 1)) * INTERVAL '1 second'
         END
     WHERE job.id = v_expired_job_id
       AND job.status = 'running'
-      AND job.leased_until <= p_now;
+      AND job.leased_until <= v_now;
 
     GET DIAGNOSTICS v_recovery_rows = ROW_COUNT;
 
@@ -209,7 +212,7 @@ BEGIN
       FROM public.runner_job AS oldest_candidate
       WHERE oldest_candidate.country = cap.country
         AND oldest_candidate.status = 'queued'
-        AND oldest_candidate.available_at <= p_now
+        AND oldest_candidate.available_at <= v_now
       ORDER BY oldest_candidate.enqueued_at, oldest_candidate.id
       LIMIT 1
     ) AS oldest_candidate ON TRUE
@@ -239,7 +242,7 @@ BEGIN
         ON cap.country = candidate.country
       WHERE candidate.country = v_locked_country
         AND candidate.status = 'queued'
-        AND candidate.available_at <= p_now
+        AND candidate.available_at <= v_now
         AND candidate.country IN (
           'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
         )
@@ -257,8 +260,8 @@ BEGIN
     UPDATE public.runner_job AS claimed
     SET status = 'running',
         leased_by = p_worker_id,
-        leased_until = p_now + p_lease_ms * INTERVAL '1 millisecond',
-        started_at = p_now,
+        leased_until = v_now + p_lease_ms * INTERVAL '1 millisecond',
+        started_at = v_now,
         finished_at = NULL,
         last_error = NULL
     FROM selected
@@ -290,7 +293,7 @@ GRANT EXECUTE ON FUNCTION public.claim_runner_pool_job(
 ) TO service_role;
 
 COMMENT ON FUNCTION public.claim_runner_pool_job(TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ) IS
-  'Atomically recovers one expired lease and claims one country-sharded shared-pool job.';
+  'Atomically recovers one expired lease and claims one country-sharded shared-pool job using database clock_timestamp(); p_now is compatibility-only.';
 
 -- Older workers can still issue direct lifecycle UPDATEs while a rolling
 -- deploy is in progress. Once an OLD running lease has expired, silently drop
@@ -307,9 +310,12 @@ SET search_path = ''
 AS $$
 DECLARE
   v_recovery_now TIMESTAMPTZ;
+  v_lifecycle_changed BOOLEAN;
+  v_identity_changed BOOLEAN;
+  v_metadata_changed BOOLEAN;
   v_terminal BOOLEAN;
 BEGIN
-  IF NOT (
+  v_lifecycle_changed := (
     NEW.status IS DISTINCT FROM OLD.status
     OR NEW.attempts IS DISTINCT FROM OLD.attempts
     OR NEW.last_error IS DISTINCT FROM OLD.last_error
@@ -318,13 +324,37 @@ BEGIN
     OR NEW.leased_by IS DISTINCT FROM OLD.leased_by
     OR NEW.leased_until IS DISTINCT FROM OLD.leased_until
     OR NEW.available_at IS DISTINCT FROM OLD.available_at
-  ) THEN
+  );
+  v_identity_changed := (
+    NEW.id IS DISTINCT FROM OLD.id
+    OR NEW.application_id IS DISTINCT FROM OLD.application_id
+    OR NEW.country IS DISTINCT FROM OLD.country
+    OR NEW.flow_key IS DISTINCT FROM OLD.flow_key
+    OR NEW.max_attempts IS DISTINCT FROM OLD.max_attempts
+    OR NEW.correlation_id IS DISTINCT FROM OLD.correlation_id
+    OR NEW.enqueued_at IS DISTINCT FROM OLD.enqueued_at
+  );
+  v_metadata_changed := NEW.metadata IS DISTINCT FROM OLD.metadata;
+
+  IF NOT v_lifecycle_changed
+    AND NOT v_identity_changed
+    AND NOT v_metadata_changed
+  THEN
     RETURN NEW;
   END IF;
 
   IF OLD.status IS DISTINCT FROM 'running'
     OR OLD.leased_until IS NULL
     OR OLD.leased_until > pg_catalog.clock_timestamp()
+  THEN
+    RETURN NEW;
+  END IF;
+
+  -- Metadata is the sole mutable payload field permitted on an expired
+  -- running row without the private recovery capability.
+  IF NOT v_lifecycle_changed
+    AND NOT v_identity_changed
+    AND v_metadata_changed
   THEN
     RETURN NEW;
   END IF;

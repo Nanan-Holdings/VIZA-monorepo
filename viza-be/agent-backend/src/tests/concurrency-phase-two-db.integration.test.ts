@@ -10,6 +10,13 @@ import {
 const confirm = process.env.RUNNER_FENCE_DB_CONFIRM === "local-test";
 const databaseUrl = process.env.RUNNER_FENCE_DATABASE_URL ?? process.env.DATABASE_URL ?? "";
 const nonProductionMarker = (process.env.RUNNER_FENCE_DB_NONPRODUCTION ?? "").toLowerCase();
+// Only these explicit database-side markers may unlock synthetic writes.
+const allowedDatabaseEnvironments = new Set([
+  "local",
+  "local-test",
+  "test",
+  "development",
+]);
 
 const localHost = (() => {
   try {
@@ -190,13 +197,16 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
   beforeAll(async () => {
     pool = new Pool({ connectionString: databaseUrl, max: 8 });
     suiteLockClient = await pool.connect();
-    await suiteLockClient.query("SELECT pg_advisory_lock(hashtext($1))", [suiteLockName]);
     const environment = await suiteLockClient.query<{ viza_environment: string | null }>(
       "SELECT current_setting('app.viza_environment', true) AS viza_environment",
     );
-    if (environment.rows[0]?.viza_environment?.toLowerCase() === "production") {
-      throw new Error("runner fence integration refuses a production database");
+    const databaseEnvironment = environment.rows[0]?.viza_environment ?? "";
+    if (!allowedDatabaseEnvironments.has(databaseEnvironment)) {
+      throw new Error(
+        `runner fence integration requires app.viza_environment in ${[...allowedDatabaseEnvironments].join(", ")}`,
+      );
     }
+    await suiteLockClient.query("SELECT pg_advisory_lock(hashtext($1))", [suiteLockName]);
   });
 
   afterAll(async () => {
@@ -407,6 +417,53 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
     }
   });
 
+  it("ignores a future claim p_now and leaves an active lease and capability table unchanged", async () => {
+    const workerId = "runner-fence-claim-clock";
+    const fixture = await createFixture({
+      workerId,
+      leaseUntil: new Date(Date.now() + 30_000),
+    });
+    const client = await pool!.connect();
+    try {
+      const before = await client.query<{
+        status: string;
+        leased_by: string | null;
+        leased_until: string;
+      }>(
+        "SELECT status, leased_by, leased_until FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      const future = new Date(Date.now() + 24 * 60 * 60_000).toISOString();
+      await client.query(
+        "SELECT * FROM public.claim_runner_pool_job($1::text, 60000, FALSE, $2::timestamptz)",
+        [workerId, future],
+      );
+      const after = await client.query<{
+        status: string;
+        leased_by: string | null;
+        leased_until: string;
+      }>(
+        "SELECT status, leased_by, leased_until FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      expect(after.rows[0].status).toBe("running");
+      expect(after.rows[0].leased_by).toBe(workerId);
+      expect(new Date(after.rows[0].leased_until).getTime()).toBe(
+        new Date(before.rows[0].leased_until).getTime(),
+      );
+      const capabilities = await client.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM runner_private.runner_recovery_capability
+         WHERE job_id = $1`,
+        [fixture.jobId],
+      );
+      expect(capabilities.rows[0].count).toBe("0");
+    } finally {
+      client.release();
+      await cleanupFixture(fixture);
+    }
+  });
+
   it("drops stale direct lifecycle writes but permits metadata-only writes", async () => {
     const fixture = await createFixture({ leaseUntil: new Date(Date.now() - 1000) });
     try {
@@ -415,6 +472,11 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
         [fixture.jobId],
       );
       expect(stale.rows).toHaveLength(0);
+      const identity = await query(
+        "UPDATE public.runner_job SET country = 'singapore' WHERE id = $1 RETURNING id",
+        [fixture.jobId],
+      );
+      expect(identity.rows).toHaveLength(0);
       const metadata = await query(
         "UPDATE public.runner_job SET metadata = jsonb_build_object('synthetic', true, 'metadata_only', true) WHERE id = $1 RETURNING metadata",
         [fixture.jobId],
