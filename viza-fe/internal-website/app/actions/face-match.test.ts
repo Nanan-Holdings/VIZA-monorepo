@@ -51,8 +51,6 @@ describe("runFaceMatch runner pause fencing", () => {
     const profileQuery = query({ data: { id: "applicant-1" }, error: null });
     const documentQuery = query({ data: { storage_path: "doc/path" }, error: null });
     const auditQuery = query({ data: null, error: null });
-    const appUpdateQuery = query({ data: null, error: null });
-    const queueUpdateQuery = query({ data: null, error: null });
     const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
     const tables: string[] = [];
     let appCalls = 0;
@@ -62,12 +60,11 @@ describe("runFaceMatch runner pause fencing", () => {
         tables.push(table);
         if (table === "applications") {
           appCalls += 1;
-          return appCalls === 1 ? appQuery : appUpdateQuery;
+          return appQuery;
         }
         if (table === "applicant_profiles") return profileQuery;
         if (table === "application_documents") return documentQuery;
         if (table === "face_match_audit") return auditQuery;
-        if (table === "submission_queue") return queueUpdateQuery;
         throw new Error(`unexpected direct table access: ${table}`);
       }),
       storage: {
@@ -86,7 +83,8 @@ describe("runFaceMatch runner pause fencing", () => {
       p_application_id: "app-1",
       p_reason: "face_match_reject:0.40",
     });
-    expect(tables).toContain("submission_queue");
+    expect(tables).not.toContain("submission_queue");
+    expect(tables.filter((table) => table === "applications")).toHaveLength(1);
     expect(tables).not.toContain("runner_job");
   });
 
@@ -95,8 +93,6 @@ describe("runFaceMatch runner pause fencing", () => {
     const profileQuery = query({ data: { id: "applicant-1" }, error: null });
     const documentQuery = query({ data: { storage_path: "doc/path" }, error: null });
     const auditQuery = query({ data: null, error: null });
-    const appUpdateQuery = query({ data: null, error: null });
-    const queueUpdateQuery = query({ data: null, error: null });
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: "pause unavailable" } });
     const tables: string[] = [];
     let appCalls = 0;
@@ -106,12 +102,11 @@ describe("runFaceMatch runner pause fencing", () => {
         tables.push(table);
         if (table === "applications") {
           appCalls += 1;
-          return appCalls === 1 ? appQuery : appUpdateQuery;
+          return appQuery;
         }
         if (table === "applicant_profiles") return profileQuery;
         if (table === "application_documents") return documentQuery;
         if (table === "face_match_audit") return auditQuery;
-        if (table === "submission_queue") return queueUpdateQuery;
         throw new Error(`unexpected direct table access: ${table}`);
       }),
       storage: {
