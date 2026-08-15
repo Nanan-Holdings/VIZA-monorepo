@@ -107,6 +107,10 @@ Before changing this route, read:
 20. Never select `VIZA_PLACEHOLDER_DRY_RUN` records as a customer's active
     application. Synthetic QA answer markers must block queue creation and must
     not be saved or reused as applicant information.
+21. Browser code must never insert `submission_queue` rows or wake submission
+    workers directly. Route every dry-run and live enqueue through the guarded
+    `/api/applications/[id]/retry-submission` server boundary so the global
+    controlled-cutover pause cannot be bypassed.
 
 ## Validation Checklist
 

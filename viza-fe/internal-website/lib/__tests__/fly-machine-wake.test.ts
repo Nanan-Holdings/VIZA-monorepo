@@ -7,6 +7,24 @@ import {
 } from "../fly-machine-wake.server";
 
 describe("ensureFlyMachineStarted", () => {
+  it("does not inspect or start Fly Machines during cutover pause", async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+
+    await expect(
+      ensureFlyMachineStarted("legacy", {
+        env: {
+          RUNNER_CUTOVER_PAUSED: "true",
+          FLY_SUBMISSION_ORG_TOKEN: "org-token",
+        },
+        fetchImpl,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      target: "legacy",
+      reason: "cutover_paused",
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
   it("does not manage countries outside the shared/sticky topology", async () => {
     const fetchImpl = vi.fn() as unknown as typeof fetch;
     await expect(

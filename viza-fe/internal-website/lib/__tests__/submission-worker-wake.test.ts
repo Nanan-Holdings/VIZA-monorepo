@@ -3,6 +3,22 @@ import { describe, expect, it, vi } from "vitest";
 import { wakeCloudSubmissionWorker } from "../submission-worker-wake.server";
 
 describe("wakeCloudSubmissionWorker", () => {
+  it("does not start a Machine or call a wake endpoint during cutover pause", async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+
+    const result = await wakeCloudSubmissionWorker("job-paused", {
+      env: {
+        RUNNER_CUTOVER_PAUSED: "true",
+        FLY_SUBMISSION_ORG_TOKEN: "fly-token",
+        SUBMISSION_QUEUE_INTERNAL_TOKEN: "internal-token",
+      },
+      fetchImpl,
+      target: "legacy",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "cutover_paused" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
   it("returns not_configured when the endpoint is absent", async () => {
     const result = await wakeCloudSubmissionWorker("job-1", {
       env: {},
