@@ -26,7 +26,13 @@ Key files:
 - `vietnam-visa-helper-v1/TESTING_GUIDE.md`: concise notes on staged autofill.
 - `status-check.ts`: official lookup parsing, CAPTCHA-assisted search, and PDF capture.
 - `status-tracking.ts`: daily/email/user checks, trusted status persistence,
-  versioned PDF delivery, and notifications.
+  versioned PDF delivery, and notification settlement through the fenced
+  Vietnam status RPCs. The 0140 worker claim carries `lease_generation` and
+  `lease_expires_at`; heartbeats renew from the database expiry and abort
+  portal work on ownership loss. Completion/failure/defer RPCs are the only
+  application/tracking/document/notification/retry writers; callers stop and
+  await heartbeat renewal before settlement, omit caller timestamps, and pass
+  only full-SHA deterministic artifact keys plus validated status URLs.
 - `status-tracking-schedule.ts`: deterministic daily window in `Asia/Ho_Chi_Minh`.
 - `evisa-pdf.ts`: official PDF magic-byte, size, and SHA-256 validation.
 - `official-email.ts`: payload-only VIZA alias override for the two official

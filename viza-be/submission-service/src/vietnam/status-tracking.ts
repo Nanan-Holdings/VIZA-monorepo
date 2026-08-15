@@ -17,6 +17,8 @@ import {
   completeVietnamOfficialStatusCheck,
   deferVietnamOfficialStatusCheck,
   failVietnamOfficialStatusCheck,
+  VietnamStatusCheckOwnershipLostError,
+  withVietnamStatusCheckLease,
 } from "./status-check-lease.js";
 import { enqueueMatchedVietnamStatusEmails } from "./email-status-matcher.js";
 import {
@@ -36,14 +38,7 @@ const OFFICIAL_EMAIL_PATTERN =
 const ACTIVE_TRACKING_STATUS = "active";
 const VIETNAM_STATUS_GATE_LEASE_SECONDS = 120;
 
-export class VietnamStatusCheckOwnershipLostError extends Error {
-  readonly code = "vietnam_status_check_ownership_lost";
-
-  constructor(message = "Vietnam official status check ownership was lost") {
-    super(message);
-    this.name = "VietnamStatusCheckOwnershipLostError";
-  }
-}
+export { VietnamStatusCheckOwnershipLostError } from "./status-check-lease.js";
 
 export class VietnamStatusGateDeferredError extends Error {
   readonly code = "vietnam_status_gate_deferred";
@@ -80,6 +75,36 @@ function safeGateOwnerRef(workerId: string, checkId: string): string {
   return `vn-status:${normalize(workerId, "worker")}:${normalize(checkId, "check")}`;
 }
 
+function runWithAbortSignal<T>(
+  operation: () => Promise<T>,
+  signal: AbortSignal | undefined,
+): Promise<T> {
+  if (!signal) return operation();
+  if (signal.aborted) {
+    return Promise.reject(new VietnamStatusCheckOwnershipLostError());
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => {
+      cleanup();
+      reject(new VietnamStatusCheckOwnershipLostError());
+    };
+    const cleanup = (): void => {
+      signal.removeEventListener("abort", onAbort);
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    operation().then(
+      (value) => {
+        cleanup();
+        resolve(value);
+      },
+      (error) => {
+        cleanup();
+        reject(error);
+      },
+    );
+  });
+}
+
 export function vietnamStatusGateCapacity(env: NodeJS.ProcessEnv = process.env): number {
   return parseResilienceGateCapacity(env.RESILIENCE_VN_STATUS_GATE_CAPACITY);
 }
@@ -87,6 +112,7 @@ export function vietnamStatusGateCapacity(env: NodeJS.ProcessEnv = process.env):
 export async function withVietnamStatusResilienceGate<T>(input: {
   workerId: string;
   checkId: string;
+  signal?: AbortSignal;
   operation: (context: { assertOwned: () => void }) => Promise<T>;
 }, gateClient: ResilienceGateClient = createResilienceGateClient()): Promise<T> {
   let lease: GateLease | null = null;
@@ -110,7 +136,15 @@ export async function withVietnamStatusResilienceGate<T>(input: {
     throw error;
   }
 
-  if (!lease) return input.operation({ assertOwned: () => undefined });
+  if (!lease) {
+    const assertOwned = (): void => {
+      if (input.signal?.aborted) {
+        throw new VietnamStatusCheckOwnershipLostError();
+      }
+    };
+    assertOwned();
+    return input.operation({ assertOwned });
+  }
 
   let ownershipLost = false;
   let stopped = false;
@@ -121,7 +155,7 @@ export async function withVietnamStatusResilienceGate<T>(input: {
     ownershipLost = true;
   };
   const assertOwned = (): void => {
-    if (ownershipLost || Date.now() >= currentLease.leaseUntil) {
+    if (input.signal?.aborted || ownershipLost || Date.now() >= currentLease.leaseUntil) {
       ownershipLost = true;
       throw new VietnamStatusCheckOwnershipLostError();
     }
@@ -189,6 +223,7 @@ export async function runVietnamStatusPortalCheckWithGate(
   input: {
     workerId: string;
     checkId: string;
+    signal?: AbortSignal;
     runPortal: () => Promise<VietnamStatusCheckResult>;
   },
   gateClient: ResilienceGateClient = createResilienceGateClient(),
@@ -197,8 +232,9 @@ export async function runVietnamStatusPortalCheckWithGate(
     {
       workerId: input.workerId,
       checkId: input.checkId,
+      signal: input.signal,
       operation: async () => {
-        const result = await input.runPortal();
+        const result = await runWithAbortSignal(input.runPortal, input.signal);
         if (!isTrustedStatus(result.status)) {
           throw new Error("Vietnam official portal returned an unrecognized status.");
         }
@@ -228,6 +264,8 @@ type StatusCheckRow = {
   trigger_source: string;
   inbound_email_id: string | null;
   attempt_count: number;
+  leaseGeneration: number;
+  leaseExpiresAt: string;
 };
 
 export interface VietnamStatusCheckBatchDependencies {
@@ -441,18 +479,6 @@ function firstAnswer(
   return null;
 }
 
-function resultStatusForOfficialStatus(
-  status: VietnamOfficialStatus,
-  hasPdf: boolean,
-): string {
-  if (status === "approved") return hasPdf ? "approved" : "approved_pending_document";
-  if (status === "rejected") return "rejected";
-  if (status === "needs_correction") return "needs_attention";
-  if (status === "payment_required") return "payment_required";
-  if (status === "processing") return "pending_official_review";
-  return "unknown";
-}
-
 function isTrustedStatus(status: VietnamOfficialStatus): boolean {
   return !["unknown", "needs_human"].includes(status);
 }
@@ -476,189 +502,151 @@ async function persistOfficialVisa(input: {
     };
   }
 
-  const path = await uploadArtifact({
+  const objectPath = vietnamEvisaArtifactObjectPath(
+    input.tracking.auth_user_id,
+    input.applicationId,
+    sha256,
+  );
+  const uploadedObjectPath = await uploadArtifact({
     authUserId: input.tracking.auth_user_id,
     applicationId: input.applicationId,
     country: "VN",
-    kind: `evisa-${sha256.slice(0, 12)}`,
+    kind: "evisa",
     ext: "pdf",
     contentType: "application/pdf",
     data: input.pdfBytes,
+    objectPath,
   });
-  const storageReference = `submission-artifacts/${path}`;
-  const now = new Date().toISOString();
-  const { error: documentError } = await supabase
-    .from("application_documents")
-    .upsert(
-      {
-        application_id: input.applicationId,
-        document_type: "evisa_pdf",
-        storage_path: storageReference,
-        filename: "vietnam-evisa.pdf",
-        status: "validated",
-        required: false,
-        automation_status: "complete",
-        uploaded_by: input.tracking.auth_user_id,
-        uploaded_at: now,
-        metadata: {
-          source: "vietnam_official_status_portal",
-          bucket: "submission-artifacts",
-          sha256,
-          visa_number: input.visaNumber,
-          delivered_at: now,
-        },
-        updated_at: now,
-      },
-      { onConflict: "application_id,document_type" },
-    );
-  if (documentError) {
-    throw new Error(`Failed to record Vietnam e-Visa document: ${documentError.message}`);
+  if (uploadedObjectPath !== objectPath) {
+    throw new Error("Vietnam e-Visa artifact uploader returned a non-deterministic object path");
   }
-  return { storagePath: storageReference, sha256, changed: true };
-}
-
-function notificationStatusLabel(
-  status: VietnamOfficialStatus,
-  locale: string,
-  documentReady: boolean,
-): string {
-  const zh = locale.toLowerCase().startsWith("zh");
-  if (status === "approved" && documentReady) return zh ? "签证已获批，可打印" : "Approved — visa ready to print";
-  if (status === "approved") return zh ? "签证已获批，正在获取文件" : "Approved — retrieving visa document";
-  if (status === "rejected") return zh ? "申请被拒绝" : "Application rejected";
-  if (status === "needs_correction") return zh ? "需要补充或修改资料" : "Correction required";
-  if (status === "payment_required") return zh ? "等待完成官方付款" : "Official payment required";
-  if (status === "processing") return zh ? "官网处理中" : "Processing on the official portal";
-  return zh ? "官网状态已更新" : "Official status updated";
-}
-
-async function queueStatusNotification(input: {
-  application: ApplicationRow;
-  profile: ProfileRow;
-  previousStatus: string | null;
-  officialStatus: VietnamOfficialStatus;
-  artifactHash: string | null;
-  documentReady: boolean;
-}): Promise<void> {
-  const normalizedPrevious = input.previousStatus?.toLowerCase() ?? null;
-  if (
-    normalizedPrevious === input.officialStatus &&
-    !input.artifactHash
-  ) {
-    return;
-  }
-  const now = new Date().toISOString();
-  const idempotencyKey = [
-    "vn-status",
-    input.application.id,
-    input.officialStatus,
-    input.artifactHash ?? "no-document",
-  ].join(":");
-  const locale = input.profile.language_pref ?? "en";
-  const decision = notificationStatusLabel(
-    input.officialStatus,
-    locale,
-    input.documentReady,
-  );
-  const siteUrl = (process.env.PUBLIC_SITE_URL ?? "http://127.0.0.1:3000").replace(
-    /\/$/,
-    "",
-  );
-  const applicationUrl = `${siteUrl}/client/status?applicationId=${encodeURIComponent(input.application.id)}`;
-  const payload = {
-    applicant_name: input.profile.full_name ?? (locale.startsWith("zh") ? "用户" : "Applicant"),
-    country: locale.startsWith("zh") ? "越南" : "Vietnam",
-    decision,
-    application_url: applicationUrl,
-    locale,
+  return {
+    storagePath: `submission-artifacts/${objectPath}`,
+    sha256,
+    changed: true,
   };
-
-  await Promise.all([
-    insertIgnoringDuplicate(
-      supabase.from("application_events").insert({
-        application_id: input.application.id,
-        applicant_id: input.application.applicant_id,
-        auth_user_id: input.profile.auth_user_id,
-        event_type: "official_status_changed",
-        actor_type: "system",
-        source: "vietnam_official_status",
-        visibility: "customer",
-        idempotency_key: idempotencyKey,
-        message: decision,
-        metadata: {
-          previous_status: input.previousStatus,
-          official_status: input.officialStatus,
-          document_ready: input.documentReady,
-        },
-        occurred_at: now,
-        created_at: now,
-      }),
-    ),
-    insertIgnoringDuplicate(
-      supabase.from("notification_events").insert({
-        application_id: input.application.id,
-        applicant_id: input.application.applicant_id,
-        auth_user_id: input.profile.auth_user_id,
-        channel: "email",
-        template_key: "vietnam_status_update",
-        recipient: input.profile.email,
-        status: "queued",
-        idempotency_key: idempotencyKey,
-        payload,
-        updated_at: now,
-      }),
-    ),
-    input.profile.email
-      ? insertIgnoringDuplicate(
-          supabase.from("notification_event_log").insert({
-            applicant_id: input.application.applicant_id,
-            application_id: input.application.id,
-            event: input.documentReady ? "doc_ready" : "decision_issued",
-            template_key: "vietnam_status_update",
-            channel: "email",
-            recipient: input.profile.email,
-            payload,
-            outcome: "queued",
-            retry_count: 0,
-            next_attempt_at: now,
-            idempotency_key: idempotencyKey,
-            ts: now,
-          }),
-        )
-      : Promise.resolve(true),
-  ]);
 }
 
-async function queueRetry(check: StatusCheckRow): Promise<void> {
-  if (check.attempt_count >= 3) return;
-  const retryNumber = check.attempt_count + 1;
-  const delayMinutes = retryNumber === 2 ? 15 : 60;
-  const scheduledFor = new Date(
-    Date.now() + delayMinutes * 60 * 1_000,
-  ).toISOString();
-  await insertIgnoringDuplicate(
-    supabase.from("official_status_checks").insert({
-      application_id: check.application_id,
-      user_id: check.user_id,
-      country_code: "VN",
-      provider: "vietnam_evisa",
-      status: "queued",
-      requested_by: "system",
-      trigger_source: "retry",
-      idempotency_key: `vn:retry:${check.id}:${retryNumber}`,
-      scheduled_for: scheduledFor,
-      attempt_count: retryNumber - 1,
-      raw_status_json: { source: "bounded_retry", previous_check_id: check.id },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }),
+export function vietnamEvisaArtifactObjectPath(
+  authUserId: string,
+  applicationId: string,
+  sha256: string,
+): string {
+  if (!authUserId.trim() || !applicationId.trim() || !/^[a-f0-9]{64}$/.test(sha256)) {
+    throw new TypeError("Vietnam e-Visa artifact identity must use a full lowercase SHA-256");
+  }
+  return `${authUserId}/${applicationId}/VN/evisa-${sha256}.pdf`;
+}
+
+export function vietnamStatusApplicationUrl(
+  applicationId: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  if (!applicationId.trim()) throw new TypeError("applicationId is required");
+  const configured = env.NEXT_PUBLIC_SITE_URL?.trim() || env.PUBLIC_SITE_URL?.trim();
+  const canUseLocalFallback = env.NODE_ENV === "test" || env.NODE_ENV === "development";
+  const rawBase = configured || (canUseLocalFallback ? "http://127.0.0.1:3000" : "");
+  if (!rawBase) {
+    throw new Error("NEXT_PUBLIC_SITE_URL is required in production for Vietnam status links");
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(rawBase);
+  } catch {
+    throw new Error("Vietnam status site URL must be an absolute http(s) URL");
+  }
+  if (
+    (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+    !parsed.hostname ||
+    parsed.username ||
+    parsed.password ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    throw new Error("Vietnam status site URL must be an absolute http(s) URL without credentials/query");
+  }
+  const basePath = parsed.pathname.replace(/\/+$/, "");
+  const base = `${parsed.origin}${basePath}`;
+  const applicationUrl = `${base}/client/status?applicationId=${encodeURIComponent(applicationId)}`;
+  if (applicationUrl.length > 2_048) {
+    throw new Error("Vietnam status application URL exceeds the 2048-character limit");
+  }
+  return applicationUrl;
+}
+
+export function buildVietnamStatusCompletePatch(input: {
+  applicationId: string;
+  registrationCode: string;
+  result: Pick<
+    VietnamStatusCheckResult,
+    "status" | "visaNumber" | "deniedReason" | "downloadAvailable"
+  >;
+  artifact: { storagePath: string; sha256: string; changed: boolean } | null;
+  existingArtifactPath: string | null;
+  env?: NodeJS.ProcessEnv;
+}): { patch: Record<string, unknown>; documentReady: boolean } {
+  const registrationCode = input.registrationCode.trim();
+  if (!registrationCode || registrationCode.length > 256) {
+    throw new RangeError("Vietnam registration code must be 1-256 characters");
+  }
+  const visaNumber = input.result.visaNumber?.trim() || null;
+  if (visaNumber && visaNumber.length > 128) {
+    throw new RangeError("Vietnam visa number must be at most 128 characters");
+  }
+  const documentReady = Boolean(
+    input.artifact?.storagePath ?? input.existingArtifactPath,
   );
+  const patch: Record<string, unknown> = {
+    status: "completed",
+    official_reference: registrationCode,
+    official_status: input.result.status,
+    application_url: vietnamStatusApplicationUrl(input.applicationId, input.env),
+    raw_status_json: {
+      source: "vietnam_evisa_search",
+      official_status: input.result.status,
+      visa_number_present: Boolean(visaNumber),
+      denial_reason_present: Boolean(input.result.deniedReason),
+      download_available: input.result.downloadAvailable,
+      document_ready: documentReady,
+    },
+  };
+  if (visaNumber) patch.visa_number = visaNumber;
+  // A completion with no newly downloaded PDF must not overwrite an existing
+  // artifact with a fabricated path.  The DB keeps the existing artifact;
+  // only a changed full-SHA upload is included in this patch.
+  if (input.artifact?.changed) {
+    patch.artifact_storage_path = input.artifact.storagePath;
+    patch.artifact_sha256 = input.artifact.sha256;
+  }
+  return { patch, documentReady };
 }
 
 async function processClaimedCheck(
   check: StatusCheckRow,
   workerId: string,
 ): Promise<void> {
+  await withVietnamStatusCheckLease({
+    client: supabase,
+    checkId: check.id,
+    workerId,
+    leaseGeneration: check.leaseGeneration,
+    leaseExpiresAt: check.leaseExpiresAt,
+    leaseSeconds: 300,
+    heartbeatMs: 60_000,
+    operation: (leaseContext) => processClaimedCheckOwned(check, workerId, leaseContext),
+  });
+}
+
+async function processClaimedCheckOwned(
+  check: StatusCheckRow,
+  workerId: string,
+  leaseContext: {
+    signal: AbortSignal;
+    assertOwned(): void;
+    stopRenewal(): Promise<void>;
+  },
+): Promise<void> {
+  leaseContext.assertOwned();
   const [
     { data: trackingData, error: trackingError },
     { data: applicationData, error: applicationError },
@@ -689,9 +677,11 @@ async function processClaimedCheck(
   const tracking = trackingData as TrackingRow;
   const application = applicationData as ApplicationRow;
   if (tracking.tracking_status !== ACTIVE_TRACKING_STATUS) {
+    await leaseContext.stopRenewal();
     const cancelled = await completeVietnamOfficialStatusCheck(supabase, {
       checkId: check.id,
       workerId,
+      leaseGeneration: check.leaseGeneration,
       patch: { status: "cancelled" },
     });
     if (!cancelled) {
@@ -709,6 +699,7 @@ async function processClaimedCheck(
     throw new Error(`Vietnam applicant profile not found: ${profileError?.message ?? tracking.applicant_id}`);
   }
   const profile = profileData as ProfileRow;
+  leaseContext.assertOwned();
   const registrationCode = application.external_reference?.trim() ?? "";
   const dateOfBirth =
     firstAnswer(answers, ["date_of_birth", "birth_date", "dob"]) ??
@@ -723,6 +714,7 @@ async function processClaimedCheck(
   const result = await runVietnamStatusPortalCheckWithGate({
     workerId,
     checkId: check.id,
+    signal: leaseContext.signal,
     runPortal: () => queryVietnamOfficialStatus({
       registrationCode,
       email: tracking.official_lookup_email,
@@ -730,8 +722,10 @@ async function processClaimedCheck(
       headless: process.env.VN_STATUS_PLAYWRIGHT_HEADLESS !== "false",
       searchUrl: process.env.VN_OFFICIAL_STATUS_URL ?? OFFICIAL_STATUS_URL,
       timeoutMs: Number(process.env.VN_STATUS_CHECK_TIMEOUT_MS ?? 180_000),
+      signal: leaseContext.signal,
     }),
   });
+  leaseContext.assertOwned();
 
   const artifact =
     result.status === "approved" && result.pdfBytes
@@ -742,97 +736,28 @@ async function processClaimedCheck(
           pdfBytes: result.pdfBytes,
         })
       : null;
-  const documentReady = Boolean(
-    artifact?.storagePath ??
-      tracking.last_artifact_storage_path ??
-      application.result_storage_path,
-  );
-  const resultStatus = resultStatusForOfficialStatus(
-    result.status,
-    documentReady,
-  );
-  const now = new Date().toISOString();
-  const terminal =
-    result.status === "rejected" ||
-    (result.status === "approved" && documentReady);
-  const applicationPatch: Record<string, unknown> = {
-    external_status: result.status,
-    external_status_updated_at: now,
-    result_status: resultStatus,
-    updated_at: now,
-  };
-  if (artifact?.storagePath) {
-    applicationPatch.result_storage_path = artifact.storagePath;
-    applicationPatch.status = "approved";
-  } else if (result.status === "rejected") {
-    applicationPatch.status = "rejected";
-  }
-
-  const trackingPatch: Record<string, unknown> = {
-    last_known_status: result.status,
-    last_successful_check_at: now,
-    consecutive_failures: 0,
-    updated_at: now,
-  };
-  if (artifact) {
-    trackingPatch.last_artifact_hash = artifact.sha256;
-    trackingPatch.last_artifact_storage_path = artifact.storagePath;
-  }
-  if (terminal) {
-    trackingPatch.tracking_status = "completed";
-    trackingPatch.completed_at = now;
-  }
-
-  await Promise.all([
-    supabase.from("applications").update(applicationPatch).eq("id", application.id),
-    supabase
-      .from("official_application_tracking")
-      .update(trackingPatch)
-      .eq("application_id", application.id),
-  ]);
-
+  const completePatch = buildVietnamStatusCompletePatch({
+    applicationId: application.id,
+    registrationCode,
+    result,
+    artifact,
+    existingArtifactPath:
+      tracking.last_artifact_storage_path ?? application.result_storage_path,
+  });
+  leaseContext.assertOwned();
+  // Stop heartbeats before settlement and wait for an in-flight renew.  The
+  // generation-fenced RPC is then the sole owner of application/tracking,
+  // document, notification, and retry side effects.
+  await leaseContext.stopRenewal();
+  leaseContext.assertOwned();
   const completed = await completeVietnamOfficialStatusCheck(supabase, {
     checkId: check.id,
     workerId,
-    patch: {
-      status: "completed",
-      official_reference: registrationCode,
-      official_status: result.status,
-      result_status: resultStatus,
-      checked_at: now,
-      artifact_storage_path: artifact?.storagePath ?? null,
-      artifact_sha256: artifact?.sha256 ?? null,
-      raw_status_json: {
-        source: "vietnam_evisa_search",
-        official_status: result.status,
-        visa_number_present: Boolean(result.visaNumber),
-        denial_reason_present: Boolean(result.deniedReason),
-        download_available: result.downloadAvailable,
-        document_ready: documentReady,
-      },
-      error_code: null,
-      error_message: null,
-    },
+    leaseGeneration: check.leaseGeneration,
+    patch: completePatch.patch,
   });
   if (!completed) {
     throw new VietnamStatusCheckOwnershipLostError();
-  }
-
-  if (
-    tracking.last_known_status !== result.status ||
-    Boolean(artifact?.changed)
-  ) {
-    await queueStatusNotification({
-      application,
-      profile,
-      previousStatus: tracking.last_known_status,
-      officialStatus: result.status,
-      artifactHash: artifact?.changed ? artifact.sha256 : null,
-      documentReady,
-    });
-  }
-  if (result.status === "approved" && !documentReady) {
-    await queueRetry(check);
   }
 }
 
@@ -850,6 +775,7 @@ async function defaultVietnamStatusCheckFailure(
   return failVietnamOfficialStatusCheck(supabase, {
     checkId: check.id,
     workerId,
+    leaseGeneration: check.leaseGeneration,
     errorCode: "official_status_check_failed",
     errorMessage: message.slice(0, 500),
     rawStatusJson: {
@@ -863,21 +789,6 @@ async function recordVietnamStatusCheckFailure(
   check: StatusCheckRow,
   message: string,
 ): Promise<void> {
-  const now = new Date().toISOString();
-  const { data: tracking } = await supabase
-    .from("official_application_tracking")
-    .select("consecutive_failures")
-    .eq("application_id", check.application_id)
-    .maybeSingle();
-  await supabase
-    .from("official_application_tracking")
-    .update({
-      consecutive_failures:
-        Number((tracking as { consecutive_failures?: number } | null)?.consecutive_failures ?? 0) + 1,
-      updated_at: now,
-    })
-    .eq("application_id", check.application_id);
-  await queueRetry(check).catch(() => undefined);
   console.error(
     `[vn-status] Check ${check.id} failed without changing the last trusted customer status: ${message}`,
   );
@@ -902,6 +813,7 @@ export async function processQueuedVietnamStatusChecksWithDependencies(
   ) => deferVietnamOfficialStatusCheck(supabase, {
     checkId: check.id,
     workerId: owner,
+    leaseGeneration: check.leaseGeneration,
     retryAfterSeconds,
   }));
   const fail = dependencies.fail ?? defaultVietnamStatusCheckFailure;
@@ -957,7 +869,7 @@ export async function processQueuedVietnamStatusChecks(workerId: string): Promis
   return processQueuedVietnamStatusChecksWithDependencies(workerId, {
     claim: async (owner) => claimVietnamOfficialStatusChecks<StatusCheckRow>(supabase, {
       workerId: owner,
-      limit: 5,
+      limit: 1,
       leaseSeconds: 300,
     }),
     processCheck: processClaimedCheck,
