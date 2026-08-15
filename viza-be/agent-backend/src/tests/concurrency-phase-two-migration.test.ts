@@ -35,6 +35,9 @@ const failFunctionBody = canonicalSql.match(
 const triggerFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION runner_private\.guard_expired_runner_job_lifecycle_update\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
+const takeoverFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.open_runner_job_takeover\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
 const resultFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.write_runner_pool_submission_result\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
@@ -574,6 +577,35 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).toMatch(/REVOKE ALL ON FUNCTION public\.open_runner_job_takeover/i);
     expect(canonicalSql).toMatch(/REVOKE ALL ON FUNCTION public\.pause_runner_jobs_for_review/i);
     expect(canonicalSql).toMatch(/REVOKE ALL ON FUNCTION public\.append_runner_job_fingerprint/i);
+  });
+
+  it("locks takeover application first, then the exact job, before sampling time", () => {
+    const applicationLock = takeoverFunctionBody.search(
+      /SELECT application\.id[\s\S]*?FROM public\.applications AS application[\s\S]*?FOR UPDATE;/i,
+    );
+    const jobLock = takeoverFunctionBody.search(
+      /SELECT job\.\*[\s\S]*?FROM public\.runner_job AS job[\s\S]*?FOR UPDATE;/i,
+    );
+    const clock = takeoverFunctionBody.search(/v_now\s*:=\s*pg_catalog\.clock_timestamp\(\)/i);
+    expect(applicationLock).toBeGreaterThan(-1);
+    expect(jobLock).toBeGreaterThan(applicationLock);
+    expect(clock).toBeGreaterThan(jobLock);
+    expect(takeoverFunctionBody).not.toMatch(/FOR UPDATE OF job, application/i);
+  });
+
+  it("validates failure transition shape against the locked row before minting", () => {
+    const failBody = canonicalSql.match(
+      /CREATE OR REPLACE FUNCTION public\.fail_runner_pool_job\([\s\S]*?\n\$\$;/i,
+    )?.[0] ?? "";
+    const capInsert = failBody.indexOf("INSERT INTO runner_private.runner_job_update_capability");
+    const shapeCheck = failBody.search(
+      /p_attempts\s*<>\s*v_old_row\.attempts\s*\+\s*1[\s\S]*?p_status\s*<>&?\s*CASE|p_status\s*IS DISTINCT FROM CASE/i,
+    );
+    expect(failBody).toMatch(/p_attempts\s*<>\s*v_old_row\.attempts\s*\+\s*1/i);
+    expect(failBody).toMatch(/p_status\s+IS DISTINCT FROM CASE/i);
+    expect(shapeCheck).toBeGreaterThan(-1);
+    expect(capInsert).toBeGreaterThan(shapeCheck);
+    expect(failBody).toMatch(/ERRCODE = '22023'/i);
   });
 
   it("gates real Postgres smoke on the actual local database URL and DB environment", () => {

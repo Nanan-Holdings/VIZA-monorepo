@@ -311,7 +311,7 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
 
   it("fails an active owner through the fenced failure RPC", async () => {
     const workerId = "runner-fence-active-failure";
-    const fixture = await createFixture({ workerId });
+    const fixture = await createFixture({ workerId, maxAttempts: 1 });
     try {
       const result = await query<{ id: string; status: string }>(
         "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'failed', 1, 'synthetic active failure', 0)",
@@ -324,6 +324,66 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
         [fixture.jobId],
       );
       expect(row.rows[0]).toEqual({ status: "failed", leased_by: null });
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("returns zero when takeover waits on the application lock past lease expiry", async () => {
+    const workerId = "runner-fence-takeover-lock-expiry";
+    const fixture = await createFixture({
+      workerId,
+      leaseUntil: new Date(Date.now() + 200),
+    });
+    try {
+      const result = await invokeAfterApplicationLockWait(
+        fixture,
+        "SELECT * FROM public.open_runner_job_takeover($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, $7::text)",
+        [
+          fixture.jobId,
+          workerId,
+          fixture.applicationId,
+          fixture.applicantId,
+          "synthetic lock expiry",
+          "wss://runner.invalid/debug",
+          null,
+        ],
+      );
+      expect(result.rows).toHaveLength(0);
+      const row = await query<{ status: string; leased_by: string | null }>(
+        "SELECT status, leased_by FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      expect(row.rows[0]).toEqual({ status: "running", leased_by: workerId });
+      const takeover = await query<{ count: string }>(
+        "SELECT COUNT(*)::text AS count FROM public.takeover_session WHERE job_id = $1",
+        [fixture.jobId],
+      );
+      expect(takeover.rows[0].count).toBe("0");
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("rejects a failure transition whose status does not match attempts", async () => {
+    const workerId = "runner-fence-fail-shape";
+    const fixture = await createFixture({ workerId });
+    try {
+      await expect(
+        query(
+          "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'failed', 1, 'bad shape', 0)",
+          [fixture.jobId, workerId],
+        ),
+      ).rejects.toMatchObject({ code: "22023" });
+      const row = await query<{
+        status: string;
+        attempts: number;
+        leased_by: string | null;
+      }>(
+        "SELECT status, attempts, leased_by FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      expect(row.rows[0]).toEqual({ status: "running", attempts: 0, leased_by: workerId });
     } finally {
       await cleanupFixture(fixture);
     }
