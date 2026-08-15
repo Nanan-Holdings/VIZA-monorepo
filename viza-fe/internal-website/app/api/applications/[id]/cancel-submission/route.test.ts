@@ -1,19 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createAdminClient, createClient, isDigitalArrivalCardApplication, isSgArrivalCardApplication } =
+const { createAdminClient, createClient, isDigitalArrivalCardApplication, resolveRunnerPoolFlow } =
   vi.hoisted(() => ({
     createAdminClient: vi.fn(),
     createClient: vi.fn(),
     isDigitalArrivalCardApplication: vi.fn(),
-    isSgArrivalCardApplication: vi.fn(),
+    resolveRunnerPoolFlow: vi.fn(),
   }));
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient }));
 vi.mock("@/lib/supabase/server", () => ({ createClient }));
 vi.mock("@/lib/submission-queue", () => ({
   isDigitalArrivalCardApplication,
-  isSgArrivalCardApplication,
 }));
+vi.mock("@/lib/queue/flows", () => ({ resolveRunnerPoolFlow }));
 
 import { POST } from "./route";
 
@@ -41,14 +41,17 @@ function setupAdmin(
     mode: "live_assisted",
   },
   runnerData: unknown = null,
+  applicationLocation: { country: string; visa_type: string } = {
+    country: "singapore",
+    visa_type: "SG_ARRIVAL_CARD",
+  },
 ) {
   const profileQuery = query({ data: { id: "profile-id" }, error: null });
   const applicationQuery = query({
     data: {
       id: "application-id",
       applicant_id: "profile-id",
-      country: "singapore",
-      visa_type: "SG_ARRIVAL_CARD",
+      ...applicationLocation,
     },
     error: null,
   });
@@ -86,7 +89,7 @@ describe("cancel-submission route", () => {
     createAdminClient.mockReset();
     createClient.mockReset();
     isDigitalArrivalCardApplication.mockReset().mockReturnValue(true);
-    isSgArrivalCardApplication.mockReset().mockReturnValue(true);
+    resolveRunnerPoolFlow.mockReset().mockReturnValue("sgac");
     setupAuth();
   });
 
@@ -153,6 +156,36 @@ describe("cancel-submission route", () => {
     const response = await POST(request(), { params: Promise.resolve({ id: "application-id" }) });
 
     expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("cancel_application_submission", {
+      p_application_id: "application-id",
+      p_queue_id: "runner-job-id",
+      p_transport: "runner_job",
+    });
+  });
+
+  it("uses the exact resolved runner flow for non-Singapore arrival cards", async () => {
+    resolveRunnerPoolFlow.mockReturnValue("mdac");
+    const { rpc, runnerQuery } = setupAdmin(
+      {
+        data: [{
+          cancelled: true,
+          queue_id: "runner-job-id",
+          queue_transport: "runner_job",
+          cancelled_at: "2026-08-15T00:00:00.000Z",
+        }],
+        error: null,
+      },
+      null,
+      { id: "runner-job-id", status: "queued" },
+      { country: "malaysia", visa_type: "MY_MDAC_ARRIVAL_CARD" },
+    );
+
+    const response = await POST(request(), { params: Promise.resolve({ id: "application-id" }) });
+
+    expect(response.status).toBe(200);
+    expect(resolveRunnerPoolFlow).toHaveBeenCalledWith("malaysia", "MY_MDAC_ARRIVAL_CARD");
+    expect(runnerQuery.eq).toHaveBeenCalledWith("country", "malaysia");
+    expect(runnerQuery.eq).toHaveBeenCalledWith("flow_key", "mdac");
     expect(rpc).toHaveBeenCalledWith("cancel_application_submission", {
       p_application_id: "application-id",
       p_queue_id: "runner-job-id",

@@ -797,6 +797,11 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/__tests__/result-writer.spec.ts`
 - `viza-be/submission-service/src/queue/__tests__/pool-result-writes.spec.ts`
 - `viza-be/submission-service/src/queue/__tests__/pool-identity.spec.ts`
+- `viza-be/submission-service/src/queue/requeue-runner-job.ts` and
+  `src/queue/__tests__/requeue-jobs.spec.ts` own the strict
+  `requeue_runner_job` RPC adapter. It returns success only for an explicit
+  `true`; a false result is a concurrent conflict and must not be counted as
+  requeued.
 - `viza-be/submission-service/src/queue/__tests__/takeover.spec.ts`
 - `viza-be/submission-service/src/queue-scheduler.ts`
 - `viza-be/submission-service/src/submission-queue-claim.ts`

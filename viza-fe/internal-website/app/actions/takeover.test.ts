@@ -8,7 +8,7 @@ const { createClient, withAdmin } = vi.hoisted(() => ({
 vi.mock("@/lib/supabase/server", () => ({ createClient }));
 vi.mock("@/lib/auth/with-admin", () => ({ withAdmin }));
 
-import { abandonTakeover, completeTakeover } from "./takeover";
+import { abandonTakeover, claimTakeover, completeTakeover } from "./takeover";
 
 function query(result: { data: unknown; error: { message: string } | null }) {
   const builder = {
@@ -66,7 +66,31 @@ describe("takeover settlement actions", () => {
     setupAuth();
   });
 
-  it("upserts answers then settles completion through the atomic RPC", async () => {
+  it("claims through the guarded RPC and never directly updates the session", async () => {
+    const { rpc, takeoverQuery } = setupAdmin({
+      data: [{ claimed: true, job_id: "job-id", application_id: "application-id", handoff_kind: null }],
+      error: null,
+    });
+
+    await expect(claimTakeover("takeover-id")).resolves.toBeUndefined();
+
+    expect(rpc).toHaveBeenCalledWith("claim_takeover_session", {
+      p_takeover_id: "takeover-id",
+      p_claimant_id: "operator-id",
+      p_expected_handoff_kind: null,
+    });
+    expect(takeoverQuery.update).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the claim RPC returns no row", async () => {
+    const { rpc, takeoverQuery } = setupAdmin({ data: [], error: null });
+
+    await expect(claimTakeover("takeover-id")).rejects.toThrow("takeover claim conflict");
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(takeoverQuery.update).not.toHaveBeenCalled();
+  });
+
+  it("passes bounded answers to the atomic completion RPC", async () => {
     const { answersQuery, rpc, takeoverQuery } = setupAdmin({
       data: [{ settled: true, job_id: "job-id", application_id: "application-id", job_status: "succeeded" }],
       error: null,
@@ -76,16 +100,13 @@ describe("takeover settlement actions", () => {
       completeTakeover("takeover-id", { surname: "CHEN" }, "Completed by operator"),
     ).resolves.toEqual({ ok: true, answersWritten: 1 });
 
-    expect(answersQuery.upsert).toHaveBeenCalledWith(
-      [expect.objectContaining({ application_id: "application-id", field_name: "surname", value_text: "CHEN" })],
-      { onConflict: "application_id,field_name" },
-    );
+    expect(answersQuery.upsert).not.toHaveBeenCalled();
     expect(rpc).toHaveBeenCalledWith("settle_runner_job_takeover", {
       p_takeover_id: "takeover-id",
       p_actor_user_id: "operator-id",
       p_outcome: "completed",
       p_operator_notes: "Completed by operator",
-      p_answers_written: 1,
+      p_answers: { surname: "CHEN" },
     });
     expect(takeoverQuery.update).not.toHaveBeenCalled();
   });
@@ -100,7 +121,7 @@ describe("takeover settlement actions", () => {
       "takeover settlement conflict",
     );
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(answersQuery.upsert).toHaveBeenCalledTimes(1);
+    expect(answersQuery.upsert).not.toHaveBeenCalled();
     expect(takeoverQuery.update).not.toHaveBeenCalled();
   });
 
@@ -118,7 +139,7 @@ describe("takeover settlement actions", () => {
       p_actor_user_id: "operator-id",
       p_outcome: "abandoned",
       p_operator_notes: "Applicant unavailable",
-      p_answers_written: 0,
+      p_answers: {},
     });
   });
 
@@ -129,5 +150,44 @@ describe("takeover settlement actions", () => {
       "takeover settlement conflict",
     );
     expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects answer values over the database limit before calling settlement", async () => {
+    const { rpc } = setupAdmin({
+      data: [{ settled: true }],
+      error: null,
+    });
+
+    await expect(completeTakeover("takeover-id", { surname: "x".repeat(4_001) })).rejects.toThrow(
+      "takeover answer value is invalid",
+    );
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized serialized answer object before calling settlement", async () => {
+    const { rpc } = setupAdmin({
+      data: [{ settled: true }],
+      error: null,
+    });
+    const answers = Object.fromEntries(
+      Array.from({ length: 200 }, (_, index) => [`field_${index}`, "x".repeat(1_300)]),
+    );
+
+    await expect(completeTakeover("takeover-id", answers)).rejects.toThrow(
+      "takeover answers exceed 256 KiB",
+    );
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized operator notes before calling settlement", async () => {
+    const { rpc } = setupAdmin({
+      data: [{ settled: true }],
+      error: null,
+    });
+
+    await expect(
+      completeTakeover("takeover-id", { surname: "CHEN" }, "x".repeat(4_001)),
+    ).rejects.toThrow("takeover operator notes must be at most 4000 characters");
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

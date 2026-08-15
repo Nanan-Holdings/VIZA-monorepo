@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { supabase } from "../../src/supabase";
+import { requeueRunnerJob } from "../../src/queue/requeue-runner-job";
 
 /**
  * QUE-008: recover retryable failed and dead-lettered runner_job rows.
@@ -16,10 +17,8 @@ import { supabase } from "../../src/supabase";
  * Running rows are intentionally excluded. Automatic claim recovery owns
  * expired leases and must be the only path that reclaims them.
  *
- * Reset policy: status → 'queued', clear leased_by/leased_until/finished_at.
- * `attempts` is PRESERVED (a failed row already counted its attempt and
- * remains < max, so the worker still has retries left). Requires --confirm
- * AND a --country or --id filter.
+ * The guarded requeue RPC applies the reset policy and preserves `attempts`.
+ * Requires --confirm AND a --country or --id filter.
  */
 
 interface Row {
@@ -83,20 +82,15 @@ async function main(): Promise<void> {
 
   let requeued = 0;
   for (const r of eligible) {
-    const { data: updated, error: updErr } = await supabase
-      .from("runner_job")
-      .update({ status: "queued", leased_by: null, leased_until: null, finished_at: null })
-      .eq("id", r.id)
-      .eq("status", r.status)
-      .is("leased_by", null)
-      .is("leased_until", null)
-      .select("id")
-      .maybeSingle();
-    if (updErr) {
-      console.error(`  failed to requeue ${r.id.slice(0, 8)}: ${updErr.message}`);
+    let updated: boolean;
+    try {
+      updated = await requeueRunnerJob(supabase, r.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`  failed to requeue ${r.id.slice(0, 8)}: ${message}`);
       continue;
     }
-    if (!updated?.id) {
+    if (!updated) {
       console.warn(`  skipped ${r.id.slice(0, 8)}: no longer eligible (concurrent update)`);
       continue;
     }

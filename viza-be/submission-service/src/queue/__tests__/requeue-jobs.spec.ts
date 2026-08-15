@@ -10,9 +10,8 @@ test("requeue tool only selects failed/dead-letter non-running rows", async () =
   assert.match(source, /last_error/);
   assert.match(source, /\.in\("status",\s*\["failed",\s*"dead_letter"\]\)/);
   assert.doesNotMatch(source, /r\.status\s*===\s*"running"/);
-  assert.match(source, /\.eq\("status",\s*r\.status\)/);
-  assert.match(source, /\.is\("leased_by",\s*null\)/);
-  assert.match(source, /\.is\("leased_until",\s*null\)/);
+  assert.match(source, /requeueRunnerJob\(supabase,\s*r\.id\)/);
+  assert.doesNotMatch(source, /\.from\("runner_job"\)\s*\.update\(/);
 });
 
 test("requeue tool preserves the exact invalid-flow quarantine reason", async () => {
@@ -27,8 +26,31 @@ test("requeue tool preserves the exact invalid-flow quarantine reason", async ()
 
 test("requeue tool uses returned rows for counting and reports concurrent skips", async () => {
   const source = await readFile(SCRIPT, "utf8");
-  assert.match(source, /\.select\("id"\)\s*\.maybeSingle\(\)/);
-  assert.match(source, /if\s*\(!updated\?\.id\)/);
+  assert.match(source, /requeueRunnerJob\(supabase,\s*r\.id\)/);
+  assert.match(source, /requeue-runner-job/);
+  assert.doesNotMatch(source, /\.from\("runner_job"\)\s*\.update\(/);
   assert.match(source, /concurrent|no longer eligible/i);
   assert.match(source, /requeued\s*\+=\s*1/);
+});
+
+test("requeue runner helper treats only an explicit true RPC result as success", async () => {
+  const { requeueRunnerJob } = await import("../requeue-runner-job");
+  const rpc = async (_fn: string, _args: unknown) => ({ data: true, error: null });
+  assert.equal(await requeueRunnerJob({ rpc }, "job-id"), true);
+
+  const conflictRpc = async (_fn: string, _args: unknown) => ({ data: false, error: null });
+  assert.equal(await requeueRunnerJob({ rpc: conflictRpc }, "job-id"), false);
+});
+
+test("requeue runner helper forwards the exact job id and fails on RPC errors", async () => {
+  let call: { fn: string; args: unknown } | undefined;
+  const rpc = async (fn: string, args: unknown) => {
+    call = { fn, args };
+    return { data: null, error: { message: "rpc unavailable" } };
+  };
+  await assert.rejects(
+    () => import("../requeue-runner-job").then(({ requeueRunnerJob }) => requeueRunnerJob({ rpc }, "job-id")),
+    /requeue_runner_job: rpc unavailable/,
+  );
+  assert.deepEqual(call, { fn: "requeue_runner_job", args: { p_job_id: "job-id" } });
 });

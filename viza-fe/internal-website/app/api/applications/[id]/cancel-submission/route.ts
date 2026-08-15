@@ -3,8 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   isDigitalArrivalCardApplication,
-  isSgArrivalCardApplication,
 } from "@/lib/submission-queue";
+import { resolveRunnerPoolFlow } from "@/lib/queue/flows";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +39,14 @@ const CANCELABLE_SGAC_QUEUE_STATUSES = [
   "phetravel_live_assisted_pending",
   "phetravel_dry_run_pending",
 ] as const;
+
+const RUNNER_POOL_COUNTRY_BY_FLOW: Record<string, string> = {
+  vn_prearrival: "vietnam",
+  sgac: "singapore",
+  mdac: "malaysia",
+  tdac: "thailand",
+  kr_eform: "south_korea",
+};
 
 export async function POST(
   _request: Request,
@@ -111,12 +119,15 @@ export async function POST(
 
   const queue = queueData as QueueForCancel | null;
   let runnerQueue: { id: string; status: string } | null = null;
-  if (!queue && isSgArrivalCardApplication(application.country, application.visa_type)) {
+  const runnerFlow = resolveRunnerPoolFlow(application.country, application.visa_type);
+  const runnerCountry = runnerFlow ? RUNNER_POOL_COUNTRY_BY_FLOW[runnerFlow] : undefined;
+  if (!queue && runnerFlow && runnerCountry) {
     const { data: runnerData, error: runnerLoadError } = await admin
       .from("runner_job")
-      .select("id, status")
+      .select("id, status, flow_key")
       .eq("application_id", applicationId)
-      .eq("country", "singapore")
+      .eq("country", runnerCountry)
+      .eq("flow_key", runnerFlow)
       .eq("status", "queued")
       .order("enqueued_at", { ascending: false, nullsFirst: false })
       .limit(1)

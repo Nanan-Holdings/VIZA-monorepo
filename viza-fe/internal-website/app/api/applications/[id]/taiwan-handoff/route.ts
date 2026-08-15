@@ -6,6 +6,11 @@ import { isAllowedTaiwanLiveViewUrl } from "@/lib/taiwan-handoff-url";
 
 export const dynamic = "force-dynamic";
 
+function parseClaimResult(data: unknown): { claimed?: unknown } | null {
+  const row = Array.isArray(data) ? data[0] : data;
+  return row && typeof row === "object" ? (row as { claimed?: unknown }) : null;
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -53,16 +58,21 @@ export async function GET(
     return NextResponse.json({ error: "Taiwan handoff URL is unavailable" }, { status: 503 });
   }
 
-  await admin
-    .from("takeover_session")
-    .update({ status: "claimed", claimed_at: new Date().toISOString() })
-    .eq("id", handoff.id)
-    .eq("status", "queued");
-  await admin.from("takeover_action_log").insert({
-    takeover_id: handoff.id,
-    action: "claim",
-    detail: { kind: "taiwan_applicant_final_submit" },
+  const { data: claimData, error: claimError } = await admin.rpc("claim_takeover_session", {
+    p_takeover_id: handoff.id,
+    p_claimant_id: profileId,
+    p_expected_handoff_kind: "taiwan_applicant_final_submit",
   });
+  if (claimError) {
+    return NextResponse.json({ error: claimError.message }, { status: 500 });
+  }
+  const claim = parseClaimResult(claimData);
+  if (!claim || claim.claimed !== true) {
+    return NextResponse.json(
+      { error: "Taiwan handoff session is no longer available" },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json(
     { liveViewUrl: handoff.vnc_url, expiresAt },
