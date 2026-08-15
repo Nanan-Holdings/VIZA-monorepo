@@ -12,6 +12,7 @@ import {
 	parseStagingDatabaseMarker,
 	resolveLoadResultsPath,
 	validateConcurrencyLoadGuards,
+	FLOW_KEY_BY_COUNTRY,
 } from "../../scripts/concurrency-load.js";
 
 describe("concurrency load release evaluator", () => {
@@ -278,6 +279,16 @@ describe("concurrency load release evaluator", () => {
 		expect(harnessSource.indexOf("await assertStagingDatabaseMarker")).toBeLessThan(
 			harnessSource.indexOf("await reserveSyntheticSlots"),
 		);
+	});
+
+	it("uses only strict runner-pool flow tuples for synthetic jobs", () => {
+		expect(FLOW_KEY_BY_COUNTRY).toEqual({
+			vietnam: "vn_prearrival",
+			singapore: "sgac",
+			malaysia: "mdac",
+			thailand: "tdac",
+			south_korea: "kr_eform",
+		});
 	});
 
 	it("anchors result paths at the repository root regardless of working directory", () => {
