@@ -296,6 +296,213 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
     await suiteLockClient.query("SELECT pg_advisory_lock(hashtext($1))", [suiteLockName]);
   });
 
+  it.skipIf(process.env.RUNNER_LOAD_GATE_DB_CONFIRM !== "local-test")(
+    "fails closed for wrong load project, production ref, worker prefix, and unslotted worker",
+    async () => {
+      const runIdResult = await query<{ run_id: string }>(
+        "SELECT gen_random_uuid()::text AS run_id",
+      );
+      const runId = runIdResult.rows[0].run_id;
+      const worker = `concurrency-load:${runId}:worker-01`;
+      const expectedProjectRef = process.env.RUNNER_LOAD_GATE_PROJECT_REF ?? "local-test-ref";
+      const invoke = (workerId: string, projectRef: string) =>
+        query(
+          "SELECT * FROM public.claim_runner_pool_load_test_job($1::text, $2::uuid, $3::text, 10000, FALSE)",
+          [workerId, runId, projectRef],
+        );
+
+      await expect(invoke(worker, "wrong-project-ref")).rejects.toMatchObject({ code: "42501" });
+      await expect(invoke(worker, "oyjxdzsoejraedqghndi")).rejects.toMatchObject({ code: "42501" });
+      await expect(invoke(`runner-fence:${runId}`, expectedProjectRef)).rejects.toMatchObject({ code: "42501" });
+      const unslotted = await invoke(`concurrency-load:${runId}:worker-11`, expectedProjectRef);
+      expect(unslotted.rows).toHaveLength(0);
+    },
+  );
+
+  it.skipIf(process.env.RUNNER_LOAD_GATE_DB_CONFIRM !== "local-test")(
+    "claims only scoped synthetic rows and enforces ten global slots with an unslotted rejection",
+    async () => {
+      const expectedProjectRef = process.env.RUNNER_LOAD_GATE_PROJECT_REF ?? "";
+      const config = await query<{
+        environment: string;
+        project_ref: string;
+        enabled: boolean;
+      }>(
+        "SELECT environment, project_ref, enabled FROM runner_private.runner_load_test_config WHERE id",
+      );
+      const marker = await query<{ environment: string | null }>(
+        "SELECT current_setting('app.viza_environment', true) AS environment",
+      );
+      expect(config.rows).toHaveLength(1);
+      expect(["staging", "local-test"]).toContain(config.rows[0].environment);
+      if (["staging", "local-test"].includes(marker.rows[0].environment ?? "")) {
+        expect(config.rows[0].environment).toBe(marker.rows[0].environment);
+      }
+      expect(config.rows[0].project_ref).toBe(expectedProjectRef);
+      expect(config.rows[0].enabled).toBe(true);
+      const capsBefore = await query(
+        "SELECT country, max_concurrent, paused, notes FROM public.runner_concurrency_cap ORDER BY country",
+      );
+
+      const runIdResult = await query<{ run_id: string }>(
+        "SELECT gen_random_uuid()::text AS run_id",
+      );
+      const runId = runIdResult.rows[0].run_id;
+      const purpose = `concurrency-load:${runId}`;
+      const workers = Array.from(
+        { length: 11 },
+        (_, index) => `${purpose}:worker-${String(index + 1).padStart(2, "0")}`,
+      );
+      const applicant = await query<{ id: string }>(
+        "INSERT INTO public.applicant_profiles (email, full_name) VALUES ($1, $2) RETURNING id",
+        [`concurrency-load-${runId}@invalid.test`, "Scoped load integration"],
+      );
+      const applicantId = applicant.rows[0].id;
+      const applications = await query<{ id: string; country: string }>(
+        `INSERT INTO public.applications (applicant_id, country, visa_type, status, purpose)
+         SELECT $1,
+                (ARRAY['vietnam','singapore','malaysia','thailand','south_korea','taiwan'])[(g - 1) % 6 + 1],
+                'CONCURRENCY_LOAD', 'draft', $2
+         FROM generate_series(1, 10) AS g
+         RETURNING id, country`,
+        [applicantId, purpose],
+      );
+      await query<{ id: string; application_id: string }>(
+        `INSERT INTO public.runner_job (
+           application_id, country, flow_key, status, attempts, max_attempts,
+           correlation_id, metadata, available_at, enqueued_at
+         )
+         SELECT application.id,
+                application.country,
+                CASE application.country
+                  WHEN 'vietnam' THEN 'vn_prearrival'
+                  WHEN 'singapore' THEN 'sgac'
+                  WHEN 'malaysia' THEN 'mdac'
+                  WHEN 'thailand' THEN 'tdac'
+                  WHEN 'south_korea' THEN 'kr_eform'
+                  ELSE 'tw_entry_permit'
+                END,
+                'queued', 0, 3,
+                $2 || ':' || LPAD(row_number() OVER (ORDER BY application.id)::text, 4, '0'),
+                jsonb_build_object(
+                  'concurrency_load_run_id', $1,
+                  'concurrency_load_synthetic', true
+                ),
+                NOW(), NOW()
+         FROM public.applications AS application
+         WHERE application.purpose = $2
+         RETURNING id, application_id`,
+        [runId, purpose],
+      );
+      const realApplication = await query<{ id: string }>(
+        `INSERT INTO public.applications (applicant_id, country, visa_type, status, purpose)
+         VALUES ($1, 'vietnam', 'vn_prearrival', 'draft', 'real-load-row')
+         RETURNING id`,
+        [applicantId],
+      );
+      const realJob = await query<{ id: string }>(
+        `INSERT INTO public.runner_job (
+           application_id, country, flow_key, status, attempts, max_attempts,
+           correlation_id, metadata, available_at, enqueued_at
+         ) VALUES ($1, 'vietnam', 'vn_prearrival', 'queued', 0, 3,
+                   'real-load-row', '{}'::jsonb, NOW(), NOW())
+         RETURNING id`,
+        [realApplication.rows[0].id],
+      );
+      fixtureIds.add(applicantId);
+      for (const application of applications.rows) fixtureIds.add(application.id);
+      fixtureIds.add(realApplication.rows[0].id);
+      fixtureIds.add(realJob.rows[0].id);
+      const slotClient = await pool!.connect();
+      let slotNumbers: number[] = [];
+      try {
+        await slotClient.query("BEGIN");
+        const slots = await slotClient.query<{ slot_number: number }>(
+          `SELECT slot_number
+           FROM public.runner_machine_slot
+           WHERE owner_machine_id IS NULL AND owner_kind IS NULL AND lease_until IS NULL
+           ORDER BY slot_number
+           LIMIT 10
+           FOR UPDATE`,
+        );
+        expect(slots.rows).toHaveLength(10);
+        slotNumbers = slots.rows.map((slot) => slot.slot_number);
+        for (const [index, slotNumber] of slotNumbers.entries()) {
+          await slotClient.query(
+            `UPDATE public.runner_machine_slot
+             SET owner_machine_id = $1, owner_kind = 'pool',
+                 lease_until = clock_timestamp() + INTERVAL '10 minutes',
+                 acquired_at = clock_timestamp(), updated_at = clock_timestamp()
+             WHERE slot_number = $2`,
+            [workers[index], slotNumber],
+          );
+        }
+        await slotClient.query("COMMIT");
+      } finally {
+        await slotClient.query("ROLLBACK").catch(() => undefined);
+        slotClient.release();
+      }
+
+      try {
+        const claims = await Promise.all(
+          workers.map((worker) =>
+            query<{ id: string; application_id: string }>(
+              "SELECT * FROM public.claim_runner_pool_load_test_job($1::text, $2::uuid, $3::text, 10000, TRUE)",
+              [worker, runId, expectedProjectRef],
+            ),
+          ),
+        );
+        const claimedEntries = claims.flatMap((claim, index) =>
+          claim.rows.map((row) => ({ row, worker: workers[index] })),
+        );
+        const claimedRows = claimedEntries.map((entry) => entry.row);
+        expect(claimedRows).toHaveLength(10);
+        expect(new Set(claimedRows.map((row) => row.id)).size).toBe(10);
+        expect(claimedRows.some((row) => row.id === realJob.rows[0].id)).toBe(false);
+        const running = await query<{ running: number }>(
+          `SELECT COUNT(*)::int AS running
+           FROM public.runner_job
+           WHERE status = 'running'
+             AND country IN ('vietnam','singapore','malaysia','thailand','south_korea','taiwan')`,
+        );
+        expect(Number(running.rows[0].running)).toBeLessThanOrEqual(10);
+
+        const settlements = await Promise.all(
+          claimedEntries.map(({ row, worker }) =>
+            query(
+              "SELECT * FROM public.complete_runner_pool_job($1::uuid, $2::text)",
+              [row.id, worker],
+            ),
+          ),
+        );
+        expect(settlements.filter((settlement) => settlement.rows.length === 1)).toHaveLength(10);
+      } finally {
+        await query(
+          `UPDATE public.runner_machine_slot
+           SET owner_machine_id = NULL, owner_kind = NULL, lease_until = NULL,
+               acquired_at = NULL, updated_at = clock_timestamp()
+           WHERE owner_machine_id = ANY($1::text[])`,
+          [workers],
+        );
+        await query("DELETE FROM public.runner_job WHERE application_id = ANY($1::uuid[])", [
+          [...applications.rows.map((row) => row.id), realApplication.rows[0].id],
+        ]);
+        await query("DELETE FROM public.applications WHERE id = ANY($1::uuid[])", [
+          [...applications.rows.map((row) => row.id), realApplication.rows[0].id],
+        ]);
+        await query("DELETE FROM public.applicant_profiles WHERE id = $1", [applicantId]);
+        const configAfter = await query(
+          "SELECT environment, project_ref, enabled FROM runner_private.runner_load_test_config WHERE id",
+        );
+        const capsAfter = await query(
+          "SELECT country, max_concurrent, paused, notes FROM public.runner_concurrency_cap ORDER BY country",
+        );
+        expect(configAfter.rows).toEqual(config.rows);
+        expect(capsAfter.rows).toEqual(capsBefore.rows);
+      }
+    },
+  );
+
   afterAll(async () => {
     if (pool) {
       for (const id of fixtureIds) {

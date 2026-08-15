@@ -31,8 +31,13 @@ describe("concurrency load release evaluator", () => {
 			lockTimeouts: 0,
 			connectionExhaustions: 0,
 			claimLatenciesMs: [20, 30, 40],
+			successfulClaimLatenciesMs: [20, 30, 40],
 			syntheticRowsRemaining: 0,
 			claimedJobs: 100,
+			settledJobs: 100,
+			failedSettlements: 0,
+			capsRestoredExactly: true,
+			staleLeaseProbePassed: true,
 		});
 
 		expect(result).toMatchObject({
@@ -52,8 +57,13 @@ describe("concurrency load release evaluator", () => {
 			lockTimeouts: 0,
 			connectionExhaustions: 0,
 			claimLatenciesMs: Array.from({ length: 100 }, (_, i) => i + 1),
+			successfulClaimLatenciesMs: Array.from({ length: 100 }, (_, i) => i + 1),
 			syntheticRowsRemaining: 0,
 			claimedJobs: 1000,
+			settledJobs: 1000,
+			failedSettlements: 0,
+			capsRestoredExactly: true,
+			staleLeaseProbePassed: true,
 		});
 
 		expect(result.p95ClaimMs).toBe(95);
@@ -81,13 +91,17 @@ describe("concurrency load release evaluator", () => {
 			connectionExhaustions: 0,
 			syntheticRowsRemaining: 0,
 			claimedJobs: 1,
+			settledJobs: 1,
+			failedSettlements: 0,
+			capsRestoredExactly: true,
+			staleLeaseProbePassed: true,
 		};
 
 		expect(
-			evaluateConcurrencyRun({ ...base, claimLatenciesMs: [499] }),
+			evaluateConcurrencyRun({ ...base, claimLatenciesMs: [499], successfulClaimLatenciesMs: [499] }),
 		).toMatchObject({ passed: true, p95ClaimMs: 499, failures: [] });
 		expect(
-			evaluateConcurrencyRun({ ...base, claimLatenciesMs: [500] }),
+			evaluateConcurrencyRun({ ...base, claimLatenciesMs: [500], successfulClaimLatenciesMs: [500] }),
 		).toMatchObject({
 			passed: false,
 			p95ClaimMs: 500,
@@ -107,8 +121,13 @@ describe("concurrency load release evaluator", () => {
 				lockTimeouts: 0,
 				connectionExhaustions: 0,
 				claimLatenciesMs: [],
+				successfulClaimLatenciesMs: [],
 				syntheticRowsRemaining: 0,
 				claimedJobs: 0,
+				settledJobs: 0,
+				failedSettlements: 0,
+				capsRestoredExactly: true,
+				staleLeaseProbePassed: true,
 			}),
 		).toMatchObject({ passed: true, p95ClaimMs: 0, failures: [] });
 
@@ -123,8 +142,13 @@ describe("concurrency load release evaluator", () => {
 				lockTimeouts: 0,
 				connectionExhaustions: 0,
 				claimLatenciesMs: [],
+				successfulClaimLatenciesMs: [],
 				syntheticRowsRemaining: 0,
 				claimedJobs: 1,
+				settledJobs: 1,
+				failedSettlements: 0,
+				capsRestoredExactly: true,
+				staleLeaseProbePassed: true,
 			}),
 		).toMatchObject({
 				passed: false,
@@ -262,19 +286,101 @@ describe("concurrency load release evaluator", () => {
 			successfulClaimLatenciesMs: [5, 6],
 			syntheticRowsRemaining: 0,
 			claimedJobs: 1,
+			settledJobs: 1,
+			failedSettlements: 0,
+			capsRestoredExactly: true,
+			staleLeaseProbePassed: true,
 		});
 		expect(result.failures).toContain("unclaimed_jobs");
 		expect(result.successfulClaimLatenciesMs).toEqual([5, 6]);
 	});
 
+	it("fails a vacuous global probe even when ordinary invariants pass", () => {
+		const result = evaluateConcurrencyRun({
+			jobs: 100,
+			duplicateClaims: 0,
+			countryCapOvershoots: 0,
+			globalSlotOvershoots: 0,
+			staleLeaseWrites: 0,
+			databaseErrors: 0,
+			lockTimeouts: 0,
+			connectionExhaustions: 0,
+			claimLatenciesMs: [10, 20],
+			successfulClaimLatenciesMs: [10, 20],
+			syntheticRowsRemaining: 0,
+			claimedJobs: 100,
+			settledJobs: 100,
+			failedSettlements: 0,
+			globalProbeRequired: true,
+			globalProbeAttempts: 10,
+			globalProbeAccepted: 9,
+			globalProbeRejected: 0,
+			maxGlobalRunning: 9,
+			maxDistinctRunningOwners: 9,
+			maxMatchingLiveSlots: 9,
+			capsRestoredExactly: true,
+			staleLeaseProbePassed: true,
+		});
+
+		expect(result.passed).toBe(false);
+		expect(result.failures).toEqual([
+			"global_probe_insufficient_pressure",
+			"global_capacity_not_reached",
+			"global_probe_no_rejection",
+		]);
+	});
+
+	it("fails closed for untyped or missing release metrics", () => {
+		const result = evaluateConcurrencyRun({
+			jobs: 1,
+			duplicateClaims: 0,
+			countryCapOvershoots: 0,
+			globalSlotOvershoots: 0,
+			staleLeaseWrites: 0,
+			databaseErrors: 0,
+			lockTimeouts: 0,
+			connectionExhaustions: 0,
+			claimLatenciesMs: [1],
+			syntheticRowsRemaining: 0,
+			claimedJobs: undefined,
+		} as unknown as Parameters<typeof evaluateConcurrencyRun>[0]);
+
+		expect(result.passed).toBe(false);
+		expect(result.failures).toEqual(
+			expect.arrayContaining([
+				"missing_successful_claim_latencies",
+				"unclaimed_jobs",
+				"unsettled_jobs",
+				"failed_settlements",
+				"cap_snapshot_changed",
+				"stale_lease_probe_failed",
+			]),
+		);
+	});
+
+	it("requires the complete release matrix for a release decision", () => {
+		expect(isCompleteConcurrencyMatrix([100, 300, 600, 1000])).toBe(true);
+		expect(isCompleteConcurrencyMatrix([100, 300, 600])).toBe(false);
+	});
+
 	it("keeps the live harness fenced, bounded, and cleanup-first", () => {
 		expect(harnessSource).toMatch(/GLOBAL_PROBE_REQUESTS = 40/);
+		expect(harnessSource).toMatch(/LOAD_WORKER_COUNT = 11/);
+		expect(harnessSource).toMatch(/claim_runner_pool_load_test_job/);
+		expect(harnessSource).not.toMatch(/public\.claim_runner_pool_job/);
+		expect(harnessSource).toMatch(/acquireRunAdvisoryLock/);
+		expect(harnessSource).toMatch(/workerIds\.slice\(0, CLAIM_WORKER_COUNT\)/);
 		expect(harnessSource).toMatch(/complete_runner_pool_job/);
 		expect(harnessSource).toMatch(/settleClaimsBounded/);
 		expect(harnessSource).toMatch(/current_setting\('app\.viza_environment'/);
 		expect(harnessSource).toMatch(/cleanupSyntheticData/);
 		expect(harnessSource).not.toMatch(/rejectUnauthorized:\s*false/);
 		expect(harnessSource).not.toMatch(/SET\s+app\.viza_(environment|project_ref)/i);
+		expect(harnessSource).not.toMatch(/restoreUnexpectedClaim/);
+		expect(harnessSource).not.toMatch(/UPDATE public\.runner_job[\s\S]*?status = 'queued'/i);
+		expect(harnessSource).not.toMatch(/(?:INSERT|UPDATE|DELETE)\s+FROM public\.runner_concurrency_cap/i);
+		expect(harnessSource).toMatch(/capSnapshotsEqual/);
+		expect(harnessSource).toMatch(/capsRestoredExactly/);
 		expect(harnessSource.indexOf("await assertStagingDatabaseMarker")).toBeGreaterThan(-1);
 		expect(harnessSource.indexOf("await assertStagingDatabaseMarker")).toBeLessThan(
 			harnessSource.indexOf("await reserveSyntheticSlots"),
@@ -288,6 +394,7 @@ describe("concurrency load release evaluator", () => {
 			malaysia: "mdac",
 			thailand: "tdac",
 			south_korea: "kr_eform",
+			taiwan: "tw_entry_permit",
 		});
 	});
 
