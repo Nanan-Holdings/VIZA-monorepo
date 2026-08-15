@@ -28,6 +28,12 @@ const renewFunctionBody = canonicalSql.match(
 const failFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.fail_runner_pool_job\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
+const triggerFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.guard_expired_runner_job_lifecycle_update\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const resultFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.write_runner_pool_submission_result\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
 
 const plpgsqlBody = (functionSql: string): string =>
   functionSql.slice(functionSql.indexOf("AS $$"));
@@ -35,12 +41,12 @@ const plpgsqlBody = (functionSql: string): string =>
 const assertSettlementLocksBeforeClock = (functionSql: string): void => {
   const body = plpgsqlBody(functionSql);
   const lockIndex = body.search(
-    /SELECT[\s\S]*?FROM public\.runner_job AS job[\s\S]*?WHERE[\s\S]*?job\.id\s*=\s*p_job_id[\s\S]*?job\.status\s*=\s*'running'[\s\S]*?job\.leased_by\s*=\s*(?:BTRIM\(p_worker_id\)|p_worker_id)[\s\S]*?FOR UPDATE\s*;/i,
+    /SELECT[\s\S]*?FROM public\.runner_job AS job[\s\S]*?WHERE[\s\S]*?job\.id\s*=\s*p_job_id[\s\S]*?job\.status\s*=\s*'running'[\s\S]*?job\.leased_by\s*=\s*(?:BTRIM\(p_worker_id\)|p_worker_id|v_worker_id)[\s\S]*?FOR UPDATE\s*;/i,
   );
   expect(lockIndex).toBeGreaterThan(-1);
 
   const clockIndex = body.search(
-    /v_now\s*(?:TIMESTAMPTZ\s*)?:=\s*(?:COALESCE\(p_now\s*,\s*)?clock_timestamp\(\)/i,
+    /v_now\s*(?:TIMESTAMPTZ\s*)?:=\s*(?:pg_catalog\.)?clock_timestamp\(\)/i,
   );
   expect(clockIndex).toBeGreaterThan(lockIndex);
   expect(body).not.toMatch(
@@ -86,10 +92,10 @@ describe("runner pool concurrency phase two migration", () => {
 
   it("recovers at most one expired lease with an ordered SKIP LOCKED CTE and conditional update", () => {
     expect(canonicalSql).toMatch(
-      /expired AS MATERIALIZED \([\s\S]*?FROM public\.runner_job AS expired[\s\S]*?ORDER BY[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE SKIP LOCKED[\s\S]*?\)/i,
+      /WITH expired AS MATERIALIZED \([\s\S]*?SELECT expired\.id[\s\S]*?FROM public\.runner_job AS expired[\s\S]*?ORDER BY[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE SKIP LOCKED[\s\S]*?\)[\s\S]*?SELECT expired\.id[\s\S]*?INTO v_expired_job_id/i,
     );
     expect(canonicalSql).toMatch(
-      /UPDATE public\.runner_job AS job[\s\S]*?FROM expired[\s\S]*?WHERE job\.id = expired\.id[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_until <= p_now/i,
+      /set_config\(\s*'viza\.runner_recovery_job_id'[\s\S]*?set_config\(\s*'viza\.runner_recovery_now'[\s\S]*?UPDATE public\.runner_job AS job[\s\S]*?WHERE job\.id = v_expired_job_id[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_until <= p_now[\s\S]*?set_config\(\s*'viza\.runner_recovery_job_id',\s*'',\s*TRUE[\s\S]*?set_config\(\s*'viza\.runner_recovery_now',\s*'',\s*TRUE/i,
     );
   });
 
@@ -361,7 +367,7 @@ describe("runner pool concurrency phase two migration", () => {
     expect(completeFunctionBody).toMatch(/p_job_id IS NULL[\s\S]*?ERRCODE = '22023'/i);
     expect(completeFunctionBody).toMatch(/NULLIF\(BTRIM\(p_worker_id\), ''\) IS NULL[\s\S]*?ERRCODE = '22023'/i);
     expect(completeFunctionBody).toMatch(
-      /UPDATE public\.runner_job[\s\S]*?SET status = 'succeeded'[\s\S]*?finished_at = COALESCE\(p_now, v_now\)[\s\S]*?leased_by = NULL[\s\S]*?leased_until = NULL[\s\S]*?WHERE[\s\S]*?id = p_job_id[\s\S]*?status = 'running'[\s\S]*?leased_by = p_worker_id[\s\S]*?leased_until > v_now[\s\S]*?RETURNING[\s\S]*?application_id[\s\S]*?country[\s\S]*?started_at/i,
+      /UPDATE public\.runner_job[\s\S]*?SET status = 'succeeded'[\s\S]*?finished_at = COALESCE\(p_now, v_now\)[\s\S]*?leased_by = NULL[\s\S]*?leased_until = NULL[\s\S]*?WHERE[\s\S]*?id = p_job_id[\s\S]*?status = 'running'[\s\S]*?leased_by = v_worker_id[\s\S]*?leased_until > v_now[\s\S]*?RETURNING[\s\S]*?application_id[\s\S]*?country[\s\S]*?started_at/i,
     );
     expect(canonicalSql).toMatch(
       /REVOKE ALL ON FUNCTION public\.complete_runner_pool_job\(UUID, TEXT, TIMESTAMPTZ\) FROM PUBLIC, anon, authenticated;/i,
@@ -418,7 +424,10 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).toMatch(
       /CREATE OR REPLACE FUNCTION public\.complete_runner_pool_job\(\s*p_job_id UUID,\s*p_worker_id TEXT,\s*p_now TIMESTAMPTZ DEFAULT NULL\s*\)/i,
     );
-    expect(completeFunctionBody).toMatch(/v_now\s*:=\s*COALESCE\(p_now,\s*clock_timestamp\(\)\)/i);
+    expect(completeFunctionBody).toMatch(/v_now\s*:=\s*(?:pg_catalog\.)?clock_timestamp\(\)/i);
+    expect(completeFunctionBody).not.toMatch(/v_now\s*:=\s*COALESCE\(p_now/i);
+    expect(completeFunctionBody).toMatch(/v_worker_id\s*:=\s*BTRIM\(p_worker_id\)/i);
+    expect(completeFunctionBody).toMatch(/leased_by\s*=\s*v_worker_id/i);
     expect(completeFunctionBody).toMatch(/leased_until\s*>\s*v_now/i);
     expect(completeFunctionBody).toMatch(/finished_at\s*=\s*COALESCE\(p_now, v_now\)/i);
   });
@@ -436,6 +445,68 @@ describe("runner pool concurrency phase two migration", () => {
   });
 
   it("keeps the renew/failure RPCs byte-for-byte equivalent in the CLI mirror", () => {
+    const mirrorFiles = existsSync(mirrorDirectory)
+      ? readdirSync(mirrorDirectory).filter((fileName) => /_concurrency_phase_two\.sql$/i.test(fileName))
+      : [];
+    expect(mirrorFiles).toHaveLength(1);
+    const mirrorSql = readFileSync(`${mirrorDirectory}/${mirrorFiles[0]}`, "utf8");
+    expect(normalized(mirrorSql)).toBe(normalized(canonicalSql));
+  });
+
+  it("installs the permanent expired-row compatibility trigger with metadata-only escape", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.guard_expired_runner_job_lifecycle_update\(\)\s*RETURNS trigger[\s\S]*?SECURITY DEFINER[\s\S]*?SET search_path = ''/i,
+    );
+    expect(triggerFunctionBody).toMatch(
+      /NEW\.status IS DISTINCT FROM OLD\.status[\s\S]*?NEW\.available_at IS DISTINCT FROM OLD\.available_at/i,
+    );
+    expect(triggerFunctionBody).toMatch(/RETURN NEW;/i);
+    expect(triggerFunctionBody).toMatch(/RETURN NULL;/i);
+    expect(triggerFunctionBody).toMatch(/current_setting\('viza\.runner_recovery_job_id', TRUE\)/i);
+    expect(triggerFunctionBody).toMatch(/current_setting\('viza\.runner_recovery_now', TRUE\)/i);
+    expect(triggerFunctionBody).toMatch(/v_marker_job_id::UUID/i);
+    expect(triggerFunctionBody).toMatch(/v_marker_now_text::TIMESTAMPTZ/i);
+    expect(triggerFunctionBody).toMatch(/NEW\.application_id IS DISTINCT FROM OLD\.application_id/i);
+    expect(triggerFunctionBody).toMatch(/NEW\.metadata IS DISTINCT FROM OLD\.metadata/i);
+    expect(triggerFunctionBody).toMatch(/NEW\.attempts IS DISTINCT FROM OLD\.attempts \+ 1/i);
+    expect(triggerFunctionBody).toMatch(/NEW\.leased_by IS NOT NULL/i);
+    expect(canonicalSql).toMatch(
+      /CREATE TRIGGER guard_expired_runner_job_lifecycle_update\s*BEFORE UPDATE ON public\.runner_job/i,
+    );
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.guard_expired_runner_job_lifecycle_update\(\)\s*FROM PUBLIC, anon, authenticated, service_role;/i,
+    );
+  });
+
+  it("defines the fenced atomic runner submission-result writer", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.write_runner_pool_submission_result\(\s*p_job_id UUID,\s*p_worker_id TEXT,\s*p_submission_result JSONB,\s*p_submission_result_status TEXT\s*\)/i,
+    );
+    expect(resultFunctionBody).toMatch(
+      /RETURNS TABLE \(\s*runner_job_id UUID,\s*application_id UUID,\s*submission_result_updated_at TIMESTAMPTZ\s*\)/i,
+    );
+    expect(resultFunctionBody).toMatch(/SECURITY INVOKER/i);
+    expect(resultFunctionBody).toMatch(/SET search_path = ''/i);
+    expect(resultFunctionBody).toMatch(/p_submission_result IS NULL/i);
+    expect(resultFunctionBody).toMatch(/jsonb_typeof\(p_submission_result\) <> 'object'/i);
+    expect(resultFunctionBody).toMatch(/NULLIF\(BTRIM\(p_submission_result_status\), ''\) IS NULL/i);
+    expect(resultFunctionBody).toMatch(
+      /SELECT job\.application_id, job\.leased_until[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_by = v_worker_id[\s\S]*?FOR UPDATE/i,
+    );
+    expect(resultFunctionBody).toMatch(/v_now\s*:=\s*(?:pg_catalog\.)?clock_timestamp\(\)/i);
+    expect(resultFunctionBody).toMatch(/v_leased_until IS NULL OR v_leased_until <= v_now/i);
+    expect(resultFunctionBody).toMatch(
+      /UPDATE public\.applications AS application[\s\S]*?submission_result = p_submission_result[\s\S]*?submission_result_status = v_result_status[\s\S]*?submission_result_updated_at = v_now[\s\S]*?WHEN v_result_status = 'submitted' THEN 'submitted'[\s\S]*?ELSE application\.status/i,
+    );
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.write_runner_pool_submission_result\(\s*UUID, TEXT, JSONB, TEXT\s*\) FROM PUBLIC, anon, authenticated;/i,
+    );
+    expect(canonicalSql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.write_runner_pool_submission_result\(\s*UUID, TEXT, JSONB, TEXT\s*\) TO service_role;/i,
+    );
+  });
+
+  it("keeps the trigger and result RPC in the CLI mirror", () => {
     const mirrorFiles = existsSync(mirrorDirectory)
       ? readdirSync(mirrorDirectory).filter((fileName) => /_concurrency_phase_two\.sql$/i.test(fileName))
       : [];

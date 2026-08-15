@@ -48,6 +48,8 @@ SET search_path = ''
 AS $$
 DECLARE
   v_locked_country TEXT;
+  v_expired_job_id UUID;
+  v_recovery_rows INTEGER := 0;
   v_tried_countries TEXT[] := ARRAY[]::TEXT[];
   v_cap_iterations INTEGER := 0;
   v_claimed_rows INTEGER := 0;
@@ -94,8 +96,15 @@ BEGIN
     END IF;
   END IF;
 
-  -- Recover only one expired lease per poll. The conditional update protects
-  -- against a worker heartbeat winning the row between the CTE and UPDATE.
+  -- Recover only one expired lease per poll. First acquire the exact row with
+  -- SKIP LOCKED, then set transaction-local recovery markers while performing
+  -- the one exact lifecycle update. The permanent compatibility trigger allows
+  -- this shape only for this locked row and marker timestamp.
+  -- Clear any caller-provided session marker before selecting the row so a
+  -- stale marker cannot authorize a later direct UPDATE in this transaction.
+  PERFORM pg_catalog.set_config('viza.runner_recovery_job_id', '', TRUE);
+  PERFORM pg_catalog.set_config('viza.runner_recovery_now', '', TRUE);
+
   WITH expired AS MATERIALIZED (
     SELECT expired.id
     FROM public.runner_job AS expired
@@ -108,31 +117,58 @@ BEGIN
     LIMIT 1
     FOR UPDATE SKIP LOCKED
   )
-  UPDATE public.runner_job AS job
-  SET attempts = job.attempts + 1,
-      status = CASE
-        WHEN job.attempts + 1 >= job.max_attempts THEN 'failed'
-        ELSE 'queued'
-      END,
-      last_error = 'Worker lease expired before completion; job recovered by shared pool.',
-      leased_by = NULL,
-      leased_until = NULL,
-      started_at = CASE
-        WHEN job.attempts + 1 >= job.max_attempts THEN job.started_at
-        ELSE NULL
-      END,
-      finished_at = CASE
-        WHEN job.attempts + 1 >= job.max_attempts THEN p_now
-        ELSE NULL
-      END,
-      available_at = CASE
-        WHEN job.attempts + 1 >= job.max_attempts THEN job.available_at
-        ELSE p_now + LEAST(300, 15 * (job.attempts + 1)) * INTERVAL '1 second'
-      END
-  FROM expired
-  WHERE job.id = expired.id
-    AND job.status = 'running'
-    AND job.leased_until <= p_now;
+  SELECT expired.id
+  INTO v_expired_job_id
+  FROM expired;
+
+  IF v_expired_job_id IS NOT NULL THEN
+    PERFORM pg_catalog.set_config(
+      'viza.runner_recovery_job_id',
+      v_expired_job_id::TEXT,
+      TRUE
+    );
+    PERFORM pg_catalog.set_config(
+      'viza.runner_recovery_now',
+      p_now::TEXT,
+      TRUE
+    );
+
+    BEGIN
+      UPDATE public.runner_job AS job
+      SET attempts = job.attempts + 1,
+          status = CASE
+            WHEN job.attempts + 1 >= job.max_attempts THEN 'failed'
+            ELSE 'queued'
+          END,
+          last_error = 'Worker lease expired before completion; job recovered by shared pool.',
+          leased_by = NULL,
+          leased_until = NULL,
+          started_at = CASE
+            WHEN job.attempts + 1 >= job.max_attempts THEN job.started_at
+            ELSE NULL
+          END,
+          finished_at = CASE
+            WHEN job.attempts + 1 >= job.max_attempts THEN p_now
+            ELSE NULL
+          END,
+          available_at = CASE
+            WHEN job.attempts + 1 >= job.max_attempts THEN job.available_at
+            ELSE p_now + LEAST(300, 15 * (job.attempts + 1)) * INTERVAL '1 second'
+          END
+      WHERE job.id = v_expired_job_id
+        AND job.status = 'running'
+        AND job.leased_until <= p_now;
+
+      GET DIAGNOSTICS v_recovery_rows = ROW_COUNT;
+    EXCEPTION WHEN OTHERS THEN
+      PERFORM pg_catalog.set_config('viza.runner_recovery_job_id', '', TRUE);
+      PERFORM pg_catalog.set_config('viza.runner_recovery_now', '', TRUE);
+      RAISE;
+    END;
+
+    PERFORM pg_catalog.set_config('viza.runner_recovery_job_id', '', TRUE);
+    PERFORM pg_catalog.set_config('viza.runner_recovery_now', '', TRUE);
+  END IF;
 
   -- Lock at most the five eligible country-cap rows. The oldest due queued
   -- candidate determines the next country, avoiding alphabetical starvation.
@@ -230,6 +266,127 @@ GRANT EXECUTE ON FUNCTION public.claim_runner_pool_job(
 COMMENT ON FUNCTION public.claim_runner_pool_job(TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ) IS
   'Atomically recovers one expired lease and claims one country-sharded shared-pool job.';
 
+-- Older workers can still issue direct lifecycle UPDATEs while a rolling
+-- deploy is in progress. Once an OLD running lease has expired, silently drop
+-- any stale lifecycle mutation so it cannot overwrite a reclaimed owner. A
+-- metadata-only UPDATE remains compatible. The bounded recovery path above is
+-- the sole exception: it sets transaction-local row/timestamp markers and must
+-- match the exact one-row recovery shape below. This trigger is deliberately
+-- SECURITY DEFINER with an empty search_path and has no public EXECUTE grant.
+CREATE OR REPLACE FUNCTION public.guard_expired_runner_job_lifecycle_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_marker_job_id TEXT;
+  v_marker_uuid UUID;
+  v_marker_now_text TEXT;
+  v_marker_now TIMESTAMPTZ;
+  v_terminal BOOLEAN;
+BEGIN
+  IF NOT (
+    NEW.status IS DISTINCT FROM OLD.status
+    OR NEW.attempts IS DISTINCT FROM OLD.attempts
+    OR NEW.last_error IS DISTINCT FROM OLD.last_error
+    OR NEW.started_at IS DISTINCT FROM OLD.started_at
+    OR NEW.finished_at IS DISTINCT FROM OLD.finished_at
+    OR NEW.leased_by IS DISTINCT FROM OLD.leased_by
+    OR NEW.leased_until IS DISTINCT FROM OLD.leased_until
+    OR NEW.available_at IS DISTINCT FROM OLD.available_at
+  ) THEN
+    RETURN NEW;
+  END IF;
+
+  IF OLD.status IS DISTINCT FROM 'running'
+    OR OLD.leased_until IS NULL
+    OR OLD.leased_until > pg_catalog.clock_timestamp()
+  THEN
+    RETURN NEW;
+  END IF;
+
+  v_marker_job_id := NULLIF(
+    pg_catalog.current_setting('viza.runner_recovery_job_id', TRUE),
+    ''
+  );
+  v_marker_now_text := NULLIF(
+    pg_catalog.current_setting('viza.runner_recovery_now', TRUE),
+    ''
+  );
+
+  IF v_marker_job_id IS NULL OR v_marker_now_text IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  BEGIN
+    v_marker_uuid := v_marker_job_id::UUID;
+    v_marker_now := v_marker_now_text::TIMESTAMPTZ;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN NULL;
+  END;
+
+  IF v_marker_uuid IS DISTINCT FROM OLD.id
+    OR OLD.leased_until > v_marker_now
+    OR OLD.leased_until > pg_catalog.clock_timestamp()
+  THEN
+    RETURN NULL;
+  END IF;
+
+  v_terminal := OLD.attempts + 1 >= OLD.max_attempts;
+
+  -- Identity/payload columns are immutable for the recovery exception.
+  IF NEW.id IS DISTINCT FROM OLD.id
+    OR NEW.application_id IS DISTINCT FROM OLD.application_id
+    OR NEW.country IS DISTINCT FROM OLD.country
+    OR NEW.flow_key IS DISTINCT FROM OLD.flow_key
+    OR NEW.max_attempts IS DISTINCT FROM OLD.max_attempts
+    OR NEW.correlation_id IS DISTINCT FROM OLD.correlation_id
+    OR NEW.metadata IS DISTINCT FROM OLD.metadata
+    OR NEW.enqueued_at IS DISTINCT FROM OLD.enqueued_at
+  THEN
+    RETURN NULL;
+  END IF;
+
+  IF NEW.attempts IS DISTINCT FROM OLD.attempts + 1
+    OR NEW.status IS DISTINCT FROM CASE WHEN v_terminal THEN 'failed' ELSE 'queued' END
+    OR NEW.last_error IS DISTINCT FROM
+      'Worker lease expired before completion; job recovered by shared pool.'
+    OR NEW.leased_by IS NOT NULL
+    OR NEW.leased_until IS NOT NULL
+    OR NEW.started_at IS DISTINCT FROM CASE
+      WHEN v_terminal THEN OLD.started_at
+      ELSE NULL
+    END
+    OR NEW.finished_at IS DISTINCT FROM CASE
+      WHEN v_terminal THEN v_marker_now
+      ELSE NULL
+    END
+    OR NEW.available_at IS DISTINCT FROM CASE
+      WHEN v_terminal THEN OLD.available_at
+      ELSE v_marker_now + LEAST(300, 15 * (OLD.attempts + 1)) * INTERVAL '1 second'
+    END
+  THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS guard_expired_runner_job_lifecycle_update
+  ON public.runner_job;
+CREATE TRIGGER guard_expired_runner_job_lifecycle_update
+BEFORE UPDATE ON public.runner_job
+FOR EACH ROW
+EXECUTE FUNCTION public.guard_expired_runner_job_lifecycle_update();
+
+REVOKE ALL ON FUNCTION public.guard_expired_runner_job_lifecycle_update()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+COMMENT ON FUNCTION public.guard_expired_runner_job_lifecycle_update() IS
+  'Drops stale lifecycle updates on expired runner leases; permits only exact bounded recovery markers.';
+
 -- Complete a claimed pool job only while the caller still owns its live lease.
 -- The submission worker uses this service-role-only RPC so stale owners cannot
 -- terminally mutate a row reclaimed by another worker. The optional p_now is
@@ -251,6 +408,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_leased_until TIMESTAMPTZ;
+  v_worker_id TEXT;
   v_now TIMESTAMPTZ;
 BEGIN
   IF p_job_id IS NULL THEN
@@ -259,6 +417,7 @@ BEGIN
   IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
     RAISE EXCEPTION 'p_worker_id must not be blank' USING ERRCODE = '22023';
   END IF;
+  v_worker_id := BTRIM(p_worker_id);
 
   -- Lock the exact live owner/status row before sampling the authoritative
   -- time. A concurrent lease recovery or re-claim therefore completes first,
@@ -268,14 +427,16 @@ BEGIN
   FROM public.runner_job AS job
   WHERE job.id = p_job_id
     AND job.status = 'running'
-    AND job.leased_by = p_worker_id
+    AND job.leased_by = v_worker_id
   FOR UPDATE;
 
   IF NOT FOUND THEN
     RETURN;
   END IF;
 
-  v_now := COALESCE(p_now, clock_timestamp());
+  -- p_now is retained only for deterministic finished_at assertions in the
+  -- staging harness. Lease ownership always uses a post-lock database clock.
+  v_now := clock_timestamp();
   IF v_leased_until <= v_now THEN
     RETURN;
   END IF;
@@ -289,7 +450,7 @@ BEGIN
     last_error = NULL
   WHERE job.id = p_job_id
     AND job.status = 'running'
-    AND job.leased_by = p_worker_id
+    AND job.leased_by = v_worker_id
     AND job.leased_until > v_now
   RETURNING job.application_id, job.country, job.started_at;
 END;
@@ -460,6 +621,102 @@ GRANT EXECUTE ON FUNCTION public.fail_runner_pool_job(UUID, TEXT, TEXT, INTEGER,
 
 COMMENT ON FUNCTION public.fail_runner_pool_job(UUID, TEXT, TEXT, INTEGER, TEXT, INTEGER) IS
   'Settles a failed running pool job only for its owning worker and live database-clock lease.';
+
+-- Persist a runner's canonical submission result while its exact owner lease
+-- is still live. The job row is locked before sampling clock_timestamp(), so
+-- a reclaimed/expired owner cannot overwrite a newer worker's application
+-- result. Application fields update in the same transaction as the ownership
+-- check; only a submitted result advances applications.status.
+CREATE OR REPLACE FUNCTION public.write_runner_pool_submission_result(
+  p_job_id UUID,
+  p_worker_id TEXT,
+  p_submission_result JSONB,
+  p_submission_result_status TEXT
+)
+RETURNS TABLE (
+  runner_job_id UUID,
+  application_id UUID,
+  submission_result_updated_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  v_application_id UUID;
+  v_leased_until TIMESTAMPTZ;
+  v_worker_id TEXT;
+  v_result_status TEXT;
+  v_now TIMESTAMPTZ;
+  v_updated_at TIMESTAMPTZ;
+BEGIN
+  IF p_job_id IS NULL THEN
+    RAISE EXCEPTION 'p_job_id is required' USING ERRCODE = '22023';
+  END IF;
+  IF NULLIF(BTRIM(p_worker_id), '') IS NULL THEN
+    RAISE EXCEPTION 'p_worker_id must not be blank' USING ERRCODE = '22023';
+  END IF;
+  IF p_submission_result IS NULL
+    OR pg_catalog.jsonb_typeof(p_submission_result) <> 'object'
+  THEN
+    RAISE EXCEPTION 'p_submission_result must be a JSON object'
+      USING ERRCODE = '22023';
+  END IF;
+  IF NULLIF(BTRIM(p_submission_result_status), '') IS NULL THEN
+    RAISE EXCEPTION 'p_submission_result_status must not be blank'
+      USING ERRCODE = '22023';
+  END IF;
+
+  v_worker_id := BTRIM(p_worker_id);
+  v_result_status := LOWER(BTRIM(p_submission_result_status));
+
+  SELECT job.application_id, job.leased_until
+  INTO v_application_id, v_leased_until
+  FROM public.runner_job AS job
+  WHERE job.id = p_job_id
+    AND job.status = 'running'
+    AND job.leased_by = v_worker_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  IF v_leased_until IS NULL OR v_leased_until <= v_now THEN
+    RETURN;
+  END IF;
+
+  UPDATE public.applications AS application
+  SET submission_result = p_submission_result,
+      submission_result_status = v_result_status,
+      submission_result_updated_at = v_now,
+      status = CASE
+        WHEN v_result_status = 'submitted' THEN 'submitted'
+        ELSE application.status
+      END
+  WHERE application.id = v_application_id
+  RETURNING application.submission_result_updated_at
+  INTO v_updated_at;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT p_job_id, v_application_id, v_updated_at;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.write_runner_pool_submission_result(
+  UUID, TEXT, JSONB, TEXT
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.write_runner_pool_submission_result(
+  UUID, TEXT, JSONB, TEXT
+) TO service_role;
+
+COMMENT ON FUNCTION public.write_runner_pool_submission_result(UUID, TEXT, JSONB, TEXT) IS
+  'Writes a running owner result atomically; stale or expired owners return zero rows.';
 
 -- Match a bounded batch of official Vietnam status emails in one set-based
 -- operation. The service-role submission worker passes only parsed message

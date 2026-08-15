@@ -197,7 +197,14 @@ The current internal automation migrations are:
   the completion RPC keeps its optional controlled timestamp for staging
   harnesses. All three settlement functions are `SECURITY INVOKER`, use an
   empty `search_path`, revoke PUBLIC/anon/authenticated execution, and grant
-  only to `service_role`. The migration also carries the
+  only to `service_role`. A permanent `BEFORE UPDATE` compatibility trigger
+  drops stale lifecycle writes on expired running rows while allowing
+  metadata-only updates; bounded recovery uses transaction-local row/time
+  markers and an exact recovery shape so it remains the only lifecycle bypass.
+  The service-role-only `write_runner_pool_submission_result` RPC locks the
+  exact live owner, samples the post-lock database clock, and atomically writes
+  the application result while changing application status only for
+  `submitted`. The migration also carries the
   `defer_vn_official_status_check` RPC used to return provider-gate-denied
   status checks to the queue without consuming an admission attempt.
 
