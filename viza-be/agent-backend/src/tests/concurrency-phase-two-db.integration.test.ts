@@ -745,6 +745,284 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
     }
   });
 
+  it("skips staff-review candidates, fences staff requeues, and claims after review clears", async () => {
+    const workerId = `runner-fence-review-claim-${Date.now()}`;
+    const fixture = await createFixture({ workerId, maxAttempts: 1 });
+    try {
+      await query(
+        "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'failed', 1, 'review setup', 0)",
+        [fixture.jobId, workerId],
+      );
+      await query(
+        "UPDATE public.runner_job SET status = 'queued' WHERE id = $1",
+        [fixture.jobId],
+      );
+      await query(
+        "UPDATE public.applications SET status = 'staff_action_required' WHERE id = $1",
+        [fixture.applicationId],
+      );
+
+      const skipped = await query(
+        "SELECT * FROM public.claim_runner_pool_job($1::text, 60000, FALSE, NOW() + INTERVAL '1 day')",
+        [workerId],
+      );
+      expect(skipped.rows).toHaveLength(0);
+
+      // A staff-review skip must not leave a claim capability behind that a
+      // later direct queued -> running update could consume.
+      await query(
+        "UPDATE public.applications SET status = 'processing' WHERE id = $1",
+        [fixture.applicationId],
+      );
+      const forged = await query(
+        "UPDATE public.runner_job SET status = 'running' WHERE id = $1 RETURNING id",
+        [fixture.jobId],
+      );
+      expect(forged.rows).toHaveLength(0);
+      await query(
+        "UPDATE public.applications SET status = 'staff_action_required' WHERE id = $1",
+        [fixture.applicationId],
+      );
+
+      await query(
+        "UPDATE public.runner_job SET status = 'failed' WHERE id = $1",
+        [fixture.jobId],
+      );
+      await expect(
+        query("UPDATE public.runner_job SET status = 'queued' WHERE id = $1", [fixture.jobId]),
+      ).rejects.toMatchObject({ code: "55000" });
+      const failed = await query<{ status: string }>(
+        "SELECT status FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      expect(failed.rows[0].status).toBe("failed");
+
+      await query(
+        "UPDATE public.applications SET status = 'processing' WHERE id = $1",
+        [fixture.applicationId],
+      );
+      await query(
+        "UPDATE public.runner_job SET status = 'queued' WHERE id = $1",
+        [fixture.jobId],
+      );
+      const claimed = await query<{ id: string }>(
+        "SELECT id FROM public.claim_runner_pool_job($1::text, 60000, FALSE, NOW() + INTERVAL '1 day') WHERE id = $2",
+        [workerId, fixture.jobId],
+      );
+      expect(claimed.rows).toEqual([{ id: fixture.jobId }]);
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("rejects a claim that races a held application mutex before consuming capability", async () => {
+    const workerId = `runner-fence-review-lock-${Date.now()}`;
+    const fixture = await createFixture({ workerId, maxAttempts: 1 });
+    const blocker = await pool!.connect();
+    const waiter = await pool!.connect();
+    try {
+      await query(
+        "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'failed', 1, 'review lock setup', 0)",
+        [fixture.jobId, workerId],
+      );
+      await query(
+        "UPDATE public.runner_job SET status = 'queued' WHERE id = $1",
+        [fixture.jobId],
+      );
+      await blocker.query("BEGIN");
+      await blocker.query(
+        "SELECT id FROM public.applications WHERE id = $1 FOR UPDATE",
+        [fixture.applicationId],
+      );
+      await expect(
+        waiter.query(
+          "SELECT * FROM public.claim_runner_pool_job($1::text, 60000, FALSE, NOW() + INTERVAL '1 day')",
+          [workerId],
+        ),
+      ).rejects.toMatchObject({ code: "55P03" });
+      await blocker.query("COMMIT");
+      const unchanged = await query<{ status: string }>(
+        "SELECT status FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      expect(unchanged.rows[0].status).toBe("queued");
+      const forged = await query(
+        "UPDATE public.runner_job SET status = 'running' WHERE id = $1 RETURNING id",
+        [fixture.jobId],
+      );
+      expect(forged.rows).toHaveLength(0);
+    } finally {
+      await blocker.query("ROLLBACK").catch(() => undefined);
+      blocker.release();
+      waiter.release();
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("cancels runner and legacy transports atomically and leaves the app untouched on conflict", async () => {
+    const runnerWorker = `runner-fence-cancel-runner-${Date.now()}`;
+    const runner = await createFixture({
+      workerId: runnerWorker,
+      maxAttempts: 1,
+      submissionResult: { keep: true },
+      submissionResultStatus: "processing",
+    });
+    try {
+      await query(
+        "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'failed', 1, 'cancel setup', 0)",
+        [runner.jobId, runnerWorker],
+      );
+      await query("UPDATE public.runner_job SET status = 'queued' WHERE id = $1", [runner.jobId]);
+      const cancelled = await query<{ cancelled: boolean; queue_id: string; queue_transport: string }>(
+        "SELECT * FROM public.cancel_application_submission($1::uuid, $2::uuid, 'runner_job')",
+        [runner.applicationId, runner.jobId],
+      );
+      expect(cancelled.rows).toEqual([
+        { cancelled: true, queue_id: runner.jobId, queue_transport: "runner_job", cancelled_at: expect.any(String) },
+      ]);
+      const runnerState = await query<{ status: string; app_status: string; submission_result: Record<string, unknown> | null }>(
+        `SELECT job.status, application.status AS app_status, application.submission_result
+         FROM public.runner_job AS job
+         JOIN public.applications AS application ON application.id = job.application_id
+         WHERE job.id = $1`,
+        [runner.jobId],
+      );
+      expect(runnerState.rows[0]).toMatchObject({ status: "cancelled", app_status: "draft", submission_result: null });
+    } finally {
+      await cleanupFixture(runner);
+    }
+
+    const legacyWorker = `runner-fence-cancel-legacy-${Date.now()}`;
+    const legacy = await createFixture({
+      workerId: legacyWorker,
+      maxAttempts: 1,
+      submissionResult: { keep: true },
+      submissionResultStatus: "processing",
+    });
+    try {
+      await query(
+        "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'failed', 1, 'legacy cancel setup', 0)",
+        [legacy.jobId, legacyWorker],
+      );
+      const queue = await query<{ id: string }>(
+        `INSERT INTO public.submission_queue (application_id, status)
+         VALUES ($1, 'sgac_live_assisted_pending')
+         RETURNING id`,
+        [legacy.applicationId],
+      );
+      const queueId = queue.rows[0].id;
+      const cancelled = await query<{ cancelled: boolean; queue_id: string; queue_transport: string }>(
+        "SELECT * FROM public.cancel_application_submission($1::uuid, $2::uuid, 'submission_queue')",
+        [legacy.applicationId, queueId],
+      );
+      expect(cancelled.rows).toHaveLength(1);
+      expect(cancelled.rows[0]).toMatchObject({ cancelled: true, queue_id: queueId, queue_transport: "submission_queue" });
+      const queueState = await query<{ status: string; app_status: string }>(
+        `SELECT queue.status, application.status AS app_status
+         FROM public.submission_queue AS queue
+         JOIN public.applications AS application ON application.id = queue.application_id
+         WHERE queue.id = $1`,
+        [queueId],
+      );
+      expect(queueState.rows[0]).toEqual({ status: "sgac_live_assisted_cancelled", app_status: "draft" });
+
+      await query(
+        `UPDATE public.applications
+         SET status = 'submitted', submission_result = '{"keep":true}'::jsonb,
+             submission_result_status = 'submitted'
+         WHERE id = $1`,
+        [legacy.applicationId],
+      );
+      const lockedQueue = await query<{ id: string }>(
+        `INSERT INTO public.submission_queue (application_id, status, locked_by, locked_at, locked_until)
+         VALUES ($1, 'sgac_live_assisted_pending', 'other-worker', NOW(), NOW() + INTERVAL '1 minute')
+         RETURNING id`,
+        [legacy.applicationId],
+      );
+      const conflict = await query(
+        "SELECT * FROM public.cancel_application_submission($1::uuid, $2::uuid, 'submission_queue')",
+        [legacy.applicationId, lockedQueue.rows[0].id],
+      );
+      expect(conflict.rows).toHaveLength(0);
+      const unchanged = await query<{ status: string; submission_result: Record<string, unknown>; submission_result_status: string }>(
+        "SELECT status, submission_result, submission_result_status FROM public.applications WHERE id = $1",
+        [legacy.applicationId],
+      );
+      expect(unchanged.rows[0]).toEqual({ status: "submitted", submission_result: { keep: true }, submission_result_status: "submitted" });
+    } finally {
+      await cleanupFixture(legacy);
+    }
+  });
+
+  it("settles takeovers atomically, rejects conflicts, and rolls back invalid input", async () => {
+    const workerId = `runner-fence-takeover-settle-${Date.now()}`;
+    const fixture = await createFixture({ workerId });
+    try {
+      const opened = await query<{ takeover_id: string }>(
+        "SELECT * FROM public.open_runner_job_takeover($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, NULL)",
+        [fixture.jobId, workerId, fixture.applicationId, fixture.applicantId, "settle test", "wss://runner.invalid/debug"],
+      );
+      expect(opened.rows).toHaveLength(1);
+      const takeoverId = opened.rows[0].takeover_id;
+      const settled = await query<{ settled: boolean; job_id: string; application_id: string; job_status: string }>(
+        "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'completed', $3::text, 2)",
+        [takeoverId, fixture.applicantId, "completed by test"],
+      );
+      expect(settled.rows).toEqual([
+        { settled: true, job_id: fixture.jobId, application_id: fixture.applicationId, job_status: "succeeded" },
+      ]);
+      const finalState = await query<{ session_status: string; job_status: string; actions: string }>(
+        `SELECT session.status AS session_status, job.status AS job_status,
+                (SELECT COUNT(*)::text FROM public.takeover_action_log WHERE takeover_id = session.id) AS actions
+         FROM public.takeover_session AS session
+         JOIN public.runner_job AS job ON job.id = session.job_id
+         WHERE session.id = $1`,
+        [takeoverId],
+      );
+      expect(finalState.rows[0]).toEqual({ session_status: "completed", job_status: "succeeded", actions: "2" });
+
+      const conflict = await query(
+        "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'abandoned', NULL, 0)",
+        [takeoverId, fixture.applicantId],
+      );
+      expect(conflict.rows).toHaveLength(0);
+      const actionCount = await query<{ count: string }>(
+        "SELECT COUNT(*)::text AS count FROM public.takeover_action_log WHERE takeover_id = $1",
+        [takeoverId],
+      );
+      expect(actionCount.rows[0].count).toBe("2");
+    } finally {
+      await cleanupFixture(fixture);
+    }
+
+    const rollbackWorker = `runner-fence-takeover-rollback-${Date.now()}`;
+    const rollbackFixture = await createFixture({ workerId: rollbackWorker });
+    try {
+      const opened = await query<{ takeover_id: string }>(
+        "SELECT * FROM public.open_runner_job_takeover($1::uuid, $2::text, $3::uuid, $4::uuid, $5::text, $6::text, NULL)",
+        [rollbackFixture.jobId, rollbackWorker, rollbackFixture.applicationId, rollbackFixture.applicantId, "rollback test", "wss://runner.invalid/debug"],
+      );
+      const takeoverId = opened.rows[0].takeover_id;
+      await expect(
+        query(
+          "SELECT * FROM public.settle_runner_job_takeover($1::uuid, $2::uuid, 'completed', $3::text, 1)",
+          [takeoverId, rollbackFixture.applicantId, "x".repeat(4001)],
+        ),
+      ).rejects.toMatchObject({ code: "22023" });
+      const unchanged = await query<{ session_status: string; job_status: string; actions: string }>(
+        `SELECT session.status AS session_status, job.status AS job_status,
+                (SELECT COUNT(*)::text FROM public.takeover_action_log WHERE takeover_id = session.id) AS actions
+         FROM public.takeover_session AS session
+         JOIN public.runner_job AS job ON job.id = session.job_id
+         WHERE session.id = $1`,
+        [takeoverId],
+      );
+      expect(unchanged.rows[0]).toEqual({ session_status: "queued", job_status: "needs_human", actions: "1" });
+    } finally {
+      await cleanupFixture(rollbackFixture);
+    }
+  });
+
   it("gates the application-first enqueue/pause race on the explicit local database marker", async () => {
     const fixture = await createFixture({ workerId: `runner-fence-pause-race-${Date.now()}` });
     try {
