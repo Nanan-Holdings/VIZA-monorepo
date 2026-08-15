@@ -23,6 +23,10 @@ kill_timeout = "5m"
   # one-time card handoff must terminate on this same single-memory worker.
   VN_CLOUD_CARD_SESSION_ENABLED = "true"
   VN_OFFICIAL_PAYMENT_AUTOPAY = "true"
+  # Current production acceptance gate: solve the official search flow and
+  # stop only after an empty VNPAY card-number field is visible. No PAN/CVV is
+  # filled and no payment control is submitted while this flag is enabled.
+  VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY = "true"
   # Fly has no X server. Vietnam must launch the bundled browser headlessly;
   # interactive payment challenges are surfaced as explicit checkpoints.
   VN_PLAYWRIGHT_HEADLESS = "true"

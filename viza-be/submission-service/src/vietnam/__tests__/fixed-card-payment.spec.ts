@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "@playwright/test";
 import {
+  advanceVietnamPortalToCardEntry,
   extractVietnamPaymentReceiptReference,
   getVietnamBankAppWaitMs,
   isStandardCharteredBankAppChallenge,
@@ -12,6 +13,35 @@ import {
   waitForStandardCharteredBankAppChallenge,
   vietnamPaymentNeedsHuman,
 } from "../fixed-card-payment";
+
+test("vn.fixed-card-payment: pre-payment QA stops at an empty card field", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <h1>Payment gateway</h1>
+        <label>Card number <input id="cardNumber" /></label>
+        <label>Expiry <input id="cardExpire" placeholder="MM/YY" /></label>
+        <label>CVV <input id="cardCVV" /></label>
+        <button type="button" id="btnContinue" onclick="window.paymentSubmitted = true">Pay</button>
+      </main>
+    `);
+
+    const result = await advanceVietnamPortalToCardEntry({ page, timeoutMs: 2_000 });
+
+    assert.deepEqual(result, { status: "ready" });
+    assert.equal(await page.locator("#cardNumber").inputValue(), "");
+    assert.equal(await page.locator("#cardExpire").inputValue(), "");
+    assert.equal(await page.locator("#cardCVV").inputValue(), "");
+    assert.equal(
+      await page.evaluate(() => Boolean((window as typeof window & { paymentSubmitted?: boolean }).paymentSubmitted)),
+      false,
+    );
+  } finally {
+    await browser.close();
+  }
+});
 
 test("vn.fixed-card-payment: disabled unless both fixed card and autopay flags are enabled", () => {
   assert.equal(loadVietnamFixedCardFromEnv({}), null);

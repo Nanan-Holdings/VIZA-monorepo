@@ -5,6 +5,7 @@ import {
   DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
   DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS,
   DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
+  captureVietnamCaptchaImage,
   describeVietnamCaptchaError,
   fingerprintVietnamCaptchaImage,
   getVietnamCaptchaTimeoutMs,
@@ -105,6 +106,21 @@ test("vn.captcha: rejects an unusable provider answer before filling the portal 
     assert.match(outcome.reason ?? "", /expected 4-8 alphanumeric characters/);
     assert.deepEqual(receivedConstraints, { minLength: 4, maxLength: 8 });
     assert.equal(await page.locator("input").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: never screenshots a broken image placeholder for the solver", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<img alt="captcha img" src="https://invalid.invalid/missing-captcha.png" />');
+    const image = page.locator('img[alt="captcha img"]');
+    await assert.rejects(
+      captureVietnamCaptchaImage(image, 2_000),
+      /not loaded|placeholder/i,
+    );
   } finally {
     await browser.close();
   }

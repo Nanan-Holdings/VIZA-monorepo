@@ -165,7 +165,12 @@ function isOfficialVietnamPaymentInformationPage(bodyText: string): boolean {
   );
 }
 
-type VietnamCardBrand = "visa" | "mastercard" | "jcb" | "amex";
+export type VietnamCardBrand = "visa" | "mastercard" | "jcb" | "amex";
+
+export interface VietnamCardEntryResult {
+  status: "ready" | "not_ready";
+  reason?: string;
+}
 
 function detectVietnamCardBrand(card: VietnamFixedCard): VietnamCardBrand {
   if (/^4/.test(card.pan)) return "visa";
@@ -651,7 +656,10 @@ export async function waitForStandardCharteredBankAppChallenge(input: {
   return "timed_out";
 }
 
-async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCard): Promise<void> {
+async function prepareVietcombankGatewayForCardBrand(
+  page: Page,
+  brand: VietnamCardBrand,
+): Promise<void> {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (!/vietcombank|vnpay|select payment method|international payment cards/i.test(bodyText)) return;
 
@@ -663,7 +671,6 @@ async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCa
     await page.waitForTimeout(750);
   }
 
-  const brand = detectVietnamCardBrand(card);
   let brandSelected = await selectVietcombankCardBrand(page, brand);
   if (!brandSelected) {
     await expandVietcombankInternationalCards(page);
@@ -734,6 +741,82 @@ async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCa
   }
 }
 
+async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCard): Promise<void> {
+  await prepareVietcombankGatewayForCardBrand(page, detectVietnamCardBrand(card));
+}
+
+const VIETNAM_CARD_NUMBER_SELECTOR = [
+  'input[autocomplete="cc-number"]',
+  'input[placeholder*="card number" i]',
+  'input[name*="card" i][name*="number" i]',
+  'input[id*="card" i][id*="number" i]',
+  'input[aria-label*="card" i][aria-label*="number" i]',
+].join(", ");
+
+/**
+ * Advances through the official payment-information and VNPAY method screens
+ * until an empty card-number field is visible.  This helper never receives,
+ * fills, or submits card details and is therefore safe for pre-payment QA.
+ */
+export async function advanceVietnamPortalToCardEntry(input: {
+  page: Page;
+  cardBrand?: VietnamCardBrand;
+  timeoutMs?: number;
+}): Promise<VietnamCardEntryResult> {
+  const { page } = input;
+  let bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  if (isOfficialVietnamPaymentInformationPage(bodyText)) {
+    const advanced = await advanceOfficialVietnamPaymentInformationPage(page);
+    if (!advanced) {
+      return {
+        status: "not_ready",
+        reason: "Could not advance from the official Vietnam payment information page.",
+      };
+    }
+    bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+  }
+  if (!isLikelyPaymentGateway(page.url(), bodyText)) {
+    return {
+      status: "not_ready",
+      reason: "The official Vietnam flow did not reach a supported payment gateway.",
+    };
+  }
+  if (vietnamPaymentNeedsHuman(bodyText)) {
+    return {
+      status: "not_ready",
+      reason: "The payment gateway requested authentication before exposing the card form.",
+    };
+  }
+
+  await prepareVietcombankGatewayForCardBrand(page, input.cardBrand ?? "visa");
+  const deadline = Date.now() + Math.max(1_000, Math.min(input.timeoutMs ?? 30_000, 60_000));
+  while (Date.now() < deadline && !page.isClosed()) {
+    const cardInput = page.locator(VIETNAM_CARD_NUMBER_SELECTOR).first();
+    if (await cardInput.isVisible({ timeout: 500 }).catch(() => false)) {
+      const value = await cardInput.inputValue({ timeout: 1_000 }).catch(() => "");
+      if (value.trim()) {
+        return {
+          status: "not_ready",
+          reason: "The card form was not empty; pre-payment QA stopped without changing it.",
+        };
+      }
+      return { status: "ready" };
+    }
+    bodyText = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+    if (/payment\s+failed.*recreate\s+profile|recreate\s+profile\s+and\s+retry\s+payment/i.test(bodyText)) {
+      return {
+        status: "not_ready",
+        reason: "The official portal rejected this payment profile before the card form.",
+      };
+    }
+    await page.waitForTimeout(500);
+  }
+  return {
+    status: "not_ready",
+    reason: "The VNPAY card-number field did not become visible before the bounded wait expired.",
+  };
+}
+
 export async function payVietnamPortalWithFixedCard(input: {
   page: Page;
   card: VietnamFixedCard;
@@ -783,13 +866,7 @@ export async function payVietnamPortalWithFixedCard(input: {
     };
   }
 
-  const cardNumberFilled = await fillFirstVisible(page, [
-    'input[autocomplete="cc-number"]',
-    'input[placeholder*="card number" i]',
-    'input[name*="card" i][name*="number" i]',
-    'input[id*="card" i][id*="number" i]',
-    'input[aria-label*="card" i][aria-label*="number" i]',
-  ], card.pan);
+  const cardNumberFilled = await fillFirstVisible(page, VIETNAM_CARD_NUMBER_SELECTOR.split(", "), card.pan);
   if (!cardNumberFilled) {
     return {
       status: "needs_human",

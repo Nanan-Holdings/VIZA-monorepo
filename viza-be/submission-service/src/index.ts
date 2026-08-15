@@ -3958,7 +3958,14 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     if (autopayEnabled && !dryRunReceipt) {
       const { profile, application } = await loadApplicantData(item.application_id);
       const answers = await loadDs160Answers(item.application_id).catch(() => ({}));
-      const email = await getVietnamOfficialLookupEmail(profile.id);
+      const submittedOfficialEmail = readAnswerValue(answers, [
+        "email_address",
+        "re_enter_email_address",
+        "email",
+      ])?.trim().toLowerCase() ?? null;
+      const email = submittedOfficialEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submittedOfficialEmail)
+        ? submittedOfficialEmail
+        : await getVietnamOfficialLookupEmail(profile.id);
       const dateOfBirth = readAnswerValue(answers, [
         "date_of_birth",
         "birth_date",
@@ -3971,11 +3978,15 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       const diagnosticsDir = path.resolve("diag-out", "vn-payment", item.id);
       fs.mkdirSync(diagnosticsDir, { recursive: true });
       const screenshotPath = path.join(diagnosticsDir, "payment-resume.png");
+      const stopBeforeCardEntry = readBooleanEnv(
+        "VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY",
+        false,
+      );
       const cardSession = await consumeVietnamCardSessionWithGrace(
         item.application_id,
         vietnamCardSessionsEnabled(),
       );
-      if (!cardSession && isManagedVirtualCardIntent(intent)) {
+      if (!stopBeforeCardEntry && !cardSession && isManagedVirtualCardIntent(intent)) {
         managedIssuerCard = await ensurePhotonPayEscrowCard({
           applicationId: item.application_id,
           officialFeePaymentIntentId: intent.id,
@@ -3991,8 +4002,58 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         headless: readBooleanEnv("VN_PLAYWRIGHT_HEADLESS", false),
         screenshotPath,
         timeoutMs: readNumberEnv("VN_PAYMENT_RESUME_TIMEOUT_MS", 180_000),
-        card: cardSession ?? (managedIssuerCard ? photonPayCardToOneTimeCard(managedIssuerCard) : null),
+        // In pre-payment QA mode the one-time session is deliberately
+        // consumed and discarded so it cannot keep the Machine alive or be
+        // used by a later retry. The browser stops at an empty card field.
+        card: stopBeforeCardEntry
+          ? null
+          : cardSession ?? (managedIssuerCard ? photonPayCardToOneTimeCard(managedIssuerCard) : null),
+        stopBeforeCardEntry,
       });
+      if (payment.status === "card_entry_ready") {
+        await updateVnQueueRow(
+          item.id,
+          {
+            status: "vn_blocked",
+            attempts: item.attempts + 1,
+            last_error: null,
+            current_stage: "official_fee_card_entry_ready",
+            payment_status: "card_entry_ready",
+            official_status: "payment_card_entry_ready",
+            error_code: null,
+            error_message: null,
+            manual_action_status: "completed",
+            vn_result_payload: {
+              ...(item.vn_result_payload ?? {}),
+              status: "payment_card_entry_ready",
+              checkpoint: "card_entry_ready",
+              officialFeePaymentIntentId: intent?.id ?? null,
+              officialFeeSchemaFallback: fallbackAuthorized,
+              registrationCodeCaptured: true,
+              screenshotPath,
+              paymentDiagnostics: payment.diagnostics ?? null,
+              paymentSubmitted: false,
+            },
+            heartbeat_at: now,
+            updated_at: now,
+          },
+          {
+            status: "vn_blocked",
+            attempts: item.attempts + 1,
+            last_error: null,
+            updated_at: now,
+          },
+        );
+        await supabase
+          .from("applications")
+          .update({
+            official_fee_status: "official_fee_card_entry_ready",
+            ...(intent ? { official_fee_payment_intent_id: intent.id } : {}),
+            updated_at: now,
+          })
+          .eq("id", item.application_id);
+        return;
+      }
       if (payment.status === "paid") {
         if (managedIssuerCard) {
           await finalizePhotonPayEscrowCard(managedIssuerCard, item.id, "consumed");
