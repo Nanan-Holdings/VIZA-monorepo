@@ -96,12 +96,13 @@ export async function runFaceMatch(applicationId: string): Promise<FaceMatchActi
       .eq("application_id", app.id)
       .in("status", ["queued", "processing"]);
 
-    // Same for runner_job (INFRA-002 backing table).
-    await adminClient
-      .from("runner_job")
-      .update({ status: "paused" })
-      .eq("application_id", app.id)
-      .in("status", ["queued", "running"]);
+    const { error: runnerPauseError } = await adminClient.rpc("pause_runner_jobs_for_review", {
+      p_application_id: app.id,
+      p_reason: `face_match_${decision}:${result.score.toFixed(2)}`,
+    });
+    if (runnerPauseError) {
+      throw new Error(`runner_job pause: ${runnerPauseError.message}`);
+    }
   }
 
   return { ok: true, score: result.score, decision };
