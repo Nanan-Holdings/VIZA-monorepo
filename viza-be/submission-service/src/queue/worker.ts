@@ -30,7 +30,7 @@ export interface RunnerJob {
   id: string;
   application_id: string;
   country: string;
-  flow_key: string;
+  flow_key: string | null;
   attempts: number;
   max_attempts: number;
   correlation_id: string | null;

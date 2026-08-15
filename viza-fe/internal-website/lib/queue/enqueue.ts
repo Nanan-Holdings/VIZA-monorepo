@@ -5,6 +5,7 @@ import {
 import { assertKnownCountry } from "@/lib/queue/countries";
 import {
   resolveRunnerPoolFlow,
+  isSharedRunnerPoolCountry,
   shouldUseSharedRunnerPool,
   type RunnerPoolFlowKey,
 } from "@/lib/queue/flows";
@@ -490,7 +491,18 @@ export async function enqueueRunnerJob(
     }
     return (data.visa_type as string | null) ?? null;
   });
-  const flowKey = opts.flowKey ?? resolveRunnerPoolFlow(normalizedCountry, visaType);
+  const resolvedFlowKey = resolveRunnerPoolFlow(normalizedCountry, visaType);
+  if (opts.flowKey !== undefined && opts.flowKey !== resolvedFlowKey) {
+    throw new Error(
+      `runner_job flow_key mismatch: expected ${resolvedFlowKey ?? "none"}, received ${opts.flowKey}`,
+    );
+  }
+  const flowKey = resolvedFlowKey;
+  if (isSharedRunnerPoolCountry(normalizedCountry) && !flowKey) {
+    throw new Error(
+      `runner_job: unsupported or ambiguous shared-pool visa flow for ${normalizedCountry}`,
+    );
+  }
   if (isIndonesiaEVisaApplication(normalizedCountry, visaType)) {
     const isB1 = visaType?.trim().toUpperCase().includes("B1") ?? false;
     const status = isB1
