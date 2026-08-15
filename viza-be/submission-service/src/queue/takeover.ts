@@ -17,6 +17,7 @@ import { RunnerJobOwnershipLostError } from "./execution-context.js";
 
 export interface RequestTakeoverInput {
   jobId: string;
+  workerId: string;
   applicationId: string;
   applicantId: string;
   reason: string;
@@ -32,9 +33,10 @@ export async function requestHumanTakeover(
     .update({
       status: "needs_human",
       last_error: input.reason,
-      updated_at: new Date().toISOString(),
     })
     .eq("id", input.jobId)
+    .eq("status", "running")
+    .eq("leased_by", input.workerId)
     .select("id")
     .maybeSingle();
   if (jobErr) throw new Error(`runner_job update: ${jobErr.message}`);
