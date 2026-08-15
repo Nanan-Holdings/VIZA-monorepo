@@ -151,6 +151,37 @@ describe("runner pool concurrency phase two migration", () => {
 		expect(productionClaimBody).toMatch(/claim_runner_pool_job_core[\s\S]*?NULL::UUID[\s\S]*?FALSE/i);
 	});
 
+	it("rechecks expired recovery scope after application-first locking", () => {
+		expect(functionBody).toMatch(
+			/SELECT expired\.id,\s*expired\.application_id[\s\S]*?INTO v_expired_job_id,\s*v_expired_application_id/i,
+		);
+		const expiredCandidate = functionBody.match(
+			/ WITH expired AS MATERIALIZED \([\s\S]*?\n\s*\)\s*\n\s*SELECT expired\.id,\s*expired\.application_id[\s\S]*?FROM expired;/i,
+		)?.[0] ?? "";
+		expect(expiredCandidate).not.toMatch(/FOR UPDATE/i);
+		const applicationLock = functionBody.search(
+			/SELECT application\.status[\s\S]*?INTO v_expired_application_status[\s\S]*?v_expired_application_id[\s\S]*?FOR UPDATE;/i,
+		);
+		const jobLock = functionBody.search(
+			/SELECT job\.\*[\s\S]*?INTO v_expired_old_row[\s\S]*?job\.id = v_expired_job_id[\s\S]*?FOR UPDATE SKIP LOCKED;/i,
+		);
+		expect(applicationLock).toBeGreaterThan(-1);
+		expect(jobLock).toBeGreaterThan(applicationLock);
+		expect(functionBody).toMatch(/v_expired_application_status = 'staff_action_required'/i);
+		expect(functionBody).toMatch(
+			/v_expired_old_row\.metadata -> 'concurrency_load_synthetic' = 'true'::JSONB/i,
+		);
+		expect(functionBody).toMatch(
+			/v_expired_old_row\.metadata ->> 'concurrency_load_run_id' = p_scope_run_id::TEXT/i,
+		);
+		expect(functionBody).toMatch(
+			/v_expired_old_row\.correlation_id LIKE 'concurrency-load:' \|\| p_scope_run_id::TEXT \|\| ':%'/i,
+		);
+		expect(functionBody).toMatch(
+			/v_now := pg_catalog\.clock_timestamp\(\)[\s\S]*?v_expired_old_row\.leased_until IS NULL[\s\S]*?v_expired_old_row\.leased_until > v_now/i,
+		);
+	});
+
   it("defines the exact service-role claim RPC identity and return contract", () => {
     expect(canonicalSql).toMatch(
       /CREATE OR REPLACE FUNCTION public\.claim_runner_pool_job\(\s*p_worker_id TEXT,\s*p_lease_ms INTEGER DEFAULT 900000,\s*p_require_slot BOOLEAN DEFAULT TRUE,\s*p_now TIMESTAMPTZ DEFAULT NOW\(\)\s*\)/i,
@@ -180,10 +211,14 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).not.toContain("pg_try_advisory_xact_lock(hashtext('viza-runner-pool-claim'))");
   });
 
-  it("recovers at most one expired lease with an ordered SKIP LOCKED CTE and conditional update", () => {
+  it("selects at most one expired lease before app-first locking and conditionally updates", () => {
     expect(canonicalSql).toMatch(
-      /WITH expired AS MATERIALIZED \([\s\S]*?SELECT expired\.id[\s\S]*?FROM public\.runner_job AS expired[\s\S]*?ORDER BY[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE(?: OF expired)? SKIP LOCKED[\s\S]*?\)[\s\S]*?SELECT expired\.id[\s\S]*?INTO v_expired_job_id/i,
+      /WITH expired AS MATERIALIZED \([\s\S]*?SELECT expired\.id, expired\.application_id[\s\S]*?FROM public\.runner_job AS expired[\s\S]*?ORDER BY[\s\S]*?LIMIT 1\s*\)[\s\S]*?SELECT expired\.id, expired\.application_id[\s\S]*?INTO v_expired_job_id, v_expired_application_id/i,
     );
+    const expiredCandidate = canonicalSql.match(
+      /WITH expired AS MATERIALIZED \([\s\S]*?\n\s*\)\s*\n\s*SELECT expired\.id, expired\.application_id[\s\S]*?FROM expired;/i,
+    )?.[0] ?? "";
+    expect(expiredCandidate).not.toMatch(/FOR UPDATE/i);
     expect(canonicalSql).toMatch(
       /INSERT INTO runner_private\.runner_job_update_capability[\s\S]*?'recover'[\s\S]*?old_row[\s\S]*?new_row[\s\S]*?UPDATE public\.runner_job AS job[\s\S]*?WHERE job\.id = v_expired_job_id[\s\S]*?job\.status = 'running'[\s\S]*?job\.leased_until <= v_now/i,
     );
@@ -716,6 +751,10 @@ describe("runner pool concurrency phase two migration", () => {
     expect(integrationSource).toMatch(/real-load-row/);
     expect(integrationSource).toMatch(/toHaveLength\(10\)/i);
     expect(integrationSource).toMatch(/owner_machine_id = ANY/i);
+    expect(integrationSource).toMatch(/rechecks scoped expired recovery/i);
+    expect(integrationSource).toMatch(/purpose = 'real-load-row'/i);
+    expect(integrationSource).toMatch(/staff_action_required/i);
+    expect(integrationSource).toMatch(/scoped recovery pause race/i);
   });
 
   it("keeps the trigger and result RPC in the CLI mirror", () => {
