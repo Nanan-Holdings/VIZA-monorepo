@@ -21,8 +21,8 @@ export const LOAD_COUNTRIES = [
 	"south_korea",
 ] as const;
 
-const FLOW_KEY_BY_COUNTRY: Record<(typeof LOAD_COUNTRIES)[number], string> = {
-	vietnam: "vn_evisa",
+export const FLOW_KEY_BY_COUNTRY: Record<(typeof LOAD_COUNTRIES)[number], string> = {
+	vietnam: "vn_prearrival",
 	singapore: "sgac",
 	malaysia: "mdac",
 	thailand: "tdac",
