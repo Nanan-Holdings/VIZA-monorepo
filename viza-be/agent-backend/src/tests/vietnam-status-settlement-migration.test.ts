@@ -171,7 +171,7 @@ describe("Vietnam status settlement fence migration", () => {
     ]) {
       expect(canonicalSql).toMatch(new RegExp(`${name}[\\s\\S]*?SECURITY DEFINER[\\s\\S]*?SET search_path = ''`, "i"));
     }
-    expect(canonicalSql).toMatch(/REVOKE ALL ON TABLE public\.official_status_checks[\s\S]*?FROM anon, authenticated/i);
+    expect(canonicalSql).toMatch(/REVOKE ALL ON TABLE public\.official_status_checks[\s\S]*?FROM PUBLIC, anon, authenticated/i);
     expect(canonicalSql).toMatch(/GRANT ALL ON TABLE public\.official_status_checks[\s\S]*?TO service_role/i);
   });
 });
