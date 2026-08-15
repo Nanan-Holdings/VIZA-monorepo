@@ -18,6 +18,11 @@ import {
   type PhEtravelPostSignatureSemantic,
 } from "./wizard-semantics";
 import { buildPhEtravelProfileOwnedActionPlan } from "./profile-owned-preflight";
+import {
+  buildPhEtravelInitialRegistrationPlan,
+  PhEtravelInitialRegistrationError,
+  type PhEtravelInitialRegistrationChoice,
+} from "./registration-start";
 
 export type PhEtravelFieldKind = "text" | "date" | "choice" | "checkbox";
 
@@ -29,7 +34,30 @@ export interface PhEtravelFieldPlanItem {
   kind: PhEtravelFieldKind;
   value: string | boolean | null;
   required?: boolean;
+  repeatable?: boolean;
+  minimumItems?: number;
 }
+
+export const PH_ETRAVEL_HEALTH_STATIC_WARNING =
+  "As of July 22, 2023, No Covid-19 test or Vaccination requirement when traveling to the Philippines.";
+
+export const PH_ETRAVEL_HEALTH_SYMPTOM_LABELS = [
+  "Altered Mental Status",
+  "Colds",
+  "Cough",
+  "Diarrhea",
+  "Difficulty of Breathing",
+  "Dizziness",
+  "Fever",
+  "Headache",
+  "Loss of appetite",
+  "Loss of smell",
+  "Loss of taste",
+  "Muscle Pain",
+  "Nausea",
+  "Rashes, vesicles or blisters",
+  "Sore throat",
+] as const;
 
 export interface PhEtravelFormFillResult {
   reachedReview: boolean;
@@ -1127,12 +1155,17 @@ export function buildPhEtravelFieldPlan(
     { key: "under_18_count", labels: ["Below 18 yrs. old"], kind: "choice", value: payload.accompaniedUnder18Count ?? "0" },
     { key: "adult_count", labels: ["18 yrs. old and above"], kind: "choice", value: payload.accompanied18PlusCount ?? "0" },
     { key: "first_visit", labels: ["First time visiting Philippines"], kind: "choice", value: yesNo(payload.firstTimeVisitingPhilippines) },
-    { key: "health_recent_travel", portalName: "meta.with_recent_travel_history", labels: ["recent travel history in the last 30 days"], kind: "choice", value: yesNo(payload.hasRecentTravelHistory30d), required: true },
-    ...(payload.visitedCountries30d ?? []).map((country, index) => ({ key: `visited_country_${index}`, labels: ["Country(ies) worked, visited and transited in the last 30 days"], kind: "choice" as const, value: resolvedOptionLabel(country, officialLabels) })),
-    { key: "health_exposure", portalName: "is_with_history_exposure", labels: ["history of exposure to a person who is sick"], kind: "choice", value: yesNo(payload.hasExposureToSickPerson30d), required: true },
-    { key: "health_sick", portalName: "is_sicked_within_thirty_days", labels: ["been sick in the past 30 days"], kind: "choice", value: yesNo(payload.hasBeenSick30d), required: true },
-    ...(payload.sicknessSymptoms ?? []).map((symptom, index) => ({ key: `sickness_symptom_${index}`, labels: ["Symptoms", "Symptom"], kind: "choice" as const, value: resolvedOptionLabel(symptom, officialLabels) })),
-    { key: "health_details", labels: ["Health Declaration Details", "Symptoms Details"], kind: "text", value: payload.healthSymptomsDetails },
+    { key: "health_recent_travel", portalName: "meta.with_recent_travel_history", labels: ["Do you have any recent travel history in the last 30 days?"], kind: "choice", value: yesNo(payload.hasRecentTravelHistory30d), required: true },
+    ...(payload.hasRecentTravelHistory30d ? [
+      { key: "visited_countries", portalName: "visited_countries", labels: ["Country(ies) worked, visited and transited in the last 30 days"], kind: "choice" as const, value: null, required: true, repeatable: true, minimumItems: 1 },
+      ...(payload.visitedCountries30d ?? []).map((country, index) => ({ key: `visited_country_${index}`, portalName: "visited_countries", labels: ["Country(ies) worked, visited and transited in the last 30 days"], kind: "choice" as const, value: resolvedOptionLabel(country, officialLabels), required: true, repeatable: true, minimumItems: 1 })),
+    ] : []),
+    { key: "health_exposure", portalName: "is_with_history_exposure", labels: ["Have you had any history of exposure to a person who is sick or known to have communicable/infectious disease in the past 30 days prior to travel?"], kind: "choice", value: yesNo(payload.hasExposureToSickPerson30d), required: true },
+    { key: "health_sick", portalName: "is_sicked_within_thirty_days", labels: ["Have you been sick in the past 30 days?"], kind: "choice", value: yesNo(payload.hasBeenSick30d), required: true },
+    ...(payload.hasBeenSick30d ? [
+      { key: "sickness_symptoms", portalName: "sickness_symptoms", labels: ["Symptoms"], kind: "choice" as const, value: null, required: true, repeatable: true, minimumItems: 1 },
+      ...(payload.sicknessSymptoms ?? []).map((symptom, index) => ({ key: `sickness_symptom_${index}`, portalName: "sickness_symptoms", labels: ["Symptoms"], kind: "choice" as const, value: resolvedOptionLabel(symptom, officialLabels), required: true, repeatable: true, minimumItems: 1 })),
+    ] : []),
     ...customsDeclarationPlan(payload),
   ];
 }
@@ -1570,27 +1603,85 @@ async function clickVisibleButton(page: Page, pattern: RegExp): Promise<boolean>
   return true;
 }
 
+async function selectInitialRegistrationChoice(
+  page: Page,
+  choice: PhEtravelInitialRegistrationChoice,
+): Promise<boolean> {
+  const namedRadio = page.locator(
+    `input[type="radio"][name="${choice.key}"][value="${choice.value}"]`,
+  ).first();
+  if (await namedRadio.isVisible().catch(() => false)) {
+    await namedRadio.check({ force: true, timeout: 5_000 }).catch(() => undefined);
+    return namedRadio.isChecked().catch(() => false);
+  }
+
+  const roleRadio = page.getByRole("radio", { name: choice.label }).first();
+  if (await roleRadio.isVisible().catch(() => false)) {
+    await roleRadio.check({ force: true, timeout: 5_000 }).catch(async () => {
+      await roleRadio.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+    });
+    return roleRadio.isChecked().catch(() => false);
+  }
+
+  const label = page.locator("label").filter({ hasText: choice.label }).first();
+  if (!await label.isVisible().catch(() => false)) return false;
+  await label.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+  const nestedRadio = label.locator("input[type='radio']").first();
+  if (await nestedRadio.count().catch(() => 0)) {
+    return nestedRadio.isChecked().catch(() => false);
+  }
+  const selectedCard = page.locator("[role='radio'][aria-checked='true']").filter({ hasText: choice.label }).first();
+  return selectedCard.isVisible().catch(() => false);
+}
+
 async function chooseInitialRegistration(page: Page, completed: Set<string>, payload: PhEtravelPortalPayload): Promise<boolean> {
   const portalText = await page.locator("body").innerText().catch(() => "");
   if (!/Travel Registration/i.test(portalText)) return false;
 
-  const choices: Array<[string, RegExp]> = [
-    ["registration_for", /FOR ME\s*\(Current User\)/i],
-    ["transport_type", payload.arrivalBranch?.transportType === "SEA" || payload.transportType === "SEA" ? /^SEA$/i : /^AIR$/i],
-    ["passport_holder_type", payload.arrivalBranch?.passportHolderType === "FILIPINO" || payload.passportHolderType === "FILIPINO"
-      ? /PHILIPPINE\s+PASSPORT|FILIPINO/i
-      : /FOREIGN\s+PASSPORT|FOREIGNER/i],
-    ["travel_type", payload.travelType === "DEPARTURE" ? /DEPARTURE\s*Leaving the Philippines/i : /ARRIVAL\s*Entering the Philippines/i],
-  ];
-  for (const [key, pattern] of choices) {
-    const target = await firstVisible([
-      page.getByText(pattern),
-      page.locator("label, button, [role='radio'], div").filter({ hasText: pattern }),
-    ]);
-    if (target) {
-      await target.click({ force: true, timeout: 5_000 });
-      completed.add(key);
+  let registrationPlan;
+  try {
+    registrationPlan = buildPhEtravelInitialRegistrationPlan(payload);
+  } catch (error) {
+    if (!(error instanceof PhEtravelInitialRegistrationError)) throw error;
+    throw new PhEtravelFormFillError(error.message, error.code, error.code);
+  }
+  for (const choice of registrationPlan.choices) {
+    if (!await selectInitialRegistrationChoice(page, choice)) {
+      throw new PhEtravelFormFillError(
+        `Official eTravel did not retain the expected ${choice.value} registration choice.`,
+        "ph_etravel_initial_registration_selection_failed",
+        choice.key,
+      );
     }
+    completed.add(choice.key);
+  }
+
+  // The consent record only authorizes Continue. It is deliberately not added
+  // to the official field plan or submission payload.
+  completed.add("registration_consent_authorized");
+
+  if (registrationPlan.continuation === "for_other_action_required") {
+    throw new PhEtravelFormFillError(
+      "Philippines eTravel FOR OTHER continuation is not verified after the selected Travel Registration branch.",
+      "ph_etravel_arrival_for_other_action_required",
+      "registration_for",
+    );
+  }
+
+  const passportHolderPattern = payload.arrivalBranch?.passportHolderType === "FILIPINO" || payload.passportHolderType === "FILIPINO"
+    ? /PHILIPPINE\s+PASSPORT|FILIPINO/i
+    : /FOREIGN\s+PASSPORT|FOREIGNER/i;
+  const passportHolder = page.getByRole("radio", { name: passportHolderPattern }).first();
+  if (await passportHolder.isVisible().catch(() => false)) {
+    await passportHolder.check({ force: true, timeout: 5_000 }).catch(() => undefined);
+    if (!await passportHolder.isChecked().catch(() => false)) {
+      throw new PhEtravelFormFillError(
+        "Official eTravel did not retain the expected passport-holder choice.",
+        "ph_etravel_initial_registration_selection_failed",
+        "passport_holder_type",
+      );
+    }
+    completed.add("passport_holder_type");
   }
 
   const specialFlight = await firstVisible([page.getByLabel(/Special Flight/i)]);

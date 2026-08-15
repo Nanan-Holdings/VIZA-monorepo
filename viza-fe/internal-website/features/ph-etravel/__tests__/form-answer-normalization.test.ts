@@ -17,12 +17,26 @@ describe("Philippines eTravel form answer normalization", () => {
     expect(air.clearedFieldNames).not.toContain("hotel_name_or_address");
   });
 
-  test("clears only observed Health positive branches", () => {
+  test("clears the current Health child field names when a parent is No", () => {
     const result = normalizePhEtravelArrivalFormAnswers({
-      has_recent_travel_history_30d: "no", visited_countries_30d: "PH", has_been_sick_30d: "yes", sickness_symptoms: "cough",
+      has_recent_travel_history_30d: "no",
+      visited_country_30d: "PH",
+      has_been_sick_30d: "yes",
+      sickness_symptom: "SS002",
     });
-    expect(result.values.visited_countries_30d).toBe("");
-    expect(result.values.sickness_symptoms).toBe("cough");
+    expect(result.values.visited_country_30d).toBe("");
+    expect(result.values.sickness_symptom).toBe("SS002");
+    expect(result.clearedFieldNames).toContain("visited_country_30d");
+  });
+
+  test("clears symptom selections when the sick answer switches to No", () => {
+    const result = normalizePhEtravelArrivalFormAnswers({
+      has_been_sick_30d: "no",
+      sickness_symptom: "SS002",
+    });
+
+    expect(result.values.sickness_symptom).toBe("");
+    expect(result.clearedFieldNames).toContain("sickness_symptom");
   });
 
   test("clears Owner and recipient values only on electronic positive Owner N/A", () => {

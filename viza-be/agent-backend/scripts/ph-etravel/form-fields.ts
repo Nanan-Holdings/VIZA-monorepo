@@ -1,6 +1,5 @@
 import {
   type PhEtravelOption,
-  PH_ETRAVEL_AIRLINE_OPTIONS,
   PH_ETRAVEL_AIR_TRANSIT_PORT_OPTIONS,
   PH_ETRAVEL_COUNTRY_OPTIONS,
   PH_ETRAVEL_CURRENCY_PURPOSE_OPTIONS,
@@ -16,7 +15,6 @@ import {
   PH_ETRAVEL_MONETARY_INSTRUMENT_OPTIONS,
   PH_ETRAVEL_OCCUPATION_OPTIONS,
   PH_ETRAVEL_PASSPORT_HOLDER_OPTIONS,
-  PH_ETRAVEL_PORT_OF_ENTRY_OPTIONS,
   PH_ETRAVEL_PURPOSE_OPTIONS,
   PH_ETRAVEL_SEA_PORT_OPTIONS,
   PH_ETRAVEL_SEX_OPTIONS,
@@ -200,12 +198,12 @@ export const PH_ETRAVEL_E18_SYNTHETIC_SCENARIO_READINESS: readonly PhEtravelE18S
       "residence.country_code", "residence.region_code", "residence.province_code", "residence.municipality_code", "residence.barangay_code",
       "residence.address_line1", "residence.address_line2",
     ],
-    schema_fields_present: ["registration_for", "traveller_type", "first_name", "middle_name", "last_name", "suffix", "sex", "mobile_number", "country_of_residence", "residence_address_line1", "residence_address_line2"],
-    non_schema_or_unsupported_keys: ["profile.photo_url", "residence.region_code", "residence.province_code", "residence.municipality_code", "residence.barangay_code"],
+    schema_fields_present: ["registration_for", "transport_type", "flight_type", "registration_data_privacy_affidavit_consent", "traveller_type", "first_name", "middle_name", "last_name", "suffix", "sex", "mobile_number", "country_of_residence", "residence_province_code", "residence_municipality_code", "residence_barangay_code", "residence_address_line1", "residence_address_line2"],
+    non_schema_or_unsupported_keys: ["profile.photo_url", "residence.region_code"],
     branch_boundary: "ordinary_profile_and_foreign_or_philippine_residence_branch",
     requiredness_boundary: "profile_photo_and_residence_requiredness_not_closed",
-    option_source_boundary: "countries_dynamic_code_identity_residence_cascade_unobserved",
-    minimum_schema_delta_after_official_evidence: "add_only_observed_residence_cascade_or_photo_contract_metadata_without_file_requirement_inference",
+    option_source_boundary: "countries_and_PH_residence_cascade_use_verified_official_dynamic_code_identity",
+    minimum_schema_delta_after_official_evidence: "photo_contract_only; PH_residence_cascade_is_now_schema_owned",
     confirmed_live_keys: ["traveller.first_name", "traveller.middle_name", "traveller.last_name", "traveller.suffix", "traveller.sex"],
   },
   {
@@ -234,7 +232,7 @@ export const PH_ETRAVEL_E18_SYNTHETIC_SCENARIO_READINESS: readonly PhEtravelE18S
     schema_fields_present: ["with_negative_antigen", "has_recent_travel_history_30d", "visited_country_30d", "has_exposure_to_sick_person_30d", "has_been_sick_30d", "sickness_symptom"],
     non_schema_or_unsupported_keys: ["health.exposed_to_bats_or_sick_animals"],
     branch_boundary: "health_inherited_vaccination_age_antigen_predicate_and_yes_children_only_no_factual_health_data",
-    requiredness_boundary: "health_positive_branch_requiredness_not_closed",
+    requiredness_boundary: "health_screenshot_confirms_base_radios_and_positive_group_minimums_but_server_acceptance_remains_review",
     option_source_boundary: "sickness_options_and_country_children_remain_dynamic_or_needs_review",
     minimum_schema_delta_after_official_evidence: "close_only_live_rendered_requiredness_option_interaction_and_server_acceptance_for_existing_health_controls",
   },
@@ -306,6 +304,7 @@ export const PH_ETRAVEL_E18_SYNTHETIC_SCENARIO_READINESS: readonly PhEtravelE18S
 
 export type PhEtravelApplicantQuestionOwner =
   | "schema"
+  | "viza_audit"
   | "profile_owned"
   | "runtime"
   | "result"
@@ -337,8 +336,13 @@ const FOR_WHOM_OPTIONS = [
   option("FOR_OTHER", "他人（家人）", "For other (Family Member)"),
 ];
 
+const ARRIVAL_ONLY_OPTIONS = [
+  option("ARRIVAL", "入境菲律宾", "Arrival (Entering the Philippines)"),
+];
+
 const IS_AIR = "transport_type === AIR";
 const IS_SEA = "transport_type === SEA";
+const IS_PH_RESIDENCE = "country_of_residence === PH";
 const HAS_TRANSIT = "with_transit === true";
 const HAS_AIR_TRANSIT = `${IS_AIR} && ${HAS_TRANSIT}`;
 const HAS_SEA_TRANSIT = `${IS_SEA} && ${HAS_TRANSIT}`;
@@ -356,6 +360,7 @@ const HAS_BEEN_SICK = "has_been_sick_30d === true";
 const HAS_CUSTOMS_DECLARATION = `${ELECTRONIC_CUSTOMS_FLOW} && has_baggage_or_currency_to_declare === yes`;
 const HAS_PHP_CURRENCY_DECLARATION = "customs_checklist_1 === yes";
 const HAS_FOREIGN_CURRENCY_DECLARATION = "customs_checklist_2 === yes";
+export const PH_ETRAVEL_HEALTH_DECLARATION_WARNING = "Any false declaration made in this context may subject the traveler to legal penalties under applicable Philippine laws including public health, quarantine and communicable diseases regulations.";
 const HAS_CURRENCY_DECLARATION = `(${HAS_PHP_CURRENCY_DECLARATION} || ${HAS_FOREIGN_CURRENCY_DECLARATION})`;
 const HAS_GOODS_DECLARATION = `(${PH_ETRAVEL_DECLARATION_CHECKLIST
   .filter((item) => item.type !== "CURRENCY")
@@ -600,6 +605,8 @@ const CURRENCY_DETAIL_FIELDS: PhEtravelFieldDef[] = [
 export const PH_ETRAVEL_FORM_FIELDS: PhEtravelFieldDef[] = [
   { field_name: "registration_for", label: "Travel Registration", field_type: "radio", required: true, step_number: 1, step_name: "Travel Registration", display_order: 1, options: FOR_WHOM_OPTIONS, validation_rules: rules("登记对象", { official: true, e19_live_labels: ["FOR ME (Current User)", "FOR OTHER (Family Member)"], e19_for_other_observed: true, requiredness_evidence: "generic_Required_not_attributable_to_registration_for", launch_gate: "needs_review_not_a_runner_authorization" }) },
   { field_name: "transport_type", label: "Mode of Travel", field_type: "radio", required: true, step_number: 1, step_name: "Travel Registration", display_order: 2, options: PH_ETRAVEL_TRANSPORT_TYPES, validation_rules: rules("交通方式", { official: true, official_key: "transportation_type", supported_v1: ["AIR", "SEA"], unsupported_v1: ["LAND"] }) },
+  { field_name: "flight_type", label: "Direction of Travel", field_type: "radio", required: true, step_number: 1, step_name: "Travel Registration", display_order: 3, options: ARRIVAL_ONLY_OPTIONS, validation_rules: rules("旅行方向", { official: true, official_key: "flight_type", official_control_type: "radio", fixed_value: "ARRIVAL", ui_locked: true, locked_for_product: PH_ETRAVEL_VISA_TYPE, official_visible_values: ["ARRIVAL", "DEPARTURE"], excluded_value: "DEPARTURE", departure_product: "PH_ETRAVEL_DEPARTURE_CARD", official_payload_status: "needs_review_fixed_arrival_registration_context", requiredness_evidence: "confirmed_live_2026_08_15_Travel_Registration", ...CANONICAL_OPTION_RULES }) },
+  { field_name: "registration_data_privacy_affidavit_consent", label: "Data Privacy and Affidavit Consent", field_type: "checkbox", required: true, step_number: 1, step_name: "Travel Registration", display_order: 4, validation_rules: rules("数据隐私与宣誓同意", { official: false, viza_audit: true, exclude_from_official_payload: true, enqueue_required_value: true, covers: ["data_privacy", "affidavit"], evidence: "confirmed_live_2026_08_15_Continue_copy", clear_on_change: "none" }) },
 
   { field_name: "first_name", label: "First Name", field_type: "text", required: true, step_number: 2, step_name: "Traveller Information", display_order: 1, validation_rules: rules("名", { maxLength: 60, official: true, official_key: "first_name", official_control_type: "text", block_group: "passport_name", selector_evidence_level: "confirmed_live_E19", requiredness_evidence: "E19_empty_Foreigner_validation_First_Name_Required", evidence_level: "verified_live_E19" }) },
   { field_name: "middle_name", label: "Middle Name", field_type: "text", required: false, step_number: 2, step_name: "Traveller Information", display_order: 2, validation_rules: rules("中间名", { maxLength: 60, official: true, official_key: "middle_name", official_control_type: "text", block_group: "passport_name", selector_evidence_level: "confirmed_live_E19", requiredness_evidence: "E19_live_label_optional", evidence_level: "verified_live_E19" }) },
@@ -618,17 +625,20 @@ export const PH_ETRAVEL_FORM_FIELDS: PhEtravelFieldDef[] = [
   { field_name: "mobile_country_code", label: "Mobile Country Code", field_type: "text", required: false, step_number: 2, step_name: "Traveller Information", display_order: 16, placeholder: "e.g. 86", validation_rules: rules("手机国家 / 地区代码", { pattern: "^[+0-9]{1,5}$", official: true, e21_status: "preexisting_VIZA_field_not_an_official_personal_profile_payload_key", evidence_level: "needs_review" }) },
   { field_name: "mobile_number", label: "Mobile Number", field_type: "text", required: false, step_number: 2, step_name: "Traveller Information", display_order: 17, validation_rules: rules("手机号码", { official: true, official_key: "mobile_number", official_control_type: "phone_picker", client_wiring: PH_ETRAVEL_PROFILE_CLIENT_WIRING_E21.mobile_number, client_requiredness_evidence: "E21_personal_Yup_shape_does_not_include_mobile_number", server_requiredness_evidence: "needs_review", evidence_level: "needs_review" }) },
   { field_name: "country_of_residence", label: "Permanent Country of Residence", field_type: "select", required: true, step_number: 2, step_name: "Traveller Information", display_order: 18, options: PH_ETRAVEL_COUNTRY_OPTIONS, validation_rules: rules("永久居住国家 / 地区", { official: true, official_key: "country_code", block_group: "residence_address", client_wiring: PH_ETRAVEL_PROFILE_CLIENT_WIRING_E21.residence, client_requiredness_evidence: "E21_profile_Yup_requires_country_code", server_requiredness_evidence: "needs_review", clear_on_change: PH_ETRAVEL_PROFILE_CLIENT_WIRING_E21.residence.country_change_clears, ...CANONICAL_COUNTRY_RULES }) },
-  { field_name: "residence_address_line1", label: "No./Bldg./City/State/Province", field_type: "text", required: true, step_number: 2, step_name: "Traveller Information", display_order: 19, validation_rules: rules("门牌 / 楼宇 / 城市 / 州省", { maxLength: 160, official: true, official_key: "street", block_group: "residence_address", client_branch: "country_code === PH switches street label only", client_requiredness_evidence: "E21_profile_Yup_requires_street_in_PH_and_non_PH_branches", server_requiredness_evidence: "needs_review", clear_on_change: "country_code" }) },
-  { field_name: "residence_address_line2", label: "Address Line 2", field_type: "text", required: false, step_number: 2, step_name: "Traveller Information", display_order: 20, validation_rules: rules("地址第二行", { maxLength: 160, official: true, official_key: "street_two", block_group: "residence_address", client_optional_evidence: "E21_profile_Yup_street_two_optional", server_requiredness_evidence: "needs_review", clear_on_change: "country_code" }) },
+  { field_name: "residence_province_code", label: "State/Province", field_type: "select", required: true, step_number: 2, step_name: "Traveller Information", display_order: 19, conditional_logic: showIf(IS_PH_RESIDENCE), validation_rules: rules("州 / 省", { official: true, official_key: "province_code", official_control_type: "combobox", block_group: "residence_address", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.provinces, option_identity: "code", label_identity: "name", client_requiredness_evidence: "E21_profile_Yup_requires_province_code_when_country_code_PH", server_requiredness_evidence: "needs_review", clear_on_change: ["region_code", "residence_municipality_code", "residence_barangay_code"], ...CANONICAL_OPTION_RULES }) },
+  { field_name: "residence_municipality_code", label: "City/Municipality", field_type: "select", required: true, step_number: 2, step_name: "Traveller Information", display_order: 20, conditional_logic: showIf(IS_PH_RESIDENCE), validation_rules: rules("城市 / 市镇", { official: true, official_key: "municipality_code", official_control_type: "combobox", block_group: "residence_address", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.municipalities, option_identity: "code", label_identity: "name", depends_on: "residence_province_code", request_parameter: "province_code", client_requiredness_evidence: "E21_profile_Yup_requires_municipality_code_when_country_code_PH", server_requiredness_evidence: "needs_review", clear_on_change: ["residence_barangay_code"], ...CANONICAL_OPTION_RULES }) },
+  { field_name: "residence_barangay_code", label: "Barangay", field_type: "select", required: true, step_number: 2, step_name: "Traveller Information", display_order: 21, conditional_logic: showIf(IS_PH_RESIDENCE), validation_rules: rules("Barangay", { official: true, official_key: "barangay_code", official_control_type: "combobox", block_group: "residence_address", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.barangays, option_identity: "code", label_identity: "name", depends_on: "residence_municipality_code", request_parameter: "municipality_code", client_requiredness_evidence: "E21_profile_Yup_requires_barangay_code_when_country_code_PH", server_requiredness_evidence: "needs_review", ...CANONICAL_OPTION_RULES }) },
+  { field_name: "residence_address_line1", label: "No./Bldg./City/State/Province", field_type: "text", required: true, step_number: 2, step_name: "Traveller Information", display_order: 22, validation_rules: rules("门牌 / 楼宇 / 街道或城市 / 州省", { maxLength: 160, official: true, official_key: "street", block_group: "residence_address", labels_by_residence_country: { PH: "House No./Bldg./Street", non_PH: "No./Bldg./City/State/Province" }, client_requiredness_evidence: "E21_profile_Yup_requires_street_in_PH_and_non_PH_branches", server_requiredness_evidence: "needs_review", clear_on_change: "country_code" }) },
+  { field_name: "residence_address_line2", label: "Address Line 2", field_type: "text", required: false, step_number: 2, step_name: "Traveller Information", display_order: 23, validation_rules: rules("地址第二行", { maxLength: 160, official: true, official_key: "street_two", block_group: "residence_address", client_optional_evidence: "E21_profile_Yup_street_two_optional", server_requiredness_evidence: "needs_review", clear_on_change: "country_code" }) },
 
   { field_name: "purpose_of_travel", label: "Purpose of Travel", field_type: "select", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 1, options: PH_ETRAVEL_PURPOSE_OPTIONS, validation_rules: rules("旅行目的", { official: true, official_key: "purpose_of_visit_code", ...CANONICAL_OPTION_RULES }) },
   { field_name: "traveller_type", label: "Traveller Type", field_type: "select", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 2, options: PH_ETRAVEL_TRAVELLER_TYPE_OPTIONS, validation_rules: rules("旅客类型", { official: true, official_key: "passenger_type", supported_v1: ["AIRCRAFT PASSENGER", "VESSEL PASSENGER"], excluded_v1: PH_ETRAVEL_UNSUPPORTED_ARRIVAL_TRAVELLER_TYPE_OPTIONS.map((item) => item.value), allowed_by_transport: { AIR: ["AIRCRAFT PASSENGER"], SEA: ["VESSEL PASSENGER"] }, sea_observed_dropdown_values: ["VESSEL CREW", "VESSEL PASSENGER"], unsupported_observed_but_not_seeded: ["VESSEL CREW"], cruise_route: "separate_dashboard_route_not_ordinary_sea_dropdown", ...CANONICAL_OPTION_RULES }) },
-  { field_name: "airline_name", label: "Name of Airline", field_type: "select", required: false, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 3, options: PH_ETRAVEL_AIRLINE_OPTIONS, conditional_logic: showIf(IS_AIR), validation_rules: rules("航空公司名称", { official: true, official_key: "travel_company_code", transport_branch: "AIR", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_travel_companies, option_identity: "code", label_identity: "name", client_requiredness: "public_bundle_only", server_requiredness: "needs_review", client_clear_on_change: ["flight_number", "flight_number_special", "destination_port_code"], ...CANONICAL_OPTION_RULES }) },
+  { field_name: "airline_name", label: "Name of Airline", field_type: "select", required: false, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 3, conditional_logic: showIf(IS_AIR), validation_rules: rules("航空公司名称", { official: true, official_key: "travel_company_code", transport_branch: "AIR", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_travel_companies, option_identity: "code", label_identity: "name", client_requiredness: "public_bundle_only", server_requiredness: "needs_review", client_clear_on_change: ["flight_number", "flight_number_special", "destination_port_code"], ...CANONICAL_OPTION_RULES }) },
   { field_name: "flight_number", label: "Flight Number", field_type: "select", required: false, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 5, options: PH_ETRAVEL_FLIGHT_NUMBER_OPTIONS, conditional_logic: showIf(IS_AIR), validation_rules: rules("航班号", { official: true, official_key: "flight_number", transport_branch: "AIR", dependsOn: "airline_name", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_flight_numbers, option_identity: "flight_number", label_identity: "flight_number", special_flight_sentinel: "SPECIAL FLIGHT", selected_option_metadata_sets: "destination_port_code <- travel_port_code", client_requiredness: "public_bundle_only", server_requiredness: "needs_review" }) },
   { field_name: "flight_number_special", label: "Specify Special Flight Number", field_type: "text", required: false, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 5.5, conditional_logic: showIf("transport_type === AIR && flight_number === SPECIAL FLIGHT"), validation_rules: rules("特殊航班号", { official: true, official_key: "flight_number_special", transport_branch: "AIR", derived_ui_state: "flight_number === SPECIAL FLIGHT", not_an_official_boolean: "is_special_flight", uppercase: true, minLength: 5, client_requiredness: "public_bundle_only_when_flight_number_is_SPECIAL_FLIGHT", server_requiredness: "needs_review", evidence_level: "verified_public_bundle" }) },
   { field_name: "vessel_name", label: "Vessel Name", field_type: "text", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 6, conditional_logic: showIf(IS_SEA), validation_rules: rules("船舶名称", { official: true, official_key: "vessel_name", transport_branch: "SEA", maxLength: 160 }) },
   { field_name: "voyage_number", label: "Voyage Number", field_type: "text", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 7, conditional_logic: showIf(IS_SEA), validation_rules: rules("航次号", { official: true, official_key: "flight_number", transport_branch: "SEA", product_alias: true, evidence_level: "verified_live", observed_path: "SEA + ARRIVAL + is_disembarking=true + VESSEL PASSENGER", uncovered_paths: ["VESSEL CREW", "CRUISE PASSENGER", "CRUISE CREW"], uncovered_paths_evidence_level: "needs_review", maxLength: 80 }) },
-  { field_name: "origin_country", label: "Country of Origin", field_type: "select", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 8, options: PH_ETRAVEL_COUNTRY_OPTIONS, validation_rules: rules("出发国家 / 地区", { official: true, official_key: "origin_country_code", ...CANONICAL_COUNTRY_RULES }) },
+  { field_name: "origin_country", label: "Country of Origin", field_type: "select", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 8, options: PH_ETRAVEL_COUNTRY_OPTIONS, validation_rules: rules("出发国家 / 地区", { official: true, official_key: "origin_country_code", client_excludes_country_code: "PH", client_requiredness: "public_bundle_only", server_requiredness: "needs_review", ...CANONICAL_COUNTRY_RULES }) },
   { field_name: "airport_of_origin", label: "Airport of Origin", field_type: "text", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 9, conditional_logic: showIf(IS_AIR), validation_rules: rules("出发机场", { maxLength: 120, official: true, official_key: "origin_port", official_label_key: "port_origin", transport_branch: "AIR" }) },
   { field_name: "seaport_of_origin", label: "Seaport of Origin", field_type: "text", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 10, conditional_logic: showIf(IS_SEA), validation_rules: rules("出发海港", { maxLength: 160, official: true, official_key: "origin_port", official_label_key: "port_origin", transport_branch: "SEA", evidence_level: "needs_review_options" }) },
   { field_name: "flight_departure_date", label: "Date of Departure of Flight", field_type: "date", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 11, conditional_logic: showIf(IS_AIR), validation_rules: rules("入境航班起飞日期", { inline_group: "ph_etravel_air_dates", official: true, official_key: "departure_date", transport_branch: "AIR", ...CANONICAL_DATE_RULES }) },
@@ -636,7 +646,7 @@ export const PH_ETRAVEL_FORM_FIELDS: PhEtravelFieldDef[] = [
   { field_name: "voyage_departure_date", label: "Date of Departure of Voyage", field_type: "date", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 13, conditional_logic: showIf(IS_SEA), validation_rules: rules("入境船舶离港日期", { inline_group: "ph_etravel_sea_dates", official: true, official_key: "departure_date", transport_branch: "SEA", product_alias: true, evidence_level: "verified_live", observed_path: "SEA + ARRIVAL + is_disembarking=true + VESSEL PASSENGER", uncovered_paths: ["VESSEL CREW", "CRUISE PASSENGER", "CRUISE CREW"], uncovered_paths_evidence_level: "needs_review", ...CANONICAL_DATE_RULES }) },
   { field_name: "voyage_arrival_date", label: "Date of Arrival of Voyage", field_type: "date", required: true, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 14, conditional_logic: showIf(IS_SEA), validation_rules: rules("入境船舶抵港日期", { inline_group: "ph_etravel_sea_dates", official: true, official_key: "arrival_date", transport_branch: "SEA", product_alias: true, evidence_level: "verified_live", observed_path: "SEA + ARRIVAL + is_disembarking=true + VESSEL PASSENGER", uncovered_paths: ["VESSEL CREW", "CRUISE PASSENGER", "CRUISE CREW"], uncovered_paths_evidence_level: "needs_review", ...CANONICAL_DATE_RULES }) },
   { field_name: "return_date", label: "Date of Return", field_type: "date", required: false, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 15, conditional_logic: showIf("(transport_type === AIR && passport_holder_type === FOREIGNER && (purpose_of_travel === POV001 || purpose_of_travel === POV007)) || (transport_type === SEA && purpose_of_travel === POV001)"), validation_rules: rules("返回日期", { official: true, official_key: "return_date", evidence_level: "verified_live_and_public_bundle_path_specific", observed_path: "SEA + ARRIVAL + is_disembarking=true + VESSEL PASSENGER + Holiday/Pleasure/Vacation", air_public_bundle_condition: "FOREIGNER + AIR + (POV001 || POV007)", client_minimum_divergence: "renderer_today_vs_Yup_travel_date", client_requiredness: "public_bundle_only", server_requiredness: "needs_review", not_air_only: true, uncovered_purposes_evidence_level: "needs_review", ...CANONICAL_DATE_RULES }) },
-  { field_name: "port_of_entry", label: "Airport of Destination in the Philippines", field_type: "select", required: false, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 16, options: PH_ETRAVEL_PORT_OF_ENTRY_OPTIONS, conditional_logic: showIf(IS_AIR), validation_rules: rules("菲律宾目的机场 / 入境机场", { official: true, official_key: "destination_port_code", transport_branch: "AIR", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_destination_ports, option_identity: "code", label_identity: "name", port_metadata_field: "with_custom_declaration", port_metadata_contract: "dynamic_metadata_only_not_schema_requiredness_or_air_customs_flow", client_requiredness: "public_bundle_only", server_requiredness: "needs_review", ...CANONICAL_OPTION_RULES }) },
+  { field_name: "port_of_entry", label: "Airport of Destination in the Philippines", field_type: "select", required: false, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 16, conditional_logic: showIf(IS_AIR), validation_rules: rules("菲律宾目的机场 / 入境机场", { official: true, official_key: "destination_port_code", transport_branch: "AIR", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_destination_ports, option_identity: "code", label_identity: "name", port_metadata_field: "with_custom_declaration", port_metadata_contract: "dynamic_metadata_only_not_schema_requiredness_or_air_customs_flow", client_requiredness: "public_bundle_only", server_requiredness: "needs_review", ...CANONICAL_OPTION_RULES }) },
   { field_name: "sea_port_of_entry", label: "Seaport of Destination in the Philippines", field_type: "select", required: false, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 17, options: PH_ETRAVEL_SEA_PORT_OPTIONS, conditional_logic: showIf(`${IS_SEA} && ${ARRIVAL_FLIGHT_TYPE}`), validation_rules: rules("菲律宾目的海港 / 入境海港", { official: true, official_key: "destination_port_code", transport_branch: "SEA", product_alias: true, distinct_from: "disembarking_port_code", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.sea_destination_ports, option_identity: "code", label_identity: "name_not_unique", port_metadata_field: "with_custom_declaration", port_metadata_contract: "dynamic_page_gate_only_not_schema_requiredness_or_port_to_customs_flow", regular_page_gate: "registration.travel_port.with_custom_declaration", customs_hook_source_shape: "registration.with_custom_declaration", manual_electronic_mapping: "needs_review", route_selection: "needs_review_regular_vs_declaration_shortcut", client_requiredness: "public_bundle_only", server_requiredness: "needs_review", ...CANONICAL_OPTION_RULES, evidence_level: "verified_live_and_public_bundle_path_specific", observed_path: "SEA + ARRIVAL + VESSEL PASSENGER page 0; E6 disembarking/manual path and E8 Manila South Harbor electronic path", option_value_evidence_level: "verified_public", selected_port_customs_flow_contract: "runtime_page_content_or_live_flow_not_applicant_field" }) },
   { field_name: "is_disembarking", label: "Are you disembarking?", field_type: "checkbox", required: false, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 18, conditional_logic: showIf(`${IS_SEA} && ${ARRIVAL_FLIGHT_TYPE}`), validation_rules: rules("是否下船", { official: true, official_key: "is_disembarking", official_control_type: "checkbox_boolean", transport_branch: "SEA", path_specific: true, client_default: false, client_visible_when: `${IS_SEA} && ${ARRIVAL_FLIGHT_TYPE}`, client_clear_when: ["transport_type === AIR", "flight_type === DEPARTURE"], client_clear_value: false, falsey_destination_subtree: "hidden", is_disembarking_clear_callback: "none_observed", client_requiredness: "needs_review", server_requiredness: "needs_review", evidence_level: "verified_public_bundle", observed_path: "E6 selected SEA passenger path displayed disembarking branch", hidden_observed_path: "E8 SEA + VESSEL PASSENGER + Manila South Harbor electronic path did not display is_disembarking before Health", non_disembarking_path_evidence_level: "needs_review" }) },
   { field_name: "with_transit", label: "With Transit (Connecting Flight/Voyage)?", field_type: "checkbox", required: false, step_number: 3, step_name: "Travel Details - Philippine Arrival", display_order: 19, validation_rules: rules("是否有中转 / 联程航班或航程", { official: true, official_key: "with_transit", transport_branch: "AIR_SEA", boolean_contract: "checkbox_true_false", public_bundle_name_and_id: "with_transit", client_clear_on_toggle: "does_not_clear_existing_children", server_requiredness: "needs_review" }) },
@@ -655,11 +665,11 @@ export const PH_ETRAVEL_FORM_FIELDS: PhEtravelFieldDef[] = [
   { field_name: "disembarking_port_code", label: "Port of Disembarkation", field_type: "select", required: false, step_number: 4, step_name: "Destination in the Philippines", display_order: 8, conditional_logic: showIf(DESTINATION_SEA_TRAVEL_PORT), options: PH_ETRAVEL_SEA_PORT_OPTIONS, validation_rules: rules("下船港口", { official: true, official_key: "disembarking_port_code", transport_branch: "SEA", distinct_from: "destination_port_code", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.sea_disembarking_ports, option_identity: "code", label_identity: "name_not_unique", source_transportation_filter: "none", client_requiredness: "public_bundle_only_inside_SEA_TRAVEL_PORT", server_requiredness: "needs_review", port_metadata_contract: "does_not_select_customs_flow", fixes_contract_gap: "TRAVEL_PORT_child_field", evidence_level: "verified_live_and_public_bundle_path_specific", observed_path: "SEA + ARRIVAL + is_disembarking=true + TRAVEL_PORT branch", hidden_observed_path: "E8 SEA electronic page 0 used destination_port_code and did not show TRAVEL_PORT/disembarking_port_code", ...CANONICAL_OPTION_RULES }) },
 
   { field_name: "with_negative_antigen", label: "Do you have a negative Antigen test taken within 24 hours prior to departure from your port of origin?", field_type: "radio", required: false, step_number: 5, step_name: "Health Declaration", display_order: 1, options: PH_ETRAVEL_HEALTH_BOOLEAN_OPTIONS, conditional_logic: showIf("is_fully_vaccinated !== true && calculated_age_from_birth_date >= 15"), validation_rules: rules("出发港离境前 24 小时内是否完成阴性抗原检测？", { official: true, official_key: "with_negative_antigen", official_control_type: "yes_no_radio_boolean", inherited_display_predicates: ["is_fully_vaccinated !== true", "calculated_age_from_birth_date >= 15"], client_requiredness: "not_in_E23_Yup_shape", client_change_sets: "is_with_history_exposure <- false", server_requiredness: "needs_review", test_document_contract: "no_E23_control_upload_or_file_rule", evidence_level: "verified_public_bundle" }) },
-  { field_name: "has_recent_travel_history_30d", label: "Do you have any recent travel history in the last 30 days?", field_type: "radio", required: false, step_number: 5, step_name: "Health Declaration", display_order: 2, options: PH_ETRAVEL_HEALTH_BOOLEAN_OPTIONS, validation_rules: rules("过去 30 天是否有近期旅行史？", { official: true, official_client_control_key: "meta.with_recent_travel_history", legacy_official_alias: "with_recent_travel_history", official_payload_key: "needs_review", official_control_type: "yes_no_radio_boolean", client_requiredness: "E23_Yup_required", client_false_clears: ["visited_countries"], server_requiredness: "needs_review", evidence_level: "verified_public_bundle" }) },
-  { field_name: "visited_country_30d", label: "Country(ies) worked, visited and transited in the last 30 days", field_type: "select", required: false, step_number: 5, step_name: "Health Declaration", display_order: 3, options: PH_ETRAVEL_COUNTRY_OPTIONS, conditional_logic: showIf(HAS_RECENT_TRAVEL), validation_rules: rules("过去 30 天工作、访问或过境的国家 / 地区", { official: true, official_client_control_key: "visited_countries", official_payload_key: "needs_review", official_control_type: "multi_select_string_array", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.countries, option_identity: "code", label_identity: "name", component_exclusion_filter: "none_observed", client_requiredness: "E23_Yup_nonempty_array_when_recent_travel_true", client_cleared_by: "has_recent_travel_history_30d === false", server_requiredness: "needs_review", repeatable: true, repeat_group: "visited_countries", max_items: 20, evidence_level: "verified_public_bundle", ...CANONICAL_COUNTRY_RULES }) },
-  { field_name: "has_exposure_to_sick_person_30d", label: "Have you had any history of exposure to a person who is sick or known to have communicable/infectious disease in the past 30 days prior to travel?", field_type: "radio", required: false, step_number: 5, step_name: "Health Declaration", display_order: 4, options: PH_ETRAVEL_HEALTH_BOOLEAN_OPTIONS, validation_rules: rules("出行前 30 天是否接触过患病或已知患有传染性 / 感染性疾病的人？", { official: true, official_key: "is_with_history_exposure", official_control_type: "yes_no_radio_boolean", client_requiredness: "E23_Yup_required", client_child_contract: "no_child_rendered_in_current_component", server_requiredness: "needs_review", evidence_level: "verified_public_bundle" }) },
-  { field_name: "has_been_sick_30d", label: "Have you been sick in the past 30 days?", field_type: "radio", required: false, step_number: 5, step_name: "Health Declaration", display_order: 5, options: PH_ETRAVEL_HEALTH_BOOLEAN_OPTIONS, validation_rules: rules("过去 30 天是否生病？", { official: true, official_key: "is_sicked_within_thirty_days", official_control_type: "yes_no_radio_boolean", client_requiredness: "E23_Yup_required", client_change_clears: ["sickness_symptoms"], server_requiredness: "needs_review", evidence_level: "verified_public_bundle" }) },
-  { field_name: "sickness_symptom", label: "Symptoms", field_type: "select", required: false, step_number: 5, step_name: "Health Declaration", display_order: 6, options: PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS, conditional_logic: showIf(HAS_BEEN_SICK), validation_rules: rules("症状", { official: true, official_client_control_key: "sickness_symptoms", official_payload_key: "needs_review", official_control_type: "multi_select_string_array", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.sickness_symptoms, option_identity: "code", label_identity: "name", client_requiredness: "E23_Yup_nonempty_array_when_sick_true", client_cleared_by: "has_been_sick_30d_change", server_requiredness: "needs_review", repeatable: true, repeat_group: "sickness_symptoms", max_items: 17, evidence_level: "verified_public_bundle", ...CANONICAL_OPTION_RULES }) },
+  { field_name: "has_recent_travel_history_30d", label: "Do you have any recent travel history in the last 30 days?", field_type: "radio", required: true, step_number: 5, step_name: "Health Declaration", display_order: 2, options: PH_ETRAVEL_HEALTH_BOOLEAN_OPTIONS, validation_rules: rules("过去 30 天是否有近期旅行史？", { official: true, official_client_control_key: "meta.with_recent_travel_history", legacy_official_alias: "with_recent_travel_history", official_payload_key: "needs_review", official_control_type: "yes_no_radio_boolean", requiredness_evidence: "official_health_screenshot_2026-08-15", client_requiredness: "verified_screenshot_required", client_false_clears: ["visited_countries"], server_requiredness: "needs_review", evidence_level: "verified_live_screenshot" }) },
+  { field_name: "visited_country_30d", label: "Country(ies) worked, visited and transited in the last 30 days", field_type: "select", required: true, step_number: 5, step_name: "Health Declaration", display_order: 3, options: PH_ETRAVEL_COUNTRY_OPTIONS, conditional_logic: showIf(HAS_RECENT_TRAVEL), validation_rules: rules("过去 30 天工作、访问或过境的国家 / 地区", { official: true, official_client_control_key: "visited_countries", official_payload_key: "needs_review", official_control_type: "repeatable_country_select_rows", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.countries, option_identity: "code", label_identity: "name", component_exclusion_filter: "none_observed_includes_PH", requiredness_evidence: "official_health_screenshot_2026-08-15", client_requiredness: "verified_screenshot_minimum_one_row_when_recent_travel_true", client_cleared_by: "has_recent_travel_history_30d === false", clear_on_condition_false: true, server_requiredness: "needs_review", repeatable: true, repeat_group: "visited_countries", repeat_actions: ["Add", "Delete"], min_items: 1, item_required: true, evidence_level: "verified_live_screenshot", ...CANONICAL_COUNTRY_RULES }) },
+  { field_name: "has_exposure_to_sick_person_30d", label: "Have you had any history of exposure to a person who is sick or known to have communicable/infectious disease in the past 30 days prior to travel?", field_type: "radio", required: true, step_number: 5, step_name: "Health Declaration", display_order: 4, options: PH_ETRAVEL_HEALTH_BOOLEAN_OPTIONS, validation_rules: rules("出行前 30 天是否接触过患病或已知患有传染性 / 感染性疾病的人？", { official: true, official_key: "is_with_history_exposure", official_control_type: "yes_no_radio_boolean", requiredness_evidence: "official_health_screenshot_2026-08-15", client_requiredness: "verified_screenshot_required", client_child_contract: "no_child_rendered_in_screenshot", server_requiredness: "needs_review", evidence_level: "verified_live_screenshot" }) },
+  { field_name: "has_been_sick_30d", label: "Have you been sick in the past 30 days?", field_type: "radio", required: true, step_number: 5, step_name: "Health Declaration", display_order: 5, options: PH_ETRAVEL_HEALTH_BOOLEAN_OPTIONS, validation_rules: rules("过去 30 天是否生病？", { official: true, official_key: "is_sicked_within_thirty_days", official_control_type: "yes_no_radio_boolean", requiredness_evidence: "official_health_screenshot_2026-08-15", client_requiredness: "verified_screenshot_required", client_change_clears: ["sickness_symptoms"], server_requiredness: "needs_review", evidence_level: "verified_live_screenshot" }) },
+  { field_name: "sickness_symptom", label: "Symptoms", field_type: "checkbox", required: true, step_number: 5, step_name: "Health Declaration", display_order: 6, options: PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS, conditional_logic: showIf(HAS_BEEN_SICK), validation_rules: rules("症状", { official: true, official_client_control_key: "sickness_symptoms", official_payload_key: "needs_review", official_control_type: "multi_select_checkboxes", dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.sickness_symptoms, option_identity: "code", label_identity: "name", requiredness_evidence: "official_health_screenshot_2026-08-15", client_requiredness: "verified_screenshot_minimum_one_option_when_sick_true", client_cleared_by: "has_been_sick_30d === false", clear_on_condition_false: true, server_requiredness: "needs_review", repeatable: true, repeat_group: "sickness_symptoms", min_items: 1, max_items: 15, evidence_level: "verified_live_screenshot", ...CANONICAL_OPTION_RULES }) },
 
   { field_name: "accompanied_under_18_count", label: "Below 18 yrs. old", field_type: "text", required: true, step_number: 6, step_name: "Other Travel Details", display_order: 2, conditional_logic: showIf(ELECTRONIC_CUSTOMS_FLOW), validation_rules: rules("18 岁以下同行家人人数", { official: true, official_key: "accompanied_family_members.below_eighteen", electronic_customs_path_only: true, pattern: "^[0-9]+$", inline_group: "family_counts" }) },
   { field_name: "accompanied_18_plus_count", label: "18 yrs. old and above", field_type: "text", required: true, step_number: 6, step_name: "Other Travel Details", display_order: 3, conditional_logic: showIf(ELECTRONIC_CUSTOMS_FLOW), validation_rules: rules("18 岁及以上同行家人人数", { official: true, official_key: "accompanied_family_members.above_or_equal_eighteen", electronic_customs_path_only: true, pattern: "^[0-9]+$", inline_group: "family_counts" }) },
@@ -689,9 +699,16 @@ const MANIFEST_STATIC_ACTION_FIELDS = new Set([
   "family_member_gate_confirmation",
 ]);
 
+const MANIFEST_VIZA_AUDIT_FIELDS = new Set([
+  "registration_data_privacy_affidavit_consent",
+]);
+
 const MANIFEST_PROFILE_OR_REGISTRATION_FIELDS = new Set([
   "mobile_number",
   "country_of_residence",
+  "residence_province_code",
+  "residence_municipality_code",
+  "residence_barangay_code",
   "residence_address_line1",
   "residence_address_line2",
 ]);
@@ -793,10 +810,12 @@ export type PhEtravelSchemaParityManifestEntry = {
 // exclusive AIR/SEA or destination branches. Every other repeated key is a
 // schema drift. Consumers must use this map rather than guessing from labels.
 export const PH_ETRAVEL_OFFICIAL_KEY_REUSE_CONTRACT = {
+  flight_number: ["flight_number", "voyage_number"],
   origin_port: ["airport_of_origin", "seaport_of_origin"],
   departure_date: ["flight_departure_date", "voyage_departure_date"],
   arrival_date: ["flight_arrival_date", "voyage_arrival_date"],
   transit_port: ["transit_airport", "transit_seaport"],
+  destination_port_code: ["port_of_entry", "sea_port_of_entry"],
   destination_upon_arrival_in_philippines: ["destination_residence_address", "destination_hotel_name"],
 } as const;
 
@@ -840,7 +859,7 @@ const manifestRequiredness = (field: PhEtravelFieldDef): PhEtravelSchemaParityMa
 const manifestOfficialKey = (field: PhEtravelFieldDef) => {
   const officialKey = stringRule(field, "official_key") ?? stringRule(field, "official_client_control_key");
   if (officialKey) return { official_key: officialKey, official_key_status: "identified" as const };
-  if (MANIFEST_STATIC_ACTION_FIELDS.has(field.field_name)) {
+  if (MANIFEST_STATIC_ACTION_FIELDS.has(field.field_name) || MANIFEST_VIZA_AUDIT_FIELDS.has(field.field_name)) {
     return { official_key: null, official_key_status: "not_an_applicant_control" as const };
   }
   return { official_key: null, official_key_status: "needs_review" as const };
@@ -861,7 +880,9 @@ export const PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_MANIFEST: readonly PhEtravelSchema
   PH_ETRAVEL_FORM_FIELDS.map((field) => {
     const owner: PhEtravelApplicantQuestionOwner = MANIFEST_STATIC_ACTION_FIELDS.has(field.field_name)
       ? "static_action"
-      : "schema";
+      : MANIFEST_VIZA_AUDIT_FIELDS.has(field.field_name)
+        ? "viza_audit"
+        : "schema";
     return {
       schema_field: field.field_name,
       ...manifestOfficialKey(field),
@@ -875,30 +896,36 @@ export const PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_MANIFEST: readonly PhEtravelSchema
     };
   });
 
-// The 119-row official-contract scope includes profile/runtime/static/result
-// and diverted records. Those records must stay outside visa_form_fields;
-// this count makes a schema-vs-contract mismatch visible instead of filling
-// it with invented applicant questions.
+// Canonical evidence rows and product schema rows are different populations:
+// schema also holds VIZA audit controls and static gates that never become an
+// official payload answer.
 export const PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE = {
-  contract_records: 119,
+  canonical_contract_records: PH_ETRAVEL_ARRIVAL_CONTRACT_AUDIT.canonical_rows
+    + PH_ETRAVEL_ARRIVAL_CONTRACT_AUDIT.unsupported_or_diverted_rows,
   current_schema_rows: PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_MANIFEST.length,
   schema_rows_are_not_contract_total: true,
-  non_schema_contract_records: 119 - PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_MANIFEST.length,
+  includes_viza_audit_and_static_gates: true,
 } as const;
 
 const manifestSchemaField = (field: PhEtravelFieldDef): PhEtravelApplicantQuestionManifestEntry => {
   const owner: PhEtravelApplicantQuestionOwner = MANIFEST_STATIC_ACTION_FIELDS.has(field.field_name)
     ? "static_action"
-    : "schema";
+    : MANIFEST_VIZA_AUDIT_FIELDS.has(field.field_name)
+      ? "viza_audit"
+      : "schema";
 
   return {
-    semantic_key: field.field_name === "flight_number_special"
+    semantic_key: field.field_name === "flight_type"
+      ? "registration.flight_type"
+      : field.field_name === "registration_data_privacy_affidavit_consent"
+        ? "consent.data_privacy_and_affidavit"
+        : field.field_name === "flight_number_special"
       ? "air.special_flight_number"
       : field.field_name === "with_negative_antigen"
         ? "health.with_negative_antigen"
         : `schema.${field.field_name}`,
     owner,
-    applicant_answer: owner === "schema",
+    applicant_answer: owner === "schema" || owner === "viza_audit",
     schema_field: field.field_name,
     persona: "ORDINARY_FILIPINO_OR_FOREIGNER",
     transport: manifestTransport(field),
@@ -955,16 +982,6 @@ export const PH_ETRAVEL_ORDINARY_ARRIVAL_APPLICANT_QUESTION_MANIFEST: readonly P
     evidence_level: "needs_review",
   },
   {
-    semantic_key: "registration.flight_type",
-    owner: "runtime",
-    applicant_answer: false,
-    persona: "ORDINARY_FILIPINO_OR_FOREIGNER",
-    transport: "ALL",
-    page: "Travel Registration",
-    condition: "fixed_ARRIVAL_for_this_product",
-    evidence_level: "verified_public",
-  },
-  {
     semantic_key: "profile.photo_url",
     owner: "profile_owned",
     applicant_answer: true,
@@ -979,39 +996,6 @@ export const PH_ETRAVEL_ORDINARY_ARRIVAL_APPLICANT_QUESTION_MANIFEST: readonly P
   },
   {
     semantic_key: "residence.region_code",
-    owner: "unsupported",
-    applicant_answer: true,
-    persona: "ORDINARY_FILIPINO_OR_FOREIGNER",
-    transport: "ALL",
-    page: "Permanent Residence",
-    condition: "PH_residence_address_branch",
-    evidence_level: "needs_review",
-    persistence_boundary: "country_code === PH; FOR_ME_profile_route; FOR_OTHER_registration_payload_only_not_account_runtime",
-  },
-  {
-    semantic_key: "residence.province_code",
-    owner: "unsupported",
-    applicant_answer: true,
-    persona: "ORDINARY_FILIPINO_OR_FOREIGNER",
-    transport: "ALL",
-    page: "Permanent Residence",
-    condition: "residence_address_branch",
-    evidence_level: "needs_review",
-    persistence_boundary: "country_code === PH; FOR_ME_profile_route; FOR_OTHER_registration_payload_only_not_account_runtime",
-  },
-  {
-    semantic_key: "residence.municipality_code",
-    owner: "unsupported",
-    applicant_answer: true,
-    persona: "ORDINARY_FILIPINO_OR_FOREIGNER",
-    transport: "ALL",
-    page: "Permanent Residence",
-    condition: "PH_residence_address_branch",
-    evidence_level: "needs_review",
-    persistence_boundary: "country_code === PH; FOR_ME_profile_route; FOR_OTHER_registration_payload_only_not_account_runtime",
-  },
-  {
-    semantic_key: "residence.barangay_code",
     owner: "unsupported",
     applicant_answer: true,
     persona: "ORDINARY_FILIPINO_OR_FOREIGNER",

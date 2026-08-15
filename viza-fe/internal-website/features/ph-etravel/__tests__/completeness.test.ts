@@ -34,6 +34,12 @@ describe("Philippines eTravel frontend form completeness audit", () => {
 
     expect(sharedLabels).toContain("AIR travel details one-to-one fields");
     expect(sharedLabels).toContain(
+      "Arrival-only Travel Registration and consent gate"
+    );
+    expect(sharedLabels).toContain(
+      "Philippine permanent-residence official cascade"
+    );
+    expect(sharedLabels).toContain(
       "SEA vessel, voyage, date, and disembarking fields"
     );
     expect(sharedLabels).toContain("SEA destination branch gate");
@@ -68,6 +74,10 @@ describe("Philippines eTravel frontend form completeness audit", () => {
     expect(labels).toContain(
       "SEA vessel, voyage, date, and disembarking fields"
     );
+    expect(labels).toContain(
+      "Arrival-only Travel Registration and consent gate"
+    );
+    expect(labels).toContain("Philippine permanent-residence official cascade");
     expect(labels).toContain("Customs, baggage, goods, and currency structure");
     expect(labels).toContain(
       "Positive AIR electronic customs/currency shared UI integration"

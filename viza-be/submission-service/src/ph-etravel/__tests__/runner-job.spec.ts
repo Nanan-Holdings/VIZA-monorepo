@@ -86,6 +86,13 @@ test("PH runner_job preserves AIR/SEA 72-hour dates and starts no external work"
   }));
   assert.equal(seaPayload.trip.arrivalDate, "2026-08-15");
   assert.equal(seaPayload.trip.departureDate, "2026-08-14");
+
+  const nonArrivalPayload = buildPhEtravelArrivalRunnerJobPayload(
+    applicationId,
+    jobId,
+    answers({ travel_type: "DEPARTURE" }),
+  );
+  assert.equal(nonArrivalPayload.countrySpecific.travel_type, "DEPARTURE");
 });
 
 test("PH runner_job blocks active duplicates and P0 preflight before account, OTP, Turnstile, or browser", async () => {
@@ -209,13 +216,17 @@ test("PH runner_job treats reference-only, QR mismatch, RPC failure, restart, an
 test("PH runner_job exposes OTP and Turnstile checkpoints as safe non-submitted states", () => {
   const otp = classifyPhEtravelRunnerJobPortalCheckpoint("ph_etravel_official_login_verification_required");
   const turnstile = classifyPhEtravelRunnerJobPortalCheckpoint("ph_etravel_registration_turnstile_blocked");
+  const profileSave = classifyPhEtravelRunnerJobPortalCheckpoint("ph_etravel_profile_save_authorization_required");
+  const residence = classifyPhEtravelRunnerJobPortalCheckpoint("ph_etravel_residence_action_required");
   const unsafe = classifyPhEtravelRunnerJobPortalCheckpoint("email=synthetic@example.test otp=123456");
-  for (const result of [otp, turnstile, unsafe]) {
+  for (const result of [otp, turnstile, profileSave, residence, unsafe]) {
     assert.equal(result.stage, "account_or_portal_action_required");
     assert.equal(result.officialResubmitAllowed, false);
   }
   assert.equal(otp.safeReasonCode, "ph_etravel_official_login_verification_required");
   assert.equal(turnstile.safeReasonCode, "ph_etravel_registration_turnstile_blocked");
+  assert.equal(profileSave.safeReasonCode, "ph_etravel_profile_save_authorization_required");
+  assert.equal(residence.safeReasonCode, "ph_etravel_residence_action_required");
   assert.equal(unsafe.safeReasonCode, "ph_etravel_safe_failure");
   assert.doesNotMatch(JSON.stringify(unsafe), /synthetic@example\.test|123456/);
 });
