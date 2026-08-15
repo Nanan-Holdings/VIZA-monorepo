@@ -6,6 +6,10 @@ import {
   completeVietnamOfficialStatusCheck,
   deferVietnamOfficialStatusCheck,
   failVietnamOfficialStatusCheck,
+  renewVietnamOfficialStatusCheck,
+  VietnamStatusCheckOwnershipLostError,
+  VietnamStatusCheckRpcSchemaError,
+  withVietnamStatusCheckLease,
 } from "../status-check-lease.js";
 
 test("Vietnam status claims include worker ownership and a bounded lease", async () => {
@@ -13,20 +17,33 @@ test("Vietnam status claims include worker ownership and a bounded lease", async
   const client = {
     rpc: async (name: string, args: Record<string, unknown>) => {
       calls.push({ name, args });
-      return { data: [{ id: "check-1" }], error: null };
+      return {
+        data: [{
+          id: "check-1",
+          lease_generation: 7,
+          lease_expires_at: "2026-08-15T00:05:00.000Z",
+        }],
+        error: null,
+      };
     },
   };
 
   const rows = await claimVietnamOfficialStatusChecks<{ id: string }>(client, {
     workerId: "worker-a",
     limit: 3,
-    leaseSeconds: 420,
+    leaseSeconds: 300,
   });
 
-  assert.deepEqual(rows, [{ id: "check-1" }]);
+  assert.deepEqual(rows, [{
+    id: "check-1",
+    lease_generation: 7,
+    lease_expires_at: "2026-08-15T00:05:00.000Z",
+    leaseGeneration: 7,
+    leaseExpiresAt: "2026-08-15T00:05:00.000Z",
+  }]);
   assert.deepEqual(calls, [{
     name: "claim_vn_official_status_checks",
-    args: { p_worker_id: "worker-a", p_limit: 3, p_lease_seconds: 420 },
+    args: { p_worker_id: "worker-a", p_limit: 1, p_lease_seconds: 300 },
   }]);
 });
 
@@ -42,6 +59,7 @@ test("Vietnam status completion is conditional on the same worker", async () => 
   const completed = await completeVietnamOfficialStatusCheck(client, {
     checkId: "check-1",
     workerId: "worker-a",
+    leaseGeneration: 7,
     patch: { status: "cancelled" },
   });
 
@@ -51,6 +69,7 @@ test("Vietnam status completion is conditional on the same worker", async () => 
     args: {
       p_check_id: "check-1",
       p_worker_id: "worker-a",
+      p_lease_generation: 7,
       p_patch: { status: "cancelled" },
     },
   });
@@ -68,6 +87,7 @@ test("Vietnam status failure is conditional and carries failure evidence", async
   const failed = await failVietnamOfficialStatusCheck(client, {
     checkId: "check-1",
     workerId: "worker-a",
+    leaseGeneration: 7,
     errorCode: "official_status_check_failed",
     errorMessage: "portal unavailable",
     rawStatusJson: { source: "vietnam_evisa_search", failed: true },
@@ -79,6 +99,7 @@ test("Vietnam status failure is conditional and carries failure evidence", async
     args: {
       p_check_id: "check-1",
       p_worker_id: "worker-a",
+      p_lease_generation: 7,
       p_error_code: "official_status_check_failed",
       p_error_message: "portal unavailable",
       p_raw_status_json: { source: "vietnam_evisa_search", failed: true },
@@ -98,6 +119,7 @@ test("Vietnam status defer calls the exact ownership-aware RPC and returns false
   const deferred = await deferVietnamOfficialStatusCheck(client, {
     checkId: "check-1",
     workerId: "worker-a",
+    leaseGeneration: 7,
     retryAfterSeconds: 30,
   });
 
@@ -107,9 +129,306 @@ test("Vietnam status defer calls the exact ownership-aware RPC and returns false
     args: {
       p_check_id: "check-1",
       p_worker_id: "worker-a",
+      p_lease_generation: 7,
       p_retry_after_seconds: 30,
     },
   }]);
+});
+
+test("Vietnam status claim fails closed on a malformed non-empty RPC row", async () => {
+  const client = {
+    rpc: async () => ({ data: [{}], error: null }),
+  };
+  await assert.rejects(
+    claimVietnamOfficialStatusChecks(client, { workerId: "worker-a" }),
+    VietnamStatusCheckRpcSchemaError,
+  );
+});
+
+test("Vietnam status settlement treats a false/empty response as ownership loss and rejects truthy drift", async () => {
+  const emptyClient = {
+    rpc: async () => ({ data: [], error: null }),
+  };
+  assert.equal(
+    await completeVietnamOfficialStatusCheck(emptyClient, {
+      checkId: "check-1",
+      workerId: "worker-a",
+      leaseGeneration: 7,
+      patch: { status: "cancelled" },
+    }),
+    false,
+  );
+  const malformedClient = {
+    rpc: async () => ({ data: {}, error: null }),
+  };
+  await assert.rejects(
+    completeVietnamOfficialStatusCheck(malformedClient, {
+      checkId: "check-1",
+      workerId: "worker-a",
+      leaseGeneration: 7,
+      patch: { status: "cancelled" },
+    }),
+    VietnamStatusCheckRpcSchemaError,
+  );
+});
+
+test("Vietnam status settlement rejects oversized JSON before the RPC", async () => {
+  let rpcCalls = 0;
+  const client = {
+    rpc: async () => {
+      rpcCalls += 1;
+      return { data: true, error: null };
+    },
+  };
+  await assert.rejects(
+    completeVietnamOfficialStatusCheck(client, {
+      checkId: "check-large",
+      workerId: "worker-a",
+      leaseGeneration: 7,
+      patch: { raw_status_json: { value: "x".repeat(524_289) } },
+    }),
+    /524288 bytes/,
+  );
+  await assert.rejects(
+    failVietnamOfficialStatusCheck(client, {
+      checkId: "check-large",
+      workerId: "worker-a",
+      leaseGeneration: 7,
+      errorCode: "portal_error",
+      errorMessage: "portal unavailable",
+      rawStatusJson: { value: "x".repeat(524_289) },
+    }),
+    /524288 bytes/,
+  );
+  assert.equal(rpcCalls, 0);
+});
+
+test("Vietnam status heartbeat renews the exact generation and returns DB expiry", async () => {
+  const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  const client = {
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      calls.push({ name, args });
+      return {
+        data: [{
+          id: "check-1",
+          lease_generation: 7,
+          lease_expires_at: "2026-08-15T00:05:00.000Z",
+        }],
+        error: null,
+      };
+    },
+  };
+
+  const renewed = await renewVietnamOfficialStatusCheck(client, {
+    checkId: "check-1",
+    workerId: "worker-a",
+    leaseGeneration: 7,
+    leaseSeconds: 300,
+  });
+
+  assert.deepEqual(renewed, {
+    id: "check-1",
+    leaseGeneration: 7,
+    leaseExpiresAt: "2026-08-15T00:05:00.000Z",
+  });
+  assert.deepEqual(calls, [{
+    name: "renew_vn_official_status_check",
+    args: {
+      p_check_id: "check-1",
+      p_worker_id: "worker-a",
+      p_lease_generation: 7,
+      p_lease_seconds: 300,
+    },
+  }]);
+});
+
+test("Vietnam status lease refuses a pre-expired claim before starting portal work", async () => {
+  let operationCalls = 0;
+  let rpcCalls = 0;
+  const client = {
+    rpc: async () => {
+      rpcCalls += 1;
+      return { data: [], error: null };
+    },
+  };
+
+  await assert.rejects(
+    withVietnamStatusCheckLease({
+      client,
+      checkId: "check-expired",
+      workerId: "worker-a",
+      leaseGeneration: 1,
+      leaseExpiresAt: new Date(Date.now() - 1).toISOString(),
+      operation: async () => {
+        operationCalls += 1;
+        return undefined;
+      },
+    }),
+    VietnamStatusCheckOwnershipLostError,
+  );
+  assert.equal(operationCalls, 0);
+  assert.equal(rpcCalls, 0);
+});
+
+test("Vietnam status lease does not open a microtask window inside the safety lead", async () => {
+  let operationCalls = 0;
+  const client = {
+    rpc: async () => ({ data: [], error: null }),
+  };
+
+  await assert.rejects(
+    withVietnamStatusCheckLease({
+      client,
+      checkId: "check-safety",
+      workerId: "worker-a",
+      leaseGeneration: 2,
+      leaseExpiresAt: new Date(Date.now() + 100).toISOString(),
+      operation: async () => {
+        operationCalls += 1;
+        await Promise.resolve();
+      },
+    }),
+    VietnamStatusCheckOwnershipLostError,
+  );
+  assert.equal(operationCalls, 0);
+});
+
+test("Vietnam status heartbeat resets its schedule from the DB expiry after RTT", async () => {
+  const callbacks: Array<() => void> = [];
+  const delays: number[] = [];
+  let renewCalls = 0;
+  const client = {
+    rpc: async (name: string) => {
+      if (name === "renew_vn_official_status_check") {
+        renewCalls += 1;
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        return {
+          data: [{
+            id: "check-renew",
+            lease_generation: 3,
+            lease_expires_at: new Date(Date.now() + 120_000).toISOString(),
+          }],
+          error: null,
+        };
+      }
+      return { data: [], error: null };
+    },
+  };
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  globalThis.setTimeout = ((callback: () => void, delay?: number) => {
+    callbacks.push(callback);
+    delays.push(delay ?? 0);
+    return callbacks.length as unknown as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+  globalThis.clearTimeout = (() => undefined) as typeof clearTimeout;
+  try {
+    await withVietnamStatusCheckLease({
+      client,
+      checkId: "check-renew",
+      workerId: "worker-a",
+      leaseGeneration: 3,
+      leaseExpiresAt: new Date(Date.now() + 10_000).toISOString(),
+      heartbeatMs: 60_000,
+      operation: async ({ stopRenewal }) => {
+        assert.equal(callbacks.length, 1);
+        callbacks[0]?.();
+        for (let attempt = 0; attempt < 20 && callbacks.length < 2; attempt += 1) {
+          await new Promise<void>((resolve) => setImmediate(resolve));
+        }
+        assert.equal(renewCalls, 1);
+        assert.equal(callbacks.length, 2);
+        assert.ok(delays[1] >= 59_000, `renewed delay ${delays[1]} should use DB expiry`);
+        await stopRenewal();
+      },
+    });
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});
+
+test("Vietnam status settlement waits for an in-flight renew before returning", async () => {
+  const callbacks: Array<() => void> = [];
+  let renewStarted = false;
+  let resolveRenew: (() => void) | undefined;
+  const client = {
+    rpc: async (name: string) => {
+      if (name === "renew_vn_official_status_check") {
+        renewStarted = true;
+        await new Promise<void>((resolve) => {
+          resolveRenew = resolve;
+        });
+        return {
+          data: [{
+            id: "check-stop",
+            lease_generation: 4,
+            lease_expires_at: new Date(Date.now() + 120_000).toISOString(),
+          }],
+          error: null,
+        };
+      }
+      return { data: [], error: null };
+    },
+  };
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  globalThis.setTimeout = ((callback: () => void) => {
+    callbacks.push(callback);
+    return callbacks.length as unknown as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+  globalThis.clearTimeout = (() => undefined) as typeof clearTimeout;
+  try {
+    await withVietnamStatusCheckLease({
+      client,
+      checkId: "check-stop",
+      workerId: "worker-a",
+      leaseGeneration: 4,
+      leaseExpiresAt: new Date(Date.now() + 10_000).toISOString(),
+      operation: async ({ stopRenewal }) => {
+        callbacks[0]?.();
+        for (let attempt = 0; attempt < 20 && !renewStarted; attempt += 1) {
+          await new Promise<void>((resolve) => setImmediate(resolve));
+        }
+        assert.equal(renewStarted, true);
+        let stopped = false;
+        const stopping = stopRenewal().then(() => {
+          stopped = true;
+        });
+        await Promise.resolve();
+        assert.equal(stopped, false);
+        resolveRenew?.();
+        await stopping;
+        assert.equal(stopped, true);
+      },
+    });
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});
+
+test("Vietnam status accepts a slow DB completion after local deadline once renewal is stopped", async () => {
+  const client = {
+    rpc: async () => ({ data: [], error: null }),
+  };
+  const originalNow = Date.now;
+  try {
+    await withVietnamStatusCheckLease({
+      client,
+      checkId: "check-slow-settlement",
+      workerId: "worker-a",
+      leaseGeneration: 5,
+      leaseExpiresAt: new Date(originalNow() + 10_000).toISOString(),
+      operation: async ({ stopRenewal }) => {
+        await stopRenewal();
+        Date.now = () => originalNow() + 60_000;
+        return "db-complete";
+      },
+    });
+  } finally {
+    Date.now = originalNow;
+  }
 });
 
 test("Vietnam gate ownership loss prevents final settlement and releases the exact lease", async () => {

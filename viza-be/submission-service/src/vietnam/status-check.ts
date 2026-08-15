@@ -18,6 +18,7 @@ export interface VietnamStatusCheckInput {
   searchUrl?: string;
   screenshotPath?: string;
   timeoutMs?: number;
+  signal?: AbortSignal;
 }
 
 export interface VietnamStatusCheckResult {
@@ -31,6 +32,17 @@ export interface VietnamStatusCheckResult {
   pdfBytes: Buffer | null;
   rawText: string;
   screenshotPath?: string;
+}
+
+export function closeVietnamBrowserSafely(browser: {
+  close: () => Promise<void> | void;
+}): void {
+  try {
+    void Promise.resolve(browser.close()).catch(() => undefined);
+  } catch {
+    // Browser cleanup is best-effort during lease abort; preserve the typed
+    // ownership error rather than surfacing a secondary close failure.
+  }
 }
 
 const DEFAULT_SEARCH_URL = "https://evisa.gov.vn/e-visa/search";
@@ -215,7 +227,12 @@ export async function queryVietnamOfficialStatus(
 ): Promise<VietnamStatusCheckResult> {
   const browser = await chromium.launch({ headless: input.headless ?? true });
   const page = await browser.newPage();
+  const onAbort = (): void => {
+    closeVietnamBrowserSafely(browser);
+  };
+  input.signal?.addEventListener("abort", onAbort, { once: true });
   try {
+    if (input.signal?.aborted) throw new Error("Vietnam status portal ownership was lost");
     await page.goto(input.searchUrl ?? DEFAULT_SEARCH_URL, {
       waitUntil: "domcontentloaded",
       timeout: input.timeoutMs ?? 60_000,
@@ -239,6 +256,7 @@ export async function queryVietnamOfficialStatus(
       ...(input.screenshotPath ? { screenshotPath: input.screenshotPath } : {}),
     };
   } finally {
+    input.signal?.removeEventListener("abort", onAbort);
     await browser.close().catch(() => undefined);
   }
 }
