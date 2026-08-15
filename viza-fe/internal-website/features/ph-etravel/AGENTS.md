@@ -56,6 +56,24 @@ Scope: Philippines eTravel-specific frontend helpers.
   presentation. It keeps photo, mobile, and residence branches review-gated,
   records Philippines residence clear-on-change behavior, and must never
   present client wiring as file, mobile, address, or server acceptance.
+- `residence-cascade.ts` owns the current official PH residence read contract.
+  It preserves Province, Municipality, and Barangay `code` values as opaque
+  submission identities, derives Region only from Province metadata, clears
+  descendants on parent changes, and supplies missing-field focus targets.
+  Third-party place names or codes may never replace official response values.
+- `profile-checkpoint.ts` separates Personal Information Review/profile save
+  from registration Review/final Submit. Profile HTTP success or dashboard
+  navigation must never become submitted success; the registration final
+  Submit remains the default stop-before-submit target.
+- `travel-registration.ts` owns the PH arrival-only Start-page presentation,
+  normalization, completeness, and enqueue gate. It locks `flight_type` to
+  `ARRIVAL`, preserves official `registration_for` and `transport_type` values,
+  and keeps versioned privacy/affidavit consent in a separate audit record that
+  is never projected into the official submission payload.
+- `SeaManualCustomsFormsNotice.tsx` owns the PH-only external official PDF
+  links for the verified `SEA + manual_forms` notice. It must never render for
+  AIR or SEA electronic paths, proxy/cache a document, or create an applicant
+  answer or completeness requirement.
 - `air-destination-presentation.ts` owns E22 public-bundle AIR/destination
   presentation. It treats Special Flight as a derived display branch only,
   keeps its detail on `flight_number_special`, and leaves AIR/destination

@@ -26,6 +26,7 @@ import {
   type PhEtravelPortalSubmissionResult,
   type PhEtravelRunnerOptions,
 } from "./runner.js";
+import type { PhEtravelRegistrationConsentAuthorization } from "./registration-start.js";
 
 const PH_ETRAVEL_ACTIVE_RUNNER_JOB_STATUSES = ["queued", "running"] as const;
 
@@ -66,6 +67,11 @@ export interface PhEtravelRunnerJobDependencies {
     options: PhEtravelRunnerOptions,
   ) => Promise<PhEtravelPortalSubmissionResult>;
   allowBrowser?: boolean;
+  /** Explicit per-run authorization for the separate eGovPH basic-profile write. */
+  allowProfileSave?: boolean;
+  loadRegistrationConsent?: (
+    applicationId: string,
+  ) => Promise<PhEtravelRegistrationConsentAuthorization | null>;
   now?: Date;
 }
 
@@ -120,6 +126,7 @@ export function buildPhEtravelArrivalRunnerJobPayload(
   applicationId: string,
   jobId: string,
   answers: CanonicalRecord,
+  registrationConsent: PhEtravelRegistrationConsentAuthorization | null = null,
 ): SubmissionPayload {
   return {
     payloadVersion: "ph_etravel_runner_job_v1",
@@ -148,8 +155,13 @@ export function buildPhEtravelArrivalRunnerJobPayload(
         : text(answers.flight_departure_date) || null,
       purpose: text(answers.purpose_of_travel) || null,
     },
-    countrySpecific: { ...answers, travel_type: "ARRIVAL" },
-    metadata: { runnerJob: true },
+    // Retain the supplied value so the arrival-only runner can reject a
+    // non-ARRIVAL or missing travel type instead of silently rewriting it.
+    countrySpecific: { ...answers },
+    metadata: {
+      runnerJob: true,
+      phEtravelRegistrationConsent: registrationConsent,
+    },
   };
 }
 
@@ -353,7 +365,13 @@ export async function runPhEtravelArrivalRunnerJob(
   const windowStop = windowResult(window);
   if (windowStop) return windowStop;
 
-  const payload = buildPhEtravelArrivalRunnerJobPayload(applicationId, jobId, answers);
+  const registrationConsent = dependencies.loadRegistrationConsent
+    ? await dependencies.loadRegistrationConsent(applicationId).catch(() => null)
+    : null;
+  if (!registrationConsent) {
+    return safeResult("preflight_action_required", "ph_etravel_registration_consent_required");
+  }
+  const payload = buildPhEtravelArrivalRunnerJobPayload(applicationId, jobId, answers, registrationConsent);
   const preflight = evaluatePhEtravelArrivalLaunchPreflight({
     payload,
     finalSubmitEnabled: PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
@@ -368,6 +386,7 @@ export async function runPhEtravelArrivalRunnerJob(
   try {
     const portal = await dependencies.portalRunner(normalizePhEtravelPortalPayload(payload), {
       stopBeforeSubmit: true,
+      allowProfileSave: dependencies.allowProfileSave === true,
     });
     if (!portal.submitted) return safeResult("review_stop", "ph_etravel_stopped_before_submit");
     const gate = gatePhEtravelAuthoritativeResult({

@@ -66,6 +66,10 @@ const QUESTIONS: InterviewStep[] = [
   { topic: "回国安排", question: "旅行结束后你回来做什么？" },
 ];
 
+// Zero-cost prototype mode: use the officer portrait plus browser speech and
+// lightweight motion. HeyGen/LiveTalking remain available for a later upgrade.
+const USE_FREE_BROWSER_AVATAR = true;
+
 const ENDING_MESSAGE = "好的，今天的面试到这里就结束了，感谢您的配合。";
 
 function interviewClipPath(officerId: string, questionIndex: number) {
@@ -618,6 +622,8 @@ function InterviewPage({
     <div className="h-screen bg-[#fafafa] flex flex-col overflow-hidden">
       <style>{`
         @keyframes speaking-pulse { from { transform: scale(1); filter: brightness(0.94) saturate(1); } to { transform: scale(1.012); filter: brightness(1.04) saturate(1.04); } }
+        @keyframes browser-avatar-breathe { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(1.008); } }
+        @keyframes browser-mouth { 0%, 100% { transform: translateX(-50%) scaleY(.65); opacity: .55; } 45% { transform: translateX(-50%) scaleY(1.25); opacity: .9; } }
         @keyframes live-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
         @keyframes wave-bar { 0%, 100% { transform: scaleY(0.35); opacity: 0.45; } 50% { transform: scaleY(1); opacity: 1; } }
       `}</style>
@@ -776,26 +782,35 @@ function InterviewPage({
                 className="absolute inset-0 h-full w-full object-cover object-center bg-[#07182d]"
               />
             ) : !imgError && (
-              <img
-                src={officer.image}
-                alt="Consular Officer"
-                className="absolute inset-0 w-full h-full object-contain object-bottom"
-                style={{
-                  opacity: imgLoaded ? 1 : 0,
-                  transition: "opacity 0.4s ease",
-                  animation: isSpeaking ? "speaking-pulse 0.45s ease-in-out infinite alternate" : "none",
-                  filter: isSpeaking ? undefined : "brightness(0.93)",
-                }}
-                onLoad={() => setImgLoaded(true)}
-                onError={() => setImgError(true)}
-              />
+              <div className="absolute inset-0" style={{ animation: isSpeaking ? "browser-avatar-breathe 1.7s ease-in-out infinite" : "none" }}>
+                <img
+                  src={officer.image}
+                  alt="Consular Officer"
+                  className="absolute inset-0 w-full h-full object-contain object-bottom"
+                  style={{
+                    opacity: imgLoaded ? 1 : 0,
+                    transition: "opacity 0.4s ease",
+                    animation: isSpeaking ? "speaking-pulse 0.7s ease-in-out infinite alternate" : "none",
+                    filter: isSpeaking ? undefined : "brightness(0.93)",
+                  }}
+                  onLoad={() => setImgLoaded(true)}
+                  onError={() => setImgError(true)}
+                />
+                {isSpeaking && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-1/2 top-[39%] h-[5px] w-[18px] rounded-[50%] border border-white/45 bg-[#3d2530]/75"
+                    style={{ animation: "browser-mouth .34s ease-in-out infinite" }}
+                  />
+                )}
+              </div>
             )}
             {!avatarStream && isSpeaking && (
               <div className="absolute bottom-[94px] left-1/2 z-10 flex -translate-x-1/2 items-center gap-[3px] rounded-full bg-black/45 px-3 py-2 backdrop-blur-sm">
                 {[8, 14, 20, 12, 18, 9, 15].map((height, index) => (
                   <span key={index} className="w-[3px] rounded-full bg-white" style={{ height, animation: `wave-bar .55s ease-in-out ${index * .08}s infinite` }} />
                 ))}
-                <span className="ml-1 text-[9px] font-semibold text-white/85">语音动画</span>
+                <span className="ml-1 text-[9px] font-semibold text-white/85">浏览器语音动画</span>
               </div>
             )}
             <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, transparent 40%, rgba(3,52,110,0.9) 100%)" }} />
@@ -1227,6 +1242,11 @@ export default function InterviewPracticePage() {
 
   const prepareQuestionMedia = useCallback((index: number, text: string) => {
     if (typeof window === "undefined") return;
+    if (USE_FREE_BROWSER_AVATAR) {
+      setPrerecordedClip(null);
+      speakText(text);
+      return;
+    }
     const clip = interviewClipPath(officer.id, index);
     setPrerecordedClip(null);
     fetch(clip, { method: "HEAD" })
@@ -1238,7 +1258,7 @@ export default function InterviewPracticePage() {
   }, [officer.id, speakText]);
 
   useEffect(() => {
-    if (pageState === "interview") void connectAvatar();
+    if (pageState === "interview" && !USE_FREE_BROWSER_AVATAR) void connectAvatar();
     else disconnectAvatar();
   }, [pageState, connectAvatar, disconnectAvatar]);
 

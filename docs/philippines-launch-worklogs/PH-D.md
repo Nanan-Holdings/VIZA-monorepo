@@ -1585,3 +1585,49 @@
 
 1. `lib/queue/countries.ts` 和 submission-service dispatch 未声明 `philippines`；两者不在本轮可写范围。runner owner 必须同时发布 producer whitelist、consumer dispatch、scheduled-job 消费与原子 active-job contract 后，PH 才能由 fail-closed 改为真正 enqueue。
 2. runner 必须写入 `authoritativeRegistration.{read,referenceNumber,derivedQrRenderStatus,derivedQrReferenceValue}`；在此之前结果页不会显示成功。
+
+## 第二十七轮：PH residence / Travel Registration / profile checkpoint 接入准备（2026-08-15）
+
+- 接管并逐行审查 PH-only 临时改动；只修改 `features/ph-etravel/**` 和本 worklog，没有修改 shared dynamic form、状态卡、队列、runner、schema、协调总览或其他 worklog。
+- `residence-cascade.ts` 现将官方 `country_code`、`province_code`、`municipality_code`、`barangay_code`、`street`、`street_two` 明确桥接到动态表单字段名。Province -> Municipality -> Barangay 仅保存当前官方 code，Province metadata 唯一导出 `region_code`；父级变更清除所有后代，国家变更也清除 Street/line 2。foreign residence 保持 country + line 1 + optional line 2。缺失项的锚点已修正为实际 `residence_*` 表单字段。
+- Travel Registration presentation 现明确展示 `FOR ME (Current User)` / `FOR OTHER (Family Member)`、`AIR` / `SEA`，并固定 `ARRIVAL - Entering the Philippines`；不暴露或保存 `DEPARTURE`。privacy + affidavit 采用单独、可审计的 affirmative consent（版本及时间），实际 schema field 为 `registration_data_privacy_affidavit_consent`；该审计记录不投影到官方 answers/payload。没有有效同意时 `canEnqueue=false`，返回 step-1 field anchor。
+- `profile-checkpoint.ts` 增加严格区分 Profile Save 与 registration final Submit 的 presentation。Personal Information Review/save、HTTP success 或 dashboard navigation 永不成为 eTravel submitted；registration 仍要求 authoritative read + stable reference + same-reference QR render。所有 PH-only checkpoint 保持 `noQueue/noBrowser/noResubmit`。
+
+### Shared dynamic form 最小接入说明（未实施）
+
+1. 仅对 `PH_ETRAVEL_ARRIVAL_CARD`：在现有 schema field names 上调用 `applyPhResidenceCascadeFormChange()`；通过同源 read-only options proxy 取得官方 Province/Municipality/Barangay response，再调用 `parsePhResidenceOfficialOptions()`。不得由 label、中文名、correspondence code 或第三方 PSGC 推导提交 code。
+2. 将 `getPhResidenceMissingItems()` 和 `normalizePhEtravelTravelRegistration()` 的 missing anchors 合并进完整度面板；未完成或 consent audit 缺失时不得 enqueue。consent audit 必须经认证 server boundary 保存，且不能混入 application answers。
+3. 渲染 `PH_ETRAVEL_TRAVEL_REGISTRATION_PRESENTATION`：仅 ARRIVAL locked value、FOR_ME/FOR_OTHER、AIR/SEA 和明确同意控件。Profile Save 使用 `createPhEtravelCheckpointPresentation({ journey: "profile", ... })`；registration final flow 使用 `journey: "registration"`，不得混用 copy 或 success state。
+
+### Focused validation
+
+- `npx prettier --write`（本轮 3 helpers、shared integration spec 和 3 PH tests）：passed。
+- PH-only `tsc --noEmit`（上述 helpers/tests）：passed。
+- `git diff --check -- viza-fe/internal-website/features/ph-etravel docs/philippines-launch-worklogs/PH-D.md`：passed。
+- `npx vitest run`（3 个 PH tests）未启动测试体：Vitest 配置加载时不能写 `node_modules/.vite-temp`，报 `EPERM`。未安装依赖、未请求审批或升级权限。
+
+## 第二十八轮：Health Declaration 截图合同（2026-08-15）
+
+- 仅消费用户提供的完整 Health Declaration 截图；没有访问官网、没有记录任何会话、草稿或申请人值，也没有修改 shared 文件。
+- `health-presentation.ts` 现记录截图中的静态 Health notice；三个基础 Yes/No 都是必答：recent travel、exposure to a sick/communicable person、sick in the past 30 days。AIR 与 SEA 使用相同 Health Declaration 页面；passport-holder parity 未由此截图外推。
+- recent-travel=Yes 时，合同显示可 Add/Delete 的 `Country(ies) worked, visited and transited in the last 30 days` 行：至少一行、每行必选、官方全量国家来源且包含 Philippines。sick=Yes 时，仅显示截图确认的 15 项 Symptoms 多选，至少选择一项而非全选。两个父题切为 No 都会清除残留 child values。exposure 没有推测任何 child；bats/animals 继续 translation-only。
+- `getPhEtravelHealthMissingItems()` 输出三个基础 required 与正向分支 minimum-one 的 PH-only 完整度项；所有状态仍为 stop-before-submit/noQueue/noBrowser/noResubmit，未声称 server payload、选项接受或提交成功。
+
+### Focused validation
+
+- `npx prettier --check`（Health helper、normalizer、shared-integration spec 与 focused tests）：passed。
+- PH-only `tsc --noEmit`（上述 Health files/tests）：passed。
+- Health-focused Vitest 未启动测试体：Vite 配置加载时无法写入既有 `node_modules/.vite-temp`，报 `EPERM`。未安装依赖、未请求审批或升级权限。
+
+## 第二十九轮：SEA manual customs 官方 PDF 提示（2026-08-16）
+
+- 新增 PH-only `SeaManualCustomsFormsNotice.tsx`。它只在明确 `transportType=SEA` 且 `seaFlow=manual_forms` 时显示两个外部官方 PDF：菲律宾海关行李申报表、菲律宾货币申报表（BSP）。AIR、SEA electronic、未知 SEA path 都不显示。
+- 两个链接均保留精确官方 URL，使用 `FileText` 与 `ExternalLink` 图标，标明“外部官方 PDF”，并固定 `target="_blank" rel="noopener noreferrer"`。链接不代理、不缓存、不复制 PDF；外部站点不可用不会影响 VIZA 表单、完整度、入队或页面操作。
+- PDF metadata 明确 `isApplicantAnswer=false`、`affectsCompleteness=false`。新增 focused UI test 覆盖路径显示/隐藏、精确 href、安全属性、图标旁的外部 PDF 标识及非完整度边界。
+- 本轮未修改任何 shared dirty 文件、队列、schema、协调总览或其他 worklog；shared dynamic/status 未来只能在已经分类为 `SEA + manual_forms` 的提示位置消费该组件。
+
+### Focused validation
+
+- `npx prettier --check`：passed。
+- PH-only source `tsc --noEmit`：passed。
+- focused Vitest 未启动测试体：Vite 配置加载时无法写入既有 `node_modules/.vite-temp`，报 `EPERM`。未安装依赖、未请求审批或升级权限。

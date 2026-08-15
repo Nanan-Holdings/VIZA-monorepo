@@ -120,6 +120,33 @@ export const PH_ETRAVEL_DYNAMIC_OPTION_SOURCES = {
     evidence_level: "verified_public",
     official_source: "E13 official public API 2026-08-04; 250-row snapshot intentionally not embedded",
   },
+  provinces: {
+    endpoint: "/api/v1/common/provinces",
+    query: ["order_by=name"],
+    response_identity: "code",
+    response_label: "name",
+    response_fields: ["code", "region_code", "name"],
+    evidence_level: "verified_public",
+    official_source: "E21 official public bundle; values intentionally not embedded and runtime-loaded",
+  },
+  municipalities: {
+    endpoint: "/api/v1/common/municipalities",
+    query: ["province_code={selected official province code}"],
+    response_identity: "code",
+    response_label: "name",
+    response_fields: ["code", "province_code", "name"],
+    evidence_level: "verified_public",
+    official_source: "E21 official public bundle; values intentionally not embedded and runtime-loaded",
+  },
+  barangays: {
+    endpoint: "/api/v1/common/barangays",
+    query: ["municipality_code={selected official municipality code}"],
+    response_identity: "code",
+    response_label: "name",
+    response_fields: ["code", "municipality_code", "name"],
+    evidence_level: "verified_public",
+    official_source: "E21 official public bundle; values intentionally not embedded and runtime-loaded",
+  },
   currencies: {
     endpoint: "/api/v1/common/currencies",
     query: ["paginate=0", "q="],
@@ -273,7 +300,18 @@ export const PH_ETRAVEL_AIR_TRANSIT_PORT_OPTIONS = PH_ETRAVEL_AIR_PORT_OPTIONS.f
   ["TP1000", "TP2000", "TP3000", "TP001"].includes(option.value),
 );
 export const PH_ETRAVEL_SEA_PORT_OPTIONS: PhEtravelOption[] = [];
-export const PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS = mapped(officialSnapshot.sicknessSymptoms);
+// The live Health Declaration screenshot renders this 15-item subset. Preserve
+// the official snapshot codes rather than substituting labels as submitted values.
+const HEALTH_DECLARATION_SCREENSHOT_SYMPTOM_CODES = new Set([
+  "SS015", "SS008", "SS002", "SS014", "SS017", "SS022", "SS001", "SS005", "SS023", "SS016", "SS018", "SS006", "SS011", "SS021", "SS007",
+]);
+export const PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS = mapped(
+  officialSnapshot.sicknessSymptoms.filter(({ code }) => HEALTH_DECLARATION_SCREENSHOT_SYMPTOM_CODES.has(code)),
+  {},
+  undefined,
+  "verified_public",
+  "official-options.snapshot.json codes + user-provided official Health Declaration screenshot 2026-08-15",
+);
 export const PH_ETRAVEL_DECLARATION_CHECKLIST = officialSnapshot.declarationChecklist as OfficialChecklistItem[];
 
 export const PH_ETRAVEL_YES_NO_OPTIONS = [

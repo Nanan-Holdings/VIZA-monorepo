@@ -9,6 +9,7 @@ import {
   PH_ETRAVEL_OFFICIAL_KEY_REUSE_CONTRACT,
   PH_ETRAVEL_SEA_FLOW_CLIENT_WIRING_E24,
   PH_ETRAVEL_CONFIRMED_APPLICANT_COVERAGE,
+  PH_ETRAVEL_HEALTH_DECLARATION_WARNING,
   PH_ETRAVEL_ORDINARY_ARRIVAL_APPLICANT_QUESTION_MANIFEST,
   PH_ETRAVEL_OFFICIAL_FIELD_NAMES,
   PH_ETRAVEL_REMAINING_SCHEMA_GAP_FREEZE,
@@ -25,6 +26,7 @@ import {
   PH_ETRAVEL_OCCUPATION_OPTIONS,
   PH_ETRAVEL_PURPOSE_OPTIONS,
   PH_ETRAVEL_SEA_PORT_OPTIONS,
+  PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS,
 } from "../../scripts/ph-etravel/official-options";
 import officialSnapshot from "../../scripts/ph-etravel/official-options.snapshot.json";
 
@@ -111,7 +113,7 @@ describe("Philippines eTravel arrival card schema", () => {
       }
 
       if (entry.applicant_answer) {
-        expect(entry.owner, entry.semantic_key).toEqual(expect.stringMatching(/^(schema|profile_owned|unsupported)$/));
+        expect(entry.owner, entry.semantic_key).toEqual(expect.stringMatching(/^(schema|viza_audit|profile_owned|unsupported)$/));
       }
     }
 
@@ -127,12 +129,10 @@ describe("Philippines eTravel arrival card schema", () => {
 
   it("publishes a complete fail-closed schema parity manifest for cross-layer consumers", () => {
     const manifest = PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_MANIFEST;
-    expect(PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE).toEqual({
-      contract_records: 119,
-      current_schema_rows: 69,
-      schema_rows_are_not_contract_total: true,
-      non_schema_contract_records: 50,
-    });
+    expect(PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE.canonical_contract_records).toBe(119);
+    expect(PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE.current_schema_rows).toBe(PH_ETRAVEL_OFFICIAL_FIELD_NAMES.length);
+    expect(PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE.schema_rows_are_not_contract_total).toBe(true);
+    expect(PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE.includes_viza_audit_and_static_gates).toBe(true);
     expect(manifest).toHaveLength(PH_ETRAVEL_OFFICIAL_FIELD_NAMES.length);
     expect(new Set(manifest.map((entry) => entry.schema_field)).size).toBe(PH_ETRAVEL_OFFICIAL_FIELD_NAMES.length);
     expect([...manifest.map((entry) => entry.schema_field)].sort()).toEqual([...PH_ETRAVEL_OFFICIAL_FIELD_NAMES].sort());
@@ -150,7 +150,7 @@ describe("Philippines eTravel arrival card schema", () => {
         fields.push(entry.schema_field);
         keyToFields.set(entry.official_key!, fields);
       } else {
-        expect(entry.requiredness.status, entry.schema_field).toBe("needs_review_fail_closed");
+        expect(entry.official_key, entry.schema_field).toBeNull();
       }
 
       if (entry.requiredness.status === "needs_review_fail_closed") {
@@ -212,6 +212,66 @@ describe("Philippines eTravel arrival card schema", () => {
     }
   });
 
+  it("locks this product to ARRIVAL and requires VIZA privacy/affidavit consent before enqueue", () => {
+    expect(byName("flight_type")).toMatchObject({
+      field_type: "radio",
+      required: true,
+      step_number: 1,
+      options: [{ value: "ARRIVAL", label_en: "Arrival (Entering the Philippines)" }],
+    });
+    expect(valuesOf("flight_type")).toEqual(["ARRIVAL"]);
+    expect(valuesOf("flight_type")).not.toContain("DEPARTURE");
+    expect(rulesOf("flight_type")).toMatchObject({
+      official_key: "flight_type",
+      fixed_value: "ARRIVAL",
+      ui_locked: true,
+      locked_for_product: "PH_ETRAVEL_ARRIVAL_CARD",
+      excluded_value: "DEPARTURE",
+      departure_product: "PH_ETRAVEL_DEPARTURE_CARD",
+    });
+
+    const arrivalConditions = PH_ETRAVEL_FORM_FIELDS.filter((field) =>
+      String(field.conditional_logic?.showIf ?? "").includes("flight_type === ARRIVAL"));
+    expect(arrivalConditions.length).toBeGreaterThan(0);
+    expect(PH_ETRAVEL_OFFICIAL_FIELD_NAMES).toContain("flight_type");
+
+    expect(byName("registration_data_privacy_affidavit_consent")).toMatchObject({
+      field_type: "checkbox",
+      required: true,
+      step_number: 1,
+    });
+    expect(rulesOf("registration_data_privacy_affidavit_consent")).toMatchObject({
+      official: false,
+      viza_audit: true,
+      exclude_from_official_payload: true,
+      enqueue_required_value: true,
+      covers: ["data_privacy", "affidavit"],
+    });
+    expect(PH_ETRAVEL_CONFIRMED_APPLICANT_COVERAGE.map((entry) => entry.field_name))
+      .not.toContain("registration_data_privacy_affidavit_consent");
+
+    const parityConsent = PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_MANIFEST.find(
+      (entry) => entry.schema_field === "registration_data_privacy_affidavit_consent",
+    );
+    expect(parityConsent).toMatchObject({
+      official_key: null,
+      official_key_status: "not_an_applicant_control",
+      owner: "viza_audit",
+    });
+    const manifest = PH_ETRAVEL_ORDINARY_ARRIVAL_APPLICANT_QUESTION_MANIFEST;
+    expect(manifest.find((entry) => entry.semantic_key === "registration.flight_type")).toMatchObject({
+      owner: "schema",
+      applicant_answer: true,
+      schema_field: "flight_type",
+    });
+    expect(manifest.find((entry) => entry.semantic_key === "consent.data_privacy_and_affidavit")).toMatchObject({
+      owner: "viza_audit",
+      applicant_answer: true,
+      schema_field: "registration_data_privacy_affidavit_consent",
+    });
+    expect(manifest.filter((entry) => entry.semantic_key === "registration.flight_type")).toHaveLength(1);
+  });
+
   it("maps every E17 needs-review row to one planned E18 owner without making a scenario launch-ready", () => {
     const scenarios = PH_ETRAVEL_E18_SYNTHETIC_SCENARIO_READINESS;
     expect(scenarios.map((scenario) => scenario.scenario)).toEqual(["S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]);
@@ -231,8 +291,9 @@ describe("Philippines eTravel arrival card schema", () => {
     }
 
     const scenario = (id: string) => scenarios.find((entry) => entry.scenario === id)!;
-    expect(scenario("S1").non_schema_or_unsupported_keys).toEqual(expect.arrayContaining([
-      "profile.photo_url", "residence.region_code", "residence.province_code", "residence.municipality_code", "residence.barangay_code",
+    expect(scenario("S1").non_schema_or_unsupported_keys).toEqual(["profile.photo_url", "residence.region_code"]);
+    expect(scenario("S1").schema_fields_present).toEqual(expect.arrayContaining([
+      "residence_province_code", "residence_municipality_code", "residence_barangay_code",
     ]));
     expect(scenario("S2").schema_fields_present).toContain("flight_number_special");
     expect(scenario("S2").non_schema_or_unsupported_keys).toEqual(["air.is_special_flight"]);
@@ -264,7 +325,9 @@ describe("Philippines eTravel arrival card schema", () => {
 
     expect(showIf("visited_country_30d")).toBe("has_recent_travel_history_30d === true");
     expect(showIf("sickness_symptom")).toBe("has_been_sick_30d === true");
-    expect(scenario("S3").requiredness_boundary).toBe("health_positive_branch_requiredness_not_closed");
+    expect(scenario("S3").requiredness_boundary).toBe(
+      "health_screenshot_confirms_base_radios_and_positive_group_minimums_but_server_acceptance_remains_review",
+    );
 
     expect(showIf("is_disembarking")).toBe("transport_type === SEA && flight_type === ARRIVAL");
     expect(showIf("sea_manual_customs_forms_notice")).toBe("transport_type === SEA && selected_port_customs_flow === MANUAL_FORMS");
@@ -406,7 +469,7 @@ describe("Philippines eTravel arrival card schema", () => {
       evidence_level: "verified_live_E19",
     });
     for (const fieldName of ["middle_name", "last_name", "suffix"]) {
-      expect(byName(fieldName).required, fieldName).toBe(false);
+      expect(byName(fieldName).required, fieldName).toBe(true);
       expect(rulesOf(fieldName).selector_evidence_level, fieldName).toBe("confirmed_live_E19");
       expect(rulesOf(fieldName).requiredness_evidence, fieldName).toBe("E19_live_label_optional");
     }
@@ -508,9 +571,57 @@ describe("Philippines eTravel arrival card schema", () => {
       server_requiredness_evidence: "needs_review",
       clear_on_change: ["region_code", "province_code", "municipality_code", "barangay_code", "street", "street_two"],
     });
+    expect(showIf("residence_province_code")).toBe("country_of_residence === PH");
+    expect(showIf("residence_municipality_code")).toBe("country_of_residence === PH");
+    expect(showIf("residence_barangay_code")).toBe("country_of_residence === PH");
+    expect(rulesOf("residence_province_code")).toMatchObject({
+      official_key: "province_code",
+      option_identity: "code",
+      client_requiredness_evidence: "E21_profile_Yup_requires_province_code_when_country_code_PH",
+      server_requiredness_evidence: "needs_review",
+      clear_on_change: ["region_code", "residence_municipality_code", "residence_barangay_code"],
+    });
+    expect(rulesOf("residence_municipality_code")).toMatchObject({
+      official_key: "municipality_code",
+      depends_on: "residence_province_code",
+      request_parameter: "province_code",
+      option_identity: "code",
+      client_requiredness_evidence: "E21_profile_Yup_requires_municipality_code_when_country_code_PH",
+      server_requiredness_evidence: "needs_review",
+      clear_on_change: ["residence_barangay_code"],
+    });
+    expect(rulesOf("residence_barangay_code")).toMatchObject({
+      official_key: "barangay_code",
+      depends_on: "residence_municipality_code",
+      request_parameter: "municipality_code",
+      option_identity: "code",
+      client_requiredness_evidence: "E21_profile_Yup_requires_barangay_code_when_country_code_PH",
+      server_requiredness_evidence: "needs_review",
+    });
+    for (const fieldName of ["residence_province_code", "residence_municipality_code", "residence_barangay_code"]) {
+      expect(byName(fieldName).required, fieldName).toBe(true);
+      expect(rulesOf(fieldName).dynamic_option_source, fieldName).toBeDefined();
+      expect(byName(fieldName).options, fieldName).toBeUndefined();
+    }
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.provinces).toMatchObject({
+      endpoint: "/api/v1/common/provinces",
+      query: ["order_by=name"],
+      response_identity: "code",
+      response_label: "name",
+    });
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.municipalities.query).toEqual([
+      "province_code={selected official province code}",
+    ]);
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.barangays.query).toEqual([
+      "municipality_code={selected official municipality code}",
+    ]);
     expect(rulesOf("residence_address_line1")).toMatchObject({
       official_key: "street",
-      client_branch: "country_code === PH switches street label only",
+      labels_by_residence_country: {
+        PH: "House No./Bldg./Street",
+        non_PH: "No./Bldg./City/State/Province",
+      },
+      client_requiredness_evidence: "E21_profile_Yup_requires_street_in_PH_and_non_PH_branches",
       server_requiredness_evidence: "needs_review",
     });
     expect(rulesOf("residence_address_line2")).toMatchObject({
@@ -528,7 +639,10 @@ describe("Philippines eTravel arrival card schema", () => {
 
     const manifest = PH_ETRAVEL_ORDINARY_ARRIVAL_APPLICANT_QUESTION_MANIFEST;
     const manifestField = (fieldName: string) => manifest.find((entry) => entry.schema_field === fieldName)!;
-    for (const fieldName of ["mobile_number", "country_of_residence", "residence_address_line1", "residence_address_line2"]) {
+    for (const fieldName of [
+      "mobile_number", "country_of_residence", "residence_province_code", "residence_municipality_code",
+      "residence_barangay_code", "residence_address_line1", "residence_address_line2",
+    ]) {
       expect(manifestField(fieldName).persistence_boundary, fieldName).toBe(
         "FOR_ME_profile_route; FOR_OTHER_registration_payload_only_not_account_runtime",
       );
@@ -602,7 +716,7 @@ describe("Philippines eTravel arrival card schema", () => {
     expect(rulesOf("return_date").not_air_only).toBe(true);
 
     expect(valuesOf("sea_port_of_entry")).toEqual([]);
-    expect(valuesOf("port_of_entry")).toContain("TP1000");
+    expect(valuesOf("port_of_entry")).toEqual([]);
     expect(showIf("with_transit")).toBeUndefined();
     expect(rulesOf("with_transit").transport_branch).toBe("AIR_SEA");
   });
@@ -765,7 +879,8 @@ describe("Philippines eTravel arrival card schema", () => {
       legacy_official_alias: "with_recent_travel_history",
       official_payload_key: "needs_review",
       client_false_clears: ["visited_countries"],
-      client_requiredness: "E23_Yup_required",
+      requiredness_evidence: "official_health_screenshot_2026-08-15",
+      client_requiredness: "verified_screenshot_required",
     });
     expect(showIf("visited_country_30d")).toBe("has_recent_travel_history_30d === true");
     expect(rulesOf("visited_country_30d")).toMatchObject({
@@ -773,20 +888,26 @@ describe("Philippines eTravel arrival card schema", () => {
       dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.countries,
       option_identity: "code",
       label_identity: "name",
-      component_exclusion_filter: "none_observed",
-      client_requiredness: "E23_Yup_nonempty_array_when_recent_travel_true",
+      component_exclusion_filter: "none_observed_includes_PH",
+      client_requiredness: "verified_screenshot_minimum_one_row_when_recent_travel_true",
       client_cleared_by: "has_recent_travel_history_30d === false",
+      clear_on_condition_false: true,
       repeat_group: "visited_countries",
+      repeat_actions: ["Add", "Delete"],
+      min_items: 1,
+      item_required: true,
     });
     expect(rulesOf("has_exposure_to_sick_person_30d")).toMatchObject({
       official_key: "is_with_history_exposure",
-      client_requiredness: "E23_Yup_required",
-      client_child_contract: "no_child_rendered_in_current_component",
+      requiredness_evidence: "official_health_screenshot_2026-08-15",
+      client_requiredness: "verified_screenshot_required",
+      client_child_contract: "no_child_rendered_in_screenshot",
     });
     expect(showIf("sickness_symptom")).toBe("has_been_sick_30d === true");
     expect(rulesOf("has_been_sick_30d")).toMatchObject({
       official_key: "is_sicked_within_thirty_days",
-      client_requiredness: "E23_Yup_required",
+      requiredness_evidence: "official_health_screenshot_2026-08-15",
+      client_requiredness: "verified_screenshot_required",
       client_change_clears: ["sickness_symptoms"],
     });
     expect(rulesOf("sickness_symptom")).toMatchObject({
@@ -794,10 +915,23 @@ describe("Philippines eTravel arrival card schema", () => {
       dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.sickness_symptoms,
       option_identity: "code",
       label_identity: "name",
-      client_requiredness: "E23_Yup_nonempty_array_when_sick_true",
-      client_cleared_by: "has_been_sick_30d_change",
+      client_requiredness: "verified_screenshot_minimum_one_option_when_sick_true",
+      client_cleared_by: "has_been_sick_30d === false",
+      clear_on_condition_false: true,
       repeat_group: "sickness_symptoms",
+      min_items: 1,
+      max_items: 15,
     });
+    expect(byName("sickness_symptom").field_type).toBe("checkbox");
+    expect(PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS.map((option) => [option.value, option.label_en])).toEqual([
+      ["SS015", "Altered Mental Status"], ["SS008", "Colds"], ["SS002", "Cough"], ["SS014", "Diarrhea"], ["SS017", "Difficulty of Breathing"],
+      ["SS022", "Dizziness"], ["SS001", "Fever"], ["SS005", "Headache"], ["SS023", "Loss of appetite"], ["SS016", "Loss of smell"],
+      ["SS018", "Loss of taste"], ["SS006", "Muscle Pain"], ["SS011", "Nausea"], ["SS021", "Rashes, vesicles or blisters"], ["SS007", "Sore throat"],
+    ]);
+    expect(PH_ETRAVEL_HEALTH_DECLARATION_WARNING).toBe(
+      "Any false declaration made in this context may subject the traveler to legal penalties under applicable Philippine laws including public health, quarantine and communicable diseases regulations.",
+    );
+    expect(PH_ETRAVEL_OFFICIAL_FIELD_NAMES).not.toContain("health_declaration_warning");
     expect(PH_ETRAVEL_OFFICIAL_FIELD_NAMES).not.toContain("exposed_to_bats_or_sick_animals");
     const bats = PH_ETRAVEL_ORDINARY_ARRIVAL_APPLICANT_QUESTION_MANIFEST.find(
       (entry) => entry.semantic_key === "health.exposed_to_bats_or_sick_animals",
@@ -1285,10 +1419,18 @@ describe("Philippines eTravel arrival card schema", () => {
 
   it("consumes E22 AIR and destination bundle wiring without promoting static client validation to server requiredness", () => {
     expect(byName("airline_name").required).toBe(false);
+    expect(valuesOf("airline_name")).toEqual([]);
     expect(rulesOf("airline_name")).toMatchObject({
       official_key: "travel_company_code",
       dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_travel_companies,
       client_clear_on_change: ["flight_number", "flight_number_special", "destination_port_code"],
+      server_requiredness: "needs_review",
+    });
+    expect(valuesOf("origin_country")).toEqual([]);
+    expect(rulesOf("origin_country")).toMatchObject({
+      official_key: "origin_country_code",
+      client_excludes_country_code: "PH",
+      client_requiredness: "public_bundle_only",
       server_requiredness: "needs_review",
     });
     expect(byName("flight_number").required).toBe(false);
@@ -1379,6 +1521,7 @@ describe("Philippines eTravel arrival card schema", () => {
       port_metadata_contract: "dynamic_metadata_only_not_schema_requiredness_or_air_customs_flow",
       server_requiredness: "needs_review",
     });
+    expect(valuesOf("port_of_entry")).toEqual([]);
   });
 
   it("keeps E17's result, runtime, and unsupported rows outside applicant questions", () => {

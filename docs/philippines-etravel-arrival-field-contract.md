@@ -19,6 +19,7 @@
 | `VIZA eligibility-only` | VIZA-only routing/diversion data. Owner: PH frontend eligibility and PH-C runner guard. | Must not be submitted as ordinary official passenger answers. |
 | `account runtime secret` | eTravel/eGovPH login secret or OTP. Owner: secure runtime/account subsystem. | Must not enter `visa_form_fields`, application answers, test fixtures, docs examples, or logs. |
 | `account runtime data` | Non-secret account runtime identifier, such as email used for eTravel account/login. Owner: account/runtime subsystem. | Do not treat as a visa form field unless PH-B separately maps an official applicant contact field. |
+| `family profile field` | A value belonging to an existing or newly added family traveller Profile. Owner: family-profile subsystem. | Do not treat it as a per-trip declaration answer; it is consumed only when that family Profile is selected for a declaration. |
 | `static notice/action` | Informational copy, acknowledgements, navigation, review, submit, or UI action. Owner: frontend/runner control flow. | Not an applicant question unless an explicit acknowledgement answer is separately listed. |
 | `submission result` | Official reference, QR, screenshots, artifacts, or result status. Owner: submission result/artifact subsystem. | Never in `visa_form_fields` or applicant answers. |
 
@@ -267,7 +268,7 @@ These are `VIZA eligibility-only` items, not ordinary passenger form fields.
 | Family | `applicant form answer` | `family.selected_members` | none; official client state key `family_members` | Family Member(s) | repeated profile selection + per-member signature canvas | public family profile source; each selected object has `family_member_id` and `signature`; zero selections have no client array-min rule | optional in client schema; zero selection opens the no-companion confirmation before the next wizard page; selected member signature has client `Required` validation | regular `/wizard/me` inserts Family immediately before Summary only when registration `status === INCOMPLETE`; E25 places that conditional Family after the electronic Attachments/Signature step, including a Currency-positive constructed chain. E24/E25 shortcut `/wizard/declaration` has no Family insertion. | AIR/SEA regular wizard if that state is present | family signature canvas; no upload rule proved | E2/E6/E9/E15/E24/E25; live semantics and server acceptance remain `needs_review`; E25 evidence class `verified_public_bundle` | `verified_public` |
 | Family | `applicant form answer` | `family.accompanied_under_18_count` | `accompanied_under_18_count`; official key `accompanied_family_members.below_eighteen` | Below 18 yrs. old | number | numeric | yes on baggage/general public validation | customs/baggage step | all | none | E2 | `verified_public` |
 | Family | `applicant form answer` | `family.accompanied_18_plus_count` | `accompanied_18_plus_count`; official key `accompanied_family_members.above_or_equal_eighteen` | 18 yrs. old and above | number | numeric | yes on baggage/general public validation | customs/baggage step | all | none | E2 | `verified_public` |
-| Family profile | `applicant form answer` | `family.relationship` | none in arrival seed; official key `relationship` | Relationship to account owner | enum | `MOTHER`, `FATHER`, `DAUGHTER`, `SON`, `SISTER`, `BROTHER`, `HUSBAND`, `WIFE`, `COUSIN`, `UNCLE`, `AUNT`, `NEPHEW`, `NIECE`, `GRANDFATHER`, `GRANDMOTHER`, `GRANDCHILD` | unknown | family profile | all with family member | none | E2 | `verified_public` |
+| Family profile | `family profile field` | `family.relationship` | none in arrival seed; official key `relationship` | Relationship to account owner | enum | E2 public-bundle evidence previously exposes `MOTHER`, `FATHER`, `DAUGHTER`, `SON`, `SISTER`, `BROTHER`, `HUSBAND`, `WIFE`, `COUSIN`, `UNCLE`, `AUNT`, `NEPHEW`, `NIECE`, `GRANDFATHER`, `GRANDMOTHER`, `GRANDCHILD`; E39 screenshots independently prove label/order only. | yes; E39 user-provided evidence says this final Profile dropdown is required | only when adding a family Profile; relationship is relative to account owner | family-profile flow | none | E2/E39; live submitted-payload/server rule remains `needs_review` | `verified_public` |
 | Customs confirm | `applicant form answer` | `customs.information_acknowledgement` | `customs_information_acknowledgement` | Baggage/General/Currency information acknowledgement | checkbox/static ack | true/false | yes in current VIZA; official required unknown | customs information pages | all | none | E2/E3/E4 | `needs_review` |
 | Customs confirm | `applicant form answer` | `customs.has_baggage_or_currency_to_declare` | `has_baggage_or_currency_to_declare`; official key `with_something_to_declare_arrival` | Do you have baggage or currency to declare? / Customs Declaration Confirmation | button/boolean branch | visible `No` / `Yes`; positive AIR electronic path proceeds to Other Travel Details, General Declaration, Currency Declaration, Attachments/Signature, Family, Summary; E8 SEA electronic path confirmed `No` proceeds to Other Travel Details then signature. E24 static arrays add General only when the declaration answer is truthy and only inside the electronic metadata gate. | requiredness unknown | arrival customs confirmation | AIR electronic observed; SEA electronic observed for one port path; SEA manual path also exists | if yes may trigger baggage/currency details | E2/E7/E8/E24; E24 evidence class `verified_public_bundle` | `verified_public` |
 | Baggage | `applicant form answer` | `baggage.checked_count` | `checked_baggage_count`; official value/control key `no_of_checked_in_baggages`; official label/group key `no_of_baggage` | `no_of_baggage` / Checked-in (pcs) | number | numeric | yes on public validation for `no_of_checked_in_baggages`; visible in E8 SEA electronic other travel details | baggage declaration | AIR positive and E8 SEA electronic No detail paths observed; SEA manual forms and other paths differ | none | E2/E8 | `verified_public` |
@@ -1180,3 +1181,236 @@ The following is a user-provided 2026-08-14 current live onboarding screenshot. 
 | `Mobile Number` with searchable country-dial-code picker, defaulting to `Philippines +63` in this screenshot | `traveller.mobile_number`; country code is control state, not a separately proved applicant key. | `confirmed_live` UI behavior/default state; key/requiredness `needs_review` |
 | `Citizenship` dropdown uses nationality/demonym labels; `Country of Birth` and `Passport Issuing Authority` use country-name labels | `traveller.nationality_country_code`, `traveller.country_of_birth_code`, `traveller.passport_issuing_country_code`; visible option presentation differs by field. No stable option value/code is captured. | `confirmed_live` label/presentation; codes `needs_review` |
 | `Passport Number`; `Passport Issued Date (MM/DD/YYYY)`; `Occupation`; `Next` | `traveller.passport_number`, `traveller.passport_issue_date`, `traveller.occupation_code`; Occupation was not opened, so its option list is unknown. | `confirmed_live` field presence; occupation options `needs_review` |
+
+## E29 Profile Checkpoint, Travel Registration, and Philippine Residence (2026-08-15)
+
+This is user-provided current live-page evidence, recorded without PH-A opening the site or submitting anything. It separates the profile save checkpoint from the ordinary arrival registration's later Summary final-submit action.
+
+| Current official behavior | Canonical contract / owner | Evidence tier and boundary |
+| --- | --- | --- |
+| Personal Information Review `Submit` saves the basic profile, then opens `Travel Registration`. | Static/action checkpoint, not an applicant answer and not `summary.final_submit`. It creates no permission to call the arrival registration submitted, create a result, reference, or QR. | `confirmed_live` transition meaning; profile-save request/response and server persistence remain `needs_review`. |
+| `Travel Registration` shows `FOR ME (Current User)` / `FOR OTHER (Family Member)`, `AIR` / `SEA`, and `ARRIVAL (Entering the Philippines)` / `DEPARTURE (Leaving the Philippines)`. | Existing `registration.application_for`, `registration.transport_type`, and `registration.flight_type` rows. `PH_ETRAVEL_ARRIVAL_CARD` permits only `ARRIVAL`; `DEPARTURE` is outside this product contract. | `confirmed_live` labels and ordinary-start surface. Do not infer submitted keys/codes or row-level requiredness beyond existing evidence. |
+| `Continue` on Travel Registration means agreement to the visible Data Privacy and Affidavit material. | Static notice/action boundary, not a new applicant form answer or a final certification/result. | `confirmed_live` consent-action meaning only; no synthetic checkbox/key is introduced. |
+| Philippine residence follows Province -> Municipality -> Barangay -> Street -> optional line 2. | `residence.province_code`, `residence.municipality_code`, `residence.barangay_code`, `residence.address_line1`, `residence.address_line2`; PH-only branch. `address_line2` is explicitly optional in the current evidence. | `confirmed_live` rendered order/optionality. Field-level requiredness, validation copy, clearing, and server acceptance remain `needs_review` unless separately live-observed. |
+| Official administrative-option base is `https://ws.etravel.gov.ph`; the current provinces list contains 85 records, and each next administrative list is loaded with its selected official parent code. | Dynamic option contract: province code -> municipality list; municipality code -> barangay list. The existing E21 public-client endpoint templates are `/api/v1/common/provinces?order_by=name`, `/api/v1/common/municipalities?province_code={code}`, and `/api/v1/common/barangays?municipality_code={code}`. | `confirmed_live` for base, current 85-record snapshot, and code-dependent cascade. Endpoint templates remain `verified_public_bundle`; code values, response schema, ordering stability, and server acceptance remain `needs_review`. The count is a dated snapshot, not a permanent rule. |
+
+E29 does not change the E27 coverage tally: it closes the two-layer action boundary and strengthens the residence option-source contract, but does not promote unknown server rules, values, or requiredness.
+
+### E30 AIR Travel Details option crawl boundary (2026-08-15)
+
+No AIR field, option, value/code, count, dependency, or clear behavior is added from this attempt. The requested AIR `wizard_page=0` tab was already controlled by another Chrome session; the only safely accessible tab was SEA and was not substituted as AIR evidence. No Next, Cancel, save, submit, login, CAPTCHA, profile checkpoint, file, or signature action occurred.
+
+## E32 User-Provided Shared Health Declaration Screenshot Evidence (2026-08-15)
+
+Source and boundary: user-provided complete Health Declaration screenshots, accepted as current live UI evidence for both AIR and SEA. PH-A did not open the site or record a session, draft identifier, account value, or health answer. This closes visible UI requiredness and the observed positive-child behavior only; it does not prove server payload, acceptance, or final progression.
+
+| Category / canonical key | Current official UI evidence | Requiredness and condition | Evidence disposition |
+| --- | --- | --- | --- |
+| Static notice | `Any false declaration made in this context may subject the traveler to legal penalties under applicable Philippine laws including public health, quarantine and communicable diseases regulations.` | Static warning/action copy, never an applicant answer. | `confirmed_live` screenshot copy |
+| `health.has_recent_travel_history_30d` | `Do you have any recent travel history in the last 30 days?`; Yes/No. UI key remains `meta.with_recent_travel_history` with legacy alias `with_recent_travel_history`. | Base question is required on the shared AIR/SEA Health page. | `confirmed_live` UI requiredness; official server payload remains `needs_review`. |
+| `health.visited_countries_30d` | When recent travel is Yes: repeatable `Country(ies) worked, visited and transited in the last 30 days`; `Add` creates a row and `Delete` removes a row. The country list includes Philippines and all countries. UI child key remains `visited_countries`. | Positive branch requires at least one row and a country selection in every retained row. Switching recent travel to No clears all rows. This does not require every country. Screenshot does not expose per-country codes; E13 public API remains the code/name source. | `confirmed_live` repeater/required/clear behavior; option-code/server acceptance `needs_review`. |
+| `health.has_exposure_to_sick_person_30d` | `Have you had any history of exposure to a person who is sick or known to have communicable/infectious disease in the past 30 days prior to travel?`; Yes/No. UI key `is_with_history_exposure`. | Base question is required. No screenshot evidence establishes any Yes-child question or branch. | `confirmed_live` UI requiredness; child/server behavior `needs_review`. |
+| `health.has_been_sick_30d` | `Have you been sick in the past 30 days?`; Yes/No. UI key `is_sicked_within_thirty_days`. | Base question is required. Switching to No clears symptoms. | `confirmed_live` UI requiredness/clear behavior; server acceptance `needs_review`. |
+| `health.sickness_symptoms` | When sick is Yes: `Symptoms` multi-select. Complete screenshot label list (15): Altered Mental Status; Colds; Cough; Diarrhea; Difficulty of Breathing; Dizziness; Fever; Headache; Loss of appetite; Loss of smell; Loss of taste; Muscle Pain; Nausea; Rashes, vesicles or blisters; Sore throat. UI child key `sickness_symptoms`. | Positive branch requires at least one selected symptom; it does not require all 15. Switching sick to No clears the selection. Screenshot does not expose symptom codes; the existing public endpoint remains the code source. | `confirmed_live` list/min-one/clear behavior; option-code/server acceptance `needs_review`. |
+
+E32 leaves the overall Health rows review-gated wherever their official server key/payload, acceptance, or unobserved exposure-Yes child behavior is not directly evidenced. The AIR/SEA equivalence here applies only to the shared Health page shown in the provided screenshots.
+
+## E33 User-Provided AIR Customs Declaration Confirmation Screenshot Evidence (2026-08-15)
+
+Source and boundary: four user-provided AIR screenshots of the Customs Declaration Confirmation / Important Information page. PH-A did not open the site, make a selection, or record session, draft, account, or applicant data. The static material below is required page content, not applicant questions or application answers.
+
+### Screenshot transcription: static legal information
+
+**Important Information**
+
+**Baggage Declaration**
+
+- All persons and baggage are subject to search at any time. (Section 222 and 223 of CMTA).
+- All goods, when imported from any foreign country, including those previously exported from the Philippines, shall be subject to duties and taxes (Section 104 of CMTA), except when specifically exempted.
+- All Travelers bringing in goods with a value of Ten Thousand Pesos (PhP10,000.00) or below (Section 423 of CMTA), shall not pay duties and taxes.
+- All Filipino Citizens are entitled to a duty and tax exemption for personal effects and household goods sent or brought in up to three times (3x), the value of which must not exceed One Hundred Fifty Thousand Pesos (PhP150,000.00) within a calendar year. Provided, the goods are not in commercial quantities or intended for barter, sale or hire.
+- Each Traveler is entitled to duty and Value Added Tax free importation of two (2) reams of cigarettes or 50 sticks of cigars or 250 grams of pipe tobacco, and two (2) bottles of liquor with total value of Ten Thousand Pesos (PHP10,000.00) or less.
+- Failure to declare any dutiable goods will subject the Traveler to payment of duties and taxes plus a surcharge of Thirty Percent (30%) based on the total landed cost of goods. (Section 1404 of CMTA)
+- The following goods are **PROHIBITED**:
+  1. Written or printed goods, negatives or cinematographic films, photographs, engravings, lithographs, objects, paintings, drawings or other representation of an obscene or immoral character;
+  2. Materials advocating or inciting treason, rebellion, insurrection, sedition against the Government of the Philippines;
+  3. Abortion paraphernalia;
+  4. Adulterated or misbranded food or drugs;
+  5. Counterfeit goods(i.e. bags, shoes, etc.); and
+  6. Goods manufactured in whole or in part of gold, silver or other precious metals or alloys and the stamp, brand or mark does not indicate the actual fineness of quality of the metals or alloys
+
+**General Declaration**
+
+Reminder: Passenger should declare if bringing in any of the following:
+
+1. Philippine Currency and/or any Philippine Monetary Instrument in excess of PhP 50,000.00; (i.e. Check, Bank, Draft, etc);
+2. Foreign Currency and/or Foreign Monetary Instrument in excess of USD 10,000.00 or its equivalent;
+3. Gambling Paraphernalia;
+4. Cosmetics, skin care products, food supplements and medicines in excess of quantities for personal use;
+5. Dangerous drugs such as morphine, marijuana, opium, poppies or synthetic drugs;
+6. Firearms, ammunitions and explosives;
+7. Alcohol and/or tobacco products in commercial quantities;
+8. Foodstuff(s), fruit(s), vegetable(s), live animal(s) (i.e. meat,eggs etc.), marine and aquatic products(s), plant(s) and/or the product(s) and their by-product(s);
+9. Mobile phones, hand-held radios and similar gadgets in excess of quantities for personal use, and radio communication equipments;
+10. Cremains (human ashes), human organs or tissues;
+11. Jewelry, gold, precious metals or gems
+12. Other goods, not mentioned above;
+
+**Currency Declaration**
+
+Any person bringing into or taking out of the Philippines local and foreign currencies or monetary instruments is required to declare the whole amount using the Currencies Declaration Form in the following instances only:
+
+A) Legal tender Philippine notes and coins, checks, money order and other bills of exchange drawn in pesos against banks operating in the Philippines in excess of the PHP50,000 limit; and/or
+
+B) Foreign currency as well as other foreign currency-denominated bearer monetary instruments in excess of the USD10,000 threshold or its equivalent in other foreign currency.
+
+A prior written authorization from the Bangko Sentral ng Pilipinas (BSP) is required for cross-border transfer of legal tender Philippine notes, coins, checks, money orders, and other bill of exchange in an amount exceeding the PHP50,000.00 pesos limit. The BSP, however, allows cross-border transfer of local currency in excess of the PHP50,000.00 limit only for the following purposes:
+
+a) testing/calibration/configuration of money counting/sorting machines;
+
+b) numismatics (collection of currency); and
+
+c) currency awareness.
+
+**NON-DECLARATION OR FALSE DECLARATION SHALL BE SUBJECT TO SANCTIONS SUCH AS CONFISCATION OF THE CURRENCY AND POSSIBLE CRIMINAL PROSECUTION** pursuant to Republic Act No. 10863 or the Customs Modernization and Tariff Act in relation to BSP's regulations on physical cross-border transfer of currencies and other monetary instruments.
+
+WARNING: Offenses that may result to the forfeiture of the goods and/or imposition of penalties and criminal prosecution of the Traveler or Crew.
+
+1. Bringing in of PROHIBITED or RESTRICTED GOODS under Section 118 and 119 of the CMTA;
+2. Bringing in of REGULATED GOODS in excess of the allowable limits without the necessary import permit under Section 117 of the CMTA;
+3. Assault, resistance or disobedience to a Customs Officer under Article 151 of the Revised Penal Code of the Philippines; and
+4. Making any false or misleading statements to a Customs Officer.
+
+By continuing, you confirm that you have read and understood the information above.
+
+### Only applicant-answer control on this page
+
+| Canonical key | Official UI | Control/value evidence | Requiredness and route boundary | Status |
+| --- | --- | --- | --- | --- |
+| `customs.has_baggage_or_currency_to_declare` | `Do you have baggage or currency to declare?` | Two branch buttons: `No`, `Yes`. The screenshot does not expose an official submitted value/code; do not infer `true`/`false` from button text. | Required question. There is no independent `Next`; selecting an answer is the branch action. Screenshot evidence does not establish the page order after either answer. Existing AIR/SEA route facts remain valid only where separately evidenced; all otherwise unobserved routes stay `needs_review`. | `confirmed_live` UI/control/requiredness; value code/server/route remains `needs_review` |
+
+`Baggage Declaration`, `General Declaration` (including its 12 listed categories), `Currency Declaration`, sanctions/warnings, and the continuing acknowledgement are static notice/action content. They must be displayed at this AIR page boundary but are not applicant answers, checklist responses, currency rows, or final certification fields.
+
+## E34 User-Provided AIR Other Travel Details Screenshot Evidence (2026-08-15)
+
+Source and boundary: user-provided AIR Other Travel Details screenshot. PH-A did not open or alter the page. This is AIR-page evidence only and does not establish SEA parity, Next progression, requiredness, validation, maximum/minimum, or server acceptance.
+
+| Group / canonical key | Official label / UI key | Control and screenshot state | Contract boundary | Status |
+| --- | --- | --- | --- | --- |
+| Accompanied family members / `family.accompanied_under_18_count` | `Below 18 yrs. old` / `accompanied_family_members.below_eighteen` | Numeric-looking count control; screenshot-presented default `0`. | Treat as a nonnegative-integer candidate only. Screenshot does not prove input type, min/max, error, requiredness, or server acceptance. | label/key/default `confirmed_live`; constraints `needs_review` |
+| Accompanied family members / `family.accompanied_18_plus_count` | `18 yrs. old and above` / `accompanied_family_members.above_or_equal_eighteen` | Numeric-looking count control; screenshot-presented default `0`. | Treat as a nonnegative-integer candidate only. Screenshot does not prove input type, min/max, error, requiredness, or server acceptance. | label/key/default `confirmed_live`; constraints `needs_review` |
+| No. of Baggage / `baggage.checked_count` | `Checked-in (pcs)` / `no_of_checked_in_baggages` | Numeric-looking count control; screenshot-presented default `0`. | Treat as a nonnegative-integer candidate only. This is the official control key, not the older group-label candidate `no_of_baggage`. No min/max/error/server rule is proven. | label/key/default `confirmed_live`; constraints `needs_review` |
+| No. of Baggage / `baggage.hand_carried_count` | `Hand-carried (pcs)` / `no_of_hand_carried_baggages` | Numeric-looking count control; screenshot-presented default `0`. | Treat as a nonnegative-integer candidate only. Screenshot does not prove input type, min/max, error, requiredness, or server acceptance. | label/key/default `confirmed_live`; constraints `needs_review` |
+| `baggage.first_time_visit` | `First time visiting Philippines?` / `first_time_visit` | Yes/No radio controls; `No` is selected in the screenshot. | Current selected state is not a universal default or submitted value. No option value/code, requiredness, change behavior, error, or server rule is established. | labels/current rendered state `confirmed_live`; semantics `needs_review` |
+
+`Accompanied family members` and `No. of Baggage` are static group headings, not separate applicant answers. `Previous` and `Next` are visible page actions; neither was activated. E34 adds no route/order conclusion and awaits user page-by-page validation for temporary count/radio changes and restoration.
+
+## E35 User-Provided AIR Customs Declaration Signature Screenshot and Browser-Policy Boundary (2026-08-15)
+
+Source and boundary: a user-provided AIR `For Customs - Declaration Signature` screenshot, plus the independently recorded E6 empty-signature validation. PH-A's requested current-page DOM/canvas interaction was blocked by the managed browser security policy before the official page could be claimed. Consequently, this E35 run did **not** click `Next`, draw a test stroke, invoke `Clear`, upload, save, or submit anything.
+
+| Canonical key / content class | Official UI / observed evidence | Requiredness and implementation boundary | Status |
+| --- | --- | --- | --- |
+| `signature.applicant_signature` / applicant form answer | Screenshot heading `For Customs - Declaration Signature`; label `Signature`; a visibly empty signature area; action `Clear`. The screenshot alone exposes neither a DOM selector nor dimensions. | E6 independently live-observed that an empty `Next` produces `Required` and `Please make sure to fill out all required fields.` This establishes page-scoped empty-signature blocking, not a universal AIR/SEA rule. Existing public-bundle evidence for form key `signature` and source `PAD` remains static evidence only. | empty-state validation `confirmed_live` (E6); current AIR screenshot structure `confirmed_live`; selector/dimensions/server acceptance `needs_review` |
+| `signature.clear_action` / static notice/action | Screenshot visibly presents `Clear`. | Public bundle evidence says its handler clears the signature pad. It does not by itself prove that the current AIR DOM has a stable selector or that the associated form value is cleared; E35 could not perform the authorized stroke-and-Clear test. | action visible `confirmed_live`; current canvas/form clear behavior `needs_review` |
+| `declaration.certify_true_correct` / static notice/action | `By Clicking "Next", you hereby certify under pain of falsification that this declaration is true and correct to the best of my knowledge` | This is certification/action copy at the signature-page boundary, not a separate Boolean applicant answer and not the final `Submit` action. | `confirmed_live` UI copy; payload/acceptance `needs_review` |
+| Page navigation / static action | `Previous`, `Next` | E35 did not activate either action. A signed `Next` was expressly not attempted, so continuation, payload shape, and any Family/Summary route remain unproven by this run. | controls `confirmed_live`; signed-Next/payload/route `needs_review` |
+
+No attachment widget or upload requirement is established by this screenshot. The next controlled verification, after the browser policy permits ordinary interaction, is limited to: record the rendered selector/dimensions; click empty `Next` once; draw one synthetic stroke without recording canvas data; invoke `Clear`; and confirm the empty state. It must not activate `Next` while a stroke exists, and it must stop before any final submission.
+
+## E36 User-Provided Family Member(s) Bridge-Page Evidence (2026-08-16)
+
+Source and boundary: user-provided Family Member(s) screenshot and existing independent no-companion confirmation evidence. PH-A did not browse, add a profile, select a family member, or activate `Previous`/`Next`. This page is shared by the specifically observed AIR and SEA paths that reached it; it does not establish reachability for every customs, manual, or electronic variant.
+
+| Canonical content / ownership | Official UI / control | Contract boundary | Status |
+| --- | --- | --- | --- |
+| Family declaration bridge / profile-management action | `Family Member(s)`; `Travel declarations will also be generated for the selected family members.` | This is a profile-to-trip-declaration selection bridge, not a page for re-entering a family member's personal information. Each selected existing family profile generates its own travel declaration. The selection payload/key and selection control details are not exposed by this screenshot. | page purpose/copy `confirmed_live`; selector/payload `needs_review` |
+| Empty state / static notice | `No Record Found!` | Confirms the rendered empty state only; it does not mean a family profile is required. | `confirmed_live` |
+| Add action / profile management | `Add Family Member` | Adds/manages a family profile rather than a field in the current travel declaration. No action was invoked, so route, required profile fields, save boundary, and result are unobserved. | visible action `confirmed_live`; behavior `needs_review` |
+| Page actions / static action | `Previous`, `Next` | Existing independent evidence: choosing no family member then invoking `Next` opens a no-companion confirmation modal. E36 did not invoke it and does not establish modal copy, confirmation route, or server acceptance. | controls/no-selection modal existence `confirmed_live`; details `needs_review` |
+
+The customs-statistical `accompanied_family_members.below_eighteen` and `accompanied_family_members.above_or_equal_eighteen` counts on Other Travel Details are not this page's actual family-profile selection and must not be mapped to selected family declarations. This E36 page is neither an account-runtime secret nor an applicant personal-data re-entry form.
+
+### E36a User-Provided No-Companion Confirmation Behavior (2026-08-16)
+
+The user-provided screenshot and explicit route statement close the E36 modal-copy/navigation detail only. When no family member is selected and `Next` is invoked, the modal says: `You haven't selected any family members for this travel registration. Are you sure you're not traveling with a companion?` `No` closes the modal and preserves/returns to the Family Member(s) page; `Yes` navigates to Review. This is a runtime navigation confirmation, not an applicant answer, schema field, or submission payload. Selected existing family profiles instead generate their respective travel declarations; this does not change the separation from Other Travel Details age-count statistics. Status: `confirmed-user-provided behavior`; server persistence and final submission remain `needs_review`.
+
+## E37 User-Provided AIR Final-Submit Result Page Structure (2026-08-16)
+
+Source and boundary: one user-provided official eTravel result/confirmation-page screenshot after a user-manual AIR final submission. All result, travel, person, and QR contents are intentionally redacted as `[redacted]`; PH-A did not browse, submit, scan, download, or otherwise operate the page.
+
+| Result content / ownership | Redacted official-page structure | Evidence boundary | Status |
+| --- | --- | --- | --- |
+| Submission result | Official eTravel confirmation/result page presents `QR` and `Reference Number` on the same page: `[redacted]`. | Proves same-page presentation for this one manually completed AIR result only. It does not prove an independent QR artifact, QR scan validity, format, or retrieval route. | `confirmed-user-provided behavior` |
+| Flight Details / submission result | `Flight Details` section renders `ARRIVAL - VIA AIR`, plus date and origin/destination values: `[redacted]`. | AIR-only rendered result structure; neither source values nor server payload mapping are recorded. | `confirmed-user-provided behavior` |
+| Officer guidance / static notice | The page directs the passport to the Immigration Officer and the QR to the Customs officer. | This is a displayed post-submission instruction, not an applicant answer or proof of officer/QR processing. | `confirmed-user-provided behavior` |
+| Eligibility/status presentation / submission result | Immigration Officer / E-Gates eligibility status and customs, baggage, and status badges are displayed: `[redacted]`. | Display presence only; badge values, decision criteria, legal effect, and downstream acceptance are unverified. | `confirmed-user-provided behavior` |
+| Return navigation / static action | `Back to Home` is visible. | Its route and recovery behavior were not activated. | visible action `confirmed-user-provided behavior`; behavior `needs_review` |
+
+E37 closes only the narrow claim that a manually completed AIR final-submit result page can co-present a reference number and QR. SEA result behavior, runner/submission-service automation success, independent QR scan validation, retries/idempotency, interrupted submission recovery, downloads/printing, and any result API contract remain `needs_review`.
+
+## E38 User-Provided FOR ME / FOR OTHER Canonical-Flow Correction (2026-08-16)
+
+Source and boundary: user-provided current official-page screenshots and explicit route explanation. PH-A did not browse or operate the flow. This corrects ownership/flow interpretation only; it adds no new Health, Customs, Currency, Family, Summary, or result fields.
+
+| Entry branch / ownership | Confirmed two-stage flow | Contract rule | Status |
+| --- | --- | --- | --- |
+| `FOR ME (Current User)` / existing account-owner profile | Reuses the account owner's completed Profile, then enters the selected AIR or SEA arrival declaration. | This is the ordinary arrival entry branch, not a separate product or a new profile form. | `confirmed-user-provided behavior` |
+| `FOR OTHER (Family Member)` / other-traveller profile | First completes one full Profile for the other traveller, then enters the same selected AIR or SEA arrival declaration pages as `FOR ME`. | `FOR OTHER` is not a second trip-declaration schema or product. It is a profile-creation/selection prelude for the person whose arrival declaration is being made. Earlier E21 static client-route branching must not be read as proof that other-traveller Profile fields are absent or that values belong to the account owner. | `confirmed-user-provided behavior` |
+| FOR OTHER Profile / applicant form answers | `Photo: Take a photo or upload a file.`; `PHILIPPINE PASSPORT Holder` / `FOREIGN PASSPORT Holder`; `First Name`; `Middle Name (optional)`; `Last Name (optional)`; `Suffix (optional)`; `Sex`; `Birth Date`; `Mobile Number` with country calling-code control; `Citizenship`; `Country of Birth`; `Passport Number`; `Passport Issuing Authority`; `Passport Issued Date`; `Occupation`; then Permanent Country of Residence: `Country`; `No./Bldg./City/State/Province`; `Address Line 2 (optional)`. | These are the other traveller's Profile/residence values, not account/runtime secrets and not duplicate arrival declarations. Existing per-field evidence/unknown requiredness, option codes, and upload acceptance remain unchanged unless separately established. | labels/sequence `confirmed-user-provided behavior`; unproven per-field rules remain `needs_review` |
+| `Copy account owner address` / runtime convenience action | Copies the account owner's address into the other traveller Profile's residence form. | It is neither an applicant answer nor an independent schema/payload field. After copying, the resulting residence values belong to the other traveller Profile and retain the ordinary residence-field contract. | `confirmed-user-provided behavior` |
+| AIR Special Flight / declaration condition | The `FOR OTHER + AIR + ARRIVAL` declaration path can show `Special Flight`; when enabled, the Flight Number location displays `Specify special flight number` and a warning. | This is a transport/declaration-page condition shared with the ordinary AIR contract, not a FOR OTHER-only product branch. Its key, value, warning text, requiredness, clear behavior, and server acceptance remain `needs_review` unless separately observed. | visible condition/labels `confirmed-user-provided behavior`; semantics `needs_review` |
+
+Canonical arrival flow is therefore: **(1)** choose `FOR ME` to reuse the completed owner Profile, or choose `FOR OTHER` to complete the other traveller Profile; **(2)** enter the same selected `AIR|SEA + ARRIVAL` declaration chain. `DEPARTURE` remains outside `PH_ETRAVEL_ARRIVAL_CARD`. Do not duplicate Health/Customs fields or model `FOR OTHER` as a separate product.
+
+## E39 User-Provided Add Family Member Profile and Relationship Evidence (2026-08-16)
+
+Source and boundary: user-provided official-page screenshots and explanation; PH-A did not browse or operate this flow. `Add Family Member` reuses the full traveller Profile contract: Personal Information followed by Permanent Country of Residence. It does not create a second trip-declaration flow.
+
+| Family-profile content / ownership | Observed official UI | Contract boundary | Status |
+| --- | --- | --- | --- |
+| Added traveller Profile / `family profile field` | The same Personal Information and Permanent Country of Residence sequence used by `FOR OTHER`. | `FOR OTHER` inline Profile and Add Family Member share one Profile contract. Add Family Member differs only by the final Relationship field below. | `confirmed-user-provided behavior` |
+| `family.relationship` / `family profile field` | Required `Relationship` dropdown, relative to the account owner. Screenshot label/order: `MOTHER`, `FATHER`, `DAUGHTER`, `SON`, `SISTER`, `BROTHER`, `HUSBAND`, `WIFE`, `COUSIN`, `UNCLE`, `AUNT`, `NEPHEW`, `NIECE`, `GRANDFATHER`, `GRANDMOTHER`, `GRANDCHILD`. | This field belongs to the added family Profile, not to a per-trip declaration answer. E39 itself proves labels/order and requiredness only; the pre-existing E2 public-bundle source is separately cited where the current table records those strings as option values. No new inference from labels to submitted codes is made here. | labels/order/requiredness `confirmed-user-provided behavior`; payload/server acceptance `needs_review` |
+
+After the added Profile is completed, control returns to the family-profile/selection semantics described in E36. Selecting a family Profile can generate that person's distinct travel declaration; this remains distinct from Other Travel Details age-count statistics.
+
+## E40 User-Provided Shared AIR Travel Details Conditional-Branch Evidence (2026-08-16)
+
+Source and boundary: user-provided AIR screenshots and explicit explanation; PH-A did not browse or operate the flow. `FOR ME` and `FOR OTHER` converge on this same ordinary `AIR + ARRIVAL` Travel Details contract after their respective Profile entry stage. The evidence closes the question-existence/conditional-structure class only; it does not prove submitted codes, server requiredness/acceptance, or production submission.
+
+| AIR condition / canonical scope | Confirmed visible question/condition structure | Contract boundary | Evidence tier |
+| --- | --- | --- | --- |
+| `air.special_flight` | Travel Registration `FOR ME + AIR + ARRIVAL` can enable `Special Flight`. | It is an AIR declaration-start condition, not another product or `registration_for` value. When enabled, it is a distinct Flight Number branch: the ordinary Flight Number select/autofill position is replaced by the special-flight input documented in E41. Do not infer a checkbox submitted code from this screenshot. | `confirmed-user-provided behavior` |
+| `air.with_transit` | `With Transit (Connecting Flight)?` checked expands `Country of Transit` (dynamic country options), `Airport of Transit` (text), and `Date of Transit` (date). | These are child fields of the same AIR Travel Details page for both owner branches. Option codes, per-field requiredness, clear-on-uncheck behavior, and server acceptance remain as existing `needs_review` boundaries. | `confirmed-user-provided behavior` |
+| `air.destination_airport` / `air.arrival_date` | `Airport of Destination` and `Date of Arrival` remain visible in the same AIR Travel Details page. | No new option/value/code or validation claim is made. | `confirmed-user-provided behavior` |
+| `destination.stay_location_type` | `Destination upon arrival in the Philippines` offers `Residence`, `Hotel/Resort`, `Transit Via Airport`. | These are common AIR conditional branches, not FOR OTHER-only schema. E40 neither adds unseen options/codes nor changes existing Hotel/Resort and Transit Via Airport child-field contracts. | `confirmed-user-provided behavior` |
+| `destination.same_as_residence` / `destination.address_text` | On the Residence branch, `Same as Permanent Country of Residence` can be checked. Checked renders the saved `Residence Address`; unchecked renders an editable `Residence Address`. | This is checkbox/action UI behavior only. Do not introduce a separate submitted Boolean code or treat displayed/copy-filled address behavior as server persistence proof. | `confirmed-user-provided behavior` |
+
+E40 confirms that these are conditionally visible questions/controls within one AIR declaration contract. It does not create a FOR OTHER-only schema, duplicate later Health/Customs questions, or close any final-submission validation.
+
+## E41 Coordinator Correction: AIR Special Flight Is a Distinct Flight-Number Branch (2026-08-16)
+
+Source and boundary: latest user-provided official AIR Travel Details screenshot. This correction supersedes any E40 wording that could be read as treating Special Flight and ordinary Flight Number as identical controls. PH-A did not browse or operate the page.
+
+| AIR Special Flight evidence | Contract correction | Evidence tier |
+| --- | --- | --- |
+| Page remains `Travel Details - Philippine Arrival (via AIR)`. Current rendered state shows `Purpose of Travel` `Business/Professional`, `Traveller Type` `FLIGHT CREW`, and `Name of Airline` `Aero K Airlines`. | These are same-screen rendered states only. They do not establish a causal rule that Special Flight automatically sets Traveller Type to `FLIGHT CREW`, nor do they establish a submitted code/payload relation. | labels/current state `confirmed-user-provided behavior`; causal relation `needs_review` |
+| With Special Flight enabled, the Flight Number position shows the free-text input `Specify special flight number`; its empty state shows `Required`. | The ordinary Flight Number select/autofill location is replaced on this branch. This is not the ordinary-airline flight-number control. | visible branch/requiredness `confirmed-user-provided behavior` |
+| `Misdeclaration of special flight will cause travel delay` is visibly shown. | Static warning only; not an applicant answer or proof of submission acceptance. | `confirmed-user-provided behavior` |
+| Existing E22 public-bundle evidence names the special child key `flight_number_special`. | Cite that key only as the existing public-bundle source. E41 does not infer a new submitted value/code from the visible label or prove server acceptance. | `verified_public` for existing E22 static key; E41 live boundary remains `needs_review` |
+
+Transit and destination conditional structure remain as recorded in E40. Only the erroneous Special Flight equivalence is withdrawn.
+
+## E42 User-Provided AIR `For Customs - General Declaration` Page Evidence (2026-08-16)
+
+Source and boundary: user-provided complete official AIR `wizard_page=4` screenshots plus controlled interaction explanation. PH-A did not browse or operate the page. This is AIR General Declaration evidence; it does not independently establish SEA parity, server acceptance, or final submission.
+
+| General Declaration surface | Confirmed visible behavior | Boundary / evidence tier |
+| --- | --- | --- |
+| Goods amount / `amount_of_goods_acquired.currency`, `amount_of_goods_acquired.amount` | `Total Amount of goods purchased and/or acquired abroad?`; currency radio labels `Philippine Peso` / `US Dollar`; editable `Amount` numeric field, initially rendered `0`. | E42 confirms visible labels/initial state/editability and that US Dollar is selectable. It does not infer the unfinished user statement beginning “if US Dollar”, or any additional condition, code, validation, or server rule. Existing E7 selector/value evidence remains separately cited. `confirmed-user-provided behavior` |
+| Twelve checklist answers / `check_lists.0.response` ... `check_lists.11.response` | All 12 existing canonical General Declaration items appear as independent Yes/No questions, in the already-recorded 1–12 canonical order and English wording. | E42 reconfirms the complete visible checklist; it does not alter existing E7 `true`/`false` selector evidence or establish final acceptance. `confirmed-user-provided behavior` |
+| Blue `If YES` help / static notice | Screenshot displays static permit/clearance guidance, including: 1 BSP prior authorization original copy; 2 foreign currency declaration form at Customs Arrival Area; 3 PAGCOR permit/clearance; 4 FDA permit/clearance; 5 Philippine Drug Enforcement Agency permit/clearance; 6 Firearms and Explosives Office / PNP permit; 8 plant/veterinary quarantine clearance; 10 Bureau of Quarantine clearance; 12 `If YES, please enumerate`. | These are static explanatory/permit notices, not new answers, modal children, file-upload fields, or file requirements. `confirmed-user-provided behavior` |
+| Positive item repeater / `baggage.items` | Screenshot directly confirms item 11 `Jewelry, gold, precious metals or gems` = Yes and item 12 `Other goods, not mentioned above` = Yes each show `Add Item` and a table. User checked other dynamically reacting Yes cases, then restored them to No; all observed reactive Yes cases used the same Add Item mode. | Do not universalize the modal to all 12 Yes answers. E42 directly proves the repeater for items 11 and 12; the other items' permit/help text must not be modeled as modal children. `confirmed-user-provided behavior` |
+| Add Item modal/table | Modal fields: `Description` textarea, `Quantity`, `Amount in USD`; actions `Cancel` / `Add`. Saved table columns: `Quantity` / `Description` / `Amount in USD` / `Action`; a row has a trash control for deletion. A synthetic row was displayed but its values are not retained. | Existing E7 selector and empty-modal required-error evidence may be cited separately. E42 proves the described AIR UI surface, not server row persistence, page-level row validation, or final acceptance. `confirmed-user-provided behavior` |
+
+E42 closes the visible-question/structure gap for this AIR General Declaration page. It does not convert helper/permit text into application fields, claim every Yes triggers a repeater, or close server/final-submission behavior.

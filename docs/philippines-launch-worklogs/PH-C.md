@@ -1376,3 +1376,15 @@ Currency page appeared after page 4 had item 1 Yes and item 2 Yes, with item 12 
 - onboarding 改为直接使用 `firstName`、`middleName`、`lastName`、`suffix`（兼容 `extension_name`），不再拆分 `fullName`，也不会在 Last Name 为空时用 First Name 伪造。可选姓名字段仅在有值时填写。
 - Citizenship 使用 nationality/demonym 标签；Country of Birth 与 Passport Issuing Authority 使用 country-name 标签，Filipino 与 Philippines 保持隔离。Occupation 仍仅按已确认“字段存在”处理，未假设其选项集。
 - focused tests：normalize/onboarding/form-plan `68 passed`；`npm run type-check` passed。未访问官网或启用账号、浏览器、Review/final Submit。
+
+## Profile checkpoint / Travel Registration guard（2026-08-15）
+
+- 接管并收紧本地 profile/residence 改动：Personal Information Review 的 `Submit` 仅是独立 profile-save checkpoint，默认需单独授权；只有返回 Dashboard 才可作为 `profile_saved` 的重启恢复信号。该状态不生成 submitted、reference 或 QR，eTravel Registration Summary/final Submit 仍由独立 stop-before-submit 门禁控制。
+- Travel Registration 现保留并精确选择 payload 的 `FOR_ME` / `FOR_OTHER`、`AIR` / `SEA`、`ARRIVAL`；runner_job 不再重写 travel type。`FOR_OTHER` 选择后立即 action-required，不会回退为 FOR_ME 或继续未知路径；Continue 仅接受带隐私与 Affidavit 版本/审计来源/时间的同意记录。
+- 菲律宾居住地址仅按官方层级 code（PH country、region、province、municipality、barangay）生成级联动作；缺任一 code 或以自由文本/国家标签充当 code 都 fail-closed。focused tests `18 passed`；此前完整相关 focused set `83 passed`；`npm run type-check` passed。未运行真实 job/login/final Submit。
+
+## Health Declaration screenshot contract（2026-08-15）
+
+- 依据用户提供的 AIR/SEA 同页截图，Health 规范化和 field plan 现将三项基础 Yes/No 视为必答：recent travel、exposure、sickness。recent-travel=Yes 要求至少一个去重的 country code；sick=Yes 要求至少一个症状；切回 No 不再计划或携带残留 countries/symptoms。exposure 没有推测任何未观察的子问题。
+- field plan 将截图静态 warning 和完整 15 项症状清单保存为非申请人答案元数据；recent countries 是可重复选择组，symptoms 是多值组。AIR 与 SEA 复用同一 Health 映射，不生成自由文本 `health_details` 动作。
+- focused tests：Health normalize、field-plan、preflight `72 passed`；`npm run type-check` passed。未访问官网、未启动账号/queue/browser、未点击 Next/Review/final Submit。Health 正向浏览器动作及 server persistence 仍维持 fail-closed。

@@ -101,6 +101,60 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
   assert.equal(payload.customs.checkedBaggageCount, "1");
   assert.equal(payload.customs.hasDutiableGoods, false);
   assert.equal(payload.customs.hasCurrencyOverThreshold, false);
+  assert.deepEqual(payload.residence, {
+    country: { code: "CN", label: null },
+    regionCode: null,
+    province: null,
+    municipality: null,
+    barangay: null,
+    line1: "Hunan",
+    line2: null,
+    isPhilippines: false,
+  });
+});
+
+test("normalizePhEtravelPortalPayload preserves official PH residence codes", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      country_of_residence: "PH",
+      country_of_residence_name: "Philippines",
+      residence_region_code: "1400000000",
+      residence_province_code: "1400100000",
+      residence_province_name: "ABRA",
+      residence_municipality_code: "1400101000",
+      residence_municipality_name: "BANGUED",
+      residence_barangay_code: "1400101001",
+      residence_barangay_name: "AGTANGAO",
+      residence_address_line1: "House 1, Test Street",
+      residence_address_line2: "Unit 2",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.residence.province?.code, "1400100000");
+  assert.equal(payload.residence.municipality?.code, "1400101000");
+  assert.equal(payload.residence.barangay?.code, "1400101001");
+  assert.equal(payload.residence.line1, "House 1, Test Street");
+  assert.equal(payload.residence.line2, "Unit 2");
+});
+
+test("normalizePhEtravelPortalPayload makes incomplete PH residence action-required", () => {
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        country_of_residence: "PH",
+        residence_address_line1: "AGTANGAO, BANGUED, ABRA",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof PhEtravelPortalValidationError);
+      assert.ok(error.missingFields.includes("residence.province_code"));
+      assert.ok(error.missingFields.includes("residence.municipality_code"));
+      assert.ok(error.missingFields.includes("residence.barangay_code"));
+      return true;
+    },
+  );
 });
 
 test("normalizePhEtravelPortalPayload preserves distinct onboarding name fields and extension alias", () => {
@@ -648,6 +702,76 @@ test("normalizePhEtravelPortalPayload keeps the three official health answers di
   assert.equal(payload.hasExposureToSickPerson30d, false);
   assert.equal(payload.hasBeenSick30d, true);
   assert.deepEqual(payload.sicknessSymptoms, ["SS002", "SS008"]);
+});
+
+test("normalizePhEtravelPortalPayload requires every Health Yes/No answer and a positive child selection", () => {
+  const incompleteAnswers = basePayload().countrySpecific;
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      countrySpecific: {
+        ...incompleteAnswers,
+        has_recent_travel_history_30d: "",
+        has_exposure_to_sick_person_30d: "",
+        has_been_sick_30d: "",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => error instanceof PhEtravelPortalValidationError
+      && ["has_recent_travel_history_30d", "has_exposure_to_sick_person_30d", "has_been_sick_30d"]
+        .every((key) => error.missingFields.includes(key)),
+  );
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      countrySpecific: {
+        ...incompleteAnswers,
+        has_recent_travel_history_30d: "yes",
+        visited_country_30d: "",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => error instanceof PhEtravelPortalValidationError
+      && error.missingFields.includes("visited_country_30d"),
+  );
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      countrySpecific: {
+        ...incompleteAnswers,
+        has_been_sick_30d: "yes",
+        sickness_symptom: "",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => error instanceof PhEtravelPortalValidationError
+      && error.missingFields.includes("sickness_symptom"),
+  );
+});
+
+test("normalizePhEtravelPortalPayload keeps only positive Health arrays and retains country codes including PH", () => {
+  const positive = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      has_recent_travel_history_30d: "yes",
+      visited_country_30d: "PH",
+      visited_country_30d__2: "SG",
+      visited_country_30d__3: "PH",
+      has_been_sick_30d: "yes",
+      sickness_symptom: "SYMPTOM_A",
+      sickness_symptom__2: "SYMPTOM_B",
+      sickness_symptom__3: "SYMPTOM_A",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+  assert.deepEqual(positive.visitedCountries30d, ["PH", "SG"]);
+  assert.deepEqual(positive.sicknessSymptoms, ["SYMPTOM_A", "SYMPTOM_B"]);
+
+  const noBranches = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      has_recent_travel_history_30d: "no",
+      visited_country_30d: "PH",
+      has_been_sick_30d: "no",
+      sickness_symptom: "SYMPTOM_A",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+  assert.deepEqual(noBranches.visitedCountries30d, []);
+  assert.deepEqual(noBranches.sicknessSymptoms, []);
+  assert.equal(noBranches.healthSymptomsDetails, null);
 });
 
 test("normalizePhEtravelPortalPayload carries conditional transit destination answers", () => {

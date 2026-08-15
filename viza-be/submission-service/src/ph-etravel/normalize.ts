@@ -1,6 +1,12 @@
 import type { SubmissionPayload } from "../country-submissions/types";
 import { normalizePhEtravelCurrencyOwnerBranch } from "./attachment-owner-contract";
 import { evaluatePhEtravelSubmissionWindow } from "./date-window";
+import {
+  normalizePhEtravelResidenceAddress,
+  PhEtravelResidenceValidationError,
+  type PhEtravelResidenceAddress,
+} from "./residence-address";
+import type { PhEtravelRegistrationConsentAuthorization } from "./registration-start";
 
 export const PH_ETRAVEL_OFFICIAL_PORTAL_URL = "https://etravel.gov.ph";
 
@@ -44,6 +50,7 @@ export interface PhEtravelPortalPayload {
   nationality: string;
   countryOfBirth: string;
   countryOfResidence: string;
+  residence: PhEtravelResidenceAddress;
   residenceAddress: string | null;
   residenceAddressLine1?: string | null;
   residenceAddressLine2?: string | null;
@@ -62,6 +69,7 @@ export interface PhEtravelPortalPayload {
     travellerType: "AIRCRAFT_PASSENGER" | "VESSEL_PASSENGER";
   } | null;
   registrationFor: string | null;
+  registrationConsent: PhEtravelRegistrationConsentAuthorization | null;
   isSpecialFlight: boolean;
   isDisembarking: boolean | null;
   travellerType: string | null;
@@ -190,6 +198,20 @@ function firstText(values: unknown[]): string {
   return "";
 }
 
+function registrationConsentFromMetadata(
+  metadata: Record<string, unknown>,
+): PhEtravelRegistrationConsentAuthorization | null {
+  const candidate = metadata.phEtravelRegistrationConsent ?? metadata.ph_etravel_registration_consent;
+  if (!candidate || typeof candidate !== "object") return null;
+  const record = candidate as Record<string, unknown>;
+  if (record.accepted !== true) return null;
+  const acceptedAt = text(record.acceptedAt ?? record.accepted_at);
+  const version = text(record.version ?? record.consent_version);
+  const source = text(record.source ?? record.audit_source);
+  if (!acceptedAt || !version || !source) return null;
+  return { accepted: true, acceptedAt, version, source };
+}
+
 function normalizeIsoDate(value: unknown): string {
   const raw = text(value);
   if (!raw) return "";
@@ -260,6 +282,19 @@ function requireFirstText(values: unknown[], key: string, missing: string[]): st
 function boolAnswer(value: unknown): boolean {
   const normalized = text(value).toLowerCase();
   return ["yes", "y", "true", "1", "on", "checked"].includes(normalized);
+}
+
+function requiredYesNoAnswer(
+  answers: Record<string, unknown>,
+  keys: string[],
+  missingKey: string,
+  missing: string[],
+): boolean {
+  const raw = firstText(keys.map((key) => answers[key])).toLowerCase();
+  if (["yes", "y", "true", "1", "on", "checked"].includes(raw)) return true;
+  if (["no", "n", "false", "0", "off", "unchecked"].includes(raw)) return false;
+  missing.push(missingKey);
+  return false;
 }
 
 function normalizeCode(value: unknown): string {
@@ -588,6 +623,9 @@ export function normalizePhEtravelPortalPayload(
 
   const answers = payload.countrySpecific;
   const missing: string[] = [];
+  if (payload.metadata.runnerJob === true && normalizeCode(answers.travel_type) !== "ARRIVAL") {
+    missing.push("travel_type");
+  }
   const unsupported = !isDeparture ? unsupportedArrivalBranchFields(answers) : [];
   if (unsupported.length > 0) {
     throw new PhEtravelPortalValidationError(
@@ -680,20 +718,34 @@ export function normalizePhEtravelPortalPayload(
       if (!normalizeOptionalIsoDate(answers.airway_bill_date)) missing.push("airway_bill_date");
     }
   }
-  const hasHealthSymptoms =
-    boolAnswer(answers.has_health_symptoms) ||
-    boolAnswer(answers.has_recent_travel_history_30d) ||
-    boolAnswer(answers.has_exposure_to_sick_person_30d) ||
-    boolAnswer(answers.has_been_sick_30d);
-  const hasRecentTravelHistory30d = boolAnswer(answers.has_recent_travel_history_30d);
-  const hasExposureToSickPerson30d = boolAnswer(answers.has_exposure_to_sick_person_30d);
-  const hasBeenSick30d = boolAnswer(answers.has_been_sick_30d);
+  const hasRecentTravelHistory30d = requiredYesNoAnswer(
+    answers,
+    ["has_recent_travel_history_30d", "with_recent_travel_history"],
+    "has_recent_travel_history_30d",
+    missing,
+  );
+  const hasExposureToSickPerson30d = requiredYesNoAnswer(
+    answers,
+    ["has_exposure_to_sick_person_30d", "is_with_history_exposure"],
+    "has_exposure_to_sick_person_30d",
+    missing,
+  );
+  const hasBeenSick30d = requiredYesNoAnswer(
+    answers,
+    ["has_been_sick_30d", "is_sicked_within_thirty_days"],
+    "has_been_sick_30d",
+    missing,
+  );
+  const hasHealthSymptoms = hasRecentTravelHistory30d || hasExposureToSickPerson30d || hasBeenSick30d;
   const repeatedValues = (base: string): string[] => Object.entries(answers)
     .filter(([key, value]) => (key === base || key.startsWith(`${base}__`)) && text(value))
     .sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true }))
-    .map(([, value]) => text(value));
+    .map(([, value]) => text(value))
+    .filter((value, index, values) => values.indexOf(value) === index);
   const visitedCountries30d = hasRecentTravelHistory30d ? repeatedValues("visited_country_30d") : [];
   const sicknessSymptoms = hasBeenSick30d ? repeatedValues("sickness_symptom") : [];
+  if (hasRecentTravelHistory30d && visitedCountries30d.length === 0) missing.push("visited_country_30d");
+  if (hasBeenSick30d && sicknessSymptoms.length === 0) missing.push("sickness_symptom");
   const firstName = firstText([answers.first_name, answers.given_name]);
   const middleName = firstText([answers.middle_name, answers.middle_names]) || null;
   const lastName = firstText([answers.last_name, answers.family_name, answers.surname]) || null;
@@ -743,6 +795,14 @@ export function normalizePhEtravelPortalPayload(
       )
     : null;
 
+  let residence: PhEtravelResidenceAddress | null = null;
+  try {
+    residence = normalizePhEtravelResidenceAddress(answers, payload.personal.address);
+  } catch (error) {
+    if (!(error instanceof PhEtravelResidenceValidationError)) throw error;
+    missing.push(...error.missingFields);
+  }
+
   const mapped = {
     fullName,
     firstName,
@@ -776,6 +836,7 @@ export function normalizePhEtravelPortalPayload(
     nationality: requireFirstText([answers.nationality, payload.personal.nationality], "nationality", missing),
     countryOfBirth: requireFirstText([answers.country_of_birth], "country_of_birth", missing),
     countryOfResidence: requireFirstText([answers.country_of_residence], "country_of_residence", missing),
+    residence: residence as PhEtravelResidenceAddress,
     residenceAddressLine1: firstText([
       answers.residence_address_line1,
       answers.residential_address,
@@ -825,6 +886,7 @@ export function normalizePhEtravelPortalPayload(
       travellerType: arrivalTravellerType as "AIRCRAFT_PASSENGER" | "VESSEL_PASSENGER",
     },
     registrationFor: firstText([answers.registration_for]) || null,
+    registrationConsent: registrationConsentFromMetadata(payload.metadata),
     isSpecialFlight: boolAnswer(answers.is_special_flight) || text(answers.flight_number).toUpperCase() === "SPECIAL FLIGHT",
     isDisembarking,
     travellerType: isDeparture ? firstText([answers.traveller_type]) || null : arrivalTravellerType,

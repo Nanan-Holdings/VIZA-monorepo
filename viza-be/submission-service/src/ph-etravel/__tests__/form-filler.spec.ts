@@ -10,6 +10,8 @@ import {
   isPhEtravelConfirmationText,
   isPhEtravelPublicLandingText,
   isPhEtravelReviewSummaryText,
+  PH_ETRAVEL_HEALTH_STATIC_WARNING,
+  PH_ETRAVEL_HEALTH_SYMPTOM_LABELS,
   phEtravelStructuredCustomsActionRequired,
 } from "../form-filler";
 import {
@@ -42,6 +44,16 @@ const payload: PhEtravelPortalPayload = {
   nationality: "CHINA",
   countryOfBirth: "CHINA",
   countryOfResidence: "CHINA",
+  residence: {
+    country: { code: "CN", label: "China" },
+    regionCode: null,
+    province: null,
+    municipality: null,
+    barangay: null,
+    line1: "Test address",
+    line2: null,
+    isPhilippines: false,
+  },
   residenceAddress: "Test address",
   occupation: "STUDENT_MINOR",
   dateOfBirth: "1990-01-01",
@@ -58,6 +70,12 @@ const payload: PhEtravelPortalPayload = {
     travellerType: "AIRCRAFT_PASSENGER",
   },
   registrationFor: "FOR_ME",
+  registrationConsent: {
+    accepted: true,
+    acceptedAt: "2026-07-15T08:00:00.000Z",
+    version: "ph-etravel-data-privacy-affidavit-v1",
+    source: "viza_consent_audit_record",
+  },
   isSpecialFlight: false,
   isDisembarking: null,
   travellerType: "AIRCRAFT_PASSENGER",
@@ -362,6 +380,49 @@ test("buildPhEtravelFieldPlan maps canonical values to official display labels",
   );
   assert.equal(byKey.get("first_visit")?.value, "Yes");
   assert.equal(byKey.get("has_customs_declaration")?.value, "No");
+});
+
+test("Health field plan is shared by AIR and SEA and keeps positive groups repeatable", () => {
+  const positiveHealth = {
+    ...payload,
+    hasRecentTravelHistory30d: true,
+    visitedCountries30d: ["PH", "SG"],
+    hasBeenSick30d: true,
+    sicknessSymptoms: ["SYMPTOM_A", "SYMPTOM_B"],
+  };
+  const airHealth = buildPhEtravelFieldPlan(positiveHealth)
+    .filter((item) => /^(health_|visited_country|visited_countries|sickness_symptom|sickness_symptoms)/.test(item.key));
+  const seaHealth = buildPhEtravelFieldPlan({
+    ...positiveHealth,
+    transportType: "SEA",
+    arrivalBranch: { transportType: "SEA", passportHolderType: "FOREIGNER", travellerType: "VESSEL_PASSENGER" },
+  }).filter((item) => /^(health_|visited_country|visited_countries|sickness_symptom|sickness_symptoms)/.test(item.key));
+
+  assert.deepEqual(airHealth, seaHealth);
+  const byKey = new Map(airHealth.map((item) => [item.key, item]));
+  assert.equal(byKey.get("health_recent_travel")?.required, true);
+  assert.equal(byKey.get("health_exposure")?.required, true);
+  assert.equal(byKey.get("health_sick")?.required, true);
+  assert.deepEqual(
+    [byKey.get("visited_countries")?.repeatable, byKey.get("visited_countries")?.minimumItems],
+    [true, 1],
+  );
+  assert.deepEqual(
+    [byKey.get("sickness_symptoms")?.repeatable, byKey.get("sickness_symptoms")?.minimumItems],
+    [true, 1],
+  );
+  assert.equal(byKey.get("visited_country_0")?.value, "PH");
+});
+
+test("Health static warning and screenshot-confirmed symptom list remain non-answer metadata", () => {
+  assert.equal(
+    PH_ETRAVEL_HEALTH_STATIC_WARNING,
+    "As of July 22, 2023, No Covid-19 test or Vaccination requirement when traveling to the Philippines.",
+  );
+  assert.deepEqual(PH_ETRAVEL_HEALTH_SYMPTOM_LABELS, [
+    "Altered Mental Status", "Colds", "Cough", "Diarrhea", "Difficulty of Breathing", "Dizziness", "Fever", "Headache", "Loss of appetite", "Loss of smell", "Loss of taste", "Muscle Pain", "Nausea", "Rashes, vesicles or blisters", "Sore throat",
+  ]);
+  assert.equal(buildPhEtravelFieldPlan(payload).some((item) => item.key === "health_details"), false);
 });
 
 test("buildPhEtravelFieldPlan treats SEA and Filipino as first-class arrival branches", () => {
