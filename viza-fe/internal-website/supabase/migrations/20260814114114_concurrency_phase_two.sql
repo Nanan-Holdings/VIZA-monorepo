@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS runner_private.runner_job_update_capability (
   job_id UUID NOT NULL,
   operation TEXT NOT NULL CHECK (operation IN (
     'claim', 'recover', 'requeue', 'complete', 'renew', 'fail', 'takeover_open',
-    'admin_pause', 'fingerprint_append'
+    'admin_pause', 'cancel', 'takeover_settle', 'fingerprint_append'
   )),
   old_row JSONB NOT NULL,
   new_row JSONB NOT NULL,
@@ -52,7 +52,7 @@ ALTER TABLE runner_private.runner_job_update_capability
   ADD CONSTRAINT runner_job_update_capability_operation_check
   CHECK (operation IN (
     'claim', 'recover', 'requeue', 'complete', 'renew', 'fail', 'takeover_open',
-    'admin_pause', 'fingerprint_append'
+    'admin_pause', 'cancel', 'takeover_settle', 'fingerprint_append'
   ));
 
 ALTER TABLE runner_private.runner_job_update_capability ENABLE ROW LEVEL SECURITY;
@@ -76,6 +76,7 @@ BEGIN
         OR (country = 'malaysia' AND flow_key = 'mdac')
         OR (country = 'thailand' AND flow_key = 'tdac')
         OR (country = 'south_korea' AND flow_key = 'kr_eform')
+        OR (country = 'taiwan' AND flow_key = 'tw_entry_permit')
       ), FALSE)
   ) THEN
     RAISE EXCEPTION
@@ -95,6 +96,7 @@ BEGIN
       OR (country = 'malaysia' AND flow_key = 'mdac')
       OR (country = 'thailand' AND flow_key = 'tdac')
       OR (country = 'south_korea' AND flow_key = 'kr_eform')
+      OR (country = 'taiwan' AND flow_key = 'tw_entry_permit')
     ), FALSE);
 END;
 $$;
@@ -111,10 +113,17 @@ ALTER TABLE public.runner_job
       OR (country = 'malaysia' AND flow_key = 'mdac')
       OR (country = 'thailand' AND flow_key = 'tdac')
       OR (country = 'south_korea' AND flow_key = 'kr_eform')
+      OR (country = 'taiwan' AND flow_key = 'tw_entry_permit')
     ), FALSE)
   );
 
--- Install the strict five-tuple enqueue producer. The application row is
+-- Taiwan applicant handoff runs are intentionally capped at one session by
+-- default.  Never overwrite an operator-adjusted cap during a later deploy.
+INSERT INTO public.runner_concurrency_cap (country, max_concurrent, paused, notes)
+VALUES ('taiwan', 1, FALSE, 'Shared pool: Taiwan entry-permit applicant handoff')
+ON CONFLICT (country) DO NOTHING;
+
+-- Install the strict six-tuple enqueue producer. The application row is
 -- always locked before any queue/job row, and the database clock is
 -- authoritative; p_now is retained only as an ignored timestamp input.
 CREATE OR REPLACE FUNCTION public.enqueue_runner_pool_job(
@@ -161,6 +170,7 @@ BEGIN
     OR (v_country = 'malaysia' AND v_flow = 'mdac')
     OR (v_country = 'thailand' AND v_flow = 'tdac')
     OR (v_country = 'south_korea' AND v_flow = 'kr_eform')
+    OR (v_country = 'taiwan' AND v_flow = 'tw_entry_permit')
   ), FALSE) THEN
     RAISE EXCEPTION 'Unsupported shared runner flow: %/%', v_country, v_flow
       USING ERRCODE = '22023';
@@ -182,6 +192,11 @@ BEGIN
     RAISE EXCEPTION 'Application % is paused for staff review', p_application_id
       USING ERRCODE = '55000';
   END IF;
+
+  -- Refresh the database clock after the application mutex wait; stale
+  -- snapshots must not admit an already-expired legacy lease.
+  v_now := pg_catalog.clock_timestamp();
+  v_available_at := COALESCE(p_available_at, v_now);
 
   SELECT sq.*
   INTO v_legacy
@@ -269,7 +284,7 @@ GRANT EXECUTE ON FUNCTION public.enqueue_runner_pool_job(
 COMMENT ON FUNCTION public.enqueue_runner_pool_job(
   UUID, TEXT, TEXT, TIMESTAMPTZ, INTEGER, TEXT, JSONB, TIMESTAMPTZ
 ) IS
-  'Atomically reuses or enqueues one exact five-tuple runner flow with application-first locking and database time.';
+  'Atomically reuses or enqueues one exact six-tuple runner flow with application-first locking and database time.';
 
 -- The SGAC retry producer is explicitly flow-keyed and uses database time so
 -- null/legacy rows can never re-enter the shared pool.
@@ -319,6 +334,10 @@ BEGIN
     RAISE EXCEPTION 'Application % is paused for staff review', p_application_id
       USING ERRCODE = '55000';
   END IF;
+
+  -- Refresh after the application lock so a long wait cannot make a legacy
+  -- lease appear live when the retry decision is finally made.
+  v_now := pg_catalog.clock_timestamp();
 
   SELECT sq.* INTO v_legacy
   FROM public.submission_queue AS sq
@@ -508,6 +527,7 @@ BEGIN
         OR (expired.country = 'malaysia' AND expired.flow_key = 'mdac')
         OR (expired.country = 'thailand' AND expired.flow_key = 'tdac')
         OR (expired.country = 'south_korea' AND expired.flow_key = 'kr_eform')
+        OR (expired.country = 'taiwan' AND expired.flow_key = 'tw_entry_permit')
       ), FALSE)
     ORDER BY expired.leased_until, expired.id
     LIMIT 1
@@ -620,11 +640,11 @@ BEGIN
   -- worker lease. Refresh the authoritative clock before selecting a new row.
   v_now := pg_catalog.clock_timestamp();
 
-  -- Lock at most the five eligible country-cap rows. The oldest due queued
+  -- Lock at most the six eligible country-cap rows. The oldest due queued
   -- candidate determines the next country, avoiding alphabetical starvation.
   -- The cap lock is acquired without waiting; capacity is checked after the
   -- cap row is locked in a separate statement with a fresh READ COMMITTED snapshot.
-  WHILE v_cap_iterations < 5 LOOP
+  WHILE v_cap_iterations < 6 LOOP
     SELECT cap.country
     INTO v_locked_country
     FROM public.runner_concurrency_cap AS cap
@@ -641,6 +661,7 @@ BEGIN
           OR (oldest_candidate.country = 'malaysia' AND oldest_candidate.flow_key = 'mdac')
           OR (oldest_candidate.country = 'thailand' AND oldest_candidate.flow_key = 'tdac')
           OR (oldest_candidate.country = 'south_korea' AND oldest_candidate.flow_key = 'kr_eform')
+          OR (oldest_candidate.country = 'taiwan' AND oldest_candidate.flow_key = 'tw_entry_permit')
         ), FALSE)
       AND oldest_candidate.status = 'queued'
       AND oldest_candidate.attempts >= 0
@@ -650,7 +671,7 @@ BEGIN
       LIMIT 1
     ) AS oldest_candidate ON TRUE
     WHERE cap.country IN (
-        'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
+        'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea', 'taiwan'
       )
       AND NOT cap.paused
       AND cap.country <> ALL(v_tried_countries)
@@ -681,7 +702,7 @@ BEGIN
         AND candidate.attempts < candidate.max_attempts
         AND candidate.available_at <= v_now
         AND candidate.country IN (
-          'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
+          'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea', 'taiwan'
         )
         AND COALESCE((
           (candidate.country = 'vietnam' AND candidate.flow_key = 'vn_prearrival')
@@ -689,6 +710,7 @@ BEGIN
           OR (candidate.country = 'malaysia' AND candidate.flow_key = 'mdac')
           OR (candidate.country = 'thailand' AND candidate.flow_key = 'tdac')
           OR (candidate.country = 'south_korea' AND candidate.flow_key = 'kr_eform')
+          OR (candidate.country = 'taiwan' AND candidate.flow_key = 'tw_entry_permit')
         ), FALSE)
         AND NOT cap.paused
         AND (
@@ -702,6 +724,7 @@ BEGIN
               OR (active.country = 'malaysia' AND active.flow_key = 'mdac')
               OR (active.country = 'thailand' AND active.flow_key = 'tdac')
               OR (active.country = 'south_korea' AND active.flow_key = 'kr_eform')
+              OR (active.country = 'taiwan' AND active.flow_key = 'tw_entry_permit')
             ), FALSE)
         ) < cap.max_concurrent
       ORDER BY candidate.enqueued_at, candidate.id
@@ -844,8 +867,9 @@ LEFT JOIN public.runner_job AS rj
     OR (rj.country = 'malaysia' AND rj.flow_key = 'mdac')
     OR (rj.country = 'thailand' AND rj.flow_key = 'tdac')
     OR (rj.country = 'south_korea' AND rj.flow_key = 'kr_eform')
+    OR (rj.country = 'taiwan' AND rj.flow_key = 'tw_entry_permit')
   ), FALSE)
-WHERE cap.country IN ('vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea')
+WHERE cap.country IN ('vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea', 'taiwan')
 GROUP BY cap.country, cap.max_concurrent, cap.paused;
 
 REVOKE ALL ON TABLE public.runner_pool_depth FROM PUBLIC, anon, authenticated;
@@ -919,7 +943,8 @@ BEGIN
 
   -- Queued -> running is the one non-running lifecycle transition that must
   -- consume a full exact-row claim capability. Every other non-running
-  -- update remains outside this trigger's lifecycle fence.
+  -- lifecycle/identity update is checked by the generalized capability fence
+  -- below; metadata-only writes remain the sole direct exception.
   IF OLD.status IS DISTINCT FROM 'running'
     AND NEW.status IS NOT DISTINCT FROM 'running'
   THEN
@@ -958,11 +983,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF OLD.status IS DISTINCT FROM 'running' THEN
-    RETURN NEW;
-  END IF;
-
-  -- Metadata-only writes are the sole direct exception. The
+  -- Metadata-only writes are the sole direct exception for every status. The
   -- subtraction keeps this future-proof if non-fenced metadata keys evolve;
   -- every identity/lifecycle/fingerprint column remains protected.
   IF to_jsonb(NEW) - 'metadata' = to_jsonb(OLD) - 'metadata' THEN
@@ -975,7 +996,7 @@ BEGIN
     AND capability.job_id = OLD.id
     AND capability.operation IN (
       'claim', 'recover', 'requeue', 'complete', 'renew', 'fail', 'takeover_open',
-      'admin_pause', 'fingerprint_append'
+      'admin_pause', 'cancel', 'takeover_settle', 'fingerprint_append'
     )
     AND capability.old_row = to_jsonb(OLD)
     AND capability.new_row = to_jsonb(NEW)
@@ -1032,6 +1053,7 @@ BEGIN
       OR (NEW.country = 'malaysia' AND NEW.flow_key = 'mdac')
       OR (NEW.country = 'thailand' AND NEW.flow_key = 'tdac')
       OR (NEW.country = 'south_korea' AND NEW.flow_key = 'kr_eform')
+      OR (NEW.country = 'taiwan' AND NEW.flow_key = 'tw_entry_permit')
     ), FALSE) THEN
       RAISE EXCEPTION 'Queued runner_job flow tuple is invalid'
         USING ERRCODE = '23514';
@@ -1355,6 +1377,7 @@ BEGIN
     'attempts', p_attempts,
     'last_error', p_last_error,
     'finished_at', CASE WHEN p_status = 'failed' THEN v_now ELSE NULL END,
+    'started_at', CASE WHEN p_status = 'queued' THEN NULL ELSE v_old_row.started_at END,
     'leased_by', NULL,
     'leased_until', NULL,
     'available_at', CASE
@@ -1381,6 +1404,7 @@ BEGIN
       attempts = p_attempts,
       last_error = p_last_error,
       finished_at = CASE WHEN p_status = 'failed' THEN v_now ELSE NULL END,
+      started_at = CASE WHEN p_status = 'queued' THEN NULL ELSE job.started_at END,
       leased_by = NULL,
       leased_until = NULL,
       available_at = CASE
@@ -1489,6 +1513,7 @@ BEGIN
     AND job.application_id = p_application_id
     AND job.status = 'running'
     AND job.leased_by = v_worker_id
+    AND NOT (job.country = 'taiwan' AND job.flow_key = 'tw_entry_permit')
   FOR UPDATE;
 
   IF NOT FOUND THEN
@@ -1649,6 +1674,23 @@ BEGIN
     FOR UPDATE
   LOOP
     IF v_job.status = 'queued' THEN
+      v_new_row := to_jsonb(v_job) || jsonb_build_object(
+        'status', 'paused',
+        'leased_by', NULL,
+        'leased_until', NULL,
+        'last_error', v_reason
+      );
+      DELETE FROM runner_private.runner_job_update_capability
+      WHERE txid = pg_catalog.txid_current()
+        AND backend_pid = pg_catalog.pg_backend_pid()
+        AND job_id = v_job.id;
+      INSERT INTO runner_private.runner_job_update_capability (
+        txid, backend_pid, job_id, operation, old_row, new_row
+      )
+      VALUES (
+        pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), v_job.id,
+        'admin_pause', to_jsonb(v_job), v_new_row
+      );
       UPDATE public.runner_job AS job
       SET status = 'paused',
           leased_by = NULL,
@@ -1656,6 +1698,14 @@ BEGIN
           last_error = v_reason
       WHERE job.id = v_job.id;
       GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+      IF v_updated_rows <> 1 THEN
+        DELETE FROM runner_private.runner_job_update_capability
+        WHERE txid = pg_catalog.txid_current()
+          AND backend_pid = pg_catalog.pg_backend_pid()
+          AND job_id = v_job.id;
+        RAISE EXCEPTION 'queued runner job pause capability was not consumed'
+          USING ERRCODE = '55000';
+      END IF;
     ELSE
       v_now := pg_catalog.clock_timestamp();
       v_new_row := to_jsonb(v_job) || jsonb_build_object(
@@ -1770,6 +1820,7 @@ BEGIN
       OR (job.country = 'malaysia' AND job.flow_key = 'mdac')
       OR (job.country = 'thailand' AND job.flow_key = 'tdac')
       OR (job.country = 'south_korea' AND job.flow_key = 'kr_eform')
+      OR (job.country = 'taiwan' AND job.flow_key = 'tw_entry_permit')
     ), FALSE)
   FOR UPDATE;
   IF NOT FOUND THEN
@@ -1870,6 +1921,7 @@ BEGIN
   FOR UPDATE;
   IF NOT FOUND
     OR v_session.handoff_kind IS DISTINCT FROM p_expected_handoff_kind
+    OR v_session.handoff_kind = 'taiwan_applicant_final_submit'
   THEN
     RETURN;
   END IF;
@@ -1953,6 +2005,8 @@ DECLARE
   v_transport TEXT := LOWER(BTRIM(COALESCE(p_transport, '')));
   v_visa_type TEXT;
   v_cancelled_status TEXT;
+  v_old_row public.runner_job%ROWTYPE;
+  v_new_row JSONB;
   v_now TIMESTAMPTZ;
   v_updated_rows INTEGER;
   v_error TEXT := 'Cancelled by user before official arrival card submission.';
@@ -1990,8 +2044,8 @@ BEGIN
   END;
 
   IF v_transport = 'runner_job' THEN
-    SELECT job.id
-    INTO v_queue_id
+    SELECT job.*
+    INTO v_old_row
     FROM public.runner_job AS job
     WHERE job.id = p_queue_id
       AND job.application_id = p_application_id
@@ -2003,6 +2057,26 @@ BEGIN
     IF NOT FOUND THEN
       RETURN;
     END IF;
+
+    v_queue_id := v_old_row.id;
+    v_new_row := to_jsonb(v_old_row) || jsonb_build_object(
+      'status', 'cancelled',
+      'last_error', v_error,
+      'finished_at', v_now,
+      'leased_by', NULL,
+      'leased_until', NULL
+    );
+    DELETE FROM runner_private.runner_job_update_capability
+    WHERE txid = pg_catalog.txid_current()
+      AND backend_pid = pg_catalog.pg_backend_pid()
+      AND job_id = v_queue_id;
+    INSERT INTO runner_private.runner_job_update_capability (
+      txid, backend_pid, job_id, operation, old_row, new_row
+    )
+    VALUES (
+      pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), v_queue_id,
+      'cancel', to_jsonb(v_old_row), v_new_row
+    );
 
     UPDATE public.runner_job AS job
     SET status = 'cancelled',
@@ -2016,6 +2090,13 @@ BEGIN
       AND job.leased_by IS NULL
       AND job.leased_until IS NULL;
     GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+    IF v_updated_rows <> 1 THEN
+      DELETE FROM runner_private.runner_job_update_capability
+      WHERE txid = pg_catalog.txid_current()
+        AND backend_pid = pg_catalog.pg_backend_pid()
+        AND job_id = v_queue_id;
+      RETURN;
+    END IF;
   ELSE
     SELECT queue.id
     INTO v_queue_id
@@ -2120,6 +2201,7 @@ AS $$
 DECLARE
   v_session public.takeover_session%ROWTYPE;
   v_job public.runner_job%ROWTYPE;
+  v_new_row JSONB;
   v_application_id UUID;
   v_job_status TEXT;
   v_action TEXT;
@@ -2175,6 +2257,7 @@ BEGIN
   IF NOT FOUND
     OR v_session.status <> 'claimed'
     OR v_session.claimed_by IS DISTINCT FROM p_actor_user_id
+    OR v_session.handoff_kind = 'taiwan_applicant_final_submit'
   THEN
     RETURN;
   END IF;
@@ -2234,6 +2317,28 @@ BEGIN
   IF v_updated_rows <> 1 THEN
     RETURN;
   END IF;
+
+  v_new_row := to_jsonb(v_job) || jsonb_build_object(
+    'status', v_job_status,
+    'last_error', CASE
+      WHEN p_outcome = 'abandoned' THEN 'Takeover abandoned by operator.'
+      ELSE NULL
+    END,
+    'finished_at', v_now,
+    'leased_by', NULL,
+    'leased_until', NULL
+  );
+  DELETE FROM runner_private.runner_job_update_capability
+  WHERE txid = pg_catalog.txid_current()
+    AND backend_pid = pg_catalog.pg_backend_pid()
+    AND job_id = v_job.id;
+  INSERT INTO runner_private.runner_job_update_capability (
+    txid, backend_pid, job_id, operation, old_row, new_row
+  )
+  VALUES (
+    pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), v_job.id,
+    'takeover_settle', to_jsonb(v_job), v_new_row
+  );
 
   UPDATE public.runner_job AS job
   SET status = v_job_status,
@@ -2875,3 +2980,697 @@ GRANT EXECUTE ON FUNCTION public.defer_vn_official_status_check(UUID, TEXT, INTE
 
 COMMENT ON FUNCTION public.defer_vn_official_status_check(UUID, TEXT, INTEGER) IS
   'Requeues a provider-gate-denied Vietnam status check only while its live worker lease is owned.';
+
+-- ---------------------------------------------------------------------------
+-- Taiwan applicant-owned final-submit handoff
+-- ---------------------------------------------------------------------------
+
+-- One unexpired Taiwan applicant handoff may exist per application. Expired
+-- rows are closed by the open RPC under the application mutex before a new
+-- row is inserted; a volatile clock expression is intentionally not used in
+-- this partial unique index.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT session.application_id
+    FROM public.takeover_session AS session
+    WHERE session.handoff_kind = 'taiwan_applicant_final_submit'
+      AND session.status IN ('queued', 'claimed')
+    GROUP BY session.application_id
+    HAVING COUNT(*) > 1
+  ) THEN
+    RAISE EXCEPTION
+      'Cannot enable Taiwan handoff uniqueness while duplicate active sessions exist';
+  END IF;
+END;
+$$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS takeover_session_tw_active_unique_idx
+  ON public.takeover_session (application_id)
+  WHERE handoff_kind = 'taiwan_applicant_final_submit'
+    AND status IN ('queued', 'claimed');
+
+CREATE INDEX IF NOT EXISTS takeover_session_tw_job_status_idx
+  ON public.takeover_session (job_id, status, expires_at)
+  WHERE handoff_kind = 'taiwan_applicant_final_submit';
+
+COMMENT ON INDEX public.takeover_session_tw_active_unique_idx IS
+  'Serializes one active Taiwan applicant final-submit handoff per application.';
+
+-- Open a Taiwan applicant handoff while the exact worker still owns a live
+-- Taiwan runner job. The application row is locked first, then the runner job,
+-- then active handoff rows. This same order is used by the claim and settle
+-- RPCs, preventing a concurrent open from superseding an unexpired claim.
+CREATE OR REPLACE FUNCTION public.open_tw_applicant_handoff(
+  p_job_id UUID,
+  p_worker_id TEXT,
+  p_application_id UUID,
+  p_applicant_id UUID,
+  p_browserbase_session_id TEXT,
+  p_vnc_url TEXT,
+  p_expires_at TIMESTAMPTZ,
+  p_stopped_result JSONB
+)
+RETURNS TABLE (
+  opened BOOLEAN,
+  takeover_id UUID,
+  application_id UUID,
+  expires_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_application public.applications%ROWTYPE;
+  v_job public.runner_job%ROWTYPE;
+  v_session public.takeover_session%ROWTYPE;
+  v_now TIMESTAMPTZ;
+  v_worker_id TEXT := BTRIM(COALESCE(p_worker_id, ''));
+  v_browserbase_session_id TEXT := BTRIM(COALESCE(p_browserbase_session_id, ''));
+  v_vnc_url TEXT := BTRIM(COALESCE(p_vnc_url, ''));
+  v_takeover_id UUID;
+  v_result JSONB;
+  v_updated_rows INTEGER;
+BEGIN
+  IF p_job_id IS NULL OR p_application_id IS NULL OR p_applicant_id IS NULL THEN
+    RAISE EXCEPTION 'job, application, and applicant ids are required'
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_worker_id = '' OR length(v_worker_id) > 200 THEN
+    RAISE EXCEPTION 'worker id is required and must be at most 200 characters'
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_browserbase_session_id = '' OR length(v_browserbase_session_id) > 200 THEN
+    RAISE EXCEPTION 'Browserbase session id is required and must be at most 200 characters'
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_vnc_url = '' OR length(v_vnc_url) > 4096 OR v_vnc_url !~* '^https?://' THEN
+    RAISE EXCEPTION 'Taiwan live-view URL must be a bounded http:// or https:// URL'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_expires_at IS NULL THEN
+    RAISE EXCEPTION 'Taiwan handoff expiry is required' USING ERRCODE = '22023';
+  END IF;
+  IF p_stopped_result IS NULL
+    OR pg_catalog.jsonb_typeof(p_stopped_result) <> 'object'
+    OR pg_catalog.pg_column_size(p_stopped_result) > 524288
+  THEN
+    RAISE EXCEPTION 'Taiwan stopped result must be a JSON object no larger than 512 KiB'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_stopped_result ->> 'country' IS DISTINCT FROM 'TW'
+    OR p_stopped_result ->> 'status' IS DISTINCT FROM 'stopped_at_captcha'
+  THEN
+    RAISE EXCEPTION 'Taiwan handoff requires a stopped_at_captcha TW result'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Application -> job is the shared lock order with all runner result and
+  -- enqueue writers. The clock is sampled only after both rows are locked.
+  SELECT application.*
+  INTO v_application
+  FROM public.applications AS application
+  WHERE application.id = p_application_id
+    AND application.applicant_id = p_applicant_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT job.*
+  INTO v_job
+  FROM public.runner_job AS job
+  WHERE job.id = p_job_id
+    AND job.application_id = p_application_id
+    AND job.country = 'taiwan'
+    AND job.flow_key = 'tw_entry_permit'
+    AND job.status = 'running'
+    AND job.leased_by = v_worker_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  IF v_job.leased_until IS NULL OR v_job.leased_until <= v_now THEN
+    RETURN;
+  END IF;
+  IF p_expires_at <= v_now OR p_expires_at > v_now + INTERVAL '2 hours' THEN
+    RAISE EXCEPTION 'Taiwan handoff expiry must be in the next two hours'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Lock existing active rows after the application/job mutex. An unexpired
+  -- claimed row is never superseded; a queued row is idempotently reused.
+  FOR v_session IN
+    SELECT session.*
+    FROM public.takeover_session AS session
+    WHERE session.application_id = p_application_id
+      AND session.handoff_kind = 'taiwan_applicant_final_submit'
+      AND session.status IN ('queued', 'claimed')
+    ORDER BY session.id
+    FOR UPDATE
+  LOOP
+    -- Refresh after each handoff-row lock so a long lock wait cannot let an
+    -- already-expired runner lease open or supersede applicant state.
+    v_now := pg_catalog.clock_timestamp();
+    IF v_job.leased_until IS NULL OR v_job.leased_until <= v_now THEN
+      RETURN;
+    END IF;
+    IF v_session.job_id IS DISTINCT FROM p_job_id
+      OR v_session.application_id IS DISTINCT FROM p_application_id
+      OR v_session.applicant_id IS DISTINCT FROM p_applicant_id
+    THEN
+      -- A live or historical handoff for a different job/applicant is never
+      -- reused or superseded by this open request.
+      RETURN;
+    END IF;
+    IF v_session.expires_at IS NOT NULL AND v_session.expires_at > v_now THEN
+      IF v_session.status = 'claimed' THEN
+        -- An unexpired applicant claim is terminally owned for the handoff
+        -- lifetime; do not rewrite its payload or mint a replacement id.
+        -- Reuse remains a successful idempotent open for the caller while
+        -- preserving the exact claimed session and its original expiry.
+        RETURN QUERY SELECT TRUE, v_session.id, p_application_id, v_session.expires_at;
+        RETURN;
+      END IF;
+      v_result := p_stopped_result || jsonb_build_object(
+        'handoffId', v_session.id,
+        'handoffExpiresAt', v_session.expires_at
+      );
+      UPDATE public.applications AS application
+      SET submission_result = v_result,
+          submission_result_status = 'needs_user_action',
+          submission_result_updated_at = v_now,
+          updated_at = v_now
+      WHERE application.id = p_application_id;
+      GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+      IF v_updated_rows <> 1 THEN
+        RAISE EXCEPTION 'Application % disappeared during Taiwan handoff open'
+          USING ERRCODE = '55000';
+      END IF;
+      RETURN QUERY SELECT
+        v_session.status = 'queued',
+        v_session.id,
+        p_application_id,
+        v_session.expires_at;
+      RETURN;
+    END IF;
+
+    UPDATE public.takeover_session AS session
+    SET status = 'abandoned',
+        operator_notes = 'superseded_after_taiwan_handoff_expiry',
+        closed_at = v_now
+    WHERE session.id = v_session.id
+      AND session.status IN ('queued', 'claimed');
+    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+    IF v_updated_rows <> 1 THEN
+      RAISE EXCEPTION 'Taiwan handoff expiry transition failed'
+        USING ERRCODE = '55000';
+    END IF;
+    INSERT INTO public.takeover_action_log (
+      takeover_id, action, detail, ts
+    )
+    VALUES (
+      v_session.id,
+      'abandon',
+      jsonb_build_object('kind', 'taiwan_applicant_final_submit', 'reason', 'expired_before_reopen'),
+      v_now
+    );
+  END LOOP;
+
+  -- The loop may have waited on the partial-unique-index row lock. Recheck
+  -- the owner lease immediately before minting a new session and result.
+  v_now := pg_catalog.clock_timestamp();
+  IF v_job.leased_until IS NULL OR v_job.leased_until <= v_now THEN
+    RETURN;
+  END IF;
+
+  v_takeover_id := pg_catalog.gen_random_uuid();
+  v_result := p_stopped_result || jsonb_build_object(
+    'handoffId', v_takeover_id,
+    'handoffExpiresAt', p_expires_at
+  );
+
+  INSERT INTO public.takeover_session (
+    id, job_id, application_id, applicant_id, status, reason,
+    remote_debug_url, vnc_url, handoff_kind, expires_at, created_at
+  )
+  VALUES (
+    v_takeover_id,
+    p_job_id,
+    p_application_id,
+    p_applicant_id,
+    'queued',
+    'Taiwan form is filled and waiting for the applicant''s final official submission',
+    'browserbase-session:' || v_browserbase_session_id,
+    v_vnc_url,
+    'taiwan_applicant_final_submit',
+    p_expires_at,
+    v_now
+  );
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RAISE EXCEPTION 'Taiwan handoff session insert failed' USING ERRCODE = '55000';
+  END IF;
+
+  INSERT INTO public.takeover_action_log (
+    takeover_id, action, detail, ts
+  )
+  VALUES (
+    v_takeover_id,
+    'open',
+    jsonb_build_object(
+      'kind', 'taiwan_applicant_final_submit',
+      'job_id', p_job_id,
+      'worker_id', v_worker_id,
+      'expires_at', p_expires_at
+    ),
+    v_now
+  );
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RAISE EXCEPTION 'Taiwan handoff open action log write failed'
+      USING ERRCODE = '55000';
+  END IF;
+
+  UPDATE public.applications AS application
+  SET submission_result = v_result,
+      submission_result_status = 'needs_user_action',
+      submission_result_updated_at = v_now,
+      updated_at = v_now
+  WHERE application.id = p_application_id;
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RAISE EXCEPTION 'Application % disappeared during Taiwan handoff open'
+      USING ERRCODE = '55000';
+  END IF;
+
+  RETURN QUERY SELECT TRUE, v_takeover_id, p_application_id, p_expires_at;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.open_tw_applicant_handoff(
+  UUID, TEXT, UUID, UUID, TEXT, TEXT, TIMESTAMPTZ, JSONB
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.open_tw_applicant_handoff(
+  UUID, TEXT, UUID, UUID, TEXT, TEXT, TIMESTAMPTZ, JSONB
+) TO service_role;
+
+COMMENT ON FUNCTION public.open_tw_applicant_handoff(
+  UUID, TEXT, UUID, UUID, TEXT, TEXT, TIMESTAMPTZ, JSONB
+) IS
+  'Atomically opens or idempotently reuses one Taiwan applicant final-submit handoff while its runner owner lease is live.';
+
+-- Claim the live-view URL only after application, job, applicant, kind, and
+-- expiry checks are serialized. The same applicant retry is idempotent; a
+-- different applicant never receives the URL.
+CREATE OR REPLACE FUNCTION public.claim_tw_applicant_handoff(
+  p_takeover_id UUID,
+  p_application_id UUID,
+  p_applicant_id UUID
+)
+RETURNS TABLE (
+  claimed BOOLEAN,
+  takeover_id UUID,
+  job_id UUID,
+  application_id UUID,
+  vnc_url TEXT,
+  expires_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_session public.takeover_session%ROWTYPE;
+  v_job public.runner_job%ROWTYPE;
+  v_application public.applications%ROWTYPE;
+  v_session_application_id UUID;
+  v_session_applicant_id UUID;
+  v_session_job_id UUID;
+  v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER;
+BEGIN
+  IF p_takeover_id IS NULL OR p_application_id IS NULL OR p_applicant_id IS NULL THEN
+    RAISE EXCEPTION 'takeover, application, and applicant ids are required'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT session.application_id, session.applicant_id, session.job_id
+  INTO v_session_application_id, v_session_applicant_id, v_session_job_id
+  FROM public.takeover_session AS session
+  WHERE session.id = p_takeover_id;
+  IF NOT FOUND
+    OR v_session_application_id IS DISTINCT FROM p_application_id
+    OR v_session_applicant_id IS DISTINCT FROM p_applicant_id
+  THEN
+    RETURN;
+  END IF;
+
+  SELECT application.*
+  INTO v_application
+  FROM public.applications AS application
+  WHERE application.id = p_application_id
+    AND application.applicant_id = p_applicant_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT job.*
+  INTO v_job
+  FROM public.runner_job AS job
+  WHERE job.id = v_session_job_id
+    AND job.application_id = p_application_id
+    AND job.country = 'taiwan'
+    AND job.flow_key = 'tw_entry_permit'
+    AND job.status = 'running'
+    AND job.leased_by IS NOT NULL
+    AND job.leased_until IS NOT NULL
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT session.*
+  INTO v_session
+  FROM public.takeover_session AS session
+  WHERE session.id = p_takeover_id
+    AND session.job_id = v_job.id
+    AND session.application_id = p_application_id
+    AND session.applicant_id = p_applicant_id
+    AND session.handoff_kind = 'taiwan_applicant_final_submit'
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  IF v_job.leased_until IS NULL OR v_job.leased_until <= v_now THEN
+    RETURN;
+  END IF;
+  IF v_session.expires_at IS NULL OR v_session.expires_at <= v_now THEN
+    IF v_session.status IN ('queued', 'claimed') THEN
+      UPDATE public.takeover_session AS session
+      SET status = 'abandoned',
+          operator_notes = 'applicant_handoff_expired_before_claim',
+          closed_at = v_now
+      WHERE session.id = p_takeover_id
+        AND session.status IN ('queued', 'claimed');
+      GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+      IF v_updated_rows = 1 THEN
+        INSERT INTO public.takeover_action_log (takeover_id, action, actor_user_id, detail, ts)
+        VALUES (
+          p_takeover_id, 'abandon', p_applicant_id,
+          jsonb_build_object('kind', 'taiwan_applicant_final_submit', 'reason', 'expired_before_claim'),
+          v_now
+        );
+      END IF;
+    END IF;
+    RETURN;
+  END IF;
+
+  IF v_session.status = 'claimed' THEN
+    IF v_session.claimed_by IS DISTINCT FROM p_applicant_id THEN
+      RETURN;
+    END IF;
+    RETURN QUERY SELECT TRUE, v_session.id, v_job.id, p_application_id,
+      v_session.vnc_url, v_session.expires_at;
+    RETURN;
+  END IF;
+  IF v_session.status <> 'queued' OR v_session.vnc_url IS NULL THEN
+    RETURN;
+  END IF;
+
+  UPDATE public.takeover_session AS session
+  SET status = 'claimed',
+      claimed_by = p_applicant_id,
+      claimed_at = v_now
+  WHERE session.id = p_takeover_id
+    AND session.status = 'queued'
+    AND session.expires_at > v_now;
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO public.takeover_action_log (takeover_id, action, actor_user_id, detail, ts)
+  VALUES (
+    p_takeover_id, 'claim', p_applicant_id,
+    jsonb_build_object('kind', 'taiwan_applicant_final_submit'), v_now
+  );
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RAISE EXCEPTION 'Taiwan handoff claim action log write failed'
+      USING ERRCODE = '55000';
+  END IF;
+
+  RETURN QUERY SELECT TRUE, p_takeover_id, v_job.id, p_application_id,
+    v_session.vnc_url, v_session.expires_at;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_tw_applicant_handoff(UUID, UUID, UUID)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_tw_applicant_handoff(UUID, UUID, UUID)
+  TO service_role;
+
+COMMENT ON FUNCTION public.claim_tw_applicant_handoff(UUID, UUID, UUID) IS
+  'Claims one Taiwan applicant handoff only for the exact applicant and a live runner job; URL access is fenced and idempotent.';
+
+-- Settle a Taiwan applicant handoff without settling the runner job. A
+-- completed outcome requires an official receipt payload and atomically writes
+-- the final application result; an abandoned outcome is permitted only after
+-- expiry and never marks the application or runner job completed.
+CREATE OR REPLACE FUNCTION public.settle_tw_applicant_handoff(
+  p_takeover_id UUID,
+  p_job_id UUID,
+  p_worker_id TEXT,
+  p_outcome TEXT,
+  p_submission_result JSONB DEFAULT NULL
+)
+RETURNS TABLE (
+  settled BOOLEAN,
+  job_id UUID,
+  application_id UUID,
+  handoff_status TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_session public.takeover_session%ROWTYPE;
+  v_job public.runner_job%ROWTYPE;
+  v_application public.applications%ROWTYPE;
+  v_session_application_id UUID;
+  v_session_applicant_id UUID;
+  v_worker_id TEXT := BTRIM(COALESCE(p_worker_id, ''));
+  v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER;
+  v_case_number TEXT;
+  v_receipt JSONB;
+BEGIN
+  IF p_takeover_id IS NULL OR p_job_id IS NULL THEN
+    RAISE EXCEPTION 'takeover and job ids are required' USING ERRCODE = '22023';
+  END IF;
+  IF v_worker_id = '' OR length(v_worker_id) > 200 THEN
+    RAISE EXCEPTION 'worker id is required and must be at most 200 characters'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_outcome IS NULL OR p_outcome NOT IN ('completed', 'abandoned') THEN
+    RAISE EXCEPTION 'Taiwan handoff outcome must be completed or abandoned'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT session.application_id, session.applicant_id
+  INTO v_session_application_id, v_session_applicant_id
+  FROM public.takeover_session AS session
+  WHERE session.id = p_takeover_id
+    AND session.job_id = p_job_id;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT application.*
+  INTO v_application
+  FROM public.applications AS application
+  WHERE application.id = v_session_application_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT job.*
+  INTO v_job
+  FROM public.runner_job AS job
+  WHERE job.id = p_job_id
+    AND job.application_id = v_application.id
+    AND job.country = 'taiwan'
+    AND job.flow_key = 'tw_entry_permit'
+    AND job.status = 'running'
+    AND job.leased_by = v_worker_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT session.*
+  INTO v_session
+  FROM public.takeover_session AS session
+  WHERE session.id = p_takeover_id
+    AND session.job_id = p_job_id
+    AND session.application_id = v_application.id
+    AND session.applicant_id = v_application.applicant_id
+    AND session.handoff_kind = 'taiwan_applicant_final_submit'
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  IF v_job.leased_until IS NULL OR v_job.leased_until <= v_now THEN
+    RETURN;
+  END IF;
+  -- The runner_job remains running throughout applicant handoff settlement;
+  -- standard worker completion settles that job afterward.
+
+  IF p_outcome = 'completed' THEN
+    IF v_session.status <> 'claimed'
+      OR v_session.claimed_by IS DISTINCT FROM v_application.applicant_id
+    THEN
+      RETURN;
+    END IF;
+    IF v_session.expires_at IS NULL OR v_session.expires_at <= v_now THEN
+      RETURN;
+    END IF;
+    IF p_submission_result IS NULL
+      OR pg_catalog.jsonb_typeof(p_submission_result) <> 'object'
+      OR pg_catalog.pg_column_size(p_submission_result) > 524288
+      OR p_submission_result ->> 'country' IS DISTINCT FROM 'TW'
+      OR p_submission_result ->> 'status' IS DISTINCT FROM 'submitted'
+    THEN
+      RAISE EXCEPTION 'Taiwan completed handoff requires a bounded submitted TW result'
+        USING ERRCODE = '22023';
+    END IF;
+    v_receipt := p_submission_result -> 'officialReceipt';
+    v_case_number := BTRIM(COALESCE(v_receipt ->> 'caseNumber', ''));
+    IF pg_catalog.jsonb_typeof(v_receipt) <> 'object'
+      OR v_receipt ->> 'source' IS DISTINCT FROM 'official_success_page_with_application_number'
+      OR length(v_case_number) < 8
+      OR length(v_case_number) > 128
+      OR NULLIF(BTRIM(v_receipt ->> 'portalUrl'), '') IS NULL
+      OR length(v_receipt ->> 'portalUrl') > 4096
+      OR v_receipt ->> 'portalUrl' !~* '^https?://'
+      OR NULLIF(BTRIM(v_receipt ->> 'capturedAt'), '') IS NULL
+      OR length(v_receipt ->> 'capturedAt') > 100
+    THEN
+      RAISE EXCEPTION 'Taiwan completed handoff requires official receipt evidence'
+        USING ERRCODE = '22023';
+    END IF;
+
+    UPDATE public.applications AS application
+    SET status = 'submitted',
+        submitted_at = COALESCE(application.submitted_at, v_now),
+        submission_result = p_submission_result,
+        submission_result_status = 'completed',
+        submission_result_updated_at = v_now,
+        updated_at = v_now
+    WHERE application.id = v_application.id
+      AND application.applicant_id = v_application.applicant_id;
+    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+    IF v_updated_rows <> 1 THEN
+      RAISE EXCEPTION 'Application % disappeared during Taiwan handoff settlement'
+        USING ERRCODE = '55000';
+    END IF;
+
+    UPDATE public.takeover_session AS session
+    SET status = 'completed',
+        closed_at = v_now,
+        operator_notes = NULL
+    WHERE session.id = p_takeover_id
+      AND session.status = 'claimed'
+      AND session.claimed_by = v_application.applicant_id;
+    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+    IF v_updated_rows <> 1 THEN
+      RAISE EXCEPTION 'Taiwan handoff session changed before completion'
+        USING ERRCODE = '55000';
+    END IF;
+
+    INSERT INTO public.takeover_action_log (takeover_id, action, actor_user_id, detail, ts)
+    VALUES (
+      p_takeover_id, 'complete', v_application.applicant_id,
+      jsonb_build_object(
+        'kind', 'taiwan_applicant_final_submit',
+        'officialReceiptCaptured', TRUE
+      ), v_now
+    );
+    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+    IF v_updated_rows <> 1 THEN
+      RAISE EXCEPTION 'Taiwan handoff completion action log write failed'
+        USING ERRCODE = '55000';
+    END IF;
+    RETURN QUERY SELECT TRUE, p_job_id, v_application.id, 'completed'::TEXT;
+    RETURN;
+  END IF;
+
+  IF p_submission_result IS NOT NULL THEN
+    RAISE EXCEPTION 'Abandoned Taiwan handoffs cannot write a submission result'
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_session.status NOT IN ('queued', 'claimed')
+    OR (v_session.status = 'claimed'
+      AND v_session.claimed_by IS DISTINCT FROM v_application.applicant_id)
+  THEN
+    RETURN;
+  END IF;
+  IF v_session.expires_at IS NULL OR v_session.expires_at > v_now THEN
+    RETURN;
+  END IF;
+
+  UPDATE public.takeover_session AS session
+  SET status = 'abandoned',
+      closed_at = v_now,
+      operator_notes = 'applicant_handoff_expired_before_official_receipt'
+  WHERE session.id = p_takeover_id
+    AND session.status IN ('queued', 'claimed')
+    AND (
+      session.status = 'queued'
+      OR session.claimed_by = v_application.applicant_id
+    )
+    AND session.expires_at <= v_now;
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO public.takeover_action_log (takeover_id, action, actor_user_id, detail, ts)
+  VALUES (
+    p_takeover_id, 'abandon', v_application.applicant_id,
+    jsonb_build_object(
+      'kind', 'taiwan_applicant_final_submit',
+      'reason', 'expired_before_official_receipt'
+    ), v_now
+  );
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RAISE EXCEPTION 'Taiwan handoff abandonment action log write failed'
+      USING ERRCODE = '55000';
+  END IF;
+  RETURN QUERY SELECT TRUE, p_job_id, v_application.id, 'abandoned'::TEXT;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.settle_tw_applicant_handoff(
+  UUID, UUID, TEXT, TEXT, JSONB
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.settle_tw_applicant_handoff(
+  UUID, UUID, TEXT, TEXT, JSONB
+) TO service_role;
+
+COMMENT ON FUNCTION public.settle_tw_applicant_handoff(
+  UUID, UUID, TEXT, TEXT, JSONB
+) IS
+  'Atomically settles the Taiwan applicant handoff result without changing the still-running runner job; completion requires official receipt evidence.';

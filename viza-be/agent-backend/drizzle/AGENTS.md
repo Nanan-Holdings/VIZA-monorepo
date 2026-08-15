@@ -202,7 +202,7 @@ The current internal automation migrations are:
   `submitted`. The migration also carries the
   `defer_vn_official_status_check` RPC used to return provider-gate-denied
   status checks to the queue without consuming an admission attempt. Phase-two
-  admission is restricted to the five canonical country/flow tuples and uses
+  admission is restricted to the six canonical country/flow tuples and uses
   application-first locking; queued inserts and requeues are guarded against
   staff-review races, while active reuse requires an exact country/flow match.
   Claim candidate scans exclude staff-review applications, and the queued to

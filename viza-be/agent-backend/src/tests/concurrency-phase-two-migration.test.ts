@@ -62,6 +62,15 @@ const requeueFunctionBody = canonicalSql.match(
 const insertGuardFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION runner_private\.guard_runner_job_running_insert\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
+const twOpenFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.open_tw_applicant_handoff\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const twClaimFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.claim_tw_applicant_handoff\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const twSettleFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.settle_tw_applicant_handoff\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
 
 const plpgsqlBody = (functionSql: string): string =>
   functionSql.slice(functionSql.indexOf("AS $$"));
@@ -160,7 +169,7 @@ describe("runner pool concurrency phase two migration", () => {
     );
     expect((functionBody.match(/selected AS MATERIALIZED/gi) ?? []).length).toBe(1);
     expect(functionBody).toMatch(
-      /selected AS MATERIALIZED \([\s\S]*?SELECT candidate\.id, candidate\.country[\s\S]*?candidate\.country IN \([\s\S]*?'vietnam'[\s\S]*?'south_korea'[\s\S]*?\)[\s\S]*?ORDER BY candidate\.enqueued_at, candidate\.id[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE OF candidate, cap SKIP LOCKED/i,
+      /selected AS MATERIALIZED \([\s\S]*?SELECT candidate\.id, candidate\.country[\s\S]*?candidate\.country IN \([\s\S]*?'vietnam'[\s\S]*?'south_korea'[\s\S]*?'taiwan'[\s\S]*?\)[\s\S]*?ORDER BY candidate\.enqueued_at, candidate\.id[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE OF candidate, cap SKIP LOCKED/i,
     );
   });
 
@@ -175,7 +184,7 @@ describe("runner pool concurrency phase two migration", () => {
     expect(functionBody).toMatch(
       /SELECT cap\.country[\s\S]*?FROM public\.runner_concurrency_cap AS cap[\s\S]*?JOIN LATERAL \([\s\S]*?oldest_candidate\.status = 'queued'[\s\S]*?oldest_candidate\.available_at <= v_now[\s\S]*?ORDER BY oldest_candidate\.enqueued_at, oldest_candidate\.id, cap\.country[\s\S]*?LIMIT 1[\s\S]*?FOR UPDATE OF cap SKIP LOCKED/i,
     );
-    expect(functionBody).toMatch(/WHILE\s+v_cap_iterations\s*<\s*5\s+LOOP/i);
+    expect(functionBody).toMatch(/WHILE\s+v_cap_iterations\s*<\s*6\s+LOOP/i);
     expect(functionBody).toMatch(/v_tried_countries/i);
     expect(functionBody).toMatch(/GET DIAGNOSTICS v_claimed_rows = ROW_COUNT/i);
     expect(functionBody).toMatch(
@@ -672,7 +681,7 @@ describe("runner pool concurrency phase two migration", () => {
     );
   });
 
-  it("redefines enqueue with the exact five tuple identity and application-first locking", () => {
+  it("redefines enqueue with the exact six tuple identity and application-first locking", () => {
     expect(canonicalSql).toMatch(
       /CREATE OR REPLACE FUNCTION public\.enqueue_runner_pool_job\(\s*p_application_id UUID,\s*p_country TEXT,\s*p_flow_key TEXT,\s*p_available_at TIMESTAMPTZ DEFAULT NOW\(\),\s*p_max_attempts INTEGER DEFAULT 3,\s*p_correlation_id TEXT DEFAULT NULL,\s*p_metadata JSONB DEFAULT '\{\}'::JSONB,\s*p_now TIMESTAMPTZ DEFAULT NOW\(\)\s*\)/i,
     );
@@ -837,5 +846,66 @@ describe("runner pool concurrency phase two migration", () => {
     expect(canonicalSql).toMatch(
       /REVOKE ALL ON FUNCTION public\.requeue_runner_job\(UUID\)[\s\S]*?GRANT EXECUTE ON FUNCTION public\.requeue_runner_job\(UUID\)\s+TO service_role;/i,
     );
+  });
+
+  it("clears started_at when a failed running job is retryable", () => {
+    expect(failFunctionBody).toMatch(
+      /v_new_row\s*:=\s*to_jsonb\(v_old_row\)[\s\S]*?'started_at',\s*CASE\s+WHEN p_status = 'queued' THEN NULL/i,
+    );
+    expect(failFunctionBody).toMatch(
+      /UPDATE public\.runner_job AS job[\s\S]*?started_at = CASE\s+WHEN p_status = 'queued' THEN NULL/i,
+    );
+  });
+
+  it("keeps the Taiwan entry-permit tuple in every strict pool surface", () => {
+    const tupleCount = (canonicalSql.match(/taiwan'\s+AND\s+(?:candidate\.|active\.|expired\.|oldest_candidate\.|rj\.|NEW\.|job\.|flow_key\s*=|v_country\s*=)/gi) ?? []).length;
+    expect(canonicalSql).toMatch(/taiwan.*tw_entry_permit/i);
+    expect(tupleCount).toBeGreaterThanOrEqual(8);
+    expect(canonicalSql).toMatch(
+      /INSERT INTO public\.runner_concurrency_cap[\s\S]*?\('taiwan',\s*1,[\s\S]*?ON CONFLICT \(country\) DO NOTHING/i,
+    );
+    expect(canonicalSql).toMatch(/'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea', 'taiwan'/i);
+  });
+
+  it("defines applicant-owned Taiwan handoff RPCs and excludes that kind from generic operator flows", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.open_tw_applicant_handoff\(\s*p_job_id UUID,\s*p_worker_id TEXT,\s*p_application_id UUID,\s*p_applicant_id UUID,\s*p_browserbase_session_id TEXT,\s*p_vnc_url TEXT,\s*p_expires_at TIMESTAMPTZ,\s*p_stopped_result JSONB\s*\)/i,
+    );
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.claim_tw_applicant_handoff\(\s*p_takeover_id UUID,\s*p_application_id UUID,\s*p_applicant_id UUID\s*\)/i,
+    );
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.settle_tw_applicant_handoff\(\s*p_takeover_id UUID,\s*p_job_id UUID,\s*p_worker_id TEXT,\s*p_outcome TEXT,\s*p_submission_result JSONB DEFAULT NULL\s*\)/i,
+    );
+    for (const body of [twOpenFunctionBody, twClaimFunctionBody, twSettleFunctionBody]) {
+      expect(body).toMatch(/SECURITY DEFINER/i);
+      expect(body).toMatch(/SET search_path = ''/i);
+      expect(body).toMatch(/clock_timestamp\(\)/i);
+      expect(body).toMatch(/taiwan_applicant_final_submit/i);
+    }
+    expect(twOpenFunctionBody).toMatch(/applications[\s\S]*?runner_job[\s\S]*?takeover_session/i);
+    expect(twOpenFunctionBody).toMatch(/submission_result_status = 'needs_user_action'/i);
+    expect(twOpenFunctionBody).toMatch(/handoffId[\s\S]*?handoffExpiresAt/i);
+    expect(twClaimFunctionBody).toMatch(/application_id = p_application_id[\s\S]*?applicant_id = p_applicant_id/i);
+    expect(twClaimFunctionBody).toMatch(/status = 'running'[\s\S]*?leased_until/i);
+    expect(twSettleFunctionBody).toMatch(/officialReceipt/i);
+    expect(twSettleFunctionBody).toMatch(/job remains running|runner_job.*status = 'running'/i);
+    expect(twSettleFunctionBody).toMatch(/IF p_outcome = 'completed'[\s\S]*?claimed_by/i);
+    expect(twSettleFunctionBody).toMatch(/v_session\.status NOT IN \('queued', 'claimed'\)/i);
+    expect(twSettleFunctionBody).toMatch(/session\.status IN \('queued', 'claimed'\)[\s\S]*?expired_before_official_receipt/i);
+    expect(canonicalSql).toMatch(
+      /CREATE UNIQUE INDEX IF NOT EXISTS takeover_session_tw_active_unique_idx[\s\S]*?handoff_kind = 'taiwan_applicant_final_submit'[\s\S]*?status IN \('queued', 'claimed'\)/i,
+    );
+    expect(takeoverClaimFunctionBody).toMatch(/handoff_kind = 'taiwan_applicant_final_submit'/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/handoff_kind = 'taiwan_applicant_final_submit'/i);
+  });
+
+  it("requires exact capabilities for non-running lifecycle transitions", () => {
+    expect(canonicalSql).toMatch(/'cancel',\s*'takeover_settle'/i);
+    expect(triggerFunctionBody).toMatch(/operation IN \([\s\S]*?'cancel'[\s\S]*?'takeover_settle'/i);
+    expect(triggerFunctionBody).not.toMatch(/IF OLD\.status IS DISTINCT FROM 'running' THEN\s*RETURN NEW;/i);
+    expect(cancelFunctionBody).toMatch(/operation, old_row, new_row[\s\S]*?'cancel'/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/operation, old_row, new_row[\s\S]*?'takeover_settle'/i);
+    expect(pauseFunctionBody).toMatch(/operation, old_row, new_row[\s\S]*?'admin_pause'/i);
   });
 });
