@@ -17,6 +17,7 @@ import {
 } from "@/lib/submission-queue";
 import { enqueueRunnerJobWake } from "@/lib/resilience/runner-job-wakeup";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { assertRunnerCutoverActive } from "@/lib/runner-cutover-pause.server";
 
 /**
  * Producers for shared-pool and sticky submission runners.
@@ -227,6 +228,7 @@ export async function enqueueRunnerPoolJob(
   flowKey: RunnerPoolFlowKey,
   opts: EnqueueOpts = {},
 ): Promise<EnqueueRunnerPoolResult> {
+  assertRunnerCutoverActive();
   const normalizedCountry = assertKnownCountry(country);
   assertExactSharedRunnerPoolTuple(normalizedCountry, flowKey);
   const row = await withAdmin("system", "lib/queue:enqueue-pool", async (admin) => {
@@ -413,6 +415,7 @@ export async function enqueueSgacRunnerRetry(
   applicationId: string,
   opts: EnqueueOpts = {},
 ): Promise<EnqueueSgacRetryResult> {
+  assertRunnerCutoverActive();
   const result = await withAdmin("system", "lib/queue:enqueue-sgac-retry", async (admin) => {
     const { data, error } = await admin.rpc("enqueue_sgac_country_runner_retry", {
       p_application_id: applicationId,
@@ -502,6 +505,7 @@ export async function enqueueRunnerJob(
   country: string,
   opts: EnqueueOpts = {},
 ): Promise<{ id: string; created: boolean }> {
+  assertRunnerCutoverActive();
   const normalizedCountry = assertKnownCountry(country);
   const visaType = await withAdmin("system", "lib/queue:application-flow", async (admin) => {
     const { data, error } = await admin

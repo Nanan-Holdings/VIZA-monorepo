@@ -3,6 +3,7 @@ import {
   ensureFlyMachineStarted,
   waitForHttpReady,
 } from "@/lib/fly-machine-wake.server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import {
   isIndonesiaEVisaApplication,
   queueProviderForApplication,
@@ -875,6 +876,16 @@ export async function POST(
   const isIndonesiaApplication = isIndonesiaEVisaApplication(application.country, application.visa_type);
   if (!isVietnamApplication && !isIndonesiaApplication) {
     return NextResponse.json({ error: "Official payment queue is only enabled for Vietnam and Indonesia e-Visa applications." }, { status: 422 });
+  }
+
+  if (isRunnerCutoverPaused()) {
+    return NextResponse.json(
+      {
+        error: "Official-fee submission is temporarily paused for a controlled runner cutover.",
+        errorCode: "runner_cutover_paused",
+      },
+      { status: 503 },
+    );
   }
 
   const body = (await request.json().catch(() => ({}))) as unknown;

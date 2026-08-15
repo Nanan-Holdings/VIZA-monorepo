@@ -18,7 +18,12 @@ vi.mock("@/lib/resilience/runner-job-wakeup", () => ({
   enqueueRunnerJobWake: enqueueRunnerJobWakeMock,
 }));
 
-import { desiredRunnerPoolCapacity, enqueueRunnerJob, enqueueRunnerPoolJob } from "./enqueue";
+import {
+  desiredRunnerPoolCapacity,
+  enqueueRunnerJob,
+  enqueueRunnerPoolJob,
+  enqueueSgacRunnerRetry,
+} from "./enqueue";
 
 type RpcRow = {
   runner_job_id: string | null;
@@ -121,6 +126,7 @@ describe("runner pool enqueue wake transport", () => {
   let warnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    delete process.env.RUNNER_CUTOVER_PAUSED;
     delete process.env.RESILIENCE_RUNNER_WAKE_ENABLED;
     delete process.env.RUNNER_POOL_MIGRATION_ENABLED;
     ensureFlyMachineCapacityMock.mockReset();
@@ -136,6 +142,20 @@ describe("runner pool enqueue wake transport", () => {
   });
 
   afterEach(() => warnSpy.mockRestore());
+
+  it.each([
+    ["pool", () => enqueueRunnerPoolJob("app-paused", "vietnam", "vn_prearrival")],
+    ["SGAC", () => enqueueSgacRunnerRetry("app-paused")],
+    ["generic", () => enqueueRunnerJob("app-paused", "vietnam")],
+  ] as const)("blocks the %s enqueue before any database or wake side effect", async (_label, enqueue) => {
+    process.env.RUNNER_CUTOVER_PAUSED = "true";
+
+    await expect(enqueue()).rejects.toMatchObject({ code: "runner_cutover_paused" });
+    expect(withAdminMock).not.toHaveBeenCalled();
+    expect(ensureFlyMachineCapacityMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+  });
 
   it("publishes a Queue wake after a committed runner_job", async () => {
     process.env.RESILIENCE_RUNNER_WAKE_ENABLED = "true";

@@ -1,5 +1,6 @@
 import "server-only";
 import { withAdmin } from "@/lib/auth/with-admin";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
@@ -15,6 +16,7 @@ export type FlyMachineWakeResult =
         | "not_configured"
         | "machine_not_found"
         | "capacity_full"
+        | "cutover_paused"
         | "request_failed";
     };
 
@@ -282,6 +284,10 @@ export async function ensureFlyMachineCapacity(
 ): Promise<FlyMachineCapacityResult> {
   const target = normalizeTarget(rawTarget);
   if (!target) return { ok: false, target: rawTarget, reason: "unmanaged_target" };
+  const env = options.env ?? process.env;
+  if (isRunnerCutoverPaused(env)) {
+    return { ok: false, target, reason: "cutover_paused" };
+  }
 
   const existing = inFlightCapacity.get(target);
   if (existing) {
@@ -290,7 +296,7 @@ export async function ensureFlyMachineCapacity(
   const operation = reconcileCapacity(
     target,
     desired,
-    options.env ?? process.env,
+    env,
     options.fetchImpl ?? fetch,
   ).finally(() => {
     if (inFlightCapacity.get(target) === operation) {

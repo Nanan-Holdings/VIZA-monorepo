@@ -84,6 +84,10 @@ Before changing this route, read:
 16. Render the form-filling assistant only for an owned application with a
     non-empty DB-driven schema. Keep every prompt, source, option and validator
     scoped to that application's exact country and visa type.
+17. Browser code must never insert `submission_queue` rows or wake submission
+    workers directly. Route every dry-run and live enqueue through the guarded
+    `/api/applications/[id]/retry-submission` server boundary so the global
+    controlled-cutover pause cannot be bypassed.
 
 ## Validation Checklist
 

@@ -19,7 +19,14 @@ export async function POST(request: Request): Promise<Response> {
   if (!result.ok) {
     return NextResponse.json(
       { error: "Cloud submission worker wake is temporarily unavailable.", reason: result.reason },
-      { status: result.reason === "not_configured" || result.reason === "insecure_url" ? 503 : 502 },
+      {
+        status:
+          result.reason === "cutover_paused" ||
+          result.reason === "not_configured" ||
+          result.reason === "insecure_url"
+            ? 503
+            : 502,
+      },
     );
   }
 

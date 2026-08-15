@@ -1,6 +1,7 @@
 import "server-only";
 
 import { enqueueResilienceQueueEvent } from "./gateway";
+import { assertRunnerCutoverActive } from "../runner-cutover-pause.server";
 
 export const RUNNER_JOB_WAKE_EVENT = "runner_job.wakeup.v1" as const;
 
@@ -38,6 +39,7 @@ export async function enqueueRunnerJobWake(input: {
   jobId: string;
   target: RunnerWakeTarget;
 }): Promise<{ accepted: boolean; duplicate: boolean; queued: boolean }> {
+  assertRunnerCutoverActive();
   const candidate = (typeof input === "object" && input !== null)
     ? input as { jobId?: unknown; target?: unknown }
     : {};
