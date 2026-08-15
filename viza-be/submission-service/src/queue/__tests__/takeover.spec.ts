@@ -8,72 +8,63 @@ delete process.env.SLACK_WEBHOOK_URL;
 delete process.env.RESEND_OPS_ALERT_TO;
 delete process.env.RESEND_API_KEY;
 
-interface Call {
-  table: string;
-  method: string;
-  args: unknown[];
+interface RpcCall {
+  functionName: string;
+  args: unknown;
 }
 
 interface MockSetup {
-  calls: Call[];
-  setRunnerJobResult(result: { data: { id: string } | null; error: { message: string } | null }): void;
+  rpcCalls: RpcCall[];
+  fromCalls: string[];
+  setResult(result: { data: unknown; error: { message: string } | null }): void;
   restore(): void;
 }
 
+type SupabaseLike = {
+  rpc: (functionName: string, args: unknown) => Promise<unknown>;
+  from: (table: string) => unknown;
+};
+
 async function loadTakeover(): Promise<{
   requestHumanTakeover: typeof import("../takeover.js").requestHumanTakeover;
-  setup: (runnerJobResult: { data: { id: string } | null; error: { message: string } | null }) => Promise<MockSetup>;
+  setup: (result: { data: unknown; error: { message: string } | null }) => MockSetup;
 }> {
   const [{ supabase }, { requestHumanTakeover }] = await Promise.all([
     import("../../supabase.js"),
     import("../takeover.js"),
   ]);
-  const client = supabase as unknown as {
-    from: (table: string) => Record<string, (...args: unknown[]) => unknown>;
-  };
+  const client = supabase as unknown as SupabaseLike;
+  const originalRpc = client.rpc;
   const originalFrom = client.from;
-  const setup = async (
-    runnerJobResult: { data: { id: string } | null; error: { message: string } | null },
-  ): Promise<MockSetup> => {
-    const calls: Call[] = [];
-    let currentRunnerJobResult = runnerJobResult;
-    const setRunnerJobResult = (result: typeof runnerJobResult): void => {
-      currentRunnerJobResult = result;
+  const setup = (initialResult: { data: unknown; error: { message: string } | null }): MockSetup => {
+    const rpcCalls: RpcCall[] = [];
+    const fromCalls: string[] = [];
+    let currentResult = initialResult;
+    client.rpc = (functionName, args) => {
+      rpcCalls.push({ functionName, args });
+      return Promise.resolve(currentResult);
     };
-    client.from = ((table: string) => {
-      const builder: Record<string, (...args: unknown[]) => unknown> = {
-        update: (...args) => {
-          calls.push({ table, method: "update", args });
-          return builder;
-        },
-        eq: (...args) => {
-          calls.push({ table, method: "eq", args });
-          return builder;
-        },
-        select: (...args) => {
-          calls.push({ table, method: "select", args });
-          return builder;
-        },
-        maybeSingle: async (...args) => {
-          calls.push({ table, method: "maybeSingle", args });
-          if (table === "runner_job") return currentRunnerJobResult;
-          return { data: null, error: null };
-        },
-        insert: (...args) => {
-          calls.push({ table, method: "insert", args });
-          return builder;
-        },
-        single: async (...args) => {
-          calls.push({ table, method: "single", args });
-          return { data: { id: "takeover-1" }, error: null };
-        },
-      };
-      return builder;
-    }) as typeof client.from;
+    client.from = (table) => {
+      fromCalls.push(table);
+      if (table === "alert_throttle") {
+        const builder: Record<string, (...args: unknown[]) => unknown> = {};
+        builder.select = () => builder;
+        builder.eq = () => builder;
+        builder.maybeSingle = async () => ({ data: null, error: null });
+        builder.insert = () => builder;
+        builder.update = () => builder;
+        return builder;
+      }
+      throw new Error(`direct table access is forbidden: ${table}`);
+    };
     return {
-      calls,
-      setRunnerJobResult,
+      rpcCalls,
+      fromCalls,
+      setResult: (result) => {
+        currentResult = result;
+      },
       restore: () => {
+        client.rpc = originalRpc;
         client.from = originalFrom;
       },
     };
@@ -81,13 +72,14 @@ async function loadTakeover(): Promise<{
   return { requestHumanTakeover, setup };
 }
 
-function input(workerId: string): {
+function input(workerId = "worker-1"): {
   jobId: string;
   workerId: string;
   applicationId: string;
   applicantId: string;
   reason: string;
   remoteDebugUrl: string;
+  vncUrl?: string;
 } {
   return {
     jobId: "job-active",
@@ -95,71 +87,76 @@ function input(workerId: string): {
     applicationId: "app-1",
     applicantId: "user-1",
     reason: "operator needed",
-    remoteDebugUrl: "https://debug.invalid/session",
+    remoteDebugUrl: "wss://debug.invalid/session",
+    vncUrl: "https://vnc.invalid/session",
   };
 }
 
-function runnerJobCalls(calls: Call[]): Call[] {
-  return calls.filter((call) => call.table === "runner_job");
-}
-
-test("human takeover filters the update by exact job, running status, and worker", async () => {
+test("human takeover calls the ownership RPC with the exact argument names", async () => {
   const { requestHumanTakeover, setup } = await loadTakeover();
-  const mock = await setup({ data: { id: "job-active" }, error: null });
+  const mock = setup({ data: { takeover_id: "takeover-1" }, error: null });
   try {
-    await requestHumanTakeover(input("worker-1"));
-    assert.deepEqual(runnerJobCalls(mock.calls), [
+    const result = await requestHumanTakeover(input());
+    assert.deepEqual(result, { takeoverId: "takeover-1" });
+    assert.deepEqual(mock.rpcCalls, [
       {
-        table: "runner_job",
-        method: "update",
-        args: [{ status: "needs_human", last_error: "operator needed" }],
+        functionName: "open_runner_job_takeover",
+        args: {
+          p_job_id: "job-active",
+          p_worker_id: "worker-1",
+          p_application_id: "app-1",
+          p_applicant_id: "user-1",
+          p_reason: "operator needed",
+          p_remote_debug_url: "wss://debug.invalid/session",
+          p_vnc_url: "https://vnc.invalid/session",
+        },
       },
-      { table: "runner_job", method: "eq", args: ["id", "job-active"] },
-      { table: "runner_job", method: "eq", args: ["status", "running"] },
-      { table: "runner_job", method: "eq", args: ["leased_by", "worker-1"] },
-      { table: "runner_job", method: "select", args: ["id"] },
-      { table: "runner_job", method: "maybeSingle", args: [] },
     ]);
-    assert.deepEqual([...new Set(mock.calls.map((call) => call.table))], [
-      "runner_job",
-      "takeover_session",
-      "takeover_action_log",
-      "alert_throttle",
-    ]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(mock.fromCalls.filter((table) => table !== "alert_throttle"), []);
   } finally {
     mock.restore();
   }
 });
 
-test("human takeover fails closed for an expired or reclaimed worker with no side effects", async () => {
+test("human takeover normalizes a one-row RPC array", async () => {
   const { requestHumanTakeover, setup } = await loadTakeover();
-  const mock = await setup({ data: null, error: null });
+  const mock = setup({ data: [{ takeover_id: "takeover-array" }], error: null });
+  try {
+    await assert.doesNotReject(async () => {
+      assert.deepEqual(await requestHumanTakeover(input()), { takeoverId: "takeover-array" });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  } finally {
+    mock.restore();
+  }
+});
+
+test("human takeover fails closed when the RPC returns zero rows without side effects", async () => {
+  const { requestHumanTakeover, setup } = await loadTakeover();
+  const mock = setup({ data: [], error: null });
   try {
     await assert.rejects(
       () => requestHumanTakeover(input("worker-reclaimed")),
       (error: unknown) => error instanceof RunnerJobOwnershipLostError,
     );
-    assert.deepEqual(runnerJobCalls(mock.calls).slice(1), [
-      { table: "runner_job", method: "eq", args: ["id", "job-active"] },
-      { table: "runner_job", method: "eq", args: ["status", "running"] },
-      { table: "runner_job", method: "eq", args: ["leased_by", "worker-reclaimed"] },
-      { table: "runner_job", method: "select", args: ["id"] },
-      { table: "runner_job", method: "maybeSingle", args: [] },
-    ]);
-    assert.equal(mock.calls.some((call) => call.table !== "runner_job"), false);
+    assert.equal(mock.rpcCalls.length, 1);
+    assert.deepEqual(mock.fromCalls, []);
   } finally {
     mock.restore();
   }
 });
 
-test("human takeover opens the session only after the active worker update returns its id", async () => {
+test("human takeover surfaces an ordinary bounded RPC error", async () => {
   const { requestHumanTakeover, setup } = await loadTakeover();
-  const mock = await setup({ data: { id: "job-active" }, error: null });
+  const mock = setup({ data: null, error: { message: "database unavailable" } });
   try {
-    const result = await requestHumanTakeover(input("worker-active"));
-    assert.deepEqual(result, { takeoverId: "takeover-1" });
-    assert.equal(mock.calls.some((call) => call.table === "takeover_session"), true);
-    assert.equal(mock.calls.some((call) => call.table === "takeover_action_log"), true);
+    await assert.rejects(
+      () => requestHumanTakeover(input()),
+      (error: unknown) => error instanceof Error && !(error instanceof RunnerJobOwnershipLostError)
+        && error.message === "open_runner_job_takeover: database unavailable",
+    );
+    assert.deepEqual(mock.fromCalls, []);
   } finally {
     mock.restore();
   }

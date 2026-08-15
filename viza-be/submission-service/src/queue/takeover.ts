@@ -28,47 +28,29 @@ export interface RequestTakeoverInput {
 export async function requestHumanTakeover(
   input: RequestTakeoverInput,
 ): Promise<{ takeoverId: string }> {
-  const { data: updatedJob, error: jobErr } = await supabase
-    .from("runner_job")
-    .update({
-      status: "needs_human",
-      last_error: input.reason,
-    })
-    .eq("id", input.jobId)
-    .eq("status", "running")
-    .eq("leased_by", input.workerId)
-    .select("id")
-    .maybeSingle();
-  if (jobErr) throw new Error(`runner_job update: ${jobErr.message}`);
-  if (!updatedJob?.id) {
+  const { data, error } = await supabase.rpc("open_runner_job_takeover", {
+    p_job_id: input.jobId,
+    p_worker_id: input.workerId,
+    p_application_id: input.applicationId,
+    p_applicant_id: input.applicantId,
+    p_reason: input.reason,
+    p_remote_debug_url: input.remoteDebugUrl,
+    p_vnc_url: input.vncUrl ?? null,
+  });
+  if (error) throw new Error(`open_runner_job_takeover: ${error.message}`);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const takeoverId =
+    typeof row === "object"
+      && row !== null
+      && typeof (row as { takeover_id?: unknown }).takeover_id === "string"
+      ? (row as { takeover_id: string }).takeover_id
+      : null;
+  if (!takeoverId) {
     throw new RunnerJobOwnershipLostError(
       "runner job ownership was lost before opening a human takeover",
     );
   }
-
-  const { data, error } = await supabase
-    .from("takeover_session")
-    .insert({
-      job_id: input.jobId,
-      application_id: input.applicationId,
-      applicant_id: input.applicantId,
-      status: "queued",
-      reason: input.reason,
-      remote_debug_url: input.remoteDebugUrl,
-      vnc_url: input.vncUrl ?? null,
-    })
-    .select("id")
-    .single();
-  if (error || !data) {
-    throw new Error(`takeover_session insert: ${error?.message}`);
-  }
-  const takeoverId = data.id as string;
-
-  await supabase.from("takeover_action_log").insert({
-    takeover_id: takeoverId,
-    action: "open",
-    detail: { reason: input.reason, jobId: input.jobId },
-  });
 
   void sendAlert({
     severity: "error",

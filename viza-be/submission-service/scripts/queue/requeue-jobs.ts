@@ -2,7 +2,7 @@ import "dotenv/config";
 import { supabase } from "../../src/supabase";
 
 /**
- * QUE-008: recover stale-leased and dead-lettered runner_job rows.
+ * QUE-008: recover retryable failed and dead-lettered runner_job rows.
  *
  *   # dry-run (default) — shows what WOULD change:
  *   npx ts-node scripts/queue/requeue-jobs.ts --country indonesia
@@ -11,13 +11,15 @@ import { supabase } from "../../src/supabase";
  *   npx ts-node scripts/queue/requeue-jobs.ts --id <runner_job_id> --confirm
  *
  * Eligible rows:
- *   - status='running' with leased_until < now  (crashed worker, stale lease)
  *   - status in ('failed','dead_letter') with attempts < max_attempts
  *
+ * Running rows are intentionally excluded. Automatic claim recovery owns
+ * expired leases and must be the only path that reclaims them.
+ *
  * Reset policy: status → 'queued', clear leased_by/leased_until/finished_at.
- * `attempts` is PRESERVED (a stale lease didn't consume an attempt; a
- * failed row already counted its attempt and remains < max, so the worker
- * still has retries left). Requires --confirm AND a --country or --id filter.
+ * `attempts` is PRESERVED (a failed row already counted its attempt and
+ * remains < max, so the worker still has retries left). Requires --confirm
+ * AND a --country or --id filter.
  */
 
 interface Row {
@@ -46,20 +48,16 @@ async function main(): Promise<void> {
   }
 
   const cols = "id, application_id, country, status, attempts, max_attempts, leased_until";
-  const nowIso = new Date().toISOString();
-
-  let base = supabase.from("runner_job").select(cols);
+  let base = supabase
+    .from("runner_job")
+    .select(cols)
+    .in("status", ["failed", "dead_letter"]);
   if (id) base = base.eq("id", id);
   if (country) base = base.eq("country", country);
   const { data, error } = await base;
   if (error) throw new Error(`runner_job read: ${error.message}`);
 
-  const eligible = ((data ?? []) as Row[]).filter((r) => {
-    const staleLease = r.status === "running" && r.leased_until != null && r.leased_until < nowIso;
-    const retriable =
-      (r.status === "failed" || r.status === "dead_letter") && r.attempts < r.max_attempts;
-    return staleLease || retriable;
-  });
+  const eligible = ((data ?? []) as Row[]).filter((r) => r.attempts < r.max_attempts);
 
   console.log(`Found ${eligible.length} eligible row(s)${confirm ? "" : " (dry-run)"}:`);
   for (const r of eligible) {
@@ -73,12 +71,21 @@ async function main(): Promise<void> {
 
   let requeued = 0;
   for (const r of eligible) {
-    const { error: updErr } = await supabase
+    const { data: updated, error: updErr } = await supabase
       .from("runner_job")
       .update({ status: "queued", leased_by: null, leased_until: null, finished_at: null })
-      .eq("id", r.id);
+      .eq("id", r.id)
+      .eq("status", r.status)
+      .is("leased_by", null)
+      .is("leased_until", null)
+      .select("id")
+      .maybeSingle();
     if (updErr) {
       console.error(`  failed to requeue ${r.id.slice(0, 8)}: ${updErr.message}`);
+      continue;
+    }
+    if (!updated?.id) {
+      console.warn(`  skipped ${r.id.slice(0, 8)}: no longer eligible (concurrent update)`);
       continue;
     }
     requeued += 1;
