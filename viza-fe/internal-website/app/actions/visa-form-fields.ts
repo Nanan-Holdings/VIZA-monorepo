@@ -14,6 +14,7 @@ import {
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form-parity";
 import { augmentThailandTouristEVisaSteps } from "@/lib/thailand-tourist-evisa-form-overrides";
+import { compileApplicationSchemaForUi } from "@/lib/application-schema-ui-contract";
 
 const STEP_NAMES: Record<number, string> = {
   1: "Visa Selection",
@@ -80,9 +81,18 @@ export async function getVisaFormSteps(
         ? augmentThailandTouristEVisaSteps(vietnamPatched)
         : vietnamPatched;
 
-    return schemaVisaType === "VN_E_VISA"
+    const localizedSteps = schemaVisaType === "VN_E_VISA"
       ? normalizeBilingualWizardSteps(patchedSteps)
       : patchedSteps;
+    const compiled = compileApplicationSchemaForUi(localizedSteps);
+
+    if (process.env.NODE_ENV !== "production" && compiled.report.summary.errors > 0) {
+      console.warn(
+        `[getVisaFormSteps] ${schemaVisaType} has ${compiled.report.summary.errors} schema/UI contract error(s). Run npm run qa:audit-schema-ui for guidance.`,
+      );
+    }
+
+    return compiled.steps;
   } catch (err) {
     console.error("[getVisaFormSteps] Unexpected error:", err);
     return [];

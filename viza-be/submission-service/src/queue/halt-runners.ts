@@ -2,7 +2,9 @@
  * Halt-before-government-payment runOne wrappers (QUE-005).
  *
  * United States (CEAC/DS-160), United Kingdom, France-Visas, and Australia
- * stop before the applicant pays a government fee / signs. This module
+ * stop before the legacy government-payment boundary or signature. Applicants
+ * must not be asked to enter a card; electronically payable fees migrate to
+ * VIZA's application-scoped virtual-card flow. This module
  * exposes each as a `runOne(applicationId)` over the existing orchestrators,
  * so the same runner_job worker drives them. A halt resolves to a
  * `halted_before_pay` DispatchOutcome (worker → `succeeded`); portal failures
@@ -23,8 +25,23 @@ import {
 import { resumeUkApplication, normalizeUkAnswers, UkNormalizationError } from "../uk/index.js";
 import { registerUkAccount } from "../uk/register.js";
 import { writeSubmissionResult } from "../result-writer.js";
-import { encryptSecret } from "../secret-cipher.js";
 import type { UkSubmissionResult, TwSubmissionResult } from "../submission-result.js";
+import {
+  loadManagedOfficialFeeExecutionContext,
+  OfficialFeeExecutionContextError,
+  type ManagedOfficialFeeExecutionContext,
+} from "../official-fee/execution-context.js";
+import {
+  persistOfficialFeeFundingState,
+  recordOfficialFeePaid,
+  recordOfficialFeeReview,
+} from "../official-fee/accounting.js";
+import {
+  ensureManagedOfficialFeeCard,
+  finalizeManagedOfficialFeeCard,
+  type ManagedOfficialFeeCard,
+} from "../issuing/managed-card-provider.js";
+import { ukProgress, ukSafePendingResult } from "../uk/managed-result.js";
 import {
   fillFranceVisasApplication,
   buildAnswerMap,
@@ -179,9 +196,63 @@ export const runUsHalt: RunOne = async (applicationId, jobId) => {
 
 /* ------------------------------ UK ------------------------------ */
 
+type UkFeeReadiness =
+  | { kind: "ready"; context: ManagedOfficialFeeExecutionContext }
+  | { kind: "funding_required" | "payment_pending"; code: string }
+  | { kind: "staff_review"; code: string; message: string };
+
+async function loadUkFeeReadiness(applicationId: string): Promise<UkFeeReadiness> {
+  try {
+    return {
+      kind: "ready",
+      context: await loadManagedOfficialFeeExecutionContext(applicationId),
+    };
+  } catch (error) {
+    if (error instanceof OfficialFeeExecutionContextError) {
+      if (
+        error.code === "managed_intent_missing" ||
+        error.code === "managed_intent_not_consented" ||
+        error.code === "allocation_missing"
+      ) {
+        return { kind: "funding_required", code: error.code };
+      }
+      if (error.code === "managed_intent_not_executable") {
+        return { kind: "payment_pending", code: error.code };
+      }
+      return { kind: "staff_review", code: error.code, message: error.message };
+    }
+    throw error;
+  }
+}
+
+async function persistUkStaffReview(input: {
+  applicationId: string;
+  context: ManagedOfficialFeeExecutionContext;
+  code: string;
+  message: string;
+  result: { pagesFilled: string[]; pagesSkipped?: string[]; applicationReference?: string };
+}): Promise<void> {
+  await recordOfficialFeeReview({
+    context: input.context,
+    errorCode: input.code,
+    message: input.message,
+  });
+  const payload: UkSubmissionResult = {
+    country: "UK",
+    status: "payment_review_required",
+    paymentStatus: "review_required",
+    staffReviewCode: input.code,
+    ...(input.result.applicationReference
+      ? { applicationReference: input.result.applicationReference }
+      : {}),
+    prefillProgress: ukProgress(input.result),
+  };
+  await writeSubmissionResult(input.applicationId, payload, "processing");
+}
+
 export const runUkHalt: RunOne = async (applicationId, jobId) => {
   const runId = jobId ?? applicationId;
-  const { applicantId, profile } = await loadProfileAndApp(applicationId);
+  const { applicantId, profile, application } = await loadProfileAndApp(applicationId);
   const answerMap = buildAnswerMap(await loadRawAnswers(applicationId));
 
   // Translate the wizard's answer shape → the seed wire-shape the
@@ -221,6 +292,11 @@ export const runUkHalt: RunOne = async (applicationId, jobId) => {
       throw new RetryableRunnerError("uk: account registered but uk_accounts row not yet readable");
     }
   }
+  const feeReadiness = await loadUkFeeReadiness(applicationId);
+  let issuerCard: ManagedOfficialFeeCard | null = null;
+  const issuerFailure: { error: Error | null } = { error: null };
+  const context = feeReadiness.kind === "ready" ? feeReadiness.context : null;
+  const expectedAmountCents = context ? Number(context.allocation.amount_cents) : null;
   const result = await resumeUkApplication(
     {
       resumeUrl: account.row.resume_url,
@@ -228,26 +304,117 @@ export const runUkHalt: RunOne = async (applicationId, jobId) => {
       email: account.row.email,
       answers,
     },
-    { headless: process.env.UK_PLAYWRIGHT_HEADLESS !== "false", runId },
+    {
+      headless: process.env.UK_PLAYWRIGHT_HEADLESS !== "false",
+      runId,
+      ...(context && expectedAmountCents !== null
+        ? {
+            expectedPaymentAmount: expectedAmountCents / 100,
+            expectedPaymentCurrency: context.allocation.currency,
+            takePaymentCard: async () => {
+              try {
+                issuerCard = await ensureManagedOfficialFeeCard({
+                  execution: context,
+                  workerId: runId,
+                  country: application.country ?? "united_kingdom",
+                  visaType: application.visa_type ?? "UK_STANDARD_VISITOR",
+                });
+                return issuerCard;
+              } catch (error) {
+                issuerFailure.error = error instanceof Error ? error : new Error(String(error));
+                return null;
+              }
+            },
+          }
+        : {}),
+    },
   );
   if (result.status === "stopped_at_pay" || result.status === "halted_before_pay") {
-    // Persist the portal handoff so the client UkResultCard can show the
-    // applicant their resume link, login, and (if captured) the application
-    // reference — they finish the declaration + £135 payment themselves.
+    if (feeReadiness.kind === "staff_review") {
+      // No card was issued because the financial context failed closed.
+      await persistOfficialFeeFundingState(applicationId, "official_fee_payment_manual_review");
+      const payload: UkSubmissionResult = {
+        country: "UK",
+        status: "payment_review_required",
+        paymentStatus: "review_required",
+        staffReviewCode: feeReadiness.code,
+        prefillProgress: ukProgress(result),
+      };
+      await writeSubmissionResult(applicationId, payload, "processing");
+      return HALTED("uk_official_fee_staff_review");
+    }
+    const pendingReadiness = feeReadiness.kind === "ready"
+      ? { kind: "payment_pending" as const, code: "official_payment_page_pending" }
+      : feeReadiness;
+    await persistOfficialFeeFundingState(
+      applicationId,
+      pendingReadiness.kind === "funding_required"
+        ? "official_fee_funding_required"
+        : "official_fee_payment_pending",
+    );
+    const ukPayload = ukSafePendingResult(pendingReadiness, result);
+    await writeSubmissionResult(applicationId, ukPayload, "stopped_at_pay");
+    return HALTED(pendingReadiness.kind);
+  }
+  if (result.status === "paid" && context && issuerCard) {
+    let evidence: { attemptId: string; receiptId: string };
+    try {
+      evidence = await recordOfficialFeePaid({
+        context,
+        receiptNumber: result.portalReceiptId,
+        ...(result.applicationReference ? { applicationReference: result.applicationReference } : {}),
+      });
+    } finally {
+      await finalizeManagedOfficialFeeCard(issuerCard, runId, "consumed");
+      issuerCard = null;
+    }
     const ukPayload: UkSubmissionResult = {
       country: "UK",
-      status: "stopped_at_pay",
-      portalUrl: result.portalUrl,
-      portalUsername: result.portalUsername,
-      generatedPasswordCipher: encryptSecret(account.password),
-      ...(result.status === "stopped_at_pay" && result.applicationReference
-        ? { applicationReference: result.applicationReference }
-        : {}),
+      status: "paid",
+      paymentStatus: "paid",
+      officialFeeReceiptId: evidence.receiptId,
+      ...(result.applicationReference ? { applicationReference: result.applicationReference } : {}),
+      prefillProgress: ukProgress(result),
     };
-    await writeSubmissionResult(applicationId, ukPayload, "stopped_at_pay");
-    return HALTED(result.status);
+    await writeSubmissionResult(applicationId, ukPayload, "submitted");
+    return HALTED("uk_official_fee_paid", [evidence.attemptId, evidence.receiptId]);
+  }
+  if (result.status === "payment_review_required" && context) {
+    if (issuerCard) {
+      await finalizeManagedOfficialFeeCard(issuerCard, runId, "review_required");
+      issuerCard = null;
+    }
+    const code = issuerFailure.error
+      ? "issuer_card_review_required"
+      : result.paymentOutcome === "declined"
+        ? "official_payment_declined"
+        : /amount|currency/i.test(result.reason)
+          ? "official_payment_amount_unverified"
+          : /3DS|authentication/i.test(result.reason)
+            ? "official_payment_authentication_review"
+            : "official_payment_portal_review";
+    await persistUkStaffReview({
+      applicationId,
+      context,
+      code,
+      message: issuerFailure.error?.message ?? result.reason,
+      result,
+    });
+    return HALTED("uk_official_fee_staff_review");
   }
   if (result.status === "failed") {
+    if (issuerCard && context) {
+      await finalizeManagedOfficialFeeCard(issuerCard, runId, "review_required");
+      issuerCard = null;
+      await persistUkStaffReview({
+        applicationId,
+        context,
+        code: "official_payment_portal_failure_after_card_issue",
+        message: `UK official payment failed after card issuance at ${result.failedAt}`,
+        result: { pagesFilled: [], pagesSkipped: [] },
+      });
+      return HALTED("uk_official_fee_staff_review");
+    }
     throw new RetryableRunnerError(`uk failed at ${result.failedAt}`);
   }
   throw new Error(`unexpected uk status: ${(result as { status: string }).status}`);

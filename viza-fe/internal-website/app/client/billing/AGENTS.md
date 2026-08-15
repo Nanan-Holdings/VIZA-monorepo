@@ -39,6 +39,9 @@ requests, refund eligibility, and government-fee display notes.
 - Do not show raw Stripe event payloads or provider IDs unless useful as a
   short support reference.
 - Do not process government portal payments here.
+- Explain that official-fee records remain separate from agency-fee receipts
+  because VIZA pays official portals with application-scoped virtual cards.
+  Never imply that the applicant must pay the portal directly.
 - Do not expose other applicants' billing records.
 
 ## Validation

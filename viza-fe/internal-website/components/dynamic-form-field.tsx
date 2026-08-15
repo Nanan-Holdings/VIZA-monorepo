@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
 import { ApplicationCheckbox, ApplicationRadio } from "@/components/ui/application-checkbox";
 import {
@@ -121,8 +121,12 @@ type DateFieldRules = {
 type LengthRules = {
   maxLength?: number;
   max_length?: number;
+};
+
+type InlineHelperRules = {
   helper_zh?: string;
   helper_en?: string;
+  helper_priority?: "critical";
 };
 
 interface DynamicFormFieldProps {
@@ -149,18 +153,15 @@ function getMaxLengthRule(field: VisaFormFieldRow): number | undefined {
     : undefined;
 }
 
-function normalizeComparableText(value: string): string {
-  return value.trim().replace(/\s+/g, " ");
-}
+function getCriticalInlineHelperText(
+  field: VisaFormFieldRow,
+  sideLocale: "zh" | "en",
+): string | undefined {
+  const rules = field.validationRules as InlineHelperRules | null;
+  if (rules?.helper_priority !== "critical") return undefined;
 
-function getHelperTextRule(field: VisaFormFieldRow, sideLocale: "zh" | "en"): string | undefined {
-  const rules = field.validationRules as LengthRules | null;
-  const helper = sideLocale === "zh" ? rules?.helper_zh : rules?.helper_en;
-  if (typeof helper !== "string" || !helper.trim()) return undefined;
-
-  const normalizedHelper = normalizeComparableText(helper);
-  const normalizedLabel = normalizeComparableText(field.label);
-  return normalizedHelper === normalizedLabel ? undefined : helper.trim();
+  const helper = sideLocale === "zh" ? rules.helper_zh : rules.helper_en;
+  return typeof helper === "string" && helper.trim() ? helper.trim() : undefined;
 }
 
 const FieldWrapper = ApplicationFormField;
@@ -302,24 +303,55 @@ export function DynamicFormField({
   const doNotKnowLabel = sideLocale === "zh" ? t("dynamicField.doNotKnow") : "Do not know";
   const doesNotApplyLabel = sideLocale === "zh" ? t("dynamicField.doesNotApply") : "Does not apply";
   const [dateModeByField, setDateModeByField] = useState<Record<string, "full" | "year">>({});
-  const [optimisticRadioValue, setOptimisticRadioValue] = useState(value);
+  const [optimisticSelectionValue, setOptimisticSelectionValue] = useState(value);
+  const selectionChangeRef = useRef(onChange);
+  const pendingSelectionFrameRef = useRef<number | null>(null);
+  const pendingSelectionTimerRef = useRef<number | null>(null);
   const maxLength = getMaxLengthRule(field);
-  const configuredHelperText = getHelperTextRule(field, sideLocale);
+  const criticalInlineHelperText = getCriticalInlineHelperText(field, sideLocale);
   const normalizedSelectOptions = useMemo(
     () => fieldType === "select" ? normaliseOptions(options, sideLocale) : [],
     [fieldType, options, sideLocale],
   );
-  const characterHint = maxLength
-    ? sideLocale === "zh"
-      ? `最多 ${maxLength} 个字符，当前 ${value.length}/${maxLength}`
-      : `Maximum ${maxLength} characters, currently ${value.length}/${maxLength}`
-    : undefined;
-  const helperText = [configuredHelperText, characterHint].filter(Boolean).join("\n") || undefined;
+  const helperText = criticalInlineHelperText;
   const characterCount = maxLength ? `${value.length}/${maxLength}` : undefined;
 
   useEffect(() => {
-    setOptimisticRadioValue(value);
+    selectionChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    setOptimisticSelectionValue(value);
   }, [field.fieldName, value]);
+
+  useEffect(() => () => {
+    if (pendingSelectionFrameRef.current !== null) {
+      window.cancelAnimationFrame(pendingSelectionFrameRef.current);
+    }
+    if (pendingSelectionTimerRef.current !== null) {
+      window.clearTimeout(pendingSelectionTimerRef.current);
+    }
+  }, []);
+
+  const commitSelection = useCallback((nextValue: string) => {
+    setOptimisticSelectionValue(nextValue);
+    if (pendingSelectionFrameRef.current !== null) {
+      window.cancelAnimationFrame(pendingSelectionFrameRef.current);
+    }
+    if (pendingSelectionTimerRef.current !== null) {
+      window.clearTimeout(pendingSelectionTimerRef.current);
+    }
+    pendingSelectionFrameRef.current = window.requestAnimationFrame(() => {
+      pendingSelectionFrameRef.current = null;
+      pendingSelectionTimerRef.current = window.setTimeout(() => {
+        pendingSelectionTimerRef.current = null;
+        // The long form can contain hundreds of controls. Let this field paint
+        // its selected state before React recalculates conditional visibility
+        // and autosave state for the enclosing application.
+        startTransition(() => selectionChangeRef.current(nextValue));
+      }, 0);
+    });
+  }, []);
 
   switch (fieldType) {
     case "date": {
@@ -429,7 +461,7 @@ export function DynamicFormField({
             <CountryDropdown
               placeholder={localizedPlaceholder ?? selectFallback}
               defaultValue={value}
-              onChange={(country) => onChange(country.name)}
+              onChange={(country) => commitSelection(country.name)}
               forceWhiteBackground={forceWhiteBackground}
               displayLocale={sideLocale}
               allowedCountryCodes={isSchengenMemberState ? SCHENGEN_MEMBER_ALPHA2_CODES : undefined}
@@ -444,7 +476,7 @@ export function DynamicFormField({
               countryCode="US"
               placeholder={localizedPlaceholder ?? selectFallback}
               defaultValue={value}
-              onChange={(region) => onChange(region.shortCode)}
+              onChange={(region) => commitSelection(region.shortCode)}
               className="h-12 text-[15px] data-[placeholder]:text-muted-foreground"
               forceWhiteBackground={forceWhiteBackground}
             />
@@ -475,8 +507,8 @@ export function DynamicFormField({
         return (
           <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <ApplicationSearchableSelect
-              value={value}
-              onValueChange={onChange}
+              value={optimisticSelectionValue}
+              onValueChange={commitSelection}
               options={opts}
               placeholder={localizedPlaceholder ?? selectFallback}
               disabled={disabled}
@@ -494,10 +526,10 @@ export function DynamicFormField({
       }
       return (
         <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
-          <Select value={value} onValueChange={onChange} disabled={disabled}>
+          <Select value={optimisticSelectionValue} onValueChange={commitSelection} disabled={disabled}>
             <ApplicationFormSelectTrigger
               className={`h-12 text-[15px] data-[placeholder]:text-muted-foreground ${disabled ? "opacity-70 cursor-not-allowed" : ""}`}
-              filled={opts.some((option) => option.value === value)}
+              filled={opts.some((option) => option.value === optimisticSelectionValue)}
               forceWhiteBackground={forceWhiteBackground}
             >
               <SelectValue placeholder={localizedPlaceholder ?? selectFallback} />
@@ -520,8 +552,8 @@ export function DynamicFormField({
       return (
         <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           <ApplicationSearchableMultiSelect
-            value={value}
-            onValueChange={onChange}
+            value={optimisticSelectionValue}
+            onValueChange={commitSelection}
             options={opts}
             placeholder={localizedPlaceholder ?? selectFallback}
             disabled={disabled}
@@ -603,8 +635,8 @@ export function DynamicFormField({
           return (
             <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
               <ApplicationSearchableSelect
-                value={value}
-                onValueChange={onChange}
+                value={optimisticSelectionValue}
+                onValueChange={commitSelection}
                 options={opts}
                 placeholder={localizedPlaceholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
                 disabled={disabled}
@@ -619,7 +651,7 @@ export function DynamicFormField({
             <CountryDropdown
               placeholder={localizedPlaceholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
               defaultValue={value}
-              onChange={(country) => onChange(country.name)}
+              onChange={(country) => commitSelection(country.name)}
               forceWhiteBackground={forceWhiteBackground}
               displayLocale={sideLocale}
               allowedCountryCodes={isSchengenMemberState ? SCHENGEN_MEMBER_ALPHA2_CODES : undefined}
@@ -631,19 +663,15 @@ export function DynamicFormField({
     case "radio": {
       const opts = normaliseOptions(options, sideLocale);
       const isSelectionToggle = opts.length === 2;
-      const selectedValue = isSelectionToggle ? optimisticRadioValue : value;
       return (
         <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           {isSelectionToggle ? (
             <ApplicationYesNoControl
               name={field.fieldName}
               options={opts}
-              value={selectedValue}
+              value={optimisticSelectionValue}
               disabled={disabled}
-              onValueChange={(nextValue) => {
-                setOptimisticRadioValue(nextValue);
-                onChange(nextValue);
-              }}
+              onValueChange={commitSelection}
             />
           ) : (
           <div className={cn("flex", opts.length < 2 ? "flex-row gap-6" : "flex-col gap-2")}>
@@ -652,11 +680,11 @@ export function DynamicFormField({
                 key={opt.value}
                 name={field.fieldName}
                 value={opt.value}
-                checked={selectedValue === opt.value}
+                checked={optimisticSelectionValue === opt.value}
                 label={opt.text}
                 disabled={disabled}
                 className="flex"
-                onCheckedChange={() => onChange(opt.value)}
+                onCheckedChange={() => commitSelection(opt.value)}
               />
             ))}
           </div>

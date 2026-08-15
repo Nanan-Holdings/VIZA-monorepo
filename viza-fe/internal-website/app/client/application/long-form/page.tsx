@@ -1,14 +1,12 @@
 ﻿"use client";
 
-import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from "react";
+import { startTransition, useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CreditCard, CircleNotch as Loader2, Check, CaretDown as ChevronDown, ShieldCheck } from "@phosphor-icons/react";
+import { CircleNotch as Loader2, Check, CaretDown as ChevronDown, ShieldCheck } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
-import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
-import { InputGroupInput } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
 import { countries } from "country-data-list";
@@ -100,6 +98,8 @@ import {
   setRecentApplicationFormHref,
 } from "@/lib/client/recent-application-form";
 import { setActiveApplicationSelection } from "@/lib/client/active-application-selection";
+import { isSyntheticQaValue } from "@/lib/applications/qa-safety";
+import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 import {
   computeAllTabCompletion,
   getContiguousCompletedCount,
@@ -155,6 +155,8 @@ import {
 // ---------------------------------------------------------------------------
 
 type StepStatus = "complete" | "in_progress" | "locked";
+
+const DYNAMIC_AUTOSAVE_INTERVAL_MS = 30_000;
 
 function formAssistantFieldLabel(field: VisaFormFieldRow, isZh: boolean): string {
   if (isZh) {
@@ -277,12 +279,6 @@ interface VietnamOneTimePaymentCard {
 }
 
 type SubmitCheckState = "idle" | "checking" | "invalid";
-
-const OFFICIAL_PAYMENT_CARD_FIELD_NAMES = {
-  pan: "official_payment_card_number",
-  expiry: "official_payment_card_expiry",
-  cvv: "official_payment_card_cvv",
-} as const;
 
 interface VisibleDynamicStep {
   step: WizardStep;
@@ -1056,16 +1052,11 @@ function FinalConfirmationPanel({
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => void | Promise<void>;
 }) {
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [cardHolderName, setCardHolderName] = useState("");
   const [taiwanEntryPromptAccepted, setTaiwanEntryPromptAccepted] = useState(false);
   const [taiwanTermsModalAccepted, setTaiwanTermsModalAccepted] = useState(false);
   const hasMissing = missingFields.length > 0;
   const isSubmitting = submittingMode !== null;
   const isChecking = submitCheckState === "checking";
-  const validationActive = submitCheckState === "invalid";
   const hasLiveAssistedTarget = liveAssistedTarget !== null && !forceDryRun;
   const isFrance = liveAssistedTarget === "france";
   const isVietnam = liveAssistedTarget === "vietnam";
@@ -1076,22 +1067,8 @@ function FinalConfirmationPanel({
   const isPhEtravel = liveAssistedTarget === "phetravel";
   const isIndonesia = liveAssistedTarget === "indonesia";
   const isTaiwan = liveAssistedTarget === "taiwan";
-  // Indonesia opens its official payment gateway only after the application is
-  // created. A card must not block an initial submission or a pre-payment retry.
-  const requiresOneTimeOfficialPaymentCard = isVietnam;
-  const oneTimeOfficialPaymentCardReady =
-    !requiresOneTimeOfficialPaymentCard ||
-    (
-      cardNumber.replace(/\D/g, "").length >= 12 &&
-      cardExpiry.trim().length >= 4 &&
-      cardCvv.replace(/\D/g, "").length >= 3
-    );
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
-    : requiresOneTimeOfficialPaymentCard && !oneTimeOfficialPaymentCardReady
-      ? (isZh
-          ? "请先填写本次官方付款使用的银行卡号、有效期和 CVV。"
-          : "Enter the one-time official payment card number, expiry, and CVV before submitting.")
     : !liveAssistedEnabled
       ? isFrance
         ? (isZh
@@ -1141,14 +1118,7 @@ function FinalConfirmationPanel({
   const taiwanTermsReady =
     !isTaiwan || (taiwanEntryPromptAccepted && taiwanTermsModalAccepted);
   const submitDisabled = isSubmitting || isChecking || !taiwanTermsReady;
-  const officialPaymentCard: VietnamOneTimePaymentCard | undefined = requiresOneTimeOfficialPaymentCard
-    ? {
-        pan: cardNumber,
-        expiry: cardExpiry,
-        cvv: cardCvv,
-        holderName: cardHolderName,
-      }
-    : undefined;
+  const officialPaymentCard: VietnamOneTimePaymentCard | undefined = undefined;
   const submitCopy = forceDryRun
     ? isZh
       ? "这是隔离的云端演练，只验证 VIZA 与 Fly 提交链路，不会打开或填写官方 CEAC 网站。"
@@ -1185,117 +1155,6 @@ function FinalConfirmationPanel({
         </AlertDescription>
       </Alert>
 
-      {requiresOneTimeOfficialPaymentCard && (
-        <div className="space-y-3 rounded-xl border border-[#d7e6fb] bg-white p-5">
-          <div className="flex items-start gap-3">
-            <CreditCard className="mt-0.5 h-5 w-5 shrink-0 text-[#03346E]" />
-            <div className="min-w-0 flex-1">
-              <h3 className="text-base font-semibold text-[#0b2545]">
-                {isZh ? "本次官方付款银行卡" : "One-time official payment card"}
-              </h3>
-              <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
-                {isZh
-                  ? `${isIndonesia ? "印度尼西亚 e-Visa" : "越南 e-Visa"} 提交会在官网付款页继续处理官方费用。请在提交前填写本次使用的银行卡；未填写则不能提交。卡号和 CVV 只会发送到 VIZA submission-service 的短时内存会话，不会保存到数据库、env、日志或个人资料。`
-                  : `${isIndonesia ? "Indonesia e-Visa" : "Vietnam e-Visa"} submission continues through the official payment page. Enter the one-time card before submitting. Card number and CVV are sent only to a short-lived VIZA submission-service memory session and are not stored.`}
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label
-              className="space-y-1 sm:col-span-2"
-              data-application-field-name={OFFICIAL_PAYMENT_CARD_FIELD_NAMES.pan}
-            >
-              <span className="text-xs text-gray-600">{isZh ? "银行卡号" : "Card number"}</span>
-              <ApplicationFormInputGroup
-                className={cn(
-                  "h-12 bg-white",
-                  validationActive && cardNumber.replace(/\D/g, "").length < 12 && "!border-red-500 !shadow-[0_0_0_1px_rgb(239_68_68)]",
-                )}
-                aria-invalid={validationActive && cardNumber.replace(/\D/g, "").length < 12 || undefined}
-              >
-                <InputGroupInput
-                  value={cardNumber}
-                  onChange={(event) => setCardNumber(event.target.value)}
-                  autoComplete="cc-number"
-                  inputMode="numeric"
-                  className="h-12 text-sm"
-                  placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
-                />
-              </ApplicationFormInputGroup>
-            </label>
-            <label
-              className="space-y-1"
-              data-application-field-name={OFFICIAL_PAYMENT_CARD_FIELD_NAMES.expiry}
-            >
-              <span className="text-xs text-gray-600">{isZh ? "有效期" : "Expiry"}</span>
-              <ApplicationFormInputGroup
-                className={cn(
-                  "h-12 bg-white",
-                  validationActive && cardExpiry.trim().length < 4 && "!border-red-500 !shadow-[0_0_0_1px_rgb(239_68_68)]",
-                )}
-                aria-invalid={validationActive && cardExpiry.trim().length < 4 || undefined}
-              >
-                <InputGroupInput
-                  value={cardExpiry}
-                  onChange={(event) => setCardExpiry(event.target.value)}
-                  autoComplete="cc-exp"
-                  inputMode="numeric"
-                  className="h-12 text-sm"
-                  placeholder="MM/YY"
-                />
-              </ApplicationFormInputGroup>
-            </label>
-            <label
-              className="space-y-1"
-              data-application-field-name={OFFICIAL_PAYMENT_CARD_FIELD_NAMES.cvv}
-            >
-              <span className="text-xs text-gray-600">CVV</span>
-              <ApplicationFormInputGroup
-                className={cn(
-                  "h-12 bg-white",
-                  validationActive && cardCvv.replace(/\D/g, "").length < 3 && "!border-red-500 !shadow-[0_0_0_1px_rgb(239_68_68)]",
-                )}
-                aria-invalid={validationActive && cardCvv.replace(/\D/g, "").length < 3 || undefined}
-              >
-                <InputGroupInput
-                  value={cardCvv}
-                  onChange={(event) => setCardCvv(event.target.value)}
-                  autoComplete="cc-csc"
-                  inputMode="numeric"
-                  className="h-12 text-sm"
-                  placeholder="CVV"
-                />
-              </ApplicationFormInputGroup>
-            </label>
-            <label className="space-y-1 sm:col-span-2">
-              <span className="text-xs text-gray-600">{isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)"}</span>
-              <ApplicationFormInputGroup className="h-12 bg-white">
-                <InputGroupInput
-                  value={cardHolderName}
-                  onChange={(event) => setCardHolderName(event.target.value)}
-                  autoComplete="cc-name"
-                  className="h-12 text-sm"
-                  placeholder={isZh ? "不填则使用 VIZA" : "Defaults to VIZA"}
-                />
-              </ApplicationFormInputGroup>
-            </label>
-          </div>
-          {!oneTimeOfficialPaymentCardReady && (
-            <Alert variant="warning">
-              <AlertIcon variant="warning" />
-              <AlertTitle>{isZh ? "银行卡信息未填写完整" : "Card details incomplete"}</AlertTitle>
-              <AlertDescription>
-                <p>
-                  {isZh
-                    ? "请填写银行卡号、有效期和 CVV 后再提交。"
-                    : "Enter the card number, expiry, and CVV before submitting."}
-                </p>
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-      )}
-
       {isTaiwan && (
         <div className="space-y-4 border-y border-[#d7e6fb] py-5">
           <div>
@@ -1304,8 +1163,8 @@ function FinalConfirmationPanel({
             </h3>
             <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
               {isZh
-                ? "两项授权会分别记录。确认后，VIZA 将在后台自动完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。后续审核与缴费仍以官网通知为准，VIZA 不会自动付款。"
-                : "Each authorization is recorded separately. VIZA will then complete the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified. Review and payment remain subject to official notice, and VIZA will not pay automatically."}
+                ? "两项授权会分别记录。确认后，VIZA 将在后台自动完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。若审核通过后产生官网费用，VIZA 将从本申请专属的官方费用分配中自动支付。"
+                : "Each authorization is recorded separately. VIZA will complete the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified. If an official fee becomes payable after approval, VIZA will pay it from this application's dedicated official-fee allocation."}
             </p>
           </div>
           <ApplicationCheckbox
@@ -1342,10 +1201,7 @@ function FinalConfirmationPanel({
               }
             : undefined;
           void Promise.resolve(onSubmit(submitMode, officialPaymentCard, taiwanOfficialTermsConsent))
-            .catch(() => undefined)
-            .finally(() => {
-              if (requiresOneTimeOfficialPaymentCard) setCardCvv("");
-            });
+            .catch(() => undefined);
         }}
         className={cn(
           "flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-semibold transition-colors",
@@ -1503,8 +1359,10 @@ async function markApplicationSubmissionQueued(
       (application?.submission_result_status as SubmissionResultStatus | null | undefined) ??
       input.queueJob.submissionResultStatus,
     submissionResult:
-      (application?.submission_result as SubmissionResult | null | undefined) ??
-      input.queueJob.submissionResult,
+      (sanitizeCustomerSubmissionResult(application?.submission_result) as
+        | SubmissionResult
+        | null
+        | undefined) ?? input.queueJob.submissionResult,
     confirmationNumber:
       typeof application?.confirmation_number === "string" && application.confirmation_number.trim()
         ? application.confirmation_number
@@ -1516,6 +1374,22 @@ async function insertSubmissionQueueJob(
   supabase: ReturnType<typeof createClient>,
   input: SubmissionQueueJobInput,
 ): Promise<SubmissionQueueJobResult> {
+  const { data: answerRows, error: answerError } = await supabase
+    .from("visa_application_answers")
+    .select("field_name, value_text, value_json")
+    .eq("application_id", input.applicationId);
+  if (answerError) throw new Error(answerError.message);
+  const unsafeAnswer = (answerRows ?? []).find(
+    (answer) =>
+      isSyntheticQaValue(answer.value_text) ||
+      isSyntheticQaValue(JSON.stringify(answer.value_json ?? null)),
+  );
+  if (unsafeAnswer) {
+    throw new Error(
+      `Application contains synthetic QA data in ${unsafeAnswer.field_name}. Clear it and enter the applicant's real information before submission.`,
+    );
+  }
+
   if (submissionQueueRequiresServerEnqueue(input.country, input.visaType, input.mode)) {
     const response = await fetch(`/api/applications/${input.applicationId}/retry-submission`, {
       method: "POST",
@@ -1635,31 +1509,39 @@ async function requestCloudSubmissionWorkerWake(jobId: string | null): Promise<v
 
 async function insertOfficialFeeSubmissionQueueJobWithCard(
   applicationId: string,
-  card: VietnamOneTimePaymentCard | undefined,
+  _card: VietnamOneTimePaymentCard | undefined,
 ): Promise<SubmissionQueueJobResult> {
-  if (!card?.pan.trim() || !card.expiry.trim() || !card.cvv.trim()) {
-    throw new Error("请输入本次付款使用的银行卡号、有效期和 CVV。VIZA 不会保存这些信息。");
-  }
-
   const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      card: {
-        pan: card.pan,
-        expiry: card.expiry,
-        cvv: card.cvv,
-        holderName: card.holderName,
-      },
-    }),
+    body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
   });
   const payload = (await response.json().catch(() => null)) as {
     error?: unknown;
+    code?: unknown;
+    errorCode?: unknown;
+    checkoutUrl?: unknown;
     queueId?: unknown;
     queueStatus?: unknown;
     provider?: unknown;
   } | null;
   if (!response.ok) {
+    if (
+      (payload?.code === "official_fee_funding_required" ||
+        payload?.errorCode === "official_fee_funding_required") &&
+      typeof payload.checkoutUrl === "string"
+    ) {
+      window.location.assign(payload.checkoutUrl);
+      return {
+        scheduled: false,
+        scheduledFor: null,
+        jobId: null,
+        queueStatus: "official_fee_funding_required",
+        provider: "viza_managed_virtual_card",
+        submissionResultStatus: "waiting",
+        submissionResult: null,
+      };
+    }
     throw new Error(
       typeof payload?.error === "string"
         ? payload.error
@@ -1923,6 +1805,7 @@ export default function ApplicationPage() {
   const [aiFilledFieldNames, setAiFilledFieldNames] = useState<string[]>([]);
   const [formAssistantFillNotice, setFormAssistantFillNotice] = useState<FormAssistantFillNotice | null>(null);
   const [draftVersion, setDraftVersion] = useState(0);
+  const [autosaveVersion, setAutosaveVersion] = useState(0);
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
   const [documentCenterLoaded, setDocumentCenterLoaded] = useState(false);
@@ -1937,6 +1820,8 @@ export default function ApplicationPage() {
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
   const externalDraftProtectionRef = useRef<{ fieldNames: Set<string>; expiresAt: number } | null>(null);
   const draftVersionTimerRef = useRef<number | null>(null);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const lastAutosaveVersionRef = useRef(0);
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const autosaveRequestRef = useRef(0);
   const navigationSaveInFlightRef = useRef(false);
@@ -1947,9 +1832,6 @@ export default function ApplicationPage() {
 
   const markLiveSaveActivity = useCallback(() => {
     hasLiveSaveActivityRef.current = true;
-    window.dispatchEvent(new CustomEvent("viza:live-save-status", {
-      detail: { status: "saving" },
-    }));
   }, []);
 
   useEffect(() => {
@@ -2099,19 +1981,32 @@ export default function ApplicationPage() {
     if (hasChangedValue) {
       if (formAssistantValidation) setFormAssistantValidationDirty(true);
       setAutosaveFailed(false);
-      setAutosaving(true);
     }
-    // Let a large official select close before recalculating outer step visibility.
-    if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
-    draftVersionTimerRef.current = window.setTimeout(() => {
-      draftVersionTimerRef.current = null;
-      setDraftVersion((version) => version + 1);
-    }, 120);
-    setSubmitMissingFields([]);
+    if (hasChangedValue) {
+      // Refresh cross-step conditional visibility separately from persistence.
+      // This is a low-priority UI update and must never restart the save clock.
+      if (draftVersionTimerRef.current === null) {
+        draftVersionTimerRef.current = window.setTimeout(() => {
+          draftVersionTimerRef.current = null;
+          startTransition(() => setDraftVersion((version) => version + 1));
+        }, 120);
+      }
+
+      // The first unsaved change starts one 30-second flush window; later
+      // edits join that same batch instead of resetting the timer.
+      if (autosaveTimerRef.current === null) {
+        autosaveTimerRef.current = window.setTimeout(() => {
+          autosaveTimerRef.current = null;
+          setAutosaveVersion((version) => version + 1);
+        }, DYNAMIC_AUTOSAVE_INTERVAL_MS);
+      }
+    }
+    setSubmitMissingFields((current) => current.length === 0 ? current : []);
   }, [aiFilledFieldNames, dynamicAnswers, formAssistantValidation]);
 
   useEffect(() => () => {
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
+    if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
   }, []);
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
@@ -2330,7 +2225,12 @@ export default function ApplicationPage() {
     localPassportBioPageName ||
     passportBioPageDocument,
   );
-  const showPassportOcrUpload = !hasUniversalPassportPrefill || passportOcrInitialUploaded;
+  const hasPassportUploadField = Boolean(
+    useDynamic &&
+      dbSteps[firstFormStepId]?.fields?.some((field) => field.fieldName === "passport_upload"),
+  );
+  const showPassportOcrUpload =
+    hasPassportUploadField || !hasUniversalPassportPrefill || passportOcrInitialUploaded;
 
   // Steps in DB source order — used only to build the grouped sections.
   // The displayed/navigated list (`effectiveSteps` below) is reordered to
@@ -2730,7 +2630,9 @@ export default function ApplicationPage() {
           confirmationNumber: application?.confirmation_number ?? undefined,
           submittedAt: application?.submitted_at ?? prev.submittedAt,
           submissionResult:
-            (application?.submission_result as SubmissionResult | null) ?? prev.submissionResult,
+            (sanitizeCustomerSubmissionResult(application?.submission_result) as
+              | SubmissionResult
+              | null) ?? prev.submissionResult,
           submissionResultStatus:
             (application?.submission_result_status as SubmissionResultStatus | null) ??
             prev.submissionResultStatus,
@@ -2741,7 +2643,10 @@ export default function ApplicationPage() {
             submittedAt: application?.submitted_at ?? null,
             submissionResultStatus:
               (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
-            submissionResult: (application?.submission_result as SubmissionResult | null) ?? null,
+            submissionResult:
+              (sanitizeCustomerSubmissionResult(application?.submission_result) as
+                | SubmissionResult
+                | null) ?? null,
           });
           scrollToStepPanel(shouldOpenConfirmation ? statusStepIndex : 0, "auto");
           initialStepResolvedRef.current = true;
@@ -2859,7 +2764,9 @@ export default function ApplicationPage() {
               nextConfirmationNumber !== previous.confirmationNumber ||
               nextSubmittedAt !== previous.submittedAt ||
               nextSubmissionResultStatus !== previous.submissionResultStatus;
-            const incomingSubmissionResult = updated.submission_result as
+            const incomingSubmissionResult = sanitizeCustomerSubmissionResult(
+              updated.submission_result,
+            ) as
               | SubmissionResult
               | null
               | undefined;
@@ -3327,7 +3234,9 @@ export default function ApplicationPage() {
   }, [formAssistantValidation?.canReview, formAssistantValidationDirty, navigateFormAssistantToReview]);
 
   useEffect(() => {
-    if (!useDynamic || loading || draftVersion === 0) return;
+    if (!useDynamic || loading || autosaveVersion === 0) return;
+    if (lastAutosaveVersionRef.current === autosaveVersion) return;
+    lastAutosaveVersionRef.current = autosaveVersion;
 
     if (saving) {
       setAutosaving(false);
@@ -3348,51 +3257,47 @@ export default function ApplicationPage() {
     const requestId = ++autosaveRequestRef.current;
     setAutosaving(true);
 
-    const timer = window.setTimeout(() => {
-      const changedDraft = Object.fromEntries(
-        Object.entries(pendingDraft).filter(
-          ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
-        ),
-      );
-      if (Object.keys(changedDraft).length === 0) {
+    const changedDraft = Object.fromEntries(
+      Object.entries(pendingDraft).filter(
+        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+      ),
+    );
+    if (Object.keys(changedDraft).length === 0) {
+      setAutosaveFailed(false);
+      setAutosaving(false);
+      return;
+    }
+    const runAutosave = autosaveQueueRef.current.then(async () => {
+      const applicationId = await ensureWritableApplicationId();
+      const saveResult = await saveDynamicAnswers(applicationId, changedDraft);
+      if (saveResult.error) throw new Error(saveResult.error);
+    });
+
+    autosaveQueueRef.current = runAutosave.then(
+      () => undefined,
+      () => undefined,
+    );
+
+    void runAutosave.then(
+      () => {
+        if (requestId !== autosaveRequestRef.current) return;
+        setDynamicAnswers((previous) => ({ ...previous, ...changedDraft }));
         setAutosaveFailed(false);
         setAutosaving(false);
-        return;
-      }
-      const runAutosave = autosaveQueueRef.current.then(async () => {
-        const applicationId = await ensureWritableApplicationId();
-        const saveResult = await saveDynamicAnswers(applicationId, changedDraft);
-        if (saveResult.error) throw new Error(saveResult.error);
-      });
-
-      autosaveQueueRef.current = runAutosave.then(
-        () => undefined,
-        () => undefined,
-      );
-
-      void runAutosave.then(
-        () => {
-          if (requestId !== autosaveRequestRef.current) return;
-          setDynamicAnswers((previous) => ({ ...previous, ...changedDraft }));
-          setAutosaveFailed(false);
-          setAutosaving(false);
-        },
-        (err: unknown) => {
-          if (requestId !== autosaveRequestRef.current) return;
-          const message = recoverOrFormatServerActionError(
-            err,
-            t("errors.failedToSave"),
-            t("errors.stalePage"),
-          );
-          if (message) setError(message);
-          setAutosaveFailed(true);
-          setAutosaving(false);
-        },
-      );
-    }, 800);
-
-    return () => window.clearTimeout(timer);
-  }, [draftVersion, dynamicAnswers, ensureWritableApplicationId, loading, saving, t, useDynamic]);
+      },
+      (err: unknown) => {
+        if (requestId !== autosaveRequestRef.current) return;
+        const message = recoverOrFormatServerActionError(
+          err,
+          t("errors.failedToSave"),
+          t("errors.stalePage"),
+        );
+        if (message) setError(message);
+        setAutosaveFailed(true);
+        setAutosaving(false);
+      },
+    );
+  }, [autosaveVersion, dynamicAnswers, ensureWritableApplicationId, loading, saving, t, useDynamic]);
 
   useEffect(() => () => {
     autosaveRequestRef.current += 1;
@@ -4093,37 +3998,7 @@ export default function ApplicationPage() {
         )
       : [];
 
-    if (mode === "live_assisted" && liveAssistedTarget === "vietnam") {
-      if (!vietnamPaymentCard || vietnamPaymentCard.pan.replace(/\D/g, "").length < 12) {
-        missing.push({
-          stepId: reviewStepIndex,
-          stepName: isZhInterface ? "最终确认" : "Final confirmation",
-          fieldName: OFFICIAL_PAYMENT_CARD_FIELD_NAMES.pan,
-          label: isZhInterface ? "银行卡号" : "Card number",
-          reason: "required",
-        });
-      }
-      if (!vietnamPaymentCard || vietnamPaymentCard.expiry.trim().length < 4) {
-        missing.push({
-          stepId: reviewStepIndex,
-          stepName: isZhInterface ? "最终确认" : "Final confirmation",
-          fieldName: OFFICIAL_PAYMENT_CARD_FIELD_NAMES.expiry,
-          label: isZhInterface ? "有效期" : "Expiry",
-          reason: "required",
-        });
-      }
-      if (!vietnamPaymentCard || vietnamPaymentCard.cvv.replace(/\D/g, "").length < 3) {
-        missing.push({
-          stepId: reviewStepIndex,
-          stepName: isZhInterface ? "最终确认" : "Final confirmation",
-          fieldName: OFFICIAL_PAYMENT_CARD_FIELD_NAMES.cvv,
-          label: "CVV",
-          reason: "required",
-        });
-      }
-    }
-
-    setSubmitMissingFields(missing.filter((item) => !item.fieldName.startsWith("official_payment_card_")));
+    setSubmitMissingFields(missing);
     if (missing.length > 0) {
       setSubmitCheckState("invalid");
       focusFirstMissingField(missing);
@@ -4289,13 +4164,9 @@ export default function ApplicationPage() {
   // uploader. Hide that field from the form body and satisfy its required
   // validation from the upload state instead.
   const passportUploadHandledFields = useMemo(
-    () =>
-      useDynamic && dbSteps[firstFormStepId]?.fields?.some((f) => f.fieldName === "passport_upload")
-        ? ["passport_upload"]
-        : [],
-    [useDynamic, dbSteps, firstFormStepId],
+    () => (hasPassportUploadField ? ["passport_upload"] : []),
+    [hasPassportUploadField],
   );
-  const hasPassportUploadField = passportUploadHandledFields.length > 0;
 
   const handlePassportBioUploaded = useCallback(
     (fileName: string) => {

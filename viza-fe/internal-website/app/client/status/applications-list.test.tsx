@@ -9,6 +9,7 @@ import {
   getGroupSortRank,
 } from "./add-destination-section";
 import { DestinationFlag } from "@/components/client/home/DestinationFlag";
+import { selectUserVisaDestination } from "@/app/actions/user-package";
 import { readActiveApplicationSelection } from "@/lib/client/active-application-selection";
 import {
   VISA_DESTINATION_COUNTRY_GROUPS,
@@ -139,6 +140,8 @@ describe("applications selector", () => {
   beforeEach(() => {
     refresh.mockReset();
     push.mockReset();
+    vi.mocked(selectUserVisaDestination).mockReset();
+    vi.mocked(selectUserVisaDestination).mockResolvedValue({ success: true });
     const values = new Map<string, string>();
     Object.defineProperty(window, "localStorage", {
       configurable: true,
@@ -200,6 +203,35 @@ describe("applications selector", () => {
     await waitFor(() =>
       expect(readActiveApplicationSelection()?.applicationId).toBe("taiwan-one")
     );
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/client/home"));
+  });
+
+  it("keeps the clicked country panel mounted while the switch is pending", async () => {
+    let finishSelection: ((result: { success: true }) => void) | undefined;
+    vi.mocked(selectUserVisaDestination).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSelection = resolve;
+        })
+    );
+
+    render(
+      <ApplicationsList
+        items={[item, taiwanItem]}
+        initialExpandedCountry={null}
+      />
+    );
+
+    const taiwanRow = screen.getByRole("button", {
+      name: /Taiwan Taiwan entry permit/,
+    });
+    fireEvent.click(taiwanRow);
+
+    expect(taiwanRow).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Thailand/ })).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+
+    finishSelection?.({ success: true });
     await waitFor(() => expect(push).toHaveBeenCalledWith("/client/home"));
   });
 

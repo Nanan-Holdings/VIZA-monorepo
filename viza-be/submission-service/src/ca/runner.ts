@@ -3,9 +3,8 @@ import { CA_FIELD_MAPPINGS } from "./field-mappings.js";
 
 /**
  * Canada eTA/TRV runner (RUN-CA-001). Built on the shared standard-e-Visa
- * core. Canada routing is `client_in_portal` (applicant pays in-portal), so
- * the runner fills then HALTS before the payment step. Best-effort selectors
- * pending recon (form-recon.ts + DATA-001).
+ * core. Payment remains staff-review-only until official payment controls are
+ * evidenced by recon.
  */
 const runner = makeStandardEvisaRunner({
   cc: "ca",

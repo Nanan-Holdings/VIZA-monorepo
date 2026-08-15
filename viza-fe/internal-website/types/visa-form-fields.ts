@@ -18,12 +18,27 @@ export type VisaFormFieldOption =
       ward?: string;
     };
 
+export type VisaFormFieldType =
+  | "text"
+  | "password"
+  | "email"
+  | "tel"
+  | "number"
+  | "select"
+  | "multi_select"
+  | "date"
+  | "file"
+  | "radio"
+  | "checkbox"
+  | "textarea"
+  | "country";
+
 export interface VisaFormFieldRow {
   id: string;
   visaType: string;
   fieldName: string;
   label: string;
-  fieldType: "text" | "select" | "multi_select" | "date" | "file" | "radio" | "checkbox" | "textarea" | "country";
+  fieldType: VisaFormFieldType;
   required: boolean;
   stepNumber: number;
   stepName: string | null;

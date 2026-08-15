@@ -909,8 +909,8 @@ function GenericResultCard({
 
     const confirmed = window.confirm(
       isZh
-        ? "这会在 apply-uk-visa.service.gov.uk 创建真实 UKVI 账号并自动填写申请表，停在 £135 支付页由你本人完成付款。确认继续？"
-        : "This will create a real UKVI account on apply-uk-visa.service.gov.uk, pre-fill your application, and stop at the £135 payment page for you to pay. Continue?",
+        ? "这会在 apply-uk-visa.service.gov.uk 创建真实 UKVI 账号、自动填写申请表，并由 VIZA 使用本申请专属的一次性虚拟卡支付官网签证费。确认继续？"
+        : "This will create a real UKVI account on apply-uk-visa.service.gov.uk, pre-fill the application, and let VIZA pay the official fee with an application-scoped one-use virtual card. Continue?",
     );
     if (!confirmed) return;
 
@@ -921,7 +921,7 @@ function GenericResultCard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode: "dry_run",
+          mode: "live_assisted",
           country: applicationCountry,
           visaType: applicationVisaType ?? result.visaType,
         }),
@@ -1087,8 +1087,8 @@ function GenericResultCard({
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
               <span>
                 {isZh
-                  ? "表单校验已通过。点击下方按钮将在 gov.uk 创建真实 UKVI 账号、自动填写全部页面，并停在 £135 签证费支付页——最后付款需你在官网完成。"
-                  : "Validation passed. The button below creates a real UKVI account on gov.uk, pre-fills every page, and stops at the £135 visa fee — you complete payment on the official site."}
+                  ? "表单校验已通过。点击下方按钮后，VIZA 会在 gov.uk 创建真实 UKVI 账号、自动填写全部页面，并使用本申请专属的一次性虚拟卡支付官网签证费。若资金尚未分配，系统会先引导你完成 VIZA 安全结算。"
+                  : "Validation passed. VIZA will create the UKVI account, complete the gov.uk form, and pay the official fee with an application-scoped one-use virtual card. If funding has not been allocated yet, VIZA will first direct you to its secure checkout."}
               </span>
             </div>
             <Button

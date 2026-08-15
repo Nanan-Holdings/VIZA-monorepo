@@ -10,6 +10,10 @@ import { forceFill, chosenSelect } from "../shared/form-helpers.js";
 import { brightDataProxy } from "../shared/proxy-launch.js";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
 import { extractAuto } from "../inbox/extractors/index.js";
+import {
+  unavailableManagedPaymentBoundary,
+  type ManagedPaymentHooks,
+} from "../runners/managed-payment-boundary.js";
 
 /**
  * India e-Visa prefill runner (AUTO-IN-01 + AUTO-IN-02).
@@ -104,10 +108,11 @@ export interface InRunInput {
   applicationId: string;
   answers: InCanonicalAnswers;
   headless?: boolean;
+  paymentHooks?: ManagedPaymentHooks;
 }
 
 export interface InRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
+  status: "managed_payment_adapter_unavailable" | "blocked" | "anti_bot_gate" | "needs_human";
   reason: string;
   reachedStep: string;
   artefacts: string[];
@@ -290,8 +295,14 @@ export async function runInPrefill(input: InRunInput): Promise<InRunResult> {
 
     // 5) HALT. Submitting registration would mint a government Temporary
     //    Application ID — that is the line we never cross in fill+halt QA.
-    result.status = "stopped_before_pay";
-    result.reason = "filled e-Visa registration; halted before submit (no government record created)";
+    const payment = await unavailableManagedPaymentBoundary({
+      country: "india",
+      visaType: "IN_E_VISA",
+      hooks: input.paymentHooks,
+    });
+    result.status = payment.status;
+    result.reason = payment.reason;
+    result.reachedStep = "managed_payment_review_required";
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

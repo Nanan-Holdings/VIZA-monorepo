@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   executePaymentProvisioningSteps,
+  ensureGovernmentFeeAllocation,
+  governmentFeeAllocationPlan,
   isPayableOrderStatus,
   recordCommercialPaymentPaid,
   type PaymentProvisioningJob,
@@ -67,6 +69,95 @@ function fakeRunner(params: {
 }
 
 describe("payment provisioning state machine", () => {
+  it("provisions managed government fees even when pricing still says portal_direct", () => {
+    expect(governmentFeeAllocationPlan("united_kingdom", "UK_STANDARD_VISITOR")).toMatchObject({
+      amountCents: 13_500,
+      currency: "GBP",
+      catalogKey: "united_kingdom:UK_STANDARD_VISITOR",
+    });
+    expect(governmentFeeAllocationPlan("australia", "AU_VISITOR_600")).toMatchObject({
+      amountCents: 19_000,
+      currency: "AUD",
+    });
+  });
+
+  it("uses the official fee currency independently from the agency checkout rail", () => {
+    const plan = governmentFeeAllocationPlan("canada", "CA_TRV");
+    expect(plan).toMatchObject({ amountCents: 10_000, currency: "CAD" });
+  });
+
+  it("does not reserve virtual-card funds for offline or free routes", () => {
+    expect(governmentFeeAllocationPlan("italy", "EU_SCHENGEN_C_SHORT_STAY")).toBeNull();
+    expect(governmentFeeAllocationPlan("japan", "JP_TOURIST")).toBeNull();
+    expect(governmentFeeAllocationPlan("maldives", "MV_IMUGA")).toBeNull();
+  });
+
+  it("creates a separate GBP government line and allocation after a UK agency order", async () => {
+    const inserts: Array<{ table: string; row: Record<string, unknown> }> = [];
+    const admin = {
+      from(table: string) {
+        let inserted: Record<string, unknown> | null = null;
+        const builder = {
+          select: () => builder,
+          eq: () => builder,
+          insert(row: Record<string, unknown>) {
+            inserted = row;
+            inserts.push({ table, row });
+            return builder;
+          },
+          single: async () => {
+            if (inserted && table === "order_line") {
+              return {
+                data: { id: "govt-line", amount_cents: inserted.amount_cents, currency: inserted.currency },
+                error: null,
+              };
+            }
+            if (table === "order") {
+              return { data: { id: "agency-order", application_id: "uk-app" }, error: null };
+            }
+            if (table === "applications") {
+              return {
+                data: { country: "united_kingdom", visa_type: "UK_STANDARD_VISITOR" },
+                error: null,
+              };
+            }
+            return { data: null, error: null };
+          },
+          maybeSingle: async () => ({ data: null, error: null }),
+          then(resolve: (result: { data: null; error: null }) => void) {
+            resolve({ data: null, error: null });
+          },
+        };
+        return builder;
+      },
+    };
+
+    await ensureGovernmentFeeAllocation(admin as never, "agency-order");
+
+    expect(inserts).toEqual([
+      {
+        table: "order_line",
+        row: expect.objectContaining({
+          order_id: "agency-order",
+          kind: "govt",
+          amount_cents: 13_500,
+          currency: "GBP",
+        }),
+      },
+      {
+        table: "government_fee_allocations",
+        row: expect.objectContaining({
+          order_id: "agency-order",
+          order_line_id: "govt-line",
+          application_id: "uk-app",
+          amount_cents: 13_500,
+          currency: "GBP",
+          state: "reserved_pending_treasury",
+        }),
+      },
+    ]);
+  });
+
   it("resumes after a partial failure without repeating completed account work", async () => {
     const first = fakeRunner({ failInboxOnce: true });
     await expect(executePaymentProvisioningSteps(job(), first.runner)).rejects.toThrow("inbox outage");

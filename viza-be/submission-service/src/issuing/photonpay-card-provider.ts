@@ -9,6 +9,14 @@
 
 import { createPhotonPayClient, isFailed, isSucceeded } from "../clients/photonpay.js";
 import { routingFor } from "../payment-routing.js";
+import {
+  assertAttemptMatchesContext,
+  defaultIssuerCardRepository,
+  type IssuerCardAttempt,
+  type IssuerCardRepository,
+} from "./issuer-card-repository.js";
+
+export type { IssuerCardRepository } from "./issuer-card-repository.js";
 
 export interface EscrowCard {
   attemptId: string;
@@ -24,28 +32,20 @@ export interface EscrowCard {
 
 export interface PhotonPayEscrowContext {
   applicationId: string;
+  allocationId: string;
   officialFeePaymentIntentId: string;
   workerId: string;
   country: string;
   visaType: string;
 }
 
-export type EscrowCardOutcome = "consumed" | "cancelled" | "review_required";
-
-interface IssuerCardAttempt {
-  id: string;
-  allocation_id: string;
-  application_id: string;
-  official_fee_payment_intent_id: string;
-  attempt_number: number;
-  issuer_request_id: string;
-  issuer_card_id: string | null;
-  status: string;
+export interface PhotonPayCardConfig {
   currency: string;
-  limit_amount: number;
-  masked_pan: string | null;
-  claim_count: number;
+  bin: string;
+  account: string;
 }
+
+export type EscrowCardOutcome = "consumed" | "cancelled" | "review_required";
 
 export interface PhotonPayClientLike {
   openCard: NonNullable<ReturnType<typeof createPhotonPayClient>>["openCard"];
@@ -56,39 +56,37 @@ export interface PhotonPayClientLike {
   cancelCard: NonNullable<ReturnType<typeof createPhotonPayClient>>["cancelCard"];
 }
 
-export interface IssuerCardRepository {
-  claim(context: PhotonPayEscrowContext): Promise<IssuerCardAttempt>;
-  markIssued(
-    attemptId: string,
-    workerId: string,
-    cardId: string,
-    maskedPan: string,
-    evidence: Record<string, unknown>,
-  ): Promise<IssuerCardAttempt>;
-  markPortalProcessing(attemptId: string, workerId: string): Promise<void>;
-  finish(
-    attemptId: string,
-    workerId: string,
-    outcome: "consumed" | "cancelled" | "failed" | "review_required",
-    errorCode?: string,
-    errorMessage?: string,
-    evidence?: Record<string, unknown>,
-  ): Promise<void>;
-}
-
 export interface PhotonPayEscrowDependencies {
   client?: PhotonPayClientLike | null;
   repository?: IssuerCardRepository;
+  cardConfig?: PhotonPayCardConfig | null;
 }
 
-function requiredConfig(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`PhotonPay issuing requires ${name}`);
-  return value;
+function envEnabled(value: string | undefined): boolean {
+  return /^(1|true|yes|on)$/i.test((value ?? "").trim());
 }
 
-function cardCurrency(): string {
-  return (process.env.PHOTONPAY_ISSUING_CURRENCY ?? "USD").trim().toUpperCase();
+export function resolvePhotonPayCardConfig(
+  currency: string,
+  env: NodeJS.ProcessEnv = process.env,
+): PhotonPayCardConfig | null {
+  const normalized = currency.trim().toUpperCase();
+  if (!envEnabled(env.PHOTONPAY_ENABLED) || !["USD", "EUR", "GBP"].includes(normalized)) {
+    return null;
+  }
+
+  const configuredBin = env[`PHOTONPAY_ISSUING_BIN_${normalized}`]?.trim();
+  const configuredAccount = env[`PHOTONPAY_ISSUING_ACCOUNT_${normalized}`]?.trim();
+  if (configuredBin && configuredAccount) {
+    return { currency: normalized, bin: configuredBin, account: configuredAccount };
+  }
+
+  const legacyCurrency = env.PHOTONPAY_ISSUING_CURRENCY?.trim().toUpperCase();
+  const legacyBin = env.PHOTONPAY_ISSUING_BIN?.trim();
+  const legacyAccount = env.PHOTONPAY_ISSUING_ACCOUNT?.trim();
+  return legacyCurrency === normalized && legacyBin && legacyAccount
+    ? { currency: normalized, bin: legacyBin, account: legacyAccount }
+    : null;
 }
 
 function cardholderId(): string | undefined {
@@ -97,10 +95,6 @@ function cardholderId(): string | undefined {
 
 function cardholderName(): string {
   return process.env.PHOTONPAY_ISSUING_CARDHOLDER_NAME?.trim() || "VIZA";
-}
-
-function allowPendingTreasury(): boolean {
-  return process.env.PHOTONPAY_ISSUING_ALLOW_PENDING_TREASURY === "true";
 }
 
 function maskPan(pan: string | undefined): string {
@@ -124,77 +118,6 @@ function normalizeVisaType(visaType: string): string {
   if (["B1_EVOA", "EVOA"].includes(normalized)) return "ID_B1_EVOA";
   return normalized;
 }
-
-function parseAttempt(value: unknown): IssuerCardAttempt {
-  const row = (Array.isArray(value) ? value[0] : value) as Record<string, unknown> | null;
-  if (!row || typeof row.id !== "string" || typeof row.issuer_request_id !== "string") {
-    throw new Error("Issuer-card RPC returned no attempt");
-  }
-  return {
-    id: row.id,
-    allocation_id: String(row.allocation_id),
-    application_id: String(row.application_id),
-    official_fee_payment_intent_id: String(row.official_fee_payment_intent_id),
-    attempt_number: Number(row.attempt_number),
-    issuer_request_id: row.issuer_request_id,
-    issuer_card_id: typeof row.issuer_card_id === "string" ? row.issuer_card_id : null,
-    status: String(row.status),
-    currency: String(row.currency).toUpperCase(),
-    limit_amount: Number(row.limit_amount),
-    masked_pan: typeof row.masked_pan === "string" ? row.masked_pan : null,
-    claim_count: Number(row.claim_count),
-  };
-}
-
-const defaultRepository: IssuerCardRepository = {
-  async claim(context) {
-    const { supabase } = await import("../supabase.js");
-    const { data, error } = await supabase.rpc("claim_issuer_card_attempt", {
-      p_application_id: context.applicationId,
-      p_official_fee_payment_intent_id: context.officialFeePaymentIntentId,
-      p_worker_id: context.workerId,
-      p_lease_seconds: 900,
-      p_allow_pending_treasury: allowPendingTreasury(),
-    });
-    if (error) throw new Error(`Could not claim issuer-card attempt: ${error.message}`);
-    return parseAttempt(data);
-  },
-
-  async markIssued(attemptId, workerId, cardId, maskedPan, evidence) {
-    const { supabase } = await import("../supabase.js");
-    const { data, error } = await supabase.rpc("mark_issuer_card_issued", {
-      p_attempt_id: attemptId,
-      p_worker_id: workerId,
-      p_issuer_card_id: cardId,
-      p_masked_pan: maskedPan,
-      p_provider_evidence_redacted: evidence,
-    });
-    if (error) throw new Error(`Could not persist issued card reference: ${error.message}`);
-    return parseAttempt(data);
-  },
-
-  async markPortalProcessing(attemptId, workerId) {
-    const { supabase } = await import("../supabase.js");
-    const { error } = await supabase.rpc("mark_issuer_card_portal_processing", {
-      p_attempt_id: attemptId,
-      p_worker_id: workerId,
-    });
-    if (error) throw new Error(`Could not mark issuer card in portal use: ${error.message}`);
-  },
-
-  async finish(attemptId, workerId, outcome, errorCode, errorMessage, evidence = {}) {
-    const { supabase } = await import("../supabase.js");
-    const { error } = await supabase.rpc("finish_issuer_card_attempt", {
-      p_attempt_id: attemptId,
-      p_worker_id: workerId,
-      p_outcome: outcome,
-      p_error_code: errorCode ?? null,
-      p_error_message: errorMessage ?? null,
-      p_provider_evidence_redacted: evidence,
-    });
-    if (error) throw new Error(`Could not finish issuer-card attempt: ${error.message}`);
-  },
-};
 
 function assertEligibleRouting(context: PhotonPayEscrowContext): void {
   const routing = routingFor(
@@ -242,10 +165,23 @@ export async function ensurePhotonPayEscrowCard(
   const client = dependencies.client === undefined ? createPhotonPayClient() : dependencies.client;
   if (!client) return null;
   assertEligibleRouting(context);
-  const repository = dependencies.repository ?? defaultRepository;
-  const attempt = await repository.claim(context);
+  const repository = dependencies.repository ?? defaultIssuerCardRepository;
+  const claimContext = { ...context, issuer: "photonpay" as const };
+  const attempt = await repository.claim(claimContext);
+  assertAttemptMatchesContext(attempt, claimContext);
 
-  const expectedCurrency = cardCurrency();
+  const cardConfig = dependencies.cardConfig ?? resolvePhotonPayCardConfig(attempt.currency);
+  if (!cardConfig) {
+    await repository.finish(
+      attempt.id,
+      context.workerId,
+      "failed",
+      "issuer_currency_unsupported",
+      `PhotonPay has no exact BIN/account configuration for ${attempt.currency}`,
+    );
+    throw new Error(`PhotonPay issuer currency unsupported: ${attempt.currency}`);
+  }
+  const expectedCurrency = cardConfig.currency;
   if (attempt.currency !== expectedCurrency) {
     await repository.finish(
       attempt.id,
@@ -274,11 +210,11 @@ export async function ensurePhotonPayEscrowCard(
     } else {
       const opened = await client.openCard({
         requestId: attempt.issuer_request_id,
-        cardBin: requiredConfig("PHOTONPAY_ISSUING_BIN"),
+        cardBin: cardConfig.bin,
         cardCurrency: expectedCurrency,
         cardType: "share",
         cardholderId: cardholderId(),
-        accountId: requiredConfig("PHOTONPAY_ISSUING_ACCOUNT"),
+        accountId: cardConfig.account,
         transactionLimitType: "limited",
         transactionLimit: attempt.limit_amount,
         nickname: `VIZA ${context.applicationId.slice(0, 8)} #${attempt.attempt_number}`,
@@ -382,9 +318,47 @@ export async function finalizePhotonPayEscrowCard(
   outcome: EscrowCardOutcome,
   dependencies: PhotonPayEscrowDependencies = {},
 ): Promise<void> {
-  const client = dependencies.client === undefined ? createPhotonPayClient() : dependencies.client;
-  if (!client) return;
-  const repository = dependencies.repository ?? defaultRepository;
+  const repository = dependencies.repository ?? defaultIssuerCardRepository;
+  const finishWithoutClient = async (): Promise<void> => {
+    if (outcome === "consumed") {
+      await repository.finish(
+        card.attemptId,
+        workerId,
+        "consumed",
+        undefined,
+        undefined,
+        {
+          provider_card_cancel_requested: false,
+          provider_client_unavailable: true,
+        },
+      );
+      return;
+    }
+    await repository.finish(
+      card.attemptId,
+      workerId,
+      "review_required",
+      "provider_client_unavailable",
+      "PhotonPay client is unavailable; the issued card requires reconciliation",
+      {
+        provider_card_action_requested: false,
+        provider_client_unavailable: true,
+        requested_outcome: outcome,
+      },
+    );
+  };
+
+  let client: PhotonPayClientLike | null;
+  try {
+    client = dependencies.client === undefined ? createPhotonPayClient() : dependencies.client;
+  } catch {
+    await finishWithoutClient();
+    return;
+  }
+  if (!client) {
+    await finishWithoutClient();
+    return;
+  }
 
   if (outcome === "review_required") {
     try {

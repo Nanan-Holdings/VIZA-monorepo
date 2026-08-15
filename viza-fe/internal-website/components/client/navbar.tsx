@@ -21,6 +21,11 @@ import {
   RECENT_APPLICATION_FORM_STORAGE_KEY,
   type ApplicationFormTarget,
 } from "@/lib/client/recent-application-form";
+import {
+  ACTIVE_APPLICATION_SELECTION_EVENT,
+  ACTIVE_APPLICATION_SELECTION_STORAGE_KEY,
+  getActiveApplicationFormHref,
+} from "@/lib/client/active-application-selection";
 
 interface NavBarProps {
   activeTab: string | null;
@@ -133,6 +138,7 @@ export function NavBar({
   const [hasMounted, setHasMounted] = useState(false);
   const [liveSaveStatus, setLiveSaveStatus] = useState<LiveSaveStatus>("idle");
   const [recentApplicationHref, setRecentApplicationHref] = useState<string | null>(null);
+  const [activeApplicationHref, setActiveApplicationHref] = useState<string | null>(null);
   const transitionDuration = 0.6;
   const showLiveSaveStatus =
     pathname === "/client/application" ||
@@ -152,6 +158,32 @@ export function NavBar({
 
   useEffect(() => {
     setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const syncActiveApplicationHref = () => {
+      setActiveApplicationHref(getActiveApplicationFormHref());
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === ACTIVE_APPLICATION_SELECTION_STORAGE_KEY) {
+        syncActiveApplicationHref();
+      }
+    };
+
+    syncActiveApplicationHref();
+    window.addEventListener(
+      ACTIVE_APPLICATION_SELECTION_EVENT,
+      syncActiveApplicationHref,
+    );
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener(
+        ACTIVE_APPLICATION_SELECTION_EVENT,
+        syncActiveApplicationHref,
+      );
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   useEffect(() => {
@@ -227,7 +259,7 @@ export function NavBar({
   const rightTabs = ["Settings"];
   const mobileTabs = ["Home", "Application", "Settings"];
 
-  const currentApplicationTarget = useMemo(() => {
+  const currentPageApplicationTarget = useMemo(() => {
     const currentFormTarget = readApplicationFormTarget(
       buildApplicationFormHref(pathname, searchParams.toString()),
     );
@@ -240,11 +272,16 @@ export function NavBar({
       return applicationPageTarget;
     }
 
-    const recentTarget = readApplicationFormTarget(recentApplicationHref);
-    return hasApplicationIdentity(recentTarget) ? recentTarget : null;
-  }, [pathname, recentApplicationHref, searchParams]);
+    return null;
+  }, [pathname, searchParams]);
 
-  const applicationMenuHref = currentApplicationTarget?.href ?? "/client/application";
+  const recentApplicationTarget = readApplicationFormTarget(recentApplicationHref);
+  const applicationMenuHref =
+    currentPageApplicationTarget?.href ??
+    activeApplicationHref ??
+    (hasApplicationIdentity(recentApplicationTarget)
+      ? recentApplicationTarget.href
+      : "/client/application");
 
   const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
   const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";

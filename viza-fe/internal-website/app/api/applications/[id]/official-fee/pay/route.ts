@@ -8,6 +8,7 @@ import {
   queueProviderForApplication,
   queueStatusForApplication,
 } from "@/lib/submission-queue";
+import { enqueueRunnerJob } from "@/lib/queue/enqueue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveOfficialFeeApplicantAuth } from "../auth";
 import {
@@ -19,16 +20,17 @@ import {
   vietnamCardWakeTimeoutMs,
   wakeQueuedVietnamPaymentJob,
 } from "./cloud-worker-ready";
+import {
+  isEligibleGovernmentFeeAllocation,
+  normalizeOfficialFeePaymentMethod,
+  officialFeeCheckoutUrl,
+  resolveManagedOfficialFee,
+  type GovernmentFeeAllocationInput,
+  type OfficialFeePaymentMethod,
+} from "./managed-payment";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-
-const VN_OFFICIAL_FEE_AMOUNT = 25;
-const VN_OFFICIAL_FEE_CURRENCY = "USD";
-const VN_OFFICIAL_FEE_SOURCE_URL = "https://evisa.gov.vn/";
-const ID_OFFICIAL_FEE_SOURCE_URL = "https://evisa.imigrasi.go.id/";
-
-type OfficialFeePaymentMethod = "one_time_user_card" | "viza_managed_virtual_card";
 
 type ProfileRow = { id: string };
 type ApplicationRow = {
@@ -70,39 +72,6 @@ type OfficialFeeQueueResult = {
   reusedExisting: boolean;
   supersededCount: number;
 };
-
-function officialFeeDescriptor(application: ApplicationRow): {
-  countryCode: "VN" | "ID";
-  provider: string;
-  targetPayee: string;
-  targetSite: string;
-  feeSource: string;
-} {
-  if (isIndonesiaEVisaApplication(application.country, application.visa_type)) {
-    return {
-      countryCode: "ID",
-      provider: "indonesia_evisa_official_fee",
-      targetPayee: "Indonesia Immigration e-Visa portal",
-      targetSite: ID_OFFICIAL_FEE_SOURCE_URL,
-      feeSource: "indonesia_evisa_official_payment_page",
-    };
-  }
-  return {
-    countryCode: "VN",
-    provider: "vietnam_evisa_official_fee",
-    targetPayee: "Vietnam e-Visa official portal",
-    targetSite: VN_OFFICIAL_FEE_SOURCE_URL,
-    feeSource: "vietnam_evisa_official_payment_page",
-  };
-}
-
-function normalizePaymentMethod(body: unknown): OfficialFeePaymentMethod {
-  if (body && typeof body === "object" && !Array.isArray(body)) {
-    const value = (body as { paymentMethod?: unknown }).paymentMethod;
-    if (value === "viza_managed_virtual_card") return value;
-  }
-  return "one_time_user_card";
-}
 
 function isSchemaMissing(error: QueryErrorLike | null | undefined): boolean {
   const message = (error?.message ?? "").toLowerCase();
@@ -180,10 +149,10 @@ async function recordFallbackOfficialFeeConsent(input: {
   userId: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const now = new Date().toISOString();
-  const amount = input.application.government_fee_cents
-    ? input.application.government_fee_cents / 100
-    : VN_OFFICIAL_FEE_AMOUNT;
-  const currency = input.application.government_fee_currency ?? VN_OFFICIAL_FEE_CURRENCY;
+  const resolvedFee = resolveManagedOfficialFee(input.application);
+  if (!resolvedFee.ok) return { ok: false, error: resolvedFee.message };
+  const amount = resolvedFee.amountCents / 100;
+  const currency = resolvedFee.currency;
   const fallbackQuoteId = `fallback:${input.applicationId}`;
   const consentScope = {
     official_fee: {
@@ -256,16 +225,13 @@ async function createOfficialFeeIntentFromPaymentRequest(input: {
 > {
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-  const descriptor = officialFeeDescriptor(input.application);
-  const amount = input.application.government_fee_cents
-    ? input.application.government_fee_cents / 100
-    : descriptor.countryCode === "VN"
-      ? VN_OFFICIAL_FEE_AMOUNT
-      : Number.NaN;
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return { ok: false, error: "The application has no payable official-fee amount.", status: 422 };
+  const resolvedFee = resolveManagedOfficialFee(input.application);
+  if (!resolvedFee.ok) {
+    return { ok: false, error: resolvedFee.message, status: 422 };
   }
-  const currency = input.application.government_fee_currency ?? VN_OFFICIAL_FEE_CURRENCY;
+  const descriptor = resolvedFee.catalog;
+  const amount = resolvedFee.amountCents / 100;
+  const currency = resolvedFee.currency;
   const managedCard = input.paymentMethod === "viza_managed_virtual_card";
 
   const { data: existingQuote, error: existingQuoteError } = await input.admin
@@ -295,7 +261,7 @@ async function createOfficialFeeIntentFromPaymentRequest(input: {
             total_charge_amount: amount,
             total_charge_currency: currency,
             fee_source: descriptor.feeSource,
-            fee_source_url: descriptor.targetSite,
+            fee_source_url: descriptor.officialUrl,
             fee_breakdown_json: {
               source: descriptor.feeSource,
               amount,
@@ -378,7 +344,7 @@ async function createOfficialFeeIntentFromPaymentRequest(input: {
       official_fee_amount: amount,
       official_fee_currency: currency,
       target_payee: descriptor.targetPayee,
-      target_site: descriptor.targetSite,
+      target_site: descriptor.officialUrl,
       payment_method_type: input.paymentMethod,
       status: "admin_approved",
       idempotency_key: idempotencyKey,
@@ -920,6 +886,142 @@ async function enqueueIndonesiaOfficialFeeCardJob(input: {
   });
 }
 
+function officialFeeFundingRequiredResponse(applicationId: string): Response {
+  return NextResponse.json(
+    {
+      error: "Official-fee funding must be reserved before VIZA can issue the application card.",
+      code: "official_fee_funding_required",
+      errorCode: "official_fee_funding_required",
+      checkoutUrl: officialFeeCheckoutUrl(applicationId),
+    },
+    { status: 409 },
+  );
+}
+
+async function loadGovernmentFeeAllocation(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  applicationId: string;
+}): Promise<{ allocation: GovernmentFeeAllocationInput | null; error: string | null }> {
+  const { data, error } = await input.admin
+    .from("government_fee_allocations")
+    .select("id, amount_cents, currency, state")
+    .eq("application_id", input.applicationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return { allocation: null, error: error.message };
+  return {
+    allocation: data as GovernmentFeeAllocationInput | null,
+    error: null,
+  };
+}
+
+async function enqueueManagedOfficialFeeRunner(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  application: ApplicationRow;
+  applicationId: string;
+  profileId: string;
+  userId: string;
+  intentId: string;
+}): Promise<Response> {
+  const resolvedFee = resolveManagedOfficialFee(input.application);
+  if (!resolvedFee.ok) {
+    return NextResponse.json(
+      { error: resolvedFee.message, errorCode: resolvedFee.code },
+      { status: 422 },
+    );
+  }
+  if (!resolvedFee.catalog.runnerCountry) {
+    return NextResponse.json(
+      {
+        error: "This official-fee route is configured for VIZA-managed payment, but its payment runner is not available yet.",
+        errorCode: "official_fee_runner_unavailable",
+      },
+      { status: 409 },
+    );
+  }
+
+  let job: { id: string; created: boolean };
+  try {
+    job = await enqueueRunnerJob(
+      input.applicationId,
+      resolvedFee.catalog.runnerCountry,
+      {
+        correlationId: `official-fee:${input.applicationId}:${input.intentId}`,
+        metadata: {
+          trigger: "official_fee_payment",
+          official_fee_payment: true,
+          official_fee_payment_intent_id: input.intentId,
+          official_fee_country_code: resolvedFee.catalog.countryCode,
+          official_fee_provider: resolvedFee.catalog.provider,
+          official_fee_amount_cents: resolvedFee.amountCents,
+          official_fee_currency: resolvedFee.currency,
+        },
+      },
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        errorCode: "official_fee_runner_enqueue_failed",
+      },
+      { status: 500 },
+    );
+  }
+
+  const now = new Date().toISOString();
+  const postEnqueueWarnings: string[] = [];
+  const [applicationUpdateResult, eventResult] = await Promise.all([
+    input.admin
+      .from("applications")
+      .update({
+        official_fee_status: "official_fee_payment_queued",
+        official_fee_payment_intent_id: input.intentId,
+        updated_at: now,
+      })
+      .eq("id", input.applicationId),
+    input.admin.from("application_events").insert({
+      application_id: input.applicationId,
+      applicant_id: input.profileId,
+      auth_user_id: input.userId,
+      event_type: "official_fee_payment_queued",
+      actor_type: "user",
+      actor_id: input.userId,
+      source: "official_fee",
+      visibility: "staff",
+      idempotency_key: `official-fee-payment-queued:${input.applicationId}:${input.intentId}:${job.id}`,
+      message: job.created
+        ? "VIZA-managed official-fee runner job was queued."
+        : "VIZA-managed official-fee payment reused an active runner job.",
+      metadata: {
+        intent_id: input.intentId,
+        runner_job_id: job.id,
+        runner_job_created: job.created,
+        managed_virtual_card: true,
+        country_code: resolvedFee.catalog.countryCode,
+        provider: resolvedFee.catalog.provider,
+      },
+      occurred_at: now,
+      created_at: now,
+    }),
+  ]);
+  if (applicationUpdateResult.error && !isSchemaMissing(applicationUpdateResult.error)) {
+    postEnqueueWarnings.push("application_status_update_failed");
+  }
+  if (eventResult.error && !isSchemaMissing(eventResult.error) && !isDuplicateKey(eventResult.error)) {
+    postEnqueueWarnings.push("application_event_insert_failed");
+  }
+
+  return NextResponse.json({
+    ok: true,
+    queueId: job.id,
+    queueStatus: job.created ? "queued" : "active_job_reused",
+    intentId: input.intentId,
+    paymentMethod: "viza_managed_virtual_card",
+    postEnqueueWarnings,
+  });
+}
+
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -955,16 +1057,42 @@ export async function POST(
   }
   const isVietnamApplication = isVietnamEVisa(application);
   const isIndonesiaApplication = isIndonesiaEVisaApplication(application.country, application.visa_type);
-  if (!isVietnamApplication && !isIndonesiaApplication) {
-    return NextResponse.json({ error: "Official payment queue is only enabled for Vietnam and Indonesia e-Visa applications." }, { status: 422 });
-  }
 
   const body = (await request.json().catch(() => ({}))) as unknown;
-  const paymentMethod = normalizePaymentMethod(body);
+  const paymentMethod = normalizeOfficialFeePaymentMethod(body);
   const managedCard = paymentMethod === "viza_managed_virtual_card";
   const card = normalizeCardBody(body);
+  const resolvedFee = resolveManagedOfficialFee(application);
+  if (!resolvedFee.ok) {
+    return NextResponse.json(
+      { error: resolvedFee.message, errorCode: resolvedFee.code },
+      { status: 422 },
+    );
+  }
+  if (!managedCard && !isVietnamApplication && !isIndonesiaApplication) {
+    return NextResponse.json(
+      {
+        error: "One-time applicant cards are supported only for the legacy Vietnam and Indonesia payment flows.",
+        errorCode: "one_time_card_not_supported",
+      },
+      { status: 422 },
+    );
+  }
   if (!managedCard && !card) {
     return NextResponse.json({ error: "请输入本次付款使用的银行卡号、有效期和 CVV。VIZA 不会保存这些信息。" }, { status: 400 });
+  }
+
+  if (managedCard) {
+    const allocationResult = await loadGovernmentFeeAllocation({ admin, applicationId });
+    if (allocationResult.error) {
+      if (isSchemaMissing({ message: allocationResult.error })) {
+        return officialFeeFundingRequiredResponse(applicationId);
+      }
+      return NextResponse.json({ error: allocationResult.error }, { status: 500 });
+    }
+    if (!isEligibleGovernmentFeeAllocation(allocationResult.allocation, resolvedFee)) {
+      return officialFeeFundingRequiredResponse(applicationId);
+    }
   }
 
   if (isIndonesiaApplication && !managedCard && card && card.holderName.length < 2) {
@@ -1033,6 +1161,43 @@ export async function POST(
       userId: auth.actorId,
       cardSession,
       paymentMethod,
+    });
+  }
+
+  if (!isVietnamApplication) {
+    const createdIntent = await createOfficialFeeIntentFromPaymentRequest({
+      admin,
+      application,
+      applicationId,
+      profileId: profile.id,
+      userId: auth.actorId,
+      paymentMethod: "viza_managed_virtual_card",
+    });
+    if (!createdIntent.ok) {
+      return NextResponse.json(
+        { error: createdIntent.error },
+        { status: createdIntent.status ?? 500 },
+      );
+    }
+    if (![
+      "admin_approved",
+      "ready",
+      "manual_review",
+      "failed",
+      "pending",
+    ].includes(createdIntent.intentRow.status ?? "")) {
+      return NextResponse.json(
+        { error: `Official fee intent is not payable from status ${createdIntent.intentRow.status ?? "(empty)"}.` },
+        { status: 409 },
+      );
+    }
+    return enqueueManagedOfficialFeeRunner({
+      admin,
+      application,
+      applicationId,
+      profileId: profile.id,
+      userId: auth.actorId,
+      intentId: createdIntent.intentRow.id,
     });
   }
 

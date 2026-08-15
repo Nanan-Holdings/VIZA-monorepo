@@ -9,8 +9,8 @@
  *   reached `submitted`/`completed`. Once the runner has paid the
  *   destination portal we cannot recover the funds from the portal,
  *   so we mark the line non-refundable.
- * - `govt` (portal_direct): never refundable through Stripe — the
- *   client paid the portal directly; refunds go through the portal.
+ * - `govt` (portal_direct): legacy routing data; VIZA still owns the
+ *   official-payment record and any portal refund review.
  * - `third_party_*` (captcha solves, proxy spend): non-recoverable.
  */
 
@@ -44,7 +44,7 @@ export function classifyRefundability(
       if (ctx.govtFeeChannel === "portal_direct") {
         return {
           refundable: false,
-          reason: "Government fee was paid directly on the portal — refund through the portal.",
+          reason: "Government fee uses legacy portal-direct routing — VIZA support must review the official payment record.",
         };
       }
       if (

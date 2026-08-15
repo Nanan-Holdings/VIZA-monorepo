@@ -29,10 +29,7 @@ function envEnabled(value: string | undefined): boolean {
 export function vietnamCardSessionsEnabled(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
-  return (
-    envEnabled(env.VN_LOCAL_CARD_SESSION_ENABLED) ||
-    envEnabled(env.VN_CLOUD_CARD_SESSION_ENABLED)
-  );
+  return env.NODE_ENV !== "production" && envEnabled(env.VN_LOCAL_CARD_SESSION_ENABLED);
 }
 
 function nowMs(): number {
@@ -60,7 +57,10 @@ export function putVietnamCardSession(input: {
   card: VietnamFixedCardInput;
   ttlMs?: number;
   referenceTimeMs?: number;
-}): VietnamCardSessionResult {
+}, env: Record<string, string | undefined> = process.env): VietnamCardSessionResult {
+  if (!vietnamCardSessionsEnabled(env)) {
+    throw new Error("Vietnam applicant-card sessions are local-development fixtures only.");
+  }
   const applicationId = normalizeApplicationId(input.applicationId);
   const referenceTime = input.referenceTimeMs ?? nowMs();
   cleanupExpired(referenceTime);

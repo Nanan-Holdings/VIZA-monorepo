@@ -202,6 +202,29 @@ export interface CheckoutSelection {
   applicationId?: string | null;
 }
 
+export function resolveCheckoutPackageSelection<
+  PackageSummary extends Pick<CheckoutPackageSummary, "applicationId" | "packageId">,
+>(
+  packages: PackageSummary[],
+  selection: CheckoutSelection,
+): PackageSummary | null {
+  if (selection.applicationId) {
+    return (
+      packages.find(
+        (packageSummary) => packageSummary.applicationId === selection.applicationId,
+      ) ?? null
+    );
+  }
+
+  return (
+    packages.find(
+      (packageSummary) => packageSummary.packageId === selection.packageId,
+    ) ??
+    packages[0] ??
+    null
+  );
+}
+
 export type CheckoutReturnState =
   | {
       tone: "success" | "warning" | "error";
@@ -334,10 +357,16 @@ export function resolveGovernmentFee(
 ): GovernmentFeeDisclosure {
   const metadata = getGovernmentFeeMetadata(packageRow);
   const configuredPricing = pricingFor(packageRow.country, packageRow.visa_type);
+  const persistedAmountCents = application?.government_fee_cents ?? null;
+  const configuredAmountCents = configuredPricing?.govtFeeCents ?? null;
+  const applicationAmountCents =
+    persistedAmountCents === 0 && configuredAmountCents !== null && configuredAmountCents > 0
+      ? null
+      : persistedAmountCents;
   const amountCents =
-    application?.government_fee_cents ??
+    applicationAmountCents ??
     getNumber(metadata, ["amount_cents", "amountCents", "cents", "estimated_amount_cents"]) ??
-    configuredPricing?.govtFeeCents ??
+    configuredAmountCents ??
     null;
   const amount = amountCents ?? getNumber(metadata, ["amount", "estimated_amount"]);
   const currency = normalizeCurrency(
@@ -357,65 +386,65 @@ export function resolveGovernmentFee(
       : amount !== null
         ? `${currency} ${amount.toFixed(2)}`
         : mode === "unknown"
-          ? "Not available yet"
-          : "Shown by the official portal or external process";
+          ? "Confirmed before payment"
+          : "Confirmed at the official payment step";
 
   if (mode === "included") {
     return {
       mode,
-      label: "Government fee disclosure",
+      label: "Official fee payment",
       amountLabel,
-      description: "A package note marks the government fee as covered by a separate written arrangement.",
+      description: "VIZA manages the official fee payment for this application.",
       detail:
         metadataNote ??
-        "This page still starts Stripe Checkout for VIZA's agency fee only. It does not collect official portal card details.",
+        "When payment is due, VIZA creates a limited virtual card for this application and pays the official portal on your behalf.",
     };
   }
 
   if (mode === "estimated") {
     return {
       mode,
-      label: "Estimated government fee",
+      label: "Estimated official fee",
       amountLabel,
-      description: "Government portal fees are separate from the VIZA agency fee.",
+      description: "This estimate is managed separately from today's VIZA agency-fee checkout.",
       detail:
         metadataNote ??
-        "The official amount can change. VIZA will surface the latest known amount before any external handoff.",
+        "The official amount can change. VIZA confirms it before creating an exact-purpose virtual card and paying the portal.",
     };
   }
 
   if (mode === "external") {
     return {
       mode,
-      label: "Government fee handled separately",
+      label: "Official fee managed by VIZA",
       amountLabel,
-      description: "The official portal or another external process may ask you to pay this directly.",
+      description: "VIZA pays the official portal for you when the application reaches the payment step.",
       detail:
         metadataNote ??
-        "VIZA does not automatically pay official government portal fees from this checkout.",
+        "A secure virtual card is created only for this application and official fee. You do not enter card details on the government portal.",
     };
   }
 
   if (mode === "separate") {
     return {
       mode,
-      label: "Separate government fee",
+      label: "Official fee managed by VIZA",
       amountLabel,
-      description: "This fee is not part of today's Stripe Checkout total.",
+      description: "This fee is managed separately from today's Stripe agency-fee checkout.",
       detail:
         metadataNote ??
-        "If a government portal fee is required, VIZA will guide you through the separate official payment step.",
+        "When the official fee is due, VIZA creates an application-specific virtual card and pays the portal on your behalf.",
     };
   }
 
   return {
     mode,
-    label: "Government fee not confirmed",
+    label: "Official fee amount pending",
     amountLabel,
-    description: "VIZA agency payment can be started, but the official fee is not confirmed in the package data.",
+    description: "The official amount will be confirmed before VIZA pays it for this application.",
     detail:
       metadataNote ??
-      "We will confirm official government fee details before any external handoff. This checkout will not charge them.",
+      "VIZA will confirm the amount, create a limited virtual card for that amount, and pay the government portal on your behalf.",
   };
 }
 
@@ -714,15 +743,7 @@ export async function getCheckoutContext(selection: CheckoutSelection = {}): Pro
       signatures,
       selectedApplicationId: selection.applicationId,
     });
-    const selectedPackage =
-      packages.find(
-        (packageSummary) =>
-          Boolean(selection.applicationId) &&
-          packageSummary.applicationId === selection.applicationId,
-      ) ??
-      packages.find((packageSummary) => packageSummary.packageId === selection.packageId) ??
-      packages[0] ??
-      null;
+    const selectedPackage = resolveCheckoutPackageSelection(packages, selection);
 
     return {
       user,
@@ -730,7 +751,10 @@ export async function getCheckoutContext(selection: CheckoutSelection = {}): Pro
       selectedPackage,
       packages,
       stripeConfigured: isStripeConfigured(),
-      error: null,
+      error:
+        selection.applicationId && !selectedPackage
+          ? "We could not match this application to an active visa package. Return to Home and try again, or contact support."
+          : null,
     };
   } catch (error) {
     console.error("[checkout] Failed to load checkout context:", error);

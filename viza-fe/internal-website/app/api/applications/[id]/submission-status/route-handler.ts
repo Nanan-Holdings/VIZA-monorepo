@@ -13,6 +13,7 @@ import {
   isVietnamPaymentCheckpointState,
   resolveVietnamSubmissionActionType,
 } from "./payment-country";
+import { sanitizeCustomerSubmissionResult } from "../../customer-submission-result";
 
 export const dynamic = "force-dynamic";
 
@@ -293,7 +294,7 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
       : queue.error_message ??
         queue.last_error ??
         (actionType === "payment_required"
-        ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
+        ? "The official portal reached payment. VIZA will continue with the application-scoped virtual card."
         : "Vietnam official portal needs action before VIZA can continue.");
     const checkpoint =
       typeof payload.checkpoint === "string" && payload.checkpoint.trim()
@@ -302,13 +303,13 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
           (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
   const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
   const instructionText = isVietnamPayment
-    ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
+    ? "The official Vietnam e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card."
     : isIndonesiaPayment
       ? checkpoint === "user_payment_required"
         ? actionType === "official_fee_otp_required"
-          ? "The official Indonesia bank OTP/3DS verification page is open. Enter the bank OTP in that visible official browser window."
-          : "The official Indonesia payment window is open. Complete card payment and OTP verification in that visible official browser window."
-        : "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page."
+          ? "The official Indonesia payment needs bank verification. VIZA staff will review it; do not make a duplicate payment."
+          : "The official Indonesia payment needs review. VIZA will continue with the application-scoped virtual card."
+        : "The official Indonesia e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card."
       : "The official portal needs action before VIZA can continue.";
   const resolvedPortalUrl = readPayloadString(payload, "url") ?? queue.official_portal_url;
 
@@ -761,7 +762,7 @@ export function deriveNonTerminalStatus(
       progress: 99,
       message:
         queueMessage ??
-        "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page.",
+        "The official Vietnam e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card.",
       error: queueMessage,
     };
   }
@@ -773,7 +774,7 @@ export function deriveNonTerminalStatus(
       progress: 99,
       message:
         queueMessage ??
-        "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page.",
+        "The official Indonesia e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card.",
       error: queueMessage,
     };
   }
@@ -1009,7 +1010,7 @@ async function getSubmissionStatus(
       stage: derived.stage,
       progress: derived.progress,
       message: derived.message,
-      result: resolvedResult,
+      result: sanitizeCustomerSubmissionResult(resolvedResult),
       error: derived.error,
       updatedAt,
       applicationStatus: queueResult

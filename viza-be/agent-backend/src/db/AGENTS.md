@@ -41,6 +41,15 @@ Supabase service-role client setup for the agent backend.
 - `../../drizzle/0137_queue_worker_leases_and_runtime_claims.sql`: leased
   notification and Vietnam status-check claims, conditional settlement RPCs,
   and the extended atomic submission-queue claim contract.
+- `../../drizzle/0139_dedupe_ongoing_applications.sql`: application
+  deduplication cleanup and the partial unique gate for ongoing country/visa
+  identities.
+- `../../drizzle/0140_prevent_qa_placeholder_submission.sql`: database-level
+  rejection of synthetic QA data in customer applications and live queues.
+- `../../drizzle/0141_block_known_qa_account_sentinel.sql`: follow-up protection
+  for the historical dedicated-QA account sentinel.
+- `../../drizzle/0144_exclude_qa_drafts_from_ongoing_uniqueness.sql`: keeps
+  synthetic schema-QA drafts outside the customer ongoing-application gate.
 
 ## Ownership Boundaries
 

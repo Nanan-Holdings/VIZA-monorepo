@@ -16,7 +16,7 @@ Adds three high-volume markets after MVP-1 has 30 days of clean operation.
 | Country | Mechanism (PAY-003) | Notes |
 |---|---|---|
 | AU | runner_escrow_card | TRN captured at payment; grant letter via inbound email. |
-| VN | applicant_direct_link | Applicant pays directly on evisa.gov.vn (chargeback risk). |
+| VN | runner_escrow_card | VIZA provisions an application-scoped virtual card and pays evisa.gov.vn at the official payment step. |
 | UK | runner_escrow_card | Worldpay; GWF reference; biometrics appointment downstream. |
 
 ## Pre-launch checklist

@@ -6,8 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * The full-cycle status hub reads runner_job (queued/running/succeeded/
  * failed/dead_letter/paused) IN ADDITION to the submission_queue-derived
  * application steps, and turns it into an actionable lifecycle phase:
- *   - halt-before-gov-pay (succeeded + outcome=halted_before_pay) → an
- *     actionable "pay government fee" step
+ *   - halt-before-gov-pay (succeeded + outcome=halted_before_pay) → a
+ *     non-actionable VIZA virtual-card preparation step
  *   - dead_letter → a support-contact state
  *   - failed → a support/retry state
  * The pure `mapRunnerJobStatus` is unit-tested; `getRunnerLifecycle` is the
@@ -35,7 +35,7 @@ export interface RunnerLifecycle {
   phase: LifecyclePhase;
   /** Short label for the status hub. */
   label: string;
-  /** True when the applicant must act (e.g. pay the government fee). */
+  /** True when the applicant must act. Official-fee payment is never applicant action. */
   actionable: boolean;
   /** True when the job is stuck and the user should contact support. */
   supportNeeded: boolean;
@@ -55,7 +55,7 @@ export function mapRunnerJobStatus(
       return { status: "paused", phase: "paused", label: "Temporarily paused", actionable: false, supportNeeded: false };
     case "succeeded":
       if (outcome === "halted_before_pay") {
-        return { status: "succeeded", phase: "action_required", label: "Pay the government fee to finalize", actionable: true, supportNeeded: false };
+        return { status: "succeeded", phase: "in_progress", label: "VIZA is preparing your secure official-fee payment", actionable: false, supportNeeded: false };
       }
       return { status: "succeeded", phase: "done", label: "Submitted — awaiting decision", actionable: false, supportNeeded: false };
     case "failed":

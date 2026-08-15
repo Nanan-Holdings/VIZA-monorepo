@@ -183,6 +183,27 @@ The current internal automation migrations are:
 - `0138_bounded_queue_maintenance.sql`: adds a bounded, service-role-only
   atomic stale-processing cleanup RPC and an index matching its heartbeat/status
   cutoff scan; callers run it as low-frequency maintenance rather than per poll.
+- `0139_dedupe_ongoing_applications.sql`: consolidates duplicate in-flight
+  applications and enforces one ongoing row per applicant/country/visa type
+  while preserving completed submission history; QA dry-run rows are isolated
+  from deduplication and the customer uniqueness gate.
+- `0140_prevent_qa_placeholder_submission.sql`: rejects synthetic QA answers on
+  ordinary applications, blocks QA-marked data from live runner queues, and
+  removes previously persisted QA sentinels from reusable/customer data.
+- `0141_block_known_qa_account_sentinel.sql`: patches already-migrated databases
+  to reject and remove the historical dedicated-QA WeChat sentinel.
+- `0142_managed_card_issuer_router.sql`: permits PhotonPay and Airwallex card
+  identities while preserving exact application/allocation/payment-intent
+  binding in the service-only issuer-aware card-attempt claim RPC.
+- `0143_scrub_uk_submission_result_credentials.sql`: removes legacy UK portal
+  URLs, usernames, and password/cipher fields from customer-readable
+  `applications.submission_result`; credentials remain only in `uk_accounts`.
+- `0144_exclude_qa_drafts_from_ongoing_uniqueness.sql`: rebuilds the ongoing
+  application uniqueness index so isolated schema-QA drafts can coexist with
+  one real customer application for the same country and visa type.
+- `0145_protect_issuer_card_attempt_leases.sql`: prevents a different worker
+  from overwriting an unexpired issuer-card claim lease while preserving
+  same-worker renewal and expired-lease recovery.
 
 ## Guardrails
 

@@ -2,9 +2,8 @@ import { makeStandardEvisaRunner } from "../runners/standard-evisa.js";
 import { TH_FIELD_MAPPINGS } from "./field-mappings.js";
 
 /**
- * Thailand eVisa/eVOA runner (RUN-TH-001) on the shared core. Routing is
- * runner_escrow_card (VIZA collects); fills then HALTS before payment until
- * escrow integration. Best-effort selectors pending recon.
+ * Thailand eVisa/eVOA runner (RUN-TH-001) on the shared core. Payment remains
+ * staff-review-only until official payment controls are evidenced by recon.
  */
 const runner = makeStandardEvisaRunner({
   cc: "th",

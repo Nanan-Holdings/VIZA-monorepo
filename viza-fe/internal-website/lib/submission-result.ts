@@ -151,11 +151,24 @@ export interface FrSubmissionResult {
 
 export interface UkSubmissionResult {
   country: "UK";
-  status: "registered" | "stopped_at_pay";
-  portalUrl: string;
-  portalUsername: string;
-  generatedPasswordCipher: string;
+  status:
+    | "registered"
+    | "stopped_at_pay"
+    | "funding_required"
+    | "payment_pending"
+    | "payment_review_required"
+    | "paid";
+  paymentStatus?: "funding_required" | "pending" | "review_required" | "paid";
+  paymentStateCode?: string;
+  staffReviewCode?: string;
+  officialFeeReceiptId?: string;
   applicationReference?: string;
+  /** @deprecated Legacy rows only; new runners must never write portal handoff data. */
+  portalUrl?: string;
+  /** @deprecated Legacy rows only; credentials belong in uk_accounts. */
+  portalUsername?: string;
+  /** @deprecated Legacy rows only; credentials belong in uk_accounts. */
+  generatedPasswordCipher?: string;
   /** Optional prefill progress summary (pre-existing field; not currently populated). */
   prefillProgress?: {
     pagesFilled: number;

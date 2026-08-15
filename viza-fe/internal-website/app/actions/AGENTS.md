@@ -28,7 +28,11 @@ application lifecycle state.
 - `visa-application-answers.ts`: draft app creation and dynamic answer storage.
   Critical answer reads refresh an encrypted independent cache; transient save
   failures enqueue encrypted, idempotent replay events instead of losing work.
-- `visa-form-fields.ts`: loads DB-driven visa form fields.
+  Reusable-profile prefill/sync and ordinary answer saves must reject synthetic
+  QA markers, and QA dry-run applications must never sync into Universal Profile.
+- `visa-form-fields.ts`: loads DB-driven visa form fields, then runs the shared
+  schema/UI compiler so component mapping and conditional-panel ownership are
+  deterministic across countries.
 - `companion-sessions.ts`: VIZA chat sessions, messages, title markers, search,
   and history.
 - `user-package.ts`: package/destination assignment and active package reads.
@@ -73,5 +77,6 @@ nearest affected route such as `/client/status`, `/client/documents`,
 - `viza-fe/internal-website/lib/auth/get-authenticated-user.ts`
 - `viza-fe/internal-website/types/database.ts`
 - `viza-fe/internal-website/types/visa-form-fields.ts`
+- `viza-fe/internal-website/lib/application-schema-ui-contract.ts`
 - `viza-fe/internal-website/types/agent-test.ts`
 - `viza-fe/internal-website/app/actions/internal-automation/AGENTS.md`
