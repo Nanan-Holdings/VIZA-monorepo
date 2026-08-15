@@ -230,6 +230,15 @@ The current internal automation migrations are:
   rows. The global probe takes a private advisory lock, uses an effective
   per-country cap of ten, and counts all canonical running rows while leaving
   `runner_concurrency_cap` unchanged.
+- `0140_vn_status_settlement_fence.sql`: replaces Vietnam official-status
+  worker leases with a monotonic `BIGINT` lease generation and exact
+  generation-bearing service-role RPCs for claim, renew, defer, fail, and
+  complete. Settlement locks application, status-check, and tracking rows in
+  that order, derives result state and bounded notification payloads, preserves
+  legacy artifact paths, and atomically records deterministic full-SHA eVisa
+  documents, events, bounded retry rows, and failure backoff. Legacy
+  worker-only signatures are removed for the controlled cutover; callers must
+  pass the generation returned by claim.
 
 ## Guardrails
 
