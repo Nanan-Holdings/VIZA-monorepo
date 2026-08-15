@@ -103,12 +103,21 @@ filling and one-shot submission for the applicant.
   with the required `jobId`/`workerId` execution identity; a missing identity,
   rejected RPC, or zero-row RPC result must fail closed without a direct
   `applications` update.
+- All six `runner_job` pool adapters require the dispatch `jobId` to exactly
+  match `RunnerExecutionContext.jobId` before loading answers, launching a
+  portal, persisting artifacts, or writing a result. The Vietnam legacy
+  `submission_queue` entrypoint is explicitly separate from its pool runner.
 - `src/queue/portal-safety.ts` is the shared boundary for cancellation-safe
   portal clicks, dialog acceptance, and browser/session launch. Keep irreversible
   actions behind its ownership checks, dismiss dialogs on lease loss, and close
-  resources when an abort races launch or listener handoff. The queue handler
+  resources when an abort races launch or listener handoff; resource-close
+  failures are best-effort and must not become unhandled rejections or replace
+  the typed ownership cancellation. The queue handler
   reports ownership cancellation as `ownership_lost`, never as an ordinary
   portal `failed` event.
+- `src/queue/takeover.ts` must request the updated `runner_job` id/row before
+  inserting a takeover session or sending an alert. A zero-row/`RETURN NULL`
+  update is a `RunnerJobOwnershipLostError` and creates no takeover side effects.
 - `src/vietnam/status-check-lease.ts`: Vietnam official-status checks are
   worker-leased and may be completed or failed only by their claiming worker;
   the consumer must honor a false conditional-RPC result as lost ownership.
@@ -763,6 +772,8 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/result-writer.ts`
 - `viza-be/submission-service/src/__tests__/result-writer.spec.ts`
 - `viza-be/submission-service/src/queue/__tests__/pool-result-writes.spec.ts`
+- `viza-be/submission-service/src/queue/__tests__/pool-identity.spec.ts`
+- `viza-be/submission-service/src/queue/__tests__/takeover.spec.ts`
 - `viza-be/submission-service/src/queue-scheduler.ts`
 - `viza-be/submission-service/src/submission-queue-claim.ts`
 - `viza-be/submission-service/src/__tests__/queue-pickup-order.spec.js`

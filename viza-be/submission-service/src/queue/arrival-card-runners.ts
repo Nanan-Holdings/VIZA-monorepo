@@ -22,6 +22,7 @@ import { loadCountrySubmissionContext } from "./answers.js";
 import { NeedsHumanError, RetryableRunnerError, type DispatchOutcome } from "./types.js";
 import {
   RunnerJobOwnershipLostError,
+  requirePoolExecutionIdentity,
   type RunnerExecutionContext,
 } from "./execution-context.js";
 
@@ -240,18 +241,18 @@ export async function runArrivalCardPoolFlow(
   flow: ArrivalCardPoolFlow,
   executionContext?: RunnerExecutionContext,
 ): Promise<DispatchOutcome> {
-  if (!executionContext || !executionContext.jobId || !executionContext.workerId) {
-    throw new RunnerJobOwnershipLostError(
-      "Arrival-card pool execution requires an ownership context",
-    );
-  }
-  executionContext.assertOwned();
+  const poolIdentity = requirePoolExecutionIdentity(
+    executionContext,
+    jobId,
+    "Arrival-card pool execution",
+  );
+  const poolExecutionContext = poolIdentity.executionContext;
   const identity = flowIdentity(flow);
   try {
     const { payload, applicantId } = await preparePayload(applicationId, jobId, flow);
-    executionContext?.assertOwned();
-    const portal = await executePortal(flow, payload, applicantId, executionContext);
-    executionContext?.assertOwned();
+    poolExecutionContext.assertOwned();
+    const portal = await executePortal(flow, payload, applicantId, poolExecutionContext);
+    poolExecutionContext.assertOwned();
     const screenshots = await persistFiles(
       jobId,
       `${flow}/screenshots`,
@@ -292,9 +293,9 @@ export async function runArrivalCardPoolFlow(
         traces: [],
       },
     };
-    executionContext.assertOwned();
+    poolExecutionContext.assertOwned();
     const resultStatus = portal.submitted ? "submitted" : "failed";
-    await writeRunnerPoolSubmissionResult(executionContext, result, resultStatus);
+    await writeRunnerPoolSubmissionResult(poolExecutionContext, result, resultStatus);
     if (!portal.submitted) {
       throw new NeedsHumanError(
         `${identity.visaType} stopped without an official confirmation.`,
@@ -307,13 +308,13 @@ export async function runArrivalCardPoolFlow(
     };
   } catch (error) {
     const isAbortError = error instanceof Error && error.name === "AbortError";
-    if (error instanceof RunnerJobOwnershipLostError || isAbortError || executionContext?.signal.aborted) {
-      const abortReason = executionContext?.signal.reason;
+    if (error instanceof RunnerJobOwnershipLostError || isAbortError || poolExecutionContext.signal.aborted) {
+      const abortReason = poolExecutionContext.signal.reason;
       throw abortReason instanceof Error ? abortReason : error;
     }
     if (error instanceof NeedsHumanError) throw error;
     const detail = portalErrorDetails(error);
-    executionContext?.assertOwned();
+    poolExecutionContext.assertOwned();
     const screenshots = await persistFiles(
       jobId,
       `${flow}/errors`,
@@ -342,8 +343,8 @@ export async function runArrivalCardPoolFlow(
       errorDetails: { code: detail.code, message: detail.message },
       artifacts: { screenshots, pdfs: [], logs: detail.logs, traces: [] },
     };
-    executionContext.assertOwned();
-    await writeRunnerPoolSubmissionResult(executionContext, result, "failed");
+    poolExecutionContext.assertOwned();
+    await writeRunnerPoolSubmissionResult(poolExecutionContext, result, "failed");
     if (detail.retryable) throw new RetryableRunnerError(detail.message);
     throw new NeedsHumanError(detail.message);
   }

@@ -76,7 +76,13 @@ export async function launchAbortableResource<T>(
   let closePromise: Promise<void> | null = null;
   const closeOnce = async (): Promise<void> => {
     if (!hasResource || resource === undefined || closePromise) return closePromise ?? Promise.resolve();
-    closePromise = Promise.resolve(close(resource));
+    const ownedResource = resource;
+    // Cleanup is best effort. Swallow close failures here so an abort listener
+    // cannot create an unhandled rejection or replace the typed ownership
+    // cancellation that must stop the runner's continuation.
+    closePromise = Promise.resolve()
+      .then(() => close(ownedResource))
+      .catch(() => undefined);
     await closePromise;
   };
   const abortListener = (): void => {

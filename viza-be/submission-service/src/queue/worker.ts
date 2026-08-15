@@ -338,6 +338,10 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
       // The DB RPC's lease starts at the server's clock. Subtract the full
       // observed round-trip plus a bounded safety margin locally so network
       // delay can only make us stop early, never act after the DB lease.
+      // We intentionally do not subtract against `leased_until` here: the
+      // claim/renew RPC grants exactly `leaseMs`, while a server timestamp
+      // would introduce local-vs-DB wall-clock skew. The elapsed local
+      // round-trip budget is the skew-independent conservative duration.
       const conservativeDelay =
         leaseMs - Math.max(0, roundTripMs) - expiryLeadMs;
       if (conservativeDelay <= 0) {

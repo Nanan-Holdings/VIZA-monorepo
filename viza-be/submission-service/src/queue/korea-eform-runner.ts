@@ -6,7 +6,7 @@ import type { KrSubmissionResult } from "../submission-result.js";
 import { loadCountrySubmissionContext } from "./answers.js";
 import type { DispatchOutcome } from "./types.js";
 import {
-  RunnerJobOwnershipLostError,
+  requirePoolExecutionIdentity,
   type RunnerExecutionContext,
 } from "./execution-context.js";
 
@@ -71,20 +71,12 @@ export async function runKoreaEformBackground(
   const executionContext = typeof jobIdOrExecution === "string"
     ? maybeExecutionContext
     : jobIdOrExecution;
-  const poolExecutionContext = executionContext && jobId
-    ? { ...executionContext, jobId }
-    : executionContext;
-
-  if (
-    !poolExecutionContext
-    || !poolExecutionContext.jobId
-    || !poolExecutionContext.workerId
-  ) {
-    throw new RunnerJobOwnershipLostError(
-      "Korea e-Form pool execution requires an ownership context",
-    );
-  }
-  poolExecutionContext.assertOwned();
+  const identity = requirePoolExecutionIdentity(
+    executionContext,
+    jobId ?? executionContext?.jobId,
+    "Korea e-Form pool execution",
+  );
+  const poolExecutionContext = identity.executionContext;
   const context = await loadCountrySubmissionContext(applicationId);
   const applicationWithResult = context.application as typeof context.application & {
     submission_result?: unknown;

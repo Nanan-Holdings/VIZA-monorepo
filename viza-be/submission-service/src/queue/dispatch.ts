@@ -12,7 +12,7 @@
  * (`blocked`, `anti_bot_gate`) throw `RetryableRunnerError`; applicant-blocking
  * conditions throw `NeedsHumanError`.
  */
-import { runOne as runVietnam } from "../vietnam/runner.js";
+import { runLegacy as runVietnamLegacy, runOne as runVietnam } from "../vietnam/runner.js";
 import { runIndia, runSriLanka, runCambodia, runLaos, runSouthAfrica } from "../runners/legacy-prefill-adapters.js";
 import { runOne as runUs } from "../ceac/runner.js";
 import { runOne as runUk } from "../uk/runner.js";
@@ -33,6 +33,7 @@ import { runOne as runTaiwan } from "../tw/runner.js";
 import { runArrivalCardPoolFlow } from "./arrival-card-runners.js";
 import { runKoreaEformBackground } from "./korea-eform-runner.js";
 import { runOne as runPhilippines } from "../ph-etravel/runner-job.js";
+import { requirePoolExecutionIdentity } from "./execution-context.js";
 
 // Types + error classes live in the leaf module ./types.js to avoid an
 // import cycle (runners import these; dispatch imports runners). Re-exported
@@ -115,7 +116,7 @@ export const DISPATCH: Record<string, RunOne> = {
   cambodia: runCambodia,
   laos: runLaos,
   south_africa: runSouthAfrica,
-  vietnam: (a, j) => runVietnam(a, j),
+  vietnam: (a, j) => runVietnamLegacy(a, j),
   // QUE-005: halt-before-gov-pay countries, wired to their orchestrators.
   united_states: (a, j) => runUs(a, j),
   united_kingdom: (a, j) => runUk(a, j),
@@ -168,25 +169,49 @@ export function createPoolFlowDispatch(
   },
 ): Record<string, RunOne> {
   return {
-    vn_evisa: (applicationId, jobId, execution) =>
-      dependencies.runVietnam(applicationId, jobId, execution),
-    vn_prearrival: (applicationId, jobId, execution) =>
-      dependencies.runArrivalCardPoolFlow(
+    vn_evisa: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "vn_evisa pool dispatch");
+      return dependencies.runVietnam(applicationId, identity.jobId, identity.executionContext);
+    },
+    vn_prearrival: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "vn_prearrival pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
         applicationId,
-        jobId ?? applicationId,
+        identity.jobId,
         "vn_prearrival",
-        execution,
-      ),
-    sgac: (applicationId, jobId, execution) =>
-      dependencies.runSingapore(applicationId, jobId, execution),
-    mdac: (applicationId, jobId, execution) =>
-      dependencies.runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "mdac", execution),
-    tdac: (applicationId, jobId, execution) =>
-      dependencies.runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "tdac", execution),
-    kr_eform: (applicationId, jobId, execution) =>
-      jobId
-        ? dependencies.runKoreaEformBackground(applicationId, jobId, execution)
-        : dependencies.runKoreaEformBackground(applicationId, execution),
+        identity.executionContext,
+      );
+    },
+    sgac: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "sgac pool dispatch");
+      return dependencies.runSingapore(applicationId, identity.jobId, identity.executionContext);
+    },
+    mdac: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "mdac pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        identity.jobId,
+        "mdac",
+        identity.executionContext,
+      );
+    },
+    tdac: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "tdac pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        identity.jobId,
+        "tdac",
+        identity.executionContext,
+      );
+    },
+    kr_eform: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "kr_eform pool dispatch");
+      return dependencies.runKoreaEformBackground(
+        applicationId,
+        identity.jobId,
+        identity.executionContext,
+      );
+    },
   };
 }
 
