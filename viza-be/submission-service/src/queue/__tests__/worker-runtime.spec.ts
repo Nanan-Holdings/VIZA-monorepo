@@ -38,6 +38,7 @@ interface WorkerModule {
     workerId: string;
     leaseMs: number;
     renewEveryMs: number;
+    dependencies?: { client: RunnerPoolClient };
     handler: (job: RunnerJob, execution: RunnerExecutionContext) => Promise<void>;
   }): Promise<{ jobsProcessed: number; stoppedBecause: string }>;
 }
@@ -370,6 +371,63 @@ test("successful renewals re-arm the local expiry before a long handler finishes
     assert.equal(completed, true);
   } finally {
     client.rpc = originalRpc;
+  }
+});
+
+test("an already-expired conservative lease aborts synchronously before handler microtasks", async () => {
+  const { worker } = await loadWorker();
+  const originalDateNow = Date.now;
+  const originalSetTimeout = globalThis.setTimeout;
+  let fakeNow = 1_000;
+  let claimed = false;
+  let expiryTimerScheduled = false;
+  let signalAbortedAtHandlerStart = false;
+  let checkpointRejected = false;
+
+  Date.now = () => fakeNow;
+  globalThis.setTimeout = ((...args: Parameters<typeof setTimeout>) => {
+    expiryTimerScheduled = true;
+    return originalSetTimeout(...args);
+  }) as typeof setTimeout;
+
+  const client: RunnerPoolClient = {
+    rpc: async (name) => {
+      if (name === "claim_runner_pool_job") {
+        if (claimed) return { data: null, error: null };
+        claimed = true;
+        // Make the observed claim round trip longer than the lease. The
+        // worker must fence ownership in scheduleExpiry itself, before the
+        // handler gets a chance to yield to a microtask.
+        fakeNow = 2_000;
+        return { data: claimedJob(), error: null };
+      }
+      throw new Error(`unexpected settlement RPC: ${name}`);
+    },
+  };
+
+  try {
+    await worker.drainAndRun({
+      workerId: "worker-1",
+      leaseMs: 100,
+      renewEveryMs: 100_000,
+      dependencies: { client },
+      handler: async (_job, execution) => {
+        signalAbortedAtHandlerStart = execution.signal.aborted;
+        try {
+          execution.assertOwned();
+        } catch {
+          checkpointRejected = true;
+        }
+        await Promise.resolve();
+        assert.equal(execution.signal.aborted, true);
+      },
+    });
+    assert.equal(signalAbortedAtHandlerStart, true);
+    assert.equal(checkpointRejected, true);
+    assert.equal(expiryTimerScheduled, false);
+  } finally {
+    Date.now = originalDateNow;
+    globalThis.setTimeout = originalSetTimeout;
   }
 });
 

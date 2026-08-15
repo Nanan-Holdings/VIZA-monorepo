@@ -34,7 +34,7 @@ import {
   type InboundMessage,
 } from "../inbox/wait-for-message";
 import type { RunnerExecutionContext } from "../queue/execution-context";
-import { clickOwned } from "../queue/portal-safety.js";
+import { clickOwned, launchAbortableResource } from "../queue/portal-safety.js";
 
 export interface VnPrearrivalPortalSubmissionResult {
   submitted: boolean;
@@ -1196,10 +1196,10 @@ export async function runVietnamPrearrivalPortalSubmission(
 
   try {
     options.executionContext?.assertOwned();
-    session = await createArrivalCardBrowserSession({
-      prefix: "VN_PREARRIVAL",
-      headless: options.headless,
-    });
+    session = await launchVnPrearrivalBrowserSession(
+      options.executionContext?.signal,
+      options.headless,
+    );
     abortSession = () => {
       void session?.close().catch(() => undefined);
     };
@@ -1570,4 +1570,22 @@ export async function runVietnamPrearrivalPortalSubmission(
     if (abortSession) options.executionContext?.signal.removeEventListener("abort", abortSession);
     if (session) await session.close().catch(() => undefined);
   }
+}
+
+/**
+ * Acquire a Vietnam Pre-Arrival browser session without allowing a delayed
+ * Browser API/Browserbase launch to outlive the queue lease. The factory
+ * override keeps this boundary executable in tests without contacting the
+ * official portal.
+ */
+export async function launchVnPrearrivalBrowserSession(
+  signal: AbortSignal | undefined,
+  headless: boolean | undefined,
+  browserSessionFactory: typeof createArrivalCardBrowserSession = createArrivalCardBrowserSession,
+): Promise<ArrivalCardBrowserSession> {
+  return launchAbortableResource(
+    signal,
+    () => browserSessionFactory({ prefix: "VN_PREARRIVAL", headless }),
+    (resource) => resource.close(),
+  );
 }
