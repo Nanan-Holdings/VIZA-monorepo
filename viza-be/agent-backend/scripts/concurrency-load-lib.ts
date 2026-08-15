@@ -15,9 +15,20 @@ export interface ConcurrencyRunInput {
 	lockTimeouts: number;
 	connectionExhaustions: number;
 	claimLatenciesMs: readonly number[];
-	successfulClaimLatenciesMs?: readonly number[];
+	successfulClaimLatenciesMs: readonly number[];
 	syntheticRowsRemaining: number;
 	claimedJobs: number;
+	settledJobs?: number;
+	failedSettlements?: number;
+	globalProbeAttempts?: number;
+	globalProbeAccepted?: number;
+	globalProbeRejected?: number;
+	maxGlobalRunning?: number;
+	maxDistinctRunningOwners?: number;
+	maxMatchingLiveSlots?: number;
+	capsRestoredExactly?: boolean;
+	staleLeaseProbePassed?: boolean;
+	globalProbeRequired?: boolean;
 }
 
 export interface ConcurrencyRunEvaluation extends ConcurrencyRunInput {
@@ -94,9 +105,23 @@ function isNonZero(value: number): boolean {
 export function evaluateConcurrencyRun(
 	input: ConcurrencyRunInput,
 ): ConcurrencyRunEvaluation {
-	const successfulClaimLatenciesMs = input.successfulClaimLatenciesMs ?? input.claimLatenciesMs;
+	const claimLatenciesMs = Array.isArray(input.claimLatenciesMs)
+		? input.claimLatenciesMs
+		: [];
+	const successfulClaimLatenciesMs = Array.isArray(input.successfulClaimLatenciesMs)
+		? input.successfulClaimLatenciesMs
+		: [];
 	const p95ClaimMs = percentile(successfulClaimLatenciesMs, 0.95);
 	const failures: string[] = [];
+	if (!Array.isArray(input.claimLatenciesMs)) failures.push("invalid_claim_latencies");
+	if (!Array.isArray(input.successfulClaimLatenciesMs)) {
+		failures.push("missing_successful_claim_latencies");
+	}
+	if (
+		!successfulClaimLatenciesMs.every((value) => typeof value === "number" && Number.isFinite(value))
+	) {
+		failures.push("invalid_successful_claim_latencies");
+	}
 
 	if (!Number.isFinite(input.jobs) || input.jobs < 0) {
 		failures.push("invalid_jobs");
@@ -115,16 +140,36 @@ export function evaluateConcurrencyRun(
 	if (p95ClaimMs >= 500) {
 		failures.push("claim_latency_p95");
 	}
-	if (
-		input.claimedJobs !== undefined &&
-		(!Number.isFinite(input.claimedJobs) || input.claimedJobs !== input.jobs)
-	) {
+	if (!Number.isFinite(input.claimedJobs) || input.claimedJobs !== input.jobs) {
 		failures.push("unclaimed_jobs");
+	}
+	if (!Number.isFinite(input.settledJobs) || input.settledJobs !== input.jobs) {
+		failures.push("unsettled_jobs");
+	}
+	if (!Number.isFinite(input.failedSettlements) || input.failedSettlements !== 0) {
+		failures.push("failed_settlements");
+	}
+	if (input.capsRestoredExactly !== true) failures.push("cap_snapshot_changed");
+	if (input.staleLeaseProbePassed !== true) failures.push("stale_lease_probe_failed");
+
+	if (input.globalProbeRequired) {
+		const attempts = input.globalProbeAttempts ?? 0;
+		const accepted = input.globalProbeAccepted ?? 0;
+		const rejected = input.globalProbeRejected ?? 0;
+		const maxRunning = input.maxGlobalRunning ?? 0;
+		const maxOwners = input.maxDistinctRunningOwners ?? 0;
+		const maxSlots = input.maxMatchingLiveSlots ?? 0;
+		if (attempts < 11) failures.push("global_probe_insufficient_pressure");
+		if (accepted !== 10 || maxRunning !== 10 || maxOwners !== 10 || maxSlots !== 10) {
+			failures.push("global_capacity_not_reached");
+		}
+		if (rejected < 1) failures.push("global_probe_no_rejection");
+		if (maxRunning > 10) failures.push("global_slot_overshoots");
 	}
 
 	return {
 		...input,
-		claimLatenciesMs: [...input.claimLatenciesMs],
+		claimLatenciesMs: [...claimLatenciesMs],
 		successfulClaimLatenciesMs: [...successfulClaimLatenciesMs],
 		p95ClaimMs,
 		passed: failures.length === 0,

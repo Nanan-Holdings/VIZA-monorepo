@@ -1,8 +1,8 @@
-import { randomBytes } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Pool, type QueryResultRow } from "pg";
+import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 import {
 	evaluateConcurrencyRun,
@@ -19,6 +19,7 @@ export const LOAD_COUNTRIES = [
 	"malaysia",
 	"thailand",
 	"south_korea",
+	"taiwan",
 ] as const;
 
 export const FLOW_KEY_BY_COUNTRY: Record<(typeof LOAD_COUNTRIES)[number], string> = {
@@ -27,10 +28,12 @@ export const FLOW_KEY_BY_COUNTRY: Record<(typeof LOAD_COUNTRIES)[number], string
 	malaysia: "mdac",
 	thailand: "tdac",
 	south_korea: "kr_eform",
+	taiwan: "tw_entry_permit",
 };
 
-const POOL_MAX = 10;
+const POOL_MAX = 32;
 const CLAIM_WORKER_COUNT = 10;
+const LOAD_WORKER_COUNT = 11;
 const GLOBAL_PROBE_REQUESTS = 40;
 const SETTLE_CONCURRENCY = 10;
 const CLAIM_LEASE_MS = 10_000;
@@ -129,6 +132,9 @@ interface ClaimResult {
 interface RunningCountSample {
 	countryCapOvershoots: number;
 	globalSlotOvershoots: number;
+	globalRunning: number;
+	distinctRunningOwners: number;
+	matchingLiveSlots: number;
 }
 
 interface MutableLevelMetrics extends ConcurrencyRunInput {
@@ -137,6 +143,16 @@ interface MutableLevelMetrics extends ConcurrencyRunInput {
 	claimedJobs: number;
 	diagnostics: string[];
 	staleLeaseProbePerformed: boolean;
+	settledJobs: number;
+	failedSettlements: number;
+	globalProbeAttempts: number;
+	globalProbeAccepted: number;
+	globalProbeRejected: number;
+	maxGlobalRunning: number;
+	maxDistinctRunningOwners: number;
+	maxMatchingLiveSlots: number;
+	capsRestoredExactly: boolean;
+	staleLeaseProbePassed: boolean;
 }
 
 interface LevelResult {
@@ -151,7 +167,19 @@ interface CleanupResult {
 	applicationsRemaining: number;
 	runnerJobsRemaining: number;
 	slotsRemaining: number;
+	capsRestoredExactly: boolean;
 	errorCode?: string;
+}
+
+interface CapSnapshotRow {
+	country: string;
+	max_concurrent: number;
+	paused: boolean;
+	notes: string | null;
+}
+
+interface CapSnapshot {
+	rows: CapSnapshotRow[];
 }
 
 interface SummaryDocument {
@@ -171,6 +199,14 @@ interface SummaryDocument {
 			| "lockTimeouts"
 			| "connectionExhaustions"
 			| "syntheticRowsRemaining"
+			| "settledJobs"
+			| "failedSettlements"
+			| "globalProbeAttempts"
+			| "globalProbeAccepted"
+			| "globalProbeRejected"
+			| "maxGlobalRunning"
+			| "maxDistinctRunningOwners"
+			| "maxMatchingLiveSlots"
 			| "passed"
 			| "failures"
 		>;
@@ -327,7 +363,7 @@ export function classifyDatabaseError(error: unknown): DatabaseErrorKind {
 }
 
 function createRunId(): string {
-	return `${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`;
+	return randomUUID();
 }
 
 function purposeForRun(runId: string): string {
@@ -364,6 +400,30 @@ function createPool(config: ConcurrencyLoadConfig): Pool {
 	});
 }
 
+async function acquireRunAdvisoryLock(pool: Pool): Promise<PoolClient> {
+	const client = await pool.connect();
+	try {
+		await client.query(
+			"SELECT pg_catalog.pg_advisory_lock(pg_catalog.hashtextextended('viza:concurrency-load', 0))",
+		);
+		return client;
+	} catch (error) {
+		client.release();
+		throw error;
+	}
+}
+
+async function releaseRunAdvisoryLock(client: PoolClient | null): Promise<void> {
+	if (!client) return;
+	try {
+		await client.query(
+			"SELECT pg_catalog.pg_advisory_unlock(pg_catalog.hashtextextended('viza:concurrency-load', 0))",
+		);
+	} finally {
+		client.release();
+	}
+}
+
 async function assertStagingDatabaseMarker(
 	pool: Pool,
 	projectRef: string,
@@ -386,17 +446,20 @@ function sleep(milliseconds: number): Promise<void> {
 }
 
 async function assertQueueIsolation(pool: Pool, purpose: string): Promise<void> {
-	const syntheticPrefix = `${purpose}:%`;
 	const result = await pool.query<{ count: number }>(
 		`SELECT COUNT(*)::int AS count
-         FROM public.runner_job
-         WHERE country = ANY($1::text[])
-           AND status IN ('queued', 'running')
+		 FROM public.runner_job AS rj
+         JOIN public.applications AS application ON application.id = rj.application_id
+         WHERE rj.country = ANY($1::text[])
+           AND rj.status IN ('queued', 'running')
            AND NOT (
-             COALESCE(metadata->>'concurrency_load_run_id', '') = $2
-             OR correlation_id LIKE $3
+             application.purpose = $2
+             AND application.visa_type = 'CONCURRENCY_LOAD'
+             AND rj.metadata -> 'concurrency_load_synthetic' = 'true'::jsonb
+             AND rj.metadata ->> 'concurrency_load_run_id' = split_part($2, ':', 2)
+             AND rj.correlation_id LIKE $2 || ':%'
            )`,
-		[LOAD_COUNTRIES, purpose.slice("concurrency-load:".length), syntheticPrefix],
+		[LOAD_COUNTRIES, purpose],
 	);
 	if (Number(result.rows[0]?.count ?? 0) > 0) {
 		throw new Error(
@@ -424,6 +487,19 @@ async function assertCapsAvailable(pool: Pool): Promise<void> {
 			throw new Error(`Staging runner cap unavailable for ${country}`);
 		}
 	}
+}
+
+async function readCapSnapshot(pool: Pool): Promise<CapSnapshot> {
+	const result = await pool.query<CapSnapshotRow>(
+		`SELECT country, max_concurrent, paused, notes
+         FROM public.runner_concurrency_cap
+		 ORDER BY country`,
+	);
+	return { rows: result.rows.map((row) => ({ ...row })) };
+}
+
+function capSnapshotsEqual(before: CapSnapshot, after: CapSnapshot): boolean {
+	return JSON.stringify(before.rows) === JSON.stringify(after.rows);
 }
 
 async function reserveSyntheticSlots(
@@ -574,16 +650,16 @@ async function insertSyntheticBatch(
 async function claimOne(
 	pool: Pool,
 	workerId: string,
+	runId: string,
+	projectRef: string,
 	leaseMs: number,
-	now = new Date(),
-	requireSlot = true,
+	globalProbe = false,
 ): Promise<ClaimResult> {
 	const startedAt = performance.now();
 	try {
 		const result = await pool.query<ClaimRow>(
-			`SELECT *
-			 FROM public.claim_runner_pool_job($1, $2, $3, $4)`,
-			[workerId, leaseMs, requireSlot, now],
+			`SELECT * FROM public.claim_runner_pool_load_test_job($1, $2, $3, $4, $5)`,
+			[workerId, runId, projectRef, leaseMs, globalProbe],
 		);
 		return {
 			workerId,
@@ -603,6 +679,9 @@ async function claimOne(
 async function measureRunningCounts(
 	pool: Pool,
 	runId: string,
+	workerPrefix: string,
+	workerIds: readonly string[],
+	globalProbe = false,
 ): Promise<RunningCountSample> {
 	const countryCounts = await pool.query<{
 		country: string;
@@ -621,25 +700,45 @@ async function measureRunningCounts(
 		[runId, LOAD_COUNTRIES],
 	);
 	const countryCapOvershoots = countryCounts.rows.reduce(
-		(total, row) => total + Math.max(0, row.running - row.max_concurrent),
+		(total, row) => total + Math.max(0, row.running - (globalProbe ? 10 : row.max_concurrent)),
 		0,
 	);
 
 	const globalCount = await pool.query<{
 		running: number;
+		distinct_owners: number;
+		matching_slots: number;
 		active_slots: number;
 	}>(
 		`SELECT
-           COUNT(rj.id) FILTER (WHERE rj.status = 'running')::int AS running,
+           COUNT(*) FILTER (WHERE rj.status = 'running')::int AS running,
+           COUNT(DISTINCT rj.leased_by) FILTER (
+             WHERE rj.status = 'running' AND rj.leased_by LIKE $1
+           )::int AS distinct_owners,
            (
              SELECT COUNT(*)::int
-             FROM public.runner_machine_slot
-             WHERE owner_kind = 'pool'
-               AND lease_until > NOW()
+             FROM public.runner_machine_slot AS rms
+             WHERE rms.owner_kind = 'pool'
+               AND rms.lease_until > pg_catalog.clock_timestamp()
+               AND rms.owner_machine_id = ANY($2::text[])
+           ) AS matching_slots,
+           (
+             SELECT COUNT(*)::int
+             FROM public.runner_machine_slot AS rms
+             WHERE rms.owner_kind = 'pool'
+               AND rms.lease_until > pg_catalog.clock_timestamp()
            ) AS active_slots
          FROM public.runner_job AS rj
-         WHERE rj.metadata->>'concurrency_load_run_id' = $1`,
-		[runId],
+         WHERE rj.status = 'running'
+           AND COALESCE((
+             (rj.country = 'vietnam' AND rj.flow_key = 'vn_prearrival')
+             OR (rj.country = 'singapore' AND rj.flow_key = 'sgac')
+             OR (rj.country = 'malaysia' AND rj.flow_key = 'mdac')
+             OR (rj.country = 'thailand' AND rj.flow_key = 'tdac')
+             OR (rj.country = 'south_korea' AND rj.flow_key = 'kr_eform')
+             OR (rj.country = 'taiwan' AND rj.flow_key = 'tw_entry_permit')
+           ), FALSE)`,
+		[`${workerPrefix}%`, workerIds],
 	);
 	const globalRow = globalCount.rows[0];
 	return {
@@ -647,6 +746,9 @@ async function measureRunningCounts(
 		globalSlotOvershoots: globalRow
 			? Math.max(0, globalRow.running - globalRow.active_slots)
 			: 0,
+		globalRunning: Number(globalRow?.running ?? 0),
+		distinctRunningOwners: Number(globalRow?.distinct_owners ?? 0),
+		matchingLiveSlots: Number(globalRow?.matching_slots ?? 0),
 	};
 }
 
@@ -663,14 +765,22 @@ async function countSyntheticRows(
              SELECT COUNT(*)::int
              FROM public.runner_job AS rj
              JOIN public.applications AS a ON a.id = rj.application_id
-             WHERE a.purpose = $1
+              WHERE a.purpose = $1
+               AND a.visa_type = 'CONCURRENCY_LOAD'
+               AND rj.metadata -> 'concurrency_load_synthetic' = 'true'::jsonb
+               AND rj.metadata ->> 'concurrency_load_run_id' = split_part($1, ':', 2)
+               AND rj.correlation_id LIKE $1 || ':%'
                AND rj.status IN ('queued', 'running')
            ) AS queued_or_running,
            (
              SELECT COUNT(*)::int
              FROM public.runner_job AS rj
              JOIN public.applications AS a ON a.id = rj.application_id
-             WHERE a.purpose = $1
+              WHERE a.purpose = $1
+               AND a.visa_type = 'CONCURRENCY_LOAD'
+               AND rj.metadata -> 'concurrency_load_synthetic' = 'true'::jsonb
+               AND rj.metadata ->> 'concurrency_load_run_id' = split_part($1, ':', 2)
+               AND rj.correlation_id LIKE $1 || ':%'
            ) AS all_jobs`,
 		[purpose],
 	);
@@ -715,38 +825,6 @@ async function cleanupLevelSyntheticData(
 	return countSyntheticIds(pool, jobIds, applicationIds);
 }
 
-async function restoreUnexpectedClaim(
-	pool: Pool,
-	claim: ClaimResult,
-	metrics: MutableLevelMetrics,
-): Promise<void> {
-	if (!claim.row) return;
-	try {
-		const restored = await pool.query(
-			`UPDATE public.runner_job
-         SET status = 'queued',
-             leased_by = NULL,
-             leased_until = NULL,
-             started_at = NULL,
-             finished_at = NULL,
-             last_error = NULL,
-             available_at = clock_timestamp()
-         WHERE id = $1
-           AND status = 'running'
-           AND leased_by = $2
-           AND leased_until > clock_timestamp()`,
-			[claim.row.id, claim.workerId],
-		);
-		if ((restored.rowCount ?? 0) !== 1) {
-			metrics.staleLeaseWrites += 1;
-			metrics.diagnostics.push("claim:unexpected_restore_failed");
-		}
-	} catch (error) {
-		recordDatabaseError(metrics, error, "unexpected_restore");
-		metrics.staleLeaseWrites += 1;
-	}
-}
-
 async function settleClaim(
 	pool: Pool,
 	claim: ClaimResult,
@@ -777,7 +855,11 @@ async function settleClaimsBounded(
 			}),
 		);
 		for (const settledRows of outcomes) {
-			if (settledRows !== 1) metrics.staleLeaseWrites += 1;
+			if (settledRows === 1) metrics.settledJobs += 1;
+			else {
+				metrics.failedSettlements += 1;
+				metrics.staleLeaseWrites += 1;
+			}
 		}
 	}
 }
@@ -786,6 +868,8 @@ async function runStaleLeaseProbe(
 	pool: Pool,
 	claim: ClaimResult,
 	purpose: string,
+	runId: string,
+	projectRef: string,
 	metrics: MutableLevelMetrics,
 	workerIds: readonly string[],
 	expectedJobIds: ReadonlySet<string>,
@@ -798,14 +882,16 @@ async function runStaleLeaseProbe(
 		metrics.staleLeaseWrites += 1;
 		return;
 	}
-	const probeStart = Date.now();
 	let takeover: ClaimResult | null = null;
-	for (const offsetMs of [CLAIM_LEASE_MS + 1, CLAIM_LEASE_MS + 16_000, CLAIM_LEASE_MS + 32_000]) {
+	for (const waitMs of [CLAIM_LEASE_MS + 1, 16_000, 32_000]) {
+		console.log(`stale-lease probe waiting ${waitMs}ms for run ${runId}`);
+		await sleep(waitMs);
 		const candidate = await claimOne(
 			pool,
 			newOwner,
+			runId,
+			projectRef,
 			CLAIM_LEASE_MS,
-			new Date(probeStart + offsetMs),
 		);
 		if (candidate.errorKind) {
 			recordDatabaseError(metrics, candidate.errorKind, "stale_claim");
@@ -832,18 +918,19 @@ async function runStaleLeaseProbe(
 			continue;
 		}
 		try {
-			if ((await settleClaim(pool, candidate)) !== 1) metrics.staleLeaseWrites += 1;
+			if ((await settleClaim(pool, candidate)) !== 1) {
+				metrics.staleLeaseWrites += 1;
+				metrics.failedSettlements += 1;
+			} else {
+				metrics.settledJobs += 1;
+			}
 		} catch (error) {
 			recordDatabaseError(metrics, error, "stale_settle");
 		}
 	}
 	if (!takeover?.row) {
 		metrics.staleLeaseWrites += 1;
-		try {
-			if ((await settleClaim(pool, claim)) !== 1) metrics.staleLeaseWrites += 1;
-		} catch (error) {
-			recordDatabaseError(metrics, error, "stale_original_settle");
-		}
+		metrics.staleLeaseProbePassed = false;
 		return;
 	}
 
@@ -852,9 +939,19 @@ async function runStaleLeaseProbe(
 		`SELECT * FROM public.complete_runner_pool_job($1, $2, clock_timestamp())`,
 		[claim.row.id, oldOwner],
 	);
-	if ((staleWrite.rowCount ?? 0) !== 0) metrics.staleLeaseWrites += staleWrite.rowCount ?? 0;
+	if ((staleWrite.rowCount ?? 0) !== 0) {
+		metrics.staleLeaseWrites += staleWrite.rowCount ?? 0;
+		metrics.staleLeaseProbePassed = false;
+	}
 	try {
-		if ((await settleClaim(pool, takeover)) !== 1) metrics.staleLeaseWrites += 1;
+		if ((await settleClaim(pool, takeover)) !== 1) {
+			metrics.staleLeaseWrites += 1;
+			metrics.failedSettlements += 1;
+			metrics.staleLeaseProbePassed = false;
+		} else {
+			metrics.settledJobs += 1;
+			metrics.staleLeaseProbePassed = true;
+		}
 	} catch (error) {
 		recordDatabaseError(metrics, error, "stale_new_owner_settle");
 	}
@@ -876,6 +973,16 @@ function createLevelMetrics(jobs: number): MutableLevelMetrics {
 		claimedJobs: 0,
 		diagnostics: [],
 		staleLeaseProbePerformed: false,
+		settledJobs: 0,
+		failedSettlements: 0,
+		globalProbeAttempts: 0,
+		globalProbeAccepted: 0,
+		globalProbeRejected: 0,
+		maxGlobalRunning: 0,
+		maxDistinctRunningOwners: 0,
+		maxMatchingLiveSlots: 0,
+		capsRestoredExactly: true,
+		staleLeaseProbePassed: false,
 	};
 }
 
@@ -887,8 +994,11 @@ async function runLevel(
 	runId: string,
 	level: number,
 	workerIds: readonly string[],
+	globalProbe: boolean,
+	runStaleProbe: boolean,
 ): Promise<LevelResult> {
 	const metrics = createLevelMetrics(level);
+	metrics.staleLeaseProbePassed = !runStaleProbe;
 	await assertQueueIsolation(pool, purpose);
 	const jobs = await insertSyntheticBatch(pool, applicantId, purpose, runId, level);
 	const expectedJobIds = new Set(jobs.map((job) => job.id));
@@ -900,16 +1010,23 @@ async function runLevel(
 	while (metrics.syntheticRowsRemaining > 0 && windows < MAX_CLAIM_WINDOWS) {
 		windows += 1;
 		await assertQueueIsolation(pool, purpose);
-		const requestWorkers =
-			windows === 1
-				? Array.from(
-						{ length: GLOBAL_PROBE_REQUESTS },
-						(_, index) => workerIds[index % workerIds.length] as string,
-					)
-				: workerIds;
+		const probeWindow = globalProbe && windows === 1;
+		const requestWorkers = probeWindow
+			? Array.from(
+					{ length: GLOBAL_PROBE_REQUESTS },
+					(_, index) => workerIds[index % workerIds.length] as string,
+			  )
+			: workerIds.slice(0, CLAIM_WORKER_COUNT);
 		const claims = await Promise.all(
-			requestWorkers.map((workerId) => claimOne(pool, workerId, config.claimLeaseMs)),
+			requestWorkers.map((workerId) =>
+				claimOne(pool, workerId, runId, config.projectRef, config.claimLeaseMs, probeWindow),
+			),
 		);
+		if (probeWindow) {
+			metrics.globalProbeAttempts += claims.length;
+			metrics.globalProbeAccepted += claims.filter((claim) => claim.row !== null).length;
+			metrics.globalProbeRejected += claims.filter((claim) => claim.row === null).length;
+		}
 		for (const claim of claims) {
 			metrics.claimLatenciesMs.push(claim.latencyMs);
 			if (claim.errorKind) {
@@ -927,7 +1044,6 @@ async function runLevel(
 		for (const claim of returnedClaims) {
 			const jobId = claim.row?.id;
 			if (!jobId || !expectedJobIds.has(jobId)) {
-				await restoreUnexpectedClaim(pool, claim, metrics);
 				metrics.databaseErrors += 1;
 				metrics.diagnostics.push("claim:unexpected_job");
 				throw new Error("Claim returned a non-synthetic runner job");
@@ -942,38 +1058,58 @@ async function runLevel(
 
 		if (returnedClaims.length > 0) {
 			try {
-				const sample = await measureRunningCounts(pool, runId);
+				const sample = await measureRunningCounts(
+					pool,
+					runId,
+					`${purpose}:worker-`,
+					workerIds,
+					probeWindow,
+				);
 				metrics.countryCapOvershoots += sample.countryCapOvershoots;
 				metrics.globalSlotOvershoots += sample.globalSlotOvershoots;
+				metrics.maxGlobalRunning = Math.max(metrics.maxGlobalRunning, sample.globalRunning);
+				metrics.maxDistinctRunningOwners = Math.max(
+					metrics.maxDistinctRunningOwners,
+					sample.distinctRunningOwners,
+				);
+				metrics.maxMatchingLiveSlots = Math.max(
+					metrics.maxMatchingLiveSlots,
+					sample.matchingLiveSlots,
+				);
 			} catch (error) {
 				recordDatabaseError(metrics, error, "measure");
 			}
 
-			for (const claim of returnedClaims) {
-				if (!claim.row || !expectedJobIds.has(claim.row.id)) continue;
-				if (!metrics.staleLeaseProbePerformed) {
-					probedClaimId = claim.row.id;
-					try {
-						await runStaleLeaseProbe(
-							pool,
-							claim,
-							purpose,
-							metrics,
-							workerIds,
-							expectedJobIds,
-							claimedJobIds,
-						);
-						metrics.staleLeaseProbePerformed = true;
-					} catch (error) {
-						recordDatabaseError(metrics, error, "stale_lease_probe");
-						metrics.staleLeaseProbePerformed = true;
-					}
-				}
-			}
+			const probeClaim = runStaleProbe && !metrics.staleLeaseProbePerformed
+				? returnedClaims.find((candidate) => candidate.row !== null)
+				: undefined;
+			probedClaimId = probeClaim?.row?.id;
 			const claimsToSettle = returnedClaims.filter(
 				(candidate) => candidate.row !== null && candidate.row.id !== probedClaimId,
 			);
 			await settleClaimsBounded(pool, claimsToSettle, metrics);
+
+			if (runStaleProbe && !metrics.staleLeaseProbePerformed && probeClaim) {
+				// Leave exactly one real 10-second lease outstanding for the stale
+				// owner probe; all other successes were settled above.
+				try {
+					await runStaleLeaseProbe(
+						pool,
+						probeClaim,
+						purpose,
+						runId,
+						config.projectRef,
+						metrics,
+						workerIds.slice(0, CLAIM_WORKER_COUNT),
+						expectedJobIds,
+						claimedJobIds,
+					);
+					metrics.staleLeaseProbePerformed = true;
+				} catch (error) {
+					recordDatabaseError(metrics, error, "stale_lease_probe");
+					metrics.staleLeaseProbePerformed = true;
+				}
+			}
 		}
 
 		try {
@@ -989,7 +1125,7 @@ async function runLevel(
 		if (returnedClaims.length === 0) await sleep(CLAIM_RETRY_DELAY_MS);
 	}
 
-	if (!metrics.staleLeaseProbePerformed) {
+	if (runStaleProbe && !metrics.staleLeaseProbePerformed) {
 		metrics.staleLeaseWrites += 1;
 		metrics.diagnostics.push("stale_lease_probe:not_performed");
 	}
@@ -1011,7 +1147,10 @@ async function runLevel(
 		metrics.syntheticRowsRemaining = level;
 	}
 
-	const measured = evaluateConcurrencyRun(metrics);
+	const measured = evaluateConcurrencyRun({
+		...metrics,
+		globalProbeRequired: globalProbe,
+	});
 	return {
 		expectedJobs: level,
 		measured,
@@ -1023,7 +1162,9 @@ async function runLevel(
 async function cleanupSyntheticData(
 	pool: Pool,
 	purpose: string,
+	runId: string,
 	workerIds: readonly string[],
+	capSnapshot: CapSnapshot | null,
 ): Promise<CleanupResult> {
 	let errorCode: string | undefined;
 	const runCleanupStep = async (step: () => Promise<unknown>): Promise<void> => {
@@ -1046,12 +1187,22 @@ async function cleanupSyntheticData(
 		pool.query(
 			`DELETE FROM public.runner_job
          WHERE application_id IN (
-           SELECT id FROM public.applications WHERE purpose = $1
+           SELECT id
+           FROM public.applications
+           WHERE purpose = $1
+             AND visa_type = 'CONCURRENCY_LOAD'
          )`,
 			[purpose],
 		),
 	);
-	await runCleanupStep(() => pool.query("DELETE FROM public.applications WHERE purpose = $1", [purpose]));
+	await runCleanupStep(() =>
+		pool.query(
+			`DELETE FROM public.applications
+         WHERE purpose = $1
+           AND visa_type = 'CONCURRENCY_LOAD'`,
+			[purpose],
+		),
+	);
 	await runCleanupStep(() =>
 		pool.query(
 			`UPDATE public.runner_machine_slot
@@ -1068,9 +1219,13 @@ async function cleanupSyntheticData(
 	let applicationsRemaining = 0;
 	let runnerJobsRemaining = 0;
 	let slotsRemaining = 0;
+	let capsRestoredExactly = false;
 	await runCleanupStep(async () => {
 		const applications = await pool.query<{ count: number }>(
-			"SELECT COUNT(*)::int AS count FROM public.applications WHERE purpose = $1",
+			`SELECT COUNT(*)::int AS count
+         FROM public.applications
+         WHERE purpose = $1
+           AND visa_type = 'CONCURRENCY_LOAD'`,
 			[purpose],
 		);
 		applicationsRemaining = Number(applications.rows[0]?.count ?? 0);
@@ -1079,8 +1234,10 @@ async function cleanupSyntheticData(
 		const jobs = await pool.query<{ count: number }>(
 			`SELECT COUNT(*)::int AS count
          FROM public.runner_job
-         WHERE correlation_id LIKE $1`,
-			[`${purpose}:%`],
+		 WHERE correlation_id LIKE $1
+           AND metadata -> 'concurrency_load_synthetic' = 'true'::jsonb
+           AND metadata ->> 'concurrency_load_run_id' = $2`,
+			[`${purpose}:%`, runId],
 		);
 		runnerJobsRemaining = Number(jobs.rows[0]?.count ?? 0);
 	});
@@ -1091,18 +1248,27 @@ async function cleanupSyntheticData(
          WHERE owner_machine_id = ANY($1::text[])`,
 			[workerIds],
 		);
-		slotsRemaining = Number(slots.rows[0]?.count ?? 0);
+		 slotsRemaining = Number(slots.rows[0]?.count ?? 0);
+	});
+	await runCleanupStep(async () => {
+		if (!capSnapshot) {
+			capsRestoredExactly = false;
+			return;
+		}
+		capsRestoredExactly = capSnapshotsEqual(capSnapshot, await readCapSnapshot(pool));
 	});
 
 	return {
 		passed:
 			!errorCode &&
-			applicationsRemaining === 0 &&
+		applicationsRemaining === 0 &&
 			runnerJobsRemaining === 0 &&
-			slotsRemaining === 0,
+		slotsRemaining === 0 &&
+		capsRestoredExactly,
 		applicationsRemaining,
 		runnerJobsRemaining,
 		slotsRemaining,
+		capsRestoredExactly,
 		...(errorCode ? { errorCode } : {}),
 	};
 }
@@ -1123,6 +1289,14 @@ function summaryLevel(level: LevelResult): SummaryDocument["levels"][number] {
 			lockTimeouts: measured.lockTimeouts,
 			connectionExhaustions: measured.connectionExhaustions,
 			syntheticRowsRemaining: measured.syntheticRowsRemaining,
+			settledJobs: measured.settledJobs,
+			failedSettlements: measured.failedSettlements,
+			globalProbeAttempts: measured.globalProbeAttempts,
+			globalProbeAccepted: measured.globalProbeAccepted,
+			globalProbeRejected: measured.globalProbeRejected,
+			maxGlobalRunning: measured.maxGlobalRunning,
+			maxDistinctRunningOwners: measured.maxDistinctRunningOwners,
+			maxMatchingLiveSlots: measured.maxMatchingLiveSlots,
 			passed: measured.passed,
 			failures: measured.failures,
 		},
@@ -1205,10 +1379,11 @@ export async function runConcurrencyLoad(
 	const runId = createRunId();
 	const purpose = purposeForRun(runId);
 	const workerIds = Array.from(
-		{ length: config.claimWorkerCount },
+		{ length: LOAD_WORKER_COUNT },
 		(_, index) => `${purpose}:worker-${String(index + 1).padStart(2, "0")}`,
 	);
 	const pool = createPool(config);
+	let advisoryLock: PoolClient | null = null;
 	const levelResults: LevelResult[] = [];
 	const overallFailures: string[] = config.matrixComplete ? [] : ["matrix_incomplete"];
 	let writesStarted = false;
@@ -1218,19 +1393,23 @@ export async function runConcurrencyLoad(
 		applicationsRemaining: 0,
 		runnerJobsRemaining: 0,
 		slotsRemaining: 0,
+		capsRestoredExactly: false,
 		errorCode: "not_started",
 	};
+	let capSnapshot: CapSnapshot | null = null;
 
 	try {
+		advisoryLock = await acquireRunAdvisoryLock(pool);
 		await assertStagingDatabaseMarker(pool, config.projectRef);
 		databaseGuardPassed = true;
 		await assertQueueIsolation(pool, purpose);
 		await assertCapsAvailable(pool);
+		capSnapshot = await readCapSnapshot(pool);
 		const applicantId = await selectApplicantProfile(pool);
 		writesStarted = true;
-		await reserveSyntheticSlots(pool, workerIds);
+		await reserveSyntheticSlots(pool, workerIds.slice(0, CLAIM_WORKER_COUNT));
 
-		for (const level of config.levels) {
+		for (const [levelIndex, level] of config.levels.entries()) {
 			const result = await runLevel(
 				pool,
 				config,
@@ -1239,6 +1418,8 @@ export async function runConcurrencyLoad(
 				runId,
 				level,
 				workerIds,
+				levelIndex === 0,
+				levelIndex === 0,
 			);
 			levelResults.push(result);
 		}
@@ -1259,12 +1440,24 @@ export async function runConcurrencyLoad(
 				successfulClaimLatenciesMs: [],
 				syntheticRowsRemaining: 1,
 				claimedJobs: 0,
+				settledJobs: 0,
+				failedSettlements: 1,
+				staleLeaseProbePassed: false,
 			}),
 			staleLeaseProbePerformed: false,
 			diagnostics: [`setup:${kind}`],
 		});
 	} finally {
-		if (writesStarted) cleanup = await cleanupSyntheticData(pool, purpose, workerIds);
+		if (writesStarted) {
+			cleanup = await cleanupSyntheticData(
+				pool,
+				purpose,
+				runId,
+				workerIds.slice(0, CLAIM_WORKER_COUNT),
+				capSnapshot,
+			);
+		}
+		await releaseRunAdvisoryLock(advisoryLock).catch(() => undefined);
 		await pool.end().catch(() => undefined);
 	}
 

@@ -221,6 +221,15 @@ The current internal automation migrations are:
   Apply this as a controlled-drain-only migration: pause enqueue/wakes, drain
   running jobs to zero, stop BASE workers, apply the migration, deploy strict
   RPC callers, smoke test, then resume workers.
+  The same migration also installs the private shared claim core and the
+  service-role-only `claim_runner_pool_load_test_job` wrapper. Its
+  `runner_private.runner_load_test_config` row is owner-only, seeded disabled,
+  and must be enabled/disabled out-of-band for an exact staging/local-test
+  project; the load harness must never toggle it. Scoped claims require the
+  synthetic application/metadata/correlation marker and never scan production
+  rows. The global probe takes a private advisory lock, uses an effective
+  per-country cap of ten, and counts all canonical running rows while leaving
+  `runner_concurrency_cap` unchanged.
 
 ## Guardrails
 

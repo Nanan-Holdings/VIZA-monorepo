@@ -15,7 +15,13 @@ const canonicalSql = existsSync(canonicalPath) ? readFileSync(canonicalPath, "ut
 const integrationSource = existsSync(integrationPath) ? readFileSync(integrationPath, "utf8") : "";
 const normalized = (source: string): string => source.replace(/\r\n/g, "\n").trimEnd();
 const functionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION runner_private\.claim_runner_pool_job_core\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const productionClaimBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.claim_runner_pool_job\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const loadClaimBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.claim_runner_pool_load_test_job\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
 const emailFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.enqueue_vn_email_triggered_status_checks\([\s\S]*?\n\$\$;/i,
@@ -101,6 +107,50 @@ const assertSettlementLocksBeforeClock = (functionSql: string): void => {
 };
 
 describe("runner pool concurrency phase two migration", () => {
+	it("defines a disabled owner-only load gate and strict scoped wrapper", () => {
+		expect(canonicalSql).toMatch(
+			/CREATE TABLE IF NOT EXISTS runner_private\.runner_load_test_config[\s\S]*?environment TEXT NOT NULL[\s\S]*?project_ref TEXT NOT NULL[\s\S]*?enabled BOOLEAN NOT NULL DEFAULT FALSE/i,
+		);
+		expect(canonicalSql).toMatch(
+			/INSERT INTO runner_private\.runner_load_test_config[\s\S]*?'staging', 'unset', FALSE/i,
+		);
+		expect(canonicalSql).toMatch(
+			/REVOKE ALL ON TABLE runner_private\.runner_load_test_config\s+FROM PUBLIC, anon, authenticated, service_role;/i,
+		);
+		expect(canonicalSql).toMatch(
+			/CREATE OR REPLACE FUNCTION public\.claim_runner_pool_load_test_job\(\s*p_worker_id TEXT,\s*p_run_id UUID,\s*p_expected_project_ref TEXT,\s*p_lease_ms INTEGER DEFAULT 10000,\s*p_global_slot_probe BOOLEAN DEFAULT FALSE\s*\)/i,
+		);
+		expect(loadClaimBody).toMatch(/SECURITY DEFINER/i);
+		expect(loadClaimBody).toMatch(/SET search_path = ''/i);
+		expect(loadClaimBody).toMatch(/config\.enabled[\s\S]*?config\.project_ref = v_project_ref/i);
+		expect(loadClaimBody).not.toMatch(/runner_load_test_config[\s\S]*?FOR UPDATE/i);
+		expect(loadClaimBody).toMatch(/oyjxdzsoejraedqghndi/i);
+		expect(loadClaimBody).toMatch(/worker_id does not match|worker id does not match/i);
+		expect(canonicalSql).toMatch(
+			/REVOKE ALL ON FUNCTION runner_private\.claim_runner_pool_job_core\(\s*TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ, UUID, BOOLEAN\s*\) FROM PUBLIC, anon, authenticated, service_role;/i,
+		);
+		expect(canonicalSql).toMatch(
+			/GRANT EXECUTE ON FUNCTION public\.claim_runner_pool_load_test_job\(\s*TEXT, UUID, TEXT, INTEGER, BOOLEAN\s*\) TO service_role;/i,
+		);
+	});
+
+	it("scopes every load core scan and enforces the global probe ceiling", () => {
+		expect(functionBody).toMatch(/p_scope_run_id UUID DEFAULT NULL/i);
+		expect(functionBody).toMatch(/p_global_probe BOOLEAN DEFAULT FALSE/i);
+		expect(functionBody).toMatch(/application\.purpose = 'concurrency-load:' \|\| p_scope_run_id::TEXT/i);
+		expect(functionBody).toMatch(/application\.visa_type = 'CONCURRENCY_LOAD'/i);
+		expect(functionBody).toMatch(/metadata -> 'concurrency_load_synthetic' = 'true'::JSONB/i);
+		expect(functionBody).toMatch(/metadata ->> 'concurrency_load_run_id' = p_scope_run_id::TEXT/i);
+		expect(functionBody).toMatch(/correlation_id LIKE 'concurrency-load:' \|\| p_scope_run_id::TEXT \|\| ':%'/i);
+		expect(functionBody).toMatch(/IF p_scope_run_id IS NOT NULL AND NOT COALESCE\(/i);
+		expect((functionBody.match(/p_scope_run_id IS NULL/g) ?? []).length).toBeGreaterThanOrEqual(3);
+		expect(functionBody).toMatch(/CASE WHEN p_global_probe THEN 10 ELSE cap\.max_concurrent END/i);
+		expect(functionBody).toMatch(/active_global\.status = 'running'/i);
+		expect(functionBody).toMatch(/active_global\.flow_key = 'kr_eform'/i);
+		expect(functionBody).toMatch(/pg_advisory_xact_lock[\s\S]*?runner_pool_global_probe/i);
+		expect(productionClaimBody).toMatch(/claim_runner_pool_job_core[\s\S]*?NULL::UUID[\s\S]*?FALSE/i);
+	});
+
   it("defines the exact service-role claim RPC identity and return contract", () => {
     expect(canonicalSql).toMatch(
       /CREATE OR REPLACE FUNCTION public\.claim_runner_pool_job\(\s*p_worker_id TEXT,\s*p_lease_ms INTEGER DEFAULT 900000,\s*p_require_slot BOOLEAN DEFAULT TRUE,\s*p_now TIMESTAMPTZ DEFAULT NOW\(\)\s*\)/i,
@@ -209,7 +259,7 @@ describe("runner pool concurrency phase two migration", () => {
     expect(functionBody).toMatch(/candidate\.available_at <= v_now/i);
     expect(functionBody).toMatch(/NOT cap\.paused/i);
     expect(functionBody).toMatch(
-      /SELECT COUNT\(\*\)[\s\S]*?active\.country = candidate\.country[\s\S]*?active\.status = 'running'[\s\S]*?< cap\.max_concurrent/i,
+      /SELECT COUNT\(\*\)[\s\S]*?active\.country = candidate\.country[\s\S]*?active\.status = 'running'[\s\S]*?< (?:cap\.max_concurrent|CASE WHEN p_global_probe THEN 10 ELSE cap\.max_concurrent END)/i,
     );
     expect(functionBody).not.toMatch(/'indonesia'/i);
   });
@@ -656,6 +706,16 @@ describe("runner pool concurrency phase two migration", () => {
     const advisoryLockIndex = integrationSource.indexOf("pg_advisory_lock");
     expect(environmentCheckIndex).toBeGreaterThan(-1);
     expect(advisoryLockIndex).toBeGreaterThan(environmentCheckIndex);
+  });
+
+  it("keeps scoped load contract tests behind an explicit local gate", () => {
+    expect(integrationSource).toMatch(/claim_runner_pool_load_test_job/i);
+    expect(integrationSource).toMatch(/RUNNER_LOAD_GATE_DB_CONFIRM/);
+    expect(integrationSource).toMatch(/claims only scoped synthetic rows/i);
+    expect(integrationSource).toMatch(/runner_load_test_config/);
+    expect(integrationSource).toMatch(/real-load-row/);
+    expect(integrationSource).toMatch(/toHaveLength\(10\)/i);
+    expect(integrationSource).toMatch(/owner_machine_id = ANY/i);
   });
 
   it("keeps the trigger and result RPC in the CLI mirror", () => {

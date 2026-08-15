@@ -64,6 +64,35 @@ COMMENT ON SCHEMA runner_private IS
 COMMENT ON TABLE runner_private.runner_job_update_capability IS
   'One-time full-row capability consumed by the permanent runner_job update fence.';
 
+-- The load-test RPC reads this owner-only switch. It is deliberately seeded
+-- disabled; an operator must enable the exact staging/local-test project for
+-- one run and disable it again after cleanup. Runtime roles (including
+-- service_role) cannot read or mutate this table, so the RPC is the sole
+-- narrow capability boundary and the harness never auto-enables it.
+-- Owner-only setup/cleanup (run outside the harness, in a privileged
+-- maintenance session):
+--   UPDATE runner_private.runner_load_test_config
+--   SET environment = 'staging', project_ref = '<exact-ref>', enabled = TRUE
+--   WHERE id = TRUE;
+--   -- after the run, set enabled = FALSE and restore the placeholder ref.
+CREATE TABLE IF NOT EXISTS runner_private.runner_load_test_config (
+  id BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
+  environment TEXT NOT NULL CHECK (environment IN ('staging', 'local-test')),
+  project_ref TEXT NOT NULL CHECK (length(project_ref) BETWEEN 3 AND 63),
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT pg_catalog.clock_timestamp()
+);
+
+INSERT INTO runner_private.runner_load_test_config (id, environment, project_ref, enabled)
+VALUES (TRUE, 'staging', 'unset', FALSE)
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE runner_private.runner_load_test_config ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE runner_private.runner_load_test_config
+  FROM PUBLIC, anon, authenticated, service_role;
+COMMENT ON TABLE runner_private.runner_load_test_config IS
+  'Owner-only staging load gate. Keep disabled except during an approved isolated run; never enable from the harness.';
+
 DO $$
 BEGIN
   IF EXISTS (
@@ -427,14 +456,17 @@ CREATE INDEX IF NOT EXISTS runner_job_running_owner_lease_idx
   ON public.runner_job (leased_by, leased_until)
   WHERE status = 'running';
 
--- p_now remains in the four-argument identity but is intentionally ignored;
--- the function trusts only clock_timestamp(). Invalid running flows are never
--- recovered or claimed.
-CREATE OR REPLACE FUNCTION public.claim_runner_pool_job(
+-- The private core is shared by the production wrapper and the guarded
+-- staging load-test wrapper below. A non-null scope is a hard synthetic-row
+-- fence: every recovery, candidate scan, and final locked recheck must carry
+-- the exact run marker before a row can be touched.
+CREATE OR REPLACE FUNCTION runner_private.claim_runner_pool_job_core(
   p_worker_id TEXT,
   p_lease_ms INTEGER DEFAULT 900000,
   p_require_slot BOOLEAN DEFAULT TRUE,
-  p_now TIMESTAMPTZ DEFAULT NOW()
+  p_now TIMESTAMPTZ DEFAULT NOW(),
+  p_scope_run_id UUID DEFAULT NULL,
+  p_global_probe BOOLEAN DEFAULT FALSE
 )
 RETURNS TABLE (
   id UUID,
@@ -476,6 +508,18 @@ BEGIN
   IF p_require_slot IS NULL THEN
     RAISE EXCEPTION 'Runner slot requirement is required'
       USING ERRCODE = '22023';
+  END IF;
+  IF p_global_probe AND p_scope_run_id IS NULL THEN
+    RAISE EXCEPTION 'Global probe requires a scoped synthetic run'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- The probe intentionally serializes the global count across country-cap
+  -- rows. Production claims remain country-sharded and never take this lock.
+  IF p_global_probe THEN
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended('runner_pool_global_probe', 0)
+    );
   END IF;
 
   -- The timestamp argument is intentionally ignored. Every
@@ -529,6 +573,16 @@ BEGIN
         OR (expired.country = 'south_korea' AND expired.flow_key = 'kr_eform')
         OR (expired.country = 'taiwan' AND expired.flow_key = 'tw_entry_permit')
       ), FALSE)
+      AND (
+        p_scope_run_id IS NULL
+        OR (
+          application.purpose = 'concurrency-load:' || p_scope_run_id::TEXT
+          AND application.visa_type = 'CONCURRENCY_LOAD'
+          AND expired.metadata -> 'concurrency_load_synthetic' = 'true'::JSONB
+          AND expired.metadata ->> 'concurrency_load_run_id' = p_scope_run_id::TEXT
+          AND expired.correlation_id LIKE 'concurrency-load:' || p_scope_run_id::TEXT || ':%'
+        )
+      )
     ORDER BY expired.leased_until, expired.id
     LIMIT 1
     FOR UPDATE OF expired SKIP LOCKED
@@ -663,6 +717,16 @@ BEGIN
           OR (oldest_candidate.country = 'south_korea' AND oldest_candidate.flow_key = 'kr_eform')
           OR (oldest_candidate.country = 'taiwan' AND oldest_candidate.flow_key = 'tw_entry_permit')
         ), FALSE)
+      AND (
+        p_scope_run_id IS NULL
+        OR (
+          application.purpose = 'concurrency-load:' || p_scope_run_id::TEXT
+          AND application.visa_type = 'CONCURRENCY_LOAD'
+          AND oldest_candidate.metadata -> 'concurrency_load_synthetic' = 'true'::JSONB
+          AND oldest_candidate.metadata ->> 'concurrency_load_run_id' = p_scope_run_id::TEXT
+          AND oldest_candidate.correlation_id LIKE 'concurrency-load:' || p_scope_run_id::TEXT || ':%'
+        )
+      )
       AND oldest_candidate.status = 'queued'
       AND oldest_candidate.attempts >= 0
       AND oldest_candidate.attempts < oldest_candidate.max_attempts
@@ -712,6 +776,16 @@ BEGIN
           OR (candidate.country = 'south_korea' AND candidate.flow_key = 'kr_eform')
           OR (candidate.country = 'taiwan' AND candidate.flow_key = 'tw_entry_permit')
         ), FALSE)
+        AND (
+          p_scope_run_id IS NULL
+          OR (
+            application.purpose = 'concurrency-load:' || p_scope_run_id::TEXT
+            AND application.visa_type = 'CONCURRENCY_LOAD'
+            AND candidate.metadata -> 'concurrency_load_synthetic' = 'true'::JSONB
+            AND candidate.metadata ->> 'concurrency_load_run_id' = p_scope_run_id::TEXT
+            AND candidate.correlation_id LIKE 'concurrency-load:' || p_scope_run_id::TEXT || ':%'
+          )
+        )
         AND NOT cap.paused
         AND (
           SELECT COUNT(*)
@@ -726,7 +800,23 @@ BEGIN
               OR (active.country = 'south_korea' AND active.flow_key = 'kr_eform')
               OR (active.country = 'taiwan' AND active.flow_key = 'tw_entry_permit')
             ), FALSE)
-        ) < cap.max_concurrent
+        ) < CASE WHEN p_global_probe THEN 10 ELSE cap.max_concurrent END
+        AND (
+          NOT p_global_probe
+          OR (
+            SELECT COUNT(*)
+            FROM public.runner_job AS active_global
+            WHERE active_global.status = 'running'
+              AND COALESCE((
+                (active_global.country = 'vietnam' AND active_global.flow_key = 'vn_prearrival')
+                OR (active_global.country = 'singapore' AND active_global.flow_key = 'sgac')
+                OR (active_global.country = 'malaysia' AND active_global.flow_key = 'mdac')
+                OR (active_global.country = 'thailand' AND active_global.flow_key = 'tdac')
+                OR (active_global.country = 'south_korea' AND active_global.flow_key = 'kr_eform')
+                OR (active_global.country = 'taiwan' AND active_global.flow_key = 'tw_entry_permit')
+              ), FALSE)
+          ) < 10
+        )
       ORDER BY candidate.enqueued_at, candidate.id
       LIMIT 1
       FOR UPDATE OF candidate, cap SKIP LOCKED
@@ -748,6 +838,25 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
+      CONTINUE;
+    END IF;
+
+    -- Recheck the complete synthetic marker after taking the job lock. A
+    -- scoped load claim must never touch a real row even if metadata or the
+    -- application purpose changed between candidate selection and locking.
+    IF p_scope_run_id IS NOT NULL AND NOT COALESCE((
+      v_claimed_old_row.application_id IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM public.applications AS scoped_application
+        WHERE scoped_application.id = v_claimed_old_row.application_id
+          AND scoped_application.purpose = 'concurrency-load:' || p_scope_run_id::TEXT
+          AND scoped_application.visa_type = 'CONCURRENCY_LOAD'
+      )
+      AND v_claimed_old_row.metadata -> 'concurrency_load_synthetic' = 'true'::JSONB
+      AND v_claimed_old_row.metadata ->> 'concurrency_load_run_id' = p_scope_run_id::TEXT
+      AND v_claimed_old_row.correlation_id LIKE 'concurrency-load:' || p_scope_run_id::TEXT || ':%'
+    ), FALSE) THEN
       CONTINUE;
     END IF;
 
@@ -837,6 +946,134 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+-- Keep the production four-argument API unchanged while routing it through
+-- the private shared core. The production path has no synthetic scope and no
+-- probe override.
+CREATE OR REPLACE FUNCTION public.claim_runner_pool_job(
+  p_worker_id TEXT,
+  p_lease_ms INTEGER DEFAULT 900000,
+  p_require_slot BOOLEAN DEFAULT TRUE,
+  p_now TIMESTAMPTZ DEFAULT NOW()
+)
+RETURNS TABLE (
+  id UUID,
+  application_id UUID,
+  country TEXT,
+  flow_key TEXT,
+  attempts INTEGER,
+  max_attempts INTEGER,
+  correlation_id TEXT,
+  metadata JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT *
+  FROM runner_private.claim_runner_pool_job_core(
+    p_worker_id,
+    p_lease_ms,
+    p_require_slot,
+    p_now,
+    NULL::UUID,
+    FALSE
+  );
+END;
+$$;
+
+-- A private owner-only configuration row is authoritative for this wrapper.
+-- The expected project ref, exact worker prefix, synthetic run marker, live
+-- slot, and bounded lease are all checked before the shared core is entered.
+CREATE OR REPLACE FUNCTION public.claim_runner_pool_load_test_job(
+  p_worker_id TEXT,
+  p_run_id UUID,
+  p_expected_project_ref TEXT,
+  p_lease_ms INTEGER DEFAULT 10000,
+  p_global_slot_probe BOOLEAN DEFAULT FALSE
+)
+RETURNS TABLE (
+  id UUID,
+  application_id UUID,
+  country TEXT,
+  flow_key TEXT,
+  attempts INTEGER,
+  max_attempts INTEGER,
+  correlation_id TEXT,
+  metadata JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_worker_id TEXT := BTRIM(COALESCE(p_worker_id, ''));
+  v_project_ref TEXT := BTRIM(COALESCE(p_expected_project_ref, ''));
+  v_config runner_private.runner_load_test_config%ROWTYPE;
+BEGIN
+  IF p_run_id IS NULL OR v_project_ref = '' THEN
+    RAISE EXCEPTION 'Load-test run id and expected project ref are required'
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_project_ref = 'oyjxdzsoejraedqghndi' THEN
+    RAISE EXCEPTION 'Load testing is forbidden on production'
+      USING ERRCODE = '42501';
+  END IF;
+  IF p_lease_ms IS NULL OR p_lease_ms < 10000 OR p_lease_ms > 60000 THEN
+    RAISE EXCEPTION 'Load-test lease must be between 10 and 60 seconds'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_global_slot_probe IS NULL THEN
+    RAISE EXCEPTION 'Global probe flag is required' USING ERRCODE = '22023';
+  END IF;
+  IF v_worker_id !~ ('^concurrency-load:' || p_run_id::TEXT || ':worker-[0-9]{2}$') THEN
+    RAISE EXCEPTION 'Worker id does not match the exact load-test run prefix'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT config.*
+  INTO v_config
+  FROM runner_private.runner_load_test_config AS config
+  WHERE config.id
+    AND config.enabled
+    AND config.environment IN ('staging', 'local-test')
+    AND config.project_ref = v_project_ref
+  ; -- Read-only gate check: claims must not serialize on the config row.
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Load-test configuration is disabled or project ref mismatched'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT *
+  FROM runner_private.claim_runner_pool_job_core(
+    v_worker_id,
+    p_lease_ms,
+    TRUE,
+    NOW(),
+    p_run_id,
+    p_global_slot_probe
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION runner_private.claim_runner_pool_job_core(
+  TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ, UUID, BOOLEAN
+) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_runner_pool_load_test_job(
+  TEXT, UUID, TEXT, INTEGER, BOOLEAN
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_runner_pool_load_test_job(
+  TEXT, UUID, TEXT, INTEGER, BOOLEAN
+) TO service_role;
+
+COMMENT ON FUNCTION public.claim_runner_pool_job(TEXT, INTEGER, BOOLEAN, TIMESTAMPTZ) IS
+  'Atomically recovers one lease and claims one exact active tuple using database clock_timestamp(); p_now is ignored and every lifecycle write requires a full-row capability.';
+
+COMMENT ON FUNCTION public.claim_runner_pool_load_test_job(TEXT, UUID, TEXT, INTEGER, BOOLEAN) IS
+  'Owner-gated staging-only synthetic claim wrapper; requires the exact enabled private project config, run worker prefix, live pool slot, and 10-60 second lease.';
 
 CREATE OR REPLACE VIEW public.runner_pool_depth
 WITH (security_invoker = true)
