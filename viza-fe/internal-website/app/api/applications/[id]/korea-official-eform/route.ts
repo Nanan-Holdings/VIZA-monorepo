@@ -4,6 +4,11 @@ import { NextResponse } from "next/server";
 import { getClientSessionWithFallback } from "@/lib/client-session";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import { getImpersonationSession } from "@/lib/impersonation-session";
+import {
+  assertRunnerCutoverActive,
+  isRunnerCutoverPaused,
+  RunnerCutoverPausedError,
+} from "@/lib/runner-cutover-pause.server";
 import type { KrSubmissionResult } from "@/lib/submission-result";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -87,7 +92,14 @@ async function ensureLocalKoreaEformWorker(baseUrl: string) {
 }
 
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  await ensureFlyMachineStarted("south_korea");
+  assertRunnerCutoverActive();
+  const wakeResult = await ensureFlyMachineStarted("south_korea");
+  if (!wakeResult.ok) {
+    if (wakeResult.reason === "cutover_paused") {
+      throw new RunnerCutoverPausedError();
+    }
+    throw new Error(`Korea submission worker unavailable after wake request (${wakeResult.reason})`);
+  }
   const baseUrl = submissionServiceBaseUrl();
   const url = `${baseUrl}${path}`;
   const internalToken = process.env.KR_SUBMISSION_INTERNAL_TOKEN?.trim();
@@ -305,6 +317,15 @@ export async function POST(
   const { id } = await ctx.params;
   const auth = await requireApplication(id);
   if (!auth.ok) return auth.response;
+  if (isRunnerCutoverPaused()) {
+    return NextResponse.json(
+      {
+        error: "Korea official e-Form generation is temporarily paused for a controlled runner cutover.",
+        code: "runner_cutover_paused",
+      },
+      { status: 503 },
+    );
+  }
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const finalReviewApproved = body.finalReviewApproved === true;
   const regenerateOfficialEform = body.regenerateOfficialEform === true;
@@ -368,6 +389,12 @@ export async function POST(
       );
     }
   } catch (error) {
+    if (error instanceof RunnerCutoverPausedError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 503 },
+      );
+    }
     const message = error instanceof Error ? error.message : String(error);
     next = {
       ...current,
