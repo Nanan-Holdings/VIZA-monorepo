@@ -8,7 +8,7 @@ const { createClient, withAdmin } = vi.hoisted(() => ({
 vi.mock("@/lib/supabase/server", () => ({ createClient }));
 vi.mock("@/lib/auth/with-admin", () => ({ withAdmin }));
 
-import { abandonTakeover, claimTakeover, completeTakeover } from "./takeover";
+import { abandonTakeover, claimTakeover, completeTakeover, getTakeoverRemoteDebugUrl } from "./takeover";
 
 function query(result: { data: unknown; error: { message: string } | null }) {
   const builder = {
@@ -42,12 +42,17 @@ function setupAdmin(rpcResult: { data: unknown; error: { message: string } | nul
       id: "takeover-id",
       application_id: "application-id",
       job_id: "job-id",
+      remote_debug_url: "wss://debug.example/session",
+      vnc_url: "https://live.example/session",
+      status: "claimed",
     },
     error: null,
   });
   const answersQuery = query({ data: null, error: null });
   const rpc = vi.fn(async () => rpcResult);
+  const tables: string[] = [];
   const from = vi.fn((table: string) => {
+    tables.push(table);
     if (table === "takeover_session") return takeoverQuery;
     if (table === "visa_application_answers") return answersQuery;
     throw new Error(`unexpected table ${table}`);
@@ -56,7 +61,7 @@ function setupAdmin(rpcResult: { data: unknown; error: { message: string } | nul
   withAdmin.mockImplementation(async (_role: string, _action: string, fn: (client: unknown) => unknown) =>
     fn(admin),
   );
-  return { answersQuery, rpc, takeoverQuery };
+  return { answersQuery, rpc, takeoverQuery, tables };
 }
 
 describe("takeover settlement actions", () => {
@@ -80,6 +85,21 @@ describe("takeover settlement actions", () => {
       p_expected_handoff_kind: null,
     });
     expect(takeoverQuery.update).not.toHaveBeenCalled();
+  });
+
+  it("reveals a URL without writing a duplicate direct claim audit row", async () => {
+    const { takeoverQuery, tables } = setupAdmin({
+      data: [{ claimed: true }],
+      error: null,
+    });
+
+    await expect(getTakeoverRemoteDebugUrl("takeover-id")).resolves.toEqual({
+      url: "wss://debug.example/session",
+      vncUrl: "https://live.example/session",
+    });
+    expect(takeoverQuery.update).not.toHaveBeenCalled();
+    expect(tables).toEqual(["takeover_session"]);
+    expect(tables).not.toContain("takeover_action_log");
   });
 
   it("fails closed when the claim RPC returns no row", async () => {

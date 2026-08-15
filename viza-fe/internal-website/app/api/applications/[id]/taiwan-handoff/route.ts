@@ -6,9 +6,28 @@ import { isAllowedTaiwanLiveViewUrl } from "@/lib/taiwan-handoff-url";
 
 export const dynamic = "force-dynamic";
 
-function parseClaimResult(data: unknown): { claimed?: unknown } | null {
-  const row = Array.isArray(data) ? data[0] : data;
-  return row && typeof row === "object" ? (row as { claimed?: unknown }) : null;
+interface TaiwanHandoffClaimRow {
+  claimed: unknown;
+  takeover_id: unknown;
+  job_id: unknown;
+  application_id: unknown;
+  vnc_url: unknown;
+  expires_at: unknown;
+}
+
+function parseClaimResult(data: unknown): TaiwanHandoffClaimRow | null {
+  if (Array.isArray(data)) {
+    if (data.length !== 1) return null;
+    data = data[0];
+  }
+  const row = data;
+  return row && typeof row === "object" && !Array.isArray(row)
+    ? (row as TaiwanHandoffClaimRow)
+    : null;
+}
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 export async function GET(
@@ -34,48 +53,43 @@ export async function GET(
     return NextResponse.json({ error: "Taiwan handoff is not ready" }, { status: 409 });
   }
 
-  let query = admin
-    .from("takeover_session")
-    .select("id, applicant_id, status, vnc_url, expires_at")
-    .eq("application_id", applicationId)
-    .eq("handoff_kind", "taiwan_applicant_final_submit")
-    .in("status", ["queued", "claimed"]);
-  if (result.handoffId) query = query.eq("id", result.handoffId);
-  const { data: handoff, error: handoffError } = await query
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (handoffError) return NextResponse.json({ error: handoffError.message }, { status: 500 });
-  if (!handoff || handoff.applicant_id !== profileId) {
-    return NextResponse.json({ error: "Taiwan handoff session not found" }, { status: 404 });
+  if (!isNonBlankString(result.handoffId)) {
+    return NextResponse.json({ error: "Taiwan handoff session is no longer available" }, { status: 409 });
   }
 
-  const expiresAt = typeof handoff.expires_at === "string" ? handoff.expires_at : result.handoffExpiresAt;
-  if (!expiresAt || Date.parse(expiresAt) <= Date.now()) {
-    return NextResponse.json({ error: "Taiwan handoff session expired" }, { status: 410 });
-  }
-  if (typeof handoff.vnc_url !== "string" || !isAllowedTaiwanLiveViewUrl(handoff.vnc_url)) {
-    return NextResponse.json({ error: "Taiwan handoff URL is unavailable" }, { status: 503 });
-  }
-
-  const { data: claimData, error: claimError } = await admin.rpc("claim_takeover_session", {
-    p_takeover_id: handoff.id,
-    p_claimant_id: profileId,
-    p_expected_handoff_kind: "taiwan_applicant_final_submit",
+  const { data: claimData, error: claimError } = await admin.rpc("claim_tw_applicant_handoff", {
+    p_takeover_id: result.handoffId,
+    p_application_id: applicationId,
+    p_applicant_id: profileId,
   });
   if (claimError) {
-    return NextResponse.json({ error: claimError.message }, { status: 500 });
+    return NextResponse.json({ error: "Taiwan handoff session is no longer available" }, { status: 409 });
   }
   const claim = parseClaimResult(claimData);
-  if (!claim || claim.claimed !== true) {
+  if (
+    !claim
+    || claim.claimed !== true
+    || claim.takeover_id !== result.handoffId
+    || claim.application_id !== applicationId
+    || !isNonBlankString(claim.job_id)
+    || !isNonBlankString(claim.vnc_url)
+    || !isNonBlankString(claim.expires_at)
+    || !Number.isFinite(Date.parse(claim.expires_at))
+  ) {
     return NextResponse.json(
       { error: "Taiwan handoff session is no longer available" },
       { status: 409 },
     );
   }
+  if (Date.parse(claim.expires_at) <= Date.now()) {
+    return NextResponse.json({ error: "Taiwan handoff session expired" }, { status: 410 });
+  }
+  if (!isAllowedTaiwanLiveViewUrl(claim.vnc_url)) {
+    return NextResponse.json({ error: "Taiwan handoff URL is unavailable" }, { status: 503 });
+  }
 
   return NextResponse.json(
-    { liveViewUrl: handoff.vnc_url, expiresAt },
+    { liveViewUrl: claim.vnc_url, expiresAt: claim.expires_at },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

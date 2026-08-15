@@ -89,6 +89,7 @@ test("dispatch: shared-pool flow keys resolve only for their country", () => {
     ["malaysia", "mdac"],
     ["thailand", "tdac"],
     ["south_korea", "kr_eform"],
+    ["taiwan", "tw_entry_permit"],
   ] as const;
   for (const [country, flow] of flows) {
     assert.equal(typeof getRunOne(country, flow), "function", `${country}/${flow}`);
@@ -123,6 +124,7 @@ test("dispatch: every shared-pool flow forwards the ownership execution context"
     calls.push({ kind: "arrival", applicationId, jobId, flow, execution });
     return outcome;
   };
+  const runTaiwan = runCountry("taiwan");
   const runKorea = async (
     applicationId: string,
     jobIdOrExecution?: string | RunnerExecutionContext,
@@ -138,6 +140,7 @@ test("dispatch: every shared-pool flow forwards the ownership execution context"
     runSingapore: runCountry("singapore"),
     runArrivalCardPoolFlow: runArrival,
     runKoreaEformBackground: runKorea,
+    runTaiwan,
   });
   const executionFor = (jobId: string) => ({
     jobId,
@@ -153,12 +156,14 @@ test("dispatch: every shared-pool flow forwards the ownership execution context"
   const executionMy = executionFor("job-my");
   const executionTh = executionFor("job-th");
   const executionKr = executionFor("job-kr");
+  const executionTw = executionFor("job-tw");
   await dispatch.vn_evisa("app-vn", "job-vn", executionVn);
   await dispatch.vn_prearrival("app-vn", "job-vn-pre", executionVnPrearrival);
   await dispatch.sgac("app-sg", "job-sg", executionSg);
   await dispatch.mdac("app-my", "job-my", executionMy);
   await dispatch.tdac("app-th", "job-th", executionTh);
   await dispatch.kr_eform("app-kr", "job-kr", executionKr);
+  await dispatch.tw_entry_permit("app-tw", "job-tw", executionTw);
 
   assert.deepEqual(calls, [
     { kind: "vietnam", applicationId: "app-vn", jobId: "job-vn", execution: executionVn },
@@ -167,6 +172,7 @@ test("dispatch: every shared-pool flow forwards the ownership execution context"
     { kind: "arrival", applicationId: "app-my", jobId: "job-my", flow: "mdac", execution: executionMy },
     { kind: "arrival", applicationId: "app-th", jobId: "job-th", flow: "tdac", execution: executionTh },
     { kind: "korea", applicationId: "app-kr", jobId: "job-kr", execution: executionKr },
+    { kind: "taiwan", applicationId: "app-tw", jobId: "job-tw", execution: executionTw },
   ]);
 });
 
@@ -194,6 +200,7 @@ test("dispatch: every pool flow rejects missing or mismatched ownership before i
     runSingapore: runCountry,
     runArrivalCardPoolFlow: runArrival,
     runKoreaEformBackground: runKorea,
+    runTaiwan: runCountry,
   });
   const mismatched = {
     jobId: "job-other",
@@ -209,6 +216,7 @@ test("dispatch: every pool flow rejects missing or mismatched ownership before i
     ["mdac", () => dispatch.mdac("app", "job-my", mismatched)],
     ["tdac", () => dispatch.tdac("app", "job-th", mismatched)],
     ["kr_eform", () => dispatch.kr_eform("app", "job-kr", mismatched)],
+    ["tw_entry_permit", () => dispatch.tw_entry_permit("app", "job-tw", mismatched)],
   ];
   for (const [flow, invoke] of cases) {
     assert.throws(invoke, RunnerJobOwnershipLostError, `${flow} mismatch`);
@@ -220,6 +228,7 @@ test("dispatch: every pool flow rejects missing or mismatched ownership before i
     ["mdac", () => dispatch.mdac("app", undefined, undefined)],
     ["tdac", () => dispatch.tdac("app", undefined, undefined)],
     ["kr_eform", () => dispatch.kr_eform("app", undefined, undefined)],
+    ["tw_entry_permit", () => dispatch.tw_entry_permit("app", undefined, undefined)],
   ];
   for (const [flow, invoke] of missingCases) {
     assert.throws(invoke, RunnerJobOwnershipLostError, `${flow} missing`);

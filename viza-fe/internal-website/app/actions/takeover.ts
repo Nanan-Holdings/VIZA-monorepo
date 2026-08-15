@@ -146,7 +146,7 @@ export async function listOpenTakeovers(): Promise<OpenTakeoverRow[]> {
 export async function getTakeoverRemoteDebugUrl(
   takeoverId: string,
 ): Promise<{ url: string; vncUrl: string | null }> {
-  const { userId } = await require2fa();
+  await require2fa();
   return withAdmin("admin", "actions/takeover:reveal", async (admin) => {
     const { data, error } = await admin
       .from("takeover_session")
@@ -157,12 +157,6 @@ export async function getTakeoverRemoteDebugUrl(
     if (data.status === "completed" || data.status === "abandoned") {
       throw new Error("Takeover is closed; debug URL revoked.");
     }
-    await admin.from("takeover_action_log").insert({
-      takeover_id: takeoverId,
-      action: "claim",
-      actor_user_id: userId,
-      detail: { revealed: true },
-    });
     return {
       url: data.remote_debug_url as string,
       vncUrl: (data.vnc_url as string | null) ?? null,

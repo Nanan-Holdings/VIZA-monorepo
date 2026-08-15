@@ -93,6 +93,7 @@ const SHARED_POOL_FLOW_KEYS_BY_COUNTRY: Record<string, readonly RunnerPoolFlowKe
   malaysia: ["mdac"],
   thailand: ["tdac"],
   south_korea: ["kr_eform"],
+  taiwan: ["tw_entry_permit"],
 };
 
 function assertExactSharedRunnerPoolTuple(
@@ -626,59 +627,7 @@ export async function enqueueRunnerJob(
     return { id: result.id, created: result.created };
   }
 
-  const result = await withAdmin("system", "lib/queue:enqueue-rollback", async (admin) => {
-    const { data: existing } = await admin
-      .from("runner_job")
-      .select("id, status")
-      .eq("application_id", applicationId)
-      .in("status", ["queued", "running"])
-      .order("enqueued_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (existing) {
-      return { id: existing.id as string, created: false };
-    }
-    const { data, error } = await admin
-      .from("runner_job")
-      .insert({
-        application_id: applicationId,
-        country: normalizedCountry,
-        flow_key: flowKey,
-        available_at: opts.availableAt ?? new Date().toISOString(),
-        status: "queued",
-        attempts: 0,
-        max_attempts: opts.maxAttempts ?? 3,
-        correlation_id: opts.correlationId ?? null,
-        metadata: opts.metadata ?? null,
-      })
-      .select("id")
-      .single();
-    if (error || !data) {
-      throw new Error(`runner_job insert: ${error?.message ?? "no data"}`);
-    }
-    return { id: data.id as string, created: true };
-  });
-  const queueEnabled = resilienceRunnerWakeEnabled();
-  const authority = queueEnabled
-    ? await loadAuthoritativeRunnerJobState(result.id, "pool")
-    : null;
-  if (queueEnabled && authority?.kind === "missing") return result;
-  if (queueEnabled && authority?.kind === "found") {
-    if (!runnerJobWakeable(authority.state, "pool")) return result;
-    if (shouldDeferWake(opts.availableAt)) return result;
-    if (await tryQueueRunnerWake(result.id, "pool", authority.state.availableAt ?? undefined)) return result;
-  } else if (!queueEnabled && shouldDeferWake(opts.availableAt)) {
-    return result;
-  }
-  const wake = await wakeCloudSubmissionWorker(result.id, {
-    target: "pool",
-  });
-  if (!wake.ok && wake.reason !== "not_configured") {
-    console.warn("[runner-job] Fly wake failed; scheduled autoscaling remains available.", {
-      country: normalizedCountry,
-      jobId: result.id.slice(0, 8),
-      reason: wake.reason,
-    });
-  }
-  return result;
+  throw new Error(
+    `runner_job: flow ${flowKey} must use the atomic shared-pool enqueue path`,
+  );
 }

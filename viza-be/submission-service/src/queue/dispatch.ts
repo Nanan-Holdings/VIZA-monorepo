@@ -145,11 +145,13 @@ export const POOL_FLOW_COUNTRIES = {
   mdac: "malaysia",
   tdac: "thailand",
   kr_eform: "south_korea",
+  tw_entry_permit: "taiwan",
 } as const;
 
 export interface PoolFlowDispatchDependencies {
   runVietnam: RunOne;
   runSingapore: RunOne;
+  runTaiwan: RunOne;
   runArrivalCardPoolFlow: typeof runArrivalCardPoolFlow;
   runKoreaEformBackground: typeof runKoreaEformBackground;
 }
@@ -164,6 +166,7 @@ export function createPoolFlowDispatch(
   dependencies: PoolFlowDispatchDependencies = {
     runVietnam,
     runSingapore,
+    runTaiwan,
     runArrivalCardPoolFlow,
     runKoreaEformBackground,
   },
@@ -211,6 +214,10 @@ export function createPoolFlowDispatch(
         identity.jobId,
         identity.executionContext,
       );
+    },
+    tw_entry_permit: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "tw_entry_permit pool dispatch");
+      return dependencies.runTaiwan(applicationId, identity.jobId, identity.executionContext);
     },
   };
 }

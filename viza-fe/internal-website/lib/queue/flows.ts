@@ -1,4 +1,5 @@
 import {
+  isTaiwanEntryPermitApplication,
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
@@ -14,6 +15,7 @@ export const RUNNER_POOL_FLOW_KEYS = [
   "mdac",
   "tdac",
   "kr_eform",
+  "tw_entry_permit",
 ] as const;
 
 export type RunnerPoolFlowKey = (typeof RUNNER_POOL_FLOW_KEYS)[number];
@@ -24,6 +26,7 @@ const SHARED_RUNNER_POOL_COUNTRIES = new Set([
   "malaysia",
   "thailand",
   "south_korea",
+  "taiwan",
 ]);
 
 export function isSharedRunnerPoolCountry(country: string): boolean {
@@ -35,16 +38,17 @@ export function isSharedRunnerPoolCountry(country: string): boolean {
  *
  * Vietnam e-Visa must stay on the sticky legacy worker because the official
  * application, card handoff, payment and 3DS continuation share one browser
- * session. Vietnam pre-arrival is already pool-only; the remaining flows are
- * controlled by the migration gate.
+ * session. Every strict pool flow remains pool-only once the controlled
+ * cutover is selected; the migration flag is retained only for old config
+ * compatibility and cannot re-enable an unsafe direct runner_job insert.
  */
 export function shouldUseSharedRunnerPool(
   flowKey: RunnerPoolFlowKey,
   migrationEnabled: boolean,
 ): boolean {
   if (flowKey === "vn_evisa") return false;
-  if (flowKey === "vn_prearrival") return true;
-  return migrationEnabled;
+  void migrationEnabled;
+  return true;
 }
 
 export function resolveRunnerPoolFlow(
@@ -56,6 +60,7 @@ export function resolveRunnerPoolFlow(
   if (isThailandTdacApplication(country, visaType)) return "tdac";
   if (isVietnamPrearrivalApplication(country, visaType)) return "vn_prearrival";
   if (isVietnamEVisaApplication(country, visaType)) return "vn_evisa";
+  if (isTaiwanEntryPermitApplication(country, visaType)) return "tw_entry_permit";
   const normalizedCountry = country?.trim().toLowerCase().replace(/[\s-]+/gu, "_");
   const normalizedVisaType = visaType?.trim().toUpperCase() ?? "";
   if (

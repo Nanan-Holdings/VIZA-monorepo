@@ -5,6 +5,8 @@ import type {
   RunnerJob,
   RunnerPoolClient,
 } from "../worker.js";
+import { RunnerJobOwnershipLostError } from "../execution-context.js";
+import { claimNextJob, RunnerPoolRpcSchemaError } from "../worker.js";
 
 process.env.SUPABASE_URL ??= "https://worker-runtime-test.invalid";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "worker-runtime-test-key";
@@ -53,6 +55,7 @@ function claimedJob() {
     max_attempts: 3,
     correlation_id: null,
     metadata: null,
+    started_at: null,
   };
 }
 
@@ -86,7 +89,7 @@ test("success settlement uses the DB clock and does not send client p_now", asyn
   client.rpc = async (name, args) => {
     calls.push({ name, args });
     return {
-      data: { id: "job-1" },
+      data: { application_id: "app-1", country: "singapore", started_at: null },
       error: null,
     };
   };
@@ -99,13 +102,81 @@ test("success settlement uses the DB clock and does not send client p_now", asyn
   }
 });
 
+test("worker RPC settlement parsing fails closed on malformed truthy rows", async () => {
+  const { worker, client } = await loadWorker();
+  const originalRpc = client.rpc;
+  client.rpc = async (name) => {
+    if (name === "claim_runner_pool_job") return { data: { id: "job-1" }, error: null };
+    if (name === "complete_runner_pool_job") return { data: {}, error: null };
+    return { data: {}, error: null };
+  };
+  try {
+    const dependencyClient = client as unknown as RunnerPoolClient;
+    await assert.rejects(
+      () => import("../worker.js").then(({ claimNextJob }) =>
+        claimNextJob({ workerId: "worker-1", client: dependencyClient })),
+      (error: unknown) => error instanceof RunnerPoolRpcSchemaError,
+    );
+    await assert.rejects(
+      () => worker.markSucceeded("job-1", "worker-1"),
+      (error: unknown) => error instanceof RunnerPoolRpcSchemaError,
+    );
+    await assert.rejects(
+      () => worker.markFailedWithRetry({ ...claimedJob(), attempts: 0 }, new Error("x"), "worker-1", dependencyClient),
+      (error: unknown) => error instanceof RunnerPoolRpcSchemaError,
+    );
+  } finally {
+    client.rpc = originalRpc;
+  }
+});
+
+test("claim parser accepts only the six exact active pool tuples", async () => {
+  const { client } = await loadWorker();
+  const originalRpc = client.rpc;
+  const tuples = [
+    ["vietnam", "vn_prearrival"],
+    ["singapore", "sgac"],
+    ["malaysia", "mdac"],
+    ["thailand", "tdac"],
+    ["south_korea", "kr_eform"],
+    ["taiwan", "tw_entry_permit"],
+  ] as const;
+  try {
+    for (const [country, flowKey] of tuples) {
+      client.rpc = async () => ({
+        data: [{ ...claimedJob(), id: `${country}-job`, country, flow_key: flowKey }],
+        error: null,
+      });
+      const claimed = await claimNextJob({ workerId: "worker-1", client });
+      assert.equal(claimed?.country, country);
+      assert.equal(claimed?.flow_key, flowKey);
+    }
+
+    client.rpc = async () => ({
+      data: [{ ...claimedJob(), country: "taiwan", flow_key: "sgac" }],
+      error: null,
+    });
+    await assert.rejects(
+      () => claimNextJob({ workerId: "worker-1", client }),
+      (error: unknown) => error instanceof RunnerPoolRpcSchemaError,
+    );
+
+    client.rpc = async () => ({ data: [], error: null });
+    assert.equal(await claimNextJob({ workerId: "worker-1", client }), null);
+    client.rpc = async () => ({ data: null, error: null });
+    assert.equal(await claimNextJob({ workerId: "worker-1", client }), null);
+  } finally {
+    client.rpc = originalRpc;
+  }
+});
+
 test("failure settlement keeps retry and dead-letter backoff semantics", async () => {
   const { worker } = await loadWorker();
   const calls: RpcCall[] = [];
   const client: RunnerPoolClient = {
     rpc: async (name, args) => {
       calls.push({ name, args });
-      return { data: { id: "job-1", status: args.p_status }, error: null };
+      return { data: { id: "job-1", status: args.p_status, available_at: null }, error: null };
     },
     from: () => queryReturning(null),
   };
@@ -317,9 +388,12 @@ test("settlement stops renewal scheduling before completion starts", async () =>
       events.push("complete-start");
       await new Promise((resolve) => setTimeout(resolve, 20));
       events.push("complete-end");
-      return { data: { id: "job-1" }, error: null };
+      return {
+        data: { application_id: "app-1", country: "singapore", started_at: null },
+        error: null,
+      };
     }
-    return { data: { id: "job-1" }, error: null };
+    return { data: { leased_until: "2099-01-01T00:00:00.000Z" }, error: null };
   };
   try {
     await worker.drainAndRun({
