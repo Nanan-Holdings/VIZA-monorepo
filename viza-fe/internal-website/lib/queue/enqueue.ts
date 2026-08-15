@@ -23,8 +23,8 @@ import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
  *
  * New supported flows use one service-role-only database RPC so a repeated
  * click cannot race another request or an in-flight legacy submission. The
- * direct insert path remains available behind the migration flag as a
- * rollback path until each flow's pool parity gate is opened.
+ * remaining direct insert path is only for an explicitly resolved, non-null
+ * flow key during controlled cutover; an ambiguous flow always fails closed.
  */
 
 export interface EnqueueOpts {
@@ -86,6 +86,27 @@ type RunnerWakeQueueResponse = {
   accepted?: unknown;
   duplicate?: unknown;
 };
+
+const SHARED_POOL_FLOW_KEYS_BY_COUNTRY: Record<string, readonly RunnerPoolFlowKey[]> = {
+  vietnam: ["vn_evisa", "vn_prearrival"],
+  singapore: ["sgac"],
+  malaysia: ["mdac"],
+  thailand: ["tdac"],
+  south_korea: ["kr_eform"],
+};
+
+function assertExactSharedRunnerPoolTuple(
+  country: string,
+  flowKey: RunnerPoolFlowKey,
+): void {
+  const allowed = SHARED_POOL_FLOW_KEYS_BY_COUNTRY[country];
+  if (!allowed || !allowed.includes(flowKey)) {
+    const expected = allowed?.join(" or ") ?? "no shared-pool flow";
+    throw new Error(
+      `runner pool flow mismatch: ${country} supports ${expected}, received ${flowKey}`,
+    );
+  }
+}
 
 type AuthoritativeRunnerJobState = {
   status: string;
@@ -206,6 +227,7 @@ export async function enqueueRunnerPoolJob(
   opts: EnqueueOpts = {},
 ): Promise<EnqueueRunnerPoolResult> {
   const normalizedCountry = assertKnownCountry(country);
+  assertExactSharedRunnerPoolTuple(normalizedCountry, flowKey);
   const row = await withAdmin("system", "lib/queue:enqueue-pool", async (admin) => {
     const { data, error } = await admin.rpc("enqueue_runner_pool_job", {
       p_application_id: applicationId,
@@ -498,11 +520,6 @@ export async function enqueueRunnerJob(
     );
   }
   const flowKey = resolvedFlowKey;
-  if (isSharedRunnerPoolCountry(normalizedCountry) && !flowKey) {
-    throw new Error(
-      `runner_job: unsupported or ambiguous shared-pool visa flow for ${normalizedCountry}`,
-    );
-  }
   if (isIndonesiaEVisaApplication(normalizedCountry, visaType)) {
     const isB1 = visaType?.trim().toUpperCase().includes("B1") ?? false;
     const status = isB1
@@ -593,6 +610,16 @@ export async function enqueueRunnerJob(
       });
     }
     return result;
+  }
+  if (!flowKey) {
+    if (isSharedRunnerPoolCountry(normalizedCountry)) {
+      throw new Error(
+        `runner_job: unsupported or ambiguous shared-pool visa flow for ${normalizedCountry}`,
+      );
+    }
+    throw new Error(
+      `runner_job: unsupported or ambiguous runner flow for ${normalizedCountry}`,
+    );
   }
   if (flowKey && shouldUseSharedRunnerPool(flowKey, poolMigrationEnabled())) {
     const result = await enqueueRunnerPoolJob(applicationId, normalizedCountry, flowKey, opts);

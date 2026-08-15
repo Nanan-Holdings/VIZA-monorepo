@@ -43,6 +43,12 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/api/passport-ocr/**`, `app/api/translations/**`,
   `app/api/translate/**`, and
   `app/api/external-submission/**`.
+- Digital arrival-card cancellation at
+  `app/api/applications/[id]/cancel-submission/route.ts` selects the owning
+  queue transport, calls the atomic `cancel_application_submission` RPC, and
+  treats a false/empty result as a claim conflict. Focused route coverage is
+  in the adjacent `route.test.ts`; no direct queue or application settlement
+  update is allowed in the caller.
 - Vietnam Pre-Arrival official dropdown lookup is proxied through
   `app/api/vn-prearrival/options/**` (with implementation/test helpers in the
   adjacent non-route `route-handler.ts`); this route may read official category
@@ -234,7 +240,7 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260730170000_sgac_country_runner_retry.sql` and the
   country-scoped `runner_job` transport. Keep future-window scheduled SGAC
   rows in `submission_queue`, preserve the atomic legacy collision check, and
-  keep status/cancellation compatible with both transports during migration.
+  route cancellation for either transport through the atomic cancellation RPC.
 - Vietnam e-Visa photo and face-match rules live in
   `supabase/migrations/20260625_vn_evisa_photo_face_rules.sql`,
   `app/client/documents/actions.ts`, `app/actions/face-match.ts`,

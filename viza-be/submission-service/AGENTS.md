@@ -12,6 +12,23 @@ The submission service is a long-running Node/TypeScript worker that polls
 product contract is reliable official-portal automation that completes form
 filling and one-shot submission for the applicant.
 
+## Concurrency phase-two strict cutover
+
+The phase-two migration and its RPC callers are a single controlled cutover;
+do not run mixed old/new claim contracts. Before changing the claim contract:
+
+1. Pause enqueue and wake publication at the frontend and worker boundaries.
+2. Drain the existing workers until `runner_job.status = 'running'` is zero,
+   then stop the BASE/legacy submission worker.
+3. Apply the strict phase-two migration and verify the exact RPC signatures and
+   service-role grants. Do not add a fallback wrapper or caller-controlled
+   timestamp override.
+4. Deploy the matching RPC callers, run the queue/cancellation/takeover smoke
+   checks, and resume enqueue and wakes only after all checks pass.
+
+Any false or zero-row result from a settlement/cancellation RPC is a conflict
+and must fail closed; callers must not perform a direct table settlement.
+
 ## User Override
 
 - 如果碰到captcha，则用TWOCAPTCHA API 通过这个测试。
@@ -86,9 +103,8 @@ filling and one-shot submission for the applicant.
   service-role-only `complete_runner_pool_job` RPC with the stable worker id.
   Failure and renewal use the service-role-only `fail_runner_pool_job` and
   `renew_runner_pool_job` RPCs, whose ownership predicates use PostgreSQL's
-  `clock_timestamp()` rather than a caller timestamp. Success omits `p_now` in
-  production; the completion RPC's optional controlled timestamp remains only
-  for staging/time-controlled harnesses. Failure, renewal, and success writes
+  `clock_timestamp()` rather than a caller timestamp. Production callers do not
+  pass caller-controlled timestamps; all failure, renewal, and success writes
   are fenced by status, owner, and a live lease; a typed
   `runner_job_ownership_lost` result skips fallback failure writes, alerts, and
   metrics so a stale worker cannot mutate a reclaimed job.
@@ -613,10 +629,11 @@ filling and one-shot submission for the applicant.
   unconsumed Vietnam/Indonesia card session or protected Korea KVAC browser
   session. `scripts/fly/deploy-legacy.sh`, `scripts/fly/deploy-indonesia.sh`,
   and `scripts/fly/deploy-south-korea.sh` must fail closed unless this endpoint
-  returns HTTP 200 both before secret staging and immediately before a rolling
-  deploy. The Indonesia deploy retries this readiness check for a bounded three
-  minutes so an initial maintenance/claim tick does not cause a false failure;
-  exhausting the bound still refuses the rollout. Runtime secrets are staged
+  returns HTTP 200 before secret staging and again immediately before the
+  controlled cutover replacement. The Indonesia deploy retries this readiness
+  check for a bounded three minutes so an initial maintenance/claim tick does
+  not cause a false failure; exhausting the bound still refuses the rollout.
+  Runtime secrets are staged
   into that release so secret synchronization cannot independently restart the
   single memory-backed worker.
 - `src/idle-exit-controller.ts`, `src/work-availability.ts`, and

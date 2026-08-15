@@ -29,8 +29,15 @@ interface Row {
   status: string;
   attempts: number;
   max_attempts: number;
+  last_error: string | null;
   leased_until: string | null;
 }
+
+// Keep this byte-for-byte aligned with the quarantine reason in migration 0139.
+// Invalid or retired flows are intentionally terminal and must never be
+// requeued by this operator recovery tool.
+const INVALID_FLOW_QUARANTINE_REASON =
+  "Runner flow is retired or invalid; quarantined by concurrency fence.";
 
 function arg(name: string): string | undefined {
   const hit = process.argv.find((a) => a === `--${name}` || a.startsWith(`--${name}=`));
@@ -47,7 +54,8 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
-  const cols = "id, application_id, country, status, attempts, max_attempts, leased_until";
+  const cols =
+    "id, application_id, country, status, attempts, max_attempts, last_error, leased_until";
   let base = supabase
     .from("runner_job")
     .select(cols)
@@ -57,7 +65,11 @@ async function main(): Promise<void> {
   const { data, error } = await base;
   if (error) throw new Error(`runner_job read: ${error.message}`);
 
-  const eligible = ((data ?? []) as Row[]).filter((r) => r.attempts < r.max_attempts);
+  const eligible = ((data ?? []) as Row[]).filter(
+    (r) =>
+      r.attempts < r.max_attempts &&
+      r.last_error !== INVALID_FLOW_QUARANTINE_REASON,
+  );
 
   console.log(`Found ${eligible.length} eligible row(s)${confirm ? "" : " (dry-run)"}:`);
   for (const r of eligible) {

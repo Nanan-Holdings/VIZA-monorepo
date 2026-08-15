@@ -9,11 +9,10 @@ import { withAdmin } from "@/lib/auth/with-admin";
  * - listOpenTakeovers() — admin-only queue.
  * - claimTakeover(takeoverId) — flips status='claimed' + claimed_by.
  * - completeTakeover(takeoverId, answers, operatorNotes?) — writes
- *   the captured answers back into visa_application_answers, marks
- *   the takeover + runner_job done.
- * - abandonTakeover(takeoverId, reason) — operator can't finish; row
- *   archived, runner_job → 'failed' (max_attempts already reached
- *   when the runner asked for help).
+ *   the captured answers back into visa_application_answers, then settles
+ *   the takeover + runner_job through one guarded database RPC.
+ * - abandonTakeover(takeoverId, reason) — operator can't finish; row and
+ *   runner_job are settled through the same guarded RPC.
  *
  * The remote-debug URL is gated by getCurrentUser().role==='admin'.
  * 2FA enforcement is delegated to Supabase Auth's MFA factors —
@@ -25,6 +24,18 @@ interface SupabaseUser {
   id: string;
   factors?: Array<{ status: string; factor_type: string }>;
   user_metadata?: { aal?: string };
+}
+
+interface TakeoverSettlementRow {
+  settled?: unknown;
+  job_id?: unknown;
+  application_id?: unknown;
+  job_status?: unknown;
+}
+
+function parseTakeoverSettlement(data: unknown): TakeoverSettlementRow | null {
+  const row = Array.isArray(data) ? data[0] : data;
+  return row && typeof row === "object" ? (row as TakeoverSettlementRow) : null;
 }
 
 async function require2fa(): Promise<{ userId: string }> {
@@ -150,29 +161,23 @@ export async function completeTakeover(
       if (ansErr) throw new Error(`answers upsert: ${ansErr.message}`);
     }
 
-    await admin
-      .from("takeover_session")
-      .update({
-        status: "completed",
-        operator_notes: operatorNotes ?? null,
-        closed_at: new Date().toISOString(),
-      })
-      .eq("id", takeoverId);
-    await admin
-      .from("runner_job")
-      .update({
-        status: "succeeded",
-        finished_at: new Date().toISOString(),
-        leased_by: null,
-        leased_until: null,
-      })
-      .eq("id", row.job_id);
-    await admin.from("takeover_action_log").insert({
-      takeover_id: takeoverId,
-      action: "complete",
-      actor_user_id: userId,
-      detail: { answers_written: upserts.length },
-    });
+    const { data: settlementData, error: settlementError } = await admin.rpc(
+      "settle_runner_job_takeover",
+      {
+        p_takeover_id: takeoverId,
+        p_actor_user_id: userId,
+        p_outcome: "completed",
+        p_operator_notes: operatorNotes ?? null,
+        p_answers_written: upserts.length,
+      },
+    );
+    if (settlementError) {
+      throw new Error(`takeover settlement: ${settlementError.message}`);
+    }
+    const settlement = parseTakeoverSettlement(settlementData);
+    if (!settlement || settlement.settled !== true) {
+      throw new Error("takeover settlement conflict: session is no longer active");
+    }
     return { ok: true as const, answersWritten: upserts.length };
   });
 }
@@ -183,36 +188,22 @@ export async function abandonTakeover(
 ): Promise<void> {
   const { userId } = await require2fa();
   return withAdmin("admin", "actions/takeover:abandon", async (admin) => {
-    const { data: row } = await admin
-      .from("takeover_session")
-      .select("job_id")
-      .eq("id", takeoverId)
-      .maybeSingle();
-    await admin
-      .from("takeover_session")
-      .update({
-        status: "abandoned",
-        operator_notes: reason,
-        closed_at: new Date().toISOString(),
-      })
-      .eq("id", takeoverId);
-    if (row?.job_id) {
-      await admin
-        .from("runner_job")
-        .update({
-          status: "failed",
-          last_error: `takeover abandoned: ${reason}`,
-          finished_at: new Date().toISOString(),
-          leased_by: null,
-          leased_until: null,
-        })
-        .eq("id", row.job_id);
+    const { data: settlementData, error: settlementError } = await admin.rpc(
+      "settle_runner_job_takeover",
+      {
+        p_takeover_id: takeoverId,
+        p_actor_user_id: userId,
+        p_outcome: "abandoned",
+        p_operator_notes: reason,
+        p_answers_written: 0,
+      },
+    );
+    if (settlementError) {
+      throw new Error(`takeover settlement: ${settlementError.message}`);
     }
-    await admin.from("takeover_action_log").insert({
-      takeover_id: takeoverId,
-      action: "abandon",
-      actor_user_id: userId,
-      detail: { reason },
-    });
+    const settlement = parseTakeoverSettlement(settlementData);
+    if (!settlement || settlement.settled !== true) {
+      throw new Error("takeover settlement conflict: session is no longer active");
+    }
   });
 }

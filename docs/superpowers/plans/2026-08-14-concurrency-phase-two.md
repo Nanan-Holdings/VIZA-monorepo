@@ -525,7 +525,7 @@ RETURNING claimed.id, claimed.application_id, claimed.country,
 
 Before selection, verify the live machine slot when `p_require_slot` is true.
 Recover at most one expired row with a separate materialized CTE. Keep exact
-function signature and service-role grants for rolling deployment. The partial
+function signature and service-role grants for the controlled cutover. The partial
 queued index predicate must match `status = 'queued'`.
 
 - [ ] **Step 4: Generate the Supabase migration with the CLI and mirror SQL**
@@ -1092,35 +1092,31 @@ p95 claim latency<500ms
 synthetic rows remaining=0
 ```
 
-- [ ] **Step 4: Deploy Phase A with flags disabled**
+- [ ] **Step 4: Pause enqueue/wakes and drain the BASE worker**
 
-Deploy the Worker contract first, then Vercel, then Fly submission images. Keep
-`RESILIENCE_RUNNER_WAKE_ENABLED=false` and
-`RESILIENCE_VN_STATUS_GATE_ENABLED=false`. Confirm Worker health, Queue
-producer/consumer bindings, Vercel replay 401 on unsigned input, and Fly images
-at the intended SHA with machines returned to scale-to-zero.
+Pause frontend enqueue and all worker wake publication. Drain existing work
+until `runner_job.status = 'running'` is zero, then stop the BASE/legacy
+submission worker.
 
-- [ ] **Step 5: Enable Phase A canary and observe**
+- [ ] **Step 5: Apply the strict phase-two migration**
 
-Set `RESILIENCE_RUNNER_WAKE_ENABLED=true` only for the approved canary
-environment or percentage. Enqueue synthetic non-billable work and measure 100
-duplicate Queue deliveries. Expected effective Fly wakes: 1. Confirm direct
-wake fallback by temporarily pointing the canary gateway to an unreachable
-preview URL, not by disrupting production.
+Apply the strict phase-two migration and verify the exact function signatures,
+indexes, and service-role grants. Do not add a fallback wrapper or a
+caller-controlled timestamp override.
 
-- [ ] **Step 6: Enable Phase B only after its matrix passes**
+- [ ] **Step 6: Deploy RPC callers and run smoke checks**
 
-Apply the production migration during a low-traffic window. Verify the function
-definition and indexes, deploy workers, and observe claim p95, false-empty
-claims, country saturation, and database error rates. Roll back to the prior
-`pg_try_advisory_xact_lock` function if any release rule fails.
+Deploy the frontend enqueue/cancellation/takeover callers and the submission
+worker against the strict migration. Run queue claim, cancellation, takeover,
+Queue wake, and Vietnam status smoke tests at the intended SHA. Keep all
+machines at scale-to-zero when no work is queued.
 
-- [ ] **Step 7: Enable Phase C only after matching parity passes**
+- [ ] **Step 7: Resume only after the cutover gate passes**
 
-Compare old fixture outputs and new RPC counts exactly. Then enable SQL email
-matching. Enable the Vietnam Gate separately at capacity 1. Verify acquisition,
-renewal, release, stale-fence refusal, and zero leaked leases before considering
-a higher measured capacity.
+Verify no stale worker remains, no false/zero-row settlement was reported, and
+all smoke checks passed. Resume enqueue and wake publication, then observe the
+claim/capacity/error metrics. If any gate fails, keep enqueue paused and record
+the failure as blocked; do not restore an older caller.
 
 - [ ] **Step 8: Write the expected-versus-measured results report**
 
