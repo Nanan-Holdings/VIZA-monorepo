@@ -881,6 +881,19 @@ BEGIN
     RETURN;
   END IF;
 
+  IF p_attempts <> v_old_row.attempts + 1 THEN
+    RAISE EXCEPTION 'p_attempts must advance the locked runner attempt exactly once'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_status IS DISTINCT FROM CASE
+    WHEN p_attempts >= v_old_row.max_attempts THEN 'failed'
+    ELSE 'queued'
+  END IF THEN
+    RAISE EXCEPTION
+      'p_status must match the terminal state implied by p_attempts'
+      USING ERRCODE = '22023';
+  END IF;
+
   v_available_at := CASE
     WHEN p_status = 'queued'
       THEN v_now + p_retry_after_seconds * INTERVAL '1 second'
@@ -966,6 +979,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_old_row public.runner_job%ROWTYPE;
+  v_locked_application_id UUID;
   v_new_row JSONB;
   v_takeover_id UUID;
   v_worker_id TEXT;
@@ -1004,17 +1018,28 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
+  -- Match enqueue/result writers: validate and lock the application first,
+  -- then lock the exact runner row. This prevents planner-dependent reverse
+  -- ordering from deadlocking app writers against takeover callers.
+  SELECT application.id
+  INTO v_locked_application_id
+  FROM public.applications AS application
+  WHERE application.id = p_application_id
+    AND application.applicant_id = p_applicant_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
   SELECT job.*
   INTO v_old_row
   FROM public.runner_job AS job
-  JOIN public.applications AS application
-    ON application.id = job.application_id
   WHERE job.id = p_job_id
     AND job.application_id = p_application_id
-    AND application.applicant_id = p_applicant_id
     AND job.status = 'running'
     AND job.leased_by = v_worker_id
-  FOR UPDATE OF job, application;
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RETURN;
@@ -1025,7 +1050,7 @@ BEGIN
     RETURN;
   END IF;
 
-  v_takeover_id := public.gen_random_uuid();
+  v_takeover_id := pg_catalog.gen_random_uuid();
   v_new_row := to_jsonb(v_old_row) || jsonb_build_object(
     'status', 'needs_human',
     'leased_by', NULL,
