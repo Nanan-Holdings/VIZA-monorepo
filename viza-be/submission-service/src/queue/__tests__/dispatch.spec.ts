@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import type { RunnerExecutionContext } from "../execution-context.js";
 
 process.env.SUPABASE_URL ??= "http://localhost";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-key";
@@ -122,8 +123,14 @@ test("dispatch: every shared-pool flow forwards the ownership execution context"
     calls.push({ kind: "arrival", applicationId, jobId, flow, execution });
     return outcome;
   };
-  const runKorea = async (applicationId: string, execution?: unknown) => {
-    calls.push({ kind: "korea", applicationId, execution });
+  const runKorea = async (
+    applicationId: string,
+    jobIdOrExecution?: string | RunnerExecutionContext,
+    maybeExecution?: RunnerExecutionContext,
+  ) => {
+    const jobId = typeof jobIdOrExecution === "string" ? jobIdOrExecution : undefined;
+    const execution = typeof jobIdOrExecution === "string" ? maybeExecution : jobIdOrExecution;
+    calls.push({ kind: "korea", applicationId, jobId, execution });
     return outcome;
   };
   const dispatch = createPoolFlowDispatch({
@@ -133,6 +140,8 @@ test("dispatch: every shared-pool flow forwards the ownership execution context"
     runKoreaEformBackground: runKorea,
   });
   const execution = {
+    jobId: "job-test",
+    workerId: "worker-test",
     signal: new AbortController().signal,
     assertOwned: () => undefined,
     checkpoint: () => undefined,
@@ -151,7 +160,7 @@ test("dispatch: every shared-pool flow forwards the ownership execution context"
     { kind: "singapore", applicationId: "app-sg", jobId: "job-sg", execution },
     { kind: "arrival", applicationId: "app-my", jobId: "job-my", flow: "mdac", execution },
     { kind: "arrival", applicationId: "app-th", jobId: "job-th", flow: "tdac", execution },
-    { kind: "korea", applicationId: "app-kr", execution },
+    { kind: "korea", applicationId: "app-kr", jobId: "job-kr", execution },
   ]);
 });
 

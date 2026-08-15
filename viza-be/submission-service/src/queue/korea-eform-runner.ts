@@ -1,9 +1,14 @@
 import { runKoreaOfficialEform } from "../korea-eform/runner.js";
-import { writeSubmissionResult } from "../result-writer.js";
+import {
+  writeRunnerPoolSubmissionResult,
+} from "../result-writer.js";
 import type { KrSubmissionResult } from "../submission-result.js";
 import { loadCountrySubmissionContext } from "./answers.js";
 import type { DispatchOutcome } from "./types.js";
-import type { RunnerExecutionContext } from "./execution-context.js";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "./execution-context.js";
 
 const KOREA_VISA_PORTAL_EFORM_URL =
   "https://www.visa.go.kr/openPage.do?MENU_ID=10204";
@@ -48,11 +53,38 @@ function previousKoreaResult(value: unknown): Partial<KrSubmissionResult> {
     : {};
 }
 
-export async function runKoreaEformBackground(
+export function runKoreaEformBackground(
   applicationId: string,
   executionContext?: RunnerExecutionContext,
+): Promise<DispatchOutcome>;
+export function runKoreaEformBackground(
+  applicationId: string,
+  jobId: string,
+  executionContext?: RunnerExecutionContext,
+): Promise<DispatchOutcome>;
+export async function runKoreaEformBackground(
+  applicationId: string,
+  jobIdOrExecution?: string | RunnerExecutionContext,
+  maybeExecutionContext?: RunnerExecutionContext,
 ): Promise<DispatchOutcome> {
-  executionContext?.assertOwned();
+  const jobId = typeof jobIdOrExecution === "string" ? jobIdOrExecution : undefined;
+  const executionContext = typeof jobIdOrExecution === "string"
+    ? maybeExecutionContext
+    : jobIdOrExecution;
+  const poolExecutionContext = executionContext && jobId
+    ? { ...executionContext, jobId }
+    : executionContext;
+
+  if (
+    !poolExecutionContext
+    || !poolExecutionContext.jobId
+    || !poolExecutionContext.workerId
+  ) {
+    throw new RunnerJobOwnershipLostError(
+      "Korea e-Form pool execution requires an ownership context",
+    );
+  }
+  poolExecutionContext.assertOwned();
   const context = await loadCountrySubmissionContext(applicationId);
   const applicationWithResult = context.application as typeof context.application & {
     submission_result?: unknown;
@@ -68,9 +100,9 @@ export async function runKoreaEformBackground(
     officialPdfStoragePath: previous.officialEformPdfStoragePath ?? null,
     finalReviewApproved: false,
     pdfLanguage: "zh-CN",
-    executionContext,
+    executionContext: poolExecutionContext,
   });
-  executionContext?.assertOwned();
+  poolExecutionContext.assertOwned();
 
   let submissionResult: KrSubmissionResult;
   if (result.status === "official_eform_ready") {
@@ -123,12 +155,9 @@ export async function runKoreaEformBackground(
     };
   }
 
-  executionContext?.assertOwned();
-  await writeSubmissionResult(
-    applicationId,
-    submissionResult,
-    result.status === "official_eform_ready" ? "completed" : "needs_user_action",
-  );
+  poolExecutionContext.assertOwned();
+  const resultStatus = result.status === "official_eform_ready" ? "completed" : "needs_user_action";
+  await writeRunnerPoolSubmissionResult(poolExecutionContext, submissionResult, resultStatus);
   return {
     outcome: result.status === "official_eform_ready" ? "paper_ready" : "halted_before_pay",
     reachedStep:

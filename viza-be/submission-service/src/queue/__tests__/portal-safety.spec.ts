@@ -18,6 +18,8 @@ test("owned dialog helper dismisses instead of accepting after ownership loss", 
   const ownershipLost = new RunnerJobOwnershipLostError("lease lost while dialog was open");
   let owned = true;
   const execution: RunnerExecutionContext = {
+    jobId: "job-portal-test",
+    workerId: "worker-portal-test",
     signal: new AbortController().signal,
     assertOwned: () => {
       if (!owned) throw ownershipLost;
