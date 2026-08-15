@@ -845,8 +845,8 @@ COMMENT ON FUNCTION public.claim_runner_pool_job(TEXT, INTEGER, BOOLEAN, TIMESTA
 -- Every direct UPDATE of a running row must carry a private exact full-row
 -- capability minted by one of the service-role RPCs. Metadata-only changes
 -- remain harmless because metadata is deliberately outside the
--- lifecycle/identity fence. This is not an expired-only check: an active row
--- reclaimed after a lock wait is fenced identically to an expired row.
+-- lifecycle/identity fence. Every fenced lifecycle transition, including an
+-- active row reclaimed after a lock wait, uses the same exact-row capability.
 CREATE OR REPLACE FUNCTION runner_private.guard_expired_runner_job_lifecycle_update()
 RETURNS trigger
 LANGUAGE plpgsql
