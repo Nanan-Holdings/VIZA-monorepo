@@ -833,7 +833,7 @@ GRANT EXECUTE ON FUNCTION public.defer_vn_official_status_check(UUID, TEXT, BIGI
 GRANT EXECUTE ON FUNCTION public.fail_vn_official_status_check(UUID, TEXT, BIGINT, TEXT, TEXT, JSONB) TO service_role;
 GRANT EXECUTE ON FUNCTION public.complete_vn_official_status_check(UUID, TEXT, BIGINT, JSONB) TO service_role;
 
-REVOKE ALL ON TABLE public.official_status_checks FROM anon, authenticated;
+REVOKE ALL ON TABLE public.official_status_checks FROM PUBLIC, anon, authenticated;
 GRANT ALL ON TABLE public.official_status_checks TO service_role;
 
 COMMENT ON FUNCTION public.claim_vn_official_status_checks(TEXT, INTEGER, INTEGER) IS
