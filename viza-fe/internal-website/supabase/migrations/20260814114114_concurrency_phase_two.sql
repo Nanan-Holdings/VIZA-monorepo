@@ -18,7 +18,10 @@ REVOKE ALL ON SCHEMA runner_private FROM PUBLIC, anon, authenticated, service_ro
 
 DROP TRIGGER IF EXISTS guard_expired_runner_job_lifecycle_update
   ON public.runner_job;
+DROP TRIGGER IF EXISTS guard_runner_job_running_insert
+  ON public.runner_job;
 DROP FUNCTION IF EXISTS runner_private.guard_expired_runner_job_lifecycle_update();
+DROP FUNCTION IF EXISTS runner_private.guard_runner_job_running_insert();
 DROP FUNCTION IF EXISTS public.guard_expired_runner_job_lifecycle_update();
 DO $$
 BEGIN
@@ -31,7 +34,7 @@ CREATE TABLE IF NOT EXISTS runner_private.runner_job_update_capability (
   backend_pid INTEGER NOT NULL,
   job_id UUID NOT NULL,
   operation TEXT NOT NULL CHECK (operation IN (
-    'recover', 'complete', 'renew', 'fail', 'takeover_open',
+    'claim', 'recover', 'complete', 'renew', 'fail', 'takeover_open',
     'admin_pause', 'fingerprint_append'
   )),
   old_row JSONB NOT NULL,
@@ -55,13 +58,13 @@ BEGIN
     SELECT 1
     FROM public.runner_job
     WHERE status = 'running'
-      AND NOT (
+      AND NOT COALESCE((
         (country = 'vietnam' AND flow_key = 'vn_prearrival')
         OR (country = 'singapore' AND flow_key = 'sgac')
         OR (country = 'malaysia' AND flow_key = 'mdac')
         OR (country = 'thailand' AND flow_key = 'tdac')
         OR (country = 'south_korea' AND flow_key = 'kr_eform')
-      )
+      ), FALSE)
   ) THEN
     RAISE EXCEPTION
       'Cannot enable runner flow fence while invalid running runner_job rows exist';
@@ -74,13 +77,13 @@ BEGIN
       leased_until = NULL,
       finished_at = pg_catalog.clock_timestamp()
   WHERE status = 'queued'
-    AND NOT (
+    AND NOT COALESCE((
       (country = 'vietnam' AND flow_key = 'vn_prearrival')
       OR (country = 'singapore' AND flow_key = 'sgac')
       OR (country = 'malaysia' AND flow_key = 'mdac')
       OR (country = 'thailand' AND flow_key = 'tdac')
       OR (country = 'south_korea' AND flow_key = 'kr_eform')
-    );
+    ), FALSE);
 END;
 $$;
 
@@ -89,13 +92,173 @@ ALTER TABLE public.runner_job
 ALTER TABLE public.runner_job
   ADD CONSTRAINT runner_job_active_flow_key_check
   CHECK (
-    status <> 'running'
-    OR (country = 'vietnam' AND flow_key = 'vn_prearrival')
-    OR (country = 'singapore' AND flow_key = 'sgac')
-    OR (country = 'malaysia' AND flow_key = 'mdac')
-    OR (country = 'thailand' AND flow_key = 'tdac')
-    OR (country = 'south_korea' AND flow_key = 'kr_eform')
+    status NOT IN ('queued', 'running')
+    OR COALESCE((
+      (country = 'vietnam' AND flow_key = 'vn_prearrival')
+      OR (country = 'singapore' AND flow_key = 'sgac')
+      OR (country = 'malaysia' AND flow_key = 'mdac')
+      OR (country = 'thailand' AND flow_key = 'tdac')
+      OR (country = 'south_korea' AND flow_key = 'kr_eform')
+    ), FALSE)
   );
+
+-- Replace the rolling enqueue producer with the strict five-tuple contract.
+-- The application row is always locked before any queue/job row, and the
+-- database clock is authoritative; p_now remains only for signature
+-- compatibility with rolling callers.
+CREATE OR REPLACE FUNCTION public.enqueue_runner_pool_job(
+  p_application_id UUID,
+  p_country TEXT,
+  p_flow_key TEXT,
+  p_available_at TIMESTAMPTZ DEFAULT NOW(),
+  p_max_attempts INTEGER DEFAULT 3,
+  p_correlation_id TEXT DEFAULT NULL,
+  p_metadata JSONB DEFAULT '{}'::JSONB,
+  p_now TIMESTAMPTZ DEFAULT NOW()
+)
+RETURNS TABLE (
+  runner_job_id UUID,
+  reused_existing BOOLEAN,
+  blocked_by_legacy BOOLEAN,
+  legacy_queue_id UUID,
+  legacy_queue_status TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_country TEXT := LOWER(BTRIM(COALESCE(p_country, '')));
+  v_flow TEXT := LOWER(BTRIM(COALESCE(p_flow_key, '')));
+  v_legacy public.submission_queue%ROWTYPE;
+  v_runner public.runner_job%ROWTYPE;
+  v_now TIMESTAMPTZ;
+  v_application_status TEXT;
+  v_available_at TIMESTAMPTZ;
+  v_active_count INTEGER := 0;
+BEGIN
+  IF p_application_id IS NULL THEN
+    RAISE EXCEPTION 'Application id is required' USING ERRCODE = '22023';
+  END IF;
+  IF p_max_attempts IS NULL OR p_max_attempts < 1 OR p_max_attempts > 10 THEN
+    RAISE EXCEPTION 'Runner max attempts must be between 1 and 10'
+      USING ERRCODE = '22023';
+  END IF;
+  IF NOT COALESCE((
+    (v_country = 'vietnam' AND v_flow = 'vn_prearrival')
+    OR (v_country = 'singapore' AND v_flow = 'sgac')
+    OR (v_country = 'malaysia' AND v_flow = 'mdac')
+    OR (v_country = 'thailand' AND v_flow = 'tdac')
+    OR (v_country = 'south_korea' AND v_flow = 'kr_eform')
+  ), FALSE) THEN
+    RAISE EXCEPTION 'Unsupported shared runner flow: %/%', v_country, v_flow
+      USING ERRCODE = '22023';
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  v_available_at := COALESCE(p_available_at, v_now);
+
+  SELECT application.status
+  INTO v_application_status
+  FROM public.applications AS application
+  WHERE application.id = p_application_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Application % does not exist', p_application_id
+      USING ERRCODE = '23503';
+  END IF;
+  IF v_application_status = 'staff_action_required' THEN
+    RAISE EXCEPTION 'Application % is paused for staff review', p_application_id
+      USING ERRCODE = '55000';
+  END IF;
+
+  SELECT sq.*
+  INTO v_legacy
+  FROM public.submission_queue AS sq
+  WHERE sq.application_id = p_application_id
+    AND (
+      sq.status IN ('pending', 'processing', 'france_live_official_portal_opened')
+      OR sq.status LIKE '%pending'
+      OR sq.status LIKE '%processing'
+      OR sq.status LIKE '%scheduled'
+      OR sq.locked_until > v_now
+    )
+  ORDER BY
+    CASE
+      WHEN sq.locked_until > v_now THEN 0
+      WHEN sq.status = 'processing' OR sq.status LIKE '%processing' THEN 1
+      WHEN sq.status LIKE '%scheduled' THEN 2
+      ELSE 3
+    END,
+    sq.created_at DESC,
+    sq.id DESC
+  LIMIT 1
+  FOR UPDATE;
+
+  IF v_legacy.id IS NOT NULL THEN
+    RETURN QUERY SELECT NULL::UUID, FALSE, TRUE, v_legacy.id, v_legacy.status;
+    RETURN;
+  END IF;
+
+  -- Lock all active runner rows before deciding whether to reuse. A caller
+  -- must never reuse an active row under a different country/flow tuple.
+  PERFORM rj.id
+  FROM public.runner_job AS rj
+  WHERE rj.application_id = p_application_id
+    AND rj.status IN ('queued', 'running')
+  FOR UPDATE;
+
+  SELECT COUNT(*)::INTEGER
+  INTO v_active_count
+  FROM public.runner_job AS rj
+  WHERE rj.application_id = p_application_id
+    AND rj.status IN ('queued', 'running');
+
+  IF v_active_count > 0 THEN
+    SELECT rj.*
+    INTO v_runner
+    FROM public.runner_job AS rj
+    WHERE rj.application_id = p_application_id
+      AND rj.status IN ('queued', 'running')
+    ORDER BY rj.enqueued_at DESC, rj.id DESC
+    LIMIT 1;
+
+    IF v_runner.country = v_country AND v_runner.flow_key = v_flow THEN
+      RETURN QUERY SELECT v_runner.id, TRUE, FALSE, NULL::UUID, NULL::TEXT;
+      RETURN;
+    END IF;
+
+    RAISE EXCEPTION
+      'Application % already has an active runner flow %/%; refusing %/%',
+      p_application_id, v_runner.country, v_runner.flow_key, v_country, v_flow
+      USING ERRCODE = '23505';
+  END IF;
+
+  INSERT INTO public.runner_job (
+    application_id, country, flow_key, status, attempts, max_attempts,
+    correlation_id, metadata, available_at, enqueued_at
+  )
+  VALUES (
+    p_application_id, v_country, v_flow, 'queued', 0, p_max_attempts,
+    p_correlation_id, COALESCE(p_metadata, '{}'::JSONB), v_available_at, v_now
+  )
+  RETURNING * INTO v_runner;
+
+  RETURN QUERY SELECT v_runner.id, FALSE, FALSE, NULL::UUID, NULL::TEXT;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.enqueue_runner_pool_job(
+  UUID, TEXT, TEXT, TIMESTAMPTZ, INTEGER, TEXT, JSONB, TIMESTAMPTZ
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.enqueue_runner_pool_job(
+  UUID, TEXT, TEXT, TIMESTAMPTZ, INTEGER, TEXT, JSONB, TIMESTAMPTZ
+) TO service_role;
+
+COMMENT ON FUNCTION public.enqueue_runner_pool_job(
+  UUID, TEXT, TEXT, TIMESTAMPTZ, INTEGER, TEXT, JSONB, TIMESTAMPTZ
+) IS
+  'Atomically reuses or enqueues one exact five-tuple runner flow with application-first locking and database time.';
 
 -- The SGAC retry signature is retained for existing service callers, but the
 -- live runner transport is now explicitly flow-keyed so null/legacy rows can
@@ -121,6 +284,8 @@ AS $$
 DECLARE
   v_legacy public.submission_queue%ROWTYPE;
   v_runner public.runner_job%ROWTYPE;
+  v_now TIMESTAMPTZ;
+  v_application_status TEXT;
 BEGIN
   IF p_application_id IS NULL THEN
     RAISE EXCEPTION 'Application id is required' USING ERRCODE = '22023';
@@ -129,11 +294,20 @@ BEGIN
     RAISE EXCEPTION 'SGAC max attempts must be between 1 and 10'
       USING ERRCODE = '22023';
   END IF;
+  v_now := pg_catalog.clock_timestamp();
 
-  PERFORM 1 FROM public.applications WHERE id = p_application_id FOR UPDATE;
+  SELECT application.status
+  INTO v_application_status
+  FROM public.applications AS application
+  WHERE application.id = p_application_id
+  FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Application % does not exist', p_application_id
       USING ERRCODE = '23503';
+  END IF;
+  IF v_application_status = 'staff_action_required' THEN
+    RAISE EXCEPTION 'Application % is paused for staff review', p_application_id
+      USING ERRCODE = '55000';
   END IF;
 
   SELECT sq.* INTO v_legacy
@@ -144,7 +318,7 @@ BEGIN
       OR sq.status LIKE '%pending'
       OR sq.status LIKE '%processing'
       OR sq.status LIKE '%scheduled'
-      OR sq.locked_until > p_now
+      OR sq.locked_until > v_now
     )
   ORDER BY sq.created_at DESC, sq.id DESC
   LIMIT 1
@@ -155,19 +329,33 @@ BEGIN
     RETURN;
   END IF;
 
+  -- Serialize every active row for this application before deciding whether
+  -- an SGAC row can be reused. A different active country/flow is a conflict,
+  -- never an invitation to create a second live row.
+  PERFORM rj.id
+  FROM public.runner_job AS rj
+  WHERE rj.application_id = p_application_id
+    AND rj.status IN ('queued', 'running')
+  FOR UPDATE;
+
   SELECT rj.* INTO v_runner
   FROM public.runner_job AS rj
   WHERE rj.application_id = p_application_id
-    AND rj.country = 'singapore'
-    AND rj.flow_key = 'sgac'
     AND rj.status IN ('queued', 'running')
   ORDER BY rj.enqueued_at DESC, rj.id DESC
   LIMIT 1
   FOR UPDATE;
 
   IF v_runner.id IS NOT NULL THEN
-    RETURN QUERY SELECT v_runner.id, TRUE, FALSE, NULL::UUID, NULL::TEXT;
-    RETURN;
+    IF v_runner.country = 'singapore' AND v_runner.flow_key = 'sgac' THEN
+      RETURN QUERY SELECT v_runner.id, TRUE, FALSE, NULL::UUID, NULL::TEXT;
+      RETURN;
+    END IF;
+
+    RAISE EXCEPTION
+      'Application % already has an active runner flow %/%; refusing SGAC retry',
+      p_application_id, v_runner.country, v_runner.flow_key
+      USING ERRCODE = '23505';
   END IF;
 
   INSERT INTO public.runner_job (
@@ -176,7 +364,7 @@ BEGIN
   )
   VALUES (
     p_application_id, 'singapore', 'sgac', 'queued', 0, p_max_attempts,
-    p_correlation_id, COALESCE(p_metadata, '{}'::JSONB), p_now, p_now
+    p_correlation_id, COALESCE(p_metadata, '{}'::JSONB), v_now, v_now
   )
   RETURNING * INTO v_runner;
 
@@ -239,6 +427,9 @@ DECLARE
   v_expired_job_id UUID;
   v_expired_old_row public.runner_job%ROWTYPE;
   v_expired_new_row JSONB;
+  v_claimed_job_id UUID;
+  v_claimed_old_row public.runner_job%ROWTYPE;
+  v_claimed_new_row JSONB;
   v_now TIMESTAMPTZ;
   v_recovery_rows INTEGER := 0;
   v_tried_countries TEXT[] := ARRAY[]::TEXT[];
@@ -298,13 +489,13 @@ BEGIN
     FROM public.runner_job AS expired
     WHERE expired.status = 'running'
       AND expired.leased_until <= v_now
-      AND (
+      AND COALESCE((
         (expired.country = 'vietnam' AND expired.flow_key = 'vn_prearrival')
         OR (expired.country = 'singapore' AND expired.flow_key = 'sgac')
         OR (expired.country = 'malaysia' AND expired.flow_key = 'mdac')
         OR (expired.country = 'thailand' AND expired.flow_key = 'tdac')
         OR (expired.country = 'south_korea' AND expired.flow_key = 'kr_eform')
-      )
+      ), FALSE)
     ORDER BY expired.leased_until, expired.id
     LIMIT 1
     FOR UPDATE SKIP LOCKED
@@ -412,6 +603,10 @@ BEGIN
     END IF;
   END IF;
 
+  -- Recovery and cap-row waits may have consumed a meaningful portion of a
+  -- worker lease. Refresh the authoritative clock before selecting a new row.
+  v_now := pg_catalog.clock_timestamp();
+
   -- Lock at most the five eligible country-cap rows. The oldest due queued
   -- candidate determines the next country, avoiding alphabetical starvation.
   -- The cap lock is acquired without waiting; capacity is checked after the
@@ -424,13 +619,13 @@ BEGIN
       SELECT oldest_candidate.enqueued_at, oldest_candidate.id
       FROM public.runner_job AS oldest_candidate
       WHERE oldest_candidate.country = cap.country
-        AND (
+        AND COALESCE((
           (oldest_candidate.country = 'vietnam' AND oldest_candidate.flow_key = 'vn_prearrival')
           OR (oldest_candidate.country = 'singapore' AND oldest_candidate.flow_key = 'sgac')
           OR (oldest_candidate.country = 'malaysia' AND oldest_candidate.flow_key = 'mdac')
           OR (oldest_candidate.country = 'thailand' AND oldest_candidate.flow_key = 'tdac')
           OR (oldest_candidate.country = 'south_korea' AND oldest_candidate.flow_key = 'kr_eform')
-        )
+        ), FALSE)
       AND oldest_candidate.status = 'queued'
         AND oldest_candidate.available_at <= v_now
       ORDER BY oldest_candidate.enqueued_at, oldest_candidate.id
@@ -454,7 +649,6 @@ BEGIN
 
     -- This is a separate SQL statement after the cap-row lock. Its snapshot
     -- sees any committed same-country claim before evaluating the count.
-    RETURN QUERY
     WITH selected AS MATERIALIZED (
       SELECT candidate.id, candidate.country
       FROM public.runner_job AS candidate
@@ -466,31 +660,105 @@ BEGIN
         AND candidate.country IN (
           'vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea'
         )
-        AND (
+        AND COALESCE((
           (candidate.country = 'vietnam' AND candidate.flow_key = 'vn_prearrival')
           OR (candidate.country = 'singapore' AND candidate.flow_key = 'sgac')
           OR (candidate.country = 'malaysia' AND candidate.flow_key = 'mdac')
           OR (candidate.country = 'thailand' AND candidate.flow_key = 'tdac')
           OR (candidate.country = 'south_korea' AND candidate.flow_key = 'kr_eform')
-        )
+        ), FALSE)
         AND NOT cap.paused
         AND (
           SELECT COUNT(*)
           FROM public.runner_job AS active
           WHERE active.country = candidate.country
             AND active.status = 'running'
-            AND (
+            AND COALESCE((
               (active.country = 'vietnam' AND active.flow_key = 'vn_prearrival')
               OR (active.country = 'singapore' AND active.flow_key = 'sgac')
               OR (active.country = 'malaysia' AND active.flow_key = 'mdac')
               OR (active.country = 'thailand' AND active.flow_key = 'tdac')
               OR (active.country = 'south_korea' AND active.flow_key = 'kr_eform')
-            )
+            ), FALSE)
         ) < cap.max_concurrent
       ORDER BY candidate.enqueued_at, candidate.id
       LIMIT 1
       FOR UPDATE OF candidate, cap SKIP LOCKED
     )
+    SELECT selected.id
+    INTO v_claimed_job_id
+    FROM selected;
+
+    IF v_claimed_job_id IS NULL THEN
+      CONTINUE;
+    END IF;
+
+    SELECT job.*
+    INTO v_claimed_old_row
+    FROM public.runner_job AS job
+    WHERE job.id = v_claimed_job_id
+      AND job.status = 'queued'
+      AND job.available_at <= v_now
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      CONTINUE;
+    END IF;
+
+    -- The candidate was selected with an earlier snapshot. Re-sample time
+    -- only after its row lock, then re-check both availability and the same
+    -- worker slot before minting the claim capability. This prevents a claim
+    -- from creating a lease that is already expired while waiting on locks.
+    v_now := pg_catalog.clock_timestamp();
+    IF v_claimed_old_row.available_at > v_now THEN
+      CONTINUE;
+    END IF;
+    IF p_require_slot THEN
+      PERFORM 1
+      FROM public.runner_machine_slot AS rms
+      WHERE rms.owner_machine_id = v_worker_id
+        AND rms.owner_kind = 'pool'
+        AND rms.lease_until > v_now
+      FOR UPDATE;
+      IF NOT FOUND THEN
+        RETURN;
+      END IF;
+      IF EXISTS (
+        SELECT 1
+        FROM public.runner_job AS owned
+        WHERE owned.status = 'running'
+          AND owned.leased_by = v_worker_id
+          AND owned.leased_until > v_now
+      ) THEN
+        RETURN;
+      END IF;
+    END IF;
+
+    v_claimed_new_row := to_jsonb(v_claimed_old_row) || jsonb_build_object(
+      'status', 'running',
+      'leased_by', v_worker_id,
+      'leased_until', v_now + p_lease_ms * INTERVAL '1 millisecond',
+      'started_at', v_now,
+      'finished_at', NULL,
+      'last_error', NULL
+    );
+
+    DELETE FROM runner_private.runner_job_update_capability
+    WHERE txid = pg_catalog.txid_current()
+      AND backend_pid = pg_catalog.pg_backend_pid()
+      AND job_id = v_claimed_job_id;
+
+    -- The permanent trigger consumes this exact full OLD/NEW image before
+    -- allowing the queued -> running lifecycle transition.
+    INSERT INTO runner_private.runner_job_update_capability (
+      txid, backend_pid, job_id, operation, old_row, new_row
+    )
+    VALUES (
+      pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), v_claimed_job_id,
+      'claim', to_jsonb(v_claimed_old_row), v_claimed_new_row
+    );
+
+    RETURN QUERY
     UPDATE public.runner_job AS claimed
     SET status = 'running',
         leased_by = v_worker_id,
@@ -498,9 +766,9 @@ BEGIN
         started_at = v_now,
         finished_at = NULL,
         last_error = NULL
-    FROM selected
-    WHERE claimed.id = selected.id
+    WHERE claimed.id = v_claimed_job_id
       AND claimed.status = 'queued'
+      AND claimed.available_at <= v_now
     RETURNING
       claimed.id,
       claimed.application_id,
@@ -515,6 +783,11 @@ BEGIN
     IF v_claimed_rows > 0 THEN
       RETURN;
     END IF;
+
+    DELETE FROM runner_private.runner_job_update_capability
+    WHERE txid = pg_catalog.txid_current()
+      AND backend_pid = pg_catalog.pg_backend_pid()
+      AND job_id = v_claimed_job_id;
   END LOOP;
 END;
 $$;
@@ -536,13 +809,13 @@ SELECT
 FROM public.runner_concurrency_cap AS cap
 LEFT JOIN public.runner_job AS rj
   ON rj.country = cap.country
-  AND (
+  AND COALESCE((
     (rj.country = 'vietnam' AND rj.flow_key = 'vn_prearrival')
     OR (rj.country = 'singapore' AND rj.flow_key = 'sgac')
     OR (rj.country = 'malaysia' AND rj.flow_key = 'mdac')
     OR (rj.country = 'thailand' AND rj.flow_key = 'tdac')
     OR (rj.country = 'south_korea' AND rj.flow_key = 'kr_eform')
-  )
+  ), FALSE)
 WHERE cap.country IN ('vietnam', 'singapore', 'malaysia', 'thailand', 'south_korea')
 GROUP BY cap.country, cap.max_concurrent, cap.paused;
 
@@ -572,7 +845,53 @@ SET search_path = ''
 AS $$
 DECLARE
   v_capability_operation TEXT;
+  v_application_status TEXT;
 BEGIN
+  IF NEW.status IS NOT DISTINCT FROM 'queued'
+    AND OLD.status IS DISTINCT FROM 'running'
+    AND OLD.status IS DISTINCT FROM 'queued'
+  THEN
+    -- Requeue transitions from failed/paused/dead-letter states must take
+    -- the application mutex before consulting review state. NOWAIT avoids a
+    -- reverse-order deadlock with pause_runner_jobs_for_review; a concurrent
+    -- review simply rejects this direct lifecycle write.
+    SELECT application.status
+    INTO v_application_status
+    FROM public.applications AS application
+    WHERE application.id = NEW.application_id
+    FOR UPDATE NOWAIT;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Application % does not exist', NEW.application_id
+        USING ERRCODE = '23503';
+    END IF;
+    IF v_application_status = 'staff_action_required' THEN
+      RAISE EXCEPTION 'Application % is paused for staff review', NEW.application_id
+        USING ERRCODE = '55000';
+    END IF;
+  END IF;
+
+  -- Queued -> running is the one non-running lifecycle transition that must
+  -- consume a full exact-row claim capability. Every other non-running
+  -- update remains outside this trigger's lifecycle fence.
+  IF OLD.status IS DISTINCT FROM 'running'
+    AND NEW.status IS NOT DISTINCT FROM 'running'
+  THEN
+    DELETE FROM runner_private.runner_job_update_capability AS capability
+    WHERE capability.txid = pg_catalog.txid_current()
+      AND capability.backend_pid = pg_catalog.pg_backend_pid()
+      AND capability.job_id = OLD.id
+      AND capability.operation = 'claim'
+      AND capability.old_row = to_jsonb(OLD)
+      AND capability.new_row = to_jsonb(NEW)
+    RETURNING capability.operation
+    INTO v_capability_operation;
+
+    IF NOT FOUND OR v_capability_operation IS NULL THEN
+      RETURN NULL;
+    END IF;
+    RETURN NEW;
+  END IF;
+
   IF OLD.status IS DISTINCT FROM 'running' THEN
     RETURN NEW;
   END IF;
@@ -589,7 +908,7 @@ BEGIN
     AND capability.backend_pid = pg_catalog.pg_backend_pid()
     AND capability.job_id = OLD.id
     AND capability.operation IN (
-      'recover', 'complete', 'renew', 'fail', 'takeover_open',
+      'claim', 'recover', 'complete', 'renew', 'fail', 'takeover_open',
       'admin_pause', 'fingerprint_append'
     )
     AND capability.old_row = to_jsonb(OLD)
@@ -615,7 +934,60 @@ BEFORE UPDATE ON public.runner_job
 FOR EACH ROW
 EXECUTE FUNCTION runner_private.guard_expired_runner_job_lifecycle_update();
 
+CREATE OR REPLACE FUNCTION runner_private.guard_runner_job_running_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_application_status TEXT;
+BEGIN
+  IF NEW.status IS NOT DISTINCT FROM 'queued' THEN
+    -- Queue insertion is itself an application-scoped mutation. Lock the
+    -- application before checking review state so direct service-role inserts
+    -- cannot race pause_runner_jobs_for_review.
+    SELECT application.status
+    INTO v_application_status
+    FROM public.applications AS application
+    WHERE application.id = NEW.application_id
+    FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Application % does not exist', NEW.application_id
+        USING ERRCODE = '23503';
+    END IF;
+    IF v_application_status = 'staff_action_required' THEN
+      RAISE EXCEPTION 'Application % is paused for staff review', NEW.application_id
+        USING ERRCODE = '55000';
+    END IF;
+    IF NOT COALESCE((
+      (NEW.country = 'vietnam' AND NEW.flow_key = 'vn_prearrival')
+      OR (NEW.country = 'singapore' AND NEW.flow_key = 'sgac')
+      OR (NEW.country = 'malaysia' AND NEW.flow_key = 'mdac')
+      OR (NEW.country = 'thailand' AND NEW.flow_key = 'tdac')
+      OR (NEW.country = 'south_korea' AND NEW.flow_key = 'kr_eform')
+    ), FALSE) THEN
+      RAISE EXCEPTION 'Queued runner_job flow tuple is invalid'
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+
+  IF NEW.status IS NOT DISTINCT FROM 'running' THEN
+    RAISE EXCEPTION 'runner_job rows must be inserted with status queued'
+      USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER guard_runner_job_running_insert
+BEFORE INSERT ON public.runner_job
+FOR EACH ROW
+EXECUTE FUNCTION runner_private.guard_runner_job_running_insert();
+
 REVOKE ALL ON FUNCTION runner_private.guard_expired_runner_job_lifecycle_update()
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION runner_private.guard_runner_job_running_insert()
   FROM PUBLIC, anon, authenticated, service_role;
 
 COMMENT ON FUNCTION runner_private.guard_expired_runner_job_lifecycle_update() IS
@@ -1146,6 +1518,16 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
+  -- Match enqueue/result/takeover writers: lock the application before any
+  -- runner jobs so a review pause cannot deadlock against app-first writers.
+  PERFORM 1
+  FROM public.applications AS application
+  WHERE application.id = p_application_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN 0;
+  END IF;
+
   FOR v_job IN
     SELECT job.*
     FROM public.runner_job AS job
@@ -1214,6 +1596,315 @@ GRANT EXECUTE ON FUNCTION public.pause_runner_jobs_for_review(UUID, TEXT)
 
 COMMENT ON FUNCTION public.pause_runner_jobs_for_review(UUID, TEXT) IS
   'Pauses queued and live running jobs for one application with exact capabilities for running rows.';
+
+-- Atomically cancel one still-queued submission. The application row is the
+-- mutex for both transports; the exact queue/job row is then locked and
+-- checked for a null lease before either it or the application is changed.
+-- Cancellation policy (status/error text) is derived from the application
+-- visa type rather than accepted from a caller.
+CREATE OR REPLACE FUNCTION public.cancel_application_submission(
+  p_application_id UUID,
+  p_queue_id UUID,
+  p_transport TEXT
+)
+RETURNS TABLE (
+  cancelled BOOLEAN,
+  queue_id UUID,
+  queue_transport TEXT,
+  cancelled_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_application public.applications%ROWTYPE;
+  v_queue_id UUID;
+  v_transport TEXT := LOWER(BTRIM(COALESCE(p_transport, '')));
+  v_visa_type TEXT;
+  v_cancelled_status TEXT;
+  v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER;
+  v_error TEXT := 'Cancelled by user before official arrival card submission.';
+BEGIN
+  IF p_application_id IS NULL OR p_queue_id IS NULL THEN
+    RAISE EXCEPTION 'application id and queue id are required'
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_transport NOT IN ('submission_queue', 'runner_job') THEN
+    RAISE EXCEPTION 'queue transport must be submission_queue or runner_job'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- The database clock is sampled only after the application mutex is held.
+  SELECT application.*
+  INTO v_application
+  FROM public.applications AS application
+  WHERE application.id = p_application_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  v_visa_type := UPPER(REGEXP_REPLACE(
+    COALESCE(v_application.visa_type, ''), '[[:space:]/-]+', '_', 'g'
+  ));
+  v_cancelled_status := CASE v_visa_type
+    WHEN 'MY_MDAC_ARRIVAL_CARD' THEN 'mdac_live_assisted_cancelled'
+    WHEN 'TH_TDAC_ARRIVAL_CARD' THEN 'tdac_live_assisted_cancelled'
+    WHEN 'PH_ETRAVEL_ARRIVAL_CARD' THEN 'phetravel_live_assisted_cancelled'
+    WHEN 'PH_ETRAVEL_DEPARTURE_CARD' THEN 'phetravel_live_assisted_cancelled'
+    WHEN 'VN_PREARRIVAL_DECLARATION' THEN 'vn_prearrival_live_assisted_cancelled'
+    ELSE 'sgac_live_assisted_cancelled'
+  END;
+
+  IF v_transport = 'runner_job' THEN
+    SELECT job.id
+    INTO v_queue_id
+    FROM public.runner_job AS job
+    WHERE job.id = p_queue_id
+      AND job.application_id = p_application_id
+      AND job.status = 'queued'
+      AND job.leased_by IS NULL
+      AND job.leased_until IS NULL
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RETURN;
+    END IF;
+
+    UPDATE public.runner_job AS job
+    SET status = 'cancelled',
+        last_error = v_error,
+        finished_at = v_now,
+        leased_by = NULL,
+        leased_until = NULL
+    WHERE job.id = v_queue_id
+      AND job.application_id = p_application_id
+      AND job.status = 'queued'
+      AND job.leased_by IS NULL
+      AND job.leased_until IS NULL;
+    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  ELSE
+    SELECT queue.id
+    INTO v_queue_id
+    FROM public.submission_queue AS queue
+    WHERE queue.id = p_queue_id
+      AND queue.application_id = p_application_id
+      AND queue.status IN (
+        'pending',
+        'sgac_live_assisted_scheduled', 'sgac_live_assisted_pending',
+        'sgac_dry_run_pending',
+        'mdac_live_assisted_scheduled', 'mdac_live_assisted_pending',
+        'mdac_dry_run_pending',
+        'tdac_live_assisted_scheduled', 'tdac_live_assisted_pending',
+        'tdac_dry_run_pending',
+        'vn_prearrival_live_assisted_scheduled',
+        'vn_prearrival_live_assisted_pending',
+        'vn_prearrival_dry_run_pending',
+        'phetravel_live_assisted_scheduled',
+        'phetravel_live_assisted_pending',
+        'phetravel_dry_run_pending'
+      )
+      AND queue.locked_by IS NULL
+      AND queue.locked_at IS NULL
+      AND queue.locked_until IS NULL
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RETURN;
+    END IF;
+
+    UPDATE public.submission_queue AS queue
+    SET status = v_cancelled_status,
+        current_stage = 'cancelled_by_user',
+        error_code = 'cancelled_by_user',
+        error_message = v_error,
+        locked_by = NULL,
+        locked_at = NULL,
+        locked_until = NULL,
+        updated_at = v_now
+    WHERE queue.id = v_queue_id
+      AND queue.application_id = p_application_id
+      AND queue.locked_by IS NULL
+      AND queue.locked_at IS NULL
+      AND queue.locked_until IS NULL;
+    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  END IF;
+
+  IF v_updated_rows <> 1 THEN
+    RETURN;
+  END IF;
+
+  UPDATE public.applications AS application
+  SET status = 'draft',
+      submitted_at = NULL,
+      submission_result_status = NULL,
+      submission_result = NULL,
+      submission_result_updated_at = v_now,
+      updated_at = v_now
+  WHERE application.id = p_application_id;
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RAISE EXCEPTION 'Application % disappeared during cancellation', p_application_id
+      USING ERRCODE = '55000';
+  END IF;
+
+  RETURN QUERY SELECT TRUE, v_queue_id, v_transport, v_now;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.cancel_application_submission(UUID, UUID, TEXT)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cancel_application_submission(UUID, UUID, TEXT)
+  TO service_role;
+
+COMMENT ON FUNCTION public.cancel_application_submission(UUID, UUID, TEXT) IS
+  'Cancels one exact null-lease queued submission and resets its application atomically; policy is server-derived.';
+
+-- Close one operator takeover and its exact needs_human runner job in one
+-- transaction. The lock order is always session -> application -> job.
+CREATE OR REPLACE FUNCTION public.settle_runner_job_takeover(
+  p_takeover_id UUID,
+  p_actor_user_id UUID,
+  p_outcome TEXT,
+  p_operator_notes TEXT DEFAULT NULL,
+  p_answers_written INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+  settled BOOLEAN,
+  job_id UUID,
+  application_id UUID,
+  job_status TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_session public.takeover_session%ROWTYPE;
+  v_job public.runner_job%ROWTYPE;
+  v_application_id UUID;
+  v_job_status TEXT;
+  v_action TEXT;
+  v_now TIMESTAMPTZ;
+  v_updated_rows INTEGER;
+BEGIN
+  IF p_takeover_id IS NULL OR p_actor_user_id IS NULL THEN
+    RAISE EXCEPTION 'takeover id and actor user id are required'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_outcome IS NULL OR p_outcome NOT IN ('completed', 'abandoned') THEN
+    RAISE EXCEPTION 'takeover outcome must be completed or abandoned'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_answers_written IS NULL OR p_answers_written < 0 THEN
+    RAISE EXCEPTION 'answers written must be non-negative'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_operator_notes IS NOT NULL AND length(p_operator_notes) > 4000 THEN
+    RAISE EXCEPTION 'operator notes must be at most 4000 characters'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Deterministic session -> application -> job lock order.
+  SELECT session.*
+  INTO v_session
+  FROM public.takeover_session AS session
+  WHERE session.id = p_takeover_id
+  FOR UPDATE;
+  IF NOT FOUND OR v_session.status NOT IN ('queued', 'claimed') THEN
+    RETURN;
+  END IF;
+
+  SELECT application.id
+  INTO v_application_id
+  FROM public.applications AS application
+  WHERE application.id = v_session.application_id
+    AND application.applicant_id = v_session.applicant_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT job.*
+  INTO v_job
+  FROM public.runner_job AS job
+  WHERE job.id = v_session.job_id
+    AND job.application_id = v_application_id
+    AND job.status = 'needs_human'
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+  v_job_status := CASE WHEN p_outcome = 'completed' THEN 'succeeded' ELSE 'failed' END;
+  v_action := CASE WHEN p_outcome = 'completed' THEN 'complete' ELSE 'abandon' END;
+
+  UPDATE public.takeover_session AS session
+  SET status = p_outcome,
+      operator_notes = p_operator_notes,
+      closed_at = v_now
+  WHERE session.id = p_takeover_id
+    AND session.status IN ('queued', 'claimed');
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RETURN;
+  END IF;
+
+  UPDATE public.runner_job AS job
+  SET status = v_job_status,
+      last_error = CASE
+        WHEN p_outcome = 'abandoned' THEN 'Takeover abandoned by operator.'
+        ELSE NULL
+      END,
+      finished_at = v_now,
+      leased_by = NULL,
+      leased_until = NULL
+  WHERE job.id = v_job.id
+    AND job.application_id = v_application_id
+    AND job.status = 'needs_human';
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RAISE EXCEPTION 'Takeover job changed before settlement'
+      USING ERRCODE = '55000';
+  END IF;
+
+  INSERT INTO public.takeover_action_log (
+    takeover_id, action, actor_user_id, detail, ts
+  )
+  VALUES (
+    p_takeover_id,
+    v_action,
+    p_actor_user_id,
+    jsonb_build_object(
+      'outcome', p_outcome,
+      'answers_written', p_answers_written,
+      'operator_notes_present', p_operator_notes IS NOT NULL
+    ),
+    v_now
+  );
+  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+  IF v_updated_rows <> 1 THEN
+    RAISE EXCEPTION 'Takeover action log write failed'
+      USING ERRCODE = '55000';
+  END IF;
+
+  RETURN QUERY SELECT TRUE, v_job.id, v_application_id, v_job_status;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.settle_runner_job_takeover(
+  UUID, UUID, TEXT, TEXT, INTEGER
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.settle_runner_job_takeover(
+  UUID, UUID, TEXT, TEXT, INTEGER
+) TO service_role;
+
+COMMENT ON FUNCTION public.settle_runner_job_takeover(UUID, UUID, TEXT, TEXT, INTEGER) IS
+  'Atomically settles an open takeover and its exact needs_human runner job using session -> application -> job locks.';
 
 -- Append one anti-bot fingerprint entry only for the current live owner. A
 -- direct fingerprint_history UPDATE is protected by the same full-row trigger.

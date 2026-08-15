@@ -92,13 +92,38 @@ const createFixture = async (options: FixtureOptions = {}): Promise<Fixture> => 
   const job = await query<{ id: string }>(
     `INSERT INTO public.runner_job (
        application_id, country, flow_key, status, attempts, max_attempts,
-       leased_by, leased_until, started_at, available_at, metadata
+       available_at, metadata
      )
-     VALUES ($1, 'vietnam', 'vn_prearrival', 'running', 0, $2, $3, $4, NOW(), NOW(), $5::jsonb)
+     VALUES ($1, 'vietnam', 'vn_prearrival', 'queued', 0, $2, NOW(), $3::jsonb)
      RETURNING id`,
-    [applicationId, options.maxAttempts ?? 3, workerId, leaseUntil, JSON.stringify({ synthetic: true })],
+    [applicationId, options.maxAttempts ?? 3, JSON.stringify({ synthetic: true })],
   );
   const jobId = job.rows[0].id;
+  const claimed = await query<{ id: string }>(
+    "SELECT id FROM public.claim_runner_pool_job($1::text, 60000, FALSE, NOW() + INTERVAL '1 day')",
+    [workerId],
+  );
+  if (claimed.rows[0]?.id !== jobId) {
+    throw new Error("runner fence integration could not claim its synthetic queued fixture");
+  }
+  if (options.leaseUntil) {
+    // Local gated tests need deterministic expired/live lease shapes. The
+    // canonical claim above proves the initial queued tuple; this narrowly
+    // scoped local-only adjustment avoids bypassing the production claim path.
+    const adjuster = await pool!.connect();
+    try {
+      await adjuster.query("BEGIN");
+      await adjuster.query("SET LOCAL session_replication_role = 'replica'");
+      await adjuster.query(
+        "UPDATE public.runner_job SET leased_until = $2 WHERE id = $1",
+        [jobId, leaseUntil],
+      );
+      await adjuster.query("COMMIT");
+    } finally {
+      await adjuster.query("ROLLBACK").catch(() => undefined);
+      adjuster.release();
+    }
+  }
   fixtureIds.add(jobId);
   fixtureIds.add(applicationId);
   fixtureIds.add(applicantId);
@@ -644,13 +669,13 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
         "SELECT * FROM public.fail_runner_pool_job($1::uuid, $2::text, 'failed', 1, 'synthetic invalid-flow setup', 0)",
         [fixture.jobId, "runner-fence-invalid-flow"],
       );
-      await query(
+      await expect(query(
         `INSERT INTO public.runner_job (
            application_id, country, flow_key, status, attempts, max_attempts,
            available_at, enqueued_at, metadata
          ) VALUES ($1, 'vietnam', NULL, 'queued', 0, 3, NOW(), NOW(), '{}'::jsonb)`,
         [fixture.applicationId],
-      );
+      )).rejects.toMatchObject({ code: "23514" });
       const claimed = await query(
         "SELECT * FROM public.claim_runner_pool_job($1::text, 60000, FALSE, NOW() + INTERVAL '1 day')",
         ["runner-fence-invalid-claim"],
@@ -660,6 +685,112 @@ integrationSuite("runner pool concurrency phase two real Postgres fence", () => 
         "SELECT claimable, scheduled, running FROM public.runner_pool_depth WHERE country = 'vietnam'",
       );
       expect(depth.rows[0]).toMatchObject({ claimable: 0, scheduled: 0, running: 0 });
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("rejects direct running inserts and queued-to-running writes while canonical claim succeeds", async () => {
+    const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const applicant = await query<{ id: string }>(
+      `INSERT INTO public.applicant_profiles (email, full_name)
+       VALUES ($1, $2) RETURNING id`,
+      [`runner-fence-claim-guard-${suffix}@invalid.test`, "Runner claim guard"],
+    );
+    const applicantId = applicant.rows[0].id;
+    const application = await query<{ id: string }>(
+      `INSERT INTO public.applications (applicant_id, country, visa_type, status)
+       VALUES ($1, 'vietnam', 'vn_prearrival', 'processing') RETURNING id`,
+      [applicantId],
+    );
+    const applicationId = application.rows[0].id;
+    fixtureIds.add(applicantId);
+    fixtureIds.add(applicationId);
+    try {
+      await expect(query(
+        `INSERT INTO public.runner_job (
+           application_id, country, flow_key, status, attempts, max_attempts,
+           available_at, enqueued_at, metadata
+         ) VALUES ($1, 'vietnam', 'vn_prearrival', 'running', 0, 3, NOW(), NOW(), '{}'::jsonb)`,
+        [applicationId],
+      )).rejects.toMatchObject({ code: "23514" });
+
+      const queued = await query<{ id: string; status: string }>(
+        `INSERT INTO public.runner_job (
+           application_id, country, flow_key, status, attempts, max_attempts,
+           available_at, enqueued_at, metadata
+         ) VALUES ($1, 'vietnam', 'vn_prearrival', 'queued', 0, 3, NOW(), NOW(), '{}'::jsonb)
+         RETURNING id, status`,
+        [applicationId],
+      );
+      const jobId = queued.rows[0].id;
+      fixtureIds.add(jobId);
+      expect(queued.rows[0].status).toBe("queued");
+      const direct = await query(
+        "UPDATE public.runner_job SET status = 'running' WHERE id = $1 RETURNING id",
+        [jobId],
+      );
+      expect(direct.rows).toHaveLength(0);
+      const claimed = await query<{ id: string; status: string }>(
+        "SELECT id, 'running'::text AS status FROM public.claim_runner_pool_job($1::text, 60000, FALSE, NOW() + INTERVAL '1 day') WHERE id = $2",
+        [`runner-fence-claim-guard-${suffix}`, jobId],
+      );
+      expect(claimed.rows).toEqual([{ id: jobId, status: "running" }]);
+    } finally {
+      await query("DELETE FROM public.runner_job WHERE application_id = $1", [applicationId]);
+      await query("DELETE FROM public.applications WHERE id = $1", [applicationId]);
+      await query("DELETE FROM public.applicant_profiles WHERE id = $1", [applicantId]);
+      fixtureIds.delete(applicantId);
+      fixtureIds.delete(applicationId);
+    }
+  });
+
+  it("gates the application-first enqueue/pause race on the explicit local database marker", async () => {
+    const fixture = await createFixture({ workerId: `runner-fence-pause-race-${Date.now()}` });
+    try {
+      await query(
+        "UPDATE public.applications SET status = 'staff_action_required' WHERE id = $1",
+        [fixture.applicationId],
+      );
+      const blocker = await pool!.connect();
+      const pauseClient = await pool!.connect();
+      const enqueueClient = await pool!.connect();
+      try {
+        await blocker.query("BEGIN");
+        await blocker.query(
+          "SELECT id FROM public.applications WHERE id = $1 FOR UPDATE",
+          [fixture.applicationId],
+        );
+        const pausePending = pauseClient.query<{ pause_runner_jobs_for_review: number }>(
+          "SELECT public.pause_runner_jobs_for_review($1::uuid, $2::text)",
+          [fixture.applicationId, "synthetic staff review race"],
+        );
+        const enqueuePending = enqueueClient.query(
+          "SELECT * FROM public.enqueue_runner_pool_job($1::uuid, 'vietnam', 'vn_prearrival', NOW(), 3, NULL, '{}'::jsonb, NOW())",
+          [fixture.applicationId],
+        );
+        await sleep(100);
+        await blocker.query("COMMIT");
+        const [pauseResult, enqueueResult] = await Promise.allSettled([
+          pausePending,
+          enqueuePending,
+        ]);
+        expect(pauseResult.status).toBe("fulfilled");
+        expect(enqueueResult.status).toBe("rejected");
+        if (enqueueResult.status === "rejected") {
+          expect(enqueueResult.reason).toMatchObject({ code: "55000" });
+        }
+      } finally {
+        await blocker.query("ROLLBACK").catch(() => undefined);
+        blocker.release();
+        pauseClient.release();
+        enqueueClient.release();
+      }
+      const paused = await query<{ status: string }>(
+        "SELECT status FROM public.runner_job WHERE id = $1",
+        [fixture.jobId],
+      );
+      expect(paused.rows[0].status).toBe("paused");
     } finally {
       await cleanupFixture(fixture);
     }

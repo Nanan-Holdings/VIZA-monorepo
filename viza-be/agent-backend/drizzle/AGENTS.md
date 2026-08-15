@@ -206,7 +206,15 @@ The current internal automation migrations are:
   the application result while changing application status only for
   `submitted`. The migration also carries the
   `defer_vn_official_status_check` RPC used to return provider-gate-denied
-  status checks to the queue without consuming an admission attempt.
+  status checks to the queue without consuming an admission attempt. Phase-two
+  admission is restricted to the five canonical country/flow tuples and uses
+  application-first locking; queued inserts and requeues are guarded against
+  staff-review races, while active reuse requires an exact country/flow match.
+  Claiming mints and consumes a full old/new-row `claim` capability, and a
+  `BEFORE INSERT` guard rejects direct running rows. The service-role-only
+  `cancel_application_submission` and `settle_runner_job_takeover` RPCs lock
+  application/session/job rows in deterministic order and atomically update
+  queue/job, application, session, and takeover action-log state.
 
 ## Guardrails
 
