@@ -41,6 +41,21 @@ const takeoverFunctionBody = canonicalSql.match(
 const resultFunctionBody = canonicalSql.match(
   /CREATE OR REPLACE FUNCTION public\.write_runner_pool_submission_result\([\s\S]*?\n\$\$;/i,
 )?.[0] ?? "";
+const enqueueFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.enqueue_runner_pool_job\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const pauseFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.pause_runner_jobs_for_review\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const cancelFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.cancel_application_submission\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const takeoverSettlementFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION public\.settle_runner_job_takeover\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
+const insertGuardFunctionBody = canonicalSql.match(
+  /CREATE OR REPLACE FUNCTION runner_private\.guard_runner_job_running_insert\([\s\S]*?\n\$\$;/i,
+)?.[0] ?? "";
 
 const plpgsqlBody = (functionSql: string): string =>
   functionSql.slice(functionSql.indexOf("AS $$"));
@@ -633,5 +648,126 @@ describe("runner pool concurrency phase two migration", () => {
     expect(mirrorFiles).toHaveLength(1);
     const mirrorSql = readFileSync(`${mirrorDirectory}/${mirrorFiles[0]}`, "utf8");
     expect(normalized(mirrorSql)).toBe(normalized(canonicalSql));
+  });
+
+  it("uses COALESCE false for every active tuple predicate and quarantines null queued rows", () => {
+    expect(canonicalSql).toMatch(
+      /WHERE status = 'queued'\s+AND NOT COALESCE\(\([\s\S]*?flow_key = 'kr_eform'[\s\S]*?\), FALSE\);/i,
+    );
+    expect(canonicalSql).toMatch(
+      /CHECK \(\s*status NOT IN \('queued', 'running'\)[\s\S]*?OR COALESCE\([\s\S]*?\), FALSE\)\s*\);/i,
+    );
+    const activeTupleMatches = canonicalSql.match(/\b(?:expired|oldest_candidate|candidate|active|rj)\.flow_key = 'kr_eform'/gi) ?? [];
+    expect(activeTupleMatches.length).toBeGreaterThanOrEqual(5);
+    expect(canonicalSql).not.toMatch(
+      /status = 'running'\s+AND NOT \(\s*\(country = 'vietnam'/i,
+    );
+  });
+
+  it("redefines enqueue with the exact five tuple identity and application-first locking", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.enqueue_runner_pool_job\(\s*p_application_id UUID,\s*p_country TEXT,\s*p_flow_key TEXT,\s*p_available_at TIMESTAMPTZ DEFAULT NOW\(\),\s*p_max_attempts INTEGER DEFAULT 3,\s*p_correlation_id TEXT DEFAULT NULL,\s*p_metadata JSONB DEFAULT '\{\}'::JSONB,\s*p_now TIMESTAMPTZ DEFAULT NOW\(\)\s*\)/i,
+    );
+    expect(enqueueFunctionBody).toMatch(/SECURITY DEFINER/i);
+    expect(enqueueFunctionBody).toMatch(/SET search_path = ''/i);
+    expect(enqueueFunctionBody).toMatch(/v_now\s*:=\s*pg_catalog\.clock_timestamp\(\)/i);
+    expect(enqueueFunctionBody).toMatch(/SELECT application\.status[\s\S]*?FROM public\.applications AS application[\s\S]*?FOR UPDATE;/i);
+    expect(enqueueFunctionBody).toMatch(/v_application_status = 'staff_action_required'/i);
+    expect(enqueueFunctionBody).toMatch(/PERFORM rj\.id[\s\S]*?FROM public\.runner_job AS rj[\s\S]*?FOR UPDATE;/i);
+    expect(enqueueFunctionBody).toMatch(/v_runner\.country = v_country AND v_runner\.flow_key = v_flow/i);
+    expect(enqueueFunctionBody).not.toMatch(/vn_evisa|id_c1|id_b1_evoa|indonesia/i);
+    const sgacBody = canonicalSql.match(
+      /CREATE OR REPLACE FUNCTION public\.enqueue_sgac_country_runner_retry\([\s\S]*?\n\$\$;/i,
+    )?.[0] ?? "";
+    expect(sgacBody).toMatch(/v_application_status = 'staff_action_required'/i);
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.enqueue_runner_pool_job\(\s*UUID, TEXT, TEXT, TIMESTAMPTZ, INTEGER, TEXT, JSONB, TIMESTAMPTZ\s*\)[\s\S]*?GRANT EXECUTE ON FUNCTION public\.enqueue_runner_pool_job\([\s\S]*?\) TO service_role;/i,
+    );
+  });
+
+  it("fences queued-to-running claims with an exact claim capability and insert guard", () => {
+    expect(canonicalSql).toMatch(
+      /operation TEXT NOT NULL CHECK \(operation IN \([\s\S]*?'claim'[\s\S]*?'fingerprint_append'/i,
+    );
+    expect(functionBody).toMatch(
+      /v_claimed_old_row[\s\S]*?v_claimed_new_row[\s\S]*?operation, old_row, new_row[\s\S]*?'claim'[\s\S]*?UPDATE public\.runner_job AS claimed/i,
+    );
+    expect(functionBody).toMatch(
+      /SELECT job\.\*[\s\S]*?WHERE job\.id = v_claimed_job_id[\s\S]*?FOR UPDATE;[\s\S]*?v_now\s*:=\s*pg_catalog\.clock_timestamp\(\)[\s\S]*?v_claimed_old_row\.available_at > v_now/i,
+    );
+    expect(functionBody).toMatch(
+      /v_claimed_old_row\.available_at > v_now[\s\S]*?owner_machine_id = v_worker_id[\s\S]*?owner_kind = 'pool'[\s\S]*?lease_until > v_now[\s\S]*?FOR UPDATE;/i,
+    );
+    expect(triggerFunctionBody).toMatch(
+      /OLD\.status IS DISTINCT FROM 'running'[\s\S]*?NEW\.status IS NOT DISTINCT FROM 'running'[\s\S]*?operation = 'claim'[\s\S]*?old_row = to_jsonb\(OLD\)[\s\S]*?new_row = to_jsonb\(NEW\)/i,
+    );
+    expect(canonicalSql).toMatch(
+      /CREATE TRIGGER guard_runner_job_running_insert\s*BEFORE INSERT ON public\.runner_job/i,
+    );
+    expect(insertGuardFunctionBody).toMatch(/NEW\.status IS NOT DISTINCT FROM 'running'/i);
+    expect(insertGuardFunctionBody).toMatch(/NEW\.status IS NOT DISTINCT FROM 'queued'/i);
+    expect(insertGuardFunctionBody).toMatch(/FROM public\.applications AS application[\s\S]*?application\.id = NEW\.application_id[\s\S]*?FOR UPDATE;/i);
+    expect(insertGuardFunctionBody).toMatch(/v_application_status = 'staff_action_required'/i);
+    expect(insertGuardFunctionBody).toMatch(/IF NOT COALESCE\([\s\S]*?NEW\.country = 'vietnam'[\s\S]*?NEW\.flow_key = 'kr_eform'/i);
+    expect(insertGuardFunctionBody).toMatch(/ERRCODE = '23514'/i);
+    expect(triggerFunctionBody).toMatch(
+      /NEW\.status IS NOT DISTINCT FROM 'queued'[\s\S]*?OLD\.status IS DISTINCT FROM 'running'[\s\S]*?FROM public\.applications AS application[\s\S]*?FOR UPDATE NOWAIT[\s\S]*?v_application_status = 'staff_action_required'/i,
+    );
+  });
+
+  it("locks the application before jobs when pausing review", () => {
+    const applicationLock = pauseFunctionBody.search(
+      /FROM public\.applications AS application[\s\S]*?WHERE application\.id = p_application_id[\s\S]*?FOR UPDATE;/i,
+    );
+    const jobLock = pauseFunctionBody.search(/FOR v_job IN[\s\S]*?FOR UPDATE/i);
+    expect(applicationLock).toBeGreaterThan(-1);
+    expect(jobLock).toBeGreaterThan(applicationLock);
+    expect(pauseFunctionBody).toMatch(/RETURN 0;/i);
+  });
+
+  it("defines service-role-only atomic cancellation with policy-derived status", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.cancel_application_submission\(\s*p_application_id UUID,\s*p_queue_id UUID,\s*p_transport TEXT\s*\)/i,
+    );
+    expect(cancelFunctionBody).toMatch(
+      /RETURNS TABLE \(\s*cancelled BOOLEAN,\s*queue_id UUID,\s*queue_transport TEXT,\s*cancelled_at TIMESTAMPTZ\s*\)/i,
+    );
+    expect(cancelFunctionBody).toMatch(/SECURITY DEFINER/i);
+    expect(cancelFunctionBody).toMatch(/SET search_path = ''/i);
+    expect(cancelFunctionBody).toMatch(/job\.application_id = p_application_id[\s\S]*?job\.status = 'queued'[\s\S]*?job\.leased_by IS NULL[\s\S]*?job\.leased_until IS NULL/i);
+    expect(cancelFunctionBody).toMatch(/queue\.application_id = p_application_id[\s\S]*?queue\.locked_by IS NULL[\s\S]*?queue\.locked_until IS NULL/i);
+    expect(cancelFunctionBody).toMatch(/UPDATE public\.applications AS application[\s\S]*?status = 'draft'/i);
+    expect(cancelFunctionBody).toMatch(/GET DIAGNOSTICS v_updated_rows = ROW_COUNT[\s\S]*?UPDATE public\.applications AS application[\s\S]*?GET DIAGNOSTICS v_updated_rows = ROW_COUNT/i);
+    expect(cancelFunctionBody).toMatch(/MY_MDAC_ARRIVAL_CARD|TH_TDAC_ARRIVAL_CARD|VN_PREARRIVAL_DECLARATION/i);
+    expect(cancelFunctionBody).not.toMatch(/p_cancelled_status|p_reason/i);
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.cancel_application_submission\(UUID, UUID, TEXT\)[\s\S]*?GRANT EXECUTE ON FUNCTION public\.cancel_application_submission\(UUID, UUID, TEXT\)\s+TO service_role;/i,
+    );
+  });
+
+  it("defines deterministic session-application-job takeover settlement", () => {
+    expect(canonicalSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.settle_runner_job_takeover\(\s*p_takeover_id UUID,\s*p_actor_user_id UUID,\s*p_outcome TEXT,\s*p_operator_notes TEXT DEFAULT NULL,\s*p_answers_written INTEGER DEFAULT 0\s*\)/i,
+    );
+    expect(takeoverSettlementFunctionBody).toMatch(
+      /RETURNS TABLE \(\s*settled BOOLEAN,\s*job_id UUID,\s*application_id UUID,\s*job_status TEXT\s*\)/i,
+    );
+    expect(takeoverSettlementFunctionBody).toMatch(/p_outcome NOT IN \('completed', 'abandoned'\)/i);
+    const sessionLock = takeoverSettlementFunctionBody.search(/FROM public\.takeover_session AS session[\s\S]*?FOR UPDATE;/i);
+    const applicationLock = takeoverSettlementFunctionBody.search(/FROM public\.applications AS application[\s\S]*?FOR UPDATE;/i);
+    const jobLock = takeoverSettlementFunctionBody.search(/FROM public\.runner_job AS job[\s\S]*?FOR UPDATE;/i);
+    expect(sessionLock).toBeGreaterThan(-1);
+    expect(applicationLock).toBeGreaterThan(sessionLock);
+    expect(jobLock).toBeGreaterThan(applicationLock);
+    expect(takeoverSettlementFunctionBody).toMatch(/session\.status NOT IN \('queued', 'claimed'\)/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/UPDATE public\.takeover_session[\s\S]*?GET DIAGNOSTICS v_updated_rows = ROW_COUNT[\s\S]*?UPDATE public\.runner_job[\s\S]*?GET DIAGNOSTICS v_updated_rows = ROW_COUNT/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/Takeover action log write failed/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/job\.status = 'needs_human'/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/INSERT INTO public\.takeover_action_log/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/status = p_outcome[\s\S]*?closed_at = v_now/i);
+    expect(takeoverSettlementFunctionBody).toMatch(/status = v_job_status[\s\S]*?finished_at = v_now/i);
+    expect(canonicalSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.settle_runner_job_takeover\(\s*UUID, UUID, TEXT, TEXT, INTEGER\s*\)[\s\S]*?GRANT EXECUTE ON FUNCTION public\.settle_runner_job_takeover\([\s\S]*?\) TO service_role;/i,
+    );
   });
 });
