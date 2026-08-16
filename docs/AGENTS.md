@@ -57,6 +57,11 @@ reports, and workflow documentation for VIZA.
 - `uk-visa-scope.md`, `uk-visa-gap-report.md`: UK form scope and gaps.
 - `schengen-visa-scope.md`, `schengen-visa-gap-report.md`: Schengen form
   scope and gaps.
+- `canada-visa-scope.md`, `turkiye-visa-scope.md`,
+  `india-visa-scope.md`, `saudi-arabia-visa-scope.md`, and
+  `uae-visa-scope.md`: official product boundaries, captured fields,
+  document ownership, evidence confidence, and remaining authenticated-portal
+  QA for the five-country tourist-form expansion.
 - `_templates/*`: templates for future visa scope/gap docs.
 
 ## Ownership Boundaries

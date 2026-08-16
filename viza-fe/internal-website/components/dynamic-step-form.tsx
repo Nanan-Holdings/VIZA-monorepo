@@ -2647,6 +2647,12 @@ function groupFieldsInline(fields: VisaFormFieldRow[]): Array<VisaFormFieldRow |
   return result;
 }
 
+function inlineGroupGridStyle(fieldCount: number) {
+  return {
+    gridTemplateColumns: `repeat(${Math.max(fieldCount, 1)}, minmax(0, 1fr))`,
+  };
+}
+
 export function DynamicStepForm({
   step,
   prefill,
@@ -4555,7 +4561,11 @@ export function DynamicStepForm({
                 {groupFieldsInline(visibleConditionalFields).map((item) => {
                   if (Array.isArray(item)) {
                     return (
-                      <div key={item.map((candidate) => candidate.fieldName).join("-")} className="grid gap-2">
+                      <div
+                        key={item.map((candidate) => candidate.fieldName).join("-")}
+                        className="grid gap-2"
+                        style={inlineGroupGridStyle(item.length)}
+                      >
                         {item.map((candidate) => renderField(candidate, candidate.fieldName, true))}
                       </div>
                     );
@@ -4601,7 +4611,11 @@ export function DynamicStepForm({
                       return renderField(f, f.fieldName, blockOwnsConditionalPanel);
                     }
                     return (
-                      <div key={`inline-${inlineInBlock}`} className="grid gap-2">
+                      <div
+                        key={`inline-${inlineInBlock}`}
+                        className="grid gap-2"
+                        style={inlineGroupGridStyle(inlineFields.length)}
+                      >
                         {inlineFields.map((x) => renderField(
                           x,
                           x.fieldName,
@@ -4664,7 +4678,11 @@ export function DynamicStepForm({
 
             const isConditionalInlineGroup = inlineFields.some(shouldOwnConditionalPanel);
             const inlineContent = (
-              <div key={`inline-${ig}`} className="grid gap-2">
+              <div
+                key={`inline-${ig}`}
+                className="grid gap-2"
+                style={inlineGroupGridStyle(inlineFields.length)}
+              >
                 {inlineFields.map((f) => renderField(
                   f,
                   f.fieldName,
@@ -4748,7 +4766,11 @@ export function DynamicStepForm({
                 {groupFieldsInline(visibleGroupFields).map((item) => {
                   if (Array.isArray(item)) {
                     return (
-                      <div key={item.map((f) => f.fieldName).join("-")} className="grid gap-2">
+                      <div
+                        key={item.map((f) => f.fieldName).join("-")}
+                        className="grid gap-2"
+                        style={inlineGroupGridStyle(item.length)}
+                      >
                         {item.map((f) => renderField(f, instanceKey(f.fieldName, instanceIdx), true))}
                       </div>
                     );

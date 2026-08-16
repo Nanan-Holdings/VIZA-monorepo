@@ -6,6 +6,7 @@ Scope: this file applies to `viza-fe/internal-website/app/ui-components/**`.
 
 `/ui-components` is a lightweight visual gallery for reusable application
 form primitives, canonical dropdown- and radio-controlled conditional groups,
+the approved compound conditional group pattern,
 supporting-document cards, AI assist triggers, and the canonical
 `components/ui/country-dropdown.tsx`. Keep it
 limited to demonstrative local state; it must not load applicant data, invoke

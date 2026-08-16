@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { countries } from "country-data-list";
 import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
 import { ApplicationCheckbox, ApplicationRadio } from "@/components/ui/application-checkbox";
 import {
@@ -40,8 +41,20 @@ import {
 } from "@/components/ui/application-form-select";
 import { ApplicationFormTextarea } from "@/components/ui/application-form-textarea";
 import { ApplicationYesNoControl } from "@/components/ui/application-yes-no-control";
+import { APPLICATION_SEARCHABLE_OPTION_MIN } from "@/lib/application-schema-ui-contract";
 
-const SEARCHABLE_SELECT_MIN_OPTIONS = 12;
+type CountryCodeEntry = {
+  alpha2: string;
+  alpha3: string;
+};
+
+const COUNTRY_ALPHA2_BY_ALPHA3 = new Map(
+  countries.all.map((country: CountryCodeEntry) => [country.alpha3.toUpperCase(), country.alpha2.toLowerCase()]),
+);
+
+const COUNTRY_MULTI_SELECT_FIELD_NAMES = new Set([
+  "countries_visited_last_14_days",
+]);
 
 const SCHENGEN_MEMBER_ALPHA2_CODES = [
   "AT",
@@ -169,7 +182,8 @@ const FieldWrapper = ApplicationFormField;
 function normaliseOptions(
   opts: VisaFormFieldRow["options"],
   side: "zh" | "en",
-): Array<{ value: string; text: string; searchText: string }> {
+  includeCountryFlags = false,
+): Array<{ value: string; text: string; searchText: string; flagCountryCode?: string }> {
   const localizedOptions = resolveLocalizedOptions(opts, side);
   if (!localizedOptions || !Array.isArray(localizedOptions)) return [];
   return localizedOptions.map((o) => {
@@ -183,6 +197,9 @@ function normaliseOptions(
         value: obj.value ?? "",
         text: cleanOptionDisplayText(text),
         searchText: [obj.value, obj.text, obj.label_en, obj.label_zh, obj.official_label].filter(Boolean).join(" "),
+        flagCountryCode: includeCountryFlags && obj.value
+          ? COUNTRY_ALPHA2_BY_ALPHA3.get(obj.value.toUpperCase())
+          : undefined,
       };
     }
     return { value: String(o), text: cleanOptionDisplayText(String(o)), searchText: String(o) };
@@ -503,7 +520,7 @@ export function DynamicFormField({
           </FieldWrapper>
         );
       }
-      if (usesRemoteSearch || opts.length >= SEARCHABLE_SELECT_MIN_OPTIONS) {
+      if (usesRemoteSearch || opts.length >= APPLICATION_SEARCHABLE_OPTION_MIN) {
         return (
           <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <ApplicationSearchableSelect
@@ -547,7 +564,11 @@ export function DynamicFormField({
     }
 
     case "multi_select": {
-      const opts = normaliseOptions(options, sideLocale);
+      const opts = normaliseOptions(
+        options,
+        sideLocale,
+        COUNTRY_MULTI_SELECT_FIELD_NAMES.has(getBaseFieldName(field.fieldName)),
+      );
       const rules = field.validationRules as { exclusive_option?: string } | null;
       return (
         <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
@@ -672,6 +693,16 @@ export function DynamicFormField({
               value={optimisticSelectionValue}
               disabled={disabled}
               onValueChange={commitSelection}
+            />
+          ) : opts.length >= APPLICATION_SEARCHABLE_OPTION_MIN ? (
+            <ApplicationSearchableSelect
+              value={optimisticSelectionValue}
+              onValueChange={commitSelection}
+              options={opts}
+              placeholder={localizedPlaceholder ?? selectFallback}
+              disabled={disabled}
+              forceWhiteBackground={forceWhiteBackground}
+              sideLocale={sideLocale}
             />
           ) : (
           <div className={cn("flex", opts.length < 2 ? "flex-row gap-6" : "flex-col gap-2")}>

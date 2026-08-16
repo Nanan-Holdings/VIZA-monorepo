@@ -1,100 +1,120 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-16",
   "country": "turkey",
-  "notes": "Country-level VIZA RAG seed for turkey. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "notes": "Official-source RAG seed for the canonical TR_E_VISA product. The product covers Türkiye e-Visa applications for tourism or trade only; eligibility and visa outcomes must be derived from the live official portal rather than represented as applicant choices.",
   "documents": [
     {
-      "slug": "turkey-official-evisa-tourism",
+      "slug": "turkey-tr-e-visa-official-requirements",
       "country": "turkey",
-      "visaType": "evisa_tourism_business",
+      "visaType": "TR_E_VISA",
       "documentType": "requirements",
-      "title": "Turkiye Official e-Visa for Tourism and Commerce",
-      "sourceUrl": "https://www.evisa.gov.tr/tour/",
+      "title": "Türkiye Official e-Visa Requirements",
+      "sourceUrl": "https://evisa.gov.tr/en/apply/",
       "chunks": [
         {
-          "id": "tur_china_evisa_basic_route_zh",
-          "title": "Chinese passport tourism route for Turkey/Turkiye",
-          "tags": [
-            "turkey-turkiye",
-            "tur",
-            "china",
-            "chinese-passport",
-            "tourism",
-            "visitor",
-            "short-stay"
-          ],
-          "content": "For Chinese ordinary passport holders planning short tourism travel to Turkey/Turkiye, VIZA AI should consider the official Turkey e-Visa route for tourism or commerce when eligible. First confirm nationality, residence, purpose, stay length, supporting visa/residence documents if relevant, and whether the activity is tourism or commerce only. Work, study and residence require consular routing rather than tourist e-Visa. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
-        },
-        {
-          "id": "tur_evisa_official_portal",
-          "title": "Turkiye e-Visa official portal rules",
+          "id": "tur_tr_evisa_scope",
+          "title": "TR_E_VISA purpose and application channel",
           "tags": [
             "turkey",
+            "turkiye",
+            "TR_E_VISA",
             "official-evisa",
-            "mfa",
             "tourism",
-            "commerce",
-            "passport-validity"
+            "trade"
           ],
-          "content": "Turkiye MFA states that www.evisa.gov.tr is the government portal run by the Ministry of Foreign Affairs. e-Visa applications can be created online for individuals, families or groups, and each traveller, including infants and children, must obtain a separate e-Visa. The official e-Visa is valid only for touristic and trade purposes. Travellers should carry a passport or travel document with validity at least 60 days beyond the permitted stay or visa/visa-exemption duration."
+          "content": "TR_E_VISA is the VIZA product for the Republic of Türkiye Ministry of Foreign Affairs e-Visa application at https://evisa.gov.tr/en/apply/. The official e-Visa is valid only for tourism or trade. Work, study, residence and other purposes require a Turkish embassy or consulate route and are outside this product. Every traveller, including a child or infant, requires an individual e-Visa. Official overview: https://evisa.gov.tr/en/tour/."
         },
         {
-          "id": "tur_non_evisa_purposes",
-          "title": "Turkiye non-tourism routes",
+          "id": "tur_tr_evisa_nationality_derived_rules",
+          "title": "Eligibility and visa outcomes are nationality-derived",
           "tags": [
             "turkey",
-            "work",
-            "study",
-            "consulate",
-            "not-evisa"
+            "TR_E_VISA",
+            "eligibility",
+            "nationality-derived",
+            "stay",
+            "entry-count"
           ],
-          "content": "If the user wants to work, study, reside, conduct paid activity, or stay beyond the short visitor route, do not recommend the e-Visa as final. Turkiye MFA guidance says visas for purposes other than tourism or commerce are issued by Turkish Embassies or Consulates. Ask follow-up questions when the purpose is ambiguous."
+          "content": "The live official portal determines eligibility, single- or multiple-entry entitlement, e-Visa validity period, permitted duration of stay, fee and any additional conditions from the applicant's country or region of travel document and intended arrival date. These outcomes are not applicant-selectable form answers and VIZA must not hard-code or promise them. Re-evaluate them against the live portal for every application. Official eligibility and entry guidance: https://evisa.gov.tr/en/info/who-is-eligible-for-e-visa/ and https://evisa.gov.tr/en/info/can-i-obtain-multiple-entry-e-visa/."
+        },
+        {
+          "id": "tur_tr_evisa_passport_and_supporting_document_rules",
+          "title": "Passport and conditional supporting-document rules",
+          "tags": [
+            "turkey",
+            "TR_E_VISA",
+            "passport-validity",
+            "supporting-document",
+            "conditional"
+          ],
+          "content": "The traveller must carry a passport or substitute travel document whose expiry is at least 60 days beyond the permitted visa stay or other authorised stay. Depending on travel-document nationality, the official portal may also require a valid visa or residence permit from a named supporting country or region. The required supporting-document type, issuing jurisdiction and validity rules are portal-derived conditions, not free choices. The supporting visa or residence permit is carried for travel; the official e-Visa form records its details and does not request a file upload. Official guidance: https://evisa.gov.tr/en/info/what-do-i-need-for-e-visa-application/ and https://www.evisa.gov.tr/en/info/what-are-the-criteria-for-the-validity-of-my-supporting-document-visa-or-residence-permit-from-schengen-or-oecd-member-countries/."
+        },
+        {
+          "id": "tur_tr_evisa_entry_guardrail",
+          "title": "Approval does not guarantee admission",
+          "tags": [
+            "turkey",
+            "TR_E_VISA",
+            "border-control",
+            "travel-guardrail"
+          ],
+          "content": "An approved e-Visa does not guarantee entry. Passport-control officers make the final admission decision and can verify the e-Visa electronically. The traveller should retain access to the e-Visa and carry every passport and conditional supporting document used for the application."
         }
       ]
     },
     {
-      "slug": "turkey-form-requirements",
+      "slug": "turkey-tr-e-visa-form-requirements",
       "country": "turkey",
-      "visaType": "evisa_tourism_business",
+      "visaType": "TR_E_VISA",
       "documentType": "form_requirements",
-      "title": "Turkiye Application Form and Document Intake Requirements",
-      "sourceUrl": "https://www.evisa.gov.tr/tour/",
+      "title": "TR_E_VISA Official Form Intake Requirements",
+      "sourceUrl": "https://www.evisa.gov.tr/assets/files/guide_en.pdf",
       "chunks": [
         {
-          "id": "turkey_form_channel_and_scope",
-          "title": "Turkiye application channel and form scope",
+          "id": "tur_tr_evisa_form_channel_and_scope",
+          "title": "Official form channel and audited scope",
           "tags": [
             "turkey",
-            "application-form",
+            "TR_E_VISA",
             "form-requirements",
-            "workflow",
             "official-source"
           ],
-          "content": "Turkiye official e-Visa portal Official source URLs reviewed for this seed: https://www.evisa.gov.tr/tour/. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "The audited TR_E_VISA answer schema follows the official Türkiye e-Visa application flow documented by the Ministry of Foreign Affairs application guide at https://www.evisa.gov.tr/assets/files/guide_en.pdf and the live application at https://evisa.gov.tr/en/apply/. It covers the individual tourism-or-trade e-Visa form only. It does not model family/group administration, account credentials, session data, CAPTCHA, payment-card data or consular visa forms as applicant answers."
         },
         {
-          "id": "turkey_form_fields_to_collect",
-          "title": "Turkiye fields to collect before filling the form",
+          "id": "tur_tr_evisa_fields_to_collect",
+          "title": "Applicant answers collected by TR_E_VISA",
           "tags": [
             "turkey",
-            "application-form",
-            "autofill",
+            "TR_E_VISA",
             "field-mapping",
             "intake"
           ],
-          "content": "identity, passport/travel document, nationality, travel dates, email/contact and tourism/commerce purpose"
+          "content": "Collect the travel-document country or region and intended arrival date first so the official rules can be derived. Collect the personal, parent-name, birth, passport or travel-document, email, telephone and residential-address fields shown by the official individual application. When the derived eligibility rules require a supporting visa or residence permit, collect only the supporting-document details requested by the official form. Tourism/trade is the product scope; it is not a separate purpose question in this application schema. Use the exact official closed-list values and do not add generic itinerary, accommodation, employment, funds, insurance or invitation questions unless the live official form introduces them."
         },
         {
-          "id": "turkey_supporting_documents_and_review",
-          "title": "Turkiye supporting documents and review checklist",
+          "id": "tur_tr_evisa_derived_conditions_and_panels",
+          "title": "Derived conditions and conditional panels",
           "tags": [
             "turkey",
-            "documents",
-            "checklist",
-            "upload",
-            "review-before-submit"
+            "TR_E_VISA",
+            "conditional-fields",
+            "supporting-document",
+            "schema"
           ],
-          "content": "passport/travel document meeting validity rules, payment method and any supporting visa/residence document required by eligibility rules Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+          "content": "After travel-document country or region and arrival date are selected, display the official eligibility conditions as derived guidance. Entry count, validity period, permitted stay and fee are read-only outcomes, never radio buttons or other applicant choices. Show one conditional supporting-document panel only when the official rule requires it, with the rule-derived document type and issuer context. Do not create a file field: this branch records supporting-document data, while the traveller carries the original supporting document."
+        },
+        {
+          "id": "tur_tr_evisa_workflow_guardrails",
+          "title": "Submission workflow guardrails",
+          "tags": [
+            "turkey",
+            "TR_E_VISA",
+            "workflow",
+            "payment",
+            "email-verification"
+          ],
+          "content": "Keep eligibility derivation, applicant answers, email verification, payment and the issued e-Visa as separate workflow states. The confirmation email and payment window are operational workflow data, not form questions. VIZA manages the official-portal session and payment; applicant-facing intake must not ask for portal credentials, verification tokens or official-fee card details."
         },
         {
           "id": "standard_passport_identity_field_rules",
@@ -111,16 +131,16 @@
           "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. Place of issue / 签发地点 asks for the location recorded on the passport or required by the official form, such as a city, province, municipality, or a country selected from an official country-only dropdown; copy the passport's Place of issue value when present, and enter a country only when the form explicitly asks for Country of issue / Issuing country or provides a country-only selector. Issuing authority / 签发机关 asks for the organization printed under Authority / Issuing authority. For Chinese ordinary passports, National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers. Do not infer either field from the pickup city, residence city, application country, or travel destination. If the passport prints a different value for the requested field, use that exact field value. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page and the destination's official field wording remain the final sources for the applicant's individual answer."
         },
         {
-          "id": "official_field_answer_norms",
-          "title": "Official-source field answer norms",
+          "id": "tur_tr_evisa_official_field_answer_norms",
+          "title": "TR_E_VISA official-source answer norms",
           "tags": [
+            "turkey",
+            "TR_E_VISA",
             "field-guidance",
             "answer-norms",
-            "official-source",
-            "form-requirements",
-            "turkey"
+            "official-source"
           ],
-          "content": "Official-source field answer norms for turkey.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://www.evisa.gov.tr/tour/\n\nPassport and identity fields:\n- You can check if you are eligible for e-Visa by clicking “Main Page > Apply” and selecting your country/region of travel document.\n- In accordance with the article 7.1b of “the Law on Foreigners and International Protection” no.6458, foreigners wishing to enter Türkiye must carry a passport or a travel document as a substitute for passport with an expiration date at least 60 days beyond the “duration of stay” of their visa, e-Visa, visa exemption, or residence permit.\n- You will be informed of these requirements after you select your country of travel document and travel dates.\n\nIssue, expiry, and validity fields:\n- e-Visa is valid for touristic and trade purposes only.\n- In accordance with the article 7.1b of “the Law on Foreigners and International Protection” no.6458, foreigners wishing to enter Türkiye must carry a passport or a travel document as a substitute for passport with an expiration date at least 60 days beyond the “duration of stay” of their visa, e-Visa, visa exemption, or residence permit.\n- The validity period of your e-Visa is different than the duration of stay.\n\nTravel plan and port fields:\n- Passport control officers at the ports of entry can verify your e-Visa in their system.\n\nAccommodation, host, and address fields:\n- After you receive the “e-mail address verification message” within an hour, you must click the “approve” button and proceed with the payment within 48 hours.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+          "content": "Use the exact label and value emitted by the live official portal for closed-list fields. Copy identity and travel-document answers from the passport or travel document, and copy any conditional supporting-document answer from that document. Do not infer an answer from nationality when the form asks for a different field. The official sources reviewed for this schema are https://evisa.gov.tr/en/apply/, https://evisa.gov.tr/en/tour/, https://www.evisa.gov.tr/assets/files/guide_en.pdf, https://evisa.gov.tr/en/info/who-is-eligible-for-e-visa/, https://evisa.gov.tr/en/info/can-i-obtain-multiple-entry-e-visa/ and https://evisa.gov.tr/en/info/what-do-i-need-for-e-visa-application/. The live form and the applicant's documents control if they differ from cached guidance."
         }
       ]
     }

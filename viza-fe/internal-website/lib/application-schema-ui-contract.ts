@@ -83,6 +83,7 @@ type UiContractValidationRules = Record<string, unknown> & {
   dependent_options_key?: string;
   depends_on?: string;
   dependsOn?: string;
+  document_slot?: string;
   official_options_source?: string;
   official_source?: string;
   option_source_field?: string;
@@ -122,8 +123,7 @@ const PANEL_CONTROLLER_TYPES = new Set<VisaFormFieldType>([
   "checkbox",
   "country",
 ]);
-const BOOLEAN_OPTION_VALUES = new Set(["yes", "no", "true", "false", "1", "0"]);
-const SEARCHABLE_SELECT_MIN_OPTIONS = 12;
+export const APPLICATION_SEARCHABLE_OPTION_MIN = 12;
 
 function emptyComponentUsage(): Record<ApplicationSchemaUiComponent, number> {
   return Object.fromEntries(
@@ -231,12 +231,13 @@ export function getApplicationFieldUiComponent(
       if (optionSource === "ISO3166-1" || optionSource === "SCHENGEN_MEMBER_STATES") return "country-dropdown";
       if (optionSource === "US_STATES") return "application-region-select";
       if (optionSource === "PHONE_COUNTRY_CODES") return "application-searchable-select";
-      return rulesFor(field).remote_search === true || (field.options?.length ?? 0) >= SEARCHABLE_SELECT_MIN_OPTIONS
+      return rulesFor(field).remote_search === true || (field.options?.length ?? 0) >= APPLICATION_SEARCHABLE_OPTION_MIN
         ? "application-searchable-select"
         : "application-select";
     case "radio":
-      return field.options?.length === 2
-        ? "application-yes-no-control"
+      if (field.options?.length === 2) return "application-yes-no-control";
+      return (field.options?.length ?? 0) >= APPLICATION_SEARCHABLE_OPTION_MIN
+        ? "application-searchable-select"
         : "application-radio-group";
   }
 }
@@ -408,22 +409,6 @@ export function compileApplicationSchemaForUi(steps: WizardStep[]): CompiledAppl
           designEdgeCase: false,
         });
       }
-      if (
-        field.fieldType === "radio" &&
-        values.length === 2 &&
-        values.some((value) => !BOOLEAN_OPTION_VALUES.has(value))
-      ) {
-        addIssue(issues, {
-          code: "binary_non_boolean_radio",
-          severity: "guidance",
-          visaType,
-          fields: [field],
-          component,
-          message: `Two-option radio "${field.fieldName}" uses semantic choices rather than Yes/No.`,
-          guidance: "Confirm the segmented Yes/No-style control is appropriate; otherwise use the canonical vertical radio group.",
-          designEdgeCase: true,
-        });
-      }
     }
 
     if (rulesFor(field).sensitive === true || field.fieldType === "password") {
@@ -433,21 +418,22 @@ export function compileApplicationSchemaForUi(steps: WizardStep[]): CompiledAppl
         visaType,
         fields: [field],
         component,
-        message: `Sensitive field "${field.fieldName}" is present in the ordinary application-answer schema.`,
-        guidance: "Use an application-scoped encrypted credential/vault flow; never persist passwords, OTPs, or authenticator secrets as ordinary visa answers.",
-        designEdgeCase: true,
+        message: `Sensitive field "${field.fieldName}" was excluded from the applicant-facing schema.`,
+        guidance: "VIZA owns official-portal accounts and sessions. Never show or persist passwords, OTPs, or authenticator secrets as applicant answers.",
+        designEdgeCase: false,
       });
     }
 
-    if (field.fieldType === "file") {
+    const documentSlot = rulesFor(field).document_slot;
+    if (field.fieldType === "file" && !(typeof documentSlot === "string" && documentSlot.trim())) {
       addIssue(issues, {
         code: "file_field_requires_document_contract",
-        severity: "warning",
+        severity: "error",
         visaType,
         fields: [field],
         component,
-        message: `File field "${field.fieldName}" requires a supporting-document contract.`,
-        guidance: "Map it to application_documents and SupportingDocumentCard metadata instead of treating a file path as a normal answer.",
+        message: `File field "${field.fieldName}" does not declare validation_rules.document_slot.`,
+        guidance: "Declare which application_documents slot owns the upload, then render the SupportingDocumentCard lifecycle instead of persisting a file path as a normal answer.",
         designEdgeCase: true,
       });
     }
@@ -490,8 +476,8 @@ export function compileApplicationSchemaForUi(steps: WizardStep[]): CompiledAppl
             fields: [field],
             component,
             message: `Conditional field "${field.fieldName}" resolves to multiple controllers: ${[...roots].join(", ")}.`,
-            guidance: "Keep it in the outer form card until a reviewed compound-condition panel pattern defines ownership and placement.",
-            designEdgeCase: true,
+            guidance: "Use the approved compound conditional group documented in /ui-components when runtime placement is enabled; outer-only remains the safe renderer fallback.",
+            designEdgeCase: false,
           });
         } else if (roots.size === 1) {
           const controllerName = [...roots][0];
@@ -517,8 +503,8 @@ export function compileApplicationSchemaForUi(steps: WizardStep[]): CompiledAppl
               fields: [controller, field],
               component,
               message: `Field "${field.fieldName}" is controlled from step ${controller.stepNumber}, not its own step ${field.stepNumber}.`,
-              guidance: "The answer remains valid, but the dependent field uses the outer step card because a conditional panel cannot sit directly below an earlier-step controller.",
-              designEdgeCase: true,
+              guidance: "The dependent field uses the outer step card. Section-level branches may also drive step and sidebar visibility from the earlier answer.",
+              designEdgeCase: false,
             });
           } else if (!PANEL_CONTROLLER_TYPES.has(controller.fieldType)) {
             nextRules.ui_conditional_panel_mode = "outer_only";
@@ -616,13 +602,13 @@ export function compileApplicationSchemaForUi(steps: WizardStep[]): CompiledAppl
     if (groupFields.length > 2) {
       addIssue(issues, {
         code: "inline_group_too_large",
-        severity: "warning",
+        severity: "guidance",
         visaType,
         fields: groupFields,
         component: null,
-        message: `An inline_group contains ${groupFields.length} fields; the canonical pattern is a pair.`,
-        guidance: "Split it into pairs or request a reviewed responsive multi-column component.",
-        designEdgeCase: true,
+        message: `An inline_group contains ${groupFields.length} fields and uses the canonical equal-width row.`,
+        guidance: "All fields stay on the same row; long labels wrap within their own column while controls remain aligned.",
+        designEdgeCase: false,
       });
     }
     const roots = new Set(groupFields.map(conditionalRoot).filter(Boolean));
@@ -640,10 +626,14 @@ export function compileApplicationSchemaForUi(steps: WizardStep[]): CompiledAppl
     }
   }
 
-  const compiledSteps = steps.map((step) => ({
-    ...step,
-    fields: step.fields.map((field) => compiledFields.get(field.fieldName) ?? field),
-  }));
+  const compiledSteps = steps
+    .map((step) => ({
+      ...step,
+      fields: step.fields
+        .filter((field) => rulesFor(field).sensitive !== true && field.fieldType !== "password")
+        .map((field) => compiledFields.get(field.fieldName) ?? field),
+    }))
+    .filter((step) => step.fields.length > 0);
 
   return {
     steps: compiledSteps,

@@ -32,36 +32,36 @@ function row(
 describe("application schema edge-case catalog", () => {
   it("keeps every design edge case and retains unaffected visa schemas", () => {
     const catalog = buildApplicationSchemaEdgeCaseCatalog([
-      row("TEST_A", "gender", {
+      row("TEST_A", "nationality_requires_transit_visa", {
         field_type: "radio",
-        options: [{ value: "male", text: "Male" }, { value: "female", text: "Female" }],
+        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
       }),
-      row("TEST_A", "purpose", {
+      row("TEST_A", "journey_purpose", {
         field_type: "select",
         display_order: 2,
-        options: [{ value: "tourism", text: "Tourism" }, { value: "business", text: "Business" }],
+        options: [{ value: "transit", text: "Transit" }, { value: "visit", text: "Visit" }],
       }),
-      row("TEST_A", "tourism_details", {
-        step_number: 2,
-        step_name: "Step two",
-        conditional_logic: { showIf: "purpose === tourism" },
+      row("TEST_A", "transit_acknowledgement", {
+        display_order: 3,
+        conditional_logic: {
+          showIf: "nationality_requires_transit_visa === yes && journey_purpose === transit",
+        },
+      }),
+      row("TEST_A", "passport_upload", {
+        field_type: "file",
+        display_order: 4,
       }),
       row("TEST_B", "surname"),
     ]);
 
-    expect(catalog.fieldCount).toBe(4);
+    expect(catalog.fieldCount).toBe(5);
     expect(catalog.edgeCases.map((edgeCase) => edgeCase.code)).toEqual([
-      "binary_non_boolean_radio",
-      "cross_step_conditional",
+      "file_field_requires_document_contract",
     ]);
     expect(catalog.affectedVisaTypeCount).toBe(1);
     expect(catalog.visaTypes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ visaType: "TEST_A", edgeCaseCount: 2 }),
+      expect.objectContaining({ visaType: "TEST_A", edgeCaseCount: 1 }),
       expect.objectContaining({ visaType: "TEST_B", edgeCaseCount: 0 }),
-    ]));
-    expect(catalog.edgeCases[1].fields).toEqual(expect.arrayContaining([
-      expect.objectContaining({ fieldName: "purpose", component: "application-select" }),
-      expect.objectContaining({ fieldName: "tourism_details", component: "application-input" }),
     ]));
   });
 });

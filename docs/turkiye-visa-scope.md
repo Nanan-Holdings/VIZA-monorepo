@@ -1,117 +1,100 @@
-# Türkiye Tourist e-Visa Extraction Scope — v1 Canonical Journey
+# Türkiye Electronic Visa — Canonical Scope
 
-**Version:** 1.0
-**Status:** Active
-**Created:** 2026-04-28
+**Schema version:** 2.0
 
----
+**Status:** Official-source correction implemented; nationality-condition QA remains
 
-## 1. Canonical Journey
+**Verified:** 2026-08-16
 
-**Visa type:** Türkiye Tourist e-Visa (single + multi-entry)
-**VIZA visa_type key:** `TR_E_VISA`
+## Product boundary
 
-The Republic of Türkiye Tourist e-Visa is issued by the Ministry of
-Foreign Affairs (T.C. Dışişleri Bakanlığı) via
-`https://www.evisa.gov.tr`. The portal does not require an account. VIZA
-completes the form and, when an electronic official fee is due, pays with an
-application-scoped limited virtual card before delivering the e-Visa PDF from
-the official email flow.
+**VIZA visa type:** `TR_E_VISA`
 
-Two variants on `visa_type_requested`:
-- **Single-entry e-Visa** (~USD 50, 180-day validity, 30 or 90-day stay)
-- **Multiple-entry e-Visa** (~USD 80, 180-day validity, 30 or 90-day
-  stay per entry)
+**Official portal:** <https://evisa.gov.tr>
 
-Stay length depends on nationality (most: 30 days; selected
-nationalities incl. US, UK, EU/EEA: 90 days).
+This package represents the Republic of Türkiye Ministry of Foreign Affairs
+electronic visa for **tourism and trade**. It is one official product. The
+applicant does not choose single or multiple entry, validity, permitted stay,
+or fee: the official portal derives those values from travel-document country,
+travel-document type, and intended arrival date.
 
-Tourism + commerce (business visit) covered under one form.
+Airport transit visa, sticker visas, work/student visas, residence permits,
+and other consular products are outside `TR_E_VISA`.
 
-### Application Structure
+## Canonical answer journey
 
-8 logical steps (standard Asia-tourist 8-step template).
+1. **Eligibility**
+   - Country/region of travel document
+   - Travel-document type
+   - Intended arrival date
+2. **Personal information**
+   - Given names
+   - Surname (blank only when no surname appears in the document)
+   - Date and place of birth
+   - Mother's and father's names
+3. **Travel document**
+   - Document number
+   - Issue and expiry dates
+4. **Contact information**
+   - Email
+   - Telephone number
+   - Residence address
+5. **Supporting document**
+   - None, visa, or residence permit
+   - Conditional issuing-country control
+   - Conditional expiry date
 
----
+The supporting-document issuer options and official codes come directly from
+the MFA group-file specification. A residence-permit expiry may be blank only
+when the permit is indefinite.
 
-## 2. v1 Scope
+## Derived official values
 
-- One visa product family: Tourist e-Visa
-- Two entry-frequency variants
-- Two purposes (tourism / commerce) on `purpose_of_visit`
-- ~70 fields, options, requiredness, conditional logic
-- TR-specific: no-account-required portal, dual-language naming
-  (Türkiye / Turkey)
+The following must not be collected as applicant choices:
 
----
+- entry count
+- visa validity
+- permitted stay
+- fee
+- eligibility result
 
-## 3. Out-of-Scope Categories
+The official multiple-entry nationality list and all other eligibility data
+must be maintained as source-derived policy metadata, not answer fields.
 
-| Category | Reason |
-|----------|--------|
-| Work Permit (Çalışma İzni) | Different system, employer-driven |
-| Student Visa | Consular flow + university acceptance |
-| Humanitarian Residence Permit | Different status |
-| Long-term / Family Residence Permit | Different application |
-| Citizenship by Investment | Bespoke programme |
-| Visa-on-arrival | Largely eliminated post-2013 |
+## Workflow-only controls
 
----
+These are intentionally absent from `visa_form_fields`:
 
-## 4. Known Source-Flow Ambiguities
+- CAPTCHA/security verification
+- official email-verification link
+- the 48-hour payment window
+- payment-card details
+- official application/session identifiers
 
-1. **Live-portal QA partially possible** — `evisa.gov.tr` is publicly
-   accessible without login. Schema reconstructed from public landing
-   pages + nationality eligibility list. A live walk would catch any
-   field-label drift.
+The Türkiye e-Visa journey has no applicant file-upload field. Documents that
+must be carried for travel are not uploads to this application form.
 
-2. **Stay length depends on nationality** — schema regex caps at 90,
-   live portal enforces nationality-specific cap (30 or 90).
+Family applications create separate applicant applications. They are not a
+repeat group inside one applicant's answer schema.
 
-3. **Date format** — DD/MM/YYYY (Turkish convention).
+## Sources
 
-4. **Country naming** — schema uses both "Türkiye" (official) and
-   "Turkey" (English) interchangeably in labels.
+- [Live application](https://evisa.gov.tr/en/apply/)
+- [Official pre-application guide](https://evisa.gov.tr/en/tour/)
+- [Eligible countries](https://evisa.gov.tr/en/info/who-is-eligible-for-e-visa/)
+- [Multiple-entry nationalities](https://evisa.gov.tr/en/info/can-i-obtain-multiple-entry-e-visa/)
+- [Passport-validity requirement](https://evisa.gov.tr/en/info/what-do-i-need-for-e-visa-application/)
+- [Supporting-document validity](https://www.evisa.gov.tr/en/info/what-are-the-criteria-for-the-validity-of-my-supporting-document-visa-or-residence-permit-from-schengen-or-oecd-member-countries/)
+- [Official group-field specification](https://www.evisa.gov.tr/assets/files/guide_en.pdf)
 
----
+## Evidence limits and next QA
 
-## 5. Design Principle
+The first eligibility screen was inspected live. The common applicant fields
+and validations are documented by the official MFA group specification.
+Continuation to the nationality-specific prerequisite screen requires a
+CAPTCHA. No CAPTCHA was solved during the 2026-08-16 correction.
 
-> **Source-truth-over-manual-approximation.**
-
----
-
-## 6. Extraction Workflow
-
-```bash
-cd viza-be/agent-backend
-npx tsx scripts/seed-tr-e-visa-form-fields.ts
-```
-
----
-
-## 7. Source Material — Reconstruction Disclaimer
-
-Sources used:
-
-- evisa.gov.tr public landing + FAQ
-- Türkiye Ministry of Foreign Affairs e-Visa eligibility list
-- Consular guidance pages
-
-**Live-portal QA pass** is the easiest of all VIZA-modeled e-Visa
-flows because the portal does not require an account.
-
----
-
-## 8. Next Expansion Path
-
-1. **Live-portal QA pass** — straightforward, no auth required.
-2. **Playwright submission runner** — high-value because portal is
-   open + automation barriers are low.
-3. **`TR_RESIDENCE_PERMIT`** — Long-term Residence Permit.
-4. **`TR_WORK_PERMIT`** — Work Permit (employer-driven).
-5. **`TR_STUDENT_VISA`** — Student Visa.
-
----
-
-**Maintainer:** Edward Zehua Zhang
+Before claiming complete live-portal parity, perform an authorized capture of
+the nationality-specific prerequisite matrix and verify each conditional
+declaration. Do not reintroduce generic tourist questions without official
+field-level evidence.
