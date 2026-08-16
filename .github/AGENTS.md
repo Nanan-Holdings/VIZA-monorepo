@@ -22,3 +22,7 @@ scheduled recovery workflows.
   Environment, whose deployment branch policy permits only `main`.
 - Scheduled workflows execute only from the default branch. Keep the auto
   restart kill switch disabled until a healthy scheduled run is verified.
+- `production-db-maintenance.yml` is a manual, single-flight production
+  maintenance entry point. Keep its actions explicit and fail closed against
+  the exact production project ref; the initial `preflight` action is
+  aggregate-only and uses the read-only Management API endpoint.
