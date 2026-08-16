@@ -6,7 +6,18 @@ Each file in `countries/*.json` owns one country's visitor/tourism visa knowledg
 
 `countries/taiwan.json` keeps the conditional `TW_ENTRY_PERMIT` route for eligible mainland Chinese residents abroad separate from the official-only `TW_ARRIVAL_CARD` declaration.
 
-The 11-country reviewed product codes are intentionally stable and are not interchangeable with the old route aliases:
+The reviewed product codes are intentionally stable and are not
+interchangeable with the old route aliases. The five tourist schemas added in
+the 2026-08-16 official-source audit are:
+
+- Canada: `CA_TRV` (tourist TRV only; eTA is separate)
+- Türkiye: `TR_E_VISA`
+- India: `IN_E_VISA` (e-Tourist only)
+- Saudi Arabia: `SA_E_VISA` (VisitSaudi Tourist eVisa only)
+- United Arab Emirates: `AE_TOURIST_VISA` (ICP self-sponsored five-year
+  multiple-entry transaction 783 only)
+
+The existing reviewed product codes are:
 
 - Indonesia: `ID_B1_EVOA`, `ID_C1_TOURIST`
 - Vietnam: `VN_E_VISA`, `VN_PREARRIVAL_DECLARATION`

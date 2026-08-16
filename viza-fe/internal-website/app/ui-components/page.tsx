@@ -59,6 +59,25 @@ const visitPurposes = [
   { value: "family", text: "Visit family or friends" },
   { value: "transit", text: "Transit" },
 ];
+const visitedCountries = [
+  {
+    value: "MNP",
+    text: "北马里亚纳群岛",
+    searchText: "MNP Northern Mariana Islands 北马里亚纳群岛",
+    flagCountryCode: "mp",
+  },
+  {
+    value: "CHN",
+    text: "中国",
+    searchText: "CHN China 中国",
+    flagCountryCode: "cn",
+  },
+  {
+    value: "XXB",
+    text: "难民（1951 年公约）",
+    searchText: "XXB Refugee 1951 Convention 难民",
+  },
+];
 const travelModes = [
   { value: "air", text: "Air" },
   { value: "land", text: "Land" },
@@ -109,6 +128,7 @@ export default function UiComponentsPage() {
   const [needsVisa, setNeedsVisa] = useState("");
   const [notes, setNotes] = useState("");
   const [selectedVisitPurposes, setSelectedVisitPurposes] = useState("");
+  const [selectedVisitedCountries, setSelectedVisitedCountries] = useState("MNP,XXB");
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [declarationsAccepted, setDeclarationsAccepted] = useState(false);
   const [documentsConfirmed, setDocumentsConfirmed] = useState(true);
@@ -121,6 +141,11 @@ export default function UiComponentsPage() {
   const [flightNumber, setFlightNumber] = useState("");
   const [transportIdentifier, setTransportIdentifier] = useState("");
   const [entryPoint, setEntryPoint] = useState("");
+  const [compoundNationality, setCompoundNationality] = useState("yes");
+  const [compoundJourney, setCompoundJourney] = useState("yes");
+  const [compoundAcknowledged, setCompoundAcknowledged] = useState(false);
+
+  const compoundConditionActive = compoundNationality === "yes" && compoundJourney === "yes";
 
   const setFundingMethod = (fieldName: string, value: string) => {
     setFundingMethods((current) => ({ ...current, [fieldName]: value }));
@@ -402,6 +427,27 @@ export default function UiComponentsPage() {
           </ApplicationFormPanel>
 
           <ApplicationFormPanel className="p-5 md:col-span-2 xl:col-span-3">
+            <h2 className="text-base font-semibold text-foreground">Country multi-select</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Country and territory options use ISO flags, while official non-country options keep
+              their text-only presentation.
+            </p>
+            <ApplicationFormField
+              label="抵达前两周内停留过的国家 / 地区"
+              required
+              className="mt-5"
+            >
+              <ApplicationSearchableMultiSelect
+                value={selectedVisitedCountries}
+                onValueChange={setSelectedVisitedCountries}
+                options={visitedCountries}
+                placeholder="请选择一个或多个国家 / 地区"
+                sideLocale="zh"
+              />
+            </ApplicationFormField>
+          </ApplicationFormPanel>
+
+          <ApplicationFormPanel className="p-5 md:col-span-2 xl:col-span-3">
             <h2 className="text-base font-semibold text-foreground">Conditional repeat group</h2>
             <div className="mt-5 flex flex-col gap-2">
               <ApplicationFormField
@@ -648,6 +694,82 @@ export default function UiComponentsPage() {
                   </>
                 )}
               </ApplicationConditionalFieldsPanel>
+            </div>
+          </ApplicationFormPanel>
+
+          <ApplicationFormPanel className="p-5 md:col-span-2 xl:col-span-3">
+            <h2 className="text-base font-semibold text-foreground">
+              Compound conditional group
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              One dependent panel appears only when every independent prerequisite is active. The
+              panel repeats all active prerequisites so its reason and ownership remain clear.
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div role="group" aria-label="Nationality requires an airport transit visa">
+                  <ApplicationFormField
+                    label="Nationality requires an airport transit visa"
+                    required
+                  >
+                    <ApplicationYesNoControl
+                      name="gallery-compound-nationality"
+                      value={compoundNationality}
+                      options={[
+                        { value: "yes", text: "Yes" },
+                        { value: "no", text: "No" },
+                      ]}
+                      onValueChange={setCompoundNationality}
+                    />
+                  </ApplicationFormField>
+                </div>
+                <div role="group" aria-label="Journey purpose is airport transit">
+                  <ApplicationFormField
+                    label="Journey purpose is airport transit"
+                    required
+                  >
+                    <ApplicationYesNoControl
+                      name="gallery-compound-journey"
+                      value={compoundJourney}
+                      options={[
+                        { value: "yes", text: "Yes" },
+                        { value: "no", text: "No" },
+                      ]}
+                      onValueChange={setCompoundJourney}
+                    />
+                  </ApplicationFormField>
+                </div>
+              </div>
+
+              {compoundConditionActive ? (
+                <ApplicationConditionalFieldsPanel
+                  aria-label="Airport transit visa acknowledgement"
+                  className="-mt-1"
+                  data-conditional-controllers="compound-nationality compound-journey"
+                >
+                  <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+                    <p className="font-medium">Why this panel is shown</p>
+                    <ul className="mt-1 list-disc pl-5 text-xs leading-5 text-sky-900/80">
+                      <li>Nationality requires an airport transit visa = Yes</li>
+                      <li>Journey purpose is airport transit = Yes</li>
+                    </ul>
+                  </div>
+                  <ApplicationCheckbox
+                    id="gallery-compound-acknowledgement"
+                    checked={compoundAcknowledged}
+                    label="I acknowledge the airport transit visa requirement"
+                    required
+                    onCheckedChange={setCompoundAcknowledged}
+                  />
+                </ApplicationConditionalFieldsPanel>
+              ) : (
+                <div
+                  className="rounded-lg border border-dashed px-4 py-5 text-center text-sm text-muted-foreground"
+                  role="status"
+                >
+                  The compound panel is hidden because at least one prerequisite is inactive.
+                </div>
+              )}
             </div>
           </ApplicationFormPanel>
 

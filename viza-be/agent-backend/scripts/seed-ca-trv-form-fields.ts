@@ -1,31 +1,21 @@
 /**
- * Seed script: visa_form_fields for Canada Temporary Resident Visa (TRV).
+ * Seed script: applicant-answer schema for Canada tourist Temporary Resident
+ * Visa (TRV), visa_type `CA_TRV`.
  *
- * Field definitions mirror the Immigration, Refugees and Citizenship
- * Canada (IRCC) IMM 5257 (Application for Temporary Resident Visa) +
- * IMM 5645 (Family Information) + the eTA (Electronic Travel
- * Authorization) flow. Submitted via the IRCC Secure Account portal at
- * `https://ircc.canada.ca` (GCKey or Sign-In Partner authenticated).
- * The eTA flow is at `https://onlineservices-servicesenligne.cic.gc.ca`.
+ * This is a public-source reconstruction of IRCC IMM 5257 and the family form
+ * currently selected by Canada's country packages, IMM 5707. Chinese-citizen
+ * applicants also receive the answer fields from IMM 0104. The authenticated
+ * IRCC Portal/Secure Account journey still requires a live-portal QA pass, so
+ * selectors, portal page order, and personalized checklist variations are not
+ * asserted here.
  *
- * The schema is a high-fidelity reconstruction from public IMM 5257 +
- * IMM 5645 PDFs, eTA application guidance, and IRCC instruction guides.
- * Same posture as JP_TOURIST, AU_VISITOR_600, NZ_VISITOR_VISA.
- *
- * Scope: TRV (Visitor Visa, single-entry up to 6 months / multiple-
- * entry up to 10 years) + eTA (visa-waiver-country nationals, 5-year
- * authority, 6-month max stay per entry). Variant captured by
- * `visa_type_requested`.
- *
- * Out of scope: Work Permit (LMIA-based, Open Work Permit, Post-
- * Graduation Work Permit), Study Permit, Permanent Residence (Express
- * Entry, Provincial Nominee, Family Sponsorship, Atlantic Immigration
- * Programme, Quebec-selected workers), Super Visa (parents/grandparents
- * — same form but distinct programme; covered in future package),
- * Refugee/Protected Person, and Inland TRP.
- *
- * Document uploads (passport bio, photo, proof-of-funds, employment
- * letter, invitation letter, return ticket) are out-of-schema.
+ * Product boundaries:
+ * - Tourism is fixed by the package; it is not an applicant choice.
+ * - IRCC decides whether an issued TRV is single- or multiple-entry.
+ * - eTA is a separate authorization and must use a future `CA_ETA` package.
+ * - Files belong to application_documents, never visa_form_fields.
+ * - IRCC credentials, invite codes, OTPs, and sessions are VIZA-managed and
+ *   must never be represented as applicant answers.
  *
  * Run: npx tsx scripts/seed-ca-trv-form-fields.ts
  */
@@ -52,197 +42,386 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const VISA_TYPE = "CA_TRV";
 
-interface FieldDef { field_name: string; label: string; field_type: string; required: boolean; step_number: number; step_name: string; display_order: number; placeholder?: string; validation_rules?: Record<string, unknown>; options?: Array<{ value: string; text: string }>; conditional_logic?: Record<string, unknown>; }
+interface FieldDef {
+  field_name: string;
+  label: string;
+  field_type: string;
+  required: boolean;
+  step_number: number;
+  step_name: string;
+  display_order: number;
+  placeholder?: string;
+  validation_rules?: Record<string, unknown>;
+  options?: Array<{ value: string; text: string }>;
+  conditional_logic?: Record<string, unknown>;
+}
 
-const YES_NO = [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }];
+type StepField = Omit<FieldDef, "step_number" | "step_name" | "display_order">;
 
-const HAS_OTHER_NAMES = "has_other_names_used === yes";
-const HAS_OTHER_NATIONALITIES = "has_other_nationalities === yes";
-const IS_MARRIED_OR_PARTNERED = "marital_status === married || marital_status === common_law";
-const HAS_OTHER_PASSPORTS = "has_other_passports === yes";
-const HAS_HOST_IN_CA = "has_host_in_canada === yes";
-const VISITED_CA_BEFORE = "visited_canada_before === yes";
-const REFUSED_VISA_CA = "refused_visa_or_entry_canada === yes";
-const REFUSED_VISA_OTHER = "refused_visa_other_country === yes";
-const HAS_CRIMINAL = "has_criminal_record === yes";
-const HAS_DEPORTED = "has_been_deported === yes";
-const HAS_TB_HISTORY = "has_tb_history === yes";
-const HAS_MILITARY_SERVICE = "has_military_service === yes";
+const YES_NO = [
+  { value: "yes", text: "Yes" },
+  { value: "no", text: "No" },
+];
 
 const SEX_OPTIONS = [
-  { value: "male", text: "Male" },
   { value: "female", text: "Female" },
+  { value: "male", text: "Male" },
+  { value: "unknown", text: "Unknown" },
   { value: "another", text: "Another gender" },
 ];
 
-const PASSPORT_TYPE_OPTIONS = [{ value: "ordinary", text: "Ordinary" }];
-
-// IRCC IMM 5257 marital status values include common-law (1+ year cohabitation).
 const MARITAL_STATUS_OPTIONS = [
-  { value: "single", text: "Never married / Single" },
-  { value: "married", text: "Married" },
-  { value: "common_law", text: "Common-law" },
-  { value: "separated", text: "Legally separated" },
-  { value: "divorced", text: "Divorced" },
-  { value: "widowed", text: "Widowed" },
   { value: "annulled", text: "Annulled marriage" },
+  { value: "common_law", text: "Common-law" },
+  { value: "divorced", text: "Divorced" },
+  { value: "married", text: "Married" },
+  { value: "separated", text: "Legally separated" },
+  { value: "single", text: "Never married / Single" },
+  { value: "widowed", text: "Widowed" },
 ];
 
-const OCCUPATION_OPTIONS = [{ value: "employed", text: "Employed" }, { value: "self_employed", text: "Self-employed" }, { value: "businessperson", text: "Businessperson" }, { value: "student", text: "Student" }, { value: "retired", text: "Retired" }, { value: "homemaker", text: "Homemaker" }, { value: "unemployed", text: "Unemployed" }, { value: "other", text: "Other" }];
-
-// IRCC TRV covers tourism, business visit, family visit, transit (under
-// 48hr; otherwise eTA / Transit Without Visa programme).
-const PURPOSE_OF_VISIT_OPTIONS = [
-  { value: "tourism", text: "Tourism / Holiday" },
-  { value: "visiting_family", text: "Visiting family or friends" },
-  { value: "business_visit", text: "Business (meetings, conferences, training)" },
-  { value: "transit", text: "Transit (>48 hours, otherwise TWOV)" },
+const RESIDENCE_STATUS_OPTIONS = [
+  { value: "citizen", text: "Citizen" },
+  { value: "permanent_resident", text: "Permanent resident" },
+  { value: "visitor", text: "Visitor" },
+  { value: "worker", text: "Worker" },
+  { value: "student", text: "Student" },
+  { value: "protected_person", text: "Protected person" },
+  { value: "refugee_claimant", text: "Refugee claimant" },
   { value: "other", text: "Other" },
 ];
 
-const VISA_TYPE_REQUESTED_OPTIONS = [
-  { value: "eta", text: "eTA (Electronic Travel Authorization) — Visa-waiver nationals (~CAD 7, 5-year validity, 6-month stay)" },
-  { value: "trv_single", text: "TRV — Single-entry visitor visa (~CAD 100, up to 6-month stay)" },
-  { value: "trv_multiple", text: "TRV — Multiple-entry visitor visa (~CAD 100, up to 10-year validity, 6-month stay per entry)" },
+const LANGUAGE_ABILITY_OPTIONS = [
+  { value: "english", text: "English" },
+  { value: "french", text: "French" },
+  { value: "both", text: "English and French" },
+  { value: "neither", text: "Neither" },
 ];
 
-const PORT_OF_ENTRY_OPTIONS = [
-  { value: "toronto_yyz", text: "Toronto Pearson International Airport (YYZ)" },
-  { value: "vancouver_yvr", text: "Vancouver International Airport (YVR)" },
-  { value: "montreal_yul", text: "Montréal-Trudeau International Airport (YUL)" },
-  { value: "calgary_yyc", text: "Calgary International Airport (YYC)" },
-  { value: "edmonton_yeg", text: "Edmonton International Airport (YEG)" },
-  { value: "ottawa_yow", text: "Ottawa Macdonald-Cartier International Airport (YOW)" },
-  { value: "halifax_yhz", text: "Halifax Stanfield International Airport (YHZ)" },
-  { value: "winnipeg_ywg", text: "Winnipeg Richardson International Airport (YWG)" },
-  { value: "buffalo_peace_bridge_land", text: "Peace Bridge — Buffalo, NY (US land)" },
-  { value: "detroit_ambassador_bridge_land", text: "Ambassador Bridge — Detroit, MI (US land)" },
-  { value: "blaine_pacific_highway_land", text: "Pacific Highway — Blaine, WA (US land)" },
-  { value: "niagara_rainbow_bridge_land", text: "Rainbow Bridge — Niagara Falls (US land)" },
-  { value: "vancouver_seaport", text: "Vancouver Cruise Terminal (Canada Place)" },
-  { value: "halifax_seaport", text: "Port of Halifax (cruise)" },
+const PHONE_LOCATION_OPTIONS = [
+  { value: "canada_us", text: "Canada / United States" },
   { value: "other", text: "Other" },
 ];
 
-const ACCOMMODATION_TYPE_OPTIONS = [
-  { value: "hotel", text: "Hotel" },
-  { value: "rental_apartment", text: "Holiday rental / Service apartment" },
-  { value: "host_residence", text: "Residence of host (friend or relative)" },
-  { value: "guesthouse", text: "Hostel / Bed & breakfast" },
-  { value: "other", text: "Other" },
+const PHONE_TYPE_OPTIONS = [
+  { value: "residence", text: "Residence" },
+  { value: "cellular", text: "Cellular" },
+  { value: "business", text: "Business" },
 ];
 
-const EXPENSE_BEARER_OPTIONS = [{ value: "self", text: "Self" }, { value: "employer", text: "Employer" }, { value: "family", text: "Family member" }, { value: "host", text: "Host / Sponsor in Canada" }, { value: "other", text: "Other" }];
+const FAMILY_MARITAL_OPTIONS = [
+  ...MARITAL_STATUS_OPTIONS,
+  { value: "conjugal", text: "Conjugal partner" },
+];
+
+const HAS_OTHER_NAMES = "has_other_names_used === yes";
+const HAS_PRIOR_RESIDENCE = "has_prior_residence === yes";
+const APPLYING_ELSEWHERE = "applying_from_current_residence === no";
+const HAS_FORMER_PARTNER = "has_former_spouse_or_partner === yes";
+const CURRENTLY_PARTNERED = "marital_status === married || marital_status === common_law";
+const STATUS_OTHER = "current_residence_status === other";
+const APPLICATION_STATUS_OTHER = "application_country_status === other";
+const PRIOR_STATUS_OTHER = "prior_residence_status === other";
+const HAS_NATIONAL_ID = "has_national_identity_document === yes";
+const IS_US_PERMANENT_RESIDENT = "is_us_permanent_resident === yes";
+const HAS_POST_SECONDARY = "has_post_secondary_education === yes";
+const HAS_MILITARY_SERVICE = "background_military_service === yes";
+const HAS_CHILDREN = "imm5707_has_children === yes";
+const HAS_NO_CHILDREN = "imm5707_has_children === no";
+const HAS_FAMILY_PARTNER = "imm5707_has_spouse_or_partner === yes";
+const HAS_NO_FAMILY_PARTNER = "imm5707_has_spouse_or_partner === no";
+const FAMILY_APPLICANT_MARRIED = "imm5707_applicant_marital_status === married";
+const FAMILY_PARTNER_MARRIED = "imm5707_partner_marital_status === married";
+const IS_CHINESE_CITIZEN = "country_of_citizenship === China";
+const CHINA_HAS_TRAVEL = "country_of_citizenship === China && china_first_trip_outside_china === no";
+
+function defineStep(
+  stepNumber: number,
+  stepName: string,
+  sourceDocument: "IMM 5257" | "IMM 5707" | "IMM 0104",
+  fields: StepField[],
+): FieldDef[] {
+  return fields.map((field, index) => ({
+    ...field,
+    step_number: stepNumber,
+    step_name: stepName,
+    display_order: index + 1,
+    validation_rules: {
+      source_document: sourceDocument,
+      source_confidence: "high_public_form_reconstruction",
+      live_portal_qa: "pending",
+      ...(field.validation_rules ?? {}),
+    },
+  }));
+}
+
+function repeat(group: string, maxItems = 20): Record<string, unknown> {
+  return { repeatable: true, repeat_group: group, max_items: maxItems };
+}
+
+function dateRules(extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return { format: "YYYY-MM-DD", ...extra };
+}
+
+function monthYearRules(extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return { format: "MM-YYYY", pattern: "^(0[1-9]|1[0-2])-\\d{4}$", ...extra };
+}
+
+function addressFields(prefix: string, required: boolean): StepField[] {
+  const group = `${prefix}_address`;
+  return [
+    { field_name: `${prefix}_po_box`, label: "P.O. box", field_type: "text", required: false, validation_rules: { maxLength: 20, block_group: group } },
+    { field_name: `${prefix}_apartment_unit`, label: "Apartment / Unit", field_type: "text", required: false, validation_rules: { maxLength: 20, block_group: group } },
+    { field_name: `${prefix}_street_number`, label: "Street number", field_type: "text", required, validation_rules: { maxLength: 20, block_group: group } },
+    { field_name: `${prefix}_street_name`, label: "Street name", field_type: "text", required, validation_rules: { maxLength: 100, block_group: group } },
+    { field_name: `${prefix}_city`, label: "City / Town", field_type: "text", required, validation_rules: { maxLength: 60, block_group: group } },
+    { field_name: `${prefix}_country`, label: "Country or territory", field_type: "country", required, validation_rules: { source: "ISO3166-1", block_group: group } },
+    { field_name: `${prefix}_province_state`, label: "Province / State", field_type: "text", required: false, validation_rules: { maxLength: 60, block_group: group } },
+    { field_name: `${prefix}_postal_code`, label: "Postal / ZIP code", field_type: "text", required: false, validation_rules: { maxLength: 20, block_group: group } },
+    { field_name: `${prefix}_district`, label: "District", field_type: "text", required: false, validation_rules: { maxLength: 60, block_group: group } },
+  ];
+}
+
+function familyPersonFields(
+  prefix: string,
+  label: string,
+  conditional?: string,
+): StepField[] {
+  const condition = conditional ? { conditional_logic: { showIf: conditional } } : {};
+  const block = `imm5707_${prefix}`;
+  return [
+    { field_name: `imm5707_${prefix}_family_name`, label: `${label} — Family name`, field_type: "text", required: true, ...condition, validation_rules: { maxLength: 50, block_group: block } },
+    { field_name: `imm5707_${prefix}_given_names`, label: `${label} — Given name(s)`, field_type: "text", required: false, ...condition, validation_rules: { maxLength: 80, block_group: block } },
+    { field_name: `imm5707_${prefix}_name_native_script`, label: `${label} — Full name in native script`, field_type: "text", required: true, ...condition, validation_rules: { maxLength: 120, block_group: block } },
+    { field_name: `imm5707_${prefix}_date_of_birth`, label: `${label} — Date of birth`, field_type: "date", required: true, ...condition, validation_rules: dateRules({ allow_unknown_components: true, official_unknown_marker: "*", block_group: block }) },
+    { field_name: `imm5707_${prefix}_country_of_birth`, label: `${label} — Country or territory of birth`, field_type: "country", required: true, ...condition, validation_rules: { source: "ISO3166-1", block_group: block } },
+    { field_name: `imm5707_${prefix}_marital_status`, label: `${label} — Marital status`, field_type: "select", required: true, ...condition, options: FAMILY_MARITAL_OPTIONS, validation_rules: { block_group: block } },
+    { field_name: `imm5707_${prefix}_present_address`, label: `${label} — Present address`, field_type: "textarea", required: true, ...condition, validation_rules: { maxLength: 250, block_group: block } },
+    { field_name: `imm5707_${prefix}_occupation`, label: `${label} — Present occupation`, field_type: "text", required: true, ...condition, validation_rules: { maxLength: 100, block_group: block } },
+    { field_name: `imm5707_${prefix}_accompanying`, label: `${label} — Will accompany you to Canada`, field_type: "radio", required: true, ...condition, options: YES_NO, validation_rules: { block_group: block } },
+  ];
+}
 
 const FIELDS: FieldDef[] = [
-  // STEP 1: Personal Information
-  { field_name: "surname", label: "Family name (Surname)", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 1, validation_rules: { maxLength: 50 } },
-  { field_name: "given_names", label: "Given name(s)", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 2, validation_rules: { maxLength: 80 } },
-  { field_name: "has_other_names_used", label: "Have you ever used any other names (incl. nicknames, maiden name, religious names)?", field_type: "radio", required: true, step_number: 1, step_name: "Personal Information", display_order: 3, options: YES_NO },
-  { field_name: "other_names_used", label: "Other names used", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 4, conditional_logic: { showIf: HAS_OTHER_NAMES }, validation_rules: { maxLength: 120 } },
-  { field_name: "sex", label: "Sex", field_type: "select", required: true, step_number: 1, step_name: "Personal Information", display_order: 5, options: SEX_OPTIONS },
-  { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 1, step_name: "Personal Information", display_order: 6, validation_rules: { format: "DD/MM/YYYY" } },
-  { field_name: "place_of_birth_city", label: "Place of birth — City / Town", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 7, validation_rules: { maxLength: 60, block_group: "place_of_birth" } },
-  { field_name: "place_of_birth_country", label: "Place of birth — Country", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 8, validation_rules: { source: "ISO3166-1", block_group: "place_of_birth" } },
-  { field_name: "nationality", label: "Country of citizenship", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 9, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "country_of_residence", label: "Country of current residence (if different from citizenship)", field_type: "country", required: false, step_number: 1, step_name: "Personal Information", display_order: 10, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "has_other_nationalities", label: "Do you hold any other nationality / citizenship?", field_type: "radio", required: true, step_number: 1, step_name: "Personal Information", display_order: 11, options: YES_NO },
-  { field_name: "other_nationality", label: "Other nationality / citizenship", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 12, conditional_logic: { showIf: HAS_OTHER_NATIONALITIES }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "other_nationalities", max_items: 3 } },
-  { field_name: "marital_status", label: "Marital status", field_type: "select", required: true, step_number: 1, step_name: "Personal Information", display_order: 13, options: MARITAL_STATUS_OPTIONS },
-  { field_name: "spouse_full_name", label: "Spouse / Common-law partner — Full name", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 14, conditional_logic: { showIf: IS_MARRIED_OR_PARTNERED }, validation_rules: { maxLength: 120, block_group: "spouse" } },
-  { field_name: "spouse_nationality", label: "Spouse / Common-law partner — Nationality", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 15, conditional_logic: { showIf: IS_MARRIED_OR_PARTNERED }, validation_rules: { source: "ISO3166-1", block_group: "spouse" } },
-  { field_name: "spouse_dob", label: "Spouse / Common-law partner — Date of birth", field_type: "date", required: true, step_number: 1, step_name: "Personal Information", display_order: 16, conditional_logic: { showIf: IS_MARRIED_OR_PARTNERED }, validation_rules: { format: "DD/MM/YYYY", block_group: "spouse" } },
-  { field_name: "father_full_name", label: "Father's full name", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 17, validation_rules: { maxLength: 120 } },
-  { field_name: "mother_full_name", label: "Mother's full name (including maiden name)", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 18, validation_rules: { maxLength: 120 } },
+  ...defineStep(1, "Application & Personal Details", "IMM 5257", [
+    { field_name: "uci", label: "Unique client identifier (UCI), if known", field_type: "text", required: false, validation_rules: { maxLength: 10 } },
+    { field_name: "service_language", label: "Language in which you want service", field_type: "radio", required: true, options: [{ value: "english", text: "English" }, { value: "french", text: "French" }] },
+    { field_name: "family_name", label: "Family name", field_type: "text", required: true, validation_rules: { maxLength: 50 } },
+    { field_name: "given_names", label: "Given name(s)", field_type: "text", required: false, placeholder: "Leave blank only if your travel document has no given name", validation_rules: { maxLength: 80 } },
+    { field_name: "has_other_names_used", label: "Have you ever used any other name?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "other_family_name", label: "Other name used — Family name", field_type: "text", required: true, conditional_logic: { showIf: HAS_OTHER_NAMES }, validation_rules: { maxLength: 50, ...repeat("other_names", 10) } },
+    { field_name: "other_given_names", label: "Other name used — Given name(s)", field_type: "text", required: false, conditional_logic: { showIf: HAS_OTHER_NAMES }, validation_rules: { maxLength: 80, ...repeat("other_names", 10) } },
+    { field_name: "sex", label: "Sex", field_type: "select", required: true, options: SEX_OPTIONS },
+    { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, validation_rules: dateRules({ allow_unknown_components: true, official_unknown_marker: "*" }) },
+    { field_name: "place_of_birth_city", label: "Place of birth — City / Town", field_type: "text", required: true, validation_rules: { maxLength: 60, inline_group: "place_of_birth" } },
+    { field_name: "place_of_birth_country", label: "Place of birth — Country or territory", field_type: "country", required: true, validation_rules: { source: "ISO3166-1", inline_group: "place_of_birth" } },
+    { field_name: "country_of_citizenship", label: "Country or territory of citizenship", field_type: "country", required: true, validation_rules: { source: "ISO3166-1" } },
+  ]),
 
-  // STEP 2: Passport
-  { field_name: "passport_number", label: "Passport number", field_type: "text", required: true, step_number: 2, step_name: "Passport", display_order: 1, validation_rules: { maxLength: 20 } },
-  { field_name: "passport_type", label: "Passport type", field_type: "select", required: true, step_number: 2, step_name: "Passport", display_order: 2, options: PASSPORT_TYPE_OPTIONS },
-  { field_name: "passport_issuing_country", label: "Passport issuing country", field_type: "country", required: true, step_number: 2, step_name: "Passport", display_order: 3, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "passport_issue_date", label: "Date of issue", field_type: "date", required: true, step_number: 2, step_name: "Passport", display_order: 4, validation_rules: { format: "DD/MM/YYYY", inline_group: "passport_dates" } },
-  { field_name: "passport_expiry_date", label: "Date of expiry", field_type: "date", required: true, step_number: 2, step_name: "Passport", display_order: 5, validation_rules: { format: "DD/MM/YYYY", inline_group: "passport_dates" } },
-  { field_name: "has_other_passports", label: "Have you ever held any other passport (current or expired)?", field_type: "radio", required: true, step_number: 2, step_name: "Passport", display_order: 6, options: YES_NO },
-  { field_name: "other_passport_number", label: "Other passport number", field_type: "text", required: true, step_number: 2, step_name: "Passport", display_order: 7, conditional_logic: { showIf: HAS_OTHER_PASSPORTS }, validation_rules: { maxLength: 20, repeatable: true, repeat_group: "other_passports", max_items: 3 } },
-  { field_name: "other_passport_country", label: "Other passport — Issuing country", field_type: "country", required: true, step_number: 2, step_name: "Passport", display_order: 8, conditional_logic: { showIf: HAS_OTHER_PASSPORTS }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "other_passports" } },
+  ...defineStep(2, "Residence, Relationships & Languages", "IMM 5257", [
+    { field_name: "current_residence_country", label: "Current country or territory of residence", field_type: "country", required: true, validation_rules: { source: "ISO3166-1", block_group: "current_residence" } },
+    { field_name: "current_residence_status", label: "Status in current country or territory", field_type: "select", required: true, options: RESIDENCE_STATUS_OPTIONS, validation_rules: { block_group: "current_residence" } },
+    { field_name: "current_residence_status_other", label: "Other current residence status", field_type: "text", required: true, conditional_logic: { showIf: STATUS_OTHER }, validation_rules: { maxLength: 60, block_group: "current_residence" } },
+    { field_name: "current_residence_from", label: "Current residence — From", field_type: "date", required: true, validation_rules: dateRules({ inline_group: "current_residence_dates", block_group: "current_residence" }) },
+    { field_name: "current_residence_to", label: "Current residence — To", field_type: "date", required: false, validation_rules: dateRules({ inline_group: "current_residence_dates", block_group: "current_residence", allow_present: true }) },
+    { field_name: "has_prior_residence", label: "During the past five years, have you lived in another country or territory for more than six months?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "prior_residence_country", label: "Previous residence — Country or territory", field_type: "country", required: true, conditional_logic: { showIf: HAS_PRIOR_RESIDENCE }, validation_rules: { source: "ISO3166-1", block_group: "prior_residence", ...repeat("prior_residences", 10) } },
+    { field_name: "prior_residence_status", label: "Previous residence — Status", field_type: "select", required: true, conditional_logic: { showIf: HAS_PRIOR_RESIDENCE }, options: RESIDENCE_STATUS_OPTIONS, validation_rules: { block_group: "prior_residence", ...repeat("prior_residences", 10) } },
+    { field_name: "prior_residence_status_other", label: "Previous residence — Other status", field_type: "text", required: true, conditional_logic: { showIf: `${HAS_PRIOR_RESIDENCE} && ${PRIOR_STATUS_OTHER}` }, validation_rules: { maxLength: 60, block_group: "prior_residence", ...repeat("prior_residences", 10) } },
+    { field_name: "prior_residence_from", label: "Previous residence — From", field_type: "date", required: true, conditional_logic: { showIf: HAS_PRIOR_RESIDENCE }, validation_rules: dateRules({ block_group: "prior_residence", inline_group: "prior_residence_dates", ...repeat("prior_residences", 10) }) },
+    { field_name: "prior_residence_to", label: "Previous residence — To", field_type: "date", required: true, conditional_logic: { showIf: HAS_PRIOR_RESIDENCE }, validation_rules: dateRules({ block_group: "prior_residence", inline_group: "prior_residence_dates", ...repeat("prior_residences", 10) }) },
+    { field_name: "applying_from_current_residence", label: "Are you applying from your current country or territory of residence?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "application_country", label: "Country or territory where you are applying", field_type: "country", required: true, conditional_logic: { showIf: APPLYING_ELSEWHERE }, validation_rules: { source: "ISO3166-1", block_group: "application_country_status" } },
+    { field_name: "application_country_status", label: "Status in the country or territory where you are applying", field_type: "select", required: true, conditional_logic: { showIf: APPLYING_ELSEWHERE }, options: RESIDENCE_STATUS_OPTIONS, validation_rules: { block_group: "application_country_status" } },
+    { field_name: "application_country_status_other", label: "Other status in application country", field_type: "text", required: true, conditional_logic: { showIf: `${APPLYING_ELSEWHERE} && ${APPLICATION_STATUS_OTHER}` }, validation_rules: { maxLength: 60, block_group: "application_country_status" } },
+    { field_name: "application_country_status_from", label: "Application country status — From", field_type: "date", required: true, conditional_logic: { showIf: APPLYING_ELSEWHERE }, validation_rules: dateRules({ inline_group: "application_country_status_dates", block_group: "application_country_status" }) },
+    { field_name: "application_country_status_to", label: "Application country status — To", field_type: "date", required: false, conditional_logic: { showIf: APPLYING_ELSEWHERE }, validation_rules: dateRules({ inline_group: "application_country_status_dates", block_group: "application_country_status", allow_present: true }) },
+    { field_name: "marital_status", label: "Current marital status", field_type: "select", required: true, options: MARITAL_STATUS_OPTIONS },
+    { field_name: "current_relationship_start_date", label: "Date current marriage or common-law relationship began", field_type: "date", required: true, conditional_logic: { showIf: CURRENTLY_PARTNERED }, validation_rules: dateRules({ block_group: "current_relationship" }) },
+    { field_name: "current_partner_family_name", label: "Spouse or common-law partner — Family name", field_type: "text", required: true, conditional_logic: { showIf: CURRENTLY_PARTNERED }, validation_rules: { maxLength: 50, block_group: "current_relationship" } },
+    { field_name: "current_partner_given_names", label: "Spouse or common-law partner — Given name(s)", field_type: "text", required: false, conditional_logic: { showIf: CURRENTLY_PARTNERED }, validation_rules: { maxLength: 80, block_group: "current_relationship" } },
+    { field_name: "has_former_spouse_or_partner", label: "Have you previously been married or in a common-law relationship?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "former_partner_family_name", label: "Former spouse or partner — Family name", field_type: "text", required: true, conditional_logic: { showIf: HAS_FORMER_PARTNER }, validation_rules: { maxLength: 50, block_group: "former_partner", ...repeat("former_partners", 10) } },
+    { field_name: "former_partner_given_names", label: "Former spouse or partner — Given name(s)", field_type: "text", required: false, conditional_logic: { showIf: HAS_FORMER_PARTNER }, validation_rules: { maxLength: 80, block_group: "former_partner", ...repeat("former_partners", 10) } },
+    { field_name: "former_partner_date_of_birth", label: "Former spouse or partner — Date of birth", field_type: "date", required: true, conditional_logic: { showIf: HAS_FORMER_PARTNER }, validation_rules: dateRules({ block_group: "former_partner", ...repeat("former_partners", 10) }) },
+    { field_name: "former_relationship_type", label: "Former relationship type", field_type: "radio", required: true, conditional_logic: { showIf: HAS_FORMER_PARTNER }, options: [{ value: "married", text: "Married" }, { value: "common_law", text: "Common-law" }], validation_rules: { block_group: "former_partner", ...repeat("former_partners", 10) } },
+    { field_name: "former_relationship_from", label: "Former relationship — From", field_type: "date", required: true, conditional_logic: { showIf: HAS_FORMER_PARTNER }, validation_rules: dateRules({ inline_group: "former_relationship_dates", block_group: "former_partner", ...repeat("former_partners", 10) }) },
+    { field_name: "former_relationship_to", label: "Former relationship — To", field_type: "date", required: true, conditional_logic: { showIf: HAS_FORMER_PARTNER }, validation_rules: dateRules({ inline_group: "former_relationship_dates", block_group: "former_partner", ...repeat("former_partners", 10) }) },
+    { field_name: "mother_tongue", label: "Native language / Mother tongue", field_type: "text", required: true, validation_rules: { maxLength: 60 } },
+    { field_name: "english_french_ability", label: "Can you communicate in English and/or French?", field_type: "radio", required: true, options: LANGUAGE_ABILITY_OPTIONS },
+    { field_name: "correspondence_language", label: "Language of correspondence", field_type: "radio", required: true, options: [{ value: "english", text: "English" }, { value: "french", text: "French" }] },
+    { field_name: "has_language_test", label: "Have you taken a test from a designated testing agency to assess your English or French?", field_type: "radio", required: true, options: YES_NO },
+  ]),
 
-  // STEP 3: Contact & Home Address
-  { field_name: "home_address_line1", label: "Home address — Street / Apartment", field_type: "text", required: true, step_number: 3, step_name: "Contact & Home Address", display_order: 1, validation_rules: { maxLength: 200, block_group: "home_address" } },
-  { field_name: "home_address_city", label: "Home address — City / Town", field_type: "text", required: true, step_number: 3, step_name: "Contact & Home Address", display_order: 2, validation_rules: { maxLength: 80, block_group: "home_address" } },
-  { field_name: "home_address_state", label: "Home address — Province / State", field_type: "text", required: false, step_number: 3, step_name: "Contact & Home Address", display_order: 3, validation_rules: { maxLength: 80, block_group: "home_address" } },
-  { field_name: "home_address_postcode", label: "Home address — Postal code / ZIP", field_type: "text", required: false, step_number: 3, step_name: "Contact & Home Address", display_order: 4, validation_rules: { maxLength: 20, block_group: "home_address" } },
-  { field_name: "home_address_country", label: "Home address — Country", field_type: "country", required: true, step_number: 3, step_name: "Contact & Home Address", display_order: 5, validation_rules: { source: "ISO3166-1", block_group: "home_address" } },
-  { field_name: "mobile_number", label: "Mobile number", field_type: "text", required: true, step_number: 3, step_name: "Contact & Home Address", display_order: 6, validation_rules: { maxLength: 30 } },
-  { field_name: "email_address", label: "Email address", field_type: "text", required: true, step_number: 3, step_name: "Contact & Home Address", display_order: 7, validation_rules: { maxLength: 120, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" } },
+  ...defineStep(3, "Passport & Identity Documents", "IMM 5257", [
+    { field_name: "passport_number", label: "Passport or travel document number", field_type: "text", required: true, validation_rules: { maxLength: 20 } },
+    { field_name: "passport_issuing_country", label: "Country or territory of issue", field_type: "country", required: true, validation_rules: { source: "ISO3166-1" } },
+    { field_name: "passport_issue_date", label: "Issue date", field_type: "date", required: true, validation_rules: dateRules({ inline_group: "passport_dates" }) },
+    { field_name: "passport_expiry_date", label: "Expiry date", field_type: "date", required: true, validation_rules: dateRules({ inline_group: "passport_dates" }) },
+    { field_name: "taiwan_mfa_passport", label: "For this trip, will you use a passport issued by the Ministry of Foreign Affairs in Taiwan that includes your personal identification number?", field_type: "radio", required: true, conditional_logic: { showIf: "country_of_citizenship === Taiwan" }, options: YES_NO },
+    { field_name: "israeli_national_passport", label: "For this trip, will you use a national Israeli passport?", field_type: "radio", required: true, conditional_logic: { showIf: "country_of_citizenship === Israel" }, options: YES_NO },
+    { field_name: "has_national_identity_document", label: "Do you have a national identity document?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "national_identity_number", label: "National identity document number", field_type: "text", required: true, conditional_logic: { showIf: HAS_NATIONAL_ID }, validation_rules: { maxLength: 30, block_group: "national_identity" } },
+    { field_name: "national_identity_country", label: "National identity document — Country or territory of issue", field_type: "country", required: true, conditional_logic: { showIf: HAS_NATIONAL_ID }, validation_rules: { source: "ISO3166-1", block_group: "national_identity" } },
+    { field_name: "national_identity_issue_date", label: "National identity document — Issue date", field_type: "date", required: false, conditional_logic: { showIf: HAS_NATIONAL_ID }, validation_rules: dateRules({ inline_group: "national_identity_dates", block_group: "national_identity" }) },
+    { field_name: "national_identity_expiry_date", label: "National identity document — Expiry date", field_type: "date", required: false, conditional_logic: { showIf: HAS_NATIONAL_ID }, validation_rules: dateRules({ inline_group: "national_identity_dates", block_group: "national_identity" }) },
+    { field_name: "is_us_permanent_resident", label: "Are you a lawful permanent resident of the United States with a valid alien registration card (Green Card)?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "us_green_card_number", label: "United States Green Card document number", field_type: "text", required: true, conditional_logic: { showIf: IS_US_PERMANENT_RESIDENT }, validation_rules: { maxLength: 30, block_group: "us_permanent_resident" } },
+    { field_name: "us_green_card_expiry_date", label: "United States Green Card expiry date", field_type: "date", required: true, conditional_logic: { showIf: IS_US_PERMANENT_RESIDENT }, validation_rules: dateRules({ block_group: "us_permanent_resident" }) },
+  ]),
 
-  // STEP 4: Occupation
-  { field_name: "current_profession", label: "Current profession or occupation", field_type: "select", required: true, step_number: 4, step_name: "Occupation", display_order: 1, options: OCCUPATION_OPTIONS },
-  { field_name: "position_title", label: "Position / Title", field_type: "text", required: false, step_number: 4, step_name: "Occupation", display_order: 2, validation_rules: { maxLength: 80 } },
-  { field_name: "employer_or_school_name", label: "Name of employer or school", field_type: "text", required: false, step_number: 4, step_name: "Occupation", display_order: 3, validation_rules: { maxLength: 120, block_group: "employer_details" } },
-  { field_name: "employer_or_school_address", label: "Address of employer or school", field_type: "text", required: false, step_number: 4, step_name: "Occupation", display_order: 4, validation_rules: { maxLength: 200, block_group: "employer_details" } },
-  { field_name: "monthly_income_cad", label: "Approximate monthly income (CAD)", field_type: "text", required: false, step_number: 4, step_name: "Occupation", display_order: 5, validation_rules: { pattern: "^[0-9]+$", maxLength: 10 } },
+  ...defineStep(4, "Contact Information", "IMM 5257", [
+    ...addressFields("mailing", true),
+    { field_name: "residential_same_as_mailing", label: "Is your residential address the same as your mailing address?", field_type: "radio", required: true, options: YES_NO },
+    ...addressFields("residential", true).map((field) => ({ ...field, conditional_logic: { showIf: "residential_same_as_mailing === no" } })),
+    { field_name: "primary_phone_location", label: "Primary telephone — Location", field_type: "radio", required: true, options: PHONE_LOCATION_OPTIONS, validation_rules: { block_group: "primary_phone" } },
+    { field_name: "primary_phone_type", label: "Primary telephone — Type", field_type: "select", required: true, options: PHONE_TYPE_OPTIONS, validation_rules: { block_group: "primary_phone" } },
+    { field_name: "primary_phone_number", label: "Primary telephone — Number", field_type: "text", required: true, validation_rules: { maxLength: 30, block_group: "primary_phone" } },
+    { field_name: "primary_phone_extension", label: "Primary telephone — Extension", field_type: "text", required: false, validation_rules: { maxLength: 10, block_group: "primary_phone" } },
+    { field_name: "has_alternate_phone", label: "Do you have an alternate telephone number?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "alternate_phone_location", label: "Alternate telephone — Location", field_type: "radio", required: true, conditional_logic: { showIf: "has_alternate_phone === yes" }, options: PHONE_LOCATION_OPTIONS, validation_rules: { block_group: "alternate_phone" } },
+    { field_name: "alternate_phone_type", label: "Alternate telephone — Type", field_type: "select", required: true, conditional_logic: { showIf: "has_alternate_phone === yes" }, options: PHONE_TYPE_OPTIONS, validation_rules: { block_group: "alternate_phone" } },
+    { field_name: "alternate_phone_number", label: "Alternate telephone — Number", field_type: "text", required: true, conditional_logic: { showIf: "has_alternate_phone === yes" }, validation_rules: { maxLength: 30, block_group: "alternate_phone" } },
+    { field_name: "alternate_phone_extension", label: "Alternate telephone — Extension", field_type: "text", required: false, conditional_logic: { showIf: "has_alternate_phone === yes" }, validation_rules: { maxLength: 10, block_group: "alternate_phone" } },
+    { field_name: "has_fax", label: "Do you have a fax number?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "fax_location", label: "Fax — Location", field_type: "radio", required: true, conditional_logic: { showIf: "has_fax === yes" }, options: PHONE_LOCATION_OPTIONS, validation_rules: { block_group: "fax" } },
+    { field_name: "fax_number", label: "Fax number", field_type: "text", required: true, conditional_logic: { showIf: "has_fax === yes" }, validation_rules: { maxLength: 30, block_group: "fax" } },
+    { field_name: "email_address", label: "Email address", field_type: "text", required: true, validation_rules: { maxLength: 120, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" } },
+  ]),
 
-  // STEP 5: Trip Details
-  { field_name: "visa_type_requested", label: "Visa / authority type requested", field_type: "radio", required: true, step_number: 5, step_name: "Trip Details", display_order: 1, options: VISA_TYPE_REQUESTED_OPTIONS },
-  { field_name: "purpose_of_visit", label: "Purpose of visit to Canada", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 2, options: PURPOSE_OF_VISIT_OPTIONS },
-  { field_name: "intended_arrival_date", label: "Intended date of arrival in Canada", field_type: "date", required: true, step_number: 5, step_name: "Trip Details", display_order: 3, validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
-  { field_name: "intended_length_of_stay", label: "Intended length of stay (days, max 180)", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 4, validation_rules: { pattern: "^(?:[1-9]|[1-9][0-9]|1[0-7][0-9]|180)$", inline_group: "trip_dates" } },
-  { field_name: "port_of_entry", label: "Intended port of entry", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 5, options: PORT_OF_ENTRY_OPTIONS },
-  { field_name: "port_of_entry_other", label: "Specify other port of entry", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 6, conditional_logic: { showIf: "port_of_entry === other" }, validation_rules: { maxLength: 80 } },
-  { field_name: "carrier_name", label: "Name of airline, ship, or transport carrier", field_type: "text", required: false, step_number: 5, step_name: "Trip Details", display_order: 7, placeholder: "e.g. Air Canada, WestJet, Porter", validation_rules: { maxLength: 80 } },
-  { field_name: "accommodation_type", label: "Type of accommodation in Canada", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 8, options: ACCOMMODATION_TYPE_OPTIONS },
-  { field_name: "accommodation_name", label: "Name of accommodation / first stop", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 9, validation_rules: { maxLength: 120, block_group: "accommodation_details" } },
-  { field_name: "accommodation_address", label: "Address in Canada", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 10, validation_rules: { maxLength: 200, block_group: "accommodation_details" } },
-  { field_name: "accommodation_city", label: "City / Province in Canada", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 11, validation_rules: { maxLength: 80, block_group: "accommodation_details" } },
-  { field_name: "expense_bearer", label: "Who will cover the expenses for your visit?", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 12, options: EXPENSE_BEARER_OPTIONS },
-  { field_name: "available_funds_cad", label: "Funds available for the visit (CAD)", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 13, placeholder: "e.g. 5000", validation_rules: { pattern: "^[0-9]+$", maxLength: 10 } },
+  ...defineStep(5, "Details of Visit to Canada", "IMM 5257", [
+    { field_name: "visit_details", label: "Describe what you plan to do in Canada", field_type: "textarea", required: true, placeholder: "Tourism is fixed by this visa package", validation_rules: { maxLength: 500 } },
+    { field_name: "intended_stay_from", label: "Intended stay — From", field_type: "date", required: true, validation_rules: dateRules({ inline_group: "intended_stay_dates" }) },
+    { field_name: "intended_stay_to", label: "Intended stay — To", field_type: "date", required: true, validation_rules: dateRules({ inline_group: "intended_stay_dates" }) },
+    { field_name: "available_funds_cad", label: "Funds available for your stay (CAD)", field_type: "text", required: true, validation_rules: { pattern: "^\\d+(?:\\.\\d{1,2})?$", maxLength: 12 } },
+    { field_name: "canada_contact_name", label: "Person or institution you will visit — Name", field_type: "text", required: false, validation_rules: { maxLength: 120, block_group: "canada_contacts", ...repeat("canada_contacts", 20) } },
+    { field_name: "canada_contact_relationship", label: "Relationship to you", field_type: "text", required: false, validation_rules: { maxLength: 80, block_group: "canada_contacts", ...repeat("canada_contacts", 20) } },
+    { field_name: "canada_contact_address", label: "Address in Canada", field_type: "textarea", required: false, validation_rules: { maxLength: 250, block_group: "canada_contacts", ...repeat("canada_contacts", 20) } },
+  ]),
 
-  // STEP 6: Host
-  { field_name: "has_host_in_canada", label: "Do you have a host (friend, relative, or sponsor) in Canada?", field_type: "radio", required: true, step_number: 6, step_name: "Host in Canada", display_order: 1, options: YES_NO },
-  { field_name: "host_full_name", label: "Host — Full name", field_type: "text", required: true, step_number: 6, step_name: "Host in Canada", display_order: 2, conditional_logic: { showIf: HAS_HOST_IN_CA }, validation_rules: { maxLength: 120, block_group: "host" } },
-  { field_name: "host_relationship_to_applicant", label: "Host — Relationship to applicant", field_type: "text", required: true, step_number: 6, step_name: "Host in Canada", display_order: 3, conditional_logic: { showIf: HAS_HOST_IN_CA }, validation_rules: { maxLength: 80, block_group: "host" } },
-  { field_name: "host_address", label: "Host — Address in Canada", field_type: "text", required: true, step_number: 6, step_name: "Host in Canada", display_order: 4, conditional_logic: { showIf: HAS_HOST_IN_CA }, validation_rules: { maxLength: 200, block_group: "host" } },
-  { field_name: "host_phone", label: "Host — Telephone (incl. country code)", field_type: "text", required: true, step_number: 6, step_name: "Host in Canada", display_order: 5, conditional_logic: { showIf: HAS_HOST_IN_CA }, validation_rules: { maxLength: 30, block_group: "host" } },
-  { field_name: "host_status", label: "Host — Status in Canada", field_type: "text", required: true, step_number: 6, step_name: "Host in Canada", display_order: 6, conditional_logic: { showIf: HAS_HOST_IN_CA }, placeholder: "e.g. Canadian Citizen, PR, Work Permit holder", validation_rules: { maxLength: 80, block_group: "host" } },
+  ...defineStep(6, "Education & Employment", "IMM 5257", [
+    { field_name: "has_post_secondary_education", label: "Have you had any post-secondary education, including university, college, or apprenticeship training?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "education_from", label: "Highest post-secondary education — From", field_type: "text", required: true, conditional_logic: { showIf: HAS_POST_SECONDARY }, validation_rules: monthYearRules({ inline_group: "education_dates", block_group: "education" }) },
+    { field_name: "education_to", label: "Highest post-secondary education — To", field_type: "text", required: true, conditional_logic: { showIf: HAS_POST_SECONDARY }, validation_rules: monthYearRules({ inline_group: "education_dates", block_group: "education" }) },
+    { field_name: "education_field_of_study", label: "Field of study", field_type: "text", required: true, conditional_logic: { showIf: HAS_POST_SECONDARY }, validation_rules: { maxLength: 100, block_group: "education" } },
+    { field_name: "education_school_name", label: "School or facility name", field_type: "text", required: true, conditional_logic: { showIf: HAS_POST_SECONDARY }, validation_rules: { maxLength: 120, block_group: "education" } },
+    { field_name: "education_city", label: "City or town", field_type: "text", required: true, conditional_logic: { showIf: HAS_POST_SECONDARY }, validation_rules: { maxLength: 60, block_group: "education" } },
+    { field_name: "education_country", label: "Country or territory", field_type: "country", required: true, conditional_logic: { showIf: HAS_POST_SECONDARY }, validation_rules: { source: "ISO3166-1", block_group: "education" } },
+    { field_name: "education_province_state", label: "Province or state", field_type: "text", required: false, conditional_logic: { showIf: HAS_POST_SECONDARY }, validation_rules: { maxLength: 60, block_group: "education" } },
+    { field_name: "activity_from", label: "Employment or activity — From", field_type: "text", required: true, validation_rules: monthYearRules({ inline_group: "activity_dates", block_group: "activity_history", ...repeat("activity_history", 30) }) },
+    { field_name: "activity_to", label: "Employment or activity — To", field_type: "text", required: true, placeholder: "Use the current month for an ongoing activity", validation_rules: monthYearRules({ inline_group: "activity_dates", block_group: "activity_history", ...repeat("activity_history", 30) }) },
+    { field_name: "activity_occupation_title", label: "Occupation or activity / Job title", field_type: "text", required: true, validation_rules: { maxLength: 100, block_group: "activity_history", ...repeat("activity_history", 30) } },
+    { field_name: "activity_employer_facility", label: "Company, employer, school, or facility", field_type: "text", required: true, validation_rules: { maxLength: 120, block_group: "activity_history", ...repeat("activity_history", 30) } },
+    { field_name: "activity_city", label: "City or town", field_type: "text", required: true, validation_rules: { maxLength: 60, block_group: "activity_history", ...repeat("activity_history", 30) } },
+    { field_name: "activity_country", label: "Country or territory", field_type: "country", required: true, validation_rules: { source: "ISO3166-1", block_group: "activity_history", ...repeat("activity_history", 30) } },
+    { field_name: "activity_province_state", label: "Province or state", field_type: "text", required: false, validation_rules: { maxLength: 60, block_group: "activity_history", ...repeat("activity_history", 30) } },
+  ]),
 
-  // STEP 7: Travel & Background History (incl. military service per IMM 5645)
-  { field_name: "visited_canada_before", label: "Have you ever visited Canada before?", field_type: "radio", required: true, step_number: 7, step_name: "Travel & Background", display_order: 1, options: YES_NO },
-  { field_name: "prior_canada_visit_arrival_date", label: "Prior Canada visit — Arrival date", field_type: "date", required: true, step_number: 7, step_name: "Travel & Background", display_order: 2, conditional_logic: { showIf: VISITED_CA_BEFORE }, validation_rules: { format: "DD/MM/YYYY", repeatable: true, repeat_group: "prior_canada_visits", max_items: 5 } },
-  { field_name: "prior_canada_visit_departure_date", label: "Prior Canada visit — Departure date", field_type: "date", required: true, step_number: 7, step_name: "Travel & Background", display_order: 3, conditional_logic: { showIf: VISITED_CA_BEFORE }, validation_rules: { format: "DD/MM/YYYY", repeatable: true, repeat_group: "prior_canada_visits" } },
-  { field_name: "prior_canada_visit_purpose", label: "Prior Canada visit — Purpose", field_type: "text", required: true, step_number: 7, step_name: "Travel & Background", display_order: 4, conditional_logic: { showIf: VISITED_CA_BEFORE }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "prior_canada_visits" } },
-  { field_name: "refused_visa_or_entry_canada", label: "Have you ever been refused a visa to, or denied entry into, Canada?", field_type: "radio", required: true, step_number: 7, step_name: "Travel & Background", display_order: 5, options: YES_NO },
-  { field_name: "refused_visa_canada_details", label: "Provide details", field_type: "textarea", required: true, step_number: 7, step_name: "Travel & Background", display_order: 6, conditional_logic: { showIf: REFUSED_VISA_CA }, validation_rules: { maxLength: 1000 } },
-  { field_name: "refused_visa_other_country", label: "Have you ever been refused a visa to, or denied entry into, any other country?", field_type: "radio", required: true, step_number: 7, step_name: "Travel & Background", display_order: 7, options: YES_NO },
-  { field_name: "refused_visa_other_country_details", label: "Provide details", field_type: "textarea", required: true, step_number: 7, step_name: "Travel & Background", display_order: 8, conditional_logic: { showIf: REFUSED_VISA_OTHER }, validation_rules: { maxLength: 1000 } },
-  { field_name: "has_military_service", label: "Have you ever served in any military, militia, civil-defence unit, security organisation, or police force?", field_type: "radio", required: true, step_number: 7, step_name: "Travel & Background", display_order: 9, options: YES_NO },
-  { field_name: "military_service_details", label: "Provide details (country, branch, rank, dates)", field_type: "textarea", required: true, step_number: 7, step_name: "Travel & Background", display_order: 10, conditional_logic: { showIf: HAS_MILITARY_SERVICE }, validation_rules: { maxLength: 1500 } },
+  ...defineStep(7, "Background Information", "IMM 5257", [
+    { field_name: "background_tb_exposure", label: "Within the past two years, have you or a family member had tuberculosis of the lungs, or been in close contact with a person with tuberculosis?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "background_tb_exposure_details", label: "Tuberculosis exposure — Details", field_type: "textarea", required: true, conditional_logic: { showIf: "background_tb_exposure === yes" }, validation_rules: { maxLength: 1500 } },
+    { field_name: "background_health_services", label: "Do you have any physical or mental disorder that would require social and/or health services, other than medication, during a stay in Canada?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "background_health_services_details", label: "Physical or mental condition — Details", field_type: "textarea", required: true, conditional_logic: { showIf: "background_health_services === yes" }, validation_rules: { maxLength: 1500 } },
+    { field_name: "background_canada_status_violation", label: "Have you ever remained beyond the validity of your status, attended school without authorization, or worked without authorization in Canada?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "background_canada_status_violation_details", label: "Canada status violation — Details", field_type: "textarea", required: true, conditional_logic: { showIf: "background_canada_status_violation === yes" }, validation_rules: { maxLength: 1500 } },
+    { field_name: "background_refusal_denial_removal", label: "Have you ever been refused a visa or permit, denied entry, or ordered to leave Canada or any other country or territory?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "background_refusal_denial_removal_details", label: "Refusal, denial, or removal — Details", field_type: "textarea", required: true, conditional_logic: { showIf: "background_refusal_denial_removal === yes" }, validation_rules: { maxLength: 1500 } },
+    { field_name: "background_previous_canada_application", label: "Have you previously applied to enter or remain in Canada?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "background_previous_canada_application_details", label: "Previous Canada application — Details", field_type: "textarea", required: true, conditional_logic: { showIf: "background_previous_canada_application === yes" }, validation_rules: { maxLength: 1500 } },
+    { field_name: "background_criminal_history", label: "Have you ever committed, been arrested for, been charged with, or convicted of any criminal offence in any country or territory?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "background_criminal_history_details", label: "Criminal history — Details", field_type: "textarea", required: true, conditional_logic: { showIf: "background_criminal_history === yes" }, validation_rules: { maxLength: 1500 } },
+    { field_name: "background_military_service", label: "Have you ever served in a military, militia, civil defence unit, security organization, or police force, including non-obligatory national service or a reserve or volunteer unit?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "military_service_from", label: "Service — From", field_type: "text", required: true, conditional_logic: { showIf: HAS_MILITARY_SERVICE }, validation_rules: monthYearRules({ inline_group: "military_service_dates", block_group: "military_service", ...repeat("military_service", 20) }) },
+    { field_name: "military_service_to", label: "Service — To", field_type: "text", required: true, conditional_logic: { showIf: HAS_MILITARY_SERVICE }, validation_rules: monthYearRules({ inline_group: "military_service_dates", block_group: "military_service", ...repeat("military_service", 20) }) },
+    { field_name: "military_service_country", label: "Country or territory of service", field_type: "country", required: true, conditional_logic: { showIf: HAS_MILITARY_SERVICE }, validation_rules: { source: "ISO3166-1", block_group: "military_service", ...repeat("military_service", 20) } },
+    { field_name: "military_service_organization", label: "Branch, unit, organization, rank, or position", field_type: "text", required: true, conditional_logic: { showIf: HAS_MILITARY_SERVICE }, validation_rules: { maxLength: 200, block_group: "military_service", ...repeat("military_service", 20) } },
+    { field_name: "background_violent_organization", label: "Have you ever been a member of or associated with a political party or other group or organization that has engaged in or advocated violence as a means to achieving a political or religious objective, or that has been associated with criminal activity?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "background_violent_organization_details", label: "Organization association — Details", field_type: "textarea", required: true, conditional_logic: { showIf: "background_violent_organization === yes" }, validation_rules: { maxLength: 1500 } },
+    { field_name: "background_mistreatment_or_looting", label: "Have you ever witnessed or participated in the ill-treatment of prisoners or civilians, looting, or desecration of religious buildings?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "background_mistreatment_or_looting_details", label: "Ill-treatment, looting, or desecration — Details", field_type: "textarea", required: true, conditional_logic: { showIf: "background_mistreatment_or_looting === yes" }, validation_rules: { maxLength: 1500 } },
+  ]),
 
-  // STEP 8: Health & Character (incl. TB-history)
-  { field_name: "has_tb_history", label: "Have you ever been diagnosed with tuberculosis (TB) or had a chest X-ray showing an abnormality?", field_type: "radio", required: true, step_number: 8, step_name: "Health & Character", display_order: 1, options: YES_NO },
-  { field_name: "tb_history_details", label: "Provide details", field_type: "textarea", required: true, step_number: 8, step_name: "Health & Character", display_order: 2, conditional_logic: { showIf: HAS_TB_HISTORY }, validation_rules: { maxLength: 1000 } },
-  { field_name: "has_criminal_record", label: "Have you ever been convicted of a crime in any country?", field_type: "radio", required: true, step_number: 8, step_name: "Health & Character", display_order: 3, options: YES_NO },
-  { field_name: "criminal_record_details", label: "Provide details (country, date, charge, sentence)", field_type: "textarea", required: true, step_number: 8, step_name: "Health & Character", display_order: 4, conditional_logic: { showIf: HAS_CRIMINAL }, validation_rules: { maxLength: 1500 } },
-  { field_name: "has_been_deported", label: "Have you ever been deported, removed, or excluded from any country?", field_type: "radio", required: true, step_number: 8, step_name: "Health & Character", display_order: 5, options: YES_NO },
-  { field_name: "deportation_details", label: "Provide details", field_type: "textarea", required: true, step_number: 8, step_name: "Health & Character", display_order: 6, conditional_logic: { showIf: HAS_DEPORTED }, validation_rules: { maxLength: 1500 } },
-  { field_name: "has_terrorism_or_security_history", label: "Have you ever been involved in terrorism, war crimes, espionage, sabotage, narcotics trafficking, human trafficking, or any activity that might endanger national security?", field_type: "radio", required: true, step_number: 8, step_name: "Health & Character", display_order: 7, options: YES_NO },
-  { field_name: "remarks_special_circumstances", label: "Remarks / Special Circumstances (optional)", field_type: "textarea", required: false, step_number: 8, step_name: "Health & Character", display_order: 8, validation_rules: { maxLength: 2000 } },
-  { field_name: "application_date", label: "Date of application", field_type: "date", required: true, step_number: 8, step_name: "Health & Character", display_order: 9, validation_rules: { format: "DD/MM/YYYY" } },
-  { field_name: "final_declaration", label: "I hereby declare that the statements made in this application are true and correct, and I understand that any false statement may result in refusal of the visa or denial of entry into Canada.", field_type: "checkbox", required: true, step_number: 8, step_name: "Health & Character", display_order: 10, options: [{ value: "yes", text: "I agree" }] },
+  ...defineStep(8, "Family Information (IMM 5707)", "IMM 5707", [
+    ...familyPersonFields("applicant", "Applicant"),
+    { field_name: "imm5707_applicant_marriage_physically_present", label: "Applicant — Were you physically present at the marriage?", field_type: "radio", required: true, conditional_logic: { showIf: FAMILY_APPLICANT_MARRIED }, options: YES_NO, validation_rules: { block_group: "imm5707_applicant" } },
+    { field_name: "imm5707_has_spouse_or_partner", label: "Do you have a spouse, common-law partner, or conjugal partner?", field_type: "radio", required: true, options: YES_NO },
+    ...familyPersonFields("partner", "Spouse / Common-law / Conjugal partner", HAS_FAMILY_PARTNER),
+    { field_name: "imm5707_partner_marriage_physically_present", label: "Spouse or partner — Were you physically present at the marriage?", field_type: "radio", required: true, conditional_logic: { showIf: `${HAS_FAMILY_PARTNER} && ${FAMILY_PARTNER_MARRIED}` }, options: YES_NO, validation_rules: { block_group: "imm5707_partner" } },
+    { field_name: "imm5707_no_spouse_or_partner_certification", label: "I certify that I do not have a spouse, common-law partner, or conjugal partner", field_type: "checkbox", required: true, conditional_logic: { showIf: HAS_NO_FAMILY_PARTNER }, options: [{ value: "yes", text: "I certify" }] },
+    ...familyPersonFields("parent_1", "Parent 1"),
+    ...familyPersonFields("parent_2", "Parent 2"),
+    { field_name: "imm5707_has_children", label: "Do you have any children, including adopted children and step-children?", field_type: "radio", required: true, options: YES_NO },
+    { field_name: "imm5707_child_relationship", label: "Child — Relationship", field_type: "select", required: true, conditional_logic: { showIf: HAS_CHILDREN }, options: [{ value: "son", text: "Son" }, { value: "daughter", text: "Daughter" }, { value: "adopted_child", text: "Adopted child" }, { value: "step_child", text: "Step-child" }], validation_rules: { block_group: "imm5707_children", ...repeat("imm5707_children", 30) } },
+    { field_name: "imm5707_child_family_name", label: "Child — Family name", field_type: "text", required: true, conditional_logic: { showIf: HAS_CHILDREN }, validation_rules: { maxLength: 50, block_group: "imm5707_children", ...repeat("imm5707_children", 30) } },
+    { field_name: "imm5707_child_given_names", label: "Child — Given name(s)", field_type: "text", required: false, conditional_logic: { showIf: HAS_CHILDREN }, validation_rules: { maxLength: 80, block_group: "imm5707_children", ...repeat("imm5707_children", 30) } },
+    { field_name: "imm5707_child_name_native_script", label: "Child — Full name in native script", field_type: "text", required: true, conditional_logic: { showIf: HAS_CHILDREN }, validation_rules: { maxLength: 120, block_group: "imm5707_children", ...repeat("imm5707_children", 30) } },
+    { field_name: "imm5707_child_date_of_birth", label: "Child — Date of birth", field_type: "date", required: true, conditional_logic: { showIf: HAS_CHILDREN }, validation_rules: dateRules({ allow_unknown_components: true, official_unknown_marker: "*", block_group: "imm5707_children", ...repeat("imm5707_children", 30) }) },
+    { field_name: "imm5707_child_country_of_birth", label: "Child — Country or territory of birth", field_type: "country", required: true, conditional_logic: { showIf: HAS_CHILDREN }, validation_rules: { source: "ISO3166-1", block_group: "imm5707_children", ...repeat("imm5707_children", 30) } },
+    { field_name: "imm5707_child_marital_status", label: "Child — Marital status", field_type: "select", required: true, conditional_logic: { showIf: HAS_CHILDREN }, options: FAMILY_MARITAL_OPTIONS, validation_rules: { block_group: "imm5707_children", ...repeat("imm5707_children", 30) } },
+    { field_name: "imm5707_child_present_address", label: "Child — Present address", field_type: "textarea", required: true, conditional_logic: { showIf: HAS_CHILDREN }, validation_rules: { maxLength: 250, block_group: "imm5707_children", ...repeat("imm5707_children", 30) } },
+    { field_name: "imm5707_child_occupation", label: "Child — Present occupation", field_type: "text", required: true, conditional_logic: { showIf: HAS_CHILDREN }, validation_rules: { maxLength: 100, block_group: "imm5707_children", ...repeat("imm5707_children", 30) } },
+    { field_name: "imm5707_child_accompanying", label: "Child — Will accompany you to Canada", field_type: "radio", required: true, conditional_logic: { showIf: HAS_CHILDREN }, options: YES_NO, validation_rules: { block_group: "imm5707_children", ...repeat("imm5707_children", 30) } },
+    { field_name: "imm5707_no_children_certification", label: "I certify that I do not have any children, including adopted children and step-children", field_type: "checkbox", required: true, conditional_logic: { showIf: HAS_NO_CHILDREN }, options: [{ value: "yes", text: "I certify" }] },
+    { field_name: "imm5707_declaration", label: "I certify that the information in this Family Information form is complete, accurate, and factual", field_type: "checkbox", required: true, options: [{ value: "yes", text: "I certify" }] },
+  ]),
+
+  ...defineStep(9, "China Supplement (IMM 0104)", "IMM 0104", [
+    { field_name: "china_employment_from", label: "Employment or service history — From", field_type: "text", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, validation_rules: monthYearRules({ inline_group: "china_employment_dates", block_group: "china_employment_history", ...repeat("china_employment_history", 40) }) },
+    { field_name: "china_employment_to", label: "Employment or service history — To", field_type: "text", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, validation_rules: monthYearRules({ inline_group: "china_employment_dates", block_group: "china_employment_history", ...repeat("china_employment_history", 40) }) },
+    { field_name: "china_employer_unit_name_address", label: "Company, military, or police unit — Name and address", field_type: "textarea", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, validation_rules: { maxLength: 300, block_group: "china_employment_history", ...repeat("china_employment_history", 40) } },
+    { field_name: "china_position_title_rank", label: "Position, title, or rank", field_type: "text", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, validation_rules: { maxLength: 120, block_group: "china_employment_history", ...repeat("china_employment_history", 40) } },
+    { field_name: "china_employment_duties", label: "Duties", field_type: "textarea", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, validation_rules: { maxLength: 500, block_group: "china_employment_history", ...repeat("china_employment_history", 40) } },
+    { field_name: "china_education_from", label: "Post-secondary education — From", field_type: "text", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, validation_rules: monthYearRules({ inline_group: "china_education_dates", block_group: "china_education_history", ...repeat("china_education_history", 20) }) },
+    { field_name: "china_education_to", label: "Post-secondary education — To", field_type: "text", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, validation_rules: monthYearRules({ inline_group: "china_education_dates", block_group: "china_education_history", ...repeat("china_education_history", 20) }) },
+    { field_name: "china_school_name_address", label: "School — Name and address", field_type: "textarea", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, validation_rules: { maxLength: 300, block_group: "china_education_history", ...repeat("china_education_history", 20) } },
+    { field_name: "china_diploma_degree", label: "Diploma or degree", field_type: "text", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, validation_rules: { maxLength: 120, block_group: "china_education_history", ...repeat("china_education_history", 20) } },
+    { field_name: "china_course_of_study", label: "Course of study", field_type: "text", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, validation_rules: { maxLength: 120, block_group: "china_education_history", ...repeat("china_education_history", 20) } },
+    { field_name: "china_first_trip_outside_china", label: "Is this your first trip outside China?", field_type: "radio", required: true, conditional_logic: { showIf: IS_CHINESE_CITIZEN }, options: YES_NO },
+    { field_name: "china_travel_from", label: "Travel outside China — From", field_type: "text", required: true, conditional_logic: { showIf: CHINA_HAS_TRAVEL }, validation_rules: monthYearRules({ inline_group: "china_travel_dates", block_group: "china_travel_history", ...repeat("china_travel_history", 40) }) },
+    { field_name: "china_travel_to", label: "Travel outside China — To", field_type: "text", required: true, conditional_logic: { showIf: CHINA_HAS_TRAVEL }, validation_rules: monthYearRules({ inline_group: "china_travel_dates", block_group: "china_travel_history", ...repeat("china_travel_history", 40) }) },
+    { field_name: "china_travel_purpose", label: "Purpose of travel", field_type: "text", required: true, conditional_logic: { showIf: CHINA_HAS_TRAVEL }, validation_rules: { maxLength: 120, block_group: "china_travel_history", ...repeat("china_travel_history", 40) } },
+    { field_name: "china_travel_city_country", label: "City and country or territory visited", field_type: "text", required: true, conditional_logic: { showIf: CHINA_HAS_TRAVEL }, validation_rules: { maxLength: 160, block_group: "china_travel_history", ...repeat("china_travel_history", 40) } },
+  ]),
+
+  ...defineStep(10, "Declaration", "IMM 5257", [
+    { field_name: "applicant_declaration", label: "I declare that the information I have provided is truthful, complete, and correct", field_type: "checkbox", required: true, options: [{ value: "yes", text: "I agree" }] },
+  ]),
 ];
 
 async function seed() {
   console.log(`Seeding ${FIELDS.length} fields for visa_type="${VISA_TYPE}"...\n`);
-  const { error: delError } = await supabase.from("visa_form_fields").delete().eq("visa_type", VISA_TYPE);
-  if (delError) console.error(`Error deleting:`, delError.message); else console.log(`Cleared ${VISA_TYPE}`);
-  const rows = FIELDS.map((f) => toBilingualSeedRow(VISA_TYPE, f));
+  const { error: delError } = await supabase
+    .from("visa_form_fields")
+    .delete()
+    .eq("visa_type", VISA_TYPE);
+  if (delError) {
+    console.error("Error deleting:", delError.message);
+  } else {
+    console.log(`Cleared ${VISA_TYPE}`);
+  }
+
+  const rows = FIELDS.map((field) => toBilingualSeedRow(VISA_TYPE, field));
   const BATCH = 20;
   let total = 0;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const batch = rows.slice(i, i + BATCH);
-    const { data, error } = await supabase.from("visa_form_fields").insert(batch).select("id");
-    if (error) console.error(`Batch ${Math.floor(i / BATCH) + 1} error:`, error.message);
-    else { total += data?.length ?? 0; process.stdout.write(`Batch ${Math.floor(i / BATCH) + 1}: ${data?.length ?? 0} inserted\n`); }
+  for (let index = 0; index < rows.length; index += BATCH) {
+    const batch = rows.slice(index, index + BATCH);
+    const { data, error } = await supabase
+      .from("visa_form_fields")
+      .insert(batch)
+      .select("id");
+    if (error) {
+      console.error(`Batch ${Math.floor(index / BATCH) + 1} error:`, error.message);
+    } else {
+      total += data?.length ?? 0;
+      process.stdout.write(
+        `Batch ${Math.floor(index / BATCH) + 1}: ${data?.length ?? 0} inserted\n`,
+      );
+    }
   }
   console.log(`\nDone: ${total} rows seeded (${FIELDS.length} defined)`);
 }
 
-seed().catch((err) => { console.error(err); process.exit(1); });
+seed().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

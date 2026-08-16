@@ -5,17 +5,14 @@ import {
   ArrowRight,
   Database,
   Info,
-  LockKey,
   MagnifyingGlass,
   WarningCircle,
 } from "@phosphor-icons/react";
 
 import { ApplicationRadio } from "@/components/ui/application-checkbox";
-import { ApplicationConditionalFieldsPanel } from "@/components/ui/application-conditional-fields-panel";
 import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
 import { ApplicationFormField } from "@/components/ui/application-form-field";
 import {
-  ApplicationFormControlDisplay,
   ApplicationFormInputGroup,
 } from "@/components/ui/application-form-input";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
@@ -91,12 +88,6 @@ const EDGE_CASE_PRESENTATION: Record<string, {
     decision: "Should this become a dedicated responsive cluster or be split into semantic pairs?",
     recommendation: "Default to two columns plus a full-width remainder; approve a denser component only when field relationships require it.",
   },
-  multiple_conditional_roots: {
-    title: "Compound conditional roots",
-    problem: "One field depends on two independent controllers, so neither controller can own the conditional panel alone.",
-    decision: "Should compound conditions use a shared context panel, an outer-card field, or a derived toggle?",
-    recommendation: "Keep the field in the outer card for now; a future compound-condition panel should display both active prerequisites.",
-  },
   sensitive_answer_field: {
     title: "Sensitive credential field",
     problem: "A password or authenticator secret appears in the ordinary application-answer schema.",
@@ -125,7 +116,6 @@ function severityClasses(severity: ApplicationSchemaEdgeCase["severity"]): strin
 function EdgeCasePreview({ code }: { code: string }) {
   const [semanticChoice, setSemanticChoice] = useState("female");
   const [verticalChoice, setVerticalChoice] = useState("female");
-  const [compoundDate, setCompoundDate] = useState("");
 
   if (code === "binary_non_boolean_radio") {
     return (
@@ -215,32 +205,11 @@ function EdgeCasePreview({ code }: { code: string }) {
     );
   }
 
-  if (code === "multiple_conditional_roots") {
-    return (
-      <div className="flex flex-col gap-2">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <ApplicationFormControlDisplay className="min-h-12 rounded-lg border bg-gray-50">
-            Nationality: China
-          </ApplicationFormControlDisplay>
-          <ApplicationFormControlDisplay className="min-h-12 rounded-lg border bg-gray-50">
-            Journey purpose: Transit
-          </ApplicationFormControlDisplay>
-        </div>
-        <ApplicationConditionalFieldsPanel className="-mt-1">
-          <p className="text-xs font-medium text-muted-foreground">Shown only when both prerequisites are active</p>
-          <ApplicationFormField label="Return date" required className="py-1.5">
-            <ApplicationFormDatePicker value={compoundDate} onChange={setCompoundDate} displayLocale="en" forceWhiteBackground />
-          </ApplicationFormField>
-        </ApplicationConditionalFieldsPanel>
-      </div>
-    );
-  }
-
   if (code === "sensitive_answer_field") {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <div className="mb-4 flex items-start gap-3 text-amber-950">
-          <LockKey className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <Info className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <div>
             <p className="text-sm font-medium">Encrypted vault boundary</p>
             <p className="mt-1 text-xs leading-5 text-amber-900/75">Never include this value in ordinary draft answers, AI context, analytics, or review exports.</p>
@@ -326,11 +295,32 @@ export function EdgeCasesClient({ catalog }: { catalog: ApplicationSchemaEdgeCas
           ))}
         </section>
 
+        <section className="mt-6 rounded-xl border bg-white p-5 sm:p-6" aria-labelledby="resolved-schema-rules">
+          <h2 id="resolved-schema-rules" className="text-lg font-medium text-foreground">Applied schema rules</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">These reviewed shapes are now automatic behavior, so they are no longer counted as unresolved edge cases.</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {[
+              ["2 options", "Compact segmented two-choice control"],
+              ["3–11 options", "Vertical radio-option group"],
+              ["12+ options", "Searchable multi-option selector"],
+              ["Cross-step condition", "Outer step card; section branches may control sidebar visibility"],
+              ["Inline group", "Any number of equal-width columns; long labels wrap"],
+              ["Sensitive credentials", "Excluded from every applicant-facing step"],
+              ["Compound condition", "Approved shared context panel in /ui-components"],
+            ].map(([label, description]) => (
+              <div key={label} className="rounded-lg bg-gray-50 px-4 py-3">
+                <p className="text-sm font-medium text-gray-900">{label}</p>
+                <p className="mt-1 text-xs leading-5 text-gray-600">{description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <ApplicationFormPanel className="mt-6 grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_260px_260px]">
           <ApplicationFormField label="Search country, field, step, or guidance">
             <ApplicationFormInputGroup className="h-12">
               <MagnifyingGlass className="ml-3 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <InputGroupInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search all 237 current instances" />
+              <InputGroupInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search all ${catalog.edgeCaseCount} current instances`} />
             </ApplicationFormInputGroup>
           </ApplicationFormField>
           <ApplicationFormField label="Edge-case pattern">
@@ -482,8 +472,16 @@ export function EdgeCasesClient({ catalog }: { catalog: ApplicationSchemaEdgeCas
           {visiblePatternCodes.length === 0 ? (
             <div className="rounded-xl border border-dashed bg-white px-6 py-16 text-center">
               <MagnifyingGlass className="mx-auto h-8 w-8 text-gray-400" aria-hidden="true" />
-              <p className="mt-3 text-sm font-medium text-foreground">No edge cases match these filters</p>
-              <p className="mt-1 text-sm text-muted-foreground">Try another field name, country, or pattern.</p>
+              <p className="mt-3 text-sm font-medium text-foreground">
+                {catalog.edgeCaseCount === 0
+                  ? "No unresolved design edge cases"
+                  : "No edge cases match these filters"}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {catalog.edgeCaseCount === 0
+                  ? "Every live schema shape currently has an approved component pattern."
+                  : "Try another field name, country, or pattern."}
+              </p>
             </div>
           ) : null}
         </div>

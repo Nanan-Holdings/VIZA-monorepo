@@ -1,129 +1,150 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-16",
   "country": "united_arab_emirates",
-  "notes": "Country-level VIZA RAG seed for united_arab_emirates. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "notes": "Official-source RAG seed for AE_TOURIST_VISA, exclusively the ICP self-sponsored five-year multiple-entry tourist visa, service 377-005-001-031 and Smart Services transaction 783.",
   "documents": [
     {
-      "slug": "uae-tourism-visit-visa",
+      "slug": "uae-icp-five-year-tourist-visa",
       "country": "united_arab_emirates",
-      "visaType": "visa_free_or_tourist_visa",
+      "visaType": "AE_TOURIST_VISA",
       "documentType": "requirements",
-      "title": "United Arab Emirates Tourist and Visit Visa",
-      "sourceUrl": "https://icp.gov.ae/en/services-details/?serviceid=64afe3c1035448005bd52e60",
+      "title": "UAE ICP Five-Year Multiple-Entry Tourist Visa",
+      "sourceUrl": "https://icp.gov.ae/en/services-details/?serviceid=68f5bc968c587a0011cb16cd",
       "chunks": [
         {
-          "id": "are_china_visitor_basic_route_zh",
-          "title": "Chinese passport tourism route for United Arab Emirates",
+          "id": "ae_783_product_boundary",
+          "title": "AE_TOURIST_VISA is ICP transaction 783 only",
           "tags": [
             "united-arab-emirates",
-            "are",
-            "china",
-            "chinese-passport",
-            "tourism",
-            "visitor",
-            "short-stay"
+            "AE_TOURIST_VISA",
+            "ICP",
+            "transaction-783",
+            "five-year-tourist-visa",
+            "product-scope"
           ],
-          "content": "For Chinese ordinary passport holders planning short tourism travel to United Arab Emirates, VIZA AI should consider the visa-free eligibility or the UAE tourist/visit visa route. First confirm nationality, passport type, stay length, arrival emirate, purpose, accommodation, return or onward ticket, and whether the trip is tourism, family visit, transit or short business. Do not route UAE queries to Saudi Arabia, Qatar, Egypt or Schengen. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+          "content": "AE_TOURIST_VISA is the Federal Authority for Identity, Citizenship, Customs and Port Security self-sponsored five-year multiple-entry tourist visa only: service code 377-005-001-031, ICP Smart Services transaction 783. Tourism is locked by the product. Sponsor-issued 30-day, 60-day, or 90-day tourist visas, GDRFA products, family or business visits, transit, job exploration, residence, work, study, and other entry permits are separate products and must never be selected inside this form. Official sources: https://icp.gov.ae/en/services-details/?serviceid=68f5bc968c587a0011cb16cd ; https://smartservices.icp.gov.ae/echannels/web/client/guest/index.html#/issueVisa/request/783"
         },
         {
-          "id": "are_tourist_visa_channels",
-          "title": "UAE tourist visa channels and duration direction",
+          "id": "ae_783_validity_and_stay",
+          "title": "Five-year multiple-entry validity and stay limits",
           "tags": [
-            "uae",
-            "tourist-visa",
-            "visit-visa",
-            "icp",
-            "gdrfa",
-            "airline",
-            "hotel",
-            "travel-agency"
+            "united-arab-emirates",
+            "AE_TOURIST_VISA",
+            "multiple-entry",
+            "five-year-validity",
+            "stay-limit"
           ],
-          "content": "The UAE Government portal says tourist/visit visas are used for tourism and other short visit purposes. Tourist visas are commonly arranged through UAE-based airlines, travel agencies, hotels, or official UAE visa-issuing authorities such as ICP/GDRFA channels. UAE official guidance also describes long-term multiple-entry tourist visa options and visit visa durations that can vary by category. VIZA AI should avoid guaranteeing entry or a fixed stay without checking passport nationality and current UAE official rules."
+          "content": "The ICP service issues a long-term multiple-entry tourist visa valid for five years. A holder may stay continuously for no more than 90 days, subject to an extension for an equivalent period, while total stay must not exceed the official annual limit. The year is calculated from the first UAE entry, and unused days are not carried into the following year. The first entry must occur within the entry permit's stated validity after issuance. The issued visa and current ICP terms control. Official source: https://icp.gov.ae/en/services-details/?serviceid=68f5bc968c587a0011cb16cd"
         },
         {
-          "id": "are_entry_controls_documents",
-          "title": "UAE entry checks and documents",
+          "id": "ae_783_core_eligibility",
+          "title": "Passport, funds, insurance, ticket, and accommodation requirements",
           "tags": [
-            "uae",
-            "entry-check",
-            "passport",
-            "hotel",
-            "return-ticket",
-            "funds"
+            "united-arab-emirates",
+            "AE_TOURIST_VISA",
+            "passport-validity",
+            "funds",
+            "insurance",
+            "travel-ticket"
           ],
-          "content": "For UAE visitor questions, ask for passport nationality, passport validity, arrival airport/emirate, return/onward ticket, hotel/accommodation, and purpose of visit. If the user is eligible for visa-free/visa-on-arrival entry, still explain that immigration officers make the final entry decision and airlines may check documents before boarding. For non-eligible travellers, direct them to official UAE ICP/GDRFA, airline, hotel or licensed travel agency channels."
+          "content": "ICP requires a passport valid for at least six months. The five-year tourist visa also requires proof of a bank balance of USD 4,000 or its equivalent during the six months before application, UAE-valid health-insurance evidence meeting the current service conditions, a return or onward travel ticket, and accommodation evidence. These items must be rechecked against transaction 783 at submission because integrated retrieval and service configuration can change. Official sources: https://icp.gov.ae/en/services-details/?serviceid=68f5bc968c587a0011cb16cd ; https://icp.gov.ae/en/faq/"
+        },
+        {
+          "id": "ae_783_self_sponsorship",
+          "title": "The selected ICP product is self-sponsored",
+          "tags": [
+            "united-arab-emirates",
+            "AE_TOURIST_VISA",
+            "self-sponsored",
+            "ICP",
+            "no-sponsor"
+          ],
+          "content": "ICP describes the five-year multiple-entry tourist visa as available without a sponsor. Do not ask the applicant to select an airline, hotel, travel agency, UAE resident, or company as application sponsor, and do not reuse fields from sponsor-issued short-stay products. UAE accommodation and a UAE mobile number, if available, are beneficiary contact facts rather than sponsorship. Official source: https://icp.gov.ae/en/dubai-travel-exhibition/"
         }
       ]
     },
     {
-      "slug": "united_arab_emirates-form-requirements",
+      "slug": "uae-icp-783-form-requirements",
       "country": "united_arab_emirates",
-      "visaType": "visa_free_or_tourist_visa",
+      "visaType": "AE_TOURIST_VISA",
       "documentType": "form_requirements",
-      "title": "United Arab Emirates Application Form and Document Intake Requirements",
-      "sourceUrl": "https://icp.gov.ae/en/services-details/?serviceid=64afe3c1035448005bd52e60",
+      "title": "ICP Transaction 783 Applicant-Answer Requirements",
+      "sourceUrl": "https://smartservices.icp.gov.ae/echannels/web/client/guest/index.html#/issueVisa/request/783",
       "chunks": [
         {
-          "id": "united_arab_emirates_form_channel_and_scope",
-          "title": "United Arab Emirates application channel and form scope",
+          "id": "ae_783_form_channel_and_limit",
+          "title": "ICP transaction 783 channel and reconstruction limit",
           "tags": [
-            "united_arab_emirates",
-            "application-form",
+            "united-arab-emirates",
+            "AE_TOURIST_VISA",
+            "ICP",
+            "transaction-783",
             "form-requirements",
-            "workflow",
-            "official-source"
+            "live-login-qa"
           ],
-          "content": "UAE ICP/GDRFA, airline, hotel or agency tourist/visit visa route Official source URLs reviewed for this seed: https://u.ae/en/information-and-services/visa-and-emirates-id/tourist-visa. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "The canonical application channel is ICP Smart Services transaction 783: https://smartservices.icp.gov.ae/echannels/web/client/guest/index.html#/issueVisa/request/783. Public ICP service information and current client templates establish the semantic inventory, but authenticated UAE Pass/login QA is still required to verify exact page order, requiredness, lookup labels and codes, conditionals, integrated data retrieval, and transfer behavior. Treat the schema as an official-source reconstruction and state uncertainty instead of inventing a portal value."
         },
         {
-          "id": "united_arab_emirates_form_fields_to_collect",
-          "title": "United Arab Emirates fields to collect before filling the form",
+          "id": "ae_783_beneficiary_fields",
+          "title": "Beneficiary identity and passport answers",
           "tags": [
-            "united_arab_emirates",
-            "application-form",
-            "autofill",
-            "field-mapping",
-            "intake"
-          ],
-          "content": "identity, passport, nationality, travel dates, arrival emirate/airport, accommodation, purpose, contact details and sponsor/host where required"
-        },
-        {
-          "id": "united_arab_emirates_supporting_documents_and_review",
-          "title": "United Arab Emirates supporting documents and review checklist",
-          "tags": [
-            "united_arab_emirates",
-            "documents",
-            "checklist",
-            "upload",
-            "review-before-submit"
-          ],
-          "content": "passport, photo, ticket/itinerary, hotel/accommodation or host, funds/insurance where required and airline/agency-specific uploads Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
-        },
-        {
-          "id": "standard_passport_identity_field_rules",
-          "title": "Standard passport identity-field answer rules",
-          "tags": [
-            "standard-fields",
+            "united-arab-emirates",
+            "AE_TOURIST_VISA",
+            "beneficiary",
+            "identity",
             "passport",
-            "issuing-authority",
-            "passport-type",
-            "identity-document",
-            "field-guidance",
-            "official-source"
+            "field-mapping"
           ],
-          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. Place of issue / 签发地点 asks for the location recorded on the passport or required by the official form, such as a city, province, municipality, or a country selected from an official country-only dropdown; copy the passport's Place of issue value when present, and enter a country only when the form explicitly asks for Country of issue / Issuing country or provides a country-only selector. Issuing authority / 签发机关 asks for the organization printed under Authority / Issuing authority. For Chinese ordinary passports, National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers. Do not infer either field from the pickup city, residence city, application country, or travel destination. If the passport prints a different value for the requested field, use that exact field value. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page and the destination's official field wording remain the final sources for the applicant's individual answer."
+          "content": "Collect full name while preserving synchronized English and official Arabic values internally; current nationality; previous nationality if transaction 783 displays it; profession; gender; date, country, and city or place of birth; religion; marital status; and education level. Passport answers include number, type, issuing country, place and date of issue, and expiry date. Tourism is a locked product value and is not an applicant-facing visa-type or purpose selector. Exact profession, gender, religion, marital-status, education, and passport-type lookup labels and codes remain authenticated-portal-QA pending. Official sources: https://smartservices.icp.gov.ae/echannels/web/client/guest/index.html#/issueVisa/request/783 ; https://icp.gov.ae/en/services-details/?serviceid=68f5bc968c587a0011cb16cd"
         },
         {
-          "id": "official_field_answer_norms",
-          "title": "Official-source field answer norms",
+          "id": "ae_783_contact_and_accommodation_fields",
+          "title": "Contact outside the UAE and accommodation answers",
           "tags": [
-            "field-guidance",
-            "answer-norms",
-            "official-source",
-            "form-requirements",
-            "united_arab_emirates"
+            "united-arab-emirates",
+            "AE_TOURIST_VISA",
+            "contact",
+            "accommodation",
+            "dependent-location",
+            "conditional-field"
           ],
-          "content": "Official-source field answer norms for united_arab_emirates.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://u.ae/en/information-and-services/visa-and-emirates-id/tourist-visa\n\nIssue, expiry, and validity fields:\n- a valid health insurance policy applicable in the UAE, valid for 180 days\n\nTravel plan and port fields:\n- A tourist visa is for those who are not eligible for visa on arrival or a visa-free entry to the UAE.\n- The multiple entry 5-year tourist visa enables tourists to enter the UAE multiple times on self-sponsorship and remain in the country for 90 days on each visit, and can be extended for further 90 days.\n- Family/group multiple entry long-term tourist visa - ICP\n\nAccommodation, host, and address fields:\n- Licensed travel agents and hotels in the UAE can arrange a tourist visa for you provided you purchase the ticket through them and maintain hotel reservation with the specific hotel.\n- In order to get a tourist visa to the UAE, you need to get in touch with one of the UAE-based airlines, a tour agency or a hotel (where you intend to stay) in the UAE who will apply for visa on your behalf to the official visa-issuing authorities in the UAE.\n\nFunds, insurance, photo, and supporting-document fields:\n- a valid health insurance policy applicable in the UAE, valid for 180 days\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+          "content": "Collect beneficiary email, country of residence, residential address outside the UAE, and telephone number outside the UAE. UAE accommodation details include emirate, dependent city and area, detailed address, building or property name and P.O. box when displayed, whether the beneficiary has a UAE mobile number, and that number when available. Transaction reason may be an authenticated lookup, while visit reason is locked to Tourism. Exact location codes, phone formats, optional-field visibility, and transaction-reason values require live-login QA. Official source: https://smartservices.icp.gov.ae/echannels/web/client/guest/index.html#/issueVisa/request/783"
+        },
+        {
+          "id": "ae_783_document_slots",
+          "title": "Required evidence belongs to application_documents",
+          "tags": [
+            "united-arab-emirates",
+            "AE_TOURIST_VISA",
+            "documents",
+            "application-documents",
+            "conditional-requirements"
+          ],
+          "content": "Passport biodata page, personal photograph, six-month bank statement showing the required balance, UAE health-coverage evidence, return or onward ticket, and UAE accommodation evidence are application_documents slots, not file-path answers. A national identity copy is conditional for nationalities required by the current ICP transaction configuration. Recheck transaction 783 because ICP can retrieve evidence through integrations or request attachments when retrieval fails. Official sources: https://icp.gov.ae/en/services-details/?serviceid=68f5bc968c587a0011cb16cd ; https://smartservices.icp.gov.ae/echannels/web/client/guest/index.html#/issueVisa/request/783"
+        },
+        {
+          "id": "ae_783_workflow_data_boundary",
+          "title": "UAE Pass and transaction operations are not answer fields",
+          "tags": [
+            "united-arab-emirates",
+            "AE_TOURIST_VISA",
+            "workflow-boundary",
+            "UAE-Pass",
+            "payment"
+          ],
+          "content": "UAE Pass or ICP login, authentication, session state, attachment transfer, health-insurance purchase or retrieval, financial-guarantee handling, service fees, and payment are VIZA workflow responsibilities. They must not appear in visa_form_fields or be requested as ordinary applicant answers. The answer schema contains reusable beneficiary facts; upload and transaction state remain outside it. Official sources: https://icp.gov.ae/en/services-details/?serviceid=68f5bc968c587a0011cb16cd ; https://smartservices.icp.gov.ae/echannels/web/client/guest/index.html#/issueVisa/request/783"
+        },
+        {
+          "id": "ae_783_passport_answer_rules",
+          "title": "Passport and identity answers must follow the requested field",
+          "tags": [
+            "united-arab-emirates",
+            "AE_TOURIST_VISA",
+            "passport",
+            "identity",
+            "field-guidance"
+          ],
+          "content": "Copy full name, passport number, nationality, birth facts, passport type, issuing country, place of issue, issue date, and expiry date from the matching passport field. Do not substitute issuing authority, pickup location, residence, or destination when ICP asks for place or country of issue. Preserve synchronized English and official Arabic values internally where the ICP transaction exposes both, while showing only the selected interface language during entry. Use authenticated portal lookup labels and codes rather than guessed synonyms. Official source: https://smartservices.icp.gov.ae/echannels/web/client/guest/index.html#/issueVisa/request/783"
         }
       ]
     }

@@ -29,6 +29,10 @@ export interface AirwallexConfig {
   apiKey: string;
   /** Explicit currency capabilities and major-unit per-card ceilings. */
   currencyMaximums: Readonly<Record<string, number>>;
+  /** Omit to use the card program configured on the Airwallex account. */
+  programType?: "PREPAID" | "DEBIT" | "CREDIT" | "DEFERRED_DEBIT";
+  /** Omit unless Airwallex has explicitly enabled this subtype for the account. */
+  programSubType?: "GOOD_FUNDS_CREDIT" | "B2B_TRAVEL";
 }
 
 export interface CreateApplicationFeeCardInput {
@@ -248,9 +252,13 @@ export class AirwallexIssuingClient {
       cardholder_id: input.cardholderId,
       is_personalized: false,
       form_factor: "VIRTUAL",
-      // program.type / sub_type vary by account — confirm this combination
-      // with the Airwallex account manager before production enablement.
-      program: { purpose: "COMMERCIAL", type: "PREPAID", sub_type: "GOOD_FUNDS_CREDIT" },
+      // program.type / sub_type are account-specific. Omitting them makes
+      // Airwallex use the program configured for this account.
+      program: {
+        purpose: "COMMERCIAL",
+        ...(this.cfg.programType ? { type: this.cfg.programType } : {}),
+        ...(this.cfg.programSubType ? { sub_type: this.cfg.programSubType } : {}),
+      },
       authorization_controls: {
         allowed_transaction_count: "SINGLE",
         allowed_currencies: [currency],
@@ -288,7 +296,7 @@ export class AirwallexIssuingClient {
       cvv: string;
       expiry_month: string;
       expiry_year: string;
-    }>(`/api/v1/issuing/cards/${cardId}/details`);
+    }>(`/api/v1/issuing/cards/${encodeURIComponent(cardId)}/details`);
     return {
       pan: d.card_number,
       cvv: d.cvv,
@@ -298,10 +306,31 @@ export class AirwallexIssuingClient {
   }
 
   async freezeCard(cardId: string): Promise<void> {
-    // TODO-confirm: exact freeze/cancel endpoint + payload with the account
-    // manager (doc §3/§11). This is the expected shape. A SINGLE-use card is
-    // already spent after one debit, so freeze is best-effort defence in depth.
-    await this.post(`/api/v1/issuing/cards/${cardId}/update`, { card_status: "INACTIVE" });
+    const path = `/api/v1/issuing/cards/${encodeURIComponent(cardId)}`;
+    const terminalStatuses = new Set([
+      "INACTIVE",
+      "CLOSED",
+      "EXPIRED",
+      "LOST",
+      "STOLEN",
+      "BLOCKED",
+    ]);
+    const current = await this.get<{ card_status?: string }>(path);
+    if (current.card_status && terminalStatuses.has(current.card_status)) return;
+
+    try {
+      await this.post(`${path}/update`, { card_status: "INACTIVE" });
+    } catch (error) {
+      // A successful SINGLE-use authorization may close the card between the
+      // status read and update. Treat that race as already safely finalized.
+      try {
+        const refreshed = await this.get<{ card_status?: string }>(path);
+        if (refreshed.card_status && terminalStatuses.has(refreshed.card_status)) return;
+      } catch {
+        // Preserve the update failure below; it is the actionable cleanup error.
+      }
+      throw error;
+    }
   }
 }
 
@@ -356,10 +385,27 @@ export function createAirwallexIssuingClient(): AirwallexIssuingClient | null {
       "AIRWALLEX_ISSUING_CLIENT_ID and AIRWALLEX_ISSUING_API_KEY must be set when Airwallex issuing is enabled",
     );
   }
+  const programType = process.env.AIRWALLEX_ISSUING_PROGRAM_TYPE?.trim().toUpperCase();
+  if (
+    programType &&
+    !["PREPAID", "DEBIT", "CREDIT", "DEFERRED_DEBIT"].includes(programType)
+  ) {
+    throw new AirwallexConfigError(
+      "AIRWALLEX_ISSUING_PROGRAM_TYPE must be PREPAID, DEBIT, CREDIT, or DEFERRED_DEBIT",
+    );
+  }
+  const programSubType = process.env.AIRWALLEX_ISSUING_PROGRAM_SUB_TYPE?.trim().toUpperCase();
+  if (programSubType && !["GOOD_FUNDS_CREDIT", "B2B_TRAVEL"].includes(programSubType)) {
+    throw new AirwallexConfigError(
+      "AIRWALLEX_ISSUING_PROGRAM_SUB_TYPE must be GOOD_FUNDS_CREDIT or B2B_TRAVEL",
+    );
+  }
   return new AirwallexIssuingClient({
     baseUrl,
     clientId,
     apiKey,
     currencyMaximums: readAirwallexCurrencyMaximums(),
+    programType: programType as AirwallexConfig["programType"],
+    programSubType: programSubType as AirwallexConfig["programSubType"],
   });
 }

@@ -67,7 +67,7 @@ describe("application schema UI contract", () => {
 
   it("maps option counts and remote sources to canonical select/radio components", () => {
     expect(getApplicationFieldUiComponent(field("yes_no", "radio", {
-      options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+      options: [{ value: "male", text: "Male" }, { value: "female", text: "Female" }],
     }))).toBe("application-yes-no-control");
     expect(getApplicationFieldUiComponent(field("radio_group", "radio", {
       options: ["air", "land", "sea"],
@@ -78,6 +78,9 @@ describe("application schema UI contract", () => {
     expect(getApplicationFieldUiComponent(field("remote_select", "select", {
       validationRules: { remote_search: true },
       options: [],
+    }))).toBe("application-searchable-select");
+    expect(getApplicationFieldUiComponent(field("large_radio", "radio", {
+      options: Array.from({ length: 12 }, (_, index) => `option-${index + 1}`),
     }))).toBe("application-searchable-select");
   });
 
@@ -156,7 +159,7 @@ describe("application schema UI contract", () => {
     expect(getCompiledConditionalPanelController(compiled.steps[0].fields[2])).toBe("funding_provider");
   });
 
-  it("uses the outer card for cross-step branches and reports design guidance", () => {
+  it("uses the outer card for supported cross-step branches", () => {
     const controller = field("purpose_of_visit", "select", {
       options: ["tourism", "business"],
     });
@@ -171,7 +174,7 @@ describe("application schema UI contract", () => {
     const compiledDependent = compiled.steps[1].fields[0];
     expect(getCompiledConditionalPanelMode(compiledDependent)).toBe("outer_only");
     expect(compiled.report.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "cross_step_conditional", designEdgeCase: true }),
+      expect.objectContaining({ code: "cross_step_conditional", designEdgeCase: false }),
     ]));
   });
 
@@ -203,6 +206,9 @@ describe("application schema UI contract", () => {
       "multiple_conditional_roots",
       "unknown_conditional_controller",
       "unsupported_field_type",
+    ]));
+    expect(compiled.report.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "multiple_conditional_roots", designEdgeCase: false }),
     ]));
     expect(compiled.report.summary.errors).toBe(2);
   });
@@ -236,5 +242,42 @@ describe("application schema UI contract", () => {
       "repeat_group_conflicting_max_items",
       "inline_group_too_large",
     ]));
+    expect(compiled.report.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "inline_group_too_large", designEdgeCase: false }),
+    ]));
+  });
+
+  it("filters portal credentials out of applicant-facing steps", () => {
+    const visible = field("passport_number", "text");
+    const password = field("portal_password", "password", { displayOrder: 2 });
+    const totp = field("portal_totp_secret", "text", {
+      displayOrder: 3,
+      validationRules: { sensitive: true },
+    });
+
+    const compiled = compileApplicationSchemaForUi(steps(visible, password, totp));
+
+    expect(compiled.steps[0].fields.map((schemaField) => schemaField.fieldName)).toEqual([
+      "passport_number",
+    ]);
+    expect(compiled.report.issues.filter((issue) => issue.code === "sensitive_answer_field"))
+      .toHaveLength(2);
+    expect(compiled.report.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "sensitive_answer_field", designEdgeCase: false }),
+    ]));
+  });
+
+  it("only flags file fields that lack an application document slot", () => {
+    const mappedPhoto = field("profile_photo", "file", {
+      validationRules: { document_slot: "applicant_photo" },
+    });
+    const unmappedPassport = field("passport_upload", "file", { displayOrder: 2 });
+
+    const compiled = compileApplicationSchemaForUi(steps(mappedPhoto, unmappedPassport));
+
+    expect(compiled.report.issues.filter((issue) => issue.code === "file_field_requires_document_contract"))
+      .toEqual([
+        expect.objectContaining({ fieldNames: ["passport_upload"], designEdgeCase: true }),
+      ]);
   });
 });

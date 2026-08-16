@@ -77,6 +77,14 @@ explicitly reintroduces another provider.
   `src/notify/worker.ts`; Vietnam status changes use the locale-aware
   `vietnam_status_update` template and link to the VIZA status center.
 - Seed/ingestion scripts: `scripts/*.ts`.
+- Audited tourist-form seeds:
+  `scripts/seed-ca-trv-form-fields.ts`,
+  `scripts/seed-tr-e-visa-form-fields.ts`,
+  `scripts/seed-in-e-visa-form-fields.ts`,
+  `scripts/seed-sa-e-visa-form-fields.ts`, and
+  `scripts/seed-ae-tourist-visa-form-fields.ts`. Their canonical products are
+  intentionally narrower than legacy generic route aliases; uploads belong in
+  `application_documents`, never file-path answers.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
 - Arrival-card seeds:
   `scripts/sgac/**` for `SG_ARRIVAL_CARD`, `scripts/my-mdac/**` for

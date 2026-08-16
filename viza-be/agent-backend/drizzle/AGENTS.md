@@ -207,6 +207,13 @@ The current internal automation migrations are:
 - `0146_vietnam_payment_registration_code_handoff.sql`: carries an existing
   encrypted Vietnam registration code into the next isolated payment queue row
   for the same application/provider without exposing the code in RPC payloads.
+- `0147_uk_passport_upload_document_slot.sql`: maps the UK passport upload to
+  the `passport_bio_page` application-document slot so it cannot be treated as
+  an ordinary file-path answer.
+- `0148_five_tourist_country_packages_and_documents.sql`: corrects the Canada,
+  Türkiye, India, Saudi Arabia, and UAE tourist-product catalog boundaries and
+  installs their audited Document Center requirements outside the answer
+  schema.
 
 ## Guardrails
 

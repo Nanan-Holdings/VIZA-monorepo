@@ -19,6 +19,9 @@ visa-type and field inventory.
   hand-written country list of issues.
 - Reuse canonical application components for studies. Do not modify the frozen
   `/ui-components` page or primitives from this route.
+- Show reviewed automatic mappings separately from unresolved design-edge-case
+  inventory. Option-count, cross-step, inline-grid, and sensitive-field policy
+  belong to the compiler and must not remain hand-labelled edge cases.
 - New `designEdgeCase` codes must appear automatically with a generic fallback;
   add a focused component study only after the design question is understood.
 

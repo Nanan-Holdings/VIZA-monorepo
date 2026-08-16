@@ -100,6 +100,30 @@ describe("DynamicFormField localization", () => {
     await waitFor(() => expect(onChange).toHaveBeenCalledWith("female"));
   });
 
+  it("renders a searchable selector when a radio schema has twelve or more options", () => {
+    const largeRadioField = field({
+      id: "large-radio",
+      fieldName: "large_radio",
+      label: "Choose one option",
+      options: Array.from({ length: 12 }, (_, index) => ({
+        value: `option-${index + 1}`,
+        text: `Option ${index + 1}`,
+      })),
+    });
+
+    render(
+      <DynamicFormField
+        field={largeRadioField}
+        value=""
+        onChange={vi.fn()}
+        displayLocale="en"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Select..." })).toHaveAttribute("aria-haspopup", "dialog");
+    expect(document.querySelectorAll("[data-application-radio]")).toHaveLength(0);
+  });
+
   it("shows dropdown selections before the parent value catches up", async () => {
     const onChange = vi.fn();
     const genderField = field({
@@ -281,6 +305,52 @@ describe("DynamicFormField localization", () => {
     fireEvent.click(screen.getByRole("button", { name: /请选择/ }));
 
     expect(screen.getByText("酒店 468")).toBeInTheDocument();
+  });
+
+  it("renders ISO flags for country multi-select options and leaves official special values text-only", () => {
+    const countryHistoryField = field({
+      id: "countries-visited-last-14-days",
+      fieldName: "countries_visited_last_14_days",
+      label: "Countries/Territories where you stayed within two weeks before arrival",
+      fieldType: "multi_select",
+      placeholder: "Select countries or territories",
+      options: [
+        { value: "CHN", label_zh: "中国", label_en: "CHN : CHINA" },
+        { value: "MNP", label_zh: "北马里亚纳群岛", label_en: "MNP : NORTHERN MARIANA ISLANDS" },
+        { value: "XXB", label_zh: "难民（1951 年公约）", label_en: "XXB : REFUGEE (1951 CONVENTION)" },
+      ],
+    });
+
+    render(
+      <DynamicFormField
+        field={countryHistoryField}
+        value="MNP,XXB"
+        onChange={vi.fn()}
+        displayLocale="zh"
+      />,
+    );
+
+    expect(screen.getAllByTestId("circle-country-flag")).toHaveLength(1);
+    expect(screen.getByTestId("circle-country-flag")).toHaveAttribute(
+      "src",
+      "https://react-circle-flags.pages.dev/mp.svg",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /北马里亚纳群岛/ }));
+
+    const searchInput = screen.getByPlaceholderText("搜索中文、英文或官方选项...");
+    expect(searchInput.parentElement).not.toHaveClass("application-form-control");
+
+    const flags = screen.getAllByTestId("circle-country-flag");
+    expect(flags).toHaveLength(4);
+    expect(flags.map((flag) => flag.getAttribute("src"))).toEqual(expect.arrayContaining([
+      "https://react-circle-flags.pages.dev/cn.svg",
+      "https://react-circle-flags.pages.dev/mp.svg",
+    ]));
+    expect(
+      screen.getAllByRole("button", { name: "难民（1951 年公约）" })
+        .every((button) => button.querySelector("img") === null),
+    ).toBe(true);
   });
 
   it("does not repeat configured field guidance below the control", () => {

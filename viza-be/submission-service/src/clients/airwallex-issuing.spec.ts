@@ -57,6 +57,7 @@ test("application-fee creation sends one exact amount with single-use controls",
   assert.equal(calls.length, 2);
   const payload = calls[1]?.body as {
     request_id: string;
+    program: Record<string, string>;
     authorization_controls: {
       allowed_transaction_count: string;
       allowed_currencies: string[];
@@ -64,6 +65,7 @@ test("application-fee creation sends one exact amount with single-use controls",
     };
   };
   assert.equal(payload.request_id, input.requestId);
+  assert.deepEqual(payload.program, { purpose: "COMMERCIAL" });
   assert.equal(payload.authorization_controls.allowed_transaction_count, "SINGLE");
   assert.deepEqual(payload.authorization_controls.allowed_currencies, ["GBP"]);
   assert.deepEqual(payload.authorization_controls.transaction_limits.limits, [
@@ -71,6 +73,41 @@ test("application-fee creation sends one exact amount with single-use controls",
     { amount: 135, interval: "ALL_TIME" },
   ]);
   assert.doesNotMatch(JSON.stringify(payload), /pan|cvv|card_number/i);
+});
+
+test("application-fee creation sends only explicitly configured program fields", async () => {
+  const payloads: Array<Record<string, unknown>> = [];
+  const fakeFetch = (async (request: string | URL | Request, init?: RequestInit) => {
+    if (String(request).endsWith("/authentication/login")) {
+      return new Response(JSON.stringify({ token: "test-token" }), { status: 200 });
+    }
+    if (typeof init?.body === "string") {
+      payloads.push(JSON.parse(init.body) as Record<string, unknown>);
+    }
+    return new Response(JSON.stringify({
+      card_id: "air-card-1",
+      card_status: "ACTIVE",
+      card_number: "411111******1111",
+    }), { status: 200 });
+  }) as typeof fetch;
+  const configured = new AirwallexIssuingClient(
+    {
+      baseUrl: "https://api-demo.airwallex.invalid",
+      clientId: "test-client",
+      apiKey: "test-key",
+      currencyMaximums: { GBP: 500 },
+      programType: "CREDIT",
+      programSubType: "GOOD_FUNDS_CREDIT",
+    },
+    fakeFetch,
+  );
+
+  await configured.createApplicationFeeCard(input);
+  assert.deepEqual(payloads[0]?.program, {
+    purpose: "COMMERCIAL",
+    type: "CREDIT",
+    sub_type: "GOOD_FUNDS_CREDIT",
+  });
 });
 
 test("Config Read exposes only the Remote Auth safety fields", async () => {
@@ -130,6 +167,40 @@ test("legacy general-purpose card creation is disabled before fetch", async () =
   }) as typeof fetch);
   await assert.rejects(guarded.createCard({}), /general-purpose.*disabled/i);
   assert.equal(fetchCalls, 0);
+});
+
+test("freeze is a no-op when a single-use card is already closed", async () => {
+  const methods: string[] = [];
+  const fakeFetch = (async (request: string | URL | Request, init?: RequestInit) => {
+    methods.push(init?.method ?? "GET");
+    if (String(request).endsWith("/authentication/login")) {
+      return new Response(JSON.stringify({ token: "test-token" }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ card_status: "CLOSED" }), { status: 200 });
+  }) as typeof fetch;
+
+  await client(fakeFetch).freezeCard("air-card-1");
+  assert.deepEqual(methods, ["POST", "GET"]);
+});
+
+test("freeze updates an active card to inactive", async () => {
+  const calls: Array<{ url: string; method: string }> = [];
+  const fakeFetch = (async (request: string | URL | Request, init?: RequestInit) => {
+    const url = String(request);
+    const method = init?.method ?? "GET";
+    calls.push({ url, method });
+    if (url.endsWith("/authentication/login")) {
+      return new Response(JSON.stringify({ token: "test-token" }), { status: 200 });
+    }
+    if (method === "GET") {
+      return new Response(JSON.stringify({ card_status: "ACTIVE" }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ card_status: "INACTIVE" }), { status: 200 });
+  }) as typeof fetch;
+
+  await client(fakeFetch).freezeCard("air-card-1");
+  assert.equal(calls.at(-1)?.url.endsWith("/api/v1/issuing/cards/air-card-1/update"), true);
+  assert.equal(calls.at(-1)?.method, "POST");
 });
 
 test("currency allowlist requires one positive per-currency maximum", () => {

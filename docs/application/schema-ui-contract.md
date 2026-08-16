@@ -1,6 +1,6 @@
 # Application Schema to UI Contract
 
-Status: implemented and audited on 2026-08-15.
+Status: implemented and audited on 2026-08-16.
 
 This contract is the boundary between scraped official-form schemas in
 `visa_form_fields` and the frozen application controls demonstrated at
@@ -13,7 +13,7 @@ whole visa type.
 | Schema field | Canonical application component |
 | --- | --- |
 | `text`, `email`, `tel`, `number` | application input |
-| `password` or `sensitive: true` | sensitive input; also raises a security warning |
+| `password` or `sensitive: true` | excluded from applicant-facing steps; VIZA owns portal credentials and sessions |
 | `textarea` | application textarea |
 | `date` | application date picker |
 | short `select` | application select |
@@ -22,10 +22,11 @@ whole visa type.
 | `select` with `source: US_STATES` | US region select |
 | `multi_select` | searchable multi-select |
 | two-option `radio` | segmented two-choice control |
-| radio with three or more options | vertical radio group |
+| radio with 3–11 options | vertical radio group |
+| radio with 12 or more options | searchable selector |
 | `checkbox` | application checkbox |
 | `country` | country dropdown |
-| `file` | supporting-document card contract, not a persisted file-path answer |
+| `file` with `document_slot` | supporting-document card contract, not a persisted file-path answer |
 
 Unknown field types fail the strict audit. They are never silently rendered as
 a text input.
@@ -43,7 +44,8 @@ For a conditional multi-option group, one controller owns at most one panel:
    controller's panel; they do not create another border.
 4. Cross-step, compound-root, unparseable, forward, and non-option-controller
    branches use `outer_only` mode. They remain conditionally visible but do not
-   invent an orphan nested panel.
+   invent an orphan nested panel. Cross-step branches are supported; a
+   section-level branch may also hide its step in the application sidebar.
 5. Repeat groups retain one panel per repeated item because add/remove behavior
    is structural, not merely visual.
 
@@ -57,6 +59,8 @@ national-ID child panels.
 parity and bilingual normalization. The compiler:
 
 - attaches the canonical `ui_component` to every in-memory field;
+- filters official-portal passwords, OTPs, and other sensitive fields from all
+  applicant-facing steps;
 - resolves shared conditional-panel ownership across the complete visa schema;
 - falls back to the outer step card for conditional shapes without one safe
   owner;
@@ -81,9 +85,11 @@ decision.
 
 ## Master-schema audit snapshot
 
-The 2026-08-15 live read-only audit covered 21 visa types and 1,994 fields.
-After deterministic normalization it reported zero errors, 24 warnings, and
-223 guidance items. No live field type was unsupported.
+The 2026-08-16 live audit covered 21 visa types and 1,994 fields. After
+deterministic normalization it reported zero errors, 20 warnings, 205 guidance
+items, and zero unresolved design-edge-case instances. Eleven compound-root
+conditions remain implementation guidance across three schemas, using the
+approved `/ui-components` pattern. No live field type was unsupported.
 
 The three safe repairs applied at load time were:
 
@@ -105,13 +111,14 @@ are deliberately blocked until a component contract exists.
 | --- | --- | --- |
 | Same-step multi-option branch | One shared conditional panel | Covered by the frozen conditional group pattern |
 | Nested branch under the same terminal controller | Remains in the shared parent panel | Decide whether deep branches ever need internal headings, never another generic border |
-| Cross-step condition (200 audited fields) | Conditional visibility with outer step card | Optional future “branch context” or prior-answer summary; no nested orphan panel |
-| Compound condition with multiple terminal controllers (11 fields) | Outer-only | Compound-condition section pattern and placement rule |
+| Cross-step condition | Conditional visibility with outer step card; section-level branches may drive sidebar visibility | Covered |
+| Compound condition with multiple terminal controllers (11 fields) | Outer-only | Approved compound conditional group is documented at `/ui-components`; runtime compiler/renderer integration remains pending |
 | Conditional repeat group | One structural panel per item | Nested-repeat and mixed-controller pattern if a future schema requires either |
 | Text/date/calculated controller | Outer-only | Derived/read-only controller and dependency-ownership pattern |
 | Forward dependency | Strict error | No component; reorder or correct the schema |
-| Two semantic options, not Yes/No (20 fields) | Existing segmented two-choice control | Rename/generalize the component contract for sex, payment method, transport, visa type, etc. |
-| Three or more radio options | Vertical radio group | Covered; consider a reviewed compact layout only when evidence requires it |
+| Any two radio options | Segmented two-choice control | Covered; semantic values do not change the visual mapping |
+| 3–11 radio options | Vertical radio group | Covered |
+| 12 or more radio options | Searchable selector | Covered; threshold is shared with large selects |
 | Checkbox representing one boolean | Application checkbox | Covered |
 | Multiple checkbox choices stored as a set | Currently modeled via repeated checkbox/repeat metadata | Dedicated checkbox-group component with exclusive “None/Other” behavior |
 | Static, remote, or dependent select | Loaded from declared adapter | Loading, empty, stale-session, retry, and parent-reset states must remain canonical |
@@ -121,10 +128,10 @@ are deliberately blocked until a component contract exists.
 | Phone country code plus local number | Separate controls/fallback | Composite international-phone component if one visual field is desired |
 | Amount plus currency or number plus unit | Inline schema group | Composite amount/unit component with official value serialization |
 | Partial/unknown date, year-only date, or “does not apply” | Date plus schema flags/side checkbox | General partial-date component with explicit persisted precision |
-| More than two inline fields (2 audited groups) | Responsive generic group, warning | Reviewed multi-column responsive group; current canonical inline pair remains preferred |
+| Any number of inline fields | One equal-width row; long labels wrap inside their column | Covered |
 | Duplicate `display_order` (7 audited collisions) | Stable input order is not guaranteed | No component; correct the master schema order |
-| File field (2 audited fields) | Supporting-document contract warning | Upload state, replacement, OCR, reuse, and server-side document identity belong in Document Center/card |
-| Password, OTP, or TOTP secret (2 Australian fields) | Sensitive input warning | Application-scoped encrypted vault flow; never ordinary answer persistence |
+| File field without `document_slot` | Strict schema error; launch is blocked | Add the owning `application_documents` slot; upload state, replacement, OCR, reuse, and server-side identity belong in Document Center/card |
+| Password, OTP, or TOTP secret | Removed by the compiler before applicant rendering | VIZA-managed portal account/session flow; never show or persist it as an applicant answer |
 | Official static notice (`static_notice`) | Not present in live DB; strict failure if imported | Information/alert block with provenance and conditional visibility |
 | Official legal statement (`static_statement`) | Not present in live DB; strict failure if imported | Read-only legal statement component, explicitly not a checkbox |
 | Drawn signature (`signature_pad`) | Not present in live DB; strict failure if imported | Signature canvas with consent, clear/redraw, accessibility, and secure artifact contract |
@@ -144,4 +151,3 @@ are deliberately blocked until a component contract exists.
 - Primitive mapping: `viza-fe/internal-website/components/dynamic-form-field.tsx`
 - Audit CLI: `viza-fe/internal-website/scripts/audit-application-schema-ui.ts`
 - Schema authoring process: `docs/visa-schema-playbook.md`
-

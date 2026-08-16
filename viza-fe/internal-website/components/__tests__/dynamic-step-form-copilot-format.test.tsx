@@ -2599,4 +2599,42 @@ describe("DynamicStepForm copilot format", () => {
     fireEvent.click(screen.getByRole("button", { name: "reviewRepair.returnToAssistant" }));
     expect(onNavigateReviewIssue).toHaveBeenCalledExactlyOnceWith(null);
   });
+
+  it("keeps any number of explicitly inline fields on one equal-width row", () => {
+    const inlineStep: WizardStep = {
+      stepNumber: 1,
+      stepName: "Inline fields",
+      fields: Array.from({ length: 4 }, (_, index): VisaFormFieldRow => ({
+        id: `inline-${index}`,
+        visaType: "TEST",
+        fieldName: `inline_field_${index}`,
+        label: `A deliberately long inline question label ${index + 1}`,
+        fieldType: "text",
+        required: false,
+        stepNumber: 1,
+        stepName: "Inline fields",
+        displayOrder: index + 1,
+        placeholder: null,
+        validationRules: { inline_group: "four_fields" },
+        options: null,
+        conditionalLogic: null,
+      })),
+    };
+
+    const { container } = render(
+      <DynamicStepForm
+        step={inlineStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+      />,
+    );
+
+    const inlineGrid = [...container.querySelectorAll<HTMLElement>(".grid")]
+      .find((element) => element.style.gridTemplateColumns.includes("repeat(4"));
+    expect(inlineGrid).toHaveStyle({
+      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    });
+    expect(inlineGrid?.children).toHaveLength(4);
+  });
 });

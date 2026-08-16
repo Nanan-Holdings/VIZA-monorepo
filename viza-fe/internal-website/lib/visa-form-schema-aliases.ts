@@ -6,7 +6,9 @@ const VIETNAM_COUNTRY_ALIASES = new Set([
 ]);
 
 const COUNTRY_ALIASES = {
+  canada: new Set(["ca", "canada", "加拿大"]),
   france: new Set(["fr", "france", "法国"]),
+  india: new Set(["in", "india", "印度"]),
   indonesia: new Set(["id", "indonesia", "印尼", "印度尼西亚"]),
   malaysia: new Set(["my", "malaysia", "马来西亚"]),
   philippines: new Set(["ph", "philippines", "菲律宾"]),
@@ -14,6 +16,9 @@ const COUNTRY_ALIASES = {
   south_korea: new Set(["kr", "korea", "south_korea", "韩国", "南韩"]),
   taiwan: new Set(["tw", "taiwan", "台湾", "中国台湾", "中國台灣"]),
   thailand: new Set(["th", "thailand", "泰国"]),
+  turkey: new Set(["tr", "turkey", "turkiye", "türkiye", "土耳其"]),
+  united_arab_emirates: new Set(["ae", "uae", "united_arab_emirates", "united arab emirates", "阿联酋"]),
+  saudi_arabia: new Set(["sa", "saudi_arabia", "saudi arabia", "沙特", "沙特阿拉伯"]),
   uk: new Set(["uk", "united_kingdom", "united kingdom", "英国"]),
   us: new Set(["us", "usa", "united_states", "united states", "美国"]),
   vietnam: VIETNAM_COUNTRY_ALIASES,
@@ -37,6 +42,31 @@ const COUNTRY_SCOPED_SCHEMA_ALIASES: ReadonlyArray<{
   visaTypes: ReadonlySet<string>;
   canonicalVisaType: string;
 }> = [
+  {
+    countries: COUNTRY_ALIASES.canada,
+    visaTypes: new Set(["ca_trv", "visitor_visa", "visitor_visa_or_evisa"]),
+    canonicalVisaType: "CA_TRV",
+  },
+  {
+    countries: COUNTRY_ALIASES.india,
+    visaTypes: new Set(["in_e_visa", "regular_tourist_visa", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "IN_E_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.saudi_arabia,
+    visaTypes: new Set(["sa_e_visa", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "SA_E_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.turkey,
+    visaTypes: new Set(["tr_e_visa", "evisa_tourism_business", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "TR_E_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.united_arab_emirates,
+    visaTypes: new Set(["ae_tourist_visa", "visa_free_or_tourist_visa", "tourist_visa"]),
+    canonicalVisaType: "AE_TOURIST_VISA",
+  },
   {
     countries: COUNTRY_ALIASES.singapore,
     visaTypes: new Set(["sgac", "sg_arrival_card"]),
