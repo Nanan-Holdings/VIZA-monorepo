@@ -1388,3 +1388,10 @@ Currency page appeared after page 4 had item 1 Yes and item 2 Yes, with item 12 
 - 依据用户提供的 AIR/SEA 同页截图，Health 规范化和 field plan 现将三项基础 Yes/No 视为必答：recent travel、exposure、sickness。recent-travel=Yes 要求至少一个去重的 country code；sick=Yes 要求至少一个症状；切回 No 不再计划或携带残留 countries/symptoms。exposure 没有推测任何未观察的子问题。
 - field plan 将截图静态 warning 和完整 15 项症状清单保存为非申请人答案元数据；recent countries 是可重复选择组，symptoms 是多值组。AIR 与 SEA 复用同一 Health 映射，不生成自由文本 `health_details` 动作。
 - focused tests：Health normalize、field-plan、preflight `72 passed`；`npm run type-check` passed。未访问官网、未启动账号/queue/browser、未点击 Next/Review/final Submit。Health 正向浏览器动作及 server persistence 仍维持 fail-closed。
+
+## E42-E45 AIR customs/currency branch contract（2026-08-16）
+
+- General Declaration 已按本地 canonical 合同修正：Q1/Q2 只进入 Currency route，不会生成 goods-item 动作；Q3-Q12 的每个 Yes 只消费带同一 checklist item number 的本地 repeat items。旧 aggregate item 仅在唯一一个 Q3-Q12 Yes 时可无歧义归属；多分支缺归属保持 action-required。Amount 为正且 Q3-Q12 全 No 在 normalize/preflight、账号/browser 前 fail-closed。
+- AIR Customs 页面分类只看可见标题和控件，不依赖 `wizard_page`。Q3-Q12 任一 Yes 产生 attachment-plus-signature 页面识别和独立 signature gate；全 No 识别为 signature-only。没有 Next、上传、签名绘制、Family、Review 或 Submit 动作。
+- 已消费 E45：观察到的 AIR Q3-Q12 positive 分支可在空附件加有效签名后继续，因此空附件不再被当作无条件必传。附件上传规则和服务器接受性仍为 action-required；SEA 不继承该结论。Currency / Monetary Instrument 仅接受官方 API numeric id；AIR 空 owner/recipient 仅保留 server-condition blocker；physical branch 的 `no_of_days_in_philippines` 与 `last_travel_to_philippines` 为本地明确 client-required。Other-detail live/static 冲突、courier、BSP positive trigger、Currency option/row/server rules继续 fail-closed。
+- focused tests：normalize、form-filler、launch-preflight、preflight-envelope、result-consistency `97 passed`；`npm run type-check` passed。未运行真实 job、登录、OTP、CAPTCHA、Next、Family、Review 或 official final Submit。

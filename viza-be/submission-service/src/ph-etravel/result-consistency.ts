@@ -113,7 +113,9 @@ const PH_ETRAVEL_ACTION_REQUIRED_NON_SUBMITTED_CODES = new Set([
   "ph_etravel_launch_sea_customs_flow_review_required",
   "ph_etravel_launch_sea_electronic_positive_review_required",
   "ph_etravel_launch_currency_positive_review_required",
+  "ph_etravel_launch_goods_amount_checklist_required",
   "ph_etravel_launch_attachment_review_required",
+  "ph_etravel_launch_customs_signature_review_required",
   "ph_etravel_launch_final_result_recovery_required",
 ]);
 

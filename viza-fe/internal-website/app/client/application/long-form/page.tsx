@@ -1160,8 +1160,8 @@ function FinalConfirmationPanel({
                 : "Submitting creates a Thailand TDAC official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official reference, and confirmation evidence.")
             : isPhEtravel
               ? (isZh
-                  ? "菲律宾官方 eTravel 登记免费，且不是签证，也不保证边检准入。提交后会创建普通入境旅客的官方 eTravel 任务；页面会显示进度，只有后端保存官方参考号和独立 QR 后才应展示成功。"
-                  : "Official Philippines eTravel registration is free, is not a visa, and does not guarantee admission at border control. Submitting creates an ordinary-arrival-passenger eTravel task; progress appears here, and success should only appear after the official reference and standalone QR are saved.")
+                  ? "菲律宾官方 eTravel 登记免费，且不是签证，也不保证边检准入。提交后会创建普通入境旅客的官方 eTravel 任务；页面会显示进度，只有后端从权威登记记录读取到稳定参考号并验证其对应二维码后才应展示成功。"
+                  : "Official Philippines eTravel registration is free, is not a visa, and does not guarantee admission at border control. Submitting creates an ordinary-arrival-passenger eTravel task; progress appears here, and success should only appear after the backend reads a stable reference from the authoritative registration record and verifies its matching QR code.")
               : isIndonesia
                 ? (isZh
                     ? "提交后会创建 Indonesia e-Visa 官方提交任务；VIZA 会使用托管账号填写官网表单，并把流程推进到官方付款页。"

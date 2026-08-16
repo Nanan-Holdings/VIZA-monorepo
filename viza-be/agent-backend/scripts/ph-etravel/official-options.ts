@@ -154,7 +154,7 @@ export const PH_ETRAVEL_DYNAMIC_OPTION_SOURCES = {
     response_label: "name",
     response_fields: ["id", "name", "shorten_name", "display_name", "country_id", "is_active"],
     evidence_level: "verified_public",
-    official_source: "E13 official public API 2026-08-04; 263-row snapshot intentionally not embedded",
+    official_source: "E13/E45 official public API 2026-08-04/2026-08-16; numeric id is submitted and the 263-row response is intentionally not embedded",
   },
   sea_destination_ports: {
     endpoint: "/api/v1/common/travel_ports",
@@ -360,7 +360,7 @@ export const PH_ETRAVEL_MONETARY_INSTRUMENT_OPTIONS = mapped(
   MONETARY_INSTRUMENT_ZH,
   undefined,
   "verified_public",
-  "E13 official public API /api/v1/common/monetary_instruments?paginate=0&q= 2026-08-04",
+  "E13/E45 official public API /api/v1/common/monetary_instruments?paginate=0&q= 2026-08-04/2026-08-16; numeric id is submitted",
 );
 
 export const PH_ETRAVEL_CURRENCY_SOURCE_OPTIONS = [

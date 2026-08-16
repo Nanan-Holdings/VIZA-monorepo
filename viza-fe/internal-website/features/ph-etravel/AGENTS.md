@@ -82,6 +82,12 @@ Scope: Philippines eTravel-specific frontend helpers.
   keeps client conditions and positive branches review-gated, excludes
   inherited vaccine/age state and bats/animals translation-only text from
   rendered questions, and never treats local validation as server acceptance.
+- `general-declaration.ts` owns E42/E43 electronic General Declaration display
+  and completeness metadata. It keeps Q1/Q2 out of Add Item, gives only Q3-Q12
+  their conditional Description/Quantity/Amount-in-USD repeaters, makes a
+  positive displayed goods amount require a Q3-Q12 Yes, clears rows when their
+  parent answer hides them, and treats AIR E45 attachments as
+  visible-but-not-required while signature remains an action requirement.
 - `option-labels.ts` localizes the official country, airline, and Philippine
   arrival-port codes for the Chinese form column. It must preserve the official
   option value and keep every official arrival-port code one-to-one and unique.

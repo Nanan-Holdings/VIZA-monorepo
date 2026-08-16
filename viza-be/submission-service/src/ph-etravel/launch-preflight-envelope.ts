@@ -77,7 +77,12 @@ const CODE_CANONICAL_KEYS: Record<PhEtravelLaunchPreflightCode, readonly string[
     "currency.needs_currency_declaration",
     "currency.owner_not_applicable",
   ],
+  ph_etravel_launch_goods_amount_checklist_required: [
+    "customs.amount_of_goods_acquired",
+    "customs.check_lists_3_to_12",
+  ],
   ph_etravel_launch_attachment_review_required: ["attachments.travel_document"],
+  ph_etravel_launch_customs_signature_review_required: ["customs.signature"],
   ph_etravel_launch_final_result_recovery_required: [
     "result.official_reference",
     "result.reference_qr_render",

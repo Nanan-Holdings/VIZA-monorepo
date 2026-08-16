@@ -836,6 +836,12 @@ async function uploadEgovProfilePhoto(
     base64: filePayload.buffer.toString("base64"),
   };
   const uploadDirectlyAndInjectUrl = async (): Promise<boolean> => {
+    const uploadUrl = process.env.PH_ETRAVEL_EGOV_UPLOAD_URL?.trim();
+    const uploadApiKey = process.env.PH_ETRAVEL_EGOV_UPLOAD_API_KEY?.trim();
+    if (!uploadUrl || !uploadApiKey) {
+      logs.push("ph_etravel_egov_profile_photo_direct_upload_not_configured");
+      return false;
+    }
     const formData = new FormData();
     formData.append(
       "file",
@@ -843,11 +849,11 @@ async function uploadEgovProfilePhoto(
       filePayload.name,
     );
     const uploadResponse = await fetch(
-      process.env.PH_ETRAVEL_EGOV_UPLOAD_URL?.trim() || "https://egov-upload-ws.e.gov.ph/ext/etravel/upload",
+      uploadUrl,
       {
         method: "POST",
         headers: {
-          "X-Api-Key": process.env.PH_ETRAVEL_EGOV_UPLOAD_API_KEY?.trim() || "3fcc23fb808f43b4b474f478c62e035d",
+          "X-Api-Key": uploadApiKey,
         },
         body: formData,
       },

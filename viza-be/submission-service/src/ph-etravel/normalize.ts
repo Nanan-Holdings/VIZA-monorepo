@@ -162,6 +162,8 @@ export interface PhEtravelGoodsItem {
   description: string;
   quantity: string;
   amountUsd: string;
+  /** Local VIZA association; never an inferred official portal field. */
+  checklistItemNumber?: number;
 }
 
 export interface PhEtravelCurrencyItem {
@@ -187,7 +189,11 @@ export type PhEtravelCurrencyTransportMethod =
   | "is_shipped_thru_courier_service";
 
 function text(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
+  return typeof value === "string"
+    ? value.trim()
+    : typeof value === "number" && Number.isFinite(value)
+      ? String(value)
+      : "";
 }
 
 function firstText(values: unknown[]): string {
@@ -490,18 +496,41 @@ function repeatedObjectRows(
   ];
 }
 
-function normalizeGoodsItems(answers: Record<string, unknown>): PhEtravelGoodsItem[] {
+function normalizeGoodsItems(
+  answers: Record<string, unknown>,
+  positiveChecklistItemNumbers: number[],
+): PhEtravelGoodsItem[] {
   return repeatedObjectRows(answers, ["goods_items", "customs_goods_items"], {
     description: ["description", "goods_item_description", "customs_goods_item_description"],
     quantity: ["quantity", "goods_item_quantity", "customs_goods_item_quantity"],
     amountUsd: ["amount_usd", "amountInUsd", "amount", "value", "goods_item_value", "goods_item_amount_usd", "goods_item_amount"],
+    checklistItemNumber: ["checklist_item_number", "customs_checklist_item_number", "general_declaration_item_number"],
   })
     .filter((row) => row.description || row.quantity || row.amountUsd)
-    .map((row) => ({
-      description: row.description ?? "",
-      quantity: row.quantity ?? "",
-      amountUsd: row.amountUsd ?? "",
-    }));
+    .map((row) => {
+      const explicitlyAssociated = Number(row.checklistItemNumber);
+      const checklistItemNumber = Number.isInteger(explicitlyAssociated) &&
+        explicitlyAssociated >= 3 && explicitlyAssociated <= 12 &&
+        positiveChecklistItemNumbers.includes(explicitlyAssociated)
+        ? explicitlyAssociated
+        // A legacy aggregate row is unambiguous only when exactly one goods
+        // checklist item is Yes. Multiple Yes branches must carry their own
+        // local association instead of being assigned by runner guesswork.
+        : positiveChecklistItemNumbers.length === 1
+          ? positiveChecklistItemNumbers[0]
+          : undefined;
+      return {
+        description: row.description ?? "",
+        quantity: row.quantity ?? "",
+        amountUsd: row.amountUsd ?? "",
+        ...(checklistItemNumber ? { checklistItemNumber } : {}),
+      };
+    });
+}
+
+function hasPositiveGoodsAmount(value: unknown): boolean {
+  const normalized = text(value).replace(/,/g, "");
+  return /^\d+(?:\.\d+)?$/.test(normalized) && Number(normalized) > 0;
 }
 
 function normalizeCurrencyItems(answers: Record<string, unknown>): PhEtravelCurrencyItem[] {
@@ -512,8 +541,11 @@ function normalizeCurrencyItems(answers: Record<string, unknown>): PhEtravelCurr
   })
     .filter((row) => row.currency || row.monetaryInstrument || row.amount)
     .map((row) => ({
-      currency: row.currency ?? "",
-      monetaryInstrument: row.monetaryInstrument ?? "",
+      // E13/E45 establish the public API numeric id as the only confirmed
+      // submission-code source. Rendered labels and client list ids are not
+      // portable official values.
+      currency: /^\d+$/.test(row.currency ?? "") ? row.currency ?? "" : "",
+      monetaryInstrument: /^\d+$/.test(row.monetaryInstrument ?? "") ? row.monetaryInstrument ?? "" : "",
       amount: row.amount ?? "",
     }));
 }
@@ -685,7 +717,10 @@ export function normalizePhEtravelPortalPayload(
   const hasCurrencyChecklistPositive = generalDeclarationResponses.some((item) => item.itemNumber <= 2 && item.response);
   const hasDutiableGoods = boolAnswer(answers.has_dutiable_goods) || hasGoodsChecklistPositive;
   const hasCurrencyOverThreshold = boolAnswer(answers.has_currency_over_threshold) || hasCurrencyChecklistPositive;
-  const goodsItems = normalizeGoodsItems(answers);
+  const positiveGoodsChecklistItemNumbers = generalDeclarationResponses
+    .filter((item) => item.itemNumber >= 3 && item.response)
+    .map((item) => item.itemNumber);
+  const goodsItems = normalizeGoodsItems(answers, positiveGoodsChecklistItemNumbers);
   const currencyItems = normalizeCurrencyItems(answers);
   const currencySources = repeatedTexts(answers, ["currency_source", "currency_sources", "source_of_currency"]);
   const currencyTransportPurposes = repeatedTexts(answers, [
@@ -698,10 +733,12 @@ export function normalizePhEtravelPortalPayload(
     answers.currency_transfer_method,
     answers.currency_physical_or_courier,
   ]));
-  const hasCompleteGoodsItem = goodsItems.some((item) => item.description && item.quantity && item.amountUsd);
   const hasCompleteCurrencyItem = currencyItems.some((item) => item.currency && item.monetaryInstrument && item.amount);
-  if (generalDeclarationResponses.some((item) => item.itemNumber === 12 && item.response) && !hasCompleteGoodsItem) {
-    missing.push("goods_items");
+  if (
+    hasPositiveGoodsAmount(firstText([answers.amount_of_goods_amount, answers.goods_amount])) &&
+    positiveGoodsChecklistItemNumbers.length === 0
+  ) {
+    missing.push("customs_checklist_3_to_12");
   }
   if (hasCurrencyChecklistPositive || boolAnswer(answers.has_currency_to_declare)) {
     if (!hasCompleteCurrencyItem) missing.push("currency_items");
