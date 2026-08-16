@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.spec.ts\"",
     "test:local-helpers": "node --test scripts/__tests__/start-local-official-helpers.test.mjs",
+    "test:fly-deploy": "node --test scripts/__tests__/fly-country-deploy-contract.test.mjs",
     "install-browsers": "playwright install chromium",
     "recon:uk": "ts-node src/uk/form-recon.ts",
     "seed:edward-creds": "ts-node scripts/seed-edward-test-credentials.ts",

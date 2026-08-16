@@ -133,6 +133,9 @@ filling and one-shot submission for the applicant.
   country workers are legacy/operator-explicit only. `/deploy-ready` blocks
   real queue claims and active user work, but does not treat interruptible
   maintenance queries as protected browser work.
+- `scripts/__tests__/fly-country-deploy-contract.test.mjs`: read-only deployment
+  contract test for supported country workers, app naming, queue mode, and
+  capability-secret routing. It never calls Fly or reads secret values.
 - `src/submission-queue-claim.ts`: service-role RPC wrapper around
   `claim_submission_queue_batch`, which atomically claims legacy
   `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple
