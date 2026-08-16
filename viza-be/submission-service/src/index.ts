@@ -223,6 +223,7 @@ import { evaluateVietnamPrearrivalSubmissionWindow } from "./vn-prearrival/date-
 import { VnPrearrivalPortalError, runVietnamPrearrivalPortalSubmission } from "./vn-prearrival/runner";
 import {
   choosePhEtravelAccountPlan,
+  generatePhEtravelAccountPassword,
   loadPhEtravelAccount,
   phEtravelAccountEmailFromManagedAlias,
   upsertPhEtravelAccount,
@@ -3654,7 +3655,7 @@ async function loadOrCreatePhEtravelAccountPlan(input: {
   // Derived local-parts are intentionally rejected as unknown aliases, so the
   // official account must use the managed address verbatim for OTP delivery.
   const aliasEmail = phEtravelAccountEmailFromManagedAlias(alias.alias);
-  const generatedPassword = `VizaPH-${randomBytes(9).toString("base64url")}9!`;
+  const generatedPassword = generatePhEtravelAccountPassword();
   const generatedMpin = generatePhEtravelMpin();
 
   return choosePhEtravelAccountPlan({

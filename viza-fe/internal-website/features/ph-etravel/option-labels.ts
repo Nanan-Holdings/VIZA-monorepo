@@ -192,6 +192,26 @@ export function localizePhEtravelOptions(
   options: VisaFormFieldOption[] | null,
 ): VisaFormFieldOption[] | null {
   if (!options) return null;
+  if (fieldName === "passport_holder_type") {
+    return options.map((option) => {
+      if (typeof option === "string") return option;
+      if (option.value === "FILIPINO") {
+        return {
+          ...option,
+          text: "PHILIPPINE PASSPORT Holder",
+          label_en: "PHILIPPINE PASSPORT Holder",
+        };
+      }
+      if (option.value === "FOREIGNER") {
+        return {
+          ...option,
+          text: "FOREIGN PASSPORT Holder",
+          label_en: "FOREIGN PASSPORT Holder",
+        };
+      }
+      return option;
+    });
+  }
   if (COUNTRY_FIELDS.has(fieldName)) return options.map(localizeCountry);
   if (fieldName === "airline_name") {
     return localizeMappedOptions(options, PH_ETRAVEL_AIRLINE_LABELS_ZH);

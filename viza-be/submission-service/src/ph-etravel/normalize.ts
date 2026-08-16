@@ -1,6 +1,12 @@
 import type { SubmissionPayload } from "../country-submissions/types";
 import { normalizePhEtravelCurrencyOwnerBranch } from "./attachment-owner-contract";
 import { evaluatePhEtravelSubmissionWindow } from "./date-window";
+import {
+  normalizePhEtravelResidenceAddress,
+  PhEtravelResidenceValidationError,
+  type PhEtravelResidenceAddress,
+} from "./residence-address";
+import type { PhEtravelRegistrationConsentAuthorization } from "./registration-start";
 
 export const PH_ETRAVEL_OFFICIAL_PORTAL_URL = "https://etravel.gov.ph";
 
@@ -44,6 +50,7 @@ export interface PhEtravelPortalPayload {
   nationality: string;
   countryOfBirth: string;
   countryOfResidence: string;
+  residence: PhEtravelResidenceAddress;
   residenceAddress: string | null;
   residenceAddressLine1?: string | null;
   residenceAddressLine2?: string | null;
@@ -62,6 +69,7 @@ export interface PhEtravelPortalPayload {
     travellerType: "AIRCRAFT_PASSENGER" | "VESSEL_PASSENGER";
   } | null;
   registrationFor: string | null;
+  registrationConsent: PhEtravelRegistrationConsentAuthorization | null;
   isSpecialFlight: boolean;
   isDisembarking: boolean | null;
   travellerType: string | null;
@@ -154,6 +162,8 @@ export interface PhEtravelGoodsItem {
   description: string;
   quantity: string;
   amountUsd: string;
+  /** Local VIZA association; never an inferred official portal field. */
+  checklistItemNumber?: number;
 }
 
 export interface PhEtravelCurrencyItem {
@@ -179,7 +189,11 @@ export type PhEtravelCurrencyTransportMethod =
   | "is_shipped_thru_courier_service";
 
 function text(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
+  return typeof value === "string"
+    ? value.trim()
+    : typeof value === "number" && Number.isFinite(value)
+      ? String(value)
+      : "";
 }
 
 function firstText(values: unknown[]): string {
@@ -188,6 +202,20 @@ function firstText(values: unknown[]): string {
     if (normalized) return normalized;
   }
   return "";
+}
+
+function registrationConsentFromMetadata(
+  metadata: Record<string, unknown>,
+): PhEtravelRegistrationConsentAuthorization | null {
+  const candidate = metadata.phEtravelRegistrationConsent ?? metadata.ph_etravel_registration_consent;
+  if (!candidate || typeof candidate !== "object") return null;
+  const record = candidate as Record<string, unknown>;
+  if (record.accepted !== true) return null;
+  const acceptedAt = text(record.acceptedAt ?? record.accepted_at);
+  const version = text(record.version ?? record.consent_version);
+  const source = text(record.source ?? record.audit_source);
+  if (!acceptedAt || !version || !source) return null;
+  return { accepted: true, acceptedAt, version, source };
 }
 
 function normalizeIsoDate(value: unknown): string {
@@ -260,6 +288,19 @@ function requireFirstText(values: unknown[], key: string, missing: string[]): st
 function boolAnswer(value: unknown): boolean {
   const normalized = text(value).toLowerCase();
   return ["yes", "y", "true", "1", "on", "checked"].includes(normalized);
+}
+
+function requiredYesNoAnswer(
+  answers: Record<string, unknown>,
+  keys: string[],
+  missingKey: string,
+  missing: string[],
+): boolean {
+  const raw = firstText(keys.map((key) => answers[key])).toLowerCase();
+  if (["yes", "y", "true", "1", "on", "checked"].includes(raw)) return true;
+  if (["no", "n", "false", "0", "off", "unchecked"].includes(raw)) return false;
+  missing.push(missingKey);
+  return false;
 }
 
 function normalizeCode(value: unknown): string {
@@ -455,18 +496,41 @@ function repeatedObjectRows(
   ];
 }
 
-function normalizeGoodsItems(answers: Record<string, unknown>): PhEtravelGoodsItem[] {
+function normalizeGoodsItems(
+  answers: Record<string, unknown>,
+  positiveChecklistItemNumbers: number[],
+): PhEtravelGoodsItem[] {
   return repeatedObjectRows(answers, ["goods_items", "customs_goods_items"], {
     description: ["description", "goods_item_description", "customs_goods_item_description"],
     quantity: ["quantity", "goods_item_quantity", "customs_goods_item_quantity"],
     amountUsd: ["amount_usd", "amountInUsd", "amount", "value", "goods_item_value", "goods_item_amount_usd", "goods_item_amount"],
+    checklistItemNumber: ["checklist_item_number", "customs_checklist_item_number", "general_declaration_item_number"],
   })
     .filter((row) => row.description || row.quantity || row.amountUsd)
-    .map((row) => ({
-      description: row.description ?? "",
-      quantity: row.quantity ?? "",
-      amountUsd: row.amountUsd ?? "",
-    }));
+    .map((row) => {
+      const explicitlyAssociated = Number(row.checklistItemNumber);
+      const checklistItemNumber = Number.isInteger(explicitlyAssociated) &&
+        explicitlyAssociated >= 3 && explicitlyAssociated <= 12 &&
+        positiveChecklistItemNumbers.includes(explicitlyAssociated)
+        ? explicitlyAssociated
+        // A legacy aggregate row is unambiguous only when exactly one goods
+        // checklist item is Yes. Multiple Yes branches must carry their own
+        // local association instead of being assigned by runner guesswork.
+        : positiveChecklistItemNumbers.length === 1
+          ? positiveChecklistItemNumbers[0]
+          : undefined;
+      return {
+        description: row.description ?? "",
+        quantity: row.quantity ?? "",
+        amountUsd: row.amountUsd ?? "",
+        ...(checklistItemNumber ? { checklistItemNumber } : {}),
+      };
+    });
+}
+
+function hasPositiveGoodsAmount(value: unknown): boolean {
+  const normalized = text(value).replace(/,/g, "");
+  return /^\d+(?:\.\d+)?$/.test(normalized) && Number(normalized) > 0;
 }
 
 function normalizeCurrencyItems(answers: Record<string, unknown>): PhEtravelCurrencyItem[] {
@@ -477,8 +541,11 @@ function normalizeCurrencyItems(answers: Record<string, unknown>): PhEtravelCurr
   })
     .filter((row) => row.currency || row.monetaryInstrument || row.amount)
     .map((row) => ({
-      currency: row.currency ?? "",
-      monetaryInstrument: row.monetaryInstrument ?? "",
+      // E13/E45 establish the public API numeric id as the only confirmed
+      // submission-code source. Rendered labels and client list ids are not
+      // portable official values.
+      currency: /^\d+$/.test(row.currency ?? "") ? row.currency ?? "" : "",
+      monetaryInstrument: /^\d+$/.test(row.monetaryInstrument ?? "") ? row.monetaryInstrument ?? "" : "",
       amount: row.amount ?? "",
     }));
 }
@@ -588,6 +655,9 @@ export function normalizePhEtravelPortalPayload(
 
   const answers = payload.countrySpecific;
   const missing: string[] = [];
+  if (payload.metadata.runnerJob === true && normalizeCode(answers.travel_type) !== "ARRIVAL") {
+    missing.push("travel_type");
+  }
   const unsupported = !isDeparture ? unsupportedArrivalBranchFields(answers) : [];
   if (unsupported.length > 0) {
     throw new PhEtravelPortalValidationError(
@@ -647,7 +717,10 @@ export function normalizePhEtravelPortalPayload(
   const hasCurrencyChecklistPositive = generalDeclarationResponses.some((item) => item.itemNumber <= 2 && item.response);
   const hasDutiableGoods = boolAnswer(answers.has_dutiable_goods) || hasGoodsChecklistPositive;
   const hasCurrencyOverThreshold = boolAnswer(answers.has_currency_over_threshold) || hasCurrencyChecklistPositive;
-  const goodsItems = normalizeGoodsItems(answers);
+  const positiveGoodsChecklistItemNumbers = generalDeclarationResponses
+    .filter((item) => item.itemNumber >= 3 && item.response)
+    .map((item) => item.itemNumber);
+  const goodsItems = normalizeGoodsItems(answers, positiveGoodsChecklistItemNumbers);
   const currencyItems = normalizeCurrencyItems(answers);
   const currencySources = repeatedTexts(answers, ["currency_source", "currency_sources", "source_of_currency"]);
   const currencyTransportPurposes = repeatedTexts(answers, [
@@ -660,10 +733,12 @@ export function normalizePhEtravelPortalPayload(
     answers.currency_transfer_method,
     answers.currency_physical_or_courier,
   ]));
-  const hasCompleteGoodsItem = goodsItems.some((item) => item.description && item.quantity && item.amountUsd);
   const hasCompleteCurrencyItem = currencyItems.some((item) => item.currency && item.monetaryInstrument && item.amount);
-  if (generalDeclarationResponses.some((item) => item.itemNumber === 12 && item.response) && !hasCompleteGoodsItem) {
-    missing.push("goods_items");
+  if (
+    hasPositiveGoodsAmount(firstText([answers.amount_of_goods_amount, answers.goods_amount])) &&
+    positiveGoodsChecklistItemNumbers.length === 0
+  ) {
+    missing.push("customs_checklist_3_to_12");
   }
   if (hasCurrencyChecklistPositive || boolAnswer(answers.has_currency_to_declare)) {
     if (!hasCompleteCurrencyItem) missing.push("currency_items");
@@ -680,24 +755,38 @@ export function normalizePhEtravelPortalPayload(
       if (!normalizeOptionalIsoDate(answers.airway_bill_date)) missing.push("airway_bill_date");
     }
   }
-  const hasHealthSymptoms =
-    boolAnswer(answers.has_health_symptoms) ||
-    boolAnswer(answers.has_recent_travel_history_30d) ||
-    boolAnswer(answers.has_exposure_to_sick_person_30d) ||
-    boolAnswer(answers.has_been_sick_30d);
-  const hasRecentTravelHistory30d = boolAnswer(answers.has_recent_travel_history_30d);
-  const hasExposureToSickPerson30d = boolAnswer(answers.has_exposure_to_sick_person_30d);
-  const hasBeenSick30d = boolAnswer(answers.has_been_sick_30d);
+  const hasRecentTravelHistory30d = requiredYesNoAnswer(
+    answers,
+    ["has_recent_travel_history_30d", "with_recent_travel_history"],
+    "has_recent_travel_history_30d",
+    missing,
+  );
+  const hasExposureToSickPerson30d = requiredYesNoAnswer(
+    answers,
+    ["has_exposure_to_sick_person_30d", "is_with_history_exposure"],
+    "has_exposure_to_sick_person_30d",
+    missing,
+  );
+  const hasBeenSick30d = requiredYesNoAnswer(
+    answers,
+    ["has_been_sick_30d", "is_sicked_within_thirty_days"],
+    "has_been_sick_30d",
+    missing,
+  );
+  const hasHealthSymptoms = hasRecentTravelHistory30d || hasExposureToSickPerson30d || hasBeenSick30d;
   const repeatedValues = (base: string): string[] => Object.entries(answers)
     .filter(([key, value]) => (key === base || key.startsWith(`${base}__`)) && text(value))
     .sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true }))
-    .map(([, value]) => text(value));
+    .map(([, value]) => text(value))
+    .filter((value, index, values) => values.indexOf(value) === index);
   const visitedCountries30d = hasRecentTravelHistory30d ? repeatedValues("visited_country_30d") : [];
   const sicknessSymptoms = hasBeenSick30d ? repeatedValues("sickness_symptom") : [];
-  const firstName = firstText([answers.first_name]);
-  const middleName = firstText([answers.middle_name]) || null;
-  const lastName = firstText([answers.last_name]) || null;
-  const suffix = firstText([answers.suffix]) || null;
+  if (hasRecentTravelHistory30d && visitedCountries30d.length === 0) missing.push("visited_country_30d");
+  if (hasBeenSick30d && sicknessSymptoms.length === 0) missing.push("sickness_symptom");
+  const firstName = firstText([answers.first_name, answers.given_name]);
+  const middleName = firstText([answers.middle_name, answers.middle_names]) || null;
+  const lastName = firstText([answers.last_name, answers.family_name, answers.surname]) || null;
+  const suffix = firstText([answers.suffix, answers.extension_name]) || null;
   const fullName = combineNameParts({
     firstName,
     middleName,
@@ -705,7 +794,7 @@ export function normalizePhEtravelPortalPayload(
     suffix,
     fallback: firstText([answers.full_name, payload.personal.fullName]),
   });
-  if (!fullName) missing.push("first_name");
+  if (!firstName) missing.push("first_name");
   const hasTransit = boolAnswer(answers.with_transit);
   const isSeaArrival = !isDeparture && transportType === "SEA";
   const hasDisembarkingAnswer = text(answers.is_disembarking) !== "";
@@ -743,9 +832,17 @@ export function normalizePhEtravelPortalPayload(
       )
     : null;
 
+  let residence: PhEtravelResidenceAddress | null = null;
+  try {
+    residence = normalizePhEtravelResidenceAddress(answers, payload.personal.address);
+  } catch (error) {
+    if (!(error instanceof PhEtravelResidenceValidationError)) throw error;
+    missing.push(...error.missingFields);
+  }
+
   const mapped = {
     fullName,
-    firstName: firstName || fullName.split(/\s+/)[0] || fullName,
+    firstName,
     middleName,
     lastName,
     suffix,
@@ -774,16 +871,9 @@ export function normalizePhEtravelPortalPayload(
       missing,
     ),
     nationality: requireFirstText([answers.nationality, payload.personal.nationality], "nationality", missing),
-    countryOfBirth: requireFirstText(
-      [answers.country_of_birth, answers.place_of_birth_country, payload.personal.nationality],
-      "country_of_birth",
-      missing,
-    ),
-    countryOfResidence: requireFirstText(
-      [answers.country_of_residence, answers.residence_country],
-      "country_of_residence",
-      missing,
-    ),
+    countryOfBirth: requireFirstText([answers.country_of_birth], "country_of_birth", missing),
+    countryOfResidence: requireFirstText([answers.country_of_residence], "country_of_residence", missing),
+    residence: residence as PhEtravelResidenceAddress,
     residenceAddressLine1: firstText([
       answers.residence_address_line1,
       answers.residential_address,
@@ -810,11 +900,7 @@ export function normalizePhEtravelPortalPayload(
         answers.home_address_line2,
       ]),
     ].filter(Boolean).join(", ") || null,
-    occupation: requireFirstText(
-      [answers.occupation, answers.current_occupation, payload.personal.occupation],
-      "occupation",
-      missing,
-    ),
+    occupation: requireFirstText([answers.occupation, payload.personal.occupation], "occupation", missing),
     dateOfBirth: requireFirstText([answers.date_of_birth, payload.personal.dateOfBirth], "date_of_birth", missing),
     sex: requireFirstText([answers.sex, payload.personal.gender], "sex", missing),
     emailAddress: requireFirstText([answers.email_address, payload.personal.email], "email_address", missing),
@@ -837,6 +923,7 @@ export function normalizePhEtravelPortalPayload(
       travellerType: arrivalTravellerType as "AIRCRAFT_PASSENGER" | "VESSEL_PASSENGER",
     },
     registrationFor: firstText([answers.registration_for]) || null,
+    registrationConsent: registrationConsentFromMetadata(payload.metadata),
     isSpecialFlight: boolAnswer(answers.is_special_flight) || text(answers.flight_number).toUpperCase() === "SPECIAL FLIGHT",
     isDisembarking,
     travellerType: isDeparture ? firstText([answers.traveller_type]) || null : arrivalTravellerType,
@@ -897,7 +984,7 @@ export function normalizePhEtravelPortalPayload(
       ? requireFirstText([answers.destination_transit_airport], "destination_transit_airport", missing)
       : null,
     destinationCountry: isDeparture
-      ? requireFirstText([answers.destination_country, answers.next_destination_country], "destination_country", missing)
+      ? requireFirstText([answers.destination_country], "destination_country", missing)
       : isTransitDestination
         ? requireFirstText([answers.destination_country], "destination_country", missing)
         : null,

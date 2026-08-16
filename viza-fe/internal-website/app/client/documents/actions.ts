@@ -387,17 +387,6 @@ const PH_ETRAVEL_REQUIREMENTS: DocumentRequirement[] = [
     accept: [".jpg", ".jpeg", ".png"],
     source: "fallback",
   },
-  {
-    key: "customs_signature_file",
-    documentType: "customs_signature_file",
-    labelEn: "For Customs — Declaration Signature",
-    labelZh: "海关申报电子签名",
-    description: "Upload the declaration signature image or PDF used for the Philippine customs declaration.",
-    required: true,
-    sortOrder: 20,
-    accept: [".pdf", ".jpg", ".jpeg", ".png"],
-    source: "fallback",
-  },
 ];
 
 const INDONESIA_B1_EVOA_REQUIREMENTS: DocumentRequirement[] = [

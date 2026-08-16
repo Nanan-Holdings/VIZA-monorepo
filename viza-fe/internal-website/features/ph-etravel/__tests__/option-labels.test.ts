@@ -33,4 +33,16 @@ describe("Philippines eTravel Chinese option labels", () => {
       expect.objectContaining({ value: "SG", label_zh: "新加坡" }),
     ]);
   });
+
+  test("uses the observed passport-holder labels without changing official values", () => {
+    const localized = localizePhEtravelOptions("passport_holder_type", [
+      { value: "FILIPINO", text: "PHILIPPINE PASSPORT" },
+      { value: "FOREIGNER", text: "FOREIGN PASSPORT" },
+    ]);
+
+    expect(localized).toEqual([
+      expect.objectContaining({ value: "FILIPINO", text: "PHILIPPINE PASSPORT Holder" }),
+      expect.objectContaining({ value: "FOREIGNER", text: "FOREIGN PASSPORT Holder" }),
+    ]);
+  });
 });

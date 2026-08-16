@@ -78,6 +78,30 @@ test("E17 blocks AIR Special Flight and positive Health with canonical keys only
   assert.doesNotMatch(JSON.stringify(result), /synthetic-flight-value|synthetic-country-value/);
 });
 
+test("E42/E43 preflight keeps Q1/Q2 on Currency and blocks positive goods amount or attachments/signature safely", () => {
+  const currencyOnly = evaluatePhEtravelArrivalLaunchPreflight({
+    payload: arrivalPayload({ customs_checklist_1: "yes" }),
+    finalSubmitEnabled: false,
+  });
+  assert.ok(blockingCodes(currencyOnly).includes("ph_etravel_launch_currency_positive_review_required"));
+  assert.equal(blockingCodes(currencyOnly).includes("ph_etravel_launch_attachment_review_required"), false);
+  assert.equal(blockingCodes(currencyOnly).includes("ph_etravel_launch_customs_signature_review_required"), false);
+
+  const goods = evaluatePhEtravelArrivalLaunchPreflight({
+    payload: arrivalPayload({ customs_checklist_3: "yes" }),
+    finalSubmitEnabled: false,
+  });
+  assert.ok(blockingCodes(goods).includes("ph_etravel_launch_attachment_review_required"));
+  assert.ok(blockingCodes(goods).includes("ph_etravel_launch_customs_signature_review_required"));
+
+  const amountWithoutGoodsAnswer = evaluatePhEtravelArrivalLaunchPreflight({
+    payload: arrivalPayload({ amount_of_goods_amount: "1000", customs_checklist_1: "yes" }),
+    finalSubmitEnabled: false,
+  });
+  assert.ok(blockingCodes(amountWithoutGoodsAnswer).includes("ph_etravel_launch_goods_amount_checklist_required"));
+  assert.ok(missingKeys(amountWithoutGoodsAnswer).includes("customs.check_lists_3_to_12"));
+});
+
 test("E17 SEA false/manual-or-electronic and positive customs paths remain isolated and deduplicated", () => {
   const result = evaluatePhEtravelArrivalLaunchPreflight({
     payload: arrivalPayload({

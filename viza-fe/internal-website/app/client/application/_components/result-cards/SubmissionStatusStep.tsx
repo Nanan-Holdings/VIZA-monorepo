@@ -362,8 +362,8 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
           {successful
             ? result.country === "PH"
               ? isZh
-                ? "菲律宾 eTravel 官网已确认提交。请保存下方官方确认页截图；如果本次记录包含独立 QR，二维码会优先显示在参考号旁。"
-                : "The Philippines eTravel portal confirmed the submission. Save the official confirmation screenshot below; when a standalone QR is available, it appears beside the reference number."
+                ? "菲律宾 eTravel 官网已确认提交。下方参考号来自权威登记记录，旁边显示的是与该参考号对应并已验证的二维码；请同时保存官方确认页截图。"
+                : "The Philippines eTravel portal confirmed the submission. The reference below comes from the authoritative registration record, and the adjacent QR code is the verified match for that reference. Save the official confirmation screenshot as well."
               : result.portalResponseSummary
             : vietnamFinalizing
               ? isZh

@@ -19,8 +19,14 @@ const SEA_STAY_FIELD_NAMES = [
 ] as const;
 
 const HEALTH_CLEAR_RULES: Array<{ when: string; clear: readonly string[] }> = [
-  { when: "has_recent_travel_history_30d", clear: ["visited_countries_30d", "visited_countries"] },
-  { when: "has_been_sick_30d", clear: ["sickness_symptoms", "symptoms"] },
+  {
+    when: "has_recent_travel_history_30d",
+    clear: ["visited_country_30d", "visited_countries_30d", "visited_countries"],
+  },
+  {
+    when: "has_been_sick_30d",
+    clear: ["sickness_symptom", "sickness_symptoms", "symptoms"],
+  },
 ];
 
 function isTrue(value: string | undefined): boolean {

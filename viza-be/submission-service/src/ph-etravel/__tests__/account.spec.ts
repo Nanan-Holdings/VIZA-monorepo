@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   choosePhEtravelAccountPlan,
+  generatePhEtravelAccountPassword,
+  isPhEtravelAccountPasswordCompliant,
   isMissingPhEtravelAccountsTableError,
   phEtravelAccountEmailFromManagedAlias,
 } from "../account";
@@ -11,6 +13,17 @@ test("PH eTravel uses the exact active managed alias for official email delivery
     phEtravelAccountEmailFromManagedAlias("  APPL-ACTIVE@HAGGSTORM.COM "),
     "appl-active@haggstorm.com",
   );
+});
+
+test("PH eTravel generated account passwords satisfy the observed create-password policy", () => {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    assert.equal(isPhEtravelAccountPasswordCompliant(generatePhEtravelAccountPassword()), true);
+  }
+  assert.equal(isPhEtravelAccountPasswordCompliant("lowercase-only-password9!"), false);
+  assert.equal(isPhEtravelAccountPasswordCompliant("UPPERCASE-ONLY-PASSWORD9!"), false);
+  assert.equal(isPhEtravelAccountPasswordCompliant("NoSymbolPassword9"), false);
+  assert.equal(isPhEtravelAccountPasswordCompliant("NoNumberPassword!"), false);
+  assert.equal(isPhEtravelAccountPasswordCompliant("Aa9!short"), false);
 });
 
 test("choosePhEtravelAccountPlan reuses an existing PH eTravel account", () => {
