@@ -265,6 +265,16 @@ async function main(): Promise<void> {
       }
       console.log("[vn-pre-card] Fresh official profile captured and linked to managed alias tracking.");
       createdFreshProfile = true;
+      if (process.env.VN_PRE_CARD_STOP_AFTER_REGISTRATION === "true") {
+        console.log(JSON.stringify({
+          status: "registration_checkpoint_ready",
+          registrationCodeCaptured: true,
+          managedAliasTrackingLinked: true,
+          cardEntryReady: false,
+          paymentSubmitted: false,
+        }, null, 2));
+        return;
+      }
     }
     let resumeRepairAnswers: Record<string, string> | undefined = input.repairAnswers;
     if (createdFreshProfile || process.env.VN_PRE_CARD_SKIP_REPAIR === "true") {
