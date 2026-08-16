@@ -75,7 +75,9 @@ smoke-test helpers for the VIZA monorepo.
   `SUPABASE_SELF_HEAL_DRY_RUN=true` to exercise the decision path without
   calling the Management API restart endpoint.
 - `production-db-maintenance.mjs`: fail-closed production database maintenance
-  helper invoked only from the protected GitHub Environment. Its initial
-  preflight mode uses Supabase's read-only Management API endpoint and emits
-  aggregate queue/lease, cap, cron, migration-ledger, and strict-object
-  metadata without row payloads or credential values.
+  helper invoked only from the protected GitHub Environment. Preflight uses
+  Supabase's read-only Management API endpoint and emits aggregate queue/lease,
+  cap, cron, migration-ledger, and strict-object metadata without row payloads
+  or credential values. Pause is a separate exact-confirmation action that
+  atomically requires the approved cap/cron snapshot and zero live work before
+  pausing pool caps and unscheduling the Vietnam status cron.
