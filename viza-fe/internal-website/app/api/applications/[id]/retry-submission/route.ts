@@ -1070,6 +1070,43 @@ async function insertTaiwanRunnerJob(input: {
   }
 }
 
+async function insertPhEtravelArrivalRunnerJob(input: {
+  applicationId: string;
+  now: string;
+}): Promise<RetryQueueInsertResult> {
+  try {
+    const result = await enqueueRunnerJob(input.applicationId, "philippines", {
+      correlationId: `ph-etravel-arrival:${input.applicationId}:${input.now}`,
+      maxAttempts: 1,
+      metadata: {
+        source: "retry-submission",
+        visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+        mode: "live_assisted",
+        queuedStage: "queued_for_ph_etravel_arrival_live",
+      },
+    });
+    return {
+      error: null,
+      jobId: result.id,
+      queueStatus: "phetravel_live_assisted_pending",
+      mode: "live_assisted",
+      provider: "philippines_etravel_live",
+      reusedExisting: !result.created,
+      supersededCount: 0,
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : String(error),
+      jobId: null,
+      queueStatus: null,
+      mode: null,
+      provider: null,
+      reusedExisting: false,
+      supersededCount: 0,
+    };
+  }
+}
+
 async function getTaiwanRetryBlocker(
   admin: ReturnType<typeof createAdminClient>,
   applicationId: string,
@@ -1722,6 +1759,7 @@ export async function POST(
 
   let scheduledResult: Record<string, unknown> | null = null;
   let scheduledFor: string | null = null;
+  let enqueuePhEtravelArrivalRunnerJob = false;
 
   if (mode === "live_assisted") {
     const supportsLiveAssisted =
@@ -1931,20 +1969,13 @@ export async function POST(
           { status: scheduleDecision.status },
         );
       }
-      // The approved runner_job producer validates its country against the
-      // shared consumer dispatch list. Philippines is not present in that
-      // contract yet, so fail closed instead of falling back to submission_queue.
-      return NextResponse.json(
-        {
-          error: phEtravelUserFacingError({ code: "runner_contract_unavailable" }),
-          code: "runner_contract_unavailable",
-          scheduledFor:
-            scheduleDecision.action === "schedule"
-              ? scheduleDecision.earliestSubmissionDate
-              : null,
-        },
-        { status: 503 },
-      );
+      if (scheduleDecision.action === "schedule") {
+        queueStatus = "phetravel_live_assisted_scheduled";
+        scheduledResult = scheduleDecision.result;
+        scheduledFor = scheduleDecision.earliestSubmissionDate;
+      } else {
+        enqueuePhEtravelArrivalRunnerJob = true;
+      }
     }
     if (isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type)) {
       const blocker = await getTaiwanRetryBlocker(admin, applicationId, Date.parse(now));
@@ -1969,12 +2000,16 @@ export async function POST(
   }
 
   const queueBackend: QueueBackend =
-    mode === "live_assisted" && isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type)
+    mode === "live_assisted" &&
+      (isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type) ||
+        enqueuePhEtravelArrivalRunnerJob)
       ? "runner_job"
       : "submission_queue";
 
   const queueResult = queueBackend === "runner_job"
-    ? await insertTaiwanRunnerJob({ applicationId, now })
+    ? enqueuePhEtravelArrivalRunnerJob
+      ? await insertPhEtravelArrivalRunnerJob({ applicationId, now })
+      : await insertTaiwanRunnerJob({ applicationId, now })
     : await insertRetryQueueRow(admin, {
         applicationId,
         queueStatus,
