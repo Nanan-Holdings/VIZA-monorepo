@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { chromium } from "@playwright/test";
 import {
   chooseVietnamReviewAction,
   classifyVietnamPortalSnapshot,
   checkpointForVietnamPortalState,
   extractVietnamRegistrationCode,
   isAutoAcknowledgeableVietnamPortalState,
+  readVietnamPortalSnapshot,
   shouldTryVietnamFallbackLanding,
   type VietnamPortalSnapshot,
 } from "../portal-state";
@@ -249,4 +251,25 @@ test("Vietnam portal state: registration code extraction is explicit", () => {
     classifyVietnamPortalSnapshot(snapshot({ registrationCode: "E240610ABC123" })),
     "registration_code_visible",
   );
+});
+
+test("Vietnam portal snapshot evaluates in a real browser under tsx", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <h1>Vietnam e-Visa official portal</h1>
+        <a href="https://evisa.gov.vn/e-visa/foreigners">Apply now</a>
+      </main>
+    `);
+
+    const result = await readVietnamPortalSnapshot(page);
+
+    assert.equal(result.hasBody, true);
+    assert.equal(result.hasApplyEntry, true);
+    assert.deepEqual(result.buttonTexts, []);
+  } finally {
+    await browser.close();
+  }
 });

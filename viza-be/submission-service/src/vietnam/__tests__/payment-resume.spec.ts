@@ -12,6 +12,7 @@ import {
   retryVietnamSearchCaptchaInFreshContexts,
   shouldRefreshVietnamSearchCaptchaBeforeFirstSolve,
   solveVietnamPaymentSearchCaptcha,
+  solveVietnamReviewCaptchaWithRetry,
   shouldRetryVietnamSearchAfterCriticalAssetFailure,
   VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS,
   waitForVietnamSearchSubmissionOutcome,
@@ -628,6 +629,77 @@ test("vn.payment-resume: waits beyond the old 1.6s window for a delayed Vue CAPT
   }
 });
 
+test("vn.payment-resume: retries a timed-out review CAPTCHA task without refreshing the stable challenge", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const budgets: number[] = [];
+    let refreshCalls = 0;
+    const result = await solveVietnamReviewCaptchaWithRetry(page, 200_000, {
+      solveAttempt: async (budgetMs) => {
+        budgets.push(budgetMs);
+        if (budgets.length === 1) {
+          return { solved: false, reason: `2captcha solve timed out after ${budgetMs}ms` };
+        }
+        return {
+          solved: true,
+          telemetry: {
+            solveId: "review-fixture",
+            durationMs: 10,
+            challengeFingerprint: "stable-review-challenge",
+            answerLength: 6,
+          },
+        };
+      },
+      refreshChallenge: async () => {
+        refreshCalls += 1;
+        return true;
+      },
+    });
+
+    assert.equal(result.solved, true);
+    assert.deepEqual(budgets, [120_000, 120_000]);
+    assert.equal(refreshCalls, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: refreshes the review challenge after an explicit unsolvable result", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    let solveCalls = 0;
+    let refreshCalls = 0;
+    const result = await solveVietnamReviewCaptchaWithRetry(page, 30_000, {
+      solveAttempt: async () => {
+        solveCalls += 1;
+        return solveCalls === 1
+          ? { solved: false, reason: "2captcha API error: ERROR_CAPTCHA_UNSOLVABLE" }
+          : {
+              solved: true,
+              telemetry: {
+                solveId: "review-refreshed",
+                durationMs: 10,
+                challengeFingerprint: "refreshed-review-challenge",
+                answerLength: 6,
+              },
+            };
+      },
+      refreshChallenge: async () => {
+        refreshCalls += 1;
+        return true;
+      },
+    });
+
+    assert.equal(result.solved, true);
+    assert.equal(solveCalls, 2);
+    assert.equal(refreshCalls, 1);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("vn.payment-resume: ignores a stale broken CAPTCHA node when Vue mounts a loaded replacement", async () => {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -1120,7 +1192,7 @@ test("vn.payment-resume: advances the default Vietnamese detail and payment step
       <button id="next">Tiếp tục</button>
       <script>
         document.querySelector('#next').addEventListener('click', () => {
-          document.body.innerHTML = '<label><input type="checkbox" /> Tôi đồng ý thanh toán</label><button id="pay">Thanh toán</button>';
+          document.body.innerHTML = '<p>Amount paid (USD): 25 USD</p><label><input type="checkbox" /> Tôi đồng ý thanh toán</label><button id="pay">Thanh toán</button>';
           document.querySelector('#pay').addEventListener('click', () => {
             document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
           });
@@ -1132,6 +1204,416 @@ test("vn.payment-resume: advances the default Vietnamese detail and payment step
 
     assert.match(await page.locator('body').innerText(), /Payment gateway/);
     assert.equal(await page.locator('input[type="checkbox"]').count(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: reports an officially rejected review CAPTCHA and rotates before retrying", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const challenge = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100"><text x="20" y="65" font-size="48">123456</text></svg>',
+    );
+    await page.setContent(`
+      <div class="ant-steps-item-process">Review application form</div>
+      <input id="basic_captcha" />
+      <img alt="captcha img" src="${challenge}" />
+    `);
+    await page.locator('img[alt="captcha img"]').evaluate((image) => {
+      if (image instanceof HTMLImageElement && image.complete) return;
+      return new Promise<void>((resolve) => image.addEventListener("load", () => resolve(), { once: true }));
+    });
+
+    let solveCalls = 0;
+    let submitCalls = 0;
+    let refreshCalls = 0;
+    let acceptedReports = 0;
+    let rejectedReports = 0;
+    await advanceOfficialFormToPayment(page, 20_000, undefined, {
+      solve: async () => {
+        solveCalls += 1;
+        return {
+          solved: true,
+          telemetry: {
+            solveId: `review-${solveCalls}`,
+            durationMs: 10,
+            challengeFingerprint: `challenge-${solveCalls}`,
+            answerLength: 6,
+          },
+        };
+      },
+      submit: async (currentPage) => {
+        submitCalls += 1;
+        if (submitCalls === 2) {
+          await currentPage.setContent(`
+            <p>Amount paid (USD): 25 USD</p>
+            <label><input id="agreement" type="checkbox" /> I agree to pay</label>
+            <button id="payment" class="ant-btn-disabled">Payment</button>
+            <script>
+              const agreement = document.querySelector('#agreement');
+              const payment = document.querySelector('#payment');
+              agreement.addEventListener('change', () => payment.classList.toggle('ant-btn-disabled', !agreement.checked));
+              payment.addEventListener('click', () => {
+                if (payment.classList.contains('ant-btn-disabled')) return;
+                document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+              });
+            </script>
+          `);
+        }
+        return true;
+      },
+      refresh: async () => {
+        refreshCalls += 1;
+        return true;
+      },
+      reportAccepted: async () => {
+        acceptedReports += 1;
+        return true;
+      },
+      reportRejected: async () => {
+        rejectedReports += 1;
+        return true;
+      },
+    });
+
+    assert.equal(solveCalls, 2);
+    assert.equal(submitCalls, 2);
+    assert.equal(refreshCalls, 1);
+    assert.equal(rejectedReports, 1);
+    assert.equal(acceptedReports, 1);
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: dismisses a delayed additional-completed notice before clicking the underlying Next", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <style>
+        #notice[hidden] { display: none; }
+        #notice { position: fixed; inset: 0; z-index: 50; background: white; }
+      </style>
+      <div class="ant-steps-item-process">Fill out the application form</div>
+      <button id="next">Next</button>
+      <div id="notice" class="modal v-modal" role="dialog" hidden>
+        <h2>NOTICE</h2>
+        <p>ADDITIONAL COMPLETED</p>
+        <p>Electronic document code</p>
+        <button id="confirm" type="button">Confirm</button>
+      </div>
+      <script>
+        const notice = document.querySelector('#notice');
+        setTimeout(() => { notice.hidden = false; }, 100);
+        document.querySelector('#confirm').addEventListener('click', () => { notice.hidden = true; });
+        document.querySelector('#next').addEventListener('click', () => {
+          if (!notice.hidden) return;
+          document.body.innerHTML = '<p>Amount paid (USD): 25 USD</p><label><input type="checkbox" /> I agree to pay</label><button id="pay">Payment</button>';
+          document.querySelector('#pay').addEventListener('click', () => {
+            document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+          });
+        });
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 20_000);
+
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: prefers the visible payment agreement over a stale review-step marker", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div class="ant-steps-item-process">Review application form</div>
+      <section>
+        <h2>PAYMENT’S INFORMATION</h2>
+        <p>Amount paid (USD): 25 USD</p>
+        <label><input id="agreement" type="checkbox" /> I agree to pay</label>
+        <button id="payment" class="ant-btn-disabled">Payment</button>
+      </section>
+      <script>
+        const agreement = document.querySelector('#agreement');
+        const payment = document.querySelector('#payment');
+        agreement.addEventListener('change', () => {
+          payment.classList.toggle('ant-btn-disabled', !agreement.checked);
+        });
+        payment.addEventListener('click', () => {
+          if (payment.classList.contains('ant-btn-disabled')) return;
+          document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+        });
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 20_000);
+
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: reports the official recreate-profile payment rejection without retrying Payment", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <h2>PAYMENT’S INFORMATION</h2>
+      <p>Amount paid (USD): 25 USD</p>
+      <label><input id="agreement" type="checkbox" checked /> I agree to pay</label>
+      <button id="payment">Payment</button>
+      <div role="alert">The payment failed, please recreate profile and retry payment</div>
+      <script>
+        window.paymentClicks = 0;
+        document.querySelector('#payment').addEventListener('click', () => { window.paymentClicks += 1; });
+      </script>
+    `);
+
+    await assert.rejects(
+      () => advanceOfficialFormToPayment(page, 10_000),
+      /requires a new application profile/i,
+    );
+    assert.equal(
+      await page.evaluate(() => (window as typeof window & { paymentClicks: number }).paymentClicks),
+      0,
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: waits for valid official fee metadata before clicking Payment", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <h2>PAYMENT’S INFORMATION</h2>
+      <p id="amount">Amount paid (USD): undefined undefined</p>
+      <label><input id="agreement" type="checkbox" /> I agree to pay</label>
+      <button id="payment" class="ant-btn-disabled">Payment</button>
+      <script>
+        window.paymentClicks = 0;
+        const agreement = document.querySelector('#agreement');
+        const payment = document.querySelector('#payment');
+        agreement.addEventListener('change', () => payment.classList.toggle('ant-btn-disabled', !agreement.checked));
+        payment.addEventListener('click', () => {
+          window.paymentClicks += 1;
+          document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+        });
+        setTimeout(() => { document.querySelector('#amount').textContent = 'Amount paid (USD): 25 USD'; }, 750);
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 10_000);
+
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
+    assert.equal(
+      await page.evaluate(() => (window as typeof window & { paymentClicks: number }).paymentClicks),
+      1,
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: accepts the official decorative icon in the Payment button name", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <h2>PAYMENT’S INFORMATION</h2>
+      <p>Amount paid (USD): 25 USD</p>
+      <label><input id="agreement" type="checkbox" /> I agree to pay</label>
+      <button id="payment" class="ant-btn-disabled"><span aria-hidden="true">›</span> Payment</button>
+      <script>
+        const agreement = document.querySelector('#agreement');
+        const payment = document.querySelector('#payment');
+        agreement.addEventListener('change', () => payment.classList.toggle('ant-btn-disabled', !agreement.checked));
+        payment.addEventListener('click', () => {
+          if (payment.classList.contains('ant-btn-disabled')) return;
+          document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+        });
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 10_000);
+
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: lifts Payment text to the official custom ant action", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <h2>PAYMENT’S INFORMATION</h2>
+      <p>Amount paid (USD): 25 USD</p>
+      <label><input id="agreement" type="checkbox" /> I agree to pay</label>
+      <div id="payment" class="ant-btn ant-btn-disabled"><span aria-hidden="true">›</span><b>Payment</b></div>
+      <script>
+        const agreement = document.querySelector('#agreement');
+        const payment = document.querySelector('#payment');
+        agreement.addEventListener('change', () => payment.classList.toggle('ant-btn-disabled', !agreement.checked));
+        payment.addEventListener('click', event => {
+          if (event.target !== payment || payment.classList.contains('ant-btn-disabled')) return;
+          document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+        });
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 10_000);
+
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: reclassifies when payment information appears after the review state was read", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div class="ant-steps-item-process">Review application form</div>
+      <p>Review is completing</p>
+      <script>
+        setTimeout(() => {
+          document.body.innerHTML =
+            '<div class="ant-steps-item-process">Review application form</div>' +
+            '<h2>PAYMENT’S INFORMATION</h2>' +
+            '<p>Amount paid (USD): 25 USD</p>' +
+            '<label><input id="agreement" type="checkbox" /> I agree to pay</label>' +
+            '<button id="payment" class="ant-btn-disabled">Payment</button>';
+          const agreement = document.querySelector('#agreement');
+          const payment = document.querySelector('#payment');
+          agreement.addEventListener('change', () => {
+            payment.classList.toggle('ant-btn-disabled', !agreement.checked);
+          });
+          payment.addEventListener('click', () => {
+            if (payment.classList.contains('ant-btn-disabled')) return;
+            document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+          });
+        }, 100);
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 20_000);
+
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: waits for a delayed review Next action instead of failing the first probe", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div class="ant-steps-item-process">Review application form</div>
+      <p>Official review is still rendering</p>
+      <script>
+        setTimeout(() => {
+          const next = document.createElement('button');
+          next.textContent = 'Next';
+          next.addEventListener('click', () => {
+            document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+          });
+          document.body.appendChild(next);
+        }, 750);
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 10_000);
+
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: confirms an additional-completed notice that appears after review state detection", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <style>
+        #notice[hidden] { display: none; }
+        #notice { position: fixed; inset: 0; z-index: 50; background: white; }
+      </style>
+      <div class="ant-steps-item-process">Review application form</div>
+      <p>Review is completing</p>
+      <div id="notice" class="modal v-modal" role="dialog" hidden>
+        <h2>NOTICE</h2>
+        <p>ADDITIONAL COMPLETED</p>
+        <p>Electronic document code</p>
+        <button id="confirm" type="button">Confirm</button>
+      </div>
+      <script>
+        const notice = document.querySelector('#notice');
+        setTimeout(() => { notice.hidden = false; }, 100);
+        document.querySelector('#confirm').addEventListener('click', () => {
+          document.body.innerHTML =
+            '<h2>PAYMENT’S INFORMATION</h2>' +
+            '<p>Amount paid (USD): 25 USD</p>' +
+            '<label><input id="agreement" type="checkbox" /> I agree to pay</label>' +
+            '<button id="payment" class="ant-btn-disabled">Payment</button>';
+          const agreement = document.querySelector('#agreement');
+          const payment = document.querySelector('#payment');
+          agreement.addEventListener('change', () => payment.classList.toggle('ant-btn-disabled', !agreement.checked));
+          payment.addEventListener('click', () => {
+            if (payment.classList.contains('ant-btn-disabled')) return;
+            document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
+          });
+        });
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 20_000);
+
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.payment-resume: does not mistake the application expense payment method for a gateway", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div class="ant-steps-item-process">Fill out the application form</div>
+      <p>Who will cover the applicant's trip expenses?</p>
+      <p>Payment method: Credit card</p>
+      <button id="next">Next</button>
+      <script>
+        document.querySelector('#next').addEventListener('click', () => {
+          document.body.innerHTML = '<div class="ant-steps-item-process">Review application form</div><button id="review-next">Next</button>';
+          document.querySelector('#review-next').addEventListener('click', () => {
+            document.body.innerHTML = '<p>Amount paid (USD): 25 USD</p><label><input type="checkbox" /> I agree to pay</label><button id="pay">Payment</button>';
+            document.querySelector('#pay').addEventListener('click', () => {
+              document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number <input autocomplete="cc-number" /></label>';
+            });
+          });
+        });
+      </script>
+    `);
+
+    await advanceOfficialFormToPayment(page, 10_000);
+
+    assert.match(await page.locator("body").innerText(), /Payment gateway/);
+    assert.equal(await page.locator('input[autocomplete="cc-number"]').count(), 1);
   } finally {
     await browser.close();
   }
@@ -1149,7 +1631,7 @@ test("vn.payment-resume: does not invent a review CAPTCHA from inactive step lab
         document.querySelector('#next').addEventListener('click', () => {
           document.body.innerHTML = '<div class="ant-steps-item-process">Review application form</div><button id="review-next">Next</button>';
           document.querySelector('#review-next').addEventListener('click', () => {
-            document.body.innerHTML = '<label><input type="checkbox" /> I agree to pay</label><button id="pay">Payment</button>';
+            document.body.innerHTML = '<p>Amount paid (USD): 25 USD</p><label><input type="checkbox" /> I agree to pay</label><button id="pay">Payment</button>';
             document.querySelector('#pay').addEventListener('click', () => {
               document.body.innerHTML = '<h1>Payment gateway</h1><input autocomplete="cc-number" />';
             });
@@ -1176,7 +1658,7 @@ test("vn.payment-resume: waits for the applicant detail SPA after the route chan
         setTimeout(() => {
           document.body.innerHTML = '<h1>Khai thông tin đề nghị</h1><button id="next">Tiếp tục</button>';
           document.querySelector('#next').addEventListener('click', () => {
-            document.body.innerHTML = '<label><input type="checkbox" /> Tôi đồng ý thanh toán</label><button id="pay">Thanh toán</button>';
+            document.body.innerHTML = '<p>Amount paid (USD): 25 USD</p><label><input type="checkbox" /> Tôi đồng ý thanh toán</label><button id="pay">Thanh toán</button>';
             document.querySelector('#pay').addEventListener('click', () => {
               document.body.innerHTML = '<h1>Payment gateway</h1><label>Card number</label>';
             });

@@ -3919,6 +3919,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
   let managedPaymentHooks: ManagedPaymentHooks | null = null;
   let managedPaymentCard: ManagedPaymentCard | null = null;
   let managedOfficialFeeContext: ManagedOfficialFeeExecutionContext | null = null;
+  let repairTempDir: string | null = null;
   const startedAt = new Date().toISOString();
   await updateVnQueueRow(
     item.id,
@@ -3954,7 +3955,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     const now = new Date().toISOString();
 
     if (autopayEnabled && !dryRunReceipt) {
-      const { profile, application } = await loadApplicantData(item.application_id);
+      const { profile, application, documents } = await loadApplicantData(item.application_id);
       const answers = await loadDs160Answers(item.application_id).catch(() => ({}));
       const submittedOfficialEmail = readAnswerValue(answers, [
         "email_address",
@@ -3980,6 +3981,31 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         "VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY",
         false,
       );
+      const preCardQaMode =
+        stopBeforeCardEntry &&
+        item.vn_result_payload?.qaMode === "pre_card_only";
+      let repairAnswers: Record<string, string> | undefined;
+      if (stopBeforeCardEntry && !preCardQaMode) {
+        repairAnswers = applyVietnamAnswerAliases({ ...answers }, profile, application);
+        repairTempDir = fs.mkdtempSync(path.join(os.tmpdir(), `vn-payment-repair-${item.id}-`));
+        const localDocPaths = await downloadDocuments(documents, repairTempDir);
+        const portraitPath = firstLocalDocumentPath(localDocPaths, [
+          "photo",
+          "applicant_photo",
+          "portrait_photo",
+        ]);
+        const passportPath = firstLocalDocumentPath(localDocPaths, [
+          "passport_copy",
+          "passport_scan",
+          "passport_photo",
+          "passport",
+        ]);
+        if (portraitPath) repairAnswers.portrait_photo = portraitPath;
+        if (passportPath) {
+          repairAnswers.passport_copy = passportPath;
+          repairAnswers.passport_photo = passportPath;
+        }
+      }
       if (!stopBeforeCardEntry) {
         managedOfficialFeeContext = await loadManagedOfficialFeeExecutionContext(item.application_id);
         managedPaymentHooks = createManagedPaymentHooks({
@@ -3997,6 +4023,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         screenshotPath,
         timeoutMs: readNumberEnv("VN_PAYMENT_RESUME_TIMEOUT_MS", 180_000),
         stopBeforeCardEntry,
+        repairAnswers,
         expectedPaymentAmountCents: managedOfficialFeeContext?.canonicalAmountCents ?? null,
         expectedPaymentCurrency: managedOfficialFeeContext?.canonicalCurrency ?? null,
         takeCard: async () => {
@@ -4321,6 +4348,10 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         updated_at: failedAt,
       },
     );
+  } finally {
+    if (repairTempDir) {
+      fs.rmSync(repairTempDir, { recursive: true, force: true });
+    }
   }
 }
 
