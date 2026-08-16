@@ -204,6 +204,9 @@ The current internal automation migrations are:
 - `0145_protect_issuer_card_attempt_leases.sql`: prevents a different worker
   from overwriting an unexpired issuer-card claim lease while preserving
   same-worker renewal and expired-lease recovery.
+- `0146_vietnam_payment_registration_code_handoff.sql`: carries an existing
+  encrypted Vietnam registration code into the next isolated payment queue row
+  for the same application/provider without exposing the code in RPC payloads.
 
 ## Guardrails
 

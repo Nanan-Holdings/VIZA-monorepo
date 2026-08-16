@@ -132,6 +132,8 @@ export interface GridCaptchaTaskOptions {
 const API_BASE = "https://api.2captcha.com";
 const POLL_INTERVAL_MS = 5_000;
 const DEFAULT_TIMEOUT_MS = 120_000;
+const NETWORK_REQUEST_TIMEOUT_MS = 15_000;
+const NETWORK_RETRY_DELAYS_MS = [250, 750, 1_500] as const;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -165,21 +167,54 @@ function classifyApiError(errorCode: string): never {
   throw new TwoCaptchaApiError(errorCode);
 }
 
-async function postJson<T>(url: string, body: Record<string, unknown>): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-  } catch (err) {
-    throw new TwoCaptchaNetworkError(err);
+function isTransientHttpStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function postJson<T>(
+  url: string,
+  body: Record<string, unknown>,
+  deadlineAt = Date.now() + NETWORK_REQUEST_TIMEOUT_MS,
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= NETWORK_RETRY_DELAYS_MS.length; attempt += 1) {
+    const remainingMs = deadlineAt - Date.now();
+    if (remainingMs <= 0) {
+      throw new TwoCaptchaNetworkError(lastError ?? new Error("request deadline exhausted"));
+    }
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(Math.max(1, Math.min(NETWORK_REQUEST_TIMEOUT_MS, remainingMs))),
+      });
+
+      if (res.ok) {
+        return (await res.json()) as T;
+      }
+
+      lastError = new Error(`HTTP ${res.status} ${res.statusText}`);
+      if (!isTransientHttpStatus(res.status)) {
+        throw new TwoCaptchaNetworkError(lastError);
+      }
+    } catch (error) {
+      if (error instanceof TwoCaptchaNetworkError) {
+        throw error;
+      }
+      lastError = error;
+    }
+
+    const retryDelayMs = NETWORK_RETRY_DELAYS_MS[attempt];
+    if (retryDelayMs === undefined || Date.now() + retryDelayMs >= deadlineAt) {
+      break;
+    }
+    await sleep(retryDelayMs);
   }
-  if (!res.ok) {
-    throw new TwoCaptchaNetworkError(new Error(`HTTP ${res.status} ${res.statusText}`));
-  }
-  return (await res.json()) as T;
+
+  throw new TwoCaptchaNetworkError(lastError ?? new Error("request failed"));
 }
 
 function sleep(ms: number): Promise<void> {
@@ -192,11 +227,12 @@ async function runTask(
 ): Promise<CaptchaSolveResult> {
   const apiKey = getApiKey();
   const start = Date.now();
+  const deadline = start + timeoutMs;
 
   const createRes = await postJson<CreateTaskResponse>(`${API_BASE}/createTask`, {
     clientKey: apiKey,
     task: taskBody,
-  });
+  }, deadline);
 
   if (createRes.errorId !== 0 && createRes.errorCode) {
     classifyApiError(createRes.errorCode);
@@ -206,15 +242,14 @@ async function runTask(
   }
 
   const taskId = createRes.taskId;
-  const deadline = start + timeoutMs;
-
   while (Date.now() < deadline) {
-    await sleep(POLL_INTERVAL_MS);
+    await sleep(Math.min(POLL_INTERVAL_MS, Math.max(0, deadline - Date.now())));
+    if (Date.now() >= deadline) break;
 
     const resultRes = await postJson<GetTaskResultResponse>(`${API_BASE}/getTaskResult`, {
       clientKey: apiKey,
       taskId,
-    });
+    }, deadline);
 
     if (resultRes.errorId !== 0 && resultRes.errorCode) {
       classifyApiError(resultRes.errorCode);
@@ -245,11 +280,12 @@ async function runGridTask(
 ): Promise<GridCaptchaSolveResult> {
   const apiKey = getApiKey();
   const start = Date.now();
+  const deadline = start + timeoutMs;
 
   const createRes = await postJson<CreateTaskResponse>(`${API_BASE}/createTask`, {
     clientKey: apiKey,
     task: taskBody,
-  });
+  }, deadline);
 
   if (createRes.errorId !== 0 && createRes.errorCode) {
     classifyApiError(createRes.errorCode);
@@ -259,15 +295,14 @@ async function runGridTask(
   }
 
   const taskId = createRes.taskId;
-  const deadline = start + timeoutMs;
-
   while (Date.now() < deadline) {
-    await sleep(POLL_INTERVAL_MS);
+    await sleep(Math.min(POLL_INTERVAL_MS, Math.max(0, deadline - Date.now())));
+    if (Date.now() >= deadline) break;
 
     const resultRes = await postJson<GetTaskResultResponse>(`${API_BASE}/getTaskResult`, {
       clientKey: apiKey,
       taskId,
-    });
+    }, deadline);
 
     if (resultRes.errorId !== 0 && resultRes.errorCode) {
       classifyApiError(resultRes.errorCode);

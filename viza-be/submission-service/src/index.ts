@@ -3957,14 +3957,12 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     if (autopayEnabled && !dryRunReceipt) {
       const { profile, application, documents } = await loadApplicantData(item.application_id);
       const answers = await loadDs160Answers(item.application_id).catch(() => ({}));
-      const submittedOfficialEmail = readAnswerValue(answers, [
-        "email_address",
-        "re_enter_email_address",
-        "email",
-      ])?.trim().toLowerCase() ?? null;
-      const email = submittedOfficialEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submittedOfficialEmail)
-        ? submittedOfficialEmail
-        : await getVietnamOfficialLookupEmail(profile.id);
+      // The initial official submission always uses the managed applicant
+      // alias. Reusing an older profile/persisted email here makes the official
+      // search tuple (registration code, email, DOB) fail even though the
+      // registration code is valid. Keep submission, payment resume, and
+      // status tracking on the same alias.
+      const email = await getVietnamOfficialLookupEmail(profile.id);
       const dateOfBirth = readAnswerValue(answers, [
         "date_of_birth",
         "birth_date",
