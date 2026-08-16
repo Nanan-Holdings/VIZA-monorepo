@@ -389,6 +389,146 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
   await settle(page);
 }
 
+const VIETNAM_OFFICIAL_SELECT_MODEL_VALUES: Record<string, Record<string, number>> = {
+  basic_kpbhMuaBaoHiem: {
+    yes: 1,
+    bought: 1,
+    no: 2,
+    not_bought: 2,
+    have_not_bought_yet: 2,
+  },
+  basic_kpbhNguoiDamBao: {
+    personal: 1,
+    self: 1,
+    company: 2,
+  },
+  basic_kpbhHinhThuc: {
+    cash: 1,
+    credit_card: 2,
+    creditcard: 2,
+    traveller_s_cheques: 3,
+    travelers_cheques: 3,
+  },
+};
+
+const VIETNAM_OFFICIAL_SELECT_LABELS: Record<string, Record<number, string[]>> = {
+  basic_kpbhMuaBaoHiem: {
+    1: ["Yes", "Bought", "Đã mua"],
+    2: ["No", "Have not bought yet", "Chưa mua"],
+  },
+  basic_kpbhNguoiDamBao: {
+    1: ["Personal", "Cá nhân"],
+    2: ["Company", "Công ty"],
+  },
+  basic_kpbhHinhThuc: {
+    1: ["Cash", "Tiền mặt"],
+    2: ["Credit card", "Thẻ tín dụng"],
+    3: ["Traveller's cheques", "Traveler's cheques", "Séc du lịch"],
+  },
+};
+
+/**
+ * Commit the official numeric model behind the three expense selects.
+ *
+ * The payment-detail SPA can retain a rendered Ant selection while the
+ * active Pinia value is null (notably after the payer onChange callback
+ * clears payment method). Ant Form then rejects the visually selected field.
+ * These codes come from the current official bundle: insurance 1/2, payer
+ * 1/2, payment method 1/2/3. Unknown values are never guessed.
+ */
+export async function commitVietnamOfficialExpenseSelectModel(
+  page: Page,
+  domId: string,
+  rawValue: string,
+): Promise<boolean> {
+  const key = rawValue
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const officialValue = VIETNAM_OFFICIAL_SELECT_MODEL_VALUES[domId]?.[key];
+  if (officialValue === undefined) return false;
+  const expectedId = domId.replace(/^basic_/, "");
+  const visibleInput = page.locator(`#${cssEscape(domId)}:visible`).first();
+  const select = visibleInput.locator(
+    "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-select ')][1]",
+  );
+  const selector = select.locator(".ant-select-selector").first();
+  let trustedSelection = false;
+  if ((await visibleInput.count().catch(() => 0)) > 0 && (await selector.count().catch(() => 0)) > 0) {
+    await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+    await page.waitForTimeout(250);
+    const labels = VIETNAM_OFFICIAL_SELECT_LABELS[domId]?.[officialValue] ?? [];
+    const exact = new RegExp(`^\\s*(?:${labels.map(escapeRegex).join("|")})\\s*$`, "i");
+    const option = page
+      .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden):visible .ant-select-item-option")
+      .filter({ hasText: exact })
+      .last();
+    if (await option.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      trustedSelection = await option
+        .click({ timeout: SHORT_TIMEOUT, force: true })
+        .then(() => true)
+        .catch(() => false);
+      await page.waitForTimeout(400);
+    }
+  }
+  // tsx/esbuild annotates nested functions with a browser-global __name
+  // helper. Playwright serializes only this callback, so install the tiny
+  // helper explicitly before evaluating the Pinia patch.
+  await page.evaluate("window.__name = window.__name || ((fn) => fn)");
+  const result = await page.evaluate(
+    async ({ expectedId: field, officialValue: value }) => {
+      type StoreLike = {
+        $state?: { formForeigners?: Record<string, unknown> };
+        formForeigners?: Record<string, unknown>;
+        $patch?: (patcher: (state: { formForeigners?: Record<string, unknown> }) => void) => void;
+      };
+      type PiniaLike = { _s?: { forEach?: (callback: (store: unknown) => void) => void } };
+      type VueAppElement = HTMLElement & {
+        __vue_app__?: { _context?: { provides?: Record<PropertyKey, unknown> } };
+      };
+      const app = document.querySelector<VueAppElement>("#app")?.__vue_app__;
+      const provides = app?._context?.provides ?? {};
+      const matched: Array<{ store: StoreLike; form: Record<string, unknown> }> = [];
+      for (const candidate of Reflect.ownKeys(provides).map((provideKey) => provides[provideKey])) {
+        const stores = (candidate as PiniaLike | null)?._s;
+        if (!stores || typeof stores.forEach !== "function") continue;
+        stores.forEach((rawStore) => {
+          const store = rawStore as StoreLike;
+          const form = store.$state?.formForeigners ?? store.formForeigners;
+          if (!form || !(field in form)) return;
+          matched.push({ store, form });
+        });
+      }
+      const commit = () => {
+        for (const target of matched) {
+          if (typeof target.store.$patch === "function") {
+            target.store.$patch((state) => {
+              if (state.formForeigners) state.formForeigners[field] = value;
+            });
+          } else {
+            target.form[field] = value;
+          }
+        }
+      };
+      commit();
+      await Promise.resolve();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      commit();
+      return {
+        matched: matched.length,
+        stable: matched.filter((target) => target.form[field] === value).length,
+      };
+    },
+    { expectedId, officialValue },
+  ).catch(() => ({ matched: 0, stable: 0 }));
+  console.log(
+    `[vn] expense-select model bridge ${domId} trusted=${trustedSelection}` +
+    ` stores=${result.matched}/${result.stable}`,
+  );
+  return result.matched > 0 && result.matched === result.stable;
+}
+
 export function getVietnamSelectFieldTimeoutMs(
   rawValue: string | undefined = process.env.VN_SELECT_FIELD_TIMEOUT_MS,
 ): number {
@@ -945,12 +1085,343 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
  * keyboard entry directly.
  */
 export async function fillDate(page: Page, domId: string, ddmmyyyy: string): Promise<void> {
+  await page.evaluate("window.__name = window.__name || ((fn) => fn)");
   const sel = `#${cssEscape(domId)}`;
-  const input = page.locator(sel).first();
+  // The official detail SPA can keep the previous step tree mounted while it
+  // renders a second, visible application form. Duplicate ids are invalid
+  // HTML, but do occur during that transition. Always bind the calendar and
+  // Vue-model bridge to the visible control; mutating the first hidden copy
+  // appears successful until Ant Form validates the active model and restores
+  // the old value.
+  const visibleInput = page.locator(`${sel}:visible`).first();
+  const input = (await visibleInput.count().catch(() => 0)) > 0
+    ? visibleInput
+    : page.locator(sel).first();
+  const initialValue = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+  if (initialValue === ddmmyyyy) {
+    return;
+  }
+  if (initialValue) {
+    const selectedFromCalendar = await selectVietnamAntPickerDate(page, input, ddmmyyyy);
+    if (!selectedFromCalendar) {
+      const directCommit = await commitVietnamDateVueModel(input, domId, ddmmyyyy);
+      if (!directCommit.componentUpdated && !directCommit.formModelUpdated && !directCommit.storeUpdated) {
+        throw new Error(`Ant date option and official Vue date model not found for ${domId}`);
+      }
+      await page.waitForTimeout(1_200);
+      const directlyCommitted = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+      if (directlyCommitted !== ddmmyyyy) {
+        throw new Error(`Ant date value not confirmed for ${domId}`);
+      }
+      return;
+    }
+    // A trusted Ant calendar selection already executes the official
+    // a-date-picker -> wrapper -> Pinia update chain. Do not follow it with a
+    // synthetic input/blur bridge: the live detail page can replay the old
+    // child ref during that second blur and undo a valid user-equivalent pick.
+    await page.waitForTimeout(1_200);
+    const committed = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+    if (committed !== ddmmyyyy) {
+      throw new Error(`Ant date value not confirmed for ${domId}`);
+    }
+    return;
+  }
   await input.click({ timeout: SHORT_TIMEOUT });
-  await input.fill(ddmmyyyy, { timeout: SHORT_TIMEOUT });
+  await input.press(process.platform === "darwin" ? "Meta+A" : "Control+A", { timeout: SHORT_TIMEOUT });
+  await input.press("Backspace", { timeout: SHORT_TIMEOUT });
+  await input.pressSequentially(ddmmyyyy, { delay: 35, timeout: SHORT_TIMEOUT });
+  // Ant Design Vue tracks keyboard events before it parses and commits a date.
+  // A single Playwright `fill()` event can leave the rendered text changed while
+  // Vue retains the previous model value, which then reappears on blur.
+  await page.waitForTimeout(200);
   await input.press("Enter", { timeout: SHORT_TIMEOUT });
-  await settle(page);
+  await input.press("Tab", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  await page.waitForTimeout(900);
+
+  let current = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+  if (current === ddmmyyyy) {
+    await page.waitForTimeout(600);
+    return;
+  }
+
+  const selectedFromCalendar = await selectVietnamAntPickerDate(page, input, ddmmyyyy);
+  if (!selectedFromCalendar) {
+    const directCommit = await commitVietnamDateVueModel(input, domId, ddmmyyyy);
+    if (!directCommit.componentUpdated && !directCommit.formModelUpdated && !directCommit.storeUpdated) {
+      throw new Error(`Ant date option and official Vue date model not found for ${domId}`);
+    }
+  }
+  await page.waitForTimeout(900);
+  current = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+  if (current !== ddmmyyyy) {
+    throw new Error(`Ant date value not confirmed for ${domId}`);
+  }
+}
+
+async function commitVietnamDateVueModel(
+  input: Locator,
+  domId: string,
+  value: string,
+): Promise<{
+  componentUpdated: boolean;
+  formModelUpdated: boolean;
+  storeUpdated: boolean;
+  componentRoots: number;
+  instancesVisited: number;
+  matchingComponents: number;
+  matchingFormModels: number;
+  matchingStores: number;
+  stableFormModels: number;
+  stableStores: number;
+}> {
+  const result = await input.evaluate(async (element, payload) => {
+    type VueComponentInstance = {
+      parent?: VueComponentInstance | null;
+      props?: Record<string, unknown> | null;
+      vnode?: {
+        props?: Record<string, unknown> | null;
+      };
+    };
+    const callHandler = (handler: unknown, ...args: unknown[]) => {
+      const handlers = Array.isArray(handler) ? handler : [handler];
+      for (const candidate of handlers) {
+        if (typeof candidate === "function") candidate(...args);
+      }
+    };
+    const expectedId = payload.domId.replace(/^basic_/, "");
+    const dateInput = element as HTMLInputElement;
+    const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+    valueDescriptor?.set?.call(dateInput, payload.value);
+    dateInput.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      data: payload.value,
+      inputType: "insertText",
+    }));
+    dateInput.dispatchEvent(new Event("change", { bubbles: true }));
+    dateInput.focus();
+    dateInput.blur();
+    let componentUpdated = false;
+    let formModelUpdated = false;
+    let instancesVisited = 0;
+    let matchingComponents = 0;
+    let matchingFormModels = 0;
+    const matchedFormModels: Record<string, unknown>[] = [];
+    const componentRoots: VueComponentInstance[] = [];
+    let currentElement: (HTMLElement & { __vueParentComponent?: VueComponentInstance }) | null =
+      element as HTMLElement & { __vueParentComponent?: VueComponentInstance };
+    while (currentElement) {
+      if (currentElement.__vueParentComponent) componentRoots.push(currentElement.__vueParentComponent);
+      currentElement = currentElement.parentElement as (HTMLElement & {
+        __vueParentComponent?: VueComponentInstance;
+      }) | null;
+    }
+    const visited = new Set<VueComponentInstance>();
+    for (const root of componentRoots) {
+      let instance: VueComponentInstance | null | undefined = root;
+      while (instance && !visited.has(instance)) {
+        visited.add(instance);
+        instancesVisited += 1;
+        const vnodeProps = instance.vnode?.props ?? {};
+        const normalizedProps = instance.props ?? {};
+        const idDate = String(
+          vnodeProps["id-date"] ?? vnodeProps.idDate ?? normalizedProps["id-date"] ?? normalizedProps.idDate ?? "",
+        );
+        const formModel = (vnodeProps.model ?? normalizedProps.model) as Record<string, unknown> | undefined;
+        if (formModel && expectedId in formModel) {
+          matchingFormModels += 1;
+          matchedFormModels.push(formModel);
+          formModel[expectedId] = payload.value;
+          formModelUpdated = true;
+        }
+        if (idDate === expectedId) {
+          matchingComponents += 1;
+          callHandler(vnodeProps["onUpdate:value"], payload.value);
+          callHandler(vnodeProps.onChange, payload.value);
+          callHandler(vnodeProps.onChangeByBlur);
+          componentUpdated = true;
+          break;
+        }
+        instance = instance.parent;
+      }
+      if (componentUpdated) break;
+    }
+
+    type PiniaLike = {
+      _s?: {
+        forEach?: (callback: (store: unknown) => void) => void;
+      };
+    };
+    type VueAppElement = HTMLElement & {
+      __vue_app__?: {
+        _context?: { provides?: Record<PropertyKey, unknown> };
+      };
+    };
+    const app = document.querySelector<VueAppElement>("#app")?.__vue_app__;
+    const provides = app?._context?.provides ?? {};
+    const candidates = Reflect.ownKeys(provides).map((key) => provides[key]);
+    let storeUpdated = false;
+    let matchingStores = 0;
+    const matchedStores: Array<{
+      rawStore: {
+        $patch?: (patcher: (state: { formForeigners?: Record<string, unknown> }) => void) => void;
+      };
+      form: Record<string, unknown>;
+    }> = [];
+    for (const candidate of candidates) {
+      const stores = (candidate as PiniaLike | null)?._s;
+      if (!stores || typeof stores.forEach !== "function") continue;
+      stores.forEach((rawStore) => {
+        const store = rawStore as {
+          $state?: { formForeigners?: Record<string, unknown> };
+          formForeigners?: Record<string, unknown>;
+          $patch?: (patcher: (state: { formForeigners?: Record<string, unknown> }) => void) => void;
+        };
+        const form = store.$state?.formForeigners ?? store.formForeigners;
+        if (!form || !(expectedId in form)) return;
+        matchingStores += 1;
+        matchedStores.push({ rawStore: store, form });
+        if (typeof store.$patch === "function") {
+          store.$patch((state) => {
+            if (state.formForeigners) state.formForeigners[expectedId] = payload.value;
+          });
+        } else {
+          form[expectedId] = payload.value;
+        }
+        storeUpdated = true;
+      });
+    }
+
+    // Vue flushes the readonly date component's `value` watcher and Ant's blur
+    // handler after the native event turn. On the detail page that late flush
+    // can replay the old prop after a successful-looking DOM mutation. Wait
+    // through the render cycle, let the component consume the patched prop,
+    // then commit once more and verify the active form/store stayed updated.
+    await Promise.resolve();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    for (const formModel of matchedFormModels) formModel[expectedId] = payload.value;
+    for (const target of matchedStores) {
+      if (typeof target.rawStore.$patch === "function") {
+        target.rawStore.$patch((state) => {
+          if (state.formForeigners) state.formForeigners[expectedId] = payload.value;
+        });
+      } else {
+        target.form[expectedId] = payload.value;
+      }
+    }
+    valueDescriptor?.set?.call(dateInput, payload.value);
+    dateInput.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      data: payload.value,
+      inputType: "insertText",
+    }));
+    dateInput.focus();
+    dateInput.blur();
+    await Promise.resolve();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    for (const formModel of matchedFormModels) formModel[expectedId] = payload.value;
+    for (const target of matchedStores) {
+      if (typeof target.rawStore.$patch === "function") {
+        target.rawStore.$patch((state) => {
+          if (state.formForeigners) state.formForeigners[expectedId] = payload.value;
+        });
+      } else {
+        target.form[expectedId] = payload.value;
+      }
+    }
+    const stableFormModels = matchedFormModels.filter((model) => model[expectedId] === payload.value).length;
+    const stableStores = matchedStores.filter((target) => target.form[expectedId] === payload.value).length;
+    return {
+      componentUpdated,
+      formModelUpdated,
+      storeUpdated,
+      componentRoots: componentRoots.length,
+      instancesVisited,
+      matchingComponents,
+      matchingFormModels,
+      matchingStores,
+      stableFormModels,
+      stableStores,
+    };
+  }, { domId, value }).catch((error) => {
+    console.warn(
+      `[vn] official Vue date-model bridge failed for ${domId}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return {
+      componentUpdated: false,
+      formModelUpdated: false,
+      storeUpdated: false,
+      componentRoots: 0,
+      instancesVisited: 0,
+      matchingComponents: 0,
+      matchingFormModels: 0,
+      matchingStores: 0,
+      stableFormModels: 0,
+      stableStores: 0,
+    };
+  });
+  console.log(
+    `[vn] date-model bridge ${domId} roots=${result.componentRoots} instances=${result.instancesVisited}` +
+      ` components=${result.matchingComponents} forms=${result.matchingFormModels}/${result.stableFormModels}` +
+      ` stores=${result.matchingStores}/${result.stableStores}`,
+  );
+  return result;
+}
+
+async function selectVietnamAntPickerDate(
+  page: Page,
+  input: Locator,
+  ddmmyyyy: string,
+): Promise<boolean> {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(ddmmyyyy);
+  if (!match) return false;
+  const targetIso = `${match[3]}-${match[2]}-${match[1]}`;
+  const targetMonth = Number(match[3]) * 12 + Number(match[2]) - 1;
+  await input.click({ timeout: SHORT_TIMEOUT, force: true });
+  const dropdown = page.locator(".ant-picker-dropdown:visible").last();
+  if (!(await dropdown.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    console.warn("[vn] Ant date calendar did not become visible");
+    return false;
+  }
+
+  for (let attempt = 0; attempt < 36; attempt += 1) {
+    const targetCell = dropdown
+      .locator(`td[title="${targetIso}"]:not(.ant-picker-cell-disabled)`)
+      .first();
+    if (await targetCell.isVisible({ timeout: 250 }).catch(() => false)) {
+      await targetCell.locator(".ant-picker-cell-inner").click({ timeout: SHORT_TIMEOUT });
+      await dropdown.waitFor({ state: "hidden", timeout: SHORT_TIMEOUT }).catch(() => undefined);
+      console.log(`[vn] Ant date calendar selected target month=${match[2]}/${match[3]}`);
+      return true;
+    }
+
+    const inViewTitles = await dropdown
+      .locator("td.ant-picker-cell-in-view[title]")
+      .evaluateAll((cells) => cells.map((cell) => cell.getAttribute("title") ?? ""))
+      .catch(() => [] as string[]);
+    const representative = inViewTitles.find((title) => /^\d{4}-\d{2}-(?:1[0-9]|20)$/.test(title))
+      ?? inViewTitles[Math.floor(inViewTitles.length / 2)]
+      ?? "";
+    const currentMatch = /^(\d{4})-(\d{2})-\d{2}$/.exec(representative);
+    if (!currentMatch) {
+      console.warn(`[vn] Ant date calendar exposed no ISO month cells count=${inViewTitles.length}`);
+      return false;
+    }
+    const currentMonth = Number(currentMatch[1]) * 12 + Number(currentMatch[2]) - 1;
+    if (currentMonth === targetMonth) {
+      console.warn(`[vn] Ant date calendar target cell missing in target month=${match[2]}/${match[3]}`);
+      return false;
+    }
+    const direction = targetMonth > currentMonth ? "next" : "prev";
+    const button = dropdown.locator(`.ant-picker-header-${direction}-btn`).first();
+    if (!(await button.isVisible({ timeout: 500 }).catch(() => false))) {
+      console.warn(`[vn] Ant date calendar ${direction} navigation control missing`);
+      return false;
+    }
+    await button.click({ timeout: SHORT_TIMEOUT });
+    await page.waitForTimeout(180);
+  }
+  console.warn(`[vn] Ant date calendar navigation exhausted target month=${match[2]}/${match[3]}`);
+  return false;
 }
 
 /**

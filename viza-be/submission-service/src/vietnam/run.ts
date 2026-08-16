@@ -25,6 +25,7 @@ import {
   reportAcceptedVietnamCaptcha,
   reportRejectedVietnamCaptcha,
   solveVietnamImageCaptcha,
+  solveVietnamReviewCaptchaWithRetry,
   submitVietnamCaptchaAnswer,
   type VietnamCaptchaSolveOutcome,
 } from "./captcha";
@@ -41,7 +42,15 @@ import {
   type VnFieldFallbackRecord,
   type VnFieldType,
 } from "./field-mappings";
-import { fillDate, fillText, pickRadio, pickSelect, tickCheckbox, toDdMmYyyy } from "./fillers";
+import {
+  commitVietnamOfficialExpenseSelectModel,
+  fillDate,
+  fillText,
+  pickRadio,
+  pickSelect,
+  tickCheckbox,
+  toDdMmYyyy,
+} from "./fillers";
 import {
   loadVietnamFixedCardFromEnv,
   payVietnamPortalWithFixedCard,
@@ -82,6 +91,146 @@ import { readVietnamValidationErrors, type VietnamPortalValidationError } from "
 export interface FillVietnamInput {
   /** Flat answers keyed by VN_E_VISA seed field_name. */
   answers: Record<string, string>;
+}
+
+export interface VietnamApplicationPageFillResult {
+  filled: number;
+  skipped: number;
+  validationErrors: VietnamPortalValidationError[];
+}
+
+export interface VietnamApplicationPageFillOptions {
+  /** Repair an existing draft without rewriting immutable, already-populated fields. */
+  repairExisting?: boolean;
+}
+
+/**
+ * Refill an already-open official Vietnam application page from the same
+ * canonical answer map used for a new application. This is used by the
+ * payment-resume flow when an old official draft has expired dates or missing
+ * upload previews. It does not click Next, submit the application, or enter
+ * payment data.
+ */
+export async function fillVietnamOfficialApplicationPage(
+  page: Page,
+  rawAnswers: Record<string, string>,
+  options: VietnamApplicationPageFillOptions = {},
+): Promise<VietnamApplicationPageFillResult> {
+  const answers = dedupeVietnamUploadAnswers(rawAnswers);
+  const validationErrors: VietnamPortalValidationError[] = validateVietnamConditionalAnswers(answers)
+    .map((error) => ({
+      label: error.fieldName,
+      domId: VN_FIELD_MAPPINGS[error.fieldName]?.domId,
+      message: error.message,
+    }));
+  if (validationErrors.length > 0) {
+    return { filled: 0, skipped: 0, validationErrors };
+  }
+
+  let filled = 0;
+  let skipped = 0;
+  for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
+    const value = answers[fieldName];
+    if (!value) {
+      skipped += 1;
+      continue;
+    }
+    try {
+      if (
+        options.repairExisting &&
+        fieldName === "re_enter_email_address" &&
+        (await page.locator(`#${cssEscape(mapping.domId)}`).count().catch(() => 0)) === 0
+      ) {
+        skipped += 1;
+        console.log("[vn] official draft has no separate confirmation-email control; preserved primary email");
+        continue;
+      }
+      if (
+        options.repairExisting &&
+        mapping.type !== "upload" &&
+        await isSatisfiedDisabledVietnamControl(page, mapping.domId)
+      ) {
+        skipped += 1;
+        console.log(`[vn] preserved populated immutable field ${fieldName}`);
+        continue;
+      }
+      console.log(`[vn] filling field ${fieldName} (${mapping.type})`);
+      await fillByType(page, fieldName, mapping.type, mapping.domId, value);
+      if (fieldName === "intended_province_city") {
+        await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
+      }
+      filled += await fillVietnamConditionalRepeatGroups(page, answers, fieldName);
+      filled += 1;
+      console.log(`[vn] filled field ${fieldName}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      validationErrors.push({
+        label: fieldName,
+        domId: mapping.domId,
+        message: `Official Vietnam e-Visa portal rejected this value: ${message}`,
+      });
+      console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}); no fallback used: ${message}`);
+      skipped += 1;
+    }
+  }
+
+  if (options.repairExisting) {
+    // Date inputs on the live detail page can keep a stale child-component
+    // value and replay it after unrelated controls blur. Recommit all dates to
+    // the active official Pinia form immediately before the final validation.
+    for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
+      const value = answers[fieldName];
+      if (!value || mapping.type !== "date") continue;
+      const visibleInput = page.locator(`#${cssEscape(mapping.domId)}:visible`).first();
+      const input = (await visibleInput.count().catch(() => 0)) > 0
+        ? visibleInput
+        : page.locator(`#${cssEscape(mapping.domId)}`).first();
+      if ((await input.count().catch(() => 0)) === 0) continue;
+      await fillDate(page, mapping.domId, toPortalDateForField(fieldName, value));
+    }
+    await page.waitForTimeout(1_500);
+    for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
+      const value = answers[fieldName];
+      if (!value || mapping.type !== "date") continue;
+      const visibleInput = page.locator(`#${cssEscape(mapping.domId)}:visible`).first();
+      const input = (await visibleInput.count().catch(() => 0)) > 0
+        ? visibleInput
+        : page.locator(`#${cssEscape(mapping.domId)}`).first();
+      if ((await input.count().catch(() => 0)) === 0) continue;
+      const current = await input.inputValue().catch(() => "");
+      if (current.trim() === toPortalDateForField(fieldName, value)) continue;
+      validationErrors.push({
+        label: fieldName,
+        domId: mapping.domId,
+        message: "Official Vietnam e-Visa portal did not persist the repaired date value.",
+      });
+    }
+  }
+
+  await repairMissingVietnamUploadPreviews(page, answers, validationErrors);
+
+  return { filled, skipped, validationErrors };
+}
+
+export async function isSatisfiedDisabledVietnamControl(
+  page: Page,
+  domId: string,
+): Promise<boolean> {
+  return page
+    .locator(`#${cssEscape(domId)}`)
+    .first()
+    .evaluate((element) => {
+      const control = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+      const disabled =
+        control.disabled ||
+        element.getAttribute("aria-disabled") === "true" ||
+        element.closest(".ant-input-disabled, .ant-select-disabled") !== null;
+      if (!disabled) return false;
+      const value = "value" in control ? String(control.value ?? "").trim() : "";
+      const rendered = (element.getAttribute("title") ?? element.textContent ?? "").trim();
+      return Boolean(value || rendered);
+    })
+    .catch(() => false);
 }
 
 export interface FillVietnamOptions {
@@ -469,58 +618,10 @@ async function fillVietnamApplicationOnce(
 
     // ── Fill every mapped field that we have an answer for ─────────────
     await emitProgress("application_form_visible");
-    const fillAnswers = dedupeVietnamUploadAnswers(input.answers);
-    const conditionalAnswerErrors = validateVietnamConditionalAnswers(fillAnswers);
-    if (conditionalAnswerErrors.length > 0) {
-      validationErrors.push(
-        ...conditionalAnswerErrors.map((error) => ({
-          label: error.fieldName,
-          domId: VN_FIELD_MAPPINGS[error.fieldName]?.domId,
-          message: error.message,
-        })),
-      );
-      return {
-        status: "scaffolded_pending_walk",
-        runId,
-        errorCode: "form_validation_failed",
-        reason: `Official Vietnam e-Visa portal fill blocked submission: ${validationErrors
-          .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
-          .join("; ")}`,
-        checkpoint: "application_form_visible",
-        url: page.url(),
-        diagnostics: diagnostics(),
-      };
-    }
-
     await emitProgress("filling_fields");
-    let filled = 0;
-    let skipped = 0;
-    for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
-      const value = fillAnswers[fieldName];
-      if (!value) {
-        skipped++;
-        continue;
-      }
-      try {
-        console.log(`[vn] filling field ${fieldName} (${mapping.type})`);
-        await fillByType(page, fieldName, mapping.type, mapping.domId, value);
-        if (fieldName === "intended_province_city") {
-          await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
-        }
-        filled += await fillVietnamConditionalRepeatGroups(page, fillAnswers, fieldName);
-        filled++;
-        console.log(`[vn] filled field ${fieldName}`);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        validationErrors.push({
-          label: fieldName,
-          domId: mapping.domId,
-          message: `Official Vietnam e-Visa portal rejected this value: ${msg}`,
-        });
-        console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}); no fallback used: ${msg}`);
-        skipped++;
-      }
-    }
+    const pageFill = await fillVietnamOfficialApplicationPage(page, input.answers);
+    const { filled, skipped } = pageFill;
+    validationErrors.push(...pageFill.validationErrors);
 
     if (validationErrors.length > 0) {
       const documentUploadFailed = validationErrors.some(
@@ -566,14 +667,20 @@ async function fillVietnamApplicationOnce(
           Date.now() < reviewCaptchaDeadline;
         attempt++
       ) {
+        const postSolveReserveMs = 30_000;
+        if (reviewCaptchaDeadline - Date.now() <= postSolveReserveMs) {
+          lastReviewCaptchaReason =
+            "The Vietnam CAPTCHA solve budget ended with its verification reserve intact.";
+          break;
+        }
         console.log(`[vn] Review CAPTCHA attempt ${attempt}/${maxReviewCaptchaAttempts}.`);
         if (attempt > 1) {
           const refreshBudgetMs = remainingVietnamCaptchaBudgetMs(
             reviewCaptchaDeadline,
-            Math.min(stepTimeoutMs, 12_000),
+            Math.min(stepTimeoutMs, 18_000),
           );
           const refreshed = await withTimeout(
-            refreshVietnamCaptchaChallenge(page, Math.min(refreshBudgetMs, 8_000)),
+            refreshVietnamCaptchaChallenge(page, Math.min(refreshBudgetMs, 15_000)),
             refreshBudgetMs,
             false,
           );
@@ -589,11 +696,14 @@ async function fillVietnamApplicationOnce(
           await page.waitForTimeout(1_000);
         }
         await emitProgress("captcha_solving");
-        const captchaOutcome = await solveVietnamImageCaptcha(
+        const captchaOutcome = await solveVietnamReviewCaptchaWithRetry(
           page,
-          remainingVietnamCaptchaBudgetMs(
-            reviewCaptchaDeadline,
-            Math.max(stepTimeoutMs, DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS),
+          Math.max(
+            1_000,
+            Math.min(
+              Math.max(stepTimeoutMs, DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS),
+              reviewCaptchaDeadline - Date.now() - postSolveReserveMs,
+            ),
           ),
         );
         captchaSolves.push(captchaOutcome);
@@ -629,6 +739,20 @@ async function fillVietnamApplicationOnce(
           remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, Math.min(stepTimeoutMs, 55_000)),
           false,
         );
+        const postCaptchaInstruction = captchaSubmitted
+          ? await withTimeout(
+              acknowledgeVietnamPostCaptchaInstructionModal(page),
+              remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, Math.max(stepTimeoutMs, 45_000)),
+              "not_visible" as const,
+            )
+          : "not_visible";
+        if (postCaptchaInstruction === "acknowledged") {
+          console.log("[vn] Acknowledged the official post-CAPTCHA declaration instructions.");
+          await page.waitForTimeout(1_000);
+        } else if (postCaptchaInstruction === "failed") {
+          lastReviewCaptchaReason =
+            "The official CAPTCHA was accepted, but its declaration instructions could not be acknowledged safely.";
+        }
         const codeAfterCaptcha = await withTimeout(
           captureRegistrationCode(page),
           remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, 8_000),
@@ -656,9 +780,15 @@ async function fillVietnamApplicationOnce(
         }
         lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
-        if (captchaSubmitted && stateAfterCaptcha === "captcha_visible") {
+        if (
+          captchaSubmitted &&
+          postCaptchaInstruction !== "failed" &&
+          stateAfterCaptcha === "captcha_visible"
+        ) {
           lastReviewCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
           await reportRejectedVietnamCaptcha(captchaOutcome);
+        } else if (postCaptchaInstruction === "failed") {
+          break;
         } else if (!captchaSubmitted && stateAfterCaptcha === "captcha_visible") {
           lastReviewCaptchaReason = "VIZA could not activate the official CAPTCHA verification control.";
         } else if (
@@ -1596,6 +1726,51 @@ export async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> 
   return true;
 }
 
+export async function acknowledgeVietnamPostCaptchaInstructionModal(
+  page: Page,
+  timeoutMs = 45_000,
+): Promise<"not_visible" | "acknowledged" | "failed"> {
+  // On the live review page, a correct CAPTCHA does not transition directly
+  // to the registration-code result. It first opens a Vue declaration modal
+  // over the still-mounted review form. The underlying CAPTCHA therefore
+  // remains visible and must not be interpreted as a rejected answer.
+  const deadline = Date.now() + Math.max(0, timeoutMs);
+  let hasDeclarationModal = false;
+  do {
+    const modals = page
+      .locator(
+        ".is-big.modal.v-modal, .modal.v-modal, .ant-modal-wrap, .ant-modal, [role='dialog']",
+      )
+      .filter({ visible: true });
+    const modalCount = Math.min(await modals.count().catch(() => 0), 20);
+    for (let modalIndex = modalCount - 1; modalIndex >= 0; modalIndex -= 1) {
+      const modal = modals.nth(modalIndex);
+      const declarations = modal.locator("input[type='checkbox']:not([disabled])");
+      if ((await declarations.count().catch(() => 0)) < 2) continue;
+      const actions = modal.locator("button, [role='button']").filter({ visible: true });
+      const actionCount = Math.min(await actions.count().catch(() => 0), 20);
+      for (let actionIndex = 0; actionIndex < actionCount; actionIndex += 1) {
+        // The official modal intentionally renders its Next button disabled
+        // until both declaration checkboxes are selected. Its disabled state
+        // is evidence of the modal, not a reason to miss the checkpoint.
+        const label = (await actions.nth(actionIndex).innerText().catch(() => ""))
+          .replace(/\s+/g, " ")
+          .trim();
+        if (/^(next|ok|confirm|accept|agree|continue|tiếp tục|đồng ý|xác nhận)$/i.test(label)) {
+          hasDeclarationModal = true;
+          break;
+        }
+      }
+      if (hasDeclarationModal) break;
+    }
+    if (hasDeclarationModal || Date.now() >= deadline) break;
+    await page.waitForTimeout(Math.min(500, Math.max(0, deadline - Date.now())));
+  } while (Date.now() < deadline);
+
+  if (!hasDeclarationModal) return "not_visible";
+  return (await acknowledgeVietnamNoteModal(page)) ? "acknowledged" : "failed";
+}
+
 async function fillByType(
   page: Page,
   fieldName: string,
@@ -1612,6 +1787,12 @@ async function fillByType(
     case "select":
     case "country":
       await pickSelect(page, domId, portalOptionText);
+      if (["bought_travel_insurance", "expense_coverage", "expense_payment_method"].includes(fieldName)) {
+        const committed = await commitVietnamOfficialExpenseSelectModel(page, domId, rawValue);
+        if (!committed) {
+          throw new Error(`Official expense select model not confirmed for ${domId}`);
+        }
+      }
       return;
     case "radio":
       await pickRadio(page, domId, portalOptionText);
@@ -1757,12 +1938,14 @@ export async function uploadVietnamFile(
   const expectedUploadFilename = path.basename(uploadPath);
   const uploadBuffer = fs.readFileSync(uploadPath);
   const officialUploadResponse = page.waitForResponse(
-    (response) =>
-      isVietnamPublicUploadRequest(response.request().method(), response.url()) &&
-      vietnamMultipartContainsFilename(
-        response.request().postDataBuffer(),
-        expectedUploadFilename,
-      ),
+    (response) => {
+      if (!isVietnamPublicUploadRequest(response.request().method(), response.url())) return false;
+      const multipartBody = response.request().postDataBuffer();
+      // Remote CDP transports can omit request bodies. The listener starts
+      // immediately before this exact file input is changed, so a body-less
+      // official upload response is still eligible for server-side validation.
+      return multipartBody === null || vietnamMultipartContainsFilename(multipartBody, expectedUploadFilename);
+    },
     { timeout: 30_000 },
   );
   // Pass an explicit FilePayload instead of a filesystem path. The official
@@ -1776,8 +1959,13 @@ export async function uploadVietnamFile(
     },
     { timeout: 20_000 },
   );
+  const keptDeclaredInformation = fieldName === "passport_copy"
+    ? await keepDeclaredVietnamPassportInformation(page, 6_000)
+    : false;
   const response = await officialUploadResponse.catch(() => null);
   if (!response) {
+    const previewAccepted = await waitForVietnamUploadPreview(page, domId, uploadIndex, labelPattern);
+    if (previewAccepted || keptDeclaredInformation) return;
     throw new Error("official_document_upload_response_missing");
   }
   if (!response.ok()) {
@@ -1797,7 +1985,12 @@ export async function uploadVietnamFile(
     );
     throw new Error("official_document_upload_rejected_payload");
   }
-  if (responseAccepted === true) return;
+  if (responseAccepted === true) {
+    if (fieldName === "passport_copy" && !keptDeclaredInformation) {
+      await keepDeclaredVietnamPassportInformation(page, 4_000);
+    }
+    return;
+  }
   const previewAccepted = await waitForVietnamUploadPreview(page, domId, uploadIndex, labelPattern);
   // The live portal currently removes/replaces Ant Upload's preview node after
   // the API request succeeds. Treat the official JSON response as the primary
@@ -1807,6 +2000,42 @@ export async function uploadVietnamFile(
   if (!previewAccepted) {
     throw new Error("official_document_upload_preview_missing");
   }
+}
+
+/**
+ * The official portal may ask whether a replacement passport image should
+ * overwrite already-declared personal data. Draft repair must preserve the
+ * applicant's reviewed answers, so only the explicit "keep" action is safe.
+ */
+export async function keepDeclaredVietnamPassportInformation(
+  page: Page,
+  timeoutMs = 4_000,
+): Promise<boolean> {
+  const modalText = /passport data page image is changed|passport image (?:has )?changed|ảnh trang nhân thân hộ chiếu.*thay đổi|护照资料页图像.*(?:已更改|发生变化)|パスポート.*画像.*変更/i;
+  const keepLabel = /^(?:keep(?: declared)? information|keep existing information|giữ(?: nguyên)? thông tin|保留(?:原有|已申报)?信息|申告済みの情報を保持|情報を保持)$/i;
+  const deadline = Date.now() + Math.max(0, timeoutMs);
+  do {
+    const modal = page
+      .locator(".ant-modal-wrap:visible, [role='dialog']:visible")
+      .filter({ hasText: modalText })
+      .first();
+    if (await modal.isVisible({ timeout: 250 }).catch(() => false)) {
+      const keepButton = modal.getByRole("button", { name: keepLabel }).first();
+      if (!(await keepButton.isVisible({ timeout: 1_000 }).catch(() => false))) {
+        throw new Error("official_passport_change_keep_action_not_found");
+      }
+      await keepButton.click({ timeout: 5_000 });
+      await modal.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => undefined);
+      if (await modal.isVisible().catch(() => false)) {
+        throw new Error("official_passport_change_modal_did_not_close");
+      }
+      console.log("[vn] preserved declared information after passport image replacement");
+      return true;
+    }
+    if (Date.now() >= deadline) break;
+    await page.waitForTimeout(200);
+  } while (Date.now() < deadline);
+  return false;
 }
 
 export function vietnamMultipartContainsFilename(
@@ -1975,6 +2204,7 @@ async function waitForVietnamUploadPreview(
   domId: string,
   uploadIndex: number,
   labelPattern: RegExp,
+  timeoutMs = 8_000,
 ): Promise<boolean> {
   const accepted = await page
     .waitForFunction(
@@ -1992,12 +2222,13 @@ async function waitForVietnamUploadPreview(
         const formItem = input?.closest(".ant-form-item") ?? input?.closest(".ant-upload-wrapper") ?? input?.parentElement;
         const text = (formItem?.textContent ?? "").replace(/\s+/g, " ");
         const hasError = /please enter|not be empty|required/i.test(text);
-        const hasPreview =
-          Boolean(
-            formItem?.querySelector(
-              "img[src^='blob:'], img[src^='data:'], img[src^='http'], .ant-upload-list-item-done",
-            ),
-          );
+        const images = Array.from(
+          formItem?.querySelectorAll<HTMLImageElement>(
+            "img[src^='blob:'], img[src^='data:'], img[src^='http']",
+          ) ?? [],
+        );
+        const hasDecodedImage = images.some((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0);
+        const hasPreview = hasDecodedImage || Boolean(formItem?.querySelector(".ant-upload-list-item-done"));
         return hasPreview && !hasError;
       },
       {
@@ -2006,7 +2237,7 @@ async function waitForVietnamUploadPreview(
         labelSource: labelPattern.source,
         labelFlags: labelPattern.flags,
       },
-      { timeout: 8_000 },
+      { timeout: timeoutMs },
     )
     .then(() => true)
     .catch(() => false);
@@ -2014,6 +2245,67 @@ async function waitForVietnamUploadPreview(
     await page.waitForTimeout(1_000);
   }
   return accepted;
+}
+
+export async function repairMissingVietnamUploadPreviews(
+  page: Page,
+  answers: Record<string, string>,
+  validationErrors: VietnamPortalValidationError[],
+): Promise<void> {
+  const uploads = [
+    {
+      fieldName: "portrait_photo",
+      domId: VN_FIELD_MAPPINGS.portrait_photo.domId,
+      uploadIndex: 0,
+      labelPattern: /portrait photography/i,
+    },
+    {
+      fieldName: "passport_copy",
+      domId: VN_FIELD_MAPPINGS.passport_copy.domId,
+      uploadIndex: 1,
+      labelPattern: /passport data page image/i,
+    },
+  ] as const;
+
+  for (let pass = 1; pass <= 2; pass += 1) {
+    const missing: Array<(typeof uploads)[number]> = [];
+    for (const upload of uploads) {
+      if (!answers[upload.fieldName]) continue;
+      const ready = await waitForVietnamUploadPreview(
+        page,
+        upload.domId,
+        upload.uploadIndex,
+        upload.labelPattern,
+        2_000,
+      );
+      if (!ready) missing.push(upload);
+    }
+    if (missing.length === 0) return;
+    if (pass === 2) {
+      for (const upload of missing) {
+        validationErrors.push({
+          label: upload.fieldName,
+          domId: upload.domId,
+          message: "Official Vietnam e-Visa portal did not retain a decoded upload preview.",
+        });
+      }
+      return;
+    }
+    for (const upload of missing) {
+      console.warn(`[vn] official ${upload.fieldName} preview was missing or broken; retrying that upload once`);
+      try {
+        await uploadVietnamFile(page, upload.domId, answers[upload.fieldName], upload.fieldName);
+      } catch (error) {
+        validationErrors.push({
+          label: upload.fieldName,
+          domId: upload.domId,
+          message: `Official Vietnam e-Visa portal rejected the upload retry: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        });
+      }
+    }
+  }
 }
 
 function cssEscape(value: string): string {
@@ -2383,12 +2675,22 @@ export async function advanceVietnamToReview(
     await page.waitForTimeout(500);
     const snapshot = await readVietnamPortalSnapshot(page).catch(() => null);
     if (!snapshot) continue;
+    const transitionState = classifyVietnamPortalSnapshot(snapshot);
     if (
       snapshot.url !== initialUrl ||
-      classifyVietnamPortalSnapshot(snapshot) !== "application_form_visible"
+      [
+        "captcha_visible",
+        "registration_code_visible",
+        "payment_page_visible",
+        "final_submit_visible",
+      ].includes(transitionState)
     ) {
       return { advanced: true, clickedLabel: selected.label, failureReason: null };
     }
+    // The Vue SPA briefly removes the form while the review route mounts. The
+    // remaining navigation still contains an /e-visa/foreigners link, which
+    // looks like apply_now_visible. Do not treat that transient shell as a
+    // successful review transition; wait for an explicit review checkpoint.
     const errors = await readVietnamValidationErrors(page).catch(() => []);
     if (errors.length > 0) break;
   }

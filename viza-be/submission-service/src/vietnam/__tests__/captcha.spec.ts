@@ -5,6 +5,7 @@ import {
   DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
   DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS,
   DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
+  buildVietnamReviewCaptchaTaskOptions,
   captureVietnamCaptchaImage,
   describeVietnamCaptchaError,
   fingerprintVietnamCaptchaImage,
@@ -82,7 +83,7 @@ test("vn.captcha: normalizes whitespace and distinguishes terminal solver failur
   assert.equal(isVietnamCaptchaFailureRetryable("2captcha account has zero balance"), false);
   assert.equal(isVietnamCaptchaFailureRetryable("2captcha API error: ERROR_CAPTCHA_UNSOLVABLE"), true);
   assert.equal(DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS, 5);
-  assert.equal(DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS, 300_000);
+  assert.equal(DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS, 480_000);
   assert.equal(isVietnamCaptchaAnswerUsable("AB12", { minLength: 4, maxLength: 8 }), true);
   assert.equal(isVietnamCaptchaAnswerUsable("Ab", { minLength: 4, maxLength: 8 }), false);
   assert.equal(isVietnamCaptchaAnswerUsable("A#12", { minLength: 4, maxLength: 8 }), false);
@@ -358,6 +359,52 @@ test("vn.captcha: submits the current inline generic CAPTCHA input", async () =>
 
     assert.equal(await submitVietnamCaptchaAnswer(page, 100), true);
     assert.equal(await page.locator("body").getAttribute("data-captcha-submitted"), "yes");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: review task preserves the live variable-length numeric constraint", () => {
+  assert.deepEqual(buildVietnamReviewCaptchaTaskOptions({ minLength: 4, maxLength: 8 }), {
+    case: false,
+    numeric: 1,
+    minLength: 4,
+    maxLength: 8,
+    comment: "Vietnam e-Visa review security code. Return only the 4-8 visible digits.",
+  });
+  assert.deepEqual(buildVietnamReviewCaptchaTaskOptions({ minLength: 6, maxLength: 6 }), {
+    case: false,
+    numeric: 1,
+    minLength: 6,
+    maxLength: 6,
+    comment: "Vietnam e-Visa review security code. Return only the 6-6 visible digits.",
+  });
+});
+
+test("vn.captcha: trusted-clicks a review Next rendered outside the CAPTCHA form", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <form id="captcha-form">
+        <img id="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3E123456%3C/text%3E%3C/svg%3E" />
+        <input id="security-captcha" name="captcha" value="123456" />
+      </form>
+      <div id="review-actions">
+        <button type="button">Back</button>
+        <button type="button" id="review-next">Next</button>
+      </div>
+      <script>
+        document.getElementById('review-next').addEventListener('click', event => {
+          document.body.dataset.captchaSubmitted = 'yes';
+          document.body.dataset.trustedClick = String(event.isTrusted);
+        });
+      </script>
+    `);
+
+    assert.equal(await submitVietnamCaptchaAnswer(page, 100), true);
+    assert.equal(await page.locator("body").getAttribute("data-captcha-submitted"), "yes");
+    assert.equal(await page.locator("body").getAttribute("data-trusted-click"), "true");
   } finally {
     await browser.close();
   }

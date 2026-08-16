@@ -181,6 +181,10 @@ export async function readVietnamPortalSnapshot(
   failedRequestCount = 0,
   mainRequestFailed = false,
 ): Promise<VietnamPortalSnapshot> {
+  // tsx/esbuild can preserve its helper around nested functions serialized
+  // into Playwright's browser context. Install the identity helper before the
+  // snapshot evaluation so local smoke and the bundled worker behave alike.
+  await page.evaluate("globalThis.__name = globalThis.__name || ((fn) => fn)").catch(() => undefined);
   const evaluateSnapshot = () => page.evaluate(() => {
     const visibleText = (element: Element | null): string => {
       if (!element) return "";

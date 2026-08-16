@@ -29,6 +29,20 @@ export interface VietnamCaptchaAnswerConstraints {
   maxLength: number;
 }
 
+export function buildVietnamReviewCaptchaTaskOptions(
+  constraints: VietnamCaptchaAnswerConstraints,
+) {
+  return {
+    case: false,
+    numeric: 1,
+    minLength: constraints.minLength,
+    maxLength: constraints.maxLength,
+    comment:
+      `Vietnam e-Visa review security code. Return only the ` +
+      `${constraints.minLength}-${constraints.maxLength} visible digits.`,
+  } as const;
+}
+
 const CAPTCHA_IMAGE_SELECTOR = [
   "img[src*='captcha' i]",
   "img[id*='captcha' i]",
@@ -56,7 +70,7 @@ const CAPTCHA_SUBMIT_LABEL_PATTERN =
 export const DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS = 180_000;
 const CAPTCHA_INPUT_WAIT_MS = 15_000;
 export const DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS = 5;
-export const DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS = 300_000;
+export const DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS = 480_000;
 
 type CaptchaRoot = Page | Frame;
 
@@ -344,6 +358,79 @@ export async function solveVietnamImageCaptcha(
   };
 }
 
+// Match the shared 2Captcha ImageToText default. Production tasks frequently
+// complete just after 90 seconds during provider congestion; cutting them off
+// early creates duplicate tasks without improving the bounded outer budget.
+const VIETNAM_REVIEW_CAPTCHA_PROVIDER_TIMEOUT_MS = 120_000;
+const VIETNAM_REVIEW_CAPTCHA_MAX_PROVIDER_ATTEMPTS = 3;
+
+/**
+ * The official review challenge is numeric, but its length varies (production
+ * has emitted both five- and six-digit images). Provider tasks use the live
+ * input's observed constraints rather than the payment-search page's separate
+ * fixed six-digit contract. Tasks remain individually bounded so a task left
+ * processing cannot consume the entire review checkpoint.
+ */
+export async function solveVietnamReviewCaptchaWithRetry(
+  page: Page,
+  timeoutMs: number,
+  options: {
+    maxAttempts?: number;
+    solveAttempt?: (attemptTimeoutMs: number) => Promise<VietnamCaptchaSolveOutcome>;
+    refreshChallenge?: () => Promise<boolean>;
+  } = {},
+): Promise<VietnamCaptchaSolveOutcome> {
+  const deadline = Date.now() + Math.max(1_000, timeoutMs);
+  const maxAttempts = Math.max(
+    1,
+    Math.min(options.maxAttempts ?? VIETNAM_REVIEW_CAPTCHA_MAX_PROVIDER_ATTEMPTS, 5),
+  );
+  const solveAttempt = options.solveAttempt ?? ((attemptTimeoutMs: number) =>
+    solveVietnamImageCaptcha(
+      page,
+      attemptTimeoutMs,
+      (image, budgetMs, constraints) => solveImageCaptcha(
+        image,
+        budgetMs,
+        buildVietnamReviewCaptchaTaskOptions(constraints),
+      ),
+    ));
+  const refreshChallenge = options.refreshChallenge ?? (() =>
+    refreshVietnamCaptchaChallenge(page, Math.min(15_000, Math.max(1_000, deadline - Date.now()))));
+  let lastOutcome: VietnamCaptchaSolveOutcome = {
+    solved: false,
+    reason: "Vietnam review CAPTCHA provider attempts were exhausted.",
+  };
+
+  for (let attempt = 1; attempt <= maxAttempts && Date.now() < deadline; attempt += 1) {
+    const remainingMs = deadline - Date.now();
+    const attemptTimeoutMs = Math.min(VIETNAM_REVIEW_CAPTCHA_PROVIDER_TIMEOUT_MS, remainingMs);
+    lastOutcome = await solveAttempt(Math.max(1_000, attemptTimeoutMs));
+    if (lastOutcome.solved || !isVietnamCaptchaFailureRetryable(lastOutcome.reason)) {
+      return lastOutcome;
+    }
+    const reason = lastOutcome.reason ?? "";
+    const requiresNewChallenge = /unsolvable|unusable|changed while|stale answer/i.test(reason);
+    console.warn(
+      `[vn] Review CAPTCHA provider attempt ${attempt}/${maxAttempts} failed ` +
+      `kind=${requiresNewChallenge ? "challenge_rejected" : /timed out/i.test(reason) ? "provider_timeout" : "transient"}.`,
+    );
+    if (requiresNewChallenge) {
+      const refreshed = await refreshChallenge().catch(() => false);
+      if (!refreshed) {
+        return {
+          solved: false,
+          reason: "The Vietnam review CAPTCHA refresh could not be confirmed after a provider failure.",
+        };
+      }
+    }
+    if (attempt < maxAttempts && Date.now() < deadline) {
+      await page.waitForTimeout(Math.min(1_000, Math.max(0, deadline - Date.now())));
+    }
+  }
+  return lastOutcome;
+}
+
 async function readVietnamCaptchaAnswerConstraints(
   input: Locator,
 ): Promise<VietnamCaptchaAnswerConstraints> {
@@ -502,6 +589,35 @@ export async function submitVietnamCaptchaAnswer(
     return false;
   }
   const inputBox = await controls.input.boundingBox().catch(() => null);
+  const submitMarker = `viza-captcha-${Date.now().toString(36)}`;
+  await controls.input
+    .evaluate((element, marker) => element.setAttribute("data-viza-captcha-submit", marker), submitMarker)
+    .catch(() => undefined);
+  // Resolve and activate the nearest positive action in one browser-context
+  // task before walking every button through Playwright. The live review page
+  // can contain dozens of controls; the old per-control scan consumed the
+  // remaining CAPTCHA budget after a valid 2Captcha answer was already filled.
+  const fastDomTargetMarked = await dispatchVietnamCaptchaSubmitFallback(
+    controls.root,
+    `[data-viza-captcha-submit="${submitMarker}"]`,
+  ).catch((error) => {
+    console.warn(
+      `[vn] CAPTCHA fast DOM submit failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return false;
+  });
+  const fastDomClicked = fastDomTargetMarked
+    ? await controls.root
+        .locator(`[data-viza-captcha-action="${submitMarker}"]`)
+        .first()
+        .click({ timeout: Math.min(timeoutMs, 5_000) })
+        .then(() => true)
+        .catch(() => false)
+    : false;
+  if (fastDomClicked) {
+    await page.waitForTimeout(Math.min(timeoutMs, 5_000));
+    return true;
+  }
   const candidates = controls.root.locator(
     "button, input[type='submit'], input[type='button'], [role='button'], a",
   );
@@ -547,28 +663,23 @@ export async function submitVietnamCaptchaAnswer(
   // late Ant dialog redraw cannot leave us holding a detached locator. The
   // fallback is intentionally scoped to the input's dialog/form and excludes
   // destructive navigation controls before considering proximity.
-  const domClicked = clicked
-    ? false
-    : await dispatchVietnamCaptchaSubmitFallback(controls.root).catch((error) => {
-        console.warn(
-          `[vn] CAPTCHA DOM submit fallback failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-        return false;
-      });
-  const enterSubmitted = clicked || domClicked
+  const enterSubmitted = clicked
     ? false
     : await controls.input
         .press("Enter", { timeout: Math.min(timeoutMs, 5_000) })
         .then(() => true)
         .catch(() => false);
   await page.waitForTimeout(Math.min(timeoutMs, 5_000));
-  if (!clicked && !domClicked && !enterSubmitted) {
+  if (!clicked && !enterSubmitted) {
     console.warn(`[vn] CAPTCHA submit control was not activated (candidates=${count}, matched=${Boolean(best)}).`);
   }
-  return clicked || domClicked || enterSubmitted;
+  return clicked || enterSubmitted;
 }
 
-async function dispatchVietnamCaptchaSubmitFallback(root: CaptchaRoot): Promise<boolean> {
+async function dispatchVietnamCaptchaSubmitFallback(
+  root: CaptchaRoot,
+  inputSelector = CAPTCHA_INPUT_SELECTOR,
+): Promise<boolean> {
   // tsx/esbuild can preserve its `__name` helper inside functions serialized
   // into Playwright's page context. Mirror the select filler bootstrap so the
   // fallback works in both tests and the production bundle.
@@ -584,9 +695,11 @@ async function dispatchVietnamCaptchaSubmitFallback(root: CaptchaRoot): Promise<
     const input = inputs.find((candidate) => visible(candidate) && !candidate.disabled && !candidate.readOnly);
     if (!input) return false;
 
-    const scope =
-      input.closest<HTMLElement>("[role='dialog'], .ant-modal, .MuiDialog-root, .MuiModal-root, form") ??
-      document.body;
+    // The live review page mounts the CAPTCHA input in a small Ant form while
+    // its Back/Next actions are sibling controls outside that form. Search the
+    // visible document and rank by proximity; limiting this to closest(form)
+    // caused the old path to synthesize Enter without ever clicking Next.
+    const scope = document.body;
     const inputRect = input.getBoundingClientRect();
     const positive =
       /\b(next|continue|submit|verify|confirm|send|check|ok)\b|tiếp tục|xác nhận|kiểm tra|kiểm chứng|hoàn tất|hoàn thành|gửi|nộp|đồng ý|duyệt/i;
@@ -614,20 +727,16 @@ async function dispatchVietnamCaptchaSubmitFallback(root: CaptchaRoot): Promise<
       .sort((left, right) => left.score - right.score);
     const target = candidates[0]?.candidate;
     if (target) {
-      // `HTMLElement.click()` preserves the framework's native click handler
-      // even when the previous Playwright locator was detached by a redraw.
-      // Do not also dispatch a synthetic click sequence: that can invoke the
-      // verification handler twice on portals that retain the same node.
-      target.click();
+      // Mark in the browser process, then let Playwright perform the actual
+      // trusted click. Some official Vue handlers ignore synthetic
+      // HTMLElement.click()/KeyboardEvent dispatches.
+      const marker = input.getAttribute("data-viza-captcha-submit");
+      if (!marker) return false;
+      target.setAttribute("data-viza-captcha-action", marker);
       return true;
     }
-
-    input.focus();
-    input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter", code: "Enter" }));
-    input.dispatchEvent(new KeyboardEvent("keypress", { bubbles: true, cancelable: true, key: "Enter", code: "Enter" }));
-    input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, cancelable: true, key: "Enter", code: "Enter" }));
-    return true;
-  }, CAPTCHA_INPUT_SELECTOR);
+    return false;
+  }, inputSelector);
 }
 
 export async function captureVietnamCaptchaFingerprint(
@@ -703,8 +812,32 @@ async function firstVisible(locator: Locator): Promise<Locator | null> {
   return index >= 0 ? locator.nth(index) : null;
 }
 
+async function firstVisibleLoadedCaptchaGraphic(locator: Locator): Promise<Locator | null> {
+  const index = await locator
+    .evaluateAll((elements) => {
+      const limit = Math.min(elements.length, 30);
+      for (let current = 0; current < limit; current += 1) {
+        const element = elements[current];
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        if (style.display === "none" || style.visibility === "hidden" || rect.width <= 0 || rect.height <= 0) {
+          continue;
+        }
+        if (element instanceof HTMLImageElement &&
+          (!element.complete || element.naturalWidth <= 0 || element.naturalHeight <= 0)) {
+          continue;
+        }
+        if (element instanceof HTMLCanvasElement && (element.width <= 0 || element.height <= 0)) continue;
+        return current;
+      }
+      return -1;
+    })
+    .catch(() => -1);
+  return index >= 0 ? locator.nth(index) : null;
+}
+
 async function locateVietnamCaptchaImage(root: CaptchaRoot, input: Locator): Promise<Locator | null> {
-  const direct = await firstVisible(root.locator(CAPTCHA_IMAGE_SELECTOR));
+  const direct = await firstVisibleLoadedCaptchaGraphic(root.locator(CAPTCHA_IMAGE_SELECTOR));
   if (direct) return direct;
 
   // The current official review dialog renders an id-less challenge image and
@@ -732,6 +865,11 @@ async function locateVietnamCaptchaImage(root: CaptchaRoot, input: Locator): Pro
         ) {
           continue;
         }
+        if (element instanceof HTMLImageElement &&
+          (!element.complete || element.naturalWidth <= 0 || element.naturalHeight <= 0)) {
+          continue;
+        }
+        if (element instanceof HTMLCanvasElement && (element.width <= 0 || element.height <= 0)) continue;
         const metadata = `${element.getAttribute("src") ?? ""} ${element.getAttribute("alt") ?? ""} ` +
           `${element.getAttribute("class") ?? ""} ${element.getAttribute("id") ?? ""} ` +
           `${element.getAttribute("data-icon") ?? ""}`;
