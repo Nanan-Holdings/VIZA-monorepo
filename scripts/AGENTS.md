@@ -74,3 +74,8 @@ smoke-test helpers for the VIZA monorepo.
   keep all credential values in GitHub Actions secrets and use
   `SUPABASE_SELF_HEAL_DRY_RUN=true` to exercise the decision path without
   calling the Management API restart endpoint.
+- `production-db-maintenance.mjs`: fail-closed production database maintenance
+  helper invoked only from the protected GitHub Environment. Its initial
+  preflight mode uses Supabase's read-only Management API endpoint and emits
+  aggregate queue/lease, cap, cron, migration-ledger, and strict-object
+  metadata without row payloads or credential values.
