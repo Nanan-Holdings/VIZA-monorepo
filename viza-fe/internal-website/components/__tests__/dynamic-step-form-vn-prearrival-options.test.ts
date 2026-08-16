@@ -157,6 +157,14 @@ describe("Vietnam pre-arrival dynamic form options", () => {
           value: "+1",
           official_label: "(+1)",
         }),
+        expect.objectContaining({
+          value: "+1268",
+          official_label: "(+1268)",
+        }),
+        expect.objectContaining({
+          value: "+1671",
+          official_label: "(+1671)",
+        }),
       ]),
     );
   });

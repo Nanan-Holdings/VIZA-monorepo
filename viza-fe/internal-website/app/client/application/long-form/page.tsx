@@ -1119,7 +1119,11 @@ function FinalConfirmationPanel({
     !isTaiwan || (taiwanEntryPromptAccepted && taiwanTermsModalAccepted);
   const submitDisabled = isSubmitting || isChecking || !taiwanTermsReady;
   const officialPaymentCard: VietnamOneTimePaymentCard | undefined = undefined;
-  const submitCopy = forceDryRun
+  const submitCopy = isPhEtravel
+    ? isZh
+      ? "菲律宾官方 eTravel 登记免费，且不是签证，也不保证边检准入。提交后会创建普通入境旅客的官方 eTravel 任务；只有后端从权威登记记录读取到稳定参考号并验证其对应二维码后才会显示成功。"
+      : "Official Philippines eTravel registration is free, is not a visa, and does not guarantee admission at border control. Submitting creates an ordinary-arrival-passenger eTravel task; success appears only after the backend reads a stable reference from the authoritative registration record and verifies its matching QR code."
+    : forceDryRun
     ? isZh
       ? "这是隔离的云端演练，只验证 VIZA 与 Fly 提交链路，不会打开或填写官方 CEAC 网站。"
       : "This isolated cloud dry run verifies the VIZA-to-Fly submission path without opening or filling the official CEAC website."

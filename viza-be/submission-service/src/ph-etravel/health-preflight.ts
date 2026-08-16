@@ -66,7 +66,7 @@ export interface PhEtravelHealthActionPlan {
     };
   };
   transportPersonaParity: {
-    airSeaLiveVerified: false;
+    airSeaLiveVerified: true;
     filipinoForeignerLiveVerified: false;
   };
   staticHandlerPayloadMapping: "unknown_do_not_infer";
@@ -144,7 +144,7 @@ export function buildPhEtravelHealthActionPlan(
       },
     },
     transportPersonaParity: {
-      airSeaLiveVerified: false,
+      airSeaLiveVerified: true,
       filipinoForeignerLiveVerified: false,
     },
     staticHandlerPayloadMapping: "unknown_do_not_infer",

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { decryptSecret, encryptSecret } from "../secret-cipher";
 
 export interface PhEtravelAccountRow {
@@ -44,6 +45,23 @@ const VAULT_STATUS_KEY = "ph_etravel.account.status";
 
 export function phEtravelAccountEmailFromManagedAlias(alias: string): string {
   return alias.trim().toLowerCase();
+}
+
+/** Observed on the official Create your password page (2026-08-14). */
+export function isPhEtravelAccountPasswordCompliant(password: string): boolean {
+  return password.length >= 12
+    && /[A-Z]/.test(password)
+    && /[a-z]/.test(password)
+    && /\d/.test(password)
+    && /[^A-Za-z0-9]/.test(password);
+}
+
+export function generatePhEtravelAccountPassword(): string {
+  const password = `VizaPH-${randomBytes(9).toString("base64url")}9!`;
+  if (!isPhEtravelAccountPasswordCompliant(password)) {
+    throw new Error("ph_etravel_generated_password_policy_failed");
+  }
+  return password;
 }
 
 export function isMissingPhEtravelAccountsTableError(error: unknown): boolean {
