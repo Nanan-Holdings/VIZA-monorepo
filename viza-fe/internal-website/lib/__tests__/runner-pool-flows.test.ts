@@ -3,6 +3,7 @@ import {
   resolveRunnerPoolFlow,
   shouldUseSharedRunnerPool,
 } from "@/lib/queue/flows";
+import { assertKnownCountry, normalizeCountry } from "@/lib/queue/countries";
 
 describe("resolveRunnerPoolFlow", () => {
   it.each([
@@ -21,6 +22,7 @@ describe("resolveRunnerPoolFlow", () => {
     expect(resolveRunnerPoolFlow("france", "FR_SHORT_STAY")).toBeNull();
     expect(resolveRunnerPoolFlow("indonesia", "ID_C1_TOURIST")).toBeNull();
     expect(resolveRunnerPoolFlow("indonesia", "ID_B1_EVOA")).toBeNull();
+    expect(resolveRunnerPoolFlow("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBeNull();
   });
 });
 
@@ -40,4 +42,11 @@ describe("shouldUseSharedRunnerPool", () => {
       expect(shouldUseSharedRunnerPool(flowKey, true)).toBe(true);
     },
   );
+});
+
+describe("Philippines runner job country contract", () => {
+  it("normalizes PH and accepts the canonical Philippines country", () => {
+    expect(normalizeCountry("PH")).toBe("philippines");
+    expect(assertKnownCountry("philippines")).toBe("philippines");
+  });
 });

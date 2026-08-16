@@ -20,9 +20,6 @@ import {
   evaluateSgacSubmissionWindow,
   validateSgacTravelDates,
 } from "@/features/sgac/date-window";
-import {
-  evaluatePhEtravelSubmissionWindow,
-} from "@/features/ph-etravel/date-window";
 import { decidePhEtravelLiveSchedule } from "@/features/ph-etravel/retry-schedule";
 import {
   isDs160VisaType,
@@ -1099,6 +1096,43 @@ async function insertRetryQueueRow(
   };
 }
 
+async function insertPhEtravelArrivalRunnerJob(input: {
+  applicationId: string;
+  now: string;
+}): Promise<RetryQueueInsertResult> {
+  try {
+    const result = await enqueueRunnerJob(input.applicationId, "philippines", {
+      correlationId: `ph-etravel-arrival:${input.applicationId}:${input.now}`,
+      maxAttempts: 1,
+      metadata: {
+        source: "retry-submission",
+        visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+        mode: "live_assisted",
+        queuedStage: "queued_for_ph_etravel_arrival_live",
+      },
+    });
+    return {
+      error: null,
+      jobId: result.id,
+      queueStatus: "phetravel_live_assisted_pending",
+      mode: "live_assisted",
+      provider: "philippines_etravel_live",
+      reusedExisting: !result.created,
+      supersededCount: 0,
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : String(error),
+      jobId: null,
+      queueStatus: null,
+      mode: null,
+      provider: null,
+      reusedExisting: false,
+      supersededCount: 0,
+    };
+  }
+}
+
 async function readSgacDateAnswers(
   admin: ReturnType<typeof createAdminClient>,
   applicationId: string,
@@ -1906,7 +1940,14 @@ export async function POST(
         consent: requestedSubmission.taiwanOfficialTermsConsent!,
       })
     : null;
-  const poolEnqueue = !isTaiwanFormalSubmit && useRunnerPool
+  const isPhEtravelArrivalSubmit =
+    mode === "live_assisted" &&
+    !scheduledResult &&
+    isPhilippinesEtravelApplication(ownedApplication.country, ownedApplication.visa_type);
+  const phEtravelQueueResult = isPhEtravelArrivalSubmit
+    ? await insertPhEtravelArrivalRunnerJob({ applicationId, now })
+    : null;
+  const poolEnqueue = !isTaiwanFormalSubmit && !isPhEtravelArrivalSubmit && useRunnerPool
     ? await enqueueRunnerPoolJob(
         applicationId,
         ownedApplication.country ?? "",
@@ -1920,7 +1961,7 @@ export async function POST(
         },
       )
     : null;
-  const queueResult: RetryQueueInsertResult = taiwanQueueResult ?? (poolEnqueue
+  const queueResult: RetryQueueInsertResult = taiwanQueueResult ?? phEtravelQueueResult ?? (poolEnqueue
     ? {
         error: null,
         jobId: poolEnqueue.id,

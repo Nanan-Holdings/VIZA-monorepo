@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { readFileSync } from "node:fs";
 
 import { decidePhEtravelLiveSchedule } from "@/features/ph-etravel/retry-schedule";
 
@@ -91,5 +92,19 @@ describe("Philippines eTravel retry scheduling", () => {
       status: 422,
       code: "phetravel_arrival_date_past",
     });
+  });
+});
+
+describe("Philippines eTravel canonical enqueue contract", () => {
+  test("routes an in-window arrival to the Philippines runner job after scheduling checks", () => {
+    const routeSource = readFileSync(
+      `${process.cwd()}/app/api/applications/[id]/retry-submission/route.ts`,
+      "utf8",
+    );
+
+    expect(routeSource).toContain('enqueueRunnerJob(input.applicationId, "philippines"');
+    expect(routeSource).toContain("!scheduledResult &&");
+    expect(routeSource).toContain("phEtravelQueueResult");
+    expect(routeSource).not.toContain("runner_contract_unavailable");
   });
 });
