@@ -3940,12 +3940,19 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     } catch (error) {
       throw error;
     }
+    const stopBeforeCardEntry = readBooleanEnv(
+      "VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY",
+      false,
+    );
+    const preCardQaMode =
+      stopBeforeCardEntry &&
+      item.vn_result_payload?.qaMode === "pre_card_only";
     const autopayEnabled = readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
-    if (!intent || !isManagedVirtualCardIntent(intent)) {
+    if (!preCardQaMode && (!intent || !isManagedVirtualCardIntent(intent))) {
       throw new Error("No managed official-fee intent and allocation are available for Vietnam payment.");
     }
-    if (!["admin_approved", "ready"].includes(intent.status ?? "")) {
-      throw new Error(`Official fee intent is not executable from status ${intent.status ?? "(empty)"}.`);
+    if (!preCardQaMode && !["admin_approved", "ready"].includes(intent?.status ?? "")) {
+      throw new Error(`Official fee intent is not executable from status ${intent?.status ?? "(empty)"}.`);
     }
 
     const registrationCode = await loadVnRegistrationCode(item.application_id, item);
@@ -3975,13 +3982,6 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       const diagnosticsDir = path.resolve("diag-out", "vn-payment", item.id);
       fs.mkdirSync(diagnosticsDir, { recursive: true });
       const screenshotPath = path.join(diagnosticsDir, "payment-resume.png");
-      const stopBeforeCardEntry = readBooleanEnv(
-        "VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY",
-        false,
-      );
-      const preCardQaMode =
-        stopBeforeCardEntry &&
-        item.vn_result_payload?.qaMode === "pre_card_only";
       let repairAnswers: Record<string, string> | undefined;
       if (stopBeforeCardEntry && !preCardQaMode) {
         repairAnswers = applyVietnamAnswerAliases({ ...answers }, profile, application);

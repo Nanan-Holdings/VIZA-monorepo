@@ -203,6 +203,10 @@ test("Vietnam cloud pre-card QA never mutates the existing official profile", ()
     paymentSection,
     /const preCardQaMode\s*=\s*stopBeforeCardEntry\s*&&\s*item\.vn_result_payload\?\.qaMode === "pre_card_only"/,
   );
+  assert.match(
+    paymentSection,
+    /if \(!preCardQaMode && \(!intent \|\| !isManagedVirtualCardIntent\(intent\)\)\)/,
+  );
   assert.match(paymentSection, /if \(stopBeforeCardEntry && !preCardQaMode\)/);
 });
 
