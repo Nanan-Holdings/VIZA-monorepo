@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getClientSessionWithFallback } from "@/lib/client-session";
 import { ensureFlyMachineStarted, waitForHttpReady } from "@/lib/fly-machine-wake.server";
+import {
+  assertRunnerCutoverActive,
+  isRunnerCutoverPaused,
+} from "@/lib/runner-cutover-pause.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   isRebookingAfterCancellation,
@@ -495,6 +499,7 @@ async function ensureSubmissionServiceReady(baseUrl: string) {
 }
 
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  assertRunnerCutoverActive();
   const baseUrl = submissionServiceBaseUrl();
   await ensureSubmissionServiceReady(baseUrl);
   const url = `${baseUrl}${path}`;
@@ -1901,6 +1906,15 @@ export async function POST(
   const { id } = await ctx.params;
   const auth = await requireApplication(id);
   if (!auth.ok) return auth.response;
+  if (isRunnerCutoverPaused()) {
+    return NextResponse.json(
+      {
+        error: "Korea appointment actions are temporarily paused for a controlled runner cutover.",
+        code: "runner_cutover_paused",
+      },
+      { status: 503 },
+    );
+  }
   const body = (await req.json().catch(() => ({}))) as {
     action?: Action;
     slotId?: string;
