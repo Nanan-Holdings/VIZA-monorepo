@@ -163,7 +163,9 @@ describe("Philippines eTravel shared frontend integration package", () => {
     expect(dynamicStep.forbiddenBehavior.join(" ")).toContain(
       "Do not send air.is_special_flight"
     );
-    expect(dynamicStep.requiredBehavior.join(" ")).toContain("E23 Health");
+    expect(dynamicStep.requiredBehavior.join(" ")).toContain(
+      "Consume Health only through createPhEtravelHealthPresentation()"
+    );
     expect(dynamicStep.requiredBehavior.join(" ")).toContain(
       "E24 SEA ARRIVAL disembarking/stay branch"
     );

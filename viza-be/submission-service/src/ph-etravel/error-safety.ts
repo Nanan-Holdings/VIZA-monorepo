@@ -49,8 +49,12 @@ const PH_ETRAVEL_SAFE_ERROR_MESSAGES: Record<string, string> = {
     "Philippines eTravel launch is blocked until the SEA electronic positive customs continuation is verified.",
   ph_etravel_launch_currency_positive_review_required:
     "Philippines eTravel launch is blocked until the positive currency declaration branch is verified.",
+  ph_etravel_launch_goods_amount_checklist_required:
+    "Philippines eTravel launch is blocked because a positive goods amount needs at least one General Declaration item from 3 through 12.",
   ph_etravel_launch_attachment_review_required:
     "Philippines eTravel launch is blocked until attachment requiredness and server behavior are verified.",
+  ph_etravel_launch_customs_signature_review_required:
+    "Philippines eTravel launch is blocked until the official customs declaration signature gate is handled.",
   ph_etravel_launch_final_result_recovery_required:
     "Philippines eTravel launch is blocked until final result and recovery behavior are verified.",
   ph_etravel_structured_customs_action_required:

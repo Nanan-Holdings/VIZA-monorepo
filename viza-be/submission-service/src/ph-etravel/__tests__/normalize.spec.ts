@@ -495,9 +495,9 @@ test("normalizePhEtravelPortalPayload maps official customs checklist and struct
       customs_checklist_12: "no",
       amount_of_goods_currency: "USD",
       amount_of_goods_amount: "1200",
-      currency_type: "FOREIGN_CURRENCY",
+      currency_type: "840",
       currency_amount: "15000",
-      currency_monetary_instrument: "CASH",
+      currency_monetary_instrument: "1",
       currency_source: "Salary",
       currency_source__2: "Business",
       currency_transport_purpose: "Travel",
@@ -530,7 +530,7 @@ test("normalizePhEtravelPortalPayload maps official customs checklist and struct
   assert.equal(payload.customs.amountOfGoodsCurrency, "USD");
   assert.equal(payload.customs.currencyAmount, "15000");
   assert.deepEqual(payload.customs.currencyItems, [
-    { currency: "FOREIGN_CURRENCY", monetaryInstrument: "CASH", amount: "15000" },
+    { currency: "840", monetaryInstrument: "1", amount: "15000" },
   ]);
   assert.deepEqual(payload.customs.currencySources, ["Salary", "Business"]);
   assert.deepEqual(payload.customs.currencyTransportPurposes, ["Travel", "Business"]);
@@ -581,7 +581,7 @@ test("normalizePhEtravelPortalPayload maps courier currency declaration branch",
       has_baggage_or_currency_to_declare: "yes",
       customs_checklist_1: "yes",
       currency_items: JSON.stringify([
-        { currency: "USD", monetary_instrument: "Cash", amount: "12000" },
+        { currency: 840, monetary_instrument: 1, amount: "12000" },
       ]),
       currency_sources: JSON.stringify(["Savings"]),
       currency_transport_purposes: JSON.stringify(["Investment"]),
@@ -593,12 +593,30 @@ test("normalizePhEtravelPortalPayload maps courier currency declaration branch",
   }), { now: new Date("2026-06-12T08:00:00+08:00") });
 
   assert.deepEqual(payload.customs.currencyItems, [
-    { currency: "USD", monetaryInstrument: "Cash", amount: "12000" },
+    { currency: "840", monetaryInstrument: "1", amount: "12000" },
   ]);
   assert.equal(payload.customs.currencyTransportMethod, "is_shipped_thru_courier_service");
   assert.equal(payload.customs.courierName, "TEST COURIER");
   assert.equal(payload.customs.airwayBillNumber, "AWB123");
   assert.equal(payload.customs.airwayBillDate, "2026-06-11");
+});
+
+test("normalizePhEtravelPortalPayload retains only numeric Currency and Monetary Instrument API ids", () => {
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        customs_checklist_1: "yes",
+        currency_items: JSON.stringify([{ currency: "USD", monetary_instrument: "CASH", amount: "1" }]),
+        currency_sources: JSON.stringify(["Salary"]),
+        currency_transport_purposes: JSON.stringify(["Leisure"]),
+        currency_transport_method: "physically transferred by person",
+        no_of_days_in_philippines: "1",
+        last_travel_to_philippines: "2026-06-01",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => error instanceof PhEtravelPortalValidationError && error.missingFields.includes("currency_items"),
+  );
 });
 
 test("normalizePhEtravelPortalPayload fail-closes positive customs/currency without structured fields", () => {
@@ -615,7 +633,6 @@ test("normalizePhEtravelPortalPayload fail-closes positive customs/currency with
     }), { now: new Date("2026-06-12T08:00:00+08:00") }),
     (error: unknown) => {
       assert.ok(error instanceof PhEtravelPortalValidationError);
-      assert.ok(error.missingFields.includes("goods_items"));
       assert.ok(error.missingFields.includes("currency_items"));
       assert.ok(error.missingFields.includes("currency_sources"));
       assert.ok(error.missingFields.includes("currency_transport_purposes"));
@@ -623,6 +640,34 @@ test("normalizePhEtravelPortalPayload fail-closes positive customs/currency with
       return true;
     },
   );
+});
+
+test("normalizePhEtravelPortalPayload rejects a positive goods amount without Q3 through Q12 and preserves explicit goods associations", () => {
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        amount_of_goods_amount: "1,000",
+        customs_checklist_1: "yes",
+        customs_checklist_2: "no",
+        customs_checklist_3: "no",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => error instanceof PhEtravelPortalValidationError && error.missingFields.includes("customs_checklist_3_to_12"),
+  );
+
+  const normalized = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      customs_checklist_3: "yes",
+      customs_checklist_7: "yes",
+      goods_items: JSON.stringify([
+        { checklist_item_number: 3, description: "Item one", quantity: "1", amount_usd: "100" },
+        { checklist_item_number: 7, description: "Item two", quantity: "2", amount_usd: "200" },
+      ]),
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+  assert.deepEqual(normalized.customs.goodsItems.map((item) => item.checklistItemNumber), [3, 7]);
 });
 
 test("normalizePhEtravelPortalPayload derives ARRIVAL when the fixed travel type question is absent", () => {

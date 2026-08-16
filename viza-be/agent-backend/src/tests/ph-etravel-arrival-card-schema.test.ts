@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   PH_ETRAVEL_FORM_FIELDS,
+  PH_ETRAVEL_GENERAL_DECLARATION_ITEM_IDS,
+  PH_ETRAVEL_GENERAL_DECLARATION_POSITIVE_AMOUNT_RULE,
   PH_ETRAVEL_ARRIVAL_CONTRACT_AUDIT,
   PH_ETRAVEL_E18_SYNTHETIC_SCENARIO_READINESS,
   PH_ETRAVEL_PROFILE_CLIENT_WIRING_E21,
@@ -337,7 +339,7 @@ describe("Philippines eTravel arrival card schema", () => {
 
     expect(showIf("currency_owner_not_applicable")).toContain("customs_checklist_1 === yes");
     expect(showIf("bsp_authorization_date")).toBe("customs_checklist_1 === yes");
-    expect(rulesOf("currency_owner_not_applicable").stable_selector_evidence_level).toBe("needs_review");
+    expect(rulesOf("currency_owner_not_applicable").official_key).toBe("owner_details_not_applicable");
     expect(scenario("S6").minimum_schema_delta_after_official_evidence).toContain("stable_input_mime_size_count_and_requiredness_evidence");
 
     expect(showIf("customs_information_acknowledgement")).toBe("(transport_type === AIR || selected_port_customs_flow === ELECTRONIC_CUSTOMS)");
@@ -386,7 +388,7 @@ describe("Philippines eTravel arrival card schema", () => {
       expect(manifestField(fieldName).transport, fieldName).toBe("AIR_ELECTRONIC_OR_SEA_ELECTRONIC");
       expect(manifestField(fieldName).condition, fieldName).toContain("has_baggage_or_currency_to_declare === yes");
     }
-    expect(manifestField("goods_item_description").transport).toBe("AIR_ELECTRONIC_OR_SEA_ELECTRONIC");
+    expect(manifestField("customs_checklist_3_item_description").transport).toBe("AIR_ELECTRONIC_OR_SEA_ELECTRONIC");
     expect(manifestField("currency_item_currency").transport).toBe("AIR_ELECTRONIC_OR_SEA_ELECTRONIC");
     expect(manifestField("no_of_days_in_philippines").condition).toContain(
       "currency_transport_method === is_physically_transferred_by_person",
@@ -469,7 +471,7 @@ describe("Philippines eTravel arrival card schema", () => {
       evidence_level: "verified_live_E19",
     });
     for (const fieldName of ["middle_name", "last_name", "suffix"]) {
-      expect(byName(fieldName).required, fieldName).toBe(true);
+      expect(byName(fieldName).required, fieldName).toBe(false);
       expect(rulesOf(fieldName).selector_evidence_level, fieldName).toBe("confirmed_live_E19");
       expect(rulesOf(fieldName).requiredness_evidence, fieldName).toBe("E19_live_label_optional");
     }
@@ -862,7 +864,7 @@ describe("Philippines eTravel arrival card schema", () => {
       "has_been_sick_30d",
       "sickness_symptom",
     ]) {
-      expect(byName(fieldName).required, fieldName).toBe(false);
+      expect(byName(fieldName).required, fieldName).toBe(true);
       expect(rulesOf(fieldName).server_requiredness, fieldName).toBe("needs_review");
       expect(showIf(fieldName) ?? "always", fieldName).not.toContain("transport_type");
       expect(showIf(fieldName) ?? "always", fieldName).not.toContain("passport_holder_type");
@@ -945,7 +947,7 @@ describe("Philippines eTravel arrival card schema", () => {
   });
 
   it("preserves customs checklist 1-12 as itemized official yes/no answers", () => {
-    const checklist = PH_ETRAVEL_FORM_FIELDS.filter((field) => field.field_name.startsWith("customs_checklist_"));
+    const checklist = PH_ETRAVEL_FORM_FIELDS.filter((field) => /^customs_checklist_\d+$/.test(field.field_name));
     expect(checklist.map((field) => field.field_name)).toEqual(
       Array.from({ length: 12 }, (_, index) => `customs_checklist_${index + 1}`),
     );
@@ -964,44 +966,52 @@ describe("Philippines eTravel arrival card schema", () => {
     }
   });
 
-  it("adds goods-positive details without introducing aggregate goods booleans or unreviewed blockers", () => {
+  it("models the AIR General Declaration amount and Q3-Q12 item repeaters without inventing blockers", () => {
     expect(PH_ETRAVEL_OFFICIAL_FIELD_NAMES).not.toContain("has_goods_to_declare");
-    expect(showIf("goods_total_amount")).toContain("customs_checklist_3 === yes");
-    expect(showIf("goods_total_amount")).toContain("customs_checklist_12 === yes");
+    expect(showIf("goods_total_currency")).toBe(
+      "(transport_type === AIR || selected_port_customs_flow === ELECTRONIC_CUSTOMS) && has_baggage_or_currency_to_declare === yes",
+    );
+    expect(showIf("goods_total_amount")).toBe(showIf("goods_total_currency"));
 
-    for (const fieldName of ["goods_total_currency", "goods_total_amount", "goods_item_description", "goods_item_quantity", "goods_item_value"]) {
+    for (const fieldName of ["goods_total_currency", "goods_total_amount"]) {
       expect(byName(fieldName).required, fieldName).toBe(false);
       expect(rulesOf(fieldName).evidence_level, fieldName).toBe("needs_review_requiredness");
-      expect(rulesOf(fieldName).selector_evidence_level, fieldName).toBe("confirmed_live_visible_air_positive");
+      expect(rulesOf(fieldName).selector_evidence_level, fieldName).toBe("E42_confirmed_user_provided_behavior");
     }
     expect(rulesOf("goods_total_currency").official_key).toBe("amount_of_goods_acquired.currency");
     expect(rulesOf("goods_total_currency").official_control_type).toBe("radio");
+    expect(rulesOf("goods_total_currency").currency_switch_contract).toBe(
+      "Philippine_Peso_and_US_Dollar_use_the_same_amount_control",
+    );
     expect(rulesOf("goods_total_amount").official_key).toBe("amount_of_goods_acquired.amount");
     expect(rulesOf("goods_total_amount").official_control_type).toBe("text");
-    for (const fieldName of ["goods_item_description", "goods_item_quantity", "goods_item_value"]) {
-      expect(rulesOf(fieldName).customs_contract, fieldName).toBe("goods_item_detail");
-      expect(rulesOf(fieldName).repeat_group, fieldName).toBe("customs_goods_items");
-      expect(rulesOf(fieldName).repeat_contract, fieldName).toBe("items[]");
-      expect(rulesOf(fieldName).official_group_key, fieldName).toBe("items[]");
-      expect(rulesOf(fieldName).modal_behavior, fieldName).toBe("Add Item repeat row");
-      expect(rulesOf(fieldName).page_level_no_row_blocking, fieldName).toBe("needs_review_not_reproduced_after_delete");
+    expect(rulesOf("goods_total_amount").initial_rendered_value).toBe("0");
+    expect(rulesOf("goods_total_amount").positive_amount_rule).toEqual(PH_ETRAVEL_GENERAL_DECLARATION_POSITIVE_AMOUNT_RULE);
+    expect(PH_ETRAVEL_GENERAL_DECLARATION_ITEM_IDS).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+
+    for (const itemId of PH_ETRAVEL_GENERAL_DECLARATION_ITEM_IDS) {
+      const fields = [
+        `customs_checklist_${itemId}_item_description`,
+        `customs_checklist_${itemId}_item_quantity`,
+        `customs_checklist_${itemId}_item_amount_usd`,
+      ];
+      for (const fieldName of fields) {
+        expect(byName(fieldName).required, fieldName).toBe(false);
+        expect(showIf(fieldName), fieldName).toContain(`customs_checklist_${itemId} === yes`);
+        expect(rulesOf(fieldName).customs_contract, fieldName).toBe("question_specific_goods_item_detail");
+        expect(rulesOf(fieldName).repeat_group, fieldName).toBe(`customs_checklist_${itemId}_items`);
+        expect(rulesOf(fieldName).repeat_contract, fieldName).toBe("baggage.items[]");
+        expect(rulesOf(fieldName).official_question_key, fieldName).toBe(`check_lists.${itemId - 1}.response`);
+        expect(rulesOf(fieldName).page_level_no_row_blocking, fieldName).toBe("needs_review_not_reproduced_after_delete");
+      }
+      expect(rulesOf(fields[0]).official_selector).toBe("description");
+      expect(rulesOf(fields[1]).official_selector).toBe("quantity");
+      expect(rulesOf(fields[2]).official_selector).toBe("amount");
+      expect(rulesOf(fields[2]).official_row_label).toBe("Amount in USD");
     }
-    expect(rulesOf("goods_item_description").official_selector).toBe("description");
-    expect(rulesOf("goods_item_description").empty_validation_observed).toBe("Description Required");
-    expect(rulesOf("goods_item_quantity").official_selector).toBe("quantity");
-    expect(rulesOf("goods_item_quantity").empty_validation_observed).toBe("Quantity Required");
-    expect(rulesOf("goods_item_value").official_selector).toBe("amount");
-    expect(rulesOf("goods_item_value").empty_validation_observed).toBe("Amount in USD Required");
-    expect(rulesOf("goods_item_description").runner_aliases).toEqual(["description", "customs_goods_item_description"]);
-    expect(rulesOf("goods_item_quantity").runner_aliases).toEqual(["quantity", "customs_goods_item_quantity"]);
-    expect(rulesOf("goods_item_value").runner_aliases).toEqual([
-      "amount_usd",
-      "amountInUsd",
-      "amount",
-      "value",
-      "goods_item_amount_usd",
-      "goods_item_amount",
-    ]);
+    for (const itemId of [1, 2]) {
+      expect(PH_ETRAVEL_OFFICIAL_FIELD_NAMES).not.toContain(`customs_checklist_${itemId}_item_description`);
+    }
   });
 
   it("adds structured currency-positive details without relying on aggregate/free-text substitutes", () => {
@@ -1039,14 +1049,19 @@ describe("Philippines eTravel arrival card schema", () => {
       expect(rulesOf(fieldName).selector_evidence_level, fieldName).toBe("confirmed_live_visible_air_positive");
     }
 
-    expect(rulesOf("currency_owner_not_applicable").official_key_candidate).toBe("owner_details_not_applicable");
-    expect(rulesOf("currency_owner_not_applicable").stable_selector_evidence_level).toBe("needs_review");
+    expect(rulesOf("currency_owner_not_applicable").official_key).toBe("owner_details_not_applicable");
+    expect(rulesOf("currency_owner_not_applicable").selector_evidence_level).toBe("confirmed_live_E45");
+    expect(rulesOf("currency_owner_not_applicable").e45_empty_state_toggle).toBe(
+      "direct_owner_inputs_disabled; country_combobox_native_disabled_not_observed",
+    );
     expect(rulesOf("currency_owner_first_name").official_key).toBe("owner_first_name");
     expect(rulesOf("currency_owner_suffix").official_key).toBe("owner_suffix_name");
     expect(rulesOf("currency_recipient_first_name").official_key).toBe("recipient_first_name");
     expect(rulesOf("currency_recipient_suffix").official_key).toBe("recipient_suffix_name");
     expect(rulesOf("currency_item_currency").official_key).toBe("currency_id");
+    expect(rulesOf("currency_item_currency").official_value_type).toBe("numeric_id");
     expect(rulesOf("currency_monetary_instrument").official_key).toBe("monetary_instrument_id");
+    expect(rulesOf("currency_monetary_instrument").official_value_type).toBe("numeric_id");
     expect(rulesOf("currency_amount").official_key).toBe("amount");
     expect(rulesOf("currency_source").official_key).toBe("currency_sources");
     expect(rulesOf("currency_source_other").official_key).toBe("currency_source_other");
@@ -1069,11 +1084,17 @@ describe("Philippines eTravel arrival card schema", () => {
     expect(rulesOf("currency_source").base_requiredness_evidence).toBe("supported_by_page_validation_text_not_promoted_to_field_required");
     expect(rulesOf("currency_source_other").empty_validation_observed).toBe("Required");
     expect(rulesOf("currency_source_other").validated_required_when).toBe("currency_source includes OTHER");
+    expect(rulesOf("currency_source_other").e45_live_other_child_visibility).toBe(
+      "not_rendered_current_build; E7_wiring_conflict_needs_review",
+    );
     expect(rulesOf("currency_transport_purpose").base_requiredness_evidence).toBe(
       "supported_by_page_validation_text_not_promoted_to_field_required",
     );
     expect(rulesOf("currency_transport_purpose_other").empty_validation_observed).toBe("Required");
     expect(rulesOf("currency_transport_purpose_other").validated_required_when).toBe("currency_transport_purpose includes OTHER");
+    expect(rulesOf("currency_transport_purpose_other").e45_live_other_child_visibility).toBe(
+      "not_rendered_current_build; E7_wiring_conflict_needs_review",
+    );
     expect(rulesOf("currency_transport_method").base_requiredness_evidence).toBe(
       "courier_child_validation_observed; base method otherwise needs_review",
     );
@@ -1090,7 +1111,7 @@ describe("Philippines eTravel arrival card schema", () => {
         "currency_transport_method === is_physically_transferred_by_person",
       );
       expect(rulesOf(fieldName).requiredness_evidence, fieldName).toBe(
-        "verified_live_sea_electronic_positive_physical_branch_only",
+        "verified_live_air_and_sea_electronic_positive_physical_branch_only",
       );
     }
 
@@ -1124,6 +1145,7 @@ describe("Philippines eTravel arrival card schema", () => {
     ]);
     expect(rulesOf("airway_bill_no").runner_aliases).toEqual(["airway_bill_number"]);
     expect(rulesOf("airway_bill_no").runner_plan_key).toBe("airway_bill_number");
+    expect(PH_ETRAVEL_MONETARY_INSTRUMENT_OPTIONS).toHaveLength(16);
     expect(valuesOf("currency_monetary_instrument")).toContain("15");
   });
 
@@ -1161,6 +1183,13 @@ describe("Philippines eTravel arrival card schema", () => {
     expect(rulesOf("customs_signature").sea_electronic_positive_post_signature_evidence_level).toBe("needs_review");
     expect(rulesOf("customs_signature").attachment_file_input_evidence_level).toBe("needs_review_not_stably_observed");
     expect(rulesOf("customs_signature").attachment_mime_size_requiredness).toBe("needs_review");
+    expect(rulesOf("customs_signature").attachment_surface_variant).toBe(
+      "AIR_Q3_to_Q12_any_yes_attachment_plus_signature; Q3_to_Q12_all_no_signature_only",
+    );
+    expect(rulesOf("customs_signature").attachment_requiredness).toBe(
+      "verified_live_AIR_client_not_required_E45; SEA_and_server_acceptance_needs_review",
+    );
+    expect(PH_ETRAVEL_OFFICIAL_FIELD_NAMES).not.toContain("customs_attachment_file");
     expect(rulesOf("customs_signature").universal_sea_requiredness).toBe("not_verified");
     expect(PH_ETRAVEL_OFFICIAL_FIELD_NAMES).not.toContain("selected_port_customs_flow");
   });
@@ -1185,7 +1214,7 @@ describe("Philippines eTravel arrival card schema", () => {
     expect(coverage.field_names).toEqual(expect.arrayContaining([
       "customs_checklist_1",
       "customs_checklist_12",
-      "goods_item_description",
+      "goods_total_amount",
       "currency_owner_first_name",
       "currency_recipient_first_name",
       "currency_item_currency",
@@ -1259,17 +1288,17 @@ describe("Philippines eTravel arrival card schema", () => {
   });
 
   it("keeps E11 selector evidence from closing attachment and other still-unverified gaps", () => {
-    expect(rulesOf("currency_owner_not_applicable").stable_selector_evidence_level).toBe("needs_review");
+    expect(rulesOf("currency_owner_not_applicable").selector_evidence_level).toBe("confirmed_live_E45");
     expect(rulesOf("currency_owner_first_name").evidence_level).toBe("needs_review_requiredness");
     expect(rulesOf("currency_recipient_first_name").evidence_level).toBe("needs_review_requiredness");
 
     expect(rulesOf("no_of_days_in_philippines").requiredness_evidence).toBe(
-      "verified_live_sea_electronic_positive_physical_branch_only",
+      "verified_live_air_and_sea_electronic_positive_physical_branch_only",
     );
     expect(rulesOf("last_travel_to_philippines").requiredness_evidence).toBe(
-      "verified_live_sea_electronic_positive_physical_branch_only",
+      "verified_live_air_and_sea_electronic_positive_physical_branch_only",
     );
-    expect(rulesOf("goods_item_description").page_level_no_row_blocking).toBe("needs_review_not_reproduced_after_delete");
+    expect(rulesOf("customs_checklist_3_item_description").page_level_no_row_blocking).toBe("needs_review_not_reproduced_after_delete");
     expect(rulesOf("currency_item_currency").complete_option_list_evidence_level).toBe("verified_public_dynamic_source");
     expect(rulesOf("currency_item_currency").dynamic_option_source).toEqual(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.currencies);
     expect(rulesOf("currency_item_currency").option_identity).toBe("id");
@@ -1297,7 +1326,6 @@ describe("Philippines eTravel arrival card schema", () => {
   it("freezes remaining launch gaps by evidence and implementation owner", () => {
     expect(PH_ETRAVEL_REMAINING_SCHEMA_GAP_FREEZE.official_evidence_required).toEqual([
       "attachment_requiredness_file_input",
-      "currency_owner_not_applicable_stable_selector",
       "currency_owner_recipient_full_requiredness",
       "customs_other_goods_no_row_page_blocking",
       "sea_non_disembarking_path",
@@ -1398,7 +1426,7 @@ describe("Philippines eTravel arrival card schema", () => {
     for (const list of [PH_ETRAVEL_PURPOSE_OPTIONS, PH_ETRAVEL_OCCUPATION_OPTIONS, PH_ETRAVEL_MONETARY_INSTRUMENT_OPTIONS]) {
       expect(new Set(list.map((option) => option.value)).size).toBe(list.length);
       expect(list.every((option) => option.evidence_level === "verified_public")).toBe(true);
-      expect(list.every((option) => option.official_source?.startsWith("E13 official public API"))).toBe(true);
+      expect(list.every((option) => /^E13(?:\/E45)? official public API/.test(option.official_source ?? ""))).toBe(true);
     }
 
     expect(PH_ETRAVEL_COUNTRY_OPTIONS).toEqual([]);

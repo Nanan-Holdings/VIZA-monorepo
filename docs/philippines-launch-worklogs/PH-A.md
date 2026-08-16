@@ -1179,6 +1179,23 @@
 - 截图直接确认 item 11 Jewelry 和 item 12 Other goods 取 Yes 时均显示 `Add Item` 与表格。Add Item modal 有 `Description` textarea、`Quantity`、`Amount in USD`、`Cancel` / `Add`；表格列为 Quantity/Description/Amount in USD/Action，行有垃圾桶删除控件。合成行的具体值未记录。其他有动态反应的 Yes 曾被用户检查后恢复 No，但不能据此写死所有 12 项都出现 modal。
 - 只确认 US Dollar 可选、Amount 可编辑；不猜用户未完成的 “if US Dollar” 含义。E42 标为 `confirmed-user-provided behavior`，E7 仍是 selector/value/empty-modal validation 的独立依据；server/page-level/final acceptance 继续 `needs_review`。未浏览、未改代码/总览/其他 worklog，未提交。
 
+### E42 证据修正（2026-08-16）
+
+- 用户当前官方页确认 Philippine Peso 切换为 US Dollar 后，没有新增或改变其他页面字段/结构，仍是同一个可编辑 Amount；不推断汇率、转换或额外字段。
+- General Declaration 的 Q3–Q12 任何一项选 Yes 都显示同一 Add Item repeater；Q1/Q2 不显示 Add Item，属于货币门槛/后续 Currency Declaration 逻辑。这替代此前“仅直接确认 11/12、不可泛化”的旧边界；每项 Yes 是否必须成功保存一行仍未知。
+- 截图状态 Amount=1,000、Q1=Yes、Q2=No、Q3=No（Q3–Q12 无 Yes）显示 toast：`Please answer yes atleast one of 3 to 12 questions due to indicated Total Amount of goods purchased and/or acquired abroad!`。因此仅记录为：显示 Amount 为正/非零时，Q3–Q12 至少一项须 Yes，Q1/Q2 Yes 不满足该页面校验；不外推金额单位/转换/阈值/负数或小数、服务端或 final acceptance。
+
+## 第四十三轮 E43 用户提供 AIR General Declaration 后附件/签名分支证据（2026-08-16）
+
+- 用户确认 Q3–Q12 只要任一 Yes，下一页为 `For Customs - Declaration Attachments and Signature`，同时出现 `Take a photo or upload a file.`、Signature、`Clear`、认证文案、Previous/Next。Q3–Q12 全 No 的既有电子 customs 路径则为 signature-only 版本，不显示上传控件。
+- 这只关闭附件页出现条件；不推断 attachment 必传、格式/数量/大小、许可文件对应关系、上传成功或 server acceptance。附件 requiredness 继续 `needs_review`，最小闭环仍是该正向分支下空附件 + 有效合成签名的一次普通 Next，看到后续页即停，继续禁止 final Submit。
+
+## 第四十四轮 E44 已打开 AIR Currency Declaration 实时只读爬取（2026-08-16）
+
+- PH-A 接管用户已打开的官方 AIR Currency Declaration 页，而非新开登录页。未读取或记录 draft id、账号/会话、申请人或现有填写值；未改任何字段、未点 Previous/Next、未上传/签名/提交。
+- 实页确认 Owner N/A checkbox，Owner/Recipient 的 Business/姓名/suffix/occupation/country/address/postal 控件和对应 DOM names；`Add Item` 的 Currency / Monetary Instrument / Amount modal（`currency_id`、`monetary_instrument_id`、`amount`）；BSP `bsp_authorization_date`；来源 Salary/Business/Other；用途 Leisure/Medical/Payables/Education/Other；`physical_or_shipped` 的 physically transferred/courrier services radios，及 `no_of_days_in_philippines`、`last_travel_to_philippines`。
+- 仅打开一次 Add Item 后按 Cancel，未保存行。未读取 options/current values/checked states，未测试 required/error/条件/Other detail/row persistence。采样控件没有 native HTML `required` 属性，但这不等于官方 optional。字段合同已追加 E44，未改代码、总览或其他 worklog。
+
 ## 第十九轮 E18 S1 profile/persona/residence 受控验证（2026-08-04）
 
 ### 范围与安全边界
@@ -2178,3 +2195,12 @@
 - 已运行 `git diff --check`：无输出，命令未被权限/审批阻断。注意当前相关 docs 在 `git status --short` 中仍显示为未跟踪文件，因此该命令的覆盖范围按 git 当前跟踪状态解释。
 - Not run: migration, seed, deploy, schema/runner/frontend tests, real OTP/CAPTCHA, payment, final Submit, commit, batch git add.
 - Browser session finalized after evidence collection; claimed Chrome tabs released.
+
+## 第四十五轮 E45 AIR Currency + Attachments 最小 live 闭环（2026-08-16）
+
+- 在已打开的官方 AIR Currency Declaration 安全测试草稿中完成受控核验；只使用合成、非敏感输入。未读取/记录账号、会话、草稿标识、现有答案、文件、签名内容或最终结果；未操作 Family、Review 或最终 `Submit`。
+- Currency 下拉实页渲染 `United States Dollar`，但 DOM 未暴露官方提交 code；沿用 E13 官方 API 的 263 条 numeric `id` 合同。Monetary Instrument 实页完整 16 label 已核验，DOM 同样无 code，numeric `id` 继续以 E13 API 为准。
+- Owner N/A 在空字段状态会禁用直接渲染的 owner/recipient 名称、业务、职业、地址和邮编输入；取消后恢复。Country combobox 内部输入没有 native disabled。未测试已填写后的清空。N/A 未勾选、owner/recipient 仍为空的本路径可通过普通 Next，故不能把这些字段作为本路径无条件 client-required。
+- 本路径普通 Next 的空值校验只直接报 `no_of_days_in_philippines` 与 `last_travel_to_philippines` Required；填写合成值后可继续。BSP date 在本次外币/CASH测试中未阻断，PHP 阈值/BSP 正向条件仍未核验。Source/Purpose 的 `Other (Specify)` 当前实页临时切换没有展开可见子输入，与旧 E7/E13 静态 wiring 冲突，保留 `needs_review`。
+- Q3-Q12-positive 的 attachments + signature 页：附件保持为空，以测试笔划完成签名后点一次普通 Next，直接到 `Family Member(s)`。因此此 AIR 正向电子 customs 路径未见附件必传拦截；上传格式/大小/数量、服务器接受、SEA parity 和所有正向项仍未验证。到达 Family 后立即停止。
+- 字段合同已追加 E45 与 B/C/D 最小接口：numeric option-id 边界、owner/attachment 非无条件必填、物理转运两个 client-required 字段，以及 live/static Other-detail 冲突。未改代码、总览或其他 worklog；未运行 migration、seed、deploy、测试、付款或最终 Submit。

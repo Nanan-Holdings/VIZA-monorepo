@@ -1631,3 +1631,27 @@
 - `npx prettier --check`：passed。
 - PH-only source `tsc --noEmit`：passed。
 - focused Vitest 未启动测试体：Vite 配置加载时无法写入既有 `node_modules/.vite-temp`，报 `EPERM`。未安装依赖、未请求审批或升级权限。
+
+## 第三十轮：E42/E43 General Declaration 展示与完整度（2026-08-16）
+
+- 新增 PH-only General Declaration 合同：Q1/Q2 永不显示 Add Item；Q3-Q12 的每一项 Yes 才各自显示 Description、Quantity、Amount in USD 的 repeatable item group。显示金额为正而 Q3-Q12 全非 Yes 时，完整度返回 Customs General Declaration 定位项。
+- Q3-Q12 任一 Yes 会显示 Documents/附件区域；附件的数量、实际必填、上传接受与服务端规则仍是 official/production review gate，**不**列为缺失项或阻止入队。签名仍是已证实的 action-required，缺失时返回 Attachments and Signature。
+- Currency Declaration 的 requiredness、option/validation/persistence 继续保持未证实 gate；没有增加猜测字段或选项。
+- shared dynamic form 解冻后消费 `createPhEtravelGeneralDeclarationPresentation()` 与 `getPhEtravelGeneralDeclarationMissingItems()`；未修改 shared dirty 文件。
+
+### Focused validation
+
+- `npx prettier --check`（本轮 PH-only helper、presentation、shared integration spec、tests 与 worklog）：passed。
+- PH-only source/tests `tsc --noEmit`：passed。
+- `git diff --check`：passed。
+- `npx vitest run features/ph-etravel/__tests__/general-declaration.test.ts features/ph-etravel/__tests__/presentation.test.ts --testTimeout=15000` 未进入测试体：Vite 配置加载时无法写入既有 `node_modules/.vite-temp`，报 `EPERM`。未安装依赖、未申请权限或升级权限。
+
+### E45 correction
+
+- E45 已确认 AIR 的 Q3-Q12-positive 附件区允许为空；有效签名可普通 Next 到 Family Member(s)。因此 AIR 附件不会显示为必填、不会进入缺失清单或阻止入队。SEA attachment requiredness、upload/server acceptance 与 parity 继续是官方证据/production gate。
+- Q1/Q2 继续没有 Add Item；Q3-Q12 每个 Yes 继续显示独立 repeater。新增 PH-only row normalizer：问题改为非 Yes 时清空其隐藏 rows，保留其中的 numeric official IDs 原样，不转换为 label 或自造 code。
+
+### E45 focused validation
+
+- `npx prettier --check`、PH-only source/tests `tsc --noEmit`、`git diff --check`：passed。
+- `npx vitest run features/ph-etravel/__tests__/general-declaration.test.ts features/ph-etravel/__tests__/presentation.test.ts --testTimeout=15000` 再次未进入测试体：Vite 无法写入既有 `node_modules/.vite-temp`，报 `EPERM`。未安装依赖、未申请权限或升级权限。

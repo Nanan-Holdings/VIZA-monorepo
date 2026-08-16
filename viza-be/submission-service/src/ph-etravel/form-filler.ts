@@ -107,12 +107,43 @@ export type PhEtravelSeaCustomsPageKind =
   | "review_summary"
   | "unknown";
 
+export type PhEtravelAirCustomsPageKind =
+  | "general_declaration"
+  | "attachments_signature"
+  | "signature_only"
+  | "unknown";
+
 export function isPhEtravelSignaturePageText(portalText: string): boolean {
   return !isPhEtravelReviewSummaryText(portalText) &&
     /customs declaration attachments and signature|for customs\s*-\s*declaration signature|declaration signature/i.test(portalText) &&
     /\bsignature\b/i.test(portalText) &&
     /\bclear\b/i.test(portalText) &&
     /by clicking\s+["']?next["']?.*true and correct/i.test(portalText);
+}
+
+/**
+ * AIR customs pages are classified only from their visible title and controls.
+ * wizard_page is intentionally not consulted because optional customs branches
+ * change the page array.
+ */
+export function classifyPhEtravelAirCustomsPage(portalText: string): PhEtravelAirCustomsPageKind {
+  if (
+    /for customs\s*-\s*declaration attachments and signature/i.test(portalText) &&
+    /take a photo or upload a file/i.test(portalText) &&
+    /\bsignature\b/i.test(portalText)
+  ) {
+    return "attachments_signature";
+  }
+  if (isPhEtravelSignaturePageText(portalText)) return "signature_only";
+  if (
+    /for customs\s*-\s*general declaration/i.test(portalText) &&
+    /total amount of goods purchased and\/or acquired abroad/i.test(portalText) &&
+    /\byes\b/i.test(portalText) &&
+    /\bno\b/i.test(portalText)
+  ) {
+    return "general_declaration";
+  }
+  return "unknown";
 }
 
 export function classifyPhEtravelSeaCustomsPage(portalText: string): PhEtravelSeaCustomsPageKind {
@@ -204,7 +235,8 @@ export type PhEtravelElectronicCustomsAutofillPhaseKey =
   | "currency_item_modal_table"
   | "currency_source_purpose_checkboxes"
   | "currency_transfer_branch"
-  | "attachments_signature";
+  | "attachments_signature"
+  | "signature_only";
 
 export interface PhEtravelElectronicCustomsAutofillPhase {
   key: PhEtravelElectronicCustomsAutofillPhaseKey;
@@ -233,6 +265,7 @@ export interface PhEtravelElectronicCustomsAction {
   kind: PhEtravelElectronicCustomsActionKind;
   selector: string;
   value?: string | boolean;
+  checklistItemNumber?: number;
 }
 
 export interface PhEtravelElectronicCustomsActionPlan {
@@ -285,8 +318,25 @@ function hasPositiveGeneralDeclaration(payload: PhEtravelPortalPayload): boolean
 }
 
 function hasGoodsItemModalBranch(payload: PhEtravelPortalPayload): boolean {
-  return (payload.customs.goodsItems ?? []).length > 0 ||
-    (payload.customs.generalDeclarationResponses ?? []).some((item) => item.itemNumber === 12 && item.response === true);
+  return positiveGoodsChecklistItemNumbers(payload).length > 0;
+}
+
+function positiveGoodsChecklistItemNumbers(payload: PhEtravelPortalPayload): number[] {
+  return (payload.customs.generalDeclarationResponses ?? [])
+    .filter((item) => item.itemNumber >= 3 && item.itemNumber <= 12 && item.response)
+    .map((item) => item.itemNumber)
+    .sort((left, right) => left - right);
+}
+
+function goodsItemsForChecklistItem(
+  payload: PhEtravelPortalPayload,
+  checklistItemNumber: number,
+  positiveChecklistItemNumbers: number[],
+): typeof payload.customs.goodsItems {
+  return payload.customs.goodsItems.filter((item) =>
+    item.checklistItemNumber === checklistItemNumber ||
+    (!item.checklistItemNumber && positiveChecklistItemNumbers.length === 1),
+  );
 }
 
 function hasCurrencyDeclarationBranch(payload: PhEtravelPortalPayload): boolean {
@@ -331,6 +381,22 @@ function uniqueCodes(codes: string[]): string[] {
 
 function hasTextValue(value: string | null): value is string {
   return Boolean(value?.trim());
+}
+
+function isOfficialNumericOptionId(value: string): boolean {
+  return /^\d+$/.test(value);
+}
+
+function currencyOwnerBranchBlockingCodes(
+  ownerBranch: ReturnType<typeof normalizePhEtravelCurrencyOwnerBranch>,
+  branch: "AIR" | "SEA",
+): string[] {
+  if (ownerBranch.ownerNotApplicable) return ownerBranch.blockingCodes;
+  // E45 proves empty owner/recipient direct fields did not client-block this
+  // AIR path. Server conditions remain unknown, so this is not an enablement.
+  return branch === "AIR"
+    ? ["owner_recipient_server_requiredness_unverified"]
+    : ownerBranch.blockingCodes;
 }
 
 function completeChecklistResponses(payload: PhEtravelPortalPayload): boolean {
@@ -389,8 +455,8 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
     }
   }
 
-  const otherGoodsSelected = checklist.some((item) => item.itemNumber === 12 && item.response);
-  if (otherGoodsSelected || payload.customs.goodsItems.length > 0) {
+  const positiveGoodsItems = positiveGoodsChecklistItemNumbers(payload);
+  if (positiveGoodsItems.length > 0) {
     if (!hasTextValue(payload.customs.amountOfGoodsCurrency) || !hasTextValue(payload.customs.amountOfGoodsAmount)) {
       blockingCodes.push("customs_goods_amount_incomplete");
     } else {
@@ -409,19 +475,22 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
         },
       );
     }
-    if (otherGoodsSelected && payload.customs.goodsItems.length === 0) {
-      blockingCodes.push("customs_other_goods_item_required");
+    const unassociatedItems = payload.customs.goodsItems.filter((item) => !item.checklistItemNumber);
+    if (unassociatedItems.length > 0 && positiveGoodsItems.length > 1) {
+      blockingCodes.push("customs_goods_item_checklist_association_required");
     }
-    for (const item of payload.customs.goodsItems) {
-      actions.push(
-        { phase: "goods_item_modal_table", kind: "open_modal", selector: "button:has-text('Add Item')" },
-        { phase: "goods_item_modal_table", kind: "fill_text", selector: "textarea[name='description']", value: item.description },
-        { phase: "goods_item_modal_table", kind: "fill_text", selector: "input[name='quantity']", value: item.quantity },
-        { phase: "goods_item_modal_table", kind: "fill_text", selector: "input[name='amount']", value: item.amountUsd },
-        { phase: "goods_item_modal_table", kind: "add_modal_row", selector: "button:has-text('Add')" },
-      );
+    for (const checklistItemNumber of positiveGoodsItems) {
+      for (const item of goodsItemsForChecklistItem(payload, checklistItemNumber, positiveGoodsItems)) {
+        actions.push(
+          { phase: "goods_item_modal_table", kind: "open_modal", selector: "button:has-text('Add Item')", checklistItemNumber },
+          { phase: "goods_item_modal_table", kind: "fill_text", selector: "textarea[name='description']", value: item.description, checklistItemNumber },
+          { phase: "goods_item_modal_table", kind: "fill_text", selector: "input[name='quantity']", value: item.quantity, checklistItemNumber },
+          { phase: "goods_item_modal_table", kind: "fill_text", selector: "input[name='amount']", value: item.amountUsd, checklistItemNumber },
+          { phase: "goods_item_modal_table", kind: "add_modal_row", selector: "button:has-text('Add')", checklistItemNumber },
+        );
+      }
     }
-    if (otherGoodsSelected) blockingCodes.push("other_goods_no_row_page_level_blocking_unverified");
+    blockingCodes.push("other_goods_no_row_page_level_blocking_unverified");
   }
 
   if (hasCurrencyDeclarationBranch(payload)) {
@@ -432,12 +501,16 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
     });
     actions.push(...currencyPartyActions("currency_owner_recipient", "owner", ownerBranch.owner));
     actions.push(...currencyPartyActions("currency_owner_recipient", "recipient", ownerBranch.recipient));
-    blockingCodes.push(...ownerBranch.blockingCodes);
+    blockingCodes.push(...currencyOwnerBranchBlockingCodes(ownerBranch, branch));
 
     if (payload.customs.currencyItems.length === 0) {
       blockingCodes.push("customs_currency_item_required");
     }
     for (const item of payload.customs.currencyItems) {
+      if (!isOfficialNumericOptionId(item.currency) || !isOfficialNumericOptionId(item.monetaryInstrument)) {
+        blockingCodes.push("customs_currency_item_api_id_required");
+        continue;
+      }
       actions.push(
         { phase: "currency_item_modal_table", kind: "open_modal", selector: "button:has-text('Add Item')" },
         { phase: "currency_item_modal_table", kind: "set_choice", selector: "[name='currency_id']", value: item.currency },
@@ -458,11 +531,7 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
       }
     }
     if (payload.customs.currencySources.includes("OTHER")) {
-      if (!hasTextValue(payload.customs.currencySourceOther)) {
-        blockingCodes.push("customs_currency_source_other_required");
-      } else {
-        actions.push({ phase: "currency_source_purpose_checkboxes", kind: "fill_text", selector: "input[name='currency_source_other']", value: payload.customs.currencySourceOther });
-      }
+      blockingCodes.push("customs_currency_source_other_live_behavior_unverified");
     }
 
     if (payload.customs.currencyTransportPurposes.length === 0) blockingCodes.push("customs_currency_purpose_required");
@@ -475,11 +544,7 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
       }
     }
     if (payload.customs.currencyTransportPurposes.includes("OTHER")) {
-      if (!hasTextValue(payload.customs.currencyTransportPurposeOther)) {
-        blockingCodes.push("customs_currency_purpose_other_required");
-      } else {
-        actions.push({ phase: "currency_source_purpose_checkboxes", kind: "fill_text", selector: "input[name='transport_purpose_other']", value: payload.customs.currencyTransportPurposeOther });
-      }
+      blockingCodes.push("customs_currency_purpose_other_live_behavior_unverified");
     }
 
     if (!payload.customs.currencyTransportMethod) {
@@ -509,16 +574,20 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
       });
       if (hasTextValue(payload.customs.noOfDaysInPhilippines)) {
         actions.push({ phase: "currency_transfer_branch", kind: "fill_text", selector: "input[name='no_of_days_in_philippines']", value: payload.customs.noOfDaysInPhilippines });
-      } else if (branch === "SEA") {
-        blockingCodes.push("sea_electronic_positive_no_of_days_in_philippines_required");
+      } else {
+        blockingCodes.push(branch === "AIR"
+          ? "customs_no_of_days_in_philippines_required"
+          : "sea_electronic_positive_no_of_days_in_philippines_required");
       }
       if (hasTextValue(payload.customs.lastTravelToPhilippines)) {
         actions.push({ phase: "currency_transfer_branch", kind: "fill_text", selector: "input[name='last_travel_to_philippines']", value: payload.customs.lastTravelToPhilippines });
-      } else if (branch === "SEA") {
-        blockingCodes.push("sea_electronic_positive_last_travel_to_philippines_required");
+      } else {
+        blockingCodes.push(branch === "AIR"
+          ? "customs_last_travel_to_philippines_required"
+          : "sea_electronic_positive_last_travel_to_philippines_required");
       }
       if (branch === "AIR") {
-        blockingCodes.push("physical_branch_empty_requiredness_unverified");
+        blockingCodes.push("physical_branch_server_acceptance_unverified");
       }
     }
     if (hasTextValue(payload.customs.bspAuthorizationDate)) {
@@ -526,8 +595,11 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
     }
   }
 
-  if (branch === "AIR" && (payload.customs.customsSignatureDeclaration || payload.customs.customsSignatureFile)) {
-    blockingCodes.push(...buildPhEtravelAttachmentActionContract(undefined).blockingCodes);
+  if (branch === "AIR" && completeChecklistResponses(payload)) {
+    if (positiveGoodsItems.length > 0) {
+      blockingCodes.push("attachment_server_rules_unverified");
+    }
+    blockingCodes.push("ph_etravel_signature_required");
   }
 
   return { branch, actions, blockingCodes: uniqueCodes(blockingCodes), actionRequired: true };
@@ -782,7 +854,7 @@ export function buildPhEtravelElectronicCustomsAutofillPhases(
           "input[name='recipient_postal_code']",
         ],
         ["Owner/recipient field selectors observed on AIR positive currency page"],
-        ownerBranch.blockingCodes,
+        currencyOwnerBranchBlockingCodes(ownerBranch, payload.transportType === "SEA" ? "SEA" : "AIR"),
       ),
       actionRequiredPhase(
         "currency_item_modal_table",
@@ -820,7 +892,7 @@ export function buildPhEtravelElectronicCustomsAutofillPhases(
         [
           "Source values observed: SALARY, BUSINESS, OTHER",
           "Purpose values observed: LEISURE, MEDICAL, PAYABLES, EDUCATION, OTHER",
-          "Other source/purpose empty fields show Required",
+          "Live Other-detail control conflicts with earlier static wiring",
         ],
       ),
       payload.customs.currencyTransportMethod === "is_shipped_thru_courier_service"
@@ -860,21 +932,36 @@ export function buildPhEtravelElectronicCustomsAutofillPhases(
               "input[name='last_travel_to_philippines']",
               "input[name='bsp_authorization_date']",
             ],
-            ["Physical branch selectors observed"],
-            ["physical_branch_empty_requiredness_unverified"],
+            [
+              "AIR physical branch: No. of days in the Philippines Required",
+              "AIR physical branch: Last travel to the Philippines Required",
+            ],
+            ["physical_branch_server_acceptance_unverified"],
           ),
     );
   }
 
-  if (payload.customs.customsSignatureDeclaration || payload.customs.customsSignatureFile) {
-    const attachmentContract = buildPhEtravelAttachmentActionContract(undefined);
+  const positiveGoodsItems = positiveGoodsChecklistItemNumbers(payload);
+  if (positiveGoodsItems.length > 0) {
+    const attachmentBlockingCodes = payload.transportType === "SEA"
+      ? buildPhEtravelAttachmentActionContract(undefined).blockingCodes
+      : ["attachment_server_rules_unverified"];
     phases.push(actionRequiredPhase(
       "attachments_signature",
       ["attachments", "signature"],
       "customs_attachments_signature_controls",
       [],
       ["Signature canvas and Clear button observed where signature page appears"],
-      attachmentContract.blockingCodes,
+      attachmentBlockingCodes,
+    ));
+  } else if (payload.customs.generalDeclarationResponses.length > 0) {
+    phases.push(actionRequiredPhase(
+      "signature_only",
+      ["signature"],
+      "customs_signature_only_controls",
+      [],
+      ["Q3 through Q12 all No leads to the observed signature-only variant"],
+      ["ph_etravel_signature_required"],
     ));
   }
 
