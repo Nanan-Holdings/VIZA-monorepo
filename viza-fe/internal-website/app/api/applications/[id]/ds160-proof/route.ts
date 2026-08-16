@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/resend";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import {
   DS160_PROOF_QUEUE_STATUS,
   fileNameForKind,
@@ -265,6 +266,15 @@ export async function POST(
     return NextResponse.json({ error: proofAction.reason }, { status: 400 });
   }
   if (proofAction.status === "queued") {
+    if (isRunnerCutoverPaused()) {
+      return NextResponse.json(
+        {
+          error: "DS-160 proof recovery is temporarily paused for a controlled runner cutover.",
+          code: "runner_cutover_paused",
+        },
+        { status: 503 },
+      );
+    }
     const latestProofQueue = await loadLatestProofQueue(loaded.admin, applicationId);
     if (latestProofQueue?.status === "done") {
       return NextResponse.json(

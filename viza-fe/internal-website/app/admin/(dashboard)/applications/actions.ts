@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { assertRunnerCutoverActive } from "@/lib/runner-cutover-pause.server";
 import { buildStatusSummary, fetchAdminApplicationDetail } from "./data";
 
 type QueueRow = {
@@ -262,6 +263,8 @@ export async function completeLiveManualAction(formData: FormData) {
     const application = applicationData as ApplicationRow;
     const found = await findManualAction(adminClient, jobId, actionId, manualActionTables(queue, application));
     if (!found || found.action.application_id !== application.id) redirect(target);
+
+    assertRunnerCutoverActive();
 
     const now = new Date().toISOString();
     if (found.action.status !== "completed") {
