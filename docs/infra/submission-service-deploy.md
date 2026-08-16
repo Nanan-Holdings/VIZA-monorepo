@@ -31,6 +31,12 @@ Database leases and queue-specific claim RPCs prevent duplicate submissions.
   `RESEND_API_KEY`, and `RESEND_OPS_ALERT_TO`. The deploy workflow copies only
   non-empty optional values to Fly Secrets. Browser API endpoints are secrets
   because they embed credentials.
+- The Philippines worker target is `viza-runner-philippines`. It is a
+  country-scoped `runner_job` consumer with the legacy `submission_queue`
+  poller disabled. Its browser and CAPTCHA capabilities use the existing
+  protected deployment secrets; email OTP is read from the application-scoped
+  `inbound_email` alias through Supabase, so this worker does not need IMAP
+  secrets or a Philippines-specific runtime secret.
 - Apply the database migrations that provide `runner_job`, country concurrency
   caps, lease recovery, and `0129_indonesia_sticky_runner.sql` before enabling
   the Indonesia worker.
