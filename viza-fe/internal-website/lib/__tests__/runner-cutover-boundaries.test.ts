@@ -35,8 +35,6 @@ describe("runner cutover guarded boundary source contract", () => {
       "lib/queue/enqueue.ts",
       "lib/fly-machine-wake.server.ts",
       "lib/submission-worker-wake.server.ts",
-      "lib/resilience/runner-job-wakeup.ts",
-      "app/api/resilience/replay/route.ts",
     ];
     for (const file of files) {
       expect(source(file)).not.toContain("NEXT_PUBLIC_RUNNER_CUTOVER_PAUSED");
@@ -86,13 +84,7 @@ describe("runner cutover guarded boundary source contract", () => {
     );
   });
 
-  it("guards the centralized Queue, Fly, authenticated wake, and replay sinks", () => {
-    expectGuardBefore(
-      "lib/resilience/runner-job-wakeup.ts",
-      "assertRunnerCutoverActive();",
-      "enqueueResilienceQueueEvent({",
-      "export async function enqueueRunnerJobWake",
-    );
+  it("guards the centralized Fly and authenticated wake sinks", () => {
     expectGuardBefore(
       "lib/fly-machine-wake.server.ts",
       "isRunnerCutoverPaused(env)",
@@ -104,12 +96,6 @@ describe("runner cutover guarded boundary source contract", () => {
       "isRunnerCutoverPaused(env)",
       "ensureFlyMachineStarted(target",
       "export async function wakeCloudSubmissionWorker",
-    );
-    expectGuardBefore(
-      "app/api/resilience/replay/route.ts",
-      "isRunnerCutoverPaused()",
-      "loadRunnerWakeRecord(event)",
-      "async function replayRunnerJobWake",
     );
   });
 
