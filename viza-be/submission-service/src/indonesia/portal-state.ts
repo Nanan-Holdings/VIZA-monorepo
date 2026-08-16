@@ -256,21 +256,21 @@ export function actionForIndonesiaPortalState(
       return {
         actionType: "official_fee_payment_required",
         instruction:
-          "The Indonesia official portal reached payment or bank OTP. Keep the visible official browser window open and let the applicant complete card authentication there.",
+          "VIZA reached the Indonesia official payment page and paused for managed payment processing or staff review. The applicant should not pay the portal directly.",
         implementationStatus: "partial",
       };
     case "payment_otp_required":
       return {
         actionType: "official_fee_otp_required",
         instruction:
-          "The Indonesia official portal reached bank OTP or 3DS verification. Keep the visible official browser window open and have the applicant enter the bank OTP there.",
+          "The managed Indonesia official-fee payment reached bank authentication and was paused for VIZA staff review. The applicant should not enter card or payment details directly.",
         implementationStatus: "partial",
       };
     case "payment_failed":
       return {
         actionType: "official_fee_payment_failed",
         instruction:
-          "The Indonesia official payment gateway did not complete the payment. Bank OTP/3DS may have expired, been declined, or not been approved. No payment success was recorded; retry and approve the bank prompt promptly, or use a different card after the official gateway cooldown.",
+          "The Indonesia official payment gateway did not complete the managed payment. No success was recorded; VIZA staff must reconcile the attempt before any retry.",
         implementationStatus: "blocked",
       };
     case "submitted_or_approved":

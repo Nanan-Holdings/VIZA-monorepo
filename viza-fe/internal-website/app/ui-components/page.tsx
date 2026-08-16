@@ -35,6 +35,7 @@ import { CountryDropdown } from "@/components/ui/country-dropdown";
 import { DocumentUploadField } from "@/components/ui/document-upload-field";
 import { InputGroupInput } from "@/components/ui/input-group";
 import { PageBackButton } from "@/components/ui/page-back-button";
+import { ReviewEditButton } from "@/components/ui/review-edit-button";
 import { Select, SelectValue } from "@/components/ui/select";
 import { SupportingDocumentCard } from "@/components/ui/supporting-document-card";
 
@@ -57,6 +58,34 @@ const visitPurposes = [
   { value: "business", text: "Business" },
   { value: "family", text: "Visit family or friends" },
   { value: "transit", text: "Transit" },
+];
+const visitedCountries = [
+  {
+    value: "MNP",
+    text: "北马里亚纳群岛",
+    searchText: "MNP Northern Mariana Islands 北马里亚纳群岛",
+    flagCountryCode: "mp",
+  },
+  {
+    value: "CHN",
+    text: "中国",
+    searchText: "CHN China 中国",
+    flagCountryCode: "cn",
+  },
+  {
+    value: "XXB",
+    text: "难民（1951 年公约）",
+    searchText: "XXB Refugee 1951 Convention 难民",
+  },
+];
+const travelModes = [
+  { value: "air", text: "Air" },
+  { value: "land", text: "Land" },
+  { value: "sea", text: "Sea" },
+];
+const galleryFlights = [
+  { value: "SQ12", text: "SQ12 — Singapore Changi Airport" },
+  { value: "VN650", text: "VN650 — Tan Son Nhat International Airport" },
 ];
 
 const galleryVisaTypes = [
@@ -99,6 +128,7 @@ export default function UiComponentsPage() {
   const [needsVisa, setNeedsVisa] = useState("");
   const [notes, setNotes] = useState("");
   const [selectedVisitPurposes, setSelectedVisitPurposes] = useState("");
+  const [selectedVisitedCountries, setSelectedVisitedCountries] = useState("MNP,XXB");
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [declarationsAccepted, setDeclarationsAccepted] = useState(false);
   const [documentsConfirmed, setDocumentsConfirmed] = useState(true);
@@ -107,6 +137,15 @@ export default function UiComponentsPage() {
   const [processingSpeed, setProcessingSpeed] = useState("standard");
   const [fundingProvider, setFundingProvider] = useState("self");
   const [fundingMethods, setFundingMethods] = useState<Record<string, string>>({});
+  const [travelMode, setTravelMode] = useState("air");
+  const [flightNumber, setFlightNumber] = useState("");
+  const [transportIdentifier, setTransportIdentifier] = useState("");
+  const [entryPoint, setEntryPoint] = useState("");
+  const [compoundNationality, setCompoundNationality] = useState("yes");
+  const [compoundJourney, setCompoundJourney] = useState("yes");
+  const [compoundAcknowledged, setCompoundAcknowledged] = useState(false);
+
+  const compoundConditionActive = compoundNationality === "yes" && compoundJourney === "yes";
 
   const setFundingMethod = (fieldName: string, value: string) => {
     setFundingMethods((current) => ({ ...current, [fieldName]: value }));
@@ -133,6 +172,18 @@ export default function UiComponentsPage() {
             </p>
             <div className="mt-8">
               <PageBackButton fallbackHref="/ui-components" label="Back to previous page" />
+            </div>
+          </ApplicationFormPanel>
+
+          <ApplicationFormPanel className="p-5">
+            <h2 className="text-base font-semibold text-foreground">Transparent icon hover</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Robot and review-edit icons keep a transparent background on hover; only the icon
+              color darkens.
+            </p>
+            <div className="mt-8 flex items-center gap-4">
+              <AiAssistButton label="Ask AI" variant="field" />
+              <ReviewEditButton label="Edit review section" />
             </div>
           </ApplicationFormPanel>
 
@@ -376,6 +427,27 @@ export default function UiComponentsPage() {
           </ApplicationFormPanel>
 
           <ApplicationFormPanel className="p-5 md:col-span-2 xl:col-span-3">
+            <h2 className="text-base font-semibold text-foreground">Country multi-select</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Country and territory options use ISO flags, while official non-country options keep
+              their text-only presentation.
+            </p>
+            <ApplicationFormField
+              label="抵达前两周内停留过的国家 / 地区"
+              required
+              className="mt-5"
+            >
+              <ApplicationSearchableMultiSelect
+                value={selectedVisitedCountries}
+                onValueChange={setSelectedVisitedCountries}
+                options={visitedCountries}
+                placeholder="请选择一个或多个国家 / 地区"
+                sideLocale="zh"
+              />
+            </ApplicationFormField>
+          </ApplicationFormPanel>
+
+          <ApplicationFormPanel className="p-5 md:col-span-2 xl:col-span-3">
             <h2 className="text-base font-semibold text-foreground">Conditional repeat group</h2>
             <div className="mt-5 flex flex-col gap-2">
               <ApplicationFormField
@@ -515,6 +587,189 @@ export default function UiComponentsPage() {
                     </ApplicationFormField>
                   ))}
               </ApplicationConditionalFieldsPanel>
+            </div>
+          </ApplicationFormPanel>
+
+          <ApplicationFormPanel className="p-5 md:col-span-2 xl:col-span-3">
+            <h2 className="text-base font-semibold text-foreground">
+              Conditional radio-option group
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              One multi-option radio controller keeps every field in its active branch inside one
+              shared panel, including fields with additional data-loading dependencies.
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <ApplicationFormField
+                label="Mode of travel"
+                required
+                labelAction={<GalleryFieldAiAssist field="Mode of travel" />}
+              >
+                <div className="flex flex-col gap-2">
+                  {travelModes.map((option) => (
+                    <ApplicationRadio
+                      key={option.value}
+                      name="gallery-travel-mode"
+                      value={option.value}
+                      checked={travelMode === option.value}
+                      label={option.text}
+                      onCheckedChange={() => setTravelMode(option.value)}
+                    />
+                  ))}
+                </div>
+              </ApplicationFormField>
+
+              <ApplicationConditionalFieldsPanel
+                aria-label="Travel mode details"
+                className="-mt-1"
+                data-conditional-controller="travel-mode"
+              >
+                {travelMode === "air" ? (
+                  <>
+                    <ApplicationFormField
+                      label="Flight number"
+                      required
+                      className="py-1.5"
+                      labelAction={<GalleryFieldAiAssist field="Flight number" />}
+                    >
+                      <Select value={flightNumber} onValueChange={setFlightNumber}>
+                        <ApplicationFormSelectTrigger className="h-12" filled={Boolean(flightNumber)}>
+                          <SelectValue placeholder="Select..." />
+                        </ApplicationFormSelectTrigger>
+                        <ApplicationFormSelectContent>
+                          {galleryFlights.map((option) => (
+                            <ApplicationFormSelectItem key={option.value} value={option.value}>
+                              {option.text}
+                            </ApplicationFormSelectItem>
+                          ))}
+                        </ApplicationFormSelectContent>
+                      </Select>
+                    </ApplicationFormField>
+                    <ApplicationFormField
+                      label="Entry airport"
+                      required
+                      className="py-1.5"
+                      labelAction={<GalleryFieldAiAssist field="Entry airport" />}
+                    >
+                      <ApplicationFormControlDisplay className="h-12 bg-gray-50 text-[15px] text-gray-500">
+                        {flightNumber === "SQ12"
+                          ? "Singapore Changi Airport"
+                          : flightNumber === "VN650"
+                            ? "Tan Son Nhat International Airport"
+                            : "Select a flight first"}
+                      </ApplicationFormControlDisplay>
+                    </ApplicationFormField>
+                  </>
+                ) : (
+                  <>
+                    <ApplicationFormField
+                      label={travelMode === "land" ? "Vehicle identification number" : "Vessel identification number"}
+                      required
+                      className="py-1.5"
+                      labelAction={<GalleryFieldAiAssist field="Transport identification number" />}
+                    >
+                      <ApplicationFormInputGroup className="h-12" filled={Boolean(transportIdentifier)}>
+                        <InputGroupInput
+                          value={transportIdentifier}
+                          onChange={(event) => setTransportIdentifier(event.target.value)}
+                          placeholder="Enter identification number"
+                          className="h-12 text-[15px]"
+                        />
+                      </ApplicationFormInputGroup>
+                    </ApplicationFormField>
+                    <ApplicationFormField
+                      label={travelMode === "land" ? "Entry border gate" : "Entry seaport"}
+                      required
+                      className="py-1.5"
+                      labelAction={<GalleryFieldAiAssist field="Entry point" />}
+                    >
+                      <ApplicationFormInputGroup className="h-12" filled={Boolean(entryPoint)}>
+                        <InputGroupInput
+                          value={entryPoint}
+                          onChange={(event) => setEntryPoint(event.target.value)}
+                          placeholder="Select entry point"
+                          className="h-12 text-[15px]"
+                        />
+                      </ApplicationFormInputGroup>
+                    </ApplicationFormField>
+                  </>
+                )}
+              </ApplicationConditionalFieldsPanel>
+            </div>
+          </ApplicationFormPanel>
+
+          <ApplicationFormPanel className="p-5 md:col-span-2 xl:col-span-3">
+            <h2 className="text-base font-semibold text-foreground">
+              Compound conditional group
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              One dependent panel appears only when every independent prerequisite is active. The
+              panel repeats all active prerequisites so its reason and ownership remain clear.
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div role="group" aria-label="Nationality requires an airport transit visa">
+                  <ApplicationFormField
+                    label="Nationality requires an airport transit visa"
+                    required
+                  >
+                    <ApplicationYesNoControl
+                      name="gallery-compound-nationality"
+                      value={compoundNationality}
+                      options={[
+                        { value: "yes", text: "Yes" },
+                        { value: "no", text: "No" },
+                      ]}
+                      onValueChange={setCompoundNationality}
+                    />
+                  </ApplicationFormField>
+                </div>
+                <div role="group" aria-label="Journey purpose is airport transit">
+                  <ApplicationFormField
+                    label="Journey purpose is airport transit"
+                    required
+                  >
+                    <ApplicationYesNoControl
+                      name="gallery-compound-journey"
+                      value={compoundJourney}
+                      options={[
+                        { value: "yes", text: "Yes" },
+                        { value: "no", text: "No" },
+                      ]}
+                      onValueChange={setCompoundJourney}
+                    />
+                  </ApplicationFormField>
+                </div>
+              </div>
+
+              {compoundConditionActive ? (
+                <ApplicationConditionalFieldsPanel
+                  aria-label="Airport transit visa acknowledgement"
+                  className="-mt-1"
+                  data-conditional-controllers="compound-nationality compound-journey"
+                >
+                  <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+                    <p className="font-medium">Why this panel is shown</p>
+                    <ul className="mt-1 list-disc pl-5 text-xs leading-5 text-sky-900/80">
+                      <li>Nationality requires an airport transit visa = Yes</li>
+                      <li>Journey purpose is airport transit = Yes</li>
+                    </ul>
+                  </div>
+                  <ApplicationCheckbox
+                    id="gallery-compound-acknowledgement"
+                    checked={compoundAcknowledged}
+                    label="I acknowledge the airport transit visa requirement"
+                    required
+                    onCheckedChange={setCompoundAcknowledged}
+                  />
+                </ApplicationConditionalFieldsPanel>
+              ) : (
+                <div
+                  className="rounded-lg border border-dashed px-4 py-5 text-center text-sm text-muted-foreground"
+                  role="status"
+                >
+                  The compound panel is hidden because at least one prerequisite is inactive.
+                </div>
+              )}
             </div>
           </ApplicationFormPanel>
 

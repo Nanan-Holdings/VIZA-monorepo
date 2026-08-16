@@ -119,6 +119,7 @@ import {
   consumeIndonesiaCardSession,
   discardIndonesiaCardSession,
   hasIndonesiaCardSessions,
+  indonesiaCardSessionsEnabled,
 } from "./indonesia/card-session.js";
 import {
   normalizeVietnamProgressStage,
@@ -205,6 +206,13 @@ import {
 import { evaluatePhEtravelSubmissionWindow } from "./ph-etravel/date-window";
 import { PhEtravelPortalError, runPhEtravelPortalSubmission } from "./ph-etravel/runner";
 import { hasOfficialArrivalCardSuccess } from "./arrival-card-success-guard";
+import {
+  loadManagedOfficialFeeExecutionContext,
+  type ManagedOfficialFeeExecutionContext,
+} from "./official-fee/execution-context.js";
+import { createManagedPaymentHooks } from "./official-fee/managed-payment-hooks.js";
+import { recordOfficialFeeReview } from "./official-fee/accounting.js";
+import type { ManagedPaymentCard, ManagedPaymentHooks } from "./runners/managed-payment-boundary.js";
 import {
   VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
   VnPrearrivalPortalValidationError,
@@ -3545,7 +3553,11 @@ function vietnamStatusForAction(result: VietnamActionRequiredRunResult): VnSubmi
   if (result.actionType === "note_modal_required") return "note_modal_required";
   if (result.actionType === "captcha_required") return "captcha_required";
   if (result.actionType === "upload_required") return "upload_required";
-  if (result.actionType === "payment_required" || result.actionType === "final_submit_required") {
+  if (
+    result.actionType === "payment_required" ||
+    result.actionType === "final_submit_required" ||
+    result.actionType === "official_fee_payment_review_required"
+  ) {
     return "stopped_at_pay";
   }
   if (result.actionType === "official_portal_error") return "official_portal_error";
@@ -3574,8 +3586,10 @@ function buildVietnamActionRequiredResult(
       ...(finalScreenshotPath ? { screenshotUrl: finalScreenshotPath } : {}),
     },
     paymentStatus:
-      result.actionType === "payment_required" || result.actionType === "final_submit_required"
-        ? "manual_required"
+      result.actionType === "payment_required" ||
+      result.actionType === "final_submit_required" ||
+      result.actionType === "official_fee_payment_review_required"
+        ? "blocked"
         : "not_required",
   };
 }
@@ -3670,6 +3684,7 @@ type VnOfficialFeeIntentRow = {
   fee_quote_id: string | null;
   mode: string | null;
   provider: string | null;
+  payment_method_type: string | null;
   official_fee_amount: number | string | null;
   official_fee_currency: string | null;
   status: string | null;
@@ -3715,6 +3730,17 @@ function readAnswerValue(
   return null;
 }
 
+function managedCardToOneTimeCard(card: ManagedPaymentCard) {
+  const [expiryMonth = "", expiryYear = ""] = card.expiry.split("/");
+  return {
+    pan: card.pan,
+    expiryMonth,
+    expiryYear,
+    cvv: card.cvv,
+    holderName: card.holderName,
+  };
+}
+
 async function activateVietnamTracking(
   applicationId: string,
   officialLookupEmail?: string,
@@ -3733,7 +3759,7 @@ async function activateVietnamTracking(
 async function getLatestVnOfficialFeeIntent(applicationId: string): Promise<VnOfficialFeeIntentRow | null> {
   const { data, error } = await supabase
     .from("official_fee_payment_intents")
-    .select("id, user_id, fee_quote_id, mode, provider, official_fee_amount, official_fee_currency, status")
+    .select("id, user_id, fee_quote_id, mode, provider, payment_method_type, official_fee_amount, official_fee_currency, status")
     .eq("application_id", applicationId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -3742,6 +3768,12 @@ async function getLatestVnOfficialFeeIntent(applicationId: string): Promise<VnOf
     throw new Error(`Failed to load official fee intent: ${error.message}`);
   }
   return (data ?? null) as VnOfficialFeeIntentRow | null;
+}
+
+function isManagedVirtualCardIntent(
+  intent: VnOfficialFeeIntentRow | null,
+): intent is VnOfficialFeeIntentRow {
+  return intent?.payment_method_type === "viza_managed_virtual_card";
 }
 
 async function nextOfficialFeeAttemptNumber(intentId: string): Promise<number> {
@@ -3884,6 +3916,10 @@ async function hasVnOfficialFeeFallbackAuthorization(applicationId: string): Pro
 }
 
 async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
+  let managedPaymentHooks: ManagedPaymentHooks | null = null;
+  let managedPaymentCard: ManagedPaymentCard | null = null;
+  let managedOfficialFeeContext: ManagedOfficialFeeExecutionContext | null = null;
+  let repairTempDir: string | null = null;
   const startedAt = new Date().toISOString();
   await updateVnQueueRow(
     item.id,
@@ -3899,41 +3935,40 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
 
   try {
     let intent: VnOfficialFeeIntentRow | null = null;
-    let fallbackAuthorized = false;
     try {
       intent = await getLatestVnOfficialFeeIntent(item.application_id);
     } catch (error) {
-      if (isVnOfficialFeeSchemaMissing(error)) {
-        fallbackAuthorized = await hasVnOfficialFeeFallbackAuthorization(item.application_id);
-      } else {
-        throw error;
-      }
+      throw error;
     }
+    const stopBeforeCardEntry = readBooleanEnv(
+      "VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY",
+      false,
+    );
+    const preCardQaMode =
+      stopBeforeCardEntry &&
+      item.vn_result_payload?.qaMode === "pre_card_only";
     const autopayEnabled = readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
-    const directOneTimeCardAuthorized =
-      autopayEnabled &&
-      vietnamCardSessionsEnabled() &&
-      item.payment_status === "authorized";
-    if (!intent && !fallbackAuthorized && directOneTimeCardAuthorized) {
-      fallbackAuthorized = true;
-      console.log(
-        `[vn] Payment queue ${item.id} proceeding with queue-scoped one-time card authorization without an official-fee intent.`,
-      );
+    if (!preCardQaMode && (!intent || !isManagedVirtualCardIntent(intent))) {
+      throw new Error("No managed official-fee intent and allocation are available for Vietnam payment.");
     }
-    if (!intent && !fallbackAuthorized) {
-      throw new Error("No authorized official_fee_payment_intent found for Vietnam payment.");
-    }
-    if (intent && !["admin_approved", "ready", "manual_review", "failed", "pending"].includes(intent.status ?? "")) {
-      throw new Error(`Official fee intent is not executable from status ${intent.status ?? "(empty)"}.`);
+    if (!preCardQaMode && !["admin_approved", "ready"].includes(intent?.status ?? "")) {
+      throw new Error(`Official fee intent is not executable from status ${intent?.status ?? "(empty)"}.`);
     }
 
     const registrationCode = await loadVnRegistrationCode(item.application_id, item);
-    const dryRunReceipt = readBooleanEnv("VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT", false);
+    const dryRunReceipt =
+      process.env.NODE_ENV !== "production" &&
+      readBooleanEnv("VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT", false);
     const now = new Date().toISOString();
 
     if (autopayEnabled && !dryRunReceipt) {
-      const { profile } = await loadApplicantData(item.application_id);
+      const { profile, application, documents } = await loadApplicantData(item.application_id);
       const answers = await loadDs160Answers(item.application_id).catch(() => ({}));
+      // The initial official submission always uses the managed applicant
+      // alias. Reusing an older profile/persisted email here makes the official
+      // search tuple (registration code, email, DOB) fail even though the
+      // registration code is valid. Keep submission, payment resume, and
+      // status tracking on the same alias.
       const email = await getVietnamOfficialLookupEmail(profile.id);
       const dateOfBirth = readAnswerValue(answers, [
         "date_of_birth",
@@ -3947,10 +3982,37 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       const diagnosticsDir = path.resolve("diag-out", "vn-payment", item.id);
       fs.mkdirSync(diagnosticsDir, { recursive: true });
       const screenshotPath = path.join(diagnosticsDir, "payment-resume.png");
-      const cardSession = await consumeVietnamCardSessionWithGrace(
-        item.application_id,
-        vietnamCardSessionsEnabled(),
-      );
+      let repairAnswers: Record<string, string> | undefined;
+      if (stopBeforeCardEntry && !preCardQaMode) {
+        repairAnswers = applyVietnamAnswerAliases({ ...answers }, profile, application);
+        repairTempDir = fs.mkdtempSync(path.join(os.tmpdir(), `vn-payment-repair-${item.id}-`));
+        const localDocPaths = await downloadDocuments(documents, repairTempDir);
+        const portraitPath = firstLocalDocumentPath(localDocPaths, [
+          "photo",
+          "applicant_photo",
+          "portrait_photo",
+        ]);
+        const passportPath = firstLocalDocumentPath(localDocPaths, [
+          "passport_copy",
+          "passport_scan",
+          "passport_photo",
+          "passport",
+        ]);
+        if (portraitPath) repairAnswers.portrait_photo = portraitPath;
+        if (passportPath) {
+          repairAnswers.passport_copy = passportPath;
+          repairAnswers.passport_photo = passportPath;
+        }
+      }
+      if (!stopBeforeCardEntry) {
+        managedOfficialFeeContext = await loadManagedOfficialFeeExecutionContext(item.application_id);
+        managedPaymentHooks = createManagedPaymentHooks({
+          applicationId: item.application_id,
+          workerId: item.id,
+          country: application.country ?? "vietnam",
+          visaType: application.visa_type ?? "VN_E_VISA",
+        });
+      }
       const payment = await resumeVietnamOfficialPayment({
         registrationCode,
         email,
@@ -3958,9 +4020,63 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         headless: readBooleanEnv("VN_PLAYWRIGHT_HEADLESS", false),
         screenshotPath,
         timeoutMs: readNumberEnv("VN_PAYMENT_RESUME_TIMEOUT_MS", 180_000),
-        card: cardSession,
+        stopBeforeCardEntry,
+        repairAnswers,
+        expectedPaymentAmountCents: managedOfficialFeeContext?.canonicalAmountCents ?? null,
+        expectedPaymentCurrency: managedOfficialFeeContext?.canonicalCurrency ?? null,
+        takeCard: async () => {
+          managedPaymentCard = await managedPaymentHooks?.takePaymentCard?.() ?? null;
+          return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
+        },
       });
+      if (payment.status === "card_entry_ready") {
+        await updateVnQueueRow(
+          item.id,
+          {
+            status: "vn_blocked",
+            attempts: item.attempts + 1,
+            last_error: null,
+            current_stage: "official_fee_card_entry_ready",
+            payment_status: "card_entry_ready",
+            official_status: "payment_card_entry_ready",
+            error_code: null,
+            error_message: null,
+            manual_action_status: "completed",
+            vn_result_payload: {
+              ...(item.vn_result_payload ?? {}),
+              status: "payment_card_entry_ready",
+              checkpoint: "card_entry_ready",
+              officialFeePaymentIntentId: intent?.id ?? null,
+              registrationCodeCaptured: true,
+              screenshotPath,
+              paymentDiagnostics: payment.diagnostics ?? null,
+              paymentSubmitted: false,
+            },
+            heartbeat_at: now,
+            updated_at: now,
+          },
+          {
+            status: "vn_blocked",
+            attempts: item.attempts + 1,
+            last_error: null,
+            updated_at: now,
+          },
+        );
+        await supabase
+          .from("applications")
+          .update({
+            official_fee_status: "official_fee_card_entry_ready",
+            ...(intent ? { official_fee_payment_intent_id: intent.id } : {}),
+            updated_at: now,
+          })
+          .eq("id", item.application_id);
+        return;
+      }
       if (payment.status === "paid") {
+        if (managedPaymentCard) {
+          await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "consumed");
+          managedPaymentCard = null;
+        }
         const receiptNumber = payment.receiptReference;
         const feeEvidence = intent
           ? await insertVnOfficialFeeAttempt({
@@ -4034,6 +4150,17 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       }
 
       const message = `Vietnam official payment resume did not complete automatically: ${payment.reason}`;
+      if (managedPaymentCard) {
+        await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required");
+        managedPaymentCard = null;
+      }
+      if (payment.status === "review_required" && managedOfficialFeeContext) {
+        await recordOfficialFeeReview({
+          context: managedOfficialFeeContext,
+          errorCode: "official_fee_amount_unverified",
+          message,
+        });
+      }
       await updateVnQueueRow(
         item.id,
         {
@@ -4043,13 +4170,12 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
           current_stage: "official_fee_manual_review",
           payment_status: payment.status === "declined" ? "failed" : "manual_review",
           official_status: "payment_authorized",
-          error_code: payment.status === "declined" ? "payment_declined" : "manual_payment_required",
+          error_code: payment.status === "declined" ? "payment_declined" : "official_fee_payment_review_required",
           error_message: message,
           vn_result_payload: {
             ...(item.vn_result_payload ?? {}),
             status: "payment_manual_review",
             officialFeePaymentIntentId: intent?.id ?? null,
-            officialFeeSchemaFallback: fallbackAuthorized,
             registrationCodeCaptured: true,
             paymentResumeUrl: payment.url,
             screenshotPath,
@@ -4070,8 +4196,8 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
 
     if (!dryRunReceipt || !intent) {
       const message = autopayEnabled
-        ? "Vietnam official payment is authorized, but queued payment resume is not implemented for the fixed-card pilot. Re-run the live Vietnam runner through the official payment page or use operator payment."
-        : "Vietnam official payment is authorized, but VN_OFFICIAL_PAYMENT_AUTOPAY is disabled. Operator payment is required.";
+        ? "Vietnam managed official-fee payment could not run through the queued resume path. VIZA staff review is required; the applicant must not pay the portal directly."
+        : "Vietnam managed official-fee automation is disabled. VIZA staff review is required; the applicant must not pay the portal directly.";
       const { attemptId } = intent
         ? await insertVnOfficialFeeAttempt({
             applicationId: item.application_id,
@@ -4092,14 +4218,13 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
             current_stage: "official_fee_manual_review",
             payment_status: "manual_review",
             official_status: "payment_authorized",
-            error_code: "manual_payment_required",
+            error_code: "official_fee_payment_review_required",
             error_message: message,
             vn_result_payload: {
               ...(item.vn_result_payload ?? {}),
               status: "payment_manual_review",
               officialFeePaymentIntentId: intent?.id ?? null,
               officialFeePaymentAttemptId: attemptId,
-              officialFeeSchemaFallback: fallbackAuthorized,
               registrationCodeCaptured: Boolean(registrationCode),
             },
             heartbeat_at: now,
@@ -4194,6 +4319,10 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       await activateVietnamTracking(item.application_id);
     }
   } catch (err) {
+    if (managedPaymentCard) {
+      await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required").catch(() => undefined);
+      managedPaymentCard = null;
+    }
     const message = err instanceof Error ? err.message : String(err);
     const failedAt = new Date().toISOString();
     await updateVnQueueRow(
@@ -4217,6 +4346,10 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         updated_at: failedAt,
       },
     );
+  } finally {
+    if (repairTempDir) {
+      fs.rmSync(repairTempDir, { recursive: true, force: true });
+    }
   }
 }
 
@@ -4263,6 +4396,9 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   const now = new Date().toISOString();
   const currentVnProgressStage = { value: "starting" as string | null };
   let consumedOneTimeCardAuthorization = false;
+  let managedPaymentHooks: ManagedPaymentHooks | null = null;
+  let managedPaymentCard: ManagedPaymentCard | null = null;
+  let managedOfficialFeeContext: ManagedOfficialFeeExecutionContext | null = null;
 
   await updateVnQueueRow(
     item.id,
@@ -4307,18 +4443,19 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   try {
     const { profile, application, documents } = await loadApplicantData(item.application_id);
     const officialPaymentAutopayEnabled = liveAssisted && readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
+    const managedIssuingEnabled = officialPaymentAutopayEnabled;
     const oneTimeCardPaymentEnabled =
       officialPaymentAutopayEnabled &&
       vietnamCardSessionsEnabled();
     const envFixedCardPaymentEnabled =
-      officialPaymentAutopayEnabled && readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
+      officialPaymentAutopayEnabled && vietnamCardSessionsEnabled() && readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
     const oneTimeFixedCard = await consumeVietnamCardSessionWithGrace(
       item.application_id,
       oneTimeCardPaymentEnabled,
     );
     let officialFeeIntent: VnOfficialFeeIntentRow | null = null;
     let officialFeeFallbackAuthorized = false;
-    if (oneTimeCardPaymentEnabled || envFixedCardPaymentEnabled) {
+    if (oneTimeCardPaymentEnabled || envFixedCardPaymentEnabled || managedIssuingEnabled) {
       try {
         officialFeeIntent = await getLatestVnOfficialFeeIntent(item.application_id);
       } catch (error) {
@@ -4333,10 +4470,9 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         }
       }
     }
-    const queueAuthorizedOneTimeCard = Boolean(oneTimeFixedCard);
+    const queueAuthorizedOneTimeCard = vietnamCardSessionsEnabled() && Boolean(oneTimeFixedCard);
     consumedOneTimeCardAuthorization = queueAuthorizedOneTimeCard;
     if (queueAuthorizedOneTimeCard) {
-      officialFeeFallbackAuthorized = true;
       console.log(
         `[vn] Run ${runId} using queue-scoped one-time card authorization for application=${item.application_id.slice(0, 4)}...${item.application_id.slice(-4)} payment_status=${item.payment_status ?? "(empty)"}`,
       );
@@ -4373,6 +4509,19 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       answers.passport_copy = passportPath;
       answers.passport_photo = passportPath;
     }
+    const managedIssuingIntent = isManagedVirtualCardIntent(officialFeeIntent)
+      ? officialFeeIntent
+      : null;
+    if (managedIssuingIntent && managedIssuingEnabled) {
+      managedOfficialFeeContext = await loadManagedOfficialFeeExecutionContext(item.application_id);
+      managedPaymentHooks = createManagedPaymentHooks({
+        applicationId: item.application_id,
+        workerId: item.id,
+        country: application.country ?? "vietnam",
+        visaType: application.visa_type ?? "VN_E_VISA",
+      });
+    }
+    const vnPaymentHooks = managedPaymentHooks;
     const result = await fillVietnamApplication(
       { answers },
       {
@@ -4387,8 +4536,16 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         ),
         ...(tracePath ? { tracePath } : {}),
         ...(finalScreenshotPath ? { finalScreenshotPath } : {}),
-        allowFixedCardPayment: isVnOfficialFeeIntentExecutable(officialFeeIntent) || officialFeeFallbackAuthorized,
+        allowFixedCardPayment: Boolean(managedOfficialFeeContext) || queueAuthorizedOneTimeCard || envFixedCardPaymentEnabled,
         fixedCard: oneTimeFixedCard,
+        expectedPaymentAmountCents: managedOfficialFeeContext?.canonicalAmountCents ?? null,
+        expectedPaymentCurrency: managedOfficialFeeContext?.canonicalCurrency ?? null,
+        takeFixedCard: !oneTimeFixedCard && vnPaymentHooks
+          ? async () => {
+              managedPaymentCard ??= await vnPaymentHooks.takePaymentCard?.() ?? null;
+              return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
+            }
+          : undefined,
         onProgress: async (stage) => {
           await persistVietnamProgressStage(item.id, stage, currentVnProgressStage);
         },
@@ -4397,6 +4554,13 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
 
     if (result.status === "submitted_pending_pay" || result.status === "submitted_paid") {
       const paid = result.status === "submitted_paid";
+      if (managedPaymentCard) {
+        await managedPaymentHooks?.finalizePaymentCard?.(
+          managedPaymentCard,
+          paid ? "consumed" : "review_required",
+        );
+        managedPaymentCard = null;
+      }
       let officialFeeAttemptId: string | null = null;
       let officialFeeReceiptId: string | null = null;
       if (paid) {
@@ -4440,9 +4604,9 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         ...(result.registrationCode ? { registrationCode: result.registrationCode } : {}),
         submittedAtIso: result.submittedAtIso,
         noticeText: "Your e-visa PDF will be emailed within ~3 working days.",
-        paymentStatus: paid ? "paid" : "manual_required",
+        paymentStatus: paid ? "paid" : "blocked",
       };
-      await writeSubmissionResult(item.application_id, vnPayload, paid ? "completed" : "needs_user_action");
+      await writeSubmissionResult(item.application_id, vnPayload, paid ? "completed" : "action_required");
       const completedAt = new Date().toISOString();
       await updateVnQueueRow(
         item.id,
@@ -4454,8 +4618,8 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           ...(result.registrationCode ? { vn_registration_code_encrypted: encryptSecret(result.registrationCode) } : {}),
           official_status: paid ? "payment_submitted" : "registration_code_captured",
           current_stage: paid ? "official_fee_paid" : "payment_required",
-          manual_action_status: paid ? "completed" : "pending",
-          payment_status: paid ? "paid" : "manual_required",
+          manual_action_status: paid ? "completed" : "review_required",
+          payment_status: paid ? "paid" : "manual_review",
           ...(paid && officialFeeIntent
             ? { official_fee_payment_intent_id: officialFeeIntent.id }
             : {}),
@@ -4499,6 +4663,17 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     }
 
     if (result.status === "action_required") {
+      if (managedPaymentCard) {
+        await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required");
+        managedPaymentCard = null;
+      }
+      if (result.actionType === "official_fee_payment_review_required" && managedOfficialFeeContext) {
+        await recordOfficialFeeReview({
+          context: managedOfficialFeeContext,
+          errorCode: "official_fee_amount_unverified",
+          message: result.instruction,
+        });
+      }
       const actionResult = buildVietnamActionRequiredResult(result, finalScreenshotPath);
       await createVietnamManualAction(item, result, finalScreenshotPath);
       const actionAt = new Date().toISOString();
@@ -4633,6 +4808,10 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     }
     console.error(`[vn] Run ${runId} failed at ${result.failedStep}: ${errorMsg}`);
   } catch (err) {
+    if (managedPaymentCard) {
+      await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required").catch(() => undefined);
+      managedPaymentCard = null;
+    }
     const errorMsg = err instanceof Error ? err.message : String(err);
     const newAttempts = nextVietnamQueueAttemptCount({
       currentAttempts: item.attempts,
@@ -6825,6 +7004,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
   }, 60_000);
 
   let consumedOneTimeCardAuthorization = false;
+  let managedPaymentHooks: ManagedPaymentHooks | null = null;
+  let managedPaymentCard: ManagedPaymentCard | null = null;
+  let managedOfficialFeeContext: ManagedOfficialFeeExecutionContext | null = null;
   try {
     const vaultOpts = {
       actor: "submission-service:indonesia",
@@ -6968,10 +7150,16 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     // Indonesia B1/C1 payment is a closed cloud workflow. Never downgrade a
     // card-authorized run to a visible/manual official-payment handoff.
     const userPaymentHandoffEnabled = true;
+    managedOfficialFeeContext = await loadManagedOfficialFeeExecutionContext(item.application_id);
+    managedPaymentHooks = createManagedPaymentHooks({
+      applicationId: item.application_id,
+      workerId: item.id,
+      country: application.country ?? "indonesia",
+      visaType: application.visa_type ?? (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
+    });
     const oneTimeIndonesiaCard = await consumeIndonesiaCardSessionWithGrace(
       item.application_id,
-      readBooleanEnv("ID_LOCAL_CARD_SESSION_ENABLED", false) ||
-        readBooleanEnv("ID_CLOUD_CARD_SESSION_ENABLED", false),
+      indonesiaCardSessionsEnabled(),
     );
     consumedOneTimeCardAuthorization = Boolean(oneTimeIndonesiaCard);
     console.log(
@@ -6982,7 +7170,12 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       enabled: userPaymentHandoffEnabled,
       waitTimeoutMs: Number.parseInt(process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? `${10 * 60 * 1000}`, 10),
       oneTimeCard: oneTimeIndonesiaCard,
-      takeOneTimeCard: () => consumeIndonesiaCardSession(item.application_id),
+      expectedAmountCents: managedOfficialFeeContext.canonicalAmountCents,
+      expectedCurrency: managedOfficialFeeContext.canonicalCurrency,
+      takeOneTimeCard: async () => {
+        managedPaymentCard ??= await managedPaymentHooks?.takePaymentCard?.() ?? null;
+        return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
+      },
       beforeCardSubmit: async () => {
         const memory = process.memoryUsage();
         const rssMb = Math.round(memory.rss / 1024 / 1024);
@@ -7131,6 +7324,10 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     });
 
     if (result.country === "ID" && result.status === "submitted") {
+      if (managedPaymentCard) {
+        await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "consumed");
+        managedPaymentCard = null;
+      }
       const artifactStoragePath = await uploadArtifact({
         authUserId: profile.auth_user_id,
         applicationId: item.application_id,
@@ -7192,6 +7389,18 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       result.status === "action_required" &&
       result.actionType === "official_fee_payment_failed";
 
+    if (managedPaymentCard) {
+      await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required");
+      managedPaymentCard = null;
+    }
+    if (result.actionType === "official_fee_payment_review_required" && managedOfficialFeeContext) {
+      await recordOfficialFeeReview({
+        context: managedOfficialFeeContext,
+        errorCode: "official_fee_amount_unverified",
+        message: result.message,
+      });
+    }
+
     const resultStatus = isPaymentFailed ? "failed" : result.status === "action_required" ? "action_required" : "unsupported";
     const nextQueueStatus = isPaymentAuthorizationRequired
       ? paymentPendingStatus
@@ -7203,9 +7412,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const currentStage = isPaymentFailed
       ? "official_fee_payment_failed"
       : result.actionType === "official_fee_payment_required" || result.actionType === "official_fee_otp_required"
-      ? userPaymentHandoffEnabled
-        ? "user_payment_required"
-        : "payment_page_visible"
+      ? "official_fee_payment_review"
       : result.actionType ?? "indonesia_live_action_required";
     const portalUrl =
       result.portalUrl ??
@@ -7241,8 +7448,8 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         manual_action_status: result.status === "action_required"
           ? isPaymentFailed
             ? "payment_failed"
-            : userPaymentHandoffEnabled && isPaymentAuthorizationRequired
-            ? "user_payment_required"
+            : isPaymentAuthorizationRequired
+            ? "review_required"
             : "pending"
           : null,
         vn_result_payload: queuePayload,
@@ -7257,6 +7464,10 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       `[indonesia] ${provider} prepared managed alias for application=${redactIdentifier(item.application_id)}; action=${result.actionType ?? result.status}`,
     );
   } catch (err) {
+    if (managedPaymentCard) {
+      await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required").catch(() => undefined);
+      managedPaymentCard = null;
+    }
     const errorMsg = err instanceof Error ? err.message : String(err);
     if (err instanceof IndonesiaAliasPreflightError) {
       const actionResult = {

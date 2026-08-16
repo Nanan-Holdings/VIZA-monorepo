@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { Warning as AlertTriangle, CreditCard, ArrowSquareOut as ExternalLink, Eye, EyeSlash as EyeOff, ArrowClockwise as RotateCw } from "@phosphor-icons/react";
+import { Warning as AlertTriangle, ArrowSquareOut as ExternalLink, Eye, EyeSlash as EyeOff, ArrowClockwise as RotateCw } from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { SubmissionMode } from "@/lib/submission-queue";
 import { translateOfficialImagePortalError } from "@/lib/document-image-validation";
@@ -233,15 +234,7 @@ export function FailureCard({
   const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
   const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [cardHolderName, setCardHolderName] = useState("");
   const [retryFailure, setRetryFailure] = useState<string | null>(null);
-  const cardNumberRef = useRef<HTMLInputElement>(null);
-  const cardExpiryRef = useRef<HTMLInputElement>(null);
-  const cardCvvRef = useRef<HTMLInputElement>(null);
-  const cardHolderNameRef = useRef<HTMLInputElement>(null);
   const validationError = parseValidationError(errorMessage, isZh);
   const displayErrorMessage = errorMessage
     ? localizedFailureMessage(errorMessage, isZh)
@@ -256,16 +249,8 @@ export function FailureCard({
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
-  const requiresPaymentCard =
+  const requiresManagedPayment =
     requiresOfficialPaymentCard || requiresVietnamPaymentCard || indonesiaPaymentFailure;
-  const cardReady =
-    !requiresPaymentCard ||
-    (
-      cardNumber.replace(/\D/g, "").length >= 12 &&
-      cardExpiry.trim().length >= 4 &&
-      cardCvv.replace(/\D/g, "").length >= 3 &&
-      (!indonesiaPaymentFailure || cardHolderName.trim().length >= 2)
-    );
 
   useEffect(() => {
     if (!applicationId || !showFranceAccount) return;
@@ -297,59 +282,10 @@ export function FailureCard({
 
   const handleRetry = async (mode: SubmissionMode) => {
     if (!onRetry || retryingMode !== null) return;
-    // Browser autofill and some password-manager/automation integrations can
-    // update a controlled input's native value without dispatching React's
-    // onChange event. Read the live DOM value at the explicit submit boundary
-    // so a visibly complete card form is not rejected as empty.
-    const paymentCard: VietnamOneTimePaymentCard | undefined = requiresPaymentCard
-      ? {
-          pan: cardNumberRef.current?.value ?? cardNumber,
-          expiry: cardExpiryRef.current?.value ?? cardExpiry,
-          cvv: cardCvvRef.current?.value ?? cardCvv,
-          holderName: cardHolderNameRef.current?.value ?? cardHolderName,
-        }
-      : undefined;
-    const paymentCardReady =
-      !requiresPaymentCard ||
-      Boolean(
-        paymentCard &&
-        paymentCard.pan.replace(/\D/g, "").length >= 12 &&
-        paymentCard.expiry.trim().length >= 4 &&
-        paymentCard.cvv.replace(/\D/g, "").length >= 3 &&
-        (!indonesiaPaymentFailure || paymentCard.holderName.trim().length >= 2),
-      );
-
-    if (!paymentCardReady) {
-      setRetryFailure(
-        isZh
-          ? indonesiaPaymentFailure
-            ? "请填写银行卡号、有效期、CVV 和银行卡上的持卡人姓名后再提交。"
-            : "请填写银行卡号、有效期和 CVV 后再提交。"
-          : indonesiaPaymentFailure
-            ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
-            : "Enter the card number, expiry, and CVV before submitting.",
-      );
-      if ((paymentCard?.pan ?? "").replace(/\D/g, "").length < 12) {
-        cardNumberRef.current?.focus();
-      } else if ((paymentCard?.expiry ?? "").trim().length < 4) {
-        cardExpiryRef.current?.focus();
-      } else if ((paymentCard?.cvv ?? "").replace(/\D/g, "").length < 3) {
-        cardCvvRef.current?.focus();
-      } else {
-        cardHolderNameRef.current?.focus();
-      }
-      return;
-    }
     setRetryFailure(null);
     setRetryingMode(mode);
     try {
-      await onRetry(mode, paymentCard);
-      if (requiresPaymentCard) {
-        setCardNumber("");
-        setCardExpiry("");
-        setCardCvv("");
-        setCardHolderName("");
-      }
+      await onRetry(mode);
     } catch (error) {
       setRetryFailure(
         error instanceof Error
@@ -407,18 +343,18 @@ export function FailureCard({
                 : "The cloud submission job did not advance in time. Your answers are saved; submit again to create a new cloud job and continue tracking it.")
             : indonesiaPaymentFailure
             ? (isZh
-                ? "印尼官网付款没有成功。你的申请答案已保存；请重新填写本次银行卡后重试，VIZA 会再次在云端完成付款并确认最终结果。"
-                : "The Indonesia official payment did not succeed. Your application answers are saved; enter the one-time card again and VIZA will retry and confirm the final result in the cloud.")
+                ? "印尼官网付款没有成功。你的申请答案已保存；请重试，VIZA 会使用此申请专用的限额虚拟卡再次付款并确认最终结果。"
+                : "The Indonesia official payment did not succeed. Your answers are saved; retry and VIZA will use this application's limited virtual card to pay again and confirm the result.")
             : (isZh
                 ? "官网在填写申请时返回错误。你的答案已保存，可以直接重新提交。"
                 : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything.")}
         </p>
         {vnPrearrivalVisaNumberError ? (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-relaxed text-red-950">
-            {isZh
+          <ClientErrorAlert
+            message={isZh
               ? "正确格式示例：106527303（共 9 位，只能包含数字）。修改并保存后再重新提交。"
               : "Correct format example: 106527303 (exactly 9 digits, numbers only). Save the corrected value before retrying."}
-          </div>
+          />
         ) : vnPrearrivalOtpErrorKind ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
             {vnPrearrivalOtpErrorKind === "consent_required"
@@ -465,94 +401,18 @@ export function FailureCard({
             </a>
           </Button>
         )}
-        {requiresPaymentCard && (
-          <div className="space-y-3 rounded-lg border border-brand-100 bg-brand-50 p-4">
-            <div className="flex items-start gap-3">
-              <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-foreground">
-                  {isZh ? "补填本次官方付款银行卡" : "Add one-time official payment card"}
-                </div>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  {isZh
-                    ? "重新提交前，请补填本次官方付款使用的银行卡号、有效期、CVV 和银行卡上的持卡人姓名。卡号和 CVV 只会发送到 VIZA 云端 submission-service 的短时内存会话，不会保存。"
-                    : "Before retrying, enter the card number, expiry, CVV, and cardholder name printed on the card. Card number and CVV are sent only to the short-lived VIZA cloud submission-service session and are not stored."}
-                </p>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
-                <input
-                  ref={cardNumberRef}
-                  value={cardNumber}
-                  onChange={(event) => setCardNumber(event.target.value)}
-                  autoComplete="cc-number"
-                  inputMode="numeric"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                  placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
-                <input
-                  ref={cardExpiryRef}
-                  value={cardExpiry}
-                  onChange={(event) => setCardExpiry(event.target.value)}
-                  autoComplete="cc-exp"
-                  inputMode="numeric"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                  placeholder="MM/YY"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="text-xs text-muted-foreground">CVV</span>
-                <input
-                  ref={cardCvvRef}
-                  value={cardCvv}
-                  onChange={(event) => setCardCvv(event.target.value)}
-                  autoComplete="cc-csc"
-                  inputMode="numeric"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                  placeholder="CVV"
-                />
-              </label>
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs text-muted-foreground">
-                  {indonesiaPaymentFailure
-                    ? (isZh ? "持卡人姓名（必填，按银行卡）" : "Cardholder name (required, as on card)")
-                    : (isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)")}
-                </span>
-                <input
-                  ref={cardHolderNameRef}
-                  value={cardHolderName}
-                  onChange={(event) => setCardHolderName(event.target.value)}
-                  autoComplete="cc-name"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                  placeholder={indonesiaPaymentFailure
-                    ? (isZh ? "请输入银行卡上的姓名" : "Name printed on card")
-                    : (isZh ? "不填则使用 VIZA" : "Defaults to VIZA")}
-                />
-              </label>
-            </div>
-            {!cardReady && (
-              <Alert variant="warning">
-                <AlertIcon variant="warning" />
-                <AlertTitle>{isZh ? "银行卡信息未填写完整" : "Card details incomplete"}</AlertTitle>
-                <AlertDescription>
-                  <p>
-                    {isZh
-                      ? indonesiaPaymentFailure
-                        ? "请填写银行卡号、有效期、CVV 和银行卡上的持卡人姓名后再提交。"
-                        : "请填写银行卡号、有效期和 CVV 后再提交。"
-                      : indonesiaPaymentFailure
-                        ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
-                        : "Enter the card number, expiry, and CVV before submitting."}
-                  </p>
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
+        {requiresManagedPayment && (
+          <Alert variant="info">
+            <AlertIcon variant="info" />
+            <AlertTitle>{isZh ? "VIZA 将处理官方付款" : "VIZA will handle the official payment"}</AlertTitle>
+            <AlertDescription>
+              <p>
+                {isZh
+                  ? "无需输入银行卡资料或前往官网付款。重试后，VIZA 会使用仅限此申请和已核对金额的虚拟卡继续。"
+                  : "Do not enter card details or pay on the official portal. On retry, VIZA will continue with a virtual card limited to this application and verified amount."}
+              </p>
+            </AlertDescription>
+          </Alert>
         )}
         {retryFailure && (
           <Alert variant="destructive">

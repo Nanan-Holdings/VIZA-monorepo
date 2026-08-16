@@ -46,6 +46,9 @@ Before changing this route, read:
   shows customer-safe receipts/results and application updates only after the
   application has crossed a reliable submission boundary.
 - `app/actions/visa-form-fields.ts`: loads `visa_form_fields` rows and groups them into wizard steps.
+- `lib/application-schema-ui-contract.ts`: compiles the complete visa schema to
+  canonical `/ui-components` controls and assigns one shared conditional panel
+  owner before the steps reach the renderer.
 - `app/actions/application-lifecycle.ts`: creates and reads per-user application progress summaries.
 - `app/client/application/_components/result-cards/__tests__`: focused regression tests for confirmation/result cards.
   `DigitalArrivalCardResultCard.test.tsx` verifies that Vietnam Pre-Arrival QR
@@ -88,6 +91,26 @@ Before changing this route, read:
     workers directly. Route every dry-run and live enqueue through the guarded
     `/api/applications/[id]/retry-submission` server boundary so the global
     controlled-cutover pause cannot be bypassed.
+18. Optional application fields must not show an `Optional`/`选填` pill, badge,
+    or secondary label. The absence of the required asterisk is the approved
+    treatment. Before adding any optional marker in the future, confirm the
+    product logic with Edward and obtain his explicit approval for that change.
+19. Conditional field spacing and ownership must match the frozen
+    `/ui-components` `Conditional multi-option group` and `Conditional
+    radio-option group`: top-level controller fields have no extra vertical
+    wrapper padding, fields inside the conditional panel use `py-1.5`, and the
+    panel uses `-mt-1` against the shared `gap-2` stack. Every active field that
+    resolves to the same controller belongs in one panel, even when a field has
+    an additional data-loading or derived-value dependency.
+19. Across every country's DB-driven application form, configured `helper_zh`
+    and `helper_en` copy belongs in field AI guidance and must not repeat below
+    the control. Inline helper copy is reserved for exceptional safety, legal,
+    or submission-blocking information explicitly tagged with
+    `helper_priority: "critical"`. Character limits appear only as the compact
+    counter inside the input or textarea and must not be repeated as helper copy.
+21. Never select `VIZA_PLACEHOLDER_DRY_RUN` records as a customer's active
+    application. Synthetic QA answer markers must block queue creation and must
+    not be saved or reused as applicant information.
 
 ## Validation Checklist
 
@@ -98,9 +121,11 @@ For frontend application changes:
    `npx vitest run components/__tests__/dynamic-step-form-copilot-format.test.tsx --testTimeout=15000`
 3. Lint changed frontend files, for example:
    `npx eslint app/client/application/page.tsx components/dynamic-step-form.tsx`
-4. Smoke test at least one application route:
+4. For schema or renderer changes, run
+   `npm run qa:audit-schema-ui -- --summary --strict`.
+5. Smoke test at least one application route:
    `/client/application?country=germany&visaType=schengen_c`
-5. If an authenticated browser session is available, verify:
+6. If an authenticated browser session is available, verify:
    - destination card opens the expected application
    - Chinese-side text edits update the English/official side, while English/official-side text edits do not overwrite Chinese text
    - `问 AI` opens and closes only from the button

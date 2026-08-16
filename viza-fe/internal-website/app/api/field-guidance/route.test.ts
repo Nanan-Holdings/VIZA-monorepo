@@ -33,6 +33,17 @@ const passportPlaceOfIssueField = {
   options: null,
 };
 
+const accommodationAddressField = {
+  ...passportTypeField,
+  id: "field-accommodation-address-line-1",
+  visaType: "EU_SCHENGEN_C_SHORT_STAY",
+  fieldName: "accommodation_address_line_1",
+  label: "住宿地址——第1行",
+  fieldType: "text",
+  placeholder: "Street and number",
+  options: null,
+};
+
 describe("POST /api/field-guidance", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -146,7 +157,55 @@ describe("POST /api/field-guidance", () => {
     expect(payload.aiUsed).toBe(false);
     expect(payload.guidance.examples).toEqual([]);
     expect(payload.guidance.optionExplanations).toEqual([]);
-    expect(payload.guidance.summary).toContain("下拉列表");
+    expect(payload.guidance.summary).toContain("官方选项");
+  });
+
+  it("replaces a repeated clarification question with the shared field explanation", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          guidance: {
+            title: "住宿地址——第1行填写帮助",
+            summary: "请填写当前字段。",
+            examples: [],
+            optionExplanations: [],
+            hints: [],
+            officialWarnings: [],
+            formatHints: [],
+          },
+          validation: { severity: "warning", messages: ["这是必填项。"] },
+          reply: "请告诉我住宿地址——第1行。",
+          sources: [],
+          confidence: "low",
+          aiUsed: true,
+          cached: false,
+        }),
+      })),
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/field-guidance", {
+        method: "POST",
+        body: JSON.stringify({
+          visaType: "EU_SCHENGEN_C_SHORT_STAY",
+          country: "france",
+          locale: "zh",
+          field: accommodationAddressField,
+          answer: "",
+          allAnswers: {},
+          question: "什么意思",
+        }),
+      }),
+    );
+    const payload = (await response.json()) as FieldGuidanceResponse;
+
+    expect(payload.reply).toContain("门牌号、街道名");
+    expect(payload.reply).toContain("酒店预订单");
+    expect(payload.reply).toContain("格式示例：15 Rue de Rivoli, Appartement 3B");
+    expect(payload.reply).not.toBe("请告诉我住宿地址——第1行。");
   });
 
   it("keeps place of issue separate from issuing authority in local guidance", async () => {

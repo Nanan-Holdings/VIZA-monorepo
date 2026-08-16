@@ -38,7 +38,7 @@ Files and responsibilities:
   Postgres enqueue commits; keep direct wake as fallback.
 - `viza-fe/internal-website/lib/queue/enqueue.test.ts`: Queue-primary and
   direct-wake fallback behavior.
-- `viza-be/agent-backend/drizzle/0139_concurrency_phase_two.sql`: canonical SQL
+- `viza-be/agent-backend/drizzle/0149_concurrency_phase_two.sql`: canonical SQL
   for sharded runner claims, indexes, and Vietnam email matching RPC.
 - `viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts`:
   SQL security, lock, index, and bounded-work regression tests.
@@ -452,7 +452,7 @@ git commit -m "feat(concurrency): queue runner wake delivery"
 ## Task 4: Replace the hot global claim lock with country-row locking
 
 **Files:**
-- Create: `viza-be/agent-backend/drizzle/0139_concurrency_phase_two.sql`
+- Create: `viza-be/agent-backend/drizzle/0149_concurrency_phase_two.sql`
 - Create: `viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts`
 - Create via Supabase CLI: migration named `concurrency_phase_two` under `viza-fe/internal-website/supabase/migrations/`
 - Modify: `viza-be/agent-backend/drizzle/AGENTS.md`
@@ -483,7 +483,7 @@ cd viza-be/agent-backend
 npx vitest run src/tests/concurrency-phase-two-migration.test.ts
 ```
 
-Expected: failure because `0139_concurrency_phase_two.sql` does not exist.
+Expected: failure because `0149_concurrency_phase_two.sql` does not exist.
 
 - [ ] **Step 3: Implement the canonical SQL migration**
 
@@ -538,7 +538,7 @@ npx supabase migration new --help
 npx supabase migration new concurrency_phase_two
 $supabaseMigration = Get-ChildItem -LiteralPath 'supabase/migrations' -Filter '*_concurrency_phase_two.sql' | Sort-Object LastWriteTimeUtc | Select-Object -Last 1
 if (-not $supabaseMigration) { throw 'Supabase migration was not generated' }
-Copy-Item -LiteralPath '..\..\viza-be\agent-backend\drizzle\0139_concurrency_phase_two.sql' -Destination $supabaseMigration.FullName -Force
+Copy-Item -LiteralPath '..\..\viza-be\agent-backend\drizzle\0149_concurrency_phase_two.sql' -Destination $supabaseMigration.FullName -Force
 ```
 
 Add a parity assertion to the migration test: locate the single
@@ -559,14 +559,14 @@ Expected: SQL contract/parity tests pass; Drizzle schema is valid.
 - [ ] **Step 6: Commit Task 4**
 
 ```powershell
-git add -- viza-be/agent-backend/drizzle/0139_concurrency_phase_two.sql viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts viza-be/agent-backend/drizzle/AGENTS.md viza-fe/internal-website/supabase/migrations/*_concurrency_phase_two.sql
+git add -- viza-be/agent-backend/drizzle/0149_concurrency_phase_two.sql viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts viza-be/agent-backend/drizzle/AGENTS.md viza-fe/internal-website/supabase/migrations/*_concurrency_phase_two.sql
 git commit -m "perf(database): shard runner job claims by country"
 ```
 
 ## Task 5: Move Vietnam status-email matching into one bounded RPC
 
 **Files:**
-- Modify: `viza-be/agent-backend/drizzle/0139_concurrency_phase_two.sql`
+- Modify: `viza-be/agent-backend/drizzle/0149_concurrency_phase_two.sql`
 - Modify: the CLI-generated `viza-fe/internal-website/supabase/migrations/*_concurrency_phase_two.sql`
 - Modify: `viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts`
 - Create: `viza-be/submission-service/src/vietnam/email-status-matcher.ts`
@@ -697,7 +697,7 @@ and build pass.
 - [ ] **Step 7: Commit Task 5**
 
 ```powershell
-git add -- viza-be/agent-backend/drizzle/0139_concurrency_phase_two.sql viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts viza-fe/internal-website/supabase/migrations/*_concurrency_phase_two.sql viza-be/submission-service/src/vietnam/email-status-matcher.ts viza-be/submission-service/src/vietnam/__tests__/email-status-matcher.spec.ts viza-be/submission-service/src/vietnam/status-tracking.ts viza-be/submission-service/AGENTS.md
+git add -- viza-be/agent-backend/drizzle/0149_concurrency_phase_two.sql viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts viza-fe/internal-website/supabase/migrations/*_concurrency_phase_two.sql viza-be/submission-service/src/vietnam/email-status-matcher.ts viza-be/submission-service/src/vietnam/__tests__/email-status-matcher.spec.ts viza-be/submission-service/src/vietnam/status-tracking.ts viza-be/submission-service/AGENTS.md
 git commit -m "perf(vietnam): batch official status email matching"
 ```
 

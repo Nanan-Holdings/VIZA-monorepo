@@ -16,6 +16,9 @@ reports, and workflow documentation for VIZA.
 - `prd-backend-data-schema.md`: backend data model requirements.
 - `application/DG.md`: application form developer guide.
 - `application/UG.md`: application form user guide.
+- `application/schema-ui-contract.md`: canonical mapping from scraped master
+  schema fields to frozen application components, conditional-panel ownership,
+  strict audit workflow, and the edge-case component backlog.
 - `viza-ai-chat-development-guide.md`: VIZA AI chat guide.
 - `travel-agent-development-guide.md`: Travel AI guide.
 - `TRAVEL_AGENT_QA.md`: Travel Agent QA findings, smoke prompts,
@@ -54,6 +57,11 @@ reports, and workflow documentation for VIZA.
 - `uk-visa-scope.md`, `uk-visa-gap-report.md`: UK form scope and gaps.
 - `schengen-visa-scope.md`, `schengen-visa-gap-report.md`: Schengen form
   scope and gaps.
+- `canada-visa-scope.md`, `turkiye-visa-scope.md`,
+  `india-visa-scope.md`, `saudi-arabia-visa-scope.md`, and
+  `uae-visa-scope.md`: official product boundaries, captured fields,
+  document ownership, evidence confidence, and remaining authenticated-portal
+  QA for the five-country tourist-form expansion.
 - `_templates/*`: templates for future visa scope/gap docs.
 
 ## Ownership Boundaries

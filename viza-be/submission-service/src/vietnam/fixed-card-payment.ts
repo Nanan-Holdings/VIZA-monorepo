@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Frame, Locator, Page } from "@playwright/test";
 import {
   RunnerJobOwnershipLostError,
   type RunnerExecutionContext,
@@ -35,6 +35,10 @@ export interface VietnamFixedCardPaymentResult {
   redactedCard?: RedactedVietnamFixedCard;
 }
 
+export type VietnamOfficialFeeVerification =
+  | { verified: true; amountCents: number; currency: string }
+  | { verified: false; reason: "expectation_missing" | "amount_missing" | "amount_mismatch" };
+
 type EnvLike = Record<string, string | undefined>;
 export type VietnamFixedCardInput = {
   pan?: string | null;
@@ -55,7 +59,8 @@ const PAYMENT_CHALLENGE_PATTERN =
 const OFFICIAL_APPLICATION_FORM_PATTERN =
   /\b(viet nam e-visa application form|foreigner's images|personal information|requested information|passport information|identity card)\b/i;
 const PAYMENT_CONTEXT_PATTERN =
-  /\b(payment gateway|transaction|payment amount|card number|credit card|debit card|cvv|cvc|expiry|expiration|pay now|submit payment|thanh toán)\b/i;
+  /\b(payment gateway|payment amount|card number|cvv|cvc|expiry|expiration|pay now|submit payment)\b/i;
+const PAYMENT_ROUTE_PATTERN = /\/(?:payment|pay|checkout|gateway)(?:\/|$|\?)/i;
 const STANDARD_CHARTERED_BANK_APP_PATTERN =
   /(?:sc mobile banking app|sc mobile app).*(?:approve this transaction|authenticate payment)|click here to complete your purchase/i;
 const BANK_APP_CHALLENGE_FAILURE_PATTERN =
@@ -84,7 +89,12 @@ function parseExpiry(value: string | undefined): { month: string; year: string }
 }
 
 export function loadVietnamFixedCardFromEnv(env: EnvLike = process.env): VietnamFixedCard | null {
-  if (!envEnabled(env.VN_FIXED_CARD_ENABLED) || !envEnabled(env.VN_OFFICIAL_PAYMENT_AUTOPAY)) {
+  if (
+    env.NODE_ENV === "production" ||
+    !envEnabled(env.VN_LOCAL_CARD_SESSION_ENABLED) ||
+    !envEnabled(env.VN_FIXED_CARD_ENABLED) ||
+    !envEnabled(env.VN_OFFICIAL_PAYMENT_AUTOPAY)
+  ) {
     return null;
   }
 
@@ -101,6 +111,58 @@ export function loadVietnamFixedCardFromEnv(env: EnvLike = process.env): Vietnam
       cvvLabel: "VN_FIXED_CARD_CVV",
     },
   );
+}
+
+function parseDisplayedAmount(token: string, currency: string): number | null {
+  let normalized = token.replace(/\s/g, "");
+  if (!normalized) return null;
+  const lastComma = normalized.lastIndexOf(",");
+  const lastDot = normalized.lastIndexOf(".");
+  const separator = Math.max(lastComma, lastDot);
+  if (separator >= 0) {
+    const decimals = normalized.length - separator - 1;
+    if (decimals === 2 && currency !== "IDR") {
+      normalized = `${normalized.slice(0, separator).replace(/[.,]/g, "")}.${normalized.slice(separator + 1)}`;
+    } else {
+      normalized = normalized.replace(/[.,]/g, "");
+    }
+  }
+  const major = Number(normalized);
+  return Number.isFinite(major) ? Math.round(major * 100) : null;
+}
+
+/** Fail closed unless the official page visibly contains the allocated amount and currency. */
+export function verifyVietnamOfficialFeeText(input: {
+  bodyText: string;
+  expectedAmountCents?: number | null;
+  expectedCurrency?: string | null;
+}): VietnamOfficialFeeVerification {
+  const expectedAmountCents = input.expectedAmountCents;
+  const currency = input.expectedCurrency?.trim().toUpperCase();
+  if (!Number.isSafeInteger(expectedAmountCents) || !expectedAmountCents || !currency) {
+    return { verified: false, reason: "expectation_missing" };
+  }
+  const escaped = currency.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const amountToken = "([0-9][0-9.,\\s]*)";
+  const patterns = [
+    new RegExp(`(?:${escaped}|US\\$|USD\\s*\\$)\\s*${amountToken}`, "gi"),
+    new RegExp(`${amountToken}\\s*(?:${escaped}|US\\$)`, "gi"),
+    new RegExp(`amount(?:\\s+paid)?\\s*\\(\\s*${escaped}\\s*\\)\\s*[:=-]?\\s*${amountToken}`, "gi"),
+  ];
+  let sawAmount = false;
+  for (const pattern of patterns) {
+    for (const match of input.bodyText.matchAll(pattern)) {
+      const token = match[1];
+      if (!token) continue;
+      const amountCents = parseDisplayedAmount(token, currency);
+      if (amountCents === null) continue;
+      sawAmount = true;
+      if (amountCents === expectedAmountCents) {
+        return { verified: true, amountCents, currency };
+      }
+    }
+  }
+  return { verified: false, reason: sawAmount ? "amount_mismatch" : "amount_missing" };
 }
 
 export function parseVietnamFixedCardInput(
@@ -163,11 +225,16 @@ export function getVietnamBankAppWaitMs(env: EnvLike = process.env): number {
   return Math.max(MIN_BANK_APP_WAIT_MS, Math.min(MAX_BANK_APP_WAIT_MS, Math.round(configured)));
 }
 
-function isLikelyPaymentGateway(pageUrl: string, bodyText: string): boolean {
+export function hasVietnamPaymentPageEvidence(pageUrl: string, bodyText: string): boolean {
   if (OFFICIAL_APPLICATION_FORM_PATTERN.test(bodyText) && /\/e-visa\/foreigners\//i.test(pageUrl)) {
     return false;
   }
-  return PAYMENT_CONTEXT_PATTERN.test(bodyText) || /\/(?:payment|pay|checkout|gateway)(?:\/|$|\?)/i.test(pageUrl);
+  return (
+    isOfficialVietnamPaymentInformationPage(bodyText) ||
+    PAYMENT_CONTEXT_PATTERN.test(bodyText) ||
+    /\/thanh-toan-cqtc(?:\/|$|\?)/i.test(pageUrl) ||
+    PAYMENT_ROUTE_PATTERN.test(pageUrl)
+  );
 }
 
 function isOfficialVietnamPaymentInformationPage(bodyText: string): boolean {
@@ -177,7 +244,12 @@ function isOfficialVietnamPaymentInformationPage(bodyText: string): boolean {
   );
 }
 
-type VietnamCardBrand = "visa" | "mastercard" | "jcb" | "amex";
+export type VietnamCardBrand = "visa" | "mastercard" | "jcb" | "amex";
+
+export interface VietnamCardEntryResult {
+  status: "ready" | "not_ready";
+  reason?: string;
+}
 
 function detectVietnamCardBrand(card: VietnamFixedCard): VietnamCardBrand {
   if (/^4/.test(card.pan)) return "visa";
@@ -281,28 +353,6 @@ async function selectVietcombankCardBrand(page: Page, brand: VietnamCardBrand): 
         element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
         element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
       };
-      const triggerChange = (element: HTMLElement): void => {
-        element.dispatchEvent(new Event("input", { bubbles: true }));
-        element.dispatchEvent(new Event("change", { bubbles: true }));
-      };
-
-      const radio = document.querySelector<HTMLInputElement>('input[name="payment-method"][value="INTERNATIONAL_CARD"]');
-      if (radio && !radio.checked) {
-        radio.checked = true;
-        triggerChange(radio);
-      }
-
-      const internationalHeader = Array.from(document.querySelectorAll<HTMLElement>("label, div, button"))
-        .filter((element) => /international payment cards/i.test(element.innerText || element.textContent || ""))
-        .sort((left, right) => {
-          const leftRect = left.getBoundingClientRect();
-          const rightRect = right.getBoundingClientRect();
-          return leftRect.width * leftRect.height - rightRect.width * rightRect.height;
-        })[0];
-      if (internationalHeader) {
-        triggerMouseClick(internationalHeader);
-      }
-
       const accordion = document.querySelector<HTMLElement>("#accordionList3");
       if (accordion) {
         accordion.classList.add("show");
@@ -313,15 +363,7 @@ async function selectVietcombankCardBrand(page: Page, brand: VietnamCardBrand): 
       if (!item) return false;
       item.scrollIntoView({ block: "center", inline: "center" });
       triggerMouseClick(item);
-
-      const terms = document.querySelector<HTMLInputElement>('input[name="checkbox-terms"]');
-      if (terms && !terms.checked) {
-        terms.checked = true;
-        triggerChange(terms);
-      }
-
-      const continueButton = document.querySelector<HTMLButtonElement>("#continueBtn");
-      return item.classList.contains("active") && !!continueButton && !/\bdisabled\b/i.test(continueButton.className || "");
+      return item.classList.contains("active");
     }, brandCode[brand])
     .catch(() => false);
   if (selectedByBankCode) return true;
@@ -460,6 +502,89 @@ async function selectVietcombankCardBrand(page: Page, brand: VietnamCardBrand): 
   return true;
 }
 
+async function clickTrustedVietcombankCardBrand(page: Page, brand: VietnamCardBrand): Promise<boolean> {
+  const brandCode: Record<VietnamCardBrand, string> = {
+    visa: "VISA",
+    mastercard: "MASTERCARD",
+    jcb: "JCB",
+    amex: "AMEX",
+  };
+  const exactItems = page.locator(`.list-bank-item[bank-code="${brandCode[brand]}"]`);
+  const exactCount = await exactItems.count().catch(() => 0);
+  for (let index = exactCount - 1; index >= 0; index -= 1) {
+    const item = exactItems.nth(index);
+    if (!(await item.isVisible({ timeout: 500 }).catch(() => false))) continue;
+    await item.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => undefined);
+    const clicked = await item.click({ timeout: 5_000 }).then(() => true).catch(async () => {
+      const box = await item.boundingBox().catch(() => null);
+      if (!box) return false;
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      return true;
+    });
+    if (!clicked) continue;
+    const deadline = Date.now() + 2_500;
+    while (Date.now() < deadline) {
+      const className = await item.getAttribute("class").catch(() => "");
+      const selected = await item.getAttribute("aria-selected").catch(() => null);
+      const checked = await item.getAttribute("aria-checked").catch(() => null);
+      if (/\bactive\b/i.test(className ?? "") || selected === "true" || checked === "true") {
+        return true;
+      }
+      await page.waitForTimeout(100);
+    }
+    console.warn(`[vn-payment] VNPAY ${brandCode[brand]} item click did not commit active state.`);
+  }
+
+  const brandPattern: Record<VietnamCardBrand, RegExp> = {
+    visa: /\bvisa\b/i,
+    mastercard: /master\s*card/i,
+    jcb: /\bjcb\b/i,
+    amex: /american\s*express|\bamex\b/i,
+  };
+  const candidates = page.locator("img[alt], img[title], img[src], [aria-label], [title]");
+  const count = Math.min(await candidates.count().catch(() => 0), 120);
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    if (!(await candidate.isVisible({ timeout: 250 }).catch(() => false))) continue;
+    const signature = await candidate
+      .evaluate((element) => [
+        element.getAttribute("alt"),
+        element.getAttribute("title"),
+        element.getAttribute("aria-label"),
+        element.getAttribute("src"),
+        element.textContent,
+      ].filter(Boolean).join(" "))
+      .catch(() => "");
+    if (!brandPattern[brand].test(signature)) continue;
+    const clickable = candidate.locator(
+      "xpath=ancestor-or-self::*[self::button or self::label or @role='button' or " +
+      "contains(concat(' ', normalize-space(@class), ' '), ' group-col-item ') or " +
+      "contains(concat(' ', normalize-space(@class), ' '), ' list-bank-item ')][1]",
+    );
+    const target = (await clickable.count().catch(() => 0)) > 0 ? clickable : candidate;
+    const box = await target.boundingBox().catch(() => null);
+    if (!box || box.width < 20 || box.height < 20) continue;
+    await target.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => undefined);
+    if (await target.click({ timeout: 5_000 }).then(() => true).catch(() => false)) {
+      await page.waitForTimeout(500);
+      // Generic logos are retained only for older gateway layouts. When the
+      // current bank-code nodes exist, require the official active state rather
+      // than treating a visually successful click as a committed selection.
+      if (exactCount === 0) return true;
+      for (let exactIndex = 0; exactIndex < exactCount; exactIndex += 1) {
+        const exactItem = exactItems.nth(exactIndex);
+        if (!(await exactItem.isVisible({ timeout: 250 }).catch(() => false))) continue;
+        const className = await exactItem.getAttribute("class").catch(() => "");
+        const selected = await exactItem.getAttribute("aria-selected").catch(() => null);
+        const checked = await exactItem.getAttribute("aria-checked").catch(() => null);
+        if (/\bactive\b/i.test(className ?? "") || selected === "true" || checked === "true") return true;
+      }
+      return false;
+    }
+  }
+  return false;
+}
+
 async function expandVietcombankInternationalCards(page: Page): Promise<boolean> {
   const targetPoint = await page
     .evaluate(() => {
@@ -489,25 +614,562 @@ async function expandVietcombankInternationalCards(page: Page): Promise<boolean>
   return true;
 }
 
-async function ensureVietcombankTermsAccepted(page: Page): Promise<boolean> {
-  return page
-    .evaluate(() => {
-      const terms = document.querySelector<HTMLInputElement>('input[name="checkbox-terms"]');
-      if (!terms) return false;
+const VIETCOMBANK_SERVICE_REGULATIONS_HEADING =
+  /service regulations|quy định dịch vụ|服务规定|サービス規約/i;
+const VIETCOMBANK_SERVICE_REGULATIONS_ACTION = /^(?:Agree|Đồng ý|同意|同意する)$/i;
 
-      const jquery = (window as typeof window & { $?: (selector: string) => { prop: (name: string, value: boolean) => { trigger: (event: string) => void } } }).$;
-      if (jquery) {
-        jquery('input[name="checkbox-terms"]').prop("checked", true).trigger("change");
-      } else if (!terms.checked) {
-        terms.checked = true;
-        terms.dispatchEvent(new Event("input", { bubbles: true }));
-        terms.dispatchEvent(new Event("change", { bubbles: true }));
+async function findLiveVietcombankServiceDialog(
+  page: Page,
+): Promise<{ frame: Frame; dialog: Locator } | null> {
+  for (const frame of page.frames()) {
+    const roots = frame
+      .locator(".modal.v-modal, .modal, .regulations, [role='dialog']")
+      .filter({ visible: true });
+    const rootCount = Math.min(await roots.count().catch(() => 0), 20);
+    for (let index = rootCount - 1; index >= 0; index -= 1) {
+      const dialog = roots.nth(index);
+      const [hasHeading, hasAction] = await Promise.all([
+        dialog
+          .getByText(VIETCOMBANK_SERVICE_REGULATIONS_HEADING)
+          .filter({ visible: true })
+          .first()
+          .isVisible({ timeout: 100 })
+          .catch(() => false),
+        dialog
+          .getByText(VIETCOMBANK_SERVICE_REGULATIONS_ACTION)
+          .filter({ visible: true })
+          .last()
+          .isVisible({ timeout: 100 })
+          .catch(() => false),
+      ]);
+      if (hasHeading || hasAction) return { frame, dialog };
+    }
+  }
+  return null;
+}
+
+async function acceptVietcombankServiceRegulations(page: Page, waitMs = 15_000): Promise<boolean> {
+  const actionPattern = VIETCOMBANK_SERVICE_REGULATIONS_ACTION;
+
+  let resolvedDialog = await findLiveVietcombankServiceDialog(page);
+  const appearanceDeadline = Date.now() + Math.max(0, waitMs);
+  while (!resolvedDialog && Date.now() < appearanceDeadline) {
+    await page.waitForTimeout(Math.min(200, Math.max(0, appearanceDeadline - Date.now())));
+    resolvedDialog = await findLiveVietcombankServiceDialog(page);
+  }
+  // The payment-method page itself contains a bold inline “Agree” inside the
+  // terms sentence. It is not a dialog action. Falling back to global exact
+  // text made the runner click that inert word for several seconds after the
+  // real modal had closed, while the terms checkbox remained unchecked.
+  if (!resolvedDialog) return false;
+
+  // Prefer the live VNPAY modal root directly. Text locators can resolve to a
+  // nested `<b>` (or, in some builds, a text-owning wrapper) whose XPath
+  // ancestry is not a stable way to recover the Vue modal. Scoping all later
+  // interaction to the visible root also prevents a hidden duplicate modal or
+  // the page-level terms label from being mistaken for the live action.
+  const serviceDialog = resolvedDialog.dialog;
+  const hasAnchoredServiceDialog = true;
+
+  const modalStillVisible = async (): Promise<boolean> => {
+    if (hasAnchoredServiceDialog) {
+      return serviceDialog.isVisible({ timeout: 250 }).catch(() => false);
+    }
+    return false;
+  };
+  if (!(await modalStillVisible())) return false;
+
+  const scrollServiceDialogToEnd = async (
+    dialog: ReturnType<Page["locator"]>,
+  ): Promise<void> => {
+    if (!(await dialog.isVisible({ timeout: 500 }).catch(() => false))) return;
+    const scrollSummary = await dialog
+      .evaluate((dialog) => {
+        const elements = [dialog, ...Array.from(dialog.querySelectorAll<HTMLElement>("*"))] as HTMLElement[];
+        let scrollable = 0;
+        let scrolled = 0;
+        for (const element of elements) {
+          if (element.scrollHeight <= element.clientHeight + 1) continue;
+          scrollable += 1;
+          const before = element.scrollTop;
+          element.scrollTop = element.scrollHeight;
+          element.dispatchEvent(new Event("scroll", { bubbles: true }));
+          if (element.scrollTop > before) scrolled += 1;
+        }
+        return { scrollable, scrolled };
+      })
+      .catch(() => ({ scrollable: 0, scrolled: 0 }));
+    const dialogBox = await dialog.boundingBox().catch(() => null);
+    if (dialogBox) {
+      await page.mouse.move(dialogBox.x + dialogBox.width / 2, dialogBox.y + dialogBox.height / 2);
+      await page.mouse.wheel(0, Math.max(800, dialogBox.height * 4)).catch(() => undefined);
+    }
+    await page.waitForTimeout(300);
+    console.log(
+      `[vn-payment] VNPAY regulations scrollable=${scrollSummary.scrollable} scrolled=${scrollSummary.scrolled}`,
+    );
+  };
+
+  await scrollServiceDialogToEnd(serviceDialog);
+
+  // VNPAY can keep a hidden duplicate modal mounted after the live dialog. A
+  // `.last()` locator may therefore resolve to the hidden clone. Inspect exact
+  // visible actions from the Playwright side (not inside `page.evaluate`, where
+  // runtime helper injection can break serialization), prefer actions inside a
+  // dialog, and require the live overlay to disappear after a trusted click.
+  const scopedRawCandidates = serviceDialog.getByText(actionPattern).filter({ visible: true });
+  const scopedRawCandidateCount = hasAnchoredServiceDialog
+    ? await scopedRawCandidates.count().catch(() => 0)
+    : 0;
+  const rawCandidates = scopedRawCandidateCount > 0
+    ? scopedRawCandidates
+    : page.getByText(actionPattern).filter({ visible: true });
+  const candidateCount = Math.min(await rawCandidates.count().catch(() => 0), 30);
+  const candidates: Array<{
+    target: ReturnType<Page["locator"]>;
+    insideDialog: boolean;
+    interactive: boolean;
+    paddingClick: boolean;
+  }> = [];
+  for (let index = 0; index < candidateCount; index += 1) {
+    const raw = rawCandidates.nth(index);
+    if (!(await raw.isVisible({ timeout: 100 }).catch(() => false))) continue;
+    const text = (await raw.innerText({ timeout: 250 }).catch(() => "")).replace(/\s+/g, " ").trim();
+    if (!actionPattern.test(text)) continue;
+    const clickable = raw.locator(
+      "xpath=ancestor-or-self::*[self::button or self::a or @role='button' or @type='button' or @type='submit' or contains(concat(' ',normalize-space(@class),' '),' ubtn ')][1]",
+    );
+    const clickableCount = await clickable.count().catch(() => 0);
+    const rawDialog = scopedRawCandidateCount > 0
+      ? serviceDialog
+      : raw.locator(
+        "xpath=ancestor-or-self::*[@role='dialog' or (contains(concat(' ',normalize-space(@class),' '),' modal ') and contains(concat(' ',normalize-space(@class),' '),' v-modal '))][1]",
+      );
+    const rawInsideDialog = scopedRawCandidateCount > 0 || (await rawDialog.count().catch(() => 0)) > 0;
+    if (rawInsideDialog) {
+      await scrollServiceDialogToEnd(rawDialog);
+      // Do not click a percentage of the modal root. The live `.modal.v-modal`
+      // can be a full-viewport backdrop, so a lower-right coordinate may merely
+      // dismiss the overlay (equivalent to Disagree) while looking like a
+      // successful close. Only the exact Agree text's semantic control or a
+      // compact ancestor is eligible below.
+    }
+    if (clickableCount > 0) {
+      const insideDialog = rawInsideDialog || (await clickable.locator(
+        "xpath=ancestor-or-self::*[@role='dialog' or (contains(concat(' ',normalize-space(@class),' '),' modal ') and contains(concat(' ',normalize-space(@class),' '),' v-modal '))][1]",
+      ).count().catch(() => 0)) > 0;
+      candidates.push({ target: clickable, insideDialog, interactive: true, paddingClick: false });
+      continue;
+    }
+
+    // The live VNPAY modal can render `<b>Agree</b>` inside several custom Vue
+    // wrappers without semantic button attributes. Its handler may use
+    // `.self`, so clicking the text node is intentionally ignored. Try each
+    // compact ancestor in order, stopping strictly before the modal root.
+    if (rawInsideDialog) {
+      const rawBox = await raw.boundingBox().catch(() => null);
+      let ancestorCandidates = 0;
+      for (let depth = 1; depth <= 5; depth += 1) {
+        const ancestor = raw.locator(`xpath=ancestor::*[${depth}]`);
+        if ((await ancestor.count().catch(() => 0)) === 0) break;
+        const className = await ancestor.getAttribute("class").catch(() => "");
+        if (/(?:^|\s)(?:modal|v-modal)(?:\s|$)/i.test(className ?? "")) break;
+        const box = await ancestor.boundingBox().catch(() => null);
+        if (
+          rawBox && box &&
+          box.height >= 20 && box.height <= 140 &&
+          box.width >= rawBox.width + 8 && box.width <= 1_000
+        ) {
+          candidates.push({ target: ancestor, insideDialog: true, interactive: true, paddingClick: true });
+          ancestorCandidates += 1;
+        }
       }
+      if (ancestorCandidates > 0) continue;
+    }
+    candidates.push({ target: raw, insideDialog: rawInsideDialog, interactive: false, paddingClick: false });
+  }
+  candidates.sort((left, right) =>
+    Number(right.insideDialog) - Number(left.insideDialog) ||
+    Number(right.interactive) - Number(left.interactive),
+  );
 
-      const continueButton = document.querySelector<HTMLButtonElement>("#continueBtn");
-      return terms.checked && !!continueButton && !/\bdisabled\b/i.test(continueButton.className || "");
+  console.log(
+    `[vn-payment] VNPAY regulations visibleActions=${candidateCount} ` +
+    `dialogActions=${candidates.filter((candidate) => candidate.insideDialog).length}`,
+  );
+
+  for (const { target, paddingClick } of candidates) {
+    const targetTag = await target.evaluate((element) => element.tagName.toLowerCase()).catch(() => "unknown");
+    for (const strategy of ["locator", "mouse", "keyboard", "dispatch"] as const) {
+      if (!(await target.isVisible({ timeout: 500 }).catch(() => false))) break;
+      let interactionCompleted = false;
+      if (strategy === "locator") {
+        const box = await target.boundingBox().catch(() => null);
+        const position = paddingClick && box
+          ? { x: Math.min(12, Math.max(2, box.width / 4)), y: box.height / 2 }
+          : undefined;
+        interactionCompleted = await target.click({ timeout: 5_000, position }).then(() => true).catch(() => false);
+      } else if (strategy === "mouse") {
+        const box = await target.boundingBox().catch(() => null);
+        if (box) {
+          const localX = paddingClick ? Math.min(12, Math.max(2, box.width / 4)) : box.width / 2;
+          await page.mouse.click(box.x + localX, box.y + box.height / 2);
+          interactionCompleted = true;
+        }
+      } else if (strategy === "keyboard") {
+        await target.focus({ timeout: 2_000 }).catch(() => undefined);
+        interactionCompleted = await page.keyboard.press("Enter").then(() => true).catch(() => false);
+      } else {
+        interactionCompleted = await target.dispatchEvent("click").then(() => true).catch(() => false);
+      }
+      const closeDeadline = Date.now() + 2_000;
+      while (Date.now() < closeDeadline) {
+        if (!(await modalStillVisible())) {
+          console.log(
+            `[vn-payment] VNPAY regulations accepted target=${targetTag} strategy=${strategy}`,
+          );
+          return true;
+        }
+        await page.waitForTimeout(100);
+      }
+      console.log(
+        `[vn-payment] VNPAY regulations action did not close modal ` +
+        `target=${targetTag} strategy=${strategy} interactionCompleted=${interactionCompleted}`,
+      );
+    }
+  }
+
+  // A gateway skin may paint the exact Agree text in a pointer-transparent
+  // overlay above the real footer button. If the scoped semantic candidates
+  // did not close the dialog, inspect only the hit-test stack at that exact
+  // text position and dispatch to a compact interactive control inside the
+  // already-verified service dialog. This never clicks a percentage of the
+  // full-screen modal/backdrop and cannot select the page-level terms copy.
+  const exactAction = serviceDialog.getByText(actionPattern).filter({ visible: true }).last();
+  const actionPoint = await exactAction
+    .evaluate((element) => {
+      const rect = (element as HTMLElement).getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     })
+    .catch(() => null);
+  if (actionPoint) {
+    const rootMarker = `viza-regulations-root-${Date.now().toString(36)}`;
+    const targetMarker = `viza-regulations-target-${Date.now().toString(36)}`;
+    await serviceDialog
+      .evaluate((element, marker) => element.setAttribute("data-viza-regulations-root", marker), rootMarker)
+      .catch(() => undefined);
+    const targetMarked = await resolvedDialog.frame
+      .evaluate(
+        ({ x, y, rootMarker, targetMarker }) => {
+          const root = document.querySelector<HTMLElement>(
+            `[data-viza-regulations-root="${rootMarker}"]`,
+          );
+          if (!root) return false;
+          const target = document.elementsFromPoint(x, y).find((element) => {
+            if (!(element instanceof HTMLElement) || element === root || !root.contains(element)) return false;
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            if (
+              style.display === "none" || style.visibility === "hidden" || style.pointerEvents === "none" ||
+              rect.width < 20 || rect.height < 20 || rect.width > 1_000 || rect.height > 160
+            ) return false;
+            return element.matches(
+              "button, a, [role='button'], [type='button'], [type='submit'], .ubtn",
+            );
+          });
+          if (!target) return false;
+          target.setAttribute("data-viza-regulations-target", targetMarker);
+          return true;
+        },
+        {
+          x: actionPoint.x,
+          y: actionPoint.y,
+          rootMarker,
+          targetMarker,
+        },
+      )
+      .catch(() => false);
+    if (targetMarked) {
+      const pointTarget = resolvedDialog.frame.locator(
+        `[data-viza-regulations-target="${targetMarker}"]`,
+      );
+      await pointTarget.dispatchEvent("click").catch(() => undefined);
+      const pointCloseDeadline = Date.now() + 3_000;
+      while (Date.now() < pointCloseDeadline) {
+        if (!(await modalStillVisible())) {
+          console.log("[vn-payment] VNPAY regulations accepted target=point-stack strategy=dispatch");
+          return true;
+        }
+        await page.waitForTimeout(100);
+      }
+    }
+  }
+
+  const dialogRoleAction = page
+    .getByRole("button", { name: actionPattern })
+    .filter({ visible: true })
+    .last();
+  if (await dialogRoleAction.isVisible({ timeout: 500 }).catch(() => false)) {
+    await dialogRoleAction.click({ timeout: 5_000 }).catch(() => undefined);
+    const roleCloseDeadline = Date.now() + 3_000;
+    while (Date.now() < roleCloseDeadline) {
+      if (!(await modalStillVisible())) {
+        console.log(`[vn-payment] VNPAY regulations accepted target=button strategy=role`);
+        return true;
+      }
+      await page.waitForTimeout(100);
+    }
+  }
+  return false;
+}
+
+async function ensureVietcombankTermsAccepted(page: Page): Promise<boolean> {
+  const terms = page.locator('input[name="checkbox-terms"]').last();
+  const termsText = page
+    .getByText(/I have read and Agree to the Terms and Conditions|Tôi đã đọc và đồng ý|我已阅读并同意|規約を読み同意/i)
+    .filter({ visible: true })
+    .first();
+  const continueButton = page
+    .locator('#continueBtn, button:has-text("Continue"), a:has-text("Continue")')
+    .filter({ visible: true })
+    .last();
+  if ((await terms.count().catch(() => 0)) === 0) return false;
+
+  const isReady = async (): Promise<boolean> => {
+    const checked = await terms.isChecked().catch(() => false);
+    const className = await continueButton.getAttribute("class").catch(() => "");
+    const nativeDisabled = await continueButton.isDisabled().catch(() => true);
+    return checked && !nativeDisabled && !/\bdisabled\b/i.test(className ?? "");
+  };
+  if (await isReady()) return true;
+
+  const waitForTermsReady = async (timeoutMs: number): Promise<boolean> => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await isReady()) return true;
+      await page.waitForTimeout(100);
+    }
+    return isReady();
+  };
+  const isTermsCommittedWithoutDialog = async (): Promise<boolean> => {
+    if (!(await terms.isChecked().catch(() => false))) return false;
+    return !(await findLiveVietcombankServiceDialog(page));
+  };
+  const settleTermsAfterRegulations = async (): Promise<boolean> => {
+    // The live gateway commits the modal's Agree action to its checkbox model
+    // asynchronously. Re-checking immediately can open the same modal again
+    // before that model update lands. Give the official handler a bounded
+    // chance to settle, then use one trusted fallback and accept a reopened
+    // modal once if necessary.
+    // The production gateway briefly paints the input as checked immediately
+    // after Agree, then can reset it once the modal model commit completes.
+    // Do not treat that transient checkmark as readiness. Wait out the commit,
+    // then replay one trusted off/on transition only if the CTA is still truly
+    // disabled.
+    await page.waitForTimeout(1_000);
+    if (await waitForTermsReady(2_000)) return true;
+    // Terms and the Continue button are separate gateway models. Once the
+    // official dialog is closed and the checkbox remains checked after the
+    // async commit window, report the terms step as complete even if the
+    // payment method or bank-brand model still needs to be replayed by the
+    // caller.
+    if (await isTermsCommittedWithoutDialog()) return true;
+    if (await terms.isChecked().catch(() => false)) {
+      await terms.uncheck({ timeout: 5_000, force: true }).catch(() => undefined);
+      await page.waitForTimeout(250);
+    }
+    const surfaceClicked = await clickVisibleTermsSquare();
+    if (!surfaceClicked) {
+      await terms.check({ timeout: 5_000, force: true }).catch(() => undefined);
+    }
+    await page.waitForTimeout(500);
+    const reopened = Boolean(await findLiveVietcombankServiceDialog(page));
+    if (reopened && !(await acceptVietcombankServiceRegulations(page, 5_000))) return false;
+    if (reopened) {
+      await page.waitForTimeout(1_000);
+      if (!(await terms.isChecked().catch(() => false))) {
+        await terms.check({ timeout: 5_000, force: true }).catch(() => undefined);
+      }
+    }
+    return waitForTermsReady(3_000);
+  };
+
+  const clickVisibleTermsSquare = async (): Promise<boolean> => {
+    const inputBox = await terms.boundingBox().catch(() => null);
+    if (inputBox && inputBox.width >= 8 && inputBox.height >= 8) {
+      // Use a real pointer at the painted checkbox. VNPAY places a framework
+      // surface over the native input; `check({ force: true })` can update the
+      // DOM property without reaching that surface/model, while this hit-tested
+      // click follows the same path as a user click.
+      await page.mouse.click(inputBox.x + inputBox.width / 2, inputBox.y + inputBox.height / 2);
+      await page.waitForTimeout(400);
+      return true;
+    }
+    const box = await termsText.boundingBox().catch(() => null);
+    if (!box || box.width <= 0 || box.height <= 0) return false;
+    // Depending on the gateway build, the text locator either resolves to the
+    // text-only label (where any interior click toggles its associated input)
+    // or to the whole terms row (whose checkbox sits at its left edge). The old
+    // `left - 19px` assumption clicked outside the latter. Stay inside the
+    // trusted visible surface in both layouts.
+    await page.mouse.click(box.x + Math.min(12, Math.max(2, box.width / 4)), box.y + box.height / 2);
+    await page.waitForTimeout(400);
+    return true;
+  };
+
+  // A synthetic jQuery/property update can paint the checkmark while leaving
+  // the gateway framework's model false. If that happened, toggle the native
+  // control off and on through Playwright's trusted checkbox actions. `check`
+  // targets the real input even when VNPAY paints a custom square above it and
+  // dispatches the click/input/change sequence expected by the page model.
+  if (await terms.isChecked().catch(() => false)) {
+    await terms.uncheck({ timeout: 5_000, force: true }).catch(() => undefined);
+    await page.waitForTimeout(250);
+  }
+  if (!(await terms.isChecked().catch(() => false))) {
+    await terms.check({ timeout: 5_000, force: true }).catch(() => undefined);
+  }
+  if (await acceptVietcombankServiceRegulations(page)) {
+    if (await settleTermsAfterRegulations()) return true;
+  }
+
+  const trustedDeadline = Date.now() + 2_000;
+  while (Date.now() < trustedDeadline) {
+    if (await isReady()) return true;
+    await page.waitForTimeout(200);
+  }
+
+  // Some gateway builds attach the framework handler to the associated label
+  // instead of the hidden input. Replay one bounded real label click from a
+  // known unchecked state, then require both the native state and enabled CTA.
+  // VNPAY currently renders the hidden checkbox next to a separate
+  // `label[for=...]`; it is not necessarily nested by that label. Resolve the
+  // browser's native associated label and let Playwright issue a trusted click
+  // on the visible surface.
+  const termsLabelMarker = `viza-terms-${Date.now().toString(36)}`;
+  const associatedLabelMarked = await terms
+    .evaluate((input, marker) => {
+      const label = (input as HTMLInputElement).labels?.[0];
+      if (!label) return false;
+      label.setAttribute("data-viza-terms-label", marker);
+      return true;
+    }, termsLabelMarker)
     .catch(() => false);
+  const associatedLabel = associatedLabelMarked
+    ? page.locator(`[data-viza-terms-label="${termsLabelMarker}"]`).first()
+    : terms.locator("xpath=ancestor::label[1]");
+  if (await associatedLabel.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    if (await terms.isChecked().catch(() => false)) {
+      await terms.uncheck({ timeout: 5_000, force: true }).catch(() => undefined);
+      await page.waitForTimeout(200);
+    }
+    await associatedLabel.click({ timeout: 5_000, force: true }).catch(() => undefined);
+    if (await acceptVietcombankServiceRegulations(page, 15_000)) {
+      if (await settleTermsAfterRegulations()) return true;
+    }
+  }
+
+  if (!(await isReady()) && await clickVisibleTermsSquare()) {
+    const modalAccepted = await acceptVietcombankServiceRegulations(page, 15_000);
+    if (modalAccepted && await settleTermsAfterRegulations()) return true;
+  }
+
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    if (await isReady()) return true;
+    await page.waitForTimeout(250);
+  }
+  if (await isTermsCommittedWithoutDialog()) {
+    await page.waitForTimeout(750);
+    if (await isTermsCommittedWithoutDialog()) return true;
+  }
+  console.warn(
+    `[vn-payment] VNPAY terms remained unready ` +
+    `checked=${await terms.isChecked().catch(() => false)} ` +
+    `termsInputs=${await page.locator('input[name="checkbox-terms"]').count().catch(() => 0)} ` +
+    `associatedLabels=${await terms.evaluate((input) => (input as HTMLInputElement).labels?.length ?? 0).catch(() => 0)} ` +
+    `exactAgreeVisible=${await page.getByText(/^(?:Agree|Đồng ý|同意|同意する)$/i).filter({ visible: true }).last().isVisible({ timeout: 250 }).catch(() => false)} ` +
+    `continueClass=${(await continueButton.getAttribute("class").catch(() => "")) || "none"} ` +
+    `continueDisabled=${await continueButton.isDisabled().catch(() => true)}`,
+  );
+  return false;
+}
+
+async function selectVietcombankInternationalCards(page: Page): Promise<boolean> {
+  const label = page
+    .locator('text="International payment cards"')
+    .filter({ visible: true })
+    .first();
+  if (!(await label.isVisible({ timeout: 2_000 }).catch(() => false))) return false;
+
+  const scopedRadio = label
+    .locator("xpath=ancestor-or-self::*[self::label or @role='radio' or .//input[@type='radio']][1]")
+    .locator('input[type="radio"]')
+    .first();
+  let radio = scopedRadio;
+  if ((await radio.count().catch(() => 0)) === 0) {
+    const allRadios = page.locator('input[type="radio"]');
+    const radioCount = await allRadios.count().catch(() => 0);
+    if (radioCount > 0) radio = allRadios.nth(radioCount - 1);
+  }
+
+  if ((await radio.count().catch(() => 0)) > 0) {
+    const row = label.locator(
+      "xpath=ancestor-or-self::*[self::label or @role='radio' or " +
+      "contains(concat(' ', normalize-space(@class), ' '), ' payment-method ') or " +
+      "contains(concat(' ', normalize-space(@class), ' '), ' group-col ')][1]",
+    );
+    const target = (await row.count().catch(() => 0)) > 0 ? row : label;
+    // A previous synthetic selection can leave the radio painted as checked
+    // while VNPAY's framework model is still empty. Force a genuine change by
+    // selecting another method first, then click the international row with a
+    // trusted pointer event.
+    if (await radio.isChecked().catch(() => false)) {
+      const allRadios = page.locator('input[type="radio"]');
+      const radioCount = await allRadios.count().catch(() => 0);
+      for (let index = 0; index < radioCount; index += 1) {
+        const alternative = allRadios.nth(index);
+        if (await alternative.isChecked().catch(() => false)) continue;
+        const alternativeRow = alternative.locator("xpath=ancestor::label[1]");
+        if (await alternativeRow.isVisible({ timeout: 500 }).catch(() => false)) {
+          await alternativeRow.click({ timeout: 5_000 }).catch(() => undefined);
+        } else {
+          await alternative.check({ timeout: 5_000, force: true }).catch(() => undefined);
+        }
+        await page.waitForTimeout(250);
+        break;
+      }
+    }
+    if (await target.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await target.click({ timeout: 5_000 }).catch(() => undefined);
+      await page.waitForTimeout(500);
+      if (await radio.isChecked().catch(() => false)) return true;
+    }
+    await radio.check({ timeout: 5_000, force: true }).catch(async () => {
+      await radio.evaluate((element) => {
+        const input = element as HTMLInputElement;
+        input.checked = true;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        input.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      });
+    });
+    await page.waitForTimeout(500);
+    if (await radio.isChecked().catch(() => false)) return true;
+  }
+
+  const row = label.locator(
+    "xpath=ancestor-or-self::*[self::label or @role='radio' or " +
+    "contains(concat(' ', normalize-space(@class), ' '), ' payment-method ') or " +
+    "contains(concat(' ', normalize-space(@class), ' '), ' group-col ')][1]",
+  );
+  const target = (await row.count().catch(() => 0)) > 0 ? row : label;
+  await target.click({ timeout: 5_000, force: true }).catch(() => undefined);
+  await page.waitForTimeout(500);
+  if ((await radio.count().catch(() => 0)) > 0) {
+    return radio.isChecked().catch(() => false);
+  }
+  return target.getAttribute("aria-checked").then((value) => value === "true").catch(() => false);
 }
 
 export async function waitForVnpayPaymentSubmissionTransition(
@@ -677,81 +1339,93 @@ export async function waitForStandardCharteredBankAppChallenge(input: {
   return "timed_out";
 }
 
-async function prepareVietcombankGatewayForCard(
+async function prepareVietcombankGatewayForCardBrand(
   page: Page,
-  card: VietnamFixedCard,
+  brand: VietnamCardBrand,
   executionContext?: RunnerExecutionContext,
 ): Promise<void> {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (!/vietcombank|vnpay|select payment method|international payment cards/i.test(bodyText)) return;
 
-  const internationalCard = page.locator('text="International payment cards"').first();
-  if (await internationalCard.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await internationalCard.click({ timeout: 10_000 }).catch(async () => {
-      await page.locator('input[name="payment-method"]').last().check({ timeout: 5_000 });
-    });
-    await page.waitForTimeout(750);
-  }
+  await selectVietcombankInternationalCards(page);
+  await page.waitForTimeout(750);
 
-  const brand = detectVietnamCardBrand(card);
-  let brandSelected = await selectVietcombankCardBrand(page, brand);
+  // Prefer a trusted pointer event on the visible logo. Synthetic clicks can
+  // toggle CSS without updating the gateway's selected-brand model.
+  let brandSelected = await clickTrustedVietcombankCardBrand(page, brand);
+  if (!brandSelected) {
+    brandSelected = await selectVietcombankCardBrand(page, brand);
+  }
   if (!brandSelected) {
     await expandVietcombankInternationalCards(page);
     await page.waitForTimeout(750);
-    brandSelected = await selectVietcombankCardBrand(page, brand);
+    brandSelected =
+      await clickTrustedVietcombankCardBrand(page, brand) ||
+      await selectVietcombankCardBrand(page, brand);
   }
   if (brandSelected) {
     await page.waitForTimeout(750);
   }
 
-  let termsAccepted = await ensureVietcombankTermsAccepted(page);
-  if (!termsAccepted) {
-    const terms = page.locator('input[name="checkbox-terms"]').first();
-    if (await terms.count().catch(() => 0)) {
-      await terms.check({ timeout: 5_000, force: true }).catch(async () => {
-        await terms.evaluate((element) => {
-          const checkbox = element as HTMLInputElement;
-          checkbox.checked = true;
-          checkbox.dispatchEvent(new Event("input", { bubbles: true }));
-          checkbox.dispatchEvent(new Event("change", { bubbles: true }));
-        });
-      });
-      await page.waitForTimeout(500);
-    }
-    termsAccepted = await ensureVietcombankTermsAccepted(page);
-  }
-  const termsLabel = page.locator('text=/I have read/i').first();
-  if (!termsAccepted && await termsLabel.isVisible({ timeout: 1_500 }).catch(() => false)) {
-    const box = await termsLabel.boundingBox().catch(() => null);
-    if (box) {
-      await page.mouse.click(Math.max(1, box.x - 20), box.y + box.height / 2);
-    } else {
-      await termsLabel.click({ timeout: 5_000, force: true });
-    }
-    await page.waitForTimeout(500);
-    await ensureVietcombankTermsAccepted(page);
-  }
+  const continueButton = page
+    .locator('#continueBtn, button:has-text("Continue"), a:has-text("Continue")')
+    .filter({ visible: true })
+    .last();
+  const continueReady = async (): Promise<boolean> => {
+    const className = await continueButton.getAttribute("class").catch(() => "");
+    return !/\bdisabled\b/i.test(className ?? "") &&
+      await continueButton.isEnabled({ timeout: 500 }).catch(() => false);
+  };
 
-  const continueButton = page.locator('button:has-text("Continue")').first();
+  let termsAccepted = await ensureVietcombankTermsAccepted(page);
+  if (!termsAccepted) return;
+  if (!(await continueReady())) {
+    // The live gateway can commit the service-regulations checkbox while the
+    // method/brand model remains empty. In that state the page looks selected,
+    // but Continue keeps its CSS `disabled` class. Replay the exact official
+    // method and bank-code nodes with trusted pointer events, then require the
+    // CTA state to prove that the framework model accepted the selection.
+    console.warn("[vn-payment] VNPAY Continue is disabled after terms handling; replaying method and card brand.");
+    await selectVietcombankInternationalCards(page);
+    await expandVietcombankInternationalCards(page);
+    const replayedBrand =
+      await clickTrustedVietcombankCardBrand(page, brand) ||
+      await selectVietcombankCardBrand(page, brand);
+    if (!replayedBrand) return;
+    termsAccepted = await ensureVietcombankTermsAccepted(page);
+    if (!termsAccepted) return;
+    const replayDeadline = Date.now() + 5_000;
+    while (Date.now() < replayDeadline && !(await continueReady())) {
+      await page.waitForTimeout(200);
+    }
+    termsAccepted = await continueReady();
+  }
   if (await continueButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await ensureVietcombankTermsAccepted(page);
     await continueButton.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const className = await continueButton.getAttribute("class").catch(() => "");
-      if (!/\bdisabled\b/i.test(className ?? "") && await continueButton.isEnabled({ timeout: 500 }).catch(() => false)) break;
+      if (await continueReady()) break;
       await page.waitForTimeout(500);
     }
     const className = await continueButton.getAttribute("class").catch(() => "");
     if (/\bdisabled\b/i.test(className ?? "") || !(await continueButton.isEnabled({ timeout: 500 }).catch(() => false))) return;
+    const initialUrl = page.url();
     const clicked = await clickOwned(continueButton, executionContext, { timeout: 10_000 })
       .then(() => true)
       .catch(async (error) => {
         if (isOwnershipLoss(error)) throw error;
         return runOwnedAction(executionContext, () => page
           .evaluate(() => {
-          const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+          const visible = (element: HTMLElement): boolean => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+          };
+          const button = Array.from(document.querySelectorAll<HTMLElement>("button, a"))
+            .filter(visible)
+            .reverse()
             .find((candidate) => /continue/i.test(candidate.innerText || candidate.textContent || ""));
-          if (!button || /\bdisabled\b/i.test(button.className || "") || button.disabled) return false;
+          if (!button || /\bdisabled\b/i.test(button.className || "")) return false;
+          if (button instanceof HTMLButtonElement && button.disabled) return false;
           button.scrollIntoView({ block: "center", inline: "center" });
           button.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
           button.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
@@ -765,10 +1439,146 @@ async function prepareVietcombankGatewayForCard(
           });
       });
     if (!clicked) return;
-    await page.waitForLoadState("domcontentloaded", { timeout: 60_000 }).catch(() => undefined);
-    await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => undefined);
-    await page.waitForTimeout(2_000);
+    const regulationsAccepted = await acceptVietcombankServiceRegulations(page, 15_000);
+    if (regulationsAccepted && /select payment method/i.test(await page.locator("body").innerText().catch(() => ""))) {
+      // The live gateway acknowledges the regulations by closing the modal,
+      // then resets the terms checkbox. Re-accept the terms and submit the
+      // already-selected method once more; this second Continue is what opens
+      // the empty international-card form.
+      const readyAfterRegulations = await ensureVietcombankTermsAccepted(page);
+      if (readyAfterRegulations) {
+        await clickOwned(continueButton, executionContext, { timeout: 10_000 }).catch(async (error) => {
+          if (isOwnershipLoss(error)) throw error;
+          await clickOwned(continueButton, executionContext, { timeout: 5_000, force: true });
+        });
+      }
+    }
+    await page.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
+    await page.waitForTimeout(1_000);
+    const advanced = await page
+      .waitForFunction(
+        ({ initialUrl, cardSelector }) =>
+          window.location.href !== initialUrl ||
+          Boolean(document.querySelector(cardSelector)) ||
+          !/select payment method/i.test(document.body?.innerText ?? ""),
+        { initialUrl, cardSelector: VIETNAM_CARD_NUMBER_SELECTOR },
+        { timeout: 10_000, polling: 250 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    if (!advanced && /select payment method/i.test(await page.locator("body").innerText().catch(() => ""))) {
+      console.warn("[vn-payment] VNPAY Continue did not advance; replaying trusted method and terms selection.");
+      await selectVietcombankInternationalCards(page);
+      await clickTrustedVietcombankCardBrand(page, brand);
+      const readyAfterReplay = await ensureVietcombankTermsAccepted(page);
+      if (readyAfterReplay) {
+        await clickOwned(continueButton, executionContext, { timeout: 10_000 }).catch(async (error) => {
+          if (isOwnershipLoss(error)) throw error;
+          await clickOwned(continueButton, executionContext, { timeout: 5_000, force: true });
+        });
+        const replayRegulationsAccepted = await acceptVietcombankServiceRegulations(page, 15_000);
+        if (replayRegulationsAccepted && /select payment method/i.test(await page.locator("body").innerText().catch(() => ""))) {
+          const readyAfterReplayRegulations = await ensureVietcombankTermsAccepted(page);
+          if (readyAfterReplayRegulations) {
+            await clickOwned(continueButton, executionContext, { timeout: 10_000 }).catch(async (error) => {
+              if (isOwnershipLoss(error)) throw error;
+              await clickOwned(continueButton, executionContext, { timeout: 5_000, force: true });
+            });
+          }
+        }
+        await page.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
+        await page.waitForTimeout(1_000);
+      }
+    }
   }
+}
+
+async function prepareVietcombankGatewayForCard(
+  page: Page,
+  card: VietnamFixedCard,
+  executionContext?: RunnerExecutionContext,
+): Promise<void> {
+  await prepareVietcombankGatewayForCardBrand(page, detectVietnamCardBrand(card), executionContext);
+}
+
+const VIETNAM_CARD_NUMBER_SELECTOR = [
+  'input[autocomplete="cc-number"]',
+  'input[placeholder*="card number" i]',
+  'input[name*="card" i][name*="number" i]',
+  'input[id*="card" i][id*="number" i]',
+  'input[aria-label*="card" i][aria-label*="number" i]',
+].join(", ");
+
+export async function isVietnamPaymentFlowPage(page: Page): Promise<boolean> {
+  const [bodyText, cardNumberVisible] = await Promise.all([
+    page.locator("body").innerText({ timeout: 2_000 }).catch(() => ""),
+    page.locator(VIETNAM_CARD_NUMBER_SELECTOR).first().isVisible({ timeout: 500 }).catch(() => false),
+  ]);
+  return cardNumberVisible || hasVietnamPaymentPageEvidence(page.url(), bodyText);
+}
+
+/**
+ * Advances through the official payment-information and VNPAY method screens
+ * until an empty card-number field is visible.  This helper never receives,
+ * fills, or submits card details and is therefore safe for pre-payment QA.
+ */
+export async function advanceVietnamPortalToCardEntry(input: {
+  page: Page;
+  cardBrand?: VietnamCardBrand;
+  timeoutMs?: number;
+}): Promise<VietnamCardEntryResult> {
+  const { page } = input;
+  let bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  if (isOfficialVietnamPaymentInformationPage(bodyText)) {
+    const advanced = await advanceOfficialVietnamPaymentInformationPage(page);
+    if (!advanced) {
+      return {
+        status: "not_ready",
+        reason: "Could not advance from the official Vietnam payment information page.",
+      };
+    }
+    bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+  }
+  if (!(await isVietnamPaymentFlowPage(page))) {
+    return {
+      status: "not_ready",
+      reason: "The official Vietnam flow did not reach a supported payment gateway.",
+    };
+  }
+  if (vietnamPaymentNeedsHuman(bodyText)) {
+    return {
+      status: "not_ready",
+      reason: "The payment gateway requested authentication before exposing the card form.",
+    };
+  }
+
+  await prepareVietcombankGatewayForCardBrand(page, input.cardBrand ?? "visa");
+  const deadline = Date.now() + Math.max(1_000, Math.min(input.timeoutMs ?? 30_000, 60_000));
+  while (Date.now() < deadline && !page.isClosed()) {
+    const cardInput = page.locator(VIETNAM_CARD_NUMBER_SELECTOR).first();
+    if (await cardInput.isVisible({ timeout: 500 }).catch(() => false)) {
+      const value = await cardInput.inputValue({ timeout: 1_000 }).catch(() => "");
+      if (value.trim()) {
+        return {
+          status: "not_ready",
+          reason: "The card form was not empty; pre-payment QA stopped without changing it.",
+        };
+      }
+      return { status: "ready" };
+    }
+    bodyText = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+    if (/payment\s+failed.*recreate\s+profile|recreate\s+profile\s+and\s+retry\s+payment/i.test(bodyText)) {
+      return {
+        status: "not_ready",
+        reason: "The official portal rejected this payment profile before the card form.",
+      };
+    }
+    await page.waitForTimeout(500);
+  }
+  return {
+    status: "not_ready",
+    reason: "The VNPAY card-number field did not become visible before the bounded wait expired.",
+  };
 }
 
 export async function payVietnamPortalWithFixedCard(input: {
@@ -795,7 +1605,7 @@ export async function payVietnamPortalWithFixedCard(input: {
     }
     beforeText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
   }
-  if (!isLikelyPaymentGateway(page.url(), beforeText)) {
+  if (!(await isVietnamPaymentFlowPage(page))) {
     return {
       status: "needs_human",
       receiptReference: null,
@@ -823,13 +1633,7 @@ export async function payVietnamPortalWithFixedCard(input: {
     };
   }
 
-  const cardNumberFilled = await fillFirstVisible(page, [
-    'input[autocomplete="cc-number"]',
-    'input[placeholder*="card number" i]',
-    'input[name*="card" i][name*="number" i]',
-    'input[id*="card" i][id*="number" i]',
-    'input[aria-label*="card" i][aria-label*="number" i]',
-  ], card.pan);
+  const cardNumberFilled = await fillFirstVisible(page, VIETNAM_CARD_NUMBER_SELECTOR.split(", "), card.pan);
   if (!cardNumberFilled) {
     return {
       status: "needs_human",

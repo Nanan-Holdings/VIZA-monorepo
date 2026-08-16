@@ -158,4 +158,21 @@ describe("arrival card destination labels", () => {
     expect(isCountryLaunched("south_korea")).toBe(true);
     expect(isCountryLaunched("kr")).toBe(true);
   });
+
+  test("tourist-country cards use canonical DB schema product codes", () => {
+    const expected = new Map([
+      ["canada", "CA_TRV"],
+      ["india", "IN_E_VISA"],
+      ["saudi_arabia", "SA_E_VISA"],
+      ["turkey", "TR_E_VISA"],
+      ["united_arab_emirates", "AE_TOURIST_VISA"],
+    ]);
+
+    for (const [country, visaType] of expected) {
+      expect(
+        SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === country)?.visaType,
+        country,
+      ).toBe(visaType);
+    }
+  });
 });

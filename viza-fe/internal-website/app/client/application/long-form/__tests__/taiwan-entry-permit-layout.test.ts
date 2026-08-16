@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   buildTaiwanEntryPermitSections,
   getTaiwanEntryPermitInlineDocumentStepId,
@@ -29,6 +31,23 @@ function step(id: number, sourceName: string) {
 }
 
 describe("Taiwan entry permit long-form layout", () => {
+  it("requires and forwards both official terms authorizations at final confirmation", () => {
+    const source = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain('id="tw-entry-prompt-consent"');
+    expect(source).toContain('id="tw-terms-modal-consent"');
+    expect(source).toContain("taiwanEntryPromptAccepted && taiwanTermsModalAccepted");
+    expect(source).toContain(
+      "onSubmit(submitMode, officialPaymentCard, taiwanOfficialTermsConsent)",
+    );
+    expect(source).toContain(
+      "taiwanOfficialTermsConsent: input.taiwanOfficialTermsConsent",
+    );
+  });
+
   it("keeps supporting documents embedded on the qualification step instead of adding a standalone sidebar item", () => {
     expect(shouldShowStandaloneDocumentStep(true, "TW_ENTRY_PERMIT")).toBe(false);
     expect(shouldShowStandaloneDocumentStep(true, "VN_E_VISA")).toBe(true);

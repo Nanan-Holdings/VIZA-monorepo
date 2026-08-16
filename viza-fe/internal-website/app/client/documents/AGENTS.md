@@ -50,6 +50,25 @@ application flow.
 
 ## Guardrails
 
+- **Edward-owned upload UI freeze:** `/ui-components` is the source of truth
+  for every supporting-material upload shown under `/client/application`.
+  Requirement rows must render the exact existing `SupportingDocumentCard` +
+  `DocumentUploadField` composition in a responsive two-column grid. Do not
+  hand-roll or substitute upload rows, drop zones, upload buttons, status
+  badges, card chrome, or alternate grid/list styling. Functional additions
+  must use the canonical component props. Before any visual or interaction
+  change, stop and obtain Edward's explicit approval for that exact change;
+  approval from another contributor is insufficient.
+- Embedded application document steps start directly with their upload groups.
+  Do not add an overview card, application metadata/status badges, progress
+  panel, or required-document completion/missing summary above the groups.
+  Keep only country-mandated instructions such as Taiwan's official upload
+  requirements.
+- Show document state only through the canonical `DocumentUploadField` status
+  row. Do not render `review_notes` as an additional status line; generic audit
+  text such as "Uploaded by applicant. Awaiting VIZA review." is not
+  user-facing copy. Rejection feedback may use the canonical rejection-reason
+  slot.
 - Do not hardcode all document rules in the route file. Use package metadata or
   `document_requirements`.
 - Do not mark a document approved automatically unless the rule is explicitly

@@ -1,6 +1,7 @@
 import { countries } from "country-data-list";
 import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-translations";
 import { buildReusableAnswerPatch, type UniversalProfileAnswerRecord } from "@/lib/universal-profile-fields";
+import { omitSyntheticQaValues } from "@/lib/applications/qa-safety";
 
 interface CountryRecord {
   alpha2: string;
@@ -432,7 +433,9 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
 
   Object.assign(out, buildReusableAnswerPatch(profile.reusable_answers ?? []));
 
-  return out;
+  // A reusable profile is copied into every future application. Never spread
+  // synthetic QA sentinels from a test profile into a real customer draft.
+  return omitSyntheticQaValues(out);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -72,7 +72,7 @@ const FIELDS: FieldDef[] = [
   // applicant never enters those credentials, so the former "UKVI Account"
   // step (uk_account_email / uk_account_password / uk_resume_url) is gone.
   // ═══════════════════════════════════════════════════════════════════════════
-  { field_name: "passport_upload", label: "Upload your passport bio-data page", field_type: "file", required: true, step_number: 0, step_name: "Passport Upload", display_order: 1, validation_rules: { accept: "image/*,application/pdf" } },
+  { field_name: "passport_upload", label: "Upload your passport bio-data page", field_type: "file", required: true, step_number: 0, step_name: "Passport Upload", display_order: 1, validation_rules: { accept: "image/*,application/pdf", document_slot: "passport_bio_page" } },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 1: About You — Personal Details

@@ -78,9 +78,8 @@ describe("ChatMessage", () => {
     const { container } = render(
       <ChatMessage role="error" content="Error occurred" timestamp={Date.now()} />
     );
-    // Error messages have red styling
-    expect(container.querySelector(".bg-red-100")).toBeInTheDocument();
-    expect(container.querySelector(".text-red-700")).toBeInTheDocument();
+    expect(container.querySelector("[data-client-error-alert]")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Error occurred");
   });
 
   it("renders markdown links as plain text with URL", () => {

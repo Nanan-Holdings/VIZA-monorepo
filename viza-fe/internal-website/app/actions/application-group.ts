@@ -16,6 +16,7 @@ import {
   type FrequentTravelerInput,
   type FrequentTravelerProfileRow,
 } from "@/lib/frequent-traveler-profile";
+import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 
 /**
  * Family / multi-applicant application group (PRODUCT-002).
@@ -470,7 +471,9 @@ export async function getTeamApplicationContext(applicationId: string): Promise<
       visa_type: (resolved.app.visa_type as string | null) ?? null,
       confirmation_number: (resolved.app.confirmation_number as string | null) ?? null,
       submitted_at: (resolved.app.submitted_at as string | null) ?? null,
-      submission_result: (resolved.app.submission_result as unknown | null) ?? null,
+      submission_result: sanitizeCustomerSubmissionResult(
+        (resolved.app.submission_result as unknown | null) ?? null,
+      ),
       submission_result_status: (resolved.app.submission_result_status as string | null) ?? null,
       arrival_date: (resolved.app.arrival_date as string | null) ?? null,
       departure_date: (resolved.app.departure_date as string | null) ?? null,

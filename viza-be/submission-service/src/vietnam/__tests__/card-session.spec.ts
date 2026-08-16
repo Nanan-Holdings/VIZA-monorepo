@@ -10,15 +10,22 @@ import {
   vietnamCardSessionsEnabled,
 } from "../card-session";
 
-test("vn.card-session: enables either local or cloud one-time handoff", () => {
+const localEnv = { NODE_ENV: "test", VN_LOCAL_CARD_SESSION_ENABLED: "true" };
+
+test("vn.card-session: enables local fixtures but rejects cloud and production handoffs", () => {
   assert.equal(
     vietnamCardSessionsEnabled({ VN_LOCAL_CARD_SESSION_ENABLED: "true" }),
     true,
   );
   assert.equal(
-    vietnamCardSessionsEnabled({ VN_CLOUD_CARD_SESSION_ENABLED: "1" }),
-    true,
+    vietnamCardSessionsEnabled({ NODE_ENV: "test", VN_CLOUD_CARD_SESSION_ENABLED: "1" }),
+    false,
   );
+  assert.equal(vietnamCardSessionsEnabled({ NODE_ENV: "production", VN_LOCAL_CARD_SESSION_ENABLED: "true" }), false);
+  assert.throws(() => putVietnamCardSession({
+    applicationId: "prod_app",
+    card: { pan: "4111111111111111", expiry: "01/31", cvv: "123" },
+  }, { NODE_ENV: "production", VN_LOCAL_CARD_SESSION_ENABLED: "true" }), /local-development fixtures only/i);
   assert.equal(
     vietnamCardSessionsEnabled({
       VN_LOCAL_CARD_SESSION_ENABLED: "false",
@@ -39,7 +46,7 @@ test("vn.card-session: stores only in memory and returns redacted card metadata"
       cvv: "987",
       holderName: "VIZA TEST",
     },
-  });
+  }, localEnv);
 
   assert.equal(result.redactedCard.last4, "1111");
   assert.equal(result.redactedCard.expiryMonth, "01");
@@ -58,7 +65,7 @@ test("vn.card-session: consume returns the card once and deletes it", () => {
       expiry: "02/32",
       cvv: "999",
     },
-  });
+  }, localEnv);
 
   const card = consumeVietnamCardSession("app_456", 2_000);
   assert.equal(card?.pan, "4111111111111111");
@@ -77,7 +84,7 @@ test("vn.card-session: discard deletes an unused card without exposing it", () =
       cvv: "123",
       holderName: "CARD HOLDER",
     },
-  });
+  }, localEnv);
 
   assert.equal(discardVietnamCardSession("app_discard", 2_001), true);
   assert.equal(peekVietnamCardSession("app_discard", 2_002), null);
@@ -95,7 +102,7 @@ test("vn.card-session: expired sessions are unavailable", () => {
       expiry: "02/32",
       cvv: "999",
     },
-  });
+  }, localEnv);
 
   assert.equal(peekVietnamCardSession("app_789", 2_000)?.applicationId, "app_789");
   assert.equal(hasVietnamCardSessions(2_000), true);

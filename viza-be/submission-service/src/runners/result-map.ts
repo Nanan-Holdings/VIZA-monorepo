@@ -38,6 +38,8 @@ export function mapStandardToOutcome(r: StandardRunResultLike): DispatchOutcome 
     case "stopped_before_pay":
     case "stopped_before_signature":
     case "halted_before_pay":
+    case "managed_payment_adapter_unavailable":
+    case "managed_payment_review_required":
       return { outcome: "halted_before_pay", reachedStep, artefacts };
     case "paper_ready":
       return { outcome: "paper_ready", reachedStep, artefacts };

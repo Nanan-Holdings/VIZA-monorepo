@@ -10,16 +10,20 @@ import {
   CircleNotch as Loader2,
   ShieldCheck,
   CloudArrowUp as UploadCloud,
-  ArrowSquareOut as ExternalLink,
   ArrowClockwise as RotateCw,
 } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { TwSubmissionResult, TwSubmissionStatus } from "@/lib/submission-result";
 import type { ApplicationCompletenessResult } from "@/lib/application-completeness";
-import type { SubmissionMode } from "@/lib/submission-queue";
+import type {
+  SubmissionMode,
+  TaiwanOfficialTermsConsentInput,
+} from "@/lib/submission-queue";
 
 interface TwResultCardProps {
   applicationId?: string;
@@ -27,7 +31,10 @@ interface TwResultCardProps {
   retryBusy?: boolean;
   retryError?: string | null;
   retryCompleteness?: ApplicationCompletenessResult | null;
-  onRetry?: (mode: SubmissionMode) => Promise<void> | void;
+  onRetry?: (
+    mode: SubmissionMode,
+    taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
+  ) => Promise<void> | void;
 }
 
 type FailureCategory =
@@ -114,20 +121,20 @@ const STATUS_META: Record<TwSubmissionStatus, {
     labelEn: "Validating",
     titleZh: "正在校验官网页面",
     titleEn: "Validating the official page",
-    bodyZh: "VIZA 正在核对必填字段、上传状态和停点位置，确认不会越过官方验证码或最终提交按钮。",
-    bodyEn: "VIZA is checking required fields, upload state, and the stop point so it does not cross the official CAPTCHA or final submit button.",
+    bodyZh: "VIZA 正在核对必填字段、上传状态和官网错误。全部通过后才会处理验证码并点击「确认资料」。",
+    bodyEn: "VIZA is checking required fields, uploads, and official validation errors. Only after they pass will it handle CAPTCHA and click the final confirmation.",
     badgeZh: "校验中",
     badgeEn: "Validating",
   },
   stopped_at_captcha: {
-    labelZh: "等待本人提交",
-    labelEn: "Awaiting applicant",
-    titleZh: "台湾官网申请已填写完成",
-    titleEn: "Taiwan official application is ready",
-    bodyZh: "VIZA 已在台湾官网填好资料并上传文件。请打开下方已填写的官网会话，亲自核对并点击「确认资料」提交。",
-    bodyEn: "VIZA filled the Taiwan official form and uploaded the files. Open the prepared official session below, review it, and personally click the final confirm-data button.",
-    badgeZh: "待本人提交",
-    badgeEn: "Awaiting applicant",
+    labelZh: "旧流程未完成",
+    labelEn: "Legacy flow incomplete",
+    titleZh: "台湾官网提交尚未完成",
+    titleEn: "Taiwan official submission is incomplete",
+    bodyZh: "这是旧版接管流程留下的状态，不代表已提交。重新确认两项官网条款授权后，VIZA 可在后台重新执行正式提交。",
+    bodyEn: "This is a legacy handoff state and does not mean submitted. Confirm both official-terms authorizations to run the formal background submission again.",
+    badgeZh: "未提交",
+    badgeEn: "Not submitted",
   },
   submitted: {
     labelZh: "已提交",
@@ -271,12 +278,6 @@ function categorizeTwFailure(result: TwSubmissionResult): {
   return { category: "unknown", fields, documents };
 }
 
-function isExpiredTimestamp(value: string | null | undefined): boolean {
-  if (!value) return false;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) && ms <= Date.now();
-}
-
 function isRecoverableTwFailure(result: TwSubmissionResult, failure: ReturnType<typeof categorizeTwFailure> | null): boolean {
   if (result.status !== "failed") return false;
   const raw = normalizeToken([
@@ -335,9 +336,16 @@ export function TwResultCard({
   onRetry,
 }: TwResultCardProps) {
   const isZh = isChineseLocale(useLocale());
-  const [openingHandoff, setOpeningHandoff] = useState(false);
-  const [handoffError, setHandoffError] = useState<string | null>(null);
-  const status = normalizeTwStatus(result.status, result.currentStage);
+  const [entryPromptAccepted, setEntryPromptAccepted] = useState(false);
+  const [termsModalAccepted, setTermsModalAccepted] = useState(false);
+  const normalizedStatus = normalizeTwStatus(result.status, result.currentStage);
+  const hasVerifiedReceipt = Boolean(
+    result.officialReceipt?.caseNumber?.trim() &&
+    result.officialReceipt.source === "official_success_page_with_application_number",
+  );
+  const status = normalizedStatus === "submitted" && !hasVerifiedReceipt
+    ? "failed"
+    : normalizedStatus;
   const meta = STATUS_META[status];
   const failed = status === "failed";
   const stopped = status === "stopped_at_captcha";
@@ -345,37 +353,9 @@ export function TwResultCard({
   const Icon = failed ? AlertTriangle : submitted ? CheckCircle2 : stopped ? ShieldCheck : status === "uploading" ? UploadCloud : Loader2;
   const failure = failed ? categorizeTwFailure(result) : null;
   const failureMeta = failure ? FAILURE_META[failure.category] : null;
-  const handoffExpired = stopped && isExpiredTimestamp(result.handoffExpiresAt);
-  const canOpenHandoff = Boolean(
-    stopped && applicationId && result.handoffExpiresAt && !handoffExpired,
-  );
-  const stoppedWithoutResumableHandoff = stopped && !canOpenHandoff && !handoffExpired;
   const recoverableFailure = isRecoverableTwFailure(result, failure);
-  const canRetry = Boolean(applicationId && onRetry && !submitted && (handoffExpired || recoverableFailure));
-
-  const openApplicantHandoff = async () => {
-    if (!applicationId || openingHandoff) return;
-    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
-    setOpeningHandoff(true);
-    setHandoffError(null);
-    try {
-      const response = await fetch(`/api/applications/${applicationId}/taiwan-handoff`, {
-        cache: "no-store",
-        credentials: "same-origin",
-      });
-      const payload = await response.json().catch(() => null) as { liveViewUrl?: string; error?: string } | null;
-      if (!response.ok || !payload?.liveViewUrl) {
-        throw new Error(payload?.error ?? (isZh ? "无法打开台湾官网会话" : "Unable to open the Taiwan session"));
-      }
-      if (popup) popup.location.replace(payload.liveViewUrl);
-      else window.location.assign(payload.liveViewUrl);
-    } catch (error) {
-      popup?.close();
-      setHandoffError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setOpeningHandoff(false);
-    }
-  };
+  const canRetry = Boolean(applicationId && onRetry && !submitted && (stopped || recoverableFailure));
+  const termsReady = entryPromptAccepted && termsModalAccepted;
 
   return (
     <Card className="rounded-xl border-input">
@@ -404,81 +384,75 @@ export function TwResultCard({
           </div>
         )}
 
-        {stoppedWithoutResumableHandoff && (
+        {stopped && (
           <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
             <div className="font-semibold">
               {isZh ? "已停在官方验证码前，尚未提交" : "Stopped before the official CAPTCHA and not submitted"}
             </div>
             <p>
               {isZh
-                ? "没有识别验证码，也没有点击「确认资料」最终提交。"
-                : "The CAPTCHA was not solved and the official final confirmation was not clicked."}
+                ? "该旧会话不再开放。VIZA 不会把它视为已提交，也不会沿用其中的验证码。"
+                : "The legacy session is no longer opened. VIZA does not treat it as submitted or reuse its CAPTCHA."}
             </p>
             <p>
               {isZh
-                ? "请勿把普通官网入口当成可接续链接；需要由 VIZA 生成有效的同一会话后才能打开。"
-                : "Do not treat a normal portal URL as a resumable session. VIZA must create a valid handoff for the same browser session."}
+                ? "请重新确认下方两项官网条款授权，再由后台正式提交。"
+                : "Confirm both official-terms authorizations below to start a formal background submission."}
             </p>
           </div>
         )}
 
-        {canOpenHandoff && (
-          <div className="space-y-3 rounded-md border border-brand-200 bg-brand-50 p-3">
-            <div className="flex items-start gap-2 text-sm leading-relaxed text-brand-900">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
-              <span>
-                {isZh
-                  ? "该按钮会打开 VIZA 刚刚填写的同一官网会话，不是空白申请。请先核对资料，再由你本人点击官网「确认资料」。"
-                  : "This opens the exact official session VIZA just filled, not a blank application. Review the answers before personally clicking the official final button."}
-              </span>
-            </div>
-            <Button
-              type="button"
-              className="w-full"
-              disabled={!applicationId || openingHandoff}
-              onClick={() => void openApplicantHandoff()}
-            >
-              {openingHandoff ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
-              {openingHandoff
-                ? (isZh ? "正在打开" : "Opening")
-                : (isZh ? "打开已填写的台湾官网" : "Open prepared Taiwan application")}
-            </Button>
-            {handoffError && <p className="text-xs text-red-600">{handoffError}</p>}
-          </div>
-        )}
-
-        {(handoffExpired || recoverableFailure) && !submitted && (
+        {(stopped || recoverableFailure) && !submitted && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-start gap-2 text-sm leading-relaxed text-amber-950">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
               <div className="space-y-1">
                 <div className="font-semibold">
-                  {handoffExpired
-                    ? isZh ? "台湾官网会话已过期" : "Taiwan official session expired"
-                    : isZh ? "可以重新生成官网会话" : "The official session can be regenerated"}
+                  {isZh ? "重新执行台湾官网正式提交" : "Run the formal Taiwan submission again"}
                 </div>
                 <p>
                   {isZh
-                    ? "旧的已填写官网窗口不能继续使用。重新自动填写会创建一条新的单次台湾 runner 任务，仍会停在官网最终确认前。"
-                    : "The old prepared official window can no longer be used. Refill will create one new single-attempt Taiwan runner job and still stop before the official final confirmation."}
+                    ? "VIZA 会创建一条单次后台任务，自动填写、处理验证码并点击官网「确认资料」。只有取得官方回执编号才会显示提交成功；不会自动付款。"
+                    : "VIZA creates one background job to fill the form, handle CAPTCHA, and click the official final confirmation. Success requires an official receipt number. Payment is never automatic."}
                 </p>
               </div>
             </div>
+            <ApplicationCheckbox
+              id="tw-retry-entry-prompt-consent"
+              checked={entryPromptAccepted}
+              onCheckedChange={setEntryPromptAccepted}
+              required
+              label={isZh
+                ? "我同意 VIZA 确认台湾官网进入申请时显示的提示（蓝色 OK）。"
+                : "I authorize VIZA to accept the official entry prompt (blue OK)."}
+            />
+            <ApplicationCheckbox
+              id="tw-retry-terms-modal-consent"
+              checked={termsModalAccepted}
+              onCheckedChange={setTermsModalAccepted}
+              required
+              label={isZh
+                ? "我同意官网条款，并授权 VIZA 勾选「同意上述条款」后点击「确定」。"
+                : "I accept the official terms and authorize VIZA to check the agreement before clicking Confirm."}
+            />
             <Button
               type="button"
               className="w-full"
-              disabled={!canRetry || retryBusy}
+              disabled={!canRetry || retryBusy || !termsReady}
               onClick={() => {
                 if (!canRetry || retryBusy) return;
-                void onRetry?.("live_assisted");
+                void onRetry?.("live_assisted", {
+                  entryPromptAccepted,
+                  termsModalAccepted,
+                });
               }}
             >
               {retryBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCw className="mr-2 h-4 w-4" />}
               {retryBusy
                 ? isZh ? "正在重新排队" : "Requeueing"
-                : isZh ? "重新自动填写" : "Refill official session"}
+                : isZh ? "重新正式提交" : "Retry formal submission"}
             </Button>
-            {retryError && <p className="text-xs text-red-600">{retryError}</p>}
+            {retryError ? <ClientErrorAlert message={retryError} /> : null}
           </div>
         )}
 
@@ -601,8 +575,8 @@ export function TwResultCard({
                   ? "后续审核与缴费请以官网通知为准。"
                   : "Follow the official site's notices for review and payment.")
                 : (isZh
-                  ? "这不是最终提交收件号；本阶段不会点击官网「确认资料」。"
-                  : "This is not a final submission receipt; this stage does not click the official confirm-data button.")}
+                  ? "这不是最终提交收件号；VIZA 不会把它标记为提交成功。"
+                  : "This is not a final submission receipt, and VIZA does not mark it as submitted.")}
             </div>
           </div>
         )}

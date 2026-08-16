@@ -11,6 +11,11 @@ describe('visa product registry', () => {
     expect(VISA_PRODUCT_REGISTRY.SG_VISITOR_VISA.kind).toBe('visa');
     expect(VISA_PRODUCT_REGISTRY.US_ESTA.provider).toBe('official');
     expect(VISA_PRODUCT_REGISTRY.DS160.provider).toBe('viza');
+    expect(VISA_PRODUCT_REGISTRY.CA_TRV.displayNameEn).toContain('TRV');
+    expect(VISA_PRODUCT_REGISTRY.IN_E_VISA.displayNameEn).toContain('e-Tourist');
+    expect(VISA_PRODUCT_REGISTRY.SA_E_VISA.country).toBe('saudi_arabia');
+    expect(VISA_PRODUCT_REGISTRY.TR_E_VISA.country).toBe('turkey');
+    expect(VISA_PRODUCT_REGISTRY.AE_TOURIST_VISA.country).toBe('united_arab_emirates');
   });
 
   it('normalizes legacy product aliases without exposing hybrid products', () => {

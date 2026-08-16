@@ -91,6 +91,13 @@ export {
 } from "./apply";
 
 export {
+  TW_OFFICIAL_TERMS_CONSENT_VERSION,
+  assertTwOfficialTermsConsentAudit,
+  parseTwOfficialTermsConsentAudit,
+  type TwOfficialTermsConsentAudit,
+} from "./official-terms-consent";
+
+export {
   runTwFormalRunnerPreflight,
   type TwFormalPreflightDiagnostic,
   type TwFormalPreflightInput,
@@ -146,11 +153,3 @@ export {
   type TwPageFingerprint,
   type TwRunMetadata,
 } from "./run-metadata";
-
-export {
-  registerTwApplicantHandoff,
-  waitForTwApplicantSubmission,
-  TwApplicantHandoffConflictError,
-  TwApplicantHandoffExpiredError,
-  type TwApplicantHandoffRegistration,
-} from "./applicant-handoff";

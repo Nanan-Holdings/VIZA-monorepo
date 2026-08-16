@@ -10,8 +10,11 @@ import {
   TwoCaptchaZeroBalanceError,
 } from "../captcha";
 import {
+  advanceVietnamPortalToCardEntry,
+  isVietnamPaymentFlowPage,
   loadVietnamFixedCardFromEnv,
   payVietnamPortalWithFixedCard,
+  verifyVietnamOfficialFeeText,
   type VietnamFixedCard,
   type VietnamFixedCardPaymentResult,
 } from "./fixed-card-payment";
@@ -19,10 +22,20 @@ import {
   captureVietnamCaptchaImage,
   captureVietnamCaptchaFingerprint,
   fingerprintVietnamCaptchaImage,
+  hasVisibleVietnamCaptchaChallenge,
+  reportAcceptedVietnamCaptcha,
+  reportRejectedVietnamCaptcha,
   refreshVietnamCaptchaChallenge,
   solveVietnamImageCaptcha,
+  solveVietnamReviewCaptchaWithRetry,
+  submitVietnamCaptchaAnswer,
+  type VietnamCaptchaSolveOutcome,
 } from "./captcha";
+export { solveVietnamReviewCaptchaWithRetry } from "./captcha";
 import { toVietnamDob } from "./status-check";
+import { fillVietnamOfficialApplicationPage } from "./run";
+import { commitVietnamOfficialExpenseSelectModel } from "./fillers";
+import { readVietnamValidationErrors } from "./validation-errors";
 
 export interface VietnamPaymentSearchCaptchaDiagnostic {
   attempt: number;
@@ -30,7 +43,7 @@ export interface VietnamPaymentSearchCaptchaDiagnostic {
   answerLength?: number;
   durationMs?: number;
   challengeFingerprintPrefix?: string;
-  outcome: "solved" | "unusable" | "solver_error" | "stale_challenge" | "refresh_unconfirmed" | "input_unconfirmed" | "rejected";
+  outcome: "solved" | "unusable" | "solver_error" | "stale_challenge" | "refresh_unconfirmed" | "image_unavailable" | "input_unconfirmed" | "rejected";
   refreshConfirmed?: boolean;
   refreshStrategy?: "search_reload_control" | "shared_fallback";
   freshContextRetry?: boolean;
@@ -79,8 +92,14 @@ export type VietnamPaymentResumeResult =
       diagnostics?: VietnamPaymentResumeDiagnostics;
     }
   | {
-      status: "needs_human" | "declined" | "unavailable";
+      status: "needs_human" | "declined" | "unavailable" | "review_required";
       reason: string;
+      url: string;
+      screenshotPath?: string;
+      diagnostics?: VietnamPaymentResumeDiagnostics;
+    }
+  | {
+      status: "card_entry_ready";
       url: string;
       screenshotPath?: string;
       diagnostics?: VietnamPaymentResumeDiagnostics;
@@ -95,6 +114,12 @@ export interface VietnamPaymentResumeInput {
   screenshotPath?: string;
   timeoutMs?: number;
   card?: VietnamFixedCard | null;
+  stopBeforeCardEntry?: boolean;
+  takeCard?: () => Promise<VietnamFixedCard | null>;
+  expectedPaymentAmountCents?: number | null;
+  expectedPaymentCurrency?: string | null;
+  /** Canonical answers used to repair an already-open official application. */
+  repairAnswers?: Record<string, string>;
 }
 
 const DEFAULT_SEARCH_URL = "https://evisa.gov.vn/e-visa/search";
@@ -224,7 +249,10 @@ async function waitForSearchPageReady(
   while (Date.now() < deadline) {
     for (const selector of SEARCH_FIELD_SELECTORS) {
       if (await page.locator(selector).first().isVisible({ timeout: 500 }).catch(() => false)) {
-        return true;
+        if (await locateLoadedVietnamSearchCaptchaImage(page)) return true;
+        // The SPA mounts its fields before the CAPTCHA API response. Do not
+        // classify the page ready while the browser still shows alt text.
+        break;
       }
     }
     const bodyText = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
@@ -380,10 +408,11 @@ async function gotoSearchPageWithRetry(
           // Ignore malformed or non-HTTP response URLs.
         }
       });
-      await page.setExtraHTTPHeaders({
-        "Cache-Control": "no-cache",
-        Pragma: "no-cache",
-      });
+      // Do not add Cache-Control/Pragma globally. The SPA fetches its CAPTCHA
+      // from api.evisa.gov.vn; non-simple custom headers force a CORS preflight
+      // that the public API does not consistently accept, leaving only a
+      // broken <img> placeholder. Fresh contexts and blocked service workers
+      // already give each bounded retry a clean module graph.
       try {
         await page.goto(searchUrl, {
           waitUntil: "domcontentloaded",
@@ -429,7 +458,11 @@ export const VIETNAM_SEARCH_CAPTCHA_TASK_OPTIONS = {
 } as const;
 
 export function normalizeVietnamSearchCaptchaAnswer(value: string): string {
-  return value.replace(/\s+/g, "").trim();
+  // 2Captcha's numeric workers can enter visually identical full-width digits
+  // from an East Asian input method.  The official portal accepts only ASCII
+  // digits, so normalize compatibility forms before enforcing the exact
+  // six-digit contract.  Do not guess letters such as O/I/S as digits.
+  return value.normalize("NFKC").replace(/\s+/g, "").trim();
 }
 
 export function isVietnamSearchCaptchaAnswerUsable(value: string): boolean {
@@ -524,6 +557,29 @@ interface StableVietnamSearchCaptchaCapture {
   fingerprint: string;
 }
 
+async function locateLoadedVietnamSearchCaptchaImage(page: Page): Promise<Locator | null> {
+  const candidates = page.locator(VIETNAM_SEARCH_CAPTCHA_IMAGE_SELECTORS);
+  const count = Math.min(await candidates.count().catch(() => 0), 20);
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    const visible = await candidate.isVisible({ timeout: 250 }).catch(() => false);
+    if (!visible) continue;
+    const loaded = await candidate
+      .evaluate((element) => {
+        if (element instanceof HTMLImageElement) {
+          return element.complete && element.naturalWidth > 0 && element.naturalHeight > 0;
+        }
+        if (element instanceof HTMLCanvasElement) {
+          return element.width > 0 && element.height > 0;
+        }
+        return false;
+      })
+      .catch(() => false);
+    if (loaded) return candidate;
+  }
+  return null;
+}
+
 /**
  * The search SPA replaces its CAPTCHA image while mounting and after reload.
  * Treat a challenge as current only after two consecutive captures agree, and
@@ -541,11 +597,8 @@ async function captureStableVietnamSearchCaptcha(
   let matchingSamples = 0;
   do {
     const remainingMs = Math.max(0, deadline - Date.now());
-    const image = page.locator(VIETNAM_SEARCH_CAPTCHA_IMAGE_SELECTORS).first();
-    const visible = await image
-      .isVisible({ timeout: Math.max(1, Math.min(remainingMs, 750)) })
-      .catch(() => false);
-    if (visible) {
+    const image = await locateLoadedVietnamSearchCaptchaImage(page);
+    if (image) {
       const capture = await captureVietnamCaptchaImage(
         image,
         Math.max(1, Math.min(remainingMs, 2_000)),
@@ -694,6 +747,20 @@ export async function refreshVietnamSearchCaptchaChallenge(
     if (await clickAndConfirm(control, "vue_event_fallback")) return "search_reload_control";
   }
 
+  // A Fly-to-official API response can arrive after the per-click response
+  // observer expires. Keep a final bounded bitmap watch after all scoped
+  // clicks so a successful late Vue repaint is not classified as stale. This
+  // preserves the second trusted/synthetic click fallbacks instead of letting
+  // the first slow click consume the entire refresh budget.
+  if (remainingMs() > 0) {
+    const lateChanged = await captureStableVietnamSearchCaptcha(
+      page,
+      Math.max(1, Math.min(remainingMs(), 2_500)),
+      previousFingerprint,
+    );
+    if (lateChanged) return "search_reload_control";
+  }
+
   if (remainingMs() <= 0) return null;
   const sharedConfirmed = await refreshVietnamCaptchaChallenge(page, remainingMs()).catch(() => false);
   return sharedConfirmed ? "shared_fallback" : null;
@@ -740,7 +807,17 @@ export async function solveVietnamPaymentSearchCaptcha(
           false,
         );
       }
-      return { diagnostics };
+      diagnostics.push({
+        attempt,
+        contextAttempt: options.contextAttempt,
+        outcome: "image_unavailable",
+        freshContextRetry: true,
+      });
+      throw new VietnamSearchCaptchaSolveError(
+        "The official Vietnam search CAPTCHA image did not load; refusing to solve a placeholder.",
+        diagnostics,
+        true,
+      );
     }
     let capture = { buffer: stableCapture.buffer };
     let challengeFingerprint = stableCapture.fingerprint;
@@ -919,6 +996,17 @@ export async function solveVietnamPaymentSearchCaptcha(
       };
       diagnostics.push(diagnostic);
       await reportBad(solution.solveId).catch(() => undefined);
+      // A structurally unusable provider answer was never entered into the
+      // official portal, so the challenge has not been rejected. Release this
+      // fingerprint for another bounded solver request instead of depending
+      // on the portal's occasionally no-op refresh control.
+      options.knownChallengeFingerprints?.delete(challengeFingerprint);
+      diagnostic.sameChallengeRetry = localAttempt < maxAttempts && remainingMs() > 0;
+      if (diagnostic.sameChallengeRetry) {
+        const retryDelayMs = Math.max(0, Math.min(1_500 * localAttempt, remainingMs()));
+        if (retryDelayMs > 0) await page.waitForTimeout(retryDelayMs);
+        continue;
+      }
     } catch (error) {
       if (error instanceof VietnamSearchCaptchaSolveError) throw error;
       const solverFailure = classifyVietnamSearchCaptchaSolverError(error);
@@ -1006,7 +1094,7 @@ export async function waitForVietnamSearchSubmissionOutcome(
     if (resultRows > 0) return "accepted";
 
     const bodyText = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
-    if (/no result found|không tìm thấy|khong tim thay/i.test(bodyText)) return "accepted";
+    if (/no results?(?: were)? found|không tìm thấy|khong tim thay/i.test(bodyText)) return "accepted";
     const captchaErrorText = await page.locator([
       "#basic_captcha",
       "input[name*='captcha' i]",
@@ -1188,28 +1276,40 @@ export async function followVietnamSearchPaymentEntry(
 }
 
 async function clickVisibleButtonByText(page: Page, labels: string[]): Promise<boolean> {
-  const startedAt = Date.now();
-  for (const label of labels) {
-    while (Date.now() - startedAt < 45_000) {
-      const bodyText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
-      const currentUrl = page.url();
-      if (/payment gateway|payment amount|card number|credit card|debit card|cvv|cvc|pay now|submit payment|transaction/i.test(bodyText) ||
-        /\/(?:payment|pay|checkout|gateway)(?:\/|$|\?)/i.test(currentUrl)) {
-        return true;
-      }
+  const escapedLabels = labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const actionPattern = new RegExp(`^(?:${escapedLabels.join("|")})$`, "i");
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    if (await isVietnamPaymentFlowPage(page)) return true;
 
-      const locator = page.locator(`button:has-text("${label}")`).first();
-      if (!(await locator.isVisible({ timeout: 1_000 }).catch(() => false))) {
-        break;
-      }
-      if (await locator.isEnabled({ timeout: 1_000 }).catch(() => false)) {
-        await locator.click({ timeout: 15_000 });
+    let action = page.getByRole("button", { name: actionPattern }).filter({ visible: true }).last();
+    if (!(await action.isVisible({ timeout: 500 }).catch(() => false))) {
+      const rawAction = page.getByText(actionPattern).filter({ visible: true }).last();
+      const liftedAction = rawAction.locator(
+        "xpath=ancestor-or-self::*[self::button or self::a or @role='button' or @type='button' or @type='submit' or contains(concat(' ',normalize-space(@class),' '),' ant-btn ') or contains(concat(' ',normalize-space(@class),' '),' ubtn ')][1]",
+      );
+      action = (await liftedAction.count().catch(() => 0)) > 0 ? liftedAction : rawAction;
+    }
+
+    if (await action.isVisible({ timeout: 500 }).catch(() => false)) {
+      const className = await action.getAttribute("class").catch(() => "");
+      const classDisabled = /(?:^|\s)(?:disabled|ant-btn-disabled)(?:\s|$)/i.test(className ?? "");
+      if (!classDisabled && await action.isEnabled({ timeout: 500 }).catch(() => false)) {
+        const box = await action.boundingBox().catch(() => null);
+        const position = box
+          ? { x: Math.min(12, Math.max(2, box.width / 4)), y: box.height / 2 }
+          : undefined;
+        const clicked = await action
+          .click({ timeout: 15_000, position })
+          .then(() => true)
+          .catch(() => false);
+        if (!clicked) return false;
         await page.waitForLoadState("networkidle", { timeout: 45_000 }).catch(() => undefined);
         await page.waitForTimeout(2_000);
         return true;
       }
-      await page.waitForTimeout(1_000);
     }
+    await page.waitForTimeout(500);
   }
   return false;
 }
@@ -1240,22 +1340,259 @@ async function clickVisibleTextOrCheckbox(page: Page, labels: string[]): Promise
   return false;
 }
 
-export async function advanceOfficialFormToPayment(page: Page, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + Math.min(Math.max(timeoutMs, 1_000), 45_000);
-  for (let attempt = 0; attempt < 12 && Date.now() < deadline; attempt += 1) {
+async function confirmVietnamAdditionalCompletedDialog(page: Page): Promise<boolean> {
+  const noticePattern = /additional completed|declaration completed|electronic document code|bổ sung hoàn thành|电子文件代码|電子文書コード/i;
+  const dialog = page
+    .locator("[role='dialog'], .modal, [class*='modal']")
+    .filter({ visible: true })
+    .filter({ hasText: noticePattern })
+    .last();
+  const noticeVisible = await dialog.isVisible({ timeout: 500 }).catch(() => false);
+  if (!noticeVisible) return false;
+
+  const actionPattern = /^(?:Confirm|Xác nhận|确认|確認|OK)$/i;
+  const scopedAction = dialog.getByRole("button", { name: actionPattern, exact: true }).filter({ visible: true }).last();
+  const pageAction = page.getByRole("button", { name: actionPattern, exact: true }).filter({ visible: true }).last();
+  const action = await scopedAction.isVisible({ timeout: 500 }).catch(() => false)
+    ? scopedAction
+    : pageAction;
+  if (!(await action.isVisible({ timeout: 500 }).catch(() => false))) return false;
+  const clicked = await action
+    .click({ timeout: 8_000 })
+    .then(() => true)
+    .catch(async () => {
+      const box = await action.boundingBox().catch(() => null);
+      if (!box) return false;
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      return true;
+    });
+  if (!clicked) return false;
+  await dialog.waitFor({ state: "hidden", timeout: 8_000 }).catch(() => undefined);
+  return !(await dialog.isVisible({ timeout: 250 }).catch(() => false));
+}
+
+type VietnamPaymentInformationAdvance =
+  | "not_visible"
+  | "advanced"
+  | "blocked"
+  | "fee_not_ready"
+  | "profile_recreation_required";
+
+const VIETNAM_PAYMENT_PROFILE_RECREATION_PATTERN =
+  /payment failed[,.]?\s*please recreate profile and retry payment|thanh toán thất bại[^.]*tạo lại hồ sơ|付款失败[^。]*重新创建(?:申请)?档案|支払いに失敗[^。]*申請(?:プロファイル|情報)を再作成/i;
+
+function isVietnamPaymentFeeMetadataReady(bodyText: string): boolean {
+  if (/amount paid\s*\(usd\)\s*:\s*(?:undefined|null|nan)\b/i.test(bodyText)) return false;
+  return /amount paid\s*\(usd\)\s*:\s*(?:usd\s*)?\d+(?:[.,]\d{1,2})?\s*(?:usd)?\b/i.test(bodyText);
+}
+
+export interface VietnamReviewCaptchaAutomation {
+  solve?: (page: Page, timeoutMs: number) => Promise<VietnamCaptchaSolveOutcome>;
+  submit?: (page: Page, timeoutMs: number) => Promise<boolean>;
+  refresh?: (page: Page, timeoutMs: number) => Promise<boolean>;
+  reportAccepted?: (outcome: VietnamCaptchaSolveOutcome) => Promise<boolean>;
+  reportRejected?: (outcome: VietnamCaptchaSolveOutcome) => Promise<boolean>;
+}
+
+async function advanceVietnamPaymentInformationPage(
+  page: Page,
+  bodyText: string,
+): Promise<VietnamPaymentInformationAdvance> {
+  if (VIETNAM_PAYMENT_PROFILE_RECREATION_PATTERN.test(bodyText)) {
+    return "profile_recreation_required";
+  }
+  const agreementPattern = /^(?:I agree to pay|Tôi đồng ý thanh toán|我同意支付|支払いに同意する)$/i;
+  const agreementLabel = page
+    .locator("label")
+    .filter({ visible: true })
+    .filter({ hasText: /I agree to pay|Tôi đồng ý thanh toán|我同意支付|支払いに同意する/i })
+    .first();
+  const agreementText = page.getByText(agreementPattern).filter({ visible: true }).first();
+  const paymentHeading = page
+    .getByText(/payment[’'`]?s?\s+information|amount paid\s*\(usd\)/i)
+    .filter({ visible: true })
+    .first();
+  const [labelVisible, textVisible, headingVisible] = await Promise.all([
+    agreementLabel.isVisible({ timeout: 300 }).catch(() => false),
+    agreementText.isVisible({ timeout: 300 }).catch(() => false),
+    paymentHeading.isVisible({ timeout: 300 }).catch(() => false),
+  ]);
+  const bodyEvidence = /payment[’'`]?s?\s+information|amount paid\s*\(usd\)|i agree to pay|tôi đồng ý thanh toán|我同意支付|支払いに同意する/i.test(
+    bodyText,
+  );
+  if (!bodyEvidence && !labelVisible && !textVisible && !headingVisible) return "not_visible";
+  if (!isVietnamPaymentFeeMetadataReady(bodyText)) return "fee_not_ready";
+
+  let checkbox = labelVisible
+    ? agreementLabel.locator('input[type="checkbox"]').first()
+    : page.locator('input[type="checkbox"]').filter({ visible: true }).last();
+  if ((await checkbox.count().catch(() => 0)) === 0) {
+    checkbox = page.locator('input[type="checkbox"]').filter({ visible: true }).last();
+  }
+  if ((await checkbox.count().catch(() => 0)) === 0) return "blocked";
+  if (!(await checkbox.isChecked().catch(() => false))) {
+    const clickedLabel = labelVisible
+      ? await agreementLabel.click({ timeout: 5_000 }).then(() => true).catch(() => false)
+      : textVisible
+        ? await agreementText.click({ timeout: 5_000 }).then(() => true).catch(() => false)
+        : false;
+    if (!clickedLabel || !(await checkbox.isChecked().catch(() => false))) {
+      await checkbox.check({ timeout: 5_000, force: true }).catch(() => undefined);
+    }
+  }
+  if (!(await checkbox.isChecked().catch(() => false))) return "blocked";
+
+  // The official portal sometimes injects a decorative chevron/icon into the
+  // button's accessible name (for example, "› Payment"). Keep the action
+  // allowlist exact while tolerating only leading punctuation/symbols.
+  const paymentActionPattern = /^(?:[\p{P}\p{S}]\s*)*(?:Payment|Pay|Thanh toán|支付|支払い)\s*$/iu;
+  const paymentActionTextPattern = /^(?:Payment|Pay|Thanh toán|支付|支払い)$/i;
+  let paymentAction = page.getByRole("button", { name: paymentActionPattern }).filter({ visible: true }).last();
+  if (!(await paymentAction.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    const rawAction = page.getByText(paymentActionTextPattern).filter({ visible: true }).last();
+    const liftedAction = rawAction.locator(
+      "xpath=ancestor-or-self::*[self::button or self::a or @role='button' or @type='button' or @type='submit' or contains(concat(' ',normalize-space(@class),' '),' ant-btn ') or contains(concat(' ',normalize-space(@class),' '),' ubtn ')][1]",
+    );
+    paymentAction = (await liftedAction.count().catch(() => 0)) > 0 ? liftedAction : rawAction;
+  }
+  if (!(await paymentAction.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    console.warn("[vn-payment] official payment action was not visible after agreement.");
+    return "blocked";
+  }
+  const enabledDeadline = Date.now() + 10_000;
+  while (Date.now() < enabledDeadline) {
+    const className = await paymentAction.getAttribute("class").catch(() => "");
+    const classDisabled = /(?:^|\s)(?:disabled|ant-btn-disabled)(?:\s|$)/i.test(className ?? "");
+    if (!classDisabled && await paymentAction.isEnabled({ timeout: 300 }).catch(() => false)) break;
+    await page.waitForTimeout(250);
+  }
+  const className = await paymentAction.getAttribute("class").catch(() => "");
+  if (
+    /(?:^|\s)(?:disabled|ant-btn-disabled)(?:\s|$)/i.test(className ?? "") ||
+    !(await paymentAction.isEnabled({ timeout: 300 }).catch(() => false))
+  ) {
+    console.warn(
+      `[vn-payment] official payment action remained disabled ` +
+      `classDisabled=${/(?:^|\s)(?:disabled|ant-btn-disabled)(?:\s|$)/i.test(className ?? "")} ` +
+      `nativeEnabled=${await paymentAction.isEnabled({ timeout: 300 }).catch(() => false)}`,
+    );
+    return "blocked";
+  }
+  const actionBox = await paymentAction.boundingBox().catch(() => null);
+  const paddedPosition = actionBox
+    ? { x: Math.min(12, Math.max(2, actionBox.width / 4)), y: actionBox.height / 2 }
+    : undefined;
+  const clicked = await paymentAction
+    .click({ timeout: 8_000, position: paddedPosition })
+    .then(() => true)
+    .catch(async () => {
+      const box = await paymentAction.boundingBox().catch(() => null);
+      if (!box) return false;
+      await page.mouse.click(
+        box.x + Math.min(12, Math.max(2, box.width / 4)),
+        box.y + box.height / 2,
+      );
+      return true;
+    });
+  if (!clicked) return "blocked";
+  await page.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
+  await page.waitForTimeout(1_000);
+  const afterTrustedClick = await page.locator("body").innerText({ timeout: 3_000 }).catch(() => "");
+  if (
+    /payment[’'`]?s?\s+information|amount paid\s*\(usd\)|i agree to pay/i.test(afterTrustedClick) &&
+    !VIETNAM_PAYMENT_PROFILE_RECREATION_PATTERN.test(afterTrustedClick)
+  ) {
+    // Some official custom actions use Vue's `.self` modifier. A trusted
+    // pointer event can land on a decorative child even when we aim at the
+    // padded surface. Re-dispatch once on the resolved action itself, but only
+    // while the payment-information page is still present, so a successful
+    // navigation is never submitted twice.
+    await paymentAction.dispatchEvent("click").catch(() => undefined);
+    await page.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
+    await page.waitForTimeout(1_000);
+  }
+  return "advanced";
+}
+
+export async function advanceOfficialFormToPayment(
+  page: Page,
+  timeoutMs: number,
+  repairAnswers?: Record<string, string>,
+  reviewCaptchaAutomation: VietnamReviewCaptchaAutomation = {},
+): Promise<void> {
+  // Repairing an existing draft includes two official image uploads plus
+  // date/select normalization before the first Next click. A 45-second budget
+  // routinely expired immediately after that click, even with no validation
+  // errors, so the worker never observed the review transition. Keep the flow
+  // bounded while reserving enough time for repair + review CAPTCHA.
+  let deadline = Date.now() + Math.min(Math.max(timeoutMs, 30_000), 300_000);
+  let applicationPageRepaired = false;
+  let expenseValidationRepairAttempted = false;
+  let feeReadinessReloads = 0;
+  let submittedReviewCaptcha: VietnamCaptchaSolveOutcome | null = null;
+  let reviewCaptchaSubmissions = 0;
+  for (let attempt = 0; attempt < 20 && Date.now() < deadline; attempt += 1) {
+    if (await confirmVietnamAdditionalCompletedDialog(page)) {
+      await page.waitForTimeout(750);
+      continue;
+    }
     const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-    const currentUrl = page.url();
-    if (/payment gateway|payment amount|card number|credit card|debit card|cvv|cvc|pay now|submit payment|transaction/i.test(bodyText) ||
-      /\/(?:payment|pay|checkout|gateway)(?:\/|$|\?)/i.test(currentUrl)) {
+    const reviewCaptchaVisible = submittedReviewCaptcha
+      ? await hasVisibleVietnamCaptchaChallenge(page)
+      : false;
+    if (submittedReviewCaptcha && !reviewCaptchaVisible) {
+      // The official portal has removed the challenge after a trusted submit,
+      // which is the first safe point at which this provider answer can be
+      // reported as accepted. Never mark an answer good merely because it was
+      // shape-valid and persisted in the input.
+      await (reviewCaptchaAutomation.reportAccepted ?? reportAcceptedVietnamCaptcha)(submittedReviewCaptcha);
+      submittedReviewCaptcha = null;
+    }
+    const paymentInformationAdvance = await advanceVietnamPaymentInformationPage(page, bodyText);
+    if (paymentInformationAdvance === "advanced") {
+      continue;
+    }
+    if (paymentInformationAdvance === "profile_recreation_required") {
+      throw new Error(
+        "The official Vietnam portal rejected this existing payment profile and requires a new application profile before retrying payment.",
+      );
+    }
+    if (paymentInformationAdvance === "fee_not_ready") {
+      const metadataDeadline = Math.min(deadline, Date.now() + 5_000);
+      let metadataReady = false;
+      while (Date.now() < metadataDeadline) {
+        await page.waitForTimeout(500);
+        const updatedBody = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+        if (isVietnamPaymentFeeMetadataReady(updatedBody)) {
+          metadataReady = true;
+          break;
+        }
+      }
+      if (metadataReady) continue;
+      if (feeReadinessReloads >= 8) {
+        throw new Error("The official Vietnam payment fee did not become ready after bounded retries.");
+      }
+      feeReadinessReloads += 1;
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 15_000 }).catch(() => undefined);
+      await page.waitForTimeout(1_000);
+      continue;
+    }
+    if (paymentInformationAdvance === "blocked") {
+      throw new Error("Could not safely accept the Vietnam official payment information page.");
+    }
+    if (await isVietnamPaymentFlowPage(page)) {
       return;
     }
     if (/additional completed|electronic document code|bổ sung hoàn thành|电子文件代码|電子文書コード/i.test(bodyText)) {
-      if (!(await clickVisibleButtonByText(page, ["Confirm", "Xác nhận", "确认", "確認", "OK"]))) {
+      if (
+        !(await confirmVietnamAdditionalCompletedDialog(page)) &&
+        !(await clickVisibleButtonByText(page, ["Confirm", "Xác nhận", "确认", "確認", "OK"]))
+      ) {
         throw new Error("Could not confirm the Vietnam additional-completed dialog.");
       }
       continue;
     }
-    if (/payment’s information|payment's information|amount paid \(usd\)|i agree to pay|tôi đồng ý thanh toán|我同意支付|支払いに同意する/i.test(bodyText)) {
+    if (/payment[’'`]?s?\s+information|amount paid \(usd\)|i agree to pay|tôi đồng ý thanh toán|我同意支付|支払いに同意する/i.test(bodyText)) {
       await clickVisibleTextOrCheckbox(page, [
         "I agree to pay",
         "Tôi đồng ý thanh toán",
@@ -1277,10 +1614,232 @@ export async function advanceOfficialFormToPayment(page: Page, timeoutMs: number
       }
       continue;
     }
-    if (/review application form|xem lại hồ sơ|审查申请表|申請フォームを確認する/i.test(bodyText)) {
-      const reviewCaptcha = await solveVietnamImageCaptcha(page, timeoutMs);
-      if (!reviewCaptcha.solved) {
-        throw new Error(reviewCaptcha.reason ?? "Could not solve the Vietnam review CAPTCHA.");
+    const activeStepText = await page
+      .locator(".ant-steps-item-process, .ant-steps-item-active")
+      .first()
+      .innerText({ timeout: 1_000 })
+      .catch(() => "");
+    const onApplicationStep = /fill out the application form|khai thông tin đề nghị|填写申请表|申請フォームを記入する/i.test(
+      activeStepText || bodyText,
+    );
+    const onReviewStep = /review application form|xem lại hồ sơ|审查申请表|申請フォームを確認する/i.test(
+      activeStepText,
+    );
+    if (onApplicationStep && !onReviewStep) {
+      if (repairAnswers && !applicationPageRepaired) {
+        const repair = await fillVietnamOfficialApplicationPage(page, repairAnswers, {
+          repairExisting: true,
+        });
+        if (repair.validationErrors.length > 0) {
+          throw new Error(
+            `Could not repair the Vietnam application form: ${repair.validationErrors
+              .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
+              .join("; ")}`,
+          );
+        }
+        applicationPageRepaired = true;
+      }
+      // The official SPA can reveal the registration-code notice only after
+      // the repair upload/render work above has completed. Dismiss that modal
+      // before resolving the underlying Next button; otherwise Playwright sees
+      // an enabled Next behind the overlay and times out trying to click it.
+      if (await confirmVietnamAdditionalCompletedDialog(page)) {
+        await page.waitForTimeout(750);
+        continue;
+      }
+      const officialWriteResponses: string[] = [];
+      const responseListener = (response: import("@playwright/test").Response) => {
+        const method = response.request().method().toUpperCase();
+        if (!["POST", "PUT", "PATCH"].includes(method)) return;
+        try {
+          const url = new URL(response.url());
+          if (!/(?:^|\.)evisa\.gov\.vn$/i.test(url.hostname)) return;
+          officialWriteResponses.push(`${method}:${url.pathname}:${response.status()}`);
+        } catch {
+          // Ignore malformed/non-HTTP diagnostic URLs.
+        }
+      };
+      page.on("response", responseListener);
+      const advanced = await clickVisibleButtonByText(page, [
+        "Next",
+        "Continue",
+        "Tiếp tục",
+        "下一步",
+        "继续",
+        "次へ",
+        "続行",
+      ]);
+      page.off("response", responseListener);
+      if (!advanced) {
+        if (await confirmVietnamAdditionalCompletedDialog(page)) {
+          await page.waitForTimeout(750);
+          continue;
+        }
+        throw new Error("Could not advance from Vietnam application form to review.");
+      }
+      const activeStepAfterClick = await page
+        .locator(".ant-steps-item-process, .ant-steps-item-active")
+        .first()
+        .innerText({ timeout: 1_000 })
+        .catch(() => "");
+      if (/review application form|xem lại hồ sơ|审查申请表|申請フォームを確認する/i.test(activeStepAfterClick)) {
+        // A full repair can legitimately consume the original handoff budget
+        // before the official SPA reveals its second review CAPTCHA. Reserve a
+        // fresh, still-bounded review/payment phase once the transition is
+        // proven instead of failing between the successful Next click and the
+        // CAPTCHA solve.
+        const postRepairBudgetMs = Math.min(Math.max(timeoutMs, 60_000), 180_000);
+        deadline = Math.max(deadline, Date.now() + postRepairBudgetMs);
+      }
+      if (/fill out the application form|khai thông tin đề nghị|填写申请表|申請フォームを記入する/i.test(activeStepAfterClick)) {
+        const validationErrors = await readVietnamValidationErrors(page);
+        const invalidDomIds = await page
+          .locator("input[id], textarea[id], select[id]")
+          .evaluateAll((controls) => {
+            const ids: string[] = [];
+            for (const control of controls) {
+              const invalid =
+                control.getAttribute("aria-invalid") === "true" ||
+                control.closest(
+                  ".ant-form-item-has-error, .ant-select-status-error, .ant-input-status-error",
+                ) !== null;
+              if (invalid && control.id) ids.push(control.id);
+            }
+            return ids;
+          })
+          .catch(() => [] as string[]);
+        const knownExpenseInvalidDomIds = await page.evaluate(() => {
+          const ids = [
+            "basic_kpbhMuaBaoHiem",
+            "basic_kpbhNguoiDamBao",
+            "basic_kpbhHinhThuc",
+          ];
+          return ids.filter((id) => {
+            const control = document.getElementById(id);
+            const select = control?.closest(".ant-select");
+            const formItem = control?.closest(".ant-form-item");
+            return Boolean(
+              control?.getAttribute("aria-invalid") === "true" ||
+              select?.classList.contains("ant-select-status-error") ||
+              select?.querySelector(".ant-select-status-error") ||
+              formItem?.classList.contains("ant-form-item-has-error") ||
+              formItem?.querySelector(".ant-form-item-explain-error"),
+            );
+          });
+        }).catch(() => [] as string[]);
+        const blockedFields = Array.from(new Set([
+          ...validationErrors.map((error) => error.domId).filter((value): value is string => Boolean(value)),
+          ...invalidDomIds,
+          ...knownExpenseInvalidDomIds,
+        ])).map((value) => value.replace(/^basic_/, ""));
+        console.log(
+          `[vn] official application remained on step after Next; blockedFields=${blockedFields.join(",") || "none"}` +
+          ` writes=${officialWriteResponses.length > 0 ? Array.from(new Set(officialWriteResponses)).join("|") : "none"}`,
+        );
+        if (blockedFields.length > 0) {
+          const expenseRepairValues: Record<string, { domId: string; answerKey: string }> = {
+            kpbhMuaBaoHiem: {
+              domId: "basic_kpbhMuaBaoHiem",
+              answerKey: "bought_travel_insurance",
+            },
+            kpbhNguoiDamBao: {
+              domId: "basic_kpbhNguoiDamBao",
+              answerKey: "expense_coverage",
+            },
+            kpbhHinhThuc: {
+              domId: "basic_kpbhHinhThuc",
+              answerKey: "expense_payment_method",
+            },
+          };
+          const onlyExpenseSelects = blockedFields.every((field) => Boolean(expenseRepairValues[field]));
+          if (
+            onlyExpenseSelects &&
+            repairAnswers &&
+            !expenseValidationRepairAttempted
+          ) {
+            let repaired = true;
+            for (const field of blockedFields) {
+              const mapping = expenseRepairValues[field];
+              const value = repairAnswers[mapping.answerKey];
+              if (!value || !(await commitVietnamOfficialExpenseSelectModel(page, mapping.domId, value))) {
+                repaired = false;
+                break;
+              }
+            }
+            expenseValidationRepairAttempted = true;
+            if (repaired) {
+              console.log(`[vn] repaired ${blockedFields.length} official expense validation model(s) after Next`);
+              continue;
+            }
+          }
+          const writes = officialWriteResponses.length > 0
+            ? Array.from(new Set(officialWriteResponses)).join("|")
+            : "none";
+          throw new Error(
+            `[vn-safe] application_review_blocked fields=${blockedFields.join(",")} writes=${writes}`,
+          );
+        }
+      }
+      continue;
+    }
+    if (onReviewStep || /review application form|xem lại hồ sơ|审查申请表|申請フォームを確認する/i.test(bodyText)) {
+      if (await hasVisibleVietnamCaptchaChallenge(page)) {
+        if (submittedReviewCaptcha) {
+          // We submitted a provider answer but the official review challenge
+          // is still visible after the bounded settle wait. Treat it as an
+          // official rejection, report it to 2Captcha, and require a proven
+          // bitmap rotation before spending another provider task.
+          await (reviewCaptchaAutomation.reportRejected ?? reportRejectedVietnamCaptcha)(submittedReviewCaptcha);
+          submittedReviewCaptcha = null;
+          if (reviewCaptchaSubmissions >= 5) {
+            throw new Error("The official Vietnam review CAPTCHA rejected five automatic answers.");
+          }
+          const refreshed = await (
+            reviewCaptchaAutomation.refresh ?? refreshVietnamCaptchaChallenge
+          )(
+            page,
+            Math.min(15_000, Math.max(1_000, deadline - Date.now())),
+          ).catch(() => false);
+          if (!refreshed) {
+            throw new Error(
+              "The official Vietnam review CAPTCHA rejected the answer and a new challenge could not be confirmed.",
+            );
+          }
+        }
+        const reviewCaptcha = await (
+          reviewCaptchaAutomation.solve ?? solveVietnamReviewCaptchaWithRetry
+        )(
+          page,
+          Math.max(1_000, deadline - Date.now()),
+        );
+        if (!reviewCaptcha.solved) {
+          throw new Error(reviewCaptcha.reason ?? "Could not solve the Vietnam review CAPTCHA.");
+        }
+        const submitted = await (
+          reviewCaptchaAutomation.submit ?? submitVietnamCaptchaAnswer
+        )(
+          page,
+          Math.min(15_000, Math.max(1_000, deadline - Date.now())),
+        );
+        if (!submitted) {
+          throw new Error("Could not activate the Vietnam review CAPTCHA verification control.");
+        }
+        submittedReviewCaptcha = reviewCaptcha;
+        reviewCaptchaSubmissions += 1;
+        await page.waitForTimeout(Math.min(1_000, Math.max(0, deadline - Date.now())));
+        continue;
+      }
+      if (await confirmVietnamAdditionalCompletedDialog(page)) {
+        await page.waitForTimeout(750);
+        continue;
+      }
+      const bodyAfterCaptcha = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+      const paymentAfterCaptcha = await advanceVietnamPaymentInformationPage(page, bodyAfterCaptcha);
+      if (paymentAfterCaptcha === "advanced") {
+        continue;
+      }
+      if (paymentAfterCaptcha === "blocked") {
+        throw new Error("Could not safely accept the Vietnam official payment information page after CAPTCHA.");
       }
       if (!(await clickVisibleButtonByText(page, [
         "Next",
@@ -1295,21 +1854,19 @@ export async function advanceOfficialFormToPayment(page: Page, timeoutMs: number
         "続行",
         "支払い",
       ]))) {
+        if (await confirmVietnamAdditionalCompletedDialog(page)) {
+          await page.waitForTimeout(750);
+          continue;
+        }
+        const bodyAfterActionRace = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+        const paymentAfterActionRace = await advanceVietnamPaymentInformationPage(page, bodyAfterActionRace);
+        if (paymentAfterActionRace === "advanced") {
+          continue;
+        }
+        if (paymentAfterActionRace === "blocked") {
+          throw new Error("Could not safely accept the Vietnam official payment information page after review.");
+        }
         throw new Error("Could not advance from Vietnam review page to payment.");
-      }
-      continue;
-    }
-    if (/viet nam e-visa application form|fill out the application form|khai thông tin đề nghị|填写申请表|申請フォームを記入する/i.test(bodyText)) {
-      if (!(await clickVisibleButtonByText(page, [
-        "Next",
-        "Continue",
-        "Tiếp tục",
-        "下一步",
-        "继续",
-        "次へ",
-        "続行",
-      ]))) {
-        throw new Error("Could not advance from Vietnam application form to review.");
       }
       continue;
     }
@@ -1331,8 +1888,10 @@ function mapPaymentResult(payment: VietnamFixedCardPaymentResult, page: Page): V
 export async function resumeVietnamOfficialPayment(
   input: VietnamPaymentResumeInput,
 ): Promise<VietnamPaymentResumeResult> {
-  const card = input.card ?? loadVietnamFixedCardFromEnv();
-  if (!card) {
+  const initialCard = input.stopBeforeCardEntry
+    ? null
+    : input.card ?? (input.takeCard ? null : loadVietnamFixedCardFromEnv());
+  if (!input.stopBeforeCardEntry && !initialCard && !input.takeCard) {
     return {
       status: "unavailable",
       reason: "No one-time card session or Vietnam fixed-card payment env is configured for this worker process.",
@@ -1359,7 +1918,7 @@ export async function resumeVietnamOfficialPayment(
     const searchDeadlineAt = Date.now() + Math.max(1_000, input.timeoutMs ?? 120_000);
     const remainingSearchMs = () => Math.max(0, searchDeadlineAt - Date.now());
     const countSolverAttempts = () => combinedCaptchaDiagnostics.filter(
-      (attempt) => attempt.outcome !== "stale_challenge" && attempt.outcome !== "refresh_unconfirmed",
+      (attempt) => !["stale_challenge", "refresh_unconfirmed", "image_unavailable"].includes(attempt.outcome),
     ).length;
 
     const searchExecution = await retryVietnamSearchCaptchaInFreshContexts<Page, void>({
@@ -1484,7 +2043,7 @@ export async function resumeVietnamOfficialPayment(
     });
     page = searchExecution.context;
     const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-    if (/no result found|không tìm thấy|khong tim thay/i.test(bodyText)) {
+    if (/no results?(?: were)? found|không tìm thấy|khong tim thay/i.test(bodyText)) {
       return {
         status: "unavailable",
         reason: "The official Vietnam search page returned no result for this registration code, email, and date of birth.",
@@ -1511,7 +2070,52 @@ export async function resumeVietnamOfficialPayment(
         diagnostics,
       };
     }
-    await advanceOfficialFormToPayment(page, input.timeoutMs ?? 120_000);
+    await advanceOfficialFormToPayment(page, input.timeoutMs ?? 120_000, input.repairAnswers);
+
+    if (input.stopBeforeCardEntry) {
+      const cardEntry = await advanceVietnamPortalToCardEntry({
+        page,
+        cardBrand: "visa",
+        timeoutMs: Math.min(input.timeoutMs ?? 120_000, 45_000),
+      });
+      if (cardEntry.status !== "ready") {
+        return {
+          status: "needs_human",
+          reason: cardEntry.reason ?? "The official card-entry page was not reached.",
+          url: page.url(),
+          diagnostics,
+        };
+      }
+      return {
+        status: "card_entry_ready",
+        url: page.url(),
+        diagnostics,
+      };
+    }
+
+    const paymentText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    const feeVerification = verifyVietnamOfficialFeeText({
+      bodyText: paymentText,
+      expectedAmountCents: input.expectedPaymentAmountCents,
+      expectedCurrency: input.expectedPaymentCurrency,
+    });
+    if (!feeVerification.verified) {
+      return {
+        status: "review_required",
+        reason: `Visible Vietnam official fee could not be verified (${feeVerification.reason}); no payment card was acquired.`,
+        url: page.url(),
+        diagnostics,
+      };
+    }
+    const card = initialCard ?? await input.takeCard?.() ?? loadVietnamFixedCardFromEnv();
+    if (!card) {
+      return {
+        status: "review_required",
+        reason: "The verified Vietnam payment page was reached, but managed card acquisition was unavailable.",
+        url: page.url(),
+        diagnostics,
+      };
+    }
 
     const payment = await payVietnamPortalWithFixedCard({
       page,

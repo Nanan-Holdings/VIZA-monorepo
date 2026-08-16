@@ -158,17 +158,29 @@ export interface FrSubmissionResult {
 
 export interface UkSubmissionResult {
   country: "UK";
-  status: "registered" | "stopped_at_pay";
-  portalUrl: string;
-  portalUsername: string;
-  /**
-   * Encrypted at rest. Cipher format: `<saltHex>:<ciphertextHex>`,
-   * scrypt-derived key from SUBMISSION_RESULT_SECRET_KEY env.
-   * Decrypt only via /api/applications/:id/uk-portal-credentials with
-   * the owning user's session.
-   */
-  generatedPasswordCipher: string;
+  status:
+    | "registered"
+    | "stopped_at_pay"
+    | "funding_required"
+    | "payment_pending"
+    | "payment_review_required"
+    | "paid";
+  paymentStatus?: "funding_required" | "pending" | "review_required" | "paid";
+  paymentStateCode?: string;
+  staffReviewCode?: string;
+  officialFeeReceiptId?: string;
   applicationReference?: string;
+  /** @deprecated Legacy rows only; new runners must never write portal handoff data. */
+  portalUrl?: string;
+  /** @deprecated Legacy rows only; credentials belong in uk_accounts. */
+  portalUsername?: string;
+  /** @deprecated Legacy rows only; credentials belong in uk_accounts. */
+  generatedPasswordCipher?: string;
+  prefillProgress?: {
+    pagesFilled: number;
+    pagesSkipped: number;
+    totalPages: number;
+  };
 }
 
 /**
@@ -191,9 +203,16 @@ export interface TwSubmissionResult {
   caseNumber?: string;
   pagesFilled?: string[];
   capturedAt?: string;
-  /** Opaque VIZA handoff id; the live URL is never stored in this payload. */
+  /** Legacy handoff fields remain readable for historical rows only. */
   handoffId?: string;
   handoffExpiresAt?: string;
+  officialTermsConsent?: {
+    version: "tw_official_terms_v1";
+    entryPromptAccepted: true;
+    termsModalAccepted: true;
+    recordedAt: string;
+    source: "viza_final_confirmation";
+  };
   submittedAt?: string;
   officialReceipt?: {
     source: "official_success_page_with_application_number";
@@ -249,6 +268,7 @@ export interface VnSubmissionResult {
       | "captcha_required"
       | "upload_required"
       | "payment_required"
+      | "official_fee_payment_review_required"
       | "final_submit_required"
       | "layout_changed"
       | "official_portal_error"

@@ -49,6 +49,11 @@ describe("visa form schema aliases", () => {
     ["schengen_short_stay_tourism", "france", "EU_SCHENGEN_C_SHORT_STAY"],
     ["visa_free_14_days_or_evisa", "philippines", "PH_TEMPORARY_VISITOR_VISA"],
     ["TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT", "taiwan", "TW_ENTRY_PERMIT"],
+    ["visitor_visa", "canada", "CA_TRV"],
+    ["regular_tourist_visa", "india", "IN_E_VISA"],
+    ["tourist_evisa", "saudi_arabia", "SA_E_VISA"],
+    ["evisa_tourism_business", "turkey", "TR_E_VISA"],
+    ["visa_free_or_tourist_visa", "united_arab_emirates", "AE_TOURIST_VISA"],
   ])("maps legacy %s route aliases for %s to %s", (visaType, country, canonical) => {
     expect(resolveVisaFormSchemaVisaType(visaType, country)).toBe(canonical);
   });

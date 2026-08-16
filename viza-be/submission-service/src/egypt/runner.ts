@@ -6,7 +6,11 @@ import { artifact } from "../artifact.js";
 import { fillEgForm } from "./fillers.js";
 import { missingRequired } from "./field-mappings.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
-import { routingFor, policyFor, collectorFor, feeCentsFor } from "../payment-routing.js";
+import { createManagedPaymentHooks } from "../official-fee/managed-payment-hooks.js";
+import {
+  unavailableManagedPaymentBoundary,
+  type ManagedPaymentHooks,
+} from "../runners/managed-payment-boundary.js";
 import {
   NeedsHumanError,
   RetryableRunnerError,
@@ -15,10 +19,9 @@ import {
 
 /**
  * Egypt e-Visa runner (RUN-EG-001) — promoted from recon-only stub.
- * Fills visa2egypt.gov.eg from canonical answers and halts before the
- * government-payment step (Egypt = runner_escrow_card / VIZA collects;
- * escrow-card payment pending integration). Best-effort selectors pending
- * recon (src/egypt/form-recon.ts + DATA-001).
+ * Fills visa2egypt.gov.eg from canonical answers. The current recon has no
+ * evidenced payment controls, so the managed-card boundary ends in staff
+ * review without issuing a card.
  */
 
 const BASE_URL = process.env.EG_PORTAL_URL ?? "https://visa2egypt.gov.eg";
@@ -29,10 +32,11 @@ export interface EgRunInput {
   answers: Record<string, string>;
   visaType?: string;
   headless?: boolean;
+  paymentHooks?: ManagedPaymentHooks;
 }
 
 export interface EgRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
+  status: "managed_payment_adapter_unavailable" | "blocked" | "anti_bot_gate" | "needs_human";
   reason: string;
   reachedStep: string;
   artefacts: string[];
@@ -73,15 +77,17 @@ export async function runEgRunner(input: EgRunInput): Promise<EgRunResult> {
 
     reachedStep = "pre_payment";
     const visaType = input.visaType ?? "EG_E_VISA";
-    const routing = routingFor("egypt", visaType);
-    const policy = policyFor(routing.mechanism);
-    const collector = collectorFor(routing.mechanism);
-    const feeCents = feeCentsFor("egypt", visaType);
-    const reason =
-      policy === "collect"
-        ? `halted before payment; policy=collect collector=${collector} fee=${feeCents ?? "?"}c (escrow-card payment pending integration)`
-        : `halted before government payment; policy=${policy} collector=${collector}`;
-    return { status: "stopped_before_pay", reason, reachedStep, artefacts };
+    const payment = await unavailableManagedPaymentBoundary({
+      country: "egypt",
+      visaType,
+      hooks: input.paymentHooks,
+    });
+    return {
+      status: payment.status,
+      reason: payment.reason,
+      reachedStep: "managed_payment_review_required",
+      artefacts,
+    };
   } catch (err) {
     return { status: "blocked", reason: err instanceof Error ? err.message : String(err), reachedStep, artefacts };
   } finally {
@@ -90,11 +96,25 @@ export async function runEgRunner(input: EgRunInput): Promise<EgRunResult> {
   }
 }
 
-export async function runOne(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+export async function runOne(
+  applicationId: string,
+  jobId?: string,
+  paymentHooks?: ManagedPaymentHooks,
+): Promise<DispatchOutcome> {
   const answers = await loadCanonicalAnswers(applicationId);
-  const result = await runEgRunner({ jobId: jobId ?? applicationId, applicationId, answers });
+  const result = await runEgRunner({
+    jobId: jobId ?? applicationId,
+    applicationId,
+    answers,
+    paymentHooks: paymentHooks ?? createManagedPaymentHooks({
+      applicationId,
+      workerId: jobId ?? applicationId,
+      country: "egypt",
+      visaType: "EG_E_VISA",
+    }),
+  });
   switch (result.status) {
-    case "stopped_before_pay":
+    case "managed_payment_adapter_unavailable":
       return { outcome: "halted_before_pay", reachedStep: result.reachedStep, artefacts: result.artefacts };
     case "blocked":
     case "anti_bot_gate":

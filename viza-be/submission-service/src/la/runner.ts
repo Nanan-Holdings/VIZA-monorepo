@@ -8,6 +8,10 @@ import { classifyPage, type LaRunnerError } from "./errors";
 import { LA_SELECTORS } from "./selectors";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
 import { extractAuto } from "../inbox/extractors/index.js";
+import {
+  unavailableManagedPaymentBoundary,
+  type ManagedPaymentHooks,
+} from "../runners/managed-payment-boundary.js";
 
 /**
  * Laos Tourist e-Visa prefill runner (AUTO-LA-01 + AUTO-LA-02).
@@ -40,10 +44,11 @@ export interface LaRunInput {
   applicationId: string;
   answers: LaCanonicalAnswers;
   headless?: boolean;
+  paymentHooks?: ManagedPaymentHooks;
 }
 
 export interface LaRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
+  status: "managed_payment_adapter_unavailable" | "blocked" | "anti_bot_gate" | "needs_human";
   reason: string;
   reachedStep: string;
   artefacts: string[];
@@ -202,8 +207,14 @@ export async function runLaPrefill(input: LaRunInput): Promise<LaRunResult> {
       if (reviewErr) return dispatchError(reviewErr);
     }
 
-    result.status = "stopped_before_pay";
-    result.reason = "runner halted at the review step before payment";
+    const payment = await unavailableManagedPaymentBoundary({
+      country: "laos",
+      visaType: "LA_TOURIST_E_VISA",
+      hooks: input.paymentHooks,
+    });
+    result.status = payment.status;
+    result.reason = payment.reason;
+    result.reachedStep = "managed_payment_review_required";
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

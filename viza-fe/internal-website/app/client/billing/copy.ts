@@ -156,9 +156,9 @@ const ENGLISH_COPY: BillingCopy = {
   },
   government: {
     officialSource: "Shown by official source",
-    notCollected: "Not collected by VIZA",
+    notCollected: "Managed by VIZA",
     officialFeeConfirmed: "Official fee is confirmed by the government portal.",
-    separateFromAgency: "Government fee is not part of VIZA agency receipts.",
+    separateFromAgency: "Official fee payment is managed separately with a VIZA virtual card.",
     shownAfterSelection: "Government fee information will appear after an application or visa package is selected.",
   },
   paymentCard: {
@@ -175,7 +175,7 @@ const ENGLISH_COPY: BillingCopy = {
   },
   empty: {
     title: "No agency-fee payments yet",
-    description: "Paid VIZA agency-fee records, receipt links, invoice requests, and refund status will appear here. Government portal fees stay separate from these receipt records.",
+    description: "Paid VIZA agency-fee records, receipt links, invoice requests, and refund status will appear here. Official fees use separate VIZA-managed virtual-card records.",
     checkout: "Go to checkout",
   },
   errors: {
@@ -186,8 +186,8 @@ const ENGLISH_COPY: BillingCopy = {
   page: {
     eyebrow: "Billing",
     title: "Payments, receipts, invoices, and refund status",
-    description: "Review VIZA agency-fee history, download hosted receipts, request B2B invoices, and see refund status. Government fee disclosures are shown separately because they are not VIZA agency-fee receipts.",
-    governmentDescription: "These amounts are displayed apart from agency-fee receipts. VIZA does not collect or process official portal fees here.",
+    description: "Review VIZA agency-fee history, download hosted receipts, request B2B invoices, and see refund status. Official-fee payments are shown separately because VIZA pays them with application-scoped virtual cards.",
+    governmentDescription: "These amounts stay separate from agency-fee receipts. When due, VIZA creates a limited virtual card and pays the official portal on your behalf.",
     viewCaseStatus: "View case status",
     checkout: "Checkout",
     paidAgencyFees: "Paid agency fees",
@@ -198,13 +198,13 @@ const ENGLISH_COPY: BillingCopy = {
     invoiceRequests: (count) => `${count} tracked`,
     refundRecords: (count) => `${count} tracked`,
     agencyFeeAttention: "Agency fee still needs attention",
-    agencyFeeAttentionDescription: "These applications do not have a settled VIZA agency-fee record yet. Checkout only covers VIZA agency fees; official government fees remain separate.",
+    agencyFeeAttentionDescription: "These applications do not have a settled VIZA agency-fee record yet. Checkout covers the VIZA agency fee; VIZA manages the later official payment with a virtual card.",
     payAgencyFee: "Pay agency fee",
     paymentHistory: "Payment history",
     paymentHistoryDescription: "Agency-fee records are grouped by application or visa package.",
     viewProgress: "View progress",
     governmentDisclosure: "Government fee disclosure",
-    governmentDisclosureDescription: "These amounts are displayed apart from agency-fee receipts. VIZA does not collect or process official portal fees here.",
+    governmentDisclosureDescription: "These amounts stay separate from agency-fee receipts. VIZA pays the official portal with an application-scoped virtual card when the fee is due.",
   },
   actions: {
     requestInvoice: "Request invoice",
@@ -285,9 +285,9 @@ const CHINESE_COPY: BillingCopy = {
   },
   government: {
     officialSource: "以官方来源为准",
-    notCollected: "VIZA 不代收",
+    notCollected: "由 VIZA 代付",
     officialFeeConfirmed: "具体官方费用以政府门户显示为准。",
-    separateFromAgency: "政府费用不包含在 VIZA 服务费收据中。",
+    separateFromAgency: "官方费用由 VIZA 使用申请专属虚拟卡另行支付。",
     shownAfterSelection: "选择申请或签证套餐后，这里会显示政府费用信息。",
   },
   paymentCard: {
@@ -304,7 +304,7 @@ const CHINESE_COPY: BillingCopy = {
   },
   empty: {
     title: "暂时没有服务费付款记录",
-    description: "已付款的 VIZA 服务费、收据链接、发票申请和退款状态都会显示在这里。政府门户费用与这些收据记录分开显示。",
+    description: "已付款的 VIZA 服务费、收据链接、发票申请和退款状态都会显示在这里。官方费用使用由 VIZA 管理的虚拟卡记录另行显示。",
     checkout: "前往结账",
   },
   errors: {
@@ -315,8 +315,8 @@ const CHINESE_COPY: BillingCopy = {
   page: {
     eyebrow: "账单",
     title: "付款、收据、发票与退款状态",
-    description: "查看 VIZA 服务费付款记录、下载收据、申请企业发票并了解退款状态。政府费用不属于 VIZA 服务费收据，会单独列出。",
-    governmentDescription: "以下金额与服务费收据分开显示。VIZA 不会在此代收或处理政府门户费用。",
+    description: "查看 VIZA 服务费付款记录、下载收据、申请企业发票并了解退款状态。官方费用由 VIZA 使用申请专属虚拟卡代付，因此会单独列出。",
+    governmentDescription: "以下金额与服务费收据分开显示。费用到期时，VIZA 会创建限额虚拟卡并代表你向政府门户付款。",
     viewCaseStatus: "查看案件状态",
     checkout: "结账",
     paidAgencyFees: "已付服务费",
@@ -327,13 +327,13 @@ const CHINESE_COPY: BillingCopy = {
     invoiceRequests: (count) => `${count} 条申请记录`,
     refundRecords: (count) => `${count} 条退款记录`,
     agencyFeeAttention: "仍需支付服务费",
-    agencyFeeAttentionDescription: "这些申请还没有已结算的 VIZA 服务费记录。结账只支付 VIZA 服务费，政府费用需另行处理。",
+    agencyFeeAttentionDescription: "这些申请还没有已结算的 VIZA 服务费记录。结账支付 VIZA 服务费；后续官方费用由 VIZA 使用虚拟卡代付。",
     payAgencyFee: "支付服务费",
     paymentHistory: "付款记录",
     paymentHistoryDescription: "服务费记录按申请或签证套餐归类。",
     viewProgress: "查看进度",
     governmentDisclosure: "政府费用说明",
-    governmentDisclosureDescription: "以下金额与服务费收据分开显示。VIZA 不会在此代收或处理政府门户费用。",
+    governmentDisclosureDescription: "以下金额与服务费收据分开显示。费用到期时，VIZA 会使用申请专属虚拟卡向政府门户付款。",
   },
   actions: {
     requestInvoice: "申请发票",

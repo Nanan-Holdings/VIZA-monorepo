@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const canonicalPath = fileURLToPath(
-  new URL("../../drizzle/0139_concurrency_phase_two.sql", import.meta.url),
+  new URL("../../drizzle/0149_concurrency_phase_two.sql", import.meta.url),
 );
 const mirrorDirectory = fileURLToPath(
   new URL("../../../../viza-fe/internal-website/supabase/migrations/", import.meta.url),

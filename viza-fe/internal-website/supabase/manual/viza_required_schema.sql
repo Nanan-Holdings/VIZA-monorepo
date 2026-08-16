@@ -1524,3 +1524,894 @@ SET required = true,
     updated_at = now()
 WHERE visa_type = 'VN_E_VISA'
   AND field_name = 'expense_coverage';
+
+
+-- ============================================================================
+-- 20260813151857_photonpay_issuer_card_attempts.sql
+-- ============================================================================
+-- Durable, application-scoped PhotonPay virtual-card orchestration.
+--
+-- A card belongs to one government-fee allocation/payment attempt, never to
+-- an applicant or inbox. PAN, expiry, and CVV are intentionally absent. The
+-- provider request id and non-sensitive card reference are sufficient for
+-- restart recovery and finance reconciliation.
+
+CREATE TABLE IF NOT EXISTS public.issuer_card_attempts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  allocation_id UUID NOT NULL
+    REFERENCES public.government_fee_allocations(id) ON DELETE CASCADE,
+  application_id UUID NOT NULL
+    REFERENCES public.applications(id) ON DELETE CASCADE,
+  official_fee_payment_intent_id UUID NOT NULL
+    REFERENCES public.official_fee_payment_intents(id) ON DELETE CASCADE,
+  attempt_number INTEGER NOT NULL CHECK (attempt_number > 0),
+  issuer TEXT NOT NULL DEFAULT 'photonpay' CHECK (issuer = 'photonpay'),
+  issuer_request_id TEXT NOT NULL UNIQUE,
+  issuer_card_id TEXT UNIQUE,
+  card_type TEXT NOT NULL DEFAULT 'share' CHECK (card_type = 'share'),
+  status TEXT NOT NULL DEFAULT 'issuing'
+    CHECK (status IN (
+      'issuing',
+      'issued',
+      'portal_processing',
+      'consumed',
+      'cancelling',
+      'cancelled',
+      'failed',
+      'review_required'
+    )),
+  currency TEXT NOT NULL,
+  limit_amount NUMERIC(20, 2) NOT NULL CHECK (limit_amount > 0),
+  masked_pan TEXT,
+  claim_count INTEGER NOT NULL DEFAULT 0 CHECK (claim_count >= 0),
+  locked_by TEXT,
+  lease_expires_at TIMESTAMPTZ,
+  last_error_code TEXT,
+  last_error_message TEXT,
+  provider_evidence_redacted JSONB NOT NULL DEFAULT '{}'::jsonb,
+  issued_at TIMESTAMPTZ,
+  portal_processing_at TIMESTAMPTZ,
+  consumed_at TIMESTAMPTZ,
+  cancelled_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (allocation_id, attempt_number)
+);
+
+CREATE INDEX IF NOT EXISTS issuer_card_attempts_allocation_idx
+  ON public.issuer_card_attempts(allocation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS issuer_card_attempts_application_idx
+  ON public.issuer_card_attempts(application_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS issuer_card_attempts_intent_idx
+  ON public.issuer_card_attempts(official_fee_payment_intent_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS issuer_card_attempts_lease_idx
+  ON public.issuer_card_attempts(lease_expires_at)
+  WHERE status IN ('issuing', 'issued', 'portal_processing', 'failed', 'review_required');
+CREATE UNIQUE INDEX IF NOT EXISTS issuer_card_attempts_one_open_allocation_idx
+  ON public.issuer_card_attempts(allocation_id)
+  WHERE status <> 'cancelled';
+
+ALTER TABLE public.issuer_card_attempts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.issuer_card_attempts FROM anon, authenticated;
+GRANT ALL ON TABLE public.issuer_card_attempts TO service_role;
+
+CREATE OR REPLACE FUNCTION public.claim_issuer_card_attempt(
+  p_application_id UUID,
+  p_official_fee_payment_intent_id UUID,
+  p_worker_id TEXT,
+  p_lease_seconds INTEGER DEFAULT 600,
+  p_allow_pending_treasury BOOLEAN DEFAULT false
+)
+RETURNS public.issuer_card_attempts
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_allocation public.government_fee_allocations;
+  v_intent public.official_fee_payment_intents;
+  v_attempt public.issuer_card_attempts;
+  v_attempt_number INTEGER;
+BEGIN
+  IF NULLIF(trim(p_worker_id), '') IS NULL THEN
+    RAISE EXCEPTION 'issuer-card worker id is required';
+  END IF;
+
+  SELECT * INTO v_intent
+  FROM public.official_fee_payment_intents
+  WHERE id = p_official_fee_payment_intent_id
+    AND application_id = p_application_id
+  FOR UPDATE;
+
+  IF v_intent.id IS NULL THEN
+    RAISE EXCEPTION 'official-fee payment intent does not belong to application';
+  END IF;
+  IF v_intent.status NOT IN ('admin_approved', 'ready', 'manual_review', 'failed', 'pending')
+     OR v_intent.user_consented_at IS NULL THEN
+    RAISE EXCEPTION 'official-fee payment intent is not authorized for card issuance';
+  END IF;
+
+  SELECT * INTO v_allocation
+  FROM public.government_fee_allocations
+  WHERE application_id = p_application_id
+  ORDER BY created_at DESC
+  LIMIT 1
+  FOR UPDATE;
+
+  IF v_allocation.id IS NULL THEN
+    RAISE EXCEPTION 'government-fee allocation is missing for application';
+  END IF;
+  IF v_allocation.amount_cents <= 0 THEN
+    RAISE EXCEPTION 'government-fee allocation amount must be positive';
+  END IF;
+  IF v_allocation.state IN ('consumed', 'released') THEN
+    RAISE EXCEPTION 'government-fee allocation is already %', v_allocation.state;
+  END IF;
+  IF v_allocation.state = 'review_required' THEN
+    RAISE EXCEPTION 'government-fee allocation requires reconciliation review';
+  END IF;
+  IF v_allocation.state IN ('reserved_pending_treasury', 'reserved') THEN
+    IF NOT p_allow_pending_treasury THEN
+      RAISE EXCEPTION 'government-fee allocation is not treasury-issuable';
+    END IF;
+    UPDATE public.government_fee_allocations
+    SET
+      state = 'issuable',
+      official_fee_payment_intent_id = COALESCE(
+        official_fee_payment_intent_id,
+        p_official_fee_payment_intent_id
+      ),
+      metadata_redacted = metadata_redacted || jsonb_build_object(
+        'issuable_override', true,
+        'issuable_override_at', now()
+      ),
+      updated_at = now()
+    WHERE id = v_allocation.id
+    RETURNING * INTO v_allocation;
+  ELSIF v_allocation.state NOT IN ('issuable', 'card_issued', 'portal_processing') THEN
+    RAISE EXCEPTION 'government-fee allocation cannot issue from state %', v_allocation.state;
+  END IF;
+
+  IF v_allocation.official_fee_payment_intent_id IS NOT NULL
+     AND v_allocation.official_fee_payment_intent_id <> p_official_fee_payment_intent_id THEN
+    RAISE EXCEPTION 'government-fee allocation is bound to another payment intent';
+  END IF;
+
+  UPDATE public.government_fee_allocations
+  SET official_fee_payment_intent_id = p_official_fee_payment_intent_id,
+      updated_at = now()
+  WHERE id = v_allocation.id
+    AND official_fee_payment_intent_id IS NULL;
+
+  SELECT * INTO v_attempt
+  FROM public.issuer_card_attempts
+  WHERE allocation_id = v_allocation.id
+    AND status <> 'cancelled'
+  ORDER BY attempt_number DESC
+  LIMIT 1
+  FOR UPDATE;
+
+  IF v_attempt.status = 'consumed' THEN
+    RAISE EXCEPTION 'official fee has already consumed its issuer card';
+  END IF;
+
+  IF v_attempt.id IS NULL THEN
+    SELECT COALESCE(max(attempt_number), 0) + 1
+    INTO v_attempt_number
+    FROM public.issuer_card_attempts
+    WHERE allocation_id = v_allocation.id;
+
+    INSERT INTO public.issuer_card_attempts (
+      allocation_id,
+      application_id,
+      official_fee_payment_intent_id,
+      attempt_number,
+      issuer_request_id,
+      currency,
+      limit_amount
+    )
+    VALUES (
+      v_allocation.id,
+      p_application_id,
+      p_official_fee_payment_intent_id,
+      v_attempt_number,
+      'viza-' || v_allocation.id::text || '-' || v_attempt_number::text,
+      upper(v_allocation.currency),
+      round(v_allocation.amount_cents::numeric / 100, 2)
+    )
+    RETURNING * INTO v_attempt;
+  END IF;
+
+  UPDATE public.issuer_card_attempts
+  SET
+    claim_count = claim_count + 1,
+    locked_by = p_worker_id,
+    lease_expires_at = now() + make_interval(
+      secs => greatest(60, least(COALESCE(p_lease_seconds, 600), 3600))
+    ),
+    updated_at = now()
+  WHERE id = v_attempt.id
+  RETURNING * INTO v_attempt;
+
+  RETURN v_attempt;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.mark_issuer_card_issued(
+  p_attempt_id UUID,
+  p_worker_id TEXT,
+  p_issuer_card_id TEXT,
+  p_masked_pan TEXT,
+  p_provider_evidence_redacted JSONB DEFAULT '{}'::jsonb
+)
+RETURNS public.issuer_card_attempts
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_attempt public.issuer_card_attempts;
+BEGIN
+  UPDATE public.issuer_card_attempts AS attempt
+  SET
+    status = 'issued',
+    issuer_card_id = p_issuer_card_id,
+    masked_pan = NULLIF(p_masked_pan, ''),
+    provider_evidence_redacted = COALESCE(p_provider_evidence_redacted, '{}'::jsonb),
+    issued_at = COALESCE(attempt.issued_at, now()),
+    last_error_code = NULL,
+    last_error_message = NULL,
+    updated_at = now()
+  WHERE attempt.id = p_attempt_id
+    AND attempt.locked_by = p_worker_id
+    AND attempt.status IN ('issuing', 'failed', 'review_required', 'issued')
+  RETURNING attempt.* INTO v_attempt;
+
+  IF v_attempt.id IS NULL THEN
+    RAISE EXCEPTION 'issuer-card attempt is not claimable by this worker';
+  END IF;
+
+  UPDATE public.government_fee_allocations
+  SET state = 'card_issued', updated_at = now()
+  WHERE id = v_attempt.allocation_id
+    AND state IN ('issuable', 'card_issued');
+
+  RETURN v_attempt;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.mark_issuer_card_portal_processing(
+  p_attempt_id UUID,
+  p_worker_id TEXT
+)
+RETURNS public.issuer_card_attempts
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_attempt public.issuer_card_attempts;
+BEGIN
+  UPDATE public.issuer_card_attempts AS attempt
+  SET
+    status = 'portal_processing',
+    portal_processing_at = COALESCE(attempt.portal_processing_at, now()),
+    updated_at = now()
+  WHERE attempt.id = p_attempt_id
+    AND attempt.locked_by = p_worker_id
+    AND attempt.status IN ('issued', 'portal_processing')
+  RETURNING attempt.* INTO v_attempt;
+
+  IF v_attempt.id IS NULL THEN
+    RAISE EXCEPTION 'issuer-card attempt is not issued for this worker';
+  END IF;
+
+  UPDATE public.government_fee_allocations
+  SET state = 'portal_processing', updated_at = now()
+  WHERE id = v_attempt.allocation_id
+    AND state IN ('card_issued', 'portal_processing');
+
+  RETURN v_attempt;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.finish_issuer_card_attempt(
+  p_attempt_id UUID,
+  p_worker_id TEXT,
+  p_outcome TEXT,
+  p_error_code TEXT DEFAULT NULL,
+  p_error_message TEXT DEFAULT NULL,
+  p_provider_evidence_redacted JSONB DEFAULT '{}'::jsonb
+)
+RETURNS public.issuer_card_attempts
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_attempt public.issuer_card_attempts;
+BEGIN
+  IF p_outcome NOT IN ('consumed', 'cancelled', 'failed', 'review_required') THEN
+    RAISE EXCEPTION 'unsupported issuer-card outcome %', p_outcome;
+  END IF;
+
+  SELECT * INTO v_attempt
+  FROM public.issuer_card_attempts
+  WHERE id = p_attempt_id
+  FOR UPDATE;
+
+  IF v_attempt.id IS NULL
+     OR (v_attempt.locked_by IS NOT NULL AND v_attempt.locked_by <> p_worker_id) THEN
+    RAISE EXCEPTION 'issuer-card attempt cannot be finished by this worker';
+  END IF;
+  IF v_attempt.status = p_outcome THEN
+    RETURN v_attempt;
+  END IF;
+  IF v_attempt.status = 'consumed' THEN
+    RAISE EXCEPTION 'consumed issuer-card attempt cannot transition to %', p_outcome;
+  END IF;
+
+  UPDATE public.issuer_card_attempts AS attempt
+  SET
+    status = p_outcome,
+    consumed_at = CASE WHEN p_outcome = 'consumed' THEN now() ELSE attempt.consumed_at END,
+    cancelled_at = CASE WHEN p_outcome = 'cancelled' THEN now() ELSE attempt.cancelled_at END,
+    locked_by = NULL,
+    lease_expires_at = NULL,
+    last_error_code = NULLIF(p_error_code, ''),
+    last_error_message = left(NULLIF(p_error_message, ''), 2000),
+    provider_evidence_redacted = attempt.provider_evidence_redacted ||
+      COALESCE(p_provider_evidence_redacted, '{}'::jsonb),
+    updated_at = now()
+  WHERE attempt.id = p_attempt_id
+    AND (attempt.locked_by = p_worker_id OR attempt.locked_by IS NULL)
+  RETURNING attempt.* INTO v_attempt;
+
+  IF v_attempt.id IS NULL THEN
+    RAISE EXCEPTION 'issuer-card attempt cannot be finished by this worker';
+  END IF;
+
+  UPDATE public.government_fee_allocations
+  SET
+    state = CASE p_outcome
+      WHEN 'consumed' THEN 'consumed'
+      WHEN 'cancelled' THEN 'issuable'
+      WHEN 'failed' THEN 'issuable'
+      ELSE 'review_required'
+    END,
+    consumed_at = CASE WHEN p_outcome = 'consumed' THEN now() ELSE consumed_at END,
+    updated_at = now()
+  WHERE id = v_attempt.allocation_id;
+
+  RETURN v_attempt;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_issuer_card_attempt(UUID, UUID, TEXT, INTEGER, BOOLEAN) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.mark_issuer_card_issued(UUID, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.mark_issuer_card_portal_processing(UUID, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.finish_issuer_card_attempt(UUID, TEXT, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_issuer_card_attempt(UUID, UUID, TEXT, INTEGER, BOOLEAN) TO service_role;
+GRANT EXECUTE ON FUNCTION public.mark_issuer_card_issued(UUID, TEXT, TEXT, TEXT, JSONB) TO service_role;
+GRANT EXECUTE ON FUNCTION public.mark_issuer_card_portal_processing(UUID, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.finish_issuer_card_attempt(UUID, TEXT, TEXT, TEXT, TEXT, JSONB) TO service_role;
+
+
+-- ============================================================================
+-- 20260813153754_photonpay_issuer_card_function_privileges.sql
+-- ============================================================================
+-- Supabase project default privileges grant new functions directly to API
+-- roles. Restrict issuer-card state transitions to the service role only.
+
+REVOKE ALL ON FUNCTION public.claim_issuer_card_attempt(UUID, UUID, TEXT, INTEGER, BOOLEAN)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.mark_issuer_card_issued(UUID, TEXT, TEXT, TEXT, JSONB)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.mark_issuer_card_portal_processing(UUID, TEXT)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.finish_issuer_card_attempt(UUID, TEXT, TEXT, TEXT, TEXT, JSONB)
+  FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.claim_issuer_card_attempt(UUID, UUID, TEXT, INTEGER, BOOLEAN)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.mark_issuer_card_issued(UUID, TEXT, TEXT, TEXT, JSONB)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.mark_issuer_card_portal_processing(UUID, TEXT)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.finish_issuer_card_attempt(UUID, TEXT, TEXT, TEXT, TEXT, JSONB)
+  TO service_role;
+
+
+COMMENT ON TABLE public.issuer_card_attempts IS
+  'Durable PhotonPay issuance attempts per government-fee allocation. Card secrets are never stored.';
+
+
+-- ============================================================================
+-- 20260813153500_photonpay_issuer_card_finish_idempotency.sql
+-- ============================================================================
+-- Make terminal issuer-card transitions replay-safe after worker retries.
+
+CREATE OR REPLACE FUNCTION public.finish_issuer_card_attempt(
+  p_attempt_id UUID,
+  p_worker_id TEXT,
+  p_outcome TEXT,
+  p_error_code TEXT DEFAULT NULL,
+  p_error_message TEXT DEFAULT NULL,
+  p_provider_evidence_redacted JSONB DEFAULT '{}'::jsonb
+)
+RETURNS public.issuer_card_attempts
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_attempt public.issuer_card_attempts;
+BEGIN
+  IF p_outcome NOT IN ('consumed', 'cancelled', 'failed', 'review_required') THEN
+    RAISE EXCEPTION 'unsupported issuer-card outcome %', p_outcome;
+  END IF;
+
+  SELECT * INTO v_attempt
+  FROM public.issuer_card_attempts
+  WHERE id = p_attempt_id
+  FOR UPDATE;
+
+  IF v_attempt.id IS NULL
+     OR (v_attempt.locked_by IS NOT NULL AND v_attempt.locked_by <> p_worker_id) THEN
+    RAISE EXCEPTION 'issuer-card attempt cannot be finished by this worker';
+  END IF;
+  IF v_attempt.status = p_outcome THEN
+    RETURN v_attempt;
+  END IF;
+  IF v_attempt.status = 'consumed' THEN
+    RAISE EXCEPTION 'consumed issuer-card attempt cannot transition to %', p_outcome;
+  END IF;
+
+  UPDATE public.issuer_card_attempts AS attempt
+  SET
+    status = p_outcome,
+    consumed_at = CASE WHEN p_outcome = 'consumed' THEN now() ELSE attempt.consumed_at END,
+    cancelled_at = CASE WHEN p_outcome = 'cancelled' THEN now() ELSE attempt.cancelled_at END,
+    locked_by = NULL,
+    lease_expires_at = NULL,
+    last_error_code = NULLIF(p_error_code, ''),
+    last_error_message = left(NULLIF(p_error_message, ''), 2000),
+    provider_evidence_redacted = attempt.provider_evidence_redacted ||
+      COALESCE(p_provider_evidence_redacted, '{}'::jsonb),
+    updated_at = now()
+  WHERE attempt.id = p_attempt_id
+    AND (attempt.locked_by = p_worker_id OR attempt.locked_by IS NULL)
+  RETURNING attempt.* INTO v_attempt;
+
+  IF v_attempt.id IS NULL THEN
+    RAISE EXCEPTION 'issuer-card attempt cannot be finished by this worker';
+  END IF;
+
+  UPDATE public.government_fee_allocations
+  SET
+    state = CASE p_outcome
+      WHEN 'consumed' THEN 'consumed'
+      WHEN 'cancelled' THEN 'issuable'
+      WHEN 'failed' THEN 'issuable'
+      ELSE 'review_required'
+    END,
+    consumed_at = CASE WHEN p_outcome = 'consumed' THEN now() ELSE consumed_at END,
+    updated_at = now()
+  WHERE id = v_attempt.allocation_id;
+
+  RETURN v_attempt;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.finish_issuer_card_attempt(UUID, TEXT, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.finish_issuer_card_attempt(UUID, TEXT, TEXT, TEXT, TEXT, JSONB) TO service_role;
+
+-- ============================================================================
+-- 20260813160000_photonpay_managed_intent_guard.sql
+-- ============================================================================
+-- Only explicit managed-card intents may own PhotonPay issuer-card attempts.
+
+CREATE OR REPLACE FUNCTION public.enforce_issuer_card_managed_intent()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_application_id UUID;
+  v_payment_method_type TEXT;
+BEGIN
+  SELECT intent.application_id, intent.payment_method_type
+  INTO v_application_id, v_payment_method_type
+  FROM public.official_fee_payment_intents AS intent
+  WHERE intent.id = NEW.official_fee_payment_intent_id;
+
+  IF v_application_id IS NULL OR v_application_id <> NEW.application_id THEN
+    RAISE EXCEPTION 'issuer-card intent does not belong to application';
+  END IF;
+  IF v_payment_method_type IS DISTINCT FROM 'viza_managed_virtual_card' THEN
+    RAISE EXCEPTION 'issuer-card attempts require a VIZA-managed virtual-card intent';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS issuer_card_attempts_managed_intent_guard
+  ON public.issuer_card_attempts;
+CREATE TRIGGER issuer_card_attempts_managed_intent_guard
+BEFORE INSERT OR UPDATE OF application_id, official_fee_payment_intent_id
+ON public.issuer_card_attempts
+FOR EACH ROW
+EXECUTE FUNCTION public.enforce_issuer_card_managed_intent();
+
+REVOKE ALL ON FUNCTION public.enforce_issuer_card_managed_intent()
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.enforce_issuer_card_managed_intent()
+  TO service_role;
+
+-- ============================================================================
+-- 20260815143000_photonpay_explicit_allocation_claim.sql
+-- ============================================================================
+-- Bind PhotonPay issuer claims to the exact allocation selected by the
+-- managed official-fee execution context. Never infer a financial allocation
+-- from whichever application row happened to be created most recently.
+
+DROP FUNCTION IF EXISTS public.claim_issuer_card_attempt(
+  UUID, UUID, TEXT, INTEGER, BOOLEAN
+);
+
+CREATE OR REPLACE FUNCTION public.claim_issuer_card_attempt(
+  p_allocation_id UUID,
+  p_application_id UUID,
+  p_official_fee_payment_intent_id UUID,
+  p_worker_id TEXT,
+  p_lease_seconds INTEGER DEFAULT 600
+)
+RETURNS public.issuer_card_attempts
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_allocation public.government_fee_allocations;
+  v_intent public.official_fee_payment_intents;
+  v_attempt public.issuer_card_attempts;
+  v_attempt_number INTEGER;
+BEGIN
+  IF NULLIF(trim(p_worker_id), '') IS NULL THEN
+    RAISE EXCEPTION 'issuer-card worker id is required';
+  END IF;
+
+  SELECT * INTO v_intent
+  FROM public.official_fee_payment_intents
+  WHERE id = p_official_fee_payment_intent_id
+    AND application_id = p_application_id
+  FOR UPDATE;
+
+  IF v_intent.id IS NULL THEN
+    RAISE EXCEPTION 'official-fee payment intent does not belong to application';
+  END IF;
+  IF v_intent.payment_method_type IS DISTINCT FROM 'viza_managed_virtual_card' THEN
+    RAISE EXCEPTION 'issuer-card attempts require a VIZA-managed virtual-card intent';
+  END IF;
+  IF v_intent.status NOT IN ('admin_approved', 'ready', 'failed', 'pending')
+     OR v_intent.user_consented_at IS NULL
+     OR v_intent.user_consent_snapshot_json IS NULL THEN
+    RAISE EXCEPTION 'official-fee payment intent is not authorized for card issuance';
+  END IF;
+
+  SELECT * INTO v_allocation
+  FROM public.government_fee_allocations
+  WHERE id = p_allocation_id
+    AND application_id = p_application_id
+  FOR UPDATE;
+
+  IF v_allocation.id IS NULL THEN
+    RAISE EXCEPTION 'government-fee allocation does not belong to application';
+  END IF;
+  IF v_allocation.amount_cents <= 0 THEN
+    RAISE EXCEPTION 'government-fee allocation amount must be positive';
+  END IF;
+  IF v_allocation.state NOT IN ('issuable', 'card_issued', 'portal_processing') THEN
+    RAISE EXCEPTION 'government-fee allocation cannot issue from state %', v_allocation.state;
+  END IF;
+  IF v_allocation.official_fee_payment_intent_id IS NOT NULL
+     AND v_allocation.official_fee_payment_intent_id <> p_official_fee_payment_intent_id THEN
+    RAISE EXCEPTION 'government-fee allocation is bound to another payment intent';
+  END IF;
+  IF upper(v_allocation.currency) IS DISTINCT FROM upper(v_intent.official_fee_currency) THEN
+    RAISE EXCEPTION 'government-fee allocation currency does not match payment intent';
+  END IF;
+  IF v_allocation.amount_cents IS DISTINCT FROM
+     round(v_intent.official_fee_amount * 100)::BIGINT THEN
+    RAISE EXCEPTION 'government-fee allocation amount does not match payment intent';
+  END IF;
+
+  UPDATE public.government_fee_allocations
+  SET official_fee_payment_intent_id = p_official_fee_payment_intent_id,
+      updated_at = now()
+  WHERE id = p_allocation_id
+    AND official_fee_payment_intent_id IS NULL
+  RETURNING * INTO v_allocation;
+
+  IF v_allocation.id IS NULL THEN
+    SELECT * INTO v_allocation
+    FROM public.government_fee_allocations
+    WHERE id = p_allocation_id
+      AND application_id = p_application_id
+      AND official_fee_payment_intent_id = p_official_fee_payment_intent_id
+    FOR UPDATE;
+  END IF;
+
+  SELECT * INTO v_attempt
+  FROM public.issuer_card_attempts
+  WHERE allocation_id = p_allocation_id
+    AND status <> 'cancelled'
+  ORDER BY attempt_number DESC
+  LIMIT 1
+  FOR UPDATE;
+
+  IF v_attempt.status = 'consumed' THEN
+    RAISE EXCEPTION 'official fee has already consumed its issuer card';
+  END IF;
+  IF v_attempt.id IS NOT NULL
+     AND (
+       v_attempt.application_id <> p_application_id
+       OR v_attempt.official_fee_payment_intent_id <> p_official_fee_payment_intent_id
+     ) THEN
+    RAISE EXCEPTION 'issuer-card attempt belongs to another execution context';
+  END IF;
+
+  IF v_attempt.id IS NULL THEN
+    SELECT COALESCE(max(attempt_number), 0) + 1
+    INTO v_attempt_number
+    FROM public.issuer_card_attempts
+    WHERE allocation_id = p_allocation_id;
+
+    INSERT INTO public.issuer_card_attempts (
+      allocation_id,
+      application_id,
+      official_fee_payment_intent_id,
+      attempt_number,
+      issuer_request_id,
+      currency,
+      limit_amount
+    )
+    VALUES (
+      p_allocation_id,
+      p_application_id,
+      p_official_fee_payment_intent_id,
+      v_attempt_number,
+      'viza-' || p_allocation_id::text || '-' || v_attempt_number::text,
+      upper(v_allocation.currency),
+      round(v_allocation.amount_cents::numeric / 100, 2)
+    )
+    RETURNING * INTO v_attempt;
+  END IF;
+
+  UPDATE public.issuer_card_attempts
+  SET
+    claim_count = claim_count + 1,
+    locked_by = p_worker_id,
+    lease_expires_at = now() + make_interval(
+      secs => greatest(60, least(COALESCE(p_lease_seconds, 600), 3600))
+    ),
+    updated_at = now()
+  WHERE id = v_attempt.id
+  RETURNING * INTO v_attempt;
+
+  RETURN v_attempt;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_issuer_card_attempt(
+  UUID, UUID, UUID, TEXT, INTEGER
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_issuer_card_attempt(
+  UUID, UUID, UUID, TEXT, INTEGER
+) TO service_role;
+
+COMMENT ON FUNCTION public.claim_issuer_card_attempt(
+  UUID, UUID, UUID, TEXT, INTEGER
+) IS 'Claims one PhotonPay attempt for an explicitly selected application allocation and managed official-fee intent.';
+
+-- ============================================================================
+-- 20260815150000_managed_card_issuer_router.sql
+-- ============================================================================
+-- Add a deterministic Airwallex fallback without weakening allocation/intent
+-- binding or retry idempotency. Existing PhotonPay attempts remain valid.
+
+ALTER TABLE public.issuer_card_attempts
+  DROP CONSTRAINT IF EXISTS issuer_card_attempts_issuer_check;
+ALTER TABLE public.issuer_card_attempts
+  ADD CONSTRAINT issuer_card_attempts_issuer_check
+  CHECK (issuer IN ('photonpay', 'airwallex'));
+
+ALTER TABLE public.issuer_card_attempts
+  DROP CONSTRAINT IF EXISTS issuer_card_attempts_issuer_card_id_key;
+CREATE UNIQUE INDEX IF NOT EXISTS issuer_card_attempts_issuer_card_id_unique
+  ON public.issuer_card_attempts(issuer, issuer_card_id)
+  WHERE issuer_card_id IS NOT NULL;
+
+DROP FUNCTION IF EXISTS public.claim_issuer_card_attempt(
+  UUID, UUID, UUID, TEXT, INTEGER
+);
+
+CREATE OR REPLACE FUNCTION public.claim_issuer_card_attempt(
+  p_allocation_id UUID,
+  p_application_id UUID,
+  p_official_fee_payment_intent_id UUID,
+  p_issuer TEXT,
+  p_worker_id TEXT,
+  p_lease_seconds INTEGER DEFAULT 600
+)
+RETURNS public.issuer_card_attempts
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_allocation public.government_fee_allocations;
+  v_intent public.official_fee_payment_intents;
+  v_attempt public.issuer_card_attempts;
+  v_attempt_number INTEGER;
+BEGIN
+  IF p_issuer NOT IN ('photonpay', 'airwallex') THEN
+    RAISE EXCEPTION 'unsupported managed-card issuer %', p_issuer;
+  END IF;
+  IF NULLIF(trim(p_worker_id), '') IS NULL THEN
+    RAISE EXCEPTION 'issuer-card worker id is required';
+  END IF;
+
+  SELECT * INTO v_intent
+  FROM public.official_fee_payment_intents
+  WHERE id = p_official_fee_payment_intent_id
+    AND application_id = p_application_id
+  FOR UPDATE;
+
+  IF v_intent.id IS NULL THEN
+    RAISE EXCEPTION 'official-fee payment intent does not belong to application';
+  END IF;
+  IF v_intent.payment_method_type IS DISTINCT FROM 'viza_managed_virtual_card' THEN
+    RAISE EXCEPTION 'issuer-card attempts require a VIZA-managed virtual-card intent';
+  END IF;
+  IF v_intent.status NOT IN ('admin_approved', 'ready', 'failed', 'pending')
+     OR v_intent.user_consented_at IS NULL
+     OR v_intent.user_consent_snapshot_json IS NULL THEN
+    RAISE EXCEPTION 'official-fee payment intent is not authorized for card issuance';
+  END IF;
+
+  SELECT * INTO v_allocation
+  FROM public.government_fee_allocations
+  WHERE id = p_allocation_id
+    AND application_id = p_application_id
+  FOR UPDATE;
+
+  IF v_allocation.id IS NULL THEN
+    RAISE EXCEPTION 'government-fee allocation does not belong to application';
+  END IF;
+  IF v_allocation.amount_cents <= 0 THEN
+    RAISE EXCEPTION 'government-fee allocation amount must be positive';
+  END IF;
+  IF v_allocation.state NOT IN ('issuable', 'card_issued', 'portal_processing') THEN
+    RAISE EXCEPTION 'government-fee allocation cannot issue from state %', v_allocation.state;
+  END IF;
+  IF v_allocation.official_fee_payment_intent_id IS NOT NULL
+     AND v_allocation.official_fee_payment_intent_id <> p_official_fee_payment_intent_id THEN
+    RAISE EXCEPTION 'government-fee allocation is bound to another payment intent';
+  END IF;
+  IF upper(v_allocation.currency) IS DISTINCT FROM upper(v_intent.official_fee_currency) THEN
+    RAISE EXCEPTION 'government-fee allocation currency does not match payment intent';
+  END IF;
+  IF v_allocation.amount_cents IS DISTINCT FROM
+     round(v_intent.official_fee_amount * 100)::BIGINT THEN
+    RAISE EXCEPTION 'government-fee allocation amount does not match payment intent';
+  END IF;
+
+  UPDATE public.government_fee_allocations
+  SET official_fee_payment_intent_id = p_official_fee_payment_intent_id,
+      updated_at = now()
+  WHERE id = p_allocation_id
+    AND official_fee_payment_intent_id IS NULL;
+
+  SELECT * INTO v_attempt
+  FROM public.issuer_card_attempts
+  WHERE allocation_id = p_allocation_id
+    AND status <> 'cancelled'
+  ORDER BY attempt_number DESC
+  LIMIT 1
+  FOR UPDATE;
+
+  IF v_attempt.status = 'consumed' THEN
+    RAISE EXCEPTION 'official fee has already consumed its issuer card';
+  END IF;
+  IF v_attempt.id IS NOT NULL
+     AND (
+       v_attempt.application_id <> p_application_id
+       OR v_attempt.official_fee_payment_intent_id <> p_official_fee_payment_intent_id
+       OR v_attempt.issuer <> p_issuer
+     ) THEN
+    RAISE EXCEPTION 'issuer-card attempt belongs to another execution context';
+  END IF;
+
+  IF v_attempt.id IS NULL THEN
+    SELECT COALESCE(max(attempt_number), 0) + 1
+    INTO v_attempt_number
+    FROM public.issuer_card_attempts
+    WHERE allocation_id = p_allocation_id;
+
+    INSERT INTO public.issuer_card_attempts (
+      allocation_id,
+      application_id,
+      official_fee_payment_intent_id,
+      attempt_number,
+      issuer,
+      issuer_request_id,
+      currency,
+      limit_amount
+    )
+    VALUES (
+      p_allocation_id,
+      p_application_id,
+      p_official_fee_payment_intent_id,
+      v_attempt_number,
+      p_issuer,
+      'viza-' || p_issuer || '-' || p_application_id::text || '-' ||
+        p_allocation_id::text || '-' || v_attempt_number::text,
+      upper(v_allocation.currency),
+      round(v_allocation.amount_cents::numeric / 100, 2)
+    )
+    RETURNING * INTO v_attempt;
+  END IF;
+
+  UPDATE public.issuer_card_attempts
+  SET
+    claim_count = claim_count + 1,
+    locked_by = p_worker_id,
+    lease_expires_at = now() + make_interval(
+      secs => greatest(60, least(COALESCE(p_lease_seconds, 600), 3600))
+    ),
+    updated_at = now()
+  WHERE id = v_attempt.id
+  RETURNING * INTO v_attempt;
+
+  RETURN v_attempt;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_issuer_card_attempt(
+  UUID, UUID, UUID, TEXT, TEXT, INTEGER
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_issuer_card_attempt(
+  UUID, UUID, UUID, TEXT, TEXT, INTEGER
+) TO service_role;
+
+COMMENT ON FUNCTION public.claim_issuer_card_attempt(
+  UUID, UUID, UUID, TEXT, TEXT, INTEGER
+) IS 'Claims one exact allocation/intent attempt for the preselected PhotonPay or Airwallex issuer.';
+
+-- UK portal credentials are runner-only in uk_accounts. Keep legacy result
+-- payloads safe when the canonical schema is applied without migration history.
+UPDATE public.applications
+SET
+  submission_result = submission_result - ARRAY[
+    'portalUrl',
+    'portalUsername',
+    'generatedPasswordCipher',
+    'password',
+    'generatedPassword',
+    'portalPassword',
+    'passwordCipher'
+  ]::text[],
+  submission_result_updated_at = now()
+WHERE upper(COALESCE(submission_result->>'country', '')) = 'UK'
+  AND submission_result ?| ARRAY[
+    'portalUrl',
+    'portalUsername',
+    'generatedPasswordCipher',
+    'password',
+    'generatedPassword',
+    'portalPassword',
+    'passwordCipher'
+  ];

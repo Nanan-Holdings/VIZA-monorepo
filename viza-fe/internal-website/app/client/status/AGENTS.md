@@ -43,6 +43,8 @@ results and updates from the same data.
   put document-management UI here unless it is a status summary.
 - Surface customer-safe statuses only. Technical backend or external process
   errors must be translated into plain user-facing next steps.
+- Exclude applications whose purpose is `VIZA_PLACEHOLDER_DRY_RUN`; schema-QA
+  records are test infrastructure, not customer application history.
 - Keep result-delivery links in the submitted application view when
   `applications.result_storage_path`, `applications.receipt_url`, or official
   reference fields are available.

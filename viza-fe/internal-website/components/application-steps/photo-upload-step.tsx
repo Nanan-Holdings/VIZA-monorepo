@@ -5,7 +5,6 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   Camera,
   CheckCircle as CheckCircle2,
-  WarningCircle as AlertCircle,
   Upload,
   CircleNotch as Loader2,
   ImageIcon,
@@ -15,6 +14,7 @@ import { AiAssistButton } from "@/components/ui/ai-assist-button";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { createClient } from "@/lib/supabase/client";
@@ -438,7 +438,7 @@ export function PhotoUploadStep({
           </Alert>
         )}
 
-        {error && <p className="text-xs text-red-500">{error}</p>}
+        {error ? <ClientErrorAlert message={error} /> : null}
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3">

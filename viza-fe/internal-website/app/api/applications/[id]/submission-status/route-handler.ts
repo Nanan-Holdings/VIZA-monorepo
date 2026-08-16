@@ -13,6 +13,7 @@ import {
   isVietnamPaymentCheckpointState,
   resolveVietnamSubmissionActionType,
 } from "./payment-country";
+import { sanitizeCustomerSubmissionResult } from "../../customer-submission-result";
 
 export const dynamic = "force-dynamic";
 
@@ -205,6 +206,32 @@ function normalizeVisaType(visaType: string | null | undefined): string {
   return (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
 }
 
+function isTaiwanEntryPermitApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    normalizeStatus(country) === "taiwan" &&
+    normalizeVisaType(visaType) === "TW_ENTRY_PERMIT"
+  );
+}
+
+export function hasTaiwanApplicantHandoffReady(
+  application: Pick<
+    ApplicationForStatus,
+    "country" | "visa_type" | "submission_result" | "submission_result_status"
+  >,
+): boolean {
+  if (!isTaiwanEntryPermitApplication(application.country, application.visa_type)) return false;
+  if (normalizeStatus(application.submission_result_status) !== "needs_user_action") return false;
+  if (!isRecord(application.submission_result)) return false;
+  return (
+    normalizeStatus(application.submission_result.status as string | undefined) === "stopped_at_captcha" &&
+    typeof application.submission_result.handoffId === "string" &&
+    application.submission_result.handoffId.trim().length > 0
+  );
+}
+
 function isIndonesiaB1Evoa(visaType: string | null | undefined): boolean {
   return normalizeVisaType(visaType) === "ID_B1_EVOA";
 }
@@ -267,7 +294,7 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
       : queue.error_message ??
         queue.last_error ??
         (actionType === "payment_required"
-        ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
+        ? "The official portal reached payment. VIZA will continue with the application-scoped virtual card."
         : "Vietnam official portal needs action before VIZA can continue.");
     const checkpoint =
       typeof payload.checkpoint === "string" && payload.checkpoint.trim()
@@ -276,13 +303,13 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
           (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
   const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
   const instructionText = isVietnamPayment
-    ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
+    ? "The official Vietnam e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card."
     : isIndonesiaPayment
       ? checkpoint === "user_payment_required"
         ? actionType === "official_fee_otp_required"
-          ? "The official Indonesia bank OTP/3DS verification page is open. Enter the bank OTP in that visible official browser window."
-          : "The official Indonesia payment window is open. Complete card payment and OTP verification in that visible official browser window."
-        : "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page."
+          ? "The official Indonesia payment needs bank verification. VIZA staff will review it; do not make a duplicate payment."
+          : "The official Indonesia payment needs review. VIZA will continue with the application-scoped virtual card."
+        : "The official Indonesia e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card."
       : "The official portal needs action before VIZA can continue.";
   const resolvedPortalUrl = readPayloadString(payload, "url") ?? queue.official_portal_url;
 
@@ -735,7 +762,7 @@ export function deriveNonTerminalStatus(
       progress: 99,
       message:
         queueMessage ??
-        "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page.",
+        "The official Vietnam e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card.",
       error: queueMessage,
     };
   }
@@ -747,7 +774,7 @@ export function deriveNonTerminalStatus(
       progress: 99,
       message:
         queueMessage ??
-        "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page.",
+        "The official Indonesia e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card.",
       error: queueMessage,
     };
   }
@@ -948,7 +975,11 @@ async function getSubmissionStatus(
   // A newly created active queue represents an explicit retry. It must always
   // override an older terminal application result, even when the application
   // row has not yet been updated by the worker.
-  const activeQueueOverridesTerminal = isActiveQueue(queue);
+  // Taiwan deliberately keeps the worker lease active while the applicant's
+  // Browserbase handoff is open. The durable handoff must win so the applicant
+  // sees the button needed to finish on the official portal.
+  const activeQueueOverridesTerminal =
+    isActiveQueue(queue) && !hasTaiwanApplicantHandoffReady(application);
   const terminalQueueOverridesApplication =
     !activeQueueOverridesTerminal &&
     queueDerived.status !== "queued" &&
@@ -979,7 +1010,7 @@ async function getSubmissionStatus(
       stage: derived.stage,
       progress: derived.progress,
       message: derived.message,
-      result: resolvedResult,
+      result: sanitizeCustomerSubmissionResult(resolvedResult),
       error: derived.error,
       updatedAt,
       applicationStatus: queueResult

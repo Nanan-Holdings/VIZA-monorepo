@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KoreaAppointmentAssistant } from "./KoreaAppointmentAssistant";
 
+const translationMock = vi.hoisted(() => ({ version: 0 }));
+
 const copy: Record<string, string> = {
   "locale": "zh",
   "page.backToForm": "返回申请表",
@@ -37,6 +39,25 @@ const copy: Record<string, string> = {
   "review.edit": "修改申请资料",
   "review.confirm": "确认资料并继续",
   "review.confirming": "正在保存确认",
+  "review.shenyang.intro": "请补充沈阳预约所需的资料。",
+  "review.shenyang.hint": "已解析的资料仅显示脱敏值；请核对来源。",
+  "review.shenyang.saveConfirm": "保存并确认资料",
+  "review.shenyang.fields.surname": "护照英文姓",
+  "review.shenyang.fields.givenNames": "护照英文名",
+  "review.shenyang.fields.dateOfBirth": "出生日期",
+  "review.shenyang.fields.passportNumber": "护照号码",
+  "review.shenyang.fields.passportExpiryDate": "护照有效期至",
+  "review.shenyang.fields.mobilePhone": "中国大陆手机号",
+  "review.shenyang.sources.korea_form": "韩国申请表",
+  "review.shenyang.sources.universal_profile": "通用资料",
+  "review.shenyang.sources.appointment_supplement": "本页补充",
+  "review.shenyang.validation.required": "请填写此字段",
+  "review.shenyang.validation.latin_name_required": "请输入护照上的英文姓名",
+  "review.shenyang.validation.invalid_date": "请输入有效日期",
+  "review.shenyang.validation.date_in_future": "出生日期不能晚于今天",
+  "review.shenyang.validation.invalid_passport": "请输入有效的护照号码",
+  "review.shenyang.validation.passport_expired": "护照有效期必须晚于今天",
+  "review.shenyang.validation.invalid_mainland_phone": "请输入有效的中国大陆手机号",
   "common.notProvided": "未提供",
   "common.maskedPhone": "已登记手机号",
   "common.listSeparator": "、",
@@ -113,8 +134,17 @@ const copy: Record<string, string> = {
 };
 
 vi.mock("next-intl", () => {
-  const translate = (key: string) => copy[key] ?? key;
-  return { useTranslations: () => translate };
+  const translators = new Map<number, (key: string) => string>();
+  return {
+    useTranslations: () => {
+      const version = translationMock.version;
+      const existing = translators.get(version);
+      if (existing) return existing;
+      const translate = (key: string) => copy[key] ?? key;
+      translators.set(version, translate);
+      return translate;
+    },
+  };
 });
 
 const center = {
@@ -144,6 +174,16 @@ const shanghaiCenter = {
   nameZh: "韩国签证申请中心（上海）",
   addressZh: "上海市",
   provinces: ["上海"],
+};
+
+const shenyangCenter = {
+  ...center,
+  code: "shenyang",
+  nameEn: "Korea Visa Application Center Shenyang",
+  nameZh: "韩国签证申请中心（沈阳）",
+  addressZh: "辽宁省沈阳市",
+  provinces: ["辽宁", "吉林", "黑龙江"],
+  liveBookingMode: "vfs_account_sync_supported",
 };
 
 function snapshot(overrides: Record<string, unknown> = {}) {
@@ -179,8 +219,13 @@ function response(body: unknown) {
   return { ok: true, status: 200, json: async () => body } as Response;
 }
 
-function errorResponse(error: string, code?: string, evidenceUrl?: string) {
-  return { ok: false, status: 400, json: async () => ({ error, code, evidenceUrl }) } as Response;
+function errorResponse(
+  error: string,
+  code?: string,
+  evidenceUrl?: string,
+  details?: { fieldErrors?: Record<string, string>; missingFields?: string[] },
+) {
+  return { ok: false, status: code?.startsWith("shenyang_") ? 422 : 400, json: async () => ({ error, code, evidenceUrl, ...details }) } as Response;
 }
 
 function requestedActions() {
@@ -196,8 +241,42 @@ function expectOnlyStage(stage: string) {
   expect(cards[0]).toHaveAttribute("data-current-stage", stage);
 }
 
+function shenyangSnapshot(overrides: Record<string, unknown> = {}) {
+  return snapshot({
+    routing: {
+      basis: "residence",
+      recommended: shenyangCenter,
+      alternatives: [center],
+      allCenters: [shenyangCenter, center],
+    },
+    review: {
+      applicantName: null,
+      passportNumber: null,
+      phoneMasked: null,
+      currentResidenceProvince: "辽宁",
+      hukouProvince: "辽宁",
+      routingBasis: "current_residence",
+      shenyangApplicantDetails: {
+        fields: {
+          givenNames: { displayValue: "SAN", source: "korea_form", required: true },
+          dateOfBirth: { displayValue: "1995-04-03", source: "korea_form", required: true },
+          passportNumber: { displayValue: "**** 5678", source: "korea_form", required: true },
+          passportExpiryDate: { displayValue: "2031-05-06", source: "korea_form", required: true },
+        },
+        missingFields: ["surname", "mobilePhone"],
+        complete: false,
+      },
+    },
+    reviewConfirmed: false,
+    reviewConfirmedAt: null,
+    job: null,
+    ...overrides,
+  });
+}
+
 describe("KoreaAppointmentAssistant five-stage flow", () => {
   beforeEach(() => {
+    translationMock.version = 0;
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -394,5 +473,255 @@ describe("KoreaAppointmentAssistant five-stage flow", () => {
     expect(within(sheet).getByRole("button", { name: "改约" })).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: "取消预约" })).toBeInTheDocument();
     expect(within(sheet).getByText("查看历史预约记录")).toBeInTheDocument();
+  });
+
+  it("collects only missing Shenyang details in the review card", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(shenyangSnapshot()));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+
+    await screen.findByText("请补充沈阳预约所需的资料。");
+    await waitFor(() => expectOnlyStage("review"));
+    expect(await screen.findByRole("textbox", { name: "护照英文姓" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "中国大陆手机号" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("出生日期")).not.toBeInTheDocument();
+    expect(screen.getByText("出生日期")).toBeInTheDocument();
+    expectOnlyStage("review");
+
+    const save = screen.getByRole("button", { name: "保存并确认资料" });
+    expect(save).toBeDisabled();
+    fireEvent.change(screen.getByRole("textbox", { name: "护照英文姓" }), { target: { value: "ZHANG" } });
+    expect(save).toBeDisabled();
+    fireEvent.change(screen.getByRole("textbox", { name: "中国大陆手机号" }), { target: { value: "13800138000" } });
+    expect(save).toBeEnabled();
+    expect(screen.getAllByRole("button", { name: "保存并确认资料" })).toHaveLength(1);
+  });
+
+  it("posts only the missing Shenyang payload and then advances to account", async () => {
+    const complete = shenyangSnapshot({
+      reviewConfirmed: true,
+      job: { id: "job-1", status: "not_started", mode: "live_assisted" },
+      review: {
+        ...shenyangSnapshot().review,
+        shenyangApplicantDetails: {
+          fields: {
+            surname: { displayValue: "ZHANG", source: "appointment_supplement", required: true },
+            givenNames: { displayValue: "SAN", source: "korea_form", required: true },
+            dateOfBirth: { displayValue: "1995-04-03", source: "korea_form", required: true },
+            passportNumber: { displayValue: "**** 5678", source: "korea_form", required: true },
+            passportExpiryDate: { displayValue: "2031-05-06", source: "korea_form", required: true },
+            mobilePhone: { displayValue: "138****8000", source: "appointment_supplement", required: true },
+          },
+          missingFields: [],
+          complete: true,
+        },
+      },
+    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(shenyangSnapshot()))
+      .mockResolvedValueOnce(response(complete));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    await screen.findByText("请补充沈阳预约所需的资料。");
+    const surname = await screen.findByRole("textbox", { name: "护照英文姓" });
+    fireEvent.change(surname, { target: { value: "ZHANG" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "中国大陆手机号" }), { target: { value: "13800138000" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存并确认资料" }));
+
+    await waitFor(() => expectOnlyStage("account"));
+    const confirmCall = vi.mocked(fetch).mock.calls.find(([, init]) => {
+      if (!init?.body) return false;
+      return JSON.parse(String(init.body)).action === "confirm-review";
+    });
+    expect(confirmCall).toBeDefined();
+    const body = JSON.parse(String(confirmCall?.[1]?.body)) as Record<string, unknown>;
+    expect(body.routingInput).toEqual({ selectedCenterCode: "shenyang" });
+    expect(body.shenyangApplicantDetails).toEqual({ surname: "ZHANG", mobilePhone: "13800138000" });
+    expect(body).not.toHaveProperty("applicantName");
+    expect(body).not.toHaveProperty("passportNumber");
+    expect(body).not.toHaveProperty("phone");
+  });
+
+  it("disables Shenyang supplement inputs while confirmation is pending", async () => {
+    let resolveConfirm!: (value: Response) => void;
+    const deferredConfirm = new Promise<Response>((resolve) => {
+      resolveConfirm = resolve;
+    });
+    const complete = shenyangSnapshot({
+      reviewConfirmed: true,
+      job: { id: "job-1", status: "not_started", mode: "live_assisted" },
+      review: {
+        ...shenyangSnapshot().review,
+        shenyangApplicantDetails: {
+          fields: {
+            surname: { displayValue: "ZHANG", source: "appointment_supplement", required: true },
+            givenNames: { displayValue: "SAN", source: "korea_form", required: true },
+            dateOfBirth: { displayValue: "1995-04-03", source: "korea_form", required: true },
+            passportNumber: { displayValue: "**** 5678", source: "korea_form", required: true },
+            passportExpiryDate: { displayValue: "2031-05-06", source: "korea_form", required: true },
+            mobilePhone: { displayValue: "138****8000", source: "appointment_supplement", required: true },
+          },
+          missingFields: [],
+          complete: true,
+        },
+      },
+    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(shenyangSnapshot()))
+      .mockReturnValueOnce(deferredConfirm);
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    await screen.findByText("请补充沈阳预约所需的资料。");
+    const surname = screen.getByRole("textbox", { name: "护照英文姓" });
+    const mobile = screen.getByRole("textbox", { name: "中国大陆手机号" });
+    fireEvent.change(surname, { target: { value: "ZHANG" } });
+    fireEvent.change(mobile, { target: { value: "13800138000" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存并确认资料" }));
+
+    await waitFor(() => {
+      expect(surname).toBeDisabled();
+      expect(mobile).toBeDisabled();
+      expect(screen.getByRole("button", { name: "正在保存确认" })).toBeDisabled();
+    });
+    resolveConfirm(response(complete));
+    await waitFor(() => expectOnlyStage("account"));
+  });
+
+  it("preserves Shenyang drafts when the translation function changes", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(shenyangSnapshot()))
+      .mockResolvedValueOnce(response(shenyangSnapshot()));
+
+    const { rerender } = render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    await screen.findByText("请补充沈阳预约所需的资料。");
+    const surname = screen.getByRole("textbox", { name: "护照英文姓" });
+    fireEvent.change(surname, { target: { value: "ZHANG" } });
+
+    translationMock.version += 1;
+    rerender(<KoreaAppointmentAssistant applicationId="application-1" />);
+
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "护照英文姓" })).toHaveValue("ZHANG"));
+  });
+
+  it("shows only masked resolved values with localized provenance labels", async () => {
+    const resolved = shenyangSnapshot({
+      review: {
+        ...shenyangSnapshot().review,
+        shenyangApplicantDetails: {
+          fields: {
+            surname: { displayValue: "ZHANG", source: "korea_form", required: true },
+            givenNames: { displayValue: "SAN", source: "universal_profile", required: true },
+            dateOfBirth: { displayValue: "1995-04-03", source: "appointment_supplement", required: true },
+            passportNumber: { displayValue: "**** 5678", source: "korea_form", required: true },
+            passportExpiryDate: { displayValue: "2031-05-06", source: "universal_profile", required: true },
+            mobilePhone: { displayValue: "138****8000", source: "appointment_supplement", required: true },
+          },
+          missingFields: [],
+          complete: true,
+        },
+      },
+    });
+    vi.mocked(fetch).mockResolvedValueOnce(response(resolved));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+
+    expect(await screen.findByText("ZHANG")).toBeInTheDocument();
+    expect(screen.getByText("**** 5678")).toBeInTheDocument();
+    expect(screen.getByText("138****8000")).toBeInTheDocument();
+    expect(screen.getAllByText("韩国申请表").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("通用资料").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("本页补充").length).toBeGreaterThan(0);
+    expect(screen.queryByText("E12345678")).not.toBeInTheDocument();
+    expect(screen.queryByText("13800138000")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/护照英文姓/u)).not.toBeInTheDocument();
+  });
+
+  it("keeps Beijing behavior generic and never sends Shenyang details", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(snapshot({ reviewConfirmed: false, job: null })))
+      .mockResolvedValueOnce(response(snapshot({ reviewConfirmed: true })));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    expect(await screen.findByRole("button", { name: "确认资料并继续" })).toBeEnabled();
+    expect(screen.queryByLabelText(/护照英文姓/u)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/护照英文名/u)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/出生日期/u)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/护照号码/u)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/护照有效期至/u)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/中国大陆手机号/u)).not.toBeInTheDocument();
+    expect(screen.queryByText("韩国申请表")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "确认资料并继续" }));
+    await waitFor(() => expectOnlyStage("account"));
+
+    const confirmCall = vi.mocked(fetch).mock.calls.find(([, init]) => {
+      if (!init?.body) return false;
+      return JSON.parse(String(init.body)).action === "confirm-review";
+    });
+    expect(confirmCall).toBeDefined();
+    const body = JSON.parse(String(confirmCall?.[1]?.body)) as Record<string, unknown>;
+    expect(body).not.toHaveProperty("shenyangApplicantDetails");
+  });
+
+  it("clears Shenyang draft values after changing to Beijing", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(shenyangSnapshot()))
+      .mockResolvedValueOnce(response(snapshot({ reviewConfirmed: false, job: null })))
+      .mockResolvedValueOnce(response(snapshot({ reviewConfirmed: true })));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    await screen.findByText("请补充沈阳预约所需的资料。");
+    fireEvent.change(await screen.findByRole("textbox", { name: "护照英文姓" }), { target: { value: "ZHANG" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "中国大陆手机号" }), { target: { value: "13800138000" } });
+    fireEvent.click(screen.getByRole("button", { name: "更改领区" }));
+    const sheet = await screen.findByRole("dialog");
+    fireEvent.click(within(sheet).getByRole("button", { name: /北京/u }));
+
+    expect(await screen.findByRole("button", { name: "确认资料并继续" })).toBeEnabled();
+    expect(screen.queryByLabelText(/护照英文姓/u)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "确认资料并继续" }));
+    await waitFor(() => expectOnlyStage("account"));
+
+    const confirmCall = vi.mocked(fetch).mock.calls.find(([, init]) => {
+      if (!init?.body) return false;
+      return JSON.parse(String(init.body)).action === "confirm-review";
+    });
+    expect(confirmCall).toBeDefined();
+    const body = JSON.parse(String(confirmCall?.[1]?.body)) as Record<string, unknown>;
+    expect(body).not.toHaveProperty("shenyangApplicantDetails");
+  });
+
+  it("keeps Shenyang review open and localizes structured server field errors", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(shenyangSnapshot()))
+      .mockResolvedValueOnce(errorResponse("internal raw server detail", "shenyang_review_invalid", undefined, {
+        fieldErrors: { mobilePhone: "invalid_mainland_phone" },
+      }))
+      .mockResolvedValueOnce(response(shenyangSnapshot()));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    await screen.findByText("请补充沈阳预约所需的资料。");
+    fireEvent.change(await screen.findByRole("textbox", { name: /护照英文姓/u }), { target: { value: "ZHANG" } });
+    fireEvent.change(screen.getByRole("textbox", { name: /中国大陆手机号/u }), { target: { value: "13800138000" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存并确认资料" }));
+
+    expect(await screen.findByText("请输入有效的中国大陆手机号")).toBeInTheDocument();
+    expectOnlyStage("review");
+    expect(screen.queryByText("internal raw server detail")).not.toBeInTheDocument();
+  });
+
+  it("associates a localized Shenyang validation error with its input", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(shenyangSnapshot()));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    await screen.findByText("请补充沈阳预约所需的资料。");
+    const surname = screen.getByRole("textbox", { name: "护照英文姓" });
+    fireEvent.change(surname, { target: { value: "张" } });
+    fireEvent.blur(surname);
+
+    await waitFor(() => {
+      const errorId = surname.getAttribute("aria-describedby");
+      expect(errorId).toBe("korea-shenyang-surname-error");
+      expect(errorId ? document.getElementById(errorId) : null).toHaveTextContent("请输入护照上的英文姓名");
+    });
   });
 });

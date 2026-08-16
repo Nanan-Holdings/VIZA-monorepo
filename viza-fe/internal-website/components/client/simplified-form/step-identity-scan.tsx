@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  WarningCircle as AlertCircle,
   Prohibit as Ban,
   Camera,
   Check,
@@ -15,6 +14,7 @@ import {
   Upload,
   X,
 } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
 import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
@@ -388,10 +388,7 @@ export function StepIdentityScan({
   if (screen === "error") {
     return (
       <div className="flex flex-col gap-5">
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-destructive">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-          <p className="text-sm">{errorMsg ?? t("scanExtractError")}</p>
-        </div>
+        <ClientErrorAlert message={errorMsg ?? t("scanExtractError")} />
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={reset}>
             {t("scanRetry")}

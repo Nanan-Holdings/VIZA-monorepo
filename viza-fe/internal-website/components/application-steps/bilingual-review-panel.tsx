@@ -1,8 +1,10 @@
 "use client";
 
-import { WarningCircle as AlertCircle, CircleNotch as Loader2, Pencil, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
+import { CircleNotch as Loader2, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { ReviewEditButton } from "@/components/ui/review-edit-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -203,25 +205,23 @@ export function BilingualReviewPanel({
 
   return (
     <div className="flex flex-col gap-0">
-      {error && (
-        <div className="flex items-center gap-3 rounded-lg border border-[#e5e7eb] bg-white p-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-          <p className="flex-1 text-sm text-amber-800">{error}</p>
-          {onRetry && (
+      {error ? (
+        <ClientErrorAlert
+          message={error}
+          action={onRetry ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onRetry}
               disabled={retrying}
-              className="shrink-0"
             >
               {retrying ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1 h-4 w-4" />}
               {t("retryTranslation")}
             </Button>
-          )}
-        </div>
-      )}
+          ) : undefined}
+        />
+      ) : null}
 
       {sections.length === 0 ? (
         <p className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
@@ -235,16 +235,10 @@ export function BilingualReviewPanel({
                 {section.section}
               </h3>
               {section.editStepIndex !== undefined && onEditSection ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 justify-end p-0 text-brand-500 hover:bg-brand-50 hover:text-brand-600"
+                <ReviewEditButton
                   onClick={() => onEditSection(section.editStepIndex!)}
-                  aria-label={isZh ? `修改${section.section}` : `Edit ${section.section}`}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                  label={isZh ? `修改${section.section}` : `Edit ${section.section}`}
+                />
               ) : null}
             </div>
             <Table className="table-fixed">

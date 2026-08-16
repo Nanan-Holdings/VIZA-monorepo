@@ -1,4 +1,5 @@
 import { getFormVisaType } from "@/lib/visa-destinations";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 export const ACTIVE_APPLICATION_SELECTION_STORAGE_KEY = "viza:active-application";
 export const ACTIVE_APPLICATION_SELECTION_EVENT = "viza:active-application";
@@ -58,6 +59,21 @@ export function readActiveApplicationSelection(): ActiveApplicationSelection | n
     window.localStorage.removeItem(ACTIVE_APPLICATION_SELECTION_STORAGE_KEY);
     return null;
   }
+}
+
+export function buildActiveApplicationFormHref(
+  selection: ActiveApplicationSelection,
+): string {
+  return buildApplicationLongFormHref({
+    applicationId: selection.applicationId,
+    country: selection.country,
+    visaType: selection.visaType,
+  });
+}
+
+export function getActiveApplicationFormHref(): string | null {
+  const selection = readActiveApplicationSelection();
+  return selection ? buildActiveApplicationFormHref(selection) : null;
 }
 
 export function setActiveApplicationSelection(

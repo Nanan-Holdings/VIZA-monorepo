@@ -111,11 +111,11 @@ export const DISPATCH: Record<string, RunOne> = {
   united_arab_emirates: (a, j) => runUae(a, j),
   // RUN-CA-001: dedicated Canada runner (shared core).
   canada: (a, j) => runCanada(a, j),
-  india: runIndia,
-  sri_lanka: runSriLanka,
-  cambodia: runCambodia,
-  laos: runLaos,
-  south_africa: runSouthAfrica,
+  india: (a, j) => runIndia(a, j),
+  sri_lanka: (a, j) => runSriLanka(a, j),
+  cambodia: (a, j) => runCambodia(a, j),
+  laos: (a, j) => runLaos(a, j),
+  south_africa: (a, j) => runSouthAfrica(a, j),
   vietnam: (a, j) => runVietnamLegacy(a, j),
   // QUE-005: halt-before-gov-pay countries, wired to their orchestrators.
   united_states: (a, j) => runUs(a, j),
@@ -130,7 +130,7 @@ export const DISPATCH: Record<string, RunOne> = {
   // single continuous session, solves email/final CAPTCHA through shared
   // providers, clicks official "確認資料", then requires official receipt
   // evidence before reporting submitted. No payment occurs in this session.
-  taiwan: (a, j) => runTaiwan(a, j),
+  taiwan: (a, j, execution) => runTaiwan(a, j, execution),
   // PH eTravel ordinary arrival: canonical runner_job is deliberately
   // preflight/recovery-first and always keeps official final Submit disabled.
   philippines: (a, j) => runPhilippines(a, j),

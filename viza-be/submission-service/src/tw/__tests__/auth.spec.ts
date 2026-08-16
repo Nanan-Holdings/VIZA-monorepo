@@ -234,12 +234,15 @@ describe("Taiwan official login provider wiring", () => {
     const haltRunnerSource = await readFile(join(process.cwd(), "src", "queue", "halt-runners.ts"), "utf8");
 
     assert.match(dispatchSource, /import \{ runOne as runTaiwan \} from "\.\.\/tw\/runner\.js"/);
-    assert.match(dispatchSource, /taiwan:\s*\(a, j\) => runTaiwan\(a, j\)/);
+    assert.match(dispatchSource, /taiwan:\s*\(a, j, execution\) => runTaiwan\(a, j, execution\)/);
     assert.match(runnerSource, /export \{ runTwHalt as runOne \}/);
     assert.match(haltRunnerSource, /requirePoolExecutionIdentity\(execution, jobId, "taiwan runner"\)/);
     assert.match(haltRunnerSource, /currentJobId:\s*identity\.jobId/);
     assert.doesNotMatch(haltRunnerSource, /if \(!jobId\)/);
-    assert.match(haltRunnerSource, /mode:\s*"applicant_handoff"/);
+    assert.match(haltRunnerSource, /mode:\s*"submit"/);
+    assert.match(haltRunnerSource, /loadTwOfficialTermsConsent\(identity\.jobId, applicationId\)/);
+    assert.match(haltRunnerSource, /executionContext,/);
+    assert.doesNotMatch(haltRunnerSource, /registerTwApplicantHandoff/);
     assert.match(haltRunnerSource, /officialReceipt:\s*result\.officialReceipt/);
   });
 

@@ -6,9 +6,18 @@ This runbook verifies that one completed Universal Profile can prefill every
 supported DB-driven application schema, remain bilingual, persist safely, and
 render in multiple Chrome tabs without frontend or backend errors.
 
-The QA operator for this workflow is Codex. Use the authenticated Edward test
-profile at `http://localhost:3000/client/universal-info` and keep Chrome in the
-foreground during the visual run.
+> **Safety boundary (2026-08-15):** Persistent schema-QA draft creation and
+> fixture filling are local-Supabase-only and require a dedicated
+> `@viza.test` applicant. Do not run `qa:create-schema-drafts` or
+> `qa:fill-schema-drafts` against a hosted project or a normal applicant
+> profile. QA-purpose rows are excluded from customer/admin application lists
+> and cannot enter a live submission queue.
+
+The QA operator for this workflow is Codex. Use a dedicated local
+`@viza.test` applicant at `http://localhost:3000/client/universal-info` and keep
+Chrome in the foreground during the visual run. References to the historical
+Edward test dataset below document past evidence only and are not authorization
+to reuse that normal profile for persistent fixture generation.
 
 This is an intake and prefill test. Do not make an official submission, solve a
 CAPTCHA, create an official-site account, accept a declaration, or enter

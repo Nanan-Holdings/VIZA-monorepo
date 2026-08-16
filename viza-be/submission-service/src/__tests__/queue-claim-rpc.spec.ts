@@ -66,12 +66,41 @@ const boundedMaintenanceMigrationPath = path.join(
   "drizzle",
   "0138_bounded_queue_maintenance.sql",
 );
+const issuerCardLeaseMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0145_protect_issuer_card_attempt_leases.sql",
+);
+const issuerCardLeaseSupabaseMigrationPath = path.join(
+  repoRoot,
+  "viza-fe",
+  "internal-website",
+  "supabase",
+  "migrations",
+  "20260815152000_protect_issuer_card_attempt_leases.sql",
+);
+const vietnamPaymentRegistrationCodeHandoffMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0146_vietnam_payment_registration_code_handoff.sql",
+);
 const submissionServiceIndexPath = path.join(
   repoRoot,
   "viza-be",
   "submission-service",
   "src",
   "index.ts",
+);
+const vietnamPreCardSmokePath = path.join(
+  repoRoot,
+  "viza-be",
+  "submission-service",
+  "scripts",
+  "run-vn-payment-pre-card-smoke.ts",
 );
 
 test("submission_queue claim migration uses skip-locked leases and service-role-only RPC access", () => {
@@ -137,6 +166,59 @@ test("official-fee enqueue is serialized per application and cannot create compe
   assert.match(sql, /locked_until > p_now/);
   assert.match(sql, /revoke all on function public\.enqueue_official_fee_submission/);
   assert.match(sql, /grant execute on function public\.enqueue_official_fee_submission[\s\S]*to service_role/);
+});
+
+test("Vietnam payment enqueue carries forward only same-application encrypted registration checkpoints", () => {
+  const sql = readFileSync(vietnamPaymentRegistrationCodeHandoffMigrationPath, "utf8").toLowerCase();
+
+  assert.match(sql, /before insert on public\.submission_queue/);
+  assert.match(sql, /new\.provider <> 'vietnam_evisa_live'/);
+  assert.match(sql, /new\.status <> 'vn_payment_pending'/);
+  assert.match(sql, /registrationcodecapture[d]?/);
+  assert.match(sql, /sq\.application_id = new\.application_id/);
+  assert.match(sql, /sq\.provider = new\.provider/);
+  assert.match(sql, /sq\.vn_registration_code_encrypted is not null/);
+  assert.match(sql, /into new\.vn_registration_code_encrypted/);
+  assert.doesNotMatch(sql, /decrypt/);
+  assert.match(sql, /revoke all on function public\.carry_forward_vietnam_payment_registration_code/);
+});
+
+test("Vietnam payment resume always uses the managed tracking alias", () => {
+  const source = readFileSync(submissionServiceIndexPath, "utf8");
+  const paymentSection = source
+    .split("async function processVnPaymentItem")[1]
+    ?.split("async function processVnItem")[0] ?? "";
+
+  assert.match(paymentSection, /const email = await getVietnamOfficialLookupEmail\(profile\.id\)/);
+  assert.doesNotMatch(paymentSection, /submittedOfficialEmail/);
+});
+
+test("Vietnam cloud pre-card QA never mutates the existing official profile", () => {
+  const source = readFileSync(submissionServiceIndexPath, "utf8");
+  const paymentSection = source
+    .split("async function processVnPaymentItem")[1]
+    ?.split("async function processVnItem")[0] ?? "";
+
+  assert.match(
+    paymentSection,
+    /const preCardQaMode\s*=\s*stopBeforeCardEntry\s*&&\s*item\.vn_result_payload\?\.qaMode === "pre_card_only"/,
+  );
+  assert.match(
+    paymentSection,
+    /if \(!preCardQaMode && \(!intent \|\| !isManagedVirtualCardIntent\(intent\)\)\)/,
+  );
+  assert.match(paymentSection, /if \(stopBeforeCardEntry && !preCardQaMode\)/);
+});
+
+test("Vietnam safe smoke can hand a fresh registration checkpoint to cloud before opening VNPAY", () => {
+  const source = readFileSync(vietnamPreCardSmokePath, "utf8");
+  const stopGate = source.indexOf('VN_PRE_CARD_STOP_AFTER_REGISTRATION === "true"');
+  const paymentResume = source.indexOf("const result = await resumeVietnamOfficialPayment");
+
+  assert.ok(stopGate > 0);
+  assert.ok(paymentResume > stopGate);
+  assert.match(source.slice(stopGate, paymentResume), /paymentSubmitted:\s*false/);
+  assert.match(source.slice(stopGate, paymentResume), /return;/);
 });
 
 test("generic submission retries atomically supersede only the same application", () => {
@@ -223,6 +305,23 @@ test("stale queue maintenance is a bounded indexed atomic RPC", () => {
   assert.doesNotMatch(maintenanceSource, /\.from\(["']submission_queue["']\)\.select\(["']\*["']\)/);
   assert.match(maintenanceSource, /\.rpc\(["']mark_stale_submission_queue_batch["']/);
   assert.match(source, /STALE_QUEUE_MAINTENANCE_INTERVAL_MS/);
+});
+
+test("issuer-card claims preserve another worker's unexpired lease in both migration lineages", () => {
+  const drizzleSql = readFileSync(issuerCardLeaseMigrationPath, "utf8").toLowerCase();
+  const supabaseSql = readFileSync(issuerCardLeaseSupabaseMigrationPath, "utf8").toLowerCase();
+
+  assert.equal(drizzleSql, supabaseSql);
+  assert.match(drizzleSql, /select \* into v_attempt[\s\S]*for update/);
+  assert.match(
+    drizzleSql,
+    /v_attempt\.locked_by is not null[\s\S]*v_attempt\.locked_by <> p_worker_id[\s\S]*v_attempt\.lease_expires_at > now\(\)/,
+  );
+  assert.match(drizzleSql, /issuer-card attempt is leased by another worker/);
+  assert.ok(
+    drizzleSql.indexOf("v_attempt.lease_expires_at > now()") <
+      drizzleSql.indexOf("locked_by = p_worker_id"),
+  );
 });
 
 test("claimPendingSubmissionQueueItems calls the DB claim RPC with worker and lease settings", async () => {

@@ -15,6 +15,7 @@ import {
   ShieldCheck,
 } from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -344,9 +345,7 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
                 </Button>
               </>
             )}
-            {accountError && (
-              <p className="text-sm text-red-700">{accountError}</p>
-            )}
+            {accountError ? <ClientErrorAlert message={accountError} /> : null}
           </div>
         )}
 
@@ -433,9 +432,7 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
                 </div>
               </>
             )}
-            {manualActionError && (
-              <p className="text-sm text-red-700">{manualActionError}</p>
-            )}
+            {manualActionError ? <ClientErrorAlert message={manualActionError} /> : null}
           </div>
         )}
 

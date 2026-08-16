@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   WarningCircle as AlertCircle,
   CalendarCheck,
@@ -38,6 +38,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import {
+  SHENYANG_REQUIRED_FIELDS,
+  validateShenyangSupplement,
+} from "@/lib/korea-c39/shenyang-applicant-details";
+import type {
+  ShenyangApplicantField,
+  ShenyangApplicantReviewSnapshot,
+} from "@/lib/korea-c39/shenyang-applicant-details";
 
 interface Center {
   code: string;
@@ -69,6 +77,7 @@ interface ReviewData {
   missingFields?: string[];
   routingBasis?: "current_residence" | "hukou" | "ambiguous";
   recommendationReason?: string | null;
+  shenyangApplicantDetails?: ShenyangApplicantReviewSnapshot | null;
 }
 
 interface NoSlotsEvidence {
@@ -132,10 +141,51 @@ class AppointmentRequestError extends Error {
     message: string,
     readonly evidenceUrl: string | null = null,
     readonly code: string | null = null,
+    readonly fieldErrors: Partial<Record<ShenyangApplicantField, string>> = {},
+    readonly missingFields: string[] = [],
   ) {
     super(message);
     this.name = "AppointmentRequestError";
   }
+}
+
+type ShenyangApplicantPayload = Partial<Record<ShenyangApplicantField, string>>;
+
+const SHENYANG_FIELD_DESCRIPTORS: Record<
+  ShenyangApplicantField,
+  { type: "text" | "date" | "tel"; inputMode?: "tel" }
+> = {
+  surname: { type: "text" },
+  givenNames: { type: "text" },
+  dateOfBirth: { type: "date" },
+  passportNumber: { type: "text" },
+  passportExpiryDate: { type: "date" },
+  mobilePhone: { type: "tel", inputMode: "tel" },
+};
+
+const EMPTY_SHENYANG_REVIEW: ShenyangApplicantReviewSnapshot = {
+  fields: {},
+  missingFields: [...SHENYANG_REQUIRED_FIELDS],
+  complete: false,
+};
+const EMPTY_SHENYANG_FIELDS: ShenyangApplicantField[] = [];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readShenyangFieldErrors(value: unknown): Partial<Record<ShenyangApplicantField, string>> {
+  if (!isRecord(value)) return {};
+  const allowed = new Set<string>(SHENYANG_REQUIRED_FIELDS);
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([field, code]) => allowed.has(field) && typeof code === "string")
+      .map(([field, code]) => [field, code]),
+  ) as Partial<Record<ShenyangApplicantField, string>>;
+}
+
+function readMissingFields(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((field): field is string => typeof field === "string") : [];
 }
 
 async function requestSnapshot(
@@ -145,31 +195,50 @@ async function requestSnapshot(
   smsCode?: string,
   selectedCenterCode?: string,
   portalTermsAccepted?: boolean,
+  shenyangApplicantDetails?: ShenyangApplicantPayload,
 ): Promise<Snapshot> {
+  const requestBody = action
+    ? {
+        action,
+        slotId,
+        smsCode,
+        portalTermsAccepted,
+        routingInput: selectedCenterCode ? { selectedCenterCode } : undefined,
+        ...(action === "confirm-review" && selectedCenterCode === "shenyang" && shenyangApplicantDetails
+          ? { shenyangApplicantDetails }
+          : {}),
+      }
+    : undefined;
   const response = await fetch(`/api/applications/${applicationId}/korea-appointment`, {
     method: action ? "POST" : "GET",
     headers: { "Content-Type": "application/json" },
-    body: action
-      ? JSON.stringify({
-          action,
-          slotId,
-          smsCode,
-          portalTermsAccepted,
-          routingInput: selectedCenterCode ? { selectedCenterCode } : undefined,
-        })
-      : undefined,
+    body: requestBody ? JSON.stringify(requestBody) : undefined,
     cache: "no-store",
   });
   const body = (await response.json().catch(() => null)) as
     | Snapshot
-    | { error?: string; evidenceUrl?: string; code?: string }
+    | {
+        error?: string;
+        evidenceUrl?: string;
+        code?: string;
+        fieldErrors?: unknown;
+        missingFields?: unknown;
+      }
     | null;
   if (!response.ok) {
-    const errorBody = body as { error?: string; evidenceUrl?: string; code?: string } | null;
+    const errorBody = body as {
+      error?: string;
+      evidenceUrl?: string;
+      code?: string;
+      fieldErrors?: unknown;
+      missingFields?: unknown;
+    } | null;
     throw new AppointmentRequestError(
-      errorBody?.error ?? `Request failed: ${response.status}`,
+      "Appointment request failed",
       errorBody?.evidenceUrl ?? null,
       errorBody?.code ?? null,
+      readShenyangFieldErrors(errorBody?.fieldErrors),
+      readMissingFields(errorBody?.missingFields),
     );
   }
   return body as Snapshot;
@@ -287,7 +356,12 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const [authorizationChecked, setAuthorizationChecked] = useState(false);
   const [vfsTermsAccepted, setVfsTermsAccepted] = useState(false);
   const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);
+  const [shenyangApplicantInputs, setShenyangApplicantInputs] = useState<ShenyangApplicantPayload>({});
+  const [shenyangFieldErrors, setShenyangFieldErrors] = useState<Partial<Record<ShenyangApplicantField, string>>>({});
   const shouldReduceMotion = useReducedMotion();
+  const latestTranslationRef = useRef(t);
+  latestTranslationRef.current = t;
+  const loadedApplicationIdRef = useRef<string | null>(null);
 
   const recommendedCenter = snapshot?.routing.recommended;
   const activeCenterCode = selectedCenterCode ?? recommendedCenter?.code;
@@ -318,13 +392,43 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const isSmsCenter = center?.liveBookingMode === "sms_sync_supported";
   const isShenyangVfs = center?.liveBookingMode === "vfs_account_sync_supported";
   const review = snapshot?.review;
-  const reviewReady = Boolean(review?.applicantName && review?.phoneMasked && center);
+  const isShenyangCenter = activeCenterCode === "shenyang";
+  const shenyangApplicantDetails = isShenyangCenter
+    ? review?.shenyangApplicantDetails ?? EMPTY_SHENYANG_REVIEW
+    : null;
+  const shenyangMissingFields = shenyangApplicantDetails?.missingFields ?? EMPTY_SHENYANG_FIELDS;
+  const shenyangVisibleValues = useMemo(
+    () => Object.fromEntries(
+      shenyangMissingFields.map((field) => [field, shenyangApplicantInputs[field] ?? ""]),
+    ) as ShenyangApplicantPayload,
+    [shenyangApplicantInputs, shenyangMissingFields],
+  );
+  const shenyangVisibleErrors = useMemo(
+    () => validateShenyangSupplement(shenyangVisibleValues),
+    [shenyangVisibleValues],
+  );
+  const shenyangReviewReady = Boolean(shenyangApplicantDetails)
+    && (
+      shenyangApplicantDetails?.complete === true
+      || (
+        shenyangMissingFields.length > 0
+        && shenyangMissingFields.every((field) => Boolean(shenyangVisibleValues[field]?.trim()))
+        && Object.keys(shenyangVisibleErrors).length === 0
+      )
+    );
+  const reviewReady = isShenyangCenter
+    ? shenyangReviewReady
+    : Boolean(review?.applicantName && review?.phoneMasked && center);
   const reviewBasis = review?.routingBasis === "current_residence"
     ? t("review.basisResidence", { province: review.currentResidenceProvince || t("common.notProvided") })
     : review?.routingBasis === "hukou"
       ? t("review.basisHukou", { province: review.hukouProvince || t("common.notProvided") })
       : t("review.basisSelected");
   const applicationFormHref = `/client/application/long-form?country=south_korea&visaType=KR_C39_SHORT_TERM_VISIT&applicationId=${encodeURIComponent(applicationId)}`;
+  const clearShenyangDraft = useCallback(() => {
+    setShenyangApplicantInputs({});
+    setShenyangFieldErrors({});
+  }, []);
 
   const run = useCallback(async (
     action?: string,
@@ -332,6 +436,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     code?: string,
     centerCode?: string,
     busyLabel?: string,
+    shenyangPayload?: ShenyangApplicantPayload,
   ) => {
     setBusy(busyLabel ?? action ?? "load");
     setError(null);
@@ -344,8 +449,12 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         code,
         centerCode ?? activeCenterCode,
         action === "request-live-booking" ? vfsTermsAccepted : undefined,
+        action === "confirm-review" && (centerCode ?? activeCenterCode) === "shenyang"
+          ? shenyangPayload
+          : undefined,
       );
       setSnapshot(nextSnapshot);
+      clearShenyangDraft();
       if (["submit-sms-code", "start-new-booking"].includes(action ?? "")) setSmsCode("");
       if (action === "return-to-slot-selection") setAuthorizationChecked(false);
       if (action === "select-slot") setPendingSlotId(null);
@@ -356,6 +465,16 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         setTransientNoSlots({ verified: true, evidenceUrl: requestError.evidenceUrl, lastCheckedAt: new Date().toISOString() });
       } else {
         setError(t("errors.operationFailed"));
+      }
+      if (action === "confirm-review" && (centerCode ?? activeCenterCode) === "shenyang") {
+        const nextErrors = { ...requestError?.fieldErrors };
+        for (const field of requestError?.missingFields ?? []) {
+          if (SHENYANG_REQUIRED_FIELDS.includes(field as ShenyangApplicantField)) {
+            const typedField = field as ShenyangApplicantField;
+            nextErrors[typedField] = nextErrors[typedField] ?? "required";
+          }
+        }
+        setShenyangFieldErrors(nextErrors);
       }
       try {
         const selectedCode = centerCode ?? activeCenterCode;
@@ -373,7 +492,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     } finally {
       setBusy(null);
     }
-  }, [activeCenterCode, applicationId, t, vfsTermsAccepted]);
+  }, [activeCenterCode, applicationId, clearShenyangDraft, t, vfsTermsAccepted]);
 
   useEffect(() => {
     let active = true;
@@ -383,9 +502,13 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         if (!active) return;
         setSnapshot(nextSnapshot);
         setSelectedCenterCode(nextSnapshot.routing.recommended.code);
+        if (loadedApplicationIdRef.current !== applicationId) {
+          clearShenyangDraft();
+          loadedApplicationIdRef.current = applicationId;
+        }
       })
       .catch(() => {
-        if (active) setError(t("errors.loadFailed"));
+        if (active) setError(latestTranslationRef.current("errors.loadFailed"));
       })
       .finally(() => {
         if (active) setBusy(null);
@@ -393,7 +516,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     return () => {
       active = false;
     };
-  }, [applicationId, t]);
+  }, [applicationId, clearShenyangDraft]);
 
   useEffect(() => {
     if ([
@@ -427,6 +550,20 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         exit: { opacity: 0, y: -6 },
         transition: { duration: 0.2, ease: "easeOut" as const },
       };
+  const shenyangValidationMessage = (code: string | undefined) => (
+    code ? t(`review.shenyang.validation.${code}`) : undefined
+  );
+  const updateShenyangField = (field: ShenyangApplicantField, value: string) => {
+    setShenyangApplicantInputs((previous) => ({ ...previous, [field]: value }));
+    if (shenyangFieldErrors[field]) {
+      const nextErrors = validateShenyangSupplement({ [field]: value });
+      setShenyangFieldErrors((previous) => ({ ...previous, [field]: nextErrors[field] }));
+    }
+  };
+  const validateShenyangField = (field: ShenyangApplicantField) => {
+    const nextErrors = validateShenyangSupplement({ [field]: shenyangApplicantInputs[field] ?? "" });
+    setShenyangFieldErrors((previous) => ({ ...previous, [field]: nextErrors[field] }));
+  };
 
   const managementContent = (() => {
     if (manualActionType === "official_cancel_confirmation_required" || manualActionType === "official_cancel_manual_checkpoint") {
@@ -594,14 +731,72 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
 
       {snapshot && !isCenterTransition && stage === "review" ? (
         <StageCard stage="review" title={t("review.title")} description={t("review.body")} icon={<UserRound className="h-5 w-5" />} error={error}>
-          <SummaryRows
-            missing={t("common.notProvided")}
-            rows={[
-              { label: t("review.name"), value: review?.applicantName },
-              { label: t("review.passport"), value: review?.passportNumber },
-              { label: t("review.phone"), value: review?.phoneMasked },
-            ]}
-          />
+          {isShenyangCenter ? (
+            <div className="space-y-5 rounded-lg border border-brand-100 bg-brand-50/30 p-4 sm:p-5">
+              <div>
+                <p className="text-sm font-medium text-foreground">{t("review.shenyang.intro")}</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">{t("review.shenyang.hint")}</p>
+              </div>
+              <dl className="divide-y rounded-lg border bg-white px-4 sm:px-5">
+                {SHENYANG_REQUIRED_FIELDS.map((field) => {
+                  const resolved = shenyangApplicantDetails?.fields[field];
+                  if (!resolved) return null;
+                  return (
+                    <div key={field} className="grid gap-1 py-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] sm:items-center sm:gap-6">
+                      <dt className="text-sm font-medium text-muted-foreground">{t(`review.shenyang.fields.${field}`)}</dt>
+                      <dd className="min-w-0 break-words text-sm font-semibold sm:text-right">
+                        <span className="block">{resolved.displayValue}</span>
+                        <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                          {t(`review.shenyang.sources.${resolved.source}`)}
+                        </span>
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+              {shenyangMissingFields.length > 0 ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {shenyangMissingFields.map((field) => {
+                    const descriptor = SHENYANG_FIELD_DESCRIPTORS[field];
+                    const fieldId = `korea-shenyang-${field}`;
+                    const fieldError = shenyangFieldErrors[field];
+                    const fieldErrorMessage = shenyangValidationMessage(fieldError);
+                    const fieldErrorId = `${fieldId}-error`;
+                    return (
+                      <BrandField
+                        key={field}
+                        label={t(`review.shenyang.fields.${field}`)}
+                        htmlFor={fieldId}
+                        error={fieldErrorMessage ? <span id={fieldErrorId}>{fieldErrorMessage}</span> : undefined}
+                      >
+                        <BrandInput
+                          id={fieldId}
+                          type={descriptor.type}
+                          inputMode={descriptor.inputMode}
+                          required
+                          disabled={Boolean(busy)}
+                          value={shenyangApplicantInputs[field] ?? ""}
+                          onChange={(event) => updateShenyangField(field, event.target.value)}
+                          onBlur={() => validateShenyangField(field)}
+                          aria-invalid={Boolean(fieldError)}
+                          aria-describedby={fieldErrorMessage ? fieldErrorId : undefined}
+                        />
+                      </BrandField>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <SummaryRows
+              missing={t("common.notProvided")}
+              rows={[
+                { label: t("review.name"), value: review?.applicantName },
+                { label: t("review.passport"), value: review?.passportNumber },
+                { label: t("review.phone"), value: review?.phoneMasked },
+              ]}
+            />
+          )}
           <div className="rounded-lg border border-brand-100 bg-brand-50/50 p-4 sm:p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
@@ -646,9 +841,18 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               loading={busy === "confirm-review"}
               loadingText={t("review.confirming")}
               disabled={!reviewReady || Boolean(busy)}
-              onClick={() => void run("confirm-review")}
+              onClick={() => {
+                const payload = isShenyangCenter
+                  ? Object.fromEntries(
+                      shenyangMissingFields
+                        .filter((field) => shenyangApplicantInputs[field] !== undefined)
+                        .map((field) => [field, shenyangApplicantInputs[field] ?? ""]),
+                    ) as ShenyangApplicantPayload
+                  : undefined;
+                void run("confirm-review", undefined, undefined, activeCenterCode, undefined, payload);
+              }}
             >
-              <Check />{t("review.confirm")}
+              <Check />{isShenyangCenter && shenyangMissingFields.length > 0 ? t("review.shenyang.saveConfirm") : t("review.confirm")}
             </BrandActionButton>
           </div>
         </StageCard>

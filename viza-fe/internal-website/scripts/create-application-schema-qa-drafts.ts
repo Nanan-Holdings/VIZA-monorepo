@@ -6,6 +6,10 @@ import {
   type UniversalProfileSnapshot,
 } from "@/lib/universal-profile-prefill";
 import type { UniversalProfileAnswerRecord } from "@/lib/universal-profile-fields";
+import {
+  isDedicatedQaApplicantEmail,
+  isLocalSupabaseUrl,
+} from "@/lib/applications/qa-safety";
 
 type QaTarget = {
   country: string;
@@ -96,6 +100,11 @@ async function main() {
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured in .env.local");
   }
+  if (!isLocalSupabaseUrl(supabaseUrl)) {
+    throw new Error(
+      "Refusing to create persistent QA drafts outside local Supabase. Use an isolated local database instead of a hosted customer database.",
+    );
+  }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -108,6 +117,11 @@ async function main() {
     .single();
   if (profileError || !profile?.auth_user_id) {
     throw new Error(profileError?.message ?? "Applicant profile or auth user was not found");
+  }
+  if (!isDedicatedQaApplicantEmail(profile.email)) {
+    throw new Error(
+      "Refusing to create QA drafts for a normal applicant. Use a dedicated @viza.test account in local Supabase.",
+    );
   }
 
   const { data: reusableRows, error: reusableError } = await supabase

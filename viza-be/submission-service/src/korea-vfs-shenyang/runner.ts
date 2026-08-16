@@ -1,11 +1,10 @@
 import { randomInt } from "node:crypto";
-import type { Browser, Page } from "playwright";
+import type { Browser, Locator, Page } from "playwright";
 import { browserbaseEnabled, connectBrowserbaseCloudBrowser } from "../browserbase-session.js";
 import { ensureApplicantInboxAlias } from "../inbox/alias.js";
 import { extractAuto } from "../inbox/extractors/index.js";
 import { hasAliasEmailForwardingConsent } from "../inbox/forwarding-consent.js";
 import { inbox } from "../inbox/wait-for-message.js";
-import { loadCanonicalAnswers } from "../queue/answers.js";
 import { decryptSecret, encryptSecret } from "../secret-cipher.js";
 import { supabase } from "../supabase.js";
 import {
@@ -13,6 +12,12 @@ import {
   toShenyangVfsIsoDate,
   type ShenyangVfsSlot,
 } from "./slots.js";
+import {
+  buildShenyangUniversalProfileAnswers,
+  requireShenyangVfsApplicantDetailsFromSourceLayers,
+  type ShenyangUniversalProfileAnswerRow,
+  type ShenyangVfsApplicantDetails,
+} from "./applicant-details.js";
 
 const PREFIX = "KR_KVAC_SHENYANG";
 const LOGIN_URL = "https://visa.vfsglobal.com/chn/en/kor/login";
@@ -104,16 +109,76 @@ function assertConfigured(): void {
   }
 }
 
-function generatePassword(): string {
-  const groups = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!@#$%_-+"];
+const SHENYANG_VFS_PASSWORD_SPECIALS = "$@#!%*?";
+const SHENYANG_VFS_PASSWORD_MIN_LENGTH = 8;
+const SHENYANG_VFS_PASSWORD_MAX_LENGTH = 15;
+const SHENYANG_VFS_PASSWORD_LENGTH = 12;
+const SHENYANG_VFS_PRE_REGISTRATION_STATUSES = new Set([
+  "account_prepared",
+  "alias_prepared",
+  "selector_drift",
+]);
+
+export function isShenyangVfsPasswordCompliant(value: string): boolean {
+  return value.length >= SHENYANG_VFS_PASSWORD_MIN_LENGTH
+    && value.length <= SHENYANG_VFS_PASSWORD_MAX_LENGTH
+    && /^[A-Za-z0-9$@#!%*?]+$/u.test(value)
+    && /[A-Z]/u.test(value)
+    && /[a-z]/u.test(value)
+    && /\d/u.test(value)
+    && /[$@#!%*?]/u.test(value);
+}
+
+export function generateShenyangVfsPassword(): string {
+  const groups = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", SHENYANG_VFS_PASSWORD_SPECIALS];
   const all = groups.join("");
   const chars = groups.map((group) => group[randomInt(group.length)]);
-  while (chars.length < 18) chars.push(all[randomInt(all.length)]);
+  while (chars.length < SHENYANG_VFS_PASSWORD_LENGTH) chars.push(all[randomInt(all.length)]);
   for (let index = chars.length - 1; index > 0; index -= 1) {
     const swapWith = randomInt(index + 1);
     [chars[index], chars[swapWith]] = [chars[swapWith], chars[index]];
   }
   return chars.join("");
+}
+
+export function shouldRotateShenyangVfsPassword(
+  accountStatus: string | null | undefined,
+  emailVerified: boolean,
+  password: string,
+): boolean {
+  return !emailVerified
+    && SHENYANG_VFS_PRE_REGISTRATION_STATUSES.has(accountStatus ?? "")
+    && !isShenyangVfsPasswordCompliant(password);
+}
+
+export interface ShenyangVfsPasswordStateInput {
+  password: string | null;
+  accountStatus: string;
+  emailVerified: boolean;
+}
+
+export interface ShenyangVfsPasswordState {
+  password: string;
+  accountStatus: string;
+  rotated: boolean;
+}
+
+export function resolveShenyangVfsPasswordState(
+  input: ShenyangVfsPasswordStateInput,
+): ShenyangVfsPasswordState {
+  const rotated = input.password !== null
+    && shouldRotateShenyangVfsPassword(input.accountStatus, input.emailVerified, input.password);
+  const password = input.password === null || rotated
+    ? generateShenyangVfsPassword()
+    : input.password;
+  const shouldResetForRegistrationRetry = input.accountStatus === "selector_drift" && !input.emailVerified;
+  return {
+    password,
+    accountStatus: shouldResetForRegistrationRetry
+      ? "account_prepared"
+      : input.accountStatus,
+    rotated,
+  };
 }
 
 function mainlandPhone(value: string): string {
@@ -128,10 +193,10 @@ function maskPhone(value: string): string {
   return value.replace(/^(\d{3})\d{4}(\d{4})$/u, "$1****$2");
 }
 
-async function loadPortalAccount(applicationId: string): Promise<PortalAccountContext> {
+async function loadPortalAccount(applicationId: string, mobilePhone: string): Promise<PortalAccountContext> {
   const { data: application, error } = await supabase
     .from("applications")
-    .select("applicant_id,applicant_profiles!inner(auth_user_id,inbox_alias,phone)")
+    .select("applicant_id,applicant_profiles!inner(auth_user_id,inbox_alias)")
     .eq("id", applicationId)
     .single();
   if (error || !application?.applicant_id) {
@@ -143,12 +208,12 @@ async function loadPortalAccount(applicationId: string): Promise<PortalAccountCo
   const profileValue = Array.isArray(application.applicant_profiles)
     ? application.applicant_profiles[0]
     : application.applicant_profiles;
-  const profile = profileValue as { auth_user_id?: string; inbox_alias?: string; phone?: string };
-  if (!profile.auth_user_id || !profile.phone) {
-    throw new Error("The Shenyang VFS account requires a saved applicant account and mobile number.");
+  const profile = profileValue as { auth_user_id?: string; inbox_alias?: string };
+  if (!profile.auth_user_id) {
+    throw new Error("The Shenyang VFS account requires a saved applicant account.");
   }
   const alias = profile.inbox_alias || (await ensureApplicantInboxAlias(application.applicant_id)).alias;
-  const phone = mainlandPhone(profile.phone);
+  const phone = mainlandPhone(mobilePhone);
   const { data: existing, error: accountError } = await supabase
     .from("appointment_accounts")
     .select("*")
@@ -159,9 +224,15 @@ async function loadPortalAccount(applicationId: string): Promise<PortalAccountCo
     .maybeSingle();
   if (accountError) throw new Error("The Shenyang VFS account state could not be read.");
 
-  const password = existing?.encrypted_account_password
+  const existingPassword = existing?.encrypted_account_password
     ? decryptSecret(existing.encrypted_account_password)
-    : generatePassword();
+    : null;
+  const passwordState = resolveShenyangVfsPasswordState({
+    password: existingPassword,
+    accountStatus: existing?.account_status ?? "account_prepared",
+    emailVerified: Boolean(existing?.email_verified),
+  });
+  const password = passwordState.password;
   const now = new Date().toISOString();
   const payload = {
     user_id: profile.auth_user_id,
@@ -170,7 +241,7 @@ async function loadPortalAccount(applicationId: string): Promise<PortalAccountCo
     portal: "vfs_korea_shenyang",
     account_email: alias,
     encrypted_account_password: encryptSecret(password),
-    account_status: existing?.account_status ?? "account_prepared",
+    account_status: passwordState.accountStatus,
     email_verified: Boolean(existing?.email_verified),
     metadata_redacted_json: {
       aliasManagedByViza: true,
@@ -205,6 +276,105 @@ async function loadPortalAccount(applicationId: string): Promise<PortalAccountCo
   };
 }
 
+function isMissingShenyangUniversalProfileSchemaError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; message?: unknown };
+  const code = typeof candidate.code === "string" ? candidate.code : "";
+  const message = typeof candidate.message === "string" ? candidate.message.toLowerCase() : "";
+  if (code === "PGRST204" || code === "PGRST205") return true;
+  const schemaMissing = message.includes("schema cache")
+    || message.includes("does not exist")
+    || message.includes("relation");
+  return schemaMissing && message.includes("universal_profile_answers");
+}
+
+async function loadRequiredShenyangVfsApplicantDetails(
+  applicationId: string,
+): Promise<ShenyangVfsApplicantDetails> {
+  const { data: application, error: applicationError } = await supabase
+    .from("applications")
+    .select("applicant_id")
+    .eq("id", applicationId)
+    .single();
+  if (applicationError || !application?.applicant_id) {
+    throw new Error("The Shenyang VFS applicant details could not be read.");
+  }
+
+  const [{ data: profile, error: profileError }, { data: answerRows, error: answerError }] = await Promise.all([
+    supabase
+      .from("applicant_profiles")
+      .select("full_name,date_of_birth,passport_number,passport_expiry_date,phone")
+      .eq("id", application.applicant_id)
+      .maybeSingle(),
+    supabase
+      .from("visa_application_answers")
+      .select("field_name,value_text")
+      .eq("application_id", applicationId),
+  ]);
+  if (profileError || answerError) {
+    throw new Error("The Shenyang VFS applicant details could not be read.");
+  }
+
+  const applicationAnswers: Record<string, string> = {};
+  for (const row of answerRows ?? []) {
+    if (row.value_text != null) applicationAnswers[row.field_name] = String(row.value_text);
+  }
+
+  const profileAnswers: Record<string, string> = {};
+  const profileRecord = profile as {
+    full_name?: string | null;
+    date_of_birth?: string | null;
+    passport_number?: string | null;
+    passport_expiry_date?: string | null;
+    phone?: string | null;
+  } | null;
+  const fullName = String(profileRecord?.full_name ?? "").trim();
+  if (fullName) {
+    const parts = fullName.split(/\s+/u);
+    profileAnswers.given_names = parts.slice(0, -1).join(" ") || fullName;
+    profileAnswers.surname = parts.length > 1 ? parts[parts.length - 1] : "";
+  }
+  const profileFields: Array<[string, string | null | undefined]> = [
+    ["date_of_birth", profileRecord?.date_of_birth],
+    ["passport_number", profileRecord?.passport_number],
+    ["passport_expiry_date", profileRecord?.passport_expiry_date],
+    ["mobile_phone", profileRecord?.phone],
+  ];
+  for (const [field, value] of profileFields) {
+    if (value != null && value !== "") profileAnswers[field] = String(value);
+  }
+
+  let reusableRows: ShenyangUniversalProfileAnswerRow[] = [];
+  try {
+    const reusableResult = await supabase
+      .from("universal_profile_answers")
+      .select("canonical_key,value_text,updated_at")
+      .eq("applicant_id", application.applicant_id)
+      .order("updated_at", { ascending: false });
+    if (reusableResult.error) {
+      if (!isMissingShenyangUniversalProfileSchemaError(reusableResult.error)) {
+        throw new Error("The Shenyang VFS applicant details could not be read.");
+      }
+    } else {
+      reusableRows = (reusableResult.data ?? []) as ShenyangUniversalProfileAnswerRow[];
+    }
+  } catch (error) {
+    if (isMissingShenyangUniversalProfileSchemaError(error)) {
+      reusableRows = [];
+    } else {
+      if (error instanceof Error && error.message === "The Shenyang VFS applicant details could not be read.") throw error;
+      throw new Error("The Shenyang VFS applicant details could not be read.");
+    }
+  }
+
+  const reusableAnswers = buildShenyangUniversalProfileAnswers(reusableRows);
+  return requireShenyangVfsApplicantDetailsFromSourceLayers(
+    applicationAnswers,
+    reusableAnswers,
+    profileAnswers,
+  );
+}
+
 async function setAccountStatus(
   account: PortalAccountContext,
   status: string,
@@ -235,8 +405,322 @@ async function clickVisible(page: Page, labels: RegExp): Promise<boolean> {
   return false;
 }
 
+const SHENYANG_VFS_COOKIE_ERROR = "The official VFS cookie consent could not be dismissed.";
+const SHENYANG_VFS_COOKIE_OVERLAY_SELECTOR = ".onetrust-pc-dark-filter, #onetrust-banner-sdk, #onetrust-consent-sdk";
+
+export interface ShenyangVfsCookieDismissOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
+const SHENYANG_VFS_COOKIE_TIMEOUT_MS = 10_000;
+const SHENYANG_VFS_COOKIE_POLL_INTERVAL_MS = 200;
+
+async function shenyangVfsCookieOverlayVisible(page: Page, timeoutMs: number): Promise<boolean> {
+  let overlays: ReturnType<Page["locator"]>;
+  try {
+    overlays = page.locator(SHENYANG_VFS_COOKIE_OVERLAY_SELECTOR);
+  } catch {
+    return false;
+  }
+  const count = await overlays.count().catch(() => 0);
+  for (let index = 0; index < Math.min(count, 10); index += 1) {
+    if (await overlays.nth(index).isVisible({ timeout: Math.min(400, Math.max(1, timeoutMs)) }).catch(() => false)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function clickShenyangVfsCookieButton(page: Page, labels: RegExp, timeoutMs: number): Promise<boolean> {
+  let buttons: ReturnType<Page["getByRole"]>;
+  try {
+    buttons = page.getByRole("button", { name: labels });
+  } catch {
+    return false;
+  }
+  const count = await buttons.count().catch(() => 0);
+  for (let index = 0; index < Math.min(count, 10); index += 1) {
+    const button = buttons.nth(index);
+    if (!await button.isVisible({ timeout: Math.min(400, Math.max(1, timeoutMs)) }).catch(() => false)) continue;
+    if (await button.click({ timeout: Math.min(5_000, Math.max(1, timeoutMs)) }).then(() => true).catch(() => false)) return true;
+  }
+  return false;
+}
+
+export async function dismissShenyangVfsCookies(
+  page: Page,
+  options: ShenyangVfsCookieDismissOptions = {},
+): Promise<void> {
+  const timeoutMs = positivePollingValue(options.timeoutMs, SHENYANG_VFS_COOKIE_TIMEOUT_MS);
+  const pollIntervalMs = positivePollingValue(options.pollIntervalMs, SHENYANG_VFS_COOKIE_POLL_INTERVAL_MS);
+  const deadline = Date.now() + timeoutMs;
+  const rejectLabels = /accept only necessary|reject all|only necessary/i;
+  const acceptAllLabels = /accept all|allow all/i;
+
+  while (Date.now() < deadline) {
+    const remainingMs = deadline - Date.now();
+    if (!await shenyangVfsCookieOverlayVisible(page, remainingMs)) return;
+    if (await clickShenyangVfsCookieButton(page, rejectLabels, remainingMs)
+      || await clickShenyangVfsCookieButton(page, acceptAllLabels, remainingMs)) {
+      while (Date.now() < deadline) {
+        const closeRemainingMs = deadline - Date.now();
+        if (!await shenyangVfsCookieOverlayVisible(page, closeRemainingMs)) return;
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, Math.min(pollIntervalMs, closeRemainingMs));
+        });
+      }
+      throw new Error(SHENYANG_VFS_COOKIE_ERROR);
+    }
+    const nextRemainingMs = deadline - Date.now();
+    if (nextRemainingMs <= 0) break;
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.min(pollIntervalMs, nextRemainingMs));
+    });
+  }
+  if (await shenyangVfsCookieOverlayVisible(page, 1)) throw new Error(SHENYANG_VFS_COOKIE_ERROR);
+}
+
 async function dismissCookies(page: Page): Promise<void> {
-  await clickVisible(page, /accept only necessary|accept all|allow all/i).catch(() => false);
+  await dismissShenyangVfsCookies(page);
+}
+
+const SHENYANG_VFS_MOBILE_FIELD_ERROR = "The official VFS mobile-number field could not be identified.";
+
+export interface ShenyangVfsMobileFieldPollingOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
+const SHENYANG_VFS_MOBILE_FIELD_TIMEOUT_MS = 10_000;
+const SHENYANG_VFS_MOBILE_FIELD_POLL_INTERVAL_MS = 200;
+
+function positivePollingValue(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+export async function fillShenyangVfsRegistrationMobileField(
+  page: Page,
+  phone: string,
+  options: ShenyangVfsMobileFieldPollingOptions = {},
+): Promise<void> {
+  const selectors = [
+    "input[formcontrolname='contact']",
+    "input[formcontrolname*='mobile' i]",
+    "input[formcontrolname*='phone' i]",
+    "input[aria-label*='mobile' i]",
+    "input[aria-label*='phone' i]",
+    "input[aria-label*='telephone' i]",
+    "input[placeholder*='mobile' i]",
+    "input[placeholder*='phone' i]",
+    "input[placeholder*='telephone' i]",
+    "input[name*='mobile' i]",
+    "input[name*='phone' i]",
+    "input[name*='telephone' i]",
+    "input[type='tel']",
+    "input.iti__tel-input",
+    ".intl-tel-input input",
+    "[class*='intl-tel-input' i] input",
+  ];
+  const timeoutMs = positivePollingValue(options.timeoutMs, SHENYANG_VFS_MOBILE_FIELD_TIMEOUT_MS);
+  const pollIntervalMs = positivePollingValue(options.pollIntervalMs, SHENYANG_VFS_MOBILE_FIELD_POLL_INTERVAL_MS);
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    for (const selector of selectors) {
+      let fields: ReturnType<Page["locator"]>;
+      try {
+        fields = page.locator(selector);
+      } catch {
+        continue;
+      }
+      const count = await fields.count().catch(() => 0);
+      for (let index = 0; index < Math.min(count, 25); index += 1) {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0) break;
+        const field = fields.nth(index);
+        if (!await field.isVisible({ timeout: Math.min(400, remainingMs) }).catch(() => false)) continue;
+        try {
+          await field.fill(phone);
+        } catch {
+          throw new Error(SHENYANG_VFS_MOBILE_FIELD_ERROR);
+        }
+        return;
+      }
+    }
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.min(pollIntervalMs, remainingMs));
+    });
+  }
+  throw new Error(SHENYANG_VFS_MOBILE_FIELD_ERROR);
+}
+
+const SHENYANG_VFS_DIAL_CODE_ERROR = "The official VFS China dial-code control could not be identified or selected.";
+const SHENYANG_VFS_DIAL_CODE_TIMEOUT_MS = 10_000;
+const SHENYANG_VFS_DIAL_CODE_POLL_INTERVAL_MS = 200;
+const SHENYANG_VFS_DIAL_CODE_SELECTORS = [
+  "mat-select[formcontrolname='dialcode']",
+  "[role='combobox'][formcontrolname='dialcode']",
+  "select[formcontrolname='dialcode']",
+  "mat-select[formcontrolname='countryCode']",
+  "[role='combobox'][formcontrolname='countryCode']",
+  "select[formcontrolname='countryCode']",
+  "mat-select[formcontrolname*='country' i]",
+  "[role='combobox'][formcontrolname*='country' i]",
+  "select[formcontrolname*='country' i]",
+  "mat-select[formcontrolname*='dial' i]",
+  "[role='combobox'][formcontrolname*='dial' i]",
+  "select[formcontrolname*='dial' i]",
+  "mat-select[formcontrolname*='phone' i]",
+  "[role='combobox'][formcontrolname*='phone' i]",
+  "select[formcontrolname*='phone' i]",
+  "mat-select[aria-label*='country code' i]",
+  "[role='combobox'][aria-label*='country code' i]",
+  "select[aria-label*='country code' i]",
+  "mat-select[aria-label*='dial' i]",
+  "[role='combobox'][aria-label*='dial' i]",
+  "select[aria-label*='dial' i]",
+];
+const SHENYANG_VFS_DIAL_CODE_LABELS = [
+  /country\s*code/i,
+  /dial(?:ling|ing)?\s*code/i,
+  /phone\s*(?:country|dial(?:ling|ing)?)?\s*code/i,
+  /mobile\s*(?:country|dial(?:ling|ing)?)?\s*code/i,
+];
+
+export interface ShenyangVfsDialCodePollingOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
+function isShenyangChinaDialCodeText(text: string): boolean {
+  const normalized = text.replace(/\s+/gu, " ").trim();
+  return /(?:china|中国)/iu.test(normalized) && /\+?86\b/u.test(normalized);
+}
+
+async function readVisibleShenyangLocatorText(locator: Locator): Promise<string> {
+  return locator.innerText({ timeout: 400 }).catch(() => "");
+}
+
+async function waitForShenyangSelectedDialCode(
+  locator: Locator,
+  tagName: string,
+  deadline: number,
+  pollIntervalMs: number,
+): Promise<boolean> {
+  const selected = tagName === "select" ? locator.locator("option:checked").first() : locator;
+  while (Date.now() < deadline) {
+    if (isShenyangChinaDialCodeText(await readVisibleShenyangLocatorText(selected))) return true;
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.min(pollIntervalMs, remainingMs));
+    });
+  }
+  return false;
+}
+
+async function selectChinaDialCodeFromControl(
+  page: Page,
+  control: Locator,
+  deadline: number,
+  pollIntervalMs: number,
+): Promise<boolean> {
+  const remainingMs = deadline - Date.now();
+  if (remainingMs <= 0 || !await control.isVisible({ timeout: Math.min(400, remainingMs) }).catch(() => false)) return false;
+  const tagName = await control.evaluate((element) => element.tagName.toLowerCase()).catch(() => "");
+  if (tagName === "select") {
+    const options = control.locator("option");
+    const count = await options.count().catch(() => 0);
+    for (let index = 0; index < Math.min(count, 100); index += 1) {
+      const option = options.nth(index);
+      const text = await readVisibleShenyangLocatorText(option);
+      if (!isShenyangChinaDialCodeText(text)) continue;
+      const value = await option.getAttribute("value").catch(() => null);
+      try {
+        await control.selectOption(value ?? { label: text });
+      } catch {
+        return false;
+      }
+      return await waitForShenyangSelectedDialCode(control, tagName, deadline, pollIntervalMs);
+    }
+    return false;
+  }
+  await dismissShenyangVfsCookies(page, {
+    timeoutMs: Math.min(SHENYANG_VFS_COOKIE_TIMEOUT_MS, Math.max(1, deadline - Date.now())),
+    pollIntervalMs,
+  });
+  const clickRemainingMs = deadline - Date.now();
+  if (clickRemainingMs <= 0) return false;
+  try {
+    await control.click({ timeout: Math.min(5_000, Math.max(1, clickRemainingMs)) });
+  } catch {
+    return false;
+  }
+  let optionCollections: Locator[];
+  try {
+    optionCollections = [page.getByRole("option"), page.locator("mat-option")];
+  } catch {
+    return false;
+  }
+  for (const options of optionCollections) {
+    const count = await options.count().catch(() => 0);
+    for (let index = 0; index < Math.min(count, 100); index += 1) {
+      const option = options.nth(index);
+      if (!await option.isVisible({ timeout: Math.min(400, Math.max(1, deadline - Date.now())) }).catch(() => false)) continue;
+      if (!isShenyangChinaDialCodeText(await readVisibleShenyangLocatorText(option))) continue;
+      try {
+        await option.click({ timeout: Math.min(5_000, Math.max(1, deadline - Date.now())) });
+      } catch {
+        return false;
+      }
+      return await waitForShenyangSelectedDialCode(control, tagName, deadline, pollIntervalMs);
+    }
+  }
+  return false;
+}
+
+export async function selectShenyangVfsRegistrationDialCode(
+  page: Page,
+  options: ShenyangVfsDialCodePollingOptions = {},
+): Promise<void> {
+  const timeoutMs = positivePollingValue(options.timeoutMs, SHENYANG_VFS_DIAL_CODE_TIMEOUT_MS);
+  const pollIntervalMs = positivePollingValue(options.pollIntervalMs, SHENYANG_VFS_DIAL_CODE_POLL_INTERVAL_MS);
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    for (const selector of SHENYANG_VFS_DIAL_CODE_SELECTORS) {
+      let controls: Locator;
+      try {
+        controls = page.locator(selector);
+      } catch {
+        continue;
+      }
+      const count = await controls.count().catch(() => 0);
+      for (let index = 0; index < Math.min(count, 25); index += 1) {
+        if (await selectChinaDialCodeFromControl(page, controls.nth(index), deadline, pollIntervalMs)) return;
+      }
+    }
+    for (const label of SHENYANG_VFS_DIAL_CODE_LABELS) {
+      let controls: Locator;
+      try {
+        controls = page.getByLabel(label);
+      } catch {
+        continue;
+      }
+      const count = await controls.count().catch(() => 0);
+      for (let index = 0; index < Math.min(count, 25); index += 1) {
+        if (await selectChinaDialCodeFromControl(page, controls.nth(index), deadline, pollIntervalMs)) return;
+      }
+    }
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.min(pollIntervalMs, remainingMs));
+    });
+  }
+  throw new Error(SHENYANG_VFS_DIAL_CODE_ERROR);
 }
 
 async function fillRegistration(page: Page, account: PortalAccountContext): Promise<void> {
@@ -247,27 +731,17 @@ async function fillRegistration(page: Page, account: PortalAccountContext): Prom
   await password.fill(account.password);
   await confirmation.fill(account.password);
 
-  const dial = page.locator("[role='combobox'], mat-select, select").first();
-  if (await dial.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    const tagName = await dial.evaluate((element) => element.tagName.toLowerCase());
-    if (tagName === "select") {
-      const value = await dial.locator("option").evaluateAll((options) => options.find((option) => /china|中国|\+?86/i.test(option.textContent ?? ""))?.getAttribute("value") ?? null);
-      if (value) await dial.selectOption(value);
-    } else {
-      await dial.click();
-      const option = page.getByRole("option").filter({ hasText: /china|中国|\+?86/i }).first();
-      if (await option.isVisible({ timeout: 3_000 }).catch(() => false)) await option.click();
-    }
-  }
-  const phone = page.locator("#mat-input-3, input[type='tel'], input[formcontrolname*='mobile' i], input[placeholder*='mobile' i]").first();
-  if (!await phone.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    throw new Error("The official VFS mobile-number field could not be identified.");
-  }
-  await phone.fill(account.phone);
+  await selectShenyangVfsRegistrationDialCode(page);
+  await fillShenyangVfsRegistrationMobileField(page, account.phone);
 
+  await fillShenyangVfsRegistrationConsents(page);
+}
+
+export async function fillShenyangVfsRegistrationConsents(page: Page): Promise<void> {
   const requiredConsents = page.locator("form input[type='checkbox'], main input[type='checkbox']");
   const count = await requiredConsents.count();
   if (count < 1) throw new Error("The official VFS required-consent controls could not be identified.");
+  await dismissCookies(page);
   for (let index = 0; index < count; index += 1) {
     const checkbox = requiredConsents.nth(index);
     if (!await checkbox.isVisible({ timeout: 300 }).catch(() => false)) continue;
@@ -500,6 +974,7 @@ export async function startShenyangVfsBookingFlow(input: StartShenyangVfsInput):
       browserbaseReplayAvailable: false,
     };
   }
+  const applicantDetails = await loadRequiredShenyangVfsApplicantDetails(input.applicationId);
   await sweepSessions();
   const activeOtpSession = otpSessions.get(input.jobId);
   if (activeOtpSession && activeOtpSession.expiresAt > Date.now()) {
@@ -518,7 +993,7 @@ export async function startShenyangVfsBookingFlow(input: StartShenyangVfsInput):
     };
   }
   await closeSession(input.jobId);
-  const account = await loadPortalAccount(input.applicationId);
+  const account = await loadPortalAccount(input.applicationId, applicantDetails.mobilePhone);
   const cloud = await connectBrowserbaseCloudBrowser({ prefix: PREFIX });
   const page = cloud.page;
   let keepSession = false;
@@ -680,20 +1155,77 @@ export async function submitShenyangVfsOtp(jobId: string, code: string): Promise
   }
 }
 
-async function fillApplicantDetails(page: Page, answers: Record<string, string>, account: PortalAccountContext): Promise<void> {
-  const values: Array<[RegExp, string | undefined]> = [
-    [/surname|family name|last name/i, answers.surname || answers.family_name],
-    [/given name|first name/i, answers.given_names || answers.given_name],
-    [/passport.*number/i, answers.passport_number],
-    [/date of birth|birth date/i, answers.date_of_birth],
-    [/passport.*expiry|expiry.*passport/i, answers.passport_expiry_date],
+export interface ShenyangApplicantFieldMatch {
+  isVisible(options?: { timeout?: number }): Promise<boolean>;
+  fill(value: string): Promise<void>;
+}
+
+export interface ShenyangApplicantFieldCollection {
+  count(): Promise<number>;
+  nth(index: number): ShenyangApplicantFieldMatch;
+}
+
+export class ShenyangApplicantDetailsSelectorError extends Error {
+  constructor() {
+    super("The official Shenyang VFS applicant detail fields could not be identified.");
+    this.name = "ShenyangApplicantDetailsSelectorError";
+  }
+}
+
+export async function fillFirstVisibleShenyangApplicantField(
+  fields: ShenyangApplicantFieldCollection,
+  value: string,
+): Promise<void> {
+  let count: number;
+  try {
+    count = await fields.count();
+  } catch {
+    throw new ShenyangApplicantDetailsSelectorError();
+  }
+  for (let index = 0; index < Math.min(count, 25); index += 1) {
+    let field: ShenyangApplicantFieldMatch;
+    try {
+      field = fields.nth(index);
+    } catch {
+      throw new ShenyangApplicantDetailsSelectorError();
+    }
+    if (!await field.isVisible({ timeout: 400 }).catch(() => false)) continue;
+    try {
+      await field.fill(value);
+    } catch {
+      throw new ShenyangApplicantDetailsSelectorError();
+    }
+    return;
+  }
+  throw new ShenyangApplicantDetailsSelectorError();
+}
+
+async function fillRequiredApplicantField(page: Page, label: RegExp, value: string): Promise<void> {
+  let fields: ShenyangApplicantFieldCollection;
+  try {
+    fields = page.getByLabel(label);
+  } catch {
+    throw new ShenyangApplicantDetailsSelectorError();
+  }
+  await fillFirstVisibleShenyangApplicantField(fields, value);
+}
+
+async function fillApplicantDetails(
+  page: Page,
+  details: ShenyangVfsApplicantDetails,
+  account: PortalAccountContext,
+): Promise<void> {
+  const values: Array<[RegExp, string]> = [
+    [/surname|family name|last name/i, details.surname],
+    [/given name|first name/i, details.givenNames],
+    [/passport.*number|travel document number/i, details.passportNumber],
+    [/date of birth|birth date|birthday/i, details.dateOfBirth],
+    [/passport.*expiry|passport.*expiration|expiry.*passport|valid until/i, details.passportExpiryDate],
     [/^email|e-mail/i, account.email],
     [/mobile|phone/i, account.phone],
   ];
   for (const [label, value] of values) {
-    if (!value) continue;
-    const field = page.getByLabel(label).first();
-    if (await field.isVisible({ timeout: 400 }).catch(() => false)) await field.fill(value);
+    await fillRequiredApplicantField(page, label, value);
   }
 }
 
@@ -705,7 +1237,8 @@ export async function bookShenyangVfsSlot(input: BookShenyangVfsInput): Promise<
   if (!input.selectedSlot.appointment_date || !input.selectedSlot.appointment_time) {
     throw new Error("A previously observed Shenyang VFS date and time are required.");
   }
-  const account = await loadPortalAccount(input.applicationId);
+  const applicantDetails = await loadRequiredShenyangVfsApplicantDetails(input.applicationId);
+  const account = await loadPortalAccount(input.applicationId, applicantDetails.mobilePhone);
   const cloud = await connectBrowserbaseCloudBrowser({ prefix: PREFIX });
   const { page } = cloud;
   try {
@@ -759,7 +1292,20 @@ export async function bookShenyangVfsSlot(input: BookShenyangVfsInput): Promise<
     }
     await clickVisible(page, /continue|next/i);
     await page.waitForTimeout(1_500);
-    await fillApplicantDetails(page, await loadCanonicalAnswers(input.applicationId), account);
+    try {
+      await fillApplicantDetails(page, applicantDetails, account);
+    } catch (error) {
+      if (!(error instanceof ShenyangApplicantDetailsSelectorError)) throw error;
+      return {
+        status: "checkpoint",
+        accountId: account.id,
+        checkpoint: { type: "selector_drift" },
+        slots: [],
+        observedAt: new Date().toISOString(),
+        screenshotPath: await captureEvidence(page, input.applicationId, input.jobId, "applicant-details-selector-drift"),
+        browserbaseReplayAvailable: Boolean(cloud.replayUrl),
+      };
+    }
     await clickVisible(page, /continue|review|next/i);
     await page.waitForTimeout(1_500);
     const preSubmitText = await page.locator("body").innerText().catch(() => "");

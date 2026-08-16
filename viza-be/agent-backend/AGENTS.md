@@ -77,6 +77,14 @@ explicitly reintroduces another provider.
   `src/notify/worker.ts`; Vietnam status changes use the locale-aware
   `vietnam_status_update` template and link to the VIZA status center.
 - Seed/ingestion scripts: `scripts/*.ts`.
+- Audited tourist-form seeds:
+  `scripts/seed-ca-trv-form-fields.ts`,
+  `scripts/seed-tr-e-visa-form-fields.ts`,
+  `scripts/seed-in-e-visa-form-fields.ts`,
+  `scripts/seed-sa-e-visa-form-fields.ts`, and
+  `scripts/seed-ae-tourist-visa-form-fields.ts`. Their canonical products are
+  intentionally narrower than legacy generic route aliases; uploads belong in
+  `application_documents`, never file-path answers.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
 - Arrival-card seeds:
   `scripts/sgac/**` for `SG_ARRIVAL_CARD`, `scripts/my-mdac/**` for
@@ -94,7 +102,7 @@ explicitly reintroduces another provider.
 - Vietnam schema audit: `src/tests/vietnam-schema-localization.test.ts`
   verifies the Vietnam seed has clear bilingual labels and localized options.
 - Staging concurrency release gate: `scripts/concurrency-load.ts` is a guarded,
-  staging-only harness for the `0139_concurrency_phase_two.sql` runner-pool
+  staging-only harness for the `0149_concurrency_phase_two.sql` runner-pool
   claim/settlement RPCs. It requires `CONCURRENCY_LOAD_CONFIRM=staging-only`,
   a Supabase direct/pooler URL bound to the explicit non-production
   `CONCURRENCY_LOAD_PROJECT_REF`, and authoritative database settings
