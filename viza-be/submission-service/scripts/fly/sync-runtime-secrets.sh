@@ -58,6 +58,11 @@ case "$country" in
     # inbound_email through Supabase. It does not use the legacy IMAP poller.
     capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)
     ;;
+  philippines)
+    # Philippines email OTP reads the application-scoped alias from
+    # inbound_email through Supabase. It does not use the legacy IMAP poller.
+    capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)
+    ;;
   united_states)
     capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)
     ;;
