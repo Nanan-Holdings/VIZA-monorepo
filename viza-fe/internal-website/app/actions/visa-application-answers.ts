@@ -2,15 +2,24 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getClientSessionWithFallback, type ClientSession } from "@/lib/client-session";
+import {
+  getClientSessionWithFallback,
+  type ClientSession,
+} from "@/lib/client-session";
 import {
   resolveApplicantProfileForAuthUser,
   type ApplicantProfileIdentityRow,
   type ApplicantProfileIdentityStore,
 } from "@/lib/applicant-profile-identity";
 import { auditPiiRead } from "@/lib/legal/audit-pii";
-import { buildUniversalProfileAnswerPatch, type UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
-import { getCanonicalVisaDestinationCountry, getFormVisaType } from "@/lib/visa-destinations";
+import {
+  buildUniversalProfileAnswerPatch,
+  type UniversalProfileSnapshot,
+} from "@/lib/universal-profile-prefill";
+import {
+  getCanonicalVisaDestinationCountry,
+  getFormVisaType,
+} from "@/lib/visa-destinations";
 import {
   buildUniversalProfileFieldDefinitions,
   canonicalizeUniversalProfileFieldName,
@@ -30,7 +39,20 @@ import {
   queueApplicationAnswers,
   type ApplicationAnswersEvent,
 } from "@/lib/resilience/application-answers";
-import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/types/visa-form-fields";
+import {
+  dbRowToFormField,
+  type VisaFormFieldDbRow,
+  type WizardStep,
+} from "@/types/visa-form-fields";
+import {
+  applicationIdentityMatches,
+  findOngoingApplicationByIdentity,
+} from "@/lib/applications/ongoing-application";
+import {
+  isQaDryRunPurpose,
+  isSyntheticQaValue,
+} from "@/lib/applications/qa-safety";
+import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 
 type ApplicationOwnerProfile = {
   id?: string | null;
@@ -38,7 +60,10 @@ type ApplicationOwnerProfile = {
   dependant_of_user_id?: string | null;
 };
 
-type UniversalProfileSaveInput = Omit<UniversalProfileSnapshot, "reusable_answers"> & {
+type UniversalProfileSaveInput = Omit<
+  UniversalProfileSnapshot,
+  "reusable_answers"
+> & {
   wechat?: string | null;
 };
 type UniversalProfileSaveField = keyof UniversalProfileSaveInput;
@@ -88,9 +113,14 @@ const UNIVERSAL_PROFILE_SAVE_FIELDS: UniversalProfileSaveField[] = [
   "phone",
   "wechat",
 ];
-const UNIVERSAL_PROFILE_SAVE_FIELD_SET = new Set<string>(UNIVERSAL_PROFILE_SAVE_FIELDS);
+const UNIVERSAL_PROFILE_SAVE_FIELD_SET = new Set<string>(
+  UNIVERSAL_PROFILE_SAVE_FIELDS
+);
 
-const UNIVERSAL_TO_LEGACY_PROFILE_COLUMN: Record<string, UniversalProfileSaveField> = {
+const UNIVERSAL_TO_LEGACY_PROFILE_COLUMN: Record<
+  string,
+  UniversalProfileSaveField
+> = {
   surname: "surname",
   given_names: "given_names",
   date_of_birth: "date_of_birth",
@@ -142,17 +172,19 @@ function cleanOptional(value: string | null | undefined): string | null {
 }
 
 type NormalizedAnswerValueResult =
-  | { ok: true; value: string }
-  | { ok: false; error: string };
+  { ok: true; value: string } | { ok: false; error: string };
 
 type NormalizedAnswersResult =
-  | { ok: true; data: Record<string, string> }
-  | { ok: false; error: string };
+  { ok: true; data: Record<string, string> } | { ok: false; error: string };
 
-function normalizeDynamicAnswerValue(fieldName: string, value: unknown): NormalizedAnswerValueResult {
+function normalizeDynamicAnswerValue(
+  fieldName: string,
+  value: unknown
+): NormalizedAnswerValueResult {
   if (value === null || value === undefined) return { ok: true, value: "" };
   if (typeof value === "string") return { ok: true, value };
-  if (typeof value === "number" || typeof value === "boolean") return { ok: true, value: String(value) };
+  if (typeof value === "number" || typeof value === "boolean")
+    return { ok: true, value: String(value) };
 
   if (typeof value === "object") {
     const maybeValueObject = value as { value?: unknown };
@@ -167,15 +199,27 @@ function normalizeDynamicAnswerValue(fieldName: string, value: unknown): Normali
   };
 }
 
-function normalizeDynamicAnswers(data: Record<string, unknown>): NormalizedAnswersResult {
+function normalizeDynamicAnswers(
+  data: Record<string, unknown>
+): NormalizedAnswersResult {
   const normalized: Record<string, string> = {};
 
   for (const [rawFieldName, rawValue] of Object.entries(data)) {
     const fieldName = rawFieldName.trim();
-    if (!fieldName) return { ok: false, error: "Invalid answer field name: field name cannot be empty." };
+    if (!fieldName)
+      return {
+        ok: false,
+        error: "Invalid answer field name: field name cannot be empty.",
+      };
 
     const result = normalizeDynamicAnswerValue(fieldName, rawValue);
     if (!result.ok) return { ok: false, error: result.error };
+    if (isSyntheticQaValue(result.value)) {
+      return {
+        ok: false,
+        error: `Synthetic QA data is not allowed in application answers (${fieldName}). Clear the field and enter the applicant's real information.`,
+      };
+    }
     normalized[fieldName] = result.value;
   }
 
@@ -184,33 +228,52 @@ function normalizeDynamicAnswers(data: Record<string, unknown>): NormalizedAnswe
 
 function isRetryableMissingProfileColumnError(message: string) {
   const normalized = message.toLowerCase();
-  return PROFILE_SAVE_FALLBACK_COLUMNS.some((column) => normalized.includes(column)) &&
-    (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("relation"));
+  return (
+    PROFILE_SAVE_FALLBACK_COLUMNS.some((column) =>
+      normalized.includes(column)
+    ) &&
+    (normalized.includes("schema cache") ||
+      normalized.includes("column") ||
+      normalized.includes("relation"))
+  );
 }
 
-function getMissingProfileSaveColumn(message: string, payload: Record<string, unknown>) {
+function getMissingProfileSaveColumn(
+  message: string,
+  payload: Record<string, unknown>
+) {
   if (!isRetryableMissingProfileColumnError(message)) return null;
   const normalized = message.toLowerCase();
-  return PROFILE_SAVE_FALLBACK_COLUMNS.find(
-    (column) => column in payload && normalized.includes(column),
-  ) ?? null;
+  return (
+    PROFILE_SAVE_FALLBACK_COLUMNS.find(
+      (column) => column in payload && normalized.includes(column)
+    ) ?? null
+  );
 }
 
 function isMissingColumnError(message: string, column: string) {
   const normalized = message.toLowerCase();
-  return normalized.includes(column.toLowerCase()) &&
-    (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("does not exist"));
+  return (
+    normalized.includes(column.toLowerCase()) &&
+    (normalized.includes("schema cache") ||
+      normalized.includes("column") ||
+      normalized.includes("does not exist"))
+  );
 }
 
-function isMissingSchemaFeatureError(error: SupabaseErrorLike, featureNames: string[]) {
+function isMissingSchemaFeatureError(
+  error: SupabaseErrorLike,
+  featureNames: string[]
+) {
   if (!error) return false;
   const normalized = error.message?.toLowerCase() ?? "";
   return (
-    error.code === "PGRST204" ||
-    normalized.includes("schema cache") ||
-    normalized.includes("does not exist") ||
-    normalized.includes("relation")
-  ) && featureNames.some((name) => normalized.includes(name.toLowerCase()));
+    (error.code === "PGRST204" ||
+      normalized.includes("schema cache") ||
+      normalized.includes("does not exist") ||
+      normalized.includes("relation")) &&
+    featureNames.some((name) => normalized.includes(name.toLowerCase()))
+  );
 }
 
 interface UniversalProfileAnswerDbRow {
@@ -228,7 +291,9 @@ interface UniversalProfileAnswerDbRow {
   updated_at?: string | null;
 }
 
-function toUniversalProfileAnswerRecord(row: UniversalProfileAnswerDbRow): UniversalProfileAnswerRecord {
+function toUniversalProfileAnswerRecord(
+  row: UniversalProfileAnswerDbRow
+): UniversalProfileAnswerRecord {
   return {
     canonicalKey: row.canonical_key,
     value: row.value_text,
@@ -247,23 +312,34 @@ function toUniversalProfileAnswerRecord(row: UniversalProfileAnswerDbRow): Unive
 
 async function loadReusableProfileAnswers(
   adminClient: ReturnType<typeof createAdminClient>,
-  userId: string,
+  userId: string
 ) {
   const { data, error } = await adminClient
     .from("universal_profile_answers")
-    .select("canonical_key, value_text, value_zh, value_en, label_zh, label_en, field_type, category, source_application_id, source_visa_type, source_field_name, updated_at")
+    .select(
+      "canonical_key, value_text, value_zh, value_en, label_zh, label_en, field_type, category, source_application_id, source_visa_type, source_field_name, updated_at"
+    )
     .eq("auth_user_id", userId)
     .order("updated_at", { ascending: false });
 
   if (error) {
     if (isMissingSchemaFeatureError(error, ["universal_profile_answers"])) {
-      return { answers: [] as UniversalProfileAnswerRecord[], schemaAvailable: false };
+      return {
+        answers: [] as UniversalProfileAnswerRecord[],
+        schemaAvailable: false,
+      };
     }
-    return { answers: [] as UniversalProfileAnswerRecord[], schemaAvailable: true, error: error.message };
+    return {
+      answers: [] as UniversalProfileAnswerRecord[],
+      schemaAvailable: true,
+      error: error.message,
+    };
   }
 
   return {
-    answers: ((data ?? []) as UniversalProfileAnswerDbRow[]).map(toUniversalProfileAnswerRecord),
+    answers: ((data ?? []) as UniversalProfileAnswerDbRow[]).map(
+      toUniversalProfileAnswerRecord
+    ),
     schemaAvailable: true,
   };
 }
@@ -284,7 +360,7 @@ function groupUniversalSchemaRows(rows: VisaFormFieldDbRow[]) {
 }
 
 async function loadUniversalProfileSchemaDefinitions(
-  adminClient: ReturnType<typeof createAdminClient>,
+  adminClient: ReturnType<typeof createAdminClient>
 ) {
   const pageSize = 1_000;
   const rows: VisaFormFieldDbRow[] = [];
@@ -298,20 +374,26 @@ async function loadUniversalProfileSchemaDefinitions(
       .order("display_order", { ascending: true })
       .range(from, from + pageSize - 1);
 
-    if (error) return { fields: [] as UniversalProfileFieldDefinition[], error: error.message };
+    if (error)
+      return {
+        fields: [] as UniversalProfileFieldDefinition[],
+        error: error.message,
+      };
     const page = (data ?? []) as VisaFormFieldDbRow[];
     rows.push(...page);
     if (page.length < pageSize) break;
   }
 
   return {
-    fields: buildUniversalProfileFieldDefinitions(groupUniversalSchemaRows(rows)),
+    fields: buildUniversalProfileFieldDefinitions(
+      groupUniversalSchemaRows(rows)
+    ),
   };
 }
 
 async function loadApplicationOwnerProfile(
   adminClient: ReturnType<typeof createAdminClient>,
-  applicantId: string,
+  applicantId: string
 ): Promise<{ profile: ApplicationOwnerProfile | null; error?: string }> {
   const { data, error } = await adminClient
     .from("applicant_profiles")
@@ -338,8 +420,10 @@ async function loadApplicationOwnerProfile(
 }
 
 function createApplicantProfileIdentityStore(
-  adminClient: ReturnType<typeof createAdminClient>,
-): ApplicantProfileIdentityStore<SeedableUniversalProfile & ApplicantProfileIdentityRow> {
+  adminClient: ReturnType<typeof createAdminClient>
+): ApplicantProfileIdentityStore<
+  SeedableUniversalProfile & ApplicantProfileIdentityRow
+> {
   return {
     async findByAuthUserId(authUserId) {
       const { data, error } = await adminClient
@@ -349,7 +433,10 @@ function createApplicantProfileIdentityStore(
         .maybeSingle();
 
       return {
-        profile: (data as (SeedableUniversalProfile & ApplicantProfileIdentityRow) | null) ?? null,
+        profile:
+          (data as
+            (SeedableUniversalProfile & ApplicantProfileIdentityRow) | null) ??
+          null,
         error: error?.message,
       };
     },
@@ -363,20 +450,29 @@ function createApplicantProfileIdentityStore(
         .maybeSingle();
 
       return {
-        profile: (data as (SeedableUniversalProfile & ApplicantProfileIdentityRow) | null) ?? null,
+        profile:
+          (data as
+            (SeedableUniversalProfile & ApplicantProfileIdentityRow) | null) ??
+          null,
         error: error?.message,
       };
     },
     async bindProfileToAuthUser(profileId, authUserId) {
       const { data, error } = await adminClient
         .from("applicant_profiles")
-        .update({ auth_user_id: authUserId, updated_at: new Date().toISOString() })
+        .update({
+          auth_user_id: authUserId,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", profileId)
         .select("*")
         .single();
 
       return {
-        profile: (data as (SeedableUniversalProfile & ApplicantProfileIdentityRow) | null) ?? null,
+        profile:
+          (data as
+            (SeedableUniversalProfile & ApplicantProfileIdentityRow) | null) ??
+          null,
         error: error?.message,
       };
     },
@@ -385,24 +481,25 @@ function createApplicantProfileIdentityStore(
 
 async function loadCurrentApplicantProfile(
   adminClient: ReturnType<typeof createAdminClient>,
-  user: { id: string; email?: string | null },
+  user: { id: string; email?: string | null }
 ) {
   return resolveApplicantProfileForAuthUser(
     createApplicantProfileIdentityStore(adminClient),
-    user,
+    user
   );
 }
 
 async function loadCurrentApplicantProfileForSession(
   adminClient: ReturnType<typeof createAdminClient>,
-  session: ClientSession,
+  session: ClientSession
 ) {
   const { data: profileById, error: profileByIdError } = await adminClient
     .from("applicant_profiles")
     .select("*")
     .eq("id", session.userId)
     .maybeSingle();
-  if (profileByIdError) return { profile: null, error: profileByIdError.message };
+  if (profileByIdError)
+    return { profile: null, error: profileByIdError.message };
   if (profileById) return { profile: profileById as SeedableUniversalProfile };
 
   if (session.authUserId) {
@@ -427,19 +524,26 @@ async function loadCurrentApplicantProfileForSession(
 
 function ownsApplication(
   profile: ApplicationOwnerProfile | null,
-  userId: string,
+  userId: string
 ): profile is ApplicationOwnerProfile & { id: string } {
-  return Boolean(profile?.id && (profile.auth_user_id === userId || profile.dependant_of_user_id === userId));
+  return Boolean(
+    profile?.id &&
+    (profile.auth_user_id === userId || profile.dependant_of_user_id === userId)
+  );
 }
 
 async function upsertApplicantProfileWithOptionalColumnFallback(
   adminClient: ReturnType<typeof createAdminClient>,
-  payload: Record<string, string | null>,
+  payload: Record<string, string | null>
 ) {
   let nextPayload = { ...payload };
   const missingColumns: string[] = [];
 
-  for (let attempt = 0; attempt <= PROFILE_SAVE_FALLBACK_COLUMNS.length; attempt += 1) {
+  for (
+    let attempt = 0;
+    attempt <= PROFILE_SAVE_FALLBACK_COLUMNS.length;
+    attempt += 1
+  ) {
     const result = await adminClient
       .from("applicant_profiles")
       .upsert(nextPayload, { onConflict: "auth_user_id" })
@@ -448,7 +552,10 @@ async function upsertApplicantProfileWithOptionalColumnFallback(
 
     if (!result.error) return { ...result, missingColumns };
 
-    const missingColumn = getMissingProfileSaveColumn(result.error.message, nextPayload);
+    const missingColumn = getMissingProfileSaveColumn(
+      result.error.message,
+      nextPayload
+    );
     if (!missingColumn) return result;
 
     const { [missingColumn]: _missingValue, ...fallbackPayload } = nextPayload;
@@ -468,10 +575,12 @@ async function seedNewApplicationFromUniversalProfile(
   adminClient: ReturnType<typeof createAdminClient>,
   applicationId: string,
   applicantId: string,
-  profile: SeedableUniversalProfile,
+  profile: SeedableUniversalProfile
 ) {
   const answerPatch = buildUniversalProfileAnswerPatch(profile);
-  const answerEntries = Object.entries(answerPatch).filter(([, value]) => value.trim() !== "");
+  const answerEntries = Object.entries(answerPatch).filter(
+    ([, value]) => value.trim() !== ""
+  );
   if (answerEntries.length === 0 || !profile.id) return null;
 
   const now = new Date().toISOString();
@@ -495,7 +604,13 @@ async function seedNewApplicationFromUniversalProfile(
     .upsert(answerRows, { onConflict: "application_id,field_name" });
 
   if (answerError) {
-    if (!isMissingSchemaFeatureError(answerError, ["source", "source_profile_updated_at", "source_metadata"])) {
+    if (
+      !isMissingSchemaFeatureError(answerError, [
+        "source",
+        "source_profile_updated_at",
+        "source_metadata",
+      ])
+    ) {
       return answerError.message;
     }
 
@@ -524,10 +639,15 @@ async function seedNewApplicationFromUniversalProfile(
         answer_keys: answerEntries.map(([fieldName]) => fieldName),
         created_at: now,
       },
-      { onConflict: "application_id" },
+      { onConflict: "application_id" }
     );
 
-  if (snapshotError && !isMissingSchemaFeatureError(snapshotError, ["application_profile_snapshots"])) {
+  if (
+    snapshotError &&
+    !isMissingSchemaFeatureError(snapshotError, [
+      "application_profile_snapshots",
+    ])
+  ) {
     return snapshotError.message;
   }
 
@@ -559,7 +679,10 @@ async function saveDynamicAnswersOnce(
     };
 
     // Verify the user owns this application
-    const adminClient = createAdminClient({ requestTimeoutMs: 4_000, retryDelaysMs: [] });
+    const adminClient = createAdminClient({
+      requestTimeoutMs: 4_000,
+      retryDelaysMs: [],
+    });
     const { data: app, error: appError } = await adminClient
       .from("applications")
       .select("id, applicant_id")
@@ -575,7 +698,10 @@ async function saveDynamicAnswersOnce(
     }
     if (!app) return { error: "Application not found" };
 
-    const { profile, error: profileError } = await loadApplicationOwnerProfile(adminClient, app.applicant_id);
+    const { profile, error: profileError } = await loadApplicationOwnerProfile(
+      adminClient,
+      app.applicant_id
+    );
 
     if (profileError) return { error: profileError };
     if (!ownsApplicationSession(profile, session)) {
@@ -584,7 +710,9 @@ async function saveDynamicAnswersOnce(
 
     const now = savedAt;
     const emptyFieldNames = Object.entries(answers)
-      .filter(([fieldName, value]) => fieldName.trim() !== "" && value.trim() === "")
+      .filter(
+        ([fieldName, value]) => fieldName.trim() !== "" && value.trim() === ""
+      )
       .map(([fieldName]) => fieldName);
 
     if (emptyFieldNames.length > 0) {
@@ -622,14 +750,27 @@ async function saveDynamicAnswersOnce(
         .from("visa_application_answers")
         .upsert(upserts, { onConflict: "application_id,field_name" });
       if (upsertError) {
-        if (!isMissingSchemaFeatureError(upsertError, ["source", "source_profile_updated_at", "source_metadata"])) {
+        if (
+          !isMissingSchemaFeatureError(upsertError, [
+            "source",
+            "source_profile_updated_at",
+            "source_metadata",
+          ])
+        ) {
           if (isResilienceEligibleError(upsertError.message)) {
             await queueApplicationAnswers(resilienceEvent);
             return { queued: true };
           }
           return { error: upsertError.message };
         }
-        const legacyUpserts = upserts.map(({ source: _source, source_profile_updated_at: _profileUpdatedAt, source_metadata: _metadata, ...row }) => row);
+        const legacyUpserts = upserts.map(
+          ({
+            source: _source,
+            source_profile_updated_at: _profileUpdatedAt,
+            source_metadata: _metadata,
+            ...row
+          }) => row
+        );
         const { error: legacyError } = await adminClient
           .from("visa_application_answers")
           .upsert(legacyUpserts, { onConflict: "application_id,field_name" });
@@ -670,7 +811,10 @@ async function saveDynamicAnswersOnce(
         } catch (queueError) {
           console.error("Encrypted application answer outbox enqueue failed", {
             applicationId,
-            error: queueError instanceof Error ? queueError.message : String(queueError),
+            error:
+              queueError instanceof Error
+                ? queueError.message
+                : String(queueError),
           });
         }
       }
@@ -681,15 +825,13 @@ async function saveDynamicAnswersOnce(
 
 function ownsApplicationSession(
   profile: ApplicationOwnerProfile | null,
-  session: ClientSession,
+  session: ClientSession
 ): profile is ApplicationOwnerProfile & { id: string } {
   return Boolean(
     profile?.id &&
-    (
-      profile.id === session.userId ||
+    (profile.id === session.userId ||
       (session.authUserId && profile.auth_user_id === session.authUserId) ||
-      profile.dependant_of_user_id === (session.authUserId ?? session.userId)
-    ),
+      profile.dependant_of_user_id === (session.authUserId ?? session.userId))
   );
 }
 
@@ -700,23 +842,23 @@ export async function saveDynamicAnswers(
   // This save is idempotent: blank values are deleted and non-blank values are
   // upserted on (application_id, field_name). A bounded retry is therefore safe
   // when PostgREST briefly cannot build its schema cache during autosave.
-  return retryTransientSupabaseResult(() => saveDynamicAnswersOnce(applicationId, data));
+  return retryTransientSupabaseResult(() =>
+    saveDynamicAnswersOnce(applicationId, data)
+  );
 }
 
 /**
  * Save the reusable bilingual profile. Existing visa application answers stay
  * application-scoped; forms read this profile only for initial autofill.
  */
-export async function saveUniversalProfileWithSharedAnswers(
-  input: {
-    profile: UniversalProfileSaveInput;
-    applicationId?: string | null;
-    country?: string;
-    visaType?: string;
-    preferExplicit?: boolean;
-    clearedFields?: UniversalProfileSaveField[];
-  },
-): Promise<{
+export async function saveUniversalProfileWithSharedAnswers(input: {
+  profile: UniversalProfileSaveInput;
+  applicationId?: string | null;
+  country?: string;
+  visaType?: string;
+  preferExplicit?: boolean;
+  clearedFields?: UniversalProfileSaveField[];
+}): Promise<{
   applicationId?: string;
   answerCount?: number;
   profile?: UniversalProfileSnapshot;
@@ -726,13 +868,19 @@ export async function saveUniversalProfileWithSharedAnswers(
 }> {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
-    const existingProfileResult = await loadCurrentApplicantProfile(adminClient, user);
+    const existingProfileResult = await loadCurrentApplicantProfile(
+      adminClient,
+      user
+    );
 
-    if (existingProfileResult.error) return { error: existingProfileResult.error };
+    if (existingProfileResult.error)
+      return { error: existingProfileResult.error };
 
     const clearedFields = new Set(input.clearedFields ?? []);
     const profilePatch: Record<string, string | null> = {
@@ -744,6 +892,11 @@ export async function saveUniversalProfileWithSharedAnswers(
       const rawValue = input.profile[field];
       const value = cleanOptional(rawValue);
       if (value !== null) {
+        if (isSyntheticQaValue(value)) {
+          return {
+            error: `Synthetic QA data is not allowed in Universal Profile (${field}).`,
+          };
+        }
         profilePatch[field] = value;
       } else if (clearedFields.has(field)) {
         profilePatch[field] = null;
@@ -754,10 +907,11 @@ export async function saveUniversalProfileWithSharedAnswers(
       profilePatch.email = user.email ?? null;
     }
 
-    const profileResult = await upsertApplicantProfileWithOptionalColumnFallback(
-      adminClient,
-      profilePatch,
-    );
+    const profileResult =
+      await upsertApplicantProfileWithOptionalColumnFallback(
+        adminClient,
+        profilePatch
+      );
     const savedProfile = profileResult.data;
     const profileError = profileResult.error;
 
@@ -765,19 +919,23 @@ export async function saveUniversalProfileWithSharedAnswers(
       return { error: profileError?.message ?? "Failed to save profile" };
     }
 
-    const missingColumns = "missingColumns" in profileResult ? profileResult.missingColumns : [];
+    const missingColumns =
+      "missingColumns" in profileResult ? profileResult.missingColumns : [];
 
     return {
       applicationId: input.applicationId ?? undefined,
       answerCount: 0,
       profile: savedProfile as UniversalProfileSnapshot,
       missingColumns,
-      schemaWarning: missingColumns.length > 0
-        ? `Universal Profile saved with legacy fallback. Missing applicant_profiles columns: ${missingColumns.join(", ")}. Run migration 0090_applicant_profile_bilingual_fields.sql.`
-        : undefined,
+      schemaWarning:
+        missingColumns.length > 0
+          ? `Universal Profile saved with legacy fallback. Missing applicant_profiles columns: ${missingColumns.join(", ")}. Run migration 0090_applicant_profile_bilingual_fields.sql.`
+          : undefined,
     };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Failed to save profile" };
+    return {
+      error: err instanceof Error ? err.message : "Failed to save profile",
+    };
   }
 }
 
@@ -790,8 +948,16 @@ export async function loadUniversalProfileWorkspace(): Promise<{
 }> {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { fields: [], answers: [], schemaAvailable: true, error: "Not authenticated" };
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user)
+      return {
+        fields: [],
+        answers: [],
+        schemaAvailable: true,
+        error: "Not authenticated",
+      };
 
     const adminClient = createAdminClient();
     const profileResult = await loadCurrentApplicantProfile(adminClient, user);
@@ -827,7 +993,9 @@ export async function loadUniversalProfileWorkspace(): Promise<{
       };
     }
 
-    const fieldsByKey = new Map(schemaResult.fields.map((field) => [field.canonicalKey, field]));
+    const fieldsByKey = new Map(
+      schemaResult.fields.map((field) => [field.canonicalKey, field])
+    );
     for (const answer of answerResult.answers) {
       if (fieldsByKey.has(answer.canonicalKey)) continue;
       fieldsByKey.set(answer.canonicalKey, {
@@ -835,7 +1003,10 @@ export async function loadUniversalProfileWorkspace(): Promise<{
         visaType: answer.sourceVisaType ?? "UNIVERSAL_PROFILE",
         fieldName: answer.canonicalKey,
         canonicalKey: answer.canonicalKey,
-        label: answer.labelEn || answer.labelZh || answer.canonicalKey.replaceAll("_", " "),
+        label:
+          answer.labelEn ||
+          answer.labelZh ||
+          answer.canonicalKey.replaceAll("_", " "),
         fieldType: answer.fieldType ?? "text",
         required: false,
         stepNumber: 0,
@@ -845,7 +1016,8 @@ export async function loadUniversalProfileWorkspace(): Promise<{
         validationRules: null,
         options: null,
         conditionalLogic: null,
-        category: answer.category ?? getUniversalProfileCategory(answer.canonicalKey),
+        category:
+          answer.category ?? getUniversalProfileCategory(answer.canonicalKey),
         sourceVisaTypes: answer.sourceVisaType ? [answer.sourceVisaType] : [],
       });
     }
@@ -854,7 +1026,7 @@ export async function loadUniversalProfileWorkspace(): Promise<{
       "actions/visa-application-answers:loadUniversalProfileWorkspace",
       profileResult.profile.id,
       ["form_answers", "passport", "contact", "address"],
-      { purpose: "self_view" },
+      { purpose: "self_view" }
     );
 
     return {
@@ -871,7 +1043,8 @@ export async function loadUniversalProfileWorkspace(): Promise<{
       fields: [],
       answers: [],
       schemaAvailable: true,
-      error: err instanceof Error ? err.message : "Failed to load universal profile",
+      error:
+        err instanceof Error ? err.message : "Failed to load universal profile",
     };
   }
 }
@@ -886,9 +1059,12 @@ export async function saveUniversalProfileAnswerValues(input: {
 }): Promise<{ savedCount?: number; deletedCount?: number; error?: string }> {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { error: "Not authenticated" };
-    if (input.answers.length > 250) return { error: "Too many profile fields in one update" };
+    if (input.answers.length > 250)
+      return { error: "Too many profile fields in one update" };
 
     const adminClient = createAdminClient();
     const profileResult = await loadCurrentApplicantProfile(adminClient, user);
@@ -901,17 +1077,24 @@ export async function saveUniversalProfileAnswerValues(input: {
       loadReusableProfileAnswers(adminClient, user.id),
     ]);
     if (schemaResult.error) return { error: schemaResult.error };
-    if (!existingResult.schemaAvailable) return { error: "Universal Profile schema is not installed" };
+    if (!existingResult.schemaAvailable)
+      return { error: "Universal Profile schema is not installed" };
     if (existingResult.error) return { error: existingResult.error };
 
-    const definitions = new Map(schemaResult.fields.map((field) => [field.canonicalKey, field]));
-    const existingKeys = new Set(existingResult.answers.map((answer) => answer.canonicalKey));
+    const definitions = new Map(
+      schemaResult.fields.map((field) => [field.canonicalKey, field])
+    );
+    const existingKeys = new Set(
+      existingResult.answers.map((answer) => answer.canonicalKey)
+    );
     const now = new Date().toISOString();
     const upserts: Record<string, unknown>[] = [];
     const deletes: string[] = [];
 
     for (const answer of input.answers) {
-      const canonicalKey = canonicalizeUniversalProfileFieldName(answer.canonicalKey);
+      const canonicalKey = canonicalizeUniversalProfileFieldName(
+        answer.canonicalKey
+      );
       const definition = definitions.get(canonicalKey);
       if (!definition && !existingKeys.has(canonicalKey)) continue;
       const value = cleanOptional(answer.value);
@@ -919,17 +1102,29 @@ export async function saveUniversalProfileAnswerValues(input: {
         deletes.push(canonicalKey);
         continue;
       }
+      const valueZh = cleanOptional(answer.valueZh);
+      const valueEn = cleanOptional(answer.valueEn);
+      if (
+        isSyntheticQaValue(value) ||
+        isSyntheticQaValue(valueZh) ||
+        isSyntheticQaValue(valueEn)
+      ) {
+        return {
+          error: `Synthetic QA data is not allowed in Universal Profile (${canonicalKey}).`,
+        };
+      }
       upserts.push({
         applicant_id: profileResult.profile.id,
         auth_user_id: user.id,
         canonical_key: canonicalKey,
         value_text: value,
-        value_zh: cleanOptional(answer.valueZh),
-        value_en: cleanOptional(answer.valueEn),
+        value_zh: valueZh,
+        value_en: valueEn,
         label_zh: definition ? getChineseLabel(definition.label) : null,
         label_en: definition ? getEnglishLabel(definition.label) : null,
         field_type: definition?.fieldType ?? "text",
-        category: definition?.category ?? getUniversalProfileCategory(canonicalKey),
+        category:
+          definition?.category ?? getUniversalProfileCategory(canonicalKey),
         source_field_name: definition?.fieldName ?? canonicalKey,
         field_schema: definition ?? {},
         updated_at: now,
@@ -953,45 +1148,74 @@ export async function saveUniversalProfileAnswerValues(input: {
 
     return { savedCount: upserts.length, deletedCount: deletes.length };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Failed to save universal profile" };
+    return {
+      error:
+        err instanceof Error ? err.message : "Failed to save universal profile",
+    };
   }
 }
 
 export async function syncApplicationAnswersToUniversalProfile(
-  applicationId: string,
+  applicationId: string
 ): Promise<{ savedCount?: number; skippedCount?: number; error?: string }> {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
     const { data: application, error: applicationError } = await adminClient
       .from("applications")
-      .select("id, applicant_id, visa_type")
+      .select("id, applicant_id, visa_type, purpose")
       .eq("id", applicationId)
       .maybeSingle();
     if (applicationError) return { error: applicationError.message };
     if (!application?.applicant_id) return { error: "Application not found" };
+    if (isQaDryRunPurpose(application.purpose)) {
+      return {
+        error: "QA dry-run answers cannot be copied into Universal Profile.",
+      };
+    }
 
-    const ownerResult = await loadApplicationOwnerProfile(adminClient, application.applicant_id);
+    const ownerResult = await loadApplicationOwnerProfile(
+      adminClient,
+      application.applicant_id
+    );
     if (ownerResult.error) return { error: ownerResult.error };
-    if (!ownsApplication(ownerResult.profile, user.id)) return { error: "Unauthorized" };
+    if (!ownsApplication(ownerResult.profile, user.id))
+      return { error: "Unauthorized" };
 
-    const [{ data: schemaRows, error: schemaError }, { data: answerRows, error: answerError }] = await Promise.all([
-      adminClient.from("visa_form_fields").select("*").eq("visa_type", application.visa_type),
-      adminClient.from("visa_application_answers").select("field_name, value_text").eq("application_id", applicationId),
+    const [
+      { data: schemaRows, error: schemaError },
+      { data: answerRows, error: answerError },
+    ] = await Promise.all([
+      adminClient
+        .from("visa_form_fields")
+        .select("*")
+        .eq("visa_type", application.visa_type),
+      adminClient
+        .from("visa_application_answers")
+        .select("field_name, value_text")
+        .eq("application_id", applicationId),
     ]);
     if (schemaError) return { error: schemaError.message };
     if (answerError) return { error: answerError.message };
 
     const fields = ((schemaRows ?? []) as VisaFormFieldDbRow[]).map((row) =>
-      normalizeBilingualFormField(dbRowToFormField(row)),
+      normalizeBilingualFormField(dbRowToFormField(row))
     );
-    const fieldsByName = new Map(fields.map((field) => [field.fieldName, field]));
+    const fieldsByName = new Map(
+      fields.map((field) => [field.fieldName, field])
+    );
     const answers = new Map(
-      ((answerRows ?? []) as Array<{ field_name: string; value_text: string | null }>)
-        .map((row) => [row.field_name, row.value_text?.trim() ?? ""] as const),
+      (
+        (answerRows ?? []) as Array<{
+          field_name: string;
+          value_text: string | null;
+        }>
+      ).map((row) => [row.field_name, row.value_text?.trim() ?? ""] as const)
     );
     const now = new Date().toISOString();
     const upserts: Record<string, unknown>[] = [];
@@ -999,23 +1223,46 @@ export async function syncApplicationAnswersToUniversalProfile(
     let skippedCount = 0;
 
     for (const [fieldName, value] of answers) {
-      if (!value || fieldName.endsWith("_zh") || fieldName.endsWith("_en") || fieldName.startsWith("__")) continue;
-      const { baseKey, repeatSuffix } = splitUniversalProfileRepeatKey(fieldName);
+      if (
+        !value ||
+        fieldName.endsWith("_zh") ||
+        fieldName.endsWith("_en") ||
+        fieldName.startsWith("__")
+      )
+        continue;
+      const { baseKey, repeatSuffix } =
+        splitUniversalProfileRepeatKey(fieldName);
       const field = fieldsByName.get(baseKey);
       if (!field || !isReusableUniversalProfileField(field)) {
         skippedCount += 1;
         continue;
       }
+      const valueZh = cleanOptional(answers.get(`${fieldName}_zh`));
+      const valueEn = cleanOptional(answers.get(`${fieldName}_en`));
+      if (
+        isSyntheticQaValue(value) ||
+        isSyntheticQaValue(valueZh) ||
+        isSyntheticQaValue(valueEn)
+      ) {
+        skippedCount += 1;
+        continue;
+      }
       const canonicalKey = `${canonicalizeUniversalProfileFieldName(baseKey)}${repeatSuffix}`;
-      const legacyColumn = repeatSuffix ? null : UNIVERSAL_TO_LEGACY_PROFILE_COLUMN[canonicalKey];
+      const legacyColumn = repeatSuffix
+        ? null
+        : UNIVERSAL_TO_LEGACY_PROFILE_COLUMN[canonicalKey];
       if (legacyColumn) {
         legacyProfilePatch[legacyColumn] = value;
-        const valueZh = cleanOptional(answers.get(`${fieldName}_zh`));
-        const valueEn = cleanOptional(answers.get(`${fieldName}_en`));
-        if (valueZh && UNIVERSAL_PROFILE_SAVE_FIELD_SET.has(`${legacyColumn}_zh`)) {
+        if (
+          valueZh &&
+          UNIVERSAL_PROFILE_SAVE_FIELD_SET.has(`${legacyColumn}_zh`)
+        ) {
           legacyProfilePatch[`${legacyColumn}_zh`] = valueZh;
         }
-        if (valueEn && UNIVERSAL_PROFILE_SAVE_FIELD_SET.has(`${legacyColumn}_en`)) {
+        if (
+          valueEn &&
+          UNIVERSAL_PROFILE_SAVE_FIELD_SET.has(`${legacyColumn}_en`)
+        ) {
           legacyProfilePatch[`${legacyColumn}_en`] = valueEn;
         }
       }
@@ -1024,12 +1271,15 @@ export async function syncApplicationAnswersToUniversalProfile(
         auth_user_id: user.id,
         canonical_key: canonicalKey,
         value_text: value,
-        value_zh: cleanOptional(answers.get(`${fieldName}_zh`)),
-        value_en: cleanOptional(answers.get(`${fieldName}_en`)),
+        value_zh: valueZh,
+        value_en: valueEn,
         label_zh: getChineseLabel(field.label),
         label_en: getEnglishLabel(field.label),
         field_type: field.fieldType,
-        category: getUniversalProfileCategory(canonicalKey, field.stepName ?? ""),
+        category: getUniversalProfileCategory(
+          canonicalKey,
+          field.stepName ?? ""
+        ),
         source_application_id: applicationId,
         source_visa_type: application.visa_type,
         source_field_name: fieldName,
@@ -1043,7 +1293,9 @@ export async function syncApplicationAnswersToUniversalProfile(
       .from("universal_profile_answers")
       .upsert(upserts, { onConflict: "auth_user_id,canonical_key" });
     if (upsertError) {
-      if (isMissingSchemaFeatureError(upsertError, ["universal_profile_answers"])) {
+      if (
+        isMissingSchemaFeatureError(upsertError, ["universal_profile_answers"])
+      ) {
         return { error: "Universal Profile schema is not installed" };
       }
       return { error: upsertError.message };
@@ -1059,7 +1311,12 @@ export async function syncApplicationAnswersToUniversalProfile(
 
     return { savedCount: upserts.length, skippedCount };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Failed to update universal profile" };
+    return {
+      error:
+        err instanceof Error
+          ? err.message
+          : "Failed to update universal profile",
+    };
   }
 }
 
@@ -1078,7 +1335,10 @@ export async function ensureDraftApplication(
 
     const adminClient = createAdminClient();
 
-    const profileResult = await loadCurrentApplicantProfileForSession(adminClient, session);
+    const profileResult = await loadCurrentApplicantProfileForSession(
+      adminClient,
+      session
+    );
     if (profileResult.error) return { error: profileResult.error };
     const profile = profileResult.profile;
     if (!profile?.id) return { error: "Profile not found" };
@@ -1096,29 +1356,47 @@ export async function ensureDraftApplication(
       ? activePackage?.visa_packages[0]
       : activePackage?.visa_packages;
 
-    const resolvedCountry = getCanonicalVisaDestinationCountry(options.preferExplicit ? country : pkg?.country ?? country);
-    const resolvedVisaType = getFormVisaType(options.preferExplicit ? visaType : pkg?.visa_type ?? visaType);
+    const resolvedCountry = getCanonicalVisaDestinationCountry(
+      options.preferExplicit ? country : (pkg?.country ?? country)
+    );
+    const resolvedVisaType = getFormVisaType(
+      options.preferExplicit ? visaType : (pkg?.visa_type ?? visaType)
+    );
     const resolvedVisaPackageId = options.preferExplicit
       ? null
-      : activePackage?.visa_package_id ?? pkg?.id ?? null;
+      : (activePackage?.visa_package_id ?? pkg?.id ?? null);
 
-    // Check for existing application for the same package/type first
-    let existingQuery = adminClient
+    // Application identity is applicant + canonical country + visa type. A
+    // package assignment enriches that application; it must not create a
+    // second draft when an older row has no visa_package_id.
+    const { data: applicationRows, error: existingError } = await adminClient
       .from("applications")
-      .select("id")
+      .select(
+        "id, country, visa_type, purpose, status, visa_package_id, submission_result_status, result_status, submission_result"
+      )
       .eq("applicant_id", profile.id)
-      .eq("country", resolvedCountry)
-      .eq("visa_type", resolvedVisaType)
-      .order("created_at", { ascending: false })
-      .limit(1);
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
 
-    if (resolvedVisaPackageId) {
-      existingQuery = existingQuery.eq("visa_package_id", resolvedVisaPackageId);
+    if (existingError) return { error: existingError.message };
+    const existing = findOngoingApplicationByIdentity(
+      applicationRows ?? [],
+      resolvedCountry,
+      resolvedVisaType
+    );
+
+    if (existing) {
+      if (resolvedVisaPackageId && !existing.visa_package_id) {
+        await adminClient
+          .from("applications")
+          .update({
+            visa_package_id: resolvedVisaPackageId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+      }
+      return { applicationId: existing.id, created: false };
     }
-
-    const { data: existing } = await existingQuery.maybeSingle();
-
-    if (existing) return { applicationId: existing.id, created: false };
 
     const { data: newApp, error: appError } = await adminClient
       .from("applications")
@@ -1132,30 +1410,56 @@ export async function ensureDraftApplication(
       .select("id")
       .single();
 
-    if (appError) return { error: appError.message };
+    if (appError?.code === "23505") {
+      const { data: concurrentRows, error: concurrentError } = await adminClient
+        .from("applications")
+        .select(
+          "id, country, visa_type, purpose, status, visa_package_id, submission_result_status, result_status, submission_result"
+        )
+        .eq("applicant_id", profile.id)
+        .order("updated_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
+      if (concurrentError) return { error: concurrentError.message };
+      const concurrent = findOngoingApplicationByIdentity(
+        concurrentRows ?? [],
+        resolvedCountry,
+        resolvedVisaType
+      );
+      if (concurrent) return { applicationId: concurrent.id, created: false };
+    }
+    if (appError || !newApp)
+      return { error: appError?.message ?? "Failed to create application" };
 
     const reusableResult = await loadReusableProfileAnswers(
       adminClient,
-      session.authUserId ?? profile.auth_user_id ?? session.userId,
+      session.authUserId ?? profile.auth_user_id ?? session.userId
     );
     if (reusableResult.error) return { error: reusableResult.error };
     const seedProfile: SeedableUniversalProfile = {
       ...profile,
       reusable_answers: reusableResult.answers,
     };
-    const seedError = await seedNewApplicationFromUniversalProfile(adminClient, newApp.id, profile.id, seedProfile);
+    const seedError = await seedNewApplicationFromUniversalProfile(
+      adminClient,
+      newApp.id,
+      profile.id,
+      seedProfile
+    );
     if (seedError) return { error: seedError };
 
     return { applicationId: newApp.id, created: true };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Failed to create application" };
+    return {
+      error:
+        err instanceof Error ? err.message : "Failed to create application",
+    };
   }
 }
 
 export async function loadApplicationFormContext(
   country: string,
   visaType: string,
-  options: { preferExplicit?: boolean } = {},
+  options: { preferExplicit?: boolean } = {}
 ): Promise<{
   profile?: SeedableUniversalProfile;
   application?: Record<string, unknown> | null;
@@ -1166,7 +1470,10 @@ export async function loadApplicationFormContext(
     if (!session) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
-    const profileResult = await loadCurrentApplicantProfileForSession(adminClient, session);
+    const profileResult = await loadCurrentApplicantProfileForSession(
+      adminClient,
+      session
+    );
     if (profileResult.error) return { error: profileResult.error };
     const profile = profileResult.profile;
     if (!profile?.id) return { error: "Profile not found" };
@@ -1181,30 +1488,50 @@ export async function loadApplicationFormContext(
     if (error) return { error: error.message };
 
     const resolvedVisaType = getFormVisaType(visaType);
-    const applications = (applicationRows ?? []) as Record<string, unknown>[];
+    const applications = (applicationRows ?? []).filter(
+      (row) => !isQaDryRunPurpose(row.purpose)
+    ) as Record<string, unknown>[];
+    const matchingApplications = applications.filter((row) =>
+      applicationIdentityMatches(row, country, resolvedVisaType)
+    );
     const application =
-      applications.find(
-        (row) =>
-          String(row.country).toLowerCase() === country.toLowerCase() &&
-          getFormVisaType(String(row.visa_type)).toLowerCase() === resolvedVisaType.toLowerCase(),
+      findOngoingApplicationByIdentity(
+        matchingApplications,
+        country,
+        resolvedVisaType
       ) ??
-      (options.preferExplicit ? null : applications[0] ?? null);
+      matchingApplications[0] ??
+      (options.preferExplicit ? null : (applications[0] ?? null));
 
     const reusableResult = await loadReusableProfileAnswers(
       adminClient,
-      session.authUserId ?? profile.auth_user_id ?? session.userId,
+      session.authUserId ?? profile.auth_user_id ?? session.userId
     );
     if (reusableResult.error) return { error: reusableResult.error };
+
+    const customerApplication = application
+      ? {
+          ...application,
+          submission_result: sanitizeCustomerSubmissionResult(
+            application.submission_result
+          ),
+        }
+      : null;
 
     return {
       profile: {
         ...profile,
         reusable_answers: reusableResult.answers,
       },
-      application,
+      application: customerApplication,
     };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Failed to load application context" };
+    return {
+      error:
+        err instanceof Error
+          ? err.message
+          : "Failed to load application context",
+    };
   }
 }
 
@@ -1219,11 +1546,13 @@ const SIMPLIFIED_FORM_STATE_KEY = "__simplified_form_state";
 
 export async function saveSimplifiedFormState(
   applicationId: string,
-  state: { form: unknown; stepIndex: number },
+  state: { form: unknown; stepIndex: number }
 ): Promise<{ error?: string }> {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
@@ -1260,22 +1589,29 @@ export async function saveSimplifiedFormState(
             updated_at: new Date().toISOString(),
           },
         ],
-        { onConflict: "application_id,field_name" },
+        { onConflict: "application_id,field_name" }
       );
     if (upsertError) return { error: upsertError.message };
 
     return {};
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Failed to save state" };
+    return {
+      error: err instanceof Error ? err.message : "Failed to save state",
+    };
   }
 }
 
 export async function loadSimplifiedFormState(
-  applicationId: string,
-): Promise<{ state?: { form: unknown; stepIndex: number; savedAt?: string }; error?: string }> {
+  applicationId: string
+): Promise<{
+  state?: { form: unknown; stepIndex: number; savedAt?: string };
+  error?: string;
+}> {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
@@ -1295,8 +1631,10 @@ export async function loadSimplifiedFormState(
         return {
           state: {
             form: parsed.form,
-            stepIndex: typeof parsed.stepIndex === "number" ? parsed.stepIndex : 0,
-            savedAt: typeof parsed.savedAt === "string" ? parsed.savedAt : undefined,
+            stepIndex:
+              typeof parsed.stepIndex === "number" ? parsed.stepIndex : 0,
+            savedAt:
+              typeof parsed.savedAt === "string" ? parsed.savedAt : undefined,
           },
         };
       }
@@ -1305,7 +1643,9 @@ export async function loadSimplifiedFormState(
       return {};
     }
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Failed to load state" };
+    return {
+      error: err instanceof Error ? err.message : "Failed to load state",
+    };
   }
 }
 
@@ -1319,7 +1659,10 @@ export async function loadDynamicAnswers(
     const session = await getClientSessionWithFallback();
     if (!session) return { answers: {}, error: "Not authenticated" };
 
-    const adminClient = createAdminClient({ requestTimeoutMs: 4_000, retryDelaysMs: [] });
+    const adminClient = createAdminClient({
+      requestTimeoutMs: 4_000,
+      retryDelaysMs: [],
+    });
 
     const { data: app, error: appError } = await adminClient
       .from("applications")
@@ -1328,17 +1671,27 @@ export async function loadDynamicAnswers(
       .maybeSingle();
 
     if (appError && isResilienceEligibleError(appError.message)) {
-      const cached = await loadCachedApplicationAnswers(session.userId, applicationId);
+      const cached = await loadCachedApplicationAnswers(
+        session.userId,
+        applicationId
+      );
       if (cached) return { answers: cached.answers };
     }
     if (appError) return { answers: {}, error: appError.message };
-    if (!app?.applicant_id) return { answers: {}, error: "Application not found" };
+    if (!app?.applicant_id)
+      return { answers: {}, error: "Application not found" };
 
-    const { profile, error: profileError } = await loadApplicationOwnerProfile(adminClient, app.applicant_id);
+    const { profile, error: profileError } = await loadApplicationOwnerProfile(
+      adminClient,
+      app.applicant_id
+    );
 
     if (profileError) {
       if (isResilienceEligibleError(profileError)) {
-        const cached = await loadCachedApplicationAnswers(session.userId, applicationId);
+        const cached = await loadCachedApplicationAnswers(
+          session.userId,
+          applicationId
+        );
         if (cached) return { answers: cached.answers };
       }
       return { answers: {}, error: profileError };
@@ -1354,7 +1707,10 @@ export async function loadDynamicAnswers(
 
     if (error) {
       if (isResilienceEligibleError(error.message)) {
-        const cached = await loadCachedApplicationAnswers(session.userId, applicationId);
+        const cached = await loadCachedApplicationAnswers(
+          session.userId,
+          applicationId
+        );
         if (cached) return { answers: cached.answers };
       }
       return { answers: {}, error: error.message };
@@ -1381,7 +1737,7 @@ export async function loadDynamicAnswers(
         "actions/visa-application-answers:loadDynamicAnswers",
         app.applicant_id,
         ["form_answers"],
-        { applicationId, purpose: "self_view" },
+        { applicationId, purpose: "self_view" }
       );
     }
 
@@ -1391,13 +1747,19 @@ export async function loadDynamicAnswers(
       const session = await getClientSessionWithFallback();
       if (session) {
         try {
-          const cached = await loadCachedApplicationAnswers(session.userId, applicationId);
+          const cached = await loadCachedApplicationAnswers(
+            session.userId,
+            applicationId
+          );
           if (cached) return { answers: cached.answers };
         } catch {
           // Return the original provider error below.
         }
       }
     }
-    return { answers: {}, error: err instanceof Error ? err.message : "Failed to load" };
+    return {
+      answers: {},
+      error: err instanceof Error ? err.message : "Failed to load",
+    };
   }
 }

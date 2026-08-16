@@ -24,6 +24,7 @@ import {
   type ApplicationLifecycleSummary,
 } from "@/app/actions/application-lifecycle";
 import { SmoothProgressBar } from "@/components/smooth-progress";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { cn } from "@/lib/utils";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 import { getFormVisaType } from "@/lib/visa-destinations";
@@ -560,9 +561,10 @@ function DetailView({
                 {visaTypeLabel}
               </p>
               {summary.latestSubmission?.lastError && (
-                <p className="mt-3 rounded-[8px] border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] text-[#71717a]">
-                  {summary.latestSubmission.lastError}
-                </p>
+                <ClientErrorAlert
+                  className="mt-3"
+                  message={summary.latestSubmission.lastError}
+                />
               )}
             </div>
           </div>

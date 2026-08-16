@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Check, CaretUpDown as ChevronsUpDown, MagnifyingGlass as Search } from "@phosphor-icons/react";
+import { CircleFlag } from "react-circle-flags";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -11,6 +12,7 @@ type ApplicationSelectOption = {
   value: string;
   text: string;
   searchText?: string;
+  flagCountryCode?: string;
 };
 
 type ApplicationSearchableMultiSelectProps = {
@@ -274,6 +276,30 @@ function parseMultiSelectValue(value: string): string[] {
   return value.split(",").map((part) => part.trim()).filter(Boolean);
 }
 
+function ApplicationOptionFlag({
+  countryCode,
+  reserveSpace = false,
+}: {
+  countryCode?: string;
+  reserveSpace?: boolean;
+}) {
+  if (!countryCode) {
+    return reserveSpace ? <span className="h-5 w-5 shrink-0" aria-hidden="true" /> : null;
+  }
+
+  return (
+    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full">
+      <CircleFlag
+        countryCode={countryCode.toLowerCase()}
+        height={20}
+        width={20}
+        alt=""
+        aria-hidden="true"
+      />
+    </span>
+  );
+}
+
 function ApplicationSearchableMultiSelect({
   value,
   onValueChange,
@@ -304,10 +330,7 @@ function ApplicationSearchableMultiSelect({
     ? "搜索中文、英文或官方选项..."
     : "Search Chinese, English, or official option...";
   const emptyText = sideLocale === "zh" ? "没有匹配选项" : "No matching options";
-  const summary = selectedOptions.length > 0
-    ? selectedOptions.slice(0, 2).map((option) => option.text).join(", ")
-      + (selectedOptions.length > 2 ? ` +${selectedOptions.length - 2}` : "")
-    : placeholder;
+  const hasFlagOptions = options.some((option) => Boolean(option.flagCountryCode));
 
   const toggleValue = (nextValue: string) => {
     const normalized = nextValue.toLowerCase();
@@ -348,9 +371,21 @@ function ApplicationSearchableMultiSelect({
             disabled && "cursor-not-allowed opacity-70",
           )}
         >
-          <span className={cn("line-clamp-2", selectedOptions.length === 0 && "text-muted-foreground")}>
-            {summary}
-          </span>
+          {selectedOptions.length > 0 ? (
+            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              {selectedOptions.slice(0, 2).map((option) => (
+                <span key={option.value} className="inline-flex min-w-0 items-center gap-1.5">
+                  <ApplicationOptionFlag countryCode={option.flagCountryCode} />
+                  <span className="truncate">{option.text}</span>
+                </span>
+              ))}
+              {selectedOptions.length > 2 ? (
+                <span className="shrink-0">+{selectedOptions.length - 2}</span>
+              ) : null}
+            </span>
+          ) : (
+            <span className="line-clamp-2 text-muted-foreground">{placeholder}</span>
+          )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
         </ApplicationFormDropdownTrigger>
       </PopoverTrigger>
@@ -361,32 +396,31 @@ function ApplicationSearchableMultiSelect({
         className="w-[--radix-popover-trigger-width] overflow-hidden rounded-[var(--application-control-radius)] p-0 shadow-none"
         style={{ maxHeight: "min(320px, calc(100vh - 180px))" }}
       >
-        <div className="border-b p-2">
-          <div className="application-form-control flex h-10 min-h-0 items-center gap-2 px-3">
-            <Search className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={searchPlaceholder}
-              className="h-full min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-gray-400"
-              autoFocus
-            />
-          </div>
-          {selectedOptions.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {selectedOptions.slice(0, 6).map((option) => (
-                <button
-                  type="button"
-                  key={option.value}
-                  className="rounded-full bg-brand-50 px-2 py-1 text-xs text-brand-500"
-                  onClick={() => toggleValue(option.value)}
-                >
-                  {option.text}
-                </button>
-              ))}
-            </div>
-          ) : null}
+        <div className="flex items-center border-b px-3">
+          <Search className="mr-2 h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={searchPlaceholder}
+            className="h-10 min-w-0 flex-1 border-0 bg-transparent py-3 text-[14px] outline-none placeholder:text-gray-400"
+            autoFocus
+          />
         </div>
+        {selectedOptions.length > 0 ? (
+          <div className="flex flex-wrap gap-1 border-b px-3 py-2">
+            {selectedOptions.slice(0, 6).map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2 py-1 text-xs text-brand-500"
+                onClick={() => toggleValue(option.value)}
+              >
+                <ApplicationOptionFlag countryCode={option.flagCountryCode} />
+                {option.text}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div
           className="overscroll-auto overflow-y-auto p-1"
           style={{ maxHeight: "min(200px, calc(100vh - 280px))" }}
@@ -409,6 +443,10 @@ function ApplicationSearchableMultiSelect({
                   <Check
                     className={cn("h-4 w-4 shrink-0 text-brand-500", checked ? "opacity-100" : "opacity-0")}
                     aria-hidden="true"
+                  />
+                  <ApplicationOptionFlag
+                    countryCode={option.flagCountryCode}
+                    reserveSpace={hasFlagOptions}
                   />
                   <span className="min-w-0 break-words">{option.text}</span>
                 </button>

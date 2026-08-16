@@ -3,11 +3,11 @@ import { mapRunnerJobStatus } from "./runner-lifecycle";
 
 /** POR-011: runner_job lifecycle mapping for the status hub. */
 describe("mapRunnerJobStatus", () => {
-  it("halt-before-gov-pay → actionable 'pay government fee' step", () => {
+  it("halt-before-gov-pay stays with VIZA and does not ask the applicant to pay", () => {
     const lc = mapRunnerJobStatus("succeeded", { outcome: "halted_before_pay" });
-    expect(lc.phase).toBe("action_required");
-    expect(lc.actionable).toBe(true);
-    expect(lc.label).toMatch(/government fee/i);
+    expect(lc.phase).toBe("in_progress");
+    expect(lc.actionable).toBe(false);
+    expect(lc.label).toMatch(/VIZA.*official-fee payment/i);
   });
 
   it("dead_letter → support-contact state", () => {

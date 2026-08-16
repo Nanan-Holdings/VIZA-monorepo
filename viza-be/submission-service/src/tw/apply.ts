@@ -65,12 +65,19 @@ import { acceptTermsModal } from "./terms-modal";
 import { dismissTwPhotoSpecModalIfPresent } from "./photo-spec-modal";
 import { fillTwDeliveryLocationTabStrict } from "./delivery-location";
 import {
-  assertTwOfficialValidationGate,
   collectTwOfficialValidationIssues,
   runTwRepairSubmissionLoop,
   type TwRepairOperation,
 } from "./repair-loop";
 import { writeTwContractFixture } from "./contract-fixture";
+import {
+  assertTwOfficialTermsConsentAudit,
+  type TwOfficialTermsConsentAudit,
+} from "./official-terms-consent";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "../queue/execution-context";
 
 export interface TwApplyInput {
   applicantId: string;
@@ -103,15 +110,11 @@ export interface TwApplyOptions {
    * readiness, but do not click the official final "確認資料" submit control. */
   stopBeforeFinalSubmit?: boolean;
   /** @deprecated use stopBeforeFinalSubmit. Kept temporarily for local callers. */
-  mode?: "submit" | "pre_submit" | "applicant_handoff";
-  /**
-   * Called only after the official form, uploads, validation, and final
-   * CAPTCHA fill are complete in a Browserbase session. The callback exposes
-   * the same live page to the applicant and resolves only after it captures
-   * official receipt evidence from the applicant's final click.
-   */
-  onApplicantHandoffReady?: (input: TwApplicantHandoffReady) => Promise<TwOfficialReceiptEvidence>;
-  applicantHandoffTimeoutSeconds?: number;
+  mode?: "submit" | "pre_submit";
+  /** Auditable VIZA confirmation of the two distinct official terms actions. */
+  officialTermsConsent?: TwOfficialTermsConsentAudit;
+  /** Live runner lease used to abort the browser and fence final submission. */
+  executionContext?: RunnerExecutionContext;
   /**
    * Local filesystem paths for the "應檢附文件" (supporting documents)
    * section — confirmed live to be a real, required upload block whose
@@ -191,16 +194,6 @@ export type TwFillResult =
       url?: string;
       contractFixturePath?: string;
     };
-
-export interface TwApplicantHandoffReady {
-  page: Page;
-  session: TwSession;
-  portalUrl: string;
-  pagesFilled: string[];
-  capturedAt: string;
-  runMetadata: TwRunMetadata;
-  captchaSolve: TwCaptchaSolveWithTelemetry;
-}
 
 export type TwPortalCheckpoint =
   | "entry"
@@ -999,6 +992,10 @@ export async function fillTwEntryPermitApplication(
   input: TwApplyInput,
   options: TwApplyOptions = {},
 ): Promise<TwFillResult> {
+  const formalSubmit = !options.stopBeforeFinalSubmit && options.mode !== "pre_submit";
+  if (formalSubmit) {
+    assertTwOfficialTermsConsentAudit(options.officialTermsConsent);
+  }
   const maxAttempts = options.stopBeforeFinalSubmit || options.mode === "pre_submit" ? 3 : 1;
   let lastResult: TwFillResult | null = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -1018,8 +1015,7 @@ async function fillTwEntryPermitApplicationOnce(
   options: TwApplyOptions = {},
 ): Promise<TwFillResult> {
   const headless = options.headless ?? true;
-  const applicantHandoff = options.mode === "applicant_handoff";
-  const stopBeforeFinalSubmit = options.stopBeforeFinalSubmit ?? (options.mode === "pre_submit" || applicantHandoff);
+  const stopBeforeFinalSubmit = options.stopBeforeFinalSubmit ?? options.mode === "pre_submit";
   const mode = stopBeforeFinalSubmit ? "pre_submit" : "submit";
   const emailVerificationTimeoutMs = options.emailVerificationTimeoutMs ?? 120_000;
   const officialLoginProvider = options.officialLoginProvider ?? twFailClosedOfficialLoginProvider;
@@ -1029,6 +1025,7 @@ async function fillTwEntryPermitApplicationOnce(
   const fieldAudit: TwFieldVerificationEntry[] = [];
   let officialLoginAuth: { officialLogin: "authenticated"; method: string } | null = null;
   let session: TwSession | null = null;
+  let abortListener: (() => void) | null = null;
   let emailVerified = false;
   let checkpoint: TwPortalCheckpoint = "unknown";
 
@@ -1036,9 +1033,12 @@ async function fillTwEntryPermitApplicationOnce(
     session = await startTwSession({
       headless,
       runId: options.runId,
-      applicantHandoff,
-      handoffTimeoutSeconds: options.applicantHandoffTimeoutSeconds,
     });
+    abortListener = () => {
+      void session?.close().catch(() => undefined);
+    };
+    options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+    options.executionContext?.assertOwned();
     const { page } = session;
 
     officialLoginAuth = await maybeCompleteOfficialLoginIfPresent(
@@ -1103,7 +1103,9 @@ async function fillTwEntryPermitApplicationOnce(
       mode,
       validate: () => collectTwOfficialValidationIssues(page),
       prepareSubmit: () => solveTwCaptchaForSubmitWithRetry(page),
-      submit: () => solveTwCaptchaAndSubmitWithRetry(page),
+      submit: () => solveTwCaptchaAndSubmitWithRetry(page, {
+        beforeFinalSubmit: () => options.executionContext?.checkpoint("taiwan final official submit"),
+      }),
       readReceipt: () => readTwOfficialReceiptEvidence(page),
       maxRounds: 3,
     });
@@ -1135,34 +1137,7 @@ async function fillTwEntryPermitApplicationOnce(
           controls: [...new Set(fieldAudit.map((entry) => entry.controlName))].slice(0, 80),
         },
       } as const;
-      if (!applicantHandoff) return readyResult;
-      if (!session.handoff || !options.onApplicantHandoffReady) {
-        throw new Error("Taiwan applicant handoff requires a live Browserbase session and handoff callback");
-      }
-      await assertTwOfficialValidationGate(page, operations);
-      pagesFilled.push("official_validation_gate");
-      const officialReceipt = await options.onApplicantHandoffReady({
-        page,
-        session,
-        portalUrl: readyResult.portalUrl,
-        pagesFilled: readyResult.pagesFilled,
-        capturedAt: readyResult.capturedAt,
-        runMetadata,
-        captchaSolve: repairResult.captchaSolve,
-      });
-      pagesFilled.push("applicant_final_submit");
-      return {
-        status: "submitted",
-        checkpoint: "submitted_receipt",
-        caseNumber: officialReceipt.caseNumber,
-        portalUrl: officialReceipt.portalUrl,
-        pagesFilled,
-        capturedAt: readyResult.capturedAt,
-        submittedAt: officialReceipt.capturedAt,
-        officialReceipt,
-        runMetadata,
-        captchaSolve: repairResult.captchaSolve,
-      };
+      return readyResult;
     }
 
     const caseNumber = repairResult.receipt.caseNumber;
@@ -1179,6 +1154,10 @@ async function fillTwEntryPermitApplicationOnce(
       captchaSolve: repairResult.captchaSolve,
     };
   } catch (err) {
+    if (err instanceof RunnerJobOwnershipLostError) throw err;
+    if (options.executionContext?.signal.aborted) {
+      options.executionContext.assertOwned();
+    }
     if (err instanceof TwOfficialLoginConfigurationError) {
       throw err;
     }
@@ -1202,6 +1181,7 @@ async function fillTwEntryPermitApplicationOnce(
       ...(contractFixturePath ? { contractFixturePath } : {}),
     };
   } finally {
+    if (abortListener) options.executionContext?.signal.removeEventListener("abort", abortListener);
     if (session) await session.close();
   }
 }

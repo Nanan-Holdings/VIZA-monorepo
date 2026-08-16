@@ -190,7 +190,7 @@ export function buildHaltedStuckAlert(input: HaltedStuckInput): AlertInput {
     title: `Halted job awaiting payment (${input.country})`,
     body:
       `Job ${input.jobId.slice(0, 8)} has been halted before government payment for ` +
-      `${input.ageHours}h. The applicant may need a nudge to pay the government fee.`,
+      `${input.ageHours}h. Staff should review the VIZA-managed government-fee payment.`,
     jobId: input.jobId,
     applicationId: input.applicationId,
     throttleSeconds: 6 * 60 * 60,

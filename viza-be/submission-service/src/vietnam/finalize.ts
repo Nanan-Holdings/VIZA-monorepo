@@ -8,7 +8,7 @@ import { extractAuto } from "../inbox/extractors/index.js";
  *
  * VN flow:
  *   1. Runner (run.ts) prefills + halts at the registration code.
- *   2. Applicant pays manually on evisa.gov.vn (PAY-003 = applicant_direct_link).
+ *   2. VIZA pays on evisa.gov.vn with the application-scoped virtual card.
  *   3. ~3 working days later, evisa@xuatnhapcanh.gov.vn emails the e-Visa PDF.
  *
  * `waitForVietnamEvisa` polls the inbox until that email arrives,

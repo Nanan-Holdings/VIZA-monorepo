@@ -67,17 +67,32 @@ function getDescription(
   step: StatusStep,
   t: TimelineTranslator,
 ) {
-  if (step.key === "form") return t("metrics.answers", { count: application.formAnswerCount });
+  const descriptionState = step.state === "complete" ? "completed" : "pending";
+
+  if (step.key === "form") {
+    return t(`steps.form.descriptions.${descriptionState}`, {
+      count: application.formAnswerCount,
+    });
+  }
   if (step.key === "documents") {
-    return t("metrics.documents", {
+    if (step.state === "complete" && application.documents.total === 0) {
+      return t("steps.documents.descriptions.completedNoRequirements");
+    }
+    return t(`steps.documents.descriptions.${descriptionState}`, {
       ready: application.documents.uploaded + application.documents.validated,
       total: application.documents.total,
     });
   }
-  if (step.key === "handoff" && application.officialReference) {
-    return t("metrics.reference", { reference: application.officialReference });
+  if (
+    step.key === "handoff" &&
+    step.state === "complete" &&
+    application.officialReference
+  ) {
+    return t("steps.handoff.descriptions.completedWithReference", {
+      reference: application.officialReference,
+    });
   }
-  return t(`steps.${step.key}.description`);
+  return t(`steps.${step.key}.descriptions.${descriptionState}`);
 }
 
 function TaskCard({

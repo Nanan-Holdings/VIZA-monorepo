@@ -17,6 +17,7 @@ import {
   loadLiveSubmissionSummaries,
   type LiveSubmissionSummary,
 } from "@/lib/submission-live-status";
+import { isQaDryRunPurpose } from "@/lib/applications/qa-safety";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 export type StatusStepKey =
@@ -222,6 +223,7 @@ interface ApplicationRow {
   applicant_id: string;
   country: string;
   visa_type: string;
+  purpose: string | null;
   status: string;
   created_at: string | null;
   updated_at: string | null;
@@ -359,7 +361,7 @@ const ARRIVAL_CARD_VISA_TYPES = new Set([
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
 const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
 const APPLICATION_STATUS_SELECT =
-  "id, applicant_id, country, visa_type, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, submission_result, submission_result_status, submission_result_updated_at, government_fee_cents, government_fee_currency, government_fee_mode";
+  "id, applicant_id, country, visa_type, purpose, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, submission_result, submission_result_status, submission_result_updated_at, government_fee_cents, government_fee_currency, government_fee_mode";
 
 const MAX_LIVE_STATUS_APPLICATIONS = 20;
 const MAX_RECENT_LIVE_STATUS_APPLICATIONS = 12;
@@ -1591,7 +1593,9 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   // full application list for the history selector, but enrich only the
   // current/recent subset with live queue data.
   applications = applications.filter(
-    (application) => !sgacEmailLinkedApplicationIds.has(application.id) || submissionResultIsSubmitted(application),
+    (application) =>
+      !isQaDryRunPurpose(application.purpose) &&
+      (!sgacEmailLinkedApplicationIds.has(application.id) || submissionResultIsSubmitted(application)),
   );
 
   const applicationIds = applications.map((application) => application.id);

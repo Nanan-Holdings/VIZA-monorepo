@@ -16,6 +16,7 @@ export interface ApplicationRow {
   status: string;
   country: string;
   visa_type: string;
+  purpose?: string | null;
   visa_package_id: string | null;
   submission_result_status: string | null;
   submitted_at: string | null;
@@ -113,6 +114,7 @@ export function getProgressLabel(
 
 export function buildApplicationHref(application: ApplicationRow): string {
   return buildApplicationLongFormHref({
+    applicationId: application.id,
     country: application.country,
     visaType: application.visa_type,
   });

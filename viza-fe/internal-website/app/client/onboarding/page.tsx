@@ -4,8 +4,10 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { ArrowLeft, CircleNotch as Loader2 } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { createClient } from "@/lib/supabase/client";
 import { getUserVisaPackage } from "@/app/actions/user-package";
+import { ensureDraftApplication } from "@/app/actions/visa-application-answers";
 import { getOnboardingCopy, type OnboardingCopy } from "./copy";
 
 // ---------------------------------------------------------------------------
@@ -47,7 +49,12 @@ interface OnboardingData {
 
 const defaultData: OnboardingData = {
   personal: { fullName: "", dateOfBirth: "", nationality: "" },
-  passport: { passportNumber: "", issueDate: "", expiryDate: "", issuingCountry: "" },
+  passport: {
+    passportNumber: "",
+    issueDate: "",
+    expiryDate: "",
+    issuingCountry: "",
+  },
   travel: { arrivalDate: "", departureDate: "", purpose: "" },
   contact: { email: "", phone: "", wechat: "" },
 };
@@ -56,8 +63,14 @@ const defaultData: OnboardingData = {
 // Progress bar for the passport and contact onboarding flow.
 // ---------------------------------------------------------------------------
 
-function OnboardingProgress({ currentStepIndex, copy }: { currentStepIndex: number; copy: OnboardingCopy }) {
-  const overallPercent = Math.round(((currentStepIndex) / STEPS.length) * 100);
+function OnboardingProgress({
+  currentStepIndex,
+  copy,
+}: {
+  currentStepIndex: number;
+  copy: OnboardingCopy;
+}) {
+  const overallPercent = Math.round((currentStepIndex / STEPS.length) * 100);
 
   return (
     <div className="flex-1 flex items-center justify-start">
@@ -82,21 +95,29 @@ function OnboardingProgress({ currentStepIndex, copy }: { currentStepIndex: numb
           const fillPercent = isComplete ? 100 : isActive ? 50 : 0;
 
           return (
-            <div key={step.id} className="flex flex-col items-center gap-2 h-[35px] flex-1">
+            <div
+              key={step.id}
+              className="flex flex-col items-center gap-2 h-[35px] flex-1"
+            >
               <div className="relative w-full h-[8px] rounded-full bg-[#EFEFEF] overflow-hidden">
                 {(isActive || isComplete) && (
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
                       width: `${fillPercent}%`,
-                      background: "linear-gradient(90deg, #7A9DCE 0%, #03346E 100%)",
+                      background:
+                        "linear-gradient(90deg, #7A9DCE 0%, #03346E 100%)",
                     }}
                   />
                 )}
               </div>
               <span
                 className={`text-[12px] leading-[1.6] font-medium transition-colors whitespace-nowrap text-center ${
-                  isActive ? "text-brand-500" : isComplete ? "text-brand-400" : "text-[#DCDCDC]"
+                  isActive
+                    ? "text-brand-500"
+                    : isComplete
+                      ? "text-brand-400"
+                      : "text-[#DCDCDC]"
                 }`}
               >
                 {copy.steps[step.id]}
@@ -122,7 +143,9 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-[6px]">
-      <label className="text-[13px] font-medium text-[#666] tracking-[-0.2px]">{label}</label>
+      <label className="text-[13px] font-medium text-[#666] tracking-[-0.2px]">
+        {label}
+      </label>
       {children}
     </div>
   );
@@ -149,8 +172,13 @@ export default function OnboardingPage() {
   useEffect(() => {
     async function check() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.replace("/client/login"); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace("/client/login");
+        return;
+      }
 
       const { data: profile } = await supabase
         .from("applicant_profiles")
@@ -170,7 +198,11 @@ export default function OnboardingPage() {
 
   const currentStep = STEPS[currentStepIndex];
 
-  const update = <K extends StepId>(step: K, field: keyof OnboardingData[K], value: string) => {
+  const update = <K extends StepId>(
+    step: K,
+    field: keyof OnboardingData[K],
+    value: string
+  ) => {
     setData((prev) => ({
       ...prev,
       [step]: { ...prev[step], [field]: value },
@@ -184,13 +216,19 @@ export default function OnboardingPage() {
   };
 
   const handleBack = () => {
-    if (currentStepIndex === 0) { window.history.back(); return; }
+    if (currentStepIndex === 0) {
+      window.history.back();
+      return;
+    }
     setCurrentStepIndex((i) => i - 1);
     setError(null);
   };
 
   const handleNext = async () => {
-    if (!isStepValid()) { setError(copy.errors.stepRequired); return; }
+    if (!isStepValid()) {
+      setError(copy.errors.stepRequired);
+      return;
+    }
     setError(null);
 
     if (currentStepIndex < STEPS.length - 1) {
@@ -202,7 +240,9 @@ export default function OnboardingPage() {
     setIsSaving(true);
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error(copy.errors.saveFailed);
 
       // Upsert applicant_profiles
@@ -237,17 +277,29 @@ export default function OnboardingPage() {
         .single()
         .then((r) => r.data?.id)) as string;
 
-      // Insert a package-aware draft application row with travel data
-      await supabase.from("applications").insert({
-        applicant_id: applicantId,
-        arrival_date: data.travel.arrivalDate || null,
-        departure_date: data.travel.departureDate || null,
-        purpose: data.travel.purpose || null,
-        status: "draft",
-        country: assignedPackage?.country ?? "indonesia",
-        visa_type: assignedPackage?.visa_type ?? "ID_C1_TOURIST",
-        visa_package_id: assignedPackage?.id ?? null,
-      });
+      // Reuse the package-aware draft when onboarding is retried or submitted
+      // concurrently. The database also enforces this identity.
+      const draftResult = await ensureDraftApplication(
+        assignedPackage?.country ?? "indonesia",
+        assignedPackage?.visa_type ?? "ID_C1_TOURIST"
+      );
+      if (draftResult.error || !draftResult.applicationId) {
+        throw new Error(
+          draftResult.error ?? "Application could not be created"
+        );
+      }
+      const { error: applicationError } = await supabase
+        .from("applications")
+        .update({
+          arrival_date: data.travel.arrivalDate || null,
+          departure_date: data.travel.departureDate || null,
+          purpose: data.travel.purpose || null,
+          visa_package_id: assignedPackage?.id ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", draftResult.applicationId)
+        .eq("applicant_id", applicantId);
+      if (applicationError) throw applicationError;
 
       router.replace("/client/home");
     } catch {
@@ -315,7 +367,9 @@ export default function OnboardingPage() {
                     className={inputClass}
                     placeholder={copy.fields.fullNamePlaceholder}
                     value={data.personal.fullName}
-                    onChange={(e) => update("personal", "fullName", e.target.value)}
+                    onChange={(e) =>
+                      update("personal", "fullName", e.target.value)
+                    }
                   />
                 </Field>
                 <Field label={copy.fields.dateOfBirth}>
@@ -323,7 +377,9 @@ export default function OnboardingPage() {
                     type="date"
                     className={inputClass}
                     value={data.personal.dateOfBirth}
-                    onChange={(e) => update("personal", "dateOfBirth", e.target.value)}
+                    onChange={(e) =>
+                      update("personal", "dateOfBirth", e.target.value)
+                    }
                   />
                 </Field>
                 <Field label={copy.fields.nationality}>
@@ -332,7 +388,9 @@ export default function OnboardingPage() {
                     className={inputClass}
                     placeholder={copy.fields.nationalityPlaceholder}
                     value={data.personal.nationality}
-                    onChange={(e) => update("personal", "nationality", e.target.value)}
+                    onChange={(e) =>
+                      update("personal", "nationality", e.target.value)
+                    }
                   />
                 </Field>
               </>
@@ -346,7 +404,9 @@ export default function OnboardingPage() {
                     className={inputClass}
                     placeholder={copy.fields.passportNumberPlaceholder}
                     value={data.passport.passportNumber}
-                    onChange={(e) => update("passport", "passportNumber", e.target.value)}
+                    onChange={(e) =>
+                      update("passport", "passportNumber", e.target.value)
+                    }
                   />
                 </Field>
                 <Field label={copy.fields.issueDate}>
@@ -354,7 +414,9 @@ export default function OnboardingPage() {
                     type="date"
                     className={inputClass}
                     value={data.passport.issueDate}
-                    onChange={(e) => update("passport", "issueDate", e.target.value)}
+                    onChange={(e) =>
+                      update("passport", "issueDate", e.target.value)
+                    }
                   />
                 </Field>
                 <Field label={copy.fields.expiryDate}>
@@ -362,7 +424,9 @@ export default function OnboardingPage() {
                     type="date"
                     className={inputClass}
                     value={data.passport.expiryDate}
-                    onChange={(e) => update("passport", "expiryDate", e.target.value)}
+                    onChange={(e) =>
+                      update("passport", "expiryDate", e.target.value)
+                    }
                   />
                 </Field>
                 <Field label={copy.fields.issuingCountry}>
@@ -371,7 +435,9 @@ export default function OnboardingPage() {
                     className={inputClass}
                     placeholder={copy.fields.issuingCountryPlaceholder}
                     value={data.passport.issuingCountry}
-                    onChange={(e) => update("passport", "issuingCountry", e.target.value)}
+                    onChange={(e) =>
+                      update("passport", "issuingCountry", e.target.value)
+                    }
                   />
                 </Field>
               </>
@@ -384,7 +450,9 @@ export default function OnboardingPage() {
                     type="date"
                     className={inputClass}
                     value={data.travel.arrivalDate}
-                    onChange={(e) => update("travel", "arrivalDate", e.target.value)}
+                    onChange={(e) =>
+                      update("travel", "arrivalDate", e.target.value)
+                    }
                   />
                 </Field>
                 <Field label={copy.fields.departureDate}>
@@ -392,20 +460,28 @@ export default function OnboardingPage() {
                     type="date"
                     className={inputClass}
                     value={data.travel.departureDate}
-                    onChange={(e) => update("travel", "departureDate", e.target.value)}
+                    onChange={(e) =>
+                      update("travel", "departureDate", e.target.value)
+                    }
                   />
                 </Field>
                 <Field label={copy.fields.purpose}>
                   <select
                     className={inputClass}
                     value={data.travel.purpose}
-                    onChange={(e) => update("travel", "purpose", e.target.value)}
+                    onChange={(e) =>
+                      update("travel", "purpose", e.target.value)
+                    }
                   >
                     <option value="">{copy.fields.purposePlaceholder}</option>
                     <option value="tourism">{copy.purposes.tourism}</option>
                     <option value="business">{copy.purposes.business}</option>
-                    <option value="social_cultural">{copy.purposes.socialCultural}</option>
-                    <option value="family_visit">{copy.purposes.familyVisit}</option>
+                    <option value="social_cultural">
+                      {copy.purposes.socialCultural}
+                    </option>
+                    <option value="family_visit">
+                      {copy.purposes.familyVisit}
+                    </option>
                   </select>
                 </Field>
               </>
@@ -437,18 +513,16 @@ export default function OnboardingPage() {
                     className={inputClass}
                     placeholder={copy.fields.wechatPlaceholder}
                     value={data.contact.wechat}
-                    onChange={(e) => update("contact", "wechat", e.target.value)}
+                    onChange={(e) =>
+                      update("contact", "wechat", e.target.value)
+                    }
                   />
                 </Field>
               </>
             )}
           </div>
 
-          {error && (
-            <div className="rounded-lg border border-[#e5e7eb] bg-white px-4 py-3 text-sm text-[#71717a]">
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
+          {error ? <ClientErrorAlert message={error} /> : null}
         </div>
       </div>
 
@@ -462,14 +536,19 @@ export default function OnboardingPage() {
           className="inline-flex h-[48px] w-full max-w-[420px] items-center justify-center rounded-full border border-black bg-black px-6 text-[14px] font-medium leading-[1.6] text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50 md:h-[52px] md:text-[16px]"
         >
           {isSaving ? (
-            <span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />{copy.actions.saving}</span>
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              {copy.actions.saving}
+            </span>
           ) : isLastStep ? (
             copy.actions.submit
           ) : (
             <>
               {copy.actions.next}
               <span className="ml-3 hidden items-center gap-2 text-[14px] text-white/80 md:inline-flex">
-                <kbd className="rounded border border-white/40 px-2 py-0.5 text-[12px] font-medium">⏎</kbd>
+                <kbd className="rounded border border-white/40 px-2 py-0.5 text-[12px] font-medium">
+                  ⏎
+                </kbd>
               </span>
             </>
           )}

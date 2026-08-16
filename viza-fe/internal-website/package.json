@@ -16,6 +16,7 @@
     "doctor:env": "tsx scripts/doctor-env.ts",
     "qa:create-schema-drafts": "tsx scripts/create-application-schema-qa-drafts.ts",
     "qa:audit-schema-drafts": "tsx scripts/audit-application-schema-qa.ts",
+    "qa:audit-schema-ui": "tsx scripts/audit-application-schema-ui.ts",
     "qa:fill-schema-drafts": "tsx scripts/fill-application-schema-qa-drafts.ts",
     "travel:audit-dropdown": "tsx scripts/audit-travel-dropdown-destinations.ts",
     "travel:coverage-report": "tsx scripts/audit-travel-dropdown-destinations.ts --strict --report",

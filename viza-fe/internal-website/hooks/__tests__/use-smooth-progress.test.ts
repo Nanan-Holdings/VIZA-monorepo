@@ -343,4 +343,48 @@ describe("useSmoothProgress", () => {
     );
     unmount();
   });
+
+  it("keeps the current run monotonic when it remounts with the accepted queue key", () => {
+    vi.useFakeTimers();
+    const provisionalKey = "submission-run:previous-queue";
+    const acceptedQueueKey = "submission-run:accepted-queue";
+    window.sessionStorage.setItem(
+      `viza:smooth-progress:${acceptedQueueKey}`,
+      "88",
+    );
+
+    const first = renderHook(() =>
+      useSmoothProgress({
+        serverProgress: 88,
+        status: "running",
+        intervalMs: 16,
+        persistenceKey: provisionalKey,
+        progressCycleKey: "same-payment-click",
+        resetPersistedProgressOnMount: true,
+      }),
+    );
+
+    expect(first.result.current.displayedProgress).toBe(0);
+    act(() => {
+      vi.advanceTimersByTime(48);
+    });
+    expect(first.result.current.displayedProgress).toBe(3);
+    first.unmount();
+
+    const accepted = renderHook(() =>
+      useSmoothProgress({
+        serverProgress: 88,
+        status: "running",
+        intervalMs: 16,
+        persistenceKey: acceptedQueueKey,
+        progressCycleKey: "same-payment-click",
+        resetPersistedProgressOnMount: true,
+      }),
+    );
+    expect(accepted.result.current.displayedProgress).toBe(3);
+    expect(
+      window.sessionStorage.getItem(`viza:smooth-progress:${acceptedQueueKey}`),
+    ).toBe("3");
+    accepted.unmount();
+  });
 });

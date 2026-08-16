@@ -178,7 +178,7 @@ RAG routing context:
 - 这样用户按编号压缩回答时，例如 `中国，新加坡，不知道，会去别的国家`，系统仍能沿用上一轮用户提到的 main destination（如 Switzerland），同时不会把 `新加坡` 误当成目的地。
 - application `visa_type` 只能在与解析出的 country 兼容时作为 fallback，避免默认 `tourist_b211a` 污染 Schengen/UK/U.S. 问题。
 - `buildCompactAnswerInterpretation()` 是独立于 RAG 的上下文解释层：它读取上一轮 assistant 的编号问题或天数分配问题，把当前短答案映射成 slot/day-split note 注入 system prompt。例如瑞士主目的地后回答 `中国护照，中国，7天，法国，意大利` 会保留 Switzerland 并把 France/Italy 识别为 other Schengen countries；法国/意大利天数问题后回答 `2，5` 会映射为 France 2 days / Italy 5 days。
-- 当前 RAG routing 以申请表/产品服务范围为边界。已开通服务的 Schengen 国家包括 Austria, Belgium, Bulgaria, Croatia, Czech Republic, Denmark, Estonia, Finland, France, Germany, Greece, Hungary, Iceland, Italy, Latvia, Liechtenstein, Lithuania, Luxembourg, Malta, Netherlands, Norway, Poland, Portugal, Romania, Slovakia, Slovenia, Spain, Sweden, Switzerland，统一走 `schengen_short_stay_tourism`。已开通服务的非 Schengen 国家/地区包括 Australia, Cambodia, Canada, Egypt, Hong Kong, India, Indonesia, Japan, Laos, Macau, Malaysia, Maldives, New Zealand, Philippines, Russia, Singapore, South Africa, South Korea, Sri Lanka, Thailand, Turkey, UAE, UK, US, Vietnam。识别到未开通服务的目的地时，VIZA 应明确说明暂未开通该国家/地区服务，不做详细 RAG requirements 回答，也不提供申请表链接。
+- 当前 RAG routing 以申请表/产品服务范围为边界。已开通服务的 Schengen 国家包括 Austria, Belgium, Bulgaria, Croatia, Czech Republic, Denmark, Estonia, Finland, France, Germany, Greece, Hungary, Iceland, Italy, Latvia, Liechtenstein, Lithuania, Luxembourg, Malta, Netherlands, Norway, Poland, Portugal, Romania, Slovakia, Slovenia, Spain, Sweden, Switzerland，统一走 `schengen_short_stay_tourism`。已开通服务的非 Schengen 国家/地区包括 Australia, Cambodia, Canada, Egypt, Hong Kong, India, Indonesia, Japan, Laos, Macau, Malaysia, Maldives, New Zealand, Philippines, Russia, Saudi Arabia, Singapore, South Africa, South Korea, Sri Lanka, Thailand, Turkey, UAE, UK, US, Vietnam。Canada、Türkiye、India、Saudi Arabia、UAE 分别使用 `CA_TRV`、`TR_E_VISA`、`IN_E_VISA`、`SA_E_VISA`、`AE_TOURIST_VISA`，旧的 generic route aliases 只能做兼容映射。识别到未开通服务的目的地时，VIZA 应明确说明暂未开通该国家/地区服务，不做详细 RAG requirements 回答，也不提供申请表链接。
 
 Structured conversation state:
 
@@ -293,7 +293,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 - `match_visa_chunks` RPC migration 已新增；应用 migration 后可启用 pgvector 相似度检索。
 - `/visa` Socket chat 已接入 RAG：每条用户消息会先检索 `visa_chunks`，再把知识上下文注入 VIZA AI 的 system prompt。
 - VIZA AI 的 system prompt 已改成多目的地签证助手，不再把自己定义为 Indonesia-only，也不会在用户没说目的地时默认查 Indonesia。
-- `/visa` 的 knowledge routing 已支持所有当前 Schengen Area 国家、Vietnam、UK、U.S.、Indonesia，以及 Singapore/Malaysia/Thailand/Canada/Australia/New Zealand/Japan/South Korea；多个国家或泛 Schengen 问题不会被旧 application country 拉回 Indonesia。
+- `/visa` 的 knowledge routing 已支持所有当前 Schengen Area 国家以及现有非 Schengen application products；Canada、Türkiye、India、Saudi Arabia 和 UAE 使用上述 canonical tourist-product codes。多个国家或泛 Schengen 问题不会被旧 application country 拉回 Indonesia。
 - Indonesia visa 官方知识源与 ingestion 脚本已新增。RAG 内容覆盖中国游客 7 天赴印尼应优先考虑 VoA/e-VOA，而不是美国 B-2/DS-160。
 - Indonesia RAG 已写入 Supabase：`visa_documents` 6 条，`visa_chunks` 12 条，均为 `country=indonesia`、`visa_type=tourist_b211a`。
 - 页面 UI 已经有入口选择页和截图里的聊天页。

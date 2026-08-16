@@ -1,18 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  WarningCircle as AlertCircle,
-  ArrowRight,
-  CheckCircle as CheckCircle2,
-  CreditCard,
-  FileText,
-  Bank as Landmark,
-  Package as PackageCheck,
-  Receipt as ReceiptText,
-  ShieldCheck,
-  XCircle,
-} from "@phosphor-icons/react/ssr";
 import { startStripeCheckout } from "./actions";
 import { CheckoutSubmitButton } from "./submit-button";
 import {
@@ -23,17 +11,9 @@ import {
   reconcileStripeCheckoutSession,
 } from "./data";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -124,15 +104,11 @@ async function getReturnState(params: CheckoutSearchParams | undefined): Promise
 function ReturnStateAlert({ state }: { state: CheckoutReturnState }) {
   if (!state) return null;
 
-  const Icon =
-    state.tone === "success" ? CheckCircle2 : state.tone === "warning" ? AlertCircle : XCircle;
-
   return (
     <Alert
       variant={state.tone === "success" ? "success" : state.tone === "warning" ? "warning" : "destructive"}
       className="shadow-sm"
     >
-      <Icon className="h-4 w-4" />
       <AlertTitle>{state.title}</AlertTitle>
       <AlertDescription>{state.description}</AlertDescription>
     </Alert>
@@ -156,104 +132,26 @@ function DetailRow({
   );
 }
 
-function PackageSwitcher({
-  packages,
-  selectedPackage,
-}: {
-  packages: CheckoutPackageSummary[];
-  selectedPackage: CheckoutPackageSummary;
-}) {
-  if (packages.length <= 1) return null;
-
-  return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">Active packages</h2>
-        <p className="text-sm text-muted-foreground">
-          Choose which visa package you want to pay the VIZA agency fee for.
-        </p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        {packages.map((packageSummary) => {
-          const isSelected = packageSummary.packageId === selectedPackage.packageId;
-          return (
-            <Link
-              key={packageSummary.assignmentId}
-              href={`/client/checkout?${new URLSearchParams({
-                packageId: packageSummary.packageId,
-                ...(packageSummary.applicationId ? { applicationId: packageSummary.applicationId } : {}),
-              }).toString()}`}
-              className={cn(
-                "rounded-lg border bg-white p-4 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40",
-                isSelected ? "border-brand-500 bg-brand-50" : "hover:border-brand-200",
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{packageSummary.packageName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {packageSummary.countryName} · {packageSummary.visaTypeLabel}
-                  </p>
-                </div>
-                {isSelected ? <Badge className="bg-brand-500">Selected</Badge> : null}
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function GovernmentFeeBadge({ mode }: { mode: CheckoutPackageSummary["governmentFee"]["mode"] }) {
-  const label =
-    mode === "estimated"
-      ? "Estimated"
-      : mode === "unknown"
-        ? "Unknown"
-        : mode === "included"
-          ? "Package note"
-          : "Separate";
-
-  return (
-    <Badge variant="outline" className="border-brand-200 text-brand-500">
-      {label}
-    </Badge>
-  );
-}
-
 function EmptyCheckoutState() {
   return (
-    <Empty className="min-h-[420px] border bg-white shadow-sm">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <PackageCheck className="h-6 w-6" />
-        </EmptyMedia>
-        <EmptyTitle>No active package ready for checkout</EmptyTitle>
-        <EmptyDescription>
-          Select a destination or ask the VIZA team to assign a package before starting agency-fee payment.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button asChild className="h-11 rounded-full bg-brand-500 px-5 hover:bg-brand-600">
-          <Link href="/client/application">
-            Choose a visa route
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
-      </EmptyContent>
-    </Empty>
+    <ApplicationFormPanel className="flex min-h-[320px] flex-col items-center justify-center p-6 text-center">
+      <h2 className="text-xl font-semibold text-foreground">No active package ready for checkout</h2>
+      <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+        Select a destination or ask the VIZA team to assign a package before starting agency-fee payment.
+      </p>
+      <Button asChild className="mt-6 h-11 rounded-full bg-brand-500 px-5 hover:bg-brand-600">
+        <Link href="/client/application">Choose a visa route</Link>
+      </Button>
+    </ApplicationFormPanel>
   );
 }
 
 function CheckoutContent({
   selectedPackage,
-  packages,
   stripeConfigured,
   returnState,
 }: {
   selectedPackage: CheckoutPackageSummary;
-  packages: CheckoutPackageSummary[];
   stripeConfigured: boolean;
   returnState: CheckoutReturnState;
 }) {
@@ -267,7 +165,6 @@ function CheckoutContent({
 
       {!stripeConfigured ? (
         <Alert className="border-amber-200 bg-amber-50 text-amber-950">
-          <AlertCircle className="h-4 w-4" />
           <AlertTitle>Stripe Checkout needs configuration</AlertTitle>
           <AlertDescription>
             The page is safe to review, but payment is disabled until Stripe environment variables are configured.
@@ -275,23 +172,18 @@ function CheckoutContent({
         </Alert>
       ) : null}
 
-      <PackageSwitcher packages={packages} selectedPackage={selectedPackage} />
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                <PackageCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl">{selectedPackage.packageName}</CardTitle>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {selectedPackage.countryName} · {selectedPackage.visaTypeLabel}
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-5">
+          <ApplicationFormPanel className="p-5 sm:p-6">
+            <div>
+              <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
+                {selectedPackage.packageName}
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {selectedPackage.countryName} · {selectedPackage.visaTypeLabel}
+              </p>
+            </div>
+            <div className="mt-5 space-y-5">
               {selectedPackage.description ? (
                 <p className="leading-7 text-muted-foreground">{selectedPackage.description}</p>
               ) : (
@@ -300,39 +192,36 @@ function CheckoutContent({
                 </p>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="grid border-y sm:grid-cols-3 sm:divide-x">
+                <div className="py-4 sm:pr-4">
                   <p className="text-xs font-medium uppercase text-muted-foreground">Agency fee</p>
                   <p className="mt-2 text-xl font-semibold text-foreground">{agencyFeeLabel}</p>
                 </div>
-                <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="border-t py-4 sm:border-t-0 sm:px-4">
                   <p className="text-xs font-medium uppercase text-muted-foreground">Application</p>
                   <p className="mt-2 text-sm font-medium capitalize text-foreground">
                     {selectedPackage.applicationStatus?.replace(/_/g, " ") ?? "Not started"}
                   </p>
                 </div>
-                <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="border-t py-4 sm:border-t-0 sm:pl-4">
                   <p className="text-xs font-medium uppercase text-muted-foreground">Payment</p>
                   <p className="mt-2 text-sm font-medium capitalize text-foreground">
                     {selectedPackage.isPaid ? "Paid" : selectedPackage.latestPayment?.status ?? "Not paid"}
                   </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </ApplicationFormPanel>
 
-          <Card>
-            <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
-              <div className="space-y-2">
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                  <Landmark className="h-5 w-5" />
-                </div>
-                <CardTitle>Government fee disclosure</CardTitle>
-              </div>
-              <GovernmentFeeBadge mode={selectedPackage.governmentFee.mode} />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-lg border bg-muted/30 p-4">
+          <ApplicationFormPanel className="p-5 sm:p-6">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Official fee payment</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                VIZA pays the official portal on your behalf with a secure virtual card created for this application.
+              </p>
+            </div>
+            <div className="mt-5 space-y-4">
+              <div className="border-y py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium text-foreground">{selectedPackage.governmentFee.label}</p>
@@ -346,32 +235,24 @@ function CheckoutContent({
                 </div>
               </div>
               <p className="leading-7 text-muted-foreground">{selectedPackage.governmentFee.detail}</p>
-              <div className="flex gap-3 rounded-lg border border-brand-100 bg-brand-50 p-4 text-sm text-brand-900">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                <p>
-                  VIZA Checkout never collects official portal card details and does not automatically pay
-                  government portal fees from the agency-fee payment.
-                </p>
+              <div className="rounded-lg bg-brand-50 p-4 text-sm leading-6 text-brand-900">
+                You will never need to enter card details on the government portal. When the official fee is due,
+                VIZA creates a limited virtual card for this application, pays the portal, and records the result.
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </ApplicationFormPanel>
         </div>
 
         <aside className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                <ReceiptText className="h-5 w-5" />
-              </div>
-              <CardTitle>Order summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
+          <ApplicationFormPanel className="p-5 sm:p-6">
+            <h2 className="text-base font-semibold text-foreground">Order summary</h2>
+            <div className="mt-5 space-y-5">
               <div>
                 <DetailRow label="Package" value={selectedPackage.packageName} />
                 <DetailRow label="Destination" value={selectedPackage.countryName} />
                 <DetailRow label="Visa type" value={selectedPackage.visaTypeLabel} />
                 <DetailRow label="VIZA agency fee" value={agencyFeeLabel} />
-                <DetailRow label="Government fee" value="Separate from this checkout" muted />
+                <DetailRow label="Official fee" value="Paid by VIZA with a virtual card" muted />
               </div>
 
               <div className="rounded-lg bg-muted/40 p-4">
@@ -391,17 +272,13 @@ function CheckoutContent({
               {selectedPackage.isPaid ? (
                 <div className="space-y-4">
                   <Alert className="border-emerald-200 bg-emerald-50 text-emerald-950">
-                    <CheckCircle2 className="h-4 w-4" />
                     <AlertTitle>Agency fee recorded</AlertTitle>
                     <AlertDescription>
                       {paidAt ? `Latest confirmation: ${new Date(paidAt).toLocaleString()}` : "Payment is on file."}
                     </AlertDescription>
                   </Alert>
                   <Button asChild className="h-12 w-full rounded-full bg-brand-500 hover:bg-brand-600">
-                    <a href={selectedPackage.nextStep.href}>
-                      {selectedPackage.nextStep.label}
-                      <ArrowRight className="h-4 w-4" />
-                    </a>
+                    <a href={selectedPackage.nextStep.href}>{selectedPackage.nextStep.label}</a>
                   </Button>
                   <p className="text-sm leading-6 text-muted-foreground">{selectedPackage.nextStep.description}</p>
                 </div>
@@ -411,10 +288,7 @@ function CheckoutContent({
                   {selectedPackage.applicationId ? (
                     <input type="hidden" name="applicationId" value={selectedPackage.applicationId} />
                   ) : null}
-                  <CheckoutSubmitButton disabled={!canStartPayment}>
-                    <CreditCard className="h-4 w-4" />
-                    Pay agency fee with Stripe
-                  </CheckoutSubmitButton>
+                  <CheckoutSubmitButton disabled={!canStartPayment}>Pay agency fee with Stripe</CheckoutSubmitButton>
                   {!selectedPackage.agencyFee ? (
                     <p className="text-sm leading-6 text-muted-foreground">
                       Checkout is disabled because this package does not have an agency fee configured.
@@ -426,24 +300,19 @@ function CheckoutContent({
                   )}
                 </form>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </ApplicationFormPanel>
 
-          <Card>
-            <CardHeader>
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                <FileText className="h-5 w-5" />
-              </div>
-              <CardTitle>After payment</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm leading-6 text-muted-foreground">
+          <ApplicationFormPanel className="p-5 sm:p-6">
+            <h2 className="text-base font-semibold text-foreground">After payment</h2>
+            <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
               <p>{selectedPackage.nextStep.description}</p>
               <p>
-                If an official portal fee becomes necessary, VIZA will show it as a separate step instead of adding it
-                to this Stripe agency-fee checkout.
+                When an official portal fee becomes due, VIZA will create an application-specific virtual card and pay
+                it on your behalf. No government-portal card entry is required from you.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </ApplicationFormPanel>
         </aside>
       </div>
     </div>
@@ -463,32 +332,24 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 pb-16">
+    <div className="mx-auto max-w-[1090px] space-y-8 pb-16">
       <header className="space-y-3">
-        <Badge variant="outline" className="border-brand-200 text-brand-500">
-          VIZA agency fee
-        </Badge>
         <div className="max-w-3xl space-y-3">
           <h1 className="text-3xl font-semibold text-foreground md:text-4xl">Checkout</h1>
           <p className="text-base leading-7 text-muted-foreground">
-            Confirm your visa package and pay VIZA's agency fee through Stripe Checkout. Government portal fees stay
-            separate and are never collected as card details in the VIZA portal.
+            Confirm the visa application selected on your Home page and pay VIZA's agency fee through Stripe Checkout.
+            When the official fee is due, VIZA creates a secure virtual card and pays the government portal for you.
           </p>
         </div>
       </header>
 
       {context.error ? (
-        <Alert className="border-destructive/30 bg-destructive/5 text-destructive">
-          <XCircle className="h-4 w-4" />
-          <AlertTitle>Checkout could not load</AlertTitle>
-          <AlertDescription>{context.error}</AlertDescription>
-        </Alert>
+        <ClientErrorAlert message={context.error} title="Checkout could not load" />
       ) : null}
 
       {context.selectedPackage ? (
         <CheckoutContent
           selectedPackage={context.selectedPackage}
-          packages={context.packages}
           stripeConfigured={context.stripeConfigured}
           returnState={returnState}
         />

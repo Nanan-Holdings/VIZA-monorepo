@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { At as AtSign, BookOpen, Briefcase as BriefcaseBusiness, CheckCircle as CheckCircle2, CheckIcon, CaretDown as ChevronDown, AddressBook as ContactRound, Database, FileText, HandHeart as HeartHandshake, ClockCounterClockwise as History, IdentificationCard as IdCard, CircleNotch as Loader2, MapPin, Pencil, Phone, FloppyDisk as Save, ShieldCheck, User, Cards as WalletCards, type Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { At as AtSign, BookOpen, Briefcase as BriefcaseBusiness, CheckCircle as CheckCircle2, CheckIcon, CaretDown as ChevronDown, AddressBook as ContactRound, Database, FileText, HandHeart as HeartHandshake, ClockCounterClockwise as History, IdentificationCard as IdCard, CircleNotch as Loader2, MapPin, Pencil, Phone, ShieldCheck, User, Cards as WalletCards, type Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { CircleFlag } from "react-circle-flags";
 import { countries } from "country-data-list";
 import {
@@ -14,7 +14,7 @@ import {
   loadUniversalProfilePassportUploadStatus,
   loadUniversalProfileReusableDocumentStatuses,
 } from "@/app/client/documents/actions";
-import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { PageBackButton } from "@/components/ui/page-back-button";
 import { UniversalProfileDocumentsCarousel } from "@/components/client/universal-profile-documents-carousel";
 import { UniversalProfileExtendedEditor } from "@/components/client/universal-profile-extended-editor";
@@ -144,6 +144,8 @@ interface PhoneNumberRule {
 type BilingualProfileState = Record<BilingualProfileField, BilingualTextValue>;
 type UniversalProfileRow = Partial<UniversalProfileForm> & Partial<Record<BilingualProfileColumn, string | null>>;
 type UniversalProfileDirtyField = Exclude<keyof UniversalProfileSnapshot, "reusable_answers"> | "wechat";
+
+const UNIVERSAL_PROFILE_AUTOSAVE_DELAY_MS = 800;
 type UniversalProfileSectionKey = "documents" | UniversalProfileCategory;
 
 interface UniversalProfileSectionDefinition {
@@ -1144,7 +1146,6 @@ export default function UniversalInfoPage() {
   const manualEnglishFieldsRef = useRef(manualEnglishFields);
   const [phoneCountryCode, setPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY_CODE);
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [shouldFocusPhoneError, setShouldFocusPhoneError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [passportOcrApplicationId, setPassportOcrApplicationId] = useState<string | null>(null);
@@ -1158,16 +1159,42 @@ export default function UniversalInfoPage() {
   const [dirtyProfileFields, setDirtyProfileFields] = useState<Set<UniversalProfileDirtyField>>(() => new Set());
   const [editingProfileFields, setEditingProfileFields] = useState<Set<string>>(() => new Set());
   const [activeSection, setActiveSection] = useState<UniversalProfileSectionKey>("identity");
+  const [extendedSaveStatus, setExtendedSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const profileRevisionRef = useRef(0);
+  const profileAutosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const activeProfileSavesRef = useRef(0);
+  const hasLiveSaveActivityRef = useRef(false);
+  const latestProfileStateRef = useRef({
+    form,
+    bilingualForm,
+    dirtyProfileFields,
+    phoneCountryCode,
+    passportOcrApplicationId,
+  });
+
+  latestProfileStateRef.current = {
+    form,
+    bilingualForm,
+    dirtyProfileFields,
+    phoneCountryCode,
+    passportOcrApplicationId,
+  };
 
   useEffect(() => {
+    const hasCoreSaveActivity = isSaving || dirtyProfileFields.size > 0;
+    const hasAnySaveActivity = hasLiveSaveActivityRef.current || extendedSaveStatus !== "idle";
+    if (!hasAnySaveActivity) return;
+
     window.dispatchEvent(new CustomEvent("viza:live-save-status", {
-      detail: { status: isSaving ? "saving" : "saved" },
+      detail: {
+        status: hasCoreSaveActivity || extendedSaveStatus === "saving" ? "saving" : "saved",
+      },
     }));
-  }, [isSaving]);
+  }, [dirtyProfileFields, extendedSaveStatus, isSaving]);
 
   useEffect(() => () => {
     window.dispatchEvent(new CustomEvent("viza:live-save-status", {
-      detail: { status: "saved" },
+      detail: { status: "idle" },
     }));
   }, []);
 
@@ -1188,20 +1215,6 @@ export default function UniversalInfoPage() {
   );
   const isOtherBirthProvince = isOtherBirthplaceValue(form.birth_province_or_state);
   const isOtherBirthCity = isOtherBirthplaceValue(form.birth_city);
-
-  useEffect(() => {
-    if (!shouldFocusPhoneError || !phoneError) return;
-    const focusTimer = window.setTimeout(() => {
-      const phoneInput = document.getElementById("universal-phone-zh");
-      if (phoneInput instanceof HTMLInputElement) {
-        phoneInput.focus({ preventScroll: true });
-        phoneInput.select();
-      }
-      setShouldFocusPhoneError(false);
-    }, 0);
-
-    return () => window.clearTimeout(focusTimer);
-  }, [phoneError, shouldFocusPhoneError]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1298,7 +1311,6 @@ export default function UniversalInfoPage() {
     }));
     if (field === "phone") {
       setPhoneError(null);
-      setShouldFocusPhoneError(false);
     }
     setMessage(null);
     setWarning(null);
@@ -1306,6 +1318,15 @@ export default function UniversalInfoPage() {
   }
 
   function markProfileFieldsDirty(...fields: UniversalProfileDirtyField[]) {
+    profileRevisionRef.current += 1;
+    hasLiveSaveActivityRef.current = true;
+    setEditingProfileFields((current) => {
+      const next = new Set(current);
+      for (const field of fields) {
+        if (!field.endsWith("_zh") && !field.endsWith("_en")) next.add(field);
+      }
+      return next;
+    });
     setDirtyProfileFields((current) => {
       const next = new Set(current);
       for (const field of fields) next.add(field);
@@ -1352,6 +1373,8 @@ export default function UniversalInfoPage() {
     if (field === "birth_province_or_state" || field === "birth_city") {
       dirtyFields.push("place_of_birth", "place_of_birth_zh", "place_of_birth_en");
     }
+    profileRevisionRef.current += 1;
+    hasLiveSaveActivityRef.current = true;
     setDirtyProfileFields((current) => {
       const next = new Set(current);
       for (const dirtyField of dirtyFields) next.add(dirtyField);
@@ -1654,46 +1677,56 @@ export default function UniversalInfoPage() {
         passport_issuing_country: normalizeCountryCode(fields.passport_issuing_country) || current.passport_issuing_country,
       };
     });
-    setMessage(isZh ? "护照 OCR 已填入可识别字段，请核对后保存或继续编辑。" : "Passport OCR filled the readable fields. Please review before saving or editing.");
+    setMessage(isZh ? "护照 OCR 已填入可识别字段，请核对；更改将自动保存。" : "Passport OCR filled the readable fields. Review them while changes save automatically.");
     setWarning(null);
     setError(null);
   }
 
-  async function handleSave() {
-    setMessage(null);
-    setWarning(null);
+  const queueProfileAutosave = useCallback(() => {
+    const snapshot = latestProfileStateRef.current;
+    if (snapshot.dirtyProfileFields.size === 0) return;
+
+    const phoneValidationError = validatePhoneNumberValue(
+      snapshot.form.phone,
+      snapshot.phoneCountryCode,
+      isZh,
+    );
+    setPhoneError(phoneValidationError);
+    if (phoneValidationError) return;
+
+    const revision = profileRevisionRef.current;
+    const formSnapshot = { ...snapshot.form };
+    const bilingualSnapshot = { ...snapshot.bilingualForm };
+    const dirtyFieldsSnapshot = new Set(snapshot.dirtyProfileFields);
+    const applicationIdSnapshot = snapshot.passportOcrApplicationId;
+
+    activeProfileSavesRef.current += 1;
+    setIsSaving(true);
     setError(null);
 
-    if (!validatePhoneField()) {
-      setShouldFocusPhoneError(true);
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
+    const runAutosave = profileAutosaveQueueRef.current.then(async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const birthProvince = bilingualForm.birth_province_or_state;
-      const birthCity = bilingualForm.birth_city;
-      const surname = bilingualForm.surname;
-      const givenNames = bilingualForm.given_names;
+      const birthProvince = bilingualSnapshot.birth_province_or_state;
+      const birthCity = bilingualSnapshot.birth_city;
+      const surname = bilingualSnapshot.surname;
+      const givenNames = bilingualSnapshot.given_names;
       const fullNameZh = composeChineseName(surname.zh, givenNames.zh);
       const fullNameEn = composeEnglishFullName(givenNames.en, surname.en);
-      const resolvedBirthCountry = form.birth_country || form.nationality;
+      const resolvedBirthCountry = formSnapshot.birth_country || formSnapshot.nationality;
       const birthCountryEn = countryEnglishName(resolvedBirthCountry);
       const birthCountryZh = countryChineseName(resolvedBirthCountry);
       const legacyPlaceOfBirthZh = joinBirthplaceParts([
         birthCountryZh,
         birthProvince.zh,
-        birthCity.zh || bilingualForm.place_of_birth.zh,
+        birthCity.zh || bilingualSnapshot.place_of_birth.zh,
       ]);
       const legacyPlaceOfBirthEn = joinBirthplaceParts([
         birthCountryEn,
         birthProvince.en,
-        birthCity.en || bilingualForm.place_of_birth.en,
+        birthCity.en || bilingualSnapshot.place_of_birth.en,
       ]);
 
       const profilePayload: UniversalProfileSnapshot & { wechat?: string | null } = {
@@ -1706,7 +1739,7 @@ export default function UniversalInfoPage() {
         given_names: cleanValue(givenNames.en || givenNames.zh),
         given_names_zh: cleanValue(givenNames.zh) ?? undefined,
         given_names_en: cleanValue(givenNames.en) ?? undefined,
-        date_of_birth: cleanValue(form.date_of_birth),
+        date_of_birth: cleanValue(formSnapshot.date_of_birth),
         place_of_birth: cleanValue(legacyPlaceOfBirthEn || legacyPlaceOfBirthZh),
         place_of_birth_zh: isZh ? cleanValue(legacyPlaceOfBirthZh) : undefined,
         place_of_birth_en: isZh ? cleanValue(legacyPlaceOfBirthEn) : undefined,
@@ -1717,28 +1750,28 @@ export default function UniversalInfoPage() {
         birth_city: cleanValue(birthCity.en || birthCity.zh),
         birth_city_zh: isZh ? cleanValue(birthCity.zh) : undefined,
         birth_city_en: isZh ? cleanValue(birthCity.en) : undefined,
-        gender: cleanValue(form.gender),
-        nationality: cleanValue(countryEnglishName(form.nationality)),
-        occupation: cleanValue(bilingualForm.occupation.en || bilingualForm.occupation.zh),
-        occupation_zh: isZh ? cleanValue(bilingualForm.occupation.zh) : undefined,
-        occupation_en: isZh ? cleanValue(bilingualForm.occupation.en) : undefined,
-        address: cleanValue(bilingualForm.address.en || bilingualForm.address.zh),
-        address_zh: isZh ? cleanValue(bilingualForm.address.zh) : undefined,
-        address_en: isZh ? cleanValue(bilingualForm.address.en) : undefined,
-        passport_number: cleanValue(form.passport_number),
-        passport_issue_date: cleanValue(form.passport_issue_date),
-        passport_expiry_date: cleanValue(form.passport_expiry_date),
-        passport_issuing_country: cleanValue(countryEnglishName(form.passport_issuing_country)),
-        email: cleanValue(form.email) ?? user.email ?? null,
-        phone: cleanValue(form.phone),
-        wechat: cleanValue(form.wechat),
+        gender: cleanValue(formSnapshot.gender),
+        nationality: cleanValue(countryEnglishName(formSnapshot.nationality)),
+        occupation: cleanValue(bilingualSnapshot.occupation.en || bilingualSnapshot.occupation.zh),
+        occupation_zh: isZh ? cleanValue(bilingualSnapshot.occupation.zh) : undefined,
+        occupation_en: isZh ? cleanValue(bilingualSnapshot.occupation.en) : undefined,
+        address: cleanValue(bilingualSnapshot.address.en || bilingualSnapshot.address.zh),
+        address_zh: isZh ? cleanValue(bilingualSnapshot.address.zh) : undefined,
+        address_en: isZh ? cleanValue(bilingualSnapshot.address.en) : undefined,
+        passport_number: cleanValue(formSnapshot.passport_number),
+        passport_issue_date: cleanValue(formSnapshot.passport_issue_date),
+        passport_expiry_date: cleanValue(formSnapshot.passport_expiry_date),
+        passport_issuing_country: cleanValue(countryEnglishName(formSnapshot.passport_issuing_country)),
+        email: cleanValue(formSnapshot.email) ?? user.email ?? null,
+        phone: cleanValue(formSnapshot.phone),
+        wechat: cleanValue(formSnapshot.wechat),
       };
       const clearedFields = Object.entries(profilePayload)
-        .filter(([field, value]) => dirtyProfileFields.has(field as UniversalProfileDirtyField) && value === null)
+        .filter(([field, value]) => dirtyFieldsSnapshot.has(field as UniversalProfileDirtyField) && value === null)
         .map(([field]) => field as UniversalProfileDirtyField);
 
       const result = await saveUniversalProfileWithSharedAnswers({
-        applicationId: passportOcrApplicationId,
+        applicationId: applicationIdSnapshot,
         country: "us",
         visaType: "b1_b2",
         preferExplicit: true,
@@ -1747,20 +1780,24 @@ export default function UniversalInfoPage() {
       });
 
       if (result.error) throw new Error(result.error);
+      return { result, userEmail: user.email ?? "" };
+    });
+
+    profileAutosaveQueueRef.current = runAutosave.then(
+      () => undefined,
+      () => undefined,
+    );
+
+    void runAutosave.then(({ result, userEmail }) => {
       if (result.applicationId) setPassportOcrApplicationId(result.applicationId);
+      if (revision !== profileRevisionRef.current) return;
       if (result.profile) {
-        const viewState = buildProfileViewState(result.profile as UniversalProfileRow, user.email ?? "");
+        const viewState = buildProfileViewState(result.profile as UniversalProfileRow, userEmail);
         setForm(viewState.form);
         setPhoneCountryCode(viewState.phoneCountryCode);
         setBilingualForm(viewState.bilingualForm);
       }
       setDirtyProfileFields(new Set());
-      setEditingProfileFields(new Set());
-      setMessage(
-        isZh
-          ? "已保存通用资料。"
-          : "Universal profile saved.",
-      );
       setWarning(
         result.schemaWarning
           ? copy(
@@ -1770,12 +1807,24 @@ export default function UniversalInfoPage() {
             )
           : null,
       );
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : isZh ? "保存失败，请稍后重试。" : "Save failed. Please try again later.");
-    } finally {
-      setIsSaving(false);
-    }
-  }
+    }, (caughtError: unknown) => {
+      if (revision !== profileRevisionRef.current) return;
+      setError(caughtError instanceof Error ? caughtError.message : isZh ? "自动保存失败，请稍后重试。" : "Autosave failed. Please try again later.");
+    }).finally(() => {
+      activeProfileSavesRef.current = Math.max(0, activeProfileSavesRef.current - 1);
+      setIsSaving(activeProfileSavesRef.current > 0);
+    });
+  }, [isZh]);
+
+  useEffect(() => {
+    if (isLoading || dirtyProfileFields.size === 0) return;
+    const autosaveTimer = window.setTimeout(queueProfileAutosave, UNIVERSAL_PROFILE_AUTOSAVE_DELAY_MS);
+    return () => window.clearTimeout(autosaveTimer);
+  }, [bilingualForm, dirtyProfileFields, form, isLoading, phoneCountryCode, queueProfileAutosave]);
+
+  useEffect(() => {
+    setEditingProfileFields(new Set());
+  }, [activeSection]);
 
   function editProfileField(fieldKey: string) {
     setEditingProfileFields((current) => new Set(current).add(fieldKey));
@@ -1811,23 +1860,34 @@ export default function UniversalInfoPage() {
           className="mb-2"
         />
 
-        <header className="max-w-3xl">
-          <h1 className="font-heading text-[28px] font-medium leading-[1.15] tracking-[-1px] text-[#3d3d3d] sm:text-[34px]">
-            {copy(isZh, "通用资料", "Universal profile")}
-          </h1>
-          <p className="mt-3 text-[15px] leading-6 text-[#667085]">
-            {copy(
-              isZh,
-              "按分类维护未来申请会重复使用的资料。每次只显示一个分类，已保存内容会用于之后的签证申请。",
-              "Maintain reusable information by category. Only one category is shown at a time, and saved details can be reused in future visa applications.",
-            )}
-          </p>
-        </header>
+        <div className="grid min-w-0 gap-6 xl:grid-cols-[340px_minmax(0,768px)]">
+          <header className="max-w-3xl xl:col-start-2">
+            <h1 className="font-heading text-[28px] font-medium leading-[1.15] tracking-[-1px] text-[#3d3d3d] sm:text-[34px]">
+              {copy(isZh, "通用资料", "Universal profile")}
+            </h1>
+            <p className="mt-3 text-[15px] leading-6 text-[#667085]">
+              {copy(
+                isZh,
+                "按分类维护未来申请会重复使用的资料。每次只显示一个分类，已保存内容会用于之后的签证申请。",
+                "Maintain reusable information by category. Only one category is shown at a time, and saved details can be reused in future visa applications.",
+              )}
+            </p>
+          </header>
 
-        <div className="flex min-w-0 flex-col items-start gap-6 xl:flex-row">
-          <UniversalProfileCategoryNavigation activeSection={activeSection} isZh={isZh} onSelect={setActiveSection} />
+          <div className="min-w-0 xl:col-start-1 xl:row-start-2">
+            <UniversalProfileCategoryNavigation activeSection={activeSection} isZh={isZh} onSelect={setActiveSection} />
+          </div>
 
-          <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6">
+          <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6 xl:col-start-2 xl:row-start-2">
+            {message ? (
+              <p className="inline-flex items-center gap-2 text-[14px] font-medium text-green-700" role="status">
+                <CheckCircle2 className="h-4 w-4" />
+                {message}
+              </p>
+            ) : null}
+            {warning ? <p className="max-w-2xl text-[14px] font-medium text-amber-700">{warning}</p> : null}
+            {error ? <ClientErrorAlert message={error} /> : null}
+
             {activeSection === "documents" ? (
               <UniversalProfileDocumentsCarousel
                 applicationId={passportOcrApplicationId}
@@ -2350,36 +2410,11 @@ export default function UniversalInfoPage() {
             </ApplicationFormPanel>
             ) : null}
 
-          {activeSection !== "documents" ? <UniversalProfileExtendedEditor category={activeSection} /> : null}
-
-          {activeSection === "identity" || activeSection === "contact" || activeSection === "travel_documents" ? (
-          <ApplicationFormPanel className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div className="min-h-6">
-              {message && (
-                <p className="inline-flex items-center gap-2 text-[14px] font-medium text-green-700">
-                  <CheckCircle2 className="h-4 w-4" />
-                  {message}
-                </p>
-              )}
-              {warning && <p className="mt-1 max-w-2xl text-[14px] font-medium text-amber-700">{warning}</p>}
-              {error && <p className="text-[14px] font-medium text-red-600">{error}</p>}
-              {!message && !warning && !error && dirtyProfileFields.size > 0 ? (
-                <p className="text-[14px] font-medium text-amber-700">
-                  {copy(isZh, "有未保存更改", "Unsaved changes")}
-                </p>
-              ) : null}
-            </div>
-            <BrandActionButton
-              type="button"
-              onClick={handleSave}
-              loading={isSaving}
-              loadingText={copy(isZh, "保存中", "Saving")}
-              className="px-7 font-semibold"
-            >
-              <Save className="h-4 w-4" />
-              {copy(isZh, "保存通用资料", "Save profile")}
-            </BrandActionButton>
-          </ApplicationFormPanel>
+          {activeSection !== "documents" ? (
+            <UniversalProfileExtendedEditor
+              category={activeSection}
+              onSaveStatusChange={setExtendedSaveStatus}
+            />
           ) : null}
           </div>
         </div>

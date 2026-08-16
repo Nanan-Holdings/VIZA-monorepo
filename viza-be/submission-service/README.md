@@ -63,8 +63,8 @@ src/
   payment-routing.ts            — per-country government-fee routing (decisionFor)
   applicant-vault.ts            — encrypted per-applicant credential vault (AES-256-GCM)
   clients/airwallex-issuing.ts  — Airwallex Issuing API client (single-use virtual cards)
-  issuing/escrow-card-provider.ts — mint/freeze escrow card into the vault (flag: AIRWALLEX_ISSUING_ENABLED)
+  issuing/managed-card-provider.ts — exact-currency PhotonPay selection with durable, vault-free Airwallex fallback
 ```
 
-Airwallex virtual-card issuing is foundation-only and gated off by default — see
-`docs/airwallex-issuing-integration.md` for design, status, and rollout.
+Managed virtual-card issuing is fail-closed and gated by exact issuer currency
+configuration — see `docs/photonpay-issuing-integration.md`.

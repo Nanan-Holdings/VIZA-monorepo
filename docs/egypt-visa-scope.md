@@ -65,9 +65,10 @@ These map 1:1 to `step_number` in the seed.
   conditional logic
 - **Dynamic form rendering:** via existing `visa_form_fields` +
   `DynamicStepForm`
-- **No automated submission** — Visa2Egypt sits behind an account
-  registration + payment flow that requires the applicant's card; the
-  schema extracts the form, not the submission
+- **No automated submission yet** — Visa2Egypt sits behind an account
+  registration and payment flow that still needs runner mapping. Before launch,
+  VIZA must provision an application-scoped limited virtual card and pay the
+  official fee; applicants must not be asked for portal card details.
 
 ---
 

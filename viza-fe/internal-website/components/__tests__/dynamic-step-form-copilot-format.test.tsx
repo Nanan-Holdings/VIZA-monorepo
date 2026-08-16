@@ -6,7 +6,7 @@ import { buildUniversalProfileAnswerPatch } from "@/lib/universal-profile-prefil
 import { getChineseLabel, getChineseOptionText, getEnglishPlaceholder } from "@/lib/ds160-translations";
 import enMessages from "@/messages/en.json";
 import zhMessages from "@/messages/zh.json";
-import { type WizardStep } from "@/types/visa-form-fields";
+import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import { auConfig } from "@/components/client/wizards/au/config";
 import { egConfig } from "@/components/client/wizards/eg/config";
 import { idConfig } from "@/components/client/wizards/id/config";
@@ -401,6 +401,271 @@ const twoOptionConditionalPanelStep: WizardStep = {
     },
   ],
 };
+
+const radioConditionalPanelStep: WizardStep = {
+  stepNumber: 2,
+  stepName: "Trip Information",
+  fields: [
+    {
+      id: "field-arrival-date",
+      visaType: "TEST_RADIO_BRANCH",
+      fieldName: "expected_arrival_date",
+      label: "Expected Arrival Date",
+      fieldType: "date",
+      required: true,
+      stepNumber: 2,
+      stepName: "Trip Information",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: null,
+    },
+    {
+      id: "field-mode-of-travel",
+      visaType: "TEST_RADIO_BRANCH",
+      fieldName: "mode_of_travel",
+      label: "Mode of Travel",
+      fieldType: "radio",
+      required: true,
+      stepNumber: 2,
+      stepName: "Trip Information",
+      displayOrder: 2,
+      placeholder: null,
+      validationRules: null,
+      options: [
+        { value: "air", text: "Air" },
+        { value: "land", text: "Land" },
+        { value: "sea", text: "Sea" },
+      ],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-radio-flight-number",
+      visaType: "TEST_RADIO_BRANCH",
+      fieldName: "flight_number",
+      label: "Flight Number",
+      fieldType: "select",
+      required: true,
+      stepNumber: 2,
+      stepName: "Trip Information",
+      displayOrder: 3,
+      placeholder: null,
+      validationRules: { depends_on: "expected_arrival_date" },
+      options: [{ value: "SQ917", text: "SQ917" }],
+      conditionalLogic: { showIf: "mode_of_travel === air" },
+    },
+    {
+      id: "field-border-gate-airport",
+      visaType: "TEST_RADIO_BRANCH",
+      fieldName: "border_gate_airport",
+      label: "Entry Airport",
+      fieldType: "select",
+      required: true,
+      stepNumber: 2,
+      stepName: "Trip Information",
+      displayOrder: 4,
+      placeholder: null,
+      validationRules: { locked_by: "flight_number", read_only: true },
+      options: [{ value: "SIN", text: "Singapore Changi Airport" }],
+      conditionalLogic: { showIf: "mode_of_travel === air" },
+    },
+    {
+      id: "field-vehicle-number",
+      visaType: "TEST_RADIO_BRANCH",
+      fieldName: "vehicle_identification_number",
+      label: "Vehicle Identification Number",
+      fieldType: "text",
+      required: true,
+      stepNumber: 2,
+      stepName: "Trip Information",
+      displayOrder: 5,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: { showIf: "mode_of_travel !== air" },
+    },
+  ],
+};
+
+const yesNoConditionalPanelStep: WizardStep = {
+  stepNumber: 4,
+  stepName: "National Identity Document",
+  fields: [
+    {
+      id: "field-has-national-id",
+      visaType: "AU_VISITOR_600",
+      fieldName: "has_national_id",
+      label: "Do you hold a national identity card?",
+      fieldType: "radio",
+      required: true,
+      stepNumber: 4,
+      stepName: "National Identity Document",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: null,
+      options: [
+        { value: "yes", text: "Yes" },
+        { value: "no", text: "No" },
+      ],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-national-id-number",
+      visaType: "AU_VISITOR_600",
+      fieldName: "national_id_number",
+      label: "National identity card number",
+      fieldType: "text",
+      required: true,
+      stepNumber: 4,
+      stepName: "National Identity Document",
+      displayOrder: 2,
+      placeholder: null,
+      validationRules: { maxLength: 30 },
+      options: null,
+      conditionalLogic: { showIf: "has_national_id === yes" },
+    },
+    {
+      id: "field-national-id-country",
+      visaType: "AU_VISITOR_600",
+      fieldName: "national_id_country",
+      label: "Country of issue",
+      fieldType: "country",
+      required: true,
+      stepNumber: 4,
+      stepName: "National Identity Document",
+      displayOrder: 3,
+      placeholder: null,
+      validationRules: { source: "ISO3166-1" },
+      options: null,
+      conditionalLogic: { showIf: "has_national_id === yes" },
+    },
+    {
+      id: "field-national-id-reason",
+      visaType: "AU_VISITOR_600",
+      fieldName: "national_id_reason_for_not_providing",
+      label: "Reason for not providing national identity details",
+      fieldType: "textarea",
+      required: true,
+      stepNumber: 4,
+      stepName: "National Identity Document",
+      displayOrder: 4,
+      placeholder: null,
+      validationRules: { maxLength: 500 },
+      options: null,
+      conditionalLogic: { showIf: "has_national_id === no" },
+    },
+  ],
+};
+
+const ukOtherPassportStep: WizardStep = {
+  stepNumber: 2,
+  stepName: "About You — Passport & Identity Documents",
+  fields: [
+    {
+      id: "field-has-other-passports",
+      visaType: "UK_STANDARD_VISITOR",
+      fieldName: "has_other_passports",
+      label: "Do you have any other valid passports or travel documents?",
+      fieldType: "radio",
+      required: true,
+      stepNumber: 2,
+      stepName: "About You — Passport & Identity Documents",
+      displayOrder: 6,
+      placeholder: null,
+      validationRules: null,
+      options: [
+        { value: "yes", text: "Yes", label_zh: "是", label_en: "Yes" },
+        { value: "no", text: "No", label_zh: "否", label_en: "No" },
+      ],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-other-passport-nationality",
+      visaType: "UK_STANDARD_VISITOR",
+      fieldName: "other_passport_nationality",
+      label: "Nationality shown on other passport",
+      fieldType: "country",
+      required: true,
+      stepNumber: 2,
+      stepName: "About You — Passport & Identity Documents",
+      displayOrder: 7,
+      placeholder: null,
+      validationRules: {
+        repeatable: true,
+        repeat_group: "other_passports",
+        max_items: 5,
+      },
+      options: null,
+      conditionalLogic: { showIf: "has_other_passports === yes" },
+    },
+    {
+      id: "field-other-passport-number",
+      visaType: "UK_STANDARD_VISITOR",
+      fieldName: "other_passport_number",
+      label: "Other passport number",
+      fieldType: "text",
+      required: true,
+      stepNumber: 2,
+      stepName: "About You — Passport & Identity Documents",
+      displayOrder: 8,
+      placeholder: null,
+      validationRules: {
+        repeatable: true,
+        repeat_group: "other_passports",
+      },
+      options: null,
+      conditionalLogic: { showIf: "has_other_passports === yes" },
+    },
+  ],
+};
+
+function conditionalControllerStep({
+  fieldType,
+  options,
+  showIf,
+}: {
+  fieldType: VisaFormFieldRow["fieldType"];
+  options: VisaFormFieldRow["options"];
+  showIf: string;
+}): WizardStep {
+  return {
+    stepNumber: 1,
+    stepName: "Shared conditional hydration",
+    fields: [
+      {
+        id: `field-controller-${fieldType}`,
+        visaType: `TEST_${fieldType.toUpperCase()}_CONTROLLER`,
+        fieldName: "shared_controller",
+        label: "Shared controller",
+        fieldType,
+        required: true,
+        stepNumber: 1,
+        stepName: "Shared conditional hydration",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: null,
+        options,
+        conditionalLogic: null,
+      },
+      {
+        id: `field-dependent-${fieldType}`,
+        visaType: `TEST_${fieldType.toUpperCase()}_CONTROLLER`,
+        fieldName: "shared_dependent_details",
+        label: "Dependent details",
+        fieldType: "text",
+        required: true,
+        stepNumber: 1,
+        stepName: "Shared conditional hydration",
+        displayOrder: 2,
+        placeholder: null,
+        validationRules: null,
+        options: null,
+        conditionalLogic: { showIf },
+      },
+    ],
+  };
+}
 
 const purposeOfTripStep: WizardStep = {
   stepNumber: 3,
@@ -1048,7 +1313,103 @@ describe("DynamicStepForm copilot format", () => {
     expect(screen.queryByText("必填项")).not.toBeInTheDocument();
   });
 
-  it("marks Vietnam expense coverage required and gates conditional payment method submission", () => {
+  it("keeps a top-level block controller free of conditional-panel padding", () => {
+    const blockControllerStep: WizardStep = {
+      stepNumber: 5,
+      stepName: "Kinship Information",
+      fields: [
+        {
+          id: "field-mother-status",
+          visaType: "TW_ENTRY_PERMIT",
+          fieldName: "kin_mother_status",
+          label: "Mother status",
+          fieldType: "select",
+          required: true,
+          stepNumber: 5,
+          stepName: "Kinship Information",
+          displayOrder: 1,
+          placeholder: null,
+          validationRules: { block_group: "kin_mother" },
+          options: [{ value: "1", text: "Living" }, { value: "2", text: "Deceased" }],
+          conditionalLogic: null,
+        },
+        {
+          id: "field-mother-name",
+          visaType: "TW_ENTRY_PERMIT",
+          fieldName: "kin_mother_name",
+          label: "Mother name",
+          fieldType: "text",
+          required: true,
+          stepNumber: 5,
+          stepName: "Kinship Information",
+          displayOrder: 2,
+          placeholder: null,
+          validationRules: { block_group: "kin_mother" },
+          options: null,
+          conditionalLogic: { showIf: "kin_mother_status === 1" },
+        },
+      ],
+    };
+    const { container } = render(
+      <DynamicStepForm
+        step={blockControllerStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        country="taiwan"
+        visaType="TW_ENTRY_PERMIT"
+      />,
+    );
+
+    const motherStatus = container.querySelector(
+      '[data-application-field-name="kin_mother_status"]',
+    );
+    expect(motherStatus).not.toHaveClass("py-1.5");
+    expect(motherStatus?.querySelector(":scope > .mt-1")).toBeNull();
+    expect(container.querySelector(".application-conditional-fields-panel")).toBeNull();
+  });
+
+  it.each([
+    "AU_VISITOR_600",
+    "DS160",
+    "EG_E_VISA",
+    "EU_SCHENGEN_C_SHORT_STAY",
+    "ID_B1_EVOA",
+    "ID_C1_TOURIST",
+    "JP_TOURIST",
+    "KR_C39_SHORT_TERM_VISIT",
+    "MY_MDAC_ARRIVAL_CARD",
+    "MY_TOURIST_E_VISA",
+    "PH_ETRAVEL_ARRIVAL_CARD",
+    "PH_ETRAVEL_DEPARTURE_CARD",
+    "PH_TEMPORARY_VISITOR_VISA",
+    "SG_ARRIVAL_CARD",
+    "SG_VISITOR_VISA",
+    "TH_TDAC_ARRIVAL_CARD",
+    "TH_TOURIST_E_VISA",
+    "TW_ENTRY_PERMIT",
+    "UK_STANDARD_VISITOR",
+    "VN_E_VISA",
+    "VN_PREARRIVAL_DECLARATION",
+  ])("uses only the required asterisk for empty %s fields", (visaType) => {
+    const { container } = render(
+      <DynamicStepForm
+        step={requiredTextStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        visaType={visaType}
+      />,
+    );
+
+    expect(
+      container.querySelector('[data-application-field-name="surname"] label'),
+    ).toHaveTextContent("*");
+    expect(screen.queryByText("必填项")).not.toBeInTheDocument();
+    expect(screen.queryByText("Required")).not.toBeInTheDocument();
+  });
+
+  it("marks Vietnam expense coverage required and gates conditional payment method submission", async () => {
     const onComplete = vi.fn();
     const { container } = render(
       <DynamicStepForm
@@ -1074,7 +1435,7 @@ describe("DynamicStepForm copilot format", () => {
     fireEvent.click(coverageTrigger!);
     fireEvent.click(screen.getByRole("option", { name: "个人" }));
 
-    expect(screen.getByText("付款方式")).toBeInTheDocument();
+    expect(await screen.findByText("付款方式")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "continue" })).toBeDisabled();
 
     const paymentTrigger = container.querySelector<HTMLButtonElement>(
@@ -1084,7 +1445,7 @@ describe("DynamicStepForm copilot format", () => {
     fireEvent.click(paymentTrigger!);
     fireEvent.click(screen.getByRole("option", { name: "现金" }));
 
-    expect(screen.getByRole("button", { name: "continue" })).not.toBeDisabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "continue" })).not.toBeDisabled());
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
       expense_coverage: "personal",
@@ -1092,7 +1453,7 @@ describe("DynamicStepForm copilot format", () => {
     }));
   });
 
-  it("renders every visible conditional branch in the shared conditional fields panel", () => {
+  it("renders every visible conditional branch in the shared conditional fields panel", async () => {
     const { container } = render(
       <DynamicStepForm
         step={conditionalPanelStep}
@@ -1113,8 +1474,10 @@ describe("DynamicStepForm copilot format", () => {
     expect(inviterYes).not.toBeNull();
     fireEvent.click(inviterYes!);
 
+    await waitFor(() => {
+      expect(container.querySelectorAll(".application-conditional-fields-panel")).toHaveLength(1);
+    });
     const inviterPanels = container.querySelectorAll(".application-conditional-fields-panel");
-    expect(inviterPanels).toHaveLength(1);
     expect(inviterPanels[0]).toContainElement(
       container.querySelector('[data-copilot-trigger="inviter_full_name"]'),
     );
@@ -1128,14 +1491,127 @@ describe("DynamicStepForm copilot format", () => {
     expect(specialRequestYes).not.toBeNull();
     fireEvent.click(specialRequestYes!);
 
+    await waitFor(() => {
+      expect(container.querySelectorAll(".application-conditional-fields-panel")).toHaveLength(2);
+    });
     const allPanels = container.querySelectorAll(".application-conditional-fields-panel");
-    expect(allPanels).toHaveLength(2);
     expect(
       container.querySelector('[data-copilot-trigger="special_request_details"]')?.closest(
         ".application-conditional-fields-panel",
       ),
     ).not.toBeNull();
     expect(screen.queryByRole("button", { name: "addAnother" })).not.toBeInTheDocument();
+  });
+
+  it("reveals saved UK other-passport fields when the initial answer arrives after mount", async () => {
+    const { container, rerender } = render(
+      <DynamicStepForm
+        step={ukOtherPassportStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        country="united_kingdom"
+        visaType="UK_STANDARD_VISITOR"
+      />,
+    );
+
+    expect(container.querySelector(".application-conditional-fields-panel")).toBeNull();
+
+    rerender(
+      <DynamicStepForm
+        step={ukOtherPassportStep}
+        prefill={{ has_other_passports: "yes" }}
+        onComplete={vi.fn()}
+        country="united_kingdom"
+        visaType="UK_STANDARD_VISITOR"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".application-conditional-fields-panel")).not.toBeNull();
+    });
+    expect(container.querySelector<HTMLInputElement>(
+      'input[name="has_other_passports-zh"][value="yes"]',
+    )).toBeChecked();
+    expect(container.querySelector('[data-application-field-name="other_passport_nationality"]'))
+      .not.toBeNull();
+    expect(container.querySelector('[data-application-field-name="other_passport_number"]'))
+      .not.toBeNull();
+
+    const noOption = container.querySelector<HTMLInputElement>(
+      'input[name="has_other_passports-zh"][value="no"]',
+    );
+    expect(noOption).not.toBeNull();
+    fireEvent.click(noOption!);
+
+    await waitFor(() => {
+      expect(noOption).toBeChecked();
+      expect(container.querySelector(".application-conditional-fields-panel")).toBeNull();
+    });
+  });
+
+  it.each([
+    {
+      fieldType: "radio" as const,
+      savedValue: "yes",
+      showIf: "shared_controller === yes",
+      options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+    },
+    {
+      fieldType: "select" as const,
+      savedValue: "business",
+      showIf: "shared_controller === business",
+      options: [{ value: "tourism", text: "Tourism" }, { value: "business", text: "Business" }],
+    },
+    {
+      fieldType: "checkbox" as const,
+      savedValue: "true",
+      showIf: "shared_controller === true",
+      options: null,
+    },
+    {
+      fieldType: "country" as const,
+      savedValue: "USA",
+      showIf: "shared_controller === USA",
+      options: null,
+    },
+    {
+      fieldType: "multi_select" as const,
+      savedValue: "family",
+      showIf: "shared_controller contains_any [family]",
+      options: [{ value: "family", text: "Family" }, { value: "business", text: "Business" }],
+    },
+  ])("hydrates saved $fieldType conditional controllers for every country schema", async ({
+    fieldType,
+    savedValue,
+    showIf,
+    options,
+  }) => {
+    const step = conditionalControllerStep({ fieldType, options, showIf });
+    const { container, rerender } = render(
+      <DynamicStepForm
+        step={step}
+        prefill={{}}
+        onComplete={vi.fn()}
+        visaType={step.fields[0].visaType}
+      />,
+    );
+
+    expect(container.querySelector('[data-application-field-name="shared_dependent_details"]'))
+      .toBeNull();
+
+    rerender(
+      <DynamicStepForm
+        step={step}
+        prefill={{ shared_controller: savedValue }}
+        onComplete={vi.fn()}
+        visaType={step.fields[0].visaType}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-application-field-name="shared_dependent_details"]'))
+        .not.toBeNull();
+    });
   });
 
   it("keeps every active branch of a multi-option dropdown inside one conditional panel", () => {
@@ -1156,7 +1632,11 @@ describe("DynamicStepForm copilot format", () => {
       '[data-conditional-controller="cost_covered_by"]',
     );
     expect(panels).toHaveLength(1);
-    expect(panels[0]).not.toHaveClass("-mt-1", "-mt-2");
+    expect(panels[0]).toHaveClass("-mt-1");
+    expect(container.querySelector('[data-application-field-name="cost_covered_by"]'))
+      .not.toHaveClass("py-1.5");
+    expect(container.querySelector('[data-application-field-name="self_means_cash"]'))
+      .toHaveClass("py-1.5");
     expect(panels[0]).toContainElement(
       container.querySelector('[data-application-field-name="self_means_cash"]'),
     );
@@ -1202,7 +1682,7 @@ describe("DynamicStepForm copilot format", () => {
       '[data-conditional-controller="traveller_type"]',
     );
     expect(panels).toHaveLength(1);
-    expect(panels[0]).not.toHaveClass("-mt-1", "-mt-2");
+    expect(panels[0]).toHaveClass("-mt-1");
     expect(panels[0]).toContainElement(
       container.querySelector('[data-application-field-name="airline_name"]'),
     );
@@ -1213,6 +1693,62 @@ describe("DynamicStepForm copilot format", () => {
       container.querySelector('[data-application-field-name="departure_airport"]'),
     );
     expect(container.querySelector('[data-application-field-name="vessel_name"]')).toBeNull();
+  });
+
+  it("keeps a multi-option radio branch and its dependent fields in one conditional panel", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={radioConditionalPanelStep}
+        prefill={{
+          expected_arrival_date: "2026-09-01",
+          mode_of_travel: "air",
+          flight_number: "SQ917",
+          border_gate_airport: "SIN",
+        }}
+        onComplete={vi.fn()}
+        country="vietnam"
+        visaType="TEST_RADIO_BRANCH"
+      />,
+    );
+
+    const panels = container.querySelectorAll(
+      '[data-conditional-controller="mode_of_travel"]',
+    );
+    expect(panels).toHaveLength(1);
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="flight_number"]'),
+    );
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="border_gate_airport"]'),
+    );
+    expect(container.querySelector('[data-application-field-name="vehicle_identification_number"]'))
+      .toBeNull();
+  });
+
+  it("keeps every active yes/no branch field in one conditional panel", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={yesNoConditionalPanelStep}
+        prefill={{ has_national_id: "yes" }}
+        onComplete={vi.fn()}
+        country="australia"
+        visaType="AU_VISITOR_600"
+      />,
+    );
+
+    const panels = container.querySelectorAll(
+      '[data-conditional-controller="has_national_id"]',
+    );
+    expect(panels).toHaveLength(1);
+    expect(panels[0]).toHaveClass("-mt-1");
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="national_id_number"]'),
+    );
+    expect(panels[0]).toContainElement(
+      container.querySelector('[data-application-field-name="national_id_country"]'),
+    );
+    expect(container.querySelector('[data-application-field-name="national_id_reason_for_not_providing"]'))
+      .toBeNull();
   });
 
   it("uses the unified Chinese copilot trigger format", () => {
@@ -1239,12 +1775,14 @@ describe("DynamicStepForm copilot format", () => {
     expect(screen.getByTestId("field-guidance-panel")).toBeInTheDocument();
   });
 
-  it("supports Windows and Mac undo/redo shortcuts for non-text controls", () => {
+  it("supports Windows and Mac undo/redo shortcuts for non-text controls", async () => {
+    const onUserChange = vi.fn();
     const { container } = render(
       <DynamicStepForm
         step={shortcutStep}
         prefill={{}}
         onComplete={vi.fn()}
+        onUserChange={onUserChange}
         visaType="DS160"
       />,
     );
@@ -1255,18 +1793,19 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.click(firstYesRadio()!);
     expect(getYesRadios().some((radio) => radio.checked)).toBe(true);
+    await waitFor(() => expect(onUserChange).toHaveBeenCalledTimes(1));
 
     fireEvent.keyDown(firstYesRadio()!, { key: "z", ctrlKey: true });
-    expect(getYesRadios().some((radio) => radio.checked)).toBe(false);
+    await waitFor(() => expect(getYesRadios().some((radio) => radio.checked)).toBe(false));
 
     fireEvent.keyDown(firstYesRadio()!, { key: "y", ctrlKey: true });
-    expect(getYesRadios().some((radio) => radio.checked)).toBe(true);
+    await waitFor(() => expect(getYesRadios().some((radio) => radio.checked)).toBe(true));
 
     fireEvent.keyDown(firstYesRadio()!, { key: "z", metaKey: true });
-    expect(getYesRadios().some((radio) => radio.checked)).toBe(false);
+    await waitFor(() => expect(getYesRadios().some((radio) => radio.checked)).toBe(false));
 
     fireEvent.keyDown(firstYesRadio()!, { key: "Z", metaKey: true, shiftKey: true });
-    expect(getYesRadios().some((radio) => radio.checked)).toBe(true);
+    await waitFor(() => expect(getYesRadios().some((radio) => radio.checked)).toBe(true));
   });
 
   it("keeps the B1/B2 purpose dropdown selectable after copilot opens and closes", () => {
@@ -1673,7 +2212,7 @@ describe("DynamicStepForm copilot format", () => {
 
     await waitFor(() => expect(screen.getByText("翻译失败，可重试")).toBeInTheDocument());
     const field = container.querySelector<HTMLElement>('[data-application-field-name="city_of_birth"]');
-    expect(field).toHaveAttribute("data-field-warning", "true");
+    await waitFor(() => expect(field).toHaveAttribute("data-field-warning", "true"));
     expect(field?.className).toContain("[&_.application-form-control]:!border-red-500");
   });
 
@@ -1945,7 +2484,7 @@ describe("DynamicStepForm copilot format", () => {
       }],
     };
 
-    render(
+    const { container } = render(
       <DynamicStepForm
         step={step}
         prefill={{}}
@@ -1957,6 +2496,11 @@ describe("DynamicStepForm copilot format", () => {
 
     expect(screen.getAllByText(chineseLabel)).toHaveLength(1);
     expect(screen.queryByText(officialLabel)).not.toBeInTheDocument();
+    const questionLabel = container.querySelector(".application-form-question-label");
+    expect(questionLabel?.parentElement).toHaveClass("w-full", "max-w-full");
+    expect(questionLabel?.parentElement).not.toHaveClass(
+      "group-has-[>.application-yes-no-control]/field:max-w-80",
+    );
   });
 
   it("defaults France Schengen main destination and localizes country names per side", async () => {
@@ -2054,5 +2598,43 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "reviewRepair.returnToAssistant" }));
     expect(onNavigateReviewIssue).toHaveBeenCalledExactlyOnceWith(null);
+  });
+
+  it("keeps any number of explicitly inline fields on one equal-width row", () => {
+    const inlineStep: WizardStep = {
+      stepNumber: 1,
+      stepName: "Inline fields",
+      fields: Array.from({ length: 4 }, (_, index): VisaFormFieldRow => ({
+        id: `inline-${index}`,
+        visaType: "TEST",
+        fieldName: `inline_field_${index}`,
+        label: `A deliberately long inline question label ${index + 1}`,
+        fieldType: "text",
+        required: false,
+        stepNumber: 1,
+        stepName: "Inline fields",
+        displayOrder: index + 1,
+        placeholder: null,
+        validationRules: { inline_group: "four_fields" },
+        options: null,
+        conditionalLogic: null,
+      })),
+    };
+
+    const { container } = render(
+      <DynamicStepForm
+        step={inlineStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+      />,
+    );
+
+    const inlineGrid = [...container.querySelectorAll<HTMLElement>(".grid")]
+      .find((element) => element.style.gridTemplateColumns.includes("repeat(4"));
+    expect(inlineGrid).toHaveStyle({
+      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    });
+    expect(inlineGrid?.children).toHaveLength(4);
   });
 });

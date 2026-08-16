@@ -6,6 +6,7 @@ import { MapPin, User } from "@phosphor-icons/react";
 import { countries } from "country-data-list";
 import countryRegionData from "country-region-data/data.json";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
 import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
 import { ApplicationSearchableSelect } from "@/components/ui/application-form-select";
@@ -1049,9 +1050,7 @@ export function PersonalInfoStep({ country, prefill, visaType, onComplete }: Per
                   />
                 )}
                 {cityOptionsError && (
-                  <p className="text-[12px] leading-5 text-[#9a6b12]">
-                    城市列表暂时加载失败，可选择其他并手动填写。
-                  </p>
+                  <ClientErrorAlert message="城市列表暂时加载失败，可选择其他并手动填写。" />
                 )}
               </div>
             }
@@ -1076,9 +1075,7 @@ export function PersonalInfoStep({ country, prefill, visaType, onComplete }: Per
                   />
                 )}
                 {cityOptionsError && (
-                  <p className="text-[12px] leading-5 text-[#9a6b12]">
-                    City list could not load. Choose Other and enter it manually.
-                  </p>
+                  <ClientErrorAlert message="City list could not load. Choose Other and enter it manually." />
                 )}
               </div>
             }

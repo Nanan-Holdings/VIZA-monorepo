@@ -28,7 +28,31 @@ import {
   shouldRegisterIndonesiaAccountAfterPasswordResetFeedback,
   shouldResumeSavedIndonesiaApplicationAfterAccountGate,
   shouldSubmitIndonesiaPortalEmailOtp,
+  verifyIndonesiaOfficialFeeText,
 } from "../runner";
+
+test("verifies Indonesia portal amount and currency before card acquisition", () => {
+  assert.deepEqual(
+    verifyIndonesiaOfficialFeeText({
+      bodyText: "Total Payment Rp 500.000",
+      expectedAmountCents: 50_000_000,
+      expectedCurrency: "IDR",
+    }),
+    { verified: true, amountCents: 50_000_000, currency: "IDR" },
+  );
+  assert.deepEqual(
+    verifyIndonesiaOfficialFeeText({
+      bodyText: "Total Payment IDR 1.500.000",
+      expectedAmountCents: 50_000_000,
+      expectedCurrency: "IDR",
+    }),
+    { verified: false, reason: "amount_mismatch" },
+  );
+  assert.deepEqual(
+    verifyIndonesiaOfficialFeeText({ bodyText: "Payment", expectedAmountCents: 50_000_000 }),
+    { verified: false, reason: "expectation_missing" },
+  );
+});
 
 test("ignores echoed Indonesia saved-URL diagnostics while keeping direct payment evidence", () => {
   assert.equal(INDONESIA_SAVED_PORTAL_URL_HISTORY_LIMIT, 100);
@@ -544,7 +568,7 @@ test("maps portal states to actionable automation checkpoints", () => {
   );
   assert.match(
     actionForIndonesiaPortalState("payment_failed").instruction,
-    /OTP\/3DS may have expired, been declined, or not been approved/,
+    /VIZA staff must reconcile the attempt before any retry/,
   );
 });
 

@@ -81,6 +81,7 @@ const PRICING_PACKAGES: Array<{ country: string; visaType: string }> = [
   { country: "saudi_arabia", visaType: "SA_E_VISA" },
   { country: "france", visaType: "EU_SCHENGEN_C_SHORT_STAY" },
   { country: "italy", visaType: "EU_SCHENGEN_C_SHORT_STAY" },
+  { country: "taiwan", visaType: "TW_ENTRY_PERMIT" },
 ];
 
 test("every pricing package has a routing entry", () => {
@@ -105,19 +106,27 @@ test("Vietnam mechanism is runner_escrow_card", () => {
   assert.equal(routingFor("vietnam", "VN_E_VISA").mechanism, "runner_escrow_card");
 });
 
-test("UK mechanism is client_in_portal", () => {
+test("UK mechanism is runner_escrow_card", () => {
   assert.equal(
     routingFor("united_kingdom", "UK_STANDARD_VISITOR").mechanism,
-    "client_in_portal",
+    "runner_escrow_card",
   );
 });
 
-test("Maldives + Hong Kong + Macau + Japan are paper_only_no_fee", () => {
+test("electronically payable routes never hand payment to the applicant", () => {
+  for (const route of GOVT_FEE_ROUTING) {
+    assert.notEqual(route.mechanism, "client_in_portal", `${route.country}/${route.visaType}`);
+    assert.notEqual(route.mechanism, "applicant_direct_link", `${route.country}/${route.visaType}`);
+  }
+});
+
+test("explicit free/offline routes remain paper_only_no_fee", () => {
   for (const [c, v] of [
     ["maldives", "MV_IMUGA"],
     ["hong_kong", "HK_VISIT_VISA"],
     ["macau", "MO_VISIT_VISA"],
     ["japan", "JP_TOURIST"],
+    ["italy", "EU_SCHENGEN_C_SHORT_STAY"],
   ]) {
     assert.equal(routingFor(c, v).mechanism, "paper_only_no_fee");
   }

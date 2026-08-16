@@ -6,7 +6,7 @@ throttled). Routing classes:
 | Class | Severity | Trigger | Builder |
 | --- | --- | --- | --- |
 | `runner.failed.<country>` | error | runner_job hit max_attempts (worker.ts markFailedWithRetry) | inline in worker.ts |
-| `runner.halted_stuck.<country>` | warn | halt-before-gov-pay job aged past threshold (applicant hasn't paid) | `buildHaltedStuckAlert` |
+| `runner.halted_stuck.<country>` | warn | legacy halt-before-gov-pay job aged past threshold (VIZA-managed official payment has not completed) | `buildHaltedStuckAlert` |
 
 `buildHaltedStuckAlert({country, jobId, applicationId, ageHours})` returns an
 AlertInput (warn, 6h throttle) — a sweeper passes it to `sendAlert` when a job

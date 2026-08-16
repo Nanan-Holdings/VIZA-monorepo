@@ -3,11 +3,11 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const canonicalPath = fileURLToPath(
-  new URL("../../drizzle/0140_vn_status_settlement_fence.sql", import.meta.url),
+  new URL("../../drizzle/0150_vn_status_settlement_fence.sql", import.meta.url),
 );
 const mirrorPath = fileURLToPath(
   new URL(
-    "../../../../viza-fe/internal-website/supabase/migrations/20260815130000_vietnam_status_settlement_fence.sql",
+    "../../../../viza-fe/internal-website/supabase/migrations/20260816161000_vietnam_status_settlement_fence.sql",
     import.meta.url,
   ),
 );

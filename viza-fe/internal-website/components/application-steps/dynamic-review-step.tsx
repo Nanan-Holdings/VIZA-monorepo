@@ -19,7 +19,7 @@ import { type FormAssistantFieldReviewIssue } from "@/types/form-assistant";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "@phosphor-icons/react";
+import { ReviewEditButton } from "@/components/ui/review-edit-button";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -350,16 +350,10 @@ export function DynamicReviewStep({
               <h3 className="font-heading text-sm font-semibold text-brand-500">
                 {isZh ? "上传照片" : "Photo"}
               </h3>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 justify-end p-0 text-brand-500 hover:bg-brand-50 hover:text-brand-600"
+              <ReviewEditButton
                 onClick={onPhotoEdit}
-                aria-label={isZh ? "修改上传照片" : "Edit uploaded photo"}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
+                label={isZh ? "修改上传照片" : "Edit uploaded photo"}
+              />
             </div>
             <Table className="table-fixed">
               <TableBody>

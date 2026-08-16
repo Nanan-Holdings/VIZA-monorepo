@@ -8,12 +8,12 @@
  * Mechanism vocabulary:
  *   - runner_escrow_card  : the runner pays the portal with a virtual
  *                            card minted from VIZA's escrow account.
- *   - client_in_portal    : the runner pauses at the payment screen
- *                            and the client enters their own card.
- *   - applicant_direct_link : the runner surfaces a portal-supplied
- *                              payment link; the client pays out of
- *                              band; the runner resumes when an
- *                              inbound confirmation email arrives.
+ *   - client_in_portal    : legacy migration state. The runner currently
+ *                            pauses at payment; it must move to VIZA's
+ *                            application-scoped virtual-card flow.
+ *   - applicant_direct_link : legacy migration state for asynchronous
+ *                              portal payment links. Do not expose this as
+ *                              applicant payment guidance.
  *   - paper_only_no_fee   : no portal-side fee; collected at the
  *                            in-person appointment or by paper
  *                            transfer.
@@ -32,40 +32,40 @@ export interface RoutingEntry {
 }
 
 export const GOVT_FEE_ROUTING: ReadonlyArray<RoutingEntry> = [
-  { country: "united_states", visaType: "B1_B2", mechanism: "applicant_direct_link" },
-  { country: "united_kingdom", visaType: "UK_STANDARD_VISITOR", mechanism: "client_in_portal" },
-  { country: "european_union", visaType: "EU_SCHENGEN_C_SHORT_STAY", mechanism: "client_in_portal" },
+  { country: "united_states", visaType: "B1_B2", mechanism: "runner_escrow_card" },
+  { country: "united_kingdom", visaType: "UK_STANDARD_VISITOR", mechanism: "runner_escrow_card" },
+  { country: "european_union", visaType: "EU_SCHENGEN_C_SHORT_STAY", mechanism: "runner_escrow_card" },
   { country: "vietnam", visaType: "VN_E_VISA", mechanism: "runner_escrow_card" },
-  { country: "australia", visaType: "AU_VISITOR_600", mechanism: "client_in_portal" },
+  { country: "australia", visaType: "AU_VISITOR_600", mechanism: "runner_escrow_card" },
   { country: "japan", visaType: "JP_TOURIST", mechanism: "paper_only_no_fee" },
   { country: "indonesia", visaType: "B211A", mechanism: "runner_escrow_card" },
   { country: "indonesia", visaType: "ID_C1_TOURIST", mechanism: "runner_escrow_card" },
   { country: "indonesia", visaType: "ID_B1_EVOA", mechanism: "runner_escrow_card" },
   { country: "egypt", visaType: "EG_E_VISA", mechanism: "runner_escrow_card" },
-  { country: "south_korea", visaType: "KR_C39_SHORT_TERM_VISIT", mechanism: "applicant_direct_link" },
+  { country: "south_korea", visaType: "KR_C39_SHORT_TERM_VISIT", mechanism: "runner_escrow_card" },
   { country: "thailand", visaType: "TH_TOURIST_E_VISA", mechanism: "runner_escrow_card" },
   { country: "malaysia", visaType: "MY_TOURIST_E_VISA", mechanism: "runner_escrow_card" },
-  { country: "singapore", visaType: "SG_VISITOR_VISA", mechanism: "client_in_portal" },
+  { country: "singapore", visaType: "SG_VISITOR_VISA", mechanism: "runner_escrow_card" },
   { country: "hong_kong", visaType: "HK_VISIT_VISA", mechanism: "paper_only_no_fee" },
   { country: "macau", visaType: "MO_VISIT_VISA", mechanism: "paper_only_no_fee" },
-  { country: "new_zealand", visaType: "NZ_VISITOR_VISA", mechanism: "client_in_portal" },
+  { country: "new_zealand", visaType: "NZ_VISITOR_VISA", mechanism: "runner_escrow_card" },
   { country: "russia", visaType: "RU_E_VISA", mechanism: "runner_escrow_card" },
   { country: "turkey", visaType: "TR_E_VISA", mechanism: "runner_escrow_card" },
   { country: "united_arab_emirates", visaType: "AE_TOURIST_VISA", mechanism: "runner_escrow_card" },
-  { country: "canada", visaType: "CA_TRV", mechanism: "client_in_portal" },
+  { country: "canada", visaType: "CA_TRV", mechanism: "runner_escrow_card" },
   { country: "maldives", visaType: "MV_IMUGA", mechanism: "paper_only_no_fee" },
-  { country: "philippines", visaType: "PH_TEMPORARY_VISITOR_VISA", mechanism: "applicant_direct_link" },
+  { country: "philippines", visaType: "PH_TEMPORARY_VISITOR_VISA", mechanism: "runner_escrow_card" },
   { country: "cambodia", visaType: "KH_TOURIST_E_VISA", mechanism: "runner_escrow_card" },
   { country: "laos", visaType: "LA_TOURIST_E_VISA", mechanism: "runner_escrow_card" },
   { country: "sri_lanka", visaType: "LK_ETA", mechanism: "runner_escrow_card" },
   { country: "india", visaType: "IN_E_VISA", mechanism: "runner_escrow_card" },
-  { country: "south_africa", visaType: "ZA_VISITOR_VISA", mechanism: "applicant_direct_link" },
+  { country: "south_africa", visaType: "ZA_VISITOR_VISA", mechanism: "runner_escrow_card" },
   // RUN-SA-002: Saudi e-Visa is online-pay; VIZA collects via escrow (fee TBD
   // until saudi_arabia is added to lib/pricing.ts — PAYP-001).
   { country: "saudi_arabia", visaType: "SA_E_VISA", mechanism: "runner_escrow_card" },
-  // PAYP-001: France + Italy (Schengen) — applicant pays the VAC/consulate directly.
-  { country: "france", visaType: "EU_SCHENGEN_C_SHORT_STAY", mechanism: "client_in_portal" },
-  { country: "italy", visaType: "EU_SCHENGEN_C_SHORT_STAY", mechanism: "client_in_portal" },
+  { country: "france", visaType: "EU_SCHENGEN_C_SHORT_STAY", mechanism: "runner_escrow_card" },
+  { country: "italy", visaType: "EU_SCHENGEN_C_SHORT_STAY", mechanism: "paper_only_no_fee" },
+  { country: "taiwan", visaType: "TW_ENTRY_PERMIT", mechanism: "runner_escrow_card" },
 ];
 
 export class UnknownPackageError extends Error {
@@ -199,9 +199,9 @@ export function decisionFor(country: string, visaType: string): RoutingDecision 
   if (!fee) throw new UnknownPackageError(country, visaType);
   const collector = collectorFor(routing.mechanism);
   const policy = policyFor(routing.mechanism);
-  // VIZA only adds the government fee to the up-front charge when VIZA collects
-  // it (runner_escrow_card). Otherwise the applicant pays the gov fee on the
-  // portal/at the VAC, so we collect the agency fee only.
+  // VIZA only adds the government fee to the up-front charge for the current
+  // runner_escrow_card implementation. Other values are legacy migration
+  // states; they must not become applicant-facing instructions.
   const collectedTotalCents =
     collector === "viza" ? AGENCY_FEE_CENTS + fee.govtCents : AGENCY_FEE_CENTS;
   return {

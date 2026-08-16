@@ -54,6 +54,9 @@ ports directly.
   adjacent `auth.test.ts`.
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/authorize/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/managed-payment.ts`
+  resolves the typed country/visa official-fee policy, pricing fallback, and
+  eligible treasury-allocation boundary before a managed-card job is queued.
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/cloud-worker-ready.ts`
   owns the cold-start readiness boundary and keeps its focused regression tests
   in the adjacent `cloud-worker-ready.test.ts`.
@@ -85,6 +88,10 @@ ports directly.
   the client can keep polling without losing the durable submission state. Its
   status derivation helpers live in the adjacent `route-handler.ts` module so
   the Next route exports only HTTP methods/configuration.
+- `viza-fe/internal-website/app/api/applications/customer-submission-result.ts`
+  creates the browser-safe submission-result projection. UK portal credentials,
+  ciphertext, usernames, and force-resume URLs must never cross the customer
+  status API boundary.
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/payment-country.ts`
   keeps Vietnam and Indonesia payment checkpoints country-scoped before a
   temporary customer-facing result is synthesized.

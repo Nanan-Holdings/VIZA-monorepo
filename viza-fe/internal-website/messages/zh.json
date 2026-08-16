@@ -99,37 +99,55 @@
       "steps": {
         "payment": {
           "title": "完成服务费付款",
-          "description": "付款确认后，VIZA 才能开始准备申请。"
+          "descriptions": {
+            "pending": "请完成服务费付款，以便 VIZA 开始准备申请。",
+            "completed": "服务费付款已确认，VIZA 已开始准备申请。"
+          }
         },
         "consent": {
           "title": "确认授权与同意",
-          "description": "完成服务授权和所需电子签署。"
+          "descriptions": {
+            "pending": "请确认服务授权并完成所需电子签署。",
+            "completed": "服务授权和所需电子签署均已完成。"
+          }
         },
         "form": {
           "title": "完善申请表",
-          "description": "填写并检查申请所需信息。"
+          "descriptions": {
+            "pending": "请继续填写并核对申请信息；目前已保存 {count} 项回答。",
+            "completed": "申请所需信息已填写、核对并保存。"
+          }
         },
         "documents": {
           "title": "上传所需材料",
-          "description": "上传护照、照片及目的地要求的证明材料。"
+          "descriptions": {
+            "pending": "请上传护照、照片及目的地要求的证明材料；当前已完成 {ready}/{total} 份。",
+            "completed": "所需材料均已上传或通过检查，共 {ready}/{total} 份。",
+            "completedNoRequirements": "此申请无需额外上传材料，材料要求已完成。"
+          }
         },
         "packet": {
           "title": "生成申请包",
-          "description": "VIZA 会在核心资料齐全后准备申请包。"
+          "descriptions": {
+            "pending": "请先完成申请表和材料要求，以便 VIZA 生成申请包。",
+            "completed": "VIZA 已根据完整的申请信息和材料生成申请包。"
+          }
         },
         "handoff": {
           "title": "递交官网申请",
-          "description": "申请包将进入官网递交流程。"
+          "descriptions": {
+            "pending": "请先完成前置事项；VIZA 随后会将申请递交至官网。",
+            "completed": "VIZA 已将申请递交至官网。",
+            "completedWithReference": "VIZA 已将申请递交至官网，官方参考号：{reference}。"
+          }
         },
         "result": {
           "title": "等待申请结果",
-          "description": "批准、签证、拒签或结果文件会在收到后显示。"
+          "descriptions": {
+            "pending": "申请递交后，请在这里留意官网结果和相关文件。",
+            "completed": "官网申请结果已收到，相关状态或文件已更新。"
+          }
         }
-      },
-      "metrics": {
-        "answers": "已保存 {count} 项回答",
-        "documents": "{ready}/{total} 份材料已上传或通过检查",
-        "reference": "官方参考号：{reference}"
       },
       "relative": {
         "justNow": "刚刚",
@@ -541,7 +559,34 @@
       "missingBody": "请先补齐申请人英文姓名、手机号，并确认可证明的递签领区。",
       "edit": "修改申请资料",
       "confirm": "确认资料并继续",
-      "confirming": "正在保存确认…"
+      "confirming": "正在保存确认…",
+      "shenyang": {
+        "intro": "请补充沈阳预约所需的资料。",
+        "hint": "已解析的资料仅显示脱敏值；请核对来源。",
+        "fields": {
+          "surname": "护照英文姓",
+          "givenNames": "护照英文名",
+          "dateOfBirth": "出生日期",
+          "passportNumber": "护照号码",
+          "passportExpiryDate": "护照有效期至",
+          "mobilePhone": "中国大陆手机号"
+        },
+        "sources": {
+          "korea_form": "韩国申请表",
+          "universal_profile": "通用资料",
+          "appointment_supplement": "本页补充"
+        },
+        "validation": {
+          "required": "请填写此字段",
+          "latin_name_required": "请输入护照上的英文姓名",
+          "invalid_date": "请输入有效日期",
+          "date_in_future": "出生日期不能晚于今天",
+          "invalid_passport": "请输入有效的护照号码",
+          "passport_expired": "护照有效期必须晚于今天",
+          "invalid_mainland_phone": "请输入有效的中国大陆手机号"
+        },
+        "saveConfirm": "保存并确认资料"
+      }
     },
     "centerSheet": {
       "title": "更改递签领区",
@@ -733,6 +778,7 @@
         "emptyTranscript": "没有识别到文字，请重试或输入答案。",
         "transcriptionFailed": "录音转写失败，请重试或输入答案。",
         "sendFailed": "消息未发送，输入内容已保留，请重试。",
+        "providersUnavailable": "AI 服务暂时不可用。答案尚未保存，输入内容已保留；你可以稍后重试，或直接在表单中填写。",
         "reviewFailed": "暂时无法检查答案或打开最终审核页面，请重试。"
       },
       "actions": {

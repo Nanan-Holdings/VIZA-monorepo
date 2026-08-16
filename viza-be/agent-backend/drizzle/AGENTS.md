@@ -183,7 +183,7 @@ The current internal automation migrations are:
 - `0138_bounded_queue_maintenance.sql`: adds a bounded, service-role-only
   atomic stale-processing cleanup RPC and an index matching its heartbeat/status
   cutoff scan; callers run it as low-frequency maintenance rather than per poll.
-- `0139_concurrency_phase_two.sql`: supersedes the global runner-pool advisory
+- `0149_concurrency_phase_two.sql`: supersedes the global runner-pool advisory
   claim lock with country-cap row serialization, bounded one-row lease recovery,
   and partial indexes for queued ordering, running-country counts, lease
   expiry, and one-live-job-per-worker fencing. The service-role-only
@@ -230,7 +230,7 @@ The current internal automation migrations are:
   rows. The global probe takes a private advisory lock, uses an effective
   per-country cap of ten, and counts all canonical running rows while leaving
   `runner_concurrency_cap` unchanged.
-- `0140_vn_status_settlement_fence.sql`: replaces Vietnam official-status
+- `0150_vn_status_settlement_fence.sql`: replaces Vietnam official-status
   worker leases with a monotonic `BIGINT` lease generation and exact
   generation-bearing service-role RPCs for claim, renew, defer, fail, and
   complete. Settlement locks application, status-check, and tracking rows in
@@ -239,6 +239,37 @@ The current internal automation migrations are:
   documents, events, bounded retry rows, and failure backoff. Legacy
   worker-only signatures are removed for the controlled cutover; callers must
   pass the generation returned by claim.
+- `0139_dedupe_ongoing_applications.sql`: consolidates duplicate in-flight
+  applications and enforces one ongoing row per applicant/country/visa type
+  while preserving completed submission history; QA dry-run rows are isolated
+  from deduplication and the customer uniqueness gate.
+- `0140_prevent_qa_placeholder_submission.sql`: rejects synthetic QA answers on
+  ordinary applications, blocks QA-marked data from live runner queues, and
+  removes previously persisted QA sentinels from reusable/customer data.
+- `0141_block_known_qa_account_sentinel.sql`: patches already-migrated databases
+  to reject and remove the historical dedicated-QA WeChat sentinel.
+- `0142_managed_card_issuer_router.sql`: permits PhotonPay and Airwallex card
+  identities while preserving exact application/allocation/payment-intent
+  binding in the service-only issuer-aware card-attempt claim RPC.
+- `0143_scrub_uk_submission_result_credentials.sql`: removes legacy UK portal
+  URLs, usernames, and password/cipher fields from customer-readable
+  `applications.submission_result`; credentials remain only in `uk_accounts`.
+- `0144_exclude_qa_drafts_from_ongoing_uniqueness.sql`: rebuilds the ongoing
+  application uniqueness index so isolated schema-QA drafts can coexist with
+  one real customer application for the same country and visa type.
+- `0145_protect_issuer_card_attempt_leases.sql`: prevents a different worker
+  from overwriting an unexpired issuer-card claim lease while preserving
+  same-worker renewal and expired-lease recovery.
+- `0146_vietnam_payment_registration_code_handoff.sql`: carries an existing
+  encrypted Vietnam registration code into the next isolated payment queue row
+  for the same application/provider without exposing the code in RPC payloads.
+- `0147_uk_passport_upload_document_slot.sql`: maps the UK passport upload to
+  the `passport_bio_page` application-document slot so it cannot be treated as
+  an ordinary file-path answer.
+- `0148_five_tourist_country_packages_and_documents.sql`: corrects the Canada,
+  Türkiye, India, Saudi Arabia, and UAE tourist-product catalog boundaries and
+  installs their audited Document Center requirements outside the answer
+  schema.
 
 ## Guardrails
 

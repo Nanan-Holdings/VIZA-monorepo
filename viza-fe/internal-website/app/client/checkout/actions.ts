@@ -247,7 +247,7 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
       custom_text: {
         submit: {
           message:
-            "This Stripe Checkout charges only the VIZA agency fee. Government portal fees, if required, are handled separately.",
+            "This Stripe Checkout charges only the VIZA agency fee. When an official fee is due, VIZA creates a secure virtual card and pays the government portal on your behalf.",
         },
       },
     });

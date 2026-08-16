@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   ACTIVE_APPLICATION_SELECTION_STORAGE_KEY,
+  buildActiveApplicationFormHref,
+  getActiveApplicationFormHref,
   isOngoingApplicationState,
   readActiveApplicationSelection,
   setActiveApplicationSelection,
 } from "./active-application-selection";
+import { buildApplicationHref } from "./application-progress";
 
 describe("active application selection", () => {
   beforeEach(() => {
@@ -36,6 +39,43 @@ describe("active application selection", () => {
       packageId: "package-one",
       country: "thailand",
     });
+  });
+
+  it("builds the Application tab href from the active selection instead of stale form history", () => {
+    const selection = {
+      applicationId: "taiwan-application",
+      packageId: "taiwan-package",
+      country: "taiwan",
+      visaType: "TW_ENTRY_PERMIT",
+      href: "/client/home",
+    };
+
+    setActiveApplicationSelection(selection);
+
+    expect(buildActiveApplicationFormHref(selection)).toBe(
+      "/client/application/long-form?applicationId=taiwan-application&country=taiwan&visaType=TW_ENTRY_PERMIT",
+    );
+    expect(getActiveApplicationFormHref()).toBe(
+      "/client/application/long-form?applicationId=taiwan-application&country=taiwan&visaType=TW_ENTRY_PERMIT",
+    );
+  });
+
+  it("keeps the exact application id in the Home application card href", () => {
+    expect(
+      buildApplicationHref({
+        id: "taiwan-application",
+        status: "in_progress",
+        country: "taiwan",
+        visa_type: "TW_ENTRY_PERMIT",
+        visa_package_id: "taiwan-package",
+        submission_result_status: null,
+        submitted_at: null,
+        created_at: "2026-08-15T00:00:00.000Z",
+        updated_at: null,
+      }),
+    ).toBe(
+      "/client/application/long-form?applicationId=taiwan-application&country=taiwan&visaType=TW_ENTRY_PERMIT",
+    );
   });
 
   it("discards malformed stored state", () => {

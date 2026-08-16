@@ -54,6 +54,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 
 type Option = {
   value: string;
@@ -2019,9 +2020,7 @@ export function TravelPlannerForm({
       {missingField === "country" && (
         <div className="space-y-2">
           {countryLoadError && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
-              {countryLoadError}
-            </div>
+            <ClientErrorAlert message={countryLoadError} />
           )}
           <SearchableMultiSelect
             disabled={busy || isLoadingCountryOptions}
@@ -2064,9 +2063,7 @@ export function TravelPlannerForm({
       {missingField === "cities" && (
         <div className="space-y-2">
           {cityLoadError && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
-              {cityLoadError}
-            </div>
+            <ClientErrorAlert message={cityLoadError} />
           )}
           <SearchableMultiSelect
             disabled={busy || countries.length === 0 || isLoadingCityOptions}
@@ -2155,9 +2152,7 @@ export function TravelPlannerForm({
                 {copy.chooseAdditionalCountry}
               </div>
               {countryLoadError && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
-                  {countryLoadError}
-                </div>
+                <ClientErrorAlert message={countryLoadError} />
               )}
               <SearchableMultiSelect
                 disabled={busy || isLoadingCountryOptions}
@@ -2225,9 +2220,7 @@ export function TravelPlannerForm({
                 {copy.chooseAdditionalCity}
               </div>
               {cityLoadError && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
-                  {cityLoadError}
-                </div>
+                <ClientErrorAlert message={cityLoadError} />
               )}
               <SearchableMultiSelect
                 disabled={
@@ -2511,9 +2504,7 @@ export function TravelPlannerForm({
       {missingField === "origin" && (
         <div className="space-y-3">
           {cityLoadError && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
-              {cityLoadError}
-            </div>
+            <ClientErrorAlert message={cityLoadError} />
           )}
 
           {isLoadingIpLocation && !ipLocation && (
@@ -2559,9 +2550,13 @@ export function TravelPlannerForm({
           )}
 
           {ipLocationError && (
-            <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              {ipLocationError} {copy.manualEndpointHint}
-            </div>
+            <ClientErrorAlert
+              message={
+                <>
+                  {ipLocationError} {copy.manualEndpointHint}
+                </>
+              }
+            />
           )}
 
           {!manualEndpointMode && !ipLocation && !ipLocationError && (
@@ -2808,9 +2803,7 @@ export function TravelPlannerForm({
           )}
 
           {flightLoadError && (
-            <div className="rounded-md border border-amber-400/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-300">
-              {copy.flightsUnavailable(flightLoadError)}
-            </div>
+            <ClientErrorAlert message={copy.flightsUnavailable(flightLoadError)} />
           )}
 
           {!isLoadingFlights && !flightLoadError && flightLegsForSelection.length === 0 && (
@@ -2994,9 +2987,7 @@ export function TravelPlannerForm({
           )}
 
           {hotelLoadError && (
-            <div className="rounded-md border border-amber-400/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-300">
-              {copy.hotelsUnavailable(hotelLoadError)}
-            </div>
+            <ClientErrorAlert message={copy.hotelsUnavailable(hotelLoadError)} />
           )}
 
           {!isLoadingHotels && !hotelLoadError && hotelStaysForSelection.length === 0 && (

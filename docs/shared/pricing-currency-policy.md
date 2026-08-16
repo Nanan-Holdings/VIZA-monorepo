@@ -11,7 +11,8 @@ stores, per `(country, visaType)`:
 - `govtFeeCents` — pass-through government fee, in the **portal's collection
   currency** (`currency`: USD/GBP/AUD/CAD/…).
 - `govtFeeChannel` — `viza_passthrough` (VIZA collects via Stripe) or
-  `portal_direct` (applicant pays the government/VAC directly).
+  `portal_direct` (legacy migration value; applicant-facing flows must still
+  move to VIZA-managed virtual-card payment).
 
 ## Marketing mirror
 

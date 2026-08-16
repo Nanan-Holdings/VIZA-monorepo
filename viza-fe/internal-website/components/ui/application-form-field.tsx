@@ -19,7 +19,6 @@ function ApplicationFormField({
   labelAction,
   children,
   className,
-  sideLocale,
 }: {
   label: string;
   required?: boolean;
@@ -30,10 +29,9 @@ function ApplicationFormField({
   children: React.ReactNode;
   className?: string;
 }) {
-  const optionalLabel = sideLocale === "zh" ? "选填" : "Optional";
   return (
     <div className={cn("application-form-field group/field relative flex flex-col gap-2", className)}>
-      <div className="relative flex min-h-5 w-full max-w-full items-center group-has-[>.application-yes-no-control]/field:max-w-80">
+      <div className="relative flex min-h-5 w-full max-w-full items-center">
         <Label
           htmlFor={htmlFor}
           className={cn(
@@ -44,11 +42,6 @@ function ApplicationFormField({
           {label}
           {required ? <span className="ml-1 text-red-500">*</span> : null}
         </Label>
-        {!required ? (
-          <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[12px] font-medium text-gray-500">
-            {optionalLabel}
-          </span>
-        ) : null}
         {labelAction ? <ApplicationFormLabelAction>{labelAction}</ApplicationFormLabelAction> : null}
       </div>
       {children}

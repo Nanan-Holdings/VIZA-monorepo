@@ -131,7 +131,7 @@ describe("Taiwan formal application mapping and validation gate", () => {
     }
   });
 
-  it("blocks handoff when HTML validity or a visible official format error remains", async () => {
+  it("blocks final submission when HTML validity or a visible official format error remains", async () => {
     const page = await newPage(`
       <!doctype html><body>
         <form>
@@ -158,7 +158,7 @@ describe("Taiwan formal application mapping and validation gate", () => {
     }
   });
 
-  it("allows handoff only when the official validation count is zero", async () => {
+  it("allows final submission only when the official validation count is zero", async () => {
     const page = await newPage('<!doctype html><body><input name="traveller.chineseName" required value="王小明"></body>');
     try {
       await assert.doesNotReject(() => assertTwOfficialValidationGate(page, [
@@ -169,10 +169,10 @@ describe("Taiwan formal application mapping and validation gate", () => {
     }
   });
 
-  it("runs the defensive validation gate before the applicant handoff callback", async () => {
+  it("runs official validation before the formal submit stage", async () => {
     const source = await readFile(join(process.cwd(), "src", "tw", "apply.ts"), "utf8");
-    const gate = source.indexOf("await assertTwOfficialValidationGate(page, operations)");
-    const callback = source.indexOf("await options.onApplicantHandoffReady({");
-    assert.ok(gate > 0 && callback > gate);
+    const gate = source.indexOf("validate: () => collectTwOfficialValidationIssues(page)");
+    const submit = source.indexOf("submit: () => solveTwCaptchaAndSubmitWithRetry(page, {");
+    assert.ok(gate > 0 && submit > gate);
   });
 });

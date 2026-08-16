@@ -7,6 +7,7 @@ import type {
   DocumentRow,
   PaymentRow,
 } from "@/lib/client/application-progress";
+import { isQaDryRunPurpose } from "@/lib/applications/qa-safety";
 
 export interface ClientHomeProfile {
   full_name: string | null;
@@ -63,7 +64,7 @@ const PROFILE_COLUMNS = [
 ].join(", ");
 
 const APPLICATION_COLUMNS =
-  "id, status, country, visa_type, visa_package_id, submission_result_status, submitted_at, created_at, updated_at";
+  "id, status, country, visa_type, purpose, visa_package_id, submission_result_status, submitted_at, created_at, updated_at";
 
 const DOCUMENT_COLUMNS = "id, application_id, document_type, status, created_at, updated_at";
 
@@ -143,7 +144,9 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
       };
     }
 
-    const applications = (applicationRows ?? []) as ApplicationRow[];
+    const applications = ((applicationRows ?? []) as ApplicationRow[]).filter(
+      (application) => !isQaDryRunPurpose(application.purpose)
+    );
     const applicationIds = applications.map((application) => application.id);
     const packageIds = applications
       .map((application) => application.visa_package_id)

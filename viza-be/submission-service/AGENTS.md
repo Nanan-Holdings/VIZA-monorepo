@@ -77,7 +77,7 @@ and must fail closed; callers must not perform a direct table settlement.
 
 ## Key Flows
 
-- `src/korea-vfs-shenyang/runner.ts`: Browserbase-backed Shenyang VFS account FSM. It requires explicit portal-term authorization, stores only an encrypted portal password, uses the managed alias for official activation email, preserves a five-minute SMS OTP session, records only current official slot observations, revalidates the exact user-selected slot, and requires a real confirmation number plus stored screenshot before success. The South Korea Fly machine and `/deploy-ready` protect active OTP sessions.
+- `src/korea-vfs-shenyang/runner.ts`: Browserbase-backed Shenyang VFS account FSM. It requires explicit portal-term authorization, stores only an encrypted portal password, uses the managed alias for official activation email, preserves a five-minute SMS OTP session, records only current official slot observations, revalidates the exact user-selected slot, and requires a real confirmation number plus stored screenshot before success. The South Korea Fly machine and `/deploy-ready` protect active OTP sessions. `src/korea-vfs-shenyang/applicant-details.ts` is fail-closed: validate the complete required answer set before any Browserbase call; the runner then uses typed field mappings and visible duplicate-selector/evidence checks without retaining raw applicant data. Only the selected Shenyang center may invoke this helper; other centers must not fall through to it.
 - `src/index.ts`: polling loop, Supabase data loading, document download,
   per-country dispatch, retry/failure handling, queue status transitions.
 - `src/queue/arrival-card-runners.ts` and
@@ -108,12 +108,6 @@ and must fail closed; callers must not perform a direct table settlement.
   are fenced by status, owner, and a live lease; a typed
   `runner_job_ownership_lost` result skips fallback failure writes, alerts, and
   metrics so a stale worker cannot mutate a reclaimed job.
-- `src/tw/applicant-handoff.ts`: Taiwan's `tw_entry_permit` applicant handoff
-  is RPC-only. The runner passes its exact `RunnerExecutionContext` and
-  bounded stopped payload to `open_tw_applicant_handoff`, polls with ownership
-  checkpoints, and settles completion/expiry through
-  `settle_tw_applicant_handoff`; it must not write `applications`,
-  `takeover_session`, or `takeover_action_log` directly.
 - Queue handlers receive a `RunnerExecutionContext` with an `AbortSignal` and
   `assertOwned` checkpoints. Lease renewal loss or expiry aborts the active
   portal session, and every shared-pool adapter checks ownership immediately
@@ -369,8 +363,10 @@ and must fail closed; callers must not perform a direct table settlement.
 - `src/vn-prearrival/data/`: build-owned snapshots of the official Vietnam
   Pre-Arrival option catalogs used by the cloud worker. Keep these synchronized
   with the frontend catalogs whenever the official portal options are refreshed.
-- `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
-  still a known gap.
+- `src/uk/**`: UKVI saved-application resume and allocation-bound managed-card
+  official-fee flow. It verifies the displayed portal amount/currency before
+  card acquisition or PAN entry and sends unsupported/uncertain outcomes to
+  staff review without exposing an applicant portal handoff.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
   appointment runner. Polls `appointment_assistance_jobs` when
   `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, reads VIZA-created
@@ -521,11 +517,15 @@ and must fail closed; callers must not perform a direct table settlement.
 - `src/kr/**`: Korea C-3-9 dispatch adapter. It writes the customer-facing
   `KR` result for KVAC/Annex-17 readiness and keeps live Korea Visa Portal
   e-Form completion behind the gated `src/korea-eform/**` automation.
-- `src/korea-kvac/**`: Korea C-3-9 KVAC appointment runner scaffold. Dry-run
-  observes deterministic slots and books only after a user-selected slot. Live
-  KVAC booking must be explicitly env-gated, use TWOCAPTCHA if CAPTCHA appears,
-  and stop with structured manual-required evidence for unsupported SMS,
-  real-name, WAF, or center-specific policy gates instead of marking success.
+- `src/korea-kvac/**`: Korea C-3-9 KVAC appointment flows with center-specific
+  maturity. Dry-run observes deterministic slots and books only after a
+  user-selected slot. Live KVAC booking must be explicitly env-gated, use
+  TWOCAPTCHA if CAPTCHA appears, and stop with structured manual-required
+  evidence for unsupported SMS, real-name, WAF, or center-specific policy
+  gates instead of marking success. Shenyang VFS is implemented separately in
+  `src/korea-vfs-shenyang/**` with its fail-closed applicant-details validation
+  and authenticated account/session flow; the remaining centers retain their
+  assisted/scaffold gates until their own selectors are validated.
   The Korea KVAC endpoints are
   `/local/korea-kvac/sms/start`, `/local/korea-kvac/sms/submit`, and
   `/local/korea-kvac/sms/complete`. They accept localhost calls or remote
@@ -555,7 +555,8 @@ and must fail closed; callers must not perform a direct table settlement.
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
 - `scripts/run-fv-smoke.ts`, `scripts/run-au-smoke.ts`,
-  `scripts/run-vn-smoke.ts`, `scripts/run-sgac-smoke.ts`,
+  `scripts/run-vn-smoke.ts`, `scripts/run-vn-payment-pre-card-smoke.ts`,
+  `scripts/run-sgac-smoke.ts`,
   `scripts/run-mdac-smoke.ts`, `scripts/run-tdac-smoke.ts`: local live smoke
   entry points for official portal reach/fill validation. Arrival-card smokes
   stop before final submit unless run with `--submit` and real applicant data.
@@ -621,11 +622,52 @@ and must fail closed; callers must not perform a direct table settlement.
   reuses its initial bitmap across fresh contexts. If 2captcha fails before it
   returns any answer (bounded unsolvable/network/timeout outcomes), the same
   stable bitmap may be retried within the shared solver/time budget because no
-  value reached the official portal. Once an answer exists, is entered, becomes
-  stale, or is rejected, keep the fingerprint registered, use the official
+  value reached the official portal. A structurally unusable answer that was
+  never entered may retry the same stable bitmap within the bounded solver
+  budget. Once an answer is entered, becomes stale, or is rejected, keep the
+  fingerprint registered, use the official
   reload control, and prove that the bitmap changed before another solver
   request. If a bounded reload cannot produce a new fingerprint, stop without
   resending the answered/rejected challenge or submitting the form.
+- `src/issuing/photonpay-card-provider.ts` owns durable just-in-time virtual
+  card issuance. Scope cards to `government_fee_allocations` and
+  `official_fee_payment_intents`, use the database issuer request id for
+  restart recovery, and persist only card id plus masked PAN. PAN, expiry, CVV,
+  and OTP must stay in memory. Do not call it for `client_in_portal`,
+  `applicant_direct_link`, or `paper_only_no_fee` routes.
+- `src/issuing/managed-card-provider.ts` selects an issuer before the durable
+  claim. Prefer PhotonPay only with an exact currency BIN/account pair; use the
+  vault-free `src/issuing/airwallex-card-provider.ts` fallback only for an
+  explicitly configured currency capability. Active attempts never switch
+  issuer on retry, and neither adapter may persist PAN, CVV, or expiry.
+  Airwallex creation is application/allocation/attempt-idempotent, accepts only
+  exact two-decimal official-fee amounts in explicitly allowlisted currencies,
+  and requires a configured per-currency card maximum before any API call;
+  it must also pass Airwallex Config Read with Remote Auth version 2 enabled
+  and `default_action=DECLINED` before it claims an issuer-card attempt;
+  `src/clients/airwallex-issuing.spec.ts` keeps those client-side guards covered
+  without network access.
+- The historical applicant-vault Airwallex adapter
+  `src/issuing/escrow-card-provider.ts` was removed. Do not restore a path that
+  stores PAN/CVV or creates a generic issuer card; every runtime card must pass
+  through the durable application/allocation-bound issuer router above.
+- `src/official-fee/execution-context.ts` resolves one explicitly consented
+  VIZA-managed payment intent to one exact issuer-ready government-fee
+  allocation. Issuer claims must carry that allocation id and fail closed on
+  ambiguous, mismatched, unconsented, or non-issuable financial state.
+- `src/official-fee/managed-payment-hooks.ts` adapts that exact execution
+  context and the country-neutral issuer router into lazy card/finalizer
+  callbacks for generic country runners.
+- `src/official-fee/accounting.ts` records redacted official-fee attempts and
+  receipts, intent outcomes, allocation review quarantine, and application
+  official-fee status for country runner payments.
+- `src/runners/managed-payment-boundary.ts` provides the lazy managed-card
+  contract for generic e-Visa runners, strict amount/currency and receipt
+  evidence gates, and an explicit staff-review state when no payment controls
+  have been evidenced.
+- Vietnam and Indonesia may acquire a managed issuer card only after the
+  official payment page is visible. An uncertain provider or portal result must enter
+  `review_required`; never issue a second card while that state is unresolved.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use
@@ -695,7 +737,7 @@ and must fail closed; callers must not perform a direct table settlement.
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
-| Korea C-3-9 | Official e-Form + appointment scaffold | Frontend prioritizes Korea Visa Portal barcode e-Form generation/download and keeps Annex-17 only as fallback; `src/korea-eform/**` models official e-Form checkpoints and `src/korea-kvac/**` supports dry-run slot observation/booking after user selection. Live portal completion remains gated pending per-center/post selector validation and official PDF capture. |
+| Korea C-3-9 | Official e-Form + center-specific appointment flows | Frontend prioritizes Korea Visa Portal barcode e-Form generation/download and keeps Annex-17 only as fallback. `src/korea-eform/**` models official e-Form checkpoints; Shenyang VFS uses the fail-closed applicant-details contract and authenticated slot/account FSM, while other KVAC centers retain their dry-run/assisted gates pending per-center selector validation and official PDF capture. |
 
 ## Ownership Boundaries
 - France-Visas registration CAPTCHA solving is allowed only for the explicit

@@ -99,37 +99,55 @@
       "steps": {
         "payment": {
           "title": "Complete service-fee payment",
-          "description": "Payment must be confirmed before VIZA prepares the application."
+          "descriptions": {
+            "pending": "Confirm the service-fee payment so VIZA can start preparing your application.",
+            "completed": "Your service-fee payment was confirmed, and VIZA started preparing your application."
+          }
         },
         "consent": {
           "title": "Confirm consent and authority",
-          "description": "Complete the service authority and required electronic signature."
+          "descriptions": {
+            "pending": "Review the service authority and complete the required electronic signature.",
+            "completed": "Your service authority and required electronic signature were completed."
+          }
         },
         "form": {
           "title": "Complete the application form",
-          "description": "Enter and review the information required for the application."
+          "descriptions": {
+            "pending": "Continue entering and reviewing your application information. {count} answers saved so far.",
+            "completed": "Your required application information was entered, reviewed, and saved."
+          }
         },
         "documents": {
           "title": "Upload required documents",
-          "description": "Upload the passport, photo, and destination-specific evidence."
+          "descriptions": {
+            "pending": "Upload the required passport, photo, and supporting evidence. {ready}/{total} documents are ready.",
+            "completed": "All required documents were uploaded or validated ({ready}/{total}).",
+            "completedNoRequirements": "No additional document uploads were required for this application."
+          }
         },
         "packet": {
           "title": "Prepare the application packet",
-          "description": "VIZA prepares the packet when the core requirements are ready."
+          "descriptions": {
+            "pending": "Complete the form and document requirements so VIZA can prepare your application packet.",
+            "completed": "VIZA prepared your application packet from the completed information and documents."
+          }
         },
         "handoff": {
           "title": "Submit to the official portal",
-          "description": "The prepared application enters the official submission flow."
+          "descriptions": {
+            "pending": "Complete the earlier tasks so VIZA can submit your application through the official portal.",
+            "completed": "VIZA submitted your application through the official portal.",
+            "completedWithReference": "VIZA submitted your application through the official portal. Official reference: {reference}."
+          }
         },
         "result": {
           "title": "Wait for the application result",
-          "description": "Approval, visa, refusal, or result files appear when received."
+          "descriptions": {
+            "pending": "After submission, check here for the official result and any available files.",
+            "completed": "The official application result was received, and the latest status or files are available."
+          }
         }
-      },
-      "metrics": {
-        "answers": "{count} saved answers",
-        "documents": "{ready}/{total} documents uploaded or validated",
-        "reference": "Official reference: {reference}"
       },
       "relative": {
         "justNow": "Just now",
@@ -541,7 +559,34 @@
       "missingBody": "Add the applicant's English name and mobile number, then confirm an eligible filing center.",
       "edit": "Edit application details",
       "confirm": "Confirm details and continue",
-      "confirming": "Saving confirmation…"
+      "confirming": "Saving confirmation…",
+      "shenyang": {
+        "intro": "Add the details required for a Shenyang appointment.",
+        "hint": "Resolved values are shown only in masked form; check each source.",
+        "fields": {
+          "surname": "Passport surname",
+          "givenNames": "Passport given names",
+          "dateOfBirth": "Date of birth",
+          "passportNumber": "Passport number",
+          "passportExpiryDate": "Passport expiry date",
+          "mobilePhone": "Mainland China mobile number"
+        },
+        "sources": {
+          "korea_form": "Korea application form",
+          "universal_profile": "Universal profile",
+          "appointment_supplement": "Appointment-page supplement"
+        },
+        "validation": {
+          "required": "Enter this field",
+          "latin_name_required": "Enter the English name shown on the passport",
+          "invalid_date": "Enter a valid date",
+          "date_in_future": "Date of birth cannot be in the future",
+          "invalid_passport": "Enter a valid passport number",
+          "passport_expired": "Passport expiry must be after today",
+          "invalid_mainland_phone": "Enter a valid mainland China mobile number"
+        },
+        "saveConfirm": "Save and confirm details"
+      }
     },
     "centerSheet": {
       "title": "Change filing center",
@@ -736,6 +781,7 @@
         "emptyTranscript": "No words were detected. Please try again or type your answer.",
         "transcriptionFailed": "The recording could not be transcribed. Please try again or type your answer.",
         "sendFailed": "Your message was not sent. Your text has been kept so you can try again.",
+        "providersUnavailable": "The AI service is temporarily unavailable. Your answer was not saved; your text has been kept so you can retry or enter it directly in the form.",
         "reviewFailed": "We couldn't check your answers or open final review. Please try again."
       },
       "actions": {
@@ -3835,7 +3881,7 @@
     "searchPlaceholder": "Search chats...",
     "noResults": "No results found",
     "sessionHistory": "Session History",
-    "sessionPanelTitle": "Visa conversations",
+    "sessionPanelTitle": "CONCIERGE",
     "sessionRecent": "Recent",
     "sessionNew": "New chat",
     "sessionUntitled": "New conversation",

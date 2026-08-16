@@ -84,6 +84,19 @@ function configureAdmin(
     eq: vi.fn(() => applicationQuery),
     single: vi.fn().mockResolvedValue({ data: { visa_type: applicationVisaType }, error: null }),
   };
+  // The live enqueue boundary now performs a separate QA-safety read before
+  // it calls the durable runner RPC. Keep this fixture explicitly ordinary so
+  // the guard exercises the normal applicant path rather than failing because
+  // the test client has no synthetic-data tables wired into its mock.
+  const qaApplicationQuery = {
+    select: vi.fn(() => qaApplicationQuery),
+    eq: vi.fn(() => qaApplicationQuery),
+    single: vi.fn().mockResolvedValue({ data: { purpose: "tourism" }, error: null }),
+  };
+  const qaAnswersQuery = {
+    select: vi.fn(() => qaAnswersQuery),
+    eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+  };
   const insertedRunnerJobs: unknown[] = [];
   const rollbackQuery = {
     select: vi.fn(() => rollbackQuery),
@@ -104,6 +117,15 @@ function configureAdmin(
     }
     if (actor === "lib/queue:application-flow") {
       return fn({ from: vi.fn(() => applicationQuery) });
+    }
+    if (actor === "lib/queue:qa-safety") {
+      return fn({
+        from: vi.fn((table: string) => {
+          if (table === "applications") return qaApplicationQuery;
+          if (table === "visa_application_answers") return qaAnswersQuery;
+          throw new Error(`unexpected QA-safety table: ${table}`);
+        }),
+      });
     }
     if (actor === "lib/queue:enqueue-rollback") {
       return fn({ from: vi.fn(() => rollbackQuery) });

@@ -19,6 +19,11 @@ describe('visa destination registry canonical products', () => {
     ['philippines', 'PH_ETRAVEL_ARRIVAL_CARD'],
     ['uk', 'UK_STANDARD_VISITOR'],
     ['taiwan', 'TW_ENTRY_PERMIT'],
+    ['canada', 'CA_TRV'],
+    ['india', 'IN_E_VISA'],
+    ['saudi_arabia', 'SA_E_VISA'],
+    ['turkey', 'TR_E_VISA'],
+    ['united_arab_emirates', 'AE_TOURIST_VISA'],
   ] as const)('uses the canonical default for %s', (country, visaType) => {
     expect(getDefaultVisitorVisaType(country)).toBe(visaType);
   });
@@ -47,6 +52,11 @@ describe('visa destination registry canonical products', () => {
     ['france', 'schengen_short_stay_tourism', 'EU_SCHENGEN_C_SHORT_STAY'],
     ['uk', 'standard_visitor', 'UK_STANDARD_VISITOR'],
     ['taiwan', 'TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT', 'TW_ENTRY_PERMIT'],
+    ['canada', 'visitor_visa', 'CA_TRV'],
+    ['india', 'regular_tourist_visa', 'IN_E_VISA'],
+    ['saudi_arabia', 'tourist_evisa', 'SA_E_VISA'],
+    ['turkey', 'evisa_tourism_business', 'TR_E_VISA'],
+    ['united_arab_emirates', 'visa_free_or_tourist_visa', 'AE_TOURIST_VISA'],
   ] as const)('normalizes legacy %s/%s to %s', (country, legacy, canonical) => {
     expect(canonicalVisaType(country, legacy)).toBe(canonical);
     expect(countrySupportsVisaType(country, legacy)).toBe(true);

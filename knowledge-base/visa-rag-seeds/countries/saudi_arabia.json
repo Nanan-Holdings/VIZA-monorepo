@@ -1,125 +1,149 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-16",
   "country": "saudi_arabia",
-  "notes": "Country-level VIZA RAG seed for saudi_arabia. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "notes": "Official-source RAG seed for SA_E_VISA, the self-service VisitSaudi Tourist eVisa only. It excludes visa on arrival, embassy and sponsored visas, Hajj, work, study, and residence products.",
   "documents": [
     {
-      "slug": "saudi-tourist-evisa",
+      "slug": "saudi-visitsaudi-tourist-evisa",
       "country": "saudi_arabia",
-      "visaType": "tourist_evisa",
+      "visaType": "SA_E_VISA",
       "documentType": "requirements",
-      "title": "Saudi Arabia Tourist eVisa",
-      "sourceUrl": "https://embassies.mofa.gov.sa/sites/uk/EN/DiplomaticMissionServices/Consulates/ConsulatesServices/Other%20Visas%20Services%20e/Pages/UK-Travel-Agents-for-Visa-Services14.aspx",
+      "title": "Saudi Arabia VisitSaudi Tourist eVisa",
+      "sourceUrl": "https://visa.visitsaudi.com/",
       "chunks": [
         {
-          "id": "sau_china_evisa_basic_route_zh",
-          "title": "Chinese passport tourism route for Saudi Arabia",
+          "id": "sa_evisa_product_boundary",
+          "title": "SA_E_VISA is the VisitSaudi self-service Tourist eVisa",
           "tags": [
             "saudi-arabia",
-            "sau",
-            "china",
-            "chinese-passport",
-            "tourism",
-            "visitor",
-            "short-stay"
-          ],
-          "content": "For Chinese ordinary passport holders planning short tourism travel to Saudi Arabia, VIZA AI should consider the Saudi tourist eVisa or visa-on-arrival route when the nationality is eligible. First confirm nationality, passport validity, purpose, stay length, Umrah plans, entry count, minors, and whether the trip involves Hajj, work or residence. Hajj, work, study and residence need separate official routes. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
-        },
-        {
-          "id": "sau_evisa_eligible_countries",
-          "title": "Saudi tourist eVisa eligible route",
-          "tags": [
-            "saudi-arabia",
+            "SA_E_VISA",
+            "visitsaudi",
             "tourist-evisa",
-            "eligible-countries",
-            "passport-validity",
-            "six-months"
+            "product-scope"
           ],
-          "content": "Saudi official tourist eVisa materials state that tourists from eligible countries can apply online before travel or obtain tourist visa services on arrival through Saudi immigration visa offices, subject to current rules. The official Saudi MOFA page lists China, including Hong Kong and Macau, among eligible Asian countries and states that the passport must be valid for at least six months from entry."
+          "content": "SA_E_VISA represents only the Ministry of Tourism self-service Tourist eVisa at https://visa.visitsaudi.com/. It is not a generic Saudi visa, visa-on-arrival workflow, embassy visa, sponsor-issued visit visa, Hajj visa, work visa, study visa, or residence product. VIZA must route any applicant who cannot use the live VisitSaudi nationality and passport-type eligibility flow to a separate product or the appropriate official authority rather than changing the scope of SA_E_VISA."
         },
         {
-          "id": "sau_tourism_scope_limits",
-          "title": "Saudi tourist visa scope and limits",
+          "id": "sa_evisa_eligibility_and_passport",
+          "title": "Live VisitSaudi eligibility and passport validity control the route",
           "tags": [
             "saudi-arabia",
-            "tourism",
-            "events",
-            "family-visit",
-            "not-work"
+            "SA_E_VISA",
+            "eligibility",
+            "nationality",
+            "passport-validity"
           ],
-          "content": "Saudi tourist eVisa guidance is for tourism and related short visits; it is not a work, study, residence or Hajj visa. If the user mentions Hajj, employment, long-term residence, journalism, study or regulated activity, VIZA AI should route away from the tourist eVisa and ask clarifying questions. For Umrah, explain that rules can differ by season and official Nusuk/Saudi channels should be checked."
+          "content": "Eligibility is controlled by the current nationality and passport-type choices in the VisitSaudi registration flow and must be checked again before submission because the live list can change. The VisitSaudi terms require a valid passport from a permitted country with at least six months remaining on the date of entry. The traveller must use the same passport at the Saudi border that was used for the eVisa application. Official sources: https://visa.visitsaudi.com/Registration/Verify ; https://visa.visitsaudi.com/Home/TermsConditions"
+        },
+        {
+          "id": "sa_evisa_validity_and_permitted_use",
+          "title": "Tourist eVisa validity and permitted use",
+          "tags": [
+            "saudi-arabia",
+            "SA_E_VISA",
+            "multiple-entry",
+            "validity",
+            "tourism",
+            "umrah"
+          ],
+          "content": "VisitSaudi states that the eVisa is normally valid for one year, permits multiple entries unless the issued eVisa states otherwise, and allows a maximum stay of three months. It cannot be extended. The official portal describes tourism activities, events, leisure, family and relative visits, and Umrah excluding Hajj within the Tourist eVisa program. The eVisa is not valid for paid employment, study, or Hajj. The issued eVisa and current official terms control if they differ from general guidance. Official sources: https://visa.visitsaudi.com/ ; https://visa.visitsaudi.com/Home/TermsConditions"
+        },
+        {
+          "id": "sa_evisa_minors_and_entry",
+          "title": "Adult authority, minor applications, and border conditions",
+          "tags": [
+            "saudi-arabia",
+            "SA_E_VISA",
+            "minor",
+            "guardian",
+            "border-entry"
+          ],
+          "content": "A user of the VisitSaudi eVisa service must be at least 18. An adult may apply for a minor only with authority to do so, and the application captures the minor's guardian relationship. Approval does not remove border controls: the traveller must carry the eVisa as directed, use the application passport, comply with Saudi law, and may have biometrics captured on arrival. Official source: https://visa.visitsaudi.com/Home/TermsConditions"
         }
       ]
     },
     {
-      "slug": "saudi_arabia-form-requirements",
+      "slug": "saudi-visitsaudi-form-requirements",
       "country": "saudi_arabia",
-      "visaType": "tourist_evisa",
+      "visaType": "SA_E_VISA",
       "documentType": "form_requirements",
-      "title": "Saudi Arabia Application Form and Document Intake Requirements",
-      "sourceUrl": "https://ksavisa.sa/",
+      "title": "VisitSaudi Tourist eVisa Applicant-Answer Requirements",
+      "sourceUrl": "https://visa.visitsaudi.com/Registration/Verify",
       "chunks": [
         {
-          "id": "saudi_arabia_form_channel_and_scope",
-          "title": "Saudi Arabia application channel and form scope",
+          "id": "sa_evisa_form_channel_and_limit",
+          "title": "VisitSaudi channel and reconstruction limit",
           "tags": [
-            "saudi_arabia",
+            "saudi-arabia",
+            "SA_E_VISA",
             "application-form",
-            "form-requirements",
-            "workflow",
-            "official-source"
-          ],
-          "content": "Saudi tourist eVisa portal Official source URLs reviewed for this seed: https://ksavisa.sa/ ; https://embassies.mofa.gov.sa/sites/uk/EN/DiplomaticMissionServices/Consulates/ConsulatesServices/Other%20Visas%20Services%20e/Pages/UK-Travel-Agents-for-Visa-Services14.aspx. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
-        },
-        {
-          "id": "saudi_arabia_form_fields_to_collect",
-          "title": "Saudi Arabia fields to collect before filling the form",
-          "tags": [
-            "saudi_arabia",
-            "application-form",
-            "autofill",
-            "field-mapping",
-            "intake"
-          ],
-          "content": "identity, passport, nationality, contact details, travel dates, entry count, purpose, accommodation and Umrah-related answers where relevant"
-        },
-        {
-          "id": "saudi_arabia_supporting_documents_and_review",
-          "title": "Saudi Arabia supporting documents and review checklist",
-          "tags": [
-            "saudi_arabia",
-            "documents",
-            "checklist",
-            "upload",
-            "review-before-submit"
-          ],
-          "content": "passport with required validity, photo, insurance/payment data and any eligibility evidence requested by the official portal Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
-        },
-        {
-          "id": "standard_passport_identity_field_rules",
-          "title": "Standard passport identity-field answer rules",
-          "tags": [
-            "standard-fields",
-            "passport",
-            "issuing-authority",
-            "passport-type",
-            "identity-document",
-            "field-guidance",
-            "official-source"
-          ],
-          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. Place of issue / 签发地点 asks for the location recorded on the passport or required by the official form, such as a city, province, municipality, or a country selected from an official country-only dropdown; copy the passport's Place of issue value when present, and enter a country only when the form explicitly asks for Country of issue / Issuing country or provides a country-only selector. Issuing authority / 签发机关 asks for the organization printed under Authority / Issuing authority. For Chinese ordinary passports, National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers. Do not infer either field from the pickup city, residence city, application country, or travel destination. If the passport prints a different value for the requested field, use that exact field value. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page and the destination's official field wording remain the final sources for the applicant's individual answer."
-        },
-        {
-          "id": "official_field_answer_norms",
-          "title": "Official-source field answer norms",
-          "tags": [
-            "field-guidance",
-            "answer-norms",
             "official-source",
-            "form-requirements",
-            "saudi_arabia"
+            "live-login-qa"
           ],
-          "content": "Official-source field answer norms for saudi_arabia.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://embassies.mofa.gov.sa/sites/uk/EN/DiplomaticMissionServices/Consulates/ConsulatesServices/Other%20Visas%20Services%20e/Pages/UK-Travel-Agents-for-Visa-Services14.aspx ; https://ksavisa.sa/\n\nPassport and identity fields:\n- Crawler reached official or authorized source URLs, but did not extract a concise field-specific sentence. Keep this country's field answers constrained to official forms, passport data, and source URLs already listed in the country RAG seed.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+          "content": "The canonical channel is the VisitSaudi eVisa portal at https://visa.visitsaudi.com/. Public registration pages and official client templates establish the semantic answer inventory, but an activated authenticated application is still required to verify exact page order, requiredness, lookup labels and codes, validation, and transfer behavior. Treat SA_E_VISA as an official-source reconstruction with live-login QA pending; state uncertainty instead of inventing a portal value."
+        },
+        {
+          "id": "sa_evisa_applicant_and_passport_fields",
+          "title": "Applicant, guardian, and passport answers",
+          "tags": [
+            "saudi-arabia",
+            "SA_E_VISA",
+            "identity",
+            "passport",
+            "guardian",
+            "field-mapping"
+          ],
+          "content": "Collect nationality; passport-exact given, father, and family names while preserving synchronized English and official Arabic values internally; gender; date, country, and city of birth; religion; marital status; profession; and whether the applicant is a minor. For a minor, collect guardian name and relationship and resolve them to the linked application during submission. Passport answers include number, issuing country, place and date of issue, and expiry date. Passport type is locked to the product-supported regular passport rather than presented as a route switch. Official sources: https://visa.visitsaudi.com/Registration/Verify ; https://visa.visitsaudi.com/Home/TermsConditions"
+        },
+        {
+          "id": "sa_evisa_contact_and_accommodation_fields",
+          "title": "Residence, correspondence, and accommodation answers",
+          "tags": [
+            "saudi-arabia",
+            "SA_E_VISA",
+            "contact",
+            "whatsapp",
+            "accommodation",
+            "conditional-fields"
+          ],
+          "content": "Collect country, city, postal code when applicable, and residential address; applicant email for visa correspondence; phone country calling code and number; whether that number receives WhatsApp; and a separate WhatsApp calling code and number when it does not. Collect the official purpose-of-visit lookup value within the Tourist eVisa product. Accommodation is one conditional branch: hotel or commercial accommodation requires property name, address, and city; private residence requires the residence address, city, and residence or host name. Exact authenticated lookup values and derived place-search transfers remain live-login-QA pending. Official source: https://visa.visitsaudi.com/"
+        },
+        {
+          "id": "sa_evisa_document_boundary",
+          "title": "Photograph and passport copy are document slots",
+          "tags": [
+            "saudi-arabia",
+            "SA_E_VISA",
+            "documents",
+            "photo",
+            "passport-copy",
+            "application-documents"
+          ],
+          "content": "The personal photograph and passport biodata page belong to application_documents and must not be stored as file-path answers in the visa form schema. VisitSaudi publishes a dedicated photograph specification, including a 200 by 200 pixel image, 5 to 100 KB file size, white unpatterned background, recent likeness, centered face, and specified face proportion. Use the current official specification at upload time: https://visa.visitsaudi.com/Home/PhotoSpecifications"
+        },
+        {
+          "id": "sa_evisa_workflow_data_boundary",
+          "title": "Portal operations are not applicant-answer fields",
+          "tags": [
+            "saudi-arabia",
+            "SA_E_VISA",
+            "workflow-boundary",
+            "account-management",
+            "payment"
+          ],
+          "content": "VisitSaudi account activation, authentication, session state, anti-automation challenge handling, integrated insurance, and government-fee payment are VIZA workflow responsibilities. They must not appear in visa_form_fields or be requested as ordinary applicant answers. The applicant-facing schema contains only reusable application facts and keeps upload state in application_documents. Official service and terms: https://visa.visitsaudi.com/ ; https://visa.visitsaudi.com/Home/TermsConditions"
+        },
+        {
+          "id": "sa_evisa_passport_answer_rules",
+          "title": "Passport and identity answers must follow the requested document field",
+          "tags": [
+            "saudi-arabia",
+            "SA_E_VISA",
+            "passport",
+            "identity",
+            "field-guidance"
+          ],
+          "content": "Copy names, passport number, nationality, birth facts, issuing country, place of issue, issue date, and expiry date from the matching field on the valid passport. Do not substitute the issuing authority, pickup city, residence, or destination when the form asks for place or country of issue. Preserve official English and Arabic value pairs internally where VisitSaudi exposes both, but show only the applicant's selected interface language during entry. Closed-list values must use the authenticated portal's current label and code rather than a guessed synonym. Official source: https://visa.visitsaudi.com/Registration/Verify"
         }
       ]
     }

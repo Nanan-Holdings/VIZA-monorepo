@@ -45,7 +45,9 @@ export interface IndonesiaPortalProbeInput {
     enabled?: boolean;
     waitTimeoutMs?: number;
     oneTimeCard?: IndonesiaOneTimeCard | null;
-    takeOneTimeCard?: () => IndonesiaOneTimeCard | null;
+    takeOneTimeCard?: () => IndonesiaOneTimeCard | null | Promise<IndonesiaOneTimeCard | null>;
+    expectedAmountCents?: number | null;
+    expectedCurrency?: string | null;
     beforeCardSubmit?: (snapshot: {
       url: string;
       title: string | null;
@@ -59,6 +61,56 @@ export interface IndonesiaPortalProbeInput {
     }) => Promise<void>;
   };
   onStage?: (stage: string, snapshot: { url: string; title?: string | null }) => Promise<void>;
+}
+
+export type IndonesiaOfficialFeeVerification =
+  | { verified: true; amountCents: number; currency: string }
+  | { verified: false; reason: "expectation_missing" | "amount_missing" | "amount_mismatch" };
+
+function parseIndonesiaDisplayedAmount(token: string, currency: string): number | null {
+  let normalized = token.replace(/\s/g, "");
+  const separator = Math.max(normalized.lastIndexOf(","), normalized.lastIndexOf("."));
+  if (separator >= 0) {
+    const decimals = normalized.length - separator - 1;
+    if (decimals === 2 && currency !== "IDR") {
+      normalized = `${normalized.slice(0, separator).replace(/[.,]/g, "")}.${normalized.slice(separator + 1)}`;
+    } else {
+      normalized = normalized.replace(/[.,]/g, "");
+    }
+  }
+  const major = Number(normalized);
+  return Number.isFinite(major) ? Math.round(major * 100) : null;
+}
+
+/** Verify the portal fee before invoking a callback that can issue card material. */
+export function verifyIndonesiaOfficialFeeText(input: {
+  bodyText: string;
+  expectedAmountCents?: number | null;
+  expectedCurrency?: string | null;
+}): IndonesiaOfficialFeeVerification {
+  const expectedAmountCents = input.expectedAmountCents;
+  const currency = input.expectedCurrency?.trim().toUpperCase();
+  if (!Number.isSafeInteger(expectedAmountCents) || !expectedAmountCents || !currency) {
+    return { verified: false, reason: "expectation_missing" };
+  }
+  const aliases = currency === "IDR" ? "(?:IDR|Rp\\.?)" : currency.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const amountToken = "([0-9][0-9.,\\s]*)";
+  const patterns = [
+    new RegExp(`${aliases}\\s*${amountToken}`, "gi"),
+    new RegExp(`${amountToken}\\s*${aliases}`, "gi"),
+  ];
+  let sawAmount = false;
+  for (const pattern of patterns) {
+    for (const match of input.bodyText.matchAll(pattern)) {
+      const token = match[1];
+      if (!token) continue;
+      const amountCents = parseIndonesiaDisplayedAmount(token, currency);
+      if (amountCents === null) continue;
+      sawAmount = true;
+      if (amountCents === expectedAmountCents) return { verified: true, amountCents, currency };
+    }
+  }
+  return { verified: false, reason: sawAmount ? "amount_mismatch" : "amount_missing" };
 }
 
 export interface IndonesiaPortalProbeResult {
@@ -4888,22 +4940,31 @@ async function waitForUserPaymentCompletion(
   let text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   let url = activePage.url();
   let state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
-  const oneTimeCard =
-    input.userPaymentHandoff?.oneTimeCard ??
-    input.userPaymentHandoff?.takeOneTimeCard?.() ??
-    null;
-  if (oneTimeCard) {
-    const preflight = await input.userPaymentHandoff?.beforeCardSubmit?.({
+  const preflight = await input.userPaymentHandoff?.beforeCardSubmit?.({
       url,
       title,
       state,
     });
-    if (preflight && !preflight.allowed) {
-      diagnostics.push(
-        `indonesia_payment_resource_preflight_blocked ${preflight.reason ?? "unspecified"}`,
-      );
-      return { state: "payment_required", title, text, url };
-    }
+  if (preflight && !preflight.allowed) {
+    diagnostics.push(
+      `indonesia_payment_resource_preflight_blocked ${preflight.reason ?? "unspecified"}`,
+    );
+    return { state: "payment_required", title, text, url };
+  }
+  const feeVerification = verifyIndonesiaOfficialFeeText({
+    bodyText: text,
+    expectedAmountCents: input.userPaymentHandoff?.expectedAmountCents,
+    expectedCurrency: input.userPaymentHandoff?.expectedCurrency,
+  });
+  if (!feeVerification.verified) {
+    diagnostics.push(`indonesia_official_fee_unverified ${feeVerification.reason}`);
+    return { state: "unknown", title, text, url };
+  }
+  const oneTimeCard =
+    input.userPaymentHandoff?.oneTimeCard ??
+    await input.userPaymentHandoff?.takeOneTimeCard?.() ??
+    null;
+  if (oneTimeCard) {
     const cardSubmitted = await payIndonesiaPortalWithOneTimeCard(activePage, oneTimeCard, diagnostics);
     if (!cardSubmitted) {
       const controlsVisible = await hasIndonesiaPortalEmailOtpControls(activePage);
@@ -5714,12 +5775,22 @@ export async function probeIndonesiaPortal(
       }
     }
 
+    const paymentFeeUnverified = session.diagnostics.some((entry) =>
+      entry.startsWith("indonesia_official_fee_unverified "),
+    );
     const paymentResultUnknown =
       hasUnconfirmedIndonesiaPaymentResult(session.diagnostics);
     const accountRecoveryRequired = session.diagnostics.includes(
       "indonesia_official_account_recovery_required",
     );
-    const action = paymentResultUnknown
+    const action = paymentFeeUnverified
+      ? {
+          actionType: "official_fee_payment_review_required",
+          instruction:
+            "VIZA could not verify the visible Indonesia official fee against the managed allocation, so no card was acquired. Staff review is required; do not pay the portal directly.",
+          implementationStatus: "blocked" as const,
+        }
+      : paymentResultUnknown
       ? {
           actionType: "official_fee_payment_result_unknown",
           instruction:

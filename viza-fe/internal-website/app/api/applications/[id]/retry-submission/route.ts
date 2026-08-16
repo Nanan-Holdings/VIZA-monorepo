@@ -8,9 +8,11 @@ import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import {
+  enqueueRunnerJob,
   enqueueRunnerPoolJob,
   enqueueSgacRunnerRetry,
 } from "@/lib/queue/enqueue";
+import { loadApplicationCompleteness } from "@/lib/application-completeness";
 import {
   resolveRunnerPoolFlow,
   shouldUseSharedRunnerPool,
@@ -32,6 +34,7 @@ import {
   isMalaysiaMdacApplication,
   isPhilippinesEtravelApplication,
   isSgArrivalCardApplication,
+  isTaiwanEntryPermitApplication,
   isThailandTdacApplication,
   isUkStandardVisitorApplication,
   isUkPrefillSubmissionResult,
@@ -44,7 +47,12 @@ import {
   type SubmissionMode,
   type SubmissionQueueStatus,
   type SubmissionRetryIntent,
+  type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
+import {
+  isQaDryRunPurpose,
+  isSyntheticQaValue,
+} from "@/lib/applications/qa-safety";
 
 type ApplicationForRetry = {
   id: string;
@@ -82,6 +90,7 @@ type RetrySubmissionRequest = {
   intent: SubmissionRetryIntent;
   country: string | null;
   visaType: string | null;
+  taiwanOfficialTermsConsent: TaiwanOfficialTermsConsentInput | null;
 };
 
 type RetryQueueInsertResult = {
@@ -258,12 +267,25 @@ async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmis
       intent?: unknown;
       country?: unknown;
       visaType?: unknown;
+      taiwanOfficialTermsConsent?: unknown;
     };
+    const rawTaiwanConsent =
+      body.taiwanOfficialTermsConsent &&
+      typeof body.taiwanOfficialTermsConsent === "object" &&
+      !Array.isArray(body.taiwanOfficialTermsConsent)
+        ? body.taiwanOfficialTermsConsent as Record<string, unknown>
+        : null;
     return {
       mode: body.mode === "live_assisted" || body.mode === "dry_run" ? body.mode : null,
       intent: parseSubmissionRetryIntent(body.intent),
       country: typeof body.country === "string" && body.country.trim() ? body.country : null,
       visaType: typeof body.visaType === "string" && body.visaType.trim() ? body.visaType : null,
+      taiwanOfficialTermsConsent: rawTaiwanConsent
+        ? {
+            entryPromptAccepted: rawTaiwanConsent.entryPromptAccepted === true,
+            termsModalAccepted: rawTaiwanConsent.termsModalAccepted === true,
+          }
+        : null,
     };
   } catch {
     return {
@@ -271,6 +293,7 @@ async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmis
       intent: "retry",
       country: null,
       visaType: null,
+      taiwanOfficialTermsConsent: null,
     };
   }
 }
@@ -311,6 +334,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function hasCompletedOfficialSubmission(application: ApplicationForRetry): boolean {
+  if (isTaiwanEntryPermitApplication(application.country, application.visa_type)) {
+    const result = application.submission_result;
+    return Boolean(
+      isRecord(result) &&
+      result.country === "TW" &&
+      result.status === "submitted" &&
+      isRecord(result.officialReceipt) &&
+      typeof result.officialReceipt.caseNumber === "string" &&
+      result.officialReceipt.caseNumber.trim(),
+    );
+  }
   if (isVietnamPrearrivalApplication(application.country, application.visa_type)) {
     const result = application.submission_result;
     if (!isRecord(result) || result.submitted !== true) return false;
@@ -414,11 +448,64 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
     return process.env.PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false" &&
       process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
   }
+  if (isTaiwanEntryPermitApplication(country, visaType)) {
+    return process.env.TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED === "true";
+  }
   if (isIndonesiaEVisaApplication(country, visaType)) {
     return process.env.INDONESIA_LIVE_SUBMISSION_ENABLED !== "false" &&
       process.env.NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED !== "false";
   }
   return false;
+}
+
+async function getActiveTaiwanRunnerJob(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+): Promise<{ id: string; status: string } | null> {
+  const { data, error } = await admin
+    .from("runner_job")
+    .select("id, status")
+    .eq("application_id", applicationId)
+    .eq("country", "taiwan")
+    .in("status", ["queued", "running", "needs_human", "paused"])
+    .order("enqueued_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`taiwan active-job guard: ${error.message}`);
+  return data as { id: string; status: string } | null;
+}
+
+async function insertTaiwanRunnerJob(input: {
+  applicationId: string;
+  now: string;
+  consent: TaiwanOfficialTermsConsentInput;
+}): Promise<RetryQueueInsertResult> {
+  const result = await enqueueRunnerJob(input.applicationId, "taiwan", {
+    correlationId: `tw-entry-permit:${input.applicationId}:${input.now}`,
+    maxAttempts: 1,
+    metadata: {
+      source: "retry-submission",
+      visaType: "TW_ENTRY_PERMIT",
+      mode: "live_assisted",
+      queuedStage: "queued_for_tw_entry_permit_submit",
+      taiwanOfficialTermsConsent: {
+        version: "tw_official_terms_v1",
+        entryPromptAccepted: input.consent.entryPromptAccepted,
+        termsModalAccepted: input.consent.termsModalAccepted,
+        recordedAt: input.now,
+        source: "viza_final_confirmation",
+      },
+    },
+  });
+  return {
+    error: null,
+    jobId: result.id,
+    queueStatus: "tw_live_assisted_pending",
+    mode: "live_assisted",
+    provider: "taiwan_overseas_cn_entry_permit_live",
+    reusedExisting: !result.created,
+    supersededCount: 0,
+  };
 }
 
 function isMissingVietnamLiveSchemaError(error: { message?: string; code?: string }): boolean {
@@ -1391,9 +1478,32 @@ export async function POST(
   // Never allow a client retry button to upgrade its synthetic answers into a
   // live CEAC task, even if an older failure card requests live_assisted.
   const mode: SubmissionMode =
-    ownedApplication.purpose === "VIZA_PLACEHOLDER_DRY_RUN"
+    isQaDryRunPurpose(ownedApplication.purpose)
       ? "dry_run"
       : requestedMode;
+
+  if (!isQaDryRunPurpose(ownedApplication.purpose)) {
+    const { data: answerRows, error: answerError } = await admin
+      .from("visa_application_answers")
+      .select("field_name, value_text, value_json")
+      .eq("application_id", applicationId);
+    if (answerError) {
+      return NextResponse.json({ error: answerError.message }, { status: 500 });
+    }
+    const unsafeAnswer = (answerRows ?? []).find(
+      (answer) =>
+        isSyntheticQaValue(answer.value_text) ||
+        isSyntheticQaValue(JSON.stringify(answer.value_json ?? null)),
+    );
+    if (unsafeAnswer) {
+      return NextResponse.json(
+        {
+          error: `Application contains synthetic QA data in ${unsafeAnswer.field_name}. Clear it and enter the applicant's real information before submission.`,
+        },
+        { status: 409 },
+      );
+    }
+  }
 
   if (!requestedValueMatchesApplication(requestedSubmission.country, ownedApplication.country)) {
     return NextResponse.json(
@@ -1480,6 +1590,7 @@ export async function POST(
       isUkLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isDigitalArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type) ||
+      isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isIndonesiaEVisaApplication(ownedApplication.country, ownedApplication.visa_type);
     if (!provider || !supportsLiveAssisted) {
       return NextResponse.json(
@@ -1492,6 +1603,54 @@ export async function POST(
         { error: "Live assisted retry is disabled by environment configuration." },
         { status: 403 },
       );
+    }
+    if (isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const consent = requestedSubmission.taiwanOfficialTermsConsent;
+      if (!consent?.entryPromptAccepted || !consent.termsModalAccepted) {
+        return NextResponse.json(
+          {
+            error: "请分别确认台湾官网进入提示与条款弹窗授权后再提交。",
+            code: "tw_official_terms_consent_required",
+          },
+          { status: 422 },
+        );
+      }
+      try {
+        const activeJob = await getActiveTaiwanRunnerJob(admin, applicationId);
+        if (activeJob) {
+          return NextResponse.json(
+            {
+              error: "A Taiwan submission job is already active.",
+              code: "tw_active_job_exists",
+              jobId: activeJob.id,
+              jobStatus: activeJob.status,
+            },
+            { status: 409 },
+          );
+        }
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            code: "query_failed",
+          },
+          { status: 500 },
+        );
+      }
+      const completeness = await loadApplicationCompleteness({
+        admin,
+        application: ownedApplication,
+      });
+      if (!completeness.complete) {
+        return NextResponse.json(
+          {
+            error: "请先补齐台湾申请的必填信息和材料。",
+            code: "application_incomplete",
+            completeness,
+          },
+          { status: 422 },
+        );
+      }
     }
     if (isVietnamPrearrivalApplication(ownedApplication.country, ownedApplication.visa_type)) {
       try {
@@ -1748,7 +1907,17 @@ export async function POST(
     }
   }
 
-  const poolEnqueue = useRunnerPool
+  const isTaiwanFormalSubmit =
+    mode === "live_assisted" &&
+    isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type);
+  const taiwanQueueResult = isTaiwanFormalSubmit
+    ? await insertTaiwanRunnerJob({
+        applicationId,
+        now,
+        consent: requestedSubmission.taiwanOfficialTermsConsent!,
+      })
+    : null;
+  const poolEnqueue = !isTaiwanFormalSubmit && useRunnerPool
     ? await enqueueRunnerPoolJob(
         applicationId,
         ownedApplication.country ?? "",
@@ -1762,7 +1931,7 @@ export async function POST(
         },
       )
     : null;
-  const queueResult: RetryQueueInsertResult = poolEnqueue
+  const queueResult: RetryQueueInsertResult = taiwanQueueResult ?? (poolEnqueue
     ? {
         error: null,
         jobId: poolEnqueue.id,
@@ -1791,7 +1960,7 @@ export async function POST(
                 : queueStatus === "phetravel_live_assisted_scheduled"
                   ? "scheduled_for_phetravel_window"
                   : null,
-      });
+      }));
   if (queueResult.error) {
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
   }
@@ -1830,7 +1999,8 @@ export async function POST(
       newApplication: freshDs160Submission,
       supersededCount: queueResult.supersededCount,
       result: ownedApplication.submission_result,
-      queueTransport: poolEnqueue?.transport ?? "submission_queue",
+      queueTransport: isTaiwanFormalSubmit ? "runner_job" : poolEnqueue?.transport ?? "submission_queue",
+      queueBackend: isTaiwanFormalSubmit ? "runner_job" : undefined,
       workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? false,
     });
   }
@@ -1859,8 +2029,8 @@ export async function POST(
   const { error: appUpdateError } = await admin
     .from("applications")
     .update({
-      status: "submitted",
-      submitted_at: now,
+      status: isTaiwanFormalSubmit ? "processing" : "submitted",
+      submitted_at: isTaiwanFormalSubmit ? null : now,
       submission_result_status: nextSubmissionResultStatus,
       submission_result: nextSubmissionResult,
       confirmation_number: null,
@@ -1893,12 +2063,13 @@ export async function POST(
     queueStatus,
     mode,
     provider,
+    queueBackend: isTaiwanFormalSubmit ? "runner_job" : undefined,
     newApplication: freshDs160Submission,
     supersededCount: queueResult.supersededCount,
     scheduled: Boolean(scheduledResult),
     scheduledFor,
     result: nextSubmissionResult,
     workerTriggered,
-    queueTransport: poolEnqueue?.transport ?? "submission_queue",
+    queueTransport: isTaiwanFormalSubmit ? "runner_job" : poolEnqueue?.transport ?? "submission_queue",
   });
 }

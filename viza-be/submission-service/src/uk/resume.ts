@@ -9,8 +9,8 @@
  *        - run the page-binding filler (best-effort; missing answers stay empty)
  *        - click Save and continue
  *   4. Walk Documents (tick all checkboxes + Save and continue).
- *   5. Walk Declaration (tick + Save and continue) — but HALT BEFORE clicking
- *      Save on Declaration if the next route is Pay-shaped.
+ *   5. Walk Declaration and, only with an allocation-bound managed-card
+ *      callback, continue through the verified official payment boundary.
  *
  * Returns a structured result the orchestrator can write back to
  * applications.submission_result.
@@ -25,6 +25,11 @@ import {
   UK_PAGE_ORDER,
 } from "./page-bindings";
 import { ukClickSaveContinue } from "./fillers";
+import {
+  payUkWithManagedCard,
+  type UkManagedPaymentCard,
+  verifyUkPaymentPageAmount,
+} from "./payment";
 
 export interface UkResumeInput {
   resumeUrl: string;
@@ -41,6 +46,13 @@ export interface UkResumeOptions {
   pageTimeoutMs?: number;
   /** Where to write failure screenshots. */
   outputDir?: string;
+  /**
+   * Lazily acquires a VIZA-managed card only after the payment page is
+   * visible. Omit this callback for prefill-only runs.
+   */
+  takePaymentCard?: () => Promise<UkManagedPaymentCard | null>;
+  expectedPaymentAmount?: number;
+  expectedPaymentCurrency?: string;
 }
 
 export type UkResumeResult =
@@ -69,6 +81,25 @@ export type UkResumeResult =
       failedAt: string;
       error: Record<string, unknown> | null;
       url: string;
+    }
+  | {
+      status: "paid";
+      runId?: string;
+      pagesFilled: string[];
+      pagesSkipped: string[];
+      finalUrl: string;
+      portalReceiptId: string;
+      applicationReference?: string;
+    }
+  | {
+      status: "payment_review_required";
+      runId?: string;
+      pagesFilled: string[];
+      pagesSkipped: string[];
+      finalUrl: string;
+      reason: string;
+      paymentOutcome?: "declined" | "review_required";
+      applicationReference?: string;
     };
 
 const STOP_TITLE_PATTERNS = [/^Pay\b/i, /payment/i];
@@ -123,6 +154,16 @@ export async function resumeUkApplication(
       const landed = page.url();
       if (!landed.includes(slug)) {
         pagesSkipped.push(slug);
+        if (await isStopBoundary(page)) {
+          return handleVisiblePaymentBoundary(
+            page,
+            input,
+            options,
+            runId,
+            pagesFilled,
+            pagesSkipped,
+          );
+        }
         continue;
       }
 
@@ -148,7 +189,14 @@ export async function resumeUkApplication(
       // Check-Your-Answers summary, or — for the LAST page in the list —
       // the Documents step. Bail if we've crossed into a stop URL.
       if (await isStopBoundary(page)) {
-        return earlyHalt(page, input, runId, pagesFilled);
+        return handleVisiblePaymentBoundary(
+          page,
+          input,
+          options,
+          runId,
+          pagesFilled,
+          pagesSkipped,
+        );
       }
     }
 
@@ -173,25 +221,130 @@ export async function resumeUkApplication(
     }
 
     if (await isStopBoundary(page)) {
-      return earlyHalt(page, input, runId, pagesFilled);
-    }
-
-    // ── Declaration step — tick the ack but DO NOT click Save ─────────
-    if (/Declaration/i.test(await page.title())) {
-      await UK_DECLARATION_FILLER(page, input.answers);
-      pagesFilled.push("__declaration__");
-      // Intentionally do NOT click Save and continue — the next route is
-      // /pay which is the user's stop boundary. Surface the application
-      // reference if it's visible on the Declaration page.
-      const applicationReference = await captureApplicationReference(page);
-      return {
-        status: "stopped_at_pay",
+      return handleVisiblePaymentBoundary(
+        page,
+        input,
+        options,
         runId,
-        portalUrl: input.resumeUrl,
-        portalUsername: input.email,
         pagesFilled,
         pagesSkipped,
-        finalUrl: page.url(),
+      );
+    }
+
+    // ── Declaration + VIZA-managed payment ────────────────────────────
+    if (/Declaration/i.test(await page.title())) {
+      const applicationReference = await captureApplicationReference(page);
+      if (!options.takePaymentCard) {
+        await UK_DECLARATION_FILLER(page, input.answers);
+        pagesFilled.push("__declaration__");
+        // Prefill-only runs preserve the payment boundary. No credential or
+        // payment link should be exposed to the applicant by the caller.
+        return {
+          status: "stopped_at_pay",
+          runId,
+          portalUrl: input.resumeUrl,
+          portalUsername: input.email,
+          pagesFilled,
+          pagesSkipped,
+          finalUrl: page.url(),
+          ...(applicationReference ? { applicationReference } : {}),
+        };
+      }
+
+      // UKVI currently uses two declaration pages. Complete every declaration
+      // page already represented by the applicant's VIZA final confirmation,
+      // then acquire card material only after the official pay page is visible.
+      for (let declarationPage = 0; declarationPage < 4; declarationPage += 1) {
+        if (!/Declaration/i.test(await page.title())) break;
+        await UK_DECLARATION_FILLER(page, input.answers);
+        await ukClickSaveContinue(page, pageTimeoutMs);
+        pagesFilled.push(`__declaration_${declarationPage + 1}__`);
+      }
+
+      if (!(await isStopBoundary(page))) {
+        return {
+          status: "payment_review_required",
+          runId,
+          pagesFilled,
+          pagesSkipped,
+          finalUrl: page.url(),
+          reason: "UKVI did not reach the expected official payment page after declaration",
+          ...(applicationReference ? { applicationReference } : {}),
+        };
+      }
+
+      const expectedPaymentAmount = options.expectedPaymentAmount;
+      const expectedPaymentCurrency = options.expectedPaymentCurrency;
+      if (
+        typeof expectedPaymentAmount !== "number" ||
+        !Number.isFinite(expectedPaymentAmount) ||
+        expectedPaymentAmount <= 0 ||
+        !expectedPaymentCurrency
+      ) {
+        return {
+          status: "payment_review_required",
+          runId,
+          pagesFilled,
+          pagesSkipped,
+          finalUrl: page.url(),
+          reason: "The allocated UK official-fee amount or currency was unavailable",
+          ...(applicationReference ? { applicationReference } : {}),
+        };
+      }
+      const amountCheck = await verifyUkPaymentPageAmount({
+        page,
+        expectedAmount: expectedPaymentAmount,
+        expectedCurrency: expectedPaymentCurrency,
+      });
+      if (!amountCheck.ok) {
+        return {
+          status: "payment_review_required",
+          runId,
+          pagesFilled,
+          pagesSkipped,
+          finalUrl: page.url(),
+          reason: amountCheck.reason,
+          ...(applicationReference ? { applicationReference } : {}),
+        };
+      }
+
+      const card = await options.takePaymentCard();
+      if (!card) {
+        return {
+          status: "payment_review_required",
+          runId,
+          pagesFilled,
+          pagesSkipped,
+          finalUrl: page.url(),
+          reason: "A VIZA-managed official-fee card was not available",
+          ...(applicationReference ? { applicationReference } : {}),
+        };
+      }
+      const payment = await payUkWithManagedCard({
+        page,
+        card,
+        expectedAmount: expectedPaymentAmount,
+        expectedCurrency: expectedPaymentCurrency,
+      });
+      if (payment.status === "paid") {
+        return {
+          status: "paid",
+          runId,
+          pagesFilled,
+          pagesSkipped,
+          finalUrl: payment.finalUrl,
+          portalReceiptId: payment.portalReceiptId,
+          ...(applicationReference ? { applicationReference } : {}),
+        };
+      }
+      return {
+        status: "payment_review_required",
+        runId,
+        pagesFilled,
+        pagesSkipped,
+        finalUrl: payment.finalUrl,
+        reason: payment.reason,
+        paymentOutcome: payment.status,
         ...(applicationReference ? { applicationReference } : {}),
       };
     }
@@ -237,20 +390,101 @@ async function isStopBoundary(page: Page): Promise<boolean> {
   return false;
 }
 
-function earlyHalt(
+async function handleVisiblePaymentBoundary(
   page: Page,
   input: UkResumeInput,
+  options: UkResumeOptions,
   runId: string | undefined,
   pagesFilled: string[],
-): UkResumeResult {
+  pagesSkipped: string[],
+): Promise<UkResumeResult> {
+  const applicationReference = await captureApplicationReference(page);
+  if (!options.takePaymentCard) {
+    return {
+      status: "stopped_at_pay",
+      runId,
+      portalUrl: input.resumeUrl,
+      portalUsername: input.email,
+      pagesFilled,
+      pagesSkipped,
+      finalUrl: page.url(),
+      ...(applicationReference ? { applicationReference } : {}),
+    };
+  }
+
+  const expectedPaymentAmount = options.expectedPaymentAmount;
+  const expectedPaymentCurrency = options.expectedPaymentCurrency;
+  if (
+    typeof expectedPaymentAmount !== "number" ||
+    !Number.isFinite(expectedPaymentAmount) ||
+    expectedPaymentAmount <= 0 ||
+    !expectedPaymentCurrency
+  ) {
+    return {
+      status: "payment_review_required",
+      runId,
+      pagesFilled,
+      pagesSkipped,
+      finalUrl: page.url(),
+      reason: "The allocated UK official-fee amount or currency was unavailable",
+      ...(applicationReference ? { applicationReference } : {}),
+    };
+  }
+  const amountCheck = await verifyUkPaymentPageAmount({
+    page,
+    expectedAmount: expectedPaymentAmount,
+    expectedCurrency: expectedPaymentCurrency,
+  });
+  if (!amountCheck.ok) {
+    return {
+      status: "payment_review_required",
+      runId,
+      pagesFilled,
+      pagesSkipped,
+      finalUrl: page.url(),
+      reason: amountCheck.reason,
+      ...(applicationReference ? { applicationReference } : {}),
+    };
+  }
+
+  const card = await options.takePaymentCard();
+  if (!card) {
+    return {
+      status: "payment_review_required",
+      runId,
+      pagesFilled,
+      pagesSkipped,
+      finalUrl: page.url(),
+      reason: "A VIZA-managed official-fee card was not available",
+      ...(applicationReference ? { applicationReference } : {}),
+    };
+  }
+  const payment = await payUkWithManagedCard({
+    page,
+    card,
+    expectedAmount: expectedPaymentAmount,
+    expectedCurrency: expectedPaymentCurrency,
+  });
+  if (payment.status === "paid") {
+    return {
+      status: "paid",
+      runId,
+      pagesFilled,
+      pagesSkipped,
+      finalUrl: payment.finalUrl,
+      portalReceiptId: payment.portalReceiptId,
+      ...(applicationReference ? { applicationReference } : {}),
+    };
+  }
   return {
-    status: "halted_before_pay",
+    status: "payment_review_required",
     runId,
-    portalUrl: input.resumeUrl,
-    portalUsername: input.email,
     pagesFilled,
-    finalUrl: page.url(),
-    reason: "Detected pay/payment route mid-walk — halted to preserve user funds",
+    pagesSkipped,
+    finalUrl: payment.finalUrl,
+    reason: payment.reason,
+    paymentOutcome: payment.status,
+    ...(applicationReference ? { applicationReference } : {}),
   };
 }
 

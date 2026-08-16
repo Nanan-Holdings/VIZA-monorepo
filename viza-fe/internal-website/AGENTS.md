@@ -27,13 +27,32 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 
 - Client portal under `app/client/**`.
 - Client dashboard country hero artwork under `public/country-heroes/**`, mapped
-  to application country slugs by `lib/client/country-hero-theme.ts`.
+  to application country slugs by `lib/client/country-hero-theme.ts`. Germany's
+  hero uses the transparent Brandenburg Gate artwork at
+  `public/country-heroes/germany.png`.
 - Arrival-card preview entries under `app/client/arrival-cards/**`, routed to
   dedicated DB-driven application packages and kept separate from visa packages.
 - Admin portal under `app/admin/**`.
 - Application lifecycle and dynamic forms under `app/client/application/**`,
   `components/dynamic-step-form.tsx`, `components/dynamic-form-field.tsx`, and
   `components/application-steps/**`.
+- The master visa schema is compiled to canonical application controls and one
+  shared conditional-panel owner by `lib/application-schema-ui-contract.ts`.
+  `scripts/audit-application-schema-ui.ts` validates every live country schema;
+  strict errors block a schema launch.
+- The development-only `/edge-cases` route under `app/edge-cases/**` reads that
+  same compiler report and presents every current design edge case as a
+  component study with the complete affected visa-type and field inventory.
+- Ongoing application identity and terminal-state classification live in
+  `lib/applications/ongoing-application.ts`; database migrations enforce one
+  in-flight row per applicant, canonical country, and visa type while allowing
+  completed submission history.
+- Synthetic application QA markers and local-only QA guards live in
+  `lib/applications/qa-safety.ts`. Persistent schema-QA draft creation/filling
+  may run only against local Supabase with a dedicated `@viza.test` applicant;
+  QA drafts must not appear in customer/admin queues or enter live submission.
+  Database enforcement lives in the `prevent_qa_placeholder_submission` and
+  `block_known_qa_account_sentinel` Supabase migrations.
 - Website internal automation client routes under `app/client/status/**`,
   `app/client/documents/**`, `app/client/checkout/**`,
   `app/client/billing/**`, `app/client/consent/**`, and
@@ -410,6 +429,28 @@ Smoke URLs:
 - `lib/runtime-abort-retry.ts`
 - `lib/server-action-recovery.ts`
 - `supabase/migrations/*`
+- `supabase/migrations/20260813151857_photonpay_issuer_card_attempts.sql`:
+  durable application/allocation-scoped PhotonPay issuance attempts and guarded
+  service-role state transitions; card secrets are intentionally absent.
+- `supabase/migrations/20260813153500_photonpay_issuer_card_finish_idempotency.sql`:
+  replay-safe terminal issuer-card transitions after worker retries.
+- `supabase/migrations/20260813153754_photonpay_issuer_card_function_privileges.sql`:
+  explicitly removes issuer-card RPC execution from API roles because this
+  Supabase project grants new functions to them through default privileges.
+- `supabase/migrations/20260813160000_photonpay_managed_intent_guard.sql`:
+  prevents legacy client-entered-card intents from creating PhotonPay cards.
+- `supabase/migrations/20260815143000_photonpay_explicit_allocation_claim.sql`:
+  requires every issuer claim to name the exact allocation selected for the
+  consented managed-card intent and removes latest-allocation inference.
+- `supabase/migrations/20260815150000_managed_card_issuer_router.sql`:
+  durably records a preselected PhotonPay or Airwallex issuer while preserving
+  exact allocation binding and retry idempotency.
+- `supabase/migrations/20260815151000_scrub_uk_submission_result_credentials.sql`:
+  strips legacy UK portal URL, username, and password/cipher fields from
+  customer-readable application result JSON; credentials remain in `uk_accounts`.
+- `supabase/migrations/20260815152000_protect_issuer_card_attempt_leases.sql`:
+  prevents a different worker from overwriting an unexpired managed-card lease
+  while preserving same-worker renewal and expired-lease recovery.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`

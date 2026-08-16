@@ -212,6 +212,10 @@ export const enTermsArticle: LegalArticle = {
           type: "paragraph",
           text: "Government filing fees, visa issuance fees, appointment fees, biometric collection fees, medical examination fees, courier charges, translation fees, and other third-party costs are generally not included in VIZA service fees.",
         },
+        {
+          type: "paragraph",
+          text: "When an official fee is electronically payable, VIZA provisions a limited virtual card for the specific application and pays the official portal on the user's behalf. The official authority's payment and refund rules still apply.",
+        },
         { type: "paragraph", text: "Refunds, cancellations, and related matters are governed by our Refund Policy." },
       ],
     },
@@ -679,7 +683,7 @@ export const enDisclaimerArticle: LegalArticle = {
         },
         {
           type: "paragraph",
-          text: "Such fees are generally collected directly by government authorities or authorized service providers and may be subject to their own payment, cancellation, or refund policies.",
+          text: "Such fees are charged by government authorities or authorized service providers and remain subject to their payment, cancellation, and refund policies. When electronic payment is available, VIZA uses an application-scoped virtual card to pay the official portal on the user's behalf.",
         },
       ],
     },
