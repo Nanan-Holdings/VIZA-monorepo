@@ -86,6 +86,9 @@ filling and one-shot submission for the applicant.
   legacy worker, syncs the three boot-required runtime secrets, and applies
   autoscaler decisions. These scripts require operator-provided Fly
   authentication and must never print or persist secret values.
+- `scripts/__tests__/fly-country-deploy-contract.test.mjs`: read-only deployment
+  contract test for supported country workers, app naming, queue mode, and
+  capability-secret routing. It never calls Fly or reads secret values.
 - `src/submission-queue-claim.ts`: service-role RPC wrapper around
   `claim_submission_queue_batch`, which atomically claims legacy
   `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple
