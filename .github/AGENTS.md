@@ -24,5 +24,6 @@ scheduled recovery workflows.
   restart kill switch disabled until a healthy scheduled run is verified.
 - `production-db-maintenance.yml` is a manual, single-flight production
   maintenance entry point. Keep its actions explicit and fail closed against
-  the exact production project ref; the initial `preflight` action is
-  aggregate-only and uses the read-only Management API endpoint.
+  the exact production project ref. `preflight` is aggregate-only and uses the
+  read-only Management API endpoint; `pause` requires the approved live cap and
+  cron snapshot, drained queues, and one atomic transaction.
