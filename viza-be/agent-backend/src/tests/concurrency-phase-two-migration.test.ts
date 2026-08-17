@@ -727,6 +727,12 @@ describe("runner pool concurrency phase two migration", () => {
     expect(failBody).toMatch(/ERRCODE = '22023'/i);
   });
 
+  it("supplies parameters for every formatted PL/pgSQL exception", () => {
+    expect(canonicalSql).not.toMatch(
+      /RAISE\s+EXCEPTION\s+'(?:''|[^'])*%(?:''|[^'])*'\s*(?:USING|;)/i,
+    );
+  });
+
   it("gates real Postgres smoke on the actual local database URL and DB environment", () => {
     expect(integrationSource).toMatch(/new URL\(databaseUrl\)/i);
     expect(integrationSource).not.toMatch(/SUPABASE_URL|NEXT_PUBLIC_SUPABASE_URL/);

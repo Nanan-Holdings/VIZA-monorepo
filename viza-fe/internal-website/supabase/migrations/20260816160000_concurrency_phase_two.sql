@@ -3458,7 +3458,7 @@ BEGIN
       WHERE application.id = p_application_id;
       GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
       IF v_updated_rows <> 1 THEN
-        RAISE EXCEPTION 'Application % disappeared during Taiwan handoff open'
+        RAISE EXCEPTION 'Application % disappeared during Taiwan handoff open', p_application_id
           USING ERRCODE = '55000';
       END IF;
       RETURN QUERY SELECT
@@ -3554,7 +3554,7 @@ BEGIN
   WHERE application.id = p_application_id;
   GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
   IF v_updated_rows <> 1 THEN
-    RAISE EXCEPTION 'Application % disappeared during Taiwan handoff open'
+    RAISE EXCEPTION 'Application % disappeared during Taiwan handoff open', p_application_id
       USING ERRCODE = '55000';
   END IF;
 
@@ -3873,7 +3873,7 @@ BEGIN
       AND application.applicant_id = v_application.applicant_id;
     GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
     IF v_updated_rows <> 1 THEN
-      RAISE EXCEPTION 'Application % disappeared during Taiwan handoff settlement'
+      RAISE EXCEPTION 'Application % disappeared during Taiwan handoff settlement', v_application.id
         USING ERRCODE = '55000';
     END IF;
 
