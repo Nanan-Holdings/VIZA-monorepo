@@ -26,7 +26,7 @@ coa.immigration.gov.tw only.
   official login through the replaceable `TwOfficialLoginProvider`, but this
   runner must not create, store, fixture, log, or document any real official
   username, password, OTP, cookie, or storage state. Every application fill
-  remains a single continuous Browserbase session: authorized login hook → terms
+  remains a single continuous browser session: authorized login hook → terms
   modal → delivery location → application form tab → one-time email OTP
   verification → every field/file verified → CAPTCHA solve → official final
   confirmation → official receipt capture.

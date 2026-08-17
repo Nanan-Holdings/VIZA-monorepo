@@ -49,4 +49,3 @@ REVOKE ALL ON FUNCTION public.carry_forward_vietnam_payment_registration_code()
 
 COMMENT ON FUNCTION public.carry_forward_vietnam_payment_registration_code() IS
   'Copies only an existing encrypted Vietnam registration code into a new payment queue row for the same application/provider.';
-

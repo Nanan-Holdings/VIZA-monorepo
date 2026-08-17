@@ -68,6 +68,12 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/api/passport-ocr/**`, `app/api/translations/**`,
   `app/api/translate/**`, and
   `app/api/external-submission/**`.
+- Digital arrival-card cancellation at
+  `app/api/applications/[id]/cancel-submission/route.ts` selects the owning
+  queue transport, calls the atomic `cancel_application_submission` RPC, and
+  treats a false/empty result as a claim conflict. Focused route coverage is
+  in the adjacent `route.test.ts`; no direct queue or application settlement
+  update is allowed in the caller.
 - Vietnam Pre-Arrival official dropdown lookup is proxied through
   `app/api/vn-prearrival/options/**` (with implementation/test helpers in the
   adjacent non-route `route-handler.ts`); this route may read official category
@@ -170,9 +176,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Cloud submission worker wake requests use the authenticated
   `app/api/submission-worker/wake/route.ts` boundary and the server-only
   `lib/submission-worker-wake.server.ts` helper. Never expose the internal
-  bearer token to client components. Every immediate `runner_job` or
-  `submission_queue` enqueue must POST the retained target's wake endpoint;
-  starting an already-running Fly Machine is not itself a wake signal.
+  bearer token to client components. Queue-enabled immediate `runner_job` or
+  `submission_queue` enqueues publish an encrypted wake pointer after the
+  durable database write; direct POST to the retained target's wake endpoint
+  remains the fallback. Starting an already-running Fly Machine is not itself
+  a wake signal.
 - Shared-pool retry submission resolves a typed flow through
   `lib/queue/flows.ts`, atomically enqueues through `lib/queue/enqueue.ts`, and
   starts only immediately claimable Fly pool capacity through
@@ -257,7 +265,7 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260730170000_sgac_country_runner_retry.sql` and the
   country-scoped `runner_job` transport. Keep future-window scheduled SGAC
   rows in `submission_queue`, preserve the atomic legacy collision check, and
-  keep status/cancellation compatible with both transports during migration.
+  route cancellation for either transport through the atomic cancellation RPC.
 - Vietnam e-Visa photo and face-match rules live in
   `supabase/migrations/20260625_vn_evisa_photo_face_rules.sql`,
   `app/client/documents/actions.ts`, `app/actions/face-match.ts`,
@@ -390,7 +398,20 @@ Smoke URLs:
 - `lib/supabase/*`
 - `lib/resilience/*`: server-only HMAC transport, AES-256-GCM envelopes,
   continuity identity/OTP state, critical read cache, and encrypted outbox
-  client. Never import these modules into browser bundles or expose their keys.
+  client. The signed `/api/resilience/replay` route also handles the
+  allowlisted `runner_job.wakeup.v1` pointer; it re-checks Postgres state and
+  only wakes server-controlled runner targets. Never import these modules into
+  browser bundles or expose their keys.
+- `lib/queue/enqueue.ts`: every durable runner enqueue commits Postgres first;
+  `RESILIENCE_RUNNER_WAKE_ENABLED` is default-off and accepts only exact
+  `true`, `on`, or `1`. An accepted/duplicate Queue wake suppresses direct Fly
+  wake; Queue errors or unusable responses use the bounded direct-wake
+  fallback, and future `availableAt` work is never published early. Shared
+  pool countries must resolve an exact package flow before enqueue/wake. The
+  strict active flows (`vn_prearrival`, `sgac`, `mdac`, `tdac`, `kr_eform`,
+  `tw_entry_permit`) always use the atomic pool RPC even when the migration flag
+  is false; no direct `runner_job` rollback insert is permitted. Vietnam eVisa
+  remains on its explicitly sticky legacy policy.
 - `lib/admin-access.ts`
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`

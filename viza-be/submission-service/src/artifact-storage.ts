@@ -35,6 +35,8 @@ export interface UploadArtifactInput {
   data?: Buffer;
   /** Local file path; read into memory if `data` is omitted. */
   filePath?: string;
+  /** Optional deterministic object key inside the submission-artifacts bucket. */
+  objectPath?: string;
 }
 
 /**
@@ -48,7 +50,7 @@ export async function uploadArtifact(input: UploadArtifactInput): Promise<string
     throw new Error("uploadArtifact requires either `data` or `filePath`");
   }
   const ts = Date.now();
-  const path = `${input.authUserId}/${input.applicationId}/${input.country}/${input.kind}-${ts}.${input.ext}`;
+  const path = input.objectPath ?? `${input.authUserId}/${input.applicationId}/${input.country}/${input.kind}-${ts}.${input.ext}`;
 
   const { error } = await supabase.storage
     .from(SUBMISSION_ARTIFACTS_BUCKET)

@@ -379,6 +379,23 @@ test("migration batch rejects any hash drift", () => {
   );
 });
 
+test("migration batch writes only the portable Supabase CLI ledger columns", () => {
+  const batch = loadApprovedMigrationBatch({
+    sourceRoot: "/approved-source",
+    readFile: (filePath) => Buffer.from(`sql:${filePath}`),
+    hash: (bytes) => {
+      const filePath = bytes.toString("utf8").slice(4).replaceAll("\\", "/");
+      return APPROVED_MIGRATIONS.find((migration) => filePath.endsWith(migration.path)).sha256;
+    },
+  });
+
+  assert.match(
+    batch,
+    /INSERT INTO supabase_migrations\.schema_migrations \(version, statements, name\)/u,
+  );
+  assert.doesNotMatch(batch, /created_by|idempotency_key/u);
+});
+
 test("pause uses the write endpoint with exact snapshot and atomic guards", async () => {
   let request;
   const payload = [{ maintenance_pause_state: { runner_jobs_running: 0 } }];

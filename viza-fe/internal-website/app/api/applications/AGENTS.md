@@ -39,6 +39,15 @@ ports directly.
 ## Related Files
 
 - `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.ts`
+  claims the authoritative Taiwan handoff through
+  `claim_tw_applicant_handoff` with the exact application, applicant, and
+  takeover ID returned in `submission_result.handoffId`. It must not query a
+  latest takeover session or write an audit row; strict zero-row, identity,
+  expiry, and URL-allowlist coverage lives in the adjacent `route.test.ts`.
+- `viza-fe/internal-website/app/api/applications/[id]/cancel-submission/route.ts`
+  resolves exact shared-runner flow/country tuples before using the atomic
+  cancellation RPC, while unmapped arrival-card flows remain on legacy queue.
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/auth.ts`
   centralizes the signed `client_session` and Supabase session policy shared by
   the official-fee routes; its focused regression coverage lives in the

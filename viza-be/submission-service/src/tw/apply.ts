@@ -74,6 +74,10 @@ import {
   assertTwOfficialTermsConsentAudit,
   type TwOfficialTermsConsentAudit,
 } from "./official-terms-consent";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "../queue/execution-context";
 
 export interface TwApplyInput {
   applicantId: string;
@@ -109,6 +113,8 @@ export interface TwApplyOptions {
   mode?: "submit" | "pre_submit";
   /** Auditable VIZA confirmation of the two distinct official terms actions. */
   officialTermsConsent?: TwOfficialTermsConsentAudit;
+  /** Live runner lease used to abort the browser and fence final submission. */
+  executionContext?: RunnerExecutionContext;
   /**
    * Local filesystem paths for the "應檢附文件" (supporting documents)
    * section — confirmed live to be a real, required upload block whose
@@ -1019,6 +1025,7 @@ async function fillTwEntryPermitApplicationOnce(
   const fieldAudit: TwFieldVerificationEntry[] = [];
   let officialLoginAuth: { officialLogin: "authenticated"; method: string } | null = null;
   let session: TwSession | null = null;
+  let abortListener: (() => void) | null = null;
   let emailVerified = false;
   let checkpoint: TwPortalCheckpoint = "unknown";
 
@@ -1027,6 +1034,11 @@ async function fillTwEntryPermitApplicationOnce(
       headless,
       runId: options.runId,
     });
+    abortListener = () => {
+      void session?.close().catch(() => undefined);
+    };
+    options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+    options.executionContext?.assertOwned();
     const { page } = session;
 
     officialLoginAuth = await maybeCompleteOfficialLoginIfPresent(
@@ -1091,7 +1103,9 @@ async function fillTwEntryPermitApplicationOnce(
       mode,
       validate: () => collectTwOfficialValidationIssues(page),
       prepareSubmit: () => solveTwCaptchaForSubmitWithRetry(page),
-      submit: () => solveTwCaptchaAndSubmitWithRetry(page),
+      submit: () => solveTwCaptchaAndSubmitWithRetry(page, {
+        beforeFinalSubmit: () => options.executionContext?.checkpoint("taiwan final official submit"),
+      }),
       readReceipt: () => readTwOfficialReceiptEvidence(page),
       maxRounds: 3,
     });
@@ -1140,6 +1154,10 @@ async function fillTwEntryPermitApplicationOnce(
       captchaSolve: repairResult.captchaSolve,
     };
   } catch (err) {
+    if (err instanceof RunnerJobOwnershipLostError) throw err;
+    if (options.executionContext?.signal.aborted) {
+      options.executionContext.assertOwned();
+    }
     if (err instanceof TwOfficialLoginConfigurationError) {
       throw err;
     }
@@ -1163,6 +1181,7 @@ async function fillTwEntryPermitApplicationOnce(
       ...(contractFixturePath ? { contractFixturePath } : {}),
     };
   } finally {
+    if (abortListener) options.executionContext?.signal.removeEventListener("abort", abortListener);
     if (session) await session.close();
   }
 }

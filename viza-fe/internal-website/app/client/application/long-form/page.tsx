@@ -121,7 +121,6 @@ import {
 } from "@/lib/application-step-sections";
 import {
   buildTaiwanEntryPermitSections,
-  getTaiwanEntryPermitInlineDocumentStepId,
   isTaiwanEntryPermitQualificationStepSource,
   shouldShowStandaloneDocumentStep,
 } from "@/lib/taiwan-entry-permit-layout";

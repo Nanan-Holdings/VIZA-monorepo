@@ -336,11 +336,12 @@ export async function solveTwEmailCaptchaAndSendCodeOnce(
 export async function solveTwCaptchaAndSubmitOnce(
   page: Page,
   timeoutMs?: number,
+  beforeFinalSubmit?: () => void,
 ): Promise<TwCaptchaSubmitOutcome> {
   const fillOutcome = await solveAndFillTwCaptchaOnce(page, timeoutMs);
   if (fillOutcome.status !== "filled") return fillOutcome;
 
-  const submitOutcome = await clickTwFinalSubmit(page);
+  const submitOutcome = await clickTwFinalSubmit(page, beforeFinalSubmit);
   if (submitOutcome.status === "submitted") {
     return { status: "submitted", solve: fillOutcome.solve };
   }
@@ -388,6 +389,7 @@ export async function solveAndFillTwCaptchaOnce(
 
 export async function clickTwFinalSubmit(
   page: Page,
+  beforeFinalSubmit?: () => void,
 ): Promise<TwCaptchaClickSubmitOutcome> {
   const submit = page
     .getByRole("button", { name: TW_CAPTCHA_BOUNDARY.submitButtonText, exact: false })
@@ -397,6 +399,7 @@ export async function clickTwFinalSubmit(
     return { status: "failed", reason: "Taiwan final submit button not found after CAPTCHA fill" };
   }
 
+  beforeFinalSubmit?.();
   await Promise.all([
     page.waitForLoadState("domcontentloaded", { timeout: 45_000 }).catch(() => undefined),
     submit.click({ timeout: 10_000 }),
@@ -449,14 +452,14 @@ export async function solveTwCaptchaForSubmitWithRetry(
 
 export async function solveTwCaptchaAndSubmitWithRetry(
   page: Page,
-  options: { timeoutMs?: number; maxAttempts?: number } = {},
+  options: { timeoutMs?: number; maxAttempts?: number; beforeFinalSubmit?: () => void } = {},
 ): Promise<TwCaptchaSolveWithTelemetry> {
   const telemetry: CaptchaSolveTelemetry[] = [];
   const maxAttempts = getTwCaptchaMaxAttempts(options.maxAttempts);
   let lastOutcome: TwCaptchaSubmitOutcome | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const outcome = await solveTwCaptchaAndSubmitOnce(page, options.timeoutMs);
+    const outcome = await solveTwCaptchaAndSubmitOnce(page, options.timeoutMs, options.beforeFinalSubmit);
     lastOutcome = outcome;
 
     if (outcome.status === "submitted") {

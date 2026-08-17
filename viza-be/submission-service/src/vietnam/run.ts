@@ -87,6 +87,18 @@ import {
   type VietnamBrowserChannel,
 } from "./retry-policy";
 import { readVietnamValidationErrors, type VietnamPortalValidationError } from "./validation-errors";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "../queue/execution-context.js";
+import { clickOwned, runOwnedAction } from "../queue/portal-safety.js";
+
+function isRunnerOwnershipLoss(error: unknown): boolean {
+  return error instanceof RunnerJobOwnershipLostError ||
+    (typeof error === "object" && error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "runner_job_ownership_lost");
+}
 
 export interface FillVietnamInput {
   /** Flat answers keyed by VN_E_VISA seed field_name. */
@@ -260,6 +272,8 @@ export interface FillVietnamOptions {
   allowFixedCardPayment?: boolean;
   /** One-time card captured from the local submission-service card-session endpoint. */
   fixedCard?: VietnamFixedCard | null;
+  /** Queue ownership cancellation and irreversible-action checkpoint. */
+  executionContext?: RunnerExecutionContext;
   /** Lazily resolves a managed card only after the official payment page is visible. */
   takeFixedCard?: () => Promise<VietnamFixedCard | null>;
   /** Durable managed-intent amount expected on the visible official page. */
@@ -357,6 +371,7 @@ export async function fillVietnamApplication(
   input: FillVietnamInput,
   options: FillVietnamOptions = {},
 ): Promise<FillVietnamResult> {
+  options.executionContext?.assertOwned();
   if (!options.stopAtFirstCheckpoint) {
     const preflightErrors: VietnamPortalValidationError[] = [
       ...validateVietnamPortalValidityRange(input.answers),
@@ -420,17 +435,23 @@ export async function fillVietnamApplication(
       finalScreenshotPath: suffixArtifactPath(options.finalScreenshotPath, attempt),
     });
     lastResult = result;
+    options.executionContext?.assertOwned();
     if (!isRetryableVietnamResult(result)) return result;
     if (attempt >= channels.length) {
       return finalizeVietnamResultAfterRetries(result, attempt);
     }
 
+    options.executionContext?.assertOwned();
     await options.onProgress?.(`portal_retry:${attempt + 1}`);
-    await sleep(computeVietnamPortalRetryDelayMs({
-      completedAttempts: attempt,
-      baseDelayMs: retryBackoffMs,
-      maxDelayMs: retryMaxBackoffMs,
-    }));
+    await sleep(
+      computeVietnamPortalRetryDelayMs({
+        completedAttempts: attempt,
+        baseDelayMs: retryBackoffMs,
+        maxDelayMs: retryMaxBackoffMs,
+      }),
+      options.executionContext?.signal,
+    );
+    options.executionContext?.assertOwned();
   }
 
   return lastResult ?? {
@@ -467,6 +488,11 @@ async function fillVietnamApplicationOnce(
   let lastSnapshot: VietnamPortalSnapshot | undefined;
   let reviewBlockers: VietnamReviewBlockerDiagnostics | undefined;
   let fixedCardPromise: Promise<VietnamFixedCard | null> | null = null;
+  const abortListener = (): void => {
+    void context?.close().catch(() => undefined);
+    void browser?.close().catch(() => undefined);
+  };
+  options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
 
   const diagnostics = (): VietnamDiagnostics => ({
     consoleErrors: consoleErrors.slice(-20),
@@ -527,6 +553,7 @@ async function fillVietnamApplicationOnce(
       });
       page = await context.newPage();
     }
+    options.executionContext?.assertOwned();
     if (process.env.VN_PUBLIC_API_PROXY_ENABLED !== "false") {
       await installVietnamPublicApiProxy(context, {
         onSuccess: () => {
@@ -574,6 +601,7 @@ async function fillVietnamApplicationOnce(
       onCaptchaSolved: (outcome) => {
         captchaSolves.push(outcome);
       },
+      executionContext: options.executionContext,
     });
 
     if (bootstrap.kind === "action_required") {
@@ -644,7 +672,7 @@ async function fillVietnamApplicationOnce(
     // Click the form's primary "Save" / "Next" button to advance to the
     // pre-pay review screen. Never click anything matching VN_STOP_BUTTON_PATTERNS.
     await emitProgress("advancing_to_review");
-    const reviewAdvance = await advanceVietnamToReview(page, stepTimeoutMs);
+    const reviewAdvance = await advanceVietnamToReview(page, stepTimeoutMs, options.executionContext);
     reviewBlockers = reviewAdvance.blockers;
     lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
     const reviewState = classifyVietnamPortalSnapshot(lastSnapshot);
@@ -731,6 +759,7 @@ async function fillVietnamApplicationOnce(
           continue;
         }
         await emitProgress("captcha_submitted");
+        options.executionContext?.assertOwned();
         const captchaSubmitted = await withTimeout(
           submitVietnamCaptchaAnswer(
             page,
@@ -761,7 +790,7 @@ async function fillVietnamApplicationOnce(
         if (codeAfterCaptcha) {
           console.log(`[vn] Run ${runId} captured registration code after review CAPTCHA.`);
           const confirmed = await withTimeout(
-            confirmDeclarationCompletedNotice(page, stepTimeoutMs),
+            confirmDeclarationCompletedNotice(page, stepTimeoutMs, options.executionContext),
             Math.min(stepTimeoutMs, 30_000),
             false,
           );
@@ -770,7 +799,7 @@ async function fillVietnamApplicationOnce(
           }
         } else {
           const confirmed = await withTimeout(
-            confirmDeclarationCompletedNotice(page, stepTimeoutMs),
+            confirmDeclarationCompletedNotice(page, stepTimeoutMs, options.executionContext),
             Math.min(stepTimeoutMs, 10_000),
             false,
           );
@@ -805,7 +834,7 @@ async function fillVietnamApplicationOnce(
     let registrationCode = await withTimeout(captureRegistrationCode(page), 15_000, null);
     if (registrationCode) {
       const confirmed = await withTimeout(
-        confirmDeclarationCompletedNotice(page, stepTimeoutMs),
+        confirmDeclarationCompletedNotice(page, stepTimeoutMs, options.executionContext),
         Math.min(stepTimeoutMs, 30_000),
         false,
       );
@@ -819,7 +848,11 @@ async function fillVietnamApplicationOnce(
       options.allowFixedCardPayment &&
       stateAfterCaptcha !== "payment_page_visible"
     ) {
-      stateAfterCaptcha = await continueVietnamSameSessionToPayment(page, stepTimeoutMs);
+      stateAfterCaptcha = await continueVietnamSameSessionToPayment(
+        page,
+        stepTimeoutMs,
+        options.executionContext?.assertOwned,
+      );
     }
     if (stateAfterCaptcha === "captcha_visible" && !registrationCode) {
       return {
@@ -903,10 +936,12 @@ async function fillVietnamApplicationOnce(
       }
       const fixedCard = await resolveFixedCard();
       if (fixedCard) {
+        options.executionContext?.assertOwned();
         await emitProgress("payment_handoff");
         const payment = await payVietnamPortalWithFixedCard({
           page,
           card: fixedCard,
+          executionContext: options.executionContext,
           contactEmail: input.answers.email_address ?? input.answers.email ?? null,
           onBankAuthenticationRequired: () => emitProgress("bank_authentication_waiting"),
         });
@@ -1009,10 +1044,12 @@ async function fillVietnamApplicationOnce(
       }
       const fixedCard = await resolveFixedCard();
       if (fixedCard) {
+        options.executionContext?.assertOwned();
         await emitProgress("payment_handoff");
         const payment = await payVietnamPortalWithFixedCard({
           page,
           card: fixedCard,
+          executionContext: options.executionContext,
           contactEmail: input.answers.email_address ?? input.answers.email ?? null,
           onBankAuthenticationRequired: () => emitProgress("bank_authentication_waiting"),
         });
@@ -1054,6 +1091,11 @@ async function fillVietnamApplicationOnce(
       fieldFallbacks,
     };
   } catch (err) {
+    const isAbortError = err instanceof Error && err.name === "AbortError";
+    if (isRunnerOwnershipLoss(err) || isAbortError || options.executionContext?.signal.aborted) {
+      const abortReason = options.executionContext?.signal.reason;
+      throw abortReason instanceof Error ? abortReason : err;
+    }
     return {
       status: "failed",
       runId,
@@ -1063,6 +1105,7 @@ async function fillVietnamApplicationOnce(
       diagnostics: diagnostics(),
     };
   } finally {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
     if (options.finalScreenshotPath && page) {
       try {
         fs.mkdirSync(path.dirname(options.finalScreenshotPath), { recursive: true });
@@ -1130,6 +1173,7 @@ interface VietnamBootstrapOptions {
   onSnapshot: (snapshot: VietnamPortalSnapshot) => void;
   onStage: (stage: VietnamProgressStage) => void | Promise<void>;
   onCaptchaSolved: (outcome: VietnamCaptchaSolveOutcome) => void;
+  executionContext?: RunnerExecutionContext;
 }
 
 async function reachVietnamFormCheckpoint(
@@ -1318,6 +1362,7 @@ async function reachVietnamFormCheckpoint(
         }
 
         await options.onStage("captcha_submitted");
+        options.executionContext?.assertOwned();
         const submitted = await submitVietnamCaptchaAnswer(
           page,
           remainingVietnamCaptchaBudgetMs(captchaDeadline, Math.min(options.stepTimeoutMs, 10_000)),
@@ -2619,6 +2664,7 @@ export async function collectVietnamReviewActionCandidates(
 export async function advanceVietnamToReview(
   page: Page,
   timeoutMs: number,
+  executionContext?: RunnerExecutionContext,
 ): Promise<VietnamReviewAdvanceResult> {
   // Click the primary form action (typically "Save" / "Tiếp tục") but only if
   // its label does NOT match one of the stop patterns. If the dominant
@@ -2668,7 +2714,7 @@ export async function advanceVietnamToReview(
   const initialUrl = page.url();
   const button = page.locator(VN_REVIEW_ACTION_SELECTOR).nth(selected.domIndex);
   await button.scrollIntoViewIfNeeded({ timeout: Math.min(timeoutMs, 10_000) });
-  await button.click({ timeout: Math.min(timeoutMs, 15_000) });
+  await clickOwned(button, executionContext, { timeout: Math.min(timeoutMs, 15_000) });
 
   const deadline = Date.now() + Math.min(timeoutMs, 30_000);
   while (Date.now() < deadline) {
@@ -2739,21 +2785,26 @@ async function captureRegistrationCode(page: Page): Promise<string | null> {
   return null;
 }
 
-async function confirmDeclarationCompletedNotice(page: Page, timeoutMs: number): Promise<boolean> {
+async function confirmDeclarationCompletedNotice(
+  page: Page,
+  timeoutMs: number,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   const hasNotice = await page
     .locator("text=/DECLARATION COMPLETED|ADDITIONAL COMPLETED|Electronic document code/i")
     .first()
     .isVisible({ timeout: 3_000 })
     .catch(() => false);
   if (!hasNotice) return false;
-  const clicked = await page
-    .getByRole("button", { name: /^confirm$/i })
-    .filter({ visible: true })
-    .last()
-    .click({ timeout: 10_000 })
+  const clicked = await clickOwned(
+    page.getByRole("button", { name: /^confirm$/i }).filter({ visible: true }).last(),
+    executionContext,
+    { timeout: 10_000 },
+  )
     .then(() => true)
-    .catch(async () => {
-      return page
+    .catch(async (error) => {
+      if (isRunnerOwnershipLoss(error)) throw error;
+      return runOwnedAction(executionContext, () => page
         .evaluate(() => {
           const visible = (element: Element | null): element is HTMLElement => {
             if (!element) return false;
@@ -2769,8 +2820,11 @@ async function confirmDeclarationCompletedNotice(page: Page, timeoutMs: number):
           button.scrollIntoView({ block: "center" });
           button.click();
           return true;
-        })
-        .catch(() => false);
+        }))
+        .catch((fallbackError) => {
+          if (isRunnerOwnershipLoss(fallbackError)) throw fallbackError;
+          return false;
+        });
     });
   if (!clicked) return false;
   await page
@@ -2789,6 +2843,7 @@ async function confirmDeclarationCompletedNotice(page: Page, timeoutMs: number):
 async function continueVietnamSameSessionToPayment(
   page: Page,
   timeoutMs: number,
+  assertOwned?: () => void,
 ): Promise<VietnamPortalStateId> {
   const deadline = Date.now() + Math.min(timeoutMs, 90_000);
   let lastState: VietnamPortalStateId = "registration_code_visible";
@@ -2797,6 +2852,7 @@ async function continueVietnamSameSessionToPayment(
     lastState = classifyVietnamPortalSnapshot(snapshot);
     if (lastState === "payment_page_visible") return lastState;
     if (lastState === "final_submit_visible") {
+      assertOwned?.();
       const clicked = await clickVietnamVisibleButton(page, [
         "Payment",
         "Pay",
@@ -2810,6 +2866,7 @@ async function continueVietnamSameSessionToPayment(
       await page.waitForTimeout(1_500);
       continue;
     }
+    assertOwned?.();
     const clicked = await clickVietnamVisibleButton(page, [
       "Payment",
       "Pay",
@@ -2906,8 +2963,20 @@ function suffixArtifactPath(filePath: string | undefined, attempt: number): stri
   return `${base}-attempt-${attempt}${extension}`;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    let timer: NodeJS.Timeout | undefined;
+    const onAbort = (): void => {
+      if (timer) clearTimeout(timer);
+      resolve();
+    };
+    timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {

@@ -178,11 +178,67 @@ The current internal automation migrations are:
   acknowledgements for consistent form and assistant validation.
 - `0137_queue_worker_leases_and_runtime_claims.sql`: adds atomic notification
   claims with conditional ack/nack and DLQ settlement, Vietnam status-check
-  worker leases with safe completion/failure RPCs and rolling-deploy
-  compatibility, plus provider-filtered/targeted submission-queue claims.
+  worker leases with safe completion/failure RPCs and provider-filtered/
+  targeted submission-queue claims.
 - `0138_bounded_queue_maintenance.sql`: adds a bounded, service-role-only
   atomic stale-processing cleanup RPC and an index matching its heartbeat/status
   cutoff scan; callers run it as low-frequency maintenance rather than per poll.
+- `0149_concurrency_phase_two.sql`: supersedes the global runner-pool advisory
+  claim lock with country-cap row serialization, bounded one-row lease recovery,
+  and partial indexes for queued ordering, running-country counts, lease
+  expiry, and one-live-job-per-worker fencing. The service-role-only
+  `claim_runner_pool_job`, `complete_runner_pool_job`, `renew_runner_pool_job`,
+  and `fail_runner_pool_job` RPCs are `SECURITY DEFINER`, use an empty
+  `search_path`, ignore caller-supplied timestamps in favor of
+  `clock_timestamp()`, and grant execution only to `service_role`. Each locks
+  the exact owner row, mints a generalized full OLD/NEW-row capability, and
+  lets the permanent `BEFORE UPDATE` fence consume only that capability;
+  metadata-only writes are the sole direct exception. Recovery is just one
+  capability operation among the full-row lifecycle set, not a separate
+  expired-row bypass.
+  The service-role-only `write_runner_pool_submission_result` RPC locks the
+  exact live owner, samples the post-lock database clock, and atomically writes
+  the application result while changing application status only for
+  `submitted`. The migration also carries the
+  `defer_vn_official_status_check` RPC used to return provider-gate-denied
+  status checks to the queue without consuming an admission attempt. Phase-two
+  admission is restricted to the six canonical country/flow tuples and uses
+  application-first locking; queued inserts and requeues are guarded against
+  staff-review races, while active reuse requires an exact country/flow match.
+  Claim candidate scans exclude staff-review applications, and the queued to
+  running trigger takes the application mutex with `NOWAIT` before consuming a
+  claim capability. Claiming mints and consumes a full old/new-row `claim`
+  capability, and a `BEFORE INSERT` guard rejects direct running rows. The
+  service-role-only `claim_takeover_session`,
+  `cancel_application_submission`, `requeue_runner_job`, and
+  `settle_runner_job_takeover` RPCs use exact row locks/capabilities. Takeover
+  claims are kind-fenced and same-claimant idempotent; settlement requires the
+  claimant's `claimed` session, writes only bounded string-valued answer JSON,
+  derives the answer count, and atomically updates answers, queue/job,
+  application, session, and takeover action-log state. Review pause atomically
+  marks the application, pauses active legacy queue rows, and then pauses
+  runner jobs under the application-first mutex.
+  Apply this as a controlled-drain-only migration: pause enqueue/wakes, drain
+  running jobs to zero, stop BASE workers, apply the migration, deploy strict
+  RPC callers, smoke test, then resume workers.
+  The same migration also installs the private shared claim core and the
+  service-role-only `claim_runner_pool_load_test_job` wrapper. Its
+  `runner_private.runner_load_test_config` row is owner-only, seeded disabled,
+  and must be enabled/disabled out-of-band for an exact staging/local-test
+  project; the load harness must never toggle it. Scoped claims require the
+  synthetic application/metadata/correlation marker and never scan production
+  rows. The global probe takes a private advisory lock, uses an effective
+  per-country cap of ten, and counts all canonical running rows while leaving
+  `runner_concurrency_cap` unchanged.
+- `0150_vn_status_settlement_fence.sql`: replaces Vietnam official-status
+  worker leases with a monotonic `BIGINT` lease generation and exact
+  generation-bearing service-role RPCs for claim, renew, defer, fail, and
+  complete. Settlement locks application, status-check, and tracking rows in
+  that order, derives result state and bounded notification payloads, preserves
+  legacy artifact paths, and atomically records deterministic full-SHA eVisa
+  documents, events, bounded retry rows, and failure backoff. Legacy
+  worker-only signatures are removed for the controlled cutover; callers must
+  pass the generation returned by claim.
 - `0139_dedupe_ongoing_applications.sql`: consolidates duplicate in-flight
   applications and enforces one ongoing row per applicant/country/visa type
   while preserving completed submission history; QA dry-run rows are isolated

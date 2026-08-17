@@ -172,7 +172,7 @@ describe("Taiwan formal application mapping and validation gate", () => {
   it("runs official validation before the formal submit stage", async () => {
     const source = await readFile(join(process.cwd(), "src", "tw", "apply.ts"), "utf8");
     const gate = source.indexOf("validate: () => collectTwOfficialValidationIssues(page)");
-    const submit = source.indexOf("submit: () => solveTwCaptchaAndSubmitWithRetry(page)");
+    const submit = source.indexOf("submit: () => solveTwCaptchaAndSubmitWithRetry(page, {");
     assert.ok(gate > 0 && submit > gate);
   });
 });

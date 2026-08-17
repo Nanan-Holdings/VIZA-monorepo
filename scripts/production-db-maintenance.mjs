@@ -490,10 +490,9 @@ export function loadApprovedMigrationBatch({
 
   const statements = sources.flatMap((migration) => [
     `-- BEGIN APPROVED MIGRATION ${migration.version}\n${migration.sql}\n-- END APPROVED MIGRATION ${migration.version}`,
-    `INSERT INTO supabase_migrations.schema_migrations (version, statements, name, created_by, idempotency_key)\n` +
+    `INSERT INTO supabase_migrations.schema_migrations (version, statements, name)\n` +
       `VALUES (${sqlLiteral(migration.version)}, ARRAY[${sqlLiteral(`sha256:${migration.sha256}`)}]::TEXT[], ` +
-      `${sqlLiteral(migration.name)}, 'codex-production-maintenance', ` +
-      `${sqlLiteral(`codex-production-cutover:${migration.version}:${migration.sha256}`)});`,
+      `${sqlLiteral(migration.name)});`,
   ]);
 
   return `SET SESSION ROLE postgres;\nBEGIN;\n${statements.join("\n\n")}\n` +

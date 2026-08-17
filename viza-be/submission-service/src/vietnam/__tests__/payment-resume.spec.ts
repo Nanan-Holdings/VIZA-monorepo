@@ -806,7 +806,11 @@ test("vn.payment-resume: observes a CAPTCHA repaint after the response observer 
     const previousFingerprint = await captureVietnamCaptchaFingerprint(page, 2_000);
     assert.ok(previousFingerprint);
 
-    const strategy = await refreshVietnamSearchCaptchaChallenge(page, previousFingerprint, 7_500);
+    // The browser remains intentionally delayed beyond the old 1.6s repaint
+    // window. Keep a larger outer budget so full-suite CPU contention cannot
+    // consume the test's synchronization allowance before the delayed Vue
+    // repaint is observed.
+    const strategy = await refreshVietnamSearchCaptchaChallenge(page, previousFingerprint, 12_000);
 
     assert.equal(strategy, "search_reload_control");
     assert.notEqual(await captureVietnamCaptchaFingerprint(page, 2_000), previousFingerprint);

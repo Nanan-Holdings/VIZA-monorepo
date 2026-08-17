@@ -1,4 +1,9 @@
 import type { Frame, Locator, Page } from "@playwright/test";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "../queue/execution-context.js";
+import { clickOwned, runOwnedAction } from "../queue/portal-safety.js";
 
 export interface VietnamFixedCard {
   pan: string;
@@ -6,6 +11,13 @@ export interface VietnamFixedCard {
   expiryYear: string;
   cvv: string;
   holderName: string;
+}
+
+function isOwnershipLoss(error: unknown): boolean {
+  return error instanceof RunnerJobOwnershipLostError ||
+    (typeof error === "object" && error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "runner_job_ownership_lost");
 }
 
 export interface RedactedVietnamFixedCard {
@@ -259,14 +271,19 @@ async function fillFirstVisible(page: Page, selectors: string[], value: string):
           return true;
         }
       }
-    } catch {
+    } catch (error) {
+      if (isOwnershipLoss(error)) throw error;
       // Try the next selector; payment gateways vary by provider.
     }
   }
   return false;
 }
 
-async function clickFirstVisible(page: Page, selectors: string[]): Promise<boolean> {
+async function clickFirstVisible(
+  page: Page,
+  selectors: string[],
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   for (const selector of selectors) {
     const locator = page.locator(selector);
     try {
@@ -276,30 +293,34 @@ async function clickFirstVisible(page: Page, selectors: string[]): Promise<boole
         if (await candidate.isVisible({ timeout: 500 }).catch(() => false)) {
           await candidate.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => undefined);
           if (!(await candidate.isEnabled({ timeout: 500 }).catch(() => true))) continue;
-          await candidate.click({ timeout: 5_000 });
+          await clickOwned(candidate, executionContext, { timeout: 5_000 });
           return true;
         }
       }
-    } catch {
+    } catch (error) {
+      if (isOwnershipLoss(error)) throw error;
       // Try the next selector.
     }
   }
   return false;
 }
 
-async function advanceOfficialVietnamPaymentInformationPage(page: Page): Promise<boolean> {
+async function advanceOfficialVietnamPaymentInformationPage(
+  page: Page,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (!isOfficialVietnamPaymentInformationPage(bodyText)) return false;
 
   const agreeCheckbox = page.locator('input[type="checkbox"]').first();
   if (await agreeCheckbox.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await agreeCheckbox.check({ timeout: 5_000 }).catch(async () => {
-      await agreeCheckbox.click({ timeout: 5_000, force: true });
+    await runOwnedAction(executionContext, () => agreeCheckbox.check({ timeout: 5_000 })).catch(async () => {
+      await clickOwned(agreeCheckbox, executionContext, { timeout: 5_000, force: true });
     });
   } else {
     const agreeText = page.locator("text=/I agree to pay/i").first();
     if (await agreeText.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await agreeText.click({ timeout: 5_000, force: true });
+      await clickOwned(agreeText, executionContext, { timeout: 5_000, force: true });
     }
   }
 
@@ -311,7 +332,7 @@ async function advanceOfficialVietnamPaymentInformationPage(page: Page): Promise
     await page.waitForTimeout(500);
   }
   if (!(await paymentButton.isEnabled({ timeout: 500 }).catch(() => false))) return false;
-  await paymentButton.click({ timeout: 10_000 });
+  await clickOwned(paymentButton, executionContext, { timeout: 10_000 });
   await page.waitForLoadState("domcontentloaded", { timeout: 60_000 }).catch(() => undefined);
   await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => undefined);
   await page.waitForTimeout(2_000);
@@ -1191,6 +1212,7 @@ export async function waitForVnpayPaymentSubmissionTransition(
 async function submitVnpayInternationalCardForm(
   page: Page,
   timeoutMs: number,
+  executionContext?: RunnerExecutionContext,
 ): Promise<{ clicked: boolean; transitioned: boolean }> {
   const payButton = page.locator("#btnContinue, a.btnContinue").first();
   if (!(await payButton.isVisible({ timeout: 1_500 }).catch(() => false))) {
@@ -1199,12 +1221,12 @@ async function submitVnpayInternationalCardForm(
 
   const initialUrl = page.url();
   await payButton.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => undefined);
-  await payButton.click({ timeout: 10_000, force: true });
+  await clickOwned(payButton, executionContext, { timeout: 10_000, force: true });
   await page.waitForTimeout(1_000);
 
   const agreeButton = page.locator("#btnAgree").first();
   if (await agreeButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await agreeButton.click({ timeout: 10_000, force: true });
+    await clickOwned(agreeButton, executionContext, { timeout: 10_000, force: true });
   }
   return {
     clicked: true,
@@ -1264,6 +1286,7 @@ export async function waitForStandardCharteredBankAppChallenge(input: {
   timeoutMs: number;
   appearanceTimeoutMs?: number;
   onBankAuthenticationRequired?: () => void | Promise<void>;
+  executionContext?: RunnerExecutionContext;
 }): Promise<BankAppChallengeResult> {
   const appearanceTimeoutMs = Math.max(
     0,
@@ -1287,16 +1310,19 @@ export async function waitForStandardCharteredBankAppChallenge(input: {
   if (!initial) return "not_present";
 
   await input.onBankAuthenticationRequired?.();
+  input.executionContext?.assertOwned();
 
   // The issuer page also polls automatically every five seconds. Submit the
   // visible completion control once so its supported LINK_CLICK path is armed;
   // if approval is still pending the issuer keeps polling without losing the
   // challenge session.
   if (await initial.button.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    await initial.button
-      .evaluate((element) => (element as HTMLButtonElement).click(), undefined, { timeout: 5_000 })
+    await runOwnedAction(input.executionContext, () => initial.button
+      .evaluate((element) => (element as HTMLButtonElement).click(), undefined, { timeout: 5_000 }))
       .catch(async () => {
-        await initial.button.click({ timeout: 5_000 }).catch(() => undefined);
+        await clickOwned(initial.button, input.executionContext, { timeout: 5_000 }).catch((error) => {
+          if (isOwnershipLoss(error)) throw error;
+        });
       });
   }
 
@@ -1316,6 +1342,7 @@ export async function waitForStandardCharteredBankAppChallenge(input: {
 async function prepareVietcombankGatewayForCardBrand(
   page: Page,
   brand: VietnamCardBrand,
+  executionContext?: RunnerExecutionContext,
 ): Promise<void> {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (!/vietcombank|vnpay|select payment method|international payment cards/i.test(bodyText)) return;
@@ -1379,14 +1406,15 @@ async function prepareVietcombankGatewayForCardBrand(
       if (await continueReady()) break;
       await page.waitForTimeout(500);
     }
-    if (!(await continueReady())) return;
+    const className = await continueButton.getAttribute("class").catch(() => "");
+    if (/\bdisabled\b/i.test(className ?? "") || !(await continueButton.isEnabled({ timeout: 500 }).catch(() => false))) return;
     const initialUrl = page.url();
-    const clicked = await continueButton.click({ timeout: 10_000 }).then(() => true).catch(async () => {
-      if (await continueButton.click({ timeout: 5_000, force: true }).then(() => true).catch(() => false)) {
-        return true;
-      }
-      return page
-        .evaluate(() => {
+    const clicked = await clickOwned(continueButton, executionContext, { timeout: 10_000 })
+      .then(() => true)
+      .catch(async (error) => {
+        if (isOwnershipLoss(error)) throw error;
+        return runOwnedAction(executionContext, () => page
+          .evaluate(() => {
           const visible = (element: HTMLElement): boolean => {
             const style = window.getComputedStyle(element);
             const rect = element.getBoundingClientRect();
@@ -1403,9 +1431,13 @@ async function prepareVietcombankGatewayForCardBrand(
           button.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
           button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
           return true;
-        })
-        .catch(() => false);
-    });
+          }))
+          .then(() => true)
+          .catch((fallbackError) => {
+            if (isOwnershipLoss(fallbackError)) throw fallbackError;
+            return false;
+          });
+      });
     if (!clicked) return;
     const regulationsAccepted = await acceptVietcombankServiceRegulations(page, 15_000);
     if (regulationsAccepted && /select payment method/i.test(await page.locator("body").innerText().catch(() => ""))) {
@@ -1415,8 +1447,9 @@ async function prepareVietcombankGatewayForCardBrand(
       // the empty international-card form.
       const readyAfterRegulations = await ensureVietcombankTermsAccepted(page);
       if (readyAfterRegulations) {
-        await continueButton.click({ timeout: 10_000 }).catch(async () => {
-          await continueButton.click({ timeout: 5_000, force: true }).catch(() => undefined);
+        await clickOwned(continueButton, executionContext, { timeout: 10_000 }).catch(async (error) => {
+          if (isOwnershipLoss(error)) throw error;
+          await clickOwned(continueButton, executionContext, { timeout: 5_000, force: true });
         });
       }
     }
@@ -1439,15 +1472,17 @@ async function prepareVietcombankGatewayForCardBrand(
       await clickTrustedVietcombankCardBrand(page, brand);
       const readyAfterReplay = await ensureVietcombankTermsAccepted(page);
       if (readyAfterReplay) {
-        await continueButton.click({ timeout: 10_000 }).catch(async () => {
-          await continueButton.click({ timeout: 5_000, force: true }).catch(() => undefined);
+        await clickOwned(continueButton, executionContext, { timeout: 10_000 }).catch(async (error) => {
+          if (isOwnershipLoss(error)) throw error;
+          await clickOwned(continueButton, executionContext, { timeout: 5_000, force: true });
         });
         const replayRegulationsAccepted = await acceptVietcombankServiceRegulations(page, 15_000);
         if (replayRegulationsAccepted && /select payment method/i.test(await page.locator("body").innerText().catch(() => ""))) {
           const readyAfterReplayRegulations = await ensureVietcombankTermsAccepted(page);
           if (readyAfterReplayRegulations) {
-            await continueButton.click({ timeout: 10_000 }).catch(async () => {
-              await continueButton.click({ timeout: 5_000, force: true }).catch(() => undefined);
+            await clickOwned(continueButton, executionContext, { timeout: 10_000 }).catch(async (error) => {
+              if (isOwnershipLoss(error)) throw error;
+              await clickOwned(continueButton, executionContext, { timeout: 5_000, force: true });
             });
           }
         }
@@ -1458,8 +1493,12 @@ async function prepareVietcombankGatewayForCardBrand(
   }
 }
 
-async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCard): Promise<void> {
-  await prepareVietcombankGatewayForCardBrand(page, detectVietnamCardBrand(card));
+async function prepareVietcombankGatewayForCard(
+  page: Page,
+  card: VietnamFixedCard,
+  executionContext?: RunnerExecutionContext,
+): Promise<void> {
+  await prepareVietcombankGatewayForCardBrand(page, detectVietnamCardBrand(card), executionContext);
 }
 
 const VIETNAM_CARD_NUMBER_SELECTOR = [
@@ -1548,12 +1587,14 @@ export async function payVietnamPortalWithFixedCard(input: {
   contactEmail?: string | null;
   paymentTransitionTimeoutMs?: number;
   onBankAuthenticationRequired?: () => void | Promise<void>;
+  executionContext?: RunnerExecutionContext;
 }): Promise<VietnamFixedCardPaymentResult> {
   const { page, card } = input;
+  input.executionContext?.assertOwned();
   const redactedCard = redactVietnamFixedCard(card);
   let beforeText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (isOfficialVietnamPaymentInformationPage(beforeText)) {
-    const advanced = await advanceOfficialVietnamPaymentInformationPage(page);
+    const advanced = await advanceOfficialVietnamPaymentInformationPage(page, input.executionContext);
     if (!advanced) {
       return {
         status: "needs_human",
@@ -1580,7 +1621,8 @@ export async function payVietnamPortalWithFixedCard(input: {
       redactedCard,
     };
   }
-  await prepareVietcombankGatewayForCard(page, card);
+  input.executionContext?.assertOwned();
+  await prepareVietcombankGatewayForCard(page, card, input.executionContext);
   const afterPreparationText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (/payment\s+failed.*recreate\s+profile|recreate\s+profile\s+and\s+retry\s+payment/i.test(afterPreparationText)) {
     return {
@@ -1673,7 +1715,7 @@ export async function payVietnamPortalWithFixedCard(input: {
   await page.waitForTimeout(500);
 
   const transitionTimeoutMs = input.paymentTransitionTimeoutMs ?? 20_000;
-  let submission = await submitVnpayInternationalCardForm(page, transitionTimeoutMs);
+  let submission = await submitVnpayInternationalCardForm(page, transitionTimeoutMs, input.executionContext);
   if (!submission.clicked) {
     const initialUrl = page.url();
     const clicked = await clickFirstVisible(page, [
@@ -1695,7 +1737,7 @@ export async function payVietnamPortalWithFixedCard(input: {
       'input[type="button"][value*="Pay" i]',
       'input[type="submit"][value*="Continue" i]',
       'input[type="button"][value*="Continue" i]',
-    ]);
+    ], input.executionContext);
     submission = {
       clicked,
       transitioned: clicked
@@ -1727,6 +1769,7 @@ export async function payVietnamPortalWithFixedCard(input: {
     page,
     timeoutMs: getVietnamBankAppWaitMs(),
     onBankAuthenticationRequired: input.onBankAuthenticationRequired,
+    executionContext: input.executionContext,
   });
   if (bankAppChallenge === "failed" || bankAppChallenge === "timed_out") {
     return {
