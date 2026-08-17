@@ -1,0 +1,55 @@
+name: Production database maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Explicit production maintenance action
+        required: true
+        type: choice
+        default: preflight
+        options:
+          - preflight
+          - pause
+          - apply
+      migration_ref:
+        description: Exact reviewed source commit for approved migration files
+        required: true
+        type: string
+        default: c4fbff410b958b2ff7e8b2e3f945061a9c33bd4e
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-database-maintenance
+  cancel-in-progress: false
+
+jobs:
+  maintenance:
+    name: Production database ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: supabase-production-recovery
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check out reviewed migration source
+        if: inputs.action == 'apply'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.migration_ref }}
+          path: migration-source
+          persist-credentials: false
+
+      - name: Run explicit production maintenance action
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          PRODUCTION_DB_MAINTENANCE_ACTION: ${{ inputs.action }}
+          PRODUCTION_DB_MAINTENANCE_CONFIRM: ${{ inputs.action == 'apply' && format('oyjxdzsoejraedqghndi:apply:{0}', inputs.migration_ref) || format('oyjxdzsoejraedqghndi:{0}', inputs.action) }}
+          PRODUCTION_DB_MAINTENANCE_SOURCE_REF: ${{ inputs.migration_ref }}
+          MIGRATION_SOURCE_ROOT: ${{ github.workspace }}/migration-source
+        run: node scripts/production-db-maintenance.mjs
