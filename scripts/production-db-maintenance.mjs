@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 export const PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
-export const APPROVED_MIGRATION_SOURCE_REF = "3155a6f6e989cd67aa75474582447c24154db7c6";
+export const APPROVED_MIGRATION_SOURCE_REF = "c4fbff410b958b2ff7e8b2e3f945061a9c33bd4e";
 export const SUPABASE_PRODUCTION_CA_URL =
   "https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt";
 export const SUPABASE_PRODUCTION_CA_SHA256 =
@@ -16,7 +16,7 @@ export const APPROVED_MIGRATIONS = [
     version: "20260816160000",
     name: "concurrency_phase_two",
     path: "viza-fe/internal-website/supabase/migrations/20260816160000_concurrency_phase_two.sql",
-    sha256: "e21b00220cca721e151b1a8b940a8256ef8702e25422a9dc2004b9f90c0bef60",
+    sha256: "9fa7ef4fec051a3a86dae041c0e51e61a17bd3c9aa5cfdaab44f6da6a97c6c00",
   },
   {
     version: "20260816161000",
