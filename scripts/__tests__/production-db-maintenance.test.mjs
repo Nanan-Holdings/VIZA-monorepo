@@ -196,15 +196,21 @@ test("psql apply keeps the password out of args and removes its temporary SQL", 
       PATH: "/usr/bin",
       SUPABASE_ACCESS_TOKEN: "management-token-must-not-reach-psql",
       PRODUCTION_DB_MAINTENANCE_CONFIRM: "production-confirmation",
+      PGOPTIONS: "-c search_path=attacker_controlled",
+      PGSERVICE: "unexpected-service",
     },
   });
 
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.deepEqual(calls[0].args, ["--version"]);
-  const applyCall = calls[1];
+  const permissionProbe = calls[1];
+  assert.match(permissionProbe.args.at(-1), /SET SESSION ROLE postgres/u);
+  assert.equal(permissionProbe.args.includes("--no-psqlrc"), true);
+  const applyCall = calls[2];
   assert.equal(applyCall.command, "psql");
   assert.equal(applyCall.args.includes("temporary-password-123"), false);
-  assert.deepEqual(applyCall.args.slice(0, 8), [
+  assert.deepEqual(applyCall.args.slice(0, 9), [
+    "--no-psqlrc",
     "--host", "aws-1-ap-south-1.pooler.supabase.com",
     "--port", "5432",
     "--username", `cli_login_postgres.${PRODUCTION_PROJECT_REF}`,
@@ -214,6 +220,8 @@ test("psql apply keeps the password out of args and removes its temporary SQL", 
   assert.equal(applyCall.options.env.PGSSLMODE, "verify-full");
   assert.equal(applyCall.options.env.SUPABASE_ACCESS_TOKEN, undefined);
   assert.equal(applyCall.options.env.PRODUCTION_DB_MAINTENANCE_CONFIRM, undefined);
+  assert.equal(applyCall.options.env.PGOPTIONS, undefined);
+  assert.equal(applyCall.options.env.PGSERVICE, undefined);
   assert.equal(writes.length, 1);
   assert.match(writes[0].filePath, /approved-production-migrations\.sql$/u);
   assert.deepEqual(removals, ["/safe/temp/migration"]);
@@ -261,6 +269,60 @@ test("apply revokes the temporary role when psql fails", async () => {
   );
   assert.equal(methods.at(-1).method, "DELETE");
   assert.match(methods.at(-1).url, /cli\/login-role$/u);
+});
+
+test("apply retries temporary role revocation before returning success", async () => {
+  let deleteAttempts = 0;
+  const result = await runApply({
+    env: {
+      SUPABASE_ACCESS_TOKEN: "test-token",
+      SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:apply:${APPROVED_MIGRATION_SOURCE_REF}`,
+      PRODUCTION_DB_MAINTENANCE_SOURCE_REF: APPROVED_MIGRATION_SOURCE_REF,
+      MIGRATION_SOURCE_ROOT: "/approved-source",
+    },
+    readFile: (filePath) => Buffer.from(`sql:${filePath}`),
+    hash: (bytes) => {
+      const filePath = bytes.toString("utf8").slice(4).replaceAll("\\", "/");
+      return APPROVED_MIGRATIONS.find((migration) => filePath.endsWith(migration.path)).sha256;
+    },
+    executeMigration: async () => {},
+    fetchImpl: async (url, init) => {
+      if (url.endsWith("/database/query/read-only")) {
+        return new Response(
+          JSON.stringify(deleteAttempts === 0 ? drainedPreflightPayload() : migratedPreflightPayload()),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/cli/login-role") && init.method === "POST") {
+        return new Response(JSON.stringify({
+          role: "cli_login_postgres",
+          password: "temporary-password-123",
+          ttl_seconds: 300,
+        }), { status: 200 });
+      }
+      if (url.endsWith("/config/database/pooler")) {
+        return new Response(JSON.stringify([{
+          database_type: "PRIMARY",
+          db_host: "aws-1-ap-south-1.pooler.supabase.com",
+          db_port: 6543,
+          db_name: "postgres",
+          db_user: `postgres.${PRODUCTION_PROJECT_REF}`,
+          pool_mode: "transaction",
+        }]), { status: 200 });
+      }
+      if (url.endsWith("/cli/login-role") && init.method === "DELETE") {
+        deleteAttempts += 1;
+        return new Response(
+          JSON.stringify(deleteAttempts < 3 ? { message: "retry" } : { message: "ok" }),
+          { status: deleteAttempts < 3 ? 503 : 200 },
+        );
+      }
+      throw new Error(`unexpected request: ${url}`);
+    },
+  });
+  assert.equal(deleteAttempts, 3);
+  assert.deepEqual(result, migratedPreflightPayload());
 });
 
 test("migration batch rejects any hash drift", () => {
