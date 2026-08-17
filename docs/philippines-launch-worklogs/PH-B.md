@@ -1367,3 +1367,11 @@ When PH-A publishes E10, PH-B must consume only: SEA electronic positive `Yes` b
 - Passed: filtered RPC contract test (1/1), worker-target test (8/8), and `npm run type-check` in `submission-service`.
 - The broader two-file test command had one unrelated existing failure in the official-fee migration assertion (`queue claimers use skip locked ... for update` against `0118_official_fee_queue_isolation.sql`); the new runner claim assertion passed. `git diff --check` was run after this entry.
 - Production approval remains required to apply the migration and deploy/configure a Philippines worker; no deploy, commit or queue/official action occurred.
+
+## E46 schema/options closure（2026-08-17）
+
+- Consumed current E46 public-option evidence in PH-B owned schema/options only. Arrival Purpose now exposes the current 15 official `code` values and filters out stale `POV999` / `Others`; requiredness and persona effects remain review-gated.
+- AIR flight dynamic options now use official response `code` as identity and `name` as label, with `travel_company_code` as parent and `travel_port_code` as metadata. The schema records that the current endpoint has no `flight_number` response property.
+- SEA destination port remains dynamic/code-only; `destination_port_code` and `disembarking_port_code` stay distinct, and duplicate `Port of Legazpi` labels are recorded as evidence that label recovery is forbidden. `with_custom_declaration` remains metadata only.
+- Verified existing Health/customs/family contracts stayed aligned: Health symptoms are the 15 screenshot-confirmed checkbox values; Q1/Q2 have no goods rows; Q3-Q12 each have their own repeatable item rows; attachment requiredness and unconfirmed option/requiredness stay fail-closed.
+- Focused validation passed: static TypeScript compile for PH schema/options/test; `./node_modules/.bin/vitest run src/tests/ph-etravel-arrival-card-schema.test.ts` (35/35). `git diff --check` is run after this entry.
