@@ -26,4 +26,7 @@ scheduled recovery workflows.
   maintenance entry point. Keep its actions explicit and fail closed against
   the exact production project ref. `preflight` is aggregate-only and uses the
   read-only Management API endpoint; `pause` requires the approved live cap and
-  cron snapshot, drained queues, and one atomic transaction.
+  cron snapshot, drained queues, and one atomic transaction. `apply` checks out
+  but never executes code from one exact reviewed source commit, verifies both
+  migration SHA-256 hashes, re-runs the drain preflight, and applies both SQL
+  migrations plus ledger rows in one transaction.

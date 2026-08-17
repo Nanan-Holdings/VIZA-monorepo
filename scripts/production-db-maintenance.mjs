@@ -1,6 +1,24 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
+export const APPROVED_MIGRATION_SOURCE_REF = "e80f1d7a71bcc5aca2de11348e4f8b9e7e5a7ef2";
+export const APPROVED_MIGRATIONS = [
+  {
+    version: "20260816160000",
+    name: "concurrency_phase_two",
+    path: "viza-fe/internal-website/supabase/migrations/20260816160000_concurrency_phase_two.sql",
+    sha256: "de14085487215c05b1aa90afcb98a9ee0c40fc9873ed0ec1b2da74d03b479a2c",
+  },
+  {
+    version: "20260816161000",
+    name: "vietnam_status_settlement_fence",
+    path: "viza-fe/internal-website/supabase/migrations/20260816161000_vietnam_status_settlement_fence.sql",
+    sha256: "146406a8238b036d900b0d976eb4c8405534742d54831d8514fc6f82cf5f760c",
+  },
+];
 
 export const EXPECTED_CAP_SNAPSHOT = [
   {
@@ -330,6 +348,110 @@ function requiredEnv(env, name) {
   return value;
 }
 
+function maintenanceState(payload) {
+  const rows = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === "object" && Array.isArray(payload.result)
+      ? payload.result
+      : [];
+  const state = rows[0]?.maintenance_state;
+  if (!state || typeof state !== "object") {
+    throw new Error("Production preflight returned an unexpected payload");
+  }
+  return state;
+}
+
+function assertApplyPreconditions(payload) {
+  const state = maintenanceState(payload);
+  const zeroChecks = [
+    state.runner_jobs?.running,
+    state.runner_jobs?.queued,
+    state.legacy_processing_or_live_locked,
+    state.vn_status_running,
+    state.live_machine_slots,
+  ];
+  if (zeroChecks.some((value) => value !== 0)) {
+    throw new Error("Production queues or leases are not drained");
+  }
+
+  const expectedCountries = EXPECTED_CAP_SNAPSHOT.map((cap) => cap.country);
+  const caps = Array.isArray(state.caps) ? state.caps : [];
+  if (
+    caps.length !== expectedCountries.length ||
+    caps.some((cap, index) => cap.country !== expectedCountries[index] || cap.paused !== true)
+  ) {
+    throw new Error("Production runner caps are not exactly paused");
+  }
+  if (!Array.isArray(state.vn_status_cron) || state.vn_status_cron.length !== 0) {
+    throw new Error("Vietnam status cron is still scheduled");
+  }
+  if (state.strict_objects?.runner_private_schema !== false) {
+    throw new Error("Concurrency phase-two strict schema is already present or ambiguous");
+  }
+  if (state.strict_objects?.vn_lease_generation_column !== false) {
+    throw new Error("Vietnam lease-generation schema is already present or ambiguous");
+  }
+
+  const versions = new Set(
+    (Array.isArray(state.recent_migrations) ? state.recent_migrations : []).map(
+      (migration) => migration.version,
+    ),
+  );
+  if (!versions.has("20260816134048")) {
+    throw new Error("Expected production migration baseline is missing");
+  }
+  for (const migration of APPROVED_MIGRATIONS) {
+    if (versions.has(migration.version)) {
+      throw new Error(`Migration ${migration.version} is already recorded`);
+    }
+  }
+}
+
+function sqlLiteral(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+export function loadApprovedMigrationBatch({
+  sourceRoot,
+  readFile = readFileSync,
+  hash = (buffer) => createHash("sha256").update(buffer).digest("hex"),
+} = {}) {
+  if (!sourceRoot) throw new Error("MIGRATION_SOURCE_ROOT is required");
+
+  const sources = APPROVED_MIGRATIONS.map((migration) => {
+    const filePath = path.resolve(sourceRoot, migration.path);
+    const bytes = readFile(filePath);
+    const actualHash = hash(bytes);
+    if (actualHash !== migration.sha256) {
+      throw new Error(`Migration ${migration.version} hash mismatch`);
+    }
+    return { ...migration, sql: Buffer.from(bytes).toString("utf8") };
+  });
+
+  const statements = sources.flatMap((migration) => [
+    `-- BEGIN APPROVED MIGRATION ${migration.version}\n${migration.sql}\n-- END APPROVED MIGRATION ${migration.version}`,
+    `INSERT INTO supabase_migrations.schema_migrations (version, statements, name, created_by, idempotency_key)\n` +
+      `VALUES (${sqlLiteral(migration.version)}, ARRAY[${sqlLiteral(`sha256:${migration.sha256}`)}]::TEXT[], ` +
+      `${sqlLiteral(migration.name)}, 'codex-production-maintenance', ` +
+      `${sqlLiteral(`codex-production-cutover:${migration.version}:${migration.sha256}`)});`,
+  ]);
+
+  return `BEGIN;\n${statements.join("\n\n")}\nCOMMIT;\n` +
+    `SELECT jsonb_build_object(\n` +
+    `  'runner_private_schema', pg_catalog.to_regnamespace('runner_private') IS NOT NULL,\n` +
+    `  'vn_lease_generation_column', EXISTS (\n` +
+    `    SELECT 1 FROM information_schema.columns\n` +
+    `    WHERE table_schema = 'public' AND table_name = 'official_status_checks'\n` +
+    `      AND column_name = 'lease_generation'\n` +
+    `  ),\n` +
+    `  'versions', (\n` +
+    `    SELECT jsonb_agg(version ORDER BY version)\n` +
+    `    FROM supabase_migrations.schema_migrations\n` +
+    `    WHERE version IN ('20260816160000','20260816161000')\n` +
+    `  )\n` +
+    `) AS maintenance_apply_state;`;
+}
+
 async function managementQuery({
   env,
   fetchImpl,
@@ -357,7 +479,7 @@ async function managementQuery({
         "content-type": "application/json",
       },
       body: JSON.stringify({ query, parameters: [], ...(readOnly ? {} : { read_only: false }) }),
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(action === "apply" ? 180_000 : 60_000),
     },
   );
 
@@ -393,6 +515,44 @@ export async function runPause({ env = process.env, fetchImpl = fetch } = {}) {
   });
 }
 
+export async function runApply({
+  env = process.env,
+  fetchImpl = fetch,
+  readFile = readFileSync,
+  hash,
+} = {}) {
+  const sourceRef = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_SOURCE_REF");
+  const sourceRoot = requiredEnv(env, "MIGRATION_SOURCE_ROOT");
+  const confirm = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_CONFIRM");
+  if (sourceRef !== APPROVED_MIGRATION_SOURCE_REF) {
+    throw new Error("Migration source ref is not approved");
+  }
+  if (confirm !== `${PRODUCTION_PROJECT_REF}:apply:${sourceRef}`) {
+    throw new Error("PRODUCTION_DB_MAINTENANCE_CONFIRM does not authorize apply");
+  }
+
+  const preflight = await runPreflight({
+    env: {
+      ...env,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:preflight`,
+    },
+    fetchImpl,
+  });
+  assertApplyPreconditions(preflight);
+
+  const query = loadApprovedMigrationBatch({ sourceRoot, readFile, hash });
+  return managementQuery({
+    env: {
+      ...env,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:apply`,
+    },
+    fetchImpl,
+    action: "apply",
+    query,
+    readOnly: false,
+  });
+}
+
 async function main() {
   const action = process.env.PRODUCTION_DB_MAINTENANCE_ACTION?.trim() || "preflight";
   const payload =
@@ -400,6 +560,8 @@ async function main() {
       ? await runPreflight()
       : action === "pause"
         ? await runPause()
+        : action === "apply"
+          ? await runApply()
         : (() => {
             throw new Error(`Unsupported production database maintenance action: ${action}`);
           })();

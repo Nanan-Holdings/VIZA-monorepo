@@ -80,4 +80,7 @@ smoke-test helpers for the VIZA monorepo.
   cap, cron, migration-ledger, and strict-object metadata without row payloads
   or credential values. Pause is a separate exact-confirmation action that
   atomically requires the approved cap/cron snapshot and zero live work before
-  pausing pool caps and unscheduling the Vietnam status cron.
+  pausing pool caps and unscheduling the Vietnam status cron. Apply accepts only
+  the reviewed strict source commit and exact hashes for migration versions
+  `20260816160000` and `20260816161000`, rechecks the drained pause state, and
+  records both migrations atomically with the schema changes.
