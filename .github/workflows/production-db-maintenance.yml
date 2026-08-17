@@ -4,12 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: Maintenance action (currently read-only preflight only)
+        description: Explicit production maintenance action
         required: true
         type: choice
         default: preflight
         options:
           - preflight
+          - pause
 
 permissions:
   contents: read
@@ -19,9 +20,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  preflight:
-    name: Production database preflight
-    if: inputs.action == 'preflight'
+  maintenance:
+    name: Production database ${{ inputs.action }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: supabase-production-recovery
@@ -30,9 +30,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Run aggregate-only production preflight
+      - name: Run explicit production maintenance action
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
-          PRODUCTION_DB_MAINTENANCE_CONFIRM: oyjxdzsoejraedqghndi:preflight
+          PRODUCTION_DB_MAINTENANCE_ACTION: ${{ inputs.action }}
+          PRODUCTION_DB_MAINTENANCE_CONFIRM: oyjxdzsoejraedqghndi:${{ inputs.action }}
         run: node scripts/production-db-maintenance.mjs
