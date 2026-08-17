@@ -729,6 +729,69 @@ test("AIR positive customs action plan is deterministic, structured, and never i
   assert.equal(isPhEtravelConfirmationText("New Travel Declaration Summary Previous Submit"), false);
 });
 
+test("customs goods Add Item actions are generated only for Q3 through Q12 positive checklist rows", () => {
+  const q1q2Only = buildPhEtravelAirPositiveCustomsActionPlan({
+    ...payload,
+    customs: {
+      ...payload.customs,
+      hasBaggageOrCurrencyToDeclare: true,
+      hasCurrencyToDeclare: true,
+      currencyItems: [{ currency: "840", monetaryInstrument: "1", amount: "15000" }],
+      currencySources: ["SALARY"],
+      currencyTransportPurposes: ["LEISURE"],
+      currencyTransportMethod: "is_shipped_thru_courier_service",
+      courierName: "Declared courier",
+      airwayBillNumber: "AWB-TEST",
+      airwayBillDate: "2026-07-12",
+      generalDeclarationResponses: Array.from({ length: 12 }, (_, index) => ({
+        itemNumber: index + 1,
+        key: `customs_checklist_${index + 1}`,
+        response: index < 2,
+        details: null,
+      })),
+      goodsItems: [],
+    },
+  });
+
+  assert.equal(q1q2Only.actions.some((action) => action.phase === "goods_item_modal_table"), false);
+
+  const q3ThroughQ12 = buildPhEtravelAirPositiveCustomsActionPlan({
+    ...payload,
+    customs: {
+      ...payload.customs,
+      hasBaggageOrCurrencyToDeclare: true,
+      hasGoodsToDeclare: true,
+      amountOfGoodsCurrency: "USD",
+      amountOfGoodsAmount: "1200",
+      generalDeclarationResponses: Array.from({ length: 12 }, (_, index) => ({
+        itemNumber: index + 1,
+        key: `customs_checklist_${index + 1}`,
+        response: index >= 2,
+        details: null,
+      })),
+      goodsItems: Array.from({ length: 10 }, (_, index) => ({
+        checklistItemNumber: index + 3,
+        description: `Declared item ${index + 3}`,
+        quantity: String(index + 1),
+        amountUsd: String((index + 1) * 100),
+      })),
+    },
+  });
+  const goodsActions = q3ThroughQ12.actions.filter((action) => action.phase === "goods_item_modal_table");
+
+  assert.equal(goodsActions.filter((action) => action.kind === "open_modal").length, 10);
+  assert.equal(goodsActions.filter((action) => action.kind === "add_modal_row").length, 10);
+  for (let itemNumber = 3; itemNumber <= 12; itemNumber += 1) {
+    const perChecklist = goodsActions.filter((action) => action.checklistItemNumber === itemNumber);
+    assert.ok(perChecklist.some((action) => action.selector === "button:has-text('Add Item')"));
+    assert.ok(perChecklist.some((action) => action.selector === "textarea[name='description']" && action.value === `Declared item ${itemNumber}`));
+    assert.ok(perChecklist.some((action) => action.selector === "input[name='quantity']"));
+    assert.ok(perChecklist.some((action) => action.selector === "input[name='amount']"));
+  }
+  assert.equal(q3ThroughQ12.actions.some((action) => /next|signature|family|summary|submit/i.test(`${action.kind} ${action.selector}`)), false);
+  assert.ok(q3ThroughQ12.blockingCodes.includes("ph_etravel_signature_required"));
+});
+
 test("AIR action plan fails closed for incomplete evidence and SEA positive never borrows AIR selectors", () => {
   const airPlan = buildPhEtravelAirPositiveCustomsActionPlan({
     ...payload,

@@ -1410,3 +1410,9 @@ Currency page appeared after page 4 had item 1 Yes and item 2 Yes, with item 12 
 - AIR 正常航班不再从 legacy `flight_number` 取得身份，必须提供官方 option `flight_code`；field plan 将显示 `name` 与回读的 `code` 分离。无可回读 code 的 display-only combobox 不猜测选择。SEA `destination_port_code` 只接受 code-shaped 值，`disembarking_port_code` 仍不能替代它。
 - E46 未闭合项保持 fail-closed：SEA `is_disembarking=false`/缺值、hotel submitted value、Summary/final result/recovery 仍不授权 browser、final Submit 或 submitted 状态。
 - Focused tests：official-options、normalize、form-filler `79 passed`；`submission-service npm run type-check` passed；`git diff --check` passed。未执行真实登录、OTP、官网浏览器动作或 final Submit。
+
+## E46/E42-E45 runner regression hardening（2026-08-17）
+
+- 复核当前 `9053cd2f` runner：AIR flight 已按官方 `code`/`name` 与 airline parent 映射，SEA destination port 只接受 official code，arrival purpose 拒绝 `POV999`/Others；Review、signature、family、Summary、ambiguous submit、authoritative read/reference/QR 仍保持 fail-closed/no-resubmit。
+- 仅补 focused regression：Q1/Q2 positive 不生成 goods Add Item；Q3-Q12 每个 Yes 都生成对应 checklist item number 的 Add Item、Description、Quantity、Amount in USD 和 Add row 动作，且 action plan 不含 Next/signature/Family/Summary/final Submit。
+- Focused tests：PH runner suite `188 passed`；`submission-service npm run type-check` passed；`git diff --check` passed。未访问官网、未启动真实 job/账号/OTP/CAPTCHA、未部署或 final Submit。
