@@ -763,6 +763,8 @@ describe("Philippines eTravel arrival card schema", () => {
     expect(rulesOf("sea_port_of_entry").option_value_evidence_level).toBe("verified_public");
     expect(rulesOf("sea_port_of_entry").option_identity).toBe("code");
     expect(rulesOf("sea_port_of_entry").label_identity).toBe("name_not_unique");
+    expect(rulesOf("sea_port_of_entry").label_recovery_forbidden).toBe(true);
+    expect(rulesOf("sea_port_of_entry").duplicate_label_evidence).toContain("Port of Legazpi");
     expect(rulesOf("sea_port_of_entry").port_metadata_contract).toBe(
       "dynamic_page_gate_only_not_schema_requiredness_or_port_to_customs_flow",
     );
@@ -1406,10 +1408,18 @@ describe("Philippines eTravel arrival card schema", () => {
     expect(PH_ETRAVEL_PURPOSE_OPTIONS.map(({ value, label_en }) => [value, label_en])).toEqual([
       ["OFW", "OFW"], ["POV006", "Business/Professional"], ["POV002", "Convention/Conference"],
       ["POV003", "Education/Training/Studies"], ["POV004", "Government/Official Mission"], ["POV005", "Health/Medical Reason"],
-      ["POV001", "Holiday/Pleasure/Vacation"], ["POV010", "Incentive"], ["POV017", "Meetings"], ["POV999", "Others"],
+      ["POV001", "Holiday/Pleasure/Vacation"], ["POV010", "Incentive"], ["POV017", "Meetings"],
       ["POV009", "Religion/Pilgrimage"], ["POV011", "Returning Resident"], ["POV018", "Trade Fair/Exhibition"],
       ["POV012", "Transit"], ["POV007", "Visit Friends/Relatives"], ["POV008", "Work/Employment"],
     ]);
+    expect(PH_ETRAVEL_PURPOSE_OPTIONS).toHaveLength(15);
+    expect(PH_ETRAVEL_PURPOSE_OPTIONS.map((option) => option.value)).not.toContain("POV999");
+    expect(PH_ETRAVEL_PURPOSE_OPTIONS.map((option) => option.label_en)).not.toContain("Others");
+    expect(rulesOf("purpose_of_travel")).toMatchObject({
+      official_key: "purpose_of_visit_code",
+      current_arrival_option_source: "E46 /api/v1/common/purpose_of_visits?for_arrival=1 current 15-row response",
+      excluded_legacy_options: ["POV999"],
+    });
     expect(PH_ETRAVEL_OCCUPATION_OPTIONS.map(({ value, label_en }) => [value, label_en])).toEqual([
       ["OCC003", "Agriculture"], ["OCC010", "Airline Crew"], ["OCC015", "Businessman"], ["OCC002", "Clerical/Sales"],
       ["OCC011", "Diplomat"], ["OCC013", "Domestic Helper"], ["OCC012", "Entertainer"], ["OCC006", "Housewife"],
@@ -1426,7 +1436,7 @@ describe("Philippines eTravel arrival card schema", () => {
     for (const list of [PH_ETRAVEL_PURPOSE_OPTIONS, PH_ETRAVEL_OCCUPATION_OPTIONS, PH_ETRAVEL_MONETARY_INSTRUMENT_OPTIONS]) {
       expect(new Set(list.map((option) => option.value)).size).toBe(list.length);
       expect(list.every((option) => option.evidence_level === "verified_public")).toBe(true);
-      expect(list.every((option) => /^E13(?:\/E45)? official public API/.test(option.official_source ?? ""))).toBe(true);
+      expect(list.every((option) => /^E(?:13|46)(?:\/E45)? official public API/.test(option.official_source ?? ""))).toBe(true);
     }
 
     expect(PH_ETRAVEL_COUNTRY_OPTIONS).toEqual([]);
@@ -1437,7 +1447,38 @@ describe("Philippines eTravel arrival card schema", () => {
     expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.currencies).toMatchObject({
       endpoint: "/api/v1/common/currencies", response_identity: "id", response_label: "name",
     });
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_travel_companies).toMatchObject({
+      endpoint: "/api/v1/common/travel_companies",
+      response_identity: "code",
+      response_label: "name",
+    });
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_travel_companies.response_fields).toContain("id");
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_flight_numbers).toMatchObject({
+      endpoint: "/api/v1/common/flight_numbers",
+      query: ["travel_company_code={selected official code}"],
+      response_identity: "code",
+      response_label: "name",
+    });
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_flight_numbers.response_fields).toEqual([
+      "code",
+      "name",
+      "travel_company_code",
+      "travel_port_code",
+      "travel_port_name",
+      "origin_country_code",
+      "destination_country_code",
+      "flight_type",
+      "transportation_type",
+      "is_active",
+    ]);
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_flight_numbers.response_fields).not.toContain("flight_number");
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_flight_numbers.official_source).toContain("E46");
     expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.sea_destination_ports.query).toContain("transportation_type=SEA");
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.sea_destination_ports).toMatchObject({
+      response_identity: "code",
+      response_label: "name",
+    });
+    expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.sea_destination_ports.official_source).toContain("duplicate labels");
     expect(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.sea_disembarking_ports.query).not.toContain("transportation_type=SEA");
     for (const source of Object.values(PH_ETRAVEL_DYNAMIC_OPTION_SOURCES)) {
       expect(source.evidence_level).toBe("verified_public");
@@ -1465,6 +1506,9 @@ describe("Philippines eTravel arrival card schema", () => {
     expect(rulesOf("flight_number")).toMatchObject({
       official_key: "flight_number",
       dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_flight_numbers,
+      option_identity: "code",
+      label_identity: "name",
+      response_field_not_present: "flight_number",
       special_flight_sentinel: "SPECIAL FLIGHT",
       selected_option_metadata_sets: "destination_port_code <- travel_port_code",
       server_requiredness: "needs_review",
@@ -1546,6 +1590,8 @@ describe("Philippines eTravel arrival card schema", () => {
     expect(rulesOf("port_of_entry")).toMatchObject({
       official_key: "destination_port_code",
       dynamic_option_source: PH_ETRAVEL_DYNAMIC_OPTION_SOURCES.air_destination_ports,
+      option_identity: "code",
+      label_identity: "name",
       port_metadata_contract: "dynamic_metadata_only_not_schema_requiredness_or_air_customs_flow",
       server_requiredness: "needs_review",
     });
