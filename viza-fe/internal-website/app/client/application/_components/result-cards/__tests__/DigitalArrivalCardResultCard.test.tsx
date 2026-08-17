@@ -71,7 +71,7 @@ describe("DigitalArrivalCardResultCard", () => {
     );
   });
 
-  it("keeps a Philippines screenshot and local reference in recovery until authoritative registration and QR evidence exist", () => {
+  it("keeps a Philippines screenshot and local reference in recovery until authoritative registration and QR evidence exist", async () => {
     const result: DigitalArrivalCardSubmissionResult = {
       country: "PH",
       visaType: "PH_ETRAVEL_ARRIVAL_CARD",
@@ -104,14 +104,20 @@ describe("DigitalArrivalCardResultCard", () => {
       />,
     );
 
-    expect(screen.getByText("eTravel 未完成")).toBeInTheDocument();
-    expect(screen.getByText("PH-REFERENCE")).toBeInTheDocument();
+    expect(screen.getByText("正在确认官方结果")).toBeInTheDocument();
+    expect(screen.queryByText("PH-REFERENCE")).not.toBeInTheDocument();
     expect(screen.queryByAltText("菲律宾 eTravel 官网确认页截图")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "下载官网确认截图" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "再次提交" })).not.toBeInTheDocument();
-    expect(screen.getByText("菲律宾 eTravel 免费，不是签证，也不保证边检准入。")).toBeInTheDocument();
+    expect(screen.getByText("菲律宾 eTravel 免费，不是签证，也不保证获准在菲律宾边境入境。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新读取官方结果状态" })).toBeInTheDocument();
     expect(screen.queryByText("正在提交您的申请")).not.toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/application-id/submission-status",
+        expect.objectContaining({ cache: "no-store" }),
+      );
+    });
   });
 
   it("keeps polling an incomplete Vietnam result and switches to the QR download", async () => {

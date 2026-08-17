@@ -78,7 +78,7 @@ test("E17 blocks AIR Special Flight and positive Health with canonical keys only
   assert.doesNotMatch(JSON.stringify(result), /synthetic-flight-value|synthetic-country-value/);
 });
 
-test("E42/E43 preflight keeps Q1/Q2 on Currency and blocks positive goods amount or attachments/signature safely", () => {
+test("E42-E45 preflight keeps Q1/Q2 on Currency and treats AIR attachment as conditional while preserving signature", () => {
   const currencyOnly = evaluatePhEtravelArrivalLaunchPreflight({
     payload: arrivalPayload({ customs_checklist_1: "yes" }),
     finalSubmitEnabled: false,
@@ -91,7 +91,7 @@ test("E42/E43 preflight keeps Q1/Q2 on Currency and blocks positive goods amount
     payload: arrivalPayload({ customs_checklist_3: "yes" }),
     finalSubmitEnabled: false,
   });
-  assert.ok(blockingCodes(goods).includes("ph_etravel_launch_attachment_review_required"));
+  assert.equal(blockingCodes(goods).includes("ph_etravel_launch_attachment_review_required"), false);
   assert.ok(blockingCodes(goods).includes("ph_etravel_launch_customs_signature_review_required"));
 
   const amountWithoutGoodsAnswer = evaluatePhEtravelArrivalLaunchPreflight({

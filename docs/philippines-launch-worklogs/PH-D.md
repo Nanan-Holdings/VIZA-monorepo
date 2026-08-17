@@ -1643,7 +1643,7 @@
 
 - `npx prettier --check`（本轮 PH-only helper、presentation、shared integration spec、tests 与 worklog）：passed。
 - PH-only source/tests `tsc --noEmit`：passed。
-- `git diff --check`：passed。
+- `git diff --check` 及两个新增文件的 no-index whitespace check：passed。
 - `npx vitest run features/ph-etravel/__tests__/general-declaration.test.ts features/ph-etravel/__tests__/presentation.test.ts --testTimeout=15000` 未进入测试体：Vite 配置加载时无法写入既有 `node_modules/.vite-temp`，报 `EPERM`。未安装依赖、未申请权限或升级权限。
 
 ### E45 correction
@@ -1655,3 +1655,31 @@
 
 - `npx prettier --check`、PH-only source/tests `tsc --noEmit`、`git diff --check`：passed。
 - `npx vitest run features/ph-etravel/__tests__/general-declaration.test.ts features/ph-etravel/__tests__/presentation.test.ts --testTimeout=15000` 再次未进入测试体：Vite 无法写入既有 `node_modules/.vite-temp`，报 `EPERM`。未安装依赖、未申请权限或升级权限。
+
+## 第三十一轮：PH-only applicant experience 接入合同（2026-08-17）
+
+- 以 `integration/product-work-20260813` 的即时 HEAD `c01177d6` 为准，新增 `applicant-experience.ts`，供后续 shared long-form/status/result 页面直接消费。它统一 final confirmation 的免费、非签证、不保证准入边界，且 live processing 仅在 `NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED === "true"` 时可请求；缺省、`TRUE` 或其他值均 fail-closed。
+- 缺失字段和 Documents 均输出可点击的 return target；未完成时不允许请求官方处理。scheduled/processing 只给 read-only refresh；模糊结果只给 `reread_official_result`，不提供 retry/re-submit。
+- 只有 authoritative post-submit read、稳定 reference 和由同一 reference 成功渲染的 QR 才显示 submitted；回执只在上游明确提供时显示。HTTP 200、导航、Summary、Submit 可见和本地 reference/QR 均归 recovery/action-required。
+- 未修改 shared long-form、result card、backend、migration 或其他 worklog。shared 解冻后的最小接入点已追加到 `shared-integration.ts`。
+
+### Focused validation
+
+- `npx prettier --check`（本轮 PH-only helper、test、integration spec、AGENTS 与 worklog）：passed。
+- PH-only source/test `tsc --noEmit`：passed。
+- `git diff --check`：passed。
+- `npx vitest run features/ph-etravel/__tests__/applicant-experience.test.ts features/ph-etravel/__tests__/status.test.ts features/ph-etravel/__tests__/result-recovery-stored.test.ts --testTimeout=15000` 未启动测试体：Vitest 配置加载时无法写入既有 `node_modules/.vite-temp`，报 `EPERM`。未安装依赖、未申请或等待权限，也未尝试绕过该限制。
+
+## 第三十二轮：PH applicant experience 共享页面接入（2026-08-17）
+
+- 已将 PH-only adapter 接入 `app/client/application/long-form/page.tsx` 与 `SubmissionStatusStep.tsx`，且条件严格限定为 `PH_ETRAVEL_ARRIVAL_CARD`。最终确认合并表单与 Documents 完整度缺失项，提供字段/材料定位按钮；完整度未知或不完整时禁用 PH live 请求，提交 handler 也会 fail-closed，绝不入队。
+- 最终确认显示菲律宾 eTravel 免费、不是签证、不能保证边检准入。client live 仍仅接受 `NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED === "true"`；其他值只保存表单，不创建官网任务。
+- 新增 `PhEtravelApplicantStatusCard.tsx`：scheduled/processing 只刷新状态；action-required/failed 无 retry-submit；ambiguous 只重新读取结果状态。结果只有 current runner `resultEvidence.authoritativeRead` 的稳定 reference、已验证同 reference QR metadata、以及浏览器 QR 实际渲染均成功时才显示 submitted。HTTP 200、Summary、跳转、本地 reference/QR、回读不一致均保留 recovery。
+- `lib/submission-result.ts` 增加 PH authoritative-result evidence 的前端类型；`result-recovery.ts` 已同时解析 current runner `resultEvidence` 和旧 `authoritativeRegistration`，不会因字段漂移将本地 reference 当成功。`ApplicationCompletenessPanel` 与 `dynamic-step-form` 保持原样，现有完整度定位 API 由 long-form 消费。
+
+### Focused validation
+
+- `git diff --check`：passed。
+- `./node_modules/.bin/tsc --noEmit --incremental false`：本轮 PH 文件无错误；仓库既有阻断为 `app/api/applications/[id]/submission-status/route.ts` 的 `unknown` 类型、Travel 测试 tuple 类型及缺失 Playwright 类型，均未修改。
+- focused Vitest（PH adapter/status/recovery 与 arrival-result card）未启动测试体：Vite 无法写入既有 `node_modules/.vite-temp`，报 `EPERM`。未请求权限或绕过限制。
+- Prettier 未随当前 `node_modules` 安装；`npx prettier` 尝试下载时网络 DNS 失败，未改动依赖。

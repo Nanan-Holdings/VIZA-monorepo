@@ -300,6 +300,20 @@ function windowResult(window: PhEtravelSubmissionWindow): PhEtravelRunnerJobResu
   return null;
 }
 
+export function classifyPhEtravelRunnerJobPortalFailure(code: string): PhEtravelRunnerJobResult {
+  if (code === "ph_etravel_stopped_before_submit") {
+    return safeResult("review_stop", code);
+  }
+  if (
+    code === "ph_etravel_final_post_http_200_unverified" ||
+    code === "ph_etravel_final_post_ambiguous_recovery_required" ||
+    code === "ph_etravel_authoritative_result_read_required"
+  ) {
+    return safeResult("result_recovery_required", code);
+  }
+  return classifyPhEtravelRunnerJobPortalCheckpoint(code);
+}
+
 /**
  * Canonical PH arrival runner_job orchestration. It is intentionally local and
  * fail-closed: state/recovery, 72-hour window, and launch preflight all happen
@@ -415,7 +429,7 @@ export async function runPhEtravelArrivalRunnerJob(
       typeof (error as { code?: unknown }).code === "string"
       ? (error as { code: string }).code
       : "ph_etravel_stopped_before_submit";
-    return classifyPhEtravelRunnerJobPortalCheckpoint(code);
+    return classifyPhEtravelRunnerJobPortalFailure(code);
   }
 }
 

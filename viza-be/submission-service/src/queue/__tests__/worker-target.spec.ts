@@ -118,6 +118,7 @@ function row(overrides: Partial<Row>): Row {
 }
 
 let claimTargetJob: typeof import("../worker.js").claimTargetJob;
+let claimNextJob: typeof import("../worker.js").claimNextJob;
 let pollAndRun: typeof import("../worker.js").pollAndRun;
 let TargetRunnerJobError: typeof import("../worker.js").TargetRunnerJobError;
 let normalizeCountry: typeof import("../dispatch.js").normalizeCountry;
@@ -125,6 +126,7 @@ let normalizeCountry: typeof import("../dispatch.js").normalizeCountry;
 before(async () => {
   const worker = await import("../worker.js");
   const dispatch = await import("../dispatch.js");
+  claimNextJob = worker.claimNextJob;
   claimTargetJob = worker.claimTargetJob;
   pollAndRun = worker.pollAndRun;
   TargetRunnerJobError = worker.TargetRunnerJobError;
@@ -132,6 +134,54 @@ before(async () => {
 });
 
 describe("runner_job single-target worker mode", () => {
+  it("claims a Philippines queue row only through the country-scoped RPC", async () => {
+    const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+    const claimed = row({ id: "job-ph", application_id: "app-ph", country: "philippines" });
+    const client = {
+      from(): never {
+        throw new Error("country-scoped claims must not query runner_job directly");
+      },
+      async rpc(name: string, args: Record<string, unknown>) {
+        calls.push({ name, args });
+        return { data: [claimed], error: null };
+      },
+    };
+
+    const result = await claimNextJob({
+      workerId: "viza-runner-philippines",
+      country: "PH",
+      leaseMs: 900_000,
+      client,
+    });
+
+    assert.equal(result?.id, "job-ph");
+    assert.deepEqual(calls, [{
+      name: "claim_runner_country_job",
+      args: {
+        p_worker_id: "viza-runner-philippines",
+        p_country: "philippines",
+        p_lease_ms: 900_000,
+      },
+    }]);
+  });
+
+  it("keeps the unscoped shared claim path on its existing query-and-CAS behavior", async () => {
+    const rows = [row({ id: "job-shared", country: "taiwan" })];
+    const client = new FakeRunnerJobClient(rows);
+
+    const claimed = await claimNextJob({
+      workerId: "shared-worker",
+      client,
+    });
+
+    assert.equal(claimed?.id, "job-shared");
+    assert.equal(rows[0].status, "running");
+    assert.deepEqual(client.updates[0].filters, [
+      { column: "id", value: "job-shared" },
+      { column: "status", value: "queued" },
+    ]);
+  });
+
   it("claims only the configured target job and leaves other queued jobs untouched", async () => {
     const rows = [
       row({ id: "job-other", application_id: "app-other" }),
@@ -246,5 +296,9 @@ describe("runner_job single-target worker mode", () => {
     assert.match(source, /\["taiwan", "philippines"\]\.includes\(normalizeCountry\(RUNNER_JOB_COUNTRY\)\)/);
     assert.match(source, /targetJobId:\s*RUNNER_JOB_TARGET_ID/);
     assert.match(source, /expectedApplicationId:\s*RUNNER_JOB_EXPECTED_APPLICATION_ID/);
+    assert.ok(
+      (source.match(/country:\s*RUNNER_JOB_COUNTRY/g) ?? []).length >= 2,
+      "both targeted and continuous runner_job consumers must receive RUNNER_JOB_COUNTRY",
+    );
   });
 });

@@ -23,6 +23,11 @@ import {
   PhEtravelInitialRegistrationError,
   type PhEtravelInitialRegistrationChoice,
 } from "./registration-start";
+import {
+  consumePhEtravelFinalSubmitAuthorization,
+  PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
+  type PhEtravelFinalSubmitAuthorization,
+} from "./final-submit-gate";
 
 export type PhEtravelFieldKind = "text" | "date" | "choice" | "checkbox";
 
@@ -61,6 +66,7 @@ export const PH_ETRAVEL_HEALTH_SYMPTOM_LABELS = [
 
 export interface PhEtravelFormFillResult {
   reachedReview: boolean;
+  /** Never true from text, navigation, or a visible Submit button alone. */
   submitted: boolean;
   portalText: string;
   filledFields: string[];
@@ -369,6 +375,9 @@ function phEtravelPostSignatureEvidencePath(input: {
 }): PhEtravelPostSignatureEvidencePath {
   const isSeaArrival = input.payload.travelType === "ARRIVAL" &&
     (input.payload.transportType === "SEA" || input.payload.arrivalBranch?.transportType === "SEA");
+  if (!isSeaArrival && input.payload.transportType === "AIR" && positiveGoodsChecklistItemNumbers(input.payload).length > 0) {
+    return "air_electronic_positive_family_live";
+  }
   if (!isSeaArrival || !input.seaPortFlow) return "unverified";
   // E24 limits metadata to a dynamic page-array gate. It cannot select an
   // electronic evidence path before the rendered route and page content agree.
@@ -596,9 +605,9 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
   }
 
   if (branch === "AIR" && completeChecklistResponses(payload)) {
-    if (positiveGoodsItems.length > 0) {
-      blockingCodes.push("attachment_server_rules_unverified");
-    }
+    // E45: AIR Q3-Q12-positive continuation reached Family with no attachment
+    // after a valid signature. File behavior stays unknown, but blank upload is
+    // not an unconditional client blocker for this narrow path.
     blockingCodes.push("ph_etravel_signature_required");
   }
 
@@ -945,7 +954,7 @@ export function buildPhEtravelElectronicCustomsAutofillPhases(
   if (positiveGoodsItems.length > 0) {
     const attachmentBlockingCodes = payload.transportType === "SEA"
       ? buildPhEtravelAttachmentActionContract(undefined).blockingCodes
-      : ["attachment_server_rules_unverified"];
+      : ["ph_etravel_signature_required"];
     phases.push(actionRequiredPhase(
       "attachments_signature",
       ["attachments", "signature"],
@@ -1145,7 +1154,7 @@ export function buildPhEtravelFieldPlan(
       { key: "passport_expiry_date", labels: ["Passport Expiry Date", "Passport Expiration Date"], kind: "date", value: payload.passportExpiryDate, required: true },
       { key: "email", labels: ["Email Address", "Email"], kind: "text", value: payload.emailAddress, required: true },
       { key: "mobile", labels: ["Mobile Number", "Contact Number"], kind: "text", value: `${payload.mobileCountryCode}${payload.mobileNumber}`, required: true },
-      { key: "purpose", portalName: "purpose_of_visit_code", labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
+      { key: "purpose", portalName: "purpose_of_visit_code", portalValue: payload.purposeOfTravel, labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
       { key: "traveller_type", portalName: "passenger_type", labels: ["Traveller Type", "Traveler Type"], kind: "choice", value: optionLabel(payload.travellerType ?? (isAir ? "AIRCRAFT PASSENGER" : "VESSEL PASSENGER")), required: true },
       { key: "travel_company", portalName: "travel_company_code", labels: ["Name of Airline", "Name of Vessel", "Travel Company"], kind: isAir ? "choice" : "text", value: resolvedOptionLabel(payload.airlineOrVesselName, officialLabels), required: true },
       { key: "transport_number", portalName: "flight_number", labels: ["Flight Number", "Vehicle/Vessel Number"], kind: "text", value: payload.flightNumber, required: true },
@@ -1186,7 +1195,7 @@ export function buildPhEtravelFieldPlan(
     { key: "sex", labels: ["Sex", "Gender"], kind: "choice", value: optionLabel(payload.sex), required: true },
     { key: "email", labels: ["Email Address", "Email"], kind: "text", value: payload.emailAddress, required: true },
     { key: "mobile", labels: ["Mobile Number", "Contact Number"], kind: "text", value: `${payload.mobileCountryCode}${payload.mobileNumber}`, required: true },
-    { key: "purpose", portalName: "purpose_of_visit_code", labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
+    { key: "purpose", portalName: "purpose_of_visit_code", portalValue: payload.purposeOfTravel, labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
     { key: "traveller_type", portalName: "passenger_type", labels: ["Traveller Type", "Traveler Type"], kind: "choice", value: optionLabel(payload.travellerType ?? arrivalTravellerType), required: true },
     {
       key: isAirArrival ? "airline" : "vessel_name",
@@ -1195,7 +1204,10 @@ export function buildPhEtravelFieldPlan(
         ? ["Name of Airline", "Airline Name", "Name of Airline/Vessel"]
         : ["Name of Vessel", "Vessel Name", "Name of Airline/Vessel"],
       kind: isAirArrival ? "choice" : "text",
-      value: resolvedOptionLabel(payload.airlineOrVesselName, officialLabels),
+      portalValue: isAirArrival ? payload.airlineCode ?? payload.airlineOrVesselName : undefined,
+      value: isAirArrival
+        ? payload.airlineName ?? resolvedOptionLabel(payload.airlineOrVesselName, officialLabels)
+        : resolvedOptionLabel(payload.airlineOrVesselName, officialLabels),
       required: true,
     },
     {
@@ -1205,7 +1217,8 @@ export function buildPhEtravelFieldPlan(
         ? ["Specify special flight number"]
         : isAirArrival ? ["Flight Number", "Vehicle/Vessel Number"] : ["Voyage Number", "Vehicle/Vessel Number"],
       kind: isAirArrival && payload.isSpecialFlight ? "text" : isAirArrival ? "choice" : "text",
-      value: payload.flightNumber,
+      portalValue: isAirArrival && !payload.isSpecialFlight ? payload.flightCode ?? payload.flightNumber : undefined,
+      value: isAirArrival && !payload.isSpecialFlight ? payload.flightName ?? payload.flightNumber : payload.flightNumber,
       required: true,
     },
     { key: "origin_country", portalName: "origin_country_code", labels: ["Country of Origin"], kind: "choice", value: resolvedOptionLabel(payload.originCountry, officialLabels), required: true },
@@ -1217,7 +1230,7 @@ export function buildPhEtravelFieldPlan(
       value: payload.airportOfOrigin,
       required: true,
     },
-    { key: "port_of_entry", portalName: "destination_port_code", labels: ["Airport/Port of Destination in the Philippines", "Port of Entry", isAirArrival ? "Airport of Destination" : "Seaport of Destination"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
+    { key: "port_of_entry", portalName: "destination_port_code", portalValue: payload.portOfEntry, labels: ["Airport/Port of Destination in the Philippines", "Port of Entry", isAirArrival ? "Airport of Destination" : "Seaport of Destination"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
     { key: "with_transit", portalName: "with_transit", labels: ["With Transit", "Connecting Flight"], kind: "checkbox", value: payload.withTransit ?? false },
     { key: "transit_country", portalName: "transit_country_code", labels: ["Country of Transit"], kind: "choice", value: resolvedOptionLabel(payload.transitCountry, officialLabels) },
     { key: "transit_airport", portalName: "transit_port", labels: ["Airport of Transit"], kind: "text", value: payload.transitAirport },
@@ -1435,6 +1448,10 @@ function expectedRadioValue(item: PhEtravelFieldPlanItem): string {
   return wanted;
 }
 
+function expectedChoiceStoredValue(item: PhEtravelFieldPlanItem): string {
+  return normalizedChoiceText(String(item.portalValue ?? item.value ?? ""));
+}
+
 async function selectStaticNamedCombobox(
   page: Page,
   item: PhEtravelFieldPlanItem,
@@ -1464,7 +1481,7 @@ async function selectStaticNamedCombobox(
       if (normalizedChoiceText(await option.innerText().catch(() => "")) !== wanted) continue;
       if (!await option.click({ force: true, timeout: 3_000 }).then(() => true).catch(() => false)) continue;
       await page.waitForTimeout(250);
-      return normalizedChoiceText(await hidden.inputValue().catch(() => "")) === wanted;
+      return normalizedChoiceText(await hidden.inputValue().catch(() => "")) === expectedChoiceStoredValue(item);
     }
   }
 
@@ -1504,6 +1521,10 @@ async function selectNamedCombobox(page: Page, item: PhEtravelFieldPlanItem): Pr
   if (await page.locator(`${namedSelector}[type="hidden"]`).count().catch(() => 0)) {
     return selectStaticNamedCombobox(page, item, namedSelector);
   }
+  // If the page exposes only a display combobox, there is no observable way to
+  // verify that its selected submission value equals the official opaque code.
+  // Do not guess from the label or proceed with an unverified dynamic option.
+  if (item.portalValue && normalizedChoiceText(item.portalValue) !== normalizedChoiceText(item.value)) return false;
   const control = await firstVisible([page.locator(`${namedSelector}:visible`)]);
   if (!control || await control.getAttribute("role") !== "combobox") return false;
 
@@ -1782,17 +1803,6 @@ async function chooseInitialRegistration(page: Page, completed: Set<string>, pay
   return true;
 }
 
-async function checkReviewDeclarations(page: Page): Promise<void> {
-  const checkboxes = page.locator("input[type='checkbox']:visible, [role='checkbox']:visible");
-  const count = await checkboxes.count().catch(() => 0);
-  for (let index = 0; index < count; index += 1) {
-    const checkbox = checkboxes.nth(index);
-    if (!await checkbox.isChecked().catch(() => false)) {
-      await checkbox.click({ force: true, timeout: 5_000 });
-    }
-  }
-}
-
 export async function fillPhEtravelOfficialDeclaration(
   page: Page,
   payload: PhEtravelPortalPayload,
@@ -1800,6 +1810,7 @@ export async function fillPhEtravelOfficialDeclaration(
     stopBeforeSubmit: boolean;
     onStep?: (name: string) => Promise<void>;
     beforeSubmit?: () => Promise<void>;
+    finalSubmitAuthorization?: PhEtravelFinalSubmitAuthorization;
   },
 ): Promise<PhEtravelFormFillResult> {
   if (payload.travelType === "ARRIVAL") {
@@ -1901,7 +1912,11 @@ export async function fillPhEtravelOfficialDeclaration(
     const confirmation = isPhEtravelConfirmationText(portalText);
     if (confirmation) {
       await options.onStep?.("confirmation");
-      return { reachedReview: true, submitted: true, portalText, filledFields: [...completed] };
+      throw new PhEtravelFormFillError(
+        "Official eTravel result text requires an authoritative registration read and matching reference-derived QR validation.",
+        "ph_etravel_authoritative_result_read_required",
+        "ph_etravel_authoritative_result_read_required",
+      );
     }
     if (/enter email address|create an account|login|password/i.test(portalText) && !/travel details|travel registration/i.test(portalText)) {
       throw new PhEtravelFormFillError(
@@ -1926,7 +1941,17 @@ export async function fillPhEtravelOfficialDeclaration(
       if (options.stopBeforeSubmit || postSignatureGuard?.status === "review_stop_only") {
         return { reachedReview: true, submitted: false, portalText, filledFields: [...completed] };
       }
-      await checkReviewDeclarations(page);
+      const finalSubmitGate = consumePhEtravelFinalSubmitAuthorization({
+        finalSubmitEnabled: PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
+        authorization: options.finalSubmitAuthorization,
+      });
+      if (finalSubmitGate.status !== "authorized") {
+        throw new PhEtravelFormFillError(
+          "Philippines eTravel final Submit remains disabled without a one-time authorization.",
+          finalSubmitGate.code,
+          finalSubmitGate.code,
+        );
+      }
       await options.beforeSubmit?.();
       if (!await clickVisibleButton(page, /^submit$|submit declaration|confirm and submit|complete registration/i)) {
         throw new PhEtravelFormFillError(

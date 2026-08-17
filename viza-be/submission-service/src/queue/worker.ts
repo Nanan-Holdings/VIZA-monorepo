@@ -67,6 +67,10 @@ interface RunnerJobQuery {
 
 export interface RunnerJobClient {
   from(table: "runner_job" | string): RunnerJobQuery;
+  rpc?(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<QueryResult<RunnerJob | RunnerJob[]>>;
 }
 
 export class TargetRunnerJobError extends Error {
@@ -87,25 +91,42 @@ export class TargetRunnerJobError extends Error {
 
 function canonicalizeTargetCountry(value: string, normalizeCountry?: (country: string) => string): string {
   const trimmed = value.trim().toLowerCase();
-  return normalizeCountry ? normalizeCountry(trimmed) : trimmed;
+  if (normalizeCountry) return normalizeCountry(trimmed);
+  return trimmed === "ph" ? "philippines" : trimmed;
 }
 
 /**
- * Atomically claim the next queued job. Uses a single Postgres RPC-ish
- * pattern: an UPDATE ... RETURNING with a WHERE clause selecting the
- * oldest queued row, scoped to one row. The Supabase JS client does
- * not expose `FOR UPDATE SKIP LOCKED` directly; the equivalent here is
- * UPDATE WHERE id = (SELECT id … LIMIT 1 FOR UPDATE SKIP LOCKED) which
- * we expose as a SQL function. Until that lands we fall back to a
- * compare-and-swap on `status` which is racy under high concurrency
- * but fine for the single-digit-worker scale we ship at first.
+ * Country workers claim through a service-role RPC that scopes, locks, and
+ * updates one row in a single transaction. The unscoped compatibility path
+ * remains unchanged for older workers until they move to the shared pool.
  */
 export async function claimNextJob(opts: ClaimOpts): Promise<RunnerJob | null> {
   if (opts.jobId) return claimTargetJob(opts);
 
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS;
-  const leasedUntil = new Date(Date.now() + leaseMs).toISOString();
   const client = (opts.client ?? supabase) as RunnerJobClient;
+
+  const country = opts.country
+    ? canonicalizeTargetCountry(opts.country, opts.normalizeCountry)
+    : undefined;
+
+  if (country === "philippines") {
+    if (!client.rpc) {
+      throw new Error("runner_job country claim requires Supabase RPC support");
+    }
+    const { data, error } = await client.rpc("claim_runner_country_job", {
+      p_worker_id: opts.workerId,
+      p_country: country,
+      p_lease_ms: leaseMs,
+    });
+    if (error) {
+      throw new Error(`runner_job country claim RPC: ${error.message}`);
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? (row as RunnerJob) : null;
+  }
+
+  const leasedUntil = new Date(Date.now() + leaseMs).toISOString();
 
   let q = client
     .from("runner_job")

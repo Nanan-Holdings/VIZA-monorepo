@@ -3,6 +3,12 @@ const PH_ETRAVEL_SAFE_ERROR_MESSAGES: Record<string, string> = {
     "Philippines eTravel could not start because the traveller's VIZA answers are incomplete or unsupported.",
   ph_etravel_stopped_before_submit:
     "Philippines eTravel reached the official Review step and stopped before final submit.",
+  ph_etravel_final_submit_disabled:
+    "Philippines eTravel final Submit is disabled for this runner.",
+  ph_etravel_final_submit_authorization_required:
+    "Philippines eTravel final Submit requires a separate one-time authorization.",
+  ph_etravel_final_submit_authorization_consumed:
+    "Philippines eTravel final Submit authorization was already consumed and cannot be reused.",
   ph_etravel_confirmation_evidence_missing:
     "Philippines eTravel needs recovery because VIZA could not confirm an authoritative official reference and reference-derived QR render.",
   ph_etravel_authoritative_result_read_required:

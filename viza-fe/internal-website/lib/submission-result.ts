@@ -265,6 +265,27 @@ export interface DigitalArrivalCardSubmissionResult {
     logs?: string[];
     traces?: string[];
   };
+  /** PH-only authoritative result evidence. It is not an applicant answer. */
+  resultEvidence?: {
+    authoritativeRead?: {
+      source?: "official_registration_result_read" | string;
+      postSubmitRead?: boolean;
+      stableReference?: boolean;
+      referenceNumber?: string | null;
+      readFailed?: boolean;
+    };
+    qrRender?: {
+      renderer?: "official_client_reference_qr" | string;
+      rendered?: boolean;
+      renderedForReference?: string | null;
+      referenceValueValidated?: boolean;
+    };
+    reopenStateConsistent?: boolean;
+    officialReceipt?: {
+      available?: boolean;
+      label?: string | null;
+    };
+  };
   payloadSummary?: {
     arrivalDate?: string | null;
     departureDate?: string | null;

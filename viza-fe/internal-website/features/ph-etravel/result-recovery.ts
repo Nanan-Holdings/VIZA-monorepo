@@ -255,26 +255,50 @@ function readString(record: Record<string, unknown> | null, key: string): string
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-/**
- * Stored PH results are untrusted until the runner records a post-submit
- * registration read. Legacy screenshots, status codes, navigation, and local
- * QR/reference values deliberately remain recovery-only evidence.
- */
-export function createPhEtravelStoredResultRecoveryPresentation(
+function readBoolean(record: Record<string, unknown> | null, key: string): boolean | null {
+  const value = record?.[key];
+  return typeof value === "boolean" ? value : null;
+}
+
+export function readPhEtravelStoredResultEvidence(
   storedResult: unknown,
-): PhEtravelResultRecoveryPresentation {
+): PhEtravelResultEvidence {
   const result = readRecord(storedResult);
-  const authoritative = readRecord(result?.authoritativeRegistration);
-  return createPhEtravelResultRecoveryPresentation({
-    authoritativePostSubmitRead: authoritative?.read === true,
-    authoritativeReferenceNumber: readString(authoritative, "referenceNumber"),
-    authoritativeReadFailed: authoritative?.readFailed === true,
-    derivedQrRenderStatus: readString(authoritative, "derivedQrRenderStatus") as PhEtravelDerivedQrRenderStatus | null,
-    derivedQrReferenceValue: readString(authoritative, "derivedQrReferenceValue"),
-    reopenStateConsistent:
-      typeof authoritative?.reopenStateConsistent === "boolean"
-        ? authoritative.reopenStateConsistent
-        : null,
+  const resultEvidence = readRecord(result?.resultEvidence);
+  const authoritativeRead = readRecord(resultEvidence?.authoritativeRead);
+  const qrRender = readRecord(resultEvidence?.qrRender);
+  const legacyAuthoritative = readRecord(result?.authoritativeRegistration);
+  const errorDetails = readRecord(result?.errorDetails);
+
+  const usesCurrentRunnerEvidence = authoritativeRead !== null || qrRender !== null;
+  const authoritativeReferenceNumber = usesCurrentRunnerEvidence
+    ? readString(authoritativeRead, "referenceNumber")
+    : readString(legacyAuthoritative, "referenceNumber");
+
+  return {
+    authoritativePostSubmitRead: usesCurrentRunnerEvidence
+      ? readBoolean(authoritativeRead, "postSubmitRead") === true &&
+        readBoolean(authoritativeRead, "stableReference") === true
+      : readBoolean(legacyAuthoritative, "read"),
+    authoritativeReferenceNumber,
+    authoritativeReadFailed: usesCurrentRunnerEvidence
+      ? readBoolean(authoritativeRead, "readFailed")
+      : readBoolean(legacyAuthoritative, "readFailed"),
+    derivedQrRenderStatus: (usesCurrentRunnerEvidence
+      ? readBoolean(qrRender, "rendered") === true &&
+        readBoolean(qrRender, "referenceValueValidated") === true
+        ? "rendered"
+        : readBoolean(qrRender, "rendered") === false ||
+            readBoolean(qrRender, "referenceValueValidated") === false
+          ? "failed"
+          : null
+      : readString(legacyAuthoritative, "derivedQrRenderStatus")) as PhEtravelDerivedQrRenderStatus | null,
+    derivedQrReferenceValue: usesCurrentRunnerEvidence
+      ? readString(qrRender, "renderedForReference")
+      : readString(legacyAuthoritative, "derivedQrReferenceValue"),
+    reopenStateConsistent: usesCurrentRunnerEvidence
+      ? readBoolean(resultEvidence, "reopenStateConsistent")
+      : readBoolean(legacyAuthoritative, "reopenStateConsistent"),
     finalSubmitHttpStatus:
       typeof result?.finalSubmitHttpStatus === "number" ? result.finalSubmitHttpStatus : null,
     navigatedToPreparing: result?.navigatedToPreparing === true,
@@ -285,6 +309,19 @@ export function createPhEtravelStoredResultRecoveryPresentation(
     reviewReached: result?.reviewReached === true,
     stoppedBeforeSubmit: result?.stoppedBeforeSubmit === true,
     officialStatus: readString(result, "officialStatus"),
-    code: readString(result, "code"),
-  });
+    code: readString(result, "code") ?? readString(errorDetails, "code"),
+  };
+}
+
+/**
+ * Stored PH results are untrusted until the runner records a post-submit
+ * registration read. Legacy screenshots, status codes, navigation, and local
+ * QR/reference values deliberately remain recovery-only evidence.
+ */
+export function createPhEtravelStoredResultRecoveryPresentation(
+  storedResult: unknown,
+): PhEtravelResultRecoveryPresentation {
+  return createPhEtravelResultRecoveryPresentation(
+    readPhEtravelStoredResultEvidence(storedResult),
+  );
 }

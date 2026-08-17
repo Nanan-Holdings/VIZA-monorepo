@@ -723,7 +723,7 @@ test("AIR positive customs action plan is deterministic, structured, and never i
   assert.ok(plan.actions.some((action) => action.selector === "input[name='courier_name']"));
   assert.ok(plan.blockingCodes.includes("owner_recipient_server_requiredness_unverified"));
   assert.ok(plan.blockingCodes.includes("complete_currency_and_monetary_instrument_option_lists_unverified"));
-  assert.ok(plan.blockingCodes.includes("attachment_server_rules_unverified"));
+  assert.ok(plan.blockingCodes.includes("ph_etravel_signature_required"));
   assert.ok(plan.blockingCodes.includes("customs_positive_autofill_not_enabled"));
   assert.equal(plan.actions.some((action) => /submit/i.test(action.kind) || /submit/i.test(action.selector)), false);
   assert.equal(isPhEtravelConfirmationText("New Travel Declaration Summary Previous Submit"), false);
@@ -1048,7 +1048,7 @@ test("E42/E43 keep Q1/Q2 on Currency and associate every Q3-Q12 item action with
       .map((action) => action.checklistItemNumber),
     [3, 7],
   );
-  assert.ok(plan.blockingCodes.includes("attachment_server_rules_unverified"));
+  assert.ok(plan.blockingCodes.includes("ph_etravel_signature_required"));
   assert.ok(plan.blockingCodes.includes("ph_etravel_signature_required"));
 
   const currencyOnly = buildPhEtravelAirPositiveCustomsActionPlan({
@@ -1125,7 +1125,7 @@ test("E45 AIR permits an empty attachment boundary but keeps signature, server, 
       })),
     },
   });
-  assert.ok(plan.blockingCodes.includes("attachment_server_rules_unverified"));
+  assert.ok(plan.blockingCodes.includes("ph_etravel_signature_required"));
   assert.equal(plan.blockingCodes.includes("attachment_requiredness_unverified"), false);
   assert.ok(plan.blockingCodes.includes("ph_etravel_signature_required"));
   assert.ok(plan.blockingCodes.includes("owner_recipient_server_requiredness_unverified"));

@@ -18,6 +18,7 @@ import {
   createPhEtravelStoredResultRecoveryPresentation,
   createPhEtravelUserStatusMessage,
 } from "@/features/ph-etravel/status";
+import { PhEtravelApplicantStatusCard } from "@/features/ph-etravel/PhEtravelApplicantStatusCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1499,6 +1500,7 @@ export function SubmissionStatusStep({
   const [resubmitting, setResubmitting] = useState(false);
   const [localRetryActive, setLocalRetryActive] = useState(false);
   const [activeRetryQueueId, setActiveRetryQueueId] = useState<string | null>(null);
+  const [phStatusRefreshVersion, setPhStatusRefreshVersion] = useState(0);
   const [retryCompleteness, setRetryCompleteness] = useState<ApplicationCompletenessResult | null>(null);
   const initialResultTargetsIndonesia = resultTargetsIndonesia(result);
 
@@ -1789,13 +1791,21 @@ export function SubmissionStatusStep({
         snapshotHasQueue,
       })
     ) {
-      // UK dry-run jobs can be misrouted to a legacy worker that reports a
-      // spurious "failed" result even though the answers are complete — keep
-      // polling in that specific case so the real live-assisted result can
-      // still arrive instead of getting stuck on the stale failure.
-      const misroute = isUkStandardVisitorApplication(country, visaType) &&
-        isUkMisroutedDryRunError(snapshot?.error ?? effectiveError);
-      if (!misroute) return;
+      const keepPollingPhRecovery =
+        isPhilippinesEtravelApplication(country, visaType) &&
+        visaType === "PH_ETRAVEL_ARRIVAL_CARD" &&
+        Boolean(effectiveResult) &&
+        createPhEtravelStoredResultRecoveryPresentation(effectiveResult).state ===
+          "recovery_required";
+      if (!keepPollingPhRecovery) {
+        // UK dry-run jobs can be misrouted to a legacy worker that reports a
+        // spurious "failed" result even though the answers are complete — keep
+        // polling in that specific case so the real live-assisted result can
+        // still arrive instead of getting stuck on the stale failure.
+        const misroute = isUkStandardVisitorApplication(country, visaType) &&
+          isUkMisroutedDryRunError(snapshot?.error ?? effectiveError);
+        if (!misroute) return;
+      }
     }
 
     let cancelled = false;
@@ -1942,6 +1952,7 @@ export function SubmissionStatusStep({
     result,
     snapshotHasQueue,
     status,
+    phStatusRefreshVersion,
   ]);
 
   const ukStoredResult = useMemo(() => {
@@ -1950,6 +1961,26 @@ export function SubmissionStatusStep({
     if (isUkPrefillSubmissionResult(effectiveResult)) return effectiveResult;
     return null;
   }, [effectiveResult, result, snapshot?.result]);
+
+  const isPhEtravelArrivalSubmission = isPhilippinesEtravelApplication(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  ) && (snapshot?.visaType ?? visaType) === "PH_ETRAVEL_ARRIVAL_CARD";
+
+  if (isPhEtravelArrivalSubmission) {
+    return (
+      <PhEtravelApplicantStatusCard
+        applicationId={applicationId}
+        status={{
+          status: effectiveStatus,
+          applicationStatus: effectiveApplicationStatus,
+          queueStatus: snapshot?.queue?.status ?? null,
+          result: effectiveResult,
+        }}
+        onRefresh={() => setPhStatusRefreshVersion((version) => version + 1)}
+      />
+    );
+  }
 
   if (resubmitting) {
     const isTaiwanResubmitting = isTaiwanEntryPermitApplication(snapshot?.country ?? country, snapshot?.visaType ?? visaType);

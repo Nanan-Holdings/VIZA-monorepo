@@ -1365,6 +1365,14 @@ Currency page appeared after page 4 had item 1 Yes and item 2 Yes, with item 12 
 - focused tests：PH + queue dispatch/target tests `160 passed`；`npm run type-check` passed。覆盖 72h、AIR/SEA、duplicate/restart、OTP/Turnstile safe state、Review-stop、authoritative read/QR mismatch、RPC recovery、no-submit/no-resubmit 与 PII-safe output。
 - 真实 blocker：`sync_ph_etravel_submission_state` v2 尚未部署/切换；authoritative registration read、reference QR render、post-Review official flow 仍无可启用的 controlled evidence。未执行 migration/deploy/env 修改、真实 runner_job、官网/账号/OTP/CAPTCHA 或 final Submit。
 
+## Runner 产品阻断收敛（2026-08-17）
+
+- 最终提交改为独立静态关闭门：Review/Summary 文本、Submit 可见、跳转或 confirmation 文本均不产生 submitted。即使未来启用，也需安全格式的一次性 `PH_ETRAVEL_ARRIVAL_CARD` 授权；同一授权对象第二次使用会被拒绝。删除了自动勾选 Review 法律声明的旧行为。
+- Runner 将 Review-stop 保持为 non-submitted；HTTP/网络歧义 final POST 和缺 authoritative registration read 均进入 `result_recovery_required`，不会重提。只有 authoritative stable reference 与同 reference 的 validated QR render 才能同步 submitted 内部状态。
+- 消费 PH-A E45：AIR Q3-Q12-positive 的空附件不再作为无条件 preflight blocker；签名仍为 action-required，签名后 Family 仅标为人工 gate。未把该 AIR 证据外推为 no-companion、Summary、SEA 或 server acceptance。
+- Focused verification passed: 31 PH runner/result/preflight/wizard tests; `submission-service` type-check passed; `git diff --check` passed.
+- Remaining blockers: controlled official evidence for Family/no-companion -> Summary/Review fields, a deliberately authorized final Submit plus authoritative registration read/reference-derived QR result path, and shared index/RPC deployment/cutover. No real account, browser, OTP, CAPTCHA, submission, migration, deployment, commit, or push was performed.
+
 ## OTP / password creation gate（2026-08-14）
 
 - 将当前受控页面证据落实为本地合同：六个独立 OTP 输入、邮箱等待窗口至少 180 秒、倒计时可见期间不 resend；没有记录邮箱或 OTP。
@@ -1395,3 +1403,10 @@ Currency page appeared after page 4 had item 1 Yes and item 2 Yes, with item 12 
 - AIR Customs 页面分类只看可见标题和控件，不依赖 `wizard_page`。Q3-Q12 任一 Yes 产生 attachment-plus-signature 页面识别和独立 signature gate；全 No 识别为 signature-only。没有 Next、上传、签名绘制、Family、Review 或 Submit 动作。
 - 已消费 E45：观察到的 AIR Q3-Q12 positive 分支可在空附件加有效签名后继续，因此空附件不再被当作无条件必传。附件上传规则和服务器接受性仍为 action-required；SEA 不继承该结论。Currency / Monetary Instrument 仅接受官方 API numeric id；AIR 空 owner/recipient 仅保留 server-condition blocker；physical branch 的 `no_of_days_in_philippines` 与 `last_travel_to_philippines` 为本地明确 client-required。Other-detail live/static 冲突、courier、BSP positive trigger、Currency option/row/server rules继续 fail-closed。
 - focused tests：normalize、form-filler、launch-preflight、preflight-envelope、result-consistency `97 passed`；`npm run type-check` passed。未运行真实 job、登录、OTP、CAPTCHA、Next、Family、Review 或 official final Submit。
+
+## E46 dynamic-option runner consumption（2026-08-17）
+
+- Arrival purpose 现在只接受本轮官方 API 的 15 个 `code`；过时的 `POV999` 和展示文案均在 normalize 前边界失败。AIR 航司、航班和 SEA destination port 统一使用 opaque `code` 作身份、`name` 作展示；AIR 航班恢复同时校验 selected airline parent，SEA 不会按重复 label 恢复 port。
+- AIR 正常航班不再从 legacy `flight_number` 取得身份，必须提供官方 option `flight_code`；field plan 将显示 `name` 与回读的 `code` 分离。无可回读 code 的 display-only combobox 不猜测选择。SEA `destination_port_code` 只接受 code-shaped 值，`disembarking_port_code` 仍不能替代它。
+- E46 未闭合项保持 fail-closed：SEA `is_disembarking=false`/缺值、hotel submitted value、Summary/final result/recovery 仍不授权 browser、final Submit 或 submitted 状态。
+- Focused tests：official-options、normalize、form-filler `79 passed`；`submission-service npm run type-check` passed；`git diff --check` passed。未执行真实登录、OTP、官网浏览器动作或 final Submit。
