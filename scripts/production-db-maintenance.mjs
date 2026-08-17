@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 export const PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
@@ -19,6 +21,12 @@ export const APPROVED_MIGRATIONS = [
     sha256: "146406a8238b036d900b0d976eb4c8405534742d54831d8514fc6f82cf5f760c",
   },
 ];
+
+const TAIWAN_CAP = {
+  country: "taiwan",
+  max_concurrent: 1,
+  notes: "Shared pool: Taiwan entry-permit applicant handoff",
+};
 
 export const EXPECTED_CAP_SNAPSHOT = [
   {
@@ -407,6 +415,54 @@ function assertApplyPreconditions(payload) {
   }
 }
 
+function assertApplyPostconditions(payload) {
+  const state = maintenanceState(payload);
+  const zeroChecks = [
+    state.runner_jobs?.running,
+    state.runner_jobs?.queued,
+    state.legacy_processing_or_live_locked,
+    state.vn_status_running,
+    state.live_machine_slots,
+  ];
+  if (zeroChecks.some((value) => value !== 0)) {
+    throw new Error("Production queues or leases changed during migration");
+  }
+
+  const caps = Array.isArray(state.caps) ? state.caps : [];
+  const expectedCountries = [
+    ...EXPECTED_CAP_SNAPSHOT.map((cap) => cap.country),
+    TAIWAN_CAP.country,
+  ].sort();
+  if (
+    caps.length !== expectedCountries.length ||
+    caps.some((cap, index) => cap.country !== expectedCountries[index] || cap.paused !== true)
+  ) {
+    throw new Error("Production runner caps are not exactly paused after migration");
+  }
+  if (!Array.isArray(state.vn_status_cron) || state.vn_status_cron.length !== 0) {
+    throw new Error("Vietnam status cron changed during migration");
+  }
+  if (
+    state.strict_objects?.runner_private_schema !== true ||
+    state.strict_objects?.load_claim_rpc !== true ||
+    state.strict_objects?.vn_generation_claim_rpc !== true ||
+    state.strict_objects?.vn_lease_generation_column !== true
+  ) {
+    throw new Error("Strict production database objects are incomplete after migration");
+  }
+
+  const versions = new Set(
+    (Array.isArray(state.recent_migrations) ? state.recent_migrations : []).map(
+      (migration) => migration.version,
+    ),
+  );
+  for (const migration of APPROVED_MIGRATIONS) {
+    if (!versions.has(migration.version)) {
+      throw new Error(`Migration ${migration.version} was not recorded`);
+    }
+  }
+}
+
 function sqlLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
@@ -436,7 +492,25 @@ export function loadApprovedMigrationBatch({
       `${sqlLiteral(`codex-production-cutover:${migration.version}:${migration.sha256}`)});`,
   ]);
 
-  return `BEGIN;\n${statements.join("\n\n")}\nCOMMIT;\n` +
+  return `SET SESSION ROLE postgres;\nBEGIN;\n${statements.join("\n\n")}\n` +
+    `DO $pause_taiwan_cap$\n` +
+    `DECLARE\n` +
+    `  v_updated INTEGER;\n` +
+    `BEGIN\n` +
+    `  UPDATE public.runner_concurrency_cap\n` +
+    `  SET paused = TRUE, updated_at = pg_catalog.clock_timestamp()\n` +
+    `  WHERE country = ${sqlLiteral(TAIWAN_CAP.country)}\n` +
+    `    AND max_concurrent = ${TAIWAN_CAP.max_concurrent}\n` +
+    `    AND paused IS FALSE\n` +
+    `    AND notes IS NOT DISTINCT FROM ${sqlLiteral(TAIWAN_CAP.notes)};\n` +
+    `  GET DIAGNOSTICS v_updated = ROW_COUNT;\n` +
+    `  IF v_updated <> 1 THEN\n` +
+    `    RAISE EXCEPTION 'Taiwan runner cap did not match the approved migration shape'\n` +
+    `      USING ERRCODE = '55000';\n` +
+    `  END IF;\n` +
+    `END;\n` +
+    `$pause_taiwan_cap$;\n` +
+    `COMMIT;\n` +
     `SELECT jsonb_build_object(\n` +
     `  'runner_private_schema', pg_catalog.to_regnamespace('runner_private') IS NOT NULL,\n` +
     `  'vn_lease_generation_column', EXISTS (\n` +
@@ -450,6 +524,146 @@ export function loadApprovedMigrationBatch({
     `    WHERE version IN ('20260816160000','20260816161000')\n` +
     `  )\n` +
     `) AS maintenance_apply_state;`;
+}
+
+function managementApiUrl(projectRef, suffix) {
+  return `https://api.supabase.com/v1/projects/${projectRef}${suffix}`;
+}
+
+async function managementJsonRequest({
+  token,
+  projectRef,
+  suffix,
+  method,
+  body,
+  fetchImpl,
+  timeoutMs = 60_000,
+}) {
+  const response = await fetchImpl(managementApiUrl(projectRef, suffix), {
+    method,
+    headers: {
+      authorization: `Bearer ${token}`,
+      ...(body === undefined ? {} : { "content-type": "application/json" }),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && typeof payload.message === "string"
+        ? payload.message
+        : "Management API request failed";
+    throw new Error(`Supabase temporary database access failed (${response.status}): ${message}`);
+  }
+  return payload;
+}
+
+function parseTemporaryRole(payload) {
+  const role = typeof payload?.role === "string" ? payload.role.trim() : "";
+  const password = typeof payload?.password === "string" ? payload.password : "";
+  const ttlSeconds = Number(payload?.ttl_seconds);
+  if (
+    !/^cli_login_[a-z0-9_]+(?:\.[a-z0-9]{20})?$/u.test(role) ||
+    password.length < 16 ||
+    !Number.isFinite(ttlSeconds) ||
+    ttlSeconds < 60
+  ) {
+    throw new Error("Supabase returned an invalid temporary database role");
+  }
+  return { role, password, ttlSeconds };
+}
+
+function parsePrimarySessionPooler(payload, projectRef) {
+  const configs = Array.isArray(payload) ? payload : [];
+  const config = configs.find((item) => item?.database_type === "PRIMARY");
+  const host = typeof config?.db_host === "string" ? config.db_host.trim().toLowerCase() : "";
+  const advertisedPort = Number(config?.db_port);
+  const database = typeof config?.db_name === "string" ? config.db_name.trim() : "";
+  const configuredUser = typeof config?.db_user === "string" ? config.db_user.trim() : "";
+  if (
+    !/^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.pooler\.supabase\.com$/u.test(host) ||
+    ![5432, 6543].includes(advertisedPort) ||
+    !["session", "transaction"].includes(config?.pool_mode) ||
+    database !== "postgres" ||
+    configuredUser !== `postgres.${projectRef}`
+  ) {
+    throw new Error("Supabase returned an unexpected primary session-pooler configuration");
+  }
+  // Supabase's CLI deliberately switches the primary pooler to its session
+  // port for migration connections, even when the Management API advertises
+  // the transaction-pooler connection string on 6543.
+  return { host, port: 5432, database };
+}
+
+export function executePsqlMigration({
+  query,
+  projectRef,
+  role,
+  password,
+  pooler,
+  spawn = spawnSync,
+  makeTempDir = () => mkdtempSync(path.join(tmpdir(), "viza-production-migration-")),
+  writeTempFile = (filePath, contents) => writeFileSync(filePath, contents, { mode: 0o600 }),
+  removeTempDir = (dirPath) => rmSync(dirPath, { recursive: true, force: true }),
+  parentEnv = process.env,
+} = {}) {
+  const username = role.includes(".") ? role : `${role}.${projectRef}`;
+  if (!username.endsWith(`.${projectRef}`)) {
+    throw new Error("Temporary database role does not match the approved production project");
+  }
+
+  const version = spawn("psql", ["--version"], {
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  if (version.error || version.status !== 0) {
+    throw new Error("psql is unavailable on the protected maintenance runner");
+  }
+
+  const tempDir = makeTempDir();
+  const sqlPath = path.join(tempDir, "approved-production-migrations.sql");
+  try {
+    writeTempFile(sqlPath, query);
+    const childEnv = { ...parentEnv };
+    for (const sensitiveName of [
+      "SUPABASE_ACCESS_TOKEN",
+      "PRODUCTION_DB_MAINTENANCE_CONFIRM",
+      "PRODUCTION_DB_MAINTENANCE_SOURCE_REF",
+      "MIGRATION_SOURCE_ROOT",
+    ]) {
+      delete childEnv[sensitiveName];
+    }
+    const result = spawn(
+      "psql",
+      [
+        "--host", pooler.host,
+        "--port", String(pooler.port),
+        "--username", username,
+        "--dbname", pooler.database,
+        "--set", "ON_ERROR_STOP=1",
+        "--set", "VERBOSITY=terse",
+        "--file", sqlPath,
+      ],
+      {
+        env: {
+          ...childEnv,
+          PGPASSWORD: password,
+          PGSSLMODE: "verify-full",
+          PGCONNECT_TIMEOUT: "15",
+          PGAPPNAME: "viza-production-maintenance",
+        },
+        stdio: "inherit",
+        timeout: 480_000,
+        windowsHide: true,
+      },
+    );
+    if (result.error || result.status !== 0) {
+      throw new Error("psql rejected the approved production migration transaction");
+    }
+  } finally {
+    removeTempDir(tempDir);
+  }
 }
 
 async function managementQuery({
@@ -520,6 +734,7 @@ export async function runApply({
   fetchImpl = fetch,
   readFile = readFileSync,
   hash,
+  executeMigration = executePsqlMigration,
 } = {}) {
   const sourceRef = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_SOURCE_REF");
   const sourceRoot = requiredEnv(env, "MIGRATION_SOURCE_ROOT");
@@ -541,16 +756,69 @@ export async function runApply({
   assertApplyPreconditions(preflight);
 
   const query = loadApprovedMigrationBatch({ sourceRoot, readFile, hash });
-  return managementQuery({
+  const token = requiredEnv(env, "SUPABASE_ACCESS_TOKEN");
+  const projectRef = requiredEnv(env, "SUPABASE_PROJECT_REF");
+  let applyError;
+  let temporaryRole;
+  let loginRoleCreated = false;
+  try {
+    const temporaryRolePayload = await managementJsonRequest({
+      token,
+      projectRef,
+      suffix: "/cli/login-role",
+      method: "POST",
+      body: { read_only: false },
+      fetchImpl,
+    });
+    loginRoleCreated = true;
+    temporaryRole = parseTemporaryRole(temporaryRolePayload);
+    const pooler = parsePrimarySessionPooler(
+      await managementJsonRequest({
+        token,
+        projectRef,
+        suffix: "/config/database/pooler",
+        method: "GET",
+        fetchImpl,
+      }),
+      projectRef,
+    );
+    await executeMigration({ query, projectRef, ...temporaryRole, pooler });
+  } catch (error) {
+    applyError = error;
+  }
+
+  let cleanupError;
+  if (loginRoleCreated) {
+    try {
+      await managementJsonRequest({
+        token,
+        projectRef,
+        suffix: "/cli/login-role",
+        method: "DELETE",
+        fetchImpl,
+      });
+    } catch (error) {
+      cleanupError = error;
+    }
+  }
+  if (applyError && cleanupError) {
+    throw new AggregateError(
+      [applyError, cleanupError],
+      "Production migration failed and temporary database access cleanup also failed",
+    );
+  }
+  if (applyError) throw applyError;
+  if (cleanupError) throw cleanupError;
+
+  const postflight = await runPreflight({
     env: {
       ...env,
-      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:apply`,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:preflight`,
     },
     fetchImpl,
-    action: "apply",
-    query,
-    readOnly: false,
   });
+  assertApplyPostconditions(postflight);
+  return postflight;
 }
 
 async function main() {
