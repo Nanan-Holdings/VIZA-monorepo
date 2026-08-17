@@ -5,6 +5,7 @@ import {
   APPROVED_MIGRATIONS,
   PREFLIGHT_SQL,
   PAUSE_SQL,
+  RESUME_SQL,
   PRODUCTION_PROJECT_REF,
   EXPECTED_CAP_SNAPSHOT,
   SUPABASE_PRODUCTION_CA_SHA256,
@@ -15,6 +16,7 @@ import {
   runApply,
   runPause,
   runPreflight,
+  runResume,
 } from "../production-db-maintenance.mjs";
 
 test("pins the reviewed runner PL/pgSQL repairs", () => {
@@ -426,6 +428,45 @@ test("pause uses the write endpoint with exact snapshot and atomic guards", asyn
   assert.equal(PAUSE_SQL.includes(JSON.stringify(EXPECTED_CAP_SNAPSHOT[0]).slice(0, 20)), true);
   assert.doesNotMatch(PAUSE_SQL, /UPDATE\s+public\.runner_job/iu);
   assert.doesNotMatch(PAUSE_SQL, /DELETE\s+FROM/iu);
+});
+
+test("resume restores exact caps and cron through one guarded transaction", async () => {
+  let request;
+  const payload = [{ maintenance_resume_state: { resumed_caps: 6, cron_rows: 1 } }];
+  const result = await runResume({
+    env: {
+      SUPABASE_ACCESS_TOKEN: "test-token",
+      SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:resume`,
+    },
+    fetchImpl: async (url, init) => {
+      request = { url, init };
+      return new Response(JSON.stringify(payload), {
+        status: 201,
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+
+  assert.deepEqual(result, payload);
+  assert.match(request.url, /database\/query$/u);
+  const body = JSON.parse(request.init.body);
+  assert.equal(body.read_only, false);
+  assert.equal(body.query, RESUME_SQL);
+  assert.match(RESUME_SQL, /BEGIN;[\s\S]*COMMIT;/u);
+  assert.match(RESUME_SQL, /pg_advisory_xact_lock/u);
+  assert.match(RESUME_SQL, /SET paused = FALSE/u);
+  assert.match(RESUME_SQL, /cron\.schedule/u);
+  assert.match(RESUME_SQL, /20260816160000/u);
+  assert.match(RESUME_SQL, /20260816161000/u);
+  assert.match(RESUME_SQL, /strict production database objects are incomplete/u);
+  assert.match(RESUME_SQL, /production queues are not drained/u);
+  assert.match(
+    RESUME_SQL.split("$resume_guard$;")[0],
+    /WHERE jobid = v_cron_jobid[\s\S]*active IS TRUE/u,
+  );
+  assert.doesNotMatch(RESUME_SQL, /UPDATE\s+public\.runner_job/iu);
+  assert.doesNotMatch(RESUME_SQL, /DELETE\s+FROM/iu);
 });
 
 test("preflight fails closed for the wrong project or confirmation", async () => {
