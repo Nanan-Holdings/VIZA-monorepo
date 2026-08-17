@@ -16,7 +16,7 @@ on:
         description: Exact reviewed source commit for approved migration files
         required: true
         type: string
-        default: e80f1d7a71bcc5aca2de11348e4f8b9e7e5a7ef2
+        default: 3155a6f6e989cd67aa75474582447c24154db7c6
 
 permissions:
   contents: read
