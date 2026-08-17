@@ -29,7 +29,7 @@ jobs:
   maintenance:
     name: Production database ${{ inputs.action }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     environment: supabase-production-recovery
 
     steps:
