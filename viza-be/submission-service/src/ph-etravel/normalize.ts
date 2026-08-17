@@ -7,6 +7,10 @@ import {
   type PhEtravelResidenceAddress,
 } from "./residence-address";
 import type { PhEtravelRegistrationConsentAuthorization } from "./registration-start";
+import {
+  isPhEtravelCurrentArrivalPurposeCode,
+  isPhEtravelOfficialOptionCode,
+} from "./official-options";
 
 export const PH_ETRAVEL_OFFICIAL_PORTAL_URL = "https://etravel.gov.ph";
 
@@ -75,6 +79,11 @@ export interface PhEtravelPortalPayload {
   travellerType: string | null;
   flightNumber: string;
   airlineOrVesselName: string | null;
+  /** AIR public-option identities and display labels from E46's code/name APIs. */
+  airlineCode?: string | null;
+  airlineName?: string | null;
+  flightCode?: string | null;
+  flightName?: string | null;
   airportOfOrigin: string | null;
   portOfEntry: string;
   arrivalDate: string;
@@ -283,6 +292,24 @@ function requireFirstText(values: unknown[], key: string, missing: string[]): st
   const normalized = firstText(values);
   if (!normalized) missing.push(key);
   return normalized;
+}
+
+function requireOfficialOptionCode(values: unknown[], key: string, missing: string[]): string {
+  const value = firstText(values);
+  if (!isPhEtravelOfficialOptionCode(value)) {
+    missing.push(key);
+    return "";
+  }
+  return value;
+}
+
+function requireCurrentArrivalPurposeCode(values: unknown[], missing: string[]): string {
+  const value = firstText(values);
+  if (!isPhEtravelCurrentArrivalPurposeCode(value)) {
+    missing.push("purpose_of_travel");
+    return "";
+  }
+  return value;
 }
 
 function boolAnswer(value: unknown): boolean {
@@ -799,16 +826,17 @@ export function normalizePhEtravelPortalPayload(
   const isSeaArrival = !isDeparture && transportType === "SEA";
   const hasDisembarkingAnswer = text(answers.is_disembarking) !== "";
   const isDisembarking = isSeaArrival
-    ? hasDisembarkingAnswer
-      ? boolAnswer(answers.is_disembarking)
-      : Boolean(firstText([answers.destination_type, answers.disembarking_port_code]))
+    ? hasDisembarkingAnswer && boolAnswer(answers.is_disembarking)
+      ? true
+      : null
     : null;
+  if (isSeaArrival && isDisembarking !== true) missing.push("is_disembarking");
   const hasArrivalDestinationBranch = !isDeparture && (!isSeaArrival || isDisembarking === true);
   // `destination_port_code` selects the SEA arrival customs-flow metadata.
   // `disembarking_port_code` belongs only to the conditional stay-location
   // branch and must never stand in for the arrival seaport.
   const seaDestinationPortCode = isSeaArrival
-    ? requireFirstText([answers.destination_port_code], "destination_port_code", missing)
+    ? requireOfficialOptionCode([answers.destination_port_code], "destination_port_code", missing)
     : null;
   const destinationType = hasArrivalDestinationBranch
     ? firstText([answers.destination_type]) || null
@@ -839,6 +867,19 @@ export function normalizePhEtravelPortalPayload(
     if (!(error instanceof PhEtravelResidenceValidationError)) throw error;
     missing.push(...error.missingFields);
   }
+
+  const isSpecialFlight = boolAnswer(answers.is_special_flight) || text(answers.flight_number).toUpperCase() === "SPECIAL FLIGHT";
+  const isAirArrival = !isDeparture && transportType === "AIR";
+  const airFlightCode = isAirArrival && !isSpecialFlight
+    ? requireOfficialOptionCode(
+      [answers.flight_code, answers.selected_flight_code, answers.air_flight_code],
+      "flight_code",
+      missing,
+    )
+    : null;
+  const airCompanyCode = isAirArrival
+    ? requireOfficialOptionCode([answers.travel_company_code, answers.airline_code], "travel_company_code", missing)
+    : null;
 
   const mapped = {
     fullName,
@@ -924,14 +965,14 @@ export function normalizePhEtravelPortalPayload(
     },
     registrationFor: firstText([answers.registration_for]) || null,
     registrationConsent: registrationConsentFromMetadata(payload.metadata),
-    isSpecialFlight: boolAnswer(answers.is_special_flight) || text(answers.flight_number).toUpperCase() === "SPECIAL FLIGHT",
+    isSpecialFlight,
     isDisembarking,
     travellerType: isDeparture ? firstText([answers.traveller_type]) || null : arrivalTravellerType,
     flightNumber: requireFirstText(
       [
-        (boolAnswer(answers.is_special_flight) || text(answers.flight_number).toUpperCase() === "SPECIAL FLIGHT")
+        isSpecialFlight
           ? firstText([answers.flight_number_special, answers.special_flight_number])
-          : answers.flight_number === "OTHER" ? answers.flight_number_other : answers.flight_number,
+          : isAirArrival ? airFlightCode : answers.flight_number === "OTHER" ? answers.flight_number_other : answers.flight_number,
         answers.voyage_number,
         answers.vessel_name,
         answers.vehicle_or_vessel_number,
@@ -940,12 +981,25 @@ export function normalizePhEtravelPortalPayload(
       "flight_number",
       missing,
     ),
-    airlineOrVesselName: firstText([
-      answers.airline_name === "OTHERS" ? answers.airline_name_other : answers.airline_name,
-      answers.travel_company_code,
-      answers.vessel_name,
-      answers.airline_or_vessel_name,
-    ]) || null,
+    airlineOrVesselName: isAirArrival
+      ? airCompanyCode
+      : isSeaArrival ? firstText([
+        answers.vessel_name,
+        answers.airline_or_vessel_name,
+        answers.airline_name === "OTHERS" ? answers.airline_name_other : answers.airline_name,
+        answers.travel_company_code,
+      ]) || null : firstText([
+        answers.airline_name === "OTHERS" ? answers.airline_name_other : answers.airline_name,
+        answers.travel_company_code,
+        answers.vessel_name,
+        answers.airline_or_vessel_name,
+      ]) || null,
+    airlineCode: airCompanyCode,
+    airlineName: isAirArrival ? firstText([answers.travel_company_name, answers.airline_name]) || null : null,
+    flightCode: airFlightCode,
+    flightName: isAirArrival && !isSpecialFlight
+      ? firstText([answers.flight_name, answers.selected_flight_name, answers.air_flight_name]) || null
+      : null,
     airportOfOrigin: firstText([
       answers.airport_of_origin,
       answers.origin_port,
@@ -970,11 +1024,16 @@ export function normalizePhEtravelPortalPayload(
           "origin_country",
           missing,
         ),
-    purposeOfTravel: requireFirstText(
-      [answers.purpose_of_travel, answers.purpose_of_visit, payload.trip.purpose],
-      "purpose_of_travel",
-      missing,
-    ),
+    purposeOfTravel: isDeparture
+      ? requireFirstText(
+        [answers.purpose_of_travel, answers.purpose_of_visit, payload.trip.purpose],
+        "purpose_of_travel",
+        missing,
+      )
+      : requireCurrentArrivalPurposeCode(
+        [answers.purpose_of_travel, answers.purpose_of_visit],
+        missing,
+      ),
     withTransit: hasTransit,
     transitCountry: hasTransit ? requireFirstText([answers.transit_country], "transit_country", missing) : null,
     transitAirport: hasTransit ? requireFirstText([answers.transit_airport], "transit_airport", missing) : null,

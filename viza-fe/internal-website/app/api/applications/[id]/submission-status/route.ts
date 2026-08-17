@@ -184,8 +184,10 @@ export function hasTaiwanApplicantHandoffReady(
   if (!isTaiwanEntryPermitApplication(application.country, application.visa_type)) return false;
   if (normalizeStatus(application.submission_result_status) !== "needs_user_action") return false;
   if (!isRecord(application.submission_result)) return false;
+  const resultStatus = application.submission_result.status;
   return (
-    normalizeStatus(application.submission_result.status) === "stopped_at_captcha" &&
+    typeof resultStatus === "string" &&
+    normalizeStatus(resultStatus) === "stopped_at_captcha" &&
     typeof application.submission_result.handoffId === "string" &&
     application.submission_result.handoffId.trim().length > 0
   );

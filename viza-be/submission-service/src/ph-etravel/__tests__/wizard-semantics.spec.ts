@@ -98,6 +98,30 @@ test("E15 SEA electronic positive post-signature remains evidence-pending and co
   }
 });
 
+test("E45 AIR positive attachment variant reaches a Family action gate but does not infer companion or Summary progression", () => {
+  const family = guardPhEtravelPostSignatureWizardStep({
+    route: "regular_me",
+    evidencePath: "air_electronic_positive_family_live",
+    semantic: "family",
+    previous: ["signature"],
+  });
+  const summary = guardPhEtravelPostSignatureWizardStep({
+    route: "regular_me",
+    evidencePath: "air_electronic_positive_family_live",
+    semantic: "summary",
+    previous: ["signature", "family"],
+  });
+
+  assert.deepEqual(family, { status: "action_required", code: "ph_etravel_family_member_action_required" });
+  assert.deepEqual(guardPhEtravelPostSignatureWizardStep({
+    route: "regular_me",
+    evidencePath: "air_electronic_positive_family_live",
+    semantic: "family",
+    previous: [],
+  }), { status: "action_required", code: "ph_etravel_family_member_action_required" });
+  assert.deepEqual(summary, { status: "action_required", code: "ph_etravel_post_signature_live_evidence_required" });
+});
+
 test("E15 page semantic classifier uses page meaning rather than a numeric wizard index", () => {
   assert.equal(
     classifyPhEtravelPostSignatureSemantic(

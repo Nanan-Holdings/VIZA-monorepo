@@ -23,6 +23,9 @@ import {
   resolvePhEtravelOfficialResidenceHierarchy,
   type PhEtravelCanonicalOption,
 } from "./residence-address";
+import { PH_ETRAVEL_FINAL_SUBMIT_ENABLED } from "./final-submit-gate";
+
+export { PH_ETRAVEL_FINAL_SUBMIT_ENABLED } from "./final-submit-gate";
 
 export interface PhEtravelPortalSubmissionResult {
   submitted: boolean;
@@ -75,9 +78,6 @@ export interface PhEtravelRunnerOptions {
   onOfficialAccountPassword?: (password: string) => Promise<void>;
   emailVerificationTimeoutMs?: number;
 }
-
-/** E16: no browser final-submit path is enabled until controlled live evidence closes. */
-export const PH_ETRAVEL_FINAL_SUBMIT_ENABLED = false;
 
 export type PhEtravelPortalWorkflowState =
   | "profile_review_ready"

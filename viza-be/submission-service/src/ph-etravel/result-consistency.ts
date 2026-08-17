@@ -94,6 +94,9 @@ const PH_ETRAVEL_AMBIGUOUS_FINAL_POST_CODES = new Set([
 ]);
 const PH_ETRAVEL_ACTION_REQUIRED_NON_SUBMITTED_CODES = new Set([
   "ph_etravel_stopped_before_submit",
+  "ph_etravel_final_submit_disabled",
+  "ph_etravel_final_submit_authorization_required",
+  "ph_etravel_final_submit_authorization_consumed",
   "ph_etravel_signature_required",
   "ph_etravel_family_member_action_required",
   "ph_etravel_family_companion_confirmation",

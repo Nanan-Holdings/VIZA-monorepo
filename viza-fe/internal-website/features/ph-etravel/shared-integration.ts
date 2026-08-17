@@ -143,6 +143,7 @@ export const PH_ETRAVEL_SHARED_INTEGRATION_PACKAGE: PhEtravelSharedIntegrationSp
         "createPhEtravelRegistrationAnswerProjection",
         "createPhEtravelAirDestinationPresentation",
         "createPhEtravelHealthPresentation",
+        "createPhEtravelApplicantExperience",
         "createPhEtravelGeneralDeclarationPresentation",
         "getPhEtravelGeneralDeclarationMissingItems",
         "normalizePhEtravelGeneralDeclarationItemRows",
@@ -179,6 +180,7 @@ export const PH_ETRAVEL_SHARED_INTEGRATION_PACKAGE: PhEtravelSharedIntegrationSp
         "Create official registration answer input only through createPhEtravelRegistrationAnswerProjection(); the separate consent audit must never be copied into official form answers or payload fields.",
         "Consume E22 AIR/destination branches only through createPhEtravelAirDestinationPresentation(). Treat Special Flight as derived UI state, map only its detail to flight_number_special, and keep Residence/Hotel/Transit, dynamic hotel/port sources, return-date, and all S2 live/server gaps review-gated.",
         "Consume Health only through createPhEtravelHealthPresentation(). AIR and SEA use the same confirmed Health Declaration: require all three base Yes/No answers, show Add/Delete all-country rows only for recent-travel Yes, show the 15-option Symptoms multi-checkbox only for sick Yes, and clear either child when its parent switches to No. Bats/animals remains translation-only and exposure has no confirmed child.",
+        "Use createPhEtravelApplicantExperience() for the PH final-confirmation, missing-item return links, safe status model, authoritative reference/QR display, and recovery UI. It permits live official-processing requests only when the client flag is exactly true and all supplied missing items are resolved; refresh and re-read actions are read-only and never re-submit.",
         "For electronic General Declaration, render no Add Item control for Q1/Q2. Render a separate Description/Quantity/Amount in USD repeater only for each Yes answer among Q3-Q12, and clear its retained rows when that answer stops being Yes. A positive displayed goods Amount requires at least one Q3-Q12 Yes and returns to Customs when missing. On the E45-confirmed AIR branch, show the Documents area when any Q3-Q12 answer is Yes but do not make its attachment required: an empty attachment plus a signature can continue to Family Member(s). Signature remains a required action with an attachments/signature return target; SEA requiredness/server acceptance remain gated.",
       ],
       forbiddenBehavior: [
@@ -204,6 +206,7 @@ export const PH_ETRAVEL_SHARED_INTEGRATION_PACKAGE: PhEtravelSharedIntegrationSp
         "Do not send air.is_special_flight as an applicant answer, manufacture a hotel identifier, infer AIR customs from port metadata, or promise AIR/destination option or server acceptance from E22 bundle evidence.",
         "Do not turn vaccine/age inherited state, Health translation text, local Health validation, or client clear behavior into applicant answers, server acceptance, or Health launch readiness.",
         "Do not map destination_port_code or with_custom_declaration to a manual/electronic customs port flow, infer an explicit-false continuation, or use disembarking_port_code as a customs-flow alias.",
+        "Do not show a PH submitted result from HTTP 200, navigation, local reference/QR, Summary, or Submit visibility; do not add a retry-submit control to an ambiguous PH result.",
         "Do not show Add Item for General Declaration Q1/Q2, retain rows for a hidden Q3-Q12 group, make an AIR E45 attachment a completeness error, or treat the E42/E45 client validation as server or final-submit acceptance.",
       ],
       releaseGate: "shared_unfreeze_required",

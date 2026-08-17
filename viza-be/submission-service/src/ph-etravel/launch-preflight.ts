@@ -218,7 +218,12 @@ export function evaluatePhEtravelArrivalLaunchPreflight(input: {
     ]);
   }
   if (positiveGoods) {
-    addBlocker(blockers, "ph_etravel_launch_attachment_review_required", ["attachments.travel_document"]);
+    // E45 narrows only the observed AIR Q3-Q12-positive client path: a blank
+    // attachment did not block ordinary Next once signature was present. SEA
+    // and all upload/server contracts remain fail-closed.
+    if (transport === "SEA") {
+      addBlocker(blockers, "ph_etravel_launch_attachment_review_required", ["attachments.travel_document"]);
+    }
     addBlocker(blockers, "ph_etravel_launch_customs_signature_review_required", ["customs.signature"]);
   }
 

@@ -112,6 +112,12 @@ import {
   PH_ETRAVEL_REFRESH_POLICY,
 } from "@/features/ph-etravel/status";
 import {
+  createPhEtravelApplicantExperience,
+  type PhEtravelApplicantExperiencePresentation,
+  type PhEtravelMissingItem,
+  type PhEtravelReturnTarget,
+} from "@/features/ph-etravel/applicant-experience";
+import {
   getTaiwanEntryPermitExtraRequirements,
   getTaiwanEntryPermitRequiredDocumentKeys,
   getTaiwanEntryPermitVisibleDocumentKeys,
@@ -1023,6 +1029,8 @@ function FinalConfirmationPanel({
   submittingMode,
   onEdit,
   onSubmit,
+  phEtravelExperience,
+  onPhEtravelReturn,
 }: {
   isZh: boolean;
   liveAssistedTarget: LiveAssistedTarget;
@@ -1032,6 +1040,8 @@ function FinalConfirmationPanel({
   submittingMode: SubmissionMode | null;
   onEdit: StepClickHandler;
   onSubmit: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => void | Promise<void>;
+  phEtravelExperience?: PhEtravelApplicantExperiencePresentation | null;
+  onPhEtravelReturn?: (target: PhEtravelReturnTarget) => void;
 }) {
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -1050,7 +1060,10 @@ function FinalConfirmationPanel({
     return Array.from(groups.entries()).map(([stepId, group]) => ({ stepId, ...group }));
   }, [missingFields]);
 
-  const hasMissing = missingFields.length > 0;
+  const hasPhEtravelExperience = liveAssistedTarget === "phetravel" && Boolean(phEtravelExperience);
+  const hasMissing = hasPhEtravelExperience
+    ? Boolean(phEtravelExperience?.missingItems.length)
+    : missingFields.length > 0;
   const isSubmitting = submittingMode !== null;
   const baseDisabled = isSubmitting || hasMissing || requirementsLoading;
   const hasLiveAssistedTarget = liveAssistedTarget !== null;
@@ -1072,7 +1085,8 @@ function FinalConfirmationPanel({
       cardExpiry.trim().length >= 4 &&
       cardCvv.replace(/\D/g, "").length >= 3
     );
-  const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget || !oneTimeOfficialPaymentCardReady;
+  const phLiveEnabled = phEtravelExperience?.finalConfirmation.liveEnabled ?? liveAssistedEnabled;
+  const liveDisabled = baseDisabled || !(isPhEtravel ? phLiveEnabled : liveAssistedEnabled) || !hasLiveAssistedTarget || !oneTimeOfficialPaymentCardReady;
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
     : requiresOneTimeOfficialPaymentCard && !oneTimeOfficialPaymentCardReady
@@ -1106,8 +1120,8 @@ function FinalConfirmationPanel({
                     : "Thailand TDAC live handoff is disabled locally. Check TDAC_LIVE_SUBMISSION_ENABLED.")
                 : isPhEtravel
                   ? (isZh
-                      ? "本地 Philippines eTravel live handoff 已关闭。请确认 PH_ETRAVEL_LIVE_SUBMISSION_ENABLED。"
-                      : "Philippines eTravel live handoff is disabled locally. Check PH_ETRAVEL_LIVE_SUBMISSION_ENABLED.")
+                      ? "菲律宾 eTravel 官网处理目前未启用。表单仍会安全保存，不会创建官网任务。"
+                      : "Philippines eTravel official processing is not enabled. Your form stays saved and no official task will be created.")
                   : isIndonesia
                     ? (isZh
                         ? "本地 Indonesia live handoff 已关闭。请确认 INDONESIA_LIVE_SUBMISSION_ENABLED。"
@@ -1194,7 +1208,41 @@ function FinalConfirmationPanel({
         </div>
       </div>
 
-      {hasMissing && (
+      {hasPhEtravelExperience && phEtravelExperience ? (
+        <div className="space-y-3 rounded-xl border border-[#d7e6fb] bg-white p-5" data-testid="ph-etravel-final-confirmation">
+          <h3 className="text-base font-semibold text-[#0b2545]">
+            {phEtravelExperience.finalConfirmation.title}
+          </h3>
+          <ul className="space-y-1 text-sm leading-relaxed text-[#3d5878]">
+            {phEtravelExperience.finalConfirmation.boundaryCopy.map((item) => (
+              <li key={item}>• {item}</li>
+            ))}
+          </ul>
+          {phEtravelExperience.missingItems.length > 0 ? (
+            <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3">
+              <p className="text-sm font-semibold text-red-800">
+                {isZh ? "请先完成以下项目" : "Complete these items first"}
+              </p>
+              {phEtravelExperience.missingItems.map((item) => (
+                <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 text-sm text-red-800">
+                  <span>{item.label}</span>
+                  <button
+                    type="button"
+                    className="rounded-md border border-red-200 bg-white px-3 py-1 text-xs font-medium hover:bg-red-50"
+                    onClick={() => onPhEtravelReturn?.(item.target)}
+                  >
+                    {item.target.kind === "documents"
+                      ? isZh ? "去材料" : "Go to documents"
+                      : isZh ? "去填写" : "Go to field"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {hasMissing && !hasPhEtravelExperience && (
         <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-5">
           <h3 className="text-sm font-semibold text-red-800">
             {isZh ? "缺失信息清单" : "Missing information"}
@@ -2293,6 +2341,69 @@ export default function ApplicationPage() {
         reason: "required" as const,
       }]
     : visibleMissingFields;
+  const phEtravelApplicantExperience = useMemo(() => {
+    if (resolvedVisaType !== "PH_ETRAVEL_ARRIVAL_CARD") return null;
+
+    const missingById = new Map<string, PhEtravelMissingItem>();
+    const addMissing = (item: PhEtravelMissingItem) => {
+      missingById.set(item.id, item);
+    };
+
+    for (const item of visibleMissingFields) {
+      if (item.fieldName === "application_completeness") continue;
+      addMissing({
+        id: `field:${item.stepId}:${item.fieldName}`,
+        label: item.label,
+        target: {
+          kind: "field",
+          stepId: String(item.stepId),
+          fieldName: item.fieldName,
+        },
+      });
+    }
+    for (const item of applicationCompleteness?.missingInfo ?? []) {
+      addMissing({
+        id: `field:${item.stepNumber}:${item.fieldName}`,
+        label: isZhInterface ? item.labelZh : item.labelEn,
+        target: {
+          kind: "field",
+          stepId: String(item.stepNumber),
+          fieldName: item.fieldName,
+        },
+      });
+    }
+    for (const item of applicationCompleteness?.missingDocuments ?? []) {
+      addMissing({
+        id: `document:${item.requirementKey}`,
+        label: isZhInterface ? item.labelZh : item.labelEn,
+        target: { kind: "documents", documentKey: item.requirementKey },
+      });
+    }
+    if (!applicationCompleteness) {
+      addMissing({
+        id: "completeness:pending",
+        label: isZhInterface
+          ? "正在确认菲律宾 eTravel 信息和材料是否完整"
+          : "Confirm Philippines eTravel information and documents are complete",
+        target: {
+          kind: "field",
+          stepId: String(statusStepIndex),
+          fieldName: "application_completeness",
+        },
+      });
+    }
+
+    return createPhEtravelApplicantExperience({
+      locale: isZhInterface ? "zh" : "en",
+      missingItems: [...missingById.values()],
+    });
+  }, [
+    applicationCompleteness,
+    isZhInterface,
+    resolvedVisaType,
+    statusStepIndex,
+    visibleMissingFields,
+  ]);
   const showSubmissionStatusStep = shouldShowSubmissionStatusStep({
     submittedAt: appState.submittedAt,
     submissionResultStatus: appState.submissionResultStatus,
@@ -2671,6 +2782,21 @@ export default function ApplicationPage() {
   const handleGoToMissingDocument = useCallback((item: ApplicationCompletenessMissingDocument) => {
     setHighlightRequirementKey(item.requirementKey);
     setCurrentStep(documentNavigationStepId);
+    setError(null);
+  }, [documentNavigationStepId]);
+
+  const handlePhEtravelReturn = useCallback((target: PhEtravelReturnTarget) => {
+    if (target.kind === "documents") {
+      setHighlightRequirementKey(target.documentKey ?? null);
+      setCurrentStep(documentNavigationStepId);
+      setError(null);
+      return;
+    }
+
+    const stepId = Number(target.stepId);
+    if (!Number.isInteger(stepId) || stepId < 0) return;
+    setFocusedFieldName(target.fieldName);
+    setCurrentStep(stepId);
     setError(null);
   }, [documentNavigationStepId]);
 
@@ -3091,11 +3217,15 @@ export default function ApplicationPage() {
 
       await saveAllDynamicDrafts();
       const completeness = await refreshApplicationCompleteness(applicationId);
-      if (completeness && !completeness.complete) {
+      if ((isPhilippinesEtravel && !completeness) || (completeness && !completeness.complete)) {
         setCurrentStep(statusStepIndex);
         throw new Error(isZhInterface
-          ? "申请资料尚未完整，已在确认页列出需要补齐的信息和材料。"
-          : "The application is not complete yet. Review the missing information and documents on the confirmation step.");
+          ? isPhilippinesEtravel && !completeness
+            ? "暂时无法确认菲律宾 eTravel 资料是否完整。为保护资料，系统不会创建官网任务。"
+            : "申请资料尚未完整，已在确认页列出需要补齐的信息和材料。"
+          : isPhilippinesEtravel && !completeness
+            ? "VIZA cannot confirm Philippines eTravel completeness right now, so no official task will be created."
+            : "The application is not complete yet. Review the missing information and documents on the confirmation step.");
       }
       const missing = getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot());
       setSubmitMissingFields(missing);
@@ -3774,6 +3904,8 @@ export default function ApplicationPage() {
                                 submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                 onEdit={handleStepNavigation}
                                 onSubmit={handleDynamicReviewComplete}
+                                phEtravelExperience={phEtravelApplicantExperience}
+                                onPhEtravelReturn={handlePhEtravelReturn}
                               />
                             </div>
                           )
@@ -3876,6 +4008,8 @@ export default function ApplicationPage() {
                               submittingMode={saving ? submittingMode ?? "dry_run" : null}
                               onEdit={handleStepNavigation}
                               onSubmit={handleReviewComplete}
+                              phEtravelExperience={phEtravelApplicantExperience}
+                              onPhEtravelReturn={handlePhEtravelReturn}
                             />
                           )
                         )}

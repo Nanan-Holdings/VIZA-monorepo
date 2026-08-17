@@ -45,6 +45,13 @@ const submissionRetryIsolationMigrationPath = path.join(
   "drizzle",
   "0119_submission_retry_queue_isolation.sql",
 );
+const runnerCountryClaimMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0149_runner_country_claim.sql",
+);
 
 test("submission_queue claim migration uses skip-locked leases and service-role-only RPC access", () => {
   const sql = readFileSync(migrationPath, "utf8").toLowerCase();
@@ -88,7 +95,7 @@ test("official-fee enqueue is serialized per application and cannot create compe
   assert.match(sql, /from public\.applications[\s\S]*where id = p_application_id[\s\S]*for update/);
   assert.match(sql, /sq\.application_id = p_application_id/);
   assert.match(sql, /sq\.provider = p_provider/);
-  assert.match(sql, /queue claimers use skip locked[\s\S]*for update/);
+  assert.match(sql, /queue\s+--\s*claimers use skip locked[\s\S]*for update/);
   assert.match(sql, /status = 'retry_superseded'/);
   assert.match(sql, /locked_until > p_now/);
   assert.match(sql, /revoke all on function public\.enqueue_official_fee_submission/);
@@ -109,6 +116,27 @@ test("generic submission retries atomically supersede only the same application"
   assert.match(sql, /insert into public\.submission_queue/);
   assert.match(sql, /revoke all on function public\.enqueue_submission_retry/);
   assert.match(sql, /grant execute on function public\.enqueue_submission_retry[\s\S]*to service_role/);
+});
+
+test("runner country claim is atomic, country-scoped, and service-role only", () => {
+  const sql = readFileSync(runnerCountryClaimMigrationPath, "utf8").toLowerCase();
+
+  assert.match(sql, /create or replace function public\.claim_runner_country_job/);
+  assert.match(sql, /if v_country <> 'philippines' then[\s\S]*unsupported country-scoped runner claim/);
+  assert.match(sql, /create index if not exists idx_runner_job_philippines_claim[\s\S]*where country = 'philippines' and status = 'queued'/);
+  assert.match(sql, /rj\.country = v_country/);
+  assert.match(sql, /expired\.country = v_country/);
+  assert.match(sql, /expired\.status = 'running'[\s\S]*expired\.leased_until <= p_now/);
+  assert.match(sql, /expired\.attempts \+ 1 >= expired\.max_attempts/);
+  assert.match(sql, /for update of rj skip locked/);
+  assert.match(sql, /pg_advisory_xact_lock/);
+  assert.match(sql, /join public\.runner_concurrency_cap/);
+  assert.match(sql, /and not cap\.paused/);
+  assert.match(sql, /active\.country = v_country[\s\S]*active\.status = 'running'[\s\S]*< cap\.max_concurrent/);
+  assert.match(sql, /revoke all on function public\.claim_runner_country_job/);
+  assert.match(sql, /grant execute on function public\.claim_runner_country_job[\s\S]*to service_role/);
+  assert.doesNotMatch(sql, /create or replace function public\.claim_runner_pool_job/);
+  assert.doesNotMatch(sql, /available_at/);
 });
 
 test("claimPendingSubmissionQueueItems calls the DB claim RPC with worker and lease settings", async () => {

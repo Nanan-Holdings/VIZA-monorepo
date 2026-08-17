@@ -130,6 +130,9 @@ The current internal automation migrations are:
 - `0120_vn_evisa_strict_validity_range.sql`: requires the Vietnam e-Visa
   validity end date to be at least one calendar day after its start date,
   matching the official portal's strict date-order validation.
+- `0149_runner_country_claim.sql`: adds a service-role-only, country-scoped
+  `runner_job` claim RPC for dedicated country workers. It preserves the
+  existing shared-pool claim RPC and atomically enforces country concurrency.
 
 ## Guardrails
 

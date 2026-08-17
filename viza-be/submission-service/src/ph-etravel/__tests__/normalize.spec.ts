@@ -45,7 +45,12 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
       residence_address_line1: "Hunan",
       purpose_of_travel: "POV001",
       traveller_type: "AIRCRAFT PASSENGER",
-      airline_name: "TC002",
+      travel_company_code: "TC002",
+      travel_company_name: "Test Airline",
+      flight_code: "PR101",
+      flight_name: "PR101",
+      // Kept only for non-AIR legacy/departure fixtures. AIR normalization must
+      // obtain its selected option identity from flight_code.
       flight_number: "PR101",
       airport_of_origin: "Singapore Changi Airport",
       flight_departure_date: "2026-06-13",
@@ -92,8 +97,11 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
     travellerType: "AIRCRAFT_PASSENGER",
   });
   assert.equal(payload.flightNumber, "PR101");
+  assert.equal(payload.flightCode, "PR101");
   assert.equal(payload.travellerType, "AIRCRAFT_PASSENGER");
   assert.equal(payload.airlineOrVesselName, "TC002");
+  assert.equal(payload.airlineCode, "TC002");
+  assert.equal(payload.airlineName, "Test Airline");
   assert.equal(payload.airportOfOrigin, "Singapore Changi Airport");
   assert.equal(payload.portOfEntry, "TP1000");
   assert.equal(payload.hasHealthSymptoms, false);
@@ -251,8 +259,8 @@ test("normalizePhEtravelPortalPayload maps SEA Filipino arrival as its own branc
   assert.equal(payload.philippinesAddress, null);
 });
 
-test("normalizePhEtravelPortalPayload keeps SEA non-disembarking out of destination branch", () => {
-  const payload = normalizePhEtravelPortalPayload(basePayload({
+test("normalizePhEtravelPortalPayload fails closed for SEA explicit false disembarking", () => {
+  assert.throws(() => normalizePhEtravelPortalPayload(basePayload({
     countrySpecific: {
       ...basePayload().countrySpecific,
       transport_type: "SEA",
@@ -276,12 +284,44 @@ test("normalizePhEtravelPortalPayload keeps SEA non-disembarking out of destinat
       destination_hotel_address: "",
       philippines_address: "",
     },
-  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+  }), { now: new Date("2026-06-12T08:00:00+08:00") }), (error: unknown) =>
+    error instanceof PhEtravelPortalValidationError && error.missingFields.includes("is_disembarking"),
+  );
+});
 
-  assert.equal(payload.isDisembarking, false);
-  assert.equal(payload.destinationType, null);
-  assert.equal(payload.destinationPort, null);
-  assert.equal(payload.philippinesAddress, null);
+test("normalizePhEtravelPortalPayload rejects stale arrival purpose and legacy AIR flight_number", () => {
+  for (const countrySpecific of [
+    { ...basePayload().countrySpecific, purpose_of_travel: "POV999" },
+    { ...basePayload().countrySpecific, flight_code: "", flight_number: "PR101" },
+  ]) {
+    assert.throws(
+      () => normalizePhEtravelPortalPayload(basePayload({ countrySpecific }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+      (error: unknown) => error instanceof PhEtravelPortalValidationError &&
+        (error.missingFields.includes("purpose_of_travel") || error.missingFields.includes("flight_code")),
+    );
+  }
+});
+
+test("normalizePhEtravelPortalPayload rejects a SEA destination label in place of its code", () => {
+  assert.throws(
+    () => normalizePhEtravelPortalPayload(basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        transport_type: "SEA",
+        traveller_type: "VESSEL_PASSENGER",
+        voyage_departure_date: "2026-06-12",
+        voyage_arrival_date: "2026-06-13",
+        voyage_number: "VOY123",
+        vessel_name: "MV SAMPLE",
+        origin_port: "Origin",
+        is_disembarking: "yes",
+        destination_type: "TRAVEL_PORT",
+        destination_port_code: "Port of Legazpi",
+        disembarking_port_code: "TP120",
+      },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => error instanceof PhEtravelPortalValidationError && error.missingFields.includes("destination_port_code"),
+  );
 });
 
 test("normalizePhEtravelPortalPayload never uses disembarking_port_code as the SEA arrival port", () => {
@@ -332,6 +372,10 @@ test("normalizePhEtravelPortalPayload uses SEA voyage dates and ignores flight/t
       vessel_name: "MV SAMPLE",
       airport_of_origin: "",
       origin_port: "Singapore Cruise Centre",
+      is_disembarking: "yes",
+      destination_type: "TRAVEL_PORT",
+      disembarking_port_code: "TP2000",
+      destination_port_code: "TP0103",
     },
   }), { now: new Date("2026-06-12T08:00:00+08:00") });
 

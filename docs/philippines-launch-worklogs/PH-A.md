@@ -2204,3 +2204,11 @@
 - 本路径普通 Next 的空值校验只直接报 `no_of_days_in_philippines` 与 `last_travel_to_philippines` Required；填写合成值后可继续。BSP date 在本次外币/CASH测试中未阻断，PHP 阈值/BSP 正向条件仍未核验。Source/Purpose 的 `Other (Specify)` 当前实页临时切换没有展开可见子输入，与旧 E7/E13 静态 wiring 冲突，保留 `needs_review`。
 - Q3-Q12-positive 的 attachments + signature 页：附件保持为空，以测试笔划完成签名后点一次普通 Next，直接到 `Family Member(s)`。因此此 AIR 正向电子 customs 路径未见附件必传拦截；上传格式/大小/数量、服务器接受、SEA parity 和所有正向项仍未验证。到达 Family 后立即停止。
 - 字段合同已追加 E45 与 B/C/D 最小接口：numeric option-id 边界、owner/attachment 非无条件必填、物理转运两个 client-required 字段，以及 live/static Other-detail 冲突。未改代码、总览或其他 worklog；未运行 migration、seed、deploy、测试、付款或最终 Submit。
+
+## 第四十六轮 E46 当前官方动态选项与结果恢复差集（2026-08-17）
+
+- 只读复核当前官方 `ws.etravel.gov.ph` 公共选项接口和 `c01177d6` 当前实现；未登录、未创建/读取注册、未操作浏览器、未发送写请求或 final `Submit`。
+- 已固定的最小动态契约：arrival Purpose 当前为 15 项，旧 `POV999` / `Others` 不在当日官方响应；AIR company 使用 `code`/`name`；其 flight endpoint 的实际字段为 `code`/`name`/`travel_company_code`/`travel_port_code`，不是实现中假设的 `flight_number`；SEA destination port 以 `code` 唯一身份，当前 53 rows 中存在同名不同 code，不能按 label 恢复。
+- 未提升的边界：hotel `id` 是否为 UI/payload value、AIR/SEA 真正 required/hidden-clear、`is_disembarking=false`、port metadata 与 manual/electronic 流程关系、官方 registration read/reopen、reference-to-QR 对应与 scan/retry 都仍为 `needs_review`。
+- 结果页仅维持 E37 的窄证据：用户手动完成的 AIR 页面同页呈现脱敏 Reference Number 与 QR。它不是 authoritative registration read，也不授权 recovery 或自动 retry。字段合同已给 PH-C 写入当前 purpose/airline/flight/SEA-port/result 的直接消费规则，并列出 `POV999`、flight response shape 与 absent-disembarking 推断三项当前代码后续项。
+- 未改产品代码、总览或其他 worklog；未运行 migration、seed、deploy、测试、登录、OTP/CAPTCHA、付款、官方 registration read 或 final Submit。

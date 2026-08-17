@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildPhEtravelArrivalRunnerJobPayload,
+  classifyPhEtravelRunnerJobPortalFailure,
   classifyPhEtravelRunnerJobPortalCheckpoint,
   runPhEtravelArrivalRunnerJob,
   type PhEtravelRunnerJobState,
@@ -229,4 +230,17 @@ test("PH runner_job exposes OTP and Turnstile checkpoints as safe non-submitted 
   assert.equal(residence.safeReasonCode, "ph_etravel_residence_action_required");
   assert.equal(unsafe.safeReasonCode, "ph_etravel_safe_failure");
   assert.doesNotMatch(JSON.stringify(unsafe), /synthetic@example\.test|123456/);
+});
+
+test("PH Review stop and ambiguous final POST use distinct non-submitted recovery states", () => {
+  const review = classifyPhEtravelRunnerJobPortalFailure("ph_etravel_stopped_before_submit");
+  const ambiguous = classifyPhEtravelRunnerJobPortalFailure("ph_etravel_final_post_ambiguous_recovery_required");
+  const referenceRead = classifyPhEtravelRunnerJobPortalFailure("ph_etravel_authoritative_result_read_required");
+
+  assert.equal(review.stage, "review_stop");
+  assert.equal(ambiguous.stage, "result_recovery_required");
+  assert.equal(referenceRead.stage, "result_recovery_required");
+  for (const result of [review, ambiguous, referenceRead]) {
+    assert.equal(result.officialResubmitAllowed, false);
+  }
 });

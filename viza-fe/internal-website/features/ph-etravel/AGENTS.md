@@ -88,6 +88,15 @@ Scope: Philippines eTravel-specific frontend helpers.
   positive displayed goods amount require a Q3-Q12 Yes, clears rows when their
   parent answer hides them, and treats AIR E45 attachments as
   visible-but-not-required while signature remains an action requirement.
+- `applicant-experience.ts` owns the PH-only shared-page experience adapter.
+  It exposes final-confirmation boundaries, field/document return targets,
+  explicit-true live gating, status refresh, result re-read recovery, and the
+  stable-reference plus same-reference QR success gate without creating queues
+  or allowing automatic re-submit.
+- `PhEtravelApplicantStatusCard.tsx` consumes that adapter in shared status
+  pages. It renders a QR only from the same authoritative reference, falls
+  back to read-only recovery if browser QR rendering fails, and never exposes
+  retry-submit controls or raw runner diagnostics.
 - `option-labels.ts` localizes the official country, airline, and Philippine
   arrival-port codes for the Chinese form column. It must preserve the official
   option value and keep every official arrival-port code one-to-one and unique.
