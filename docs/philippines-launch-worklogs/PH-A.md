@@ -2212,3 +2212,12 @@
 - 未提升的边界：hotel `id` 是否为 UI/payload value、AIR/SEA 真正 required/hidden-clear、`is_disembarking=false`、port metadata 与 manual/electronic 流程关系、官方 registration read/reopen、reference-to-QR 对应与 scan/retry 都仍为 `needs_review`。
 - 结果页仅维持 E37 的窄证据：用户手动完成的 AIR 页面同页呈现脱敏 Reference Number 与 QR。它不是 authoritative registration read，也不授权 recovery 或自动 retry。字段合同已给 PH-C 写入当前 purpose/airline/flight/SEA-port/result 的直接消费规则，并列出 `POV999`、flight response shape 与 absent-disembarking 推断三项当前代码后续项。
 - 未改产品代码、总览或其他 worklog；未运行 migration、seed、deploy、测试、登录、OTP/CAPTCHA、付款、官方 registration read 或 final Submit。
+
+## 第四十七轮 E47 最后一轮离线官方证据闭合（2026-08-17）
+
+- 只读复核当前官方公共 API 与公开 eTravel frontend build `79dfb3348d0a0f2a798c95b2cbd450cc9201257f`；没有登录、打开草稿、读取 registration、上传、签名、写接口或 final `Submit`。
+- 离线已闭合：arrival Purpose 当前完整 15 项，`POV999` / `Others` 继续确认不在当前响应；AIR airline 以 `code`/`name`，AIR flight 以 parented `code`/`name` 且无 `flight_number` 响应字段；SEA port 以 `code` 唯一映射，不能按重复 label 恢复。
+- Currency/Customs 可消费增量：`currency_id` 与 `monetary_instrument_id` 使用官方 numeric `id`；`currency_sources[]` codes 为 `SALARY`、`BUSINESS`、`OTHER`；`transport_purposes[]` codes 为 `LEISURE`、`MEDICAL`、`PAYABLES`、`EDUCATION`、`OTHER`；`physical_or_shipped` values 为 `is_physically_transferred_by_person`、`is_shipped_thru_courier_service`。这些 source/purpose/transfer requiredness 和 clear graph 只按 bundle/E45 边界消费，server acceptance 不升格。
+- Attachment bundle 证据：positive attachment/signature 组件使用 `attachments[]`，上传项映射 `{description,url,mime_type}`，client `fileTypes` 为 `image/png`、`image/jpg`、`image/jpeg`，默认 `maxFileSize` 为 `5242880` bytes；未找到 attachments 最小数量 schema。结合 E45，AIR Q3-Q12-positive 路径空附件加有效签名可到 Family；服务器格式/数量/大小、上传接受和 SEA parity 仍 `needs_review`。
+- 保留 live-only：`is_disembarking=false`、Hotel/Resort 实际提交值、AIR flight-to-destination live clear/autofill、source/purpose `OTHER` 当前实页冲突、PHP/BSP 正向触发、courier live requiredness、SEA positive post-currency continuation、authoritative registration read、reference/QR 对应与 recovery/retry。
+- 未改代码、协调总览或其他 worklog；未运行 migration、seed、deploy、官网登录、OTP/CAPTCHA、付款、registration read 或 final Submit。
