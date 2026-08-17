@@ -716,10 +716,12 @@ describe("runner pool concurrency phase two migration", () => {
     )?.[0] ?? "";
     const capInsert = failBody.indexOf("INSERT INTO runner_private.runner_job_update_capability");
     const shapeCheck = failBody.search(
-      /p_attempts\s*<>\s*v_old_row\.attempts\s*\+\s*1[\s\S]*?p_status\s*<>&?\s*CASE|p_status\s*IS DISTINCT FROM CASE/i,
+      /p_attempts\s*<>\s*v_old_row\.attempts\s*\+\s*1[\s\S]*?p_status\s+IS DISTINCT FROM\s*\(\s*CASE[\s\S]*?END\s*\)\s*THEN/i,
     );
     expect(failBody).toMatch(/p_attempts\s*<>\s*v_old_row\.attempts\s*\+\s*1/i);
-    expect(failBody).toMatch(/p_status\s+IS DISTINCT FROM CASE/i);
+    expect(failBody).toMatch(
+      /p_status\s+IS DISTINCT FROM\s*\(\s*CASE[\s\S]*?END\s*\)\s*THEN/i,
+    );
     expect(shapeCheck).toBeGreaterThan(-1);
     expect(capInsert).toBeGreaterThan(shapeCheck);
     expect(failBody).toMatch(/ERRCODE = '22023'/i);

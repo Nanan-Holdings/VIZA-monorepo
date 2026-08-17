@@ -1648,10 +1648,10 @@ BEGIN
     RAISE EXCEPTION 'p_attempts must advance the locked runner attempt exactly once'
       USING ERRCODE = '22023';
   END IF;
-  IF p_status IS DISTINCT FROM CASE
+  IF p_status IS DISTINCT FROM (CASE
     WHEN p_attempts >= v_old_row.max_attempts THEN 'failed'
     ELSE 'queued'
-  END IF THEN
+  END) THEN
     RAISE EXCEPTION
       'p_status must match the terminal state implied by p_attempts'
       USING ERRCODE = '22023';
