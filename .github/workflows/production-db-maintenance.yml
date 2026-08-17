@@ -12,6 +12,7 @@ on:
           - preflight
           - pause
           - apply
+          - resume
       migration_ref:
         description: Exact reviewed source commit for approved migration files
         required: true

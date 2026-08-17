@@ -83,4 +83,6 @@ smoke-test helpers for the VIZA monorepo.
   pausing pool caps and unscheduling the Vietnam status cron. Apply accepts only
   the reviewed strict source commit and exact hashes for migration versions
   `20260816160000` and `20260816161000`, rechecks the drained pause state, and
-  records both migrations atomically with the schema changes.
+  records both migrations atomically with the schema changes. Resume requires
+  those ledger versions and strict objects, zero live work, six exact paused
+  caps, and no status cron before atomically restoring the caps and cron.
