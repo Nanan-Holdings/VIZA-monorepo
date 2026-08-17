@@ -7,6 +7,9 @@ import {
   PAUSE_SQL,
   PRODUCTION_PROJECT_REF,
   EXPECTED_CAP_SNAPSHOT,
+  SUPABASE_PRODUCTION_CA_SHA256,
+  SUPABASE_PRODUCTION_CA_URL,
+  downloadSupabaseProductionCa,
   executePsqlMigration,
   loadApprovedMigrationBatch,
   runApply,
@@ -42,6 +45,30 @@ test("preflight uses the read-only Management API and aggregate-only SQL", async
   });
   assert.match(PREFLIGHT_SQL, /COUNT\(\*\) FILTER/u);
   assert.doesNotMatch(PREFLIGHT_SQL, /SELECT\s+\*\s+FROM\s+public\.(applications|applicant_profiles)/iu);
+});
+
+test("production CA download is HTTPS-only and pinned before psql use", async () => {
+  const pem = "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----\n";
+  let request;
+  const result = await downloadSupabaseProductionCa({
+    fetchImpl: async (url, init) => {
+      request = { url, init };
+      return new Response(pem, { status: 200 });
+    },
+    hash: () => SUPABASE_PRODUCTION_CA_SHA256,
+  });
+  assert.equal(request.url, SUPABASE_PRODUCTION_CA_URL);
+  assert.match(request.url, /^https:\/\//u);
+  assert.equal(request.init.method, "GET");
+  assert.equal(result.toString("utf8"), pem);
+
+  await assert.rejects(
+    downloadSupabaseProductionCa({
+      fetchImpl: async () => new Response(pem, { status: 200 }),
+      hash: () => "unexpected-hash",
+    }),
+    /pinned integrity check/u,
+  );
 });
 
 function drainedPreflightPayload() {
@@ -117,6 +144,7 @@ test("apply reads only the approved ref and exact migration hashes", async () =>
     executeMigration: async (input) => {
       execution = input;
     },
+    downloadCa: async () => Buffer.from("pinned-ca"),
     fetchImpl: async (url, init) => {
       requests.push({
         url,
@@ -168,6 +196,7 @@ test("apply reads only the approved ref and exact migration hashes", async () =>
     port: 5432,
     database: "postgres",
   });
+  assert.equal(execution.caCertificate.toString("utf8"), "pinned-ca");
   assert.deepEqual(result, migratedPreflightPayload());
 });
 
@@ -180,6 +209,7 @@ test("psql apply keeps the password out of args and removes its temporary SQL", 
     projectRef: PRODUCTION_PROJECT_REF,
     role: "cli_login_postgres",
     password: "temporary-password-123",
+    caCertificate: Buffer.from("pinned-ca"),
     pooler: {
       host: "aws-1-ap-south-1.pooler.supabase.com",
       port: 5432,
@@ -218,13 +248,15 @@ test("psql apply keeps the password out of args and removes its temporary SQL", 
   ]);
   assert.equal(applyCall.options.env.PGPASSWORD, "temporary-password-123");
   assert.equal(applyCall.options.env.PGSSLMODE, "verify-full");
-  assert.equal(applyCall.options.env.PGSSLROOTCERT, "system");
+  assert.match(applyCall.options.env.PGSSLROOTCERT, /supabase-prod-ca-2021\.crt$/u);
   assert.equal(applyCall.options.env.SUPABASE_ACCESS_TOKEN, undefined);
   assert.equal(applyCall.options.env.PRODUCTION_DB_MAINTENANCE_CONFIRM, undefined);
   assert.equal(applyCall.options.env.PGOPTIONS, undefined);
   assert.equal(applyCall.options.env.PGSERVICE, undefined);
-  assert.equal(writes.length, 1);
-  assert.match(writes[0].filePath, /approved-production-migrations\.sql$/u);
+  assert.equal(writes.length, 2);
+  assert.match(writes[0].filePath, /supabase-prod-ca-2021\.crt$/u);
+  assert.equal(writes[0].contents.toString("utf8"), "pinned-ca");
+  assert.match(writes[1].filePath, /approved-production-migrations\.sql$/u);
   assert.deepEqual(removals, ["/safe/temp/migration"]);
 });
 
@@ -247,6 +279,7 @@ test("apply revokes the temporary role when psql fails", async () => {
       executeMigration: async () => {
         throw new Error("synthetic psql failure");
       },
+      downloadCa: async () => Buffer.from("pinned-ca"),
       fetchImpl: async (url, init) => {
         methods.push({ url, method: init.method });
         const payload = methods.length === 1
@@ -288,6 +321,7 @@ test("apply retries temporary role revocation before returning success", async (
       return APPROVED_MIGRATIONS.find((migration) => filePath.endsWith(migration.path)).sha256;
     },
     executeMigration: async () => {},
+    downloadCa: async () => Buffer.from("pinned-ca"),
     fetchImpl: async (url, init) => {
       if (url.endsWith("/database/query/read-only")) {
         return new Response(
