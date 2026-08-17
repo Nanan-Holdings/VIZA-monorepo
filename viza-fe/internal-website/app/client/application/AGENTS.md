@@ -87,11 +87,15 @@ Before changing this route, read:
 16. Render the form-filling assistant only for an owned application with a
     non-empty DB-driven schema. Keep every prompt, source, option and validator
     scoped to that application's exact country and visa type.
-17. Optional application fields must not show an `Optional`/`选填` pill, badge,
+17. Browser code must never insert `submission_queue` rows or wake submission
+    workers directly. Route every dry-run and live enqueue through the guarded
+    `/api/applications/[id]/retry-submission` server boundary so the global
+    controlled-cutover pause cannot be bypassed.
+18. Optional application fields must not show an `Optional`/`选填` pill, badge,
     or secondary label. The absence of the required asterisk is the approved
     treatment. Before adding any optional marker in the future, confirm the
     product logic with Edward and obtain his explicit approval for that change.
-18. Conditional field spacing and ownership must match the frozen
+19. Conditional field spacing and ownership must match the frozen
     `/ui-components` `Conditional multi-option group` and `Conditional
     radio-option group`: top-level controller fields have no extra vertical
     wrapper padding, fields inside the conditional panel use `py-1.5`, and the
@@ -104,13 +108,9 @@ Before changing this route, read:
     or submission-blocking information explicitly tagged with
     `helper_priority: "critical"`. Character limits appear only as the compact
     counter inside the input or textarea and must not be repeated as helper copy.
-20. Never select `VIZA_PLACEHOLDER_DRY_RUN` records as a customer's active
+21. Never select `VIZA_PLACEHOLDER_DRY_RUN` records as a customer's active
     application. Synthetic QA answer markers must block queue creation and must
     not be saved or reused as applicant information.
-21. Browser code must never insert `submission_queue` rows or wake submission
-    workers directly. Route every dry-run and live enqueue through the guarded
-    `/api/applications/[id]/retry-submission` server boundary so the global
-    controlled-cutover pause cannot be bypassed.
 
 ## Validation Checklist
 

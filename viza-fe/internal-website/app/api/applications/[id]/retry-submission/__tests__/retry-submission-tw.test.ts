@@ -33,6 +33,17 @@ const baseApplication = {
   submission_result_status: null,
 };
 
+// The retry boundary now checks all persisted answer rows for synthetic QA
+// markers before enqueueing. Use an ordinary applicant answer in the fixture
+// so those tests exercise the normal live-submission path.
+const normalApplicationAnswers = [
+  {
+    field_name: "purpose_of_entry",
+    value_text: "tourism",
+    value_json: null,
+  },
+];
+
 type TestApplication = Omit<typeof baseApplication, "submission_result" | "submission_result_status"> & {
   submission_result: Record<string, unknown> | null;
   submission_result_status: string | null;
@@ -100,6 +111,14 @@ function createMaybeSingleQuery(row: unknown, error: { message: string } | null 
   return query;
 }
 
+function createRowsQuery(rows: unknown[], error: { message: string } | null = null) {
+  const query = {
+    select: () => query,
+    eq: async () => ({ data: error ? null : rows, error }),
+  };
+  return query;
+}
+
 function createAdminMock() {
   return {
     from(table: string) {
@@ -115,6 +134,7 @@ function createAdminMock() {
           },
         };
       }
+      if (table === "visa_application_answers") return createRowsQuery(normalApplicationAnswers);
       if (table === "runner_job") return createMaybeSingleQuery(activeRunnerJob, runnerJobQueryError);
       if (table === "takeover_session") return createMaybeSingleQuery(activeHandoff, handoffQueryError);
       throw new Error(`Unexpected table: ${table}`);

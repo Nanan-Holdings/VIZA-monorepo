@@ -1,0 +1,132 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { RunnerJobOwnershipLostError, type RunnerExecutionContext } from "../execution-context.js";
+
+test("owned dialog helper dismisses instead of accepting after ownership loss", async () => {
+  const module = await import("../portal-safety.js").catch(() => ({} as Record<string, unknown>));
+  assert.equal(typeof module.acceptOwnedDialog, "function");
+  const acceptOwnedDialog = module.acceptOwnedDialog as (
+    dialog: { accept: () => Promise<void>; dismiss: () => Promise<void> },
+    executionContext?: RunnerExecutionContext,
+  ) => Promise<void>;
+  let accepted = 0;
+  let dismissed = 0;
+  const dialog = {
+    accept: async () => { accepted += 1; },
+    dismiss: async () => { dismissed += 1; },
+  };
+  const ownershipLost = new RunnerJobOwnershipLostError("lease lost while dialog was open");
+  let owned = true;
+  const execution: RunnerExecutionContext = {
+    jobId: "job-portal-test",
+    workerId: "worker-portal-test",
+    signal: new AbortController().signal,
+    assertOwned: () => {
+      if (!owned) throw ownershipLost;
+    },
+    checkpoint: () => {
+      if (!owned) throw ownershipLost;
+    },
+  };
+
+  await acceptOwnedDialog(dialog, execution);
+  assert.equal(accepted, 1);
+  owned = false;
+  await assert.rejects(() => acceptOwnedDialog(dialog, execution), (error: unknown) => error === ownershipLost);
+  assert.equal(accepted, 1);
+  assert.equal(dismissed, 1);
+});
+
+test("abortable launch closes a resource that resolves after cancellation", async () => {
+  const module = await import("../portal-safety.js").catch(() => ({} as Record<string, unknown>));
+  assert.equal(typeof module.launchAbortableResource, "function");
+  const launchAbortableResource = module.launchAbortableResource as <T>(
+    signal: AbortSignal | undefined,
+    launch: () => Promise<T>,
+    close: (resource: T) => Promise<void> | void,
+  ) => Promise<T>;
+  const controller = new AbortController();
+  const ownershipLost = new RunnerJobOwnershipLostError("lease lost during browser launch");
+  let resolveLaunch: ((resource: { id: string }) => void) | null = null;
+  let closeCount = 0;
+  const launch = launchAbortableResource(
+    controller.signal,
+    () => new Promise<{ id: string }>((resolve) => {
+      resolveLaunch = resolve;
+    }),
+    async () => {
+      closeCount += 1;
+    },
+  );
+  controller.abort(ownershipLost);
+  (resolveLaunch as ((resource: { id: string }) => void) | null)?.({ id: "browser" });
+  await assert.rejects(() => launch, (error: unknown) => error === ownershipLost);
+  assert.equal(closeCount, 1);
+});
+
+test("abortable launch swallows a rejected close without replacing ownership cancellation", async () => {
+  const module = await import("../portal-safety.js");
+  const launchAbortableResource = module.launchAbortableResource;
+  const controller = new AbortController();
+  const ownershipLost = new RunnerJobOwnershipLostError("lease lost during browser launch");
+  let resolveLaunch: ((resource: { id: string }) => void) | null = null;
+  let closeCount = 0;
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", onUnhandled);
+  const launch = launchAbortableResource(
+    controller.signal,
+    () => new Promise<{ id: string }>((resolve) => {
+      resolveLaunch = resolve;
+    }),
+    () => {
+      closeCount += 1;
+      throw new Error("browser close failed");
+    },
+  );
+  try {
+    controller.abort(ownershipLost);
+    (resolveLaunch as ((resource: { id: string }) => void) | null)?.({ id: "browser" });
+    await assert.rejects(() => launch, (error: unknown) => error === ownershipLost);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(closeCount, 1);
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
+  }
+});
+
+test("best-effort browser cleanup swallows a rejected final close", async () => {
+  const module = await import("../portal-safety.js");
+  const closeResourceBestEffort = module.closeResourceBestEffort;
+  const portalError = new Error("portal failure");
+  let closeCalls = 0;
+
+  await assert.rejects(
+    async () => {
+      try {
+        throw portalError;
+      } finally {
+        await closeResourceBestEffort({
+          close: async () => {
+            closeCalls += 1;
+            throw new Error("browser close failed");
+          },
+        });
+      }
+    },
+    (error: unknown) => error === portalError,
+  );
+  assert.equal(closeCalls, 1);
+});
+
+test("MDAC and TDAC final cleanup use the best-effort close boundary", () => {
+  for (const runner of ["mdac", "tdac"]) {
+    const source = fs.readFileSync(path.resolve(__dirname, `../../${runner}/runner.ts`), "utf8");
+    assert.match(source, /await closeResourceBestEffort\(browserSession\)/, runner);
+  }
+});

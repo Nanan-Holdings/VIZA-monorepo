@@ -5,6 +5,7 @@ import {
 import { assertKnownCountry } from "@/lib/queue/countries";
 import {
   resolveRunnerPoolFlow,
+  isSharedRunnerPoolCountry,
   shouldUseSharedRunnerPool,
   type RunnerPoolFlowKey,
 } from "@/lib/queue/flows";
@@ -14,20 +15,21 @@ import {
   queueProviderForApplication,
   queueStatusForApplication,
 } from "@/lib/submission-queue";
+import { enqueueRunnerJobWake } from "@/lib/resilience/runner-job-wakeup";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { assertRunnerCutoverActive } from "@/lib/runner-cutover-pause.server";
 import {
   isQaDryRunPurpose,
   isSyntheticQaValue,
 } from "@/lib/applications/qa-safety";
-import { assertRunnerCutoverActive } from "@/lib/runner-cutover-pause.server";
 
 /**
  * Producers for shared-pool and sticky submission runners.
  *
  * New supported flows use one service-role-only database RPC so a repeated
  * click cannot race another request or an in-flight legacy submission. The
- * direct insert path remains available behind the migration flag as a
- * rollback path until each flow's pool parity gate is opened.
+ * remaining direct insert path is only for an explicitly resolved, non-null
+ * flow key during controlled cutover; an ambiguous flow always fails closed.
  */
 
 export interface EnqueueOpts {
@@ -62,6 +64,147 @@ type PoolDepthRow = {
 
 function poolMigrationEnabled(): boolean {
   return process.env.RUNNER_POOL_MIGRATION_ENABLED === "true";
+}
+
+/**
+ * Queue wake publication is opt-in. Keep the parser deliberately narrow so a
+ * typo or an arbitrary truthy environment value cannot switch transports.
+ * Accepted values are exactly `true`, `on`, and `1`; all other values keep the
+ * direct Fly wake path active.
+ */
+function resilienceRunnerWakeEnabled(): boolean {
+  const value = process.env.RESILIENCE_RUNNER_WAKE_ENABLED;
+  return value === "true" || value === "on" || value === "1";
+}
+
+function availableAtIsDue(availableAt?: string): boolean {
+  if (!availableAt) return true;
+  const timestamp = Date.parse(availableAt);
+  return !Number.isFinite(timestamp) || timestamp <= Date.now();
+}
+
+function shouldDeferWake(availableAt?: string): boolean {
+  return resilienceRunnerWakeEnabled() && !availableAtIsDue(availableAt);
+}
+
+type RunnerWakeQueueResponse = {
+  accepted?: unknown;
+  duplicate?: unknown;
+};
+
+const SHARED_POOL_FLOW_KEYS_BY_COUNTRY: Record<string, readonly RunnerPoolFlowKey[]> = {
+  vietnam: ["vn_prearrival"],
+  singapore: ["sgac"],
+  malaysia: ["mdac"],
+  thailand: ["tdac"],
+  south_korea: ["kr_eform"],
+  taiwan: ["tw_entry_permit"],
+};
+
+function assertExactSharedRunnerPoolTuple(
+  country: string,
+  flowKey: RunnerPoolFlowKey,
+): void {
+  const allowed = SHARED_POOL_FLOW_KEYS_BY_COUNTRY[country];
+  if (!allowed || !allowed.includes(flowKey)) {
+    const expected = allowed?.join(" or ") ?? "no shared-pool flow";
+    throw new Error(
+      `runner pool flow mismatch: ${country} supports ${expected}, received ${flowKey}`,
+    );
+  }
+}
+
+type AuthoritativeRunnerJobState = {
+  status: string;
+  availableAt: string | null;
+};
+
+type AuthoritativeRunnerRead =
+  | { kind: "found"; state: AuthoritativeRunnerJobState }
+  | { kind: "missing" }
+  | { kind: "unavailable" };
+
+type RunnerWakeTarget = "pool" | "legacy" | "indonesia" | "south_korea";
+
+function runnerJobWakeable(state: AuthoritativeRunnerJobState, target: RunnerWakeTarget): boolean {
+  const status = state.status.trim().toLowerCase();
+  const queued = target === "pool"
+    ? status === "queued"
+    : status === "pending" || status.endsWith("_pending");
+  return queued && availableAtIsDue(state.availableAt ?? undefined);
+}
+
+async function loadAuthoritativeRunnerJobState(
+  jobId: string,
+  target: RunnerWakeTarget,
+): Promise<AuthoritativeRunnerRead> {
+  try {
+    const read = await withAdmin("system", "lib/queue:runner-wake-state", async (admin) => {
+      const table = target === "pool" ? "runner_job" : "submission_queue";
+      const columns = table === "runner_job" ? "id,status,available_at" : "id,status";
+      const { data, error } = await admin
+        .from(table)
+        .select(columns)
+        .eq("id", jobId)
+        .maybeSingle();
+      if (error) return { kind: "unavailable" as const };
+      if (!data || typeof data !== "object") return { kind: "missing" as const };
+      if (table === "runner_job") {
+        const row = data as { id?: unknown; status?: unknown; available_at?: unknown };
+        if (row.id !== jobId || typeof row.status !== "string") return { kind: "unavailable" as const };
+        return {
+          kind: "found" as const,
+          state: {
+            status: row.status,
+            availableAt: typeof row.available_at === "string" ? row.available_at : null,
+          },
+        };
+      }
+      const row = data as { id?: unknown; status?: unknown };
+      if (row.id !== jobId || typeof row.status !== "string") return { kind: "unavailable" as const };
+      return {
+        kind: "found" as const,
+        state: {
+          status: row.status,
+          availableAt: null,
+        },
+      };
+    });
+    if (read.kind !== "unavailable") return read;
+  } catch {
+    // Keep Queue publication fail-closed; callers retain the authenticated direct wake fallback.
+  }
+  console.warn("[runner-pool] Authoritative runner state unavailable; reconciler will recover.", {
+    jobId: jobId.slice(0, 8),
+    reason: "authoritative_state_unavailable",
+  });
+  return { kind: "unavailable" };
+}
+
+/**
+ * Publish a pointer only after Postgres has returned a durable ID. A false
+ * result deliberately leaves callers on the existing direct wake fallback.
+ */
+async function tryQueueRunnerWake(
+  jobId: string,
+  target: "pool" | "legacy" | "indonesia" | "south_korea",
+  availableAt?: string,
+): Promise<boolean> {
+  if (!resilienceRunnerWakeEnabled() || !availableAtIsDue(availableAt)) return false;
+  try {
+    const response = await enqueueRunnerJobWake({ jobId, target }) as RunnerWakeQueueResponse;
+    if (response.accepted === true || response.duplicate === true) return true;
+    console.warn("[runner-wake] Queue response unusable; using direct wake fallback.", {
+      jobId: jobId.slice(0, 8),
+      reason: "invalid_response",
+    });
+  } catch {
+    console.warn("[runner-wake] Queue publication failed; using direct wake fallback.", {
+      jobId: jobId.slice(0, 8),
+      reason: "publish_failed",
+    });
+  }
+  return false;
 }
 
 async function assertApplicationHasNoSyntheticQaData(
@@ -104,7 +247,7 @@ async function assertApplicationHasNoSyntheticQaData(
   });
 }
 
-async function desiredRunnerPoolCapacity(): Promise<number> {
+export async function desiredRunnerPoolCapacity(): Promise<number> {
   return withAdmin("system", "lib/queue:pool-depth", async (admin) => {
     const { data, error } = await admin
       .from("runner_pool_depth")
@@ -132,6 +275,7 @@ export async function enqueueRunnerPoolJob(
   assertRunnerCutoverActive();
   await assertApplicationHasNoSyntheticQaData(applicationId);
   const normalizedCountry = assertKnownCountry(country);
+  assertExactSharedRunnerPoolTuple(normalizedCountry, flowKey);
   const row = await withAdmin("system", "lib/queue:enqueue-pool", async (admin) => {
     const { data, error } = await admin.rpc("enqueue_runner_pool_job", {
       p_application_id: applicationId,
@@ -160,6 +304,39 @@ export async function enqueueRunnerPoolJob(
     if (!row.legacy_queue_id) {
       throw new Error("runner pool enqueue reported a legacy collision without a queue id");
     }
+    const queueEnabled = resilienceRunnerWakeEnabled();
+    const authority = queueEnabled
+      ? await loadAuthoritativeRunnerJobState(row.legacy_queue_id, "legacy")
+      : null;
+    if (queueEnabled && authority?.kind === "missing") {
+      return {
+        transport: "submission_queue",
+        id: row.legacy_queue_id,
+        status: row.legacy_queue_status,
+        created: false,
+        workerTriggered: false,
+      };
+    }
+    if (queueEnabled && authority?.kind === "found") {
+      if (!runnerJobWakeable(authority.state, "legacy")) {
+        return {
+          transport: "submission_queue",
+          id: row.legacy_queue_id,
+          status: row.legacy_queue_status,
+          created: false,
+          workerTriggered: false,
+        };
+      }
+      if (await tryQueueRunnerWake(row.legacy_queue_id, "legacy", authority.state.availableAt ?? undefined)) {
+        return {
+          transport: "submission_queue",
+          id: row.legacy_queue_id,
+          status: row.legacy_queue_status,
+          created: false,
+          workerTriggered: true,
+        };
+      }
+    }
     const wake = await wakeCloudSubmissionWorker(row.legacy_queue_id, {
       target: "legacy",
     });
@@ -174,6 +351,51 @@ export async function enqueueRunnerPoolJob(
 
   if (!row.runner_job_id) {
     throw new Error("runner pool enqueue returned no runner job id");
+  }
+  const queueEnabled = resilienceRunnerWakeEnabled();
+  const authority = queueEnabled
+    ? await loadAuthoritativeRunnerJobState(row.runner_job_id, "pool")
+    : null;
+  if (queueEnabled && authority?.kind === "missing") {
+    return {
+      transport: "runner_job",
+      id: row.runner_job_id,
+      created: !row.reused_existing,
+      workerTriggered: false,
+    };
+  }
+  if (queueEnabled && authority?.kind === "found" && !runnerJobWakeable(authority.state, "pool")) {
+    return {
+      transport: "runner_job",
+      id: row.runner_job_id,
+      created: !row.reused_existing,
+      workerTriggered: false,
+    };
+  }
+  if (queueEnabled && authority?.kind === "found") {
+    if (shouldDeferWake(opts.availableAt)) {
+      return {
+        transport: "runner_job",
+        id: row.runner_job_id,
+        created: !row.reused_existing,
+        workerTriggered: false,
+      };
+    }
+    if (await tryQueueRunnerWake(row.runner_job_id, "pool", authority.state.availableAt ?? undefined)) {
+      return {
+        transport: "runner_job",
+        id: row.runner_job_id,
+        created: !row.reused_existing,
+        workerTriggered: true,
+      };
+    }
+  } else if (!queueEnabled && shouldDeferWake(opts.availableAt)) {
+    return {
+      transport: "runner_job",
+      id: row.runner_job_id,
+      created: !row.reused_existing,
+      workerTriggered: false,
+    };
   }
   let workerTriggered = false;
   try {
@@ -279,6 +501,38 @@ export async function enqueueSgacRunnerRetry(
 
   if (result.route === "legacy") return result;
 
+  const queueEnabled = resilienceRunnerWakeEnabled();
+  const authority = queueEnabled
+    ? await loadAuthoritativeRunnerJobState(result.id, "pool")
+    : null;
+  if (queueEnabled && authority?.kind === "missing") {
+    return {
+      ...result,
+      workerTriggered: false,
+    };
+  }
+  if (queueEnabled && authority?.kind === "found" && !runnerJobWakeable(authority.state, "pool")) {
+    return {
+      ...result,
+      workerTriggered: false,
+    };
+  }
+
+  if (queueEnabled && authority?.kind === "found") {
+    if (shouldDeferWake(opts.availableAt)) {
+      return {
+        ...result,
+        workerTriggered: false,
+      };
+    }
+    if (await tryQueueRunnerWake(result.id, "pool", authority.state.availableAt ?? undefined)) {
+      return {
+        ...result,
+        workerTriggered: true,
+      };
+    }
+  }
+
   const wake = await wakeCloudSubmissionWorker(result.id, { target: "pool" });
   if (!wake.ok && wake.reason !== "not_configured") {
     console.warn("[runner-job] Singapore Fly wake failed; queued work remains recoverable.", {
@@ -311,7 +565,13 @@ export async function enqueueRunnerJob(
     }
     return (data.visa_type as string | null) ?? null;
   });
-  const flowKey = opts.flowKey ?? resolveRunnerPoolFlow(normalizedCountry, visaType);
+  const resolvedFlowKey = resolveRunnerPoolFlow(normalizedCountry, visaType);
+  if (opts.flowKey !== undefined && opts.flowKey !== resolvedFlowKey) {
+    throw new Error(
+      `runner_job flow_key mismatch: expected ${resolvedFlowKey ?? "none"}, received ${opts.flowKey}`,
+    );
+  }
+  const flowKey = resolvedFlowKey;
   if (isIndonesiaEVisaApplication(normalizedCountry, visaType)) {
     const isB1 = visaType?.trim().toUpperCase().includes("B1") ?? false;
     const status = isB1
@@ -342,6 +602,15 @@ export async function enqueueRunnerJob(
         };
       },
     );
+    const queueEnabled = resilienceRunnerWakeEnabled();
+    const authority = queueEnabled
+      ? await loadAuthoritativeRunnerJobState(result.id, "indonesia")
+      : null;
+    if (queueEnabled && authority?.kind === "missing") return result;
+    if (queueEnabled && authority?.kind === "found") {
+      if (!runnerJobWakeable(authority.state, "indonesia")) return result;
+      if (await tryQueueRunnerWake(result.id, "indonesia", authority.state.availableAt ?? undefined)) return result;
+    } else if (!queueEnabled && await tryQueueRunnerWake(result.id, "indonesia")) return result;
     const wake = await wakeCloudSubmissionWorker(result.id, { target: "indonesia" });
     if (!wake.ok && wake.reason !== "not_configured") {
       console.warn("[indonesia] Sticky Fly wake failed; reconciler will recover.", {
@@ -376,6 +645,15 @@ export async function enqueueRunnerJob(
         };
       },
     );
+    const queueEnabled = resilienceRunnerWakeEnabled();
+    const authority = queueEnabled
+      ? await loadAuthoritativeRunnerJobState(result.id, "legacy")
+      : null;
+    if (queueEnabled && authority?.kind === "missing") return result;
+    if (queueEnabled && authority?.kind === "found") {
+      if (!runnerJobWakeable(authority.state, "legacy")) return result;
+      if (await tryQueueRunnerWake(result.id, "legacy", authority.state.availableAt ?? undefined)) return result;
+    } else if (!queueEnabled && await tryQueueRunnerWake(result.id, "legacy")) return result;
     const wake = await wakeCloudSubmissionWorker(result.id, { target: "legacy" });
     if (!wake.ok && wake.reason !== "not_configured") {
       console.warn("[vietnam] Sticky Fly wake failed; reconciler will recover.", {
@@ -385,52 +663,22 @@ export async function enqueueRunnerJob(
     }
     return result;
   }
+  if (!flowKey) {
+    if (isSharedRunnerPoolCountry(normalizedCountry)) {
+      throw new Error(
+        `runner_job: unsupported or ambiguous shared-pool visa flow for ${normalizedCountry}`,
+      );
+    }
+    throw new Error(
+      `runner_job: unsupported or ambiguous runner flow for ${normalizedCountry}`,
+    );
+  }
   if (flowKey && shouldUseSharedRunnerPool(flowKey, poolMigrationEnabled())) {
     const result = await enqueueRunnerPoolJob(applicationId, normalizedCountry, flowKey, opts);
     return { id: result.id, created: result.created };
   }
 
-  const result = await withAdmin("system", "lib/queue:enqueue-rollback", async (admin) => {
-    const { data: existing } = await admin
-      .from("runner_job")
-      .select("id, status")
-      .eq("application_id", applicationId)
-      .in("status", ["queued", "running"])
-      .order("enqueued_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (existing) {
-      return { id: existing.id as string, created: false };
-    }
-    const { data, error } = await admin
-      .from("runner_job")
-      .insert({
-        application_id: applicationId,
-        country: normalizedCountry,
-        flow_key: flowKey,
-        available_at: opts.availableAt ?? new Date().toISOString(),
-        status: "queued",
-        attempts: 0,
-        max_attempts: opts.maxAttempts ?? 3,
-        correlation_id: opts.correlationId ?? null,
-        metadata: opts.metadata ?? null,
-      })
-      .select("id")
-      .single();
-    if (error || !data) {
-      throw new Error(`runner_job insert: ${error?.message ?? "no data"}`);
-    }
-    return { id: data.id as string, created: true };
-  });
-  const wake = await wakeCloudSubmissionWorker(result.id, {
-    target: "pool",
-  });
-  if (!wake.ok && wake.reason !== "not_configured") {
-    console.warn("[runner-job] Fly wake failed; scheduled autoscaling remains available.", {
-      country: normalizedCountry,
-      jobId: result.id.slice(0, 8),
-      reason: wake.reason,
-    });
-  }
-  return result;
+  throw new Error(
+    `runner_job: flow ${flowKey} must use the atomic shared-pool enqueue path`,
+  );
 }

@@ -12,6 +12,23 @@ The submission service is a long-running Node/TypeScript worker that polls
 product contract is reliable official-portal automation that completes form
 filling and one-shot submission for the applicant.
 
+## Concurrency phase-two strict cutover
+
+The phase-two migration and its RPC callers are a single controlled cutover;
+do not run mixed old/new claim contracts. Before changing the claim contract:
+
+1. Pause enqueue and wake publication at the frontend and worker boundaries.
+2. Drain the existing workers until `runner_job.status = 'running'` is zero,
+   then stop the BASE/legacy submission worker.
+3. Apply the strict phase-two migration and verify the exact RPC signatures and
+   service-role grants. Do not add a fallback wrapper or caller-controlled
+   timestamp override.
+4. Deploy the matching RPC callers, run the queue/cancellation/takeover smoke
+   checks, and resume enqueue and wakes only after all checks pass.
+
+Any false or zero-row result from a settlement/cancellation RPC is a conflict
+and must fail closed; callers must not perform a direct table settlement.
+
 ## User Override
 
 - 如果碰到captcha，则用TWOCAPTCHA API 通过这个测试。
@@ -82,9 +99,74 @@ filling and one-shot submission for the applicant.
   atomic service-role claim RPC. Missing/unavailable claim RPCs fail closed;
   never add a plain table-select fallback because concurrent workers could run
   the same official submission.
+- `src/queue/worker.ts`: shared `runner_job` settlement must call the
+  service-role-only `complete_runner_pool_job` RPC with the stable worker id.
+  Failure and renewal use the service-role-only `fail_runner_pool_job` and
+  `renew_runner_pool_job` RPCs, whose ownership predicates use PostgreSQL's
+  `clock_timestamp()` rather than a caller timestamp. Production callers do not
+  pass caller-controlled timestamps; all failure, renewal, and success writes
+  are fenced by status, owner, and a live lease; a typed
+  `runner_job_ownership_lost` result skips fallback failure writes, alerts, and
+  metrics so a stale worker cannot mutate a reclaimed job.
+- Queue handlers receive a `RunnerExecutionContext` with an `AbortSignal` and
+  `assertOwned` checkpoints. Lease renewal loss or expiry aborts the active
+  portal session, and every shared-pool adapter checks ownership immediately
+  before final official submit/payment and before persisting a successful or
+  failed local result. Cancellation/ownership errors must escape runner catch
+  blocks without being converted into portal failures.
+- `src/result-writer.ts` keeps `writeSubmissionResult` for explicitly non-pool
+  callers. Shared-pool adapters must use `writeRunnerPoolSubmissionResult`
+  with the required `jobId`/`workerId` execution identity; a missing identity,
+  rejected RPC, or zero-row RPC result must fail closed without a direct
+  `applications` update.
+- All six `runner_job` pool adapters require the dispatch `jobId` to exactly
+  match `RunnerExecutionContext.jobId` before loading answers, launching a
+  portal, persisting artifacts, or writing a result. The Vietnam legacy
+  `submission_queue` entrypoint is explicitly separate from its pool runner.
+- `src/queue/portal-safety.ts` is the shared boundary for cancellation-safe
+  portal clicks, dialog acceptance, and browser/session launch. Keep irreversible
+  actions behind its ownership checks, dismiss dialogs on lease loss, and close
+  resources when an abort races launch or listener handoff; resource-close
+  failures are best-effort and must not become unhandled rejections or replace
+  the typed ownership cancellation. The queue handler
+  reports ownership cancellation as `ownership_lost`, never as an ordinary
+  portal `failed` event.
+- `src/queue/handler.ts` treats `runner_job.flow_key` as required pool
+  identity. Null/blank flow keys fail before dispatch, so the pool consumer
+  never falls through to the legacy country dispatch table. The paid-order
+  backfill derives only explicit supported pool flows and always inserts the
+  exact non-null `flow_key`; Vietnam eVisa remains excluded because it uses
+  the sticky worker.
+- `src/queue/takeover.ts` requires the claiming `workerId` and filters the
+  update by `runner_job.id`, `status='running'`, and `leased_by` before
+  inserting a takeover session or sending an alert. A zero-row/`RETURN NULL`
+  update is a `RunnerJobOwnershipLostError` and creates no takeover side effects.
 - `src/vietnam/status-check-lease.ts`: Vietnam official-status checks are
   worker-leased and may be completed or failed only by their claiming worker;
   the consumer must honor a false conditional-RPC result as lost ownership.
+  Provider-gate denial uses the service-role-only
+  `defer_vn_official_status_check` RPC to requeue the live claim, reverse the
+  admission attempt, and avoid consuming portal retry budget.
+- `src/resilience-gate.ts` and `src/vietnam/status-tracking.ts`: each Vietnam
+  official status lookup optionally acquires the `vietnam`/`evisa/status`
+  provider gate with a 120-second fenced lease around official-portal I/O only.
+  The gate is disabled by default and fail-open only on transport/429/5xx
+  acquisition unavailability; an `at_capacity` or `capacity_mismatch` response
+  defers the check without opening the portal. Missing/invalid enabled config or
+  malformed/non-retryable responses fail loudly without marking the check failed.
+  PostgreSQL ownership remains authoritative for artifact/status settlement. A
+  lost gate or database lease skips both final completion and failure settlement,
+  and the exact latest lease/fencing token is released in `finally`. A typed
+  gate denial defers the current Postgres claim for a bounded 1–300 seconds;
+  configuration/protocol errors remain fail-loud and are never converted into
+  a failed official check.
+- Resilience gate configuration is server-only and read from
+  `VIZA_RESILIENCE_GATEWAY_URL`, `VIZA_RESILIENCE_HMAC_KEY_ID`,
+  `VIZA_RESILIENCE_HMAC_SECRET`, `RESILIENCE_VN_STATUS_GATE_ENABLED`, and
+  `RESILIENCE_VN_STATUS_GATE_CAPACITY`. Gateway requests use the Worker HMAC
+  contract and a three-second abort timeout; secrets, signatures, nonces, raw
+  bodies, and owner references must never be logged. This provider gate does not
+  create, retain, or scale runner machines.
 - Official-fee enqueue operations use migration
   `0118_official_fee_queue_isolation.sql`: the application row is the mutex,
   claimed/running jobs are reused, and stale jobs for only that application
@@ -94,7 +176,8 @@ filling and one-shot submission for the applicant.
   transaction, one application has at most one active browser job, and
   different application IDs remain independent queue items.
 - Shared cloud topology uses `viza-runner-pool` for Vietnam Pre-Arrival,
-  Singapore, Malaysia, Thailand, and Korea background `runner_job` flows.
+  Singapore, Malaysia, Thailand, Korea background, and Taiwan Entry Permit
+  `runner_job` flows.
   Indonesia B1/C1 uses one retained sticky `viza-runner-indonesia` Machine and
   its dedicated `submission_queue` claim RPC so its account, OTP, card and
   payment state stay on one process. `src/runner-slot-lease.ts` binds every
@@ -308,7 +391,11 @@ filling and one-shot submission for the applicant.
   landing/NOTE/CAPTCHA/form/payment/white-screen checkpoints, fills the SPA
   when the official form is reached, uses a VIZA alias for official
   correspondence, tracks newly paid submissions through daily/email/user
-  official queries, and privately delivers validated official PDFs.
+  official queries, and privately delivers validated official PDFs. Email
+  status matching is parsed in `status-tracking.ts` and handed to the bounded
+  `email-status-matcher.ts` adapter, which calls the service-only batch RPC
+  once for up to 100 messages; matching, ambiguity, idempotency, and event
+  audit writes stay in the database function.
 - `src/sgac/**`: Singapore SG Arrival Card runner. Normalizes
   `SG_ARRIVAL_CARD` answers only, fills ICA SGAC Foreign Visitor pages, submits
   after Review in worker mode, and captures confirmation/error artifacts.
@@ -591,10 +678,11 @@ filling and one-shot submission for the applicant.
   unconsumed Vietnam/Indonesia card session or protected Korea KVAC browser
   session. `scripts/fly/deploy-legacy.sh`, `scripts/fly/deploy-indonesia.sh`,
   and `scripts/fly/deploy-south-korea.sh` must fail closed unless this endpoint
-  returns HTTP 200 both before secret staging and immediately before a rolling
-  deploy. The Indonesia deploy retries this readiness check for a bounded three
-  minutes so an initial maintenance/claim tick does not cause a false failure;
-  exhausting the bound still refuses the rollout. Runtime secrets are staged
+  returns HTTP 200 before secret staging and again immediately before the
+  controlled cutover replacement. The Indonesia deploy retries this readiness
+  check for a bounded three minutes so an initial maintenance/claim tick does
+  not cause a false failure; exhausting the bound still refuses the rollout.
+  Runtime secrets are staged
   into that release so secret synchronization cannot independently restart the
   single memory-backed worker.
 - `src/idle-exit-controller.ts`, `src/work-availability.ts`, and
@@ -754,6 +842,16 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/README.md`
 - `viza-be/submission-service/.env.example`
 - `viza-be/submission-service/src/index.ts`
+- `viza-be/submission-service/src/result-writer.ts`
+- `viza-be/submission-service/src/__tests__/result-writer.spec.ts`
+- `viza-be/submission-service/src/queue/__tests__/pool-result-writes.spec.ts`
+- `viza-be/submission-service/src/queue/__tests__/pool-identity.spec.ts`
+- `viza-be/submission-service/src/queue/requeue-runner-job.ts` and
+  `src/queue/__tests__/requeue-jobs.spec.ts` own the strict
+  `requeue_runner_job` RPC adapter. It returns success only for an explicit
+  `true`; a false result is a concurrent conflict and must not be counted as
+  requeued.
+- `viza-be/submission-service/src/queue/__tests__/takeover.spec.ts`
 - `viza-be/submission-service/src/queue-scheduler.ts`
 - `viza-be/submission-service/src/submission-queue-claim.ts`
 - `viza-be/submission-service/src/__tests__/queue-pickup-order.spec.js`
@@ -765,6 +863,11 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/korea-vfs-shenyang/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`
+- `viza-be/submission-service/src/vietnam/email-status-matcher.ts`
+- `viza-be/submission-service/src/resilience-gate.ts`
+- `viza-be/submission-service/src/resilience-gate.spec.ts`
+- `viza-be/submission-service/src/vietnam/status-tracking.ts`
+- `viza-be/submission-service/src/vietnam/__tests__/status-check-lease.spec.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`
 - `viza-be/submission-service/src/france-tls/*`
 - `viza-be/submission-service/src/tw/*`

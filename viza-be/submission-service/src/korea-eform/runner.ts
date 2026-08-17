@@ -8,6 +8,7 @@ import {
   type KoreaOfficialEformFillOptions,
   type KoreaOfficialEformFillAuditItem,
 } from "./portal";
+import type { RunnerExecutionContext } from "../queue/execution-context.js";
 
 export const KOREA_VISA_PORTAL_EFORM_URL = "https://www.visa.go.kr/openPage.do?MENU_ID=10204";
 
@@ -53,6 +54,7 @@ export interface KoreaOfficialEformInput {
   officialPdfStoragePath?: string | null;
   finalReviewApproved?: boolean;
   pdfLanguage?: "zh-CN" | "en" | "ko" | null;
+  executionContext?: RunnerExecutionContext;
 }
 
 export type KoreaOfficialEformResult =
@@ -182,6 +184,7 @@ export function validateKoreaOfficialEformPayload(payload: KoreaOfficialEformPay
 }
 
 export async function runKoreaOfficialEform(input: KoreaOfficialEformInput): Promise<KoreaOfficialEformResult> {
+  input.executionContext?.assertOwned();
   if (input.officialPdfStoragePath?.trim()) {
     return {
       status: "official_eform_ready",

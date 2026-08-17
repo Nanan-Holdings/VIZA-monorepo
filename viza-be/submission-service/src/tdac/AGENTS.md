@@ -25,3 +25,4 @@ Scope: Thailand `TH_TDAC_ARRIVAL_CARD` official TDAC portal automation only.
   declaration: require `yellow_fever_vaccination_certificate` when the official
   prompt appears, and preserve a diagnostic screenshot when it is missing.
 - If the official portal blocks access, changes layout, disables submission, or cannot reach final confirmation, return a precise structured failure with artifacts. Do not fake a successful TDAC submission.
+- Shared-pool runs receive a `RunnerExecutionContext`; check ownership before each final Submit/Confirm action and close the browser session on abort. Ownership-loss/abort errors must escape without a local failed-result write.

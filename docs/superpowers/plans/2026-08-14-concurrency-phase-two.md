@@ -38,7 +38,7 @@ Files and responsibilities:
   Postgres enqueue commits; keep direct wake as fallback.
 - `viza-fe/internal-website/lib/queue/enqueue.test.ts`: Queue-primary and
   direct-wake fallback behavior.
-- `viza-be/agent-backend/drizzle/0139_concurrency_phase_two.sql`: canonical SQL
+- `viza-be/agent-backend/drizzle/0149_concurrency_phase_two.sql`: canonical SQL
   for sharded runner claims, indexes, and Vietnam email matching RPC.
 - `viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts`:
   SQL security, lock, index, and bounded-work regression tests.
@@ -452,7 +452,7 @@ git commit -m "feat(concurrency): queue runner wake delivery"
 ## Task 4: Replace the hot global claim lock with country-row locking
 
 **Files:**
-- Create: `viza-be/agent-backend/drizzle/0139_concurrency_phase_two.sql`
+- Create: `viza-be/agent-backend/drizzle/0149_concurrency_phase_two.sql`
 - Create: `viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts`
 - Create via Supabase CLI: migration named `concurrency_phase_two` under `viza-fe/internal-website/supabase/migrations/`
 - Modify: `viza-be/agent-backend/drizzle/AGENTS.md`
@@ -483,7 +483,7 @@ cd viza-be/agent-backend
 npx vitest run src/tests/concurrency-phase-two-migration.test.ts
 ```
 
-Expected: failure because `0139_concurrency_phase_two.sql` does not exist.
+Expected: failure because `0149_concurrency_phase_two.sql` does not exist.
 
 - [ ] **Step 3: Implement the canonical SQL migration**
 
@@ -525,7 +525,7 @@ RETURNING claimed.id, claimed.application_id, claimed.country,
 
 Before selection, verify the live machine slot when `p_require_slot` is true.
 Recover at most one expired row with a separate materialized CTE. Keep exact
-function signature and service-role grants for rolling deployment. The partial
+function signature and service-role grants for the controlled cutover. The partial
 queued index predicate must match `status = 'queued'`.
 
 - [ ] **Step 4: Generate the Supabase migration with the CLI and mirror SQL**
@@ -538,7 +538,7 @@ npx supabase migration new --help
 npx supabase migration new concurrency_phase_two
 $supabaseMigration = Get-ChildItem -LiteralPath 'supabase/migrations' -Filter '*_concurrency_phase_two.sql' | Sort-Object LastWriteTimeUtc | Select-Object -Last 1
 if (-not $supabaseMigration) { throw 'Supabase migration was not generated' }
-Copy-Item -LiteralPath '..\..\viza-be\agent-backend\drizzle\0139_concurrency_phase_two.sql' -Destination $supabaseMigration.FullName -Force
+Copy-Item -LiteralPath '..\..\viza-be\agent-backend\drizzle\0149_concurrency_phase_two.sql' -Destination $supabaseMigration.FullName -Force
 ```
 
 Add a parity assertion to the migration test: locate the single
@@ -559,14 +559,14 @@ Expected: SQL contract/parity tests pass; Drizzle schema is valid.
 - [ ] **Step 6: Commit Task 4**
 
 ```powershell
-git add -- viza-be/agent-backend/drizzle/0139_concurrency_phase_two.sql viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts viza-be/agent-backend/drizzle/AGENTS.md viza-fe/internal-website/supabase/migrations/*_concurrency_phase_two.sql
+git add -- viza-be/agent-backend/drizzle/0149_concurrency_phase_two.sql viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts viza-be/agent-backend/drizzle/AGENTS.md viza-fe/internal-website/supabase/migrations/*_concurrency_phase_two.sql
 git commit -m "perf(database): shard runner job claims by country"
 ```
 
 ## Task 5: Move Vietnam status-email matching into one bounded RPC
 
 **Files:**
-- Modify: `viza-be/agent-backend/drizzle/0139_concurrency_phase_two.sql`
+- Modify: `viza-be/agent-backend/drizzle/0149_concurrency_phase_two.sql`
 - Modify: the CLI-generated `viza-fe/internal-website/supabase/migrations/*_concurrency_phase_two.sql`
 - Modify: `viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts`
 - Create: `viza-be/submission-service/src/vietnam/email-status-matcher.ts`
@@ -697,7 +697,7 @@ and build pass.
 - [ ] **Step 7: Commit Task 5**
 
 ```powershell
-git add -- viza-be/agent-backend/drizzle/0139_concurrency_phase_two.sql viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts viza-fe/internal-website/supabase/migrations/*_concurrency_phase_two.sql viza-be/submission-service/src/vietnam/email-status-matcher.ts viza-be/submission-service/src/vietnam/__tests__/email-status-matcher.spec.ts viza-be/submission-service/src/vietnam/status-tracking.ts viza-be/submission-service/AGENTS.md
+git add -- viza-be/agent-backend/drizzle/0149_concurrency_phase_two.sql viza-be/agent-backend/src/tests/concurrency-phase-two-migration.test.ts viza-fe/internal-website/supabase/migrations/*_concurrency_phase_two.sql viza-be/submission-service/src/vietnam/email-status-matcher.ts viza-be/submission-service/src/vietnam/__tests__/email-status-matcher.spec.ts viza-be/submission-service/src/vietnam/status-tracking.ts viza-be/submission-service/AGENTS.md
 git commit -m "perf(vietnam): batch official status email matching"
 ```
 
@@ -1092,35 +1092,31 @@ p95 claim latency<500ms
 synthetic rows remaining=0
 ```
 
-- [ ] **Step 4: Deploy Phase A with flags disabled**
+- [ ] **Step 4: Pause enqueue/wakes and drain the BASE worker**
 
-Deploy the Worker contract first, then Vercel, then Fly submission images. Keep
-`RESILIENCE_RUNNER_WAKE_ENABLED=false` and
-`RESILIENCE_VN_STATUS_GATE_ENABLED=false`. Confirm Worker health, Queue
-producer/consumer bindings, Vercel replay 401 on unsigned input, and Fly images
-at the intended SHA with machines returned to scale-to-zero.
+Pause frontend enqueue and all worker wake publication. Drain existing work
+until `runner_job.status = 'running'` is zero, then stop the BASE/legacy
+submission worker.
 
-- [ ] **Step 5: Enable Phase A canary and observe**
+- [ ] **Step 5: Apply the strict phase-two migration**
 
-Set `RESILIENCE_RUNNER_WAKE_ENABLED=true` only for the approved canary
-environment or percentage. Enqueue synthetic non-billable work and measure 100
-duplicate Queue deliveries. Expected effective Fly wakes: 1. Confirm direct
-wake fallback by temporarily pointing the canary gateway to an unreachable
-preview URL, not by disrupting production.
+Apply the strict phase-two migration and verify the exact function signatures,
+indexes, and service-role grants. Do not add a fallback wrapper or a
+caller-controlled timestamp override.
 
-- [ ] **Step 6: Enable Phase B only after its matrix passes**
+- [ ] **Step 6: Deploy RPC callers and run smoke checks**
 
-Apply the production migration during a low-traffic window. Verify the function
-definition and indexes, deploy workers, and observe claim p95, false-empty
-claims, country saturation, and database error rates. Roll back to the prior
-`pg_try_advisory_xact_lock` function if any release rule fails.
+Deploy the frontend enqueue/cancellation/takeover callers and the submission
+worker against the strict migration. Run queue claim, cancellation, takeover,
+Queue wake, and Vietnam status smoke tests at the intended SHA. Keep all
+machines at scale-to-zero when no work is queued.
 
-- [ ] **Step 7: Enable Phase C only after matching parity passes**
+- [ ] **Step 7: Resume only after the cutover gate passes**
 
-Compare old fixture outputs and new RPC counts exactly. Then enable SQL email
-matching. Enable the Vietnam Gate separately at capacity 1. Verify acquisition,
-renewal, release, stale-fence refusal, and zero leaked leases before considering
-a higher measured capacity.
+Verify no stale worker remains, no false/zero-row settlement was reported, and
+all smoke checks passed. Resume enqueue and wake publication, then observe the
+claim/capacity/error metrics. If any gate fails, keep enqueue paused and record
+the failure as blocked; do not restore an older caller.
 
 - [ ] **Step 8: Write the expected-versus-measured results report**
 

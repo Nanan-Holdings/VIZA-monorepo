@@ -15,6 +15,7 @@ import {
   vietnamPaymentNeedsHuman,
   verifyVietnamOfficialFeeText,
 } from "../fixed-card-payment";
+import { RunnerJobOwnershipLostError, type RunnerExecutionContext } from "../../queue/execution-context.js";
 
 test("vn.fixed-card-payment: trip expense credit-card text is not payment-page evidence", () => {
   assert.equal(
@@ -1520,6 +1521,53 @@ test("vn.fixed-card-payment: does not report a submission when VNPAY remains on 
 
     assert.equal(result.status, "needs_human");
     assert.match(result.reason ?? "", /no bank authentication was initiated/i);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.fixed-card-payment: ownership loss blocks the first Payment action", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <h1>Payment information</h1>
+        <input type="checkbox" id="terms" />
+        <button type="button" id="payment" onclick="window.paymentClicked = true">Payment</button>
+      </main>
+    `);
+    const ownershipLost = new RunnerJobOwnershipLostError("lease lost before payment");
+    const execution: RunnerExecutionContext = {
+      jobId: "job-vietnam-payment-test",
+      workerId: "worker-vietnam-payment-test",
+      signal: new AbortController().signal,
+      assertOwned: () => {
+        throw ownershipLost;
+      },
+      checkpoint: () => {
+        throw ownershipLost;
+      },
+    };
+    const paymentInput = {
+      page,
+      card: parseVietnamFixedCardInput({
+        pan: "4111111111111111",
+        expiry: "01/31",
+        cvv: "123",
+        holderName: "Synthetic Applicant",
+      }),
+      executionContext: execution,
+    };
+
+    await assert.rejects(
+      () => payVietnamPortalWithFixedCard(paymentInput as never),
+      (error: unknown) => error === ownershipLost,
+    );
+    assert.equal(
+      await page.evaluate(() => Boolean((window as typeof window & { paymentClicked?: boolean }).paymentClicked)),
+      false,
+    );
   } finally {
     await browser.close();
   }

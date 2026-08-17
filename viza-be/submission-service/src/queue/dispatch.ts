@@ -12,7 +12,7 @@
  * (`blocked`, `anti_bot_gate`) throw `RetryableRunnerError`; applicant-blocking
  * conditions throw `NeedsHumanError`.
  */
-import { runOne as runVietnam } from "../vietnam/runner.js";
+import { runLegacy as runVietnamLegacy, runOne as runVietnam } from "../vietnam/runner.js";
 import { runIndia, runSriLanka, runCambodia, runLaos, runSouthAfrica } from "../runners/legacy-prefill-adapters.js";
 import { runOne as runUs } from "../ceac/runner.js";
 import { runOne as runUk } from "../uk/runner.js";
@@ -33,6 +33,7 @@ import { runOne as runTaiwan } from "../tw/runner.js";
 import { runArrivalCardPoolFlow } from "./arrival-card-runners.js";
 import { runKoreaEformBackground } from "./korea-eform-runner.js";
 import { runOne as runPhilippines } from "../ph-etravel/runner-job.js";
+import { requirePoolExecutionIdentity } from "./execution-context.js";
 
 // Types + error classes live in the leaf module ./types.js to avoid an
 // import cycle (runners import these; dispatch imports runners). Re-exported
@@ -110,12 +111,12 @@ export const DISPATCH: Record<string, RunOne> = {
   united_arab_emirates: (a, j) => runUae(a, j),
   // RUN-CA-001: dedicated Canada runner (shared core).
   canada: (a, j) => runCanada(a, j),
-  india: runIndia,
-  sri_lanka: runSriLanka,
-  cambodia: runCambodia,
-  laos: runLaos,
-  south_africa: runSouthAfrica,
-  vietnam: (a, j) => runVietnam(a, j),
+  india: (a, j) => runIndia(a, j),
+  sri_lanka: (a, j) => runSriLanka(a, j),
+  cambodia: (a, j) => runCambodia(a, j),
+  laos: (a, j) => runLaos(a, j),
+  south_africa: (a, j) => runSouthAfrica(a, j),
+  vietnam: (a, j) => runVietnamLegacy(a, j),
   // QUE-005: halt-before-gov-pay countries, wired to their orchestrators.
   united_states: (a, j) => runUs(a, j),
   united_kingdom: (a, j) => runUk(a, j),
@@ -129,7 +130,7 @@ export const DISPATCH: Record<string, RunOne> = {
   // single continuous session, solves email/final CAPTCHA through shared
   // providers, clicks official "確認資料", then requires official receipt
   // evidence before reporting submitted. No payment occurs in this session.
-  taiwan: (a, j) => runTaiwan(a, j),
+  taiwan: (a, j, execution) => runTaiwan(a, j, execution),
   // PH eTravel ordinary arrival: canonical runner_job is deliberately
   // preflight/recovery-first and always keeps official final Submit disabled.
   philippines: (a, j) => runPhilippines(a, j),
@@ -144,19 +145,84 @@ export const POOL_FLOW_COUNTRIES = {
   mdac: "malaysia",
   tdac: "thailand",
   kr_eform: "south_korea",
+  tw_entry_permit: "taiwan",
 } as const;
 
-const POOL_FLOW_DISPATCH: Record<string, RunOne> = {
-  vn_evisa: (applicationId, jobId) => runVietnam(applicationId, jobId),
-  vn_prearrival: (applicationId, jobId) =>
-    runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "vn_prearrival"),
-  sgac: (applicationId, jobId) => runSingapore(applicationId, jobId),
-  mdac: (applicationId, jobId) =>
-    runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "mdac"),
-  tdac: (applicationId, jobId) =>
-    runArrivalCardPoolFlow(applicationId, jobId ?? applicationId, "tdac"),
-  kr_eform: (applicationId) => runKoreaEformBackground(applicationId),
-};
+export interface PoolFlowDispatchDependencies {
+  runVietnam: RunOne;
+  runSingapore: RunOne;
+  runTaiwan: RunOne;
+  runArrivalCardPoolFlow: typeof runArrivalCardPoolFlow;
+  runKoreaEformBackground: typeof runKoreaEformBackground;
+}
+
+/**
+ * Build the shared-pool wrappers with injectable leaf runners. Besides
+ * keeping the production table explicit, this gives the queue contract tests
+ * a real execution path to prove that the ownership context reaches every
+ * pool flow without launching a browser or touching Supabase.
+ */
+export function createPoolFlowDispatch(
+  dependencies: PoolFlowDispatchDependencies = {
+    runVietnam,
+    runSingapore,
+    runTaiwan,
+    runArrivalCardPoolFlow,
+    runKoreaEformBackground,
+  },
+): Record<string, RunOne> {
+  return {
+    vn_evisa: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "vn_evisa pool dispatch");
+      return dependencies.runVietnam(applicationId, identity.jobId, identity.executionContext);
+    },
+    vn_prearrival: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "vn_prearrival pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        identity.jobId,
+        "vn_prearrival",
+        identity.executionContext,
+      );
+    },
+    sgac: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "sgac pool dispatch");
+      return dependencies.runSingapore(applicationId, identity.jobId, identity.executionContext);
+    },
+    mdac: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "mdac pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        identity.jobId,
+        "mdac",
+        identity.executionContext,
+      );
+    },
+    tdac: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "tdac pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        identity.jobId,
+        "tdac",
+        identity.executionContext,
+      );
+    },
+    kr_eform: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "kr_eform pool dispatch");
+      return dependencies.runKoreaEformBackground(
+        applicationId,
+        identity.jobId,
+        identity.executionContext,
+      );
+    },
+    tw_entry_permit: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "tw_entry_permit pool dispatch");
+      return dependencies.runTaiwan(applicationId, identity.jobId, identity.executionContext);
+    },
+  };
+}
+
+export const POOL_FLOW_DISPATCH: Record<string, RunOne> = createPoolFlowDispatch();
 
 /**
  * Static routing metadata for tests/observability — which runner backs each

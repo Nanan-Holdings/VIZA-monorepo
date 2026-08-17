@@ -28,7 +28,7 @@ describe("Taiwan runner compliance boundary", () => {
     assert.match(captchaSource, /solveAndFillTwCaptchaOnce/);
     assert.match(captchaSource, /clickTwFinalSubmit/);
     assert.match(applySource, /prepareSubmit:\s*\(\)\s*=>\s*solveTwCaptchaForSubmitWithRetry\(page\)/);
-    assert.match(applySource, /submit:\s*\(\)\s*=>\s*solveTwCaptchaAndSubmitWithRetry\(page\)/);
+    assert.match(applySource, /beforeFinalSubmit:\s*\(\)\s*=>\s*options\.executionContext\?\.checkpoint\("taiwan final official submit"\)/);
     assert.equal(runtimeSource.includes("../captcha/two-captcha"), false);
     assert.match(haltRunnerSource, /text:\s*"\[redacted\]"/);
   });
@@ -62,7 +62,7 @@ describe("Taiwan runner compliance boundary", () => {
     assert.match(taiwanRegistryBlock, /routeStatus:\s*"runner_job_dispatched"/);
     assert.match(taiwanRegistryBlock, /fail-closed official receipt capture/);
     assert.doesNotMatch(taiwanRegistryBlock, /halting at the CAPTCHA/i);
-    assert.match(dispatchSource, /taiwan:\s*\(a,\s*j\)\s*=>\s*runTaiwan\(a,\s*j\)/);
+    assert.match(dispatchSource, /taiwan:\s*\(a,\s*j,\s*execution\)\s*=>\s*runTaiwan\(a,\s*j,\s*execution\)/);
     assert.match(dispatchSource, /official receipt/);
     assert.match(runnerSource, /fillTwEntryPermitApplication/);
     assert.doesNotMatch(runnerSource, /stopped_at_captcha.*halted_before_pay/);
@@ -137,7 +137,7 @@ describe("Taiwan runner compliance boundary", () => {
         applySource.indexOf("otpProvider.waitForEmailOtp"),
     );
     assert.ok(
-      applySource.indexOf("solveTwCaptchaAndSubmitWithRetry(page)") >
+      applySource.indexOf("solveTwCaptchaAndSubmitWithRetry(page, {") >
         applySource.indexOf("runTwRepairSubmissionLoop"),
     );
     assert.ok(
@@ -168,7 +168,8 @@ describe("Taiwan runner compliance boundary", () => {
       readTwSource("prepare-guard.ts"),
     ]);
 
-    assert.match(haltRunnerSource, /prepareTwEntryPermitApplication\(applicationId, \{ currentJobId: jobId \}\)/);
+    assert.match(haltRunnerSource, /requirePoolExecutionIdentity\(execution, jobId, "taiwan runner"\)/);
+    assert.match(haltRunnerSource, /prepareTwEntryPermitApplication\(applicationId, \{ currentJobId: identity\.jobId \}\)/);
     assert.match(haltRunnerSource, /\.eq\("application_id", applicationId\)/);
     assert.match(haltRunnerSource, /\.eq\("country", "taiwan"\)/);
     assert.match(haltRunnerSource, /TW_ACTIVE_RUNNER_JOB_STATUSES/);
@@ -179,15 +180,17 @@ describe("Taiwan runner compliance boundary", () => {
   });
 
   it("requires both audited VIZA terms authorizations before canonical final submit", async () => {
-    const [haltRunnerSource, consentSource, termsSource] = await Promise.all([
+    const [haltRunnerSource, consentSource, termsSource, applySource] = await Promise.all([
       readFile(join(SRC_DIR, "queue", "halt-runners.ts"), "utf8"),
       readTwSource("official-terms-consent.ts"),
       readTwSource("terms-modal.ts"),
+      readTwSource("apply.ts"),
     ]);
 
-    assert.match(haltRunnerSource, /loadTwOfficialTermsConsent\(jobId, applicationId\)/);
+    assert.match(haltRunnerSource, /loadTwOfficialTermsConsent\(identity\.jobId, applicationId\)/);
     assert.match(haltRunnerSource, /mode:\s*"submit"/);
     assert.match(haltRunnerSource, /officialTermsConsent/);
+    assert.match(applySource, /if \(err instanceof RunnerJobOwnershipLostError\) throw err/);
     assert.match(consentSource, /entryPromptAccepted !== true/);
     assert.match(consentSource, /termsModalAccepted !== true/);
     assert.match(consentSource, /viza_final_confirmation/);

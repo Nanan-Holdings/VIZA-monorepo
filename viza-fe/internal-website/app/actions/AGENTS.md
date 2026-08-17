@@ -45,6 +45,12 @@ application lifecycle state.
   ticket submission, admin P2 support inbox reads/replies, and the temporary
   Storage fallback used when a Supabase project has not applied
   `support_ticket` migrations yet.
+- `takeover.ts`: admin 2FA-gated operator takeover listing, claims, and
+  bounded answer capture. Claims use `claim_takeover_session`; completion and
+  abandonment settle the session and runner job only through the guarded
+  `settle_runner_job_takeover` RPC. The completion RPC receives the answer map
+  so answer upserts and settlement remain atomic; focused race/conflict
+  coverage lives in `takeover.test.ts`.
 
 ## Ownership Boundaries
 

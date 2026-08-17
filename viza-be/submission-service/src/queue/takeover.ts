@@ -1,5 +1,6 @@
 import { supabase } from "../supabase.js";
 import { sendAlert } from "../alerts/dispatch.js";
+import { RunnerJobOwnershipLostError } from "./execution-context.js";
 
 /**
  * Request operator takeover (CS-003).
@@ -16,6 +17,7 @@ import { sendAlert } from "../alerts/dispatch.js";
 
 export interface RequestTakeoverInput {
   jobId: string;
+  workerId: string;
   applicationId: string;
   applicantId: string;
   reason: string;
@@ -26,39 +28,29 @@ export interface RequestTakeoverInput {
 export async function requestHumanTakeover(
   input: RequestTakeoverInput,
 ): Promise<{ takeoverId: string }> {
-  const { error: jobErr } = await supabase
-    .from("runner_job")
-    .update({
-      status: "needs_human",
-      last_error: input.reason,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.jobId);
-  if (jobErr) throw new Error(`runner_job update: ${jobErr.message}`);
-
-  const { data, error } = await supabase
-    .from("takeover_session")
-    .insert({
-      job_id: input.jobId,
-      application_id: input.applicationId,
-      applicant_id: input.applicantId,
-      status: "queued",
-      reason: input.reason,
-      remote_debug_url: input.remoteDebugUrl,
-      vnc_url: input.vncUrl ?? null,
-    })
-    .select("id")
-    .single();
-  if (error || !data) {
-    throw new Error(`takeover_session insert: ${error?.message}`);
-  }
-  const takeoverId = data.id as string;
-
-  await supabase.from("takeover_action_log").insert({
-    takeover_id: takeoverId,
-    action: "open",
-    detail: { reason: input.reason, jobId: input.jobId },
+  const { data, error } = await supabase.rpc("open_runner_job_takeover", {
+    p_job_id: input.jobId,
+    p_worker_id: input.workerId,
+    p_application_id: input.applicationId,
+    p_applicant_id: input.applicantId,
+    p_reason: input.reason,
+    p_remote_debug_url: input.remoteDebugUrl,
+    p_vnc_url: input.vncUrl ?? null,
   });
+  if (error) throw new Error(`open_runner_job_takeover: ${error.message}`);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const takeoverId =
+    typeof row === "object"
+      && row !== null
+      && typeof (row as { takeover_id?: unknown }).takeover_id === "string"
+      ? (row as { takeover_id: string }).takeover_id
+      : null;
+  if (!takeoverId) {
+    throw new RunnerJobOwnershipLostError(
+      "runner job ownership was lost before opening a human takeover",
+    );
+  }
 
   void sendAlert({
     severity: "error",

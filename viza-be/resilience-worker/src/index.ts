@@ -33,10 +33,22 @@ type OutboxItem = {
 
 export type WorkloadType = "critical_notification" | "document_processing" | "status_sync" | "background";
 
-type QueueEnvelope = {
-  version: 1;
+export type AllowedQueueEventType =
+  | "runner_job.wakeup.v1"
+  | "vietnam_status_sync.v1"
+  | "critical_notification.v1"
+  | "document_processing.v1";
+
+export type QueueEnvelope = {
+  version: 2;
   idempotencyKey: string;
   workloadType: WorkloadType;
+  eventType: AllowedQueueEventType;
+};
+
+type QueueOutboxItem = Omit<OutboxItem, "eventType"> & {
+  workloadType: WorkloadType;
+  eventType: AllowedQueueEventType;
 };
 
 type ConcurrencyGateKey = {
@@ -65,6 +77,7 @@ type ClaimedItem = OutboxItem & {
 const DO_NAME = "global";
 const MAX_TTL_SECONDS = 30 * 24 * 60 * 60;
 const MAX_RETRY_AFTER_SECONDS = 24 * 60 * 60;
+const MAX_QUEUE_RETRY_DELAY_SECONDS = 300;
 const MAX_OUTBOX_ATTEMPTS = 20;
 const DEFAULT_MAX_BODY_BYTES = 524_288;
 const DEFAULT_CONFIRMATIONS = 3;
@@ -80,6 +93,7 @@ const DEFAULT_REPLAY_TIMEOUT_MS = 8_000;
 const DEFAULT_AUTH_WINDOW_SECONDS = 300;
 const MAX_QUEUE_OPAQUE_BYTES = 96_000;
 const DEFAULT_QUEUE_LEASE_SECONDS = 120;
+const SEMANTIC_DEFERRAL_ERROR_CODES = new Set(["runner_pool_not_ready", "job_not_due"] as const);
 const MIN_GATE_LEASE_SECONDS = 1;
 const MAX_GATE_LEASE_SECONDS = 60 * 60;
 const MAX_GATE_CAPACITY = 1_000;
@@ -134,6 +148,8 @@ function optionalBoundedString(value: unknown, name: string, max = 256): string 
 }
 
 class InputError extends Error {}
+
+class LegacyQueueEnvelopeError extends InputError {}
 
 async function readBody(request: Request, maxBytes: number): Promise<{ bytes: Uint8Array; text: string }> {
   const length = request.headers.get("content-length");
@@ -224,6 +240,25 @@ function workloadType(value: unknown): WorkloadType {
   throw new InputError("workloadType is invalid");
 }
 
+function isSemanticDeferralCode(value: unknown): value is "runner_pool_not_ready" | "job_not_due" {
+  return typeof value === "string" && SEMANTIC_DEFERRAL_ERROR_CODES.has(value as "runner_pool_not_ready" | "job_not_due");
+}
+
+function boundedRetryAfterSeconds(value: unknown, fallback = 60, max = MAX_RETRY_AFTER_SECONDS): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || !Number.isInteger(value)) return fallback;
+  return Math.min(max, Math.max(1, value));
+}
+
+function queueEventType(value: unknown): AllowedQueueEventType {
+  if (
+    value === "runner_job.wakeup.v1" ||
+    value === "vietnam_status_sync.v1" ||
+    value === "critical_notification.v1" ||
+    value === "document_processing.v1"
+  ) return value;
+  throw new InputError("eventType is invalid");
+}
+
 function queueForWorkload(env: RuntimeEnv, workload: WorkloadType): Queue<QueueEnvelope> {
   if (workload === "critical_notification") return env.CRITICAL_NOTIFICATIONS_QUEUE;
   if (workload === "document_processing" || workload === "status_sync") return env.DOCUMENT_STATUS_QUEUE;
@@ -233,11 +268,13 @@ function queueForWorkload(env: RuntimeEnv, workload: WorkloadType): Queue<QueueE
 function queueEnvelope(value: unknown): QueueEnvelope {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new InputError("queue message is invalid");
   const candidate = value as Record<string, unknown>;
-  if (candidate.version !== 1) throw new InputError("queue message version is invalid");
+  if (candidate.version === 1) throw new LegacyQueueEnvelopeError("legacy queue message version 1 is not supported");
+  if (candidate.version !== 2) throw new InputError("queue message version is invalid");
   return {
-    version: 1,
+    version: 2,
     idempotencyKey: boundedString(candidate.idempotencyKey, "idempotencyKey"),
     workloadType: workloadType(candidate.workloadType),
+    eventType: queueEventType(candidate.eventType),
   };
 }
 
@@ -299,12 +336,14 @@ function outboxItem(body: Record<string, unknown>): OutboxItem {
   return item;
 }
 
-function queueOutboxItem(body: Record<string, unknown>): OutboxItem & { eventType: WorkloadType } {
-  const item = outboxItem({ ...body, eventType: workloadType(body.workloadType) });
+function queueOutboxItem(body: Record<string, unknown>): QueueOutboxItem {
+  const workload = workloadType(body.workloadType);
+  const eventType = queueEventType(body.eventType);
+  const item = outboxItem({ ...body, eventType });
   if (new TextEncoder().encode(item.blob).byteLength > MAX_QUEUE_OPAQUE_BYTES) {
     throw new InputError("blob exceeds queue workload limit");
   }
-  return item as OutboxItem & { eventType: WorkloadType };
+  return { ...item, workloadType: workload, eventType };
 }
 
 async function doCall(stub: DurableObjectStub<ResilienceState>, command: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -541,7 +580,7 @@ async function replayOutbox(env: RuntimeEnv): Promise<void> {
     const base = { idempotencyKey: item.idempotencyKey, leaseId };
     const outcome = item.outcome ?? item.status;
     if (outcome === "ack") ack.push(base);
-    else if (outcome === "nack") nack.push({ ...base, ...(typeof item.errorCode === "string" ? { errorCode: item.errorCode } : {}), ...(typeof item.retryAfterSeconds === "number" ? { retryAfterSeconds: item.retryAfterSeconds } : {}) });
+    else if (outcome === "nack") nack.push({ ...base, ...(typeof item.errorCode === "string" ? { errorCode: item.errorCode } : {}), ...(typeof item.retryAfterSeconds === "number" && Number.isFinite(item.retryAfterSeconds) && Number.isInteger(item.retryAfterSeconds) ? { retryAfterSeconds: item.retryAfterSeconds } : {}) });
   }
   if (ack.length) await doCall(state, { op: "ackOutbox", items: ack });
   if (nack.length) await doCall(state, { op: "nackOutbox", items: nack, now: Date.now() });
@@ -571,13 +610,15 @@ function parseReplayResults(responsePayload: unknown, items: Record<string, unkn
     else if (outcome === "nack") nack.push({
       ...base,
       ...(typeof item.errorCode === "string" ? { errorCode: item.errorCode } : {}),
-      ...(typeof item.retryAfterSeconds === "number" ? { retryAfterSeconds: item.retryAfterSeconds } : {}),
+      ...(typeof item.retryAfterSeconds === "number" && Number.isFinite(item.retryAfterSeconds) && Number.isInteger(item.retryAfterSeconds) ? { retryAfterSeconds: item.retryAfterSeconds } : {}),
     });
   }
   return { ack, nack };
 }
 
-async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promise<"ack" | "retry"> {
+type QueueReplayOutcome = { outcome: "ack" } | { outcome: "retry"; delaySeconds?: number };
+
+async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promise<QueueReplayOutcome> {
   const state = stateStub(env);
   const claim = await doCall(state, {
     op: "claimOutboxByKey",
@@ -585,27 +626,27 @@ async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promis
     now: Date.now(),
     leaseMs: numberVar(env.WATCHDOG_REPLAY_LEASE_SECONDS, DEFAULT_QUEUE_LEASE_SECONDS, 15, 900) * 1_000,
   });
-  if (claim.outcome === "already_acked" || claim.outcome === "dead" || claim.outcome === "missing") return "ack";
-  if (claim.outcome !== "claimed" || !claim.item || typeof claim.item !== "object" || Array.isArray(claim.item)) return "retry";
+  if (claim.outcome === "already_acked" || claim.outcome === "dead" || claim.outcome === "missing") return { outcome: "ack" };
+  if (claim.outcome !== "claimed" || !claim.item || typeof claim.item !== "object" || Array.isArray(claim.item)) return { outcome: "retry" };
 
   const item = claim.item as Record<string, unknown>;
-  if (item.eventType !== envelope.workloadType) {
+  if (item.eventType !== envelope.eventType) {
     await doCall(state, {
       op: "nackOutbox",
-      items: [{ idempotencyKey: envelope.idempotencyKey, leaseId: item.leaseId, errorCode: "queue_workload_mismatch", retryAfterSeconds: 60 }],
+      items: [{ idempotencyKey: envelope.idempotencyKey, leaseId: item.leaseId, errorCode: "queue_event_mismatch", retryAfterSeconds: 60 }],
       now: Date.now(),
     });
-    return "retry";
+    return { outcome: "retry" };
   }
   const replayUrl = env.VIZA_RESILIENCE_REPLAY_URL.trim();
-  if (!replayUrl || !env.VIZA_RESILIENCE_HMAC_SECRET?.trim()) return "retry";
+  if (!replayUrl || !env.VIZA_RESILIENCE_HMAC_SECRET?.trim()) return { outcome: "retry" };
   let url: URL;
   try {
     url = new URL(replayUrl);
   } catch {
-    return "retry";
+    return { outcome: "retry" };
   }
-  if (url.protocol !== "https:") return "retry";
+  if (url.protocol !== "https:") return { outcome: "retry" };
   const body = JSON.stringify({ items: [item] });
   const timestamp = String(Math.floor(Date.now() / 1_000));
   const nonce = crypto.randomUUID();
@@ -637,7 +678,7 @@ async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promis
   const { ack, nack } = parseReplayResults(responsePayload, [item]);
   if (ack.length) {
     await doCall(state, { op: "ackOutbox", items: ack, now: Date.now() });
-    return "ack";
+    return { outcome: "ack" };
   }
   const retry = nack.length ? nack : [{
     idempotencyKey: envelope.idempotencyKey,
@@ -646,7 +687,10 @@ async function replayQueueItem(env: RuntimeEnv, envelope: QueueEnvelope): Promis
     retryAfterSeconds: 60,
   }];
   await doCall(state, { op: "nackOutbox", items: retry, now: Date.now() });
-  return "retry";
+  const deferral = retry[0];
+  return isSemanticDeferralCode(deferral.errorCode)
+    ? { outcome: "retry", delaySeconds: boundedRetryAfterSeconds(deferral.retryAfterSeconds, 60, MAX_QUEUE_RETRY_DELAY_SECONDS) }
+    : { outcome: "retry" };
 }
 
 async function consumeQueue(batch: MessageBatch<unknown>, env: RuntimeEnv): Promise<void> {
@@ -659,17 +703,28 @@ async function consumeQueue(batch: MessageBatch<unknown>, env: RuntimeEnv): Prom
         continue;
       }
       const outcome = await replayQueueItem(env, envelope);
-      if (outcome === "ack") message.ack();
-      else message.retry({ delaySeconds: 60 });
+      if (outcome.outcome === "ack") message.ack();
+      else message.retry({ delaySeconds: outcome.delaySeconds ?? 60 });
     } catch (error) {
       // Invalid envelopes are poison messages and should not consume retries;
       // transient state/replay failures remain eligible for Queue redelivery.
       if (error instanceof InputError) message.ack();
       else message.retry({ delaySeconds: 60 });
-      log(error instanceof InputError ? "warn" : "error", "queue_message_failed", {
-        queue: batch.queue,
-        reason: error instanceof InputError ? "invalid_envelope" : "transient_failure",
-      });
+      if (error instanceof LegacyQueueEnvelopeError) {
+        // v1 has no independent eventType and cannot be translated safely.
+        // Acknowledge it to avoid a retry hot-loop, while the explicit signal
+        // makes any violated pre-deploy drain guard an observable blocker.
+        log("error", "queue_legacy_v1_rejected", {
+          queue: batch.queue,
+          reason: "v1_not_translatable",
+          action: "ack",
+        });
+      } else {
+        log(error instanceof InputError ? "warn" : "error", "queue_message_failed", {
+          queue: batch.queue,
+          reason: error instanceof InputError ? "invalid_envelope" : "transient_failure",
+        });
+      }
     }
   }
 }
@@ -729,9 +784,14 @@ async function handleRequest(request: Request, env: RuntimeEnv): Promise<Respons
     if (url.pathname === "/v1/queue/enqueue") {
       const command = queueOutboxItem(parsed);
       const result = await doCall(state, { op: "enqueueOutbox", ...command, now: Date.now() });
-      const envelope: QueueEnvelope = { version: 1, idempotencyKey: command.idempotencyKey, workloadType: command.eventType };
+      const envelope: QueueEnvelope = {
+        version: 2,
+        idempotencyKey: command.idempotencyKey,
+        workloadType: command.workloadType,
+        eventType: command.eventType,
+      };
       try {
-        await queueForWorkload(env, command.eventType).send(envelope, {
+        await queueForWorkload(env, command.workloadType).send(envelope, {
           contentType: "json",
           ...(command.availableAt && command.availableAt > Date.now()
             ? { delaySeconds: Math.min(MAX_RETRY_AFTER_SECONDS, Math.ceil((command.availableAt - Date.now()) / 1_000)) }
@@ -740,10 +800,17 @@ async function handleRequest(request: Request, env: RuntimeEnv): Promise<Respons
       } catch {
         // The durable outbox is already persisted. Returning 503 invites a
         // producer retry, while the scheduled replay remains a recovery path.
-        log("error", "queue_publish_failed", { workloadType: command.eventType });
+        log("error", "queue_publish_failed", { workloadType: command.workloadType });
         return json({ ok: false, error: "queue_publish_failed", persisted: true, ...result }, 503);
       }
-      return json({ ok: true, queued: true, queue: WORKLOAD_QUEUE_NAMES[command.eventType], ...result });
+      return json({
+        ok: true,
+        queued: true,
+        queue: WORKLOAD_QUEUE_NAMES[command.workloadType],
+        workloadType: command.workloadType,
+        eventType: command.eventType,
+        ...result,
+      });
     }
     if (url.pathname === "/v1/outbox/claim") {
       const result = await doCall(state, { op: "claimOutbox", now: Date.now(), limit: numberVar(String(parsed.limit ?? ""), DEFAULT_REPLAY_BATCH_SIZE, 1, 100), leaseMs: numberVar(String(parsed.leaseSeconds ?? ""), DEFAULT_REPLAY_LEASE_SECONDS, 15, 900) * 1000 });
@@ -984,6 +1051,7 @@ export class ResilienceState extends DurableObject<RuntimeEnv> {
   private nackOutbox(command: Record<string, unknown>): Response {
     const rawItems = Array.isArray(command.items) ? command.items : [];
     let retried = 0;
+    let deferred = 0;
     let dead = 0;
     const now = Number(command.now ?? Date.now());
     for (const value of rawItems) {
@@ -992,19 +1060,34 @@ export class ResilienceState extends DurableObject<RuntimeEnv> {
       const key = optionalBoundedString(item.idempotencyKey, "idempotencyKey");
       if (!key) continue;
       const leaseId = optionalBoundedString(item.leaseId, "leaseId");
-      const retryAfter = Math.min(numberVar(String(item.retryAfterSeconds ?? ""), 60, 1, MAX_RETRY_AFTER_SECONDS), MAX_RETRY_AFTER_SECONDS);
       const errorCode = optionalBoundedString(item.errorCode, "errorCode", 128) ?? "replay_failed";
+      const retryAfter = isSemanticDeferralCode(errorCode)
+        ? boundedRetryAfterSeconds(item.retryAfterSeconds)
+        : Math.min(numberVar(String(item.retryAfterSeconds ?? ""), 60, 1, MAX_RETRY_AFTER_SECONDS), MAX_RETRY_AFTER_SECONDS);
       const current = this.ctx.storage.sql.exec<{ attempts: number }>("SELECT attempts FROM outbox WHERE idempotency_key=? AND status='pending' AND (? IS NULL OR lease_id=?)", key, leaseId ?? null, leaseId ?? null).toArray()[0];
       if (!current) continue;
+      if (isSemanticDeferralCode(errorCode)) {
+        const result = this.ctx.storage.sql.exec(
+          "UPDATE outbox SET status='pending', lease_id=NULL, lease_until=NULL, attempts=MAX(attempts-1,0), available_at=?, last_error=?, updated_at=? WHERE idempotency_key=? AND status='pending' AND (? IS NULL OR lease_id=?)",
+          now + retryAfter * 1000,
+          errorCode,
+          now,
+          key,
+          leaseId ?? null,
+          leaseId ?? null,
+        );
+        if (result.rowsWritten === 1) deferred += 1;
+        continue;
+      }
       if (current.attempts >= MAX_OUTBOX_ATTEMPTS) {
-        this.ctx.storage.sql.exec("UPDATE outbox SET status='dead', lease_id=NULL, lease_until=NULL, last_error=?, updated_at=? WHERE idempotency_key=?", errorCode, now, key);
-        dead += 1;
+        const result = this.ctx.storage.sql.exec("UPDATE outbox SET status='dead', lease_id=NULL, lease_until=NULL, last_error=?, updated_at=? WHERE idempotency_key=? AND status='pending' AND (? IS NULL OR lease_id=?)", errorCode, now, key, leaseId ?? null, leaseId ?? null);
+        dead += result.rowsWritten;
       } else {
-        this.ctx.storage.sql.exec("UPDATE outbox SET status='pending', lease_id=NULL, lease_until=NULL, available_at=?, last_error=?, updated_at=? WHERE idempotency_key=? AND status='pending'", now + retryAfter * 1000, errorCode, now, key);
-        retried += 1;
+        const result = this.ctx.storage.sql.exec("UPDATE outbox SET status='pending', lease_id=NULL, lease_until=NULL, available_at=?, last_error=?, updated_at=? WHERE idempotency_key=? AND status='pending' AND (? IS NULL OR lease_id=?)", now + retryAfter * 1000, errorCode, now, key, leaseId ?? null, leaseId ?? null);
+        retried += result.rowsWritten;
       }
     }
-    return json({ retried, dead });
+    return json({ retried, deferred, dead });
   }
 
   private recordProbe(command: Record<string, unknown>): Response {
@@ -1176,7 +1259,7 @@ export class ConcurrencyGate extends DurableObject<RuntimeEnv> {
     const leaseUntil = now + leaseMs;
     const result = this.ctx.storage.sql.exec("UPDATE gate_leases SET lease_until=? WHERE lease_id=? AND fencing_token=? AND lease_until>?", leaseUntil, leaseId, fencingToken, now);
     await this.scheduleNextExpiry();
-    return { renewed: result.rowsWritten === 1, ...(result.rowsWritten === 1 ? { leaseUntil, fencingToken } : { reason: "stale_lease" }) };
+    return { renewed: result.rowsWritten > 0, ...(result.rowsWritten > 0 ? { leaseUntil, fencingToken } : { reason: "stale_lease" }) };
   }
 
   async release(command: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -1186,7 +1269,7 @@ export class ConcurrencyGate extends DurableObject<RuntimeEnv> {
     this.deleteExpired(now);
     const result = this.ctx.storage.sql.exec("DELETE FROM gate_leases WHERE lease_id=? AND fencing_token=?", leaseId, fencingToken);
     await this.scheduleNextExpiry();
-    return { released: result.rowsWritten === 1, ...(result.rowsWritten === 1 ? {} : { reason: "stale_lease" }) };
+    return { released: result.rowsWritten > 0, ...(result.rowsWritten > 0 ? {} : { reason: "stale_lease" }) };
   }
 
   async inspect(command: Record<string, unknown>): Promise<Record<string, unknown>> {

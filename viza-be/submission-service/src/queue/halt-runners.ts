@@ -24,7 +24,7 @@ import {
 } from "../ceac/index.js";
 import { resumeUkApplication, normalizeUkAnswers, UkNormalizationError } from "../uk/index.js";
 import { registerUkAccount } from "../uk/register.js";
-import { writeSubmissionResult } from "../result-writer.js";
+import { writeRunnerPoolSubmissionResult, writeSubmissionResult } from "../result-writer.js";
 import type { UkSubmissionResult, TwSubmissionResult } from "../submission-result.js";
 import {
   loadManagedOfficialFeeExecutionContext,
@@ -78,6 +78,9 @@ import {
   type RunOne,
   type DispatchOutcome,
 } from "./types.js";
+import {
+  requirePoolExecutionIdentity,
+} from "./execution-context.js";
 
 const HALTED: (reachedStep: string, artefacts?: string[]) => DispatchOutcome = (
   reachedStep,
@@ -487,15 +490,14 @@ export interface PreparedTwEntryPermitApplication {
  * The optional official-login hook is only used if the NIA page actually
  * presents a username/password login page. See src/tw/AGENTS.md.
  */
-export const runTwHalt: RunOne = async (applicationId, jobId) => {
-  if (!jobId) {
-    throw new NeedsHumanError("taiwan formal submission requires a runner_job id");
-  }
-  const officialTermsConsent = await loadTwOfficialTermsConsent(jobId, applicationId);
-  const runId = jobId ?? applicationId;
+export const runTwHalt: RunOne = async (applicationId, jobId, execution) => {
+  const identity = requirePoolExecutionIdentity(execution, jobId, "taiwan runner");
+  const { executionContext } = identity;
+  const runId = identity.jobId;
+  const officialTermsConsent = await loadTwOfficialTermsConsent(identity.jobId, applicationId);
   let prepared: PreparedTwEntryPermitApplication;
   try {
-    prepared = await prepareTwEntryPermitApplication(applicationId, { currentJobId: jobId });
+    prepared = await prepareTwEntryPermitApplication(applicationId, { currentJobId: identity.jobId });
   } catch (err) {
     if (err instanceof TwDuplicateRunError) throw new NeedsHumanError(err.message);
     if (err instanceof TwNormalizationError) throw new NeedsHumanError(`taiwan: ${err.message}`);
@@ -514,6 +516,7 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
         runId,
         mode: "submit",
         officialTermsConsent,
+        executionContext,
         officialLoginProvider: createTwOfficialLoginProviderFromEnvironment(),
         officialLoginOtpProvider: createTwOfficialLoginOtpProviderFromEnvironment(),
       },
@@ -556,7 +559,7 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
       officialTermsConsent,
       ...(result.caseNumber ? { caseNumber: result.caseNumber } : {}),
     };
-    await writeSubmissionResult(applicationId, twPayload, "completed");
+    await writeRunnerPoolSubmissionResult(executionContext, twPayload, "completed");
     return HALTED("submitted");
   }
   if (result.status === "failed") {
