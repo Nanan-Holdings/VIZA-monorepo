@@ -581,10 +581,13 @@ function parsePrimarySessionPooler(payload, projectRef) {
   const advertisedPort = Number(config?.db_port);
   const database = typeof config?.db_name === "string" ? config.db_name.trim() : "";
   const configuredUser = typeof config?.db_user === "string" ? config.db_user.trim() : "";
+  const advertisedMode = config?.pool_mode;
+  const advertisedEndpointIsValid =
+    (advertisedMode === "session" && advertisedPort === 5432) ||
+    (advertisedMode === "transaction" && advertisedPort === 6543);
   if (
     !/^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.pooler\.supabase\.com$/u.test(host) ||
-    ![5432, 6543].includes(advertisedPort) ||
-    !["session", "transaction"].includes(config?.pool_mode) ||
+    !advertisedEndpointIsValid ||
     database !== "postgres" ||
     configuredUser !== `postgres.${projectRef}`
   ) {
@@ -621,42 +624,72 @@ export function executePsqlMigration({
     throw new Error("psql is unavailable on the protected maintenance runner");
   }
 
+  const childEnv = {};
+  for (const inheritedName of [
+    "PATH",
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+    "TMP",
+    "TEMP",
+  ]) {
+    if (parentEnv[inheritedName] !== undefined) {
+      childEnv[inheritedName] = parentEnv[inheritedName];
+    }
+  }
+  Object.assign(childEnv, {
+    PGPASSWORD: password,
+    PGSSLMODE: "verify-full",
+    PGCONNECT_TIMEOUT: "15",
+    PGAPPNAME: "viza-production-maintenance",
+  });
+  const connectionArgs = [
+    "--no-psqlrc",
+    "--host", pooler.host,
+    "--port", String(pooler.port),
+    "--username", username,
+    "--dbname", pooler.database,
+    "--set", "ON_ERROR_STOP=1",
+    "--set", "VERBOSITY=terse",
+  ];
+  const spawnOptions = {
+    env: childEnv,
+    stdio: "inherit",
+    timeout: 480_000,
+    windowsHide: true,
+  };
+
+  const permissionProbe = spawn(
+    "psql",
+    [
+      ...connectionArgs,
+      "--command",
+      "SET SESSION ROLE postgres; SELECT current_user = 'postgres' AS role_verified;",
+    ],
+    spawnOptions,
+  );
+  if (permissionProbe.error || permissionProbe.status !== 0) {
+    throw new Error("Temporary database role failed the postgres permission probe");
+  }
+
   const tempDir = makeTempDir();
   const sqlPath = path.join(tempDir, "approved-production-migrations.sql");
   try {
     writeTempFile(sqlPath, query);
-    const childEnv = { ...parentEnv };
-    for (const sensitiveName of [
-      "SUPABASE_ACCESS_TOKEN",
-      "PRODUCTION_DB_MAINTENANCE_CONFIRM",
-      "PRODUCTION_DB_MAINTENANCE_SOURCE_REF",
-      "MIGRATION_SOURCE_ROOT",
-    ]) {
-      delete childEnv[sensitiveName];
-    }
     const result = spawn(
       "psql",
       [
-        "--host", pooler.host,
-        "--port", String(pooler.port),
-        "--username", username,
-        "--dbname", pooler.database,
-        "--set", "ON_ERROR_STOP=1",
-        "--set", "VERBOSITY=terse",
+        ...connectionArgs,
         "--file", sqlPath,
       ],
-      {
-        env: {
-          ...childEnv,
-          PGPASSWORD: password,
-          PGSSLMODE: "verify-full",
-          PGCONNECT_TIMEOUT: "15",
-          PGAPPNAME: "viza-production-maintenance",
-        },
-        stdio: "inherit",
-        timeout: 480_000,
-        windowsHide: true,
-      },
+      spawnOptions,
     );
     if (result.error || result.status !== 0) {
       throw new Error("psql rejected the approved production migration transaction");
@@ -664,6 +697,30 @@ export function executePsqlMigration({
   } finally {
     removeTempDir(tempDir);
   }
+}
+
+async function revokeTemporaryRole({ token, projectRef, fetchImpl, wait = setTimeout }) {
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await managementJsonRequest({
+        token,
+        projectRef,
+        suffix: "/cli/login-role",
+        method: "DELETE",
+        fetchImpl,
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) {
+        await new Promise((resolve) => wait(resolve, attempt * 500));
+      }
+    }
+  }
+  throw new Error("Could not revoke temporary database access after three attempts", {
+    cause: lastError,
+  });
 }
 
 async function managementQuery({
@@ -790,13 +847,7 @@ export async function runApply({
   let cleanupError;
   if (loginRoleCreated) {
     try {
-      await managementJsonRequest({
-        token,
-        projectRef,
-        suffix: "/cli/login-role",
-        method: "DELETE",
-        fetchImpl,
-      });
+      await revokeTemporaryRole({ token, projectRef, fetchImpl });
     } catch (error) {
       cleanupError = error;
     }
