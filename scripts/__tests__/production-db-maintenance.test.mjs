@@ -218,6 +218,7 @@ test("psql apply keeps the password out of args and removes its temporary SQL", 
   ]);
   assert.equal(applyCall.options.env.PGPASSWORD, "temporary-password-123");
   assert.equal(applyCall.options.env.PGSSLMODE, "verify-full");
+  assert.equal(applyCall.options.env.PGSSLROOTCERT, "system");
   assert.equal(applyCall.options.env.SUPABASE_ACCESS_TOKEN, undefined);
   assert.equal(applyCall.options.env.PRODUCTION_DB_MAINTENANCE_CONFIRM, undefined);
   assert.equal(applyCall.options.env.PGOPTIONS, undefined);
