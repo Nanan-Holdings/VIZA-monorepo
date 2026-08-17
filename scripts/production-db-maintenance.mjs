@@ -7,6 +7,10 @@ import { pathToFileURL } from "node:url";
 
 export const PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
 export const APPROVED_MIGRATION_SOURCE_REF = "e80f1d7a71bcc5aca2de11348e4f8b9e7e5a7ef2";
+export const SUPABASE_PRODUCTION_CA_URL =
+  "https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt";
+export const SUPABASE_PRODUCTION_CA_SHA256 =
+  "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7";
 export const APPROVED_MIGRATIONS = [
   {
     version: "20260816160000",
@@ -599,12 +603,37 @@ function parsePrimarySessionPooler(payload, projectRef) {
   return { host, port: 5432, database };
 }
 
+export async function downloadSupabaseProductionCa({
+  fetchImpl = fetch,
+  hash = (bytes) => createHash("sha256").update(bytes).digest("hex"),
+} = {}) {
+  const response = await fetchImpl(SUPABASE_PRODUCTION_CA_URL, {
+    method: "GET",
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) {
+    throw new Error(`Supabase production CA download failed (${response.status})`);
+  }
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const actualHash = hash(bytes);
+  const pem = bytes.toString("utf8").trim();
+  if (
+    actualHash !== SUPABASE_PRODUCTION_CA_SHA256 ||
+    !pem.startsWith("-----BEGIN CERTIFICATE-----\n") ||
+    !pem.endsWith("\n-----END CERTIFICATE-----")
+  ) {
+    throw new Error("Supabase production CA failed its pinned integrity check");
+  }
+  return bytes;
+}
+
 export function executePsqlMigration({
   query,
   projectRef,
   role,
   password,
   pooler,
+  caCertificate,
   spawn = spawnSync,
   makeTempDir = () => mkdtempSync(path.join(tmpdir(), "viza-production-migration-")),
   writeTempFile = (filePath, contents) => writeFileSync(filePath, contents, { mode: 0o600 }),
@@ -615,6 +644,9 @@ export function executePsqlMigration({
   if (!username.endsWith(`.${projectRef}`)) {
     throw new Error("Temporary database role does not match the approved production project");
   }
+  if (!Buffer.isBuffer(caCertificate) || caCertificate.length === 0) {
+    throw new Error("Pinned Supabase production CA is required");
+  }
 
   const version = spawn("psql", ["--version"], {
     encoding: "utf8",
@@ -624,65 +656,65 @@ export function executePsqlMigration({
     throw new Error("psql is unavailable on the protected maintenance runner");
   }
 
-  const childEnv = {};
-  for (const inheritedName of [
-    "PATH",
-    "HOME",
-    "LANG",
-    "LC_ALL",
-    "LC_CTYPE",
-    "SSL_CERT_FILE",
-    "SSL_CERT_DIR",
-    "SYSTEMROOT",
-    "WINDIR",
-    "COMSPEC",
-    "PATHEXT",
-    "TMP",
-    "TEMP",
-  ]) {
-    if (parentEnv[inheritedName] !== undefined) {
-      childEnv[inheritedName] = parentEnv[inheritedName];
-    }
-  }
-  Object.assign(childEnv, {
-    PGPASSWORD: password,
-    PGSSLMODE: "verify-full",
-    PGSSLROOTCERT: "system",
-    PGCONNECT_TIMEOUT: "15",
-    PGAPPNAME: "viza-production-maintenance",
-  });
-  const connectionArgs = [
-    "--no-psqlrc",
-    "--host", pooler.host,
-    "--port", String(pooler.port),
-    "--username", username,
-    "--dbname", pooler.database,
-    "--set", "ON_ERROR_STOP=1",
-    "--set", "VERBOSITY=terse",
-  ];
-  const spawnOptions = {
-    env: childEnv,
-    stdio: "inherit",
-    timeout: 480_000,
-    windowsHide: true,
-  };
-
-  const permissionProbe = spawn(
-    "psql",
-    [
-      ...connectionArgs,
-      "--command",
-      "SET SESSION ROLE postgres; SELECT current_user = 'postgres' AS role_verified;",
-    ],
-    spawnOptions,
-  );
-  if (permissionProbe.error || permissionProbe.status !== 0) {
-    throw new Error("Temporary database role failed the postgres permission probe");
-  }
-
   const tempDir = makeTempDir();
+  const caPath = path.join(tempDir, "supabase-prod-ca-2021.crt");
   const sqlPath = path.join(tempDir, "approved-production-migrations.sql");
   try {
+    writeTempFile(caPath, caCertificate);
+    const childEnv = {};
+    for (const inheritedName of [
+      "PATH",
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "LC_CTYPE",
+      "SYSTEMROOT",
+      "WINDIR",
+      "COMSPEC",
+      "PATHEXT",
+      "TMP",
+      "TEMP",
+    ]) {
+      if (parentEnv[inheritedName] !== undefined) {
+        childEnv[inheritedName] = parentEnv[inheritedName];
+      }
+    }
+    Object.assign(childEnv, {
+      PGPASSWORD: password,
+      PGSSLMODE: "verify-full",
+      PGSSLROOTCERT: caPath,
+      PGCONNECT_TIMEOUT: "15",
+      PGAPPNAME: "viza-production-maintenance",
+    });
+    const connectionArgs = [
+      "--no-psqlrc",
+      "--host", pooler.host,
+      "--port", String(pooler.port),
+      "--username", username,
+      "--dbname", pooler.database,
+      "--set", "ON_ERROR_STOP=1",
+      "--set", "VERBOSITY=terse",
+    ];
+    const spawnOptions = {
+      env: childEnv,
+      stdio: "inherit",
+      timeout: 480_000,
+      windowsHide: true,
+    };
+
+    const permissionProbe = spawn(
+      "psql",
+      [
+        ...connectionArgs,
+        "--command",
+        "SET SESSION ROLE postgres; SELECT current_user = 'postgres' AS role_verified;",
+      ],
+      spawnOptions,
+    );
+    if (permissionProbe.error || permissionProbe.status !== 0) {
+      throw new Error("Temporary database role failed the postgres permission probe");
+    }
+
     writeTempFile(sqlPath, query);
     const result = spawn(
       "psql",
@@ -793,6 +825,7 @@ export async function runApply({
   readFile = readFileSync,
   hash,
   executeMigration = executePsqlMigration,
+  downloadCa = downloadSupabaseProductionCa,
 } = {}) {
   const sourceRef = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_SOURCE_REF");
   const sourceRoot = requiredEnv(env, "MIGRATION_SOURCE_ROOT");
@@ -814,6 +847,7 @@ export async function runApply({
   assertApplyPreconditions(preflight);
 
   const query = loadApprovedMigrationBatch({ sourceRoot, readFile, hash });
+  const caCertificate = await downloadCa({ fetchImpl });
   const token = requiredEnv(env, "SUPABASE_ACCESS_TOKEN");
   const projectRef = requiredEnv(env, "SUPABASE_PROJECT_REF");
   let applyError;
@@ -840,7 +874,13 @@ export async function runApply({
       }),
       projectRef,
     );
-    await executeMigration({ query, projectRef, ...temporaryRole, pooler });
+    await executeMigration({
+      query,
+      projectRef,
+      ...temporaryRole,
+      pooler,
+      caCertificate,
+    });
   } catch (error) {
     applyError = error;
   }
