@@ -647,6 +647,7 @@ export function executePsqlMigration({
   Object.assign(childEnv, {
     PGPASSWORD: password,
     PGSSLMODE: "verify-full",
+    PGSSLROOTCERT: "system",
     PGCONNECT_TIMEOUT: "15",
     PGAPPNAME: "viza-production-maintenance",
   });
