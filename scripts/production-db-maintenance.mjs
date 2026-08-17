@@ -195,6 +195,17 @@ FROM runner_counts, legacy_counts, vn_counts, slot_counts,
 `;
 
 const expectedCapSnapshotSql = JSON.stringify(EXPECTED_CAP_SNAPSHOT).replaceAll("'", "''");
+const expectedPausedResumeCapSnapshotSql = JSON.stringify(
+  [
+    ...EXPECTED_CAP_SNAPSHOT,
+    {
+      ...TAIWAN_CAP,
+      paused: false,
+    },
+  ]
+    .sort((left, right) => left.country.localeCompare(right.country))
+    .map((cap) => ({ ...cap, paused: true })),
+).replaceAll("'", "''");
 
 export const PAUSE_SQL = `
 BEGIN;
@@ -352,6 +363,180 @@ SELECT jsonb_build_object(
     WHERE jobname = 'viza-vn-evisa-status-every-15m'
   )
 ) AS maintenance_pause_state;
+`;
+
+export const RESUME_SQL = `
+BEGIN;
+
+SELECT pg_catalog.pg_advisory_xact_lock(
+  pg_catalog.hashtextextended('viza:production-controlled-cutover', 0)
+);
+
+DO $resume_guard$
+DECLARE
+  v_caps JSONB;
+  v_runner_running INTEGER;
+  v_runner_queued INTEGER;
+  v_legacy_live INTEGER;
+  v_vn_running INTEGER;
+  v_slots_live INTEGER;
+  v_cron_rows INTEGER;
+  v_migration_rows INTEGER;
+  v_updated_caps INTEGER;
+  v_cron_jobid BIGINT;
+BEGIN
+  PERFORM 1
+  FROM public.runner_concurrency_cap
+  WHERE country = ANY (
+    ARRAY['vietnam','singapore','malaysia','thailand','south_korea','taiwan']::text[]
+  )
+  ORDER BY country
+  FOR UPDATE;
+
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'country', country,
+        'max_concurrent', max_concurrent,
+        'paused', paused,
+        'notes', notes
+      ) ORDER BY country
+    ),
+    '[]'::jsonb
+  )
+  INTO v_caps
+  FROM public.runner_concurrency_cap
+  WHERE country = ANY (
+    ARRAY['vietnam','singapore','malaysia','thailand','south_korea','taiwan']::text[]
+  );
+
+  IF v_caps IS DISTINCT FROM '${expectedPausedResumeCapSnapshotSql}'::jsonb THEN
+    RAISE EXCEPTION 'paused runner cap snapshot changed before production resume'
+      USING ERRCODE = '55000';
+  END IF;
+
+  SELECT
+    COUNT(*) FILTER (WHERE status = 'running')::INTEGER,
+    COUNT(*) FILTER (WHERE status = 'queued')::INTEGER
+  INTO v_runner_running, v_runner_queued
+  FROM public.runner_job;
+
+  SELECT COUNT(*)::INTEGER
+  INTO v_legacy_live
+  FROM public.submission_queue
+  WHERE status = 'processing'
+     OR status LIKE '%_processing'
+     OR locked_until > pg_catalog.clock_timestamp();
+
+  SELECT COUNT(*)::INTEGER
+  INTO v_vn_running
+  FROM public.official_status_checks
+  WHERE country_code = 'VN' AND status = 'running';
+
+  SELECT COUNT(*)::INTEGER
+  INTO v_slots_live
+  FROM public.runner_machine_slot
+  WHERE owner_machine_id IS NOT NULL
+    AND lease_until > pg_catalog.clock_timestamp();
+
+  IF v_runner_running <> 0 OR v_runner_queued <> 0 OR v_legacy_live <> 0
+     OR v_vn_running <> 0 OR v_slots_live <> 0 THEN
+    RAISE EXCEPTION 'production queues are not drained'
+      USING ERRCODE = '55000';
+  END IF;
+
+  SELECT COUNT(*)::INTEGER
+  INTO v_cron_rows
+  FROM cron.job
+  WHERE jobname = 'viza-vn-evisa-status-every-15m';
+  IF v_cron_rows <> 0 THEN
+    RAISE EXCEPTION 'Vietnam status cron already exists before production resume'
+      USING ERRCODE = '55000';
+  END IF;
+
+  SELECT COUNT(*)::INTEGER
+  INTO v_migration_rows
+  FROM supabase_migrations.schema_migrations
+  WHERE version IN ('20260816160000', '20260816161000');
+  IF v_migration_rows <> 2 THEN
+    RAISE EXCEPTION 'approved strict migrations are incomplete before production resume'
+      USING ERRCODE = '55000';
+  END IF;
+
+  IF pg_catalog.to_regnamespace('runner_private') IS NULL
+     OR pg_catalog.to_regprocedure(
+       'public.claim_runner_pool_load_test_job(text,uuid,text,integer,boolean)'
+     ) IS NULL
+     OR pg_catalog.to_regprocedure(
+       'public.claim_vn_official_status_checks(text,integer,integer)'
+     ) IS NULL
+     OR NOT EXISTS (
+       SELECT 1
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'official_status_checks'
+         AND column_name = 'lease_generation'
+     ) THEN
+    RAISE EXCEPTION 'strict production database objects are incomplete'
+      USING ERRCODE = '55000';
+  END IF;
+
+  UPDATE public.runner_concurrency_cap
+  SET paused = FALSE,
+      updated_at = pg_catalog.clock_timestamp()
+  WHERE country = ANY (
+    ARRAY['vietnam','singapore','malaysia','thailand','south_korea','taiwan']::text[]
+  );
+  GET DIAGNOSTICS v_updated_caps = ROW_COUNT;
+  IF v_updated_caps <> 6 THEN
+    RAISE EXCEPTION 'runner cap resume updated % rows, expected 6', v_updated_caps
+      USING ERRCODE = '55000';
+  END IF;
+
+  SELECT cron.schedule(
+    'viza-vn-evisa-status-every-15m',
+    '*/15 * * * *',
+    'SELECT enqueue_due_vn_official_status_checks();'
+  ) INTO v_cron_jobid;
+  IF v_cron_jobid IS NULL THEN
+    RAISE EXCEPTION 'Vietnam status cron was not scheduled'
+      USING ERRCODE = '55000';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM cron.job
+    WHERE jobid = v_cron_jobid
+      AND jobname = 'viza-vn-evisa-status-every-15m'
+      AND schedule = '*/15 * * * *'
+      AND command = 'SELECT enqueue_due_vn_official_status_checks();'
+      AND active IS TRUE
+  ) THEN
+    RAISE EXCEPTION 'Vietnam status cron did not match the canonical resume shape'
+      USING ERRCODE = '55000';
+  END IF;
+END;
+$resume_guard$;
+
+COMMIT;
+
+SELECT jsonb_build_object(
+  'resumed_caps', (
+    SELECT COUNT(*)::INTEGER
+    FROM public.runner_concurrency_cap
+    WHERE country = ANY (
+      ARRAY['vietnam','singapore','malaysia','thailand','south_korea','taiwan']::text[]
+    ) AND paused IS FALSE
+  ),
+  'cron_rows', (
+    SELECT COUNT(*)::INTEGER
+    FROM cron.job
+    WHERE jobname = 'viza-vn-evisa-status-every-15m'
+      AND schedule = '*/15 * * * *'
+      AND command = 'SELECT enqueue_due_vn_official_status_checks();'
+      AND active IS TRUE
+  )
+) AS maintenance_resume_state;
 `;
 
 function requiredEnv(env, name) {
@@ -818,6 +1003,16 @@ export async function runPause({ env = process.env, fetchImpl = fetch } = {}) {
   });
 }
 
+export async function runResume({ env = process.env, fetchImpl = fetch } = {}) {
+  return managementQuery({
+    env,
+    fetchImpl,
+    action: "resume",
+    query: RESUME_SQL,
+    readOnly: false,
+  });
+}
+
 export async function runApply({
   env = process.env,
   fetchImpl = fetch,
@@ -919,6 +1114,8 @@ async function main() {
       ? await runPreflight()
       : action === "pause"
         ? await runPause()
+        : action === "resume"
+          ? await runResume()
         : action === "apply"
           ? await runApply()
         : (() => {

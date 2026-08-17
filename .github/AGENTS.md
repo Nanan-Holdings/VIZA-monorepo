@@ -29,4 +29,6 @@ scheduled recovery workflows.
   cron snapshot, drained queues, and one atomic transaction. `apply` checks out
   but never executes code from one exact reviewed source commit, verifies both
   migration SHA-256 hashes, re-runs the drain preflight, and applies both SQL
-  migrations plus ledger rows in one transaction.
+  migrations plus ledger rows in one transaction. `resume` requires both ledger
+  versions, all strict objects, zero live work, six exact paused caps, and no
+  status cron before restoring the caps and canonical cron atomically.
