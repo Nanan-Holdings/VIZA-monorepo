@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback, Suspense, type FormEvent } fr
 import createGlobe from 'cobe'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
 import { useTranslations } from 'next-intl'
+import { getSafeClientLoginNext } from '@/lib/client-login-redirect'
 
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
@@ -185,6 +186,7 @@ function ClientLoginContent() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(0)
+  const loginDestination = getSafeClientLoginNext(searchParams.get('next')) ?? '/client/home'
 
   useEffect(() => {
     const errorParam = searchParams.get('error')
@@ -223,7 +225,7 @@ function ClientLoginContent() {
       setError(getLocalizedAuthError(result, t))
       return
     }
-    window.location.href = '/client/home'
+    window.location.href = loginDestination
   }
 
   const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -247,7 +249,7 @@ function ClientLoginContent() {
       setError(getLocalizedAuthError(result, t))
       return
     }
-    window.location.href = '/client/home'
+    window.location.href = loginDestination
   }
 
   const handleResend = async () => {

@@ -4,6 +4,10 @@ import { createServerClient } from "@supabase/ssr";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import { getImpersonationSessionFromRequest } from "@/lib/impersonation-session";
 import { normalizeSupabaseEnvValue } from "@/lib/supabase/env";
+import {
+  buildClientLoginUrlWithNext,
+  getSafeClientLoginNext,
+} from "@/lib/client-login-redirect";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -19,14 +23,17 @@ export async function proxy(request: NextRequest) {
   ) {
     // A valid VIZA session does not need a Supabase network request. This keeps
     // existing local sessions usable while Supabase Auth has a transient outage.
+    const authenticatedDestination =
+      getSafeClientLoginNext(request.nextUrl.searchParams.get("next")) ??
+      "/client/home";
     const jwtSession = await getClientSessionFromRequest(request);
     if (jwtSession) {
-      return NextResponse.redirect(new URL("/client/home", request.url));
+      return NextResponse.redirect(new URL(authenticatedDestination, request.url));
     }
 
     const supabaseSession = await getSupabaseUserSession(request);
     if (supabaseSession) {
-      return NextResponse.redirect(new URL("/client/home", request.url));
+      return NextResponse.redirect(new URL(authenticatedDestination, request.url));
     }
 
     return NextResponse.next();
@@ -89,7 +96,7 @@ async function handleClientRoutes(request: NextRequest, pathname: string) {
   }
 
   // No valid session - redirect to new client login portal
-  return NextResponse.redirect(new URL("/client/login", request.url));
+  return NextResponse.redirect(buildClientLoginUrlWithNext(request.url));
 }
 
 /**
