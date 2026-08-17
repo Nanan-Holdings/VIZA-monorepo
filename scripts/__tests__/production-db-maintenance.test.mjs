@@ -17,11 +17,11 @@ import {
   runPreflight,
 } from "../production-db-maintenance.mjs";
 
-test("pins the reviewed runner failure syntax repair", () => {
-  assert.equal(APPROVED_MIGRATION_SOURCE_REF, "3155a6f6e989cd67aa75474582447c24154db7c6");
+test("pins the reviewed runner PL/pgSQL repairs", () => {
+  assert.equal(APPROVED_MIGRATION_SOURCE_REF, "c4fbff410b958b2ff7e8b2e3f945061a9c33bd4e");
   assert.equal(
     APPROVED_MIGRATIONS.find(({ version }) => version === "20260816160000")?.sha256,
-    "e21b00220cca721e151b1a8b940a8256ef8702e25422a9dc2004b9f90c0bef60",
+    "9fa7ef4fec051a3a86dae041c0e51e61a17bd3c9aa5cfdaab44f6da6a97c6c00",
   );
 });
 
