@@ -395,6 +395,14 @@ type RunnerFlightCatalogResponse = {
   selectedItem?: unknown;
 };
 
+type RunnerFlightCatalogInput = {
+  keyword: string;
+  page: number;
+  size: number;
+  refresh: boolean;
+  selectedValue: string;
+};
+
 function flightCatalogServiceConfig(): {
   baseUrl: string;
   url: string;
@@ -463,24 +471,39 @@ async function ensureFlightCatalogServiceReady(
   return readiness.ok;
 }
 
-async function loadRunnerFlightCatalogPage(input: {
-  keyword: string;
-  page: number;
-  size: number;
-  refresh: boolean;
-  selectedValue: string;
-}): Promise<FlightSearchPage | null> {
+async function fetchRunnerFlightCatalog(
+  config: NonNullable<ReturnType<typeof flightCatalogServiceConfig>>,
+  input: RunnerFlightCatalogInput,
+  dependencies: {
+    fetchRunner?: typeof fetch;
+    delay?: (milliseconds: number) => Promise<void>;
+  } = {},
+): Promise<Response> {
+  const fetchRunner = dependencies.fetchRunner ?? fetch;
+  const delay = dependencies.delay ?? ((milliseconds) => new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  }));
+  const request = () => fetchRunner(config.url, {
+    method: "POST",
+    headers: config.headers,
+    body: JSON.stringify(input),
+    cache: "no-store",
+    signal: AbortSignal.timeout(280_000),
+  });
+  const response = await request();
+  if (response.status !== 503) return response;
+
+  console.warn("[vn-prearrival] flight_catalog_runner_retry status=503 attempt=2");
+  await delay(1_000);
+  return request();
+}
+
+async function loadRunnerFlightCatalogPage(input: RunnerFlightCatalogInput): Promise<FlightSearchPage | null> {
   const config = flightCatalogServiceConfig();
   if (!config) return null;
   try {
     if (!(await ensureFlightCatalogServiceReady(config, input.refresh))) return null;
-    const response = await fetch(config.url, {
-      method: "POST",
-      headers: config.headers,
-      body: JSON.stringify(input),
-      cache: "no-store",
-      signal: AbortSignal.timeout(280_000),
-    });
+    const response = await fetchRunnerFlightCatalog(config, input);
     if (!response.ok) {
       console.warn(`[vn-prearrival] flight_catalog_runner_failed status=${response.status}`);
       return null;
@@ -692,5 +715,6 @@ export const __testables = {
   paginateOptions,
   flightCatalogServiceConfig,
   ensureFlightCatalogServiceReady,
+  fetchRunnerFlightCatalog,
   zhRegionNameFromOfficialCode,
 };
