@@ -44,7 +44,7 @@ describe("Vietnam pre-arrival official option mapping", () => {
     expect(ready).toBe(true);
     expect(calls).toEqual([
       "start:pool",
-      "ready:https://viza-runner-pool.fly.dev/health",
+      "ready:https://viza-runner-pool.fly.dev/ready",
     ]);
   });
 
@@ -102,9 +102,9 @@ describe("Vietnam pre-arrival official option mapping", () => {
 
     expect(ready).toBe(true);
     expect(calls).toEqual([
-      "ready:https://viza-prod-runner-pool.fly.dev/health",
+      "ready:https://viza-prod-runner-pool.fly.dev/ready",
       "capacity:pool:2",
-      "ready:https://viza-prod-runner-pool.fly.dev/health",
+      "ready:https://viza-prod-runner-pool.fly.dev/ready",
     ]);
   });
 
@@ -219,6 +219,38 @@ describe("Vietnam pre-arrival official option mapping", () => {
     expect(bodies).toHaveLength(3);
     expect(bodies.slice(0, 2).every((body) => body.includes('"refresh":true'))).toBe(true);
     expect(bodies[2]).toContain('"refresh":false');
+  });
+
+  it("bounds an unavailable runner refresh so the route can safely return its snapshot", async () => {
+    let attempts = 0;
+    let now = 0;
+    let delayedMs = 0;
+    const response = await __testables.fetchRunnerFlightCatalog({
+      baseUrl: "https://viza-runner-pool.fly.dev",
+      url: "https://viza-runner-pool.fly.dev/internal/vn-prearrival/flight-catalog",
+      headers: {},
+      wakePool: true,
+    }, {
+      keyword: "",
+      page: 0,
+      size: 5,
+      refresh: true,
+      selectedValue: "MR0681_PQC",
+    }, {
+      fetchRunner: async () => {
+        attempts += 1;
+        return new Response(null, { status: 503 });
+      },
+      delay: async (milliseconds) => {
+        delayedMs += milliseconds;
+        now += milliseconds;
+      },
+      now: () => now,
+    });
+
+    expect(response.status).toBe(503);
+    expect(attempts).toBe(60);
+    expect(delayedMs).toBe(180_000);
   });
 
   it("does not retry a real official-catalog refresh failure", async () => {
