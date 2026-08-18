@@ -29,7 +29,10 @@ and internal admin flows.
   status APIs.
 - `supabase-user-auth-config.ts`: shared Supabase URL/anon-key env resolver for
   applicant bearer-token verification in browser-facing backend routes.
-- `chat-save-block.routes.ts`: chat block persistence.
+- `chat-save-block.routes.ts`: chat block persistence. Application identity
+  fields are rejected by `chat-save-block-application-identity.ts`; country,
+  product, package, and ownership changes must use the canonical application
+  lifecycle paths instead.
 - `admin-reminders.routes.ts`: admin reminder APIs.
 - `cron.routes.ts`: cron/status endpoints where mounted.
 - `telegram-webhook.ts`: Telegram approval webhook.
