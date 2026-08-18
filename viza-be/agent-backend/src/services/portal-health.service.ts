@@ -3,8 +3,11 @@ import { Logger } from "../utils/logger.js";
 
 const logger = new Logger({ serviceName: "PortalHealthService" });
 const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_PROBE_INTERVAL_MS = 5 * 60_000;
+const DEFAULT_INITIAL_PROBE_DELAY_MS = 10_000;
 const FAST_THRESHOLD_MS = 5_000;
 const PROBE_CONCURRENCY = 5;
+let activeProbeRun: Promise<PortalProbeRunSummary> | null = null;
 
 export type PortalProbeStatus = "ok" | "degraded" | "down" | "unknown";
 
@@ -151,7 +154,7 @@ export async function getPublicPortalStatus(): Promise<unknown> {
   return data;
 }
 
-export async function runPortalHealthProbes(): Promise<PortalProbeRunSummary> {
+async function executePortalHealthProbes(): Promise<PortalProbeRunSummary> {
   const startedAt = new Date().toISOString();
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
@@ -196,4 +199,62 @@ export async function runPortalHealthProbes(): Promise<PortalProbeRunSummary> {
   };
   logger.info("portal_health_probe_completed", { ...summary });
   return summary;
+}
+
+export function runPortalHealthProbes(): Promise<PortalProbeRunSummary> {
+  if (activeProbeRun) return activeProbeRun;
+  activeProbeRun = executePortalHealthProbes().finally(() => {
+    activeProbeRun = null;
+  });
+  return activeProbeRun;
+}
+
+function boundedScheduleMs(
+  value: string | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const parsed = Number(value ?? fallback);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(maximum, Math.max(minimum, Math.floor(parsed)));
+}
+
+export function startPortalHealthProbeScheduler(): () => void {
+  if (process.env.STATUS_PROBE_SCHEDULER_ENABLED?.trim().toLowerCase() === "false") {
+    logger.info("portal_health_probe_scheduler_disabled");
+    return () => undefined;
+  }
+
+  const intervalMs = boundedScheduleMs(
+    process.env.STATUS_PROBE_INTERVAL_MS,
+    DEFAULT_PROBE_INTERVAL_MS,
+    60_000,
+    60 * 60_000,
+  );
+  const initialDelayMs = boundedScheduleMs(
+    process.env.STATUS_PROBE_INITIAL_DELAY_MS,
+    DEFAULT_INITIAL_PROBE_DELAY_MS,
+    1_000,
+    intervalMs,
+  );
+  const run = (): void => {
+    void runPortalHealthProbes().catch((error: unknown) => {
+      logger.error(
+        "portal_health_scheduled_probe_failed",
+        error instanceof Error ? error : new Error("Unknown scheduled probe error"),
+      );
+    });
+  };
+
+  const initialTimer = setTimeout(run, initialDelayMs);
+  const intervalTimer = setInterval(run, intervalMs);
+  initialTimer.unref();
+  intervalTimer.unref();
+  logger.info("portal_health_probe_scheduler_started", { initialDelayMs, intervalMs });
+
+  return () => {
+    clearTimeout(initialTimer);
+    clearInterval(intervalTimer);
+  };
 }
