@@ -353,6 +353,242 @@ describe("DynamicFormField localization", () => {
     ).toBe(true);
   });
 
+  it("adds flags to Malaysia MDAC country selects without changing official values or labels", async () => {
+    const onChange = vi.fn();
+    const nationalityField = field({
+      id: "mdac-nationality",
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+      fieldName: "nationality",
+      label: "Nationality/Citizenship",
+      fieldType: "select",
+      placeholder: "Select nationality",
+      options: [
+        { value: "CHN", label_zh: "中国", label_en: "CHN - CHINA", official_label: "CHN - CHINA" },
+        { value: "MAC", label_zh: "中国澳门", label_en: "MAC - MACAO", official_label: "MAC - MACAO" },
+        { value: "UNK", label_zh: "科索沃", label_en: "UNK - KOSOVO", official_label: "UNK - KOSOVO" },
+        ...["SGP", "MYS", "THA", "IDN", "VNM", "JPN", "KOR", "USA", "GBR"].map((value) => ({
+          value,
+          label_zh: value,
+          label_en: value,
+          official_label: value,
+        })),
+      ],
+    });
+
+    render(
+      <DynamicFormField
+        field={nationalityField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /请选择/ }));
+
+    expect(screen.getByText("中国")).toBeInTheDocument();
+    expect(screen.getByText("中国澳门")).toBeInTheDocument();
+    expect(screen.getAllByTestId("circle-country-flag").map((flag) => flag.getAttribute("src")))
+      .toEqual(expect.arrayContaining([
+        "https://react-circle-flags.pages.dev/cn.svg",
+        "https://react-circle-flags.pages.dev/mo.svg",
+        "https://react-circle-flags.pages.dev/xk.svg",
+      ]));
+
+    fireEvent.click(screen.getByRole("button", { name: "中国" }));
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("CHN"));
+    expect(screen.getByRole("button", { name: "中国" })).toContainElement(screen.getByTestId("circle-country-flag"));
+  });
+
+  it("adds flags to Thailand TDAC country options while preserving official and special codes", async () => {
+    const onChange = vi.fn();
+    const boardedCountryField = field({
+      id: "tdac-country-boarded",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      fieldName: "country_boarded",
+      label: "Country/Territory where you Boarded",
+      fieldType: "select",
+      options: [
+        { value: "CHN", label_zh: "中国", label_en: "CHN : CHINA" },
+        { value: "RKS", label_zh: "科索沃共和国", label_en: "RKS : REPUBLIC OF KOSOVO" },
+        { value: "XXA", label_zh: "无国籍", label_en: "XXA : STATELESS" },
+      ],
+    });
+
+    render(
+      <DynamicFormField
+        field={boardedCountryField}
+        value="RKS"
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "科索沃共和国" })).toContainElement(
+      screen.getByTestId("circle-country-flag"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "科索沃共和国" }));
+
+    expect(screen.getAllByTestId("circle-country-flag").map((flag) => flag.getAttribute("src")))
+      .toEqual(expect.arrayContaining([
+        "https://react-circle-flags.pages.dev/cn.svg",
+        "https://react-circle-flags.pages.dev/xk.svg",
+      ]));
+    expect(screen.getByRole("button", { name: "无国籍" }).querySelector("img")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "中国" }));
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("CHN"));
+  });
+
+  it("adds flags to Vietnam official country values and keeps the selected alpha-3 value", async () => {
+    const onChange = vi.fn();
+    const nationalityField = field({
+      id: "vn-nationality",
+      visaType: "VN_E_VISA",
+      fieldName: "nationality",
+      label: "Nationality",
+      fieldType: "country",
+      options: [
+        { value: "CHN", label_zh: "中国", label_en: "China" },
+        { value: "VNM", label_zh: "越南", label_en: "Vietnam" },
+        { value: "SGP", label_zh: "新加坡", label_en: "Singapore" },
+        { value: "D", label_zh: "德国", label_en: "Germany" },
+        { value: "SC-", label_zh: "苏格兰", label_en: "Scotland" },
+        { value: "GBD", label_zh: "英国海外领土公民", label_en: "United Kingdom British Territories Citizen" },
+        { value: "UNO", label_zh: "联合国组织", label_en: "United Nations Organization" },
+      ],
+      validationRules: { source: "VN_E_VISA_OFFICIAL_COUNTRIES" },
+    });
+
+    render(
+      <DynamicFormField
+        field={nationalityField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /请选择/ }));
+    expect(screen.getAllByTestId("circle-country-flag")).toHaveLength(6);
+    expect(screen.getAllByTestId("circle-country-flag").map((flag) => flag.getAttribute("src")))
+      .toEqual(expect.arrayContaining([
+        "https://react-circle-flags.pages.dev/de.svg",
+        "https://react-circle-flags.pages.dev/gb.svg",
+      ]));
+    expect(screen.getByRole("button", { name: "苏格兰" }).querySelector("img"))
+      .toHaveAttribute("src", "https://react-circle-flags.pages.dev/gb.svg");
+    expect(screen.getByRole("button", { name: "联合国组织" }).querySelector("img")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "越南" }));
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("VNM"));
+    expect(screen.getByRole("button", { name: "越南" })).toContainElement(screen.getByTestId("circle-country-flag"));
+  });
+
+  it("shows flags in phone country-code dropdowns without rewriting calling-code values", async () => {
+    const onChange = vi.fn();
+    const phoneCodeField = field({
+      id: "vn-phone-country-code",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "phone_country_code",
+      label: "Country Code",
+      fieldType: "select",
+      options: [
+        { value: "+86", label_zh: "中国 (+86)", label_en: "(+86) China", flagCountryCode: "cn" },
+        { value: "+65", label_zh: "新加坡 (+65)", label_en: "(+65) Singapore", flagCountryCode: "sg" },
+        { value: "+84", label_zh: "越南 (+84)", label_en: "(+84) Vietnam", flagCountryCode: "vn" },
+        { value: "+1", label_zh: "加拿大 (+1)", label_en: "(+1) Canada", flagCountryCode: "ca" },
+        { value: "+1", label_zh: "美国 (+1)", label_en: "(+1) United States", flagCountryCode: "us" },
+      ],
+      validationRules: { official_source: "prearrival_category:country_code", remote_search: true },
+    });
+
+    const { rerender } = render(
+      <DynamicFormField
+        field={phoneCodeField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /请选择/ }));
+    expect(screen.getAllByTestId("circle-country-flag")).toHaveLength(5);
+    fireEvent.click(screen.getByRole("button", { name: "新加坡 (+65)" }));
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("+65"));
+
+    fireEvent.click(screen.getByRole("button", { name: "新加坡 (+65)" }));
+    fireEvent.click(screen.getByRole("button", { name: "美国 (+1)" }));
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("+1"));
+
+    rerender(
+      <DynamicFormField
+        field={phoneCodeField}
+        value="+1"
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+    expect(screen.getByRole("button", { name: "+1" }).querySelector("img")).toBeNull();
+  });
+
+  it("supports existing alpha-2, country-name, and nationality-label option formats", async () => {
+    const onChange = vi.fn();
+    const mixedOfficialCountryField = field({
+      id: "mixed-country-contracts",
+      visaType: "OFFICIAL_COUNTRY_FORMATS",
+      fieldName: "nationality",
+      label: "Nationality/Citizenship",
+      fieldType: "select",
+      options: [
+        { value: "CN", label_zh: "中国", label_en: "China" },
+        { value: "AFGHANISTAN", label_zh: "阿富汗", label_en: "Afghanistan" },
+        { value: "CHINESE", label_zh: "中国籍", label_en: "Chinese" },
+      ],
+    });
+
+    render(
+      <DynamicFormField
+        field={mixedOfficialCountryField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /请选择/ }));
+    expect(screen.getAllByTestId("circle-country-flag")).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole("button", { name: "中国籍" }));
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("CHINESE"));
+  });
+
+  it("does not treat a status field as a country list merely because its name mentions country", () => {
+    render(
+      <DynamicFormField
+        field={field({
+          id: "application-country-status",
+          fieldName: "application_country_status",
+          label: "Status in the country where you are applying",
+          fieldType: "select",
+          options: [
+            { value: "visitor", label_zh: "访客", label_en: "Visitor" },
+            { value: "student", label_zh: "学生", label_en: "Student" },
+          ],
+        })}
+        value=""
+        onChange={vi.fn()}
+        displayLocale="zh"
+      />,
+    );
+
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /请选择/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("circle-country-flag")).not.toBeInTheDocument();
+  });
+
   it("does not repeat configured field guidance below the control", () => {
     const helperText = "该项确认您理解虚假陈述可能导致拒签、已发签证被撤销，并可能产生法律责任。";
     const declarationField = field({

@@ -320,13 +320,23 @@ export interface SgArrivalCardSubmissionResult {
 }
 
 export interface DigitalArrivalCardSubmissionResult {
-  country: "MY" | "TH" | "PH" | "VN";
-  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD" | "PH_ETRAVEL_ARRIVAL_CARD" | "PH_ETRAVEL_DEPARTURE_CARD" | "VN_PREARRIVAL_DECLARATION";
-  status: "submitted" | "scheduled" | "validation_failed" | "official_portal_error";
+  country: "MY" | "TH" | "PH" | "VN" | "KR";
+  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD" | "PH_ETRAVEL_ARRIVAL_CARD" | "PH_ETRAVEL_DEPARTURE_CARD" | "VN_PREARRIVAL_DECLARATION" | "KR_E_ARRIVAL_CARD";
+  status: "submitted" | "scheduled" | "blocked" | "validation_failed" | "official_portal_error";
   mode: "live_assisted";
-  provider: "malaysia_mdac_live" | "thailand_tdac_live" | "philippines_etravel_live" | "vietnam_prearrival_live";
+  provider: "malaysia_mdac_live" | "thailand_tdac_live" | "philippines_etravel_live" | "vietnam_prearrival_live" | "korea_e_arrival_card_live";
   applicationId: string;
   submitted: boolean;
+  /** Official Korea e-Arrival Card issue number, when returned. */
+  issueNumber?: string | null;
+  /** Timestamp captured from the official confirmation page. */
+  submittedAt?: string | null;
+  /** Official validity is 72 hours from a successful submission. */
+  validUntil?: string | null;
+  /** Queue/window metadata shared by arrival-card products. */
+  scheduledFor?: string | null;
+  arrivalDate?: string | null;
+  departureDate?: string | null;
   confirmationNumber?: string | null;
   referenceNumber?: string | null;
   portalUrl: string;

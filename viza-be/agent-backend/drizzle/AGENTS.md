@@ -89,6 +89,9 @@ The current internal automation migrations are:
   and redacted official status check history for applicant status refreshes.
 - `0100_mdac_tdac_arrival_card_packages.sql`: Malaysia MDAC and Thailand TDAC
   package catalog rows. They are separate from eVisa/tourist visa workflows.
+- `0151_kr_e_arrival_card.sql`: Korea e-Arrival Card package/catalog metadata,
+  official-free fee rows, and the sequential shared-runner tuple/cancellation
+  compatibility patch for `south_korea + kr_arrival_card`.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.

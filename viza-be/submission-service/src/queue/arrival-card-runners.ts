@@ -10,6 +10,11 @@ import { assertInboxAliasDomainRoutable } from "../inbox/wait-for-message.js";
 import { MdacPortalValidationError, normalizeMdacPortalPayload } from "../mdac/normalize.js";
 import { MdacPortalError, runMdacPortalSubmission } from "../mdac/runner.js";
 import {
+  KrEArrivalPortalValidationError,
+  normalizeKrEArrivalPortalPayload,
+} from "../kr-arrival-card/normalize.js";
+import { KrEArrivalPortalError, runKrEArrivalPortalSubmission } from "../kr-arrival-card/runner.js";
+import {
   writeRunnerPoolSubmissionResult,
 } from "../result-writer.js";
 import type { DigitalArrivalCardSubmissionResult } from "../submission-result.js";
@@ -26,12 +31,17 @@ import {
   type RunnerExecutionContext,
 } from "./execution-context.js";
 
-export type ArrivalCardPoolFlow = "mdac" | "tdac" | "vn_prearrival";
+export type ArrivalCardPoolFlow = "mdac" | "tdac" | "vn_prearrival" | "kr_arrival_card";
 
 interface PortalResult {
   submitted: boolean;
   confirmationNumber?: string | null;
   referenceNumber?: string | null;
+  issueNumber?: string | null;
+  submittedAt?: string | null;
+  validUntil?: string | null;
+  arrivalDate?: string | null;
+  departureDate?: string | null;
   portalUrl: string;
   portalResponseSummary: string;
   screenshots: string[];
@@ -73,7 +83,7 @@ async function persistFiles(
 }
 
 function flowIdentity(flow: ArrivalCardPoolFlow): {
-  countryCode: "MY" | "TH" | "VN";
+  countryCode: "MY" | "TH" | "VN" | "KR";
   visaType: DigitalArrivalCardSubmissionResult["visaType"];
   provider: DigitalArrivalCardSubmissionResult["provider"];
 } {
@@ -89,6 +99,13 @@ function flowIdentity(flow: ArrivalCardPoolFlow): {
       countryCode: "TH",
       visaType: "TH_TDAC_ARRIVAL_CARD",
       provider: "thailand_tdac_live",
+    };
+  }
+  if (flow === "kr_arrival_card") {
+    return {
+      countryCode: "KR",
+      visaType: "KR_E_ARRIVAL_CARD",
+      provider: "korea_e_arrival_card_live",
     };
   }
   return {
@@ -125,13 +142,34 @@ async function preparePayload(
       answers,
     );
   }
+  if (flow === "kr_arrival_card") {
+    const managedAlias = await ensureApplicantInboxAlias(context.profile.id);
+    await assertInboxAliasDomainRoutable(managedAlias.alias);
+    const answers = {
+      ...Object.fromEntries(
+        Object.entries(context.answers).filter(([key]) => key !== "real_email_address"),
+      ),
+      // The managed alias is the only address sent to the government portal.
+      alias_email_address: managedAlias.alias,
+      email_address: managedAlias.alias,
+    };
+    submissionApplication = buildCountrySubmissionApplication(
+      context.profile,
+      context.application,
+      answers,
+    );
+  }
 
   const provider = getCountrySubmissionProvider(
     context.application.country,
     context.application.visa_type,
   );
   const identity = flowIdentity(flow);
-  if (!provider || provider.countryCode !== identity.countryCode) {
+  if (
+    !provider
+    || provider.countryCode !== identity.countryCode
+    || !provider.supportedVisaTypes.includes(identity.visaType)
+  ) {
     throw new NeedsHumanError(
       `${identity.visaType} country submission provider is not registered.`,
     );
@@ -171,6 +209,14 @@ async function executePortal(
       executionContext,
     });
   }
+  if (flow === "kr_arrival_card") {
+    return runKrEArrivalPortalSubmission(normalizeKrEArrivalPortalPayload(payload), {
+      headless: process.env.KR_EAC_PLAYWRIGHT_HEADLESS !== "false",
+      stopBeforeSubmit: process.env.KR_EAC_STOP_BEFORE_SUBMIT === "1",
+      applicantId,
+      executionContext,
+    });
+  }
   return runVietnamPrearrivalPortalSubmission(
     normalizeVnPrearrivalPortalPayload(payload),
     {
@@ -189,6 +235,7 @@ function portalErrorDetails(error: unknown): {
   screenshots: string[];
   logs: string[];
   retryable: boolean;
+  blocked: boolean;
 } {
   if (error instanceof MdacPortalError) {
     return {
@@ -198,6 +245,7 @@ function portalErrorDetails(error: unknown): {
       screenshots: error.screenshotPaths,
       logs: [],
       retryable: true,
+      blocked: false,
     };
   }
   if (error instanceof TdacPortalError) {
@@ -208,6 +256,7 @@ function portalErrorDetails(error: unknown): {
       screenshots: error.screenshotPaths,
       logs: error.logs,
       retryable: true,
+      blocked: false,
     };
   }
   if (error instanceof VnPrearrivalPortalError) {
@@ -218,12 +267,25 @@ function portalErrorDetails(error: unknown): {
       screenshots: error.screenshotPaths,
       logs: error.logs,
       retryable: true,
+      blocked: false,
+    };
+  }
+  if (error instanceof KrEArrivalPortalError) {
+    return {
+      code: error.code,
+      message: error.message,
+      summary: error.portalSummary ?? error.message,
+      screenshots: error.screenshotPaths,
+      logs: error.logs,
+      retryable: error.retryable,
+      blocked: error.blocked,
     };
   }
   const validation =
     error instanceof MdacPortalValidationError ||
     error instanceof TdacPortalValidationError ||
-    error instanceof VnPrearrivalPortalValidationError;
+    error instanceof VnPrearrivalPortalValidationError ||
+    error instanceof KrEArrivalPortalValidationError;
   const message = error instanceof Error ? error.message : String(error);
   return {
     code: validation ? "arrival_card_validation_failed" : "arrival_card_pool_failed",
@@ -232,6 +294,7 @@ function portalErrorDetails(error: unknown): {
     screenshots: [],
     logs: [],
     retryable: !validation,
+    blocked: false,
   };
 }
 
@@ -280,6 +343,11 @@ export async function runArrivalCardPoolFlow(
       provider: identity.provider,
       applicationId,
       submitted: portal.submitted,
+      issueNumber: portal.issueNumber ?? null,
+      submittedAt: portal.submittedAt ?? null,
+      validUntil: portal.validUntil ?? null,
+      arrivalDate: portal.arrivalDate ?? null,
+      departureDate: portal.departureDate ?? null,
       confirmationNumber: portal.confirmationNumber ?? null,
       referenceNumber: portal.referenceNumber ?? null,
       portalUrl: portal.portalUrl,
@@ -326,11 +394,18 @@ export async function runArrivalCardPoolFlow(
       visaType: identity.visaType,
       status: detail.code.includes("validation")
         ? "validation_failed"
-        : "official_portal_error",
+        : detail.blocked
+          ? "blocked"
+          : "official_portal_error",
       mode: "live_assisted",
       provider: identity.provider,
       applicationId,
       submitted: false,
+      issueNumber: null,
+      submittedAt: null,
+      validUntil: null,
+      arrivalDate: null,
+      departureDate: null,
       confirmationNumber: null,
       referenceNumber: null,
       portalUrl:
@@ -338,7 +413,9 @@ export async function runArrivalCardPoolFlow(
           ? "https://imigresen-online.imi.gov.my/mdac/main"
           : flow === "tdac"
             ? "https://tdac.immigration.go.th/arrival-card/#/home"
-            : "https://prearrival.immigration.gov.vn/",
+            : flow === "kr_arrival_card"
+              ? "https://www.e-arrivalcard.go.kr/portal/apply/agreementPolicy.do?applyType=P&type=PC"
+              : "https://prearrival.immigration.gov.vn/",
       portalResponseSummary: detail.summary,
       errorDetails: { code: detail.code, message: detail.message },
       artifacts: { screenshots, pdfs: [], logs: detail.logs, traces: [] },

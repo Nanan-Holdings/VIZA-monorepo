@@ -5,6 +5,7 @@ import {
   loadAssistantSchema,
   requireOwnedApplication,
 } from "@/lib/form-assistant/server-context";
+import { formAssistantTimeZone } from "@/lib/form-assistant/service";
 import { validateApplicationAnswers } from "@/lib/form-assistant/validator";
 
 export const runtime = "nodejs";
@@ -66,6 +67,7 @@ export async function POST(
     steps,
     answers: Object.fromEntries(Object.entries(answerRows).map(([key, item]) => [key, item.value])),
     visaType: owned.application.visa_type,
+    timeZone: formAssistantTimeZone(owned.application.country, owned.application.visa_type),
   });
   if (currentCheck.errors.length > 0) {
     return Response.json({ error: "Answers changed and must be checked again." }, { status: 409 });

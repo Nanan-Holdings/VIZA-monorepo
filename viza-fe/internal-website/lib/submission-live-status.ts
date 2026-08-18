@@ -108,6 +108,7 @@ const LIVE_PROVIDERS = new Set([
   "malaysia_mdac_live",
   "thailand_tdac_live",
   "philippines_etravel_live",
+  "korea_e_arrival_card_live",
 ]);
 
 const LIVE_PENDING_STATUSES = new Set([
@@ -121,6 +122,8 @@ const LIVE_PENDING_STATUSES = new Set([
   "mdac_live_assisted_pending",
   "tdac_live_assisted_pending",
   "phetravel_live_assisted_pending",
+  "kr_eac_live_assisted_pending",
+  "kr_eac_live_assisted_scheduled",
 ]);
 
 const LIVE_RUNNING_STATUSES = new Set([
@@ -133,6 +136,7 @@ const LIVE_RUNNING_STATUSES = new Set([
   "mdac_live_assisted_processing",
   "tdac_live_assisted_processing",
   "phetravel_live_assisted_processing",
+  "kr_eac_live_assisted_processing",
 ]);
 
 const LIVE_ACTION_STATUSES = new Set([
@@ -145,6 +149,7 @@ const LIVE_ACTION_STATUSES = new Set([
   "mdac_live_assisted_blocked",
   "tdac_live_assisted_blocked",
   "phetravel_live_assisted_blocked",
+  "kr_eac_blocked",
 ]);
 
 const LIVE_SUBMITTED_STATUSES = new Set([
@@ -157,6 +162,7 @@ const LIVE_SUBMITTED_STATUSES = new Set([
   "mdac_live_assisted_submitted",
   "tdac_live_assisted_submitted",
   "phetravel_live_assisted_submitted",
+  "kr_eac_live_assisted_submitted",
 ]);
 
 const LIVE_FAILED_STATUSES = new Set([
@@ -173,6 +179,8 @@ const LIVE_FAILED_STATUSES = new Set([
   "tdac_live_assisted_cancelled",
   "phetravel_live_assisted_failed",
   "phetravel_live_assisted_cancelled",
+  "kr_eac_live_assisted_failed",
+  "kr_eac_live_assisted_cancelled",
 ]);
 
 const LIVE_COMPLETED_STATUSES = new Set([
@@ -185,6 +193,7 @@ const LIVE_COMPLETED_STATUSES = new Set([
   "mdac_live_assisted_completed",
   "tdac_live_assisted_completed",
   "phetravel_live_assisted_completed",
+  "kr_eac_live_assisted_completed",
 ]);
 
 function normalizeStatus(value: string | null | undefined): string {

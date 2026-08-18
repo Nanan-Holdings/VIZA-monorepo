@@ -45,6 +45,7 @@
     "tdac:smoke": "tsx scripts/run-tdac-smoke.ts",
     "vn:smoke": "node -r ts-node/register -r ./scripts/ts-node-js-resolver.cjs scripts/run-vn-smoke.ts",
     "vn:payment:pre-card-smoke": "tsx scripts/run-vn-payment-pre-card-smoke.ts",
+    "vn:payment:cloud-pre-card-smoke": "tsx scripts/run-vn-cloud-pre-card-smoke.ts",
     "vn:card:setup": "powershell -ExecutionPolicy Bypass -File scripts/setup-vn-card-profile.ps1",
     "vn:autopay:dev": "powershell -ExecutionPolicy Bypass -File scripts/start-vn-autopay-dev.ps1",
     "local:official-helpers": "powershell -ExecutionPolicy Bypass -File scripts/start-local-official-helpers.ps1",

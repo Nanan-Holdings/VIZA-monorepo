@@ -1,4 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { findOngoingApplicationByIdentity } from "@/lib/applications/ongoing-application";
+import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 
 const ARRIVAL_CARD_CONFIG = {
   SG_ARRIVAL_CARD: {
@@ -24,6 +26,10 @@ const ARRIVAL_CARD_CONFIG = {
   VN_PREARRIVAL_DECLARATION: {
     country: "vietnam",
     errorName: "Vietnam Pre-Arrival",
+  },
+  KR_E_ARRIVAL_CARD: {
+    country: "south_korea",
+    errorName: "Korea e-Arrival Card",
   },
 } as const;
 
@@ -60,6 +66,28 @@ const REUSABLE_ANSWER_KEYS = [
   "has_used_different_name_to_enter_singapore",
 ] as const;
 
+const KR_REUSABLE_ANSWER_KEYS = [
+  "full_name",
+  "full_name_zh",
+  "full_name_en",
+  "first_name",
+  "middle_name",
+  "last_name",
+  "suffix",
+  "passport_number",
+  "passport_expiry_date",
+  "passport_issue_date",
+  "passport_issuing_authority",
+  "passport_issuing_country",
+  "sex",
+  "gender",
+  "date_of_birth",
+  "nationality",
+  "citizenship",
+  "place_of_birth_country",
+  "country_of_birth",
+] as const;
+
 type ArrivalCardVisaType = keyof typeof ARRIVAL_CARD_CONFIG;
 
 function isArrivalCardVisaType(value: string | null): value is ArrivalCardVisaType {
@@ -77,7 +105,7 @@ export async function createNewArrivalCardApplication(userId: string, sourceAppl
 
   const { data: source } = await admin
     .from("applications")
-    .select("id, applicant_id, country, visa_type, visa_package_id")
+    .select("id, applicant_id, country, visa_type, visa_package_id, submission_result")
     .eq("id", sourceApplicationId)
     .maybeSingle();
   if (!source) return { error: "Application not found", status: 404 } as const;
@@ -87,6 +115,48 @@ export async function createNewArrivalCardApplication(userId: string, sourceAppl
   }
 
   const config = ARRIVAL_CARD_CONFIG[source.visa_type];
+  if (!hasSuccessfulArrivalCardSubmission({
+    country: source.country || config.country,
+    visaType: source.visa_type,
+    submissionResult: source.submission_result,
+  })) {
+    return {
+      error: "The previous arrival-card application must be successfully submitted before starting another.",
+      status: 409,
+    } as const;
+  }
+
+  const findExistingDraft = async () => {
+    const { data, error } = await admin
+      .from("applications")
+      .select("id, country, visa_type, purpose, status, submission_result_status, result_status, submission_result")
+      .eq("applicant_id", profile.id)
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    if (error) return { error } as const;
+    return {
+      application: findOngoingApplicationByIdentity(
+        (data ?? []).filter((application) => application.id !== source.id),
+        source.country || config.country,
+        source.visa_type,
+      ),
+    } as const;
+  };
+
+  const existingDraft = await findExistingDraft();
+  if ("error" in existingDraft) {
+    console.error(`[arrival-card] Could not look up an existing ${config.errorName} draft`, existingDraft.error);
+    return { error: `Could not start another ${config.errorName} application`, status: 500 } as const;
+  }
+  if (existingDraft.application) {
+    return {
+      applicationId: existingDraft.application.id,
+      country: source.country || config.country,
+      visaType: source.visa_type,
+      status: 200,
+    } as const;
+  }
+
   const { data: created, error: createError } = await admin
     .from("applications")
     .insert({
@@ -98,21 +168,43 @@ export async function createNewArrivalCardApplication(userId: string, sourceAppl
     })
     .select("id")
     .single();
+  if (createError?.code === "23505") {
+    const concurrentDraft = await findExistingDraft();
+    if (!("error" in concurrentDraft) && concurrentDraft.application) {
+      return {
+        applicationId: concurrentDraft.application.id,
+        country: source.country || config.country,
+        visaType: source.visa_type,
+        status: 200,
+      } as const;
+    }
+  }
   if (createError || !created) {
-    return { error: createError?.message || `Could not create ${config.errorName} application`, status: 500 } as const;
+    console.error(`[arrival-card] Could not create a new ${config.errorName} application`, createError);
+    return { error: `Could not start another ${config.errorName} application`, status: 500 } as const;
   }
 
-  const { data: reusableAnswers, error: answersError } = await admin
+  const reusableAnswerKeys: readonly string[] = source.visa_type === "KR_E_ARRIVAL_CARD"
+    ? KR_REUSABLE_ANSWER_KEYS
+    : REUSABLE_ANSWER_KEYS;
+  const reusableAnswerKeySet = new Set(reusableAnswerKeys);
+  const { data: reusableAnswerRows, error: answersError } = await admin
     .from("visa_application_answers")
     .select("field_name, value_text, value_json")
     .eq("application_id", sourceApplicationId)
-    .in("field_name", [...REUSABLE_ANSWER_KEYS]);
+    .in(
+      "field_name",
+      [...reusableAnswerKeys],
+    );
   if (answersError) {
     await admin.from("applications").delete().eq("id", created.id);
     return { error: answersError.message, status: 500 } as const;
   }
 
-  if (reusableAnswers?.length) {
+  const reusableAnswers = (reusableAnswerRows ?? []).filter(
+    (answer) => typeof answer.field_name === "string" && reusableAnswerKeySet.has(answer.field_name),
+  );
+  if (reusableAnswers.length) {
     const now = new Date().toISOString();
     const { error: copyError } = await admin.from("visa_application_answers").insert(
       reusableAnswers.map((answer) => ({

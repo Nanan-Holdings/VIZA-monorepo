@@ -6,7 +6,7 @@ import {
   loadAssistantSchema,
   requireOwnedApplication,
 } from "@/lib/form-assistant/server-context";
-import { getOrCreateAssistantSession } from "@/lib/form-assistant/service";
+import { formAssistantTimeZone, getOrCreateAssistantSession } from "@/lib/form-assistant/service";
 import { validateApplicationAnswers } from "@/lib/form-assistant/validator";
 import type { FormAssistantValidationResponse } from "@/types/form-assistant";
 
@@ -46,7 +46,13 @@ export async function POST(
       steps,
     });
     const answers = Object.fromEntries(Object.entries(answerRows).map(([key, item]) => [key, item.value]));
-    const result = validateApplicationAnswers({ steps, answers, visaType: owned.application.visa_type, locale });
+    const result = validateApplicationAnswers({
+      steps,
+      answers,
+      visaType: owned.application.visa_type,
+      timeZone: formAssistantTimeZone(owned.application.country, owned.application.visa_type),
+      locale,
+    });
     const validationId = randomUUID();
     const response: FormAssistantValidationResponse = {
       ...result,

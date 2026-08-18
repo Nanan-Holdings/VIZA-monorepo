@@ -8,6 +8,7 @@ export const BACKFILL_POOL_FLOW_KEYS = [
   "sgac",
   "mdac",
   "tdac",
+  "kr_arrival_card",
   "kr_eform",
   "tw_entry_permit",
 ] as const;
@@ -59,6 +60,12 @@ export function deriveBackfillPoolFlow(
     && (normalizedVisaType === "KR_C39_SHORT_TERM_VISIT" || normalizedVisaType === "KR_C_3_9")
   ) {
     return "kr_eform";
+  }
+  if (
+    (normalizedCountry === "KR" || normalizedCountry === "KOREA" || normalizedCountry === "SOUTH_KOREA")
+    && normalizedVisaType === "KR_E_ARRIVAL_CARD"
+  ) {
+    return "kr_arrival_card";
   }
   if (
     (normalizedCountry === "TW" || normalizedCountry === "TAIWAN")

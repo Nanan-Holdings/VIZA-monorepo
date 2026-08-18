@@ -109,7 +109,7 @@ function getMaxItems(field: VisaFormFieldRow): number | null {
 }
 
 function instanceKey(fieldName: string, index: number): string {
-  return index === 0 ? fieldName : `${fieldName}__${index}`;
+  return index === 0 ? fieldName : `${fieldName}__${index + 1}`;
 }
 
 function isVisibleRequiredField(field: VisaFormFieldRow, values: Record<string, string>, fields: VisaFormFieldRow[]) {
@@ -118,16 +118,28 @@ function isVisibleRequiredField(field: VisaFormFieldRow, values: Record<string, 
   return evaluateShowIf(field, values, fields);
 }
 
+function isAllowedChoiceValue(field: VisaFormFieldRow, value: string | null | undefined): boolean {
+  if (!hasValue(value)) return false;
+  if (
+    !field.options?.length ||
+    field.validationRules?.remote_search === true ||
+    !["select", "radio", "country"].includes(field.fieldType)
+  ) return true;
+  return field.options.some((option) => (
+    typeof option === "string" ? option : option.value
+  ) === value);
+}
+
 function isFieldComplete(field: VisaFormFieldRow, values: Record<string, string>): boolean {
   if (field.fieldType === "checkbox" && field.required) {
     return isAcceptedCheckboxValue(values[field.fieldName]);
   }
   const group = getRepeatGroup(field);
-  if (!group) return hasValue(values[field.fieldName]);
+  if (!group) return isAllowedChoiceValue(field, values[field.fieldName]);
 
   const count = getMaxItems(field) ?? 1;
   for (let index = 0; index < count; index += 1) {
-    if (hasValue(values[instanceKey(field.fieldName, index)])) return true;
+    if (isAllowedChoiceValue(field, values[instanceKey(field.fieldName, index)])) return true;
   }
   return false;
 }

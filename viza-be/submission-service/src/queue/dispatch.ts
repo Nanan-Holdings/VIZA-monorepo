@@ -144,6 +144,7 @@ export const POOL_FLOW_COUNTRIES = {
   sgac: "singapore",
   mdac: "malaysia",
   tdac: "thailand",
+  kr_arrival_card: "south_korea",
   kr_eform: "south_korea",
   tw_entry_permit: "taiwan",
 } as const;
@@ -204,6 +205,15 @@ export function createPoolFlowDispatch(
         applicationId,
         identity.jobId,
         "tdac",
+        identity.executionContext,
+      );
+    },
+    kr_arrival_card: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "kr_arrival_card pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        identity.jobId,
+        "kr_arrival_card",
         identity.executionContext,
       );
     },

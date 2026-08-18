@@ -35,7 +35,7 @@ function firstConfiguredEndpoint(envNames: string[]): string | null {
   return null;
 }
 
-export type ArrivalCardBrowserPrefix = "MDAC" | "SGAC" | "TDAC" | "PH_ETRAVEL" | "VN_PREARRIVAL" | "TW_ENTRY_PERMIT";
+export type ArrivalCardBrowserPrefix = "MDAC" | "SGAC" | "TDAC" | "PH_ETRAVEL" | "VN_PREARRIVAL" | "TW_ENTRY_PERMIT" | "KR_EAC";
 
 export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPrefix): string | null {
   const envNames = [

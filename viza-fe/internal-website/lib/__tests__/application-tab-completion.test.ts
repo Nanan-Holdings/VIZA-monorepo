@@ -189,6 +189,47 @@ describe("computeAllTabCompletion", () => {
       .toEqual([]);
   });
 
+  test("keeps a select field missing when a non-empty prefill is not an official option", () => {
+    const birthCountry = {
+      ...field("place_of_birth", { label: "Place of Birth" }),
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+      fieldType: "select" as const,
+      options: [
+        { value: "CHN", text: "CHINA", label_zh: "中国" },
+        { value: "SGP", text: "SINGAPORE", label_zh: "新加坡" },
+      ],
+    };
+    const countrySteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      fields: [birthCountry],
+    }];
+
+    expect(getMissingDynamicFormFields(countrySteps, { place_of_birth: "Changsha" }))
+      .toMatchObject([{ fieldName: "place_of_birth" }]);
+    expect(getMissingDynamicFormFields(countrySteps, { place_of_birth: "CHN" }))
+      .toEqual([]);
+  });
+
+  test("uses the same __2 suffix as the repeatable form for its second instance", () => {
+    const repeatedPassport = {
+      ...field("other_passport_number", { label: "Other passport number" }),
+      validationRules: {
+        repeatable: true,
+        repeat_group: "other_passports",
+        max_items: 3,
+      },
+    };
+    const repeatSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Other passports",
+      fields: [repeatedPassport],
+    }];
+
+    expect(getMissingDynamicFormFields(repeatSteps, { other_passport_number__2: "E1234567" }))
+      .toEqual([]);
+  });
+
   test("derives TDAC transit status from same-day dates before validating accommodation", () => {
     const tdacSteps: WizardStep[] = [
       {

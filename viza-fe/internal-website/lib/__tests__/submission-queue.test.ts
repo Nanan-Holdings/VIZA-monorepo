@@ -4,6 +4,7 @@ import {
   isDigitalArrivalCardApplication,
   isFreshDs160SubmissionIntent,
   isIndonesiaEVisaApplication,
+  isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
   isTaiwanEntryPermitApplication,
@@ -175,6 +176,19 @@ describe("queueStatusForVisaType", () => {
     expect(queueStatusForApplication("philippines", "PH_TEMPORARY_VISITOR_VISA", "live_assisted")).not.toBe(
       "phetravel_live_assisted_pending",
     );
+  });
+
+  it("routes Korea e-Arrival Card separately from the Korea C-3 e-form", () => {
+    expect(isKoreaEArrivalCardApplication("south_korea", "KR_E_ARRIVAL_CARD")).toBe(true);
+    expect(isKoreaEArrivalCardApplication("KR", "KR_C39_SHORT_TERM_VISIT")).toBe(false);
+    expect(queueStatusForVisaType("KR_E_ARRIVAL_CARD")).toBe("kr_eac_dry_run_pending");
+    expect(queueStatusForApplication("KR", "KR_E_ARRIVAL_CARD", "live_assisted")).toBe(
+      "kr_eac_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("south_korea", "KR_E_ARRIVAL_CARD", "live_assisted")).toBe(
+      "korea_e_arrival_card_live",
+    );
+    expect(submitModeForPrimaryApplicationAction("south_korea", "KR_E_ARRIVAL_CARD")).toBe("live_assisted");
   });
 
   it("routes Taiwan entry permits to explicit live and dry-run queues", () => {

@@ -33,6 +33,11 @@ import { supabase } from "./supabase.js";
 import { discardVietnamCardSession, putVietnamCardSession } from "./vietnam/card-session.js";
 import { bookJapanVfsSingaporeSlot, observeJapanVfsSingaporeSlots } from "./jp-vfs-sg/runner.js";
 import { putJapanVfsPaymentSession } from "./jp-vfs-sg/payment-session.js";
+import {
+  getCachedVnPrearrivalFlightCatalog,
+  pageVnPrearrivalFlightCatalog,
+  refreshVnPrearrivalFlightCatalog,
+} from "./vn-prearrival/flight-catalog.js";
 
 type KoreaEformPdfLanguage = "zh-CN" | "en" | "ko";
 
@@ -148,6 +153,43 @@ async function readJsonBody(req: http.IncomingMessage, maxBytes = 4096): Promise
   }
   if (chunks.length === 0) return {};
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+async function handleVnPrearrivalFlightCatalog(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+): Promise<void> {
+  const isLocalEndpoint = req.url === "/local/vn-prearrival/flight-catalog";
+  if (
+    isLocalEndpoint
+      ? !isLocalRequest(req)
+      : !isSubmissionQueueInternalRequest(req)
+  ) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const refresh = body.refresh === true;
+    const snapshot = refresh
+      ? await refreshVnPrearrivalFlightCatalog()
+      : getCachedVnPrearrivalFlightCatalog();
+    if (!snapshot) {
+      sendJson(res, 503, { error: "catalog_not_refreshed" });
+      return;
+    }
+    const page = typeof body.page === "number" ? body.page : 0;
+    const size = typeof body.size === "number" ? body.size : 10;
+    const keyword = typeof body.keyword === "string" ? body.keyword : "";
+    const selectedValue = typeof body.selectedValue === "string" ? body.selectedValue : undefined;
+    sendJson(res, 200, {
+      ok: true,
+      catalogSource: "official_live",
+      ...pageVnPrearrivalFlightCatalog(snapshot, { keyword, page, size, selectedValue }),
+    });
+  } catch {
+    sendJson(res, 502, { error: "official_catalog_refresh_failed" });
+  }
 }
 
 async function handleVietnamCardSession(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
@@ -840,6 +882,14 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       } finally {
         opts.onWorkFinish?.();
       }
+      return;
+    }
+    if (
+      req.method === "POST" &&
+      (url === "/local/vn-prearrival/flight-catalog" ||
+        url === "/internal/vn-prearrival/flight-catalog")
+    ) {
+      runTracked(handleVnPrearrivalFlightCatalog(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/indonesia/card-session") {

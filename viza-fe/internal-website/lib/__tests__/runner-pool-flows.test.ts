@@ -13,6 +13,7 @@ describe("resolveRunnerPoolFlow", () => {
     ["vietnam", "VN_PREARRIVAL_DECLARATION", "vn_prearrival"],
     ["vietnam", "VN_E_VISA", "vn_evisa"],
     ["south_korea", "KR_C39_SHORT_TERM_VISIT", "kr_eform"],
+    ["south_korea", "KR_E_ARRIVAL_CARD", "kr_arrival_card"],
     ["taiwan", "TW_ENTRY_PERMIT", "tw_entry_permit"],
   ])("maps %s/%s to %s", (country, visaType, expected) => {
     expect(resolveRunnerPoolFlow(country, visaType)).toBe(expected);
@@ -48,7 +49,7 @@ describe("shouldUseSharedRunnerPool", () => {
     expect(shouldUseSharedRunnerPool("vn_prearrival", false)).toBe(true);
   });
 
-  it.each(["sgac", "mdac", "tdac", "kr_eform", "tw_entry_permit"] as const)(
+  it.each(["sgac", "mdac", "tdac", "kr_eform", "kr_arrival_card", "tw_entry_permit"] as const)(
     "keeps strict pool flow %s on the atomic transport regardless of the legacy flag",
     (flowKey) => {
       expect(shouldUseSharedRunnerPool(flowKey, false)).toBe(true);

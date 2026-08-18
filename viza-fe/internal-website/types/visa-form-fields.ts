@@ -10,7 +10,11 @@ export type VisaFormFieldOption =
       label_zh?: string;
       label_en?: string;
       official_label?: string;
+      official_value?: string;
+      portal_label?: string;
       searchText?: string;
+      /** Display-only ISO alpha-2 code used to render a flag; never submitted. */
+      flagCountryCode?: string;
       code?: string;
       airport?: string;
       airline?: string;

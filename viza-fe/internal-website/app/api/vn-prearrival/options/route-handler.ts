@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { countries } from "country-data-list";
+import { getClientSession } from "@/lib/client-session";
+import { createClient } from "@/lib/supabase/server";
 import staticOptions from "@/lib/vn-prearrival/official-static-options.json";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
 import {
   formatVnPrearrivalOfficialFlightLabel,
+  formatVnPrearrivalPortalFlightLabel,
   getVnPrearrivalStaticOptions,
 } from "@/lib/vn-prearrival/static-options";
 
@@ -46,6 +49,8 @@ type VisaFormOption = {
   label_en: string;
   label_zh: string;
   official_label: string;
+  official_value?: string;
+  portal_label?: string;
   code?: string;
   airport?: string;
   airline?: string;
@@ -61,8 +66,8 @@ type CachedOfficialOptions = {
 };
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const FLIGHT_CACHE_TTL_MS = 5 * 60 * 1000;
 const officialOptionsCache = new Map<string, CachedOfficialOptions>();
+const OFFICIAL_DEVICE_ID = crypto.randomUUID();
 
 const STATIC_OPTION_SOURCES = staticOptions.sources as Record<string, OfficialOption[] | undefined>;
 const COUNTRY_ALPHA2_BY_ALPHA3 = new Map(
@@ -148,19 +153,27 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormOptio
   const airline = stringValue(item.airline);
   const provinceCity = stringValue(item.province_city);
   const ward = stringValue(item.ward);
+  const officialValue = source === "flight"
+    ? stringValue(item.vn_value) || stringValue(item.vietnam_value) || enValue
+    : "";
   const officialLabel = source === "flight"
-    ? formatVnPrearrivalOfficialFlightLabel(enValue, airport)
+    ? formatVnPrearrivalOfficialFlightLabel(officialValue, airport)
     : enValue;
+  const portalLabel = source === "flight"
+    ? formatVnPrearrivalPortalFlightLabel(officialValue, airport)
+    : officialLabel;
   const value = source === "country_code" && rawValue
     ? rawValue
     : source === "flight"
       ? code || (airport ? `${enValue}_${airport}` : enValue)
       : code || rawValue || enValue;
-  const labelZh = source === "country_code"
-    ? `${zhRegionNameFromOfficialCode(code) || vnValue.replace(/\s*\(\+\d+\)\s*$/, "") || enValue} (${rawValue || value})`
-    : source === "nationality"
-      ? zhRegionNameFromOfficialCode(code) || vnValue
-      : vnValue;
+  const labelZh = source === "flight"
+    ? officialLabel
+    : source === "country_code"
+      ? `${zhRegionNameFromOfficialCode(code) || vnValue.replace(/\s*\(\+\d+\)\s*$/, "") || enValue} (${rawValue || value})`
+      : source === "nationality"
+        ? zhRegionNameFromOfficialCode(code) || vnValue
+        : vnValue;
 
   return {
     value,
@@ -168,6 +181,8 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormOptio
     label_en: officialLabel,
     label_zh: labelZh,
     official_label: officialLabel,
+    ...(officialValue ? { official_value: officialValue } : {}),
+    ...(portalLabel ? { portal_label: portalLabel } : {}),
     ...(code ? { code } : {}),
     ...(airport ? { airport } : {}),
     ...(airline ? { airline } : {}),
@@ -183,6 +198,8 @@ async function fetchOfficialJson(path: string, init?: RequestInit): Promise<unkn
     ...init,
     headers: {
       "Accept": "application/json, text/plain, */*",
+      "Accept-Language": "en",
+      "device-id": OFFICIAL_DEVICE_ID,
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
       ...(hasBody ? {
         "Origin": "https://prearrival.immigration.gov.vn",
@@ -215,7 +232,7 @@ async function loadOfficialItems(source: string): Promise<OfficialOption[]> {
   if (cached?.items && cached.expiresAt > now) return cached.items;
   if (cached?.promise) return cached.promise;
 
-  const ttl = source === "flight" ? FLIGHT_CACHE_TTL_MS : CACHE_TTL_MS;
+  const ttl = CACHE_TTL_MS;
   const promise = fetchOfficialJson(`/category/findAllActive/${source}`)
     .then((json) => officialItems(json))
     .then((items) => {
@@ -266,29 +283,217 @@ function normalizeOfficialFlightSearch(keyword: string): string {
   return digits.length === 3 ? `${airline}${digits.padStart(4, "0")}` : `${airline}${digits}`;
 }
 
-async function loadOfficialFlightOptions(keyword: string): Promise<VisaFormOption[]> {
-  const query = normalizeOfficialFlightSearch(keyword).toLowerCase();
-  const rawItems = await loadOfficialItems("flight");
-  const matchedItems = query
-    ? rawItems.filter((item) =>
-        [
-          stringValue(item.code),
-          stringValue(item.en_value),
-          stringValue(item.english_value),
-          stringValue(item.vn_value),
-          stringValue(item.airport),
-          stringValue(item.airline),
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(query),
-      )
-    : rawItems;
-  return matchedItems
-    .sort((left, right) => stringValue(left.code).localeCompare(stringValue(right.code), "en"))
+type FlightSearchPage = {
+  items: VisaFormOption[];
+  totalCount: number;
+  hasMore: boolean;
+  catalogSource: "official_live" | "bundled_snapshot";
+  fetchedAt?: string;
+  selectedExists: boolean | null;
+  selectedOption: VisaFormOption | null;
+};
+
+function officialFlightSearchBody(keyword: string, page: number, size: number) {
+  return {
+    keyword: normalizeOfficialFlightSearch(keyword),
+    filters: {},
+    page,
+    size,
+    sorts: [{ key: "code", asc: true }],
+  };
+}
+
+function officialPageRecord(value: unknown): Record<string, unknown> | null {
+  const record = asRecord(value);
+  const data = record ? record.data : null;
+  return asRecord(data) ?? record;
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function pageFromOfficialSearch(value: unknown, page: number, size: number): FlightSearchPage {
+  const record = officialPageRecord(value);
+  const items = officialItems(value)
     .map((item) => optionFromOfficial(item, "flight"))
     .filter(Boolean) as VisaFormOption[];
+  const totalCount = numberValue(record?.totalElements)
+    ?? numberValue(record?.totalCount)
+    ?? numberValue(record?.total)
+    ?? (page * size + items.length);
+  const last = typeof record?.last === "boolean" ? record.last : null;
+  return {
+    items,
+    totalCount,
+    hasMore: last === null ? (page * size + items.length < totalCount) : !last,
+    catalogSource: "official_live",
+    selectedExists: null,
+    selectedOption: null,
+  };
+}
+
+function officialFlightMatchesKeyword(item: OfficialOption, keyword: string): boolean {
+  if (!keyword) return true;
+  const haystack = [
+    item.code,
+    item.vn_value,
+    item.vietnam_value,
+    item.en_value,
+    item.english_value,
+    item.airport,
+    item.airline,
+  ]
+    .map(stringValue)
+    .join(" ")
+    .replace(/\s+/g, "")
+    .toLowerCase();
+  return haystack.includes(keyword.toLowerCase());
+}
+
+function fallbackFlightSearch(
+  keyword: string,
+  page: number,
+  size: number,
+  selectedValue = "",
+): FlightSearchPage {
+  const query = normalizeOfficialFlightSearch(keyword);
+  const rawItems = [...(STATIC_OPTION_SOURCES.flight ?? [])]
+    .filter((item) => officialFlightMatchesKeyword(item, query));
+  const mappedItems = rawItems
+    .map((item) => optionFromOfficial(item, "flight"))
+    .filter(Boolean) as VisaFormOption[];
+  const result = paginateOptions(mappedItems, page, size);
+  const selectedOption = selectedValue && selectedValue.toLowerCase() !== "other"
+    ? (STATIC_OPTION_SOURCES.flight ?? [])
+        .map((item) => optionFromOfficial(item, "flight"))
+        .find((option) => option?.value === selectedValue) ?? null
+    : null;
+  return {
+    ...result,
+    catalogSource: "bundled_snapshot",
+    selectedExists: selectedValue
+      ? selectedValue.toLowerCase() === "other" || selectedOption !== null
+      : null,
+    selectedOption,
+  };
+}
+
+type RunnerFlightCatalogResponse = {
+  catalogSource?: unknown;
+  fetchedAt?: unknown;
+  items?: unknown;
+  totalCount?: unknown;
+  page?: unknown;
+  size?: unknown;
+  hasMore?: unknown;
+  selectedExists?: unknown;
+  selectedItem?: unknown;
+};
+
+function flightCatalogServiceConfig(): {
+  url: string;
+  headers: Record<string, string>;
+} | null {
+  const localUrl = process.env.SUBMISSION_SERVICE_LOCAL_URL?.trim();
+  if (localUrl) {
+    return {
+      url: `${localUrl.replace(/\/+$/u, "")}/local/vn-prearrival/flight-catalog`,
+      headers: { "Content-Type": "application/json" },
+    };
+  }
+  const token = (
+    process.env.SUBMISSION_QUEUE_INTERNAL_TOKEN ??
+    process.env.VIETNAM_CARD_SESSION_INTERNAL_TOKEN
+  )?.trim();
+  if (!token) return null;
+  const configuredUrl = process.env.RUNNER_POOL_SUBMISSION_SERVICE_URL?.trim();
+  const defaultProductionUrl = process.env.NODE_ENV === "production"
+    ? `https://${process.env.FLY_RUNNER_POOL_APP?.trim() || "viza-runner-pool"}.fly.dev`
+    : "";
+  const baseUrl = configuredUrl || defaultProductionUrl;
+  if (!baseUrl) return null;
+  return {
+    url: `${baseUrl.replace(/\/+$/u, "")}/internal/vn-prearrival/flight-catalog`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  };
+}
+
+async function loadRunnerFlightCatalogPage(input: {
+  keyword: string;
+  page: number;
+  size: number;
+  refresh: boolean;
+  selectedValue: string;
+}): Promise<FlightSearchPage | null> {
+  const config = flightCatalogServiceConfig();
+  if (!config) return null;
+  try {
+    const response = await fetch(config.url, {
+      method: "POST",
+      headers: config.headers,
+      body: JSON.stringify(input),
+      cache: "no-store",
+      signal: AbortSignal.timeout(190_000),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as RunnerFlightCatalogResponse;
+    if (payload.catalogSource !== "official_live" || !Array.isArray(payload.items)) return null;
+    const items = (payload.items as OfficialOption[])
+      .map((item) => optionFromOfficial(item, "flight"))
+      .filter(Boolean) as VisaFormOption[];
+    const selectedItem = asRecord(payload.selectedItem) as OfficialOption | null;
+    return {
+      items,
+      totalCount: numberValue(payload.totalCount) ?? items.length,
+      hasMore: payload.hasMore === true,
+      catalogSource: "official_live",
+      ...(typeof payload.fetchedAt === "string" ? { fetchedAt: payload.fetchedAt } : {}),
+      selectedExists: typeof payload.selectedExists === "boolean" ? payload.selectedExists : null,
+      selectedOption: selectedItem ? optionFromOfficial(selectedItem, "flight") : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function loadOfficialFlightOptions(
+  keyword: string,
+  page: number,
+  size: number,
+  input: { refresh: boolean; selectedValue: string },
+): Promise<FlightSearchPage> {
+  const runnerPage = await loadRunnerFlightCatalogPage({
+    keyword,
+    page,
+    size,
+    refresh: input.refresh,
+    selectedValue: input.selectedValue,
+  });
+  if (runnerPage) return runnerPage;
+  const body = officialFlightSearchBody(keyword, page, size);
+  try {
+    const json = await fetchOfficialJson("/category/searchCategory/flight", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    return pageFromOfficialSearch(json, page, size);
+  } catch {
+    // The official search requires a CAPTCHA-backed portal session. Keep the
+    // UI usable with the bundled official snapshot while preserving the
+    // portal's exact normalization, code order, and pagination contract.
+    return fallbackFlightSearch(keyword, page, size, input.selectedValue);
+  }
+}
+
+async function hasAuthenticatedApplicant(): Promise<boolean> {
+  if (await getClientSession()) return true;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return Boolean(user);
 }
 
 function paginateOptions<T>(
@@ -363,7 +568,7 @@ function filterHotelOptionsByHierarchy(
 }
 
 void Promise.allSettled(
-  ["visa_issue_place", "hotel", "airport", "port", "visa_type", "purpose", "flight"].map((source) => loadOfficialItems(source)),
+  ["visa_issue_place", "hotel", "airport", "port", "visa_type", "purpose"].map((source) => loadOfficialItems(source)),
 );
 
 export async function GET(request: Request) {
@@ -379,16 +584,26 @@ export async function GET(request: Request) {
   const page = Number.isFinite(pageParam) ? Math.max(pageParam, 0) : 0;
   const sizeParam = Number.parseInt(url.searchParams.get("size") ?? "10", 10);
   const size = Number.isFinite(sizeParam) ? Math.min(Math.max(sizeParam, 1), 100) : 10;
+  const refresh = url.searchParams.get("refresh") === "1";
+  const selectedValue = url.searchParams.get("selected")?.trim() ?? "";
+
+  if (source === "flight" && refresh && !(await hasAuthenticatedApplicant())) {
+    return NextResponse.json({ error: "Not authenticated", totalCount: 0, options: [] }, { status: 401 });
+  }
 
   try {
     let options: VisaFormOption[];
     if (source === "flight") {
-      const result = paginateOptions(await loadOfficialFlightOptions(keyword), page, size);
+      const result = await loadOfficialFlightOptions(keyword, page, size, { refresh, selectedValue });
       return NextResponse.json({
         totalCount: result.totalCount,
         page,
         size,
         hasMore: result.hasMore,
+        catalogSource: result.catalogSource,
+        ...(result.fetchedAt ? { fetchedAt: result.fetchedAt } : {}),
+        selectedExists: result.selectedExists,
+        selectedOption: result.selectedOption,
         options: result.items,
       });
     } else if (source === "hotel") {
@@ -420,8 +635,12 @@ export async function GET(request: Request) {
 export const __testables = {
   filterHotelOptionsByHierarchy,
   filterOptionsByKeyword,
+  fallbackFlightSearch,
   normalizeOfficialFlightSearch,
+  officialFlightSearchBody,
   optionFromOfficial,
+  pageFromOfficialSearch,
   paginateOptions,
+  flightCatalogServiceConfig,
   zhRegionNameFromOfficialCode,
 };

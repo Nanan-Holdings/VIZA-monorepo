@@ -658,6 +658,7 @@ const ARRIVAL_CARD_FORM_ROUTES: Partial<Record<SupportedKnowledgeCountry, string
   philippines: '/client/application?country=philippines&visaType=PH_ETRAVEL_ARRIVAL_CARD',
   singapore: '/client/application?country=singapore&visaType=SG_ARRIVAL_CARD',
   thailand: '/client/application?country=thailand&visaType=TH_TDAC_ARRIVAL_CARD',
+  south_korea: '/client/arrival-cards/south-korea',
 };
 
 const PRODUCT_DISPLAY_NAMES_ZH: Record<string, string> = {
@@ -670,6 +671,7 @@ const PRODUCT_DISPLAY_NAMES_ZH: Record<string, string> = {
   PH_ETRAVEL_ARRIVAL_CARD: '菲律宾电子入境申报',
   PH_TEMPORARY_VISITOR_VISA: '菲律宾临时访客签证',
   VN_PREARRIVAL_DECLARATION: '越南入境前申报',
+  KR_E_ARRIVAL_CARD: '韩国电子入境卡',
   evisa_tourism: '旅游电子签证',
   schengen_short_stay_tourism: '申根短期旅游签证',
 };

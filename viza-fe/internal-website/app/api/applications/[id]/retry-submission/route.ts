@@ -13,6 +13,7 @@ import {
   enqueueSgacRunnerRetry,
 } from "@/lib/queue/enqueue";
 import { loadApplicationCompleteness } from "@/lib/application-completeness";
+import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 import {
   resolveRunnerPoolFlow,
   shouldUseSharedRunnerPool,
@@ -21,16 +22,22 @@ import {
   evaluateSgacSubmissionWindow,
   validateSgacTravelDates,
 } from "@/features/sgac/date-window";
-import {
-  evaluatePhEtravelSubmissionWindow,
-} from "@/features/ph-etravel/date-window";
+import { koreaSeoulMidnightIso } from "@/features/kr-arrival-card/date-window";
 import { decidePhEtravelLiveSchedule } from "@/features/ph-etravel/retry-schedule";
+import { decideKoreaEArrivalCardLiveSchedule } from "@/features/kr-arrival-card/retry-schedule";
+import { extractKoreaEArrivalAnswers } from "@/features/kr-arrival-card/answer-loader";
+import { isKoreaEArrivalCardLiveEnabled } from "@/features/kr-arrival-card/config";
+import {
+  KOREA_E_ARRIVAL_PREFLIGHT_ANSWER_KEYS,
+  validateKoreaEArrivalPreflight,
+} from "@/features/kr-arrival-card/preflight";
 import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
   isFreshDs160SubmissionIntent,
   isFranceVisasVisaType,
   isIndonesiaEVisaApplication,
+  isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
   isPhilippinesEtravelApplication,
   isSgArrivalCardApplication,
@@ -321,6 +328,9 @@ function runnerPoolAvailableAt(
 ): string | undefined {
   if (!scheduledFor || !/^\d{4}-\d{2}-\d{2}$/u.test(scheduledFor)) return undefined;
   const normalized = normalizeComparable(country);
+  if (normalized === "south_korea" || normalized === "korea" || normalized === "kr") {
+    return koreaSeoulMidnightIso(scheduledFor);
+  }
   const offset =
     normalized === "vietnam" || normalized === "vn" ||
     normalized === "thailand" || normalized === "th"
@@ -354,6 +364,13 @@ function hasCompletedOfficialSubmission(application: ApplicationForRetry): boole
       Array.isArray(artifacts.qrCodes) &&
       artifacts.qrCodes.some((value) => typeof value === "string" && value.trim().length > 0),
     );
+  }
+  if (isKoreaEArrivalCardApplication(application.country, application.visa_type)) {
+    return hasSuccessfulArrivalCardSubmission({
+      country: application.country,
+      visaType: application.visa_type,
+      submissionResult: application.submission_result,
+    });
   }
   const normalizedStatus = normalizeComparable(application.submission_result_status);
   if (["completed", "complete", "submitted", "success", "done"].includes(normalizedStatus)) return true;
@@ -447,6 +464,12 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
   if (isPhilippinesEtravelApplication(country, visaType)) {
     return process.env.PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false" &&
       process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
+  }
+  if (isKoreaEArrivalCardApplication(country, visaType)) {
+    return isKoreaEArrivalCardLiveEnabled({
+      serverFlag: process.env.KR_E_ARRIVAL_CARD_LIVE_SUBMISSION_ENABLED,
+      clientFlag: process.env.NEXT_PUBLIC_KR_E_ARRIVAL_CARD_LIVE_SUBMISSION_ENABLED,
+    });
   }
   if (isTaiwanEntryPermitApplication(country, visaType)) {
     return process.env.TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED === "true";
@@ -1167,6 +1190,64 @@ async function readSgacDateAnswers(
   };
 }
 
+async function readKoreaEArrivalAnswers(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  application: ApplicationForRetry,
+): Promise<{
+  arrivalDate: string | null;
+  departureDate: string | null;
+  arrivalMode: string | null;
+  stayAddressProvided: boolean;
+  error: string | null;
+}> {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("field_name, value_text, value_json")
+    .eq("application_id", applicationId)
+    .in("field_name", ["arrival_date", "departure_date", "arrival_mode", "stay_address_ko", "stay_address_en"]);
+
+  if (error) {
+    return {
+      arrivalDate: null,
+      departureDate: null,
+      arrivalMode: null,
+      stayAddressProvided: false,
+      error: error.message,
+    };
+  }
+
+  const snapshot = extractKoreaEArrivalAnswers(
+    (data ?? []) as Array<{ field_name?: unknown; value_text?: unknown; value_json?: unknown }>,
+    {
+      arrival_date: application.arrival_date,
+      departure_date: application.departure_date,
+      accommodation_address: application.accommodation_address,
+    },
+  );
+  return { ...snapshot, error: null };
+}
+
+async function readKoreaEArrivalPreflight(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+): Promise<ReturnType<typeof validateKoreaEArrivalPreflight> | { ok: false; code: "load_failed"; message: string }> {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("field_name, value_text, value_json")
+    .eq("application_id", applicationId)
+    .in("field_name", [...KOREA_E_ARRIVAL_PREFLIGHT_ANSWER_KEYS]);
+  if (error) return { ok: false, code: "load_failed", message: error.message };
+
+  const answers: Record<string, string> = {};
+  for (const row of (data ?? []) as Array<{ field_name?: unknown; value_text?: unknown; value_json?: unknown }>) {
+    if (typeof row.field_name !== "string") continue;
+    const value = answerValueToText(row);
+    if (value) answers[row.field_name] = value;
+  }
+  return validateKoreaEArrivalPreflight(answers);
+}
+
 async function decideSgacLiveSchedule(input: {
   admin: ReturnType<typeof createAdminClient>;
   applicationId: string;
@@ -1826,6 +1907,49 @@ export async function POST(
         scheduledFor = scheduleDecision.earliestSubmissionDate;
       }
     }
+    if (isKoreaEArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const preflight = await readKoreaEArrivalPreflight(admin, applicationId);
+      if (!preflight.ok) {
+        return NextResponse.json(
+          {
+            error: preflight.message,
+            code: preflight.code === "load_failed"
+              ? "kr_eac_preflight_load_failed"
+              : `kr_eac_preflight_${preflight.code}`,
+          },
+          { status: preflight.code === "load_failed" ? 500 : 422 },
+        );
+      }
+      const dates = await readKoreaEArrivalAnswers(admin, applicationId, ownedApplication);
+      if (dates.error) {
+        return NextResponse.json(
+          { error: dates.error, code: "kr_eac_date_load_failed" },
+          { status: 500 },
+        );
+      }
+      const scheduleDecision = decideKoreaEArrivalCardLiveSchedule({
+        applicationId,
+        arrivalDate: dates.arrivalDate,
+        departureDate: dates.departureDate,
+        transportType: dates.arrivalMode,
+        accommodationAddressProvided: dates.stayAddressProvided,
+        now: new Date(now),
+      });
+      if (scheduleDecision.action === "reject") {
+        return NextResponse.json(
+          {
+            error: scheduleDecision.message,
+            code: scheduleDecision.code,
+          },
+          { status: scheduleDecision.status },
+        );
+      }
+      if (scheduleDecision.action === "schedule") {
+        queueStatus = "kr_eac_live_assisted_scheduled";
+        scheduledResult = scheduleDecision.result;
+        scheduledFor = scheduleDecision.earliestSubmissionDate;
+      }
+    }
   }
 
   const poolFlow = resolveRunnerPoolFlow(
@@ -1959,6 +2083,8 @@ export async function POST(
                 ? "scheduled_for_tdac_window"
                 : queueStatus === "phetravel_live_assisted_scheduled"
                   ? "scheduled_for_phetravel_window"
+                  : queueStatus === "kr_eac_live_assisted_scheduled"
+                    ? "scheduled_for_kr_e_arrival_window"
                   : null,
       }));
   if (queueResult.error) {

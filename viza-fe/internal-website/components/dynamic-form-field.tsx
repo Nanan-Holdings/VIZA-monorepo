@@ -46,15 +46,42 @@ import { APPLICATION_SEARCHABLE_OPTION_MIN } from "@/lib/application-schema-ui-c
 type CountryCodeEntry = {
   alpha2: string;
   alpha3: string;
+  name: string;
 };
 
-const COUNTRY_ALPHA2_BY_ALPHA3 = new Map(
-  countries.all.map((country: CountryCodeEntry) => [country.alpha3.toUpperCase(), country.alpha2.toLowerCase()]),
-);
+const COUNTRY_ALPHA2_BY_CODE = new Map<string, string>();
+const COUNTRY_ALPHA2_BY_NAME = new Map<string, string>();
 
-const COUNTRY_MULTI_SELECT_FIELD_NAMES = new Set([
-  "countries_visited_last_14_days",
-]);
+function normalizeCountryLookup(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " AND ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+const englishRegionNames = new Intl.DisplayNames(["en"], { type: "region" });
+const chineseRegionNames = new Intl.DisplayNames(["zh-CN"], { type: "region" });
+
+for (const country of countries.all as CountryCodeEntry[]) {
+  const alpha2 = country.alpha2.toLowerCase();
+  COUNTRY_ALPHA2_BY_CODE.set(country.alpha2.toUpperCase(), alpha2);
+  COUNTRY_ALPHA2_BY_CODE.set(country.alpha3.toUpperCase(), alpha2);
+  for (const name of [country.name, englishRegionNames.of(country.alpha2), chineseRegionNames.of(country.alpha2)]) {
+    if (name) COUNTRY_ALPHA2_BY_NAME.set(normalizeCountryLookup(name), alpha2);
+  }
+}
+
+// Official portal codes stay untouched; these aliases are display-only.
+for (const code of ["UNK", "RKS", "XKX"]) COUNTRY_ALPHA2_BY_CODE.set(code, "xk");
+COUNTRY_ALPHA2_BY_CODE.set("D", "de");
+for (const code of ["SC-", "GBD"]) COUNTRY_ALPHA2_BY_CODE.set(code, "gb");
+for (const name of ["Kosovo", "Republic of Kosovo", "科索沃", "科索沃共和国"]) {
+  COUNTRY_ALPHA2_BY_NAME.set(normalizeCountryLookup(name), "xk");
+}
 
 const SCHENGEN_MEMBER_ALPHA2_CODES = [
   "AT",
@@ -113,6 +140,79 @@ function usesSchengenMemberStateList(field: VisaFormFieldRow): boolean {
   if (source !== "ISO3166-1") return false;
   if (SCHENGEN_COUNTRY_FIELD_NAMES.has(getBaseFieldName(field.fieldName))) return true;
   return /schengen member state/i.test(field.label);
+}
+
+function usesCountryOptionFlags(field: VisaFormFieldRow): boolean {
+  if (field.fieldType === "country") return true;
+  if (field.fieldType !== "select" && field.fieldType !== "multi_select" && field.fieldType !== "radio") {
+    return false;
+  }
+
+  const rules = field.validationRules as {
+    source?: unknown;
+    canonical_source?: unknown;
+    official_source?: unknown;
+    official_options_source?: unknown;
+    dynamic_option_source?: unknown;
+    label_zh?: unknown;
+  } | null;
+  const semanticText = [
+    getBaseFieldName(field.fieldName),
+    field.label,
+    rules?.label_zh,
+    rules?.source,
+    rules?.canonical_source,
+    rules?.official_source,
+    rules?.official_options_source,
+    rules?.dynamic_option_source,
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+
+  const hasCountrySemantics = /countr(?:y|ies)|nationality|citizenship|territor(?:y|ies)|国家|地区|国籍|公民身份/.test(semanticText)
+    || (field.fieldType === "select" && getBaseFieldName(field.fieldName) === "place_of_birth");
+  if (!hasCountrySemantics) return false;
+
+  return (field.options ?? []).some((option) => {
+    if (typeof option === "string") return Boolean(resolveFlagCountryCode(option));
+    return Boolean(resolveFlagCountryCode(
+      option.flagCountryCode,
+      option.value,
+      option.code,
+      option.official_value,
+      option.label_en,
+      option.text,
+      option.official_label,
+      option.label_zh,
+    ));
+  });
+}
+
+function resolveFlagCountryCode(...candidates: Array<string | undefined>): string | undefined {
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const trimmed = candidate.trim();
+    const exactCode = COUNTRY_ALPHA2_BY_CODE.get(trimmed.toUpperCase());
+    if (exactCode) return exactCode;
+    const leadingCode = /^([A-Za-z]{2,3})(?:\s*[-:]|$)/.exec(trimmed)?.[1]?.toUpperCase();
+    if (leadingCode) {
+      const byCode = COUNTRY_ALPHA2_BY_CODE.get(leadingCode);
+      if (byCode) return byCode;
+    }
+
+    const normalized = normalizeCountryLookup(trimmed);
+    const nameCandidates = [
+      normalized,
+      normalized.replace(/籍$/, "").trim(),
+      normalizeCountryLookup(trimmed.split(/\s+(?:-|:|,)\s*|[,，]/, 1)[0] ?? ""),
+    ];
+    for (const name of nameCandidates) {
+      const byName = COUNTRY_ALPHA2_BY_NAME.get(name);
+      if (byName) return byName;
+    }
+  }
+  return undefined;
 }
 
 function extractYearFromDateValue(value: string): string {
@@ -187,9 +287,23 @@ function normaliseOptions(
   const localizedOptions = resolveLocalizedOptions(opts, side);
   if (!localizedOptions || !Array.isArray(localizedOptions)) return [];
   return localizedOptions.map((o) => {
-    if (typeof o === "string") return { value: o, text: cleanOptionDisplayText(o), searchText: o };
+    if (typeof o === "string") return {
+      value: o,
+      text: cleanOptionDisplayText(o),
+      searchText: o,
+      flagCountryCode: includeCountryFlags ? resolveFlagCountryCode(o) : undefined,
+    };
     if (typeof o === "object" && o !== null) {
-      const obj = o as { value?: string; text?: string; label_en?: string; label_zh?: string; official_label?: string };
+      const obj = o as {
+        value?: string;
+        text?: string;
+        label_en?: string;
+        label_zh?: string;
+        official_label?: string;
+        official_value?: string;
+        code?: string;
+        flagCountryCode?: string;
+      };
       const text = side === "zh"
         ? obj.label_zh ?? obj.text ?? obj.label_en ?? obj.official_label ?? obj.value ?? ""
         : obj.label_en ?? obj.text ?? obj.official_label ?? obj.value ?? "";
@@ -197,8 +311,17 @@ function normaliseOptions(
         value: obj.value ?? "",
         text: cleanOptionDisplayText(text),
         searchText: [obj.value, obj.text, obj.label_en, obj.label_zh, obj.official_label].filter(Boolean).join(" "),
-        flagCountryCode: includeCountryFlags && obj.value
-          ? COUNTRY_ALPHA2_BY_ALPHA3.get(obj.value.toUpperCase())
+        flagCountryCode: includeCountryFlags
+          ? resolveFlagCountryCode(
+            obj.flagCountryCode,
+            obj.value,
+            obj.code,
+            obj.official_value,
+            obj.label_en,
+            obj.text,
+            obj.official_label,
+            obj.label_zh,
+          )
           : undefined,
       };
     }
@@ -326,9 +449,10 @@ export function DynamicFormField({
   const pendingSelectionTimerRef = useRef<number | null>(null);
   const maxLength = getMaxLengthRule(field);
   const criticalInlineHelperText = getCriticalInlineHelperText(field, sideLocale);
+  const includeCountryFlags = usesCountryOptionFlags(field);
   const normalizedSelectOptions = useMemo(
-    () => fieldType === "select" ? normaliseOptions(options, sideLocale) : [],
-    [fieldType, options, sideLocale],
+    () => fieldType === "select" ? normaliseOptions(options, sideLocale, includeCountryFlags) : [],
+    [fieldType, includeCountryFlags, options, sideLocale],
   );
   const helperText = criticalInlineHelperText;
   const characterCount = maxLength ? `${value.length}/${maxLength}` : undefined;
@@ -520,7 +644,7 @@ export function DynamicFormField({
           </FieldWrapper>
         );
       }
-      if (usesRemoteSearch || opts.length >= APPLICATION_SEARCHABLE_OPTION_MIN) {
+      if (usesRemoteSearch || includeCountryFlags || opts.length >= APPLICATION_SEARCHABLE_OPTION_MIN) {
         return (
           <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <ApplicationSearchableSelect
@@ -564,11 +688,7 @@ export function DynamicFormField({
     }
 
     case "multi_select": {
-      const opts = normaliseOptions(
-        options,
-        sideLocale,
-        COUNTRY_MULTI_SELECT_FIELD_NAMES.has(getBaseFieldName(field.fieldName)),
-      );
+      const opts = normaliseOptions(options, sideLocale, usesCountryOptionFlags(field));
       const rules = field.validationRules as { exclusive_option?: string } | null;
       return (
         <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
@@ -650,7 +770,7 @@ export function DynamicFormField({
 
     case "country":
       {
-        const opts = normaliseOptions(options, sideLocale);
+        const opts = normaliseOptions(options, sideLocale, true);
         const isSchengenMemberState = usesSchengenMemberStateList(field);
         if (opts.length > 0) {
           return (
@@ -682,7 +802,7 @@ export function DynamicFormField({
       }
 
     case "radio": {
-      const opts = normaliseOptions(options, sideLocale);
+      const opts = normaliseOptions(options, sideLocale, usesCountryOptionFlags(field));
       const isSelectionToggle = opts.length === 2;
       return (
         <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>

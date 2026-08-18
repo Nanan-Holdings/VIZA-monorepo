@@ -55,6 +55,10 @@ Before changing this route, read:
   and confirmation PDF artifacts are rendered as authenticated downloads.
   `UsResultCard.test.tsx` verifies that the completed DS-160 action requests a
   fresh application instead of being swallowed by completed-result idempotency.
+- `app/client/application/long-form/__tests__/submit-navigation.test.ts` guards
+  the shared submit interaction: successful and in-progress submissions keep
+  the applicant's viewport in place, while missing-field errors may navigate
+  to the correction surface.
 
 ## Guardrails
 

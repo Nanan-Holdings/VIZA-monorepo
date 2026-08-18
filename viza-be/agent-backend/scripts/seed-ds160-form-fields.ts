@@ -1134,7 +1134,7 @@ const FIELDS: FieldDef[] = [
     display_order: 11,
     placeholder: "YYYY",
     conditional_logic: { showIf: "has_us_visa === yes" },
-    validation_rules: { pattern: "^[0-9]{4}$", minLength: 4, maxLength: 4, format: "DD-MMM-YYYY" },
+    validation_rules: { pattern: "^[0-9]{4}$", minLength: 4, maxLength: 4, format: "YYYY" },
   },
   {
     field_name: "visa_number",

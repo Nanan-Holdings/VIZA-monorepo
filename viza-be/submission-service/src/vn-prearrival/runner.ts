@@ -136,6 +136,7 @@ function officialOptionValue(value: string): string {
 
 type OfficialStaticItem = {
   code?: string;
+  vn_value?: string;
   en_value?: string;
   english_value?: string;
   airport?: string;
@@ -184,12 +185,26 @@ export function officialCatalogLabel(source: string, value: string, parent = "")
   if (source === "province" || source === "ward") {
     return officialAdministrativeLabel(source, value, parent);
   }
-  const item = loadOfficialStaticCatalog()?.sources?.[source]?.find((candidate) => candidate.code === value);
+  const item = findOfficialCatalogItem(source, value);
   if (!item) return officialOptionValue(value);
-  const label = item.en_value ?? item.english_value ?? value;
+  const label = source === "flight"
+    ? item.vn_value ?? item.en_value ?? item.english_value ?? value
+    : item.en_value ?? item.english_value ?? value;
   return source === "flight"
     ? formatOfficialFlightDisplayLabel(label, item.airport)
     : label;
+}
+
+function findOfficialCatalogItem(source: string, value: string): OfficialStaticItem | undefined {
+  return loadOfficialStaticCatalog()?.sources?.[source]?.find((candidate) =>
+    candidate.code === value || (source === "flight" && candidate.vn_value === value),
+  );
+}
+
+export function officialCatalogValue(source: string, value: string): string {
+  if (!value) return value;
+  const item = findOfficialCatalogItem(source, value);
+  return source === "flight" ? item?.vn_value ?? value.replace(/_([A-Z]{3})$/i, "") : value;
 }
 
 function caseInsensitiveExactText(value: string): RegExp {
@@ -1384,7 +1399,7 @@ export async function runVietnamPrearrivalPortalSubmission(
         : officialCatalogLabel("flight", payload.flightNumber ?? "");
       const flightSearchValue = isCustomFlight
         ? "Other"
-        : (payload.flightNumber ?? "").replace(/_([A-Z]{3})$/i, "");
+        : officialCatalogValue("flight", payload.flightNumber ?? "");
       logs.push(`vn_prearrival_option_resolved field=flight_number value=${flightLabel}`);
       if (!(await selectDependentOfficialOption(
         page,

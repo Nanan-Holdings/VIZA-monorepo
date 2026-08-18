@@ -42,12 +42,17 @@ describe('visa destination registry canonical products', () => {
       'PH_ETRAVEL_DEPARTURE_CARD',
       'PH_TEMPORARY_VISITOR_VISA',
     ]);
+    expect(VISA_DESTINATION_REGISTRY.south_korea.supportedVisaTypes).toEqual([
+      'KR_C39_SHORT_TERM_VISIT',
+      'KR_E_ARRIVAL_CARD',
+    ]);
   });
 
   it.each([
     ['indonesia', 'tourist_b211a', 'ID_C1_TOURIST'],
     ['vietnam', 'evisa_tourism', 'VN_E_VISA'],
     ['south_korea', 'c3_or_keta', 'KR_C39_SHORT_TERM_VISIT'],
+    ['south_korea', 'korea_e_arrival_card', 'KR_E_ARRIVAL_CARD'],
     ['us', 'b1_b2', 'DS160'],
     ['france', 'schengen_short_stay_tourism', 'EU_SCHENGEN_C_SHORT_STAY'],
     ['uk', 'standard_visitor', 'UK_STANDARD_VISITOR'],

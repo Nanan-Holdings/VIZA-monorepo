@@ -175,9 +175,12 @@ test("requires visa credentials only for the official credential-bearing visa ty
 test("maps every Vietnam Pre-Arrival visa type to its own official portal label", async () => {
   process.env.SUPABASE_URL ??= "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role";
-  const { officialCatalogLabel } = await import("../runner");
+  const { officialCatalogLabel, officialCatalogValue } = await import("../runner");
 
   assert.equal(officialCatalogLabel("visa_type", "MTTQ"), "Phu Quoc Visa Exemption");
+  assert.equal(officialCatalogValue("flight", "MR0681_PQC"), "MR0681");
+  assert.equal(officialCatalogValue("flight", "##HMZ2083_PQC"), "##HMZ2083");
+  assert.equal(officialCatalogLabel("flight", "##HMZ2083_PQC"), "##HMZ2083 - PQC");
   for (const visaType of [
     ...VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES.filter((value) => !["TMTT", "MTT"].includes(value)),
     ...VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,

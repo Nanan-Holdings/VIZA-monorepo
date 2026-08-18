@@ -299,8 +299,15 @@ function buildReviewedMatrix(): ReviewedVisaEntryRuleSeed[] {
       outcome: 'visa_required',
       maxStayDays: 90,
       visaType: 'KR_C39_SHORT_TERM_VISIT',
-      productRecommendations: products([['KR_C39_SHORT_TERM_VISIT', 'required']]),
-      conditions: { individual_tourism_route: 'C-3-9; exact subtype and local documents depend on the Korean mission' },
+      arrivalCardTypes: ['KR_E_ARRIVAL_CARD'],
+      productRecommendations: products([
+        ['KR_C39_SHORT_TERM_VISIT', 'required'],
+        ['KR_E_ARRIVAL_CARD', 'required'],
+      ]),
+      conditions: {
+        individual_tourism_route: 'C-3-9; exact subtype and local documents depend on the Korean mission',
+        e_arrival_card_route: 'Separate from the visa; confirm current official target/exemption rules before submission',
+      },
     }),
     ...(['SGP', 'GBR', 'USA', 'CAN', 'AUS', 'NZL'] as const).map((passport) =>
       rule('south_korea', passport, {

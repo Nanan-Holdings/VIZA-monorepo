@@ -8,6 +8,16 @@ describe("Vietnam pre-arrival official option mapping", () => {
     expect(__testables.normalizeOfficialFlightSearch("3K557")).toBe("3K557");
   });
 
+  it("uses the official flight search endpoint request contract", () => {
+    expect(__testables.officialFlightSearchBody("MR681", 2, 10)).toEqual({
+      keyword: "MR0681",
+      filters: {},
+      page: 2,
+      size: 10,
+      sorts: [{ key: "code", asc: true }],
+    });
+  });
+
   it("paginates the live flight catalog for incremental dropdown loading", () => {
     const result = __testables.paginateOptions(
       Array.from({ length: 25 }, (_, index) => `flight-${index}`),
@@ -54,11 +64,96 @@ describe("Vietnam pre-arrival official option mapping", () => {
       ),
     ).toMatchObject({
       value: "UO0566_CXR",
+      official_value: "UO0566",
       label_en: "UO566 (UO0566) - CXR",
       official_label: "UO566 (UO0566) - CXR",
+      portal_label: "UO566 (UO0566) - CXR",
       airport: "CXR",
       airline: "UO",
     });
+  });
+
+  it.each([
+    ["##HMZ2083_PQC", "##HMZ2083", "HMZ2083 - PQC"],
+    ["##HMZ2085_PQC", "##HMZ2085", "HMZ2085 - PQC"],
+    ["##MR681_PQC", "##MR681", "MR681 (MR0681) - PQC"],
+    ["##N77999_PQC", "##N77999", "N77999 - PQC"],
+  ])(
+    "hides the official feed marker from flight %s without changing its submission value",
+    (code, flightNumber, expectedLabel) => {
+      expect(
+        __testables.optionFromOfficial(
+          {
+            code,
+            en_value: flightNumber,
+            vn_value: flightNumber,
+            airport: "PQC",
+            airline: "##",
+          },
+          "flight",
+        ),
+      ).toMatchObject({
+        value: code,
+        text: expectedLabel,
+        label_en: expectedLabel,
+        label_zh: expectedLabel,
+        official_label: expectedLabel,
+        official_value: flightNumber,
+        portal_label: `${flightNumber} - PQC`,
+        airport: "PQC",
+      });
+    },
+  );
+
+  it("preserves the official response order while keeping marker cleanup display-only", () => {
+    const result = __testables.fallbackFlightSearch("", 0, 5);
+
+    expect(result.catalogSource).toBe("bundled_snapshot");
+    expect(result.items.map((option) => ({
+      value: option.value,
+      label: option.label_en,
+      officialValue: option.official_value,
+    }))).toEqual([
+      { value: "B3239_SGN", label: "B3239 - SGN", officialValue: "B3239" },
+      { value: "B605A_SGN", label: "B605A - SGN", officialValue: "B605A" },
+      { value: "B652C_SGN", label: "B652C - SGN", officialValue: "B652C" },
+      { value: "BSF968_SGN", label: "BSF968 - SGN", officialValue: "BSF968" },
+      { value: "BSF999_SGN", label: "BSF999 - SGN", officialValue: "BSF999" },
+    ]);
+  });
+
+  it("reports whether a saved flight still exists without trusting the bundled snapshot for invalidation", () => {
+    const existing = __testables.fallbackFlightSearch("", 0, 5, "MR0681_PQC");
+    const removed = __testables.fallbackFlightSearch("", 0, 5, "VN9999_SGN");
+
+    expect(existing).toMatchObject({
+      catalogSource: "bundled_snapshot",
+      selectedExists: true,
+      selectedOption: expect.objectContaining({ value: "MR0681_PQC" }),
+    });
+    expect(removed).toMatchObject({
+      catalogSource: "bundled_snapshot",
+      selectedExists: false,
+      selectedOption: null,
+    });
+  });
+
+  it("maps official paged search metadata without re-sorting the response", () => {
+    const result = __testables.pageFromOfficialSearch({
+      content: [
+        { code: "VN0650_SGN", vn_value: "VN0650", airport: "SGN" },
+        { code: "MH0746_DAD", vn_value: "MH0746", airport: "DAD" },
+      ],
+      total: 12,
+      last: false,
+    }, 0, 2);
+
+    expect(result).toMatchObject({
+      totalCount: 12,
+      hasMore: true,
+      catalogSource: "official_live",
+    });
+    expect(result.items.map((option) => option.value)).toEqual(["VN0650_SGN", "MH0746_DAD"]);
   });
 
   it("serves the official static Chinese issue-place translation instead of a machine-translated fragment", async () => {

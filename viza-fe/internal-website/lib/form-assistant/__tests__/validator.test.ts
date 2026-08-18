@@ -102,6 +102,31 @@ describe("validateApplicationAnswers", () => {
     expect(result.warnings.some((issue) => issue.code === "sgac_three_day_window")).toBe(true);
   });
 
+  it("uses the product day boundary for date-window validation", () => {
+    const malaysiaSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Trip Information",
+      fields: [{
+        ...steps[0]!.fields[0]!,
+        visaType: "MY_MDAC_ARRIVAL_CARD",
+        fieldName: "arrival_date",
+        label: "Date of Arrival in Malaysia",
+        validationRules: { min_date: "today" },
+      }],
+    }];
+    const result = validateApplicationAnswers({
+      steps: malaysiaSteps,
+      answers: { arrival_date: "2026-08-17" },
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+      now: new Date("2026-08-17T16:30:00.000Z"),
+      timeZone: "Asia/Kuala_Lumpur",
+    });
+
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "date_before_today", fieldNames: ["arrival_date"] }),
+    ]));
+  });
+
   it("requires true checkbox acceptance instead of treating false as complete", () => {
     const declarationSteps: WizardStep[] = [{
       stepNumber: 1,

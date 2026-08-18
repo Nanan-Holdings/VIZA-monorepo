@@ -53,7 +53,7 @@ function isSelectedDestination(
   );
 }
 
-const SUPPORT_LABELS_ZH: Record<string, string> = {
+export const SUPPORT_LABELS_ZH: Record<string, string> = {
   "Visitor intake": "访客申请表",
   "DS-160 form": "DS-160 表单",
   "Indonesia eVisa": "印度尼西亚电子签证",
@@ -63,6 +63,7 @@ const SUPPORT_LABELS_ZH: Record<string, string> = {
   "Schengen Type C": "申根 C 类签证",
   "UKVI form": "英国签证与移民局表单",
   "Vietnam pre-arrival declaration": "越南入境前申报",
+  "Korea e-Arrival Card": "韩国电子入境卡",
   "Application categories": "申请类别",
   "Destination region": "目的地区域",
 };
@@ -94,7 +95,7 @@ export function DestinationRegionPageClient({
     if (pendingDestinationId) return;
     setSelectionError(null);
 
-    if (destination.kind === "group" && destination.href) {
+    if (destination.href) {
       router.push(destination.href);
       return;
     }
@@ -161,12 +162,13 @@ export function DestinationRegionPageClient({
               const selected = isSelectedDestination(destination, initialSelectedPackages);
               const loading = pendingDestinationId === destination.id;
               const isGroup = destination.kind === "group";
-              const applicationHref = isGroup
-                ? null
-                : buildApplicationLongFormHref({
-                    country: destination.country,
-                    visaType: destination.visaType,
-                  });
+              const applicationHref = destination.href
+                ?? (isGroup
+                  ? null
+                  : buildApplicationLongFormHref({
+                      country: destination.country,
+                      visaType: destination.visaType,
+                    }));
               const actionLabel = isGroup
                 ? destinationMessages("chooseCategory")
                 : selected

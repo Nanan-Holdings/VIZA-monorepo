@@ -313,6 +313,42 @@ const MDAC_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("postcode", "Postcode", "trip"),
 ];
 
+const KR_EARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
+  arrivalCardField("surname", "Surname", "personal"),
+  arrivalCardField("given_name", "Given name", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("sex", "Sex", "personal"),
+  arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("passport_number", "Passport number", "passport"),
+  arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
+  arrivalCardField("email_address", "Managed alias email", "contact"),
+  arrivalCardField("arrival_mode", "Arrival mode", "trip"),
+  arrivalCardField("arrival_date", "Arrival date", "trip"),
+  arrivalCardField("arrival_flight_or_ship", "Arrival flight / ship", "trip", {
+    key: "answers.arrival_mode",
+    equals: "air",
+  }),
+  arrivalCardField("arrival_flight_or_ship", "Arrival flight / ship", "trip", {
+    key: "answers.arrival_mode",
+    equals: "sea",
+  }),
+  arrivalCardField("departure_mode", "Departure mode", "trip"),
+  arrivalCardField("departure_date", "Departure date", "trip"),
+  arrivalCardField("purpose_of_entry", "Purpose of entry", "trip"),
+  arrivalCardField("occupation", "Occupation", "personal"),
+  arrivalCardField("stay_postal_code", "Korea stay postal code", "trip"),
+  arrivalCardField("stay_contact_phone", "Korea stay contact phone", "contact"),
+  arrivalCardField("declaration_confirmed", "Official declaration confirmation", "security"),
+  // The official form accepts a Korean or English base address. The
+  // normalizer enforces this OR requirement because FieldRequirement cannot
+  // express a mutually exclusive pair.
+  { key: "answers.stay_address_en", label: "Korea stay address (English)", category: "trip", required: false },
+  { key: "answers.stay_address_ko", label: "Korea stay address (Korean)", category: "trip", required: false },
+  { key: "answers.departure_flight_or_ship", label: "Departure flight / ship", category: "trip", required: false },
+  { key: "answers.purpose_other", label: "Other entry purpose", category: "trip", required: false },
+  { key: "answers.occupation_other", label: "Other occupation", category: "personal", required: false },
+];
+
 const WHEN_TDAC_AIR = {
   key: "answers.arrival_mode_of_travel",
   equals: "air",
@@ -756,6 +792,25 @@ const CONFIGS: ProviderConfig[] = [
     schemaFiles: ["../agent-backend/scripts/seed-kr-c39-short-term-visit-form-fields.ts"],
     automationFiles: ["src/korea-kvac/runner.ts"],
     notes: "Package and schema seed exist. PDF/KVAC appointment dry-run scaffold exists; live KVAC booking remains gated pending per-center selector and CAPTCHA/SMS validation.",
+  },
+  {
+    countryCode: "KR",
+    countryAliases: ["kr", "south_korea", "korea"],
+    displayName: "Korea e-Arrival Card",
+    supportedVisaTypes: ["KR_E_ARRIVAL_CARD"],
+    implementationStatus: "implemented",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: true,
+    routeStatus: "submission_queue_dispatched",
+    serviceFiles: ["src/country-submissions/**", "src/kr-arrival-card/**", "src/queue/arrival-card-runners.ts"],
+    schemaFiles: ["../agent-backend/scripts/seed-kr-e-arrival-card-form-fields.ts"],
+    mapperFiles: ["src/country-submissions/from-records.ts", "src/kr-arrival-card/normalize.ts"],
+    automationFiles: ["src/kr-arrival-card/runner.ts"],
+    requiredFields: KR_EARRIVAL_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-KR-EAC",
+    notes: "Independent Korea e-Arrival Card flow. Official submission is free, uses the VIZA-managed alias for OTP delivery, and reports success only with an official confirmation page plus issue number and artifact.",
   },
   {
     countryCode: "AE",
