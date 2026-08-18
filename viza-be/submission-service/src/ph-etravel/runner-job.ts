@@ -84,6 +84,13 @@ export interface PhEtravelRunnerJobResult {
   officialResubmitAllowed: false;
 }
 
+export type PhEtravelRunnerJobFrontendState =
+  | "processing"
+  | "action_required"
+  | "failed"
+  | "recovery_required"
+  | "submitted";
+
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -110,6 +117,36 @@ function safeResult(stage: PhEtravelRunnerJobStage, code: string): PhEtravelRunn
 export function classifyPhEtravelRunnerJobPortalCheckpoint(code: string): PhEtravelRunnerJobResult {
   return safeResult("account_or_portal_action_required", code);
 }
+
+/** Stable PH-only state projection for UI adapters; it carries no PII or portal text. */
+export function classifyPhEtravelRunnerJobFrontendState(
+  result: Pick<PhEtravelRunnerJobResult, "stage">,
+): PhEtravelRunnerJobFrontendState {
+  switch (result.stage) {
+    case "submitted_state_synchronized":
+      return "submitted";
+    case "result_recovery_required":
+      return "recovery_required";
+    case "scheduled":
+    case "active_job_guard":
+      return "processing";
+    case "past_date_action_required":
+      return "failed";
+    case "preflight_action_required":
+    case "account_or_portal_action_required":
+    case "review_stop":
+    case "browser_execution_disabled":
+      return "action_required";
+  }
+}
+
+export const PH_ETRAVEL_RUNNER_JOB_FRONTEND_STATES = [
+  "processing",
+  "action_required",
+  "failed",
+  "recovery_required",
+  "submitted",
+] as const satisfies readonly PhEtravelRunnerJobFrontendState[];
 
 function fullName(answers: CanonicalRecord): string {
   return text(answers.full_name) || [text(answers.first_name ?? answers.given_names), text(answers.last_name ?? answers.surname)]
