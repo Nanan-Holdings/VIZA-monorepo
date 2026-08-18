@@ -152,6 +152,7 @@ describe("Vietnam pre-arrival official option mapping", () => {
     let now = 10_000;
     const responses = [
       new Response(null, { status: 503 }),
+      new Response(JSON.stringify({ status: "refresh_started" }), { status: 202 }),
       new Response(JSON.stringify({ catalogSource: "official_live", items: [] }), { status: 200 }),
     ];
     const response = await __testables.fetchRunnerFlightCatalog({
@@ -177,9 +178,47 @@ describe("Vietnam pre-arrival official option mapping", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(bodies).toHaveLength(2);
+    expect(bodies).toHaveLength(3);
     expect(bodies[0]).toContain('"refresh":true');
-    expect(bodies[1]).toContain('"refresh":false');
+    expect(bodies[1]).toContain('"refresh":true');
+    expect(bodies[2]).toContain('"refresh":false');
+  });
+
+  it("continues the bounded refresh handshake through a transient network error", async () => {
+    const bodies: string[] = [];
+    let now = 20_000;
+    let attempts = 0;
+    const response = await __testables.fetchRunnerFlightCatalog({
+      baseUrl: "https://viza-runner-pool.fly.dev",
+      url: "https://viza-runner-pool.fly.dev/internal/vn-prearrival/flight-catalog",
+      headers: {},
+      wakePool: true,
+    }, {
+      keyword: "",
+      page: 0,
+      size: 5,
+      refresh: true,
+      selectedValue: "",
+    }, {
+      fetchRunner: async (_input, init) => {
+        attempts += 1;
+        bodies.push(init?.body?.toString() ?? "");
+        if (attempts === 1) throw new TypeError("synthetic network error");
+        if (attempts === 2) {
+          return new Response(JSON.stringify({ status: "refresh_started" }), { status: 202 });
+        }
+        return new Response(JSON.stringify({ catalogSource: "official_live", items: [] }), { status: 200 });
+      },
+      delay: async (milliseconds) => {
+        now += milliseconds;
+      },
+      now: () => now,
+    });
+
+    expect(response.status).toBe(200);
+    expect(bodies).toHaveLength(3);
+    expect(bodies.slice(0, 2).every((body) => body.includes('"refresh":true'))).toBe(true);
+    expect(bodies[2]).toContain('"refresh":false');
   });
 
   it("does not retry a real official-catalog refresh failure", async () => {
