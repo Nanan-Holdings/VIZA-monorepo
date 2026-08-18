@@ -52,6 +52,10 @@ function expectCopilotCoverage(container: HTMLElement, expectedFields: string[])
 
   expect(fields).toHaveLength(expectedFields.length);
   expect(new Set(fields)).toEqual(new Set(expectedFields));
+  for (const fieldName of expectedFields) {
+    expect(container.querySelector(`[data-application-field-name="${fieldName}"]`))
+      .toBeInTheDocument();
+  }
 }
 
 describe("legacy application step copilot coverage", () => {

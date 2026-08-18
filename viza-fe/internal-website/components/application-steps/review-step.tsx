@@ -20,7 +20,10 @@ interface ReviewStepProps {
     passport?: Partial<PassportData>;
     travel?: Partial<TravelInfoData>;
   };
-  onEdit?: (section: "personal" | "passport" | "travel" | "documents") => void;
+  onEdit?: (
+    section: "personal" | "passport" | "travel" | "documents",
+    fieldName: string,
+  ) => void;
   onComplete: (result: { confirmed: true }) => void;
   mode?: "submit" | "continue";
   continueLabel?: string;
@@ -28,6 +31,7 @@ interface ReviewStepProps {
 }
 
 interface ReviewRow {
+  fieldName: string;
   label: string;
   value?: string;
 }
@@ -271,36 +275,36 @@ export function ReviewStep({
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const actionLabel = continueLabel ?? t("review.continueToTeam");
   const personalRows: ReviewRow[] = [
-    { label: "姓 / Surname", value: data?.personal?.surname },
-    { label: "名 / Given name(s)", value: data?.personal?.givenNames },
-    { label: "中文姓名 / Full name in native alphabet", value: data?.personal?.fullNameNativeAlphabet },
-    { label: "出生日期 / Date of birth", value: displayDate(data?.personal?.dateOfBirth) },
-    { label: "性别 / Sex", value: displayMappedValue(data?.personal?.sex, SEX_LABELS) },
-    { label: "婚姻状况 / Marital status", value: displayMappedValue(data?.personal?.maritalStatus, MARITAL_STATUS_LABELS) },
-    { label: "国籍 / Nationality", value: data?.personal?.nationality },
-    { label: "出生国家 / Country of birth", value: data?.personal?.countryOfBirth },
-    { label: "出生省 / 州 / State or province of birth", value: data?.personal?.stateOfBirth },
-    { label: "出生城市 / City of birth", value: data?.personal?.cityOfBirth },
+    { fieldName: "surname", label: "姓 / Surname", value: data?.personal?.surname },
+    { fieldName: "given_names", label: "名 / Given name(s)", value: data?.personal?.givenNames },
+    { fieldName: "full_name_native_alphabet", label: "中文姓名 / Full name in native alphabet", value: data?.personal?.fullNameNativeAlphabet },
+    { fieldName: "date_of_birth", label: "出生日期 / Date of birth", value: displayDate(data?.personal?.dateOfBirth) },
+    { fieldName: "sex", label: "性别 / Sex", value: displayMappedValue(data?.personal?.sex, SEX_LABELS) },
+    { fieldName: "marital_status", label: "婚姻状况 / Marital status", value: displayMappedValue(data?.personal?.maritalStatus, MARITAL_STATUS_LABELS) },
+    { fieldName: "nationality", label: "国籍 / Nationality", value: data?.personal?.nationality },
+    { fieldName: "country_of_birth", label: "出生国家 / Country of birth", value: data?.personal?.countryOfBirth },
+    { fieldName: "state_of_birth", label: "出生省 / 州 / State or province of birth", value: data?.personal?.stateOfBirth },
+    { fieldName: "city_of_birth", label: "出生城市 / City of birth", value: data?.personal?.cityOfBirth },
   ];
   const passportRows: ReviewRow[] = [
-    { label: "护照类型 / Passport type", value: displayMappedValue(data?.passport?.passportDocumentType, PASSPORT_TYPE_LABELS) },
-    { label: "护照号码 / Passport number", value: data?.passport?.passportNumber },
-    { label: "护照本号 / Passport book number", value: data?.passport?.passportBookNumber },
-    { label: "签发国家 / Issuing country", value: data?.passport?.passportIssuingCountry },
-    { label: "签发城市 / Issuance city", value: data?.passport?.passportIssuanceCity },
-    { label: "签发日期 / Issue date", value: displayDate(data?.passport?.passportIssuanceDate) },
-    { label: "到期日期 / Expiry date", value: displayDate(data?.passport?.passportExpirationDate) },
+    { fieldName: "passport_document_type", label: "护照类型 / Passport type", value: displayMappedValue(data?.passport?.passportDocumentType, PASSPORT_TYPE_LABELS) },
+    { fieldName: "passport_number", label: "护照号码 / Passport number", value: data?.passport?.passportNumber },
+    { fieldName: "passport_book_number", label: "护照本号 / Passport book number", value: data?.passport?.passportBookNumber },
+    { fieldName: "passport_issuing_country", label: "签发国家 / Issuing country", value: data?.passport?.passportIssuingCountry },
+    { fieldName: "passport_issuance_city", label: "签发城市 / Issuance city", value: data?.passport?.passportIssuanceCity },
+    { fieldName: "passport_issuance_date", label: "签发日期 / Issue date", value: displayDate(data?.passport?.passportIssuanceDate) },
+    { fieldName: "passport_expiration_date", label: "到期日期 / Expiry date", value: displayDate(data?.passport?.passportExpirationDate) },
   ];
   const travelRows: ReviewRow[] = [
-    { label: "访问目的 / Purpose", value: displayMappedValue(data?.travel?.purposeOfTrip, PURPOSE_LABELS) },
-    { label: "到达日期 / Arrival date", value: displayDate(data?.travel?.arrivalDate) },
-    { label: "离开日期 / Departure date", value: displayDate(data?.travel?.departureDate) },
-    { label: "到达城市 / 口岸 / Arrival city or port", value: data?.travel?.arrivalCity },
-    { label: "住宿名称 / Accommodation name", value: data?.travel?.accommodationName },
-    { label: "住宿街道地址 / Street address", value: data?.travel?.usAddressStreet1 },
-    { label: "住宿城市 / Accommodation city", value: data?.travel?.usAddressCity },
-    { label: "州 / State", value: data?.travel?.usAddressState },
-    { label: "邮编 / ZIP code", value: data?.travel?.usAddressZip },
+    { fieldName: "purpose_of_trip", label: "访问目的 / Purpose", value: displayMappedValue(data?.travel?.purposeOfTrip, PURPOSE_LABELS) },
+    { fieldName: "arrival_date", label: "到达日期 / Arrival date", value: displayDate(data?.travel?.arrivalDate) },
+    { fieldName: "departure_date", label: "离开日期 / Departure date", value: displayDate(data?.travel?.departureDate) },
+    { fieldName: "arrival_city", label: "到达城市 / 口岸 / Arrival city or port", value: data?.travel?.arrivalCity },
+    { fieldName: "accommodation_name", label: "住宿名称 / Accommodation name", value: data?.travel?.accommodationName },
+    { fieldName: "us_address_street1", label: "住宿街道地址 / Street address", value: data?.travel?.usAddressStreet1 },
+    { fieldName: "us_address_city", label: "住宿城市 / Accommodation city", value: data?.travel?.usAddressCity },
+    { fieldName: "us_address_state", label: "州 / State", value: data?.travel?.usAddressState },
+    { fieldName: "us_address_zip", label: "邮编 / ZIP code", value: data?.travel?.usAddressZip },
   ];
   const splitRows = (rows: ReviewRow[]) => ({
     completed: rows.filter((row) => displayValue(row.value) !== EMPTY_VALUE),
@@ -317,42 +321,42 @@ export function ReviewStep({
           <ReviewSummarySection
             title={t("review.personalInformation")}
             rows={personal.completed}
-            onEdit={onEdit ? () => onEdit("personal") : undefined}
+            onEdit={onEdit ? () => onEdit("personal", personal.completed[0].fieldName) : undefined}
           />
         ) : null}
         {passport.completed.length > 0 ? (
           <ReviewSummarySection
             title={t("review.passportDetails")}
             rows={passport.completed}
-            onEdit={onEdit ? () => onEdit("passport") : undefined}
+            onEdit={onEdit ? () => onEdit("passport", passport.completed[0].fieldName) : undefined}
           />
         ) : null}
         {travel.completed.length > 0 ? (
           <ReviewSummarySection
             title={t("review.travelInformation")}
             rows={travel.completed}
-            onEdit={onEdit ? () => onEdit("travel") : undefined}
+            onEdit={onEdit ? () => onEdit("travel", travel.completed[0].fieldName) : undefined}
           />
         ) : null}
         {personal.missing.length > 0 ? (
           <ReviewSummarySection
             title={`${t("review.personalInformation")} · ${t("review.missingInformation")}`}
             rows={personal.missing}
-            onEdit={onEdit ? () => onEdit("personal") : undefined}
+            onEdit={onEdit ? () => onEdit("personal", personal.missing[0].fieldName) : undefined}
           />
         ) : null}
         {passport.missing.length > 0 ? (
           <ReviewSummarySection
             title={`${t("review.passportDetails")} · ${t("review.missingInformation")}`}
             rows={passport.missing}
-            onEdit={onEdit ? () => onEdit("passport") : undefined}
+            onEdit={onEdit ? () => onEdit("passport", passport.missing[0].fieldName) : undefined}
           />
         ) : null}
         {travel.missing.length > 0 ? (
           <ReviewSummarySection
             title={`${t("review.travelInformation")} · ${t("review.missingInformation")}`}
             rows={travel.missing}
-            onEdit={onEdit ? () => onEdit("travel") : undefined}
+            onEdit={onEdit ? () => onEdit("travel", travel.missing[0].fieldName) : undefined}
           />
         ) : null}
       </div>

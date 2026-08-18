@@ -1,7 +1,7 @@
 import {
-  getCanonicalVisaDestinationCountry,
-  getFormVisaType,
+  getCanonicalApplicationProductCountry,
 } from "@/lib/visa-destinations";
+import { visaFormSchemaVisaTypesMatch } from "@/lib/visa-form-schema-aliases";
 
 export interface ApplicationLifecycleRecord {
   country?: string | null;
@@ -83,11 +83,17 @@ export function applicationIdentityMatches(
   visaType: string
 ): boolean {
   if (!application.country || !application.visa_type) return false;
+  const canonicalCountry = getCanonicalApplicationProductCountry(country, visaType);
   return (
-    getCanonicalVisaDestinationCountry(application.country) ===
-      getCanonicalVisaDestinationCountry(country) &&
-    getFormVisaType(application.visa_type).trim().toLowerCase() ===
-      getFormVisaType(visaType).trim().toLowerCase()
+    getCanonicalApplicationProductCountry(
+      application.country,
+      application.visa_type,
+    ) === canonicalCountry &&
+    visaFormSchemaVisaTypesMatch(
+      application.visa_type,
+      visaType,
+      canonicalCountry
+    )
   );
 }
 

@@ -1,3 +1,8 @@
+import {
+  getCanonicalApplicationProductCountry,
+  getFormVisaType,
+} from "@/lib/visa-destinations";
+
 export const RECENT_APPLICATION_FORM_STORAGE_KEY = "viza:recent-application-form-href";
 export const RECENT_APPLICATION_FORM_EVENT = "viza:recent-application-form";
 
@@ -29,9 +34,13 @@ export function buildApplicationLongFormHref({
   skipFormCheck?: boolean | null;
 } = {}): string {
   const params = new URLSearchParams();
+  const normalizedVisaType = visaType ? getFormVisaType(visaType) : null;
+  const normalizedCountry = normalizedVisaType
+    ? getCanonicalApplicationProductCountry(country ?? "", normalizedVisaType)
+    : country?.trim() ?? null;
   if (applicationId) params.set("applicationId", applicationId);
-  if (country) params.set("country", country);
-  if (visaType) params.set("visaType", visaType);
+  if (normalizedCountry) params.set("country", normalizedCountry);
+  if (normalizedVisaType) params.set("visaType", normalizedVisaType);
   if (step) params.set("step", step);
   if (skipFormCheck) params.set("skipFormCheck", "true");
 

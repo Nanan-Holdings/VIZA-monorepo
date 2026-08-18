@@ -2,9 +2,11 @@ import { describe, expect, test } from "vitest";
 import {
   FEATURED_VISA_DESTINATIONS,
   SEARCHABLE_VISA_DESTINATIONS,
+  getCanonicalApplicationProductCountry,
   getDisplayVisaDestinationsForRegion,
   getVisaPackageTitle,
   getVisaPackageTitleZh,
+  getVisaTypeDestinationCountry,
   getVisaTypeDisplayName,
   getVisaTypeDisplayNameZh,
   matchesVisaDestinationSearch,
@@ -144,6 +146,24 @@ describe("arrival card destination labels", () => {
     const vietnamFeatured = FEATURED_VISA_DESTINATIONS.find((destination) => destination.country === "vietnam");
     expect(vietnamFeatured?.kind).toBe("group");
     expect(vietnamFeatured?.countryCount).toBe(2);
+  });
+
+  test("dedicated declaration products cannot inherit another country's record grouping", () => {
+    expect(getVisaTypeDestinationCountry("PH_ETRAVEL_DEPARTURE_CARD")).toBe(
+      "philippines",
+    );
+    expect(
+      getCanonicalApplicationProductCountry(
+        "vietnam",
+        "PH_ETRAVEL_DEPARTURE_CARD",
+      ),
+    ).toBe("philippines");
+    expect(
+      getCanonicalApplicationProductCountry(
+        "indonesia",
+        "VN_PREARRIVAL_DECLARATION",
+      ),
+    ).toBe("vietnam");
   });
 
   test("Vietnam e-Visa schema alias keeps the application title localized", () => {

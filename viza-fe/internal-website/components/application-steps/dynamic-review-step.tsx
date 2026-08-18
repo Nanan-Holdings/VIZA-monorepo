@@ -166,7 +166,7 @@ export interface DynamicReviewStepProps {
   dynamicAnswers: Record<string, string>;
   dbSteps: WizardStep[];
   photoPath: string | null;
-  onEdit: (stepIndex: number) => void;
+  onEdit: (stepIndex: number, fieldName: string) => void;
   onPhotoEdit: () => void;
   onComplete: () => void;
   mode?: "submit" | "continue";

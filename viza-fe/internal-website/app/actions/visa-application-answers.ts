@@ -17,7 +17,7 @@ import {
   type UniversalProfileSnapshot,
 } from "@/lib/universal-profile-prefill";
 import {
-  getCanonicalVisaDestinationCountry,
+  getCanonicalApplicationProductCountry,
   getFormVisaType,
 } from "@/lib/visa-destinations";
 import {
@@ -1359,11 +1359,12 @@ export async function ensureDraftApplication(
       ? activePackage?.visa_packages[0]
       : activePackage?.visa_packages;
 
-    const resolvedCountry = getCanonicalVisaDestinationCountry(
-      options.preferExplicit ? country : (pkg?.country ?? country)
-    );
     const resolvedVisaType = getFormVisaType(
       options.preferExplicit ? visaType : (pkg?.visa_type ?? visaType)
+    );
+    const resolvedCountry = getCanonicalApplicationProductCountry(
+      options.preferExplicit ? country : (pkg?.country ?? country),
+      resolvedVisaType,
     );
     const resolvedVisaPackageId = options.preferExplicit
       ? null

@@ -203,6 +203,37 @@ describe("createNewArrivalCardApplication", () => {
     expect(from).toHaveBeenCalledTimes(2);
   });
 
+  it("rejects a source whose country does not match its arrival-card product", async () => {
+    const profileQuery = query({ data: { id: "profile-id" }, error: null });
+    const sourceQuery = query({
+      data: {
+        id: "source-id",
+        applicant_id: "profile-id",
+        country: "vietnam",
+        visa_type: "PH_ETRAVEL_DEPARTURE_CARD",
+        visa_package_id: "package-id",
+        submission_result: {
+          country: "PH",
+          visaType: "PH_ETRAVEL_DEPARTURE_CARD",
+          status: "submitted",
+          submitted: true,
+        },
+      },
+      error: null,
+    });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(profileQuery)
+      .mockReturnValueOnce(sourceQuery);
+    createAdminClient.mockReturnValue({ from });
+
+    await expect(createNewArrivalCardApplication("user-id", "source-id")).resolves.toEqual({
+      error: "The source application country does not match its arrival-card product.",
+      status: 409,
+    });
+    expect(from).toHaveBeenCalledTimes(2);
+  });
+
   it("copies only stable identity and passport answers for Korea repeat applications", async () => {
     const profileQuery = query({ data: { id: "profile-id" }, error: null });
     const sourceQuery = query({

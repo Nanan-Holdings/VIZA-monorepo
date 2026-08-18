@@ -60,6 +60,21 @@ describe("active application selection", () => {
     );
   });
 
+  it("repairs a stale country paired with a dedicated Philippines product", () => {
+    const selection = setActiveApplicationSelection({
+      applicationId: "misrouted-philippines-application",
+      packageId: null,
+      country: "vietnam",
+      visaType: "PH_ETRAVEL_DEPARTURE_CARD",
+      href: "/client/home",
+    });
+
+    expect(selection?.country).toBe("philippines");
+    expect(selection && buildActiveApplicationFormHref(selection)).toBe(
+      "/client/application/long-form?applicationId=misrouted-philippines-application&country=philippines&visaType=PH_ETRAVEL_DEPARTURE_CARD",
+    );
+  });
+
   it("keeps the exact application id in the Home application card href", () => {
     expect(
       buildApplicationHref({

@@ -43,6 +43,9 @@ results and updates from the same data.
   put document-management UI here unless it is a status summary.
 - Surface customer-safe statuses only. Technical backend or external process
   errors must be translated into plain user-facing next steps.
+- Status/detail links must preserve the application ID, canonical country, and
+  visa type together so the application route cannot combine a historical row
+  with a stale active/default product identity.
 - Exclude applications whose purpose is `VIZA_PLACEHOLDER_DRY_RUN`; schema-QA
   records are test infrastructure, not customer application history.
 - Keep result-delivery links in the submitted application view when

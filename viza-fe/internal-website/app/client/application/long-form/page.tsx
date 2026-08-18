@@ -55,10 +55,11 @@ import {
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
 import {
-  getCanonicalVisaDestinationCountry,
+  getCanonicalApplicationProductCountry,
   getFormVisaType,
   getVisaPackageTitle,
 } from "@/lib/visa-destinations";
+import { applicationIdentityMatches } from "@/lib/applications/ongoing-application";
 import type {
   SubmissionResult,
   SubmissionResultStatus,
@@ -104,6 +105,7 @@ import {
   setRecentApplicationFormHref,
 } from "@/lib/client/recent-application-form";
 import { setActiveApplicationSelection } from "@/lib/client/active-application-selection";
+import { readApplicationRouteParam } from "@/lib/client/application-route-params";
 import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 import {
   computeAllTabCompletion,
@@ -1673,12 +1675,19 @@ export default function ApplicationPage() {
   const returnToParam = searchParams.get("returnTo")?.trim() || null;
   const isCompanionFlow = Boolean(explicitApplicationId && returnToParam);
   const teamNotice = searchParams.get("teamNotice");
-  const explicitCountry = searchParams.get("country")?.trim().toLowerCase() || null;
+  const explicitCountry =
+    readApplicationRouteParam(searchParams, "country")?.toLowerCase() ?? null;
   const requestedVisaType =
-    searchParams.get("visaType")?.trim() || searchParams.get("visa_type")?.trim() || null;
+    readApplicationRouteParam(searchParams, "visaType", "visa_type");
   const explicitVisaType = requestedVisaType
     ? resolveVisaFormSchemaVisaType(requestedVisaType, explicitCountry)
     : null;
+  const explicitProductCountry = explicitVisaType
+    ? getCanonicalApplicationProductCountry(
+        explicitCountry ?? "",
+        explicitVisaType,
+      ) || explicitCountry
+    : explicitCountry;
   const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
   const isExplicitStatusView = Boolean(explicitApplicationId && jumpToConfirmation);
 
@@ -1718,7 +1727,7 @@ export default function ApplicationPage() {
     }
 
     const stepsPromise = explicitVisaType
-      ? getVisaFormSteps(explicitVisaType, { country: explicitCountry })
+      ? getVisaFormSteps(explicitVisaType, { country: explicitProductCountry })
       : packagePromise.then((pkg) => getVisaFormSteps(
           pkg?.visa_type ?? "ID_C1_TOURIST",
           { country: pkg?.country ?? null },
@@ -1741,7 +1750,7 @@ export default function ApplicationPage() {
     return () => {
       cancelled = true;
     };
-  }, [explicitCountry, explicitVisaType, isExplicitStatusView]);
+  }, [explicitProductCountry, explicitVisaType, isExplicitStatusView]);
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
@@ -1810,6 +1819,7 @@ export default function ApplicationPage() {
   const applicationContentRef = useRef<HTMLElement | null>(null);
   const formAssistantRef = useRef<HTMLDivElement | null>(null);
   const stepPanelRefs = useRef(new Map<number, HTMLDivElement>());
+  const documentRequirementNavigationRef = useRef(0);
 
   const markLiveSaveActivity = useCallback(() => {
     hasLiveSaveActivityRef.current = true;
@@ -2003,8 +2013,11 @@ export default function ApplicationPage() {
     if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
   }, []);
 
-  const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "ID_C1_TOURIST";
+  const resolvedCountry = getCanonicalApplicationProductCountry(
+    explicitProductCountry ?? visaPackage?.country ?? "indonesia",
+    resolvedVisaType,
+  );
   const isTaiwanEntryPermit = resolvedVisaType === "TW_ENTRY_PERMIT";
   const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
@@ -2584,11 +2597,7 @@ export default function ApplicationPage() {
       }
 
       if (application?.id && preferExplicitPackage) {
-        const applicationCountry = getCanonicalVisaDestinationCountry(application.country ?? "");
-        const routeCountry = getCanonicalVisaDestinationCountry(resolvedCountry);
-        const applicationVisaType = getFormVisaType(application.visa_type ?? "").toLowerCase();
-        const routeVisaType = getFormVisaType(resolvedVisaType).toLowerCase();
-        if (applicationCountry !== routeCountry || applicationVisaType !== routeVisaType) {
+        if (!applicationIdentityMatches(application, resolvedCountry, resolvedVisaType)) {
           if (isLatestRequest()) {
             setError(
               isZhInterface
@@ -3214,15 +3223,16 @@ export default function ApplicationPage() {
     });
   }, []);
 
-  const scrollToApplicationField = useCallback((fieldName: string) => {
+  const scrollToApplicationField = useCallback((fieldName: string, fallbackStepIndex?: number) => {
     const baseFieldName = getBaseAnswerFieldName(fieldName);
     const location = formAssistantFieldLocations.get(baseFieldName);
-    if (!location) return;
+    const targetStepIndex = location?.stepIndex ?? fallbackStepIndex;
+    if (targetStepIndex === undefined) return;
 
-    setCurrentStep(location.stepIndex);
+    setCurrentStep(targetStepIndex);
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        const panel = stepPanelRefs.current.get(location.stepIndex);
+        const panel = stepPanelRefs.current.get(targetStepIndex);
         const target = Array.from(
           panel?.querySelectorAll<HTMLElement>("[data-application-field-name]") ?? [],
         ).find((element) =>
@@ -3230,7 +3240,7 @@ export default function ApplicationPage() {
           element.dataset.applicationFieldName === baseFieldName,
         );
         if (!target) {
-          scrollToStepPanel(location.stepIndex);
+          scrollToStepPanel(targetStepIndex);
           return;
         }
         target.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -3240,6 +3250,50 @@ export default function ApplicationPage() {
       });
     });
   }, [formAssistantFieldLocations, scrollToStepPanel]);
+
+  const scrollToDocumentRequirement = useCallback((requirementKey: string, fallbackStepIndex: number) => {
+    const requestId = ++documentRequirementNavigationRef.current;
+    const findTarget = () => {
+      for (const [stepId, panel] of stepPanelRefs.current.entries()) {
+        const target = Array.from(
+          panel.querySelectorAll<HTMLElement>("[data-requirement-key]"),
+        ).find((element) => element.dataset.requirementKey === requirementKey);
+        if (target) return { stepId, target };
+      }
+      return null;
+    };
+
+    setCurrentStep(fallbackStepIndex);
+    const revealTarget = (attempt: number) => {
+      if (documentRequirementNavigationRef.current !== requestId) return;
+      const located = findTarget();
+      if (!located) {
+        if (attempt < 20) {
+          window.setTimeout(() => revealTarget(attempt + 1), 100);
+        } else {
+          scrollToStepPanel(fallbackStepIndex);
+        }
+        return;
+      }
+
+      setCurrentStep(located.stepId);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (documentRequirementNavigationRef.current !== requestId) return;
+          const target = findTarget()?.target;
+          if (!target) {
+            revealTarget(attempt + 1);
+            return;
+          }
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+          target.querySelector<HTMLElement>(
+            'input:not([type="hidden"]):not([disabled]), button:not([disabled]), [role="button"]',
+          )?.focus({ preventScroll: true });
+        });
+      });
+    };
+    revealTarget(0);
+  }, [scrollToStepPanel]);
 
   const handleNavigateReviewIssue = useCallback((targetFieldName: string | null) => {
     if (targetFieldName) {
@@ -4761,8 +4815,11 @@ export default function ApplicationPage() {
                                   dynamicAnswers={dynamicAnswerSnapshot}
                                   dbSteps={dbSteps}
                                   photoPath={appState.photo}
-                                  onEdit={(stepIdx) => scrollToStepPanel(stepIdx)}
-                                  onPhotoEdit={() => scrollToStepPanel(showDocumentStep ? documentStepIndex : firstFormStepId)}
+                                  onEdit={(stepIdx, fieldName) => scrollToApplicationField(fieldName, stepIdx)}
+                                  onPhotoEdit={() => scrollToDocumentRequirement(
+                                    "photo",
+                                    showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
+                                  )}
                                   onComplete={() => undefined}
                                   mode="continue"
                                   showAction={false}
@@ -4786,8 +4843,11 @@ export default function ApplicationPage() {
                                 dynamicAnswers={dynamicAnswerSnapshot}
                                 dbSteps={dbSteps}
                                 photoPath={appState.photo}
-                                onEdit={(stepIdx) => scrollToStepPanel(stepIdx)}
-                                onPhotoEdit={() => scrollToStepPanel(showDocumentStep ? documentStepIndex : firstFormStepId)}
+                                onEdit={(stepIdx, fieldName) => scrollToApplicationField(fieldName, stepIdx)}
+                                onPhotoEdit={() => scrollToDocumentRequirement(
+                                  "photo",
+                                  showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
+                                )}
                                 onComplete={isCompanionFlow ? handleCompanionReviewComplete : () => undefined}
                                 mode="continue"
                                 continueLabel={isCompanionFlow ? t("team.confirmCompanion") : undefined}
@@ -4897,11 +4957,11 @@ export default function ApplicationPage() {
                                 <ReviewStep
                                   applicationId={appState.applicationId ?? ""}
                                   data={appState}
-                                  onEdit={(section) => {
+                                  onEdit={(section, fieldName) => {
                                     const sectionMap: Record<string, number> = {
                                       personal: 0, passport: 1, travel: 2, documents: 3,
                                     };
-                                    scrollToStepPanel(sectionMap[section] ?? 0);
+                                    scrollToApplicationField(fieldName, sectionMap[section] ?? 0);
                                   }}
                                   onComplete={() => undefined}
                                   mode="continue"
@@ -4923,11 +4983,11 @@ export default function ApplicationPage() {
                               <ReviewStep
                                 applicationId={appState.applicationId ?? ""}
                                 data={appState}
-                                onEdit={(section) => {
+                                onEdit={(section, fieldName) => {
                                   const sectionMap: Record<string, number> = {
                                     personal: 0, passport: 1, travel: 2, documents: 3,
                                   };
-                                  scrollToStepPanel(sectionMap[section] ?? 0);
+                                  scrollToApplicationField(fieldName, sectionMap[section] ?? 0);
                                 }}
                                 onComplete={isCompanionFlow ? handleCompanionReviewComplete : () => undefined}
                                 mode="continue"

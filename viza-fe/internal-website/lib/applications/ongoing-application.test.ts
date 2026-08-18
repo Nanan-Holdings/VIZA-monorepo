@@ -47,6 +47,52 @@ describe("ongoing application identity", () => {
     ).toBe(true);
   });
 
+  it("matches the legacy Vietnam e-Visa route type to the canonical schema type", () => {
+    expect(
+      applicationIdentityMatches(
+        { country: "vietnam", visa_type: "evisa_tourism" },
+        "vietnam",
+        "VN_E_VISA"
+      )
+    ).toBe(true);
+  });
+
+  it.each(["VN", "viet_nam", "越南"])(
+    "matches the historical Vietnam country alias %s",
+    (country) => {
+      expect(
+        applicationIdentityMatches(
+          { country, visa_type: "evisa_tourism" },
+          "vietnam",
+          "VN_E_VISA"
+        )
+      ).toBe(true);
+    }
+  );
+
+  it("does not collapse distinct Vietnam application products", () => {
+    expect(
+      applicationIdentityMatches(
+        { country: "vietnam", visa_type: "evisa_tourism" },
+        "vietnam",
+        "VN_PREARRIVAL_DECLARATION"
+      )
+    ).toBe(false);
+  });
+
+  it("uses a dedicated product's country when a legacy row was misrouted", () => {
+    expect(
+      applicationIdentityMatches(
+        {
+          country: "vietnam",
+          visa_type: "PH_ETRAVEL_DEPARTURE_CARD",
+        },
+        "philippines",
+        "PH_ETRAVEL_DEPARTURE_CARD",
+      ),
+    ).toBe(true);
+  });
+
   it("returns only the ongoing row when completed history exists", () => {
     const ongoing = {
       id: "draft",

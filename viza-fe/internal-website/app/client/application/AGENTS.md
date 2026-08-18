@@ -115,6 +115,10 @@ Before changing this route, read:
 21. Never select `VIZA_PLACEHOLDER_DRY_RUN` records as a customer's active
     application. Synthetic QA answer markers must block queue creation and must
     not be saved or reused as applicant information.
+22. Parse application query parameters through the shared escaped-parameter
+    reader. For a dedicated country product, the product code is authoritative
+    for country resolution; never combine its schema with an unrelated route,
+    active-package, or default country.
 
 ## Validation Checklist
 

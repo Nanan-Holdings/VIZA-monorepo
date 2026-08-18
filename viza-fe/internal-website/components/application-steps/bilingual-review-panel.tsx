@@ -35,10 +35,16 @@ interface BilingualReviewPanelProps {
   onRetry?: () => void;
   onSaveOfficialValue?: (fieldName: string, officialValue: string) => void | Promise<void>;
   onUpdated?: (fieldName: string, officialValue: string) => void;
-  onEditSection?: (stepIndex: number) => void;
+  onEditSection?: (stepIndex: number, fieldName: string) => void;
 }
 
-function groupRows(rows: ReviewRow[]): Array<{ id: string; section: string; rows: ReviewRow[]; editStepIndex?: number }> {
+function groupRows(rows: ReviewRow[]): Array<{
+  id: string;
+  section: string;
+  rows: ReviewRow[];
+  editStepIndex?: number;
+  editFieldName?: string;
+}> {
   const grouped = new Map<string, ReviewRow[]>();
   for (const row of rows) {
     // Display labels are not stable identifiers: separate source steps can
@@ -50,12 +56,16 @@ function groupRows(rows: ReviewRow[]): Array<{ id: string; section: string; rows
     existing.push(row);
     grouped.set(groupKey, existing);
   }
-  return Array.from(grouped.entries()).map(([id, sectionRows]) => ({
-    id,
-    section: sectionRows[0]?.section ?? "",
-    rows: sectionRows,
-    editStepIndex: sectionRows.find((row) => row.editStepIndex !== undefined)?.editStepIndex,
-  }));
+  return Array.from(grouped.entries()).map(([id, sectionRows]) => {
+    const editTarget = sectionRows.find((row) => row.editStepIndex !== undefined);
+    return {
+      id,
+      section: sectionRows[0]?.section ?? "",
+      rows: sectionRows,
+      editStepIndex: editTarget?.editStepIndex,
+      editFieldName: editTarget?.fieldName,
+    };
+  });
 }
 
 function BilingualReviewRow({
@@ -234,9 +244,9 @@ export function BilingualReviewPanel({
               <h3 className="font-heading text-sm font-semibold text-brand-500">
                 {section.section}
               </h3>
-              {section.editStepIndex !== undefined && onEditSection ? (
+              {section.editStepIndex !== undefined && section.editFieldName && onEditSection ? (
                 <ReviewEditButton
-                  onClick={() => onEditSection(section.editStepIndex!)}
+                  onClick={() => onEditSection(section.editStepIndex!, section.editFieldName!)}
                   label={isZh ? `修改${section.section}` : `Edit ${section.section}`}
                 />
               ) : null}
