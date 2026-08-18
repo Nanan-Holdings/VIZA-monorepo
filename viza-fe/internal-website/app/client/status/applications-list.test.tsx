@@ -92,14 +92,29 @@ const item: ApplicationListItem = {
       applicationId: "three",
       packageId: "package-one",
       visaLabel: "TDAC · October trip",
-      stateLabel: "Not started",
+      stateLabel: "In progress",
       tone: "brand",
-      progressPercent: 0,
+      progressPercent: 20,
       country: "thailand",
       visaType: "tdac",
       continueHref: "/client/application/long-form?applicationId=three",
       detailHref:
         "/client/application/long-form?applicationId=three&step=status",
+      ongoing: true,
+    },
+    {
+      selectionKey: "four",
+      applicationId: "four",
+      packageId: "package-one",
+      visaLabel: "TDAC · November trip",
+      stateLabel: "Not started",
+      tone: "brand",
+      progressPercent: 0,
+      country: "thailand",
+      visaType: "tdac",
+      continueHref: "/client/application/long-form?applicationId=four",
+      detailHref:
+        "/client/application/long-form?applicationId=four&step=status",
       ongoing: true,
     },
   ],
@@ -136,6 +151,15 @@ const taiwanItem: ApplicationListItem = {
   ],
 };
 
+const startedTaiwanItem: ApplicationListItem = {
+  ...taiwanItem,
+  progressPercent: 25,
+  records: taiwanItem.records.map((record) => ({
+    ...record,
+    progressPercent: 25,
+  })),
+};
+
 describe("applications selector", () => {
   beforeEach(() => {
     refresh.mockReset();
@@ -169,6 +193,7 @@ describe("applications selector", () => {
     expect(screen.getAllByText("TDAC · August trip")).toHaveLength(1);
     expect(screen.getByText("TDAC · September trip")).toBeInTheDocument();
     expect(screen.getByText("TDAC · October trip")).toBeInTheDocument();
+    expect(screen.queryByText("TDAC · November trip")).not.toBeInTheDocument();
     const septemberApplication = screen.getByRole("button", {
       name: /TDAC · September trip/,
     });
@@ -184,7 +209,7 @@ describe("applications selector", () => {
   it("uses a right-arrow row for a country with one selectable application", async () => {
     const { container } = render(
       <ApplicationsList
-        items={[item, taiwanItem]}
+        items={[item, startedTaiwanItem]}
         initialExpandedCountry={null}
       />
     );
@@ -217,7 +242,7 @@ describe("applications selector", () => {
 
     render(
       <ApplicationsList
-        items={[item, taiwanItem]}
+        items={[item, startedTaiwanItem]}
         initialExpandedCountry={null}
       />
     );
@@ -238,7 +263,12 @@ describe("applications selector", () => {
   it("does not repeat the only current application in the lower section", async () => {
     render(
       <ApplicationsList
-        items={[{ ...taiwanItem, records: [taiwanItem.records[0]] }]}
+        items={[
+          {
+            ...startedTaiwanItem,
+            records: [startedTaiwanItem.records[0]],
+          },
+        ]}
         initialExpandedCountry={null}
       />
     );
@@ -260,6 +290,19 @@ describe("applications selector", () => {
       "href",
       "/client/home"
     );
+  });
+
+  it("hides countries and application records whose progress is zero", () => {
+    render(
+      <ApplicationsList
+        items={[item, taiwanItem]}
+        initialExpandedCountry={null}
+      />
+    );
+
+    expect(screen.queryByText("Taiwan")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Choose application" }));
+    expect(screen.queryByText("TDAC · November trip")).not.toBeInTheDocument();
   });
 
   it("renders Taiwan with a circle flag asset instead of an emoji glyph", () => {

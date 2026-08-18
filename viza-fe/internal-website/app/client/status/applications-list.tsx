@@ -58,6 +58,10 @@ export interface ApplicationListItem {
   records: ApplicationListRecord[];
 }
 
+function hasVisibleProgress(record: ApplicationListRecord): boolean {
+  return Number.isFinite(record.progressPercent) && record.progressPercent > 0;
+}
+
 const TONE_DOT: Record<ApplicationListTone, string> = {
   brand: "bg-brand-500",
   warn: "bg-amber-500",
@@ -168,10 +172,35 @@ export function ApplicationsList({
   const [isPending, startTransition] = useTransition();
   const isNavigatingToSelection = useRef(false);
 
+  const progressItems = useMemo(
+    () =>
+      items.flatMap((item) => {
+        const records = item.records.filter(hasVisibleProgress);
+        if (records.length === 0) return [];
+
+        const primaryRecord =
+          records.find((record) => record.ongoing) ?? records[0];
+        return [
+          {
+            ...item,
+            visaLabel: primaryRecord.visaLabel,
+            stateLabel: primaryRecord.stateLabel,
+            tone: primaryRecord.tone,
+            progressPercent: primaryRecord.progressPercent,
+            continueHref: primaryRecord.continueHref,
+            records,
+          },
+        ];
+      }),
+    [items]
+  );
+
   const ongoingRecords = useMemo(
     () =>
-      items.flatMap((item) => item.records.filter((record) => record.ongoing)),
-    [items]
+      progressItems.flatMap((item) =>
+        item.records.filter((record) => record.ongoing)
+      ),
+    [progressItems]
   );
 
   useEffect(() => {
@@ -245,13 +274,13 @@ export function ApplicationsList({
         : Boolean(currentPackageId && record.packageId === currentPackageId)
     ) ?? null;
   const currentItem = currentRecord
-    ? (items.find((item) =>
+    ? (progressItems.find((item) =>
         item.records.some(
           (record) => record.selectionKey === currentRecord.selectionKey
         )
       ) ?? null)
     : null;
-  const selectableItems = items.flatMap((item) => {
+  const selectableItems = progressItems.flatMap((item) => {
     const records = currentRecord
       ? item.records.filter(
           (record) => record.selectionKey !== currentRecord.selectionKey
@@ -273,6 +302,8 @@ export function ApplicationsList({
       },
     ];
   });
+
+  if (progressItems.length === 0) return null;
 
   return (
     <>

@@ -10,6 +10,9 @@ specific to a single country such as SGAC, MDAC, or TDAC.
 ## Guardrails
 
 - Keep arrival-card package identities separate from visitor visa packages.
+- Treat each dedicated arrival-card product code as bound to its configured
+  country. Repeat-application creation must reject a legacy source row whose
+  stored country conflicts with that product instead of copying the mismatch.
 - `application-lifecycle.ts` is the shared success gate. A successful official
   submission locks the old form-filling assistant; only the explicit repeat-
   submission action may open a new application where the assistant is enabled.

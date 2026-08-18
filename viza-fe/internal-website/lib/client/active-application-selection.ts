@@ -1,4 +1,7 @@
-import { getFormVisaType } from "@/lib/visa-destinations";
+import {
+  getCanonicalApplicationProductCountry,
+  getFormVisaType,
+} from "@/lib/visa-destinations";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 export const ACTIVE_APPLICATION_SELECTION_STORAGE_KEY = "viza:active-application";
@@ -50,10 +53,11 @@ export function readActiveApplicationSelection(): ActiveApplicationSelection | n
   try {
     const parsed: unknown = JSON.parse(stored);
     if (!isSelection(parsed)) throw new Error("invalid_active_application_selection");
+    const visaType = getFormVisaType(parsed.visaType.trim());
     return {
       ...parsed,
-      country: parsed.country.trim(),
-      visaType: getFormVisaType(parsed.visaType.trim()),
+      country: getCanonicalApplicationProductCountry(parsed.country, visaType),
+      visaType,
     };
   } catch {
     window.localStorage.removeItem(ACTIVE_APPLICATION_SELECTION_STORAGE_KEY);
@@ -81,10 +85,11 @@ export function setActiveApplicationSelection(
 ): ActiveApplicationSelection | null {
   if (typeof window === "undefined") return null;
 
+  const visaType = getFormVisaType(selection.visaType.trim());
   const normalized: ActiveApplicationSelection = {
     ...selection,
-    country: selection.country.trim(),
-    visaType: getFormVisaType(selection.visaType.trim()),
+    country: getCanonicalApplicationProductCountry(selection.country, visaType),
+    visaType,
   };
   if (!isSelection(normalized)) return null;
 

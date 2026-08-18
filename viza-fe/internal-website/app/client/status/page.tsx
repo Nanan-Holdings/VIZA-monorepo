@@ -20,6 +20,7 @@ import {
   getVisaDestinationKey,
 } from "@/lib/visa-destinations";
 import { isOngoingApplicationState } from "@/lib/client/active-application-selection";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 type SearchParams = Promise<{
   applicationId?: string | string[];
@@ -228,9 +229,12 @@ export default async function ClientStatusPage({
       (candidate) => candidate.id === selectedApplicationId
     );
     if (application?.id) {
-      redirect(
-        `/client/application/long-form?applicationId=${encodeURIComponent(application.id)}&step=status`
-      );
+      redirect(buildApplicationLongFormHref({
+        applicationId: application.id,
+        country: application.country,
+        visaType: application.visaType,
+        step: "status",
+      }));
     }
   }
 
@@ -239,9 +243,12 @@ export default async function ClientStatusPage({
       (candidate) => candidate.packageId === selectedPackageId
     );
     if (application?.id) {
-      redirect(
-        `/client/application/long-form?applicationId=${encodeURIComponent(application.id)}&step=status`
-      );
+      redirect(buildApplicationLongFormHref({
+        applicationId: application.id,
+        country: application.country,
+        visaType: application.visaType,
+        step: "status",
+      }));
     }
   }
 

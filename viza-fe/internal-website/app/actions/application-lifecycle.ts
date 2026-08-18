@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
+  getCanonicalApplicationProductCountry,
   getDestinationDisplayName,
   getDestinationDisplayNameZh,
   getDestinationFlag,
@@ -259,14 +260,18 @@ function getNextAction(status: ApplicationLifecycleStatus): ApplicationNextActio
 
 function buildSummaryBase(country: string, visaType: string) {
   const normalizedVisaType = getFormVisaType(visaType);
+  const normalizedCountry = getCanonicalApplicationProductCountry(
+    country,
+    normalizedVisaType,
+  );
 
   return {
-    key: getVisaDestinationKey(country, normalizedVisaType),
-    country,
+    key: getVisaDestinationKey(normalizedCountry, normalizedVisaType),
+    country: normalizedCountry,
     visaType: normalizedVisaType,
-    countryName: getDestinationDisplayName(country),
-    countryNameZh: getDestinationDisplayNameZh(country),
-    countryFlag: getDestinationFlag(country),
+    countryName: getDestinationDisplayName(normalizedCountry),
+    countryNameZh: getDestinationDisplayNameZh(normalizedCountry),
+    countryFlag: getDestinationFlag(normalizedCountry),
     visaTypeLabel: getVisaTypeDisplayName(normalizedVisaType),
     visaTypeLabelZh: getVisaTypeDisplayNameZh(normalizedVisaType),
   };

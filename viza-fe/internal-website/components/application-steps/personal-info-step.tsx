@@ -392,7 +392,10 @@ function BilingualRow({
 
   if (!isZh) {
     return (
-      <div className="min-w-0 px-0 py-4 sm:px-2">
+      <div
+        className="min-w-0 px-0 py-4 sm:px-2"
+        data-application-field-name={scopedCopilot?.fieldName}
+      >
         <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
           {labels.en}
           {requiredMark}
@@ -408,7 +411,10 @@ function BilingualRow({
   }
 
   return (
-    <div className="min-w-0 px-0 py-4 sm:px-2">
+    <div
+      className="min-w-0 px-0 py-4 sm:px-2"
+      data-application-field-name={scopedCopilot?.fieldName}
+    >
       <div className="min-w-0">
         <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
           {labels.zh}

@@ -1280,7 +1280,7 @@ export function getDisplayVisaDestinationsForRegion(regionId: string): PopularVi
 }
 
 export function getPopularVisaDestinationByPackage(country: string, visaType: string): PopularVisaDestination | null {
-  const normalizedCountry = getCanonicalVisaDestinationCountry(country);
+  const normalizedCountry = getCanonicalApplicationProductCountry(country, visaType);
   const normalizedVisaType = getFormVisaType(visaType).toLowerCase();
   return SELECTABLE_VISA_DESTINATIONS.find((destinationItem) =>
     destinationItem.country === normalizedCountry &&
@@ -1361,6 +1361,40 @@ export function getFormVisaType(visaType: string): string {
   return visaType;
 }
 
+/**
+ * Resolve a product code to its country only when the catalogue contains that
+ * exact visa type for one country. Dedicated products such as Philippines
+ * eTravel and Vietnam Pre-Arrival are authoritative even when a stale link or
+ * legacy application row carries the wrong country alongside the product.
+ */
+export function getVisaTypeDestinationCountry(visaType: string): string | null {
+  const normalizedVisaType = getFormVisaType(visaType).trim().toLowerCase();
+  if (!normalizedVisaType) return null;
+
+  const countries = new Set(
+    SELECTABLE_VISA_DESTINATIONS
+      .filter((destinationItem) => destinationItem.kind !== "group")
+      .filter(
+        (destinationItem) =>
+          getFormVisaType(destinationItem.visaType).trim().toLowerCase() ===
+          normalizedVisaType,
+      )
+      .map((destinationItem) => destinationItem.country),
+  );
+
+  return countries.size === 1 ? [...countries][0] : null;
+}
+
+export function getCanonicalApplicationProductCountry(
+  country: string,
+  visaType: string,
+): string {
+  return (
+    getVisaTypeDestinationCountry(visaType) ??
+    getCanonicalVisaDestinationCountry(country)
+  );
+}
+
 export function getCanonicalVisaDestinationCountry(country: string): string {
   const normalized = country.trim().toLowerCase().replace(/[\s/-]+/g, "_");
   const aliases: Record<string, string> = {
@@ -1372,6 +1406,9 @@ export function getCanonicalVisaDestinationCountry(country: string): string {
     united_states_of_america: "united_states",
     us: "united_states",
     usa: "united_states",
+    viet_nam: "vietnam",
+    vn: "vietnam",
+    越南: "vietnam",
   };
   if (aliases[normalized]) return aliases[normalized];
 
@@ -1389,7 +1426,7 @@ export function getCanonicalVisaDestinationCountry(country: string): string {
 }
 
 export function getVisaDestinationKey(country: string, visaType: string): string {
-  return `${getCanonicalVisaDestinationCountry(country)}::${getFormVisaType(visaType).toLowerCase()}`;
+  return `${getCanonicalApplicationProductCountry(country, visaType)}::${getFormVisaType(visaType).toLowerCase()}`;
 }
 
 /**

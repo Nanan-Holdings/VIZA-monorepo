@@ -273,6 +273,12 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260818063311_kr_e_arrival_card.sql`; keep it byte-identical
   to `viza-be/agent-backend/drizzle/0151_kr_e_arrival_card.sql` and preserve the
   exact `KR_E_ARRIVAL_CARD` / `kr_arrival_card` isolation from Korea C-3 e-Form.
+- Dedicated arrival-card country/product repair is applied by
+  `supabase/migrations/20260818075658_repair_arrival_card_product_country_identity.sql`;
+  keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0152_repair_arrival_card_product_country_identity.sql`.
+  Product codes are authoritative for these country identities, and colliding
+  in-flight legacy drafts are archived rather than deleted.
 - The required U.S. DS-160 China issuing-post selector is applied by
   `supabase/migrations/20260729054904_add_ds160_consular_post.sql`; its stored
   values are the live CEAC location codes consumed by submission-service.

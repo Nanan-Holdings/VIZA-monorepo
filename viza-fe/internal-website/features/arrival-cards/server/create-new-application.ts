@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findOngoingApplicationByIdentity } from "@/lib/applications/ongoing-application";
 import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
+import { getCanonicalVisaDestinationCountry } from "@/lib/visa-destinations";
 
 const ARRIVAL_CARD_CONFIG = {
   SG_ARRIVAL_CARD: {
@@ -115,8 +116,17 @@ export async function createNewArrivalCardApplication(userId: string, sourceAppl
   }
 
   const config = ARRIVAL_CARD_CONFIG[source.visa_type];
+  if (
+    source.country &&
+    getCanonicalVisaDestinationCountry(source.country) !== config.country
+  ) {
+    return {
+      error: "The source application country does not match its arrival-card product.",
+      status: 409,
+    } as const;
+  }
   if (!hasSuccessfulArrivalCardSubmission({
-    country: source.country || config.country,
+    country: config.country,
     visaType: source.visa_type,
     submissionResult: source.submission_result,
   })) {
@@ -137,7 +147,7 @@ export async function createNewArrivalCardApplication(userId: string, sourceAppl
     return {
       application: findOngoingApplicationByIdentity(
         (data ?? []).filter((application) => application.id !== source.id),
-        source.country || config.country,
+        config.country,
         source.visa_type,
       ),
     } as const;
@@ -151,7 +161,7 @@ export async function createNewArrivalCardApplication(userId: string, sourceAppl
   if (existingDraft.application) {
     return {
       applicationId: existingDraft.application.id,
-      country: source.country || config.country,
+      country: config.country,
       visaType: source.visa_type,
       status: 200,
     } as const;
@@ -161,7 +171,7 @@ export async function createNewArrivalCardApplication(userId: string, sourceAppl
     .from("applications")
     .insert({
       applicant_id: profile.id,
-      country: source.country || config.country,
+      country: config.country,
       visa_type: source.visa_type,
       visa_package_id: source.visa_package_id,
       status: "draft",
@@ -173,7 +183,7 @@ export async function createNewArrivalCardApplication(userId: string, sourceAppl
     if (!("error" in concurrentDraft) && concurrentDraft.application) {
       return {
         applicationId: concurrentDraft.application.id,
-        country: source.country || config.country,
+        country: config.country,
         visaType: source.visa_type,
         status: 200,
       } as const;
@@ -223,7 +233,7 @@ export async function createNewArrivalCardApplication(userId: string, sourceAppl
 
   return {
     applicationId: created.id,
-    country: source.country || config.country,
+    country: config.country,
     visaType: source.visa_type,
     status: 201,
   } as const;

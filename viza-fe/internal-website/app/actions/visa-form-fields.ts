@@ -15,6 +15,7 @@ import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form-parity";
 import { augmentThailandTouristEVisaSteps } from "@/lib/thailand-tourist-evisa-form-overrides";
 import { compileApplicationSchemaForUi } from "@/lib/application-schema-ui-contract";
+import { getCanonicalApplicationProductCountry } from "@/lib/visa-destinations";
 
 const STEP_NAMES: Record<number, string> = {
   1: "Visa Selection",
@@ -37,7 +38,11 @@ export async function getVisaFormSteps(
 ): Promise<WizardStep[]> {
   try {
     const supabase = await createClient();
-    const schemaVisaType = resolveVisaFormSchemaVisaType(visaType, options.country);
+    const schemaCountry = getCanonicalApplicationProductCountry(
+      options.country ?? "",
+      visaType,
+    );
+    const schemaVisaType = resolveVisaFormSchemaVisaType(visaType, schemaCountry);
 
     const { data, error } = await supabase
       .from("visa_form_fields")

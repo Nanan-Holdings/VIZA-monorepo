@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getClientSession } from "@/lib/client-session";
 import {
+  getCanonicalApplicationProductCountry,
   getDestinationDisplayName,
   getDestinationDisplayNameZh,
   getDestinationFlag,
@@ -540,7 +541,12 @@ function getPrimaryResultFile(application: StatusApplication): StatusFile | null
 
 function toCountryApplicationRecord(application: StatusApplication): CountryApplicationRecord {
   const detailHref = application.id
-    ? `/client/application/long-form?applicationId=${encodeURIComponent(application.id)}&step=status`
+    ? buildApplicationLongFormHref({
+        applicationId: application.id,
+        country: application.country,
+        visaType: application.visaType,
+        step: "status",
+      })
     : application.packageId
       ? `/client/status?packageId=${encodeURIComponent(application.packageId)}`
       : `/client/status?country=${encodeURIComponent(application.countryKey)}`;
@@ -731,13 +737,19 @@ function getLatestDate(values: Array<string | null | undefined>): string | null 
 
 function buildPackageBase(country: string, visaType: string) {
   const normalizedVisaType = getFormVisaType(visaType);
-  const countryName = getDestinationDisplayName(country);
-  const countryNameZh = getDestinationDisplayNameZh(country);
-  const countryKey = normalizeCountryGroupKey(countryNameZh || countryName || country);
-  return {
-    key: getVisaDestinationKey(country, normalizedVisaType),
-    countryKey,
+  const normalizedCountry = getCanonicalApplicationProductCountry(
     country,
+    normalizedVisaType,
+  );
+  const countryName = getDestinationDisplayName(normalizedCountry);
+  const countryNameZh = getDestinationDisplayNameZh(normalizedCountry);
+  const countryKey = normalizeCountryGroupKey(
+    countryNameZh || countryName || normalizedCountry,
+  );
+  return {
+    key: getVisaDestinationKey(normalizedCountry, normalizedVisaType),
+    countryKey,
+    country: normalizedCountry,
     visaType: normalizedVisaType,
     countryName,
     countryNameZh,
