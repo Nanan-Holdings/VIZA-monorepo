@@ -52,6 +52,13 @@ const runnerCountryClaimMigrationPath = path.join(
   "drizzle",
   "0149_runner_country_claim.sql",
 );
+const phEtravelSubmissionStateSyncMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0150_ph_etravel_submission_state_sync.sql",
+);
 
 test("submission_queue claim migration uses skip-locked leases and service-role-only RPC access", () => {
   const sql = readFileSync(migrationPath, "utf8").toLowerCase();
@@ -137,6 +144,36 @@ test("runner country claim is atomic, country-scoped, and service-role only", ()
   assert.match(sql, /grant execute on function public\.claim_runner_country_job[\s\S]*to service_role/);
   assert.doesNotMatch(sql, /create or replace function public\.claim_runner_pool_job/);
   assert.doesNotMatch(sql, /available_at/);
+});
+
+test("PH eTravel submission-state sync migration is v2, atomic, and service-role only", () => {
+  const rawSql = readFileSync(phEtravelSubmissionStateSyncMigrationPath, "utf8");
+  const sql = rawSql.toLowerCase();
+
+  assert.match(sql, /create or replace function public\.sync_ph_etravel_submission_state/);
+  assert.match(sql, /application_id uuid,\s*queue_id uuid,\s*idempotency_key text,\s*result_json jsonb,\s*application_patch jsonb,\s*queue_patch jsonb/s);
+  assert.match(sql, /returns jsonb/);
+  assert.match(sql, /security invoker/);
+  assert.match(sql, /set search_path = ''/);
+  assert.match(sql, /from public\.applications as app[\s\S]*for update/);
+  assert.match(sql, /from public\.submission_queue as sq[\s\S]*for update/);
+  assert.match(sql, /lower\(v_application\.country\) <> 'philippines'/);
+  assert.match(sql, /upper\(v_application\.visa_type\) <> 'ph_etravel_arrival_card'/);
+  assert.match(sql, /v_target_status not in \('submitted', 'action_required', 'recovery_required'\)/);
+  assert.match(sql, /submitted ph etravel sync requires trusted reference and qr evidence/);
+  assert.match(sql, /official_registration_result_read/);
+  assert.match(sql, /official_client_reference_qr/);
+  assert.match(sql, /reference_value_validated/);
+  assert.match(sql, /v_existing_idempotency_key = sync_ph_etravel_submission_state\.idempotency_key/);
+  assert.match(sql, /v_existing_result ->> 'status' = 'submitted'/);
+  assert.match(sql, /v_existing_reference = v_official_reference/);
+  assert.match(sql, /expected_prior_state_mismatch/);
+  assert.match(rawSql, /'stateSync', jsonb_build_object\([\s\S]*'version', 2/);
+  assert.doesNotMatch(sql, /submission_result\s*=\s*result_json/);
+  assert.match(sql, /revoke all on function public\.sync_ph_etravel_submission_state/);
+  assert.match(sql, /from public, anon, authenticated/);
+  assert.match(sql, /grant execute on function public\.sync_ph_etravel_submission_state[\s\S]*to service_role/);
+  assert.doesNotMatch(sql, /grant execute on function public\.sync_ph_etravel_submission_state[\s\S]*to\s+(public|anon|authenticated)/);
 });
 
 test("claimPendingSubmissionQueueItems calls the DB claim RPC with worker and lease settings", async () => {
