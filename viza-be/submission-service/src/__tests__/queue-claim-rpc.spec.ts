@@ -129,6 +129,8 @@ test("runner country claim is atomic, country-scoped, and service-role only", ()
   const sql = readFileSync(runnerCountryClaimMigrationPath, "utf8").toLowerCase();
 
   assert.match(sql, /create or replace function public\.claim_runner_country_job/);
+  assert.match(sql, /returns table \(\s*id uuid,\s*application_id uuid,\s*country text,\s*attempts integer,\s*max_attempts integer,\s*correlation_id text,\s*metadata jsonb\s*\)/);
+  assert.doesNotMatch(sql, /flow_key/);
   assert.match(sql, /if v_country <> 'philippines' then[\s\S]*unsupported country-scoped runner claim/);
   assert.match(sql, /create index if not exists idx_runner_job_philippines_claim[\s\S]*where country = 'philippines' and status = 'queued'/);
   assert.match(sql, /rj\.country = v_country/);
