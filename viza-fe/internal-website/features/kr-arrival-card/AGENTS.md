@@ -12,7 +12,9 @@ Scope: Korea e-Arrival Card-specific frontend helpers.
 - `config.ts` is disabled by default: live submission requires both explicit
   server and client rollout flags to equal `true`.
 - The eligibility preflight marker is required before a live submission can be
-  started. Uncertain or exempt applicants must remain outside the queue.
+- Persisted `visa_application_answers` preflight metadata is authoritative for
+  refresh and cross-device recovery. Session storage may be retained only as a
+  compatibility hint and URL query flags must never establish trust.
 - Keep official issue-number and confirmation-PDF evidence requirements in the
   shared arrival-card lifecycle gate; never treat a bare submitted flag as
   official success.
