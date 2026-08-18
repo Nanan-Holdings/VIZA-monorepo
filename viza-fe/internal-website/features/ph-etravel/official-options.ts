@@ -14,7 +14,7 @@ export type PhEtravelOfficialOptionSource = {
   query: Readonly<Record<string, string>>;
   valueField: "code" | "id";
   labelField: "name";
-  retrievedAt: "2026-08-04";
+  retrievedAt: "2026-08-04" | "2026-08-18";
   evidence: "verified_public" | "verified_public_bundle";
 };
 
@@ -44,7 +44,7 @@ export const PH_ETRAVEL_OFFICIAL_OPTION_SOURCES: readonly PhEtravelOfficialOptio
       },
       valueField: "code",
       labelField: "name",
-      retrievedAt: "2026-08-04",
+      retrievedAt: "2026-08-18",
       evidence: "verified_public",
     },
     {
@@ -252,4 +252,25 @@ export function hasUniqueOfficialOptionValues(
     options.every((option) => option.label.length > 0) &&
     new Set(options.map((option) => option.value)).size === options.length
   );
+}
+
+export function getPhEtravelStaticOptionValue(
+  options: readonly PhEtravelStaticOption[],
+  submittedValue: string | number | null | undefined
+): string | number | null {
+  if (submittedValue === null || submittedValue === undefined) return null;
+  const rawValue =
+    typeof submittedValue === "string" ? submittedValue.trim() : submittedValue;
+  const match = options.find((option) => option.value === rawValue);
+  return match ? match.value : null;
+}
+
+export function getPhEtravelArrivalPurposeCode(
+  submittedValue: string | null | undefined
+): string | null {
+  const value = getPhEtravelStaticOptionValue(
+    PH_ETRAVEL_ARRIVAL_PURPOSE_OPTIONS,
+    submittedValue
+  );
+  return typeof value === "string" ? value : null;
 }

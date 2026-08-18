@@ -15,12 +15,19 @@ describe("Philippines eTravel Chinese option labels", () => {
   });
 
   test("covers every official airline snapshot code with a Chinese label", async () => {
-    const snapshot = await import(
-      "../../../../../viza-be/agent-backend/scripts/ph-etravel/official-options.snapshot.json"
+    const snapshot =
+      await import("../../../../../viza-be/agent-backend/scripts/ph-etravel/official-options.snapshot.json");
+    const officialCodes = snapshot.default.airlines.map(
+      (airline: { code: string }) => airline.code
     );
-    const officialCodes = snapshot.default.airlines.map((airline: { code: string }) => airline.code);
-    expect(Object.keys(PH_ETRAVEL_AIRLINE_LABELS_ZH).sort()).toEqual([...officialCodes].sort());
-    expect(Object.values(PH_ETRAVEL_AIRLINE_LABELS_ZH).every((label) => /[\u3400-\u9fff]/.test(label))).toBe(true);
+    expect(Object.keys(PH_ETRAVEL_AIRLINE_LABELS_ZH).sort()).toEqual(
+      [...officialCodes].sort()
+    );
+    expect(
+      Object.values(PH_ETRAVEL_AIRLINE_LABELS_ZH).every((label) =>
+        /[\u3400-\u9fff]/.test(label)
+      )
+    ).toBe(true);
   });
 
   test("localizes country fields while preserving official values", () => {
@@ -41,8 +48,36 @@ describe("Philippines eTravel Chinese option labels", () => {
     ]);
 
     expect(localized).toEqual([
-      expect.objectContaining({ value: "FILIPINO", text: "PHILIPPINE PASSPORT Holder" }),
-      expect.objectContaining({ value: "FOREIGNER", text: "FOREIGN PASSPORT Holder" }),
+      expect.objectContaining({
+        value: "FILIPINO",
+        text: "PHILIPPINE PASSPORT Holder",
+      }),
+      expect.objectContaining({
+        value: "FOREIGNER",
+        text: "FOREIGN PASSPORT Holder",
+      }),
+    ]);
+  });
+
+  test("disambiguates duplicate SEA seaport labels without changing official codes", () => {
+    const localized = localizePhEtravelOptions("sea_port_of_entry", [
+      { value: "TP120", text: "Port of Legazpi", label_en: "Port of Legazpi" },
+      {
+        value: "LEGAZPI",
+        text: "Port of Legazpi",
+        label_en: "Port of Legazpi",
+      },
+    ]);
+
+    expect(localized).toEqual([
+      expect.objectContaining({
+        value: "TP120",
+        label_zh: "Port of Legazpi（TP120）",
+      }),
+      expect.objectContaining({
+        value: "LEGAZPI",
+        label_zh: "Port of Legazpi（LEGAZPI）",
+      }),
     ]);
   });
 });

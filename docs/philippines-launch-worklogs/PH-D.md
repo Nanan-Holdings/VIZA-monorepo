@@ -1683,3 +1683,18 @@
 - `./node_modules/.bin/tsc --noEmit --incremental false`：本轮 PH 文件无错误；仓库既有阻断为 `app/api/applications/[id]/submission-status/route.ts` 的 `unknown` 类型、Travel 测试 tuple 类型及缺失 Playwright 类型，均未修改。
 - focused Vitest（PH adapter/status/recovery 与 arrival-result card）未启动测试体：Vite 无法写入既有 `node_modules/.vite-temp`，报 `EPERM`。未请求权限或绕过限制。
 - Prettier 未随当前 `node_modules` 安装；`npx prettier` 尝试下载时网络 DNS 失败，未改动依赖。
+
+## 第三十三轮：E48/E49 frontend 表单与状态边界（2026-08-18）
+
+- 只修改 PH frontend helper/tests。消费 E48/E49 与当前 PH-B/PH-C 代码结论：Purpose 使用当前 UI-shaped 16 项 source，`POV999`/Others 可表达但提交值只接受 `POV999` code，`Others` label 会在 PH-only normalizer 中清空而不是提交。
+- SEA destination seaport 继续只用 official `code` 作身份。重复 `Port of Legazpi` label 会在 PH option label helper 中显示为 `Port of Legazpi（TP120）` / `Port of Legazpi（LEGAZPI）`，不按 label 合并或恢复。
+- `with_custom_declaration=0/1` 更新为 PH-only manual/electronic presentation hint：`0` 选择 SEA manual forms presentation，`1` 选择 SEA electronic customs presentation；两者都保留 rendered official page drift gate，metadata 不进入 applicant answer，也不授权 final Submit。
+- 分支切换清理：SEA manual forms 会清除电子 customs/currency 旧答案；SEA electronic Customs No 会清除 positive General/Currency descendants；manual path 不伪造 electronic customs 缺项。Review/Family/Summary/reference/QR 仍非 applicant question，submitted 仍只由 authoritative reference + same-reference QR render 产生。
+- 未触碰 shared dirty 文件、agent-backend、submission-service、field contract、PH-A/PH-B/PH-C 或 coordination。当前工作树仍有他人 PH-C/submission-service/合同 dirty，本轮未纳入。
+
+### Focused validation
+
+- `npx vitest run features/ph-etravel/__tests__/official-options.test.ts features/ph-etravel/__tests__/option-labels.test.ts features/ph-etravel/__tests__/port-flow.test.ts features/ph-etravel/__tests__/presentation.test.ts features/ph-etravel/__tests__/form-answer-normalization.test.ts features/ph-etravel/__tests__/applicant-experience.test.ts features/ph-etravel/__tests__/applicant-status-card.test.tsx features/ph-etravel/__tests__/result-recovery-stored.test.ts features/ph-etravel/__tests__/status.test.ts --testTimeout=15000`：9 files / 60 tests passed。
+- `npx prettier --check` 初次发现本轮 PH files 需格式化；已用 `npx prettier --write` 格式化后，focused tests 仍通过。
+- `git diff --check`：passed。
+- `npx tsc --noEmit --incremental false`：失败仅为既有非 PH blocker：`lib/travel/__tests__/travel-llm-connectivity.spec.ts` tuple `[]` index errors，以及 `scripts/capture-travel-city-coverage-screenshots.ts` 缺 `playwright` types。
