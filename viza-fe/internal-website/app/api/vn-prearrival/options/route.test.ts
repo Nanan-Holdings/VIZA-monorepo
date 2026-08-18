@@ -67,6 +67,47 @@ describe("Vietnam pre-arrival official option mapping", () => {
     }, false, { startPool })).resolves.toBe(true);
   });
 
+  it("checks an already-running pool and starts one spare when it is unhealthy", async () => {
+    const calls: string[] = [];
+    const ready = await __testables.ensureFlightCatalogServiceReady({
+      baseUrl: "https://viza-prod-runner-pool.fly.dev",
+      url: "https://viza-prod-runner-pool.fly.dev/internal/vn-prearrival/flight-catalog",
+      headers: {},
+      wakePool: true,
+    }, true, {
+      startPool: async () => ({
+        ok: true,
+        target: "pool",
+        app: "viza-prod-runner-pool",
+        state: "already_running",
+      }),
+      increasePoolCapacity: async (target, desired) => {
+        calls.push(`capacity:${target}:${desired}`);
+        return {
+          ok: true,
+          target: "pool",
+          app: "viza-prod-runner-pool",
+          desired,
+          active: desired,
+          started: 1,
+        };
+      },
+      waitForReady: async (url) => {
+        calls.push(`ready:${url}`);
+        return calls.filter((call) => call.startsWith("ready:")).length === 1
+          ? { ok: false, attempts: 4, reason: "readiness_timeout" }
+          : { ok: true, attempts: 2 };
+      },
+    });
+
+    expect(ready).toBe(true);
+    expect(calls).toEqual([
+      "ready:https://viza-prod-runner-pool.fly.dev/health",
+      "capacity:pool:2",
+      "ready:https://viza-prod-runner-pool.fly.dev/health",
+    ]);
+  });
+
   it("retries the runner once when its cold-start request returns 503", async () => {
     const requests: Array<{ body: string | null; url: string }> = [];
     const delays: number[] = [];
