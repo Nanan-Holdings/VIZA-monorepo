@@ -17,17 +17,31 @@ export type KoreaEArrivalPreflightValidation =
   | { ok: false; code: "missing" | "not_needing_declaration" | "invalid"; message: string };
 
 /**
- * A Korea e-Arrival Card draft may only be created after the eligibility gate
- * has written a trusted marker. An explicit application id is the existing
- * application/status-view path and is therefore allowed to be read or saved;
- * it must never be used to manufacture a new application.
+ * A Korea e-Arrival Card draft may only be created or changed after the
+ * eligibility gate has written server-auditable answers. Explicit application
+ * ids may still be read for recovery/status views, but they are not a preflight
+ * bypass for form writes.
  */
 export function canCreateKoreaArrivalCardDraft(input: {
   isKoreaArrivalCard: boolean;
   preflightTrusted: boolean;
   explicitApplicationId: boolean;
 }): boolean {
-  return !input.isKoreaArrivalCard || input.preflightTrusted || input.explicitApplicationId;
+  return !input.isKoreaArrivalCard || input.preflightTrusted;
+}
+
+export function buildKoreaEArrivalPreflightAnswerPatch(input: {
+  adultRepresentativeConfirmed: boolean;
+  completedAt: number;
+  dateOfBirth: string;
+}): Record<string, string> {
+  return {
+    date_of_birth: input.dateOfBirth,
+    kr_eac_eligibility: "needs_declaration",
+    kr_eac_adult_representative_confirmed: input.adultRepresentativeConfirmed ? "true" : "false",
+    kr_eac_preflight_version: "1",
+    kr_eac_preflight_reviewed_at: new Date(input.completedAt).toISOString(),
+  };
 }
 
 export function validateKoreaEArrivalPreflight(

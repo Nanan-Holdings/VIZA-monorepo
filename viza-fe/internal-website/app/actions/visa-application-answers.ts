@@ -47,12 +47,15 @@ import {
 import {
   applicationIdentityMatches,
   findOngoingApplicationByIdentity,
+  isOngoingApplicationRecord,
 } from "@/lib/applications/ongoing-application";
 import {
   isQaDryRunPurpose,
   isSyntheticQaValue,
 } from "@/lib/applications/qa-safety";
 import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
+import { canContinueKoreaArrivalPreflight } from "@/app/client/arrival-cards/south-korea/eligibility";
+import { buildKoreaEArrivalPreflightAnswerPatch } from "@/features/kr-arrival-card/preflight";
 
 type ApplicationOwnerProfile = {
   id?: string | null;
@@ -1452,6 +1455,87 @@ export async function ensureDraftApplication(
     return {
       error:
         err instanceof Error ? err.message : "Failed to create application",
+    };
+  }
+}
+
+export async function completeKoreaEArrivalCardPreflight(input: {
+  applicationId?: string | null;
+  dateOfBirth: string;
+  adultRepresentativeConfirmed: boolean;
+}): Promise<{
+  ok: boolean;
+  applicationId?: string;
+  completedAt?: number;
+  answers?: Record<string, string>;
+  error?: string;
+}> {
+  try {
+    if (!canContinueKoreaArrivalPreflight({
+      eligibility: "needs_declaration",
+      dateOfBirth: input.dateOfBirth,
+      adultRepresentativeConfirmed: input.adultRepresentativeConfirmed,
+    })) {
+      return { ok: false, error: "Complete the Korea e-Arrival Card eligibility check before continuing." };
+    }
+
+    const requestedApplicationId = input.applicationId?.trim() || null;
+    let applicationId = requestedApplicationId;
+
+    if (requestedApplicationId) {
+      const session = await getClientSessionWithFallback();
+      if (!session) return { ok: false, error: "Not authenticated" };
+
+      const adminClient = createAdminClient();
+      const { data: application, error: applicationError } = await adminClient
+        .from("applications")
+        .select(
+          "id, applicant_id, country, visa_type, purpose, status, submission_result_status, result_status, submission_result"
+        )
+        .eq("id", requestedApplicationId)
+        .maybeSingle();
+      if (applicationError || !application) {
+        return { ok: false, error: applicationError?.message ?? "Application not found" };
+      }
+
+      const owner = await loadApplicationOwnerProfile(adminClient, application.applicant_id);
+      if (owner.error || !ownsApplicationSession(owner.profile, session)) {
+        return { ok: false, error: owner.error ?? "Unauthorized" };
+      }
+      if (
+        !applicationIdentityMatches(application, "south_korea", "KR_E_ARRIVAL_CARD") ||
+        !isOngoingApplicationRecord(application)
+      ) {
+        return { ok: false, error: "The selected application is not an active Korea e-Arrival Card draft." };
+      }
+    } else {
+      const draft = await ensureDraftApplication("south_korea", "KR_E_ARRIVAL_CARD", {
+        preferExplicit: true,
+      });
+      if (draft.error || !draft.applicationId) {
+        return { ok: false, error: draft.error ?? "Failed to create application" };
+      }
+      applicationId = draft.applicationId;
+    }
+
+    if (!applicationId) {
+      return { ok: false, error: "Failed to resolve application" };
+    }
+
+    const completedAt = Date.now();
+    const answers = buildKoreaEArrivalPreflightAnswerPatch({
+      adultRepresentativeConfirmed: input.adultRepresentativeConfirmed,
+      completedAt,
+      dateOfBirth: input.dateOfBirth,
+    });
+    const saveResult = await saveDynamicAnswers(applicationId, answers);
+    if (saveResult.error) return { ok: false, error: saveResult.error };
+
+    return { ok: true, applicationId, completedAt, answers };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Failed to complete Korea e-Arrival Card eligibility check",
     };
   }
 }
