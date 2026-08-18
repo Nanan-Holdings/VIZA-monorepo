@@ -11,6 +11,7 @@
 /.ralph
 /.tmp
 /.venv
+/.worktrees
 /db
 /docs
 /knowledge-base
@@ -37,5 +38,6 @@
 **/.next
 **/.turbo
 **/__pycache__
+**/*.tsbuildinfo
 **/test-results
 **/playwright-report
