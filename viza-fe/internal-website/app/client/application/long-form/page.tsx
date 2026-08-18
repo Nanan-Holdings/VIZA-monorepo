@@ -83,6 +83,7 @@ import {
   FormAssistantValidationRefreshGuard,
   mergeFormAssistantIssueDraft,
 } from "@/lib/form-assistant/validation-refresh";
+import { getAssistantProgress } from "@/lib/form-assistant/validator";
 import {
   buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
@@ -2106,6 +2107,10 @@ export default function ApplicationPage() {
   const dynamicAnswerSnapshot = useMemo(
     () => ({ ...dynamicAnswers, ...pendingDynamicDrafts }),
     [dynamicAnswers, pendingDynamicDrafts],
+  );
+  const liveFormAssistantProgress = useMemo(
+    () => getAssistantProgress(dbSteps, dynamicAnswerSnapshot),
+    [dbSteps, dynamicAnswerSnapshot],
   );
 
   const visibleDynamicSteps = useMemo(
@@ -4290,7 +4295,7 @@ export default function ApplicationPage() {
                 applicationId={appState.applicationId!}
                 locale={locale}
                 isZh={isZhInterface}
-                progress={formAssistantState?.progress ?? { completed: 0, total: 0 }}
+                progress={liveFormAssistantProgress}
                 messages={formAssistantState?.messages ?? []}
                 missingFields={(formAssistantState?.missingFields ?? []).map((field) => ({
                   fieldName: field.fieldName,

@@ -14,11 +14,32 @@ function optionValue(option: VisaFormFieldOption): string {
   return typeof option === "string" ? option : option.value;
 }
 
-function parseIsoDate(value: string): Date | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const date = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(0, 10) === value ? date : null;
+function buildUtcDate(year: number, month: number, day: number): Date | null {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) return null;
+  return date;
+}
+
+function parseApplicationDate(value: string): Date | null {
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return buildUtcDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+
+  // Vietnam Pre-Arrival stores the official portal's controlled radio value
+  // verbatim in DD/MM/YYYY instead of the shared form's ISO representation.
+  const officialDayFirst = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (officialDayFirst) {
+    return buildUtcDate(
+      Number(officialDayFirst[3]),
+      Number(officialDayFirst[2]),
+      Number(officialDayFirst[1]),
+    );
+  }
+
+  return null;
 }
 
 function startOfUtcDay(value: Date): Date {
@@ -89,7 +110,8 @@ export function validateApplicationAnswers(params: {
         });
       }
 
-      if (field.options?.length) {
+      const usesRemoteOfficialOptions = rules.remote_search === true;
+      if (field.options?.length && !usesRemoteOfficialOptions) {
         const allowed = new Set(field.options.map(optionValue));
         if (!allowed.has(value)) {
           errors.push({
@@ -127,7 +149,7 @@ export function validateApplicationAnswers(params: {
           message: message(`${field.label} is shorter than the required minimum.`, `${field.label}短于要求的最小长度。`),
         });
       }
-      const parsedDate = field.fieldType === "date" ? parseIsoDate(value) : null;
+      const parsedDate = field.fieldType === "date" ? parseApplicationDate(value) : null;
       if (field.fieldType === "date" && !parsedDate) {
         errors.push({
           code: "invalid_date",
@@ -188,7 +210,7 @@ export function validateApplicationAnswers(params: {
             ? rules.after_or_equal_field
             : null;
         if (comparisonField) {
-          const comparisonDate = parseIsoDate(answers[comparisonField]?.trim() ?? "");
+          const comparisonDate = parseApplicationDate(answers[comparisonField]?.trim() ?? "");
           if (comparisonDate && parsedDate < comparisonDate) {
             errors.push({
               code: "date_before_related_field",
@@ -201,7 +223,7 @@ export function validateApplicationAnswers(params: {
           }
         }
         if (typeof rules.min_days_after_field === "string") {
-          const comparisonDate = parseIsoDate(answers[rules.min_days_after_field]?.trim() ?? "");
+          const comparisonDate = parseApplicationDate(answers[rules.min_days_after_field]?.trim() ?? "");
           const requiredDays = typeof rules.min_days_after_field_days === "number"
             ? Math.max(0, rules.min_days_after_field_days)
             : 0;
@@ -225,9 +247,9 @@ export function validateApplicationAnswers(params: {
   }
 
   if (visaType.trim().toUpperCase() === "SG_ARRIVAL_CARD") {
-    const arrival = parseIsoDate(answers.arrival_date ?? "");
-    const departure = parseIsoDate(answers.departure_date ?? "");
-    const passportExpiry = parseIsoDate(answers.passport_expiry_date ?? "");
+    const arrival = parseApplicationDate(answers.arrival_date ?? "");
+    const departure = parseApplicationDate(answers.departure_date ?? "");
+    const passportExpiry = parseApplicationDate(answers.passport_expiry_date ?? "");
     if (arrival && departure && departure < arrival) {
       errors.push({
         code: "departure_before_arrival",

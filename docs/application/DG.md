@@ -386,6 +386,11 @@ review flow; country pages must not implement their own issue navigation.
   draft is saved and revalidated automatically. The refreshed result replaces
   the assistant and form issue maps together, including new cross-field issues;
   warnings still require the normal explicit acknowledgement flow.
+- Assistant completion progress is derived from the current merged form draft,
+  so manual, AI, and undo edits update it without waiting for another assistant
+  response. Vietnam Pre-Arrival's controlled date radios display the official
+  `DD/MM/YYYY` label while storing the canonical ISO date, and remote official
+  selects must not be checked against an incomplete static fallback option list.
 - Issue ordering comes from the shared schema display order in
   `lib/form-assistant/review-issues.ts`, including repeat-instance answer keys.
 

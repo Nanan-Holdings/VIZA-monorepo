@@ -899,6 +899,31 @@ const vnPrearrivalEvisaNumberStep: WizardStep = {
   ],
 };
 
+const vnPrearrivalArrivalDateStep: WizardStep = {
+  stepNumber: 1,
+  stepName: "Passenger Information",
+  fields: [{
+    id: "field-expected-arrival-date",
+    visaType: "VN_PREARRIVAL_DECLARATION",
+    fieldName: "expected_arrival_date",
+    label: "Expected Arrival Date (DD/MM/YYYY GMT+7)",
+    fieldType: "date",
+    required: true,
+    stepNumber: 1,
+    stepName: "Passenger Information",
+    displayOrder: 1,
+    placeholder: null,
+    validationRules: {
+      official: true,
+      min_date: "today",
+      max_days_from_today: 2,
+      official_control: "radio_date_window",
+    },
+    options: null,
+    conditionalLogic: null,
+  }],
+};
+
 const vnPrearrivalHotelHierarchyStep: WizardStep = {
   stepNumber: 2,
   stepName: "Trip Information",
@@ -2383,6 +2408,32 @@ describe("DynamicStepForm copilot format", () => {
       ward_commune_of_hotel: "20194",
       hotel_accommodation_address: "KSDN_01",
     });
+  });
+
+  it("stores Vietnam arrival-date radio choices as ISO while displaying the official format", async () => {
+    const onDraftChange = vi.fn();
+    const { container } = render(
+      <DynamicStepForm
+        step={vnPrearrivalArrivalDateStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        onDraftChange={onDraftChange}
+        visaType="VN_PREARRIVAL_DECLARATION"
+      />,
+    );
+
+    const radios = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
+    expect(radios).toHaveLength(3);
+    expect(radios.every((radio) => /^\d{4}-\d{2}-\d{2}$/.test(radio.value))).toBe(true);
+
+    const selectedValue = radios[2].value;
+    const [year, month, day] = selectedValue.split("-");
+    expect(screen.getByText(`${day}/${month}/${year}`)).toBeInTheDocument();
+
+    fireEvent.click(radios[2]);
+    await waitFor(() => expect(onDraftChange).toHaveBeenLastCalledWith({
+      expected_arrival_date: selectedValue,
+    }));
   });
 
   it("shows document date-order errors only on the expiry field", () => {

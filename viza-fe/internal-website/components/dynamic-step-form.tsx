@@ -571,6 +571,13 @@ function formatOfficialDateFromUtcDate(date: Date): string {
   return `${day}/${month}/${year}`;
 }
 
+function formatIsoDateFromUtcDate(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function getVnPrearrivalArrivalDateOptions(): Array<Exclude<VisaFormFieldOption, string>> {
   const vietnamNow = getVietnamNow();
   const startOfVietnamToday = Date.UTC(
@@ -580,13 +587,14 @@ function getVnPrearrivalArrivalDateOptions(): Array<Exclude<VisaFormFieldOption,
   );
   return Array.from({ length: 3 }, (_, index) => {
     const date = new Date(startOfVietnamToday + index * 24 * 60 * 60 * 1000);
-    const value = formatOfficialDateFromUtcDate(date);
+    const value = formatIsoDateFromUtcDate(date);
+    const officialLabel = formatOfficialDateFromUtcDate(date);
     return {
       value,
-      text: value,
-      label_en: value,
-      label_zh: value,
-      official_label: value,
+      text: officialLabel,
+      label_en: officialLabel,
+      label_zh: officialLabel,
+      official_label: officialLabel,
     };
   });
 }
@@ -594,7 +602,7 @@ function getVnPrearrivalArrivalDateOptions(): Array<Exclude<VisaFormFieldOption,
 function normaliseVnPrearrivalArrivalDate(value: string): string | null {
   const parsed = parseFlexibleDate(value);
   if (!parsed) return null;
-  return formatOfficialDateFromUtcDate(new Date(Date.UTC(
+  return formatIsoDateFromUtcDate(new Date(Date.UTC(
     parsed.getFullYear(),
     parsed.getMonth(),
     parsed.getDate(),
