@@ -32,6 +32,10 @@ import {
   japanAppointmentOperationsRouter,
 } from './routes/japan-appointment.routes.js';
 import {
+  publicStatusRouter,
+  statusOperationsRouter,
+} from './routes/public-status.routes.js';
+import {
   testActiveKnowledgeRelease,
   testSupabaseConnection,
 } from './db/supabase-client.js';
@@ -117,6 +121,10 @@ app.get('/health', async (_req, res) => {
   });
 });
 
+// Public, redacted service-status snapshot and secret-protected probe trigger.
+app.use('/api/public/status', publicStatusRouter);
+app.use('/api/internal/status', statusOperationsRouter);
+
 // Admin routes
 app.use('/api/admin/reminders', adminRemindersRouter);
 
@@ -188,4 +196,3 @@ app.use(bodyParserErrorHandler);
 app.use(errorHandler);
 
 export default app;
-

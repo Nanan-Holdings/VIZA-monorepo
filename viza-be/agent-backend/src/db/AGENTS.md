@@ -44,6 +44,9 @@ Supabase service-role client setup for the agent backend.
 - `../../drizzle/0139_dedupe_ongoing_applications.sql`: application
   deduplication cleanup and the partial unique gate for ongoing country/visa
   identities.
+- `../../drizzle/0150_public_status_tracking.sql`: current service-health
+  projection metadata, append-only checks, derived incidents, and redacted
+  aggregation/recording RPCs.
 - `../../drizzle/0140_prevent_qa_placeholder_submission.sql`: database-level
   rejection of synthetic QA data in customer applications and live queues.
 - `../../drizzle/0141_block_known_qa_account_sentinel.sql`: follow-up protection
@@ -105,6 +108,9 @@ For schema changes, also run any affected route/eval tests.
 - `appointment_confirmations`
 - `appointment_status_checks`
 - `official_status_checks`
+- `portal_health`
+- `portal_health_checks`
+- `status_incidents`
 - `official_application_tracking`
 - `appointment_audit_events`
 - `ds160_submission_jobs`

@@ -1,6 +1,8 @@
 # Scheduled jobs (PROV-009)
 
-Single source of truth: migration `0079_pg_cron_schedules.sql`. Each entry uses `pg_cron` + `pg_net` to POST a Supabase Edge Function which proxies to the TS implementation in `viza-be/agent-backend`.
+Database-owned jobs use migration `0079_pg_cron_schedules.sql`, `pg_cron`, and
+`pg_net`. External watchdog jobs that must still run during a database control
+plane issue use bounded GitHub Actions schedules and are listed separately.
 
 ## Entries
 
@@ -10,6 +12,18 @@ Single source of truth: migration `0079_pg_cron_schedules.sql`. Each entry uses 
 | `viza_canary_pager`      | `*/5 * * * *`    | `/jobs/canary-pager`     | `viza-be/agent-backend/src/jobs/canary-pager.ts`                 | `SELECT cron.unschedule('viza_canary_pager');`                  |
 | `viza_sla_breach_sweep`  | `15 * * * *`     | `/jobs/sla-breach-sweep` | `viza-be/agent-backend/scripts/sla-breach-sweep.ts`              | `SELECT cron.unschedule('viza_sla_breach_sweep');`              |
 | `viza_retention_purge`   | `0 2 * * *`      | `/jobs/retention-purge`  | runner-side; see migration `0049_retention_purge.sql`            | `SELECT cron.unschedule('viza_retention_purge');`               |
+
+## External schedules
+
+| Workflow | Schedule (UTC) | Endpoint | Purpose | Pause |
+| --- | --- | --- | --- | --- |
+| `portal-health-canary.yml` | `*/5 * * * *` | `POST /api/internal/status/probe` | Record public VIZA/government endpoint observations and incident transitions | Disable the GitHub Actions workflow |
+
+The portal-health workflow uses an ephemeral hosted runner, a four-minute job
+timeout, and no checkout or dependency installation. The backend performs at
+most five probes concurrently and caps every request timeout. It requires
+GitHub secrets `STATUS_PROBE_URL` and `STATUS_CRON_SECRET`; the latter must
+match the backend `STATUS_CRON_SECRET` environment value.
 
 ## Required extensions
 

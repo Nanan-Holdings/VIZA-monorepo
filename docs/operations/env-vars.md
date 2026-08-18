@@ -33,6 +33,9 @@ Categories: **public** (safe in client bundle), **server** (server-only), **secr
 | `FEE_SCRAPER_SLACK_WEBHOOK`        | viza-be                | secret   | —   | ✓ | ✓     | annually         | Weekly diff digest                                      |
 | `VIZA_RUNNER_PD_KEY`               | viza-be                | secret   | —   | ✓ | ✓     | annually         | PagerDuty Events API v2 routing key                     |
 | `ONCALL_RUNBOOK_URL`               | viza-be                | public   | optional | ✓ | ✓ | never        | Defaults to `https://www.viza.app/docs/operations/oncall.md` |
+| `STATUS_CRON_SECRET`               | viza-be / GitHub Actions | secret | ✓ | ✓ | ✓ | quarterly | Shared bearer token that may trigger only bounded synthetic status probes |
+| `STATUS_PROBE_URL`                 | GitHub Actions         | server   | — | ✓ | ✓ | never | Agent-backend base URL; workflow appends `/api/internal/status/probe` |
+| `STATUS_PROBE_TIMEOUT_MS`          | viza-be                | server   | optional | optional | optional | never | Per-endpoint synthetic check timeout; bounded to 2–30 seconds |
 | `SENTRY_DSN`                       | viza-fe / viza-be      | secret   | —   | ✓ | ✓     | per project      | Don't use the same DSN across envs                      |
 | `NEXT_PUBLIC_SENTRY_DSN`           | viza-fe                | public   | —   | ✓ | ✓     | per project      |                                                         |
 | `SENTRY_AUTH_TOKEN`                | CI only                | secret   | —   | —   | CI    | quarterly       | Sourcemap upload                                        |
@@ -57,6 +60,6 @@ Categories: **public** (safe in client bundle), **server** (server-only), **secr
 | ------------- | -------------------------------------------------------------------------------------------- |
 | **per deploy**| `SENTRY_RELEASE`                                                                             |
 | **per rotation** | `STRIPE_WEBHOOK_SECRET`                                                                   |
-| **quarterly** | `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ACCESS_TOKEN`, `DATABASE_URL`, `STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `TWILIO_AUTH_TOKEN`, `BRIGHTDATA_PASSWORD`, `RUNNER_VAULT_KEY`, `SENTRY_AUTH_TOKEN`, AWS keys, IMAP password, `LOCAL_LLM_API_KEY` |
+| **quarterly** | `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ACCESS_TOKEN`, `DATABASE_URL`, `STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `TWILIO_AUTH_TOKEN`, `BRIGHTDATA_PASSWORD`, `RUNNER_VAULT_KEY`, `SENTRY_AUTH_TOKEN`, `STATUS_CRON_SECRET`, AWS keys, IMAP password, `LOCAL_LLM_API_KEY` |
 | **annually**  | Slack webhooks, `VIZA_RUNNER_PD_KEY`                                                         |
 | **per project / never** | `*_URL`, `*_FROM`, `*_ZONE`, public anon keys                                       |

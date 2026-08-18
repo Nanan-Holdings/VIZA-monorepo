@@ -20,6 +20,10 @@ pages, and portal checkout links.
 - Public availability and display pricing must come from
   `lib/public-catalogue.ts`. On an unavailable or malformed feed, fail closed:
   show no destination as purchasable and never restore static prices.
+- Public service availability comes from `lib/public-status.ts`, the
+  agent-backend `/api/public/status` snapshot, and the same-site
+  `app/api/status/route.ts` refresh proxy. The status UI must show missing or
+  stale observations as unknown and must never synthesize uptime or incidents.
 
 ## Checks
 

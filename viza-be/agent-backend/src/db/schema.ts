@@ -252,6 +252,67 @@ export const universalProfileAnswers = pgTable("universal_profile_answers", {
 	sourceApplicationIdx: index("universal_profile_answers_source_app_idx").on(table.sourceApplicationId),
 }));
 
+// =============================================================================
+// PUBLIC SERVICE STATUS
+// Current projection, append-only checks, and derived incident lifecycles.
+// Public consumers must use the redacted backend API rather than these tables.
+// =============================================================================
+
+export const portalHealth = pgTable("portal_health", {
+	country: text("country").primaryKey(),
+	status: text("status").default("unknown").notNull(),
+	httpStatus: integer("http_status"),
+	latencyMs: integer("latency_ms"),
+	note: text("note"),
+	error: text("error"),
+	lastRunAt: timestamp("last_run_at", { withTimezone: true }).defaultNow().notNull(),
+	probeUrl: text("probe_url"),
+	monitorType: text("monitor_type").default("government_portal").notNull(),
+	isoCode: text("iso_code"),
+	displayNameEn: text("display_name_en"),
+	displayNameZh: text("display_name_zh"),
+	descriptionEn: text("description_en"),
+	descriptionZh: text("description_zh"),
+	publicVisible: boolean("public_visible").default(true).notNull(),
+	sortOrder: integer("sort_order").default(100).notNull(),
+	lastOkAt: timestamp("last_ok_at", { withTimezone: true }),
+	lastFailureAt: timestamp("last_failure_at", { withTimezone: true }),
+	lastStatusChangedAt: timestamp("last_status_changed_at", { withTimezone: true }).defaultNow().notNull(),
+	consecutiveFailures: integer("consecutive_failures").default(0).notNull(),
+	consecutiveSuccesses: integer("consecutive_successes").default(0).notNull(),
+});
+
+export const portalHealthChecks = pgTable("portal_health_checks", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	monitorKey: text("monitor_key").notNull(),
+	status: text("status").notNull(),
+	httpStatus: integer("http_status"),
+	latencyMs: integer("latency_ms"),
+	note: text("note"),
+	errorCode: text("error_code"),
+	checkedAt: timestamp("checked_at", { withTimezone: true }).defaultNow().notNull(),
+	source: text("source").default("scheduled_probe").notNull(),
+}, (table) => ({
+	monitorCheckedIdx: index("portal_health_checks_monitor_checked_idx").on(table.monitorKey, table.checkedAt),
+	checkedIdx: index("portal_health_checks_checked_idx").on(table.checkedAt),
+}));
+
+export const statusIncidents = pgTable("status_incidents", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	monitorKey: text("monitor_key").notNull(),
+	status: text("status").default("investigating").notNull(),
+	severity: text("severity").notNull(),
+	startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+	resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+	lastObservedAt: timestamp("last_observed_at", { withTimezone: true }).defaultNow().notNull(),
+	summaryEn: text("summary_en").notNull(),
+	summaryZh: text("summary_zh").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	startedIdx: index("status_incidents_started_idx").on(table.startedAt),
+}));
+
 export const officialApplicationTracking = pgTable("official_application_tracking", {
 	applicationId: uuid("application_id").primaryKey(),
 	applicantId: uuid("applicant_id").notNull(),

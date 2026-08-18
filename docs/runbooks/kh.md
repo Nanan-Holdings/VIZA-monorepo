@@ -30,7 +30,7 @@ which seeds KH at `max_concurrent=2`.
 
 ## Monitoring
 
-- **Portal canary**: OPS-004 hourly canary
+- **Portal canary**: OPS-004 five-minute canary
   ([`scripts/canary.ts`](../../viza-be/agent-backend/scripts/canary.ts))
   hits `https://www.evisa.gov.kh` with 15-second timeout. Status
   surfaces at `/admin/portal-health` and an OPS alert

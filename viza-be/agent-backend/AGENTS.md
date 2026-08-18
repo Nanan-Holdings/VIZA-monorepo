@@ -76,6 +76,10 @@ explicitly reintroduces another provider.
 - Transactional notification delivery: `src/notify/templates/**` and
   `src/notify/worker.ts`; Vietnam status changes use the locale-aware
   `vietnam_status_update` template and link to the VIZA status center.
+- Public service health: `src/services/portal-health.service.ts`,
+  `src/routes/public-status.routes.ts`, and
+  `drizzle/0150_public_status_tracking.sql` own bounded synthetic probes,
+  durable observations/incidents, and the redacted public snapshot.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Audited tourist-form seeds:
   `scripts/seed-ca-trv-form-fields.ts`,

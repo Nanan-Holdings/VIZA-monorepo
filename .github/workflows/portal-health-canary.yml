@@ -1,0 +1,33 @@
+name: Portal health canary
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-health-canary
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Trigger bounded portal probes
+        env:
+          STATUS_PROBE_URL: ${{ secrets.STATUS_PROBE_URL }}
+          STATUS_CRON_SECRET: ${{ secrets.STATUS_CRON_SECRET }}
+        run: |
+          test -n "$STATUS_PROBE_URL"
+          test -n "$STATUS_CRON_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --max-time 210 \
+            --retry 1 \
+            --retry-all-errors \
+            -X POST \
+            -H "Authorization: Bearer $STATUS_CRON_SECRET" \
+            "$STATUS_PROBE_URL/api/internal/status/probe"
