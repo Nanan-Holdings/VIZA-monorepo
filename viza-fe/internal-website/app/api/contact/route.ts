@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/email/resend";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -8,9 +9,8 @@ export const dynamic = "force-dynamic";
  *
  * The marketing site has no backend of its own (per its CLAUDE.md), so
  * its `/api/contact` route proxies the visitor's submission here
- * server-to-server. We validate, then forward the enquiry as an email
- * to the ops inbox via Resend — no DB table involved, mirroring how
- * other transactional mail is sent (lib/email/resend.ts).
+ * server-to-server. We validate, persist a durable lead, and send an email
+ * notification. The database record is the operational source of truth.
  *
  * Env:
  *   CONTACT_INBOX_EMAIL — destination inbox (falls back to NOTIFY_FROM_EMAIL).
@@ -69,6 +69,44 @@ export async function POST(req: Request) {
   const reasons = Array.isArray(body.reasons)
     ? body.reasons.map((r) => clean(r, 60)).filter(Boolean).slice(0, 10)
     : [];
+  const admin = createAdminClient();
+  const { data: lead, error: leadError } = await admin
+    .from("marketing_leads")
+    .insert({
+      full_name: fullName,
+      email,
+      phone: clean(body.phone, 40) || null,
+      preferred_channel: clean(body.preferredChannel, 40) || null,
+      passport_nationality: clean(body.passportNationality, 80) || null,
+      destination: clean(body.destination, 80) || null,
+      reasons,
+      message,
+      locale: clean(body.locale, 10) || null,
+      source: "marketing_contact",
+    })
+    .select("id")
+    .single();
+  if (leadError) {
+    console.error("[contact] durable lead insert failed:", leadError.message);
+  } else if (lead) {
+    const { error: workError } = await admin.from("admin_work_items").insert({
+      source_type: "marketing_leads",
+      source_id: lead.id,
+      dedupe_key: `marketing_leads:${lead.id}`,
+      kind: "lead_followup",
+      title: "New marketing enquiry",
+      description: clean(body.destination, 80) || "Destination not specified",
+      priority: "p2",
+      owning_team: "customer_support",
+      due_at: new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
+      checklist: [
+        { label: "Review destination, nationality, intent, and message", completed: false },
+        { label: "Assign an owner and reply through the preferred channel", completed: false },
+        { label: "Qualify, convert, or record a specific loss reason", completed: false },
+      ],
+    });
+    if (workError) console.error("[contact] lead work item insert failed:", workError.message);
+  }
 
   const lines = [
     `Name: ${fullName}`,
@@ -97,7 +135,14 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error("[contact] send failed:", err);
+    if (lead?.id) {
+      await admin.from("marketing_leads").update({ email_delivery_status: "failed", updated_at: new Date().toISOString() }).eq("id", lead.id);
+    }
     return NextResponse.json({ ok: false, error: "send_failed" }, { status: 502 });
+  }
+
+  if (lead?.id) {
+    await admin.from("marketing_leads").update({ email_delivery_status: "sent", updated_at: new Date().toISOString() }).eq("id", lead.id);
   }
 
   return NextResponse.json({ ok: true });

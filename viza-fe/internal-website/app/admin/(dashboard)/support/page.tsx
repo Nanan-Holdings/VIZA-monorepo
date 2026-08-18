@@ -2,10 +2,13 @@ import { getLocale } from "next-intl/server";
 import {
   listAdminSupportInbox,
   listAdminTicketMessages,
+  listInternalNotes,
+  listMacros,
   type TicketTab,
 } from "@/app/actions/admin-cs";
 import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 import { AdminSupportInboxClient } from "./support-inbox-client";
+import { getCurrentUser } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -32,16 +35,20 @@ function normalizeTab(value?: string): TicketTab {
 export default async function AdminSupportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; ticket?: string }>;
 }) {
   const locale = normalizeInterfaceLocale(await getLocale());
   const copy = COPY[locale];
-  const tab = normalizeTab((await searchParams).tab);
+  const resolvedSearchParams = await searchParams;
+  const tab = normalizeTab(resolvedSearchParams.tab);
   const { rows, error } = await listAdminSupportInbox(tab);
-  const selectedTicket = rows?.[0] ?? null;
-  const { rows: initialMessages } = selectedTicket
-    ? await listAdminTicketMessages(selectedTicket.id)
-    : { rows: [] };
+  const selectedTicket = rows?.find((row) => row.id === resolvedSearchParams.ticket) ?? rows?.[0] ?? null;
+  const [messagesResult, notesResult, macrosResult, currentUser] = await Promise.all([
+    selectedTicket ? listAdminTicketMessages(selectedTicket.id) : Promise.resolve({ rows: [] }),
+    selectedTicket ? listInternalNotes(selectedTicket.id) : Promise.resolve({ rows: [] }),
+    listMacros("ANY"),
+    getCurrentUser(),
+  ]);
 
   return (
     <section className="mx-auto flex max-w-[1440px] flex-col gap-5 p-4 lg:p-6">
@@ -63,7 +70,11 @@ export default async function AdminSupportPage({
         <AdminSupportInboxClient
           initialTab={tab}
           initialRows={rows ?? []}
-          initialMessages={initialMessages ?? []}
+          initialMessages={messagesResult.rows ?? []}
+          initialSelectedId={selectedTicket?.id ?? ""}
+          initialNotes={notesResult.rows ?? []}
+          initialMacros={macrosResult.rows ?? []}
+          currentUserId={currentUser?.id ?? ""}
         />
       )}
     </section>

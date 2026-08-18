@@ -17,6 +17,9 @@ pages, and portal checkout links.
 - Visa destination structured data is emitted by
   `components/VisaStructuredData.tsx` and mounted from the rich and fallback visa
   templates.
+- Public availability and display pricing must come from
+  `lib/public-catalogue.ts`. On an unavailable or malformed feed, fail closed:
+  show no destination as purchasable and never restore static prices.
 
 ## Checks
 

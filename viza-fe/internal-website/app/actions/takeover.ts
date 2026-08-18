@@ -20,12 +20,6 @@ import { withAdmin } from "@/lib/auth/with-admin";
  * the URL is exposed.
  */
 
-interface SupabaseUser {
-  id: string;
-  factors?: Array<{ status: string; factor_type: string }>;
-  user_metadata?: { aal?: string };
-}
-
 interface TakeoverSettlementRow {
   settled?: unknown;
   job_id?: unknown;
@@ -95,15 +89,11 @@ async function require2fa(): Promise<{ userId: string }> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
-  // Supabase Auth surfaces the AAL on the JWT. We treat the absence
-  // of a verified TOTP factor as "2FA not satisfied" and refuse.
-  const u = user as unknown as SupabaseUser;
-  const verified =
-    u.factors?.some((f) => f.status === "verified" && f.factor_type === "totp") ??
-    false;
-  if (!verified) {
+  const { data: assurance, error: assuranceError } =
+    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (assuranceError || assurance.currentLevel !== "aal2") {
     throw new Error(
-      "2FA required for operator takeover. Enrol a TOTP factor in /client/account.",
+      "A current 2FA-verified session is required for operator takeover.",
     );
   }
   return { userId: user.id };
@@ -146,17 +136,27 @@ export async function listOpenTakeovers(): Promise<OpenTakeoverRow[]> {
 export async function getTakeoverRemoteDebugUrl(
   takeoverId: string,
 ): Promise<{ url: string; vncUrl: string | null }> {
-  await require2fa();
+  const { userId } = await require2fa();
   return withAdmin("admin", "actions/takeover:reveal", async (admin) => {
     const { data, error } = await admin
       .from("takeover_session")
-      .select("remote_debug_url, vnc_url, status")
+      .select("remote_debug_url, vnc_url, status, claimed_by")
       .eq("id", takeoverId)
       .maybeSingle();
     if (error || !data) throw new Error(`takeover not found`);
     if (data.status === "completed" || data.status === "abandoned") {
       throw new Error("Takeover is closed; debug URL revoked.");
     }
+    if (data.status !== "claimed" || data.claimed_by !== userId) {
+      throw new Error("Claim this takeover before revealing the operator session.");
+    }
+    const { error: logError } = await admin.from("takeover_action_log").insert({
+      takeover_id: takeoverId,
+      action: "claim",
+      actor_user_id: userId,
+      detail: { revealed: true },
+    });
+    if (logError) throw new Error(`takeover reveal audit: ${logError.message}`);
     return {
       url: data.remote_debug_url as string,
       vncUrl: (data.vnc_url as string | null) ?? null,

@@ -1,5 +1,6 @@
-import { PortalShellPage } from "@/components/portal-shell-page";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <PortalShellPage />;
+/** Legacy medical-template route retained as a safe compatibility redirect. */
+export default function LegacyPatientsPage() {
+  redirect("/admin/users");
 }
