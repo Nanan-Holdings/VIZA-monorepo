@@ -511,17 +511,40 @@ async function fetchRunnerFlightCatalog(
     cache: "no-store",
     signal: AbortSignal.timeout(timeoutMs),
   });
-  let response = await request(input.refresh, 45_000);
-  if (!input.refresh || (response.status !== 202 && response.status !== 503)) return response;
+  if (!input.refresh) return request(false, 10_000);
 
-  console.warn(`[vn-prearrival] flight_catalog_runner_polling status=${response.status}`);
   const deadline = now() + 240_000;
+  let response: Response | null = null;
+  let refreshAccepted = false;
+  let pollingLogged = false;
   while (now() < deadline) {
+    try {
+      response = await request(!refreshAccepted, refreshAccepted ? 10_000 : 15_000);
+    } catch {
+      response = null;
+    }
+    if (response?.status === 200) return response;
+    if (!refreshAccepted && response?.status === 502) return response;
+    if (!refreshAccepted && response?.status === 202) {
+      refreshAccepted = true;
+    } else if (
+      response &&
+      response.status !== 202 &&
+      response.status !== 502 &&
+      response.status !== 503 &&
+      response.status !== 504
+    ) {
+      return response;
+    }
+    if (!pollingLogged) {
+      console.warn(
+        `[vn-prearrival] flight_catalog_runner_polling status=${response?.status ?? "network_error"}`,
+      );
+      pollingLogged = true;
+    }
     await delay(Math.min(3_000, Math.max(0, deadline - now())));
-    response = await request(false, 10_000);
-    if (response.status !== 503) return response;
   }
-  return response;
+  return response ?? new Response(null, { status: 503 });
 }
 
 async function loadRunnerFlightCatalogPage(input: RunnerFlightCatalogInput): Promise<FlightSearchPage | null> {
