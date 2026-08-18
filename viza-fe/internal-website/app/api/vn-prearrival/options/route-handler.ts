@@ -496,25 +496,32 @@ async function fetchRunnerFlightCatalog(
   dependencies: {
     fetchRunner?: typeof fetch;
     delay?: (milliseconds: number) => Promise<void>;
+    now?: () => number;
   } = {},
 ): Promise<Response> {
   const fetchRunner = dependencies.fetchRunner ?? fetch;
   const delay = dependencies.delay ?? ((milliseconds) => new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
   }));
-  const request = () => fetchRunner(config.url, {
+  const now = dependencies.now ?? Date.now;
+  const request = (refresh: boolean, timeoutMs: number) => fetchRunner(config.url, {
     method: "POST",
     headers: config.headers,
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, refresh }),
     cache: "no-store",
-    signal: AbortSignal.timeout(280_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
-  const response = await request();
-  if (response.status !== 503) return response;
+  let response = await request(input.refresh, 45_000);
+  if (!input.refresh || (response.status !== 202 && response.status !== 503)) return response;
 
-  console.warn("[vn-prearrival] flight_catalog_runner_retry status=503 attempt=2");
-  await delay(1_000);
-  return request();
+  console.warn(`[vn-prearrival] flight_catalog_runner_polling status=${response.status}`);
+  const deadline = now() + 240_000;
+  while (now() < deadline) {
+    await delay(Math.min(3_000, Math.max(0, deadline - now())));
+    response = await request(false, 10_000);
+    if (response.status !== 503) return response;
+  }
+  return response;
 }
 
 async function loadRunnerFlightCatalogPage(input: RunnerFlightCatalogInput): Promise<FlightSearchPage | null> {

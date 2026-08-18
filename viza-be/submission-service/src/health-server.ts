@@ -171,9 +171,15 @@ async function handleVnPrearrivalFlightCatalog(
   try {
     const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
     const refresh = body.refresh === true;
-    const snapshot = refresh
-      ? await refreshVnPrearrivalFlightCatalog()
-      : getCachedVnPrearrivalFlightCatalog();
+    if (refresh) {
+      const refreshOperation = refreshVnPrearrivalFlightCatalog();
+      sendJson(res, 202, { ok: true, status: "refresh_started" });
+      await refreshOperation.catch(() => {
+        console.warn("[vn-prearrival] official flight catalog refresh failed");
+      });
+      return;
+    }
+    const snapshot = getCachedVnPrearrivalFlightCatalog();
     if (!snapshot) {
       sendJson(res, 503, { error: "catalog_not_refreshed" });
       return;
