@@ -12,6 +12,7 @@ import {
   buildFormAssistantModelInstructions,
   findAccommodationOptionCandidates,
   formAssistantTimeZone,
+  getOrCreateAssistantSession,
   inferRequestedCorrectionFieldName,
   inferRequestedCorrectionFieldNameFromFields,
   isAmbiguousAlternativeAnswer,
@@ -226,7 +227,10 @@ function yesNoField(fieldName: string, label: string, labelZh: string): VisaForm
   };
 }
 
-function createAssistantAdminStub(priorResponse?: Record<string, unknown>) {
+function createAssistantAdminStub(
+  priorResponse?: Record<string, unknown>,
+  answerUpdateReturnsRow = true,
+) {
   const messages: Array<Record<string, unknown>> = [];
   const answerUpdates: Array<Record<string, unknown>> = [];
   const sessionUpdates: Array<Record<string, unknown>> = [];
@@ -285,7 +289,10 @@ function createAssistantAdminStub(priorResponse?: Record<string, unknown>) {
           return { data: { id: `message-${messageSequence}` }, error: null };
         }
         if (table === "visa_application_answers" && operation === "update") {
-          return { data: { field_name: "accommodation_name", ...payload }, error: null };
+          return {
+            data: answerUpdateReturnsRow ? { field_name: "accommodation_name", ...payload } : null,
+            error: null,
+          };
         }
         return { data: null, error: null };
       };
@@ -294,6 +301,64 @@ function createAssistantAdminStub(priorResponse?: Record<string, unknown>) {
   } as unknown as SupabaseClient;
   return { admin, messages, answerUpdates, sessionUpdates, deletedMessageIds };
 }
+
+describe("assistant session bootstrapping", () => {
+  it("reuses the concurrent winner when two first requests hit the unique application constraint", async () => {
+    const concurrentSession = {
+      id: "concurrent-session",
+      schema_fingerprint: "fingerprint",
+      knowledge_release_key: null,
+      state_json: { optionalFieldsAcknowledged: false },
+    };
+    let sessionReadCount = 0;
+    const admin = {
+      from(table: string) {
+        let operation = "select";
+        const chain: Record<string, unknown> = {};
+        const returnChain = () => chain;
+        chain.select = returnChain;
+        chain.eq = returnChain;
+        chain.order = returnChain;
+        chain.limit = returnChain;
+        chain.ilike = returnChain;
+        chain.insert = () => {
+          operation = "insert";
+          return chain;
+        };
+        chain.maybeSingle = async () => {
+          if (table === "form_assistant_sessions") {
+            sessionReadCount += 1;
+            return sessionReadCount === 1
+              ? { data: null, error: null }
+              : { data: concurrentSession, error: null };
+          }
+          return { data: null, error: null };
+        };
+        chain.single = async () => operation === "insert"
+          ? {
+              data: null,
+              error: {
+                code: "23505",
+                message: "duplicate key value violates unique constraint form_assistant_sessions_application_id_key",
+              },
+            }
+          : { data: null, error: null };
+        return chain;
+      },
+    } as unknown as SupabaseClient;
+
+    await expect(getOrCreateAssistantSession({
+      admin,
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "auth-user-id",
+      country: "malaysia",
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+      steps: [],
+    })).resolves.toEqual(concurrentSession);
+    expect(sessionReadCount).toBe(2);
+  });
+});
 
 describe("generic natural-language model extraction", () => {
   it("translates a natural answer into a high-confidence field patch for a non-SG form", async () => {
@@ -565,6 +630,126 @@ describe("generic natural-language model extraction", () => {
   });
 });
 
+describe("short-answer conversation progression", () => {
+  it("keeps a uniquely matched calling code when the visible question became stale", async () => {
+    const phoneField: VisaFormFieldRow = {
+      ...field("mobile_country_code", "Mobile Country Code", "手机国家 / 地区代码"),
+      displayOrder: 2,
+      validationRules: {
+        label_zh: "手机国家 / 地区代码",
+        pattern: "^[0-9]{1,4}$",
+        official: true,
+      },
+    };
+    const birthCountryField: VisaFormFieldRow = {
+      ...field("place_of_birth", "Place of Birth", "出生地"),
+      fieldType: "select",
+      displayOrder: 1,
+      options: [
+        { value: "AFG", text: "AFGHANISTAN", label_zh: "阿富汗" },
+        { value: "ALA", text: "ALAND ISLANDS", label_zh: "奥兰群岛" },
+        { value: "ALB", text: "ALBANIA", label_zh: "阿尔巴尼亚" },
+        { value: "DZA", text: "ALGERIA", label_zh: "阿尔及利亚" },
+        { value: "ASM", text: "AMERICAN SAMOA", label_zh: "美属萨摩亚" },
+        { value: "CHN", text: "CHINA", label_zh: "中国" },
+      ],
+    };
+    const steps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      fields: [birthCountryField, phoneField],
+    }];
+    const answers: Record<string, { value: string; source: string | null }> = {};
+    const stub = createAssistantAdminStub();
+    const common = {
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "auth-user-id",
+      steps,
+      answers,
+      locale: "zh",
+      inputMode: "text" as const,
+      country: "malaysia",
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+    };
+
+    const callingCodeTurn = await runAssistantTurn({
+      ...common,
+      text: "65",
+      idempotencyKey: "calling-code-turn",
+    });
+    expect(callingCodeTurn.appliedPatches).toEqual([expect.objectContaining({
+      fieldName: "mobile_country_code",
+      value: "65",
+    })]);
+    expect(callingCodeTurn.assistantMessage).toContain("出生地");
+    expect(callingCodeTurn.assistantMessage).not.toContain("阿富汗");
+
+    const birthCountryTurn = await runAssistantTurn({
+      ...common,
+      text: "中国",
+      idempotencyKey: "birth-country-turn",
+    });
+    expect(birthCountryTurn.appliedPatches).toEqual([expect.objectContaining({
+      fieldName: "place_of_birth",
+      value: "CHN",
+    })]);
+    expect(birthCountryTurn.missingFields).toEqual([]);
+    expect(birthCountryTurn.assistantMessage).not.toContain("手机国家 / 地区代码");
+  });
+
+  it("replaces an invalid reusable-profile option instead of trapping the assistant on it", async () => {
+    const birthCountryField: VisaFormFieldRow = {
+      ...field("place_of_birth", "Place of Birth", "出生地"),
+      fieldType: "select",
+      options: [
+        { value: "CHN", text: "CHINA", label_zh: "中国" },
+        { value: "SGP", text: "SINGAPORE", label_zh: "新加坡" },
+      ],
+    };
+    const answers = {
+      place_of_birth: { value: "Changsha", source: "universal_profile" },
+    };
+    const stub = createAssistantAdminStub(undefined, false);
+
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "auth-user-id",
+      steps: [{ stepNumber: 1, stepName: "Traveller Information", fields: [birthCountryField] }],
+      answers,
+      text: "中国",
+      locale: "zh",
+      inputMode: "text",
+      idempotencyKey: "correct-invalid-profile-option",
+      country: "malaysia",
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+    });
+
+    expect(result.appliedPatches).toEqual([expect.objectContaining({
+      fieldName: "place_of_birth",
+      value: "CHN",
+    })]);
+    expect(result.skippedConflicts).toEqual([]);
+    expect(answers.place_of_birth).toEqual({ value: "CHN", source: "form_assistant" });
+    expect(stub.answerUpdates).toHaveLength(2);
+  });
+});
+
 describe("buildAssistantState", () => {
   const steps: WizardStep[] = [{
     stepNumber: 1,
@@ -670,12 +855,74 @@ describe("buildAssistantState", () => {
     expect(state.assistantMessage).not.toContain("按自己的习惯回答");
     expect(state.assistantMessage).not.toContain("整理成表单需要的格式");
   });
+
+  it("does not present the first five rows of a large country list as the only choices", () => {
+    const birthCountry = {
+      ...field("place_of_birth", "Place of Birth", "出生地"),
+      fieldType: "select",
+      options: [
+        { value: "AFG", text: "AFGHANISTAN", label_zh: "阿富汗" },
+        { value: "ALA", text: "ALAND ISLANDS", label_zh: "奥兰群岛" },
+        { value: "ALB", text: "ALBANIA", label_zh: "阿尔巴尼亚" },
+        { value: "DZA", text: "ALGERIA", label_zh: "阿尔及利亚" },
+        { value: "ASM", text: "AMERICAN SAMOA", label_zh: "美属萨摩亚" },
+        { value: "CHN", text: "CHINA", label_zh: "中国" },
+      ],
+    } as VisaFormFieldRow;
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "malaysia",
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+      steps: [{ stepNumber: 1, stepName: "Traveller Information", fields: [birthCountry] }],
+      answers: {},
+      messages: [],
+      locale: "zh",
+    });
+
+    expect(state.assistantMessage).toBe("请告诉我出生地。");
+    expect(state.assistantMessage).not.toContain("阿富汗");
+    expect(state.assistantMessage).not.toContain("美属萨摩亚");
+  });
+
+  it("asks again when a reusable prefill is non-empty but not an official select value", () => {
+    const birthCountry = {
+      ...field("place_of_birth", "Place of Birth", "出生地"),
+      fieldType: "select",
+      displayOrder: 1,
+      options: [
+        { value: "CHN", text: "CHINA", label_zh: "中国" },
+        { value: "SGP", text: "SINGAPORE", label_zh: "新加坡" },
+      ],
+    } as VisaFormFieldRow;
+    const callingCode = {
+      ...field("mobile_country_code", "Mobile Country Code", "手机国家 / 地区代码"),
+      displayOrder: 2,
+      validationRules: { label_zh: "手机国家 / 地区代码", pattern: "^[0-9]{1,4}$" },
+    } as VisaFormFieldRow;
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "malaysia",
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+      steps: [{ stepNumber: 1, stepName: "Traveller Information", fields: [birthCountry, callingCode] }],
+      answers: { place_of_birth: { value: "Changsha", source: "universal_profile" } },
+      messages: [],
+      locale: "zh",
+    });
+
+    expect(state.assistantMessage).toContain("出生地");
+    expect(state.assistantMessage).not.toContain("手机国家 / 地区代码");
+    expect(state.missingFields.map((item) => item.fieldName)).toEqual([
+      "place_of_birth",
+      "mobile_country_code",
+    ]);
+  });
 });
 
 describe("formAssistantTimeZone", () => {
   it.each([
     ["singapore", "SG_ARRIVAL_CARD", "Asia/Singapore"],
     ["malaysia", "MY_MDAC_ARRIVAL_CARD", "Asia/Kuala_Lumpur"],
+    ["south_korea", "KR_E_ARRIVAL_CARD", "Asia/Seoul"],
     ["united_states", "DS160", "America/New_York"],
     ["germany", "schengen_c", "Europe/Berlin"],
     ["unknown", "custom_form", "UTC"],
@@ -1146,6 +1393,14 @@ describe("parseDirectYesNoAnswer", () => {
 });
 
 describe("parseDirectCurrentFieldAnswer", () => {
+  const mobileCountryCodeField: VisaFormFieldRow = {
+    ...field("mobile_country_code", "Mobile Country Code", "手机国家 / 地区代码"),
+    validationRules: {
+      label_zh: "手机国家 / 地区代码",
+      pattern: "^[0-9]{1,4}$",
+      official: true,
+    },
+  };
   const arrivalDateField: VisaFormFieldRow = {
     ...field("arrival_date", "Arrival date", "抵达日期"),
     fieldType: "date",
@@ -1265,6 +1520,23 @@ describe("parseDirectCurrentFieldAnswer", () => {
       },
     ],
   };
+
+  it.each([
+    ["65", "65"],
+    ["+65", "65"],
+  ])("records the exact phone country code %s without relying on a model", (answer, expected) => {
+    expect(parseDirectCurrentFieldAnswer(answer, mobileCountryCodeField)).toEqual({
+      fieldName: "mobile_country_code",
+      value: expected,
+      confidence: "high",
+      modelSource: "deterministic",
+    });
+  });
+
+  it.each(["12345", "大概65", "65 or 86"])(
+    "does not force an invalid or ambiguous phone country code: %s",
+    (answer) => expect(parseDirectCurrentFieldAnswer(answer, mobileCountryCodeField)).toBeNull(),
+  );
 
   it.each([
     ["明天", "2026-08-08"],

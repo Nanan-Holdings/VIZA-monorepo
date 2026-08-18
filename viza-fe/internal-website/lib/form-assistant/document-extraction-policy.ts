@@ -241,6 +241,13 @@ export function getDocumentRequirements(
     return [];
   }
 
+  if (
+    ["south_korea", "south-korea", "korea", "kr"].includes(normalizedCountry) &&
+    normalizedProduct === "kr_e_arrival_card"
+  ) {
+    return [];
+  }
+
   if (REQUIREMENTS_BY_PRODUCT[normalizedProduct]) {
     return REQUIREMENTS_BY_PRODUCT[normalizedProduct];
   }

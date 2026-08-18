@@ -227,6 +227,7 @@ export function getPhoneCountryCodeOptions(): VisaFormFieldOption[] {
       label_en: `(${code}) ${country.name}`,
       label_zh: labelZh,
       official_label: `(${code})`,
+      flagCountryCode: country.alpha2.toLowerCase(),
       };
     });
 
@@ -1210,6 +1211,23 @@ function getAirportCodeFromFlightValue(value: string): string {
   if (underscoreMatch) return underscoreMatch[1];
   const dashMatch = trimmed.match(/-\s*([A-Z]{3})$/);
   return dashMatch?.[1] ?? "";
+}
+
+export function reconcileVnPrearrivalFlightAfterCatalogRefresh(
+  currentValues: Record<string, string>,
+  checkedFlightValue: string,
+  result: { catalogSource?: string; selectedExists?: boolean | null },
+): Record<string, string> {
+  const checkedValue = checkedFlightValue.trim();
+  if (!checkedValue || checkedValue.toLowerCase() === "other") return currentValues;
+  if ((currentValues.flight_number ?? "").trim() !== checkedValue) return currentValues;
+  if (result.catalogSource !== "official_live" || result.selectedExists !== false) return currentValues;
+  return {
+    ...currentValues,
+    flight_number: "",
+    custom_flight_number: "",
+    border_gate_airport: "",
+  };
 }
 
 function restoreVnPrearrivalHotelHierarchy(values: Record<string, string>): Record<string, string> {
@@ -2884,6 +2902,7 @@ export function DynamicStepForm({
   const manualEnglishValueKeysRef = useRef(manualEnglishValueKeys);
   const groupCountsRef = useRef(groupCounts);
   const vnPrearrivalLoadingMoreRef = useRef<Record<string, boolean>>({});
+  const vnPrearrivalQueriesRef = useRef(vnPrearrivalQueries);
   const onDraftChangeRef = useRef(onDraftChange);
   const lastDraftPatchRef = useRef<Record<string, string> | null>(null);
   const previousPrefillRef = useRef(prefill);
@@ -2902,6 +2921,7 @@ export function DynamicStepForm({
   textPairsRef.current = textPairs;
   manualEnglishValueKeysRef.current = manualEnglishValueKeys;
   groupCountsRef.current = groupCounts;
+  vnPrearrivalQueriesRef.current = vnPrearrivalQueries;
 
   // Saved answers can arrive just after the form component mounts. Hydrate
   // visibility controllers in a layout effect so their dependent panels are
@@ -3142,6 +3162,94 @@ export function DynamicStepForm({
         .join("|"),
     [values, vnPrearrivalRemoteFields],
   );
+  const vnPrearrivalFlightField = useMemo(
+    () => vnPrearrivalRemoteFields.find((field) =>
+      getVnPrearrivalOfficialSource(field)?.endsWith(":flight")
+    ),
+    [vnPrearrivalRemoteFields],
+  );
+
+  useEffect(() => {
+    if (!isVnPrearrivalStep || !vnPrearrivalFlightField) return;
+    const source = getVnPrearrivalOfficialSource(vnPrearrivalFlightField);
+    if (!source) return;
+
+    const key = vnPrearrivalOptionKey(vnPrearrivalFlightField);
+    const selectedAtRequest = valuesRef.current.flight_number?.trim() ?? "";
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const params = new URLSearchParams({
+          source,
+          keyword: "",
+          page: "0",
+          size: String(VN_PREARRIVAL_FLIGHT_PAGE_SIZE),
+          refresh: "1",
+        });
+        if (selectedAtRequest) params.set("selected", selectedAtRequest);
+        const response = await fetch(`/api/vn-prearrival/options?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as {
+          options?: VisaFormFieldOption[];
+          page?: number;
+          hasMore?: boolean;
+          catalogSource?: string;
+          selectedExists?: boolean | null;
+          selectedOption?: VisaFormFieldOption | null;
+        };
+        const options = Array.isArray(payload.options) ? payload.options : [];
+        const currentFlight = valuesRef.current.flight_number?.trim() ?? "";
+        const queryStillEmpty = !(vnPrearrivalQueriesRef.current[key]?.trim());
+        if (currentFlight === selectedAtRequest && queryStillEmpty) {
+          let nextOptions = options;
+          const selectedOption = payload.selectedOption;
+          if (
+            payload.selectedExists === true &&
+            selectedOption &&
+            !nextOptions.some((option) => optionValue(option) === optionValue(selectedOption))
+          ) {
+            nextOptions = [selectedOption, ...nextOptions];
+          }
+          setVnPrearrivalOptions((current) => ({
+            ...current,
+            [key]: withVnPrearrivalOtherFlightOption(nextOptions),
+          }));
+          setVnPrearrivalPagination((current) => ({
+            ...current,
+            [key]: {
+              page: payload.page ?? 0,
+              hasMore: Boolean(payload.hasMore),
+            },
+          }));
+        }
+
+        const nextValues = reconcileVnPrearrivalFlightAfterCatalogRefresh(
+          valuesRef.current,
+          selectedAtRequest,
+          payload,
+        );
+        if (nextValues !== valuesRef.current) {
+          valuesRef.current = nextValues;
+          setValues(nextValues);
+        }
+      } catch (error) {
+        if ((error as { name?: string }).name === "AbortError") return;
+        // A failed refresh is not proof that a saved official option was removed.
+      }
+    })();
+
+    return () => controller.abort();
+  }, [
+    isVnPrearrivalStep,
+    prefill.flight_number,
+    step.stepName,
+    step.stepNumber,
+    vnPrearrivalFlightField,
+  ]);
 
   useEffect(() => {
     if (vnPrearrivalRemoteFields.length === 0) return;

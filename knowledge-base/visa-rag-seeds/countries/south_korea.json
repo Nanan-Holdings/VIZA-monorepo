@@ -1,7 +1,7 @@
 {
-  "version": "2026-08-04",
+  "version": "2026-08-18",
   "country": "south_korea",
-  "notes": "Country-level VIZA RAG seed for south_korea. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "notes": "Country-level VIZA RAG seed for south_korea. This file covers the Korea C-3 visitor-visa product and the separate Korea e-Arrival Card declaration product. Keep the visa, K-ETA, and e-Arrival Card routes independent and re-check time-sensitive exemptions against the official source before submission.",
   "documents": [
     {
       "slug": "south-korea-c39-visitor-visa",
@@ -120,6 +120,65 @@
             "south_korea"
           ],
           "content": "Official-source field answer norms for south_korea.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://www.visa.go.kr/openPage.do?LANG_TYPE=EN&MENU_ID=10105\n\nIssue, expiry, and validity fields:\n- The sponsor (inviter) must download Visa application form (for the applicant) from “Application Status” on the Visa Portal, and send it to the applicant via email, or inform him/her of the number and expiry date of the confirmation of visa issuance.\n- The applicant must receive Visa application form for the confirmation of visa issuance or its number (expiry date) from the sponsor in Korea in order to apply for his/her visa at the Korean Embassy or Consulate General.\n- Confirmation of Visa issuance is valid for 3 months, and is effective for visa issuance just for once.\n\nTravel plan and port fields:\n- A single-entry or multiple-entry visa for eligible applicants of Diplomat(A-1), Government Official(A-2) Visa\n- A single-entry visa (with 90 days of duration of stay or less), for eligible applicants of - Short-term News Coverage (C-1), Short-term General (C-3) and Short-term Employee (C-4)\n- A multiple-entry visa (with 90 days of duration of stay or less) for eligible applicants of Short-term News Coverage (C-1) and Short-term General (C-3) Visa who are citizens of countries that have multiple-entry visa agreements with Korea.\n\nAccommodation, host, and address fields:\n- Application must be submitted by a foreigner or the sponsor on behalf of the foreigner\n- sponsor (corporation/individual) - Confirmation Invitation (Visa portal)\n- sponsor, Applicant - Confirmation of Results (Visa portal)\n\nPurpose, occupation, work, and study fields:\n- - Qualification : the applicant must be an expert in advanced science and technology and have an official employment recommendation letter (a.k.a.\n- Short-term General (C-3-1) Visa for a prospective investor invited by a promotion agency of the Immigrant Investor Scheme for Public Business and his/her accompanying family members\n- Business Visitor (General) (C-3-4) visa for an invitee of a domestic company\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+        }
+      ]
+    },
+    {
+      "slug": "south-korea-e-arrival-card",
+      "country": "south_korea",
+      "visaType": "KR_E_ARRIVAL_CARD",
+      "documentType": "form_requirements",
+      "title": "South Korea e-Arrival Card",
+      "sourceUrl": "https://www.e-arrivalcard.go.kr/portal/guide/eacTargetGuide.do",
+      "chunks": [
+        {
+          "id": "south_korea_e_arrival_card_scope_and_separation",
+          "title": "韩国电子入境卡与签证、K-ETA 的关系",
+          "tags": [
+            "south_korea",
+            "e-arrival-card",
+            "arrival-declaration",
+            "k-eta",
+            "visa-separation",
+            "official-source"
+          ],
+          "content": "韩国 e-Arrival Card 是入境申报，不是签证，也不等同于 K-ETA。持韩国签证入境、适用 K-ETA 豁免但仍需提交入境资料的外国旅客，通常应使用韩国官方 e-Arrival Card；持有效 K-ETA 入境、持韩国居民或永住相关证件、韩国公民、部分机组或其他官方列明豁免类别可能不需要。适用对象会随官方政策变化，不能仅凭国籍自动判断。VIZA AI 应先说明签证、K-ETA 和 e-Arrival Card 是三个独立步骤，并在需要填写时把用户带到 KR_E_ARRIVAL_CARD 表单，而不是在聊天中收集完整申请字段。官方适用对象：https://www.e-arrivalcard.go.kr/portal/guide/eacTargetGuide.do"
+        },
+        {
+          "id": "south_korea_e_arrival_card_timing_and_fee",
+          "title": "韩国电子入境卡提交时间与费用",
+          "tags": [
+            "south_korea",
+            "e-arrival-card",
+            "timing",
+            "free",
+            "72-hours"
+          ],
+          "content": "韩国 e-Arrival Card 官方申报免费。按照官方 FAQ，申报窗口是包含抵达日的三个自然日：例如预计 1 月 31 日抵达，可在 1 月 29 日、30 日或 31 日提交。提交后资料通常有效 72 小时；如果尚未提交，旅客在抵达后也应在办理入境审查前完成。VIZA 应使用 Asia/Seoul 计算窗口，不要过早提交，也不要把官方免费申报包装成签证费。官方 FAQ：https://www.e-arrivalcard.go.kr/portal/board/boardList.do?eacBbsKndCd=2"
+        },
+        {
+          "id": "south_korea_e_arrival_card_fields_and_evidence",
+          "title": "韩国电子入境卡字段与官方提交结果",
+          "tags": [
+            "south_korea",
+            "e-arrival-card",
+            "passport",
+            "flight",
+            "accommodation",
+            "issue-number"
+          ],
+          "content": "单人 e-Arrival Card 表单应以护照资料为基础收集姓、名、出生日期、国籍、性别、护照号码和有效期，并收集抵达方式、抵达日期、航班或船名、上一出发地、离境方式和日期、离境航班或船名（如已有）、下一目的地、入境目的、职业、韩国住宿地址、邮编和联系电话。目的或职业选择 Other/Others 时才填写补充文字；动态国籍、机场及航班/船舶选项必须以官方当前接口为准。2026 年 5 月 6 日起官方提交流程增加邮箱验证码步骤；没有官方 issue number、确认页面或可下载官方 PDF 时，VIZA 不得标记提交成功。官方指南：https://www.e-arrivalcard.go.kr/portal/guide/eacGuide.do；验证公告：https://www.e-arrivalcard.go.kr/portal/board/viewBoardDetail.do?bbsId=0000012631&eacBbsKndCd=1&flId=&pageIndex=1"
+        },
+        {
+          "id": "south_korea_e_arrival_card_exemptions_and_review",
+          "title": "韩国电子入境卡豁免与复核",
+          "tags": [
+            "south_korea",
+            "e-arrival-card",
+            "exemptions",
+            "review"
+          ],
+          "content": "官方目标旅客指南列出的豁免或非适用类别包括韩国公民、持有效韩国居留/永住或海外同胞相关证件者、以有效 K-ETA 入境者、部分团体电子签证/免签类别、航空公司机组等；韩国签证持有人入境时即使同时持有 K-ETA，也应按照签证入境路线核对申报要求。资格规则属于时效性政策，VIZA 只在进入产品时显示带审核日期的官方说明；无法确认时停留在人工复核或官方 Navigator 链接，不自动创建提交任务。官方目标旅客指南：https://www.e-arrivalcard.go.kr/portal/guide/eacTargetGuide.do"
         }
       ]
     }

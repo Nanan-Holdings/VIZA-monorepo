@@ -85,6 +85,15 @@ export type SubmissionQueueStatus =
   | "tdac_live_assisted_failed"
   | "tdac_live_assisted_cancelled"
   | "tdac_blocked"
+  | "kr_eac_dry_run_pending"
+  | "kr_eac_dry_run_processing"
+  | "kr_eac_dry_run_failed"
+  | "kr_eac_live_assisted_pending"
+  | "kr_eac_live_assisted_scheduled"
+  | "kr_eac_live_assisted_cancelled"
+  | "kr_eac_live_assisted_processing"
+  | "kr_eac_live_assisted_failed"
+  | "kr_eac_blocked"
   | "id_c1_live_assisted_pending"
   | "id_c1_live_assisted_processing"
   | "id_c1_payment_pending"
@@ -197,6 +206,16 @@ const PHILIPPINES_ETRAVEL_TYPES = new Set([
   "PH_ETRAVEL_DEPARTURE_CARD",
 ]);
 
+const SOUTH_KOREA_COUNTRY_ALIASES = new Set([
+  "KR",
+  "KOREA",
+  "SOUTH_KOREA",
+]);
+
+const KOREA_E_ARRIVAL_CARD_TYPES = new Set([
+  "KR_E_ARRIVAL_CARD",
+]);
+
 const TAIWAN_COUNTRY_ALIASES = new Set([
   "TW",
   "TAIWAN",
@@ -283,6 +302,11 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "tdac_live_assisted_pending",
   "tdac_live_assisted_scheduled",
   "tdac_live_assisted_processing",
+  "kr_eac_dry_run_pending",
+  "kr_eac_dry_run_processing",
+  "kr_eac_live_assisted_scheduled",
+  "kr_eac_live_assisted_pending",
+  "kr_eac_live_assisted_processing",
   "id_c1_live_assisted_pending",
   "id_c1_live_assisted_processing",
   "id_c1_payment_pending",
@@ -333,6 +357,9 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "tdac_dry_run_pending",
   "tdac_live_assisted_pending",
   "tdac_live_assisted_scheduled",
+  "kr_eac_dry_run_pending",
+  "kr_eac_live_assisted_pending",
+  "kr_eac_live_assisted_scheduled",
   "id_c1_live_assisted_pending",
   "id_c1_payment_pending",
   "id_b1_evoa_live_assisted_pending",
@@ -374,6 +401,10 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "tdac_live_assisted_failed",
   "tdac_live_assisted_cancelled",
   "tdac_blocked",
+  "kr_eac_dry_run_failed",
+  "kr_eac_live_assisted_failed",
+  "kr_eac_live_assisted_cancelled",
+  "kr_eac_blocked",
   "id_c1_live_assisted_failed",
   "id_c1_payment_pending",
   "id_c1_payment_processing",
@@ -493,6 +524,16 @@ export function isPhilippinesEtravelApplication(
   );
 }
 
+export function isKoreaEArrivalCardApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    SOUTH_KOREA_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    KOREA_E_ARRIVAL_CARD_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
 export function isTaiwanEntryPermitApplication(
   country: string | null | undefined,
   visaType: string | null | undefined,
@@ -523,7 +564,8 @@ export function isDigitalArrivalCardApplication(
     isVietnamPrearrivalApplication(country, visaType) ||
     isMalaysiaMdacApplication(country, visaType) ||
     isThailandTdacApplication(country, visaType) ||
-    isPhilippinesEtravelApplication(country, visaType)
+    isPhilippinesEtravelApplication(country, visaType) ||
+    isKoreaEArrivalCardApplication(country, visaType)
   );
 }
 
@@ -558,6 +600,8 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
     case "PH_ETRAVEL_ARRIVAL_CARD":
     case "PH_ETRAVEL_DEPARTURE_CARD":
       return "phetravel_dry_run_pending";
+    case "KR_E_ARRIVAL_CARD":
+      return "kr_eac_dry_run_pending";
     case "TW_ENTRY_PERMIT":
       return "tw_dry_run_pending";
     case "AU_VISITOR_600":
@@ -605,6 +649,9 @@ export function queueStatusForApplication(
   }
   if (isPhilippinesEtravelApplication(country, visaType)) {
     return mode === "live_assisted" ? "phetravel_live_assisted_pending" : "phetravel_dry_run_pending";
+  }
+  if (isKoreaEArrivalCardApplication(country, visaType)) {
+    return mode === "live_assisted" ? "kr_eac_live_assisted_pending" : "kr_eac_dry_run_pending";
   }
   if (isTaiwanEntryPermitApplication(country, visaType)) {
     return mode === "live_assisted" ? "tw_live_assisted_pending" : "tw_dry_run_pending";
@@ -671,6 +718,9 @@ export function queueProviderForVisaType(
   if (PHILIPPINES_ETRAVEL_TYPES.has(normalizeVisaType(visaType))) {
     return mode === "live_assisted" ? "philippines_etravel_live" : "philippines_etravel_dry_run";
   }
+  if (KOREA_E_ARRIVAL_CARD_TYPES.has(normalizeVisaType(visaType))) {
+    return mode === "live_assisted" ? "korea_e_arrival_card_live" : "korea_e_arrival_card_dry_run";
+  }
   if (TAIWAN_ENTRY_PERMIT_TYPES.has(normalizeVisaType(visaType))) {
     return mode === "live_assisted"
       ? "taiwan_overseas_cn_entry_permit_live"
@@ -707,6 +757,9 @@ export function queueProviderForApplication(
   }
   if (isPhilippinesEtravelApplication(country, visaType)) {
     return mode === "live_assisted" ? "philippines_etravel_live" : "philippines_etravel_dry_run";
+  }
+  if (isKoreaEArrivalCardApplication(country, visaType)) {
+    return mode === "live_assisted" ? "korea_e_arrival_card_live" : "korea_e_arrival_card_dry_run";
   }
   if (isTaiwanEntryPermitApplication(country, visaType)) {
     return mode === "live_assisted"
@@ -771,6 +824,8 @@ export function retryQueueInsertCanUseLegacyPayload(
     input.queueStatus === "mdac_live_assisted_scheduled" ||
     input.queueStatus === "tdac_live_assisted_pending" ||
     input.queueStatus === "tdac_live_assisted_scheduled" ||
+    input.queueStatus === "kr_eac_live_assisted_pending" ||
+    input.queueStatus === "kr_eac_live_assisted_scheduled" ||
     input.queueStatus === "id_c1_live_assisted_pending" ||
     input.queueStatus === "id_b1_evoa_live_assisted_pending" ||
     input.queueStatus === "id_c1_payment_pending" ||

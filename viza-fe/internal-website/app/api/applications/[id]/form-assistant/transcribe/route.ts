@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserFromSupabaseSession } from "@/lib/client-session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { consumeFormAssistantRateLimit } from "@/lib/form-assistant/rate-limit";
+import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +34,9 @@ const SUPPORTED_MIME_TYPES = new Set([
 type ApplicationRow = {
   id: string;
   applicant_id: string;
+  country: string;
+  visa_type: string;
+  submission_result: unknown;
 };
 
 function jsonError(message: string, status: number): NextResponse {
@@ -82,7 +86,7 @@ async function loadOwnedApplication(applicationId: string, applicantId: string):
   const admin = createAdminClient();
   const { data } = await admin
     .from("applications")
-    .select("id, applicant_id")
+    .select("id, applicant_id, country, visa_type, submission_result")
     .eq("id", applicationId)
     .eq("applicant_id", applicantId)
     .maybeSingle();
@@ -214,6 +218,16 @@ export async function POST(
   const application = await loadOwnedApplication(applicationId, session.userId);
   if (!application) {
     return jsonError("Forbidden.", 403);
+  }
+  if (hasSuccessfulArrivalCardSubmission({
+    country: application.country,
+    visaType: application.visa_type,
+    submissionResult: application.submission_result,
+  })) {
+    return jsonError(
+      "The form assistant is locked after a successful arrival-card submission. Start another submission to continue.",
+      409,
+    );
   }
 
   let formData: FormData;

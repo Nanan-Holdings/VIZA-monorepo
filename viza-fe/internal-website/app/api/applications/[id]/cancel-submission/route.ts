@@ -38,6 +38,9 @@ const CANCELABLE_SGAC_QUEUE_STATUSES = [
   "phetravel_live_assisted_scheduled",
   "phetravel_live_assisted_pending",
   "phetravel_dry_run_pending",
+  "kr_eac_live_assisted_scheduled",
+  "kr_eac_live_assisted_pending",
+  "kr_eac_dry_run_pending",
 ] as const;
 
 const RUNNER_POOL_COUNTRY_BY_FLOW: Record<string, string> = {
@@ -46,6 +49,7 @@ const RUNNER_POOL_COUNTRY_BY_FLOW: Record<string, string> = {
   mdac: "malaysia",
   tdac: "thailand",
   kr_eform: "south_korea",
+  kr_arrival_card: "south_korea",
 };
 
 export async function POST(

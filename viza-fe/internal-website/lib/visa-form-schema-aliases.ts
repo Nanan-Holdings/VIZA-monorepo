@@ -128,6 +128,11 @@ const COUNTRY_SCOPED_SCHEMA_ALIASES: ReadonlyArray<{
     canonicalVisaType: "KR_C39_SHORT_TERM_VISIT",
   },
   {
+    countries: COUNTRY_ALIASES.south_korea,
+    visaTypes: new Set(["kr_e_arrival_card", "kr_arrival_card", "korea_e_arrival_card"]),
+    canonicalVisaType: "KR_E_ARRIVAL_CARD",
+  },
+  {
     countries: COUNTRY_ALIASES.taiwan,
     visaTypes: new Set(["tw_entry_permit", "taiwan_entry_permit", "tw_overseas_cn_tourism_entry_permit"]),
     canonicalVisaType: "TW_ENTRY_PERMIT",

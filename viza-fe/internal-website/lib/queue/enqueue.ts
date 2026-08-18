@@ -97,7 +97,7 @@ const SHARED_POOL_FLOW_KEYS_BY_COUNTRY: Record<string, readonly RunnerPoolFlowKe
   singapore: ["sgac"],
   malaysia: ["mdac"],
   thailand: ["tdac"],
-  south_korea: ["kr_eform"],
+  south_korea: ["kr_eform", "kr_arrival_card"],
   taiwan: ["tw_entry_permit"],
 };
 

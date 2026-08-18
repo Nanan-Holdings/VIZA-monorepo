@@ -25,7 +25,12 @@ import {
   type FieldGuidanceResponse,
   type FieldGuidanceChatMessage,
 } from "@/types/field-guidance";
-import { buildFieldExplanation } from "@/lib/form-assistant/constants";
+import {
+  buildFieldExplanation,
+  getFieldDateFormat,
+  isFieldChoiceControl,
+  isFieldMetadataUnverified,
+} from "@/lib/form-assistant/constants";
 
 const MAX_HISTORY_MESSAGES = 8;
 const MAX_VISIBLE_OPTION_EXPLANATIONS = 2;
@@ -50,116 +55,44 @@ interface FieldGuidancePanelProps {
   onClose: () => void;
 }
 
-const DROPDOWN_FIELD_TYPES = new Set<VisaFormFieldRow["fieldType"]>([
-  "select",
-  "multi_select",
-  "country",
-]);
-
-function includesAny(value: string, candidates: readonly string[]): boolean {
-  return candidates.some((candidate) => value.includes(candidate));
-}
-
-function isPhotoField(field: VisaFormFieldRow): boolean {
-  const searchText = `${field.fieldName} ${field.label} ${field.stepName ?? ""}`.toLowerCase();
-  return field.fieldType === "file" && includesAny(searchText, [
-    "photo",
-    "photograph",
-    "portrait",
-    "照片",
-    "证件照",
-  ]);
-}
-
-function isPassportAuthorityField(field: VisaFormFieldRow): boolean {
-  const searchText = `${field.fieldName} ${field.label}`.toLowerCase();
-  return includesAny(searchText, [
-    "issuing_authority",
-    "issuing authority",
-    "签发机关",
-  ]);
-}
-
-function getLocalExamples(field: VisaFormFieldRow, isZh: boolean): string[] {
-  if (DROPDOWN_FIELD_TYPES.has(field.fieldType)) return [];
-
-  const searchText = `${field.fieldName} ${field.label}`.toLowerCase();
-  if (isPhotoField(field)) {
-    return [isZh ? "近期、清晰、正面、背景纯净的证件照" : "A recent, clear, front-facing photo with a plain background"];
-  }
-  if (isPassportAuthorityField(field)) {
-    return [
-      "National Immigration Administration, PRC",
-      "MPS Exit & Entry Administration",
-    ];
-  }
-  if (field.fieldType === "date" || searchText.includes("date") || searchText.includes("日期")) {
-    return [isZh ? "护照日期：09 MAR 1996 → 09/03/1996" : "Passport date: 09 MAR 1996 → 09/03/1996"];
-  }
-  if (includesAny(searchText, ["surname", "family name", "姓氏"])) {
-    return [isZh ? "护照姓氏：LI → LI" : "Passport surname: LI → LI"];
-  }
-  if (includesAny(searchText, ["given", "first name", "名字"])) {
-    return [isZh ? "护照名字：XIAOMING → XIAOMING" : "Passport given name: XIAOMING → XIAOMING"];
-  }
-  if (includesAny(searchText, ["passport_number", "passport number", "document number", "证件号码", "护照号码"])) {
-    return [isZh ? "护照号码：EM7429107 → EM7429107" : "Passport number: EM7429107 → EM7429107"];
-  }
-  if (includesAny(searchText, ["email", "e-mail", "邮箱"])) {
-    return ["name@example.com"];
-  }
-  if (includesAny(searchText, ["phone", "telephone", "mobile", "电话", "手机号"])) {
-    return ["+86 138 0000 0000"];
-  }
-  if (includesAny(searchText, ["address", "street", "地址"])) {
-    return [isZh ? "官方文件地址：12 Example Road, Beijing, China" : "Official-document address: 12 Example Road, Beijing, China"];
-  }
-  if (field.fieldType === "textarea") {
-    return [
-      isZh
-        ? "请简要说明与材料一致的日期、地点和相关人员。"
-        : "Briefly explain the dates, places, and people consistently with your documents.",
-    ];
-  }
-  return [
-    isZh
-      ? "请按护照、身份证明或官方文件上的原文填写。"
-      : "Use the wording exactly as shown on your passport or official document.",
-  ];
-}
-
 function buildLocalGuidance(
   field: VisaFormFieldRow,
   answer: string,
   isZh: boolean,
 ): FieldGuidanceResponse {
-  const isDropdown = DROPDOWN_FIELD_TYPES.has(field.fieldType);
+  const isChoice = isFieldChoiceControl(field);
   const explanation = buildFieldExplanation(field, isZh ? "zh" : "en");
   const summary = explanation.summary;
+  const dateFormat = getFieldDateFormat(field);
+  const metadataNeedsReview = isFieldMetadataUnverified(field);
 
-  const formatHint = isDropdown
+  const formatHint = isChoice
     ? isZh
-      ? "请从官方下拉选项中选择，不要自行改写选项名称。"
-      : "Choose an official dropdown option instead of rewriting its label."
+      ? "请使用页面提供的选项作答，不要自行改写选项名称。"
+      : "Answer with the options provided by the form instead of rewriting their labels."
     : field.fieldType === "date"
       ? isZh
-        ? "请核对日、月、年顺序，并使用页面日期选择器。"
-        : "Check the day, month, and year order and use the date picker."
+        ? dateFormat
+          ? `请使用页面要求的日期格式：${dateFormat}。`
+          : "请使用页面日期选择器；未明确格式时不要自行猜测日、月、年顺序。"
+        : dateFormat
+          ? `Use the date format required by the form: ${dateFormat}.`
+          : "Use the page date picker; do not guess the day, month, and year order when no format is specified."
       : null;
 
   return {
     guidance: {
       title: isZh ? `${field.label}填写帮助` : `${field.label} guidance`,
       summary,
-      examples: isDropdown
-        ? []
-        : explanation.example
-          ? [explanation.example]
-          : getLocalExamples(field, isZh),
+      examples: isChoice || !explanation.example ? [] : [explanation.example],
       optionExplanations: [],
       hints: [explanation.sourceHint],
       officialWarnings: [
-        isZh
+        metadataNeedsReview
+          ? isZh
+            ? "该字段元数据尚未标记为已核验官方内容，请以当前官方页面和证明材料为准，不要依赖示例推断。"
+            : "This field metadata is not marked as officially verified; follow the current official page and supporting records instead of inferring from examples."
+          : isZh
           ? "本地提示只用于辅助填写；最终请以官方表单和证件信息为准。"
           : "This local guidance is only a filling aid; follow the official form and documents.",
       ],
@@ -518,7 +451,7 @@ export function FieldGuidancePanel({
   );
 
   const examples = useMemo(
-    () => DROPDOWN_FIELD_TYPES.has(field.fieldType)
+    () => isFieldChoiceControl({ fieldType: field.fieldType })
       ? []
       : data.guidance.examples.slice(0, MAX_VISIBLE_EXAMPLES).map(parseExample),
     [data.guidance.examples, field.fieldType],

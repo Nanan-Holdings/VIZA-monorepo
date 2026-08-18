@@ -1,5 +1,10 @@
 import "dotenv/config";
+import { buildCountrySubmissionApplication } from "../src/country-submissions/from-records";
 import { getCountrySubmissionProvider } from "../src/country-submissions/registry";
+import { ensureApplicantInboxAlias } from "../src/inbox/alias";
+import { assertInboxAliasDomainRoutable } from "../src/inbox/wait-for-message";
+import { normalizeKrEArrivalPortalPayload } from "../src/kr-arrival-card/normalize";
+import { runKrEArrivalPortalSubmission } from "../src/kr-arrival-card/runner";
 import { normalizeMdacPortalPayload } from "../src/mdac/normalize";
 import { runMdacPortalSubmission } from "../src/mdac/runner";
 import { normalizePhEtravelPortalPayload } from "../src/ph-etravel/normalize";
@@ -14,6 +19,7 @@ import { runVietnamPrearrivalPortalSubmission } from "../src/vn-prearrival/runne
 
 const SUPPORTED_TYPES = new Set([
   "MY_MDAC_ARRIVAL_CARD",
+  "KR_E_ARRIVAL_CARD",
   "PH_ETRAVEL_ARRIVAL_CARD",
   "PH_ETRAVEL_DEPARTURE_CARD",
   "SG_ARRIVAL_CARD",
@@ -33,7 +39,7 @@ function forceLocalPreSubmitOnly() {
     "BROWSERBASE_API_KEY", "BROWSERBASE_PROJECT_ID",
     "BRIGHTDATA_BROWSER_WS", "BRIGHTDATA_BROWSER_API_ENDPOINT", "SBR_WS_ENDPOINT",
   ]) delete process.env[name];
-  for (const prefix of ["MDAC", "SGAC", "TDAC", "PH_ETRAVEL", "VN_PREARRIVAL"]) {
+  for (const prefix of ["KR_EAC", "MDAC", "SGAC", "TDAC", "PH_ETRAVEL", "VN_PREARRIVAL"]) {
     delete process.env[`${prefix}_BROWSER_API_ENDPOINT`];
     delete process.env[`${prefix}_BRIGHTDATA_BROWSER_API_ENDPOINT`];
     delete process.env[`${prefix}_CDP_ENDPOINT`];
@@ -53,15 +59,36 @@ async function runOne(applicationId: string) {
   if (!SUPPORTED_TYPES.has(visaType)) throw new Error(`${visaType}: unsupported by this pre-submit QA runner`);
   const provider = getCountrySubmissionProvider(context.application.country, visaType);
   if (!provider) throw new Error(`${visaType}: provider not found`);
-  const validation = provider.validate(context.submissionApplication);
+  let submissionApplication = context.submissionApplication;
+  if (visaType === "KR_E_ARRIVAL_CARD") {
+    const managedAlias = await ensureApplicantInboxAlias(context.profile.id);
+    await assertInboxAliasDomainRoutable(managedAlias.alias);
+    submissionApplication = buildCountrySubmissionApplication(
+      context.profile,
+      context.application,
+      {
+        ...Object.fromEntries(
+          Object.entries(context.answers).filter(([key]) => key !== "real_email_address"),
+        ),
+        alias_email_address: managedAlias.alias,
+      },
+    );
+  }
+  const validation = provider.validate(submissionApplication);
   if (!validation.ok) throw new Error(`${visaType}: missing ${validation.missingRequiredFields.join(", ")}`);
-  const payload = provider.mapToSubmissionPayload(context.submissionApplication, {
+  const payload = provider.mapToSubmissionPayload(submissionApplication, {
     dryRun: false,
     idempotencyKey: `official-pre-submit-qa:${applicationId}`,
   });
 
   let result;
-  if (visaType === "MY_MDAC_ARRIVAL_CARD") {
+  if (visaType === "KR_E_ARRIVAL_CARD") {
+    result = await runKrEArrivalPortalSubmission(normalizeKrEArrivalPortalPayload(payload), {
+      applicantId: context.profile.id,
+      headless: false,
+      stopBeforeSubmit: true,
+    });
+  } else if (visaType === "MY_MDAC_ARRIVAL_CARD") {
     result = await runMdacPortalSubmission(normalizeMdacPortalPayload(payload), { headless: false, stopBeforeSubmit: true });
   } else if (visaType === "SG_ARRIVAL_CARD") {
     result = await runSgacPortalSubmission(normalizeSgacPortalPayload(payload), { headless: false, stopBeforeSubmit: true });

@@ -258,12 +258,21 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   it updates Chinese labels and option display text only, while preserving
   official English wording, stored values, and submission mappings. Keep it
   aligned with the runtime safety net in `lib/bilingual-schema-contract.ts`.
+- Cross-country Copilot metadata corrections live in
+  `supabase/migrations/20260818044914_correct_country_copilot_field_metadata.sql`;
+  keep date formats and phone placeholders aligned with the country seed
+  definitions, and never introduce a destination-specific calling code as a
+  generic applicant example.
 - The Vietnam pre-arrival visa-information acknowledgement is made
   self-contained and visibly renders its official notice through
   `supabase/migrations/20260818121932_show_vn_prearrival_visa_information_notice.sql`;
   keep its critical bilingual helper aligned with
   `viza-be/agent-backend/scripts/vn-prearrival/form-fields.ts` and the stale-DB
   safety net in `lib/bilingual-schema-contract.ts`.
+- Korea e-Arrival Card production routing and free-fee metadata are applied by
+  `supabase/migrations/20260818063311_kr_e_arrival_card.sql`; keep it byte-identical
+  to `viza-be/agent-backend/drizzle/0151_kr_e_arrival_card.sql` and preserve the
+  exact `KR_E_ARRIVAL_CARD` / `kr_arrival_card` isolation from Korea C-3 e-Form.
 - The required U.S. DS-160 China issuing-post selector is applied by
   `supabase/migrations/20260729054904_add_ds160_consular_post.sql`; its stored
   values are the live CEAC location codes consumed by submission-service.
@@ -415,8 +424,10 @@ Smoke URLs:
   fallback, and future `availableAt` work is never published early. Shared
   pool countries must resolve an exact package flow before enqueue/wake. The
   strict active flows (`vn_prearrival`, `sgac`, `mdac`, `tdac`, `kr_eform`,
-  `tw_entry_permit`) always use the atomic pool RPC even when the migration flag
-  is false; no direct `runner_job` rollback insert is permitted. Vietnam eVisa
+  `kr_arrival_card`, `tw_entry_permit`) always use the atomic pool RPC even
+  when the migration flag is false; no direct `runner_job` rollback insert is
+  permitted. Korea e-Arrival Card remains separate from the C-3 e-Form flow.
+  Vietnam eVisa
   remains on its explicitly sticky legacy policy.
 - `lib/admin-access.ts`
 - `lib/document-upload-client.ts`

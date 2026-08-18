@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ensureVnPrearrivalOtherFlightFlow,
   getPhoneCountryCodeOptions,
+  reconcileVnPrearrivalFlightAfterCatalogRefresh,
   withVnPrearrivalOtherHotelOption,
 } from "@/components/dynamic-step-form";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
@@ -9,6 +10,68 @@ import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options
 import type { WizardStep } from "@/types/visa-form-fields";
 
 describe("Vietnam pre-arrival dynamic form options", () => {
+  it("keeps the saved flight when the live official catalog still contains it", () => {
+    const current = {
+      flight_number: "VN0650_SGN",
+      border_gate_airport: "SGN",
+      custom_flight_number: "",
+    };
+
+    expect(reconcileVnPrearrivalFlightAfterCatalogRefresh(current, "VN0650_SGN", {
+      catalogSource: "official_live",
+      selectedExists: true,
+    })).toBe(current);
+  });
+
+  it("clears a saved flight and its derived fields when the live official catalog removed it", () => {
+    const current = {
+      flight_number: "VN9999_SGN",
+      border_gate_airport: "SGN",
+      custom_flight_number: "VN9999",
+      purpose_of_entry: "DL",
+    };
+
+    expect(reconcileVnPrearrivalFlightAfterCatalogRefresh(current, "VN9999_SGN", {
+      catalogSource: "official_live",
+      selectedExists: false,
+    })).toEqual({
+      flight_number: "",
+      border_gate_airport: "",
+      custom_flight_number: "",
+      purpose_of_entry: "DL",
+    });
+  });
+
+  it("does not clear from a stale response or bundled fallback catalog", () => {
+    const current = {
+      flight_number: "VN0650_SGN",
+      border_gate_airport: "SGN",
+      custom_flight_number: "",
+    };
+
+    expect(reconcileVnPrearrivalFlightAfterCatalogRefresh(current, "MH0746_DAD", {
+      catalogSource: "official_live",
+      selectedExists: false,
+    })).toBe(current);
+    expect(reconcileVnPrearrivalFlightAfterCatalogRefresh(current, "VN0650_SGN", {
+      catalogSource: "bundled_snapshot",
+      selectedExists: false,
+    })).toBe(current);
+  });
+
+  it("preserves the manual Other flight flow during catalog refresh", () => {
+    const current = {
+      flight_number: "other",
+      border_gate_airport: "DAD",
+      custom_flight_number: "VZ123",
+    };
+
+    expect(reconcileVnPrearrivalFlightAfterCatalogRefresh(current, "other", {
+      catalogSource: "official_live",
+      selectedExists: false,
+    })).toBe(current);
+  });
+
   it("repairs stale schemas so Other flight exposes a manual number and editable airport", () => {
     const staleSteps: WizardStep[] = [{
       stepNumber: 2,
@@ -148,10 +211,12 @@ describe("Vietnam pre-arrival dynamic form options", () => {
         expect.objectContaining({
           value: "+86",
           official_label: "(+86)",
+          flagCountryCode: "cn",
         }),
         expect.objectContaining({
           value: "+65",
           official_label: "(+65)",
+          flagCountryCode: "sg",
         }),
         expect.objectContaining({
           value: "+1",
@@ -221,8 +286,37 @@ describe("Vietnam pre-arrival dynamic form options", () => {
           label_en: "MH746 (MH0746) - DAD",
           airport: "DAD",
         }),
+        expect.objectContaining({
+          value: "MR0681_PQC",
+          official_value: "MR0681",
+          label_en: "MR681 (MR0681) - PQC",
+          label_zh: "MR681 (MR0681) - PQC",
+          airport: "PQC",
+        }),
       ]),
     );
+    expect(
+      flights
+        .filter((flight) => typeof flight !== "string" && flight.value.startsWith("##"))
+        .every((flight) =>
+          typeof flight !== "string"
+          && !flight.label_en?.includes("##")
+          && !flight.label_zh?.includes("##"),
+        ),
+    ).toBe(true);
+    expect(flights).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "##N77999_PQC",
+        official_value: "##N77999",
+        label_en: "N77999 - PQC",
+        portal_label: "##N77999 - PQC",
+      }),
+      expect.objectContaining({
+        value: "N77999_PQC",
+        official_value: "N77999",
+        label_en: "N77999 - PQC",
+      }),
+    ]));
 
     expect(getVnPrearrivalStaticOptions("prearrival_category:administrative_unit_level1")).toBeNull();
     expect(getVnPrearrivalStaticOptions("prearrival_category:administrative_unit_level2", "48")).toBeNull();

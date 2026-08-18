@@ -131,6 +131,7 @@ const ACTIVE_POOL_FLOW_COUNTRIES = {
   sgac: "singapore",
   mdac: "malaysia",
   tdac: "thailand",
+  kr_arrival_card: "south_korea",
   kr_eform: "south_korea",
   tw_entry_permit: "taiwan",
 } as const;

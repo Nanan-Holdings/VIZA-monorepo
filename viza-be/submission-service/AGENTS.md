@@ -319,7 +319,7 @@ and must fail closed; callers must not perform a direct table settlement.
   operator-marked dry-run application for every active schema and runs the
   country-provider validation/dry-run boundary without enqueueing or opening an
   official portal.
-- `scripts/run-arrival-card-pre-submit-qa.ts`: concurrently opens the six
+- `scripts/run-arrival-card-pre-submit-qa.ts`: concurrently opens the seven
   supported arrival-card portals from tagged QA drafts, disables external
   CAPTCHA/cloud-browser services, and always stops before final submission.
 - `scripts/run-japan-vfs-placeholder-account.ts`: explicit operator-only
@@ -556,9 +556,15 @@ and must fail closed; callers must not perform a direct table settlement.
   varying maturity. Check `docs/visa-packages-status.md` before extending.
 - `scripts/run-fv-smoke.ts`, `scripts/run-au-smoke.ts`,
   `scripts/run-vn-smoke.ts`, `scripts/run-vn-payment-pre-card-smoke.ts`,
+  `scripts/run-vn-cloud-pre-card-smoke.ts`,
   `scripts/run-sgac-smoke.ts`,
   `scripts/run-mdac-smoke.ts`, `scripts/run-tdac-smoke.ts`: local live smoke
-  entry points for official portal reach/fill validation. Arrival-card smokes
+  entry points for official portal reach/fill validation. The cloud Vietnam
+  pre-card smoke is an explicit service-role/operator harness for one selected
+  application: it attests the Fly stop-before-card guard, rejects receipts and
+  active/successful payment attempts, uses the atomic queue RPC plus encrypted
+  registration-code handoff, and verifies card-entry readiness without taking
+  or submitting a card. Arrival-card smokes
   stop before final submit unless run with `--submit` and real applicant data.
 - `src/tw/**`: Taiwan Online Entry Permit (`TW_ENTRY_PERMIT`) — real
   DOM-name-attribute-driven fill of the coa.immigration.gov.tw application
@@ -733,6 +739,7 @@ and must fail closed; callers must not perform a direct table settlement.
 | Thailand TDAC | Live dispatch + Turnstile entry | Dry-run validates `TH_TDAC_ARRIVAL_CARD`; live worker dispatches to the official TDAC portal, attempts official Turnstile solving through the configured CAPTCHA provider, and records exact portal block/error evidence until the complete final-submit selector path is mapped. |
 | Philippines eTravel | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `PH_ETRAVEL_ARRIVAL_CARD`; live worker dispatches to `https://etravel.gov.ph`, defaults to stop-before-submit, stores portal block/error evidence, and must not mark success without official QR/reference evidence. |
 | Vietnam Pre-Arrival | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `VN_PREARRIVAL_DECLARATION`; live worker dispatches to `https://prearrival.immigration.gov.vn/`, records portal mismatch/error evidence, and must not mark success without official QR/reference evidence. |
+| Korea e-Arrival Card | Live dispatch gated + KST scheduling | Dry-run validates `KR_E_ARRIVAL_CARD`; the shared pool injects only a VIZA-managed inbox alias, the pre-submit QA always stops before the official final action, and live success requires both an official confirmation page and issue number before PDF evidence is persisted. |
 | Taiwan Online Entry Permit | `runner_job` dispatch, DOM-verified fill | `TW_ENTRY_PERMIT` fills every field via confirmed-live DOM `name` attributes (see `src/tw/**`), uploads required supporting documents, best-effort auto-fills the CAPTCHA, and halts before the real "確認資料" submit POST — never clicks it. No persistent account; single continuous session with inline email-OTP verification. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |

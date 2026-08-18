@@ -67,6 +67,7 @@ describe("official fee catalog", () => {
     ["philippines", "PH_ETRAVEL_ARRIVAL_CARD", "free"],
     ["philippines", "PH_ETRAVEL_DEPARTURE_CARD", "free"],
     ["vietnam", "VN_PREARRIVAL_DECLARATION", "free"],
+    ["south_korea", "KR_E_ARRIVAL_CARD", "free"],
   ])("keeps %s/%s as a non-card exception", (country, visaType, expected) => {
     expect(officialFeeCatalogFor(country, visaType)?.fundingClass).toBe(expected);
   });

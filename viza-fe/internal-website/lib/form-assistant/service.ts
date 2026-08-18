@@ -82,6 +82,7 @@ const PRODUCT_TIME_ZONES: Record<string, string> = {
   PH_ETRAVEL_ARRIVAL_CARD: "Asia/Manila",
   PH_ETRAVEL_DEPARTURE_CARD: "Asia/Manila",
   VN_PREARRIVAL_DECLARATION: "Asia/Ho_Chi_Minh",
+  KR_E_ARRIVAL_CARD: "Asia/Seoul",
 };
 
 const COUNTRY_TIME_ZONES: Record<string, string> = {
@@ -797,7 +798,56 @@ export function parseDirectCurrentFieldAnswer(
       };
     }
   }
+
+  // Exact scalar answers that already satisfy a fully anchored schema pattern
+  // do not need a model round trip. This is especially important for short
+  // numeric answers such as an international calling code: a bare `65` is
+  // unambiguous in the context of the current question and must be persisted
+  // before the assistant advances to another field.
+  const pattern = field.validationRules?.pattern;
+  if (
+    typeof pattern === "string" &&
+    pattern.startsWith("^") &&
+    pattern.endsWith("$") &&
+    !["checkbox", "date", "file", "multi_select"].includes(field.fieldType)
+  ) {
+    const rawValue = text.trim();
+    const isCallingCode = /(?:country|region).?code|calling.?code|国家.*代码|地区.*代码/i.test(
+      `${field.fieldName} ${field.label} ${String(field.validationRules?.label_zh ?? "")}`,
+    );
+    const value = isCallingCode && /^\+\d{1,4}$/.test(rawValue)
+      ? rawValue.slice(1)
+      : rawValue;
+    try {
+      if (new RegExp(pattern).test(value)) {
+        return {
+          fieldName: field.fieldName,
+          value,
+          confidence: "high",
+          modelSource: "deterministic",
+        };
+      }
+    } catch {
+      return null;
+    }
+  }
   return null;
+}
+
+function parseUniqueVisibleFieldAnswer(
+  text: string,
+  fields: VisaFormFieldRow[],
+  currentField: VisaFormFieldRow | undefined,
+  options: { now?: Date; timeZone?: string },
+): ProposedPatch | null {
+  const matches = fields
+    .filter((field) => field !== currentField)
+    .map((field) => parseDirectCurrentFieldAnswer(text, field, options))
+    .filter((patch): patch is ProposedPatch => patch !== null);
+  const uniqueMatches = Array.from(new Map(
+    matches.map((patch) => [`${patch.fieldName}:${patch.value}`, patch]),
+  ).values());
+  return uniqueMatches.length === 1 ? uniqueMatches[0]! : null;
 }
 
 const FRIENDLY_FIELD_QUESTIONS: Record<string, { zh: string; en: string }> = {
@@ -968,13 +1018,15 @@ function friendlyQuestion(
   const copy = isSgac ? FRIENDLY_FIELD_QUESTIONS[field.fieldName] : undefined;
   if (copy) return locale.startsWith("zh") ? copy.zh : copy.en;
   const label = localizedLabel(field, locale);
-  const optionLabels = (field.options ?? []).slice(0, 5).map((option) => {
-    if (typeof option === "string") return option;
-    if (locale.startsWith("zh") && typeof option.label_zh === "string" && option.label_zh.trim()) {
-      return option.label_zh.trim();
-    }
-    return option.label_en?.trim() || option.text?.trim() || option.official_label?.trim() || option.value;
-  });
+  const optionLabels = (field.options?.length ?? 0) <= 5
+    ? (field.options ?? []).map((option) => {
+        if (typeof option === "string") return option;
+        if (locale.startsWith("zh") && typeof option.label_zh === "string" && option.label_zh.trim()) {
+          return option.label_zh.trim();
+        }
+        return option.label_en?.trim() || option.text?.trim() || option.official_label?.trim() || option.value;
+      })
+    : [];
   if (optionLabels.length > 0 && optionLabels.length <= 5) {
     return locale.startsWith("zh")
       ? `请确认${label}：${optionLabels.join("、")}。`
@@ -1061,13 +1113,14 @@ export async function getOrCreateAssistantSession(params: {
   visaType: string;
   steps: WizardStep[];
 }): Promise<SessionRow> {
-  const { data: existing, error: readError } = await params.admin
+  const loadExisting = () => params.admin
     .from("form_assistant_sessions")
     .select("id, schema_fingerprint, knowledge_release_key, state_json")
     .eq("application_id", params.applicationId)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  const { data: existing, error: readError } = await loadExisting();
   if (readError) throw new Error(readError.message);
 
   const schemaFingerprint = fingerprintSchema(params.steps);
@@ -1095,6 +1148,14 @@ export async function getOrCreateAssistantSession(params: {
     })
     .select("id, schema_fingerprint, knowledge_release_key, state_json")
     .single();
+  if (error?.code === "23505" || /duplicate key|unique constraint/i.test(error?.message ?? "")) {
+    // GET state, turn, and validation can all bootstrap the same application
+    // concurrently. The database uniqueness rule is authoritative; after the
+    // winning insert commits, reuse that session instead of leaking a 500.
+    const { data: concurrentSession, error: concurrentReadError } = await loadExisting();
+    if (concurrentReadError) throw new Error(concurrentReadError.message);
+    if (concurrentSession) return concurrentSession as SessionRow;
+  }
   if (error || !created) throw new Error(error?.message ?? "Failed to create assistant session");
   return created as SessionRow;
 }
@@ -1574,10 +1635,16 @@ export async function runAssistantTurn(params: {
   const explicitMultiPatches = multiAnswerMessage
     ? parseExplicitMultiFieldAnswers(message, visibleCandidates, { timeZone })
     : [];
-  const directChoice = correctionCancellation || exactVagueAnswer || fieldClarificationRequest || promptInjectionAttempt ||
+  const directCurrentChoice = correctionCancellation || exactVagueAnswer || fieldClarificationRequest || promptInjectionAttempt ||
     ambiguousAlternativeAnswer || multiAnswerMessage
     ? null
     : parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
+  const directChoice = directCurrentChoice ?? (
+    correctionCancellation || exactVagueAnswer || fieldClarificationRequest || promptInjectionAttempt ||
+    ambiguousAlternativeAnswer || multiAnswerMessage
+      ? null
+      : parseUniqueVisibleFieldAnswer(message, visibleCandidates, currentField, { timeZone })
+  );
   const accommodationCandidates = directChoice
     ? []
     : correctionCancellation
@@ -1624,7 +1691,16 @@ export async function runAssistantTurn(params: {
     const field = fieldByName.get(patch.fieldName);
     if (!field || !validateProposal(field, patch, existingValues)) continue;
     const current = params.answers[patch.fieldName];
-    if (current?.value && current.source !== "form_assistant") {
+    const invalidReusablePrefill = Boolean(
+      current?.value &&
+      current.source === "universal_profile" &&
+      !validateProposal(field, {
+        fieldName: patch.fieldName,
+        value: current.value,
+        confidence: "high",
+      }, existingValues),
+    );
+    if (current?.value && current.source !== "form_assistant" && !invalidReusablePrefill) {
       skippedConflicts.push(patch.fieldName);
       continue;
     }
@@ -1634,18 +1710,38 @@ export async function runAssistantTurn(params: {
       sourceKind: "user_chat",
       confidence: "high",
       model: patch.modelSource ?? FORM_ASSISTANT_MODEL,
-      previousValue: current?.source === "form_assistant" ? current.value : null,
+      previousValue: current?.source === "form_assistant" || invalidReusablePrefill ? current.value : null,
     };
-    if (current?.source === "form_assistant") {
+    if (current?.source === "form_assistant" || invalidReusablePrefill) {
+      const answerUpdate = {
+        value_text: patch.value,
+        source: "form_assistant",
+        source_metadata: provenance,
+        updated_at: new Date().toISOString(),
+      };
       const { data, error } = await params.admin
         .from("visa_application_answers")
-        .update({ value_text: patch.value, source_metadata: provenance, updated_at: new Date().toISOString() })
+        .update(answerUpdate)
         .eq("application_id", params.applicationId)
         .eq("field_name", patch.fieldName)
-        .eq("source", "form_assistant")
+        .eq("source", current.source)
+        .eq("value_text", current.value)
         .select("field_name")
         .maybeSingle();
-      if (error || !data) {
+      let persisted = Boolean(data);
+      if (!error && !persisted && invalidReusablePrefill) {
+        // Some reusable-profile answers are merged into the request in memory
+        // and do not yet have an application answer row. Insert only after the
+        // compare-and-swap update found nothing; a concurrent manual save then
+        // wins via the unique application/field constraint.
+        const { error: insertError } = await params.admin.from("visa_application_answers").insert({
+          application_id: params.applicationId,
+          field_name: patch.fieldName,
+          ...answerUpdate,
+        });
+        persisted = !insertError;
+      }
+      if (error || !persisted) {
         skippedConflicts.push(patch.fieldName);
         continue;
       }

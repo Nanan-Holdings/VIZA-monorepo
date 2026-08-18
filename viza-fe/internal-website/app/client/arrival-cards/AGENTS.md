@@ -18,6 +18,9 @@ main destination catalog until the country workflow has been reviewed.
   `PH_TEMPORARY_VISITOR_VISA`.
 - Vietnam Pre-Arrival uses `VN_PREARRIVAL_DECLARATION` via
   `arrival-cards/vietnam/page.tsx`; do not route it through `VN_E_VISA`.
+- Korea e-Arrival Card uses `KR_E_ARRIVAL_CARD` via
+  `arrival-cards/south-korea/page.tsx`; keep it separate from the Korea C-3
+  visa/K-ETA workflow.
 - Do not add official-site automation, CAPTCHA handling, payment, or final
   official submission directly from these routes. If a country later gets an
   official runner, keep it in `viza-be/submission-service` and have the form

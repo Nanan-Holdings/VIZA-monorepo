@@ -22,6 +22,10 @@ Guardrails:
   including its unpadded/padded alias such as `MH746 (MH0746) - DAD`; verify
   that selecting the option auto-populates the locked airport field. Keep this
   pure formatting contract in `flight-label.ts`.
+- `flight-catalog.ts` owns the authenticated, CAPTCHA-backed read-only refresh
+  of the official flight catalog. Keep refreshes single-flight and rate-bounded,
+  and never invalidate a saved frontend selection from a stale snapshot or a
+  failed official refresh.
 - Final success requires the official success heading plus a QR or confirmation
   reference. Keep strict result-page matching in `result-page.ts`; processing
   or Finalizing copy must never be reported as completed.

@@ -21,6 +21,10 @@ region from the client home dashboard.
 - Philippines mirrors Indonesia's country-category entry: the home group opens
   `/client/destinations/philippines`, where arrival and departure eTravel
   packages remain separate selectable cards.
+- South Korea mirrors the country-category pattern at
+  `/client/destinations/south-korea`, where the Korea visa/K-ETA and e-Arrival
+  Card packages remain separate selectable cards; the East Asia page shows one
+  Korea country card linking to this page.
 
 ## Ownership Boundaries
 

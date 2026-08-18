@@ -191,12 +191,12 @@ describe("FieldGuidancePanel shortcuts", () => {
     expect(ctrlRequest.question).toBe("Need this exact?");
   });
 
-  it("shows hardcoded guidance immediately without requesting AI", async () => {
+  it("shows deterministic source guidance immediately without inventing a passport number", async () => {
     renderPanel();
 
-    const exampleCard = (await screen.findByText("示例")).parentElement?.parentElement;
-    expect(exampleCard).toHaveTextContent("E12345678");
-    expect(screen.getAllByText("E12345678")).not.toHaveLength(0);
+    expect(await screen.findByText(/护照或旅行证件上的唯一号码/)).toBeInTheDocument();
+    expect(screen.queryByText("示例")).not.toBeInTheDocument();
+    expect(screen.queryByText("E12345678")).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -224,7 +224,7 @@ describe("FieldGuidancePanel shortcuts", () => {
 
     expect(screen.getByText(/门牌号、街道名/)).toBeInTheDocument();
     expect(screen.getByText(/酒店预订单/)).toBeInTheDocument();
-    expect(screen.getByText("15 Rue de Rivoli, Appartement 3B")).toBeInTheDocument();
+    expect(screen.queryByText("15 Rue de Rivoli, Appartement 3B")).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -243,6 +243,40 @@ describe("FieldGuidancePanel shortcuts", () => {
 
     expect(screen.queryByText("示例")).not.toBeInTheDocument();
     expect(screen.queryByText("中国")).not.toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("treats the Vietnam information acknowledgement as a checkbox, not a passport text field", () => {
+    const acknowledgementField: VisaFormFieldRow = {
+      ...field,
+      id: "field-vn-visa-information-acknowledgement",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "visa_information_acknowledgement",
+      label: "我已阅读并理解此信息",
+      fieldType: "checkbox",
+      placeholder: null,
+      options: null,
+      validationRules: {
+        helper_zh: "请提供越南签证信息（如适用）。所选签证类型决定允许入境的期限；请填写签证编号，以便在机场使用该服务。",
+      },
+    };
+
+    render(
+      <FieldGuidancePanel
+        country="vietnam"
+        visaType="VN_PREARRIVAL_DECLARATION"
+        locale="zh"
+        field={acknowledgementField}
+        answer=""
+        allAnswers={{}}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/请先读完相关说明，仅在确实理解后勾选/)).toBeInTheDocument();
+    expect(screen.getByText(/请提供越南签证信息（如适用）/)).toBeInTheDocument();
+    expect(screen.queryByText("示例")).not.toBeInTheDocument();
+    expect(screen.queryByText(/请按护照、身份证明或官方文件上的原文填写/)).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
 

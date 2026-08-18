@@ -1,5 +1,6 @@
 import {
   isTaiwanEntryPermitApplication,
+  isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
@@ -15,6 +16,7 @@ export const RUNNER_POOL_FLOW_KEYS = [
   "mdac",
   "tdac",
   "kr_eform",
+  "kr_arrival_card",
   "tw_entry_permit",
 ] as const;
 
@@ -55,6 +57,7 @@ export function resolveRunnerPoolFlow(
   country: string | null | undefined,
   visaType: string | null | undefined,
 ): RunnerPoolFlowKey | null {
+  if (isKoreaEArrivalCardApplication(country, visaType)) return "kr_arrival_card";
   if (isSgArrivalCardApplication(country, visaType)) return "sgac";
   if (isMalaysiaMdacApplication(country, visaType)) return "mdac";
   if (isThailandTdacApplication(country, visaType)) return "tdac";

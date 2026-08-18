@@ -69,6 +69,36 @@ describe("POST /api/applications/[id]/form-assistant/transcribe", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("does not transcribe for a successfully submitted arrival-card application", async () => {
+    createAdminClient.mockReturnValue({
+      from: vi.fn(() => query({
+        data: {
+          ...application,
+          country: "malaysia",
+          visa_type: "MY_MDAC_ARRIVAL_CARD",
+          submission_result: {
+            country: "MY",
+            visaType: "MY_MDAC_ARRIVAL_CARD",
+            status: "submitted",
+            submitted: true,
+          },
+        },
+        error: null,
+      })),
+    });
+
+    const response = await POST(
+      requestWithFile(new File(["hello"], "voice.webm", { type: "audio/webm" })) as never,
+      context(),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "The form assistant is locked after a successful arrival-card submission. Start another submission to continue.",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("rejects unsupported audio formats", async () => {
     const response = await POST(requestWithFile(new File(["not audio"], "document.pdf", { type: "application/pdf" })) as never, context());
 

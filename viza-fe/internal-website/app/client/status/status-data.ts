@@ -357,6 +357,7 @@ const ARRIVAL_CARD_VISA_TYPES = new Set([
   "PH_ETRAVEL_ARRIVAL_CARD",
   "PH_ETRAVEL_DEPARTURE_CARD",
   "VN_PREARRIVAL_DECLARATION",
+  "KR_E_ARRIVAL_CARD",
 ]);
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
 const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
@@ -446,7 +447,7 @@ function arrivalCardResultIsReady(application: ApplicationRow): boolean {
 
 function getSubmissionResultReference(application: ApplicationRow): string | null {
   const result = getSubmissionResult(application);
-  return getStringValue(result, ["confirmationNumber", "referenceNumber", "applicationReference", "reference"]);
+  return getStringValue(result, ["issueNumber", "confirmationNumber", "referenceNumber", "applicationReference", "reference"]);
 }
 
 function hasOfficialArrivalCardPdf(application: ApplicationRow): boolean {

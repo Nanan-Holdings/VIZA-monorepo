@@ -91,7 +91,7 @@ function isFailedStatus(status: SubmissionVisualStatus | null | undefined): bool
 }
 
 function isWaitingForUserStatus(status: SubmissionVisualStatus | null | undefined): boolean {
-  return ["needs_user_action", "action_required"].includes(normalizeStatus(status));
+  return ["needs_user_action", "action_required", "blocked"].includes(normalizeStatus(status));
 }
 
 function isScheduledStatus(status: SubmissionVisualStatus | null | undefined): boolean {

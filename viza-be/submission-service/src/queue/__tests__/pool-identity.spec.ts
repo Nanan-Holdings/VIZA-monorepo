@@ -43,6 +43,7 @@ test("every direct pool runner rejects missing and mismatched identity before po
     ["sgac", () => runSingapore("app", "job", undefined)],
     ["mdac", () => runArrivalCardPoolFlow("app", "job", "mdac", undefined)],
     ["tdac", () => runArrivalCardPoolFlow("app", "job", "tdac", undefined)],
+    ["kr_arrival_card", () => runArrivalCardPoolFlow("app", "job", "kr_arrival_card", undefined)],
     ["kr_eform", () => runKoreaEformBackground("app", "job", undefined)],
   ];
   for (const [flow, invoke] of missing) {
@@ -56,6 +57,7 @@ test("every direct pool runner rejects missing and mismatched identity before po
     ["sgac", () => runSingapore("app", "job", mismatched)],
     ["mdac", () => runArrivalCardPoolFlow("app", "job", "mdac", mismatched)],
     ["tdac", () => runArrivalCardPoolFlow("app", "job", "tdac", mismatched)],
+    ["kr_arrival_card", () => runArrivalCardPoolFlow("app", "job", "kr_arrival_card", mismatched)],
     ["kr_eform", () => runKoreaEformBackground("app", "job", mismatched)],
   ];
   for (const [flow, invoke] of mismatch) {

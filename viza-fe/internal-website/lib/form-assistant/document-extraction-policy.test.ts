@@ -34,6 +34,7 @@ describe("document extraction policy", () => {
   it("does not request documents for Singapore Arrival Card", () => {
     expect(getDocumentRequirements("singapore", "SG_ARRIVAL_CARD")).toEqual([]);
     expect(getDocumentRequirements({ country: "SG", visaType: "sgac" })).toEqual([]);
+    expect(getDocumentRequirements("south_korea", "KR_E_ARRIVAL_CARD")).toEqual([]);
   });
 
   it("supports an explicit multi-document product fixture", () => {

@@ -14,7 +14,10 @@ import {
   buildFieldClarificationFallback,
   buildFieldExplanation,
   fieldClarificationInstruction,
+  getFieldDateFormat,
+  isFieldChoiceControl,
   isFieldClarificationRequest,
+  isFieldMetadataUnverified,
   isUsefulFieldClarificationReply,
 } from "@/lib/form-assistant/constants";
 
@@ -33,6 +36,14 @@ const DIRECT_OPENAI_MODEL =
   process.env.OPENAI_CHAT_MODEL ??
   process.env.OPENAI_MODEL ??
   "gpt-5.5";
+const MAX_GUIDANCE_OPTION_CONTEXT = 120;
+const DEFAULT_GUIDANCE_OPTION_CONTEXT = 30;
+const MAX_GUIDANCE_OPTION_CONTEXT_BYTES = 320_000;
+const OPTION_MATCH_STOP_WORDS = new Set([
+  "and", "the", "city", "country", "district", "province", "state", "ward", "commune",
+  "airport", "port", "select", "option", "with", "from", "地区", "国家", "城市", "省", "区",
+  "坊", "社", "机场", "港口", "选择", "选项",
+]);
 
 const STANDARD_IDENTITY_FIELD_CONTEXT = [
   "Standard identity-field RAG for visa form copilot:",
@@ -75,6 +86,115 @@ function normalizeGuidanceRequest(request: FieldGuidanceRequest): FieldGuidanceR
       label: resolveLocalizedFieldLabel(normalizedField, side),
       placeholder: resolveLocalizedPlaceholderForGuidance(normalizedField, side),
       options: resolveLocalizedOptions(normalizedField.options, side),
+    },
+  };
+}
+
+function normalizeOptionSearchText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+function optionSearchText(option: FieldOption): string {
+  if (typeof option === "string") return normalizeOptionSearchText(option);
+  return normalizeOptionSearchText([
+    option.value,
+    option.text,
+    option.label_zh,
+    option.label_en,
+    option.official_label,
+  ].filter((value): value is string => typeof value === "string" && Boolean(value.trim())).join(" "));
+}
+
+function compactGuidanceRules(
+  rules: FieldGuidanceRequest["field"]["validationRules"],
+): Record<string, unknown> | null {
+  if (!rules) return null;
+  const compact: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(rules)) {
+    if (["string", "number", "boolean"].includes(typeof value) || value === null) {
+      compact[key] = value;
+      continue;
+    }
+    if (Array.isArray(value) && value.length <= 40 && value.every((item) =>
+      ["string", "number", "boolean"].includes(typeof item) || item === null)) {
+      compact[key] = value;
+    }
+  }
+  return compact;
+}
+
+function compactGuidanceOptionContext(request: FieldGuidanceRequest): FieldGuidanceRequest {
+  const options = request.field.options;
+  const compactRules = compactGuidanceRules(request.field.validationRules);
+  if (!Array.isArray(options) || options.length <= MAX_GUIDANCE_OPTION_CONTEXT) {
+    return {
+      ...request,
+      field: {
+        ...request.field,
+        validationRules: compactRules,
+      },
+    };
+  }
+
+  const evidence = normalizeOptionSearchText([
+    request.question ?? "",
+    request.answer ?? "",
+    ...Object.values(request.allAnswers ?? {}),
+  ].join(" "));
+  const evidenceTokens = new Set(
+    evidence.split(" ").filter((token) => token.length >= 3 && !OPTION_MATCH_STOP_WORDS.has(token)),
+  );
+  const ranked = (options as FieldOption[])
+    .map((option, index) => {
+      const searchText = optionSearchText(option);
+      const tokens = [...new Set(
+        searchText.split(" ").filter((token) => token.length >= 3 && !OPTION_MATCH_STOP_WORDS.has(token)),
+      )];
+      const overlap = tokens.filter((token) => evidenceTokens.has(token)).length;
+      const exactPhrase = searchText.length >= 4 && evidence.includes(searchText);
+      return { index, score: (exactPhrase ? 1000 : 0) + overlap };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  const selectedIndices: number[] = [];
+  const selected = new Set<number>();
+  const addIndex = (index: number) => {
+    if (selected.size >= MAX_GUIDANCE_OPTION_CONTEXT || selected.has(index)) return;
+    selected.add(index);
+    selectedIndices.push(index);
+  };
+  ranked.forEach(({ index }) => addIndex(index));
+  for (let index = 0; index < Math.min(DEFAULT_GUIDANCE_OPTION_CONTEXT, options.length); index += 1) {
+    addIndex(index);
+  }
+  const boundedIndices: number[] = [];
+  let optionBytes = 2;
+  for (const index of selectedIndices) {
+    const option = options[index];
+    if (option === undefined) continue;
+    const nextBytes = JSON.stringify(option).length + 1;
+    if (boundedIndices.length > 0 && optionBytes + nextBytes > MAX_GUIDANCE_OPTION_CONTEXT_BYTES) break;
+    boundedIndices.push(index);
+    optionBytes += nextBytes;
+  }
+
+  return {
+    ...request,
+    field: {
+      ...request.field,
+      options: boundedIndices.map((index) => options[index]!).filter(Boolean),
+      validationRules: {
+        ...(compactRules ?? {}),
+        guidance_option_count: options.length,
+        guidance_option_context_truncated: true,
+      },
     },
   };
 }
@@ -255,11 +375,11 @@ function buildOptionExplanations(request: FieldGuidanceRequest): FieldGuidanceOp
   }));
 }
 
-function withoutDropdownExamples(
+function withoutChoiceControlExamples(
   request: FieldGuidanceRequest,
   response: FieldGuidanceResponse,
 ): FieldGuidanceResponse {
-  if (!["select", "multi_select", "country"].includes(request.field.fieldType)) {
+  if (!isFieldChoiceControl(request.field)) {
     return response;
   }
 
@@ -276,7 +396,19 @@ function finalizeGuidance(
   request: FieldGuidanceRequest,
   response: FieldGuidanceResponse,
 ): FieldGuidanceResponse {
-  return withoutDropdownExamples(request, withOptionExplanations(request, response));
+  const localized = getLocale(request);
+  const safeExample = buildFieldExplanation(request.field, localized).example;
+  const withSafeExamples = {
+    ...response,
+    guidance: {
+      ...response.guidance,
+      // Examples are deterministic field-format aids. Do not allow an LLM or
+      // downstream service to introduce a country, phone prefix, address, or
+      // date format that is not supported by the current field metadata.
+      examples: isFieldChoiceControl(request.field) || !safeExample ? [] : [safeExample],
+    },
+  };
+  return withoutChoiceControlExamples(request, withOptionExplanations(request, withSafeExamples));
 }
 
 function withOptionExplanations(
@@ -388,53 +520,50 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
   const fieldType = field.fieldType;
   const answer = request.answer?.trim() ?? "";
   const isMissingRequired = Boolean(field.required && !answer);
-  const isDropdown = ["select", "multi_select", "country"].includes(fieldType);
+  const isChoice = isFieldChoiceControl(field);
   const explanation = buildFieldExplanation(field, locale);
+  const dateFormat = getFieldDateFormat(field);
+  const metadataNeedsReview = isFieldMetadataUnverified(field);
 
-  const examples =
-    isDropdown
-      ? []
-      : isPassportPlaceOfIssueField(request)
-        ? locale === "zh"
-          ? ["CHONGQING（仅当护照签发地点如此显示）", "按护照资料页 Place of issue/签发地点原文填写"]
-          : ["CHONGQING (only if printed as Place of issue)", "Use the passport's exact Place of issue value"]
-      : isPassportIssuingAuthorityField(request)
-        ? locale === "zh"
-          ? [
-              "National Immigration Administration, PRC",
-              "MPS Exit & Entry Administration",
-              "按护照资料页 Authority/签发机关原文填写",
-            ]
-          : [
-              "National Immigration Administration, PRC",
-              "MPS Exit & Entry Administration",
-              "Use the exact Authority wording printed on the passport",
-            ]
-      : fieldType === "date" || fieldName.includes("date")
-        ? locale === "zh"
-          ? ["按页面日期选择器填写，例如 09/03/1996。"]
-          : ["Use the date picker, for example 09/03/1996."]
-        : explanation.example
-          ? [explanation.example]
-          : [];
+  const examples = isChoice || !explanation.example ? [] : [explanation.example];
 
   const formatHints =
-    fieldType === "select" || fieldType === "radio" || fieldType === "country"
+    fieldType === "checkbox"
       ? [
           locale === "zh"
-            ? "请优先从官方下拉选项中选择，不要自由改写选项名称。"
-            : "Choose from the official options instead of rewriting the option label.",
+            ? "题目陈述符合实际时勾选；不符合时保持未勾选。"
+            : "Select when the statement applies; otherwise leave it clear.",
         ]
-      : fieldType === "date" || fieldName.includes("date")
+      : fieldType === "multi_select"
         ? [
             locale === "zh"
-              ? "日期请核对日、月、年顺序，最终英文侧会按官方格式显示。"
-              : "Check the day, month, and year order. The English side shows the official format.",
+              ? "请选择所有符合实际情况的选项。"
+              : "Choose every option that applies.",
+          ]
+      : isChoice
+      ? [
+          locale === "zh"
+            ? "请从页面提供的官方选项中选择，不要自由改写选项名称。"
+            : "Choose from the official options instead of rewriting the option label.",
+        ]
+      : dateFormat || fieldType === "date" || fieldName.includes("date")
+        ? [
+            locale === "zh"
+              ? dateFormat
+                ? `请使用页面要求的日期格式：${dateFormat}。`
+                : "请使用页面日期选择器；未明确格式时不要自行猜测日、月、年顺序。"
+              : dateFormat
+                ? `Use the date format required by the form: ${dateFormat}.`
+                : "Use the page date picker; do not guess the day, month, and year order when no format is specified.",
           ]
         : [];
 
   const warnings = [
-    locale === "zh"
+    metadataNeedsReview
+      ? locale === "zh"
+        ? "该字段元数据尚未标记为已核验官方内容，请以当前官方页面和证明材料为准，不要依赖示例推断。"
+        : "This field metadata is not marked as officially verified; follow the current official page and supporting records instead of inferring from examples."
+      : locale === "zh"
       ? "本地提示只用于辅助填写；最终请以官方表单和证件信息为准。"
       : "This local hint is only a filling aid. Final answers should match the official form and your documents.",
   ];
@@ -442,26 +571,11 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
   return {
     guidance: {
       title: locale === "zh" ? `${label} 填写帮助` : `${label} guidance`,
-      summary:
-        isPassportPlaceOfIssueField(request)
-          ? locale === "zh"
-            ? "请按护照资料页的 Place of issue/签发地点原文填写；这是地点，不是签发机关。"
-            : "Copy the passport's exact Place of issue value; this is a location, not the issuing authority."
-        : isPassportIssuingAuthorityField(request)
-          ? locale === "zh"
-            ? "请按护照资料页上的 Authority/签发机关原文填写，不要根据领取城市或办理城市推断。"
-            : "Copy the Authority or issuing authority exactly as printed on the passport biodata page; do not infer it from the pickup or application city."
-        : explanation.summary,
+      summary: explanation.summary,
       examples,
       optionExplanations: buildOptionExplanations(request),
       hints: [
-        ...(isPassportPlaceOfIssueField(request)
-          ? [
-              locale === "zh"
-                ? "只有字段明确要求签发国家或提供国家下拉框时才填国家。"
-                : "Enter a country only when the field asks for Country of issue or provides a country-only selector.",
-            ]
-          : isStandardIdentityField(request)
+        ...(isStandardIdentityField(request)
           ? [
               locale === "zh"
                 ? "这是标准证件字段，请优先照抄护照资料页、机读区或官方下拉选项。"
@@ -830,7 +944,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "field.fieldName is required." }, { status: 400 });
   }
 
-  requestBody = normalizeGuidanceRequest(requestBody);
+  requestBody = compactGuidanceOptionContext(normalizeGuidanceRequest(requestBody));
 
   if (!requestBody.question?.trim()) {
     return Response.json(finalizeGuidance(

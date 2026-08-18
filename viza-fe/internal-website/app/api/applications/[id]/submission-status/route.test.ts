@@ -3,6 +3,8 @@ import {
   deriveNonTerminalStatus,
   deriveSubmissionStatus,
   hasTaiwanApplicantHandoffReady,
+  runnerFlowForSubmissionStatus,
+  runnerPoolJobToQueueRow,
   sgacRunnerJobToQueueRow,
   selectQueueForSubmissionStatus,
 } from "./route-handler";
@@ -57,6 +59,79 @@ describe("sgacRunnerJobToQueueRow", () => {
       error_message: "Official portal unavailable",
       updated_at: "2026-07-30T00:02:00.000Z",
     });
+  });
+});
+
+describe("shared runner status mapping", () => {
+  it("loads Korea e-Arrival Card status from its runner_job flow", () => {
+    expect(
+      runnerFlowForSubmissionStatus("south_korea", "KR_E_ARRIVAL_CARD"),
+    ).toBe("kr_arrival_card");
+    expect(runnerFlowForSubmissionStatus("vietnam", "VN_E_VISA")).toBeNull();
+  });
+
+  it("maps the first Korea runner job to the active loading contract", () => {
+    const enqueuedAt = new Date().toISOString();
+    expect(
+      runnerPoolJobToQueueRow(
+        {
+          id: "kr_runner_1",
+          status: "queued",
+          attempts: 0,
+          last_error: null,
+          available_at: enqueuedAt,
+          enqueued_at: enqueuedAt,
+          started_at: null,
+          finished_at: null,
+        },
+        "kr_arrival_card",
+      ),
+    ).toMatchObject({
+      id: "kr_runner_1",
+      status: "kr_eac_live_assisted_pending",
+      provider: "korea_e_arrival_card_runner_job",
+      transport: "runner_job",
+    });
+  });
+
+  it("prefers a new Korea runner job over the previous failed legacy queue", () => {
+    const older = new Date(Date.now() - 60_000).toISOString();
+    const newest = new Date().toISOString();
+    const koreaRunner = runnerPoolJobToQueueRow(
+      {
+        id: "kr_runner_new",
+        status: "queued",
+        attempts: 0,
+        last_error: null,
+        available_at: newest,
+        enqueued_at: newest,
+        started_at: null,
+        finished_at: null,
+      },
+      "kr_arrival_card",
+    );
+
+    expect(
+      selectQueueForSubmissionStatus([
+        {
+          id: "legacy_failed",
+          status: "kr_eac_live_assisted_failed",
+          attempts: 1,
+          mode: "live_assisted",
+          provider: "korea_e_arrival_card_live",
+          last_error: "Submission job stalled because the worker did not pick it up in time.",
+          error_code: "queue_pickup_timeout",
+          error_message: "Submission job stalled because the worker did not pick it up in time.",
+          current_stage: "failed",
+          heartbeat_at: older,
+          manual_action_status: null,
+          official_status: null,
+          created_at: older,
+          updated_at: older,
+        },
+        koreaRunner,
+      ])?.id,
+    ).toBe("kr_runner_new");
   });
 });
 

@@ -90,8 +90,9 @@ explicitly reintroduces another provider.
   `scripts/sgac/**` for `SG_ARRIVAL_CARD`, `scripts/my-mdac/**` for
   `MY_MDAC_ARRIVAL_CARD`, and `scripts/th-tdac/**` for
   `TH_TDAC_ARRIVAL_CARD`, `scripts/ph-etravel/**` for
-  `PH_ETRAVEL_ARRIVAL_CARD`, and `scripts/vn-prearrival/**` for
-  `VN_PREARRIVAL_DECLARATION`. Keep the top-level
+  `PH_ETRAVEL_ARRIVAL_CARD`, `scripts/vn-prearrival/**` for
+  `VN_PREARRIVAL_DECLARATION`, and `scripts/kr-e-arrival/**` for
+  `KR_E_ARRIVAL_CARD`. Keep the top-level
   `scripts/seed-*-form-fields.ts` files as command entries and keep country
   packages separate from visa flows.
 - Taiwan entry-permit seed: `scripts/seed-tw-entry-permit-form-fields.ts` owns

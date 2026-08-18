@@ -15,6 +15,7 @@ import { augmentThailandTouristEVisaSteps } from "@/lib/thailand-tourist-evisa-f
 import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form-parity";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/types/visa-form-fields";
+import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 
 export interface OwnedApplicationContext {
   admin: SupabaseClient;
@@ -28,6 +29,7 @@ export interface OwnedApplicationContext {
     country: string;
     visa_type: string;
     submitted_at: string | null;
+    submission_result: unknown;
   };
 }
 
@@ -40,7 +42,7 @@ export async function requireOwnedApplication(
   const admin = createAdminClient();
   const { data: application } = await admin
     .from("applications")
-    .select("id, applicant_id, country, visa_type, submitted_at")
+    .select("id, applicant_id, country, visa_type, submitted_at, submission_result")
     .eq("id", applicationId)
     .maybeSingle();
   if (!application?.applicant_id) return { status: 404, error: "Application not found" };
@@ -58,6 +60,16 @@ export async function requireOwnedApplication(
   );
   if (!ownsProfile) {
     return { status: 403, error: "Unauthorized" };
+  }
+  if (hasSuccessfulArrivalCardSubmission({
+    country: application.country,
+    visaType: application.visa_type,
+    submissionResult: application.submission_result,
+  })) {
+    return {
+      status: 409,
+      error: "The form assistant is locked after a successful arrival-card submission. Start another submission to continue.",
+    };
   }
 
   return {

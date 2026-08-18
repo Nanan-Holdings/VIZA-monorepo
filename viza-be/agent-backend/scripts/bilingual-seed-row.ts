@@ -2,6 +2,7 @@ type VisaFormFieldOption =
   | string
   | {
       value: string;
+      code?: string;
       text?: string;
       label_zh?: string;
       label_en?: string;
@@ -66,6 +67,7 @@ function normalizeOptions(options: unknown[] | null | undefined): VisaFormFieldO
 
     normalized.push({
       value,
+      ...(clean(record.code) ? { code: clean(record.code) } : {}),
       ...(clean(record.text) ? { text: clean(record.text) } : {}),
       ...(clean(record.label_zh) ? { label_zh: clean(record.label_zh) } : {}),
       ...(clean(record.label_en) ? { label_en: clean(record.label_en) } : {}),
@@ -89,6 +91,7 @@ function normalizeBilingualOption(option: VisaFormFieldOption): VisaFormFieldOpt
   const text = clean(option.text) || clean(option.label_en) || clean(option.official_label) || option.value;
   return {
     ...option,
+    ...(clean(option.code) ? { code: clean(option.code) } : {}),
     text,
     label_en: clean(option.label_en) || text,
     official_label: clean(option.official_label) || text,

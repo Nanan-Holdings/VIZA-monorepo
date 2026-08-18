@@ -190,7 +190,7 @@ describe("DigitalArrivalCardResultCard", () => {
     window.sessionStorage.removeItem(`viza:smooth-progress:${persistenceKey}`);
   });
 
-  it("keeps the Vietnam payment card mounted when the new payment queue becomes active", async () => {
+  it("keeps the Vietnam managed-payment action mounted when the new queue becomes active", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.endsWith("/official-fee/status")) {
         return {
@@ -247,7 +247,7 @@ describe("DigitalArrivalCardResultCard", () => {
       />,
     );
 
-    expect(screen.getByLabelText("银行卡号")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "开始自动付款" })).toBeInTheDocument();
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/applications/vn-payment-application/submission-status",
@@ -257,7 +257,7 @@ describe("DigitalArrivalCardResultCard", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByLabelText("银行卡号")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "开始自动付款" })).toBeInTheDocument();
     expect(screen.queryByText("正在提交您的申请")).not.toBeInTheDocument();
   });
 
@@ -645,9 +645,159 @@ describe("cloud submission retry routing", () => {
     fireEvent.click(screen.getByRole("button", { name: "提交" }));
 
     await waitFor(() => {
-      expect(onRetry).toHaveBeenCalledWith("live_assisted", undefined);
+      expect(onRetry).toHaveBeenCalledWith("live_assisted");
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows loading on the first Korea retry click before form resubmission returns", async () => {
+    let resolveResubmit: (() => void) | undefined;
+    const onResubmit = vi.fn(
+      () => new Promise<void>((resolve) => {
+        resolveResubmit = resolve;
+      }),
+    );
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => undefined)));
+
+    render(
+      <SubmissionStatusStep
+        applicationId="kr-application-id"
+        country="south_korea"
+        visaType="KR_E_ARRIVAL_CARD"
+        status="stalled"
+        result={null}
+        onResubmit={onResubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "提交" }));
+
+    expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
+    expect(onResubmit).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("云端任务没有完成")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveResubmit?.();
+    });
+  });
+
+  it("shows loading before a direct DS-160 retry request returns", async () => {
+    let resolveRetry:
+      | ((response: { ok: boolean; status: number; json: () => Promise<Record<string, unknown>> }) => void)
+      | undefined;
+    const retryResponse = new Promise<{
+      ok: boolean;
+      status: number;
+      json: () => Promise<Record<string, unknown>>;
+    }>((resolve) => {
+      resolveRetry = resolve;
+    });
+    const fetchMock = vi.fn((url: string, options?: RequestInit) => {
+      if (options?.method === "POST" && url.endsWith("/retry-submission")) {
+        return retryResponse;
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: "stalled",
+          stage: "confirming_result",
+          progress: 99,
+          result: null,
+          error: "The previous worker did not pick up the job.",
+          message: "The previous worker did not pick up the job.",
+          updatedAt: new Date().toISOString(),
+          applicationStatus: "stalled",
+          country: "united_states",
+          visaType: "B1_B2",
+          queue: {
+            id: "old-ds160-queue",
+            status: "stalled",
+            mode: "live_assisted",
+            provider: "ceac",
+          },
+        }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="ds160-application-id"
+        country="united_states"
+        visaType="B1_B2"
+        status="stalled"
+        result={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "提交" }));
+
+    expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
+    expect(screen.queryByText("云端任务没有完成")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveRetry?.({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          jobId: "new-ds160-queue",
+          queueStatus: "ds160_live_assisted_pending",
+          provider: "ceac",
+        }),
+      });
+    });
+  });
+
+  it("keeps first-submit loading when the initial status poll returns an old failed queue", async () => {
+    const previousError = "Submission job stalled because the worker did not pick it up in time.";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: "stalled",
+        stage: "confirming_result",
+        progress: 99,
+        result: null,
+        error: previousError,
+        message: previousError,
+        updatedAt: new Date().toISOString(),
+        applicationStatus: "stalled",
+        country: "france",
+        visaType: "FR_SCHENGEN_C_SHORT_STAY",
+        queue: {
+          id: "old-france-queue",
+          status: "stalled",
+          mode: "live_assisted",
+          provider: "france_visas_live",
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="france-application-id"
+        country="france"
+        visaType="FR_SCHENGEN_C_SHORT_STAY"
+        status="waiting"
+        result={null}
+        submissionStarting
+      />,
+    );
+
+    expect(screen.getByText("正在提交您的申请")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/france-application-id/submission-status",
+        expect.objectContaining({ cache: "no-store" }),
+      );
+    });
+    expect(screen.getByText("正在提交您的申请")).toBeInTheDocument();
+    expect(screen.queryByText("云端任务没有完成")).not.toBeInTheDocument();
+    expect(screen.queryByText(previousError)).not.toBeInTheDocument();
   });
 
   it("lets a new Indonesia payment retry outrank the previous durable failure", async () => {
@@ -659,13 +809,13 @@ describe("cloud submission retry routing", () => {
     const previousError = "The Indonesia official payment gateway returned a failed payment result.";
     let retryQueued = false;
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
-      if (options?.method === "POST" && url.endsWith("/official-fee/pay")) {
+      if (options?.method === "POST" && url.endsWith("/retry-submission")) {
         retryQueued = true;
         return {
           ok: true,
           status: 200,
           json: async () => ({
-            queueId: "new-indonesia-queue",
+            jobId: "new-indonesia-queue",
             queueStatus: "pending",
             provider: "indonesia_evisa_live",
           }),
@@ -726,18 +876,21 @@ describe("cloud submission retry routing", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
-    fireEvent.change(screen.getByLabelText("持卡人姓名（必填，按银行卡）"), {
-      target: { value: "REAL CARDHOLDER" },
-    });
+    expect(screen.getByText("VIZA 将处理官方付款")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "提交" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/applications/application-id/official-fee/pay",
-        expect.objectContaining({ method: "POST" }),
+        "/api/applications/application-id/retry-submission",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            mode: "live_assisted",
+            country: "indonesia",
+            visaType: "ID_B1_EVOA",
+            intent: "retry",
+          }),
+        }),
       );
       expect(screen.queryByText("提交没有完成")).not.toBeInTheDocument();
       expect(screen.getByText("正在提交您的申请")).toBeInTheDocument();
@@ -794,14 +947,14 @@ describe("cloud submission retry routing", () => {
     });
   });
 
-  it("sends a failed Vietnam retry directly to the cloud payment queue", async () => {
-    let resolvePayment: ((value: unknown) => void) | undefined;
-    const paymentResponse = new Promise((resolve) => {
-      resolvePayment = resolve;
+  it("sends a failed Vietnam retry directly to a fresh cloud queue", async () => {
+    let resolveRetry: ((value: unknown) => void) | undefined;
+    const retryResponse = new Promise((resolve) => {
+      resolveRetry = resolve;
     });
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
-      if (options?.method === "POST" && url.endsWith("/official-fee/pay")) {
-        return paymentResponse;
+      if (options?.method === "POST" && url.endsWith("/retry-submission")) {
+        return retryResponse;
       }
       return {
         ok: true,
@@ -826,7 +979,6 @@ describe("cloud submission retry routing", () => {
         }),
       };
     });
-    const onResubmit = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
     render(
@@ -836,39 +988,33 @@ describe("cloud submission retry routing", () => {
         visaType="evisa_tourism"
         status="failed"
         result={null}
-        onResubmit={onResubmit}
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
+    expect(screen.getByText("VIZA 将处理官方付款")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "提交" }));
 
     expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
-    expect(onResubmit).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/applications/application-id/official-fee/pay",
+      "/api/applications/application-id/retry-submission",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          card: {
-            pan: "4111111111111111",
-            expiry: "12/30",
-            cvv: "123",
-            holderName: "",
-          },
+          mode: "live_assisted",
+          country: "vietnam",
+          visaType: "evisa_tourism",
+          intent: "retry",
         }),
       }),
     );
 
     await act(async () => {
-      resolvePayment?.({
+      resolveRetry?.({
         ok: true,
         status: 200,
         json: async () => ({
-          queueId: "new-vietnam-queue",
+          jobId: "new-vietnam-queue",
           queueStatus: "vn_cloud_live_pending",
           provider: "vietnam_evisa_live",
         }),

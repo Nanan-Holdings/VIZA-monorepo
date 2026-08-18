@@ -10,6 +10,7 @@ test("backfill derives only explicit supported pool flows", () => {
     ["sg", "SG_ARRIVAL_CARD", "sgac"],
     ["malaysia", "MY_MDAC_ARRIVAL_CARD", "mdac"],
     ["thailand", "TH_TDAC_ARRIVAL_CARD", "tdac"],
+    ["kr", "KR_E_ARRIVAL_CARD", "kr_arrival_card"],
     ["kr", "KR_C39_SHORT_TERM_VISIT", "kr_eform"],
     ["taiwan", "TW_ENTRY_PERMIT", "tw_entry_permit"],
   ] as const;

@@ -136,6 +136,10 @@ const VISA_TYPE_ALIASES: Partial<
     c39: 'KR_C39_SHORT_TERM_VISIT',
     kr_c39: 'KR_C39_SHORT_TERM_VISIT',
     kr_c39_short_term_visit: 'KR_C39_SHORT_TERM_VISIT',
+    kr_e_arrival_card: 'KR_E_ARRIVAL_CARD',
+    korea_e_arrival_card: 'KR_E_ARRIVAL_CARD',
+    e_arrival_card: 'KR_E_ARRIVAL_CARD',
+    korea_arrival_card: 'KR_E_ARRIVAL_CARD',
   },
   taiwan: {
     tw_entry_permit: 'TW_ENTRY_PERMIT',
@@ -274,7 +278,9 @@ export const VISA_DESTINATION_REGISTRY: Record<
   slovakia: destination('slovakia', 'Slovakia', ['斯洛伐克', 'slovakia', 'bratislava', '布拉迪斯拉发'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   slovenia: destination('slovenia', 'Slovenia', ['斯洛文尼亚', 'slovenia', 'ljubljana', '卢布尔雅那'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   south_africa: destination('south_africa', 'South Africa', ['南非', 'south africa', 'cape town', 'johannesburg', '开普敦', '约翰内斯堡'], 'visitor_visa_tourism'),
-  south_korea: destination('south_korea', 'South Korea', ['韩国', '南韩', 'south korea', 'korea', 'seoul', '首尔', 'k-eta', 'keta'], 'KR_C39_SHORT_TERM_VISIT'),
+  south_korea: destination('south_korea', 'South Korea', ['韩国', '南韩', 'south korea', 'korea', 'seoul', '首尔', 'k-eta', 'keta', 'e-arrival card', 'earrival card', '韩国电子入境卡'], 'KR_C39_SHORT_TERM_VISIT', {
+    supportedVisaTypes: ['KR_C39_SHORT_TERM_VISIT', 'KR_E_ARRIVAL_CARD'],
+  }),
   spain: destination('spain', 'Spain', ['西班牙', 'spain', 'madrid', 'barcelona', '马德里', '巴塞罗那'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   sri_lanka: destination('sri_lanka', 'Sri Lanka', ['斯里兰卡', 'sri lanka', 'colombo', '科伦坡'], 'eta_tourism'),
   switzerland: destination('switzerland', 'Switzerland', ['瑞士', 'switzerland', 'swiss', 'zurich', 'geneva', '苏黎世', '日内瓦'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),

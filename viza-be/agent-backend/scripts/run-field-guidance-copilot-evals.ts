@@ -17,7 +17,11 @@ type Locale = "zh" | "en";
 type Severity = "ok" | "warning" | "error";
 type FieldType =
   | "text"
+  | "email"
+  | "tel"
+  | "number"
   | "select"
+  | "multi_select"
   | "date"
   | "file"
   | "radio"
@@ -87,6 +91,9 @@ interface EvalCase {
   allAnswers: Record<string, string>;
   question?: string;
   expectedSeverity?: Exclude<Severity, "ok">;
+  expectNoExamples?: boolean;
+  expectedSummaryPattern?: RegExp;
+  forbiddenGuidancePattern?: RegExp;
 }
 
 interface EvalFailure {
@@ -102,14 +109,31 @@ interface EvalCounters {
   guidanceCases: number;
   invalidCases: number;
   crossFieldCases: number;
+  countryAuditCases: number;
   fields: number;
   visaTypes: Record<string, number>;
 }
 
 const MARKDOWN_PATTERN = /```|`|\*\*|__|\[[^\]]+\]\([^)]+\)|(^|\s)#{1,6}\s/m;
 const BAD_TEXT_PATTERN = /\bundefined\b|\bnull\b|<script\b|<\/?[a-z][\s\S]*>/i;
+const CHOICE_FIELD_TYPES = new Set<FieldType>(["select", "multi_select", "country", "radio", "checkbox"]);
+const MISLEADING_CHOICE_EXAMPLE_PATTERN = /请按护照、身份证明或官方文件上的原文填写|use the (?:exact )?wording (?:exactly )?as shown on your passport|use the exact wording from your official document/i;
+const DATE_FORMAT_EXAMPLES: Readonly<Record<string, string>> = {
+  "YYYY-MM-DD": "2026-09-15",
+  "DD/MM/YYYY": "15/09/2026",
+  "YYYY/MM/DD": "2026/09/15",
+  "DD-MMM-YYYY": "15-SEP-2026",
+  YYYYMMDD: "20260915",
+  "MM-YYYY": "09-2026",
+  "MM/YYYY": "09/2026",
+  YYYY: "2026",
+};
 const CONCURRENCY = Number(process.env.FIELD_GUIDANCE_EVAL_CONCURRENCY ?? 16);
 const SYNTHETIC_ONLY = process.env.FIELD_GUIDANCE_EVAL_SYNTHETIC_ONLY === "1";
+
+function includesAnyText(value: string, needles: string[]): boolean {
+  return needles.some((needle) => value.includes(needle));
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -138,6 +162,36 @@ function normalizeOptions(value: unknown): Array<FieldOption | string> | null {
   return options.length > 0 ? options : null;
 }
 
+function boundedEvalOptions(value: unknown): Array<FieldOption | string> | null {
+  const options = normalizeOptions(value);
+  if (!options) return null;
+  const bounded: Array<FieldOption | string> = [];
+  let bytes = 2;
+  for (const option of options.slice(0, 120)) {
+    const nextBytes = JSON.stringify(option).length + 1;
+    if (bounded.length > 0 && bytes + nextBytes > 320_000) break;
+    bounded.push(option);
+    bytes += nextBytes;
+  }
+  return bounded.length > 0 ? bounded : null;
+}
+
+function compactEvalRules(rules: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!rules) return null;
+  const compact: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(rules)) {
+    if (["string", "number", "boolean"].includes(typeof value) || value === null) {
+      compact[key] = value;
+      continue;
+    }
+    if (Array.isArray(value) && value.length <= 40 && value.every((item) =>
+      ["string", "number", "boolean"].includes(typeof item) || item === null)) {
+      compact[key] = value;
+    }
+  }
+  return compact;
+}
+
 function toApiField(field: DbFieldRow): ApiField {
   return {
     fieldName: field.field_name,
@@ -146,8 +200,11 @@ function toApiField(field: DbFieldRow): ApiField {
     required: field.required,
     stepName: field.step_name,
     placeholder: field.placeholder,
-    options: normalizeOptions(field.options),
-    validationRules: field.validation_rules,
+    // The production Next.js proxy sends only a relevance-ranked option
+    // context. Keep the exhaustive DB audit on the same bounded contract so a
+    // single country-wide administrative list cannot exceed the API body cap.
+    options: boundedEvalOptions(field.options),
+    validationRules: compactEvalRules(field.validation_rules),
     conditionalLogic: field.conditional_logic,
   };
 }
@@ -167,7 +224,7 @@ function sampleAnswer(field: DbFieldRow): string {
   const text = fieldText(field);
   const option = firstOption(field);
 
-  if (field.field_type === "select" || field.field_type === "radio" || field.field_type === "checkbox") {
+  if (CHOICE_FIELD_TYPES.has(field.field_type)) {
     return option ?? "yes";
   }
   if (field.field_type === "country") return "China";
@@ -223,6 +280,17 @@ function hasPattern(field: DbFieldRow): boolean {
   return Boolean(stringValue(field.validation_rules?.pattern));
 }
 
+function invalidPatternAnswer(field: DbFieldRow): string | null {
+  const pattern = stringValue(field.validation_rules?.pattern);
+  if (!pattern) return null;
+  try {
+    const regex = new RegExp(pattern);
+    return ["💥", "\n", "<invalid>", "###INVALID###"].find((candidate) => !regex.test(candidate)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function buildGuidanceCases(fields: DbFieldRow[]): EvalCase[] {
   return fields.flatMap((field) =>
     (["zh", "en"] as const).map((locale) => {
@@ -264,6 +332,124 @@ function buildSyntheticPhotoFields(): DbFieldRow[] {
     { ...base, id: `${base.id}-indonesia`, visa_type: "B211A" },
     { ...base, id: `${base.id}-schengen`, visa_type: "EU_SCHENGEN_C_SHORT_STAY" },
   ];
+}
+
+function syntheticAuditField(input: {
+  id: string;
+  visaType: string;
+  fieldName: string;
+  label: string;
+  fieldType: FieldType;
+  options?: Array<FieldOption>;
+  validationRules?: Record<string, unknown>;
+  placeholder?: string;
+}): DbFieldRow {
+  return {
+    id: input.id,
+    visa_type: input.visaType,
+    field_name: input.fieldName,
+    label: input.label,
+    field_type: input.fieldType,
+    required: true,
+    step_number: 99,
+    step_name: "Country copilot audit",
+    display_order: 1,
+    placeholder: input.placeholder ?? null,
+    validation_rules: input.validationRules ?? null,
+    options: input.options ?? null,
+    conditional_logic: null,
+  };
+}
+
+function buildCountryCopilotAuditCases(): EvalCase[] {
+  const yesNo = [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }];
+  const agree = [{ value: "yes", text: "I agree" }];
+  const choiceFields = [
+    syntheticAuditField({ id: "audit-id-c1", visaType: "ID_C1_TOURIST", fieldName: "information_true_declaration", label: "I declare that the information I provided is true.", fieldType: "checkbox", options: agree }),
+    syntheticAuditField({ id: "audit-id-b1", visaType: "ID_B1_EVOA", fieldName: "billing_responsibility_declaration", label: "I understand that official payment must be completed.", fieldType: "checkbox", options: agree }),
+    syntheticAuditField({ id: "audit-vn-evisa", visaType: "VN_E_VISA", fieldName: "final_declaration", label: "I declare that the above statements are true, accurate, and complete.", fieldType: "checkbox", options: agree }),
+    syntheticAuditField({
+      id: "audit-vn-prearrival",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "visa_information_acknowledgement",
+      label: "I have read and understood this information.",
+      fieldType: "checkbox",
+      validationRules: {
+        helper_zh: "请提供越南签证信息（如适用）；签证类型和签证编号必须与官方签证文件一致。",
+        helper_en: "Provide the Vietnam visa details when applicable and match the official visa document.",
+      },
+    }),
+    syntheticAuditField({ id: "audit-sg", visaType: "SG_ARRIVAL_CARD", fieldName: "has_health_symptoms", label: "Do you currently have any of the listed health symptoms?", fieldType: "radio", options: yesNo }),
+    syntheticAuditField({ id: "audit-my", visaType: "MY_MDAC_ARRIVAL_CARD", fieldName: "purpose_of_travel", label: "Purpose of Travel", fieldType: "select", options: [{ value: "holiday", text: "Holiday/Sightseeing/Leisure" }] }),
+    syntheticAuditField({ id: "audit-th", visaType: "TH_TDAC_ARRIVAL_CARD", fieldName: "transit_without_stay", label: "I am a transit passenger and will not stay in Thailand.", fieldType: "checkbox" }),
+    syntheticAuditField({ id: "audit-ph", visaType: "PH_ETRAVEL_ARRIVAL_CARD", fieldName: "data_privacy_agreement", label: "I agree to the Data Privacy and Affidavit of Undertaking.", fieldType: "checkbox", options: agree }),
+    syntheticAuditField({ id: "audit-tw", visaType: "TW_ENTRY_PERMIT", fieldName: "accepted_terms", label: "I have read and accept the following terms and conditions.", fieldType: "checkbox", options: agree }),
+    syntheticAuditField({ id: "audit-us", visaType: "DS160", fieldName: "has_specific_travel_plans", label: "Have you made specific travel plans?", fieldType: "radio", options: yesNo }),
+    syntheticAuditField({ id: "audit-fr", visaType: "EU_SCHENGEN_C_SHORT_STAY", fieldName: "directive_2004_38_acknowledged", label: "I acknowledge these rights under Directive 2004/38/EC.", fieldType: "radio", options: yesNo }),
+    syntheticAuditField({ id: "audit-kr", visaType: "KR_C39_SHORT_TERM_VISIT", fieldName: "declaration_consent", label: "I declare that the statements in this application are true and correct.", fieldType: "checkbox", options: agree }),
+  ];
+
+  const choiceCases = choiceFields.flatMap((field) => (["zh", "en"] as const).map((locale) => ({
+    name: `country-audit:${field.id}:${locale}`,
+    locale,
+    field,
+    answer: sampleAnswer(field),
+    allAnswers: baseAnswers(field, sampleAnswer(field)),
+    expectNoExamples: true,
+    expectedSummaryPattern: field.field_type === "checkbox"
+      ? locale === "zh" ? /勾选|确认|声明|同意/ : /select|acknowledg|declaration|consent/i
+      : locale === "zh" ? /选择|选项/ : /choos|option/i,
+    forbiddenGuidancePattern: MISLEADING_CHOICE_EXAMPLE_PATTERN,
+  })));
+
+  const formatFields = [
+    syntheticAuditField({ id: "audit-format-id", visaType: "ID_C1_TOURIST", fieldName: "passport_expiry_date", label: "Date of Expiry", fieldType: "date", validationRules: { format: "DD/MM/YYYY" } }),
+    syntheticAuditField({ id: "audit-format-vn", visaType: "VN_E_VISA", fieldName: "visa_valid_from", label: "Grant e-Visa valid from", fieldType: "date", validationRules: { format: "DD/MM/YYYY" } }),
+    syntheticAuditField({ id: "audit-format-sg", visaType: "SG_ARRIVAL_CARD", fieldName: "arrival_date", label: "Date of Arrival", fieldType: "date", validationRules: { format: "YYYY-MM-DD" } }),
+    syntheticAuditField({ id: "audit-format-my", visaType: "MY_MDAC_ARRIVAL_CARD", fieldName: "arrival_date", label: "Date of Arrival in Malaysia", fieldType: "date", validationRules: { format: "YYYY-MM-DD" } }),
+    syntheticAuditField({ id: "audit-format-th", visaType: "TH_TDAC_ARRIVAL_CARD", fieldName: "arrival_date", label: "Date of Arrival", fieldType: "date", validationRules: { format: "YYYY-MM-DD" } }),
+    syntheticAuditField({ id: "audit-format-ph", visaType: "PH_ETRAVEL_ARRIVAL_CARD", fieldName: "flight_arrival_date", label: "Date of Arrival", fieldType: "date", validationRules: { canonical_format: "YYYY-MM-DD" } }),
+    syntheticAuditField({ id: "audit-format-tw", visaType: "TW_ENTRY_PERMIT", fieldName: "intended_arrival_date", label: "Intended arrival date", fieldType: "date" }),
+    syntheticAuditField({ id: "audit-format-us", visaType: "DS160", fieldName: "arrival_date", label: "Date of Arrival", fieldType: "date", validationRules: { format: "DD-MMM-YYYY" } }),
+    syntheticAuditField({ id: "audit-format-us-year", visaType: "DS160", fieldName: "last_visa_issue_year", label: "Date Last Visa Was Issued (Year)", fieldType: "text", validationRules: { format: "DD-MMM-YYYY", pattern: "^[0-9]{4}$" } }),
+    syntheticAuditField({ id: "audit-format-fr", visaType: "EU_SCHENGEN_C_SHORT_STAY", fieldName: "intended_arrival_date", label: "Intended date of arrival", fieldType: "date", validationRules: { format: "DD/MM/YYYY" } }),
+    syntheticAuditField({ id: "audit-format-kr", visaType: "KR_C39_SHORT_TERM_VISIT", fieldName: "intended_entry_date", label: "Intended Date of Entry", fieldType: "date", validationRules: { format: "YYYY/MM/DD" } }),
+    syntheticAuditField({ id: "audit-format-kr-arrival", visaType: "KR_E_ARRIVAL_CARD", fieldName: "arrival_date", label: "Date of Arrival", fieldType: "date", validationRules: { format: "YYYY-MM-DD" } }),
+  ];
+  const formatCases = formatFields.flatMap((field) => (["zh", "en"] as const).map((locale) => ({
+    name: `country-format-audit:${field.id}:${locale}`,
+    locale,
+    field,
+    answer: sampleAnswer(field),
+    allAnswers: baseAnswers(field, sampleAnswer(field)),
+  })));
+
+  const semanticFields = [
+    syntheticAuditField({ id: "audit-id-issuing-country", visaType: "ID_C1_TOURIST", fieldName: "passport_place_of_issue", label: "Issuing Country", fieldType: "country", validationRules: { source: "ISO3166-1" } }),
+    syntheticAuditField({ id: "audit-vn-merged-issue", visaType: "VN_E_VISA", fieldName: "passport_issuing_authority", label: "Issuing Authority/Place of issue", fieldType: "text" }),
+    syntheticAuditField({ id: "audit-ph-holder", visaType: "PH_ETRAVEL_ARRIVAL_CARD", fieldName: "passport_holder_type", label: "Nationality", fieldType: "radio", options: [{ value: "FILIPINO", text: "PHILIPPINE PASSPORT Holder" }, { value: "FOREIGNER", text: "FOREIGN PASSPORT Holder" }] }),
+    syntheticAuditField({ id: "audit-tw-chinese-name", visaType: "TW_ENTRY_PERMIT", fieldName: "name_chinese", label: "中文姓名", fieldType: "text", validationRules: { script: "traditional_chinese" } }),
+    syntheticAuditField({ id: "audit-fr-phone", visaType: "EU_SCHENGEN_C_SHORT_STAY", fieldName: "phone_number", label: "Telephone number (including country code)", fieldType: "text", placeholder: "e.g., +1 415 555 0199" }),
+  ];
+  const semanticCases = semanticFields.flatMap((field) => (["zh", "en"] as const).map((locale) => ({
+    name: `country-semantic-audit:${field.id}:${locale}`,
+    locale,
+    field,
+    answer: sampleAnswer(field),
+    allAnswers: baseAnswers(field, sampleAnswer(field)),
+    expectNoExamples: true,
+    expectedSummaryPattern: field.id === "audit-id-issuing-country"
+      ? locale === "zh" ? /国家|地区/ : /country|region/i
+      : field.id === "audit-vn-merged-issue"
+        ? locale === "zh" ? /签发机关.*签发地点|签发地点.*签发机关/ : /authority.*place|place.*authority/i
+        : field.id === "audit-ph-holder"
+          ? locale === "zh" ? /护照|旅行证件/ : /passport|travel-document/i
+          : field.id === "audit-tw-chinese-name"
+            ? locale === "zh" ? /中文姓名/ : /Chinese-script name/i
+            : undefined,
+  })));
+
+  return [...choiceCases, ...formatCases, ...semanticCases];
 }
 
 function buildPhotoSpecificCases(fields: DbFieldRow[]): EvalCase[] {
@@ -396,16 +582,18 @@ function buildInvalidCases(fields: DbFieldRow[]): EvalCase[] {
     }
 
     if (hasPattern(field)) {
-      const answer = "###INVALID###";
-      cases.push({
-        name: "invalid:pattern",
-        locale: "en",
-        field,
-        answer,
-        allAnswers: baseAnswers(field, answer),
-        question: "What is wrong with this answer?",
-        expectedSeverity: "error",
-      });
+      const answer = invalidPatternAnswer(field);
+      if (answer) {
+        cases.push({
+          name: "invalid:pattern",
+          locale: "en",
+          field,
+          answer,
+          allAnswers: baseAnswers(field, answer),
+          question: "What is wrong with this answer?",
+          expectedSeverity: "error",
+        });
+      }
     }
 
     if (
@@ -455,44 +643,58 @@ function buildCrossFieldCases(fields: DbFieldRow[]): EvalCase[] {
   }
 
   for (const visaFields of byVisaType.values()) {
-    const fallbackField = visaFields[0];
-    if (!fallbackField) continue;
+    const expiryField = findField(visaFields, [
+      "passport_expiry",
+      "passport_expiration",
+      "passport_date_of_expiry",
+      "travel_document_expiry",
+    ]);
+    if (expiryField) {
+      cases.push({
+        name: "cross:passport-expiry-before-issue",
+        locale: "en",
+        field: expiryField,
+        answer: "01/01/2020",
+        allAnswers: {
+          ...baseAnswers(expiryField, "01/01/2020"),
+          passport_issue_date: "01/01/2030",
+          passport_issuance_date: "01/01/2030",
+          passport_expiry_date: "01/01/2020",
+          passport_expiration_date: "01/01/2020",
+        },
+        question: "Why is this date wrong?",
+        expectedSeverity: "error",
+      });
+    }
 
-    const expiryField = findField(visaFields, ["expiry", "expiration", "valid_until"]) ?? fallbackField;
-    cases.push({
-      name: "cross:passport-expiry-before-issue",
-      locale: "en",
-      field: expiryField,
-      answer: "01/01/2020",
-      allAnswers: {
-        ...baseAnswers(expiryField, "01/01/2020"),
-        passport_issue_date: "01/01/2030",
-        passport_issuance_date: "01/01/2030",
-        passport_expiry_date: "01/01/2020",
-        passport_expiration_date: "01/01/2020",
-      },
-      question: "Why is this date wrong?",
-      expectedSeverity: "error",
-    });
+    const departureField = findField(visaFields, [
+      "departure_date",
+      "date_of_departure",
+      "departure_from_origin_date",
+      "intended_departure",
+      "exit_date",
+    ]);
+    if (departureField) {
+      cases.push({
+        name: "cross:departure-before-arrival",
+        locale: "en",
+        field: departureField,
+        answer: "01/06/2026",
+        allAnswers: {
+          ...baseAnswers(departureField, "01/06/2026"),
+          arrival_date: "15/06/2026",
+          expected_arrival_date: "15/06/2026",
+          intended_arrival_date: "15/06/2026",
+          departure_date: "01/06/2026",
+          intended_departure_date: "01/06/2026",
+          departure_from_origin_date: "01/06/2026",
+        },
+        question: "Why is this date wrong?",
+        expectedSeverity: "error",
+      });
+    }
 
-    const departureField = findField(visaFields, ["departure", "exit"]) ?? fallbackField;
-    cases.push({
-      name: "cross:departure-before-arrival",
-      locale: "en",
-      field: departureField,
-      answer: "01/06/2026",
-      allAnswers: {
-        ...baseAnswers(departureField, "01/06/2026"),
-        arrival_date: "15/06/2026",
-        intended_arrival_date: "15/06/2026",
-        departure_date: "01/06/2026",
-        intended_departure_date: "01/06/2026",
-      },
-      question: "Why is this date wrong?",
-      expectedSeverity: "error",
-    });
-
-    const birthField = findField(visaFields, ["birth", "dob"]);
+    const birthField = findField(visaFields, ["date_of_birth", "birth_date", "dob"]);
     if (birthField) {
       cases.push({
         name: "cross:dob-future",
@@ -505,37 +707,41 @@ function buildCrossFieldCases(fields: DbFieldRow[]): EvalCase[] {
       });
     }
 
-    cases.push({
-      name: "cross:passport-expires-before-arrival",
-      locale: "en",
-      field: expiryField,
-      answer: "01/01/2024",
-      allAnswers: {
-        ...baseAnswers(expiryField, "01/01/2024"),
-        passport_expiry_date: "01/01/2024",
-        passport_expiration_date: "01/01/2024",
-        arrival_date: "01/06/2026",
-        intended_arrival_date: "01/06/2026",
-      },
-      question: "Why is this expiry date wrong?",
-      expectedSeverity: "error",
-    });
+    if (expiryField) {
+      cases.push({
+        name: "cross:passport-expires-before-arrival",
+        locale: "en",
+        field: expiryField,
+        answer: "01/01/2024",
+        allAnswers: {
+          ...baseAnswers(expiryField, "01/01/2024"),
+          passport_expiry_date: "01/01/2024",
+          passport_expiration_date: "01/01/2024",
+          arrival_date: "01/06/2026",
+          intended_arrival_date: "01/06/2026",
+        },
+        question: "Why is this expiry date wrong?",
+        expectedSeverity: "error",
+      });
+    }
 
-    const nationalityField = findField(visaFields, ["nationality"]) ?? fallbackField;
-    cases.push({
-      name: "cross:nationality-at-birth-conflict",
-      locale: "en",
-      field: nationalityField,
-      answer: "China",
-      allAnswers: {
-        ...baseAnswers(nationalityField, "China"),
-        current_nationality: "China",
-        nationality_at_birth: "Singapore",
-        nationality_at_birth_different: "no",
-      },
-      question: "Why might these nationality answers conflict?",
-      expectedSeverity: "warning",
-    });
+    const nationalityField = findField(visaFields, ["current_nationality", "nationality_at_birth"]);
+    if (nationalityField) {
+      cases.push({
+        name: "cross:nationality-at-birth-conflict",
+        locale: "en",
+        field: nationalityField,
+        answer: "China",
+        allAnswers: {
+          ...baseAnswers(nationalityField, "China"),
+          current_nationality: "China",
+          nationality_at_birth: "Singapore",
+          nationality_at_birth_different: "no",
+        },
+        question: "Why might these nationality answers conflict?",
+        expectedSeverity: "warning",
+      });
+    }
   }
 
   return cases;
@@ -630,16 +836,99 @@ function validateResponse(response: GuidanceResponse, testCase: EvalCase, failur
     ["guidance.formatHints", guidance.formatHints],
   ];
   for (const [path, values] of listChecks) {
-    if (!values?.length) {
+    (values ?? []).forEach((value, index) => validateText(value, `${path}[${index}]`, testCase, failures));
+  }
+
+  if (CHOICE_FIELD_TYPES.has(testCase.field.field_type) && (guidance.examples?.length ?? 0) > 0) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: "Choice control guidance must not render text-entry examples",
+      details: guidance.examples,
+    });
+  }
+
+  const fieldTextValue = fieldText(testCase.field);
+  const isExplicitYear = !CHOICE_FIELD_TYPES.has(testCase.field.field_type) && (
+    /(?:^|_)year$/.test(testCase.field.field_name.toLowerCase()) ||
+    /\(year\)|年份|仅年份/.test(testCase.field.label.toLowerCase())
+  );
+  const configuredDateFormat = stringValue(
+    isExplicitYear
+      ? "YYYY"
+      : testCase.field.validation_rules?.format ?? testCase.field.validation_rules?.canonical_format,
+  )?.toUpperCase();
+  if (testCase.field.field_type === "date" || isExplicitYear) {
+    const expectedExample = configuredDateFormat ? DATE_FORMAT_EXAMPLES[configuredDateFormat] : undefined;
+    const actualExamples = guidance.examples ?? [];
+    if (expectedExample && (actualExamples.length !== 1 || actualExamples[0] !== expectedExample)) {
       failures.push({
         caseName: testCase.name,
         visaType: testCase.field.visa_type,
         fieldName: testCase.field.field_name,
-        message: `${path} is empty`,
+        message: `Date example must match declared format ${configuredDateFormat}`,
+        details: actualExamples,
       });
-      continue;
     }
-    values.forEach((value, index) => validateText(value, `${path}[${index}]`, testCase, failures));
+    if (!expectedExample && actualExamples.length > 0) {
+      failures.push({
+        caseName: testCase.name,
+        visaType: testCase.field.visa_type,
+        fieldName: testCase.field.field_name,
+        message: "Date guidance must not guess an example when no supported format is declared",
+        details: actualExamples,
+      });
+    }
+  }
+
+  const isEmailField = includesAnyText(fieldTextValue, ["email", "e-mail", "邮箱", "电子邮件"]);
+  const mustAvoidApplicantValueExample = includesAnyText(fieldTextValue, [
+    "phone", "telephone", "mobile", "street",
+    "issuing authority", "issuing_authority", "place of issue", "place_of_issue",
+    "name_chinese", "chinese name", "电话", "手机", "签发机关", "签发地点", "中文姓名",
+  ]) || (!isEmailField && includesAnyText(fieldTextValue, ["address", "地址"]));
+  if (mustAvoidApplicantValueExample && (guidance.examples?.length ?? 0) > 0) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: "Identity/contact/location guidance must not invent a country-specific applicant value",
+      details: guidance.examples,
+    });
+  }
+
+  if (testCase.expectNoExamples && (guidance.examples?.length ?? 0) > 0) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: "Expected no examples for audited choice control",
+      details: guidance.examples,
+    });
+  }
+
+  if (testCase.expectedSummaryPattern && !testCase.expectedSummaryPattern.test(guidance.summary ?? "")) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: "Guidance summary does not explain the audited control intuitively",
+      details: guidance.summary,
+    });
+  }
+
+  if (testCase.forbiddenGuidancePattern) {
+    const combinedGuidance = JSON.stringify(guidance);
+    if (testCase.forbiddenGuidancePattern.test(combinedGuidance)) {
+      failures.push({
+        caseName: testCase.name,
+        visaType: testCase.field.visa_type,
+        fieldName: testCase.field.field_name,
+        message: "Guidance contains a text-entry instruction that is invalid for this choice control",
+        details: combinedGuidance.slice(0, 500),
+      });
+    }
   }
 
   if (testCase.question) {
@@ -736,23 +1025,32 @@ async function main(): Promise<void> {
     .map((value) => value.trim())
     .filter(Boolean);
 
-  let query = supabase
-    .from("visa_form_fields")
-    .select("id, visa_type, field_name, label, field_type, required, step_number, step_name, display_order, placeholder, validation_rules, options, conditional_logic")
-    .order("visa_type", { ascending: true })
-    .order("step_number", { ascending: true })
-    .order("display_order", { ascending: true });
+  const dbFields: DbFieldRow[] = [];
+  if (!SYNTHETIC_ONLY) {
+    const pageSize = 1_000;
+    for (let from = 0; ; from += pageSize) {
+      let query = supabase
+        .from("visa_form_fields")
+        .select("id, visa_type, field_name, label, field_type, required, step_number, step_name, display_order, placeholder, validation_rules, options, conditional_logic")
+        .order("visa_type", { ascending: true })
+        .order("step_number", { ascending: true })
+        .order("display_order", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
 
-  if (selectedVisaTypes.length > 0) {
-    query = query.in("visa_type", selectedVisaTypes);
+      if (selectedVisaTypes.length > 0) {
+        query = query.in("visa_type", selectedVisaTypes);
+      }
+
+      const { data, error } = await query;
+      if (error) throw new Error(`Failed to load visa_form_fields: ${error.message}`);
+
+      const page = (data ?? []) as DbFieldRow[];
+      dbFields.push(...page);
+      if (page.length < pageSize) break;
+    }
   }
 
-  const { data, error } = SYNTHETIC_ONLY
-    ? { data: [], error: null }
-    : await query;
-  if (error) throw new Error(`Failed to load visa_form_fields: ${error.message}`);
-
-  const dbFields = (data ?? []) as DbFieldRow[];
   if (dbFields.length === 0 && !SYNTHETIC_ONLY) {
     throw new Error("No visa_form_fields rows found for evaluation.");
   }
@@ -764,6 +1062,7 @@ async function main(): Promise<void> {
     guidanceCases: 0,
     invalidCases: 0,
     crossFieldCases: 0,
+    countryAuditCases: 0,
     fields: dbFields.length,
     visaTypes: {},
   };
@@ -778,6 +1077,7 @@ async function main(): Promise<void> {
   const photoCases = buildPhotoSpecificCases(photoFields);
   const standardIdentityCases = buildStandardIdentityFieldCases();
   const addressOptionCases = buildAddressOptionCopilotCases();
+  const countryAuditCases = buildCountryCopilotAuditCases();
   const cases = [
     ...guidanceCases,
     ...invalidCases,
@@ -785,10 +1085,12 @@ async function main(): Promise<void> {
     ...photoCases,
     ...standardIdentityCases,
     ...addressOptionCases,
+    ...countryAuditCases,
   ];
   counters.guidanceCases = guidanceCases.length;
   counters.invalidCases = invalidCases.length + photoCases.length;
   counters.crossFieldCases = crossFieldCases.length;
+  counters.countryAuditCases = countryAuditCases.length;
   counters.totalCases = cases.length;
 
   const failures: EvalFailure[] = [];

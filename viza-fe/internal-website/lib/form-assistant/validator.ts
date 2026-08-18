@@ -46,6 +46,26 @@ function startOfUtcDay(value: Date): Date {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
 }
 
+function startOfDayInTimeZone(value: Date, timeZone: string): Date {
+  if (timeZone === "UTC") return startOfUtcDay(value);
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(value);
+    const dateParts = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return buildUtcDate(
+      Number(dateParts.year),
+      Number(dateParts.month),
+      Number(dateParts.day),
+    ) ?? startOfUtcDay(value);
+  } catch {
+    return startOfUtcDay(value);
+  }
+}
+
 function isAcceptedCheckboxValue(value: string): boolean {
   return ["true", "yes", "1", "on"].includes(value.trim().toLowerCase());
 }
@@ -59,10 +79,10 @@ export function getAssistantProgress(
       (field) => field.required && evaluateShowIf(field, answers, step.fields),
     ),
   );
-  const completed = visibleRequired.filter((field) => {
-    const value = answers[field.fieldName]?.trim() ?? "";
-    return field.fieldType === "checkbox" ? isAcceptedCheckboxValue(value) : Boolean(value);
-  }).length;
+  const missingNames = new Set(
+    getMissingDynamicFormFields(steps, answers).map((field) => field.fieldName),
+  );
+  const completed = visibleRequired.filter((field) => !missingNames.has(field.fieldName)).length;
   return { completed, total: visibleRequired.length };
 }
 
@@ -71,6 +91,7 @@ export function validateApplicationAnswers(params: {
   answers: Record<string, string>;
   visaType: string;
   now?: Date;
+  timeZone?: string;
   locale?: string;
 }): {
   errors: FormAssistantValidationIssue[];
@@ -182,7 +203,7 @@ export function validateApplicationAnswers(params: {
       }
 
       if (parsedDate) {
-        const today = startOfUtcDay(params.now ?? new Date());
+        const today = startOfDayInTimeZone(params.now ?? new Date(), params.timeZone ?? "UTC");
         if ((rules.min_date === "today" || rules.not_before_today === true) && parsedDate < today) {
           errors.push({
             code: "date_before_today",

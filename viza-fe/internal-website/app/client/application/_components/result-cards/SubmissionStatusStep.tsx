@@ -34,6 +34,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { hasDurableTerminalSubmissionResult } from "@/lib/application-submission-display";
+import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 import {
   WaitingCard,
   type SubmissionVisualStage,
@@ -50,6 +51,7 @@ import { normalizeTwStatus, TwResultCard } from "./TwResultCard";
 import { KrResultCard } from "./KrResultCard";
 import {
   isDs160VisaType,
+  isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
   isFranceVisasVisaType,
   isPhilippinesEtravelApplication,
@@ -66,6 +68,7 @@ import {
 } from "@/lib/submission-queue";
 import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
 import { SgArrivalCardResultCard } from "@/features/sgac/SgArrivalCardResultCard";
+import { buildKoreaArrivalCardGateHref } from "@/features/kr-arrival-card/routes";
 import {
   getSubmissionStatusPollDelay,
   isRetryableSubmissionStatusResponse,
@@ -79,6 +82,7 @@ interface SubmissionStatusStepProps {
   visaType: string | null;
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
+  submissionStarting?: boolean;
   onResubmit?: (
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
@@ -189,7 +193,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
   const [startingAgain, setStartingAgain] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const scheduled = result.status === "scheduled";
-  const rawReferenceNumber = result.referenceNumber ?? result.confirmationNumber;
+  const rawReferenceNumber = result.issueNumber ?? result.referenceNumber ?? result.confirmationNumber;
   const referenceNumber =
     result.country === "VN" && !isOfficialVietnamPrearrivalReference(rawReferenceNumber)
       ? null
@@ -210,17 +214,26 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
     : null;
   const successful = result.country === "PH"
     ? phRecovery?.state === "submitted_candidate"
-    : result.submitted && result.status === "submitted" && !vietnamFinalizing;
+    : result.country === "KR"
+      ? hasSuccessfulArrivalCardSubmission({
+          country: "south_korea",
+          visaType: result.visaType,
+          submissionResult: result,
+        })
+      : result.submitted && result.status === "submitted" && !vietnamFinalizing;
   const hasOfficialPdfDownload =
-    (result.country === "TH" || result.country === "VN") &&
+    (result.country === "KR" || result.country === "TH" || result.country === "VN") &&
     Boolean(storedPdfPath) &&
     (
       Boolean(result.confirmationPdfStoragePath) ||
+      (result.country === "KR" && (result.artifacts?.pdfs?.length ?? 0) > 0) ||
       result.artifacts?.logs?.some((log) =>
         log.includes("tdac_pdf_downloaded") ||
         log.includes("tdac_confirmation_page_pdf_saved") ||
         log.includes("vn_prearrival_pdf_downloaded") ||
-        log.includes("vn_prearrival_confirmation_page_pdf_saved"),
+        log.includes("vn_prearrival_confirmation_page_pdf_saved") ||
+        log.includes("korea_e_arrival_card_pdf_downloaded") ||
+        log.includes("kr_eac_pdf_downloaded"),
       ) === true
     );
   const pdfPath = hasOfficialPdfDownload ? storedPdfPath : null;
@@ -231,6 +244,8 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
         ? { label: "TDAC", countryParam: "thailand" }
         : result.country === "VN"
           ? { label: "Vietnam Pre-Arrival", countryParam: "vietnam" }
+          : result.country === "KR"
+            ? { label: "Korea e-Arrival Card", countryParam: "south_korea" }
           : { label: "eTravel", countryParam: "philippines" };
   const countryLabel = arrivalCardMeta.label;
   const countryParam = arrivalCardMeta.countryParam;
@@ -281,12 +296,14 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
       if (!response.ok || !body?.applicationId) {
         throw new Error(body?.error || `Could not create a new application (${response.status})`);
       }
-      window.location.href = `/client/application/long-form?country=${countryParam}&visaType=${result.visaType}&applicationId=${encodeURIComponent(body.applicationId)}`;
+      window.location.href = result.country === "KR"
+        ? buildKoreaArrivalCardGateHref(body.applicationId)
+        : `/client/application/long-form?country=${countryParam}&visaType=${result.visaType}&applicationId=${encodeURIComponent(body.applicationId)}`;
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : String(error));
       setStartingAgain(false);
     }
-  }, [countryParam, result.applicationId, result.visaType]);
+  }, [countryParam, result.applicationId, result.country, result.visaType]);
 
   return (
     <Card className="rounded-lg border-input">
@@ -468,7 +485,9 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
         {downloadError ? <ClientErrorAlert message={downloadError} /> : null}
         <Button asChild variant="ghost" className="w-full">
           <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
-            {isZh ? "打开官方入境卡网站" : "Open official arrival card website"}
+            {result.country === "KR"
+              ? (isZh ? "打开韩国入境卡 Check/Edit 官网" : "Open Korea e-Arrival Card Check/Edit")
+              : (isZh ? "打开官方入境卡网站" : "Open official arrival card website")}
             <ExternalLink className="ml-2 h-4 w-4" />
           </a>
         </Button>
@@ -484,6 +503,7 @@ function isDigitalArrivalCardResult(result: SubmissionResult): result is Digital
     (result.country === "PH" && "visaType" in result &&
       (result.visaType === "PH_ETRAVEL_ARRIVAL_CARD" || result.visaType === "PH_ETRAVEL_DEPARTURE_CARD")) ||
     (result.country === "VN" && "visaType" in result && result.visaType === "VN_PREARRIVAL_DECLARATION")
+    || (result.country === "KR" && "visaType" in result && result.visaType === "KR_E_ARRIVAL_CARD")
   );
 }
 
@@ -519,6 +539,7 @@ function visualStatusFromApplication(status: SubmissionResultStatus | null): Sub
     normalized === "stopped_at_sign" ||
     normalized === "stopped_at_pay" ||
     normalized === "stopped_at_review" ||
+    normalized === "blocked" ||
     normalized === "unsupported"
   ) {
     return "needs_user_action";
@@ -529,6 +550,7 @@ function visualStatusFromApplication(status: SubmissionResultStatus | null): Sub
 function isArrivalCardTarget(country: string | null | undefined, visaType: string | null | undefined): boolean {
   return (
     isSgArrivalCardApplication(country, visaType) ||
+    isKoreaEArrivalCardApplication(country, visaType) ||
     isMalaysiaMdacApplication(country, visaType) ||
     isThailandTdacApplication(country, visaType) ||
     isPhilippinesEtravelApplication(country, visaType) ||
@@ -684,6 +706,7 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
     isVietnamEVisaApplication(country, visaType) ||
     isIndonesiaEVisaApplication(country, visaType) ||
     isSgArrivalCardApplication(country, visaType) ||
+    isKoreaEArrivalCardApplication(country, visaType) ||
     isMalaysiaMdacApplication(country, visaType) ||
     isThailandTdacApplication(country, visaType) ||
     isPhilippinesEtravelApplication(country, visaType) ||
@@ -1422,6 +1445,7 @@ export function SubmissionStatusStep({
   visaType,
   status,
   result,
+  submissionStarting = false,
   onResubmit,
 }: SubmissionStatusStepProps) {
   const isZh = isChineseLocale(useLocale());
@@ -1445,9 +1469,24 @@ export function SubmissionStatusStep({
     setRetryError(null);
     setRetryCompleteness(null);
     setResubmitting(true);
+    const retryCountry = snapshot?.country ?? country;
+    const retryVisaType = snapshot?.visaType ?? visaType;
+    const optimisticStartedAt = new Date().toISOString();
+    setLocalRetryActive(true);
+    setSnapshot({
+      status: "queued",
+      stage: "preparing",
+      progress: fallbackProgressForStatus("queued", retryCountry, retryVisaType),
+      message: isZh ? "自动提交任务正在启动。" : "The automated submission is starting.",
+      result: null,
+      error: null,
+      updatedAt: optimisticStartedAt,
+      applicationStatus: "waiting",
+      country: retryCountry,
+      visaType: retryVisaType,
+      queue: null,
+    });
     try {
-      const retryCountry = snapshot?.country ?? country;
-      const retryVisaType = snapshot?.visaType ?? visaType;
       const isOfficialPaymentCardRetry =
         Boolean(vietnamPaymentCard) &&
         (
@@ -1521,6 +1560,7 @@ export function SubmissionStatusStep({
       ) {
         await onResubmit(mode, vietnamPaymentCard);
         setSnapshot(null);
+        setLocalRetryActive(false);
         return;
       }
       const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
@@ -1551,6 +1591,8 @@ export function SubmissionStatusStep({
           setRetryCompleteness(body.completeness);
         }
         setRetryError(message);
+        setSnapshot(null);
+        setLocalRetryActive(false);
         return;
       }
       const now = new Date().toISOString();
@@ -1584,6 +1626,10 @@ export function SubmissionStatusStep({
           updatedAt: now,
         },
       });
+    } catch (error) {
+      setSnapshot(null);
+      setLocalRetryActive(false);
+      throw error;
     } finally {
       setResubmitting(false);
     }
@@ -1732,6 +1778,7 @@ export function SubmissionStatusStep({
   useEffect(() => {
     if (!applicationId) return;
     if (
+      !submissionStarting &&
       shouldStopSubmissionStatusPolling({
         completedWithResult,
         failed,
@@ -1805,13 +1852,32 @@ export function SubmissionStatusStep({
           isRecord(body.queue) && typeof body.queue.id === "string"
             ? body.queue.id
             : null;
+        const polledApplicationStatus =
+          typeof body.applicationStatus === "string" ? body.applicationStatus : null;
+        // On the first submit click the new queue may not have been inserted
+        // when this request reaches the status endpoint. Never let a terminal
+        // snapshot from the previous attempt replace the parent's optimistic
+        // loading state while the new submission request is still in flight.
+        if (
+          submissionStarting &&
+          (
+            body.status === "failed" ||
+            body.status === "stalled" ||
+            polledApplicationStatus === "failed" ||
+            polledApplicationStatus === "stalled"
+          )
+        ) {
+          return;
+        }
         // The status endpoint can briefly return the previous terminal queue
         // immediately after a new retry is accepted. Keep the new loading UI
         // authoritative until the exact queue created by this click appears.
         if (
           localRetryActive &&
-          activeRetryQueueId &&
-          polledQueueId !== activeRetryQueueId
+          (
+            (activeRetryQueueId && polledQueueId !== activeRetryQueueId) ||
+            (!activeRetryQueueId && resubmitting)
+          )
         ) {
           return;
         }
@@ -1887,10 +1953,12 @@ export function SubmissionStatusStep({
     country,
     isZh,
     localRetryActive,
+    resubmitting,
     visaType,
     result,
     snapshotHasQueue,
     status,
+    submissionStarting,
   ]);
 
   const ukStoredResult = useMemo(() => {
@@ -1899,6 +1967,23 @@ export function SubmissionStatusStep({
     if (isUkPrefillSubmissionResult(effectiveResult)) return effectiveResult;
     return null;
   }, [effectiveResult, result, snapshot?.result]);
+
+  if (submissionStarting) {
+    return (
+      <div className="space-y-4">
+        <WaitingCard
+          status="queued"
+          stage="preparing"
+          serverProgress={fallbackProgressForStatus("queued", country, visaType)}
+          message={isZh ? "自动提交任务正在启动。" : "The automated submission is starting."}
+          applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(null)}
+          country={country}
+          visaType={visaType}
+        />
+      </div>
+    );
+  }
 
   if (resubmitting) {
     const isTaiwanResubmitting = isTaiwanEntryPermitApplication(snapshot?.country ?? country, snapshot?.visaType ?? visaType);
@@ -2315,6 +2400,9 @@ function renderSubmissionResultCard(
     case "TW":
       return <TwResultCard applicationId={applicationId ?? undefined} result={result} />;
     case "KR":
+      if (isDigitalArrivalCardResult(result)) {
+        return <DigitalArrivalCardResultCard result={result} />;
+      }
       return applicationId ? (
         <KrResultCard applicationId={applicationId} result={result} />
       ) : null;

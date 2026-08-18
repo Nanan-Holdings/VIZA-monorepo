@@ -350,7 +350,7 @@ export function FormFillingAssistant({
     setUndoFillError(null);
     if (!fillNotice) return;
     const noticeId = fillNotice.id;
-    const timeout = window.setTimeout(() => onDismissFillNotice(noticeId), 30_000);
+    const timeout = window.setTimeout(() => onDismissFillNotice(noticeId), 10_000);
     return () => window.clearTimeout(timeout);
   }, [fillNotice, onDismissFillNotice]);
 

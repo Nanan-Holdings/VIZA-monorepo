@@ -158,6 +158,74 @@ test("registry: resolves by country and visa type", () => {
   assert.equal(getCountrySubmissionProvider("unknownland", "NOPE"), null);
 });
 
+test("registry: Korea e-Arrival Card is an independent exact-flow provider", () => {
+  const arrival = getCountrySubmissionProvider("south_korea", "KR_E_ARRIVAL_CARD");
+  const visa = getCountrySubmissionProvider("south_korea", "KR_C39_SHORT_TERM_VISIT");
+  assert.ok(arrival);
+  assert.ok(visa);
+  assert.notEqual(arrival, visa);
+  assert.deepEqual(arrival.supportedVisaTypes, ["KR_E_ARRIVAL_CARD"]);
+  assert.equal(arrival.realSubmitAvailable, true);
+  assert.equal(arrival.routeStatus, "submission_queue_dispatched");
+  assert.ok(arrival.requiredFields.some((field) => field.key === "answers.declaration_confirmed"));
+
+  const validation = arrival.validate(baseApplication({
+    countryCode: "south_korea",
+    visaType: "KR_E_ARRIVAL_CARD",
+    answers: {
+      surname: "ZHANG",
+      given_name: "SAN",
+      date_of_birth: "1995-02-03",
+      sex: "Male",
+      nationality: "CHN",
+      passport_number: "E12345678",
+      passport_expiry_date: "2030-01-01",
+      email_address: "alias@example.com",
+      arrival_mode: "air",
+      arrival_date: "2026-09-01",
+      arrival_flight_or_ship: "KE123",
+      departure_mode: "air",
+      departure_date: "2026-09-05",
+      purpose_of_entry: "Tourism (individual)",
+      occupation: "Student",
+      stay_address_en: "1 Sejong-daero, Jung-gu, Seoul",
+      stay_postal_code: "04524",
+      stay_contact_phone: "0212345678",
+      declaration_confirmed: "true",
+    },
+  }));
+  assert.equal(validation.ok, true);
+  const payload = arrival.mapToSubmissionPayload(baseApplication({
+    countryCode: "south_korea",
+    visaType: "KR_E_ARRIVAL_CARD",
+    answers: {
+      surname: "ZHANG",
+      given_name: "SAN",
+      date_of_birth: "1995-02-03",
+      sex: "Male",
+      nationality: "CHN",
+      passport_number: "E12345678",
+      passport_expiry_date: "2030-01-01",
+      email_address: "alias@example.com",
+      arrival_mode: "air",
+      arrival_date: "2026-09-01",
+      arrival_flight_or_ship: "KE123",
+      departure_mode: "air",
+      departure_date: "2026-09-05",
+      purpose_of_entry: "Tourism (individual)",
+      occupation: "Student",
+      stay_address_en: "1 Sejong-daero, Jung-gu, Seoul",
+      stay_postal_code: "04524",
+      stay_contact_phone: "0212345678",
+      declaration_confirmed: "true",
+    },
+  }));
+  assert.equal(payload.countryCode, "KR");
+  assert.equal(payload.visaType, "KR_E_ARRIVAL_CARD");
+  assert.equal(payload.countrySpecific.sex, "Male");
+  assert.equal(payload.countrySpecific.purpose_of_entry, "Tourism (individual)");
+});
+
 test("registry: Taiwan routes to canonical runner_job live submit path", () => {
   const provider = getCountrySubmissionProvider("taiwan", "TW_ENTRY_PERMIT");
   assert.ok(provider);

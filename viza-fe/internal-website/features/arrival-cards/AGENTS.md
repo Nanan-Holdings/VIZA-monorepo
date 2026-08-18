@@ -10,6 +10,9 @@ specific to a single country such as SGAC, MDAC, or TDAC.
 ## Guardrails
 
 - Keep arrival-card package identities separate from visitor visa packages.
+- `application-lifecycle.ts` is the shared success gate. A successful official
+  submission locks the old form-filling assistant; only the explicit repeat-
+  submission action may open a new application where the assistant is enabled.
 - A repeat submission must create a new application and preserve previous
   confirmations or references on the old application.
 - Copy only stable traveller/profile answers into a repeat submission. Do not

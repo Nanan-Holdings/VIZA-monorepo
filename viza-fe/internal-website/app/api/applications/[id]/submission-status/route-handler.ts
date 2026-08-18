@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
-  isSgArrivalCardApplication,
   isUkMisroutedDryRunError,
   isUkPrefillSubmissionResult,
   ukPrefillProgressPercent,
 } from "@/lib/submission-queue";
+import {
+  resolveRunnerPoolFlow,
+  type RunnerPoolFlowKey,
+} from "@/lib/queue/flows";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import {
   isIndonesiaPaymentApplication,
@@ -75,6 +78,7 @@ type RunnerJobRow = {
   status: string;
   attempts: number | null;
   last_error: string | null;
+  available_at?: string | null;
   enqueued_at: string | null;
   started_at: string | null;
   finished_at: string | null;
@@ -86,8 +90,8 @@ type RunnerJobRow = {
 const SUBMISSION_QUEUE_STATUS_SELECT =
   "id, status, attempts, mode, provider, last_error, error_code, error_message, current_stage, heartbeat_at, manual_action_status, official_status, official_portal_url, payment_status, vn_result_payload, created_at, updated_at";
 
-const SGAC_RUNNER_STATUS_SELECT =
-  "id, status, attempts, last_error, enqueued_at, started_at, finished_at";
+const RUNNER_JOB_STATUS_SELECT =
+  "id, status, attempts, last_error, available_at, enqueued_at, started_at, finished_at";
 
 type DerivedStatus = {
   status: SubmissionApiStatus;
@@ -124,6 +128,8 @@ const COMPLETED_QUEUE_STATUSES = new Set([
   "tdac_live_assisted_completed",
   "phetravel_live_assisted_submitted",
   "phetravel_live_assisted_completed",
+  "kr_eac_live_assisted_submitted",
+  "kr_eac_live_assisted_completed",
 ]);
 
 const ACTION_REQUIRED_APPLICATION_STATUSES = new Set([
@@ -272,17 +278,50 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
   const queueStatus = normalizeStatus(queue?.status);
   const isVietnamPayment = isVietnamPaymentCheckpointQueue(queue);
   const isIndonesiaPayment = isIndonesiaPaymentCheckpointQueue(queue, application);
+  const isKoreaBlocked = queueStatus === "kr_eac_blocked";
   if (
     !queue ||
     !(
       queueStatus === "vn_blocked" ||
       isVietnamPayment ||
-      isIndonesiaPayment
+      isIndonesiaPayment ||
+      isKoreaBlocked
     )
   ) {
     return null;
   }
   const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  if (isKoreaBlocked) {
+    return {
+      country: "KR",
+      visaType: "KR_E_ARRIVAL_CARD",
+      status: "blocked",
+      mode: "live_assisted",
+      provider: queue.provider === "korea_e_arrival_card_dry_run"
+        ? "korea_e_arrival_card_dry_run"
+        : "korea_e_arrival_card_live",
+      applicationId: application.id,
+      submitted: false,
+      issueNumber: null,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl: queue.official_portal_url ?? "https://www.e-arrivalcard.go.kr/portal/",
+      portalResponseSummary:
+        queue.error_message ?? queue.last_error ?? "Korea e-Arrival Card requires attention before the official submission can continue.",
+      errorDetails: {
+        code: queue.error_code ?? "kr_eac_blocked",
+        message: queue.error_message ?? queue.last_error ?? "Korea e-Arrival Card submission is blocked.",
+      },
+      artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
+      payloadSummary: {
+        arrivalDate: typeof payload.arrivalDate === "string" ? payload.arrivalDate : null,
+        departureDate: typeof payload.departureDate === "string" ? payload.departureDate : null,
+        modeOfTravel: typeof payload.modeOfTravel === "string" ? payload.modeOfTravel : null,
+        transportNumber: null,
+        accommodationAddressProvided: false,
+      },
+    };
+  }
   const payloadActionType =
     typeof payload.actionType === "string" ? payload.actionType : null;
   const actionType = isVietnamPayment
@@ -492,7 +531,10 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     return { status: "queued", stage: "preparing", progress: 0 };
   }
 
-  if (queueStatus === "sgac_live_assisted_scheduled") {
+  if (
+    queueStatus === "sgac_live_assisted_scheduled" ||
+    queueStatus === "kr_eac_live_assisted_scheduled"
+  ) {
     return { status: "scheduled", stage: "scheduled", progress: 0 };
   }
 
@@ -588,7 +630,8 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     if (
       queueStatus === "sgac_live_assisted_pending" ||
       queueStatus === "mdac_live_assisted_pending" ||
-      queueStatus === "tdac_live_assisted_pending"
+      queueStatus === "tdac_live_assisted_pending" ||
+      queueStatus === "kr_eac_live_assisted_pending"
     ) {
       return { status: "queued", stage: "preparing", progress: 52 };
     }
@@ -666,27 +709,59 @@ export function selectQueueForSubmissionStatus(rows: QueueRow[]): QueueRow | nul
   return newestQueue(submissionRows);
 }
 
-export function sgacRunnerJobToQueueRow(row: RunnerJobRow): QueueRow {
+const RUNNER_JOB_STATUS_CONTRACT: Record<
+  RunnerPoolFlowKey,
+  { prefix: string; provider: string }
+> = {
+  vn_evisa: { prefix: "vn_live_assisted", provider: "vietnam_evisa_runner_job" },
+  vn_prearrival: {
+    prefix: "vn_prearrival_live_assisted",
+    provider: "vietnam_prearrival_runner_job",
+  },
+  sgac: { prefix: "sgac_live_assisted", provider: "sg_arrival_card_runner_job" },
+  mdac: { prefix: "mdac_live_assisted", provider: "malaysia_mdac_runner_job" },
+  tdac: { prefix: "tdac_live_assisted", provider: "thailand_tdac_runner_job" },
+  kr_eform: { prefix: "kr_eform", provider: "korea_eform_runner_job" },
+  kr_arrival_card: {
+    prefix: "kr_eac_live_assisted",
+    provider: "korea_e_arrival_card_runner_job",
+  },
+  tw_entry_permit: { prefix: "tw_live_assisted", provider: "taiwan_entry_permit_runner_job" },
+};
+
+function runnerJobIsScheduled(row: RunnerJobRow): boolean {
+  if (!row.available_at) return false;
+  const availableAtMs = Date.parse(row.available_at);
+  return Number.isFinite(availableAtMs) && availableAtMs > Date.now();
+}
+
+export function runnerPoolJobToQueueRow(
+  row: RunnerJobRow,
+  flowKey: RunnerPoolFlowKey,
+): QueueRow {
   const status = normalizeStatus(row.status);
+  const contract = RUNNER_JOB_STATUS_CONTRACT[flowKey];
   const queueStatus =
     status === "queued"
-      ? "sgac_live_assisted_pending"
+      ? runnerJobIsScheduled(row)
+        ? `${contract.prefix}_scheduled`
+        : `${contract.prefix}_pending`
       : status === "running"
-        ? "sgac_live_assisted_processing"
+        ? `${contract.prefix}_processing`
         : status === "succeeded"
           ? "done"
           : status === "paused"
             ? "stalled"
             : status === "cancelled" || status === "canceled"
-              ? "sgac_live_assisted_cancelled"
-              : "sgac_live_assisted_failed";
+              ? `${contract.prefix}_cancelled`
+              : `${contract.prefix}_failed`;
   const updatedAt = latestTimestamp(row.finished_at, row.started_at, row.enqueued_at);
   return {
     id: row.id,
     status: queueStatus,
     attempts: row.attempts,
     mode: "live_assisted",
-    provider: "sg_arrival_card_runner_job",
+    provider: contract.provider,
     last_error: row.last_error,
     error_code: null,
     error_message: row.last_error,
@@ -694,7 +769,9 @@ export function sgacRunnerJobToQueueRow(row: RunnerJobRow): QueueRow {
       status === "running"
         ? "official_portal_submission"
         : status === "queued"
-          ? "waiting_for_singapore_runner"
+          ? runnerJobIsScheduled(row)
+            ? "scheduled_for_submission_window"
+            : `waiting_for_${flowKey}_runner`
           : null,
     heartbeat_at: row.started_at,
     manual_action_status: null,
@@ -703,6 +780,19 @@ export function sgacRunnerJobToQueueRow(row: RunnerJobRow): QueueRow {
     updated_at: updatedAt,
     transport: "runner_job",
   };
+}
+
+export function sgacRunnerJobToQueueRow(row: RunnerJobRow): QueueRow {
+  return runnerPoolJobToQueueRow(row, "sgac");
+}
+
+export function runnerFlowForSubmissionStatus(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): RunnerPoolFlowKey | null {
+  const flow = resolveRunnerPoolFlow(country, visaType);
+  // Vietnam e-Visa intentionally stays on the sticky submission_queue worker.
+  return flow === "vn_evisa" ? null : flow;
 }
 
 export function deriveNonTerminalStatus(
@@ -812,7 +902,9 @@ export function deriveNonTerminalStatus(
       progress: 0,
       message:
         queueMessage ??
-        "SG Arrival Card is scheduled for automatic submission when the ICA three-day window opens.",
+        queueStatus === "kr_eac_live_assisted_scheduled"
+          ? "Korea e-Arrival Card is scheduled for automatic submission when the Korea-time window opens."
+          : "SG Arrival Card is scheduled for automatic submission when the ICA three-day window opens.",
       error: null,
     };
   }
@@ -932,7 +1024,10 @@ async function getSubmissionStatus(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const isSgArrivalCard = isSgArrivalCardApplication(application.country, application.visa_type);
+  const runnerFlow = runnerFlowForSubmissionStatus(
+    application.country,
+    application.visa_type,
+  );
   const queueQuery = admin
     .from("submission_queue")
     .select(SUBMISSION_QUEUE_STATUS_SELECT)
@@ -940,12 +1035,12 @@ async function getSubmissionStatus(
     .order("updated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(1);
-  const runnerQuery = isSgArrivalCard
+  const runnerQuery = runnerFlow
     ? admin
         .from("runner_job")
-        .select(SGAC_RUNNER_STATUS_SELECT)
+        .select(RUNNER_JOB_STATUS_SELECT)
         .eq("application_id", applicationId)
-        .eq("country", "singapore")
+        .eq("flow_key", runnerFlow)
         .order("enqueued_at", { ascending: false, nullsFirst: false })
         .limit(1)
     : null;
@@ -965,8 +1060,12 @@ async function getSubmissionStatus(
     ...row,
     transport: "submission_queue" as const,
   }));
-  if (isSgArrivalCard) {
-    candidateRows.push(...((runnerResult.data ?? []) as RunnerJobRow[]).map(sgacRunnerJobToQueueRow));
+  if (runnerFlow) {
+    candidateRows.push(
+      ...((runnerResult.data ?? []) as RunnerJobRow[]).map((row) =>
+        runnerPoolJobToQueueRow(row, runnerFlow),
+      ),
+    );
   }
 
   const queue = selectQueueForSubmissionStatus(candidateRows);
@@ -1016,7 +1115,7 @@ async function getSubmissionStatus(
       applicationStatus: queueResult
         ? "action_required"
         : queueOverridesApplication
-        ? queue?.status === "sgac_live_assisted_scheduled"
+        ? queue?.status?.endsWith("_scheduled")
           ? "scheduled"
           : queue?.status?.endsWith("_pending")
           ? "waiting"

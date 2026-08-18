@@ -354,6 +354,7 @@ export const OFFICIAL_FEE_CATALOG = [
     ["philippines", "PH_ETRAVEL_ARRIVAL_CARD", "PH", "https://etravel.gov.ph/"],
     ["philippines", "PH_ETRAVEL_DEPARTURE_CARD", "PH", "https://etravel.gov.ph/"],
     ["vietnam", "VN_PREARRIVAL_DECLARATION", "VN", "https://prearrival.immigration.gov.vn/"],
+    ["south_korea", "KR_E_ARRIVAL_CARD", "KR", "https://www.e-arrivalcard.go.kr/portal/"],
   ].map(([country, visaType, countryCode, officialUrl]) => ({
     country,
     visaType,

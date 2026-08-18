@@ -23,6 +23,7 @@ export type VisaDestinationRegionId =
   | "indonesia"
   | "vietnam"
   | "philippines"
+  | "south-korea"
   | "north-america"
   | "south-america"
   | "middle-east"
@@ -612,6 +613,28 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     region: "Asia",
   }),
   destination({
+    country: "south_korea",
+    countryName: "South Korea",
+    countryNameZh: "韩国",
+    visaType: "KR_E_ARRIVAL_CARD",
+    visaName: "Korea e-Arrival Card",
+    visaNameZh: "韩国电子入境卡",
+    description: "Korea e-Arrival Card traveller declaration for eligible foreign arrivals. It is separate from a visa or K-ETA.",
+    descriptionZh: "韩国电子入境卡入境申报，适用于符合条件的外国旅客；与签证和 K-ETA 分开。",
+    flag: "🇰🇷",
+    region: "Asia",
+    supportLabel: "Korea e-Arrival Card",
+    searchAliases: [
+      "Korea e-Arrival Card",
+      "Korea Arrival Card",
+      "e-Arrival Card",
+      "e-arrivalcard.go.kr",
+      "韩国入境卡",
+      "韩国电子入境卡",
+    ],
+    href: "/client/arrival-cards/south-korea",
+  }),
+  destination({
     country: "sri_lanka",
     countryName: "Sri Lanka",
     countryNameZh: "斯里兰卡",
@@ -796,6 +819,15 @@ const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destina
     countries: ["philippines"],
   },
   {
+    id: "south-korea",
+    name: "South Korea",
+    nameZh: "韩国",
+    description: "Choose the South Korea visa/K-ETA or e-Arrival Card workflow.",
+    descriptionZh: "选择韩国签证/K-ETA 或电子入境卡流程。",
+    flag: "🇰🇷",
+    countries: ["south_korea"],
+  },
+  {
     id: "north-america",
     name: "North America",
     nameZh: "北美",
@@ -908,13 +940,38 @@ function destinationIdsForCountries(countries: string[]): string[] {
     .map((destinationItem) => destinationItem.id);
 }
 
+/**
+ * Region URLs are presentation slugs while package rows use stable country
+ * keys. Keep that distinction explicit so the Korea country picker can use
+ * `/client/destinations/south-korea` without creating a second country card
+ * for `south_korea` on the East Asia page.
+ */
+function schemaChoiceCountryForRegionId(regionId: string): string | null {
+  switch (regionId) {
+    case "indonesia":
+    case "vietnam":
+    case "philippines":
+      return regionId;
+    case "south-korea":
+    case "south_korea":
+      return "south_korea";
+    default:
+      return null;
+  }
+}
+
+function canonicalRegionId(regionId: string): string {
+  return regionId === "south_korea" ? "south-korea" : regionId;
+}
+
 function regionGroupToDestination(group: VisaDestinationRegionGroup): PopularVisaDestination {
   const destinations = getVisaDestinationsForRegion(group.id);
-  const isSchemaChoiceGroup = group.id === "indonesia" || group.id === "vietnam" || group.id === "philippines";
+  const schemaChoiceCountry = schemaChoiceCountryForRegionId(group.id);
+  const isSchemaChoiceGroup = schemaChoiceCountry !== null;
   const isPhilippines = group.id === "philippines";
   return {
     id: `region-${group.id}`,
-    country: group.id,
+    country: schemaChoiceCountry ?? group.id,
     countryName: group.name,
     countryNameZh: group.nameZh,
     visaType: "REGION_GROUP",
@@ -964,7 +1021,7 @@ export const FEATURED_VISA_DESTINATIONS: PopularVisaDestination[] = [
 
 export const DESTINATION_REGION_GROUP_DESTINATIONS: PopularVisaDestination[] =
   VISA_DESTINATION_REGION_GROUPS
-    .filter((group) => group.id !== "indonesia" && group.id !== "vietnam" && group.id !== "philippines")
+    .filter((group) => !schemaChoiceCountryForRegionId(group.id))
     .map(regionGroupToDestination);
 
 export const POPULAR_VISA_DESTINATIONS: PopularVisaDestination[] = [
@@ -1096,6 +1153,7 @@ const VISA_TYPE_LABELS: Record<string, string> = {
   PH_ETRAVEL_DEPARTURE_CARD: "Philippines eTravel Departure Card",
   VN_PREARRIVAL_DECLARATION: "Vietnam Pre-Arrival Information Declaration",
   KR_C39_SHORT_TERM_VISIT: "C-3 Visa / K-ETA",
+  KR_E_ARRIVAL_CARD: "Korea e-Arrival Card",
   c3_or_keta: "C-3 Visa / K-ETA",
   eta_tourism: "Tourist ETA",
   visa_exemption_or_tourist_visa: "Tourist Entry",
@@ -1153,6 +1211,7 @@ const VISA_TYPE_LABELS_ZH: Record<string, string> = {
   PH_ETRAVEL_DEPARTURE_CARD: "电子出境卡",
   VN_PREARRIVAL_DECLARATION: "越南入境前申报",
   KR_C39_SHORT_TERM_VISIT: "C-3 签证 / 电子旅行授权",
+  KR_E_ARRIVAL_CARD: "韩国电子入境卡",
   c3_or_keta: "C-3 签证 / 电子旅行授权",
   eta_tourism: "旅游电子旅行授权",
   visa_exemption_or_tourist_visa: "旅游入境",
@@ -1182,11 +1241,12 @@ export function getPopularVisaDestination(destinationId: string): PopularVisaDes
 }
 
 export function getVisaDestinationRegionGroup(regionId: string): VisaDestinationRegionGroup | null {
-  return VISA_DESTINATION_REGION_GROUPS.find((group) => group.id === regionId) ?? null;
+  const canonicalId = canonicalRegionId(regionId);
+  return VISA_DESTINATION_REGION_GROUPS.find((group) => group.id === canonicalId) ?? null;
 }
 
 export function getVisaDestinationsForRegion(regionId: string): PopularVisaDestination[] {
-  const group = VISA_DESTINATION_REGION_GROUPS.find((regionGroup) => regionGroup.id === regionId);
+  const group = VISA_DESTINATION_REGION_GROUPS.find((regionGroup) => regionGroup.id === canonicalRegionId(regionId));
   if (!group) return [];
   const destinationIdSet = new Set(group.destinationIds);
   return SELECTABLE_VISA_DESTINATIONS.filter((destinationItem) => destinationIdSet.has(destinationItem.id));
@@ -1194,12 +1254,17 @@ export function getVisaDestinationsForRegion(regionId: string): PopularVisaDesti
 
 export function getDisplayVisaDestinationsForRegion(regionId: string): PopularVisaDestination[] {
   const destinations = getVisaDestinationsForRegion(regionId);
-  const schemaChoiceCountries = new Set(["indonesia", "vietnam", "philippines"]);
+  const schemaChoiceCountries = new Set([
+    "indonesia",
+    "vietnam",
+    "philippines",
+    "south_korea",
+  ]);
 
   // A country's own page must keep its separate visa/arrival-card choices.
   // Broader region pages show one country entry and defer that choice to the
   // dedicated country page.
-  if (schemaChoiceCountries.has(regionId)) return destinations;
+  if (schemaChoiceCountryForRegionId(regionId) !== null) return destinations;
 
   const groupedCountries = new Set<string>();
   return destinations.flatMap((destinationItem) => {
@@ -1208,7 +1273,7 @@ export function getDisplayVisaDestinationsForRegion(regionId: string): PopularVi
 
     groupedCountries.add(destinationItem.country);
     const countryGroup = VISA_DESTINATION_REGION_GROUPS.find(
-      (regionGroup) => regionGroup.id === destinationItem.country,
+      (regionGroup) => schemaChoiceCountryForRegionId(regionGroup.id) === destinationItem.country,
     );
     return countryGroup ? [regionGroupToDestination(countryGroup)] : [destinationItem];
   });
@@ -1327,16 +1392,54 @@ export function getVisaDestinationKey(country: string, visaType: string): string
   return `${getCanonicalVisaDestinationCountry(country)}::${getFormVisaType(visaType).toLowerCase()}`;
 }
 
+/**
+ * Join Chinese package labels without repeating a country suffix already
+ * included in the product name (for example, 中国台湾 + 台湾入境许可证).
+ *
+ * Chinese destination labels may be more specific than the product label's
+ * country wording, so checking only whether the visa label starts with the
+ * full destination label is not enough. The longest suffix/prefix overlap
+ * keeps the canonical destination label while removing only the duplicated
+ * portion.
+ */
+function joinChineseVisaPackageTitle(countryName: string, visaName: string): string {
+  const country = countryName.trim();
+  const visa = visaName.trim();
+  if (!country) return visa;
+  if (!visa) return country;
+
+  const maxOverlapLength = Math.min(country.length, visa.length);
+  for (let overlapLength = maxOverlapLength; overlapLength >= 2; overlapLength -= 1) {
+    const countrySuffix = country.slice(-overlapLength);
+    const visaPrefix = visa.slice(0, overlapLength);
+    if (countrySuffix.toLocaleLowerCase() === visaPrefix.toLocaleLowerCase()) {
+      return `${country}${visa.slice(overlapLength)}`;
+    }
+  }
+
+  return `${country}${visa}`;
+}
+
 export function getVisaPackageTitleZh(country: string, visaType: string): string {
   const destinationItem = getPopularVisaDestinationByPackage(country, visaType);
-  if (destinationItem) return `${destinationItem.countryNameZh}${destinationItem.visaNameZh}`;
-  return `${getDestinationDisplayNameZh(country)}${getVisaTypeDisplayNameZh(visaType)}`;
+  if (destinationItem) {
+    return joinChineseVisaPackageTitle(destinationItem.countryNameZh, destinationItem.visaNameZh);
+  }
+  return joinChineseVisaPackageTitle(getDestinationDisplayNameZh(country), getVisaTypeDisplayNameZh(visaType));
 }
 
 export function getVisaPackageTitle(country: string, visaType: string, locale?: string | null): string {
   if (isChineseDisplayLocale(locale)) return getVisaPackageTitleZh(country, visaType);
 
   const destinationItem = getPopularVisaDestinationByPackage(country, visaType);
-  if (destinationItem) return `${destinationItem.countryName} ${destinationItem.visaName}`;
+  if (destinationItem) {
+    if (
+      destinationItem.country === "south_korea" &&
+      getFormVisaType(visaType) === "KR_E_ARRIVAL_CARD"
+    ) {
+      return destinationItem.visaName;
+    }
+    return `${destinationItem.countryName} ${destinationItem.visaName}`;
+  }
   return `${getDestinationDisplayName(country)} ${getVisaTypeDisplayName(visaType)}`;
 }

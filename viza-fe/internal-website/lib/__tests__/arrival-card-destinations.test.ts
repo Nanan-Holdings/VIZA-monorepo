@@ -11,6 +11,7 @@ import {
 } from "../visa-destinations";
 import { isCountryLaunched } from "../launched-countries";
 import { matchesSearchText } from "../utils";
+import { SUPPORT_LABELS_ZH } from "../../components/client/home/DestinationRegionPageClient";
 
 describe("arrival card destination labels", () => {
   test("featured destinations contain exactly three unique country entries", () => {
@@ -151,12 +152,40 @@ describe("arrival card destination labels", () => {
     expect(getVisaPackageTitleZh("vietnam", "VN_E_VISA")).toBe("越南电子签证");
   });
 
+  test("Chinese package titles remove country wording repeated by the product label", () => {
+    expect(getVisaPackageTitleZh("taiwan", "TW_ENTRY_PERMIT")).toBe("中国台湾入境许可证");
+    expect(getVisaPackageTitleZh("south_korea", "KR_E_ARRIVAL_CARD")).toBe("韩国电子入境卡");
+  });
+
   test("South Korea C-3-9 search card is clickable as paper/KVAC assisted flow", () => {
     const southKorea = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "south_korea");
     expect(southKorea?.visaType).toBe("KR_C39_SHORT_TERM_VISIT");
     expect(southKorea?.visaNameZh).toBe("C-3 签证 / 电子旅行授权");
     expect(isCountryLaunched("south_korea")).toBe(true);
     expect(isCountryLaunched("kr")).toBe(true);
+  });
+
+  test("East Asia shows one Korea country card and the Korea page keeps two products", () => {
+    const eastAsiaKorea = getDisplayVisaDestinationsForRegion("east-asia").filter(
+      (destination) => destination.country === "south_korea",
+    );
+    expect(eastAsiaKorea).toHaveLength(1);
+    expect(eastAsiaKorea[0]?.kind).toBe("group");
+    expect(eastAsiaKorea[0]?.href).toBe("/client/destinations/south-korea");
+
+    const southKorea = getDisplayVisaDestinationsForRegion("south-korea");
+    expect(southKorea.map((destination) => destination.visaType).sort()).toEqual([
+      "KR_C39_SHORT_TERM_VISIT",
+      "KR_E_ARRIVAL_CARD",
+    ]);
+    expect(southKorea.find((destination) => destination.visaType === "KR_E_ARRIVAL_CARD")?.href).toBe(
+      "/client/arrival-cards/south-korea",
+    );
+    expect(getVisaTypeDisplayName("KR_E_ARRIVAL_CARD")).toBe("Korea e-Arrival Card");
+    expect(getVisaTypeDisplayNameZh("KR_E_ARRIVAL_CARD")).toBe("韩国电子入境卡");
+    expect(getVisaPackageTitle("south_korea", "KR_E_ARRIVAL_CARD")).toBe("Korea e-Arrival Card");
+    expect(getVisaPackageTitleZh("south_korea", "KR_E_ARRIVAL_CARD")).toBe("韩国电子入境卡");
+    expect(SUPPORT_LABELS_ZH["Korea e-Arrival Card"]).toBe("韩国电子入境卡");
   });
 
   test("tourist-country cards use canonical DB schema product codes", () => {

@@ -88,6 +88,7 @@ test("dispatch: shared-pool flow keys resolve only for their country", () => {
     ["singapore", "sgac"],
     ["malaysia", "mdac"],
     ["thailand", "tdac"],
+    ["south_korea", "kr_arrival_card"],
     ["south_korea", "kr_eform"],
     ["taiwan", "tw_entry_permit"],
   ] as const;
@@ -155,6 +156,7 @@ test("dispatch: every shared-pool flow forwards the ownership execution context"
   const executionSg = executionFor("job-sg");
   const executionMy = executionFor("job-my");
   const executionTh = executionFor("job-th");
+  const executionKrArrival = executionFor("job-kr-arrival");
   const executionKr = executionFor("job-kr");
   const executionTw = executionFor("job-tw");
   await dispatch.vn_evisa("app-vn", "job-vn", executionVn);
@@ -162,6 +164,7 @@ test("dispatch: every shared-pool flow forwards the ownership execution context"
   await dispatch.sgac("app-sg", "job-sg", executionSg);
   await dispatch.mdac("app-my", "job-my", executionMy);
   await dispatch.tdac("app-th", "job-th", executionTh);
+  await dispatch.kr_arrival_card("app-kr-arrival", "job-kr-arrival", executionKrArrival);
   await dispatch.kr_eform("app-kr", "job-kr", executionKr);
   await dispatch.tw_entry_permit("app-tw", "job-tw", executionTw);
 
@@ -171,6 +174,7 @@ test("dispatch: every shared-pool flow forwards the ownership execution context"
     { kind: "singapore", applicationId: "app-sg", jobId: "job-sg", execution: executionSg },
     { kind: "arrival", applicationId: "app-my", jobId: "job-my", flow: "mdac", execution: executionMy },
     { kind: "arrival", applicationId: "app-th", jobId: "job-th", flow: "tdac", execution: executionTh },
+    { kind: "arrival", applicationId: "app-kr-arrival", jobId: "job-kr-arrival", flow: "kr_arrival_card", execution: executionKrArrival },
     { kind: "korea", applicationId: "app-kr", jobId: "job-kr", execution: executionKr },
     { kind: "taiwan", applicationId: "app-tw", jobId: "job-tw", execution: executionTw },
   ]);
@@ -215,6 +219,7 @@ test("dispatch: every pool flow rejects missing or mismatched ownership before i
     ["sgac", () => dispatch.sgac("app", "job-sg", mismatched)],
     ["mdac", () => dispatch.mdac("app", "job-my", mismatched)],
     ["tdac", () => dispatch.tdac("app", "job-th", mismatched)],
+    ["kr_arrival_card", () => dispatch.kr_arrival_card("app", "job-kr-arrival", mismatched)],
     ["kr_eform", () => dispatch.kr_eform("app", "job-kr", mismatched)],
     ["tw_entry_permit", () => dispatch.tw_entry_permit("app", "job-tw", mismatched)],
   ];
@@ -227,6 +232,7 @@ test("dispatch: every pool flow rejects missing or mismatched ownership before i
     ["sgac", () => dispatch.sgac("app", undefined, undefined)],
     ["mdac", () => dispatch.mdac("app", undefined, undefined)],
     ["tdac", () => dispatch.tdac("app", undefined, undefined)],
+    ["kr_arrival_card", () => dispatch.kr_arrival_card("app", undefined, undefined)],
     ["kr_eform", () => dispatch.kr_eform("app", undefined, undefined)],
     ["tw_entry_permit", () => dispatch.tw_entry_permit("app", undefined, undefined)],
   ];

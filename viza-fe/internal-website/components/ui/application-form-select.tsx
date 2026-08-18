@@ -146,7 +146,13 @@ function ApplicationSearchableSelect({
   const [query, setQuery] = React.useState("");
   const [pendingQuery, setPendingQuery] = React.useState(false);
   const onSearchQueryRef = React.useRef(onSearchQuery);
-  const selected = options.find((option) => option.value === value);
+  const selectedMatches = options.filter((option) => option.value === value);
+  const selected = selectedMatches[0];
+  const selectedFlagCountryCodes = new Set(
+    selectedMatches.map((option) => option.flagCountryCode).filter(Boolean),
+  );
+  const selectedIsAmbiguous = selectedMatches.length > 1 && selectedFlagCountryCodes.size > 1;
+  const hasFlagOptions = options.some((option) => Boolean(option.flagCountryCode));
   const normalizedQuery = normalizeSearchText(query);
   const matchedOptions = React.useMemo(() => {
     if (!normalizedQuery) return options;
@@ -206,7 +212,10 @@ function ApplicationSearchableSelect({
         >
           <span className="flex min-w-0 items-center gap-2">
             {leadingIcon ? <span className="shrink-0 text-gray-400">{leadingIcon}</span> : null}
-            <span className={cn("truncate", !selected && "text-muted-foreground")}>{selected?.text || placeholder}</span>
+            <ApplicationOptionFlag countryCode={selectedIsAmbiguous ? undefined : selected?.flagCountryCode} />
+            <span className={cn("truncate", !selected && "text-muted-foreground")}>
+              {selectedIsAmbiguous ? value : selected?.text || placeholder}
+            </span>
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
         </ApplicationFormDropdownTrigger>
@@ -260,6 +269,10 @@ function ApplicationSearchableSelect({
                   }}
                 >
                   <Check className={cn("h-4 w-4 shrink-0 text-[#03346E]", value === option.value ? "opacity-100" : "opacity-0")} aria-hidden="true" />
+                  <ApplicationOptionFlag
+                    countryCode={option.flagCountryCode}
+                    reserveSpace={hasFlagOptions}
+                  />
                   <span className="min-w-0 break-words">{option.text}</span>
                 </button>
               ))}
