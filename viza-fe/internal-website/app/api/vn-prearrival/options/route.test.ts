@@ -108,10 +108,12 @@ describe("Vietnam pre-arrival official option mapping", () => {
     ]);
   });
 
-  it("retries the runner once when its cold-start request returns 503", async () => {
+  it("polls the same runner cache after an asynchronous refresh is accepted", async () => {
     const requests: Array<{ body: string | null; url: string }> = [];
     const delays: number[] = [];
+    let now = 1_000;
     const responses = [
+      new Response(JSON.stringify({ status: "refresh_started" }), { status: 202 }),
       new Response(JSON.stringify({ error: "catalog_not_refreshed" }), { status: 503 }),
       new Response(JSON.stringify({ catalogSource: "official_live", items: [] }), { status: 200 }),
     ];
@@ -133,13 +135,51 @@ describe("Vietnam pre-arrival official option mapping", () => {
       },
       delay: async (milliseconds) => {
         delays.push(milliseconds);
+        now += milliseconds;
       },
+      now: () => now,
     });
 
     expect(response.status).toBe(200);
-    expect(requests).toHaveLength(2);
+    expect(requests).toHaveLength(3);
     expect(requests[0]?.body).toContain('"refresh":true');
-    expect(delays).toEqual([1_000]);
+    expect(requests.slice(1).every((request) => request.body?.includes('"refresh":false'))).toBe(true);
+    expect(delays).toEqual([3_000, 3_000]);
+  });
+
+  it("polls after a legacy runner proxy timeout while its refresh continues", async () => {
+    const bodies: string[] = [];
+    let now = 10_000;
+    const responses = [
+      new Response(null, { status: 503 }),
+      new Response(JSON.stringify({ catalogSource: "official_live", items: [] }), { status: 200 }),
+    ];
+    const response = await __testables.fetchRunnerFlightCatalog({
+      baseUrl: "https://viza-runner-pool.fly.dev",
+      url: "https://viza-runner-pool.fly.dev/internal/vn-prearrival/flight-catalog",
+      headers: {},
+      wakePool: true,
+    }, {
+      keyword: "",
+      page: 0,
+      size: 5,
+      refresh: true,
+      selectedValue: "",
+    }, {
+      fetchRunner: async (_input, init) => {
+        bodies.push(init?.body?.toString() ?? "");
+        return responses.shift() ?? new Response(null, { status: 500 });
+      },
+      delay: async (milliseconds) => {
+        now += milliseconds;
+      },
+      now: () => now,
+    });
+
+    expect(response.status).toBe(200);
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toContain('"refresh":true');
+    expect(bodies[1]).toContain('"refresh":false');
   });
 
   it("does not retry a real official-catalog refresh failure", async () => {
