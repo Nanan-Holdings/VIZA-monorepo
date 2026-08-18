@@ -89,11 +89,12 @@ export const VN_PREARRIVAL_FORM_FIELDS: VnPrearrivalFieldDef[] = [
     step_number: 1,
     step_name: PASSENGER_STEP,
     display_order: 13,
-    validation_rules: rules("我已阅读并理解此信息", {
+    validation_rules: rules("我已阅读并理解以下签证信息说明", {
       official: true,
       official_gate: "visa_information",
-      helper_zh: "请提供越南签证信息（如适用）。所选签证类型决定允许入境的期限；请填写签证编号，以便在机场使用该服务。",
-      helper_en: "Provide details of your Vietnam visa (if applicable). Note: The selected visa type determines your permitted entry period. Important: Please enter your visa number to enable the service at the airport.",
+      helper_priority: "critical",
+      helper_zh: "签证信息说明：请按实际情况提供越南签证信息（如适用）。所选签证类型决定允许入境期限；请填写签证编号，以便在机场使用该服务。",
+      helper_en: "Visa information notice: Provide details of your Vietnam visa (if applicable). The selected visa type determines your permitted entry period. Enter your visa number to enable the service at the airport.",
     }),
   },
   { field_name: "visa_type", label: "Visa Type / Purpose", field_type: "select", required: true, step_number: 1, step_name: PASSENGER_STEP, display_order: 14, options: VN_PREARRIVAL_VISA_TYPE_OPTIONS, validation_rules: rules("签证类型/入境目的", { official: true, official_source: "prearrival_category:visa_type" }) },

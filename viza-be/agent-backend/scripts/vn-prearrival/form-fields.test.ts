@@ -83,7 +83,9 @@ describe("Vietnam Pre-Arrival official form schema", () => {
     const visaNumber = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_number");
 
     expect(acknowledgement?.validation_rules).toMatchObject({
-      helper_zh: expect.stringContaining("所选签证类型决定"),
+      label_zh: "我已阅读并理解以下签证信息说明",
+      helper_priority: "critical",
+      helper_zh: expect.stringMatching(/^签证信息说明：.*所选签证类型决定/),
       helper_en: expect.stringContaining("selected visa type determines"),
     });
     expect(visaNumber?.validation_rules).toMatchObject({

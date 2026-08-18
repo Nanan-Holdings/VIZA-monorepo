@@ -445,4 +445,25 @@ describe("bilingual schema contract", () => {
 
     expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe("护照号码（韩国测试文案）");
   });
+
+  it("restores the Vietnam pre-arrival visa notice for stale database rows", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "visa_information_acknowledgement",
+      label: "I have read and understood this information.",
+      fieldType: "checkbox",
+      validationRules: {
+        label_zh: "我已阅读并理解此信息",
+        official_gate: "visa_information",
+      },
+    }));
+
+    expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe("我已阅读并理解以下签证信息说明");
+    expect(normalized.validationRules).toMatchObject({
+      official_gate: "visa_information",
+      helper_priority: "critical",
+      helper_zh: expect.stringMatching(/^签证信息说明：.*所选签证类型决定/),
+      helper_en: expect.stringContaining("selected visa type determines"),
+    });
+  });
 });
