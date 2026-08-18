@@ -1,18 +1,41 @@
-.git
-.vercel
-**/.vercel
-**/.next
-**/node_modules
-**/.venv
-**/__pycache__
+# The Vercel projects select their own Root Directory under viza-fe. Keep both
+# deployable frontend roots in the Git archive; exclude only non-Vercel apps,
+# local credentials, browser profiles, and audit output here.
+/.agents
+/.claude
+/.codex
+/.codex-worktrees
+/.dev-logs
+/.git
+/.github
+/.ralph
+/.tmp
+/.venv
+/db
+/docs
+/knowledge-base
+/output
+/research
+/scripts
+/shared
+/supabase
+/travel-agent
+/vietnam-visa-helper-v1
+/viza-be
 
-viza-be
-knowledge-base
-docs
-scripts
-shared
-.agents
-
-*.png
-*.zip
 *.log
+*.zip
+/output-*.png
+/tmp-*
+/bilingual-schema-audit-report.*
+/architecture.payment
+/prd.json
+/progress.txt
+**/.env*
+**/.vercel
+**/node_modules
+**/.next
+**/.turbo
+**/__pycache__
+**/test-results
+**/playwright-report
