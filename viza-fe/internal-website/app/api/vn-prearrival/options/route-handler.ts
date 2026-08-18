@@ -446,12 +446,20 @@ async function ensureFlightCatalogServiceReady(
   const startPool = dependencies.startPool ?? ensureFlyMachineStarted;
   const waitForReady = dependencies.waitForReady ?? waitForHttpReady;
   const wake = await startPool("pool");
-  if (!wake.ok) return false;
+  if (!wake.ok) {
+    console.warn(`[vn-prearrival] flight_catalog_pool_wake_failed reason=${wake.reason}`);
+    return false;
+  }
   if (wake.state === "already_running") return true;
   const readiness = await waitForReady(`${config.baseUrl}/health`, {
     timeoutMs: 15_000,
     requestTimeoutMs: 4_000,
   });
+  if (!readiness.ok) {
+    console.warn(
+      `[vn-prearrival] flight_catalog_pool_readiness_failed attempts=${readiness.attempts}`,
+    );
+  }
   return readiness.ok;
 }
 
@@ -473,7 +481,10 @@ async function loadRunnerFlightCatalogPage(input: {
       cache: "no-store",
       signal: AbortSignal.timeout(280_000),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn(`[vn-prearrival] flight_catalog_runner_failed status=${response.status}`);
+      return null;
+    }
     const payload = await response.json() as RunnerFlightCatalogResponse;
     if (payload.catalogSource !== "official_live" || !Array.isArray(payload.items)) return null;
     const items = (payload.items as OfficialOption[])
