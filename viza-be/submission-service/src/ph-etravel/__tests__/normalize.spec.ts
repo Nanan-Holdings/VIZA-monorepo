@@ -289,9 +289,16 @@ test("normalizePhEtravelPortalPayload fails closed for SEA explicit false disemb
   );
 });
 
-test("normalizePhEtravelPortalPayload rejects stale arrival purpose and legacy AIR flight_number", () => {
+test("normalizePhEtravelPortalPayload accepts current POV999 code but rejects purpose labels and legacy AIR flight_number", () => {
+  assert.equal(
+    normalizePhEtravelPortalPayload(basePayload({
+      countrySpecific: { ...basePayload().countrySpecific, purpose_of_travel: "POV999" },
+    }), { now: new Date("2026-06-12T08:00:00+08:00") }).purposeOfTravel,
+    "POV999",
+  );
+
   for (const countrySpecific of [
-    { ...basePayload().countrySpecific, purpose_of_travel: "POV999" },
+    { ...basePayload().countrySpecific, purpose_of_travel: "Others" },
     { ...basePayload().countrySpecific, flight_code: "", flight_number: "PR101" },
   ]) {
     assert.throws(

@@ -294,7 +294,7 @@ test("SEA port-flow metadata fails closed for unknown, missing, malformed, or di
   });
 });
 
-test("SEA port-flow page gate never converts a false metadata flag into a manual flow", async () => {
+test("E49 SEA port-flow page gate matches manual/electronic content and fails closed on drift", async () => {
   const dynamicPagesEnabled = resolvePhEtravelSeaPortFlowMetadata({
     destinationPortCode: "TP0103",
     response: { data: [{ code: "TP0103", transportation_type: "SEA", with_custom_declaration: 1 }] },
@@ -308,17 +308,25 @@ test("SEA port-flow page gate never converts a false metadata flag into a manual
     status: "matched",
     flow: "electronic",
   });
-  assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesNotEnabled, pageFlow: "shared_confirmation" }), {
-    status: "action_required",
-    code: "sea_dynamic_page_gate_live_content_required",
+  assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesNotEnabled, pageFlow: "manual" }), {
+    status: "matched",
+    flow: "manual",
   });
   assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesNotEnabled, pageFlow: "electronic" }), {
     status: "action_required",
-    code: "sea_dynamic_page_gate_live_content_required",
+    code: "sea_port_flow_metadata_page_mismatch",
+  });
+  assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesNotEnabled, pageFlow: "shared_confirmation" }), {
+    status: "action_required",
+    code: "sea_port_flow_metadata_page_mismatch",
   });
   assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesEnabled, pageFlow: "manual" }), {
     status: "action_required",
     code: "sea_port_flow_metadata_page_mismatch",
+  });
+  assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesEnabled, pageFlow: null }), {
+    status: "action_required",
+    code: "sea_dynamic_page_gate_live_content_required",
   });
 
   const unavailable = await loadPhEtravelSeaPortFlowMetadata("TP0103", {
