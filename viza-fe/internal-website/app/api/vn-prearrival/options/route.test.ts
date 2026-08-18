@@ -67,6 +67,67 @@ describe("Vietnam pre-arrival official option mapping", () => {
     }, false, { startPool })).resolves.toBe(true);
   });
 
+  it("retries the runner once when its cold-start request returns 503", async () => {
+    const requests: Array<{ body: string | null; url: string }> = [];
+    const delays: number[] = [];
+    const responses = [
+      new Response(JSON.stringify({ error: "catalog_not_refreshed" }), { status: 503 }),
+      new Response(JSON.stringify({ catalogSource: "official_live", items: [] }), { status: 200 }),
+    ];
+    const response = await __testables.fetchRunnerFlightCatalog({
+      baseUrl: "https://viza-runner-pool.fly.dev",
+      url: "https://viza-runner-pool.fly.dev/internal/vn-prearrival/flight-catalog",
+      headers: { Authorization: "Bearer test-token" },
+      wakePool: true,
+    }, {
+      keyword: "MR681",
+      page: 0,
+      size: 5,
+      refresh: true,
+      selectedValue: "MR0681_PQC",
+    }, {
+      fetchRunner: async (input, init) => {
+        requests.push({ body: init?.body?.toString() ?? null, url: input.toString() });
+        return responses.shift() ?? new Response(null, { status: 500 });
+      },
+      delay: async (milliseconds) => {
+        delays.push(milliseconds);
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(requests).toHaveLength(2);
+    expect(requests[0]?.body).toContain('"refresh":true');
+    expect(delays).toEqual([1_000]);
+  });
+
+  it("does not retry a real official-catalog refresh failure", async () => {
+    let attempts = 0;
+    const response = await __testables.fetchRunnerFlightCatalog({
+      baseUrl: "https://viza-runner-pool.fly.dev",
+      url: "https://viza-runner-pool.fly.dev/internal/vn-prearrival/flight-catalog",
+      headers: {},
+      wakePool: true,
+    }, {
+      keyword: "",
+      page: 0,
+      size: 5,
+      refresh: true,
+      selectedValue: "",
+    }, {
+      fetchRunner: async () => {
+        attempts += 1;
+        return new Response(JSON.stringify({ error: "official_catalog_refresh_failed" }), { status: 502 });
+      },
+      delay: async () => {
+        throw new Error("unexpected retry delay");
+      },
+    });
+
+    expect(response.status).toBe(502);
+    expect(attempts).toBe(1);
+  });
+
   it("paginates the live flight catalog for incremental dropdown loading", () => {
     const result = __testables.paginateOptions(
       Array.from({ length: 25 }, (_, index) => `flight-${index}`),
