@@ -14,6 +14,10 @@ Current workspace:
 D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
 ```
 
+Production Vercel uploads use the root `.vercelignore` because the linked
+project's `rootDirectory` is `viza-fe/internal-website`. Keep local build
+artifacts and non-frontend services out of the deployment bundle.
+
 ## Local Test Admin
 
 Use this admin account for local portal smoke testing:
