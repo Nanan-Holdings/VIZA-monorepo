@@ -460,7 +460,7 @@ async function ensureFlightCatalogServiceReady(
     console.warn(`[vn-prearrival] flight_catalog_pool_wake_failed reason=${wake.reason}`);
     return false;
   }
-  const healthUrl = `${config.baseUrl}/health`;
+  const healthUrl = `${config.baseUrl}/ready`;
   const readiness = await waitForReady(healthUrl, {
     timeoutMs: 15_000,
     requestTimeoutMs: 4_000,
@@ -513,7 +513,7 @@ async function fetchRunnerFlightCatalog(
   });
   if (!input.refresh) return request(false, 10_000);
 
-  const deadline = now() + 240_000;
+  const deadline = now() + 180_000;
   let response: Response | null = null;
   let refreshAccepted = false;
   let pollingLogged = false;
@@ -591,6 +591,7 @@ async function loadOfficialFlightOptions(
     selectedValue: input.selectedValue,
   });
   if (runnerPage) return runnerPage;
+  if (input.refresh) return fallbackFlightSearch(keyword, page, size, input.selectedValue);
   const body = officialFlightSearchBody(keyword, page, size);
   try {
     const json = await fetchOfficialJson("/category/searchCategory/flight", {
