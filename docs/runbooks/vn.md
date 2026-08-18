@@ -37,7 +37,7 @@ KH/LA/LK/ZA/IN/AU runners, NOT used by the VN flow itself.
 
 - INFRA-002 producer in the Stripe webhook auto-enqueues runner_job
   rows with `country='vietnam'` once the agency fee clears.
-- OPS-004 canary monitors `https://evisa.gov.vn/` hourly; status
+- OPS-004 canary monitors `https://evisa.gov.vn/` every five minutes; status
   surfaces at `/admin/portal-health`.
 - OPS-005 SLA seeded at median 72 h / p95 168 h (3 working days +
   buffer); back-fill cron flips to `source='measured'` after ≥5

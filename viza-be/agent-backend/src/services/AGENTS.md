@@ -34,6 +34,8 @@ conversation state, and other cross-route behavior.
 - `korea-appointment/**`: Korea C-3-9 KVAC appointment service shell for
   slot observation, explicit user slot selection, and dry-run booking
   confirmation against the shared `appointment_*` data model.
+- `portal-health.service.ts`: bounded synthetic portal checks, transactional
+  observation persistence, and public status snapshot reads.
 
 ## Ownership Boundaries
 

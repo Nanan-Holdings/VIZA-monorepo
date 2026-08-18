@@ -33,6 +33,8 @@ and internal admin flows.
 - `admin-reminders.routes.ts`: admin reminder APIs.
 - `cron.routes.ts`: cron/status endpoints where mounted.
 - `telegram-webhook.ts`: Telegram approval webhook.
+- `public-status.routes.ts`: unauthenticated redacted status snapshot and the
+  separate bearer-secret-protected scheduled probe trigger.
 
 ## Ownership Boundaries
 

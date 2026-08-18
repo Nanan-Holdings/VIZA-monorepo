@@ -41,6 +41,8 @@ reports, and workflow documentation for VIZA.
 - `operations/viza-zero-ops-resilience.md`: three-layer database pressure,
   encrypted continuity, independent watchdog, replay, and disaster-recovery
   deployment runbook.
+- `observability/public-status-tracking.md`: ADR and deployment contract for
+  evidence-backed public service/portal availability.
 - `AGENT_COMPLETION_CHECKLIST.md`: evidence checklist for database-backed and
   persistence-related completion claims.
 - `superpowers/plans/*`: implementation plans written before staged feature
