@@ -39,6 +39,10 @@ Scope: this file applies to `lib/form-assistant/**`.
 - `validation-refresh.ts` guards automatic post-edit revalidation. A response
   may update the assistant and form only when both its request id and answer
   revision still match the latest snapshot.
+- Render assistant progress from the current merged form draft, not a previous
+  assistant API response. Remote-search official selects are controlled by
+  their product option endpoint and must not be rejected against a partial
+  static fallback list.
 - Knowledge sources and prompts must remain bound to the owned application's
   exact `country + visaType`. Never return the SGAC ICA fallback source for a
   different Singapore product or another country.

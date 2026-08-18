@@ -89,6 +89,22 @@ describe("FormFillingAssistant", () => {
     expect(screen.queryByRole("button", { name: "Review answers" })).not.toBeInTheDocument();
   });
 
+  it("updates the displayed progress when the parent form draft changes", () => {
+    const { props, rerender } = renderAssistant({
+      progress: { completed: 7, total: 21 },
+    });
+    expect(screen.getByText("7 of 21 fields complete")).toBeInTheDocument();
+    expect(screen.getByText("33%")).toBeInTheDocument();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <FormFillingAssistant {...props} progress={{ completed: 9, total: 21 }} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText("9 of 21 fields complete")).toBeInTheDocument();
+    expect(screen.getByText("43%")).toBeInTheDocument();
+  });
+
   it("keeps the full conversation history available", () => {
     renderAssistant({
       messages: [

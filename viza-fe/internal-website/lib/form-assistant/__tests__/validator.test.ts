@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WizardStep } from "@/types/visa-form-fields";
-import { validateApplicationAnswers } from "../validator";
+import { getAssistantProgress, validateApplicationAnswers } from "../validator";
 
 const steps: WizardStep[] = [
   {
@@ -204,6 +204,107 @@ describe("validateApplicationAnswers", () => {
     expect(result.errors.map((issue) => issue.code)).toEqual(
       expect.arrayContaining(["invalid_conditional_length", "date_after_submission_window"]),
     );
+  });
+
+  it("accepts Vietnam official day-first dates and remote official flight values", () => {
+    const vietnamSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Entry Information",
+      fields: [
+        {
+          id: "arrival",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "expected_arrival_date",
+          label: "Expected Arrival Date (DD/MM/YYYY GMT+7)",
+          fieldType: "date",
+          required: true,
+          stepNumber: 1,
+          stepName: "Entry Information",
+          displayOrder: 1,
+          placeholder: null,
+          validationRules: { min_date: "today", max_days_from_today: 2 },
+          options: null,
+          conditionalLogic: null,
+        },
+        {
+          id: "flight",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "flight_number",
+          label: "Flight Number",
+          fieldType: "select",
+          required: true,
+          stepNumber: 1,
+          stepName: "Entry Information",
+          displayOrder: 2,
+          placeholder: null,
+          validationRules: {
+            official_source: "prearrival_category:flight",
+            remote_search: true,
+          },
+          options: [{ value: "other", text: "Other" }],
+          conditionalLogic: null,
+        },
+      ],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: vietnamSteps,
+      answers: {
+        expected_arrival_date: "20/08/2026",
+        flight_number: "##HMZ2085_PQC",
+      },
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      now: new Date("2026-08-18T00:00:00Z"),
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it("still rejects impossible Vietnam day-first dates", () => {
+    const vietnamDateSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Entry Information",
+      fields: [{
+        id: "arrival",
+        visaType: "VN_PREARRIVAL_DECLARATION",
+        fieldName: "expected_arrival_date",
+        label: "Expected Arrival Date",
+        fieldType: "date",
+        required: true,
+        stepNumber: 1,
+        stepName: "Entry Information",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: null,
+        options: null,
+        conditionalLogic: null,
+      }],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: vietnamDateSteps,
+      answers: { expected_arrival_date: "31/02/2026" },
+      visaType: "VN_PREARRIVAL_DECLARATION",
+    });
+
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "invalid_date" }),
+    ]));
+  });
+
+  it("recalculates progress from the latest form draft", () => {
+    expect(getAssistantProgress(steps, {
+      arrival_date: "2026-08-20",
+      departure_date: "2026-08-22",
+      mode_of_travel: "land",
+    })).toEqual({ completed: 3, total: 3 });
+
+    expect(getAssistantProgress(steps, {
+      arrival_date: "2026-08-20",
+      departure_date: "2026-08-22",
+      mode_of_travel: "air",
+      transport_number: "SQ12",
+    })).toEqual({ completed: 4, total: 4 });
   });
 
   it("replaces a corrected Malaysia date error with newly introduced cross-field issues", () => {
