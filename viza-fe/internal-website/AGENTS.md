@@ -117,6 +117,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   is created by `supabase/migrations/*create_support_ticket_queue.sql`.
 - VIZA AI chat under `app/client/chat/**` and
   `components/client/companion/**`.
+- Chat application save blocks under `app/api/chat/save-block/**` may update
+  ordinary application details only. Country, visa type, package, and ownership
+  identity are immutable at this boundary and must use canonical lifecycle
+  paths.
 - Customer service support center under `app/client/support/**`; keep it
   separate from `/client/chat`.
 - U.S. B1/B2 appointment assistant under
@@ -274,11 +278,13 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   to `viza-be/agent-backend/drizzle/0151_kr_e_arrival_card.sql` and preserve the
   exact `KR_E_ARRIVAL_CARD` / `kr_arrival_card` isolation from Korea C-3 e-Form.
 - Dedicated arrival-card country/product repair is applied by
-  `supabase/migrations/20260818075658_repair_arrival_card_product_country_identity.sql`;
+  `supabase/migrations/20260818155521_repair_arrival_card_product_country_identity.sql`;
   keep it byte-identical to
   `viza-be/agent-backend/drizzle/0152_repair_arrival_card_product_country_identity.sql`.
   Product codes are authoritative for these country identities, and colliding
-  in-flight legacy drafts are archived rather than deleted.
+  in-flight legacy drafts are archived rather than deleted. Its catalog-backed
+  trigger also enforces exact linked-package identity and single-country
+  product alignment while preserving multi-country products such as Schengen.
 - The required U.S. DS-160 China issuing-post selector is applied by
   `supabase/migrations/20260729054904_add_ds160_consular_post.sql`; its stored
   values are the live CEAC location codes consumed by submission-service.

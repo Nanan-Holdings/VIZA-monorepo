@@ -102,3 +102,66 @@ $$;
 
 ALTER TABLE public.applications
   VALIDATE CONSTRAINT applications_arrival_card_product_country_check;
+
+-- Keep every catalog-backed application aligned as new products are added.
+-- A product offered by exactly one catalog country is country-bound; products
+-- offered by several countries (for example Schengen) stay multi-country.
+CREATE OR REPLACE FUNCTION public.enforce_application_product_country_identity()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  linked_package_country TEXT;
+  linked_package_visa_type TEXT;
+  catalog_country TEXT;
+  catalog_country_count INTEGER;
+BEGIN
+  IF NEW.visa_package_id IS NOT NULL THEN
+    SELECT
+      LOWER(TRIM(package.country)),
+      UPPER(TRIM(package.visa_type))
+    INTO linked_package_country, linked_package_visa_type
+    FROM public.visa_packages AS package
+    WHERE package.id = NEW.visa_package_id;
+
+    IF FOUND AND (
+      LOWER(TRIM(NEW.country)) IS DISTINCT FROM linked_package_country
+      OR UPPER(TRIM(NEW.visa_type)) IS DISTINCT FROM linked_package_visa_type
+    ) THEN
+      RAISE EXCEPTION
+        'Application country and visa type must match the linked visa package'
+        USING ERRCODE = '23514',
+              CONSTRAINT = 'applications_visa_package_identity';
+    END IF;
+  END IF;
+
+  SELECT
+    MIN(LOWER(TRIM(package.country))),
+    COUNT(DISTINCT LOWER(TRIM(package.country)))
+  INTO catalog_country, catalog_country_count
+  FROM public.visa_packages AS package
+  WHERE UPPER(TRIM(package.visa_type)) = UPPER(TRIM(NEW.visa_type))
+    AND NULLIF(TRIM(package.country), '') IS NOT NULL;
+
+  IF catalog_country_count = 1
+    AND LOWER(TRIM(NEW.country)) IS DISTINCT FROM catalog_country
+  THEN
+    RAISE EXCEPTION
+      'Application country must match the country-bound visa product'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'applications_product_country_identity';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS applications_product_country_identity_guard
+  ON public.applications;
+
+CREATE TRIGGER applications_product_country_identity_guard
+BEFORE INSERT OR UPDATE OF country, visa_type, visa_package_id
+ON public.applications
+FOR EACH ROW
+EXECUTE FUNCTION public.enforce_application_product_country_identity();

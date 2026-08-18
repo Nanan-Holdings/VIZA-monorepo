@@ -95,7 +95,9 @@ The current internal automation migrations are:
 - `0152_repair_arrival_card_product_country_identity.sql`: repairs legacy
   dedicated arrival-card rows whose stored country conflicts with their product
   code, archives colliding in-flight drafts, and adds the database invariant
-  that prevents another cross-country product identity.
+  that prevents another cross-country product identity. Its catalog-backed
+  trigger also enforces exact linked-package identity and the canonical country
+  for every product offered by exactly one country.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.
