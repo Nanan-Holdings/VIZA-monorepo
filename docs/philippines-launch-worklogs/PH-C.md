@@ -1423,3 +1423,10 @@ Currency page appeared after page 4 had item 1 Yes and item 2 Yes, with item 12 
 - SEA destination port 继续只按 official code 恢复，重复 label（如 Port of Legazpi 的 `TP120`/`LEGAZPI`）不会触发 label fallback。`with_custom_declaration=0` 现在作为已观察 manual customs path 的 metadata hint，`=1` 作为 electronic customs hint；实际 runner 仍必须按页面标题/控件做 drift detection，metadata 与页面不一致即 action-required，不会误点 final Submit。
 - Focused tests：PH runner suite `188 passed`；`submission-service npm run type-check` passed；`git diff --check` passed。未访问官网、未启动真实 job/账号/OTP/CAPTCHA、未部署或 final Submit。
 - Remaining production blockers：Summary/final Submit 授权、authoritative registration read、reference-derived QR、SEA/customs server acceptance 与未闭合分支证据仍保持 fail-closed/no-resubmit。
+
+## Trusted result / recovery offline closure（2026-08-18）
+
+- 复核 result/read/recovery/final-submit 链路：final Submit 仍默认关闭；HTTP 200、Submit 可见、Summary、本地 reference 或本地 QR 都不能直接变成 submitted。只有 authoritative registration read 的 stable reference 与同 reference 的 QR render gate 通过后，才允许同步内部 submitted 状态。
+- 新增 PH-only frontend state projection：runner checkpoints 可稳定区分 `processing`、`action_required`、`failed`、`recovery_required`、`submitted`，且不携带 PII、官方页面文本或 runtime 数据。补测 final POST success-shaped checkpoint -> recovery、恢复路径先查 authoritative registration、active duplicate/idempotency/no-resubmit 边界。
+- Focused tests：result/recovery/final-submit/runner-job/state-sync/cutover `33 passed`；`submission-service npm run type-check` passed；`git diff --check` passed。未访问官网、未运行真实 job/login/OTP/CAPTCHA、未部署、未 migration、未 final Submit。
+- Remaining production blockers：真实 final Submit 授权后的 authoritative registration read/QR render 仍需 controlled production evidence；DB RPC/cutover 部署状态仍需上线侧确认。
