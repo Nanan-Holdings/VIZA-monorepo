@@ -13,5 +13,12 @@ export default async function AdminDashboardLayout({
     redirect("/admin/login");
   }
 
-  return <AdminLayoutContent>{children}</AdminLayoutContent>;
+  return (
+    <AdminLayoutContent
+      userName={user.name || user.email || "VIZA Admin"}
+      userRole={user.role}
+    >
+      {children}
+    </AdminLayoutContent>
+  );
 }

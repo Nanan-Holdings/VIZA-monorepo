@@ -5,7 +5,7 @@ import { useLocale } from "next-intl";
 import VisaCountryRich from "@/components/VisaCountryRich";
 import VisaCountryTemplate from "@/components/VisaCountryTemplate";
 import ComingSoon from "@/components/ComingSoon";
-import { countryBySlug } from "@/lib/countries";
+import { useCatalogue } from "@/components/CatalogueProvider";
 import { contentBySlug } from "@/lib/visa-content";
 
 /**
@@ -24,6 +24,7 @@ export default function VisaCountryPage() {
   const params = useParams();
   const locale = useLocale();
   const slug = String(params.country ?? "");
+  const { countryBySlug } = useCatalogue();
   const country = countryBySlug(slug);
 
   if (!country) {

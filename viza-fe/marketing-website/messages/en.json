@@ -284,6 +284,7 @@
     "save": "Save",
     "startApplication": "Start application",
     "seePricing": "See pricing",
+    "catalogueUnavailable": "No destinations are open for online applications right now. Please check back soon.",
     "choosePassport": "Choose your passport",
     "searchPassport": "Search passport country…",
     "visaFree": "{n} visa-free",

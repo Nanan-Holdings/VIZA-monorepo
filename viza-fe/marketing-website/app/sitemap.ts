@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { locales, defaultLocale } from "@/i18n";
-import { LAUNCHED_COUNTRIES, visaHref } from "@/lib/countries";
+import { visaHref } from "@/lib/countries";
+import { getPublishedCatalogue } from "@/lib/public-catalogue";
 
 /**
  * Static marketing routes + every launched visa country page (MKT-012).
@@ -18,11 +19,12 @@ const STATIC_ROUTES = [
   "/legal/terms",
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://viza.it.com").replace(/\/$/, "");
   const now = new Date();
 
-  const visaRoutes = LAUNCHED_COUNTRIES.map((c) => visaHref(c.slug));
+  const published = await getPublishedCatalogue();
+  const visaRoutes = published.map((c) => visaHref(c.slug));
   const routes = [...STATIC_ROUTES, ...visaRoutes];
 
   return locales.flatMap((locale) =>

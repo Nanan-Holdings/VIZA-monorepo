@@ -54,6 +54,20 @@ application lifecycle state.
   `settle_runner_job_takeover` RPC. The completion RPC receives the answer map
   so answer upserts and settlement remain atomic; focused race/conflict
   coverage lives in `takeover.test.ts`.
+- `admin-work-items.ts`: reconciles durable operational exceptions into the
+  staff queue and owns auditable assignment/status transitions.
+- `admin-commerce.ts`: audited provisioning retry, refund decision, and
+  approved line-based refund execution commands.
+- `admin-documents.ts`, `admin-privacy.ts`, `admin-leads.ts`: auditable admin
+  decisions for document review, data rights, and marketing lead handling.
+- `admin-submission.ts`: audited, state-checked runner retry commands that refuse
+  to race an active operator takeover.
+- `admin-catalogue.ts`: validates public catalogue drafts and executes atomic,
+  auditable publish/retire commands through database functions.
+- `admin-disputes.ts`: synchronizes Stripe disputes, stages evidence, uploads
+  evidence files, and submits the reviewed response without exposing API keys.
+- `admin-appointments.ts`: owns the staff-side appointment case, expires only
+  persisted-overdue actions, and captures missing official confirmation evidence.
 
 ## Ownership Boundaries
 

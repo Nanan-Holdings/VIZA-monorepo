@@ -4,8 +4,9 @@ import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
-import { LAUNCHED_COUNTRIES, visaHref, type CountryMeta } from "@/lib/countries";
+import { visaHref, type CountryMeta } from "@/lib/countries";
 import { priceBreakdownSgd } from "@/lib/pricing";
+import { useCatalogue, type CatalogueCountry } from "@/components/CatalogueProvider";
 import type { IconName, VisaContent } from "@/lib/visa-content/types";
 import "./visa-rich.css";
 import SiteFooter from "@/components/SiteFooter";
@@ -82,12 +83,13 @@ export default function VisaCountryRich({
   country,
   content,
 }: {
-  country: CountryMeta;
+  country: CountryMeta & Pick<CatalogueCountry, "pricing">;
   content: VisaContent;
 }) {
   const locale = useLocale();
   const t = useTranslations("visa");
   const tc = useTranslations("countries");
+  const { launchedCountries } = useCatalogue();
 
   // Section-tab pill + scroll-spy. Layout-driven (not country-specific) — kept
   // verbatim from the former bespoke Indonesia page.
@@ -125,8 +127,8 @@ export default function VisaCountryRich({
     };
   }, []);
 
-  const nearby = LAUNCHED_COUNTRIES.filter((c) => c.slug !== country.slug).slice(0, 4);
-  const price = priceBreakdownSgd(country.visaType);
+  const nearby = launchedCountries.filter((c) => c.slug !== country.slug).slice(0, 4);
+  const price = priceBreakdownSgd(country.pricing);
   const localName = tc.has(country.slug) ? tc(country.slug) : country.name;
 
   // Group FAQ by category, preserving authoring order.
