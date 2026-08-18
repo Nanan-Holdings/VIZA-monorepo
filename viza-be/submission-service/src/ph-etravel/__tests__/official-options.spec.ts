@@ -9,12 +9,13 @@ import {
   resolvePhEtravelSeaDestinationPortOption,
 } from "../official-options";
 
-test("E46 only admits the current 15 official arrival purpose codes", () => {
-  assert.equal(PH_ETRAVEL_CURRENT_ARRIVAL_PURPOSE_OPTIONS.length, 15);
+test("E49 admits the current 16 official arrival purpose codes by code only", () => {
+  assert.equal(PH_ETRAVEL_CURRENT_ARRIVAL_PURPOSE_OPTIONS.length, 16);
   assert.equal(isPhEtravelCurrentArrivalPurposeCode("POV001"), true);
   assert.equal(isPhEtravelCurrentArrivalPurposeCode("OFW"), true);
-  assert.equal(isPhEtravelCurrentArrivalPurposeCode("POV999"), false);
+  assert.equal(isPhEtravelCurrentArrivalPurposeCode("POV999"), true);
   assert.equal(isPhEtravelCurrentArrivalPurposeCode("Holiday/Pleasure/Vacation"), false);
+  assert.equal(isPhEtravelCurrentArrivalPurposeCode("Others"), false);
 });
 
 test("E46 AIR options recover by code and enforce the selected airline parent", () => {

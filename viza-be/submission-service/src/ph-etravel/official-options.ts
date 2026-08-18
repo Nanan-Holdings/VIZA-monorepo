@@ -8,7 +8,7 @@ export const PH_ETRAVEL_REFERENCE_PATTERNS = [
 ] as const;
 
 /**
- * E46 is a dated public-option baseline. Purpose values are the only arrival
+ * E49 is a dated public-option baseline. Purpose values are the only arrival
  * options whose complete current code set is suitable for an in-process
  * allowlist; airline, flight, and port catalogues must be supplied at runtime.
  */
@@ -28,6 +28,7 @@ export const PH_ETRAVEL_CURRENT_ARRIVAL_PURPOSE_OPTIONS = [
   { code: "POV012", name: "Transit" },
   { code: "POV017", name: "Meetings" },
   { code: "POV018", name: "Trade Fair/Exhibition" },
+  { code: "POV999", name: "Others" },
 ] as const;
 
 const PH_ETRAVEL_CURRENT_ARRIVAL_PURPOSE_CODES = new Set<string>(

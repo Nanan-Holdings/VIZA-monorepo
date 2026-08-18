@@ -1416,3 +1416,10 @@ Currency page appeared after page 4 had item 1 Yes and item 2 Yes, with item 12 
 - 复核当前 `9053cd2f` runner：AIR flight 已按官方 `code`/`name` 与 airline parent 映射，SEA destination port 只接受 official code，arrival purpose 拒绝 `POV999`/Others；Review、signature、family、Summary、ambiguous submit、authoritative read/reference/QR 仍保持 fail-closed/no-resubmit。
 - 仅补 focused regression：Q1/Q2 positive 不生成 goods Add Item；Q3-Q12 每个 Yes 都生成对应 checklist item number 的 Add Item、Description、Quantity、Amount in USD 和 Add row 动作，且 action plan 不含 Next/signature/Family/Summary/final Submit。
 - Focused tests：PH runner suite `188 passed`；`submission-service npm run type-check` passed；`git diff --check` passed。未访问官网、未启动真实 job/账号/OTP/CAPTCHA、未部署或 final Submit。
+
+## E48/E49 runner evidence consumption（2026-08-18）
+
+- 消费 PH-A E48/E49：arrival purpose allowlist 更新为当前官方 UI-shaped 16 个 code，`POV999`/Others 仅按 `POV999` code 接受，展示 label `Others` 仍不能提交。AIR flight 继续使用官方 `code`/`name` 与 airline parent；SEA voyage number 仍映射到官方 `flight_number` 控件。
+- SEA destination port 继续只按 official code 恢复，重复 label（如 Port of Legazpi 的 `TP120`/`LEGAZPI`）不会触发 label fallback。`with_custom_declaration=0` 现在作为已观察 manual customs path 的 metadata hint，`=1` 作为 electronic customs hint；实际 runner 仍必须按页面标题/控件做 drift detection，metadata 与页面不一致即 action-required，不会误点 final Submit。
+- Focused tests：PH runner suite `188 passed`；`submission-service npm run type-check` passed；`git diff --check` passed。未访问官网、未启动真实 job/账号/OTP/CAPTCHA、未部署或 final Submit。
+- Remaining production blockers：Summary/final Submit 授权、authoritative registration read、reference-derived QR、SEA/customs server acceptance 与未闭合分支证据仍保持 fail-closed/no-resubmit。
