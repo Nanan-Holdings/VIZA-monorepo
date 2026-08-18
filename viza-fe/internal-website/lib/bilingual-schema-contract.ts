@@ -623,6 +623,25 @@ function normalizeTaiwanOccupationDependentField(field: VisaFormFieldRow): Parti
   return {};
 }
 
+function normalizeVnPrearrivalVisaInformationField(field: VisaFormFieldRow): Partial<VisaFormFieldRow> {
+  if (
+    field.visaType !== "VN_PREARRIVAL_DECLARATION"
+    || normalizeFieldName(field.fieldName) !== "visa_information_acknowledgement"
+  ) {
+    return {};
+  }
+
+  return {
+    validationRules: {
+      ...(field.validationRules ?? {}),
+      label_zh: "我已阅读并理解以下签证信息说明",
+      helper_priority: "critical",
+      helper_zh: "签证信息说明：请按实际情况提供越南签证信息（如适用）。所选签证类型决定允许入境期限；请填写签证编号，以便在机场使用该服务。",
+      helper_en: "Visa information notice: Provide details of your Vietnam visa (if applicable). The selected visa type determines your permitted entry period. Enter your visa number to enable the service at the airport.",
+    },
+  };
+}
+
 const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   full_name: "护照上的完整姓名",
   applicant_full_name: "申请人护照上的完整姓名",
@@ -1692,14 +1711,17 @@ export function normalizeBilingualOption(option: VisaFormFieldOption): VisaFormF
 export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T): T {
   const taiwanAddressOverride = normalizeTaiwanAddressField(field);
   const taiwanOccupationOverride = normalizeTaiwanOccupationDependentField(field);
+  const vnPrearrivalVisaInformationOverride = normalizeVnPrearrivalVisaInformationField(field);
   const fieldWithOverrides = {
     ...field,
     ...taiwanAddressOverride,
     ...taiwanOccupationOverride,
+    ...vnPrearrivalVisaInformationOverride,
     validationRules: {
       ...(field.validationRules ?? {}),
       ...(taiwanAddressOverride.validationRules ?? {}),
       ...(taiwanOccupationOverride.validationRules ?? {}),
+      ...(vnPrearrivalVisaInformationOverride.validationRules ?? {}),
     },
   };
   const labelZh = deriveChineseFieldLabel(fieldWithOverrides);

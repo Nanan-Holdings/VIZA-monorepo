@@ -258,6 +258,12 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   it updates Chinese labels and option display text only, while preserving
   official English wording, stored values, and submission mappings. Keep it
   aligned with the runtime safety net in `lib/bilingual-schema-contract.ts`.
+- The Vietnam pre-arrival visa-information acknowledgement is made
+  self-contained and visibly renders its official notice through
+  `supabase/migrations/20260818121932_show_vn_prearrival_visa_information_notice.sql`;
+  keep its critical bilingual helper aligned with
+  `viza-be/agent-backend/scripts/vn-prearrival/form-fields.ts` and the stale-DB
+  safety net in `lib/bilingual-schema-contract.ts`.
 - The required U.S. DS-160 China issuing-post selector is applied by
   `supabase/migrations/20260729054904_add_ds160_consular_post.sql`; its stored
   values are the live CEAC location codes consumed by submission-service.
