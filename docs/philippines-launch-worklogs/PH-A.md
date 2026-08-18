@@ -2221,3 +2221,22 @@
 - Attachment bundle 证据：positive attachment/signature 组件使用 `attachments[]`，上传项映射 `{description,url,mime_type}`，client `fileTypes` 为 `image/png`、`image/jpg`、`image/jpeg`，默认 `maxFileSize` 为 `5242880` bytes；未找到 attachments 最小数量 schema。结合 E45，AIR Q3-Q12-positive 路径空附件加有效签名可到 Family；服务器格式/数量/大小、上传接受和 SEA parity 仍 `needs_review`。
 - 保留 live-only：`is_disembarking=false`、Hotel/Resort 实际提交值、AIR flight-to-destination live clear/autofill、source/purpose `OTHER` 当前实页冲突、PHP/BSP 正向触发、courier live requiredness、SEA positive post-currency continuation、authoritative registration read、reference/QR 对应与 recovery/retry。
 - 未改代码、协调总览或其他 worklog；未运行 migration、seed、deploy、官网登录、OTP/CAPTCHA、付款、registration read 或 final Submit。
+
+## 第四十八轮 E48 SEA 官方 live manual-customs route 到 Summary（2026-08-18）
+
+- 使用用户当前已登录 Chrome 中已打开的官方 SEA arrival 草稿，从 `wizard_page=0` 逐页推进到 `New Travel Declaration Summary`；全程只用合成非敏感答案，未记录草稿 URL/id、账号、Cookie、OTP、密钥、profile/family 值或任何真实 PII。底部看到 `Submit` 后立即停止，未点击 final Submit。
+- 页面顺序已确认：`Travel Details - Philippine Arrival (via SEA)` -> `Health Declaration` -> `Customs Declaration Confirmation / Important Information` manual forms notice -> `Family Member(s)` + no-companion confirmation -> `New Travel Declaration Summary`。本路线未出现 online General Declaration、Currency Declaration、Other Travel Details、附件上传或 signature 页；该结论只适用于本次所选 SEA manual-customs 路径，不外推 SEA electronic/其他 port/crew/cruise。
+- SEA page 0 live 字段已核验：`purpose_of_visit_code`、`passenger_type`、`vessel_name`、`flight_number`（显示 label 为 `Voyage Number`）、`origin_country_code`、`origin_port`、`departure_date`、`with_transit`、`transit_country_code`、`transit_port`、`transit_date`、`destination_port_code`、`arrival_date`。空值 Next 确认 vessel/voyage/origin/departure/transit/destination/arrival 为 Required；Purpose 与 Traveller Type 因草稿已有值未隔离 requiredness。
+- 选项冲突：live Purpose 下拉显示 16 个 label，包含 `Others`；但 E47 当日 public API 仍只有 15 项且无 `POV999`/`Others`。已在合同中改为 live label confirmed、submitted code/API parity `needs_review`/mismatch，PH-C 不得凭旧 `POV999` 或 label 直接提交。
+- Traveller Type live label 为 `VESSEL CREW` / `VESSEL PASSENGER`；本轮只用 `VESSEL PASSENGER` 走普通路线。仅 page 0 临时切换 `VESSEL CREW` 时可见字段结构相同，未推进 crew，下游仍 `unsupported_v1`/`needs_review`。
+- Health live 空值 Next 确认三项基础 Yes/No 均 Required，并出现 toast `Please make sure to fill out all required fields.`；本轮选择 No/No/No 只关闭负向主线，不重复健康正向分支。
+- 已更新 `docs/philippines-etravel-arrival-field-contract.md` 的 E48：写入页面矩阵、字段矩阵、PH-B/C/D delta 和剩余 gaps。未修改协调总览、代码、schema、frontend、runner、seed、migration、部署或其他 worklog。
+
+## 第四十九轮 E49 SEA 当前草稿缺口补证（2026-08-18）
+
+- 从 E48 保留的官方 SEA Summary/Review handoff 使用 `Previous` 安全回退到 `wizard_page=0`；未点击 final `Submit`，未创建新申报，未读取 Cookie/localStorage/账号存储，未记录页面中的邮箱、个人资料、草稿 id、合成填写值或任何 PII。
+- `Others` 已闭合：live Purpose DOM 仍只暴露 label/临时 id，但公开 bundle 证明官方 UI 使用 `/api/v1/common/purpose_of_visits?` + `for_arrival=1` + `order_by=name`/`status_by=asc` 等过滤；同形官方 public API 返回 `POV999` / `Others`，`q=Others&for_arrival=1` 也返回单行 `POV999`。因此 E47/E48 的 no-`Others` mismatch 被 E49 supersede：PH-B/PH-C 应恢复 `POV999` 为当前官方动态 option code，但仍按 API 动态获取，不写死永久枚举。
+- SEA destination seaport DOM 只暴露 label 和 Headless UI 临时 id；稳定 code/value 以官方 `travel_ports` API 为准。本轮记录完整 53 row：53 distinct codes、52 distinct labels、`with_custom_declaration=0` 40 个、`1` 13 个，`Port of Legazpi` 有 `TP120` / `LEGAZPI` 两个 code，继续禁止 label mapping。
+- 当前 E48 draft selected label `Basco Batanes` 在官方列表唯一映射 `BSCBTN`，`with_custom_declaration=0`，其 live route 到 manual forms notice；此前 E8/E9 `Manila South Harbor` 映射 `TP0103`，`with_custom_declaration=1`，其 live route 到 electronic customs/signature/family/summary。未在同一 Review-reached draft 上改目的港并重存，因为会改变当前测试草稿；只记录 port metadata 与既有 live route 的相关性，不声称 same-draft only-port-change 已证明。
+- 未推进 `VESSEL CREW`；它继续 `unsupported_v1`/`needs_review`，非本轮普通旅客发布阻断。
+- 已更新 `docs/philippines-etravel-arrival-field-contract.md` E49，给 PH-B/PH-C 写入最小 delta。未改代码、协调总览、其他 worklog、schema、runner、frontend、migration、seed 或部署。

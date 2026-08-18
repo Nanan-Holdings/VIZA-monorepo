@@ -1555,3 +1555,147 @@ The following remain deliberately unresolved and must not be closed by public AP
 | Currency action plan | Use `currency_sources[]` codes `SALARY`, `BUSINESS`, `OTHER`; `transport_purposes[]` codes `LEISURE`, `MEDICAL`, `PAYABLES`, `EDUCATION`, `OTHER`; and `physical_or_shipped` values `is_physically_transferred_by_person` / `is_shipped_thru_courier_service`. Keep live mismatches and server acceptance gated. |
 | Attachment/signature | Do not make attachment upload mandatory for the observed AIR positive branch. If an upload is ever required by a future live path, the client build only proves PNG/JPG/JPEG and default 5,242,880-byte client cap; server rule must still be observed. Signature remains the required action before proceeding on signature pages. |
 | Result/recovery | Keep the E46/E37 boundary: same-page redacted reference+QR visual is not authoritative read/recovery. No automatic resubmit/retry, no submitted success from local QR/reference, and no official registration read without explicit authorization. |
+
+## E48 Live SEA Manual-Customs Route to Summary (2026-08-18)
+
+Scope: PH-A used the user-opened, already-authenticated official Chrome tab for one synthetic, non-sensitive `Philippine Arrival (via SEA)` draft. The draft URL/id, account/session data, cookies, OTP, secrets, profile/family values, and all filled synthetic values are redacted and not retained. PH-A clicked ordinary `Next` only to progress the official wizard and stopped at `New Travel Declaration Summary` with bottom `Submit` visible; final `Submit` was not clicked.
+
+### E48 page order and route boundary
+
+| Step | Official page/title | URL step | Observed controls / routing | Evidence tier |
+| --- | --- | --- | --- | --- |
+| 0 | `Travel Details - Philippine Arrival (via SEA)` | `wizard_page=0` | `Cancel`, `Next`; SEA travel details listed below. | `confirmed_live` |
+| 1 | `Health Declaration` | `wizard_page=1` | Three required Yes/No health questions. Empty `Next` showed per-question `Required` and toast `Please make sure to fill out all required fields.` Synthetic No/No/No was used to continue. | `confirmed_live` |
+| 2 | `Customs Declaration Confirmation` / `Important Information` | `wizard_page=2` | Manual-forms notice only: `Kindly accomplish the manual forms for Customs Baggage Declaration and Currencies Declaration as prescribed by laws and regulations.`, links `Baggage Declaration Form`, `Currency Declaration Form`, and `Previous` / `Next`. No Yes/No declaration question appeared on this selected SEA route. | `confirmed_live` |
+| 3 | `Family Member(s)` | `wizard_page=3` | Static copy `Travel declarations will also be generated for the selected family members.`, family-profile checkbox list, `Previous`, `Next`. PH-A did not record profile labels/values. With no family selected, `Next` opened the known no-companion confirmation modal; modal `Yes` navigated onward. | `confirmed_live` |
+| 4 | `New Travel Declaration Summary` | `wizard_page=4` | Copy `Kindly double check the information before submitting.` Bottom buttons `Previous` and final `Submit`. Review displayed SEA travel details and health sections with values redacted. PH-A stopped here. | `confirmed_live`; final submit/result `needs_review` |
+
+This E48 route did not show `Other Travel Details`, online General Declaration, online Currency Declaration, attachment upload, or signature pages before Summary. Treat that as path-specific evidence for the selected manual-customs SEA draft only; do not generalize it to SEA electronic customs, `is_disembarking=false`, crew, cruise, or other ports.
+
+### E48 SEA page-0 field and option contract
+
+| Official label / question | Official key / selector observed | Control | Visible options / value-code evidence | Requiredness / conditions | Status |
+| --- | --- | --- | --- | --- | --- |
+| `Purpose of Travel` | `purpose_of_visit_code` | Headless UI combobox | Live page rendered 16 labels: `OFW`, `Business/Professional`, `Convention/Conference`, `Education/Training/Studies`, `Government/Official Mission`, `Health/Medical Reason`, `Holiday/Pleasure/Vacation`, `Incentive`, `Meetings`, `Others`, `Religion/Pilgrimage`, `Returning Resident`, `Trade Fair/Exhibition`, `Transit`, `Visit Friends/Relatives`, `Work/Employment`. The DOM did not expose stable official submitted codes. | Current selected draft state already had a value, so empty requiredness was not isolated. | labels `confirmed_live`; submitted code for `Others` `needs_review` |
+| Purpose API conflict | E47 public API `GET /api/v1/common/purpose_of_visits?for_arrival=1` | Public API | Current public API returned 15 rows and did not include `Others` / `POV999`. | Live page rendering now conflicts with the public API snapshot. | `mismatch`: PH-C must fail closed on `Others` until a current official code source or live payload code is captured. |
+| `Traveller Type` | hidden `passenger_type`; react-select combobox | dropdown | Live labels: `VESSEL CREW`, `VESSEL PASSENGER`. No DOM code beyond the visible labels was exposed. | `VESSEL PASSENGER` was used for this ordinary route. Temporary page-0-only switching to `VESSEL CREW` showed the same visible page-0 field structure, but PH-A did not advance crew. | passenger `confirmed_live`; crew route `unsupported_v1` / downstream `needs_review` |
+| `Vessel Name` | `vessel_name` | text | Free-text control; synthetic value used and redacted. | Empty `Next` showed `Required`. | `confirmed_live` |
+| `Voyage Number` | `flight_number` | text | Official visible label is `Voyage Number`, but live input key remains `flight_number`; synthetic value used and redacted. | Empty `Next` showed `Required`. | `confirmed_live`; `voyage_number` remains alias only |
+| `Country of Origin` | `origin_country_code` | Headless UI combobox | Country list rendered 249 non-Philippines country labels; DOM did not expose stable submitted codes. Use official country API/code source, not DOM ids. | Empty `Next` showed `Required`. | labels `confirmed_live`; codes `verified_public` from API where available |
+| `Seaport of Origin` | `origin_port` | text | Free text; synthetic value used and redacted. | Empty `Next` showed `Required`. | `confirmed_live` |
+| `Date of Departure` | `departure_date` | date/text with datepicker | Date input accepted `MM/DD/YYYY`-style entry in this run; value redacted. | Empty `Next` showed `Required`. | `confirmed_live`; date bounds/server acceptance `needs_review` |
+| `With Transit (Connecting Voyage)?` | `with_transit` | checkbox | Checked state reveals the Transit group; attempted uncheck was not used as route evidence. | Transit children are conditionally visible when checked. | `confirmed_live` |
+| `Country of Transit` | `transit_country_code` | Headless UI combobox | Same country-list control behavior as origin; DOM codes not exposed. | With transit checked, empty `Next` showed `Required`. | `confirmed_live`; codes via API only |
+| `Seaport of Transit` | `transit_port` | text | Free text; synthetic value used and redacted. | With transit checked, empty `Next` showed `Required`. | `confirmed_live` |
+| `Date of Transit` | `transit_date` | date/text | Date input accepted synthetic date; value redacted. | With transit checked, empty `Next` showed `Required`. | `confirmed_live`; date bounds/server acceptance `needs_review` |
+| `Seaport of Destination` | `destination_port_code` | Headless UI combobox | Live dropdown rendered the 53 SEA port labels already covered by E47; DOM option nodes did not expose stable codes. | Empty `Next` showed `Required`. | labels `confirmed_live`; code contract remains E47 official API `code` |
+| `Date of Arrival` | `arrival_date` | date/text | Date input accepted synthetic date; value redacted. | Empty `Next` showed `Required`. | `confirmed_live`; date bounds/server acceptance `needs_review` |
+
+### E48 consumer delta
+
+| Owner | Minimal delta |
+| --- | --- |
+| PH-B | Preserve `purpose_of_visit_code` as code-backed, but mark live `Others` as a current conflict: visible label exists, official submitted code unknown, current public API lacks `POV999`. Keep `flight_number` as the actual SEA Voyage Number key and `voyage_number` as alias only. Do not add ordinary SEA `is_disembarking` or destination-stay questions to this route. |
+| PH-C | SEA runner must branch by actual page title/content. For this manual-customs route the live sequence is page 0 travel details -> Health -> manual forms notice -> Family/no-companion modal -> Summary. Do not expect electronic Customs Confirmation Yes/No, Other Travel Details, signature, or attachment pages on this selected route. Stop at Summary; `Submit` visible is not success. |
+| PH-D | Present this route as Review-reached/action-required only. Do not show submitted success, signature-complete, customs-electronic-complete, or QR/reference status from this path. |
+
+### E48 remaining gaps
+
+- The live submitted code for `Others`, and whether `Others` is legacy draft-only, persona-specific, API drift, or hidden-current option.
+- SEA `VESSEL CREW` downstream routing after page 0.
+- Explicit `is_disembarking=false` behavior, other SEA ports, and electronic-customs SEA positive branches.
+- Hotel/Residence/Travel Port stay destination for SEA paths where those branches render.
+- Final `Submit`, authoritative registration read, reference/QR recovery, and SEA result page.
+
+## E49 SEA Current-Draft Gap Closeout: Purpose Code and Port Metadata (2026-08-18)
+
+Scope: PH-A returned the same official SEA draft from E48 Summary to `wizard_page=0` using only `Previous`, inspected visible DOM/options, and queried official public APIs/public bundle request shape. No Cookie/localStorage/account storage was read. No final `Submit`, upload, signature, OTP, CAPTCHA, new declaration, or product-code change occurred. PH-A did not advance `VESSEL CREW`.
+
+### E49 corrections that supersede E47/E48 purpose conflict
+
+| Item | Direct evidence | Contract correction | Evidence tier |
+| --- | --- | --- | --- |
+| Purpose visible options | E48/E49 live DOM rendered 16 labels including `Others`; option nodes expose only label, Headless UI temporary id, `aria-selected`, and `data-headlessui-state`. | DOM still does not expose submitted codes directly. | labels `confirmed_live`; DOM code unavailable |
+| Purpose official code source | The public frontend bundle builds `purpose_of_visit_code` from `/api/v1/common/purpose_of_visits?` plus UI filters `{ order_by:"name", status_by:"asc" }` and `for_arrival=1`. Official public API variants with those UI-like params return `POV999` / `Others`; `q=Others&for_arrival=1` returns a single row `POV999` / `Others`. | `POV999` / `Others` is now a verified current official option for the UI-shaped source. E47's no-`Others` conclusion came from the narrower no-filter response and is superseded for PH runner/frontend option contracts. | `verified_public` plus live label `confirmed_live` |
+| Purpose option set | UI-shaped source `?paginate=0&q=&order_by=name&status_by=asc&for_arrival=1` returns 16 rows: `OFW`, `POV006`, `POV002`, `POV003`, `POV004`, `POV005`, `POV001`, `POV010`, `POV017`, `POV999`, `POV009`, `POV011`, `POV018`, `POV012`, `POV007`, `POV008`. | Accept these current official codes when fetched from the UI-shaped official source. Do not hardcode a permanent enum; fetch dynamically and preserve `code` as submitted value and `name` as label. | `verified_public` |
+
+E49 closes the `Others` code gap: it is no longer `needs_review` for current option identity. Requiredness, server acceptance for any specific selected purpose, and persona-specific option filtering remain path-specific.
+
+### E49 SEA destination port code/value source
+
+The live `destination_port_code` combobox exposed only labels and temporary Headless UI ids. Stable value/code comes from the official public `travel_ports` endpoint, not from DOM nodes. Current endpoint: `GET /api/v1/common/travel_ports?paginate=0&q=&order_by=name&status_by=asc&transportation_type=SEA`.
+
+| Code | Label | with_custom_declaration |
+| --- | --- | --- |
+| `BSCBTN` | Basco Batanes | `0` |
+| `PHBOR` | Boracay Seaport | `1` |
+| `CLYISL` | Calayan Island | `0` |
+| `CSLISL` | Casulian Island | `0` |
+| `TP128` | Claveria | `0` |
+| `TP133` | Coron | `0` |
+| `TP0109` | DAVAO TORIL FISHPORT COMPLEX | `0` |
+| `TP132` | El Nido | `0` |
+| `TP137` | Holiday Ocean Marina, IGACOS | `0` |
+| `TP0106` | Lal-lo Seaport | `0` |
+| `TP130` | Macapagal Port Terminal (MPT) | `0` |
+| `TP131` | Macapagal Port Terminal Landbase (MPTL) | `0` |
+| `MHTP01` | Mahatao Port | `0` |
+| `TP0103` | Manila South Harbor | `1` |
+| `ORCISL` | Ochid Island | `0` |
+| `APARRI` | Port of Aparri | `1` |
+| `TP119` | Port of Bacolod | `0` |
+| `PHBSO` | Port of Basco | `1` |
+| `PHBTN` | Port of Bataan (PHBTN) | `0` |
+| `TP009` | Port of Batangas (PHBTG) | `0` |
+| `TP116` | Port of Bislig | `0` |
+| `PHTAG` | Port of Bohol | `0` |
+| `TP-BSP` | Port of Bongao | `0` |
+| `TP0013` | Port of Cagayan de Oro | `0` |
+| `TP123` | Port of Calbayog | `0` |
+| `CAMIGUIN` | Port of Camiguin | `1` |
+| `TP0011` | Port of Cebu (PHCEB) | `0` |
+| `TP122` | Port of Currimao (ONRI) | `0` |
+| `TP0114` | Port of General Santos | `0` |
+| `TP118` | Port of Iligan | `0` |
+| `TP0015` | Port of Iloilo (PHILO) | `0` |
+| `PHSAN` | Port of Irene | `1` |
+| `TP0105` | Port of Laoag | `0` |
+| `TP120` | Port of Legazpi | `1` |
+| `LEGAZPI` | Port of Legazpi | `1` |
+| `TP125` | Port of Masinloc | `0` |
+| `TP121` | Port of Pangasinan | `0` |
+| `TP0102` | Port of Puerto Princesa | `1` |
+| `TP0101` | Port of Sasa, Davao Seaport | `0` |
+| `TP124` | Port of Sta Cruz | `0` |
+| `PHSPS` | PORT OF SUBIC BAY FREEPORT-LANDBASE (SOS) | `0` |
+| `TP117` | Port of Surigao | `0` |
+| `RMBLN` | Romblon | `0` |
+| `TP129` | Salomague Port | `0` |
+| `TP0107` | San Fernando International Seaport | `1` |
+| `TP0017` | San Fernando, Luzon (PHSFE) | `0` |
+| `SIARGAO` | Siargao | `0` |
+| `TP0016` | Subic Bay (PHSFS) | `1` |
+| `TP126` | Subic Bay Yacht Club | `1` |
+| `TP136` | Subport of Sual | `1` |
+| `TP0111` | Tabacco Seaport | `0` |
+| `TP0113` | Tacloban Seaport | `0` |
+| `TP0108` | Zamboanga Port | `0` |
+
+Current list checks: 53 rows, 53 distinct codes, 52 distinct labels. `Port of Legazpi` is duplicated with two different codes (`TP120`, `LEGAZPI`), so label-based mapping remains forbidden. E48 current draft's selected label `Basco Batanes` maps uniquely in the official list to `BSCBTN` with `with_custom_declaration=0`; E8's earlier live `Manila South Harbor` evidence maps to `TP0103` with `with_custom_declaration=1`.
+
+### E49 port-to-customs-flow boundary
+
+E48 confirms one `with_custom_declaration=0` selected port (`Basco Batanes` / `BSCBTN`) reached the manual forms notice and then Family/Summary. Earlier E8/E9 live evidence confirms a `with_custom_declaration=1` selected port (`Manila South Harbor` / `TP0103`) reached electronic Customs Declaration / Other Travel Details / signature-family-summary flow. PH-A did not switch the current E48 draft's destination and re-save it, because that would mutate the already Review-reached draft. Therefore E49 supports the port-metadata correlation, but does not prove a same-draft "only destination changed" experiment.
+
+### E49 PH-B / PH-C minimum delta
+
+| Owner | Minimum correction |
+| --- | --- |
+| PH-B | Restore `POV999` / `Others` as a current official purpose code when fetched through the UI-shaped official source. Keep purpose options dynamic; do not rely on the no-filter E47 response. Keep SEA port code mapping from official `travel_ports.code`; never label-map the duplicate `Port of Legazpi`. |
+| PH-C | For purpose, use the same query shape as the official UI (`for_arrival=1` plus order/status filters and/or `paginate=0&q=`) and submit row `code`. For SEA port routing, use selected `destination_port_code` and official `with_custom_declaration` only as a routing hint, then verify actual page title/content after `Next`; do not hardcode page order from transport alone. |
+
+### E49 remaining gaps
+
+- Same-draft proof that changing only `destination_port_code` flips manual/electronic flow was not attempted because it would mutate the current Review-reached draft.
+- `VESSEL CREW` downstream route remains `unsupported_v1` / `needs_review` and was not advanced.
+- `is_disembarking=false`, SEA destination-stay branches, SEA electronic-positive post-currency parity, final `Submit`, authoritative registration read, reference/QR recovery, and SEA result page remain unresolved.
