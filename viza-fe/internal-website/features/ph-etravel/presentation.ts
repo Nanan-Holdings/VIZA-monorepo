@@ -32,9 +32,7 @@ export type PhEtravelPresentationInput = {
   otherGoodsDeclared?: boolean | null;
   generalDeclarationGoodsAmount?: number | string | null;
   generalDeclarationChecklistResponses?: readonly (
-    | boolean
-    | null
-    | undefined
+    boolean | null | undefined
   )[];
   currencyDeclaration?: PhEtravelDeclarationAnswer;
   currencyOwnerNotApplicable?: boolean | null;
@@ -191,11 +189,11 @@ function createTravelSection(
   input: PhEtravelPresentationInput
 ): PhEtravelPresentationSection {
   const fields: PhEtravelPresentationField[] = [
-    reviewField(
+    sharedField(
       "travel.purpose_code",
       "purpose_of_visit_code",
       "select",
-      "Official purpose options and requiredness remain under review."
+      "E49 confirms the current official UI-shaped 16-option arrival purpose source, including POV999/Others. Submit the official code, never the display label."
     ),
     sharedField(
       "travel.origin_country_code",

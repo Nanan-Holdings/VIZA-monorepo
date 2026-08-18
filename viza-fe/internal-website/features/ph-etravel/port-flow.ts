@@ -9,9 +9,10 @@ export type PhEtravelSeaDestinationPortSnapshot = {
   ports: readonly PhEtravelSeaDestinationPort[];
 };
 
-/** E24 proves only a public wizard-array insertion predicate, not a customs flow. */
 export type PhEtravelSeaDynamicPageArrayGate =
   "electronic_sections_inserted" | "electronic_sections_not_inserted" | null;
+export type PhEtravelSeaCustomsFlowHint =
+  "manual_forms" | "electronic_customs" | null;
 export type PhEtravelSeaPortFlowStatus =
   | "resolved"
   | "missing_destination_port"
@@ -22,6 +23,7 @@ export type PhEtravelSeaPortFlowStatus =
 export type PhEtravelSeaPortFlowResolution = {
   status: PhEtravelSeaPortFlowStatus;
   dynamicPageArrayGate: PhEtravelSeaDynamicPageArrayGate;
+  customsFlowHint: PhEtravelSeaCustomsFlowHint;
   port?: PhEtravelSeaDestinationPort;
   reason: string;
   requiresLiveContinuationReview: true;
@@ -72,6 +74,7 @@ export function resolvePhEtravelSeaDestinationPortFlow(
     return {
       status: "missing_destination_port",
       dynamicPageArrayGate: null,
+      customsFlowHint: null,
       reason:
         "The SEA destination-port page-array gate cannot be assessed until the official destination_port_code is available.",
       requiresLiveContinuationReview: true,
@@ -82,6 +85,7 @@ export function resolvePhEtravelSeaDestinationPortFlow(
     return {
       status: "stale_port_metadata",
       dynamicPageArrayGate: null,
+      customsFlowHint: null,
       reason:
         "SEA destination-port metadata is missing, invalid, or stale. Do not assume a customs continuation.",
       requiresLiveContinuationReview: true,
@@ -95,6 +99,7 @@ export function resolvePhEtravelSeaDestinationPortFlow(
     return {
       status: "unknown_destination_port",
       dynamicPageArrayGate: null,
+      customsFlowHint: null,
       reason:
         "The selected destination_port_code is not present in the current official SEA port metadata.",
       requiresLiveContinuationReview: true,
@@ -105,6 +110,7 @@ export function resolvePhEtravelSeaDestinationPortFlow(
     return {
       status: "invalid_port_metadata",
       dynamicPageArrayGate: null,
+      customsFlowHint: null,
       reason:
         "The selected SEA destination-port metadata is ambiguous or invalid. Do not choose a customs continuation.",
       requiresLiveContinuationReview: true,
@@ -118,11 +124,13 @@ export function resolvePhEtravelSeaDestinationPortFlow(
       port.withCustomDeclaration === 1
         ? "electronic_sections_inserted"
         : "electronic_sections_not_inserted",
+    customsFlowHint:
+      port.withCustomDeclaration === 1 ? "electronic_customs" : "manual_forms",
     port,
     reason:
       port.withCustomDeclaration === 1
-        ? "Official public metadata inserts an electronic page array for this destination_port_code. It does not prove a live customs flow or continuation."
-        : "Official public metadata does not insert the electronic page array for this destination_port_code. It does not prove a manual customs notice or continuation.",
+        ? "E49 records with_custom_declaration=1 as the SEA electronic customs hint for this destination_port_code. The rendered official page must still match before continuing."
+        : "E49 records with_custom_declaration=0 as the SEA manual forms hint for this destination_port_code. The rendered official page must still match before continuing.",
     requiresLiveContinuationReview: true,
   };
 }

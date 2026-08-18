@@ -1,6 +1,8 @@
 import type { VisaFormFieldOption } from "@/types/visa-form-fields";
 
-const CHINESE_REGION_NAMES = new Intl.DisplayNames(["zh-CN"], { type: "region" });
+const CHINESE_REGION_NAMES = new Intl.DisplayNames(["zh-CN"], {
+  type: "region",
+});
 
 const COUNTRY_FIELDS = new Set([
   "nationality",
@@ -146,7 +148,10 @@ function optionValue(option: VisaFormFieldOption): string {
   return typeof option === "string" ? option : option.value;
 }
 
-function withChineseLabel(option: VisaFormFieldOption, labelZh: string): VisaFormFieldOption {
+function withChineseLabel(
+  option: VisaFormFieldOption,
+  labelZh: string
+): VisaFormFieldOption {
   if (typeof option === "string") {
     return {
       value: option,
@@ -167,7 +172,7 @@ function localizeCountry(option: VisaFormFieldOption): VisaFormFieldOption {
 
 function localizeMappedOptions(
   options: VisaFormFieldOption[],
-  labels: Record<string, string>,
+  labels: Record<string, string>
 ): VisaFormFieldOption[] {
   const localized = options.map((option) => {
     const value = optionValue(option);
@@ -175,7 +180,8 @@ function localizeMappedOptions(
   });
   const counts = new Map<string, number>();
   for (const option of localized) {
-    const label = typeof option === "string" ? option : option.label_zh ?? option.value;
+    const label =
+      typeof option === "string" ? option : (option.label_zh ?? option.value);
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   return localized.map((option) => {
@@ -187,9 +193,33 @@ function localizeMappedOptions(
   });
 }
 
+function disambiguateDuplicateOfficialLabels(
+  options: VisaFormFieldOption[]
+): VisaFormFieldOption[] {
+  const counts = new Map<string, number>();
+  for (const option of options) {
+    const label =
+      typeof option === "string"
+        ? option
+        : (option.label_zh ?? option.label_en ?? option.text ?? option.value);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+
+  return options.map((option) => {
+    if (typeof option === "string") return option;
+    const label =
+      option.label_zh ?? option.label_en ?? option.text ?? option.value;
+    if ((counts.get(label) ?? 0) <= 1) return option;
+    return {
+      ...option,
+      label_zh: `${label}（${option.value}）`,
+    };
+  });
+}
+
 export function localizePhEtravelOptions(
   fieldName: string,
-  options: VisaFormFieldOption[] | null,
+  options: VisaFormFieldOption[] | null
 ): VisaFormFieldOption[] | null {
   if (!options) return null;
   if (fieldName === "passport_holder_type") {
@@ -216,8 +246,18 @@ export function localizePhEtravelOptions(
   if (fieldName === "airline_name") {
     return localizeMappedOptions(options, PH_ETRAVEL_AIRLINE_LABELS_ZH);
   }
-  if (fieldName === "port_of_entry" || fieldName === "destination_transit_airport") {
+  if (
+    fieldName === "port_of_entry" ||
+    fieldName === "destination_transit_airport"
+  ) {
     return localizeMappedOptions(options, PH_ETRAVEL_AIRPORT_LABELS_ZH);
+  }
+  if (
+    fieldName === "sea_port_of_entry" ||
+    fieldName === "destination_port_code" ||
+    fieldName === "disembarking_port_code"
+  ) {
+    return disambiguateDuplicateOfficialLabels(options);
   }
   return options;
 }
