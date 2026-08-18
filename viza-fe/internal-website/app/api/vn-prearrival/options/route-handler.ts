@@ -437,7 +437,7 @@ async function loadRunnerFlightCatalogPage(input: {
       headers: config.headers,
       body: JSON.stringify(input),
       cache: "no-store",
-      signal: AbortSignal.timeout(190_000),
+      signal: AbortSignal.timeout(280_000),
     });
     if (!response.ok) return null;
     const payload = await response.json() as RunnerFlightCatalogResponse;

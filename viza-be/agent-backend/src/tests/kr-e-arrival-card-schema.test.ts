@@ -177,7 +177,9 @@ describe("Korea e-Arrival Card backend schema", () => {
     expect(migrationSource).toContain("KR_C39_SHORT_TERM_VISIT");
     expect(migrationSource).toContain("KR_E_ARRIVAL_CARD");
     expect(migrationSource).toContain("application.visa_type");
-    expect(migrationSource).toContain("v_application_visa_type IS DISTINCT FROM (\n      CASE v_flow");
+    expect(migrationSource).toMatch(
+      /v_application_visa_type IS DISTINCT FROM \(\r?\n\s+CASE v_flow/,
+    );
     expect(migrationSource).not.toContain("v_application_visa_type IS DISTINCT FROM CASE v_flow");
     expect(migrationSource).toContain("v_expired_old_row.flow_key = 'kr_arrival_card'");
     expect(migrationSource).toContain("NEW.flow_key = 'kr_arrival_card'");
