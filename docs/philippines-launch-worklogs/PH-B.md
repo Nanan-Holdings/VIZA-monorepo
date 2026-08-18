@@ -1383,3 +1383,52 @@ When PH-A publishes E10, PH-B must consume only: SEA electronic positive `Yes` b
 - SEA `destination_port_code` stays code-only and label recovery remains forbidden for duplicate `Port of Legazpi` (`TP120` / `LEGAZPI`). `with_custom_declaration` is recorded only as official port page-branch metadata: manual path excludes electronic customs fields; electronic path keeps the existing electronic customs/signature contract and still verifies rendered page content.
 - Remaining blockers: same-draft only-port-change proof, `VESSEL CREW`, `is_disembarking=false`, SEA destination-stay variants, SEA electronic-positive post-currency parity, final Submit/reference/QR/recovery.
 - Focused validation passed: static TypeScript compile for PH schema/options/test; `./node_modules/.bin/vitest run src/tests/ph-etravel-arrival-card-schema.test.ts` (35/35). `git diff --check` is run after this entry. No migration, deploy, commit, push, frontend, submission-service, field-contract, coordination, or other worklog edits.
+
+## 0149 production DB/migration readiness preflight（2026-08-18）
+
+- Scope: local-code-only review on HEAD `d3a6bd38e52364c4bfc3fab219dc1de9ca19af2b`; no production DB connection, migration execution, seed, env change, deploy, commit or push. Current worktree had pre-existing PH-C/PH-D worklog edits; PH-B did not touch them.
+- Forward migration checked: [`0149_runner_country_claim.sql`](/Users/mmmytooo/Github/VIZA-monorepo-git/viza-be/agent-backend/drizzle/0149_runner_country_claim.sql). It creates `idx_runner_job_philippines_claim` and `public.claim_runner_country_job(text, text, integer, timestamptz)`, returns the expected runner columns, rejects non-`philippines` country scopes, validates lease range, uses advisory transaction lock, recovers expired leases, respects `runner_concurrency_cap.paused/max_concurrent`, selects with `FOR UPDATE OF rj SKIP LOCKED`, updates only `status='queued'` rows with `country=v_country`, revokes PUBLIC/anon/authenticated, and grants EXECUTE only to `service_role`.
+- Dependency alignment: migration depends on existing `runner_job` columns from `0054_runner_job.sql` (`id`, `application_id`, `country`, `status`, `attempts`, `max_attempts`, `correlation_id`, `metadata`, `enqueued_at`, lease/start/finish/error fields) and `runner_concurrency_cap` from `0055_runner_concurrency.sql` (`country`, `max_concurrent`, `paused`). The worker consumes the RPC only when `RUNNER_JOB_COUNTRY` normalizes to `philippines`; unset country keeps the shared query/CAS pool.
+- Local blocker found outside this round's writable scope: frontend producer `viza-fe/internal-website/lib/queue/countries.ts` still lacks `philippines` in its known-country set, while PH retry enqueue calls `enqueueRunnerJob(applicationId, "philippines", ...)`. This is not a 0149 SQL gap, but PH canonical enqueue can fail before insert until the frontend/queue owner adds `philippines` or proves a superseding patch exists.
+- Production execution checklist:
+  - Apply exactly `viza-be/agent-backend/drizzle/0149_runner_country_claim.sql`; do not run seeds or other migrations in the same step.
+  - Read-only post-apply verification:
+    ```sql
+    select p.proname, pg_get_function_identity_arguments(p.oid) as args, p.prosecdef, p.proconfig
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'claim_runner_country_job';
+
+    select indexname, indexdef
+    from pg_indexes
+    where schemaname = 'public'
+      and tablename = 'runner_job'
+      and indexname = 'idx_runner_job_philippines_claim';
+
+    select grantee, privilege_type
+    from information_schema.routine_privileges
+    where routine_schema = 'public'
+      and routine_name = 'claim_runner_country_job'
+    order by grantee, privilege_type;
+    ```
+  - Expected verification result: one function with args `p_worker_id text, p_country text, p_lease_ms integer, p_now timestamp with time zone`, `prosecdef=false`, `search_path` set to empty, one Philippines queued partial index, EXECUTE grant for `service_role`, and no PUBLIC/anon/authenticated EXECUTE grant. Do not call the RPC as a smoke test because that can claim/write a real job.
+  - Rollback before enabling the PH worker, if verification fails:
+    ```sql
+    revoke all on function public.claim_runner_country_job(text, text, integer, timestamptz)
+      from public, anon, authenticated, service_role;
+    drop function if exists public.claim_runner_country_job(text, text, integer, timestamptz);
+    drop index if exists public.idx_runner_job_philippines_claim;
+    ```
+    If a PH worker has already been enabled, first stop/disable that worker and let active leases settle before rollback.
+- Impact: 0149 is required for the dedicated PH worker to atomically claim only `country='philippines'` jobs under service-role permissions. Without it, `RUNNER_JOB_COUNTRY=philippines` workers fail at the missing RPC path; the legacy/shared unscoped runner pool is not changed by applying this migration.
+- Validation: custom local SQL static assertion passed for signature/index/security/lock/lease/cap/`SKIP LOCKED`; `npm exec -- vitest run src/tests/ph-etravel-arrival-card-schema.test.ts` passed 35/35; direct focused submission-service contract tests `node --import tsx --test src/__tests__/queue-claim-rpc.spec.ts src/queue/__tests__/worker-target.spec.ts` passed 17/17. An earlier `npm test -- --runInBand ...` attempt expanded to the full submission-service suite and failed on unrelated env/existing failures (`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` missing plus existing non-PH assertions); the direct focused command above is the valid result. `git diff --check` passed.
+
+## 0150 PH eTravel submission-state sync RPC（2026-08-18）
+
+- Added [`0150_ph_etravel_submission_state_sync.sql`](/Users/mmmytooo/Github/VIZA-monorepo-git/viza-be/agent-backend/drizzle/0150_ph_etravel_submission_state_sync.sql) as the production-deployable `sync_ph_etravel_submission_state` v2 RPC migration. It is service-role-only, `SECURITY INVOKER`, empty-search-path, and does not grant PUBLIC/anon/authenticated.
+- Contract: RPC accepts the existing submission-service adapter args (`application_id`, `queue_id`, `idempotency_key`, `result_json`, `application_patch`, `queue_patch`) and atomically locks `applications` plus `submission_queue`. It only supports `country=philippines` + `visa_type=PH_ETRAVEL_ARRIVAL_CARD`, rejects unsupported target states, validates expected prior application/queue state, and returns `expected_prior_state_mismatch` for stale local state.
+- Submitted sync requires trusted evidence: official reference, authoritative post-submit registration read, and reference-derived QR render must all exist and match. The migration stores only a whitelisted PH result shape with camelCase `resultEvidence.authoritativeRead` / `qrRender`; it never assigns raw `result_json` into `applications.submission_result`.
+- Idempotency/overwrite guard: same `stateSync.idempotencyKey` returns `idempotent_replay`; an already-confirmed submitted PH result blocks weaker action/recovery updates or a different reference. Same trusted reference is replay-safe and does not trigger any official action.
+- Queue/application effects after production apply: submitted sync sets application `status=submitted`, `submission_result_status=completed`, `confirmation_number`, `external_reference`, `submitted_at`, queue `status=done`, `official_status=submitted`, `current_stage=submitted`, and `live_submitted_at`. Recovery/action sync stays `processing`/`action_required` with safe PH error metadata. The migration also idempotently adds missing PH queue result columns (`live_submitted_at`, `live_screenshot_url`, and related status/error fields).
+- Validation passed: `npm exec -- vitest run src/tests/ph-etravel-submission-state-sync-migration.test.ts` (6/6), `node --import tsx --test src/__tests__/queue-claim-rpc.spec.ts src/ph-etravel/__tests__/submission-state-sync.spec.ts src/ph-etravel/__tests__/result-consistency.spec.ts` (28/28), and `git diff --check`. No production migration, seed, deploy, frontend edit, PH-C/PH-D edit, or official-site action was run.
+- Production impact: this migration removes the final submitted-state internal sync blocker for trusted PH eTravel results. It must be applied before enabling `PH_ETRAVEL_SUBMISSION_STATE_SYNC_RPC_ENABLED=true`; applying it alone does not submit anything or claim jobs. If post-apply verification fails, revoke/drop `public.sync_ph_etravel_submission_state(uuid, uuid, text, jsonb, jsonb, jsonb)` and disable the feature flag before retrying.
