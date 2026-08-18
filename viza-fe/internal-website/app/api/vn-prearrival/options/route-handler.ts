@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { countries } from "country-data-list";
 import { getClientSession } from "@/lib/client-session";
 import {
+  ensureFlyMachineCapacity,
   ensureFlyMachineStarted,
   waitForHttpReady,
 } from "@/lib/fly-machine-wake.server";
@@ -447,6 +448,7 @@ async function ensureFlightCatalogServiceReady(
   refresh: boolean,
   dependencies: {
     startPool?: typeof ensureFlyMachineStarted;
+    increasePoolCapacity?: typeof ensureFlyMachineCapacity;
     waitForReady?: typeof waitForHttpReady;
   } = {},
 ): Promise<boolean> {
@@ -458,17 +460,34 @@ async function ensureFlightCatalogServiceReady(
     console.warn(`[vn-prearrival] flight_catalog_pool_wake_failed reason=${wake.reason}`);
     return false;
   }
-  if (wake.state === "already_running") return true;
-  const readiness = await waitForReady(`${config.baseUrl}/health`, {
+  const healthUrl = `${config.baseUrl}/health`;
+  const readiness = await waitForReady(healthUrl, {
     timeoutMs: 15_000,
     requestTimeoutMs: 4_000,
   });
-  if (!readiness.ok) {
+  if (readiness.ok) return true;
+
+  console.warn(
+    `[vn-prearrival] flight_catalog_pool_readiness_failed attempts=${readiness.attempts}`,
+  );
+  if (wake.state !== "already_running") return false;
+
+  const increasePoolCapacity = dependencies.increasePoolCapacity ?? ensureFlyMachineCapacity;
+  const capacity = await increasePoolCapacity("pool", 2);
+  if (!capacity.ok) {
+    console.warn(`[vn-prearrival] flight_catalog_pool_capacity_failed reason=${capacity.reason}`);
+    return false;
+  }
+  const expandedReadiness = await waitForReady(healthUrl, {
+    timeoutMs: 30_000,
+    requestTimeoutMs: 4_000,
+  });
+  if (!expandedReadiness.ok) {
     console.warn(
-      `[vn-prearrival] flight_catalog_pool_readiness_failed attempts=${readiness.attempts}`,
+      `[vn-prearrival] flight_catalog_pool_expanded_readiness_failed attempts=${expandedReadiness.attempts}`,
     );
   }
-  return readiness.ok;
+  return expandedReadiness.ok;
 }
 
 async function fetchRunnerFlightCatalog(
