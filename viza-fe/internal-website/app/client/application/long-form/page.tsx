@@ -117,12 +117,16 @@ import {
 import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import { isKoreaEArrivalCardLiveEnabled } from "@/features/kr-arrival-card/config";
-import { canCreateKoreaArrivalCardDraft } from "@/features/kr-arrival-card/preflight";
+import {
+  canCreateKoreaArrivalCardDraft,
+  validateKoreaEArrivalPreflight,
+} from "@/features/kr-arrival-card/preflight";
 import { isKoreaArrivalCardSchemaUnavailable } from "@/features/kr-arrival-card/schema-availability";
 import {
-  isKoreaArrivalPreflightMarker,
-  KOREA_ARRIVAL_PREFLIGHT_STORAGE_KEY,
-} from "@/app/client/arrival-cards/south-korea/eligibility";
+  KoreaArrivalCardEligibilityGate,
+  type KoreaArrivalCardPreflightCompletion,
+} from "@/app/client/arrival-cards/south-korea/gate";
+import { buildKoreaArrivalCardFormHref } from "@/features/kr-arrival-card/routes";
 import {
   attemptStaleServerActionReload,
   isStaleServerActionError,
@@ -1675,8 +1679,6 @@ export default function ApplicationPage() {
   const explicitVisaType = requestedVisaType
     ? resolveVisaFormSchemaVisaType(requestedVisaType, explicitCountry)
     : null;
-  const koreaPreflightQuery = searchParams.get("preflight");
-  const koreaAdultRepresentativeQuery = searchParams.get("adultRepresentative");
   const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
   const isExplicitStatusView = Boolean(explicitApplicationId && jumpToConfirmation);
 
@@ -2035,66 +2037,6 @@ export default function ApplicationPage() {
     schemaFieldNames: koreaSchemaFieldNames,
   });
 
-  useEffect(() => {
-    if (!isKoreaEArrivalCard) {
-      setKoreaPreflightTrusted(true);
-      return;
-    }
-
-    let marker: unknown = null;
-    try {
-      const rawMarker = window.sessionStorage.getItem(KOREA_ARRIVAL_PREFLIGHT_STORAGE_KEY);
-      marker = rawMarker ? JSON.parse(rawMarker) as unknown : null;
-    } catch {
-      marker = null;
-    }
-    const validMarker = isKoreaArrivalPreflightMarker(marker) ? marker : null;
-    const markerIsFresh = validMarker !== null &&
-      Date.now() - validMarker.completedAt <= 24 * 60 * 60 * 1000;
-    setKoreaPreflightTrusted(
-      markerIsFresh &&
-      koreaPreflightQuery === "needs_declaration" &&
-      (koreaAdultRepresentativeQuery === "true" || koreaAdultRepresentativeQuery === "false") &&
-      validMarker?.adultRepresentative === (koreaAdultRepresentativeQuery === "true"),
-    );
-  }, [
-    isKoreaEArrivalCard,
-    koreaAdultRepresentativeQuery,
-    koreaPreflightQuery,
-  ]);
-
-  const persistKoreaPreflight = useCallback(async (applicationId: string) => {
-    if (!isKoreaEArrivalCard) return;
-    const isPreflightZh = locale.toLowerCase().startsWith("zh");
-    if (!koreaPreflightTrusted) {
-      throw new Error(
-        isPreflightZh
-          ? "请先完成韩国 e-Arrival Card 资格预检。"
-          : "Complete the Korea e-Arrival Card eligibility check before starting live submission.",
-      );
-    }
-    let marker: unknown = null;
-    try {
-      const rawMarker = window.sessionStorage.getItem(KOREA_ARRIVAL_PREFLIGHT_STORAGE_KEY);
-      marker = rawMarker ? JSON.parse(rawMarker) as unknown : null;
-    } catch {
-      marker = null;
-    }
-    if (!isKoreaArrivalPreflightMarker(marker)) {
-      throw new Error(
-        isPreflightZh
-          ? "韩国 e-Arrival Card 资格预检记录已失效，请返回重新确认。"
-          : "The Korea e-Arrival Card eligibility record is missing. Return to the eligibility check and confirm again.",
-      );
-    }
-    const saveResult = await saveDynamicAnswers(applicationId, {
-      kr_eac_eligibility: marker.eligibility,
-      kr_eac_adult_representative_confirmed: marker.adultRepresentative ? "true" : "false",
-      kr_eac_preflight_version: String(marker.version),
-      kr_eac_preflight_reviewed_at: new Date(marker.completedAt).toISOString(),
-    });
-    if (saveResult.error) throw new Error(saveResult.error);
-  }, [isKoreaEArrivalCard, koreaPreflightTrusted, locale]);
   const formAssistantSchemaFieldCount = dbSteps.reduce((count, step) => count + step.fields.length, 0);
   const formAssistantBlockedByArrivalCardSuccess = hasSuccessfulArrivalCardSubmission({
     country: resolvedCountry,
@@ -2103,6 +2045,7 @@ export default function ApplicationPage() {
   });
   const formAssistantEligible =
     !koreaSchemaUnavailable &&
+    (!isKoreaEArrivalCard || koreaPreflightTrusted) &&
     !formAssistantBlockedByArrivalCardSuccess &&
     canUseFormAssistant({
       applicationId: appState.applicationId,
@@ -2553,6 +2496,7 @@ export default function ApplicationPage() {
     setCurrentStep(0);
     setCompletedUpTo(0);
     setDynamicAnswers({});
+    setKoreaPreflightTrusted(!isKoreaEArrivalCard);
     setSubmitCheckState("idle");
     setSubmitMissingFields([]);
     setFormAssistantValidation(null);
@@ -2570,7 +2514,7 @@ export default function ApplicationPage() {
       submissionResult: null,
       submissionResultStatus: null,
     }));
-  }, [explicitApplicationId, resolvedCountry, resolvedVisaType]);
+  }, [explicitApplicationId, isKoreaEArrivalCard, resolvedCountry, resolvedVisaType]);
 
   const loadData = useCallback(async () => {
     const requestId = ++loadDataRequestRef.current;
@@ -2665,6 +2609,13 @@ export default function ApplicationPage() {
         if (application?.id) {
           const { answers } = await loadDynamicAnswers(application.id);
           ds160Answers = answers;
+          if (
+            isLatestRequest() &&
+            isKoreaEArrivalCard &&
+            validateKoreaEArrivalPreflight(answers).ok
+          ) {
+            setKoreaPreflightTrusted(true);
+          }
         }
         const universalDynamicAnswers = applyCountrySpecificUniversalProfileAnswers({
           answers: mergeUniversalProfileIntoAnswers(ds160Answers, profile),
@@ -3943,8 +3894,6 @@ export default function ApplicationPage() {
           ? "请先补齐审核申请页末尾列出的缺失信息。"
           : "Please complete the missing information listed at the end of Review Application.");
       }
-      if (mode === "live_assisted") await persistKoreaPreflight(applicationId);
-
       if (!isJpTourist && !isKrC39) {
         const queueJob = mode === "live_assisted" && isVietnamEVisa
           ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
@@ -4125,8 +4074,6 @@ export default function ApplicationPage() {
           ? "请先补齐审核申请页末尾列出的缺失信息。"
           : "Please complete the missing information listed at the end of Review Application.");
       }
-      if (mode === "live_assisted") await persistKoreaPreflight(applicationId);
-
       // Persist the complete DS-160 answer set from hardcoded steps
       const normalizeResult = await persistDS160AnswerSet(
         applicationId,
@@ -4262,6 +4209,32 @@ export default function ApplicationPage() {
 
   const activeCountry = resolvedCountry;
   const activeVisaType = resolvedVisaType;
+  const handleKoreaPreflightComplete = useCallback(
+    async (completion: KoreaArrivalCardPreflightCompletion) => {
+      setKoreaPreflightTrusted(true);
+      setDynamicAnswers((current) => ({
+        ...current,
+        ...completion.answers,
+      }));
+      setAppState((current) => ({
+        ...current,
+        applicationId: completion.applicationId,
+        personal: {
+          ...current.personal,
+          dateOfBirth: completion.answers.date_of_birth ?? current.personal.dateOfBirth,
+        },
+      }));
+      router.replace(
+        buildKoreaArrivalCardFormHref({
+          adultRepresentative: completion.marker.adultRepresentative,
+          applicationId: completion.applicationId,
+        }),
+        { scroll: false },
+      );
+    },
+    [router],
+  );
+
   useEffect(() => {
     if (isExplicitStatusView || !appState.applicationId) return;
     setActiveApplicationSelection({
@@ -4537,6 +4510,15 @@ export default function ApplicationPage() {
 
   if (koreaSchemaUnavailable) {
     return <KoreaArrivalCardSchemaUnavailableNotice isZh={isZhInterface} />;
+  }
+
+  if (isKoreaEArrivalCard && !koreaPreflightTrusted) {
+    return (
+      <KoreaArrivalCardEligibilityGate
+        applicationId={explicitApplicationId ?? appState.applicationId}
+        onComplete={handleKoreaPreflightComplete}
+      />
+    );
   }
 
   const hasResolvedPackage = Boolean(explicitCountry || explicitVisaType || visaPackage);

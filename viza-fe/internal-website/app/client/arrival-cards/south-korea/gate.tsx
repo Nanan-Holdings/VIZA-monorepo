@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { completeKoreaEArrivalCardPreflight } from "@/app/actions/visa-application-answers";
 import {
   ageAtSeoulDate,
   canContinueKoreaArrivalPreflight,
@@ -19,15 +20,29 @@ import { buildKoreaArrivalCardFormHref } from "@/features/kr-arrival-card/routes
 
 const KOREA_NAVIGATOR_URL = "https://www.e-arrivalcard.go.kr/portal/guide/eacTargetGuide.do";
 
-export function KoreaArrivalCardEligibilityGate() {
+export type KoreaArrivalCardPreflightCompletion = {
+  applicationId: string;
+  answers: Record<string, string>;
+  marker: KoreaArrivalPreflightMarker;
+};
+
+export function KoreaArrivalCardEligibilityGate({
+  applicationId,
+  onComplete,
+}: {
+  applicationId?: string | null;
+  onComplete?: (completion: KoreaArrivalCardPreflightCompletion) => void | Promise<void>;
+} = {}) {
   const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const repeatApplicationId = searchParams.get("applicationId");
+  const repeatApplicationId = applicationId?.trim() || searchParams.get("applicationId")?.trim() || null;
   const isZh = locale.toLowerCase().startsWith("zh");
   const [eligibility, setEligibility] = useState<KoreaArrivalEligibility | null>(null);
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [adultRepresentativeConfirmed, setAdultRepresentativeConfirmed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const age = useMemo(() => ageAtSeoulDate(dateOfBirth), [dateOfBirth]);
   const minorNeedsRepresentative = age !== null && age < 14;
   const blockedExempt = eligibility === "exempt";
@@ -38,21 +53,55 @@ export function KoreaArrivalCardEligibilityGate() {
     adultRepresentativeConfirmed,
   });
 
-  const continueToForm = () => {
+  const continueToForm = async () => {
     if (!canContinue || eligibility !== "needs_declaration") return;
-    const marker: KoreaArrivalPreflightMarker = {
-      version: 1,
-      country: "south_korea",
-      visaType: "KR_E_ARRIVAL_CARD",
-      eligibility: "needs_declaration",
-      adultRepresentative: minorNeedsRepresentative,
-      completedAt: Date.now(),
-    };
-    window.sessionStorage.setItem(KOREA_ARRIVAL_PREFLIGHT_STORAGE_KEY, JSON.stringify(marker));
-    router.push(buildKoreaArrivalCardFormHref({
-      adultRepresentative: minorNeedsRepresentative,
-      applicationId: repeatApplicationId,
-    }));
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const result = await completeKoreaEArrivalCardPreflight({
+        applicationId: repeatApplicationId,
+        dateOfBirth,
+        adultRepresentativeConfirmed,
+      });
+      if (!result.ok || !result.applicationId || !result.completedAt || !result.answers) {
+        setSaveError(
+          isZh
+            ? "暂时无法保存资格预检，请重试。你已填写的内容仍然保留。"
+            : "We could not save the eligibility check. Try again; your answers are still here.",
+        );
+        return;
+      }
+      const marker: KoreaArrivalPreflightMarker = {
+        version: 1,
+        country: "south_korea",
+        visaType: "KR_E_ARRIVAL_CARD",
+        eligibility: "needs_declaration",
+        adultRepresentative: minorNeedsRepresentative,
+        completedAt: result.completedAt,
+      };
+      window.sessionStorage.setItem(KOREA_ARRIVAL_PREFLIGHT_STORAGE_KEY, JSON.stringify(marker));
+      const completion: KoreaArrivalCardPreflightCompletion = {
+        applicationId: result.applicationId,
+        answers: result.answers,
+        marker,
+      };
+      if (onComplete) {
+        await onComplete(completion);
+        return;
+      }
+      router.push(buildKoreaArrivalCardFormHref({
+        adultRepresentative: minorNeedsRepresentative,
+        applicationId: result.applicationId,
+      }));
+    } catch {
+      setSaveError(
+        isZh
+          ? "暂时无法保存资格预检，请重试。你已填写的内容仍然保留。"
+          : "We could not save the eligibility check. Try again; your answers are still here.",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -62,8 +111,8 @@ export function KoreaArrivalCardEligibilityGate() {
           <CardTitle>{isZh ? "韩国 e-Arrival Card 资格预检" : "Korea e-Arrival Card eligibility check"}</CardTitle>
           <p className="text-sm leading-6 text-muted-foreground">
             {isZh
-              ? "韩国电子入境卡与签证、K-ETA 分开。请先按你的入境身份选择，系统不会把这一步写入官方表单。"
-              : "The Korea e-Arrival Card is separate from a visa and K-ETA. Choose the statement that matches your entry status; these answers stay outside the official form."}
+              ? "韩国电子入境卡与签证、K-ETA 分开。请先按你的入境身份选择；资格判断不会作为官方字段提交，出生日期会自动带入后续表单。"
+              : "The Korea e-Arrival Card is separate from a visa and K-ETA. Choose the statement that matches your entry status. The eligibility result is not submitted as an official field; your date of birth carries into the form."}
           </p>
           <p className="text-xs leading-5 text-muted-foreground">
             {isZh ? "官方规则审核于 2026-08-18。" : "Official rules reviewed 2026-08-18."}
@@ -175,6 +224,13 @@ export function KoreaArrivalCardEligibilityGate() {
             </Alert>
           ) : null}
 
+          {saveError ? (
+            <Alert variant="destructive">
+              <AlertIcon variant="destructive" />
+              <AlertDescription>{saveError}</AlertDescription>
+            </Alert>
+          ) : null}
+
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <a
               href={KOREA_NAVIGATOR_URL}
@@ -187,10 +243,12 @@ export function KoreaArrivalCardEligibilityGate() {
             </a>
             <Button
               type="button"
-              onClick={continueToForm}
-              disabled={!canContinue}
+              onClick={() => void continueToForm()}
+              disabled={!canContinue || saving}
             >
-              {uncertain
+              {saving
+                ? (isZh ? "正在保存..." : "Saving...")
+                : uncertain
                 ? (isZh ? "查看官方说明后选择需要申报" : "Check the official guidance, then select declaration needed")
                 : blockedExempt
                   ? (isZh ? "无需创建申请" : "No application needed")

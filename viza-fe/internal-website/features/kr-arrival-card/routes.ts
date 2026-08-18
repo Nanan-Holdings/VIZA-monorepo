@@ -8,18 +8,20 @@ export function buildKoreaArrivalCardGateHref(applicationId?: string | null): st
     : KOREA_ARRIVAL_CARD_GATE_PATH;
 }
 
-export function buildKoreaArrivalCardFormHref(input: {
-  adultRepresentative: boolean;
-  applicationId?: string | null;
-}): string {
+export function buildKoreaArrivalCardIntegratedFormHref(applicationId?: string | null): string {
   const params = new URLSearchParams({
     country: "south_korea",
     visaType: "KR_E_ARRIVAL_CARD",
     skipFormCheck: "true",
-    preflight: "needs_declaration",
-    adultRepresentative: input.adultRepresentative ? "true" : "false",
   });
-  const normalizedApplicationId = input.applicationId?.trim();
+  const normalizedApplicationId = applicationId?.trim();
   if (normalizedApplicationId) params.set("applicationId", normalizedApplicationId);
   return `${KOREA_ARRIVAL_CARD_FORM_PATH}?${params.toString()}`;
+}
+
+export function buildKoreaArrivalCardFormHref(input: {
+  adultRepresentative: boolean;
+  applicationId?: string | null;
+}): string {
+  return buildKoreaArrivalCardIntegratedFormHref(input.applicationId);
 }
