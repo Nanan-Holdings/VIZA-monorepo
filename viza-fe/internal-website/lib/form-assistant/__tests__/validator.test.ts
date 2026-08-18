@@ -205,4 +205,72 @@ describe("validateApplicationAnswers", () => {
       expect.arrayContaining(["invalid_conditional_length", "date_after_submission_window"]),
     );
   });
+
+  it("replaces a corrected Malaysia date error with newly introduced cross-field issues", () => {
+    const malaysiaSteps: WizardStep[] = [{
+      stepNumber: 2,
+      stepName: "Trip Information",
+      fields: [
+        {
+          id: "arrival-date",
+          visaType: "MY_MDAC_ARRIVAL_CARD",
+          fieldName: "arrival_date",
+          label: "Date of Arrival in Malaysia",
+          fieldType: "date",
+          required: true,
+          stepNumber: 2,
+          stepName: "Trip Information",
+          displayOrder: 1,
+          placeholder: null,
+          validationRules: { min_date: "today" },
+          options: null,
+          conditionalLogic: null,
+        },
+        {
+          id: "departure-date",
+          visaType: "MY_MDAC_ARRIVAL_CARD",
+          fieldName: "departure_date",
+          label: "Date of Departure from Malaysia",
+          fieldType: "date",
+          required: true,
+          stepNumber: 2,
+          stepName: "Trip Information",
+          displayOrder: 2,
+          placeholder: null,
+          validationRules: { after_or_equal_field: "arrival_date" },
+          options: null,
+          conditionalLogic: null,
+        },
+      ],
+    }];
+    const now = new Date("2026-08-18T00:00:00Z");
+
+    const staleResult = validateApplicationAnswers({
+      steps: malaysiaSteps,
+      answers: { arrival_date: "2026-08-17", departure_date: "2026-08-23" },
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+      now,
+      locale: "zh",
+    });
+    expect(staleResult.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "date_before_today", fieldNames: ["arrival_date"] }),
+    ]));
+
+    const refreshedResult = validateApplicationAnswers({
+      steps: malaysiaSteps,
+      answers: { arrival_date: "2026-08-24", departure_date: "2026-08-23" },
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+      now,
+      locale: "zh",
+    });
+    expect(refreshedResult.errors).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "date_before_today" }),
+    ]));
+    expect(refreshedResult.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "date_before_related_field",
+        fieldNames: ["departure_date", "arrival_date"],
+      }),
+    ]));
+  });
 });

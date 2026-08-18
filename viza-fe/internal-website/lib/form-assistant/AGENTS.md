@@ -36,6 +36,9 @@ Scope: this file applies to `lib/form-assistant/**`.
 - `review-issues.ts` maps validator output to schema-ordered field repair
   navigation. Keep it country-agnostic, preserve repeat-instance keys, and let
   hard errors take precedence over warnings for the same answer.
+- `validation-refresh.ts` guards automatic post-edit revalidation. A response
+  may update the assistant and form only when both its request id and answer
+  revision still match the latest snapshot.
 - Knowledge sources and prompts must remain bound to the owned application's
   exact `country + visaType`. Never return the SGAC ICA fallback source for a
   different Singapore product or another country.

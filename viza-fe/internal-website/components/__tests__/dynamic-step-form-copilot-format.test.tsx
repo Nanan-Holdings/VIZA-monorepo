@@ -2576,6 +2576,56 @@ describe("DynamicStepForm copilot format", () => {
     expect(onNavigateReviewIssue).toHaveBeenCalledExactlyOnceWith("passport_number");
   });
 
+  it("removes a corrected field highlight and renders the next validation snapshot", () => {
+    const props = {
+      step: requiredTextStep,
+      prefill: { surname: "Test" },
+      onComplete: vi.fn(),
+      showContinueButton: false,
+    };
+    const { container, rerender } = render(
+      <DynamicStepForm
+        {...props}
+        reviewIssues={new Map([[
+          "surname",
+          {
+            fieldName: "surname",
+            message: "This answer came from the previous scan.",
+            severity: "error" as const,
+            nextFieldName: null,
+          },
+        ]])}
+      />,
+    );
+
+    expect(container.querySelector("[data-application-field-name='surname']"))
+      .toHaveAttribute("data-review-issue", "error");
+    expect(screen.getByText("This answer came from the previous scan.")).toBeInTheDocument();
+
+    rerender(<DynamicStepForm {...props} reviewIssues={new Map()} />);
+    expect(container.querySelector("[data-application-field-name='surname']"))
+      .not.toHaveAttribute("data-review-issue");
+    expect(screen.queryByText("This answer came from the previous scan.")).not.toBeInTheDocument();
+
+    rerender(
+      <DynamicStepForm
+        {...props}
+        reviewIssues={new Map([[
+          "surname",
+          {
+            fieldName: "surname",
+            message: "The refreshed scan found a related warning.",
+            severity: "warning" as const,
+            nextFieldName: null,
+          },
+        ]])}
+      />,
+    );
+    expect(container.querySelector("[data-application-field-name='surname']"))
+      .toHaveAttribute("data-review-issue", "warning");
+    expect(screen.getByText("The refreshed scan found a related warning.")).toBeInTheDocument();
+  });
+
   it("returns to the assistant after the final reviewed issue", () => {
     const onNavigateReviewIssue = vi.fn();
     render(

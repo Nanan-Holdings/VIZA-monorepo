@@ -1,5 +1,8 @@
 import { evaluateShowIf } from "@/lib/form-utils";
-import { getMissingDynamicFormFields } from "@/lib/application-tab-completion";
+import {
+  getMissingDynamicFormFields,
+  type MissingApplicationField,
+} from "@/lib/application-tab-completion";
 import type { VisaFormFieldOption, WizardStep } from "@/types/visa-form-fields";
 import type {
   FormAssistantProgress,
@@ -52,11 +55,13 @@ export function validateApplicationAnswers(params: {
   errors: FormAssistantValidationIssue[];
   warnings: FormAssistantValidationIssue[];
   progress: FormAssistantProgress;
+  missingFields: MissingApplicationField[];
 } {
   const { steps, answers, visaType } = params;
   const isZh = params.locale?.toLowerCase().startsWith("zh") ?? false;
   const message = (en: string, zh: string) => isZh ? zh : en;
-  const errors: FormAssistantValidationIssue[] = getMissingDynamicFormFields(steps, answers).map(
+  const missingFields = getMissingDynamicFormFields(steps, answers);
+  const errors: FormAssistantValidationIssue[] = missingFields.map(
     (missing) => ({
       code: "required_missing",
       fieldNames: [missing.fieldName],
@@ -263,5 +268,6 @@ export function validateApplicationAnswers(params: {
     errors: dedupe(errors),
     warnings: dedupe(warnings),
     progress: getAssistantProgress(steps, answers),
+    missingFields,
   };
 }

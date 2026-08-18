@@ -382,8 +382,10 @@ review flow; country pages must not implement their own issue navigation.
 - Manual form users get a return-to-assistant review action when deterministic
   required-field completion is reached.
 - Any edit after validation marks that result stale. Final-review navigation is
-  disabled until validation succeeds again; warnings still require the normal
-  explicit acknowledgement flow.
+  disabled and stale issues are removed from both surfaces while the latest
+  draft is saved and revalidated automatically. The refreshed result replaces
+  the assistant and form issue maps together, including new cross-field issues;
+  warnings still require the normal explicit acknowledgement flow.
 - Issue ordering comes from the shared schema display order in
   `lib/form-assistant/review-issues.ts`, including repeat-instance answer keys.
 

@@ -60,6 +60,7 @@ describe("FormFillingAssistant", () => {
     });
     vi.restoreAllMocks();
     vi.useRealTimers();
+    window.localStorage.clear();
   });
 
   it("keeps missing fields inside the conversation instead of rendering a jump list", () => {
@@ -285,6 +286,42 @@ describe("FormFillingAssistant", () => {
     expect(within(conversation).getByText("Answer check")).toBeInTheDocument();
     expect(within(conversation).getByText("Nationality must use an official option.")).toBeInTheDocument();
     expect(within(conversation).getByRole("button", { name: "Review final answers" })).toBeInTheDocument();
+  });
+
+  it("replaces stale validation copy when the latest answer scan returns a different issue", () => {
+    const { props, rerender } = renderAssistant({
+      missingFields: [],
+      validationResult: {
+        errors: [{ id: "arrival-past", message: "Arrival date cannot be before today." }],
+        warnings: [],
+      },
+    });
+
+    expect(screen.getByText("Arrival date cannot be before today.")).toBeInTheDocument();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <FormFillingAssistant {...props} validationResult={null} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByText("Arrival date cannot be before today.")).not.toBeInTheDocument();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <FormFillingAssistant
+          {...props}
+          validationResult={{
+            errors: [{
+              id: "departure-before-arrival",
+              message: "Departure date cannot be before arrival date.",
+            }],
+            warnings: [],
+          }}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByText("Arrival date cannot be before today.")).not.toBeInTheDocument();
+    expect(screen.getByText("Departure date cannot be before arrival date.")).toBeInTheDocument();
   });
 
   it("offers inline editing and an original-form jump for every field issue", () => {

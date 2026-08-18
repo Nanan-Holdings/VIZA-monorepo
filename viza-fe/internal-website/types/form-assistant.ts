@@ -62,6 +62,7 @@ export interface FormAssistantValidationResponse {
   errors: FormAssistantValidationIssue[];
   warnings: FormAssistantValidationIssue[];
   progress: FormAssistantProgress;
+  missingFields?: MissingApplicationField[];
   canReview: boolean;
   validationId: string;
 }
