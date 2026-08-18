@@ -80,6 +80,10 @@ import {
   normalizeFormAssistantValidationResponse,
 } from "@/lib/form-assistant/review-issues";
 import {
+  FormAssistantValidationRefreshGuard,
+  mergeFormAssistantIssueDraft,
+} from "@/lib/form-assistant/validation-refresh";
+import {
   buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
   mergeUniversalProfileIntoAnswers,
@@ -1690,6 +1694,7 @@ export default function ApplicationPage() {
   const [formAssistantReloadKey, setFormAssistantReloadKey] = useState(0);
   const [formAssistantValidation, setFormAssistantValidation] = useState<FormAssistantValidationResponse | null>(null);
   const [formAssistantValidationDirty, setFormAssistantValidationDirty] = useState(false);
+  const [formAssistantAnswerRevision, setFormAssistantAnswerRevision] = useState(0);
   const [formAssistantUnavailable, setFormAssistantUnavailable] = useState(false);
   const [aiFilledFieldNames, setAiFilledFieldNames] = useState<string[]>([]);
   const [formAssistantFillNotice, setFormAssistantFillNotice] = useState<FormAssistantFillNotice | null>(null);
@@ -1706,6 +1711,9 @@ export default function ApplicationPage() {
     key: string;
     promise: ReturnType<typeof ensureDraftApplication>;
   } | null>(null);
+  const formAssistantHasValidatedRef = useRef(false);
+  const formAssistantValidationRefreshGuardRef = useRef(new FormAssistantValidationRefreshGuard());
+  const formAssistantValidateRef = useRef<(() => Promise<FormAssistantValidationResponse>) | null>(null);
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
   const externalDraftProtectionRef = useRef<{ fieldNames: Set<string>; expiresAt: number } | null>(null);
   const draftVersionTimerRef = useRef<number | null>(null);
@@ -1721,6 +1729,13 @@ export default function ApplicationPage() {
 
   const markLiveSaveActivity = useCallback(() => {
     hasLiveSaveActivityRef.current = true;
+  }, []);
+
+  const markFormAssistantAnswersChanged = useCallback(() => {
+    if (!formAssistantHasValidatedRef.current) return;
+    const revision = formAssistantValidationRefreshGuardRef.current.markAnswersChanged();
+    setFormAssistantAnswerRevision(revision);
+    setFormAssistantValidationDirty(true);
   }, []);
 
   useEffect(() => {
@@ -1844,11 +1859,17 @@ export default function ApplicationPage() {
     };
   }, []);
 
-  const handleDynamicDraftChange = useCallback((stepId: number, data: Record<string, string>) => {
+  const handleDynamicDraftChange = useCallback((
+    stepId: number,
+    data: Record<string, string>,
+    options?: { merge?: boolean },
+  ) => {
     const protection = externalDraftProtectionRef.current;
-    let nextData = data;
+    let nextData = options?.merge
+      ? mergeFormAssistantIssueDraft(dynamicDraftRef.current[stepId], data)
+      : data;
     if (protection && protection.expiresAt >= Date.now()) {
-      nextData = { ...data };
+      nextData = { ...nextData };
       for (const fieldName of protection.fieldNames) delete nextData[fieldName];
     } else if (protection) {
       externalDraftProtectionRef.current = null;
@@ -1868,7 +1889,7 @@ export default function ApplicationPage() {
       ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
     );
     if (hasChangedValue) {
-      if (formAssistantValidation) setFormAssistantValidationDirty(true);
+      markFormAssistantAnswersChanged();
       setAutosaveFailed(false);
     }
     if (hasChangedValue) {
@@ -1891,7 +1912,7 @@ export default function ApplicationPage() {
       }
     }
     setSubmitMissingFields((current) => current.length === 0 ? current : []);
-  }, [aiFilledFieldNames, dynamicAnswers, formAssistantValidation]);
+  }, [aiFilledFieldNames, dynamicAnswers, markFormAssistantAnswersChanged]);
 
   useEffect(() => () => {
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
@@ -2289,10 +2310,10 @@ export default function ApplicationPage() {
     : visibleMissingFields;
   const formAssistantFieldReviewIssues = useMemo(
     () => buildFormAssistantFieldReviewIssues(
-      formAssistantValidation,
+      formAssistantValidationDirty ? null : formAssistantValidation,
       visibleDynamicSteps.map(({ step }) => step),
     ),
-    [formAssistantValidation, visibleDynamicSteps],
+    [formAssistantValidation, formAssistantValidationDirty, visibleDynamicSteps],
   );
   const formAssistantFieldReviewIssueMap = useMemo(
     () => new Map(formAssistantFieldReviewIssues.map((issue) => [issue.fieldName, issue])),
@@ -2306,7 +2327,7 @@ export default function ApplicationPage() {
     return locations;
   }, [dbSteps]);
   const formAssistantDisplayValidation = useMemo(() => {
-    if (!formAssistantValidation) return null;
+    if (!formAssistantValidation || formAssistantValidationDirty) return null;
     const expand = (
       issues: FormAssistantValidationResponse["errors"],
       severity: "error" | "warning",
@@ -2325,7 +2346,7 @@ export default function ApplicationPage() {
       errors: expand(formAssistantValidation.errors, "error"),
       warnings: expand(formAssistantValidation.warnings, "warning"),
       warningsAcknowledged: formAssistantValidation.canReview,
-      dirty: formAssistantValidationDirty,
+      dirty: false,
     };
   }, [formAssistantValidation, formAssistantValidationDirty]);
   const formFieldsComplete = useMemo(
@@ -2370,6 +2391,10 @@ export default function ApplicationPage() {
     setSubmitMissingFields([]);
     setFormAssistantValidation(null);
     setFormAssistantValidationDirty(false);
+    setFormAssistantAnswerRevision(0);
+    setFormAssistantBusy(false);
+    formAssistantHasValidatedRef.current = false;
+    formAssistantValidationRefreshGuardRef.current.reset();
     initialStepResolvedRef.current = false;
     setAppState((prev) => ({
       ...prev,
@@ -2766,12 +2791,39 @@ export default function ApplicationPage() {
     );
     if (Object.keys(changedDraft).length === 0) return;
 
-    const applicationId = await ensureWritableApplicationId();
-    const saveResult = await saveDynamicAnswers(applicationId, changedDraft);
-    if (saveResult.error) throw new Error(saveResult.error);
+    const requestId = ++autosaveRequestRef.current;
+    const runSave = autosaveQueueRef.current.then(async () => {
+      const applicationId = await ensureWritableApplicationId();
+      return saveDynamicAnswers(applicationId, changedDraft);
+    });
+    autosaveQueueRef.current = runSave.then(
+      () => undefined,
+      () => undefined,
+    );
+    let saveResult: Awaited<ReturnType<typeof saveDynamicAnswers>>;
+    try {
+      saveResult = await runSave;
+    } catch (saveError) {
+      if (requestId === autosaveRequestRef.current) {
+        setAutosaving(false);
+        setAutosaveFailed(true);
+      }
+      throw saveError;
+    }
+    if (saveResult.error) {
+      if (requestId === autosaveRequestRef.current) {
+        setAutosaving(false);
+        setAutosaveFailed(true);
+      }
+      throw new Error(saveResult.error);
+    }
 
     setDynamicAnswers((prev) => ({ ...prev, ...mergedDraft }));
     setSubmitMissingFields([]);
+    if (requestId === autosaveRequestRef.current) {
+      setAutosaving(false);
+      setAutosaveFailed(false);
+    }
   }, [dynamicAnswers, ensureWritableApplicationId]);
 
   const handleFormAssistantSend = useCallback(async (text: string) => {
@@ -2780,8 +2832,6 @@ export default function ApplicationPage() {
     const optimisticMessageId = `user-pending-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     setFormAssistantBusy(true);
-    setFormAssistantValidation(null);
-    setFormAssistantValidationDirty(false);
     setFormAssistantState((current) => current ? {
       ...current,
       messages: [
@@ -2875,6 +2925,7 @@ export default function ApplicationPage() {
         if (noticeItems.length > 0) {
           setFormAssistantFillNotice({ id: crypto.randomUUID(), items: noticeItems });
         }
+        markFormAssistantAnswersChanged();
       }
       setFormAssistantState((current) => current ? {
         ...current,
@@ -2897,7 +2948,7 @@ export default function ApplicationPage() {
     } finally {
       setFormAssistantBusy(false);
     }
-  }, [appState.applicationId, dbSteps, isZhInterface, locale, saveAllDynamicDrafts, t]);
+  }, [appState.applicationId, dbSteps, isZhInterface, locale, markFormAssistantAnswersChanged, saveAllDynamicDrafts, t]);
 
   const handleFormAssistantUndoFill = useCallback(async (items: FormAssistantFillNoticeItem[]) => {
     const applicationId = appState.applicationId;
@@ -2937,8 +2988,7 @@ export default function ApplicationPage() {
       const item = restored.get(fieldName);
       return !item || item.restoredSource === "form_assistant";
     }));
-    setFormAssistantValidation(null);
-    setFormAssistantValidationDirty(false);
+    markFormAssistantAnswersChanged();
     setFormAssistantFillNotice(null);
 
     const stateResponse = await fetch(
@@ -2950,7 +3000,7 @@ export default function ApplicationPage() {
       setFormAssistantState(prepareFormAssistantState(state));
       setAiFilledFieldNames(state.aiFilledFieldNames);
     }
-  }, [appState.applicationId, dbSteps, locale]);
+  }, [appState.applicationId, dbSteps, locale, markFormAssistantAnswersChanged]);
 
   const handleDismissFormAssistantFillNotice = useCallback((noticeId: string) => {
     setFormAssistantFillNotice((current) => current?.id === noticeId ? null : current);
@@ -3045,8 +3095,8 @@ export default function ApplicationPage() {
           key={`${formAssistantValidation?.validationId ?? "validation"}:${issue.fieldName}`}
           step={issueStep}
           prefill={dynamicAnswerSnapshot}
-          onComplete={(data) => handleDynamicDraftChange(location.stepIndex, data)}
-          onDraftChange={(data) => handleDynamicDraftChange(location.stepIndex, data)}
+          onComplete={(data) => handleDynamicDraftChange(location.stepIndex, data, { merge: true })}
+          onDraftChange={(data) => handleDynamicDraftChange(location.stepIndex, data, { merge: true })}
           onUserChange={markLiveSaveActivity}
           saving={saving}
           showContinueButton={false}
@@ -3072,6 +3122,7 @@ export default function ApplicationPage() {
   const handleFormAssistantValidate = useCallback(async (): Promise<FormAssistantValidationResponse> => {
     const applicationId = appState.applicationId;
     if (!applicationId) throw new Error(t("errors.noApplicationFound"));
+    const requestToken = formAssistantValidationRefreshGuardRef.current.startRequest();
     setFormAssistantBusy(true);
     try {
       await saveAllDynamicDrafts();
@@ -3088,13 +3139,43 @@ export default function ApplicationPage() {
       if (!response.ok) throw new Error(responseError ?? "Validation failed");
       const payload = normalizeFormAssistantValidationResponse(rawPayload);
       if (!payload) throw new Error("Invalid validation response");
-      setFormAssistantValidation(payload);
-      setFormAssistantValidationDirty(false);
+      if (formAssistantValidationRefreshGuardRef.current.isCurrent(requestToken)) {
+        formAssistantHasValidatedRef.current = true;
+        setFormAssistantValidation(payload);
+        setFormAssistantValidationDirty(false);
+        setFormAssistantState((current) => current ? {
+          ...current,
+          progress: payload.progress,
+          missingFields: payload.missingFields ?? current.missingFields,
+          canRunFinalCheck: payload.errors.length === 0,
+        } : current);
+        setError((current) => current === t("formAssistant.errors.reviewFailed") ? null : current);
+      }
       return payload;
     } finally {
-      setFormAssistantBusy(false);
+      if (formAssistantValidationRefreshGuardRef.current.isLatestRequest(requestToken)) {
+        setFormAssistantBusy(false);
+      }
     }
   }, [appState.applicationId, locale, saveAllDynamicDrafts, t]);
+
+  useEffect(() => {
+    formAssistantValidateRef.current = handleFormAssistantValidate;
+  }, [handleFormAssistantValidate]);
+
+  useEffect(() => {
+    if (!formAssistantValidationDirty || formAssistantAnswerRevision === 0) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const validate = formAssistantValidateRef.current;
+      if (!validate) return;
+      void validate().catch(() => {
+        setError(t("formAssistant.errors.reviewFailed"));
+      });
+    }, 700);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [formAssistantAnswerRevision, formAssistantValidationDirty, t]);
 
   const handleFormAssistantAcknowledgeWarnings = useCallback(async () => {
     const applicationId = appState.applicationId;
@@ -4027,6 +4108,7 @@ export default function ApplicationPage() {
       // rebuilt from the confirmed OCR patch instead of emitting an older
       // blank draft after confirmation.
       setExternalAnswerRevision((current) => current + 1);
+      markFormAssistantAnswersChanged();
     }
     setAppState((prev) => ({
       ...prev,
@@ -4046,7 +4128,7 @@ export default function ApplicationPage() {
         passportExpirationDate: prev.passport.passportExpirationDate || fields.passport_expiry_date || undefined,
       },
     }));
-  }, [dynamicAnswers]);
+  }, [dynamicAnswers, markFormAssistantAnswersChanged]);
 
   // When the first form step has a dedicated passport-upload field (e.g. the UK
   // "Passport Upload" step), the passport OCR card above the form is the real

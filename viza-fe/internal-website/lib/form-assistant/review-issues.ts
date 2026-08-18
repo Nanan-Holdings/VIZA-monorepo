@@ -3,6 +3,7 @@ import type {
   FormAssistantValidationResponse,
 } from "@/types/form-assistant";
 import type { WizardStep } from "@/types/visa-form-fields";
+import type { MissingApplicationField } from "@/lib/application-tab-completion";
 
 type LegacyValidationIssue = {
   code?: unknown;
@@ -38,6 +39,26 @@ function normalizeValidationIssue(value: unknown): FormAssistantValidationRespon
   };
 }
 
+function normalizeMissingField(value: unknown): MissingApplicationField | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Record<string, unknown>;
+  if (
+    typeof candidate.stepId !== "number" ||
+    !Number.isFinite(candidate.stepId) ||
+    typeof candidate.stepName !== "string" ||
+    typeof candidate.fieldName !== "string" ||
+    typeof candidate.label !== "string"
+  ) return null;
+  const reason = candidate.reason === "ceac_required" ? "ceac_required" : "required";
+  return {
+    stepId: candidate.stepId,
+    stepName: candidate.stepName,
+    fieldName: candidate.fieldName,
+    label: candidate.label,
+    reason,
+  };
+}
+
 /**
  * Accept the canonical validator response plus the legacy single-field issue
  * shape used during rolling deploys. Invalid optional data is discarded so a
@@ -66,6 +87,9 @@ export function normalizeFormAssistantValidationResponse(
     errors,
     warnings,
     progress: { completed, total },
+    missingFields: Array.isArray(candidate.missingFields)
+      ? candidate.missingFields.map(normalizeMissingField).filter((field) => field !== null)
+      : undefined,
     canReview: typeof candidate.canReview === "boolean"
       ? candidate.canReview
       : errors.length === 0 && warnings.length === 0,
