@@ -108,12 +108,12 @@ async function verifyCaptchaWhenPresent(
 ): Promise<VietnamCaptchaSolveOutcome | null> {
   if (!(await hasVisibleVietnamCaptchaChallenge(page))) return null;
   const configuredBudgetMs = Number.parseInt(
-    process.env.VN_PREARRIVAL_CATALOG_CAPTCHA_BUDGET_MS ?? "180000",
+    process.env.VN_PREARRIVAL_CATALOG_CAPTCHA_BUDGET_MS ?? "270000",
     10,
   );
   const budgetMs = Number.isFinite(configuredBudgetMs) && configuredBudgetMs > 0
     ? configuredBudgetMs
-    : 180_000;
+    : 270_000;
   const deadline = Date.now() + budgetMs;
   const maxAttempts = 3;
   let lastReason = "Vietnam Pre-Arrival flight catalog CAPTCHA could not be solved.";
@@ -124,13 +124,15 @@ async function verifyCaptchaWhenPresent(
     if (!outcome.solved) {
       lastReason = outcome.reason ?? lastReason;
       if (!isVietnamCaptchaFailureRetryable(outcome.reason)) break;
-      if (/unsolvable|unusable|changed while|stale answer/iu.test(outcome.reason ?? "")) {
-        const refreshed = await refreshVietnamCaptchaChallenge(
+      if (/unsolvable|unusable/iu.test(outcome.reason ?? "")) {
+        await refreshVietnamCaptchaChallenge(
           page,
           Math.min(15_000, Math.max(1_000, deadline - Date.now())),
         ).catch(() => false);
-        if (!refreshed) break;
       }
+      // A "changed while solving" result already means that the portal now
+      // displays a fresh challenge. Retry it directly instead of requiring a
+      // second refresh control that some portal builds do not expose.
       continue;
     }
 
