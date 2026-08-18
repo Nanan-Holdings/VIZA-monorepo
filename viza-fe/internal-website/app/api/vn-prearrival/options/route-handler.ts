@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { countries } from "country-data-list";
 import { getClientSession } from "@/lib/client-session";
+import {
+  ensureFlyMachineStarted,
+  waitForHttpReady,
+} from "@/lib/fly-machine-wake.server";
 import { createClient } from "@/lib/supabase/server";
 import staticOptions from "@/lib/vn-prearrival/official-static-options.json";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
@@ -392,14 +396,19 @@ type RunnerFlightCatalogResponse = {
 };
 
 function flightCatalogServiceConfig(): {
+  baseUrl: string;
   url: string;
   headers: Record<string, string>;
+  wakePool: boolean;
 } | null {
   const localUrl = process.env.SUBMISSION_SERVICE_LOCAL_URL?.trim();
   if (localUrl) {
+    const baseUrl = localUrl.replace(/\/+$/u, "");
     return {
-      url: `${localUrl.replace(/\/+$/u, "")}/local/vn-prearrival/flight-catalog`,
+      baseUrl,
+      url: `${baseUrl}/local/vn-prearrival/flight-catalog`,
       headers: { "Content-Type": "application/json" },
+      wakePool: false,
     };
   }
   const token = (
@@ -413,13 +422,37 @@ function flightCatalogServiceConfig(): {
     : "";
   const baseUrl = configuredUrl || defaultProductionUrl;
   if (!baseUrl) return null;
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/u, "");
   return {
-    url: `${baseUrl.replace(/\/+$/u, "")}/internal/vn-prearrival/flight-catalog`,
+    baseUrl: normalizedBaseUrl,
+    url: `${normalizedBaseUrl}/internal/vn-prearrival/flight-catalog`,
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
+    wakePool: true,
   };
+}
+
+async function ensureFlightCatalogServiceReady(
+  config: NonNullable<ReturnType<typeof flightCatalogServiceConfig>>,
+  refresh: boolean,
+  dependencies: {
+    startPool?: typeof ensureFlyMachineStarted;
+    waitForReady?: typeof waitForHttpReady;
+  } = {},
+): Promise<boolean> {
+  if (!refresh || !config.wakePool) return true;
+  const startPool = dependencies.startPool ?? ensureFlyMachineStarted;
+  const waitForReady = dependencies.waitForReady ?? waitForHttpReady;
+  const wake = await startPool("pool");
+  if (!wake.ok) return false;
+  if (wake.state === "already_running") return true;
+  const readiness = await waitForReady(`${config.baseUrl}/health`, {
+    timeoutMs: 15_000,
+    requestTimeoutMs: 4_000,
+  });
+  return readiness.ok;
 }
 
 async function loadRunnerFlightCatalogPage(input: {
@@ -432,6 +465,7 @@ async function loadRunnerFlightCatalogPage(input: {
   const config = flightCatalogServiceConfig();
   if (!config) return null;
   try {
+    if (!(await ensureFlightCatalogServiceReady(config, input.refresh))) return null;
     const response = await fetch(config.url, {
       method: "POST",
       headers: config.headers,
@@ -490,10 +524,14 @@ async function loadOfficialFlightOptions(
 }
 
 async function hasAuthenticatedApplicant(): Promise<boolean> {
-  if (await getClientSession()) return true;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return Boolean(user);
+  try {
+    if (await getClientSession()) return true;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    return Boolean(user);
+  } catch {
+    return false;
+  }
 }
 
 function paginateOptions<T>(
@@ -642,5 +680,6 @@ export const __testables = {
   pageFromOfficialSearch,
   paginateOptions,
   flightCatalogServiceConfig,
+  ensureFlightCatalogServiceReady,
   zhRegionNameFromOfficialCode,
 };

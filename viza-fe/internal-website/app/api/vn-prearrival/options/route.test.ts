@@ -18,6 +18,55 @@ describe("Vietnam pre-arrival official option mapping", () => {
     });
   });
 
+  it("wakes a stopped shared-pool machine before an official catalog refresh", async () => {
+    const calls: string[] = [];
+    const ready = await __testables.ensureFlightCatalogServiceReady({
+      baseUrl: "https://viza-runner-pool.fly.dev",
+      url: "https://viza-runner-pool.fly.dev/internal/vn-prearrival/flight-catalog",
+      headers: {},
+      wakePool: true,
+    }, true, {
+      startPool: async (target) => {
+        calls.push(`start:${target}`);
+        return {
+          ok: true,
+          target: "pool",
+          app: "viza-runner-pool",
+          state: "start_requested",
+        };
+      },
+      waitForReady: async (url) => {
+        calls.push(`ready:${url}`);
+        return { ok: true, attempts: 1 };
+      },
+    });
+
+    expect(ready).toBe(true);
+    expect(calls).toEqual([
+      "start:pool",
+      "ready:https://viza-runner-pool.fly.dev/health",
+    ]);
+  });
+
+  it("does not wake Fly for local or cached catalog reads", async () => {
+    const startPool = async () => {
+      throw new Error("unexpected machine wake");
+    };
+
+    await expect(__testables.ensureFlightCatalogServiceReady({
+      baseUrl: "http://127.0.0.1:8080",
+      url: "http://127.0.0.1:8080/local/vn-prearrival/flight-catalog",
+      headers: {},
+      wakePool: false,
+    }, true, { startPool })).resolves.toBe(true);
+    await expect(__testables.ensureFlightCatalogServiceReady({
+      baseUrl: "https://viza-runner-pool.fly.dev",
+      url: "https://viza-runner-pool.fly.dev/internal/vn-prearrival/flight-catalog",
+      headers: {},
+      wakePool: true,
+    }, false, { startPool })).resolves.toBe(true);
+  });
+
   it("paginates the live flight catalog for incremental dropdown loading", () => {
     const result = __testables.paginateOptions(
       Array.from({ length: 25 }, (_, index) => `flight-${index}`),
