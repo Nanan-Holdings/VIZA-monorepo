@@ -1698,3 +1698,25 @@
 - `npx prettier --check` 初次发现本轮 PH files 需格式化；已用 `npx prettier --write` 格式化后，focused tests 仍通过。
 - `git diff --check`：passed。
 - `npx tsc --noEmit --incremental false`：失败仅为既有非 PH blocker：`lib/travel/__tests__/travel-llm-connectivity.spec.ts` tuple `[]` index errors，以及 `scripts/capture-travel-city-coverage-screenshots.ts` 缺 `playwright` types。
+
+## 第三十四轮：统一验收只读复核（2026-08-18）
+
+- 基于 clean HEAD `d3a6bd38` 复核；本轮不改功能、不部署、不改 env/DB、不创建真实申请、不入队。
+- PH frontend 完整 focused tests：`npx vitest run features/ph-etravel --testTimeout=15000`，31 files / 177 tests passed。覆盖 Purpose 16 项/POV999 code、SEA duplicate port labels、manual/electronic path isolation、分支清理、状态/result recovery 等 PH helper/UI 合同。
+- `npm run build` production build passed；Next build 成功生成 123 pages，首个输出仅为 Browserslist 过期提示，非 PH/非阻断。该 build 跳过 type validation；未发现实际 production build 错误。
+- 本地 dev server `127.0.0.1:3043` 只读 smoke：未登录 PH arrival route 正确 307 到 `/client/login?next=%2Fclient%2Farrival-cards%2Fphilippines`；一次性 local test session cookie-jar 后，`/client/arrival-cards/philippines` 与 PH long-form `country=philippines&visaType=PH_ETRAVEL_ARRIVAL_CARD&skipFormCheck=true` 均返回 200，且 long-form HTML payload 含 `PH_ETRAVEL_ARRIVAL_CARD`，未检测到 Taiwan/TW product token。
+- 浏览器 smoke：in-app browser 可确认本地 PH route 停在登录页且保留 PH `next`；浏览器沙箱不允许发 POST 或写 cookie，因此未完成登录后视觉点击 smoke。未输入真实账号或密码。
+- Production alias 只读检查：`app.viza.it.com` 当前 deployment `dpl_53uFahRkdCiBoQEHmt54k3zGvqFx` 为 READY，但 Vercel metadata 未暴露 git SHA；PH arrival 与 PH long-form 当前都 307 到裸 `/client/login`，没有保留 `next`。因此线上 alias 不能证明包含 `d3a6bd38`，并且仍不具备 PH deep-link 登录后回跳保护。Readiness blocker：需要后续按协调者流程部署/alias 到包含 `d3a6bd38` 的 build 后再做线上登录后 smoke。
+
+## 第三十五轮：PH runner_job 国家合同接入（2026-08-18）
+
+- 修复唯一前端/入队阻断：`lib/queue/countries.ts` 已将 `philippines` 纳入 canonical launch country，并补 `ph`/`phl` alias；PH retry 的 `enqueueRunnerJob(..., "philippines")` 现在能通过 producer-side country validation，非法国家仍 fail-closed。
+- 聚焦测试更新 `lib/queue/countries.test.ts`：覆盖 PH canonical/alias、大小写归一化、以及 `philippines_e_travel` 等非法国家拒绝；现有 PH retry route 测试继续覆盖首次创建 runner_job 与重复 enqueue reuse 都传递 `country: "philippines"`。
+- 未修改 PH-B/PH-C worklog、features/ph-etravel、backend、runner、DB、env、deployment 或真实官网流程。
+
+### Focused validation
+
+- `npm exec vitest run lib/queue/countries.test.ts 'app/api/applications/[id]/retry-submission/__tests__/retry-submission-ph.test.ts' -- --testTimeout=15000`：2 files / 11 tests passed。
+- `npm run build`：passed，Next production build 成功；仅有 Browserslist 过期提示，build 仍跳过 type validation。
+- `npm run type-check`：仍失败于既有非 PH blocker：`lib/travel/__tests__/travel-llm-connectivity.spec.ts` 的 tuple index errors，以及 `scripts/capture-travel-city-coverage-screenshots.ts` 缺 `playwright` types。
+- `git diff --check`：passed。
