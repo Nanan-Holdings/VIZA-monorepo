@@ -42,10 +42,12 @@ The agent backend exposes:
 - `GET /api/public/status`: cached, redacted snapshot;
 - `POST /api/internal/status/probe`: bearer-secret-protected bounded probe run.
 
-GitHub Actions calls the probe endpoint every five minutes. Its ephemeral
-hosted runner runs only `curl`, has a four-minute timeout, and exits after the
-request. The backend limits portal requests to five concurrent requests and
-caps each request timeout.
+The existing always-on agent backend runs a probe cycle after startup and every
+five minutes. This adds no monitoring machine or idle runner. Probe runs are
+single-flight, limited to five concurrent portal requests, and each request has
+a bounded timeout. The bearer-protected endpoint and ephemeral GitHub Actions
+workflow remain available as a manual/backup trigger when their shared secret
+is configured; the hosted runner runs only `curl` and exits after the request.
 
 The marketing app server fetches the public backend API and exposes a same-site
 read-only `/api/status` proxy for 60-second browser refreshes. The UI marks a
@@ -54,7 +56,8 @@ does not interpolate or backfill them.
 
 ```mermaid
 flowchart LR
-  GHA["Ephemeral scheduled runner"] -->|"Bearer-protected trigger"| API["Agent backend"]
+  TIMER["Backend five-minute timer"] --> API["Agent backend"]
+  GHA["Optional ephemeral trigger"] -->|"Bearer-protected trigger"| API
   API -->|"Bounded synthetic GET"| EXT["VIZA and government endpoints"]
   API -->|"Transactional RPC"| DB["Supabase status tables"]
   DB -->|"90-day redacted aggregation"| API
@@ -84,7 +87,7 @@ configuration.
 | Dimension | Assessment |
 | --- | --- |
 | Complexity | Medium |
-| Cost | Low; uses existing backend/database and ephemeral scheduler |
+| Cost | Low; uses the existing always-on backend and database |
 | Scalability | Sufficient for tens to low hundreds of five-minute monitors |
 | Team familiarity | High |
 
@@ -125,12 +128,12 @@ across edge instances.
 ## Deployment and verification
 
 1. Apply migration `0150_public_status_tracking.sql`.
-2. Set `STATUS_CRON_SECRET` on the agent backend.
-3. Set GitHub secrets `STATUS_CRON_SECRET` and `STATUS_PROBE_URL` (backend base
-   URL, without the endpoint suffix).
-4. Deploy the backend, then the marketing site with `AGENT_BACKEND_URL` set to
+2. Deploy the backend with `STATUS_PROBE_SCHEDULER_ENABLED=true` (the default).
+3. Optionally set `STATUS_CRON_SECRET` on the backend and GitHub together with
+   `STATUS_PROBE_URL` to enable the manual/backup workflow.
+4. Deploy the marketing site with `AGENT_BACKEND_URL` set to
    the backend base URL.
-5. Manually dispatch `Portal health canary` and verify it completes.
+5. Verify startup logs report `portal_health_probe_scheduler_started`.
 6. Verify `portal_health_checks` receives rows and `/api/public/status` returns
    only the documented public fields.
 7. Verify `/en/status` and `/zh-CN/status` show recorded checks; pause the cron

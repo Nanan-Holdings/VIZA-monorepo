@@ -11,10 +11,12 @@ import { describeMissingSupabaseUserAuthEnv } from './routes/supabase-user-auth-
 import { registerVisaNamespace } from './socket/visa-namespace.js';
 import { Logger } from './utils/logger.js';
 import { initSentry } from './observability/sentry-init.js';
+import { startPortalHealthProbeScheduler } from './services/portal-health.service.js';
 
 await initSentry();
 
 const logger = new Logger({ serviceName: 'ServerStartup' });
+let stopStatusProbeScheduler: (() => void) | null = null;
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
 
@@ -53,6 +55,7 @@ registerVisaNamespace(visaNsp);
 // Graceful shutdown handlers
 process.on('SIGTERM', () => {
   logger.warn('SIGTERM signal received: shutting down');
+  stopStatusProbeScheduler?.();
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
@@ -63,6 +66,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   logger.warn('SIGINT signal received: shutting down');
+  stopStatusProbeScheduler?.();
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
@@ -80,6 +84,7 @@ server.listen(port)
     const healthCheck = await testSupabaseConnection();
     if (healthCheck.success) {
       logger.info('Supabase connection successful', { message: healthCheck.message });
+      stopStatusProbeScheduler = startPortalHealthProbeScheduler();
     } else {
       logger.warn('Supabase connection failed', undefined, {
         message: healthCheck.message,
