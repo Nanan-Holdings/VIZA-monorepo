@@ -1375,3 +1375,11 @@ When PH-A publishes E10, PH-B must consume only: SEA electronic positive `Yes` b
 - SEA destination port remains dynamic/code-only; `destination_port_code` and `disembarking_port_code` stay distinct, and duplicate `Port of Legazpi` labels are recorded as evidence that label recovery is forbidden. `with_custom_declaration` remains metadata only.
 - Verified existing Health/customs/family contracts stayed aligned: Health symptoms are the 15 screenshot-confirmed checkbox values; Q1/Q2 have no goods rows; Q3-Q12 each have their own repeatable item rows; attachment requiredness and unconfirmed option/requiredness stay fail-closed.
 - Focused validation passed: static TypeScript compile for PH schema/options/test; `./node_modules/.bin/vitest run src/tests/ph-etravel-arrival-card-schema.test.ts` (35/35). `git diff --check` is run after this entry.
+
+## E49 schema/options correction（2026-08-18）
+
+- Consumed PH-A E49. Purpose fallback/options now match the official UI-shaped source: 16 current arrival codes including `POV999` / `Others`; submitted value remains official `code`, display remains `name`, and purpose requiredness/persona filtering stays path-specific.
+- Added purpose dynamic-source metadata for `/api/v1/common/purpose_of_visits` with `paginate=0&q=&order_by=name&status_by=asc&for_arrival=1`; the older no-filter 15-row E46/E47 result is marked superseded for UI option contracts.
+- SEA `destination_port_code` stays code-only and label recovery remains forbidden for duplicate `Port of Legazpi` (`TP120` / `LEGAZPI`). `with_custom_declaration` is recorded only as official port page-branch metadata: manual path excludes electronic customs fields; electronic path keeps the existing electronic customs/signature contract and still verifies rendered page content.
+- Remaining blockers: same-draft only-port-change proof, `VESSEL CREW`, `is_disembarking=false`, SEA destination-stay variants, SEA electronic-positive post-currency parity, final Submit/reference/QR/recovery.
+- Focused validation passed: static TypeScript compile for PH schema/options/test; `./node_modules/.bin/vitest run src/tests/ph-etravel-arrival-card-schema.test.ts` (35/35). `git diff --check` is run after this entry. No migration, deploy, commit, push, frontend, submission-service, field-contract, coordination, or other worklog edits.
