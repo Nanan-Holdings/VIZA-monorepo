@@ -87,7 +87,7 @@ const PURPOSE_ZH: Record<string, string> = {
   POV014: "永久移民或长期居留", POV015: "参加欧洲互惠生项目", POV016: "参加美国交流访问者项目",
   POV017: "会议", POV018: "展会 / 博览会", POV999: "其他",
 };
-const ARRIVAL_PURPOSE_CODES_E46 = new Set([
+const ARRIVAL_PURPOSE_CODES_E49 = new Set([
   "OFW",
   "POV001",
   "POV002",
@@ -103,13 +103,14 @@ const ARRIVAL_PURPOSE_CODES_E46 = new Set([
   "POV012",
   "POV017",
   "POV018",
+  "POV999",
 ]);
 export const PH_ETRAVEL_PURPOSE_OPTIONS = mapped(
-  officialSnapshot.arrivalPurposes.filter((item) => ARRIVAL_PURPOSE_CODES_E46.has(item.code)),
+  officialSnapshot.arrivalPurposes.filter((item) => ARRIVAL_PURPOSE_CODES_E49.has(item.code)),
   PURPOSE_ZH,
   undefined,
   "verified_public",
-  "E46 official public API /api/v1/common/purpose_of_visits?for_arrival=1 2026-08-17; current 15-row response excludes legacy POV999/Others",
+  "E49 official UI-shaped public API /api/v1/common/purpose_of_visits?paginate=0&q=&order_by=name&status_by=asc&for_arrival=1 2026-08-18; current 16-row response includes POV999/Others",
 );
 export const PH_ETRAVEL_DEPARTURE_PURPOSE_OPTIONS = mapped(officialSnapshot.departurePurposes, PURPOSE_ZH);
 
@@ -173,6 +174,15 @@ export const PH_ETRAVEL_DYNAMIC_OPTION_SOURCES = {
     evidence_level: "verified_public",
     official_source: "E13/E45 official public API 2026-08-04/2026-08-16; numeric id is submitted and the 263-row response is intentionally not embedded",
   },
+  arrival_purpose_of_visits: {
+    endpoint: "/api/v1/common/purpose_of_visits",
+    query: ["paginate=0", "q=", "order_by=name", "status_by=asc", "for_arrival=1"],
+    response_identity: "code",
+    response_label: "name",
+    response_fields: ["id", "code", "name", "for_arrival", "for_departure", "with_oec", "with_cfo", "is_exclusive_for_filipino", "order", "theme"],
+    evidence_level: "verified_public",
+    official_source: "E49 official UI-shaped public API 2026-08-18; dynamic values intentionally not embedded; current response includes POV999/Others",
+  },
   sea_destination_ports: {
     endpoint: "/api/v1/common/travel_ports",
     query: ["paginate=0", "q=", "order_by=name", "status_by=asc", "transportation_type=SEA"],
@@ -180,7 +190,7 @@ export const PH_ETRAVEL_DYNAMIC_OPTION_SOURCES = {
     response_label: "name",
     response_fields: ["id", "transportation_type", "code", "name", "theme", "with_custom_declaration", "is_active"],
     evidence_level: "verified_public",
-    official_source: "E46 official public API 2026-08-17; 53-row SEA response intentionally not embedded; duplicate labels prove label-only recovery is forbidden",
+    official_source: "E49 official public API 2026-08-18; 53-row SEA response intentionally not embedded; duplicate labels prove label-only recovery is forbidden; with_custom_declaration is port page-branch metadata",
   },
   sea_disembarking_ports: {
     endpoint: "/api/v1/common/travel_ports",
