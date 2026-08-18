@@ -30,6 +30,9 @@ application lifecycle state.
   failures enqueue encrypted, idempotent replay events instead of losing work.
   Reusable-profile prefill/sync and ordinary answer saves must reject synthetic
   QA markers, and QA dry-run applications must never sync into Universal Profile.
+  Korea e-Arrival Card preflight completion also lives here so ownership,
+  active-application identity, draft creation, and audit-answer persistence happen
+  behind one authenticated server boundary.
 - `visa-form-fields.ts`: loads DB-driven visa form fields, then runs the shared
   schema/UI compiler so component mapping and conditional-panel ownership are
   deterministic across countries.

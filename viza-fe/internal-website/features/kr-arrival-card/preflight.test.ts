@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildKoreaEArrivalPreflightAnswerPatch,
   canCreateKoreaArrivalCardDraft,
   validateKoreaEArrivalPreflight,
 } from "./preflight";
@@ -20,12 +21,26 @@ describe("Korea e-Arrival Card server-auditable preflight", () => {
       isKoreaArrivalCard: true,
       preflightTrusted: false,
       explicitApplicationId: true,
-    })).toBe(true);
+    })).toBe(false);
     expect(canCreateKoreaArrivalCardDraft({
       isKoreaArrivalCard: false,
       preflightTrusted: false,
       explicitApplicationId: false,
     })).toBe(true);
+  });
+
+  it("builds a versioned persisted answer patch with the form date of birth", () => {
+    expect(buildKoreaEArrivalPreflightAnswerPatch({
+      adultRepresentativeConfirmed: true,
+      completedAt: Date.parse("2026-08-18T00:00:00.000Z"),
+      dateOfBirth: "2015-01-02",
+    })).toEqual({
+      date_of_birth: "2015-01-02",
+      kr_eac_eligibility: "needs_declaration",
+      kr_eac_adult_representative_confirmed: "true",
+      kr_eac_preflight_version: "1",
+      kr_eac_preflight_reviewed_at: "2026-08-18T00:00:00.000Z",
+    });
   });
 
   it("rejects missing or exempt answers", () => {
