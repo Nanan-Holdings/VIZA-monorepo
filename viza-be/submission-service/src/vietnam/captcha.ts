@@ -358,6 +358,77 @@ export async function solveVietnamImageCaptcha(
   };
 }
 
+const VIETNAM_IMAGE_CAPTCHA_PROVIDER_TIMEOUT_MS = 120_000;
+const VIETNAM_IMAGE_CAPTCHA_MAX_PROVIDER_ATTEMPTS = 3;
+
+/**
+ * Retry a portal-owned Vietnam image CAPTCHA without multiplying retries
+ * inside one 2captcha task. The official portal can redraw the challenge
+ * while a provider task is still running; in that case the new image is
+ * already current and should be solved directly on the next attempt.
+ */
+export async function solveVietnamImageCaptchaWithRetry(
+  page: Page,
+  timeoutMs: number,
+  options: {
+    maxAttempts?: number;
+    solveAttempt?: (attemptTimeoutMs: number) => Promise<VietnamCaptchaSolveOutcome>;
+    refreshChallenge?: () => Promise<boolean>;
+  } = {},
+): Promise<VietnamCaptchaSolveOutcome> {
+  const deadline = Date.now() + Math.max(1_000, timeoutMs);
+  const maxAttempts = Math.max(
+    1,
+    Math.min(options.maxAttempts ?? VIETNAM_IMAGE_CAPTCHA_MAX_PROVIDER_ATTEMPTS, 5),
+  );
+  const solveAttempt = options.solveAttempt ?? ((attemptTimeoutMs: number) =>
+    solveVietnamImageCaptcha(page, attemptTimeoutMs));
+  const refreshChallenge = options.refreshChallenge ?? (() =>
+    refreshVietnamCaptchaChallenge(
+      page,
+      Math.min(15_000, Math.max(1_000, deadline - Date.now())),
+    ));
+  let lastOutcome: VietnamCaptchaSolveOutcome = {
+    solved: false,
+    reason: "Vietnam CAPTCHA provider attempts were exhausted.",
+  };
+
+  for (let attempt = 1; attempt <= maxAttempts && Date.now() < deadline; attempt += 1) {
+    const remainingMs = deadline - Date.now();
+    lastOutcome = await solveAttempt(
+      Math.max(1_000, Math.min(VIETNAM_IMAGE_CAPTCHA_PROVIDER_TIMEOUT_MS, remainingMs)),
+    );
+    if (lastOutcome.solved || !isVietnamCaptchaFailureRetryable(lastOutcome.reason)) {
+      return lastOutcome;
+    }
+
+    const reason = lastOutcome.reason ?? "";
+    const challengeAlreadyChanged = /changed while|stale answer/i.test(reason);
+    const requiresExplicitRefresh =
+      /unsolvable|unusable|image is not loaded|browser placeholder/i.test(reason);
+    console.warn(
+      `[vn] Image CAPTCHA provider attempt ${attempt}/${maxAttempts} failed ` +
+      `kind=${challengeAlreadyChanged ? "challenge_changed" : requiresExplicitRefresh ? "challenge_rejected" : "transient"}.`,
+    );
+
+    if (requiresExplicitRefresh) {
+      const refreshed = await refreshChallenge().catch(() => false);
+      if (!refreshed) {
+        return {
+          solved: false,
+          reason: "The Vietnam CAPTCHA refresh could not be confirmed after a provider failure.",
+        };
+      }
+    }
+
+    if (attempt < maxAttempts && Date.now() < deadline) {
+      await page.waitForTimeout(Math.min(1_000, Math.max(0, deadline - Date.now())));
+    }
+  }
+
+  return lastOutcome;
+}
+
 // Match the shared 2Captcha ImageToText default. Production tasks frequently
 // complete just after 90 seconds during provider congestion; cutting them off
 // early creates duplicate tasks without improving the bounded outer budget.

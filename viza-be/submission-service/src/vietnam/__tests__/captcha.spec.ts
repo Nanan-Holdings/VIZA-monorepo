@@ -19,6 +19,7 @@ import {
   reportRejectedVietnamCaptcha,
   shouldSolveVietnamCaptcha,
   solveVietnamImageCaptcha,
+  solveVietnamImageCaptchaWithRetry,
   submitVietnamCaptchaAnswer,
 } from "../captcha.js";
 import { TwoCaptchaConfigError, TwoCaptchaZeroBalanceError } from "../../captcha/two-captcha.js";
@@ -295,6 +296,77 @@ test("vn.captcha: provider retries are not multiplied inside one portal attempt"
     } else {
       process.env.VN_CAPTCHA_SOLVER_ATTEMPTS = previous;
     }
+  }
+});
+
+test("vn.captcha: retries the current challenge when the portal redraws it during solving", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  let solveCalls = 0;
+  let refreshCalls = 0;
+  try {
+    const result = await solveVietnamImageCaptchaWithRetry(page, 10_000, {
+      solveAttempt: async () => {
+        solveCalls += 1;
+        return solveCalls === 1
+          ? {
+              solved: false,
+              reason: "Vietnam CAPTCHA changed while 2captcha was solving; discarded the stale answer.",
+            }
+          : {
+              solved: true,
+              telemetry: {
+                solveId: "fresh-challenge",
+                durationMs: 10,
+                challengeFingerprint: "fresh-fingerprint",
+              },
+            };
+      },
+      refreshChallenge: async () => {
+        refreshCalls += 1;
+        return true;
+      },
+    });
+
+    assert.equal(result.solved, true);
+    assert.equal(solveCalls, 2);
+    assert.equal(refreshCalls, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: refreshes an unusable challenge before retrying", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  let solveCalls = 0;
+  let refreshCalls = 0;
+  try {
+    const result = await solveVietnamImageCaptchaWithRetry(page, 10_000, {
+      solveAttempt: async () => {
+        solveCalls += 1;
+        return solveCalls === 1
+          ? { solved: false, reason: "2captcha returned an unusable Vietnam CAPTCHA answer." }
+          : {
+              solved: true,
+              telemetry: {
+                solveId: "refreshed-challenge",
+                durationMs: 10,
+                challengeFingerprint: "refreshed-fingerprint",
+              },
+            };
+      },
+      refreshChallenge: async () => {
+        refreshCalls += 1;
+        return true;
+      },
+    });
+
+    assert.equal(result.solved, true);
+    assert.equal(solveCalls, 2);
+    assert.equal(refreshCalls, 1);
+  } finally {
+    await browser.close();
   }
 });
 

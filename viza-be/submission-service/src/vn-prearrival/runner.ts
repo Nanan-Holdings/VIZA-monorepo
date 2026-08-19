@@ -26,7 +26,10 @@ import {
   classifyVnPrearrivalEmailVerificationText,
   type VnPrearrivalEmailVerificationState,
 } from "./email-verification";
-import { hasVisibleVietnamCaptchaChallenge, solveVietnamImageCaptcha } from "../vietnam/captcha";
+import {
+  hasVisibleVietnamCaptchaChallenge,
+  solveVietnamImageCaptchaWithRetry,
+} from "../vietnam/captcha";
 import {
   InboxDomainUnroutableError,
   InboxTimeoutError,
@@ -1039,10 +1042,14 @@ async function handleCaptchaGate(
 
   const captchaScreenshot = await saveScreenshot(page, tempDir, "captcha-gate", logs);
   if (captchaScreenshot) screenshots.push(captchaScreenshot);
-  const outcome = await solveVietnamImageCaptcha(
-    page,
-    Number.parseInt(process.env.VN_PREARRIVAL_CAPTCHA_TIMEOUT_MS ?? "180000", 10),
+  const configuredCaptchaBudgetMs = Number.parseInt(
+    process.env.VN_PREARRIVAL_CAPTCHA_TIMEOUT_MS ?? "360000",
+    10,
   );
+  const captchaBudgetMs = Number.isFinite(configuredCaptchaBudgetMs) && configuredCaptchaBudgetMs > 0
+    ? configuredCaptchaBudgetMs
+    : 360_000;
+  const outcome = await solveVietnamImageCaptchaWithRetry(page, captchaBudgetMs);
   if (!outcome.solved) {
     logs.push(`vn_prearrival_captcha_solve_failed ${outcome.reason ?? "unknown CAPTCHA error"}`);
     throw new VnPrearrivalPortalError(
