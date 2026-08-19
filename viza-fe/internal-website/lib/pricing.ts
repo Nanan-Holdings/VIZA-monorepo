@@ -406,6 +406,17 @@ function canonicalPricingVisaType(visaType: string): string {
   if (["DS160", "DS_160", "B1_B2", "B_1_B_2", "US_B1_B2", "US_DS160"].includes(normalized)) {
     return "B1_B2";
   }
+  if (
+    [
+      "VIETNAM_E_VISA",
+      "E_VISA_TOURISM",
+      "EVISA_TOURISM",
+      "TOURIST_E_VISA",
+      "TOURIST_EVISA",
+    ].includes(normalized)
+  ) {
+    return "VN_E_VISA";
+  }
   return normalized;
 }
 

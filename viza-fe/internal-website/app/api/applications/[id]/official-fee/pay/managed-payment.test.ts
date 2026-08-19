@@ -31,6 +31,22 @@ describe("managed official-fee payment policy", () => {
     });
   });
 
+  it("resolves legacy Vietnam e-Visa aliases when the application fee amount is null", () => {
+    const resolved = resolveManagedOfficialFee({
+      id: "legacy-vietnam-app",
+      country: "vietnam",
+      visa_type: "evisa_tourism",
+      government_fee_cents: null,
+      government_fee_currency: "USD",
+    });
+    expect(resolved).toMatchObject({
+      ok: true,
+      amountCents: 2_500,
+      currency: "USD",
+      catalog: { countryCode: "VN", provider: "vietnam_evisa_official_fee" },
+    });
+  });
+
   it("prefers a positive application-specific amount over package pricing", () => {
     const resolved = resolveManagedOfficialFee({
       id: "au-app",
