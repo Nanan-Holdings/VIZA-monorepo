@@ -8228,7 +8228,9 @@ async function main(): Promise<void> {
     runnerSlotLease = new RunnerSlotLease({
       machineId: flyMachineId,
       kind: RUNNER_MACHINE_KIND,
-      renewEveryMs: 15_000,
+      // Slot leases are valid for 30 minutes; renew once per minute through
+      // the exact owner-fenced renew RPC, never by re-reserving a slot.
+      renewEveryMs: 60_000,
       onLeaseLost: () => shutdownRunner("capacity slot reassigned"),
     });
     runnerPoolDatabaseHealthy = false;
