@@ -13,6 +13,13 @@ on:
 permissions:
   contents: read
 
+# A scheduled recovery and a manual scale run must not race each other over
+# the same database-backed Machine slots. Queue both runs and let the next
+# run observe the committed state before making another decision.
+concurrency:
+  group: production-submission-service-fly-scale
+  cancel-in-progress: false
+
 env:
   FLY_RUNNER_POOL_APP: ${{ vars.FLY_RUNNER_POOL_APP }}
   FLY_SUBMISSION_LEGACY_APP: ${{ vars.FLY_SUBMISSION_LEGACY_APP }}
