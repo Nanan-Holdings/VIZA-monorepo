@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   APPROVED_MIGRATION_SOURCE_REF,
   APPROVED_MIGRATIONS,
+  STABLE_SPEED_MIGRATION_SOURCE_REF,
+  STABLE_SPEED_MIGRATION,
   PREFLIGHT_SQL,
   PAUSE_SQL,
   RESUME_SQL,
@@ -13,10 +16,12 @@ import {
   downloadSupabaseProductionCa,
   executePsqlMigration,
   loadApprovedMigrationBatch,
+  loadStableSpeedMigrationBatch,
   runApply,
   runPause,
   runPreflight,
   runResume,
+  runStableSpeedApply,
 } from "../production-db-maintenance.mjs";
 
 test("pins the reviewed runner PL/pgSQL repairs", () => {
@@ -24,6 +29,35 @@ test("pins the reviewed runner PL/pgSQL repairs", () => {
   assert.equal(
     APPROVED_MIGRATIONS.find(({ version }) => version === "20260816160000")?.sha256,
     "9fa7ef4fec051a3a86dae041c0e51e61a17bd3c9aa5cfdaab44f6da6a97c6c00",
+  );
+});
+
+test("pins the reviewed stable-speed expansion", () => {
+  assert.equal(
+    STABLE_SPEED_MIGRATION_SOURCE_REF,
+    "9278267c5440b1727e04cf4bf5e5b72128457a1d",
+  );
+  assert.deepEqual(STABLE_SPEED_MIGRATION, {
+    version: "20260820152526",
+    name: "concurrency_stable_speed",
+    path: "viza-fe/internal-website/supabase/migrations/20260820152526_concurrency_stable_speed.sql",
+    sha256: "83e981efc32257a266ebebd3d744605afb1ecd43a01ebbd5efe6dcc30a4da841",
+  });
+});
+
+test("workflow exposes the explicit stable-speed action and exact confirmation", () => {
+  const workflow = readFileSync(
+    new URL("../../.github/workflows/production-db-maintenance.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /- apply-stable-speed/u);
+  assert.match(
+    workflow,
+    /inputs\.action == 'apply' \|\| inputs\.action == 'apply-stable-speed'/u,
+  );
+  assert.match(
+    workflow,
+    /oyjxdzsoejraedqghndi:apply-stable-speed:\{0\}/u,
   );
 });
 
@@ -134,6 +168,87 @@ function migratedPreflightPayload() {
     },
   ];
 }
+
+function stableSpeedPreflightPayload({ migrated = false } = {}) {
+  const state = migratedPreflightPayload()[0].maintenance_state;
+  state.caps = state.caps.map((cap) => ({ ...cap, paused: false }));
+  Object.assign(state.strict_objects, {
+    stable_slot_renew_rpc: migrated,
+    stable_pool_health_view: migrated,
+    stable_slot_health_view: migrated,
+    stable_metric_table: migrated,
+    stable_acl_ok: migrated,
+  });
+  if (migrated) {
+    state.recent_migrations.push({
+      version: STABLE_SPEED_MIGRATION.version,
+      name: STABLE_SPEED_MIGRATION.name,
+    });
+  }
+  return [{ maintenance_state: state }];
+}
+
+test("stable-speed apply is hash-pinned, online, and preserves the cap snapshot", async () => {
+  const requests = [];
+  let execution;
+  const result = await runStableSpeedApply({
+    env: {
+      SUPABASE_ACCESS_TOKEN: "test-token",
+      SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM:
+        `${PRODUCTION_PROJECT_REF}:apply-stable-speed:${STABLE_SPEED_MIGRATION_SOURCE_REF}`,
+      PRODUCTION_DB_MAINTENANCE_SOURCE_REF: STABLE_SPEED_MIGRATION_SOURCE_REF,
+      MIGRATION_SOURCE_ROOT: "/approved-source",
+    },
+    readFile: (filePath) => Buffer.from(`sql:${filePath}`),
+    hash: () => STABLE_SPEED_MIGRATION.sha256,
+    executeMigration: async (input) => {
+      execution = input;
+    },
+    downloadCa: async () => Buffer.from("pinned-ca"),
+    fetchImpl: async (url, init) => {
+      requests.push({ url, method: init.method });
+      const payload = requests.length === 1
+        ? stableSpeedPreflightPayload()
+        : requests.length === 2
+          ? { role: "cli_login_postgres", password: "temporary-password-123", ttl_seconds: 300 }
+          : requests.length === 3
+            ? [{
+                database_type: "PRIMARY",
+                db_host: "aws-1-ap-south-1.pooler.supabase.com",
+                db_port: 5432,
+                db_name: "postgres",
+                db_user: `postgres.${PRODUCTION_PROJECT_REF}`,
+                pool_mode: "session",
+              }]
+            : requests.length === 4
+              ? { message: "ok" }
+              : stableSpeedPreflightPayload({ migrated: true });
+      return new Response(JSON.stringify(payload), { status: 200 });
+    },
+  });
+
+  assert.equal(requests.length, 5);
+  assert.match(execution.query, /^SET SESSION ROLE postgres;\nBEGIN;/u);
+  assert.match(execution.query, /SET LOCAL lock_timeout = '5s'/u);
+  assert.match(execution.query, /pg_advisory_xact_lock/u);
+  assert.match(execution.query, /20260820152526/u);
+  assert.match(execution.query, /renew_runner_machine_slot/u);
+  assert.doesNotMatch(execution.query, /UPDATE\s+public\.runner_(?:job|machine_slot|concurrency_cap)/iu);
+  assert.doesNotMatch(execution.query, /DELETE\s+FROM/iu);
+  assert.deepEqual(result, stableSpeedPreflightPayload({ migrated: true }));
+});
+
+test("stable-speed migration rejects source hash drift", () => {
+  assert.throws(
+    () => loadStableSpeedMigrationBatch({
+      sourceRoot: "/wrong-source",
+      readFile: () => Buffer.from("changed"),
+      hash: () => "wrong",
+    }),
+    /hash mismatch/u,
+  );
+});
 
 test("apply reads only the approved ref and exact migration hashes", async () => {
   const requests = [];

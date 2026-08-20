@@ -32,3 +32,7 @@ scheduled recovery workflows.
   migrations plus ledger rows in one transaction. `resume` requires both ledger
   versions, all strict objects, zero live work, six exact paused caps, and no
   status cron before restoring the caps and canonical cron atomically.
+  `apply-stable-speed` is a separate online expand-only action pinned to one
+  reviewed migration commit and SHA-256; it preserves the active six-country
+  cap snapshot and installs only the exact-owner renew RPC, health views, and
+  service-role-only metric table.
