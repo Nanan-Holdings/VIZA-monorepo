@@ -1,6 +1,10 @@
 import { supabase } from "../supabase";
 import { sendAlert } from "../alerts/dispatch";
-import { emitRunnerMetric } from "../metrics/emit";
+import {
+  emitConcurrencyMetric,
+  emitRunnerMetric,
+  type ConcurrencyMetricInput,
+} from "../metrics/emit";
 import {
   RunnerJobOwnershipLostError,
   type RunnerExecutionContext,
@@ -346,6 +350,8 @@ export interface DrainOpts {
   onJobFinish?: (job: RunnerJob) => void;
   onClaimHealthy?: () => void;
   onClaimError?: (error: unknown) => void;
+  /** Best-effort operational claim telemetry override for tests/runtime. */
+  emitClaimMetric?: (metric: ConcurrencyMetricInput) => Promise<void> | void;
   /** Schedule one local wake for a retry made available in the future. */
   onRetryScheduled?: (delayMs: number) => void;
 }
@@ -353,6 +359,27 @@ export interface DrainOpts {
 export interface DrainResult {
   jobsProcessed: number;
   stoppedBecause: "empty" | "aborted" | "claim_error";
+}
+
+function recordClaimMetric(
+  opts: DrainOpts,
+  metric: ConcurrencyMetricInput,
+): void {
+  try {
+    const result = opts.emitClaimMetric
+      ? opts.emitClaimMetric(metric)
+      : emitConcurrencyMetric(metric);
+    void Promise.resolve(result).catch((error: unknown) => {
+      // Telemetry is deliberately non-blocking and cannot affect queue state.
+      console.error(
+        `[metrics] claim metric callback failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
+  } catch (error) {
+    console.error(
+      `[metrics] claim metric callback failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 export async function renewJobLease(
@@ -401,12 +428,26 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
 
     let job: RunnerJob | null;
     let claimRoundTripMs = 0;
+    const claimStartedAt = Date.now();
     try {
-      const claimStartedAt = Date.now();
       job = await claimNextJob({ workerId: opts.workerId, leaseMs, client });
       claimRoundTripMs = Math.max(0, Date.now() - claimStartedAt);
+      recordClaimMetric(opts, {
+        eventType: "claim",
+        outcome: job ? "claimed" : "empty",
+        durationMs: claimRoundTripMs,
+        country: job?.country ?? null,
+        machineKind: process.env.RUNNER_MACHINE_KIND?.trim() || null,
+      });
       opts.onClaimHealthy?.();
     } catch (error) {
+      claimRoundTripMs = Math.max(0, Date.now() - claimStartedAt);
+      recordClaimMetric(opts, {
+        eventType: "claim",
+        outcome: "error",
+        durationMs: claimRoundTripMs,
+        machineKind: process.env.RUNNER_MACHINE_KIND?.trim() || null,
+      });
       // Do not poll through an outage. The next explicit wake retries the
       // claim and avoids an idle worker repeatedly reading Supabase.
       console.error("[queue] runner_job claim failed", error);
