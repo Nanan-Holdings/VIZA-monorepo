@@ -64,7 +64,7 @@ type OpenMenu = { kind: "filter"; key: FilterKey; left: number; top: number } | 
 
 export default function ExplorePage() {
   const t = useTranslations();
-  const { launchedCountries } = useCatalogue();
+  const { countries: catalogueCountries } = useCatalogue();
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -175,10 +175,12 @@ export default function ExplorePage() {
     });
   const [search, setSearch] = useState("");
 
-  // --- Country cards (localized, derived from shared metadata) ---
+  // Keep known destinations browsable when the publication API is empty or
+  // unavailable. The detail and apply routes still use `launched` to prevent
+  // unpublished products from being presented as ready for purchase.
   const countries = useMemo(
     () =>
-      launchedCountries.map((c) => ({
+      catalogueCountries.map((c) => ({
         slug: c.slug,
         name: t.has(`countries.${c.slug}`) ? t(`countries.${c.slug}`) : c.name,
         city: t.has(`cities.${c.slug}`) ? t(`cities.${c.slug}`) : c.city,
@@ -189,8 +191,9 @@ export default function ExplorePage() {
         img: c.image,
         flagCode: c.flagCode,
         featured: c.featured,
+        launched: c.launched,
       })),
-    [launchedCountries, t],
+    [catalogueCountries, t],
   );
 
   const matches = (name: string, city: string) => {
@@ -210,7 +213,9 @@ export default function ExplorePage() {
       <a className={`card-c ${featured ? "featured" : ""}`} href={visaHref(c.slug)} style={{ textDecoration: "none", color: "inherit", display: hidden ? "none" : undefined }}>
         <div className="card-img">
           <div className="photo" style={{ backgroundImage: `url('${c.img}')` }}></div>
-          {isFast && <span className="card-tag tag-fast">{t("explore.fastTrack")}</span>}
+          {c.launched
+            ? isFast && <span className="card-tag tag-fast">{t("explore.fastTrack")}</span>
+            : <span className="card-tag tag-evisa">{t("common.comingSoon")}</span>}
           <button
             className={`card-fav ${fav ? "on" : ""}`}
             aria-label={t("explore.save")}
@@ -238,10 +243,10 @@ export default function ExplorePage() {
           </div>
           <div className="card-foot">
             <div className="foot-eta">
-              <span className="lk">{t("explore.guaranteedBy")}</span>
-              <span className="lv">{t("explore.guarantor")}</span>
+              <span className="lk">{c.launched ? t("explore.guaranteedBy") : t("common.comingSoon")}</span>
+              <span className="lv">{c.launched ? t("explore.guarantor") : t("visa.seePricing")}</span>
             </div>
-            <button className="foot-cta" aria-label={t("explore.startApplication")} onClick={(e) => e.preventDefault()}>
+            <button className="foot-cta" aria-label={c.launched ? t("explore.startApplication") : t("common.learnMore")} onClick={(e) => e.preventDefault()}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
             </button>
           </div>
