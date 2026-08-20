@@ -89,7 +89,7 @@ const COPY = {
     running: "Running / cap",
     oldest: "Oldest claimable",
     claimP95: "Claim p95",
-    machineStarts: "Machine starts (24h)",
+    machineStarts: "Machine start requests (24h)",
     machineStartP95: "Machine start request p95",
     noSamples: "No recent samples",
     noClaimable: "No claimable work",
@@ -121,7 +121,7 @@ const COPY = {
     running: "运行中 / 上限",
     oldest: "最早可领取",
     claimP95: "领取 p95",
-    machineStarts: "机器启动（24 小时）",
+    machineStarts: "机器启动请求（24 小时）",
     machineStartP95: "机器启动请求 p95",
     noSamples: "暂无近期样本",
     noClaimable: "暂无可领取任务",
@@ -151,7 +151,21 @@ export function percentile(values: readonly number[], quantile: number): number 
 
 export function deriveConcurrencyAlerts(input: ConcurrencyAlertInput): ConcurrencyAlert[] {
   const alerts: ConcurrencyAlert[] = [];
-  if (!input.slotHealth || input.poolHealth.length === 0) alerts.push("capacity_health_unavailable");
+  const expectedCountries = new Set([
+    "vietnam",
+    "singapore",
+    "malaysia",
+    "thailand",
+    "south_korea",
+    "taiwan",
+  ]);
+  const observedCountries = new Set(input.poolHealth.map((row) => row.country));
+  const hasCompletePoolHealth =
+    observedCountries.size === expectedCountries.size
+    && [...expectedCountries].every((country) => observedCountries.has(country));
+  if (!input.slotHealth || Number(input.slotHealth.max_slots) !== 10 || !hasCompletePoolHealth) {
+    alerts.push("capacity_health_unavailable");
+  }
   const claimDurations = input.metrics
     .filter((metric) => metric.event_type === "claim" && metric.duration_ms != null)
     .map((metric) => Number(metric.duration_ms))
@@ -161,7 +175,7 @@ export function deriveConcurrencyAlerts(input: ConcurrencyAlertInput): Concurren
   if (claimP95 != null && claimP95 >= 500) alerts.push("claim_p95_high");
 
   const oldestClaimableAge = input.poolHealth.reduce((maxAge, row) => {
-    if (Number(row.claimable) <= 0) return maxAge;
+    if (row.paused || Number(row.claimable) <= 0) return maxAge;
     return Math.max(maxAge, Number(row.oldest_claimable_age_seconds ?? 0));
   }, 0);
   if (oldestClaimableAge > 120 && Number(input.slotHealth?.free_slots ?? 0) > 0) {
@@ -235,6 +249,10 @@ export default async function AdminMetricsPage() {
     0.95,
   );
   const machineStartMetrics = concurrencyMetrics.filter((metric) => metric.event_type === "machine_start");
+  const machineStartRequestCount = machineStartMetrics.reduce(
+    (total, metric) => total + Math.max(0, Number(metric.count) || 0),
+    0,
+  );
   const machineStartP95 = percentile(
     machineStartMetrics
       .map((metric) => metric.duration_ms)
@@ -242,7 +260,7 @@ export default async function AdminMetricsPage() {
     0.95,
   );
   const oldestClaimableAge = poolHealth.reduce((maxAge, row) => {
-    if (Number(row.claimable) <= 0) return maxAge;
+    if (row.paused || Number(row.claimable) <= 0) return maxAge;
     return Math.max(maxAge, Number(row.oldest_claimable_age_seconds ?? 0));
   }, 0);
   const totalRunning = poolHealth.reduce((total, row) => total + Number(row.running), 0);
@@ -325,7 +343,7 @@ export default async function AdminMetricsPage() {
           <MetricCard label={copy.running} value={poolHealth.length ? `${totalRunning} / ${totalCap}` : "—"} />
           <MetricCard label={copy.oldest} value={oldestClaimableAge > 0 ? `${Math.round(oldestClaimableAge)} ${copy.seconds}` : copy.noClaimable} />
           <MetricCard label={copy.claimP95} value={formatDuration(claimP95, copy)} />
-          <MetricCard label={copy.machineStarts} value={String(machineStartMetrics.length)} />
+          <MetricCard label={copy.machineStarts} value={String(machineStartRequestCount)} />
           <MetricCard label={copy.machineStartP95} value={formatDuration(machineStartP95, copy)} />
         </div>
       </section>
