@@ -22,7 +22,8 @@ Every `/visa/<slug>` page renders from data via one rich, shared component — t
 is no bespoke per-country page. The pieces:
 
 - `lib/countries.ts` — static presentation fallback metadata for known routes;
-  every fallback is unavailable until overlaid by a published snapshot.
+  every fallback stays browsable but is unavailable for application until
+  overlaid by a published snapshot.
 - `lib/public-catalogue.ts` + `components/CatalogueProvider.tsx` — fail-closed
   public availability and SGD price snapshots from the portal catalogue API.
 - `lib/visa-content/<slug>.ts` — the rich `VisaContent` (hero, overview, process,
