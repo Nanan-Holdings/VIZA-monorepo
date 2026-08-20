@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { deriveConcurrencyAlerts, percentile } from "./page";
 
 describe("runner concurrency admin signals", () => {
+  const healthyCountry = (country: string) => ({
+    country,
+    max_concurrent: 2,
+    paused: false,
+    claimable: 0,
+    scheduled: 0,
+    running: 0,
+    expired_running: 0,
+    capacity_headroom: 2,
+    oldest_claimable_at: null,
+    oldest_claimable_age_seconds: 0,
+  });
+
   it("uses an upper-tail p95 and returns null for missing samples", () => {
     expect(percentile([], 0.95)).toBeNull();
     expect(percentile([100, 200, 900, 300], 0.95)).toBe(900);
@@ -11,7 +24,7 @@ describe("runner concurrency admin signals", () => {
     const alerts = deriveConcurrencyAlerts({
       poolHealth: [
         {
-          country: "vn",
+          country: "vietnam",
           max_concurrent: 2,
           paused: false,
           claimable: 1,
@@ -22,6 +35,11 @@ describe("runner concurrency admin signals", () => {
           oldest_claimable_at: new Date(Date.now() - 121_000).toISOString(),
           oldest_claimable_age_seconds: 121,
         },
+        healthyCountry("singapore"),
+        healthyCountry("malaysia"),
+        healthyCountry("thailand"),
+        healthyCountry("south_korea"),
+        healthyCountry("taiwan"),
       ],
       slotHealth: {
         max_slots: 10,
@@ -59,5 +77,50 @@ describe("runner concurrency admin signals", () => {
     expect(
       deriveConcurrencyAlerts({ poolHealth: [], slotHealth: null, metrics: [] }),
     ).toEqual(["capacity_health_unavailable", "claim_metrics_unavailable"]);
+  });
+
+  it("ignores deliberately paused queue age while requiring all six countries and ten slots", () => {
+    const poolHealth = [
+      { ...healthyCountry("vietnam"), paused: true, claimable: 1, oldest_claimable_age_seconds: 600 },
+      healthyCountry("singapore"),
+      healthyCountry("malaysia"),
+      healthyCountry("thailand"),
+      healthyCountry("south_korea"),
+      healthyCountry("taiwan"),
+    ];
+    const slotHealth = {
+      max_slots: 10,
+      live_slots: 9,
+      free_slots: 1,
+      pool_live_slots: 9,
+      sticky_live_slots: 0,
+      expired_owned_slots: 0,
+      stale_renewal_slots: 0,
+      utilization_percent: 90,
+    };
+
+    expect(deriveConcurrencyAlerts({ poolHealth, slotHealth, metrics: [{
+      event_type: "claim",
+      outcome: "empty",
+      duration_ms: 25,
+      country: null,
+      machine_kind: "pool",
+      count: 1,
+      recorded_at: new Date().toISOString(),
+    }] })).toEqual([]);
+
+    expect(deriveConcurrencyAlerts({
+      poolHealth: poolHealth.slice(0, 5),
+      slotHealth,
+      metrics: [{
+        event_type: "claim",
+        outcome: "empty",
+        duration_ms: 25,
+        country: null,
+        machine_kind: "pool",
+        count: 1,
+        recorded_at: new Date().toISOString(),
+      }],
+    })).toContain("capacity_health_unavailable");
   });
 });
