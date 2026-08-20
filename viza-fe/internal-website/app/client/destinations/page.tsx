@@ -2,17 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CheckCircle2, Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CheckCircle2, FilePlus2, Loader2, RotateCcw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { PopularDestinationsSection } from "@/components/client/home/PopularDestinationsSection";
 import { getUserVisaPackages, type UserVisaPackage } from "@/app/actions/user-package";
+import { ensureDraftApplication } from "@/app/actions/visa-application-answers";
 import { getApplicationPaymentRecords } from "@/app/actions/application-lifecycle";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   buildApplicationProgress,
   getNextApplicationHref,
+  isFormComplete,
   type AnswerRow,
   type ApplicationRow,
   type DestinationApplicationProgress,
@@ -25,6 +34,7 @@ import {
   getDestinationFlag,
   getVisaDestinationKey,
   getVisaPackageTitle,
+  type PopularVisaDestination,
 } from "@/lib/visa-destinations";
 import {
   getRecentApplicationFormHref,
@@ -41,6 +51,8 @@ interface MyDestinationEntry {
   country: string;
   visaType: string;
   progress: DestinationApplicationProgress | null;
+  applicationId: string | null;
+  formComplete: boolean;
   href: string;
 }
 
@@ -49,6 +61,7 @@ export default function DestinationsPage() {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [visaPackages, setVisaPackages] = useState<UserVisaPackage[]>([]);
   const [applications, setApplications] = useState<ApplicationRow[]>([]);
@@ -61,6 +74,10 @@ export default function DestinationsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAllOngoing, setShowAllOngoing] = useState(false);
   const [showAllPurchased, setShowAllPurchased] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<MyDestinationEntry | null>(null);
+  const [choiceAction, setChoiceAction] = useState<"new" | "continue" | null>(null);
+  const [choiceError, setChoiceError] = useState<string | null>(null);
+  const [handledRouteSelection, setHandledRouteSelection] = useState<string | null>(null);
 
   useEffect(() => {
     const target = readApplicationFormTarget(getRecentApplicationFormHref());
@@ -178,6 +195,8 @@ export default function DestinationsPage() {
         country: application.country,
         visaType: application.visa_type,
         progress,
+        applicationId: progress?.applicationId ?? application.id,
+        formComplete: isFormComplete(application),
         href: getNextApplicationHref(application, payments),
       });
     }
@@ -193,6 +212,8 @@ export default function DestinationsPage() {
         country: pkg.country,
         visaType: pkg.visa_type,
         progress: null,
+        applicationId: null,
+        formComplete: false,
         href: `/client/application?${params.toString()}`,
       });
     }
@@ -200,13 +221,79 @@ export default function DestinationsPage() {
     return { ongoing: [...ongoingMap.values()], purchased: [...purchasedMap.values()] };
   }, [applications, applicationProgress, payments, visaPackages]);
 
+  const openApplicationChoice = useCallback((country: string, visaType: string) => {
+    const key = getVisaDestinationKey(country, visaType);
+    const existingEntry = ongoing.find((entry) => entry.key === key)
+      ?? purchased.find((entry) => entry.key === key);
+    const params = new URLSearchParams({ country, visaType });
+
+    setChoiceError(null);
+    setChoiceAction(null);
+    setSelectedEntry(existingEntry ?? {
+      key,
+      country,
+      visaType,
+      progress: null,
+      applicationId: null,
+      formComplete: false,
+      href: `/client/application?${params.toString()}`,
+    });
+  }, [ongoing, purchased]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    const country = searchParams.get("country")?.trim();
+    const visaType = searchParams.get("visaType")?.trim() ?? searchParams.get("visa_type")?.trim();
+    if (!country || !visaType) return;
+
+    const signature = `${country.toLowerCase()}::${visaType.toLowerCase()}::${searchParams.get("choose") ?? ""}`;
+    if (handledRouteSelection === signature) return;
+
+    setHandledRouteSelection(signature);
+    openApplicationChoice(country, visaType);
+  }, [handledRouteSelection, isLoading, openApplicationChoice, searchParams]);
+
+  const handleStartNewApplication = async () => {
+    if (!selectedEntry) return;
+    setChoiceAction("new");
+    setChoiceError(null);
+
+    const result = await ensureDraftApplication(selectedEntry.country, selectedEntry.visaType, {
+      preferExplicit: true,
+      forceCreate: true,
+    });
+    if (result.error || !result.applicationId) {
+      setChoiceError(result.error ?? t("actionError"));
+      setChoiceAction(null);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      country: selectedEntry.country,
+      visaType: selectedEntry.visaType,
+      applicationId: result.applicationId,
+    });
+    router.push(`/client/application/long-form?${params.toString()}`);
+  };
+
+  const handleContinueApplication = () => {
+    if (!selectedEntry?.applicationId) return;
+    setChoiceAction("continue");
+    setChoiceError(null);
+    router.push(selectedEntry.href);
+  };
+
   const renderDestinationCard = (entry: MyDestinationEntry) => {
     const isCurrent = currentKey === entry.key;
     return (
       <button
         key={entry.key}
         type="button"
-        onClick={() => router.push(entry.href)}
+        onClick={() => {
+          setSelectedEntry(entry);
+          setChoiceAction(null);
+          setChoiceError(null);
+        }}
         className={[
           "group flex min-h-[130px] flex-col justify-between rounded-[16px] border bg-white p-4 text-left transition cursor-pointer sm:min-h-[150px] sm:p-5",
           isCurrent
@@ -241,7 +328,7 @@ export default function DestinationsPage() {
             size="xs"
           />
           <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#03346E]">
-            {entry.progress ? t("continue") : t("start")}
+            {entry.applicationId ? t("chooseAction") : t("start")}
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
           </span>
         </div>
@@ -332,8 +419,86 @@ export default function DestinationsPage() {
         <PopularDestinationsSection
           selectedPackages={visaPackages}
           applicationProgress={applicationProgress}
+          onDestinationSelected={(destination: PopularVisaDestination) => {
+            openApplicationChoice(destination.country, destination.visaType);
+          }}
         />
       </main>
+
+      <Dialog
+        open={Boolean(selectedEntry)}
+        onOpenChange={(open) => {
+          if (!open && !choiceAction) {
+            setSelectedEntry(null);
+            setChoiceError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-[560px] rounded-[16px] border-[#dfe7f1] p-0 shadow-[0_24px_80px_rgba(15,23,42,0.2)]">
+          {selectedEntry && (
+            <div className="p-6 sm:p-7">
+              <DialogHeader>
+                <DialogTitle className="pr-8 font-heading text-[24px] font-medium leading-tight text-[#26364a]">
+                  {t("chooseActionTitle")}
+                </DialogTitle>
+                <DialogDescription className="pt-2 text-[14px] leading-6 text-[#667085]">
+                  {t("chooseActionDescription", {
+                    application: getVisaPackageTitle(selectedEntry.country, selectedEntry.visaType, locale),
+                  })}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-6 grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleStartNewApplication()}
+                  disabled={choiceAction !== null}
+                  className="flex min-h-[84px] items-center gap-4 rounded-[12px] border border-[#03346E] bg-[#03346E] px-5 py-4 text-left text-white transition hover:bg-[#022a59] disabled:cursor-wait disabled:opacity-70"
+                >
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15">
+                    {choiceAction === "new" ? <Loader2 className="h-5 w-5 animate-spin" /> : <FilePlus2 className="h-5 w-5" />}
+                  </span>
+                  <span>
+                    <span className="block text-[16px] font-semibold">
+                      {choiceAction === "new" ? t("startingNew") : t("startNewApplication")}
+                    </span>
+                    <span className="mt-1 block text-[13px] leading-5 text-white/70">
+                      {t("startNewDescription")}
+                    </span>
+                  </span>
+                </button>
+
+                {selectedEntry.applicationId && (
+                  <button
+                    type="button"
+                    onClick={handleContinueApplication}
+                    disabled={choiceAction !== null}
+                    className="flex min-h-[84px] items-center gap-4 rounded-[12px] border border-[#d7e1ef] bg-white px-5 py-4 text-left text-[#26364a] transition hover:border-[#03346E] hover:bg-[#f7faff] disabled:cursor-wait disabled:opacity-70"
+                  >
+                    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eef3fa] text-[#03346E]">
+                      {choiceAction === "continue" ? <Loader2 className="h-5 w-5 animate-spin" /> : <RotateCcw className="h-5 w-5" />}
+                    </span>
+                    <span>
+                      <span className="block text-[16px] font-semibold text-[#03346E]">
+                        {selectedEntry.formComplete ? t("viewExistingApplication") : t("continueApplication")}
+                      </span>
+                      <span className="mt-1 block text-[13px] leading-5 text-[#667085]">
+                        {selectedEntry.formComplete ? t("viewExistingDescription") : t("continueDescription")}
+                      </span>
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {choiceError && (
+                <p className="mt-4 rounded-[10px] border border-[#f4c7c3] bg-[#fff8f7] px-4 py-3 text-[13px] leading-5 text-[#b42318]">
+                  {choiceError}
+                </p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

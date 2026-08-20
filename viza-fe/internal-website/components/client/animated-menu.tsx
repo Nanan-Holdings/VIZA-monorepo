@@ -111,11 +111,11 @@ export function AnimatedMenu({
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("menu");
-  const isInDestinations = pathname.startsWith("/client/destinations");
+  const isInDestinations = pathname.startsWith("/client/application");
   const isInInviteFriends = pathname.startsWith("/client/invite-friends");
 
   const handleChangeCountry = () => {
-    router.push("/client/destinations");
+    router.push("/client/application");
     onClose?.();
   };
 
