@@ -326,7 +326,10 @@ async function reconcileCapacity(
           if (outcome !== "started" && reserved) {
             await releaseSlot(candidate.id, env).catch(() => undefined);
           }
-          await recordConcurrencyMetric(
+          // Telemetry is deliberately fire-and-forget: a missing or slow
+          // metric table must not hold the wake request open after Fly has
+          // accepted the start/stop decision.
+          void recordConcurrencyMetric(
             {
               target,
               outcome: outcome === "started" ? "started" : outcome,
