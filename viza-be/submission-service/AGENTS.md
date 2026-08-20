@@ -182,9 +182,18 @@ and must fail closed; callers must not perform a direct table settlement.
   its dedicated `submission_queue` claim RPC so its account, OTP, card and
   payment state stay on one process. `src/runner-slot-lease.ts` binds every
   started process to a database slot using `FLY_MACHINE_ID`; idle workers exit
-  after 120 seconds. The dedicated 4GB legacy worker remains authoritative for
-  other active `submission_queue` and maintenance work. The Korea worker
-  remains sticky for SMS, appointment, and continuous browser sessions.
+  after 120 seconds. Slot leases renew through the dedicated
+  `renew_runner_machine_slot` RPC every 60 seconds against a 30-minute lease.
+  A zero-row renewal or a returned slot-number mismatch is an authoritative
+  ownership loss: stop the renewal timer, mark the worker unhealthy, and shut
+  it down without switching slots. Temporary renewal/RPC errors retain the
+  current slot and never re-reserve; consecutive failures are emitted as
+  structured capacity diagnostics. Claim latency/outcome telemetry is written
+  to `runner_concurrency_metric` only with operational dimensions and no
+  applicant/job identifiers, and telemetry failures must never affect queue
+  behavior. The dedicated 4GB legacy worker remains authoritative for other
+  active `submission_queue` and maintenance work. The Korea worker remains
+  sticky for SMS, appointment, and continuous browser sessions.
 - `deploy/fly/` contains credential-free Fly templates and country mappings.
   Production endpoints and keys belong only in Fly Secrets.
   Retained workers drain database queues only at startup or after the

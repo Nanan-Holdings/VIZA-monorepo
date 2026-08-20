@@ -307,6 +307,31 @@ export class RunnerSlotLease {
     }
   }
 
+  private markLeaseLost(
+    outcome: "zero_rows" | "slot_mismatch",
+    returnedSlotNumber?: number,
+  ): void {
+    const lostSlotNumber = this.slotNumber;
+    this.healthy = false;
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.slotNumber = null;
+    console.error(JSON.stringify({
+      metric: "runner_slot_event",
+      event: "lost",
+      outcome,
+      kind: this.kind,
+      slotNumber: lostSlotNumber,
+      returnedSlotNumber: returnedSlotNumber ?? null,
+      at: new Date().toISOString(),
+    }));
+    try {
+      this.onLeaseLost?.();
+    } catch (error) {
+      console.error("[capacity] lease-lost shutdown callback failed", error);
+    }
+  }
+
   private async renew(): Promise<void> {
     if (this.stopping || this.renewing || this.slotNumber == null) return;
     this.renewing = true;
@@ -319,27 +344,16 @@ export class RunnerSlotLease {
       );
       if (this.stopping) return;
       if (renewal == null) {
-        const lostSlotNumber = this.slotNumber;
-        this.healthy = false;
-        if (this.timer) clearInterval(this.timer);
-        this.timer = null;
-        this.slotNumber = null;
-        console.error(JSON.stringify({
-          metric: "runner_slot_event",
-          event: "lost",
-          outcome: "zero_rows",
-          kind: this.kind,
-          slotNumber: lostSlotNumber,
-          at: new Date().toISOString(),
-        }));
-        try {
-          this.onLeaseLost?.();
-        } catch (error) {
-          console.error("[capacity] lease-lost shutdown callback failed", error);
-        }
+        this.markLeaseLost("zero_rows");
         return;
       }
-      this.slotNumber = renewal.slotNumber;
+      const currentSlotNumber = this.slotNumber;
+      if (currentSlotNumber == null || renewal.slotNumber !== currentSlotNumber) {
+        // A successful RPC response for another slot is not safe to adopt:
+        // it indicates stale ownership or a schema/transport contract break.
+        this.markLeaseLost("slot_mismatch", renewal.slotNumber);
+        return;
+      }
       this.healthy = true;
       this.consecutiveRenewalFailures = 0;
       console.log(JSON.stringify({
