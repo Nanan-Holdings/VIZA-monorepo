@@ -108,6 +108,42 @@ test("RunnerSlotLease reports an unhealthy authoritative lease loss", async () =
   await lease.stop();
 });
 
+test("RunnerSlotLease fails closed when renewal returns a different slot", async () => {
+  let renewCalls = 0;
+  let lost = 0;
+  const lease = new RunnerSlotLease({
+    machineId: "pool-machine-slot-mismatch",
+    kind: "pool",
+    renewEveryMs: 1,
+    onLeaseLost: () => {
+      lost += 1;
+    },
+    rpc: {
+      reserve: async () => 4,
+      renew: async () => {
+        renewCalls += 1;
+        return {
+          slotNumber: 5,
+          leaseUntil: new Date(Date.now() + 30_000),
+        };
+      },
+      reserveSticky: async () => null,
+      release: async () => undefined,
+    },
+  });
+
+  assert.equal(await lease.start(), true);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const callsAfterLoss = renewCalls;
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  assert.equal(lost, 1);
+  assert.equal(lease.isHealthy(), false);
+  assert.equal(lease.slot(), null);
+  assert.equal(renewCalls, callsAfterLoss);
+  await lease.stop();
+});
+
 test("RunnerSlotLease uses the sticky reservation path for Indonesia", async () => {
   let stickyKind: string | null = null;
   const lease = new RunnerSlotLease({
