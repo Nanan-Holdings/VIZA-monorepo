@@ -114,8 +114,9 @@ export function buildApplicationHref(application: ApplicationRow): string {
   const params = new URLSearchParams({
     country: application.country,
     visaType: application.visa_type,
+    applicationId: application.id,
   });
-  return `/client/application?${params.toString()}`;
+  return `/client/application/long-form?${params.toString()}`;
 }
 
 export function buildCheckoutHref(application: ApplicationRow): string {

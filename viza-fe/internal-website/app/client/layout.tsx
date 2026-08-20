@@ -199,8 +199,7 @@ function ClientLayoutContent({
   }, [isReportPage]);
   const searchParams = useSearchParams();
   const isAboutMeForm = pathname.startsWith("/client/about-me-form");
-  const isApplicationFlow =
-    pathname === "/client/application" || pathname.startsWith("/client/application/");
+  const isApplicationFlow = pathname.startsWith("/client/application/long-form");
   const skipFormRequestGate = shouldSkipFormRequestGateForRoute(pathname, searchParams);
 
   // Check session validity.

@@ -45,9 +45,11 @@ function isSchemaChoiceCountry(country: string): boolean {
 export function PopularDestinationsSection({
   selectedPackages,
   applicationProgress,
+  onDestinationSelected,
 }: {
   selectedPackages: UserVisaPackage[];
   applicationProgress: Record<string, DestinationApplicationProgress>;
+  onDestinationSelected?: (destination: PopularVisaDestination) => void;
 }) {
   const t = useTranslations("home.popularDestinations");
   const locale = useLocale();
@@ -78,6 +80,12 @@ export function PopularDestinationsSection({
       const result = await selectUserVisaDestination(destination.id);
       if (!result.success) {
         setSelectionError(result.error ?? t("selectError"));
+        setPendingDestinationId(null);
+        return;
+      }
+
+      if (onDestinationSelected) {
+        onDestinationSelected(destination);
         setPendingDestinationId(null);
         return;
       }

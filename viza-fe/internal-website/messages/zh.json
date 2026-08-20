@@ -19,7 +19,7 @@
     "inviteFriends": "邀请朋友"
   },
   "menu": {
-    "changeCountry": "切换申请国家",
+    "changeCountry": "选择申请国家",
     "inviteFriends": "邀请朋友",
     "status": "状态",
     "documents": "材料",
@@ -31,8 +31,8 @@
   },
   "destinationsPage": {
     "backToHome": "返回首页",
-    "title": "切换申请国家",
-    "subtitle": "在您的签证申请之间切换，或在下方开始新的目的地申请。",
+    "title": "申请中心",
+    "subtitle": "先选择国家和申请类型，再决定开始新申请或继续已有申请。",
     "myApplications": "我的申请",
     "ongoingApplications": "进行中的申请",
     "purchasedApplications": "已购买的申请",
@@ -43,6 +43,17 @@
     "notStarted": "未开始",
     "continue": "继续",
     "start": "开始",
+    "chooseAction": "选择操作",
+    "chooseActionTitle": "您想如何继续？",
+    "chooseActionDescription": "您选择了“{application}”。进入申请资料前，请选择下一步。",
+    "startNewApplication": "开始新申请",
+    "startNewDescription": "建立一份全新的申请，不会覆盖原有记录。",
+    "startingNew": "正在建立新申请...",
+    "continueApplication": "继续未完成申请",
+    "continueDescription": "打开上次保存的位置，继续填写原有申请。",
+    "viewExistingApplication": "查看现有申请",
+    "viewExistingDescription": "查看这份申请当前的付款、提交或结果状态。",
+    "actionError": "暂时无法打开申请，请稍后重试。",
     "progressAriaLabel": "申请进度",
     "showAll": "展开全部 {count} 个申请",
     "showLess": "收起"

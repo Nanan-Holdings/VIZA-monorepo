@@ -521,7 +521,7 @@ export async function saveUniversalProfileWithSharedAnswers(
 export async function ensureDraftApplication(
   country: string,
   visaType: string,
-  options: { preferExplicit?: boolean } = {}
+  options: { preferExplicit?: boolean; forceCreate?: boolean } = {}
 ): Promise<{ applicationId?: string; created?: boolean; error?: string }> {
   try {
     const supabase = await createClient();
@@ -554,23 +554,27 @@ export async function ensureDraftApplication(
       ? null
       : activePackage?.visa_package_id ?? pkg?.id ?? null;
 
-    // Check for existing application for the same package/type first
-    let existingQuery = adminClient
-      .from("applications")
-      .select("id")
-      .eq("applicant_id", profile.id)
-      .eq("country", resolvedCountry)
-      .eq("visa_type", resolvedVisaType)
-      .order("created_at", { ascending: false })
-      .limit(1);
+    if (!options.forceCreate) {
+      // Normal autosave flows reuse the most recent matching application.
+      // The application hub can explicitly bypass this lookup after the user
+      // chooses "Start a new application".
+      let existingQuery = adminClient
+        .from("applications")
+        .select("id")
+        .eq("applicant_id", profile.id)
+        .eq("country", resolvedCountry)
+        .eq("visa_type", resolvedVisaType)
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-    if (resolvedVisaPackageId) {
-      existingQuery = existingQuery.eq("visa_package_id", resolvedVisaPackageId);
+      if (resolvedVisaPackageId) {
+        existingQuery = existingQuery.eq("visa_package_id", resolvedVisaPackageId);
+      }
+
+      const { data: existing } = await existingQuery.maybeSingle();
+
+      if (existing) return { applicationId: existing.id, created: false };
     }
-
-    const { data: existing } = await existingQuery.maybeSingle();
-
-    if (existing) return { applicationId: existing.id, created: false };
 
     const { data: newApp, error: appError } = await adminClient
       .from("applications")

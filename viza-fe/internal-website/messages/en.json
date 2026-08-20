@@ -19,7 +19,7 @@
     "inviteFriends": "Invite Friends"
   },
   "menu": {
-    "changeCountry": "Switch Application Country",
+    "changeCountry": "Choose application country",
     "inviteFriends": "Invite Friends",
     "status": "Status",
     "documents": "Documents",
@@ -31,8 +31,8 @@
   },
   "destinationsPage": {
     "backToHome": "Back to Home",
-    "title": "Change country",
-    "subtitle": "Switch between your visa applications, or start a new destination below.",
+    "title": "Application centre",
+    "subtitle": "Choose a country and application type, then start a new application or continue an existing one.",
     "myApplications": "My applications",
     "ongoingApplications": "Ongoing applications",
     "purchasedApplications": "Purchased applications",
@@ -43,6 +43,17 @@
     "notStarted": "Not started",
     "continue": "Continue",
     "start": "Start",
+    "chooseAction": "Choose an action",
+    "chooseActionTitle": "How would you like to continue?",
+    "chooseActionDescription": "You selected “{application}”. Choose what to do before opening the application form.",
+    "startNewApplication": "Start a new application",
+    "startNewDescription": "Create a separate application without overwriting your existing record.",
+    "startingNew": "Creating a new application...",
+    "continueApplication": "Continue unfinished application",
+    "continueDescription": "Return to your last saved position and continue the existing application.",
+    "viewExistingApplication": "View existing application",
+    "viewExistingDescription": "Review the payment, submission, or result status of this application.",
+    "actionError": "We could not open this application. Please try again.",
     "progressAriaLabel": "Application progress",
     "showAll": "Show all {count} applications",
     "showLess": "Show less"
