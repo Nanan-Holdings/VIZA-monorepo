@@ -74,25 +74,25 @@
     "ofRequired": "共需 {total} 份",
     "percentComplete": "已完成 {pct}%",
     "quickActions": {
-      "title": "快捷操作",
-      "visaAI": "进入签证 AI",
-      "travelAI": "进入旅行 AI",
-      "viewStatus": "查看申请状态"
+      "title": "常用入口",
+      "visaAI": "咨询签证问题",
+      "travelAI": "规划旅行行程",
+      "viewStatus": "查看申请进度"
     },
     "subscriptionPlan": {
-      "title": "VIZA 申请",
-      "subtitle": "申请方案与订阅状态",
-      "planTitle": "VIZA 申请",
+      "title": "管理订阅",
+      "subtitle": "查看方案、账单与续费状态",
+      "planTitle": "VIZA 体验方案",
       "planStatus": "体验版 · 续费暂未启用",
-      "viewPlan": "查看方案",
-      "viewDetails": "查看详情"
+      "viewPlan": "方案与价格",
+      "viewDetails": "管理订阅"
     },
     "universalInfo": {
-      "title": "通用资料",
-      "subtitle": "自动用于相似签证问题",
+      "title": "完善个人资料",
+      "subtitle": "保存一次，可用于后续签证申请",
       "saved": "{completed}/{total} 项已保存",
       "fields": "姓氏、名字、生日、出生地、护照、联系方式",
-      "edit": "编辑通用资料"
+      "edit": "继续填写资料"
     },
     "emptyApplication": {
       "noActiveApplication": "暂无活跃申请",
