@@ -74,25 +74,25 @@
     "ofRequired": "of {total} required",
     "percentComplete": "{pct}% complete",
     "quickActions": {
-      "title": "Quick Actions",
-      "visaAI": "Open Visa AI",
-      "travelAI": "Open Travel AI",
-      "viewStatus": "View Application Status"
+      "title": "Useful links",
+      "visaAI": "Ask a visa question",
+      "travelAI": "Plan your trip",
+      "viewStatus": "Track applications"
     },
     "subscriptionPlan": {
-      "title": "VIZA Application",
-      "subtitle": "Application plan and subscription status",
-      "planTitle": "VIZA Application",
+      "title": "Manage subscription",
+      "subtitle": "Review your plan, billing, and renewal status",
+      "planTitle": "VIZA trial plan",
       "planStatus": "Trial · renewal not enabled yet",
-      "viewPlan": "View plan",
-      "viewDetails": "View details"
+      "viewPlan": "Plans and pricing",
+      "viewDetails": "Manage subscription"
     },
     "universalInfo": {
-      "title": "Universal profile",
-      "subtitle": "Reused across similar visa questions",
+      "title": "Complete your profile",
+      "subtitle": "Save once and reuse for future visa applications",
       "saved": "{completed}/{total} saved",
       "fields": "Surname, given names, birthday, birthplace, passport, contact",
-      "edit": "Edit universal profile"
+      "edit": "Continue your profile"
     },
     "emptyApplication": {
       "noActiveApplication": "No active application",
