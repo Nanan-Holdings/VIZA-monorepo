@@ -1446,3 +1446,14 @@ When PH-A publishes E10, PH-B must consume only: SEA electronic positive `Yes` b
 - Supabase MCP project identification succeeded for production: `viza-production` with ref `oyjxdzsoejraedqghndi`; migration list showed neither `0149_runner_country_claim` nor `0150_ph_etravel_submission_state_sync` applied before this round.
 - Local pre-apply contract check found a real 0149 defect: the RPC returned `runner_job.flow_key`, but current `runner_job` schema and worker contract do not have or consume that column. Fixed `0149_runner_country_claim.sql` to return only existing runner-job columns and added a regression assertion that `flow_key` is not referenced.
 - Focused validation passed before production apply: direct submission-service RPC/worker/state tests (36/36), `npm exec -- vitest run src/tests/ph-etravel-submission-state-sync-migration.test.ts` (6/6), and `git diff --check`.
+
+## Production DB migration applied via Supabase MCP（2026-08-18）
+
+- Applied to Supabase production project `viza-production` / `oyjxdzsoejraedqghndi` via official MCP, after committing the 0149 contract correction as `bb021319f10b6b12e06b68bf95246077e6dbaa92`.
+- Migration records now include `0149_runner_country_claim` and `0150_ph_etravel_submission_state_sync`.
+- Read-only catalog verification passed:
+  - `public.claim_runner_country_job(text, text, integer, timestamptz)` exists, returns `id/application_id/country/attempts/max_attempts/correlation_id/metadata`, is `SECURITY INVOKER`, and has empty `search_path`.
+  - `public.sync_ph_etravel_submission_state(uuid, uuid, text, jsonb, jsonb, jsonb)` exists, returns `jsonb`, is `SECURITY INVOKER`, and has empty `search_path`.
+  - `idx_runner_job_philippines_claim` exists on `public.runner_job(enqueued_at, id)` with `country='philippines' AND status='queued'`.
+  - ACL shows EXECUTE only for `postgres` and `service_role`; no PUBLIC/anon/authenticated EXECUTE grants.
+- Supabase security advisors reported no new/direct issue naming either new function. Existing broader advisor findings remain outside this PH-B migration apply scope. No seed, application creation, runner claim, business-row query, official-site action, final Submit, deployment, secret output, or production data read occurred.
