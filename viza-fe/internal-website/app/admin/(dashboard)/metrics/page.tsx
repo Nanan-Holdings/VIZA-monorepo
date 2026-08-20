@@ -97,7 +97,7 @@ const COPY = {
     alertClaimP95: "Claim latency p95 is at least 500 ms.",
     alertOldest: "Claimable work is older than 120 seconds while a slot is free.",
     alertOvershoot: "A country is running above its configured cap.",
-    alertExpired: "One or more expired owned slots are still visible.",
+    alertExpired: "One or more expired running jobs or owned slots are still visible.",
     alertStale: "One or more live slots have not renewed for roughly three intervals.",
     alertCapacityUnavailable: "Capacity health is unavailable; verify the migration and service-role access.",
     alertClaimMetricsUnavailable: "Claim latency samples are unavailable; verify runner metric emission.",
@@ -129,7 +129,7 @@ const COPY = {
     alertClaimP95: "领取延迟 p95 达到 500 毫秒或更高。",
     alertOldest: "有空闲槽位时，可领取任务已等待超过 120 秒。",
     alertOvershoot: "某国家运行数超过配置上限。",
-    alertExpired: "仍可见一个或多个已过期但有所有者的槽位。",
+    alertExpired: "仍可见一个或多个已过期运行任务或有所有者的槽位。",
     alertStale: "一个或多个活动槽位约三个续租周期未更新。",
     alertCapacityUnavailable: "容量健康数据不可用；请检查迁移和 service-role 权限。",
     alertClaimMetricsUnavailable: "领取延迟样本不可用；请检查 Runner 指标上报。",
@@ -170,7 +170,8 @@ export function deriveConcurrencyAlerts(input: ConcurrencyAlertInput): Concurren
   if (input.poolHealth.some((row) => Number(row.running) > Number(row.max_concurrent))) {
     alerts.push("capacity_overshoot");
   }
-  if (Number(input.slotHealth?.expired_owned_slots ?? 0) > 0) alerts.push("expired_slots");
+  const expiredRunning = input.poolHealth.some((row) => Number(row.expired_running) > 0);
+  if (expiredRunning || Number(input.slotHealth?.expired_owned_slots ?? 0) > 0) alerts.push("expired_slots");
   if (Number(input.slotHealth?.stale_renewal_slots ?? 0) > 0) alerts.push("stale_slot_renewals");
   return alerts;
 }
