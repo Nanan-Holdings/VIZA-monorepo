@@ -79,6 +79,14 @@ const COUNTRY_ALIASES: Record<string, FlyWakeTarget> = {
 
 const inFlightCapacity = new Map<FlyWakeTarget, Promise<FlyMachineCapacityResult>>();
 
+/**
+ * Keep Fly's Machines API calls bounded. A pool can need several retained
+ * machines at once, but an unbounded burst makes the API and the database slot
+ * RPC contend with one another. This is deliberately independent of the
+ * production machine/capacity caps.
+ */
+export const MAX_PARALLEL_MACHINE_STARTS = 3;
+
 function normalizeTarget(target: string): FlyWakeTarget | null {
   const normalized = target.trim().toLowerCase().replace(/[\s-]+/gu, "_");
   if (normalized === "legacy") return "legacy";
@@ -154,6 +162,32 @@ async function releaseSlot(machineId: string, env: WakeEnvironment): Promise<voi
   });
 }
 
+async function recordConcurrencyMetric(
+  input: {
+    outcome: string;
+    durationMs: number;
+    target: FlyWakeTarget;
+    count?: number;
+  },
+  env: WakeEnvironment,
+): Promise<void> {
+  if (!slotEnforcementConfigured(env)) return;
+  await withAdmin("system", "fly-machine-wake:record-concurrency-metric", async (admin) => {
+    const { error } = await admin.from("runner_concurrency_metric").insert({
+      event_type: "machine_start",
+      outcome: input.outcome,
+      duration_ms: Math.max(0, Math.round(input.durationMs)),
+      // A Fly target is infrastructure topology, not an applicant country
+      // (the shared `pool` target covers several countries). Keep this null
+      // unless a future metric explicitly supplies an official country code.
+      country: null,
+      machine_kind: slotKind(input.target),
+      count: input.count ?? 1,
+    });
+    if (error) throw new Error(`Concurrency metric insert failed: ${error.message}`);
+  });
+}
+
 function flyApiConfig(env: WakeEnvironment): { token: string; baseUrl: string } | null {
   const token = env.FLY_SUBMISSION_ORG_TOKEN?.trim();
   if (!token) return null;
@@ -179,6 +213,31 @@ async function flyRequest(
     cache: "no-store",
     signal: AbortSignal.timeout(6_000),
   });
+}
+
+type MachineStartOutcome =
+  | { kind: "started"; candidateId: string }
+  | { kind: "capacity_full"; candidateId: string }
+  | { kind: "request_failed"; candidateId: string };
+
+async function mapWithConcurrency<T, R>(
+  values: readonly T[],
+  limit: number,
+  mapper: (value: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let nextIndex = 0;
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= values.length) return;
+      results[index] = await mapper(values[index]);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(1, limit), values.length) }, () => worker()),
+  );
+  return results;
 }
 
 async function reconcileCapacity(
@@ -225,42 +284,66 @@ async function reconcileCapacity(
       return { ok: false, target, reason: "machine_not_found" };
     }
 
-    let started = 0;
-    let capacityBlocked = false;
-    for (const candidate of candidates.slice(0, needed)) {
-      const reservation = await reserveSlot(target, candidate.id, env);
-      if (!reservation.reserved) {
-        capacityBlocked = true;
-        continue;
-      }
-      if (reservation.evictedPoolMachineId) {
-        const stopResponse = await flyRequest(
-          `${config.baseUrl}/apps/${encodeURIComponent(apps.pool)}/machines/${encodeURIComponent(reservation.evictedPoolMachineId)}/stop`,
-          config.token,
-          fetchImpl,
-          { method: "POST", body: "{}" },
-        );
-        if (!stopResponse.ok && stopResponse.status !== 409) {
-          await releaseSlot(candidate.id, env).catch(() => undefined);
-          return { ok: false, target, reason: "request_failed" };
+    const outcomes = await mapWithConcurrency(
+      candidates.slice(0, needed),
+      MAX_PARALLEL_MACHINE_STARTS,
+      async (candidate): Promise<MachineStartOutcome> => {
+        const startedAt = Date.now();
+        let reserved = false;
+        let outcome: MachineStartOutcome["kind"] = "request_failed";
+        try {
+          const reservation = await reserveSlot(target, candidate.id, env);
+          if (!reservation.reserved) {
+            outcome = "capacity_full";
+            return { kind: outcome, candidateId: candidate.id };
+          }
+          reserved = true;
+          if (reservation.evictedPoolMachineId) {
+            const stopResponse = await flyRequest(
+              `${config.baseUrl}/apps/${encodeURIComponent(apps.pool)}/machines/${encodeURIComponent(reservation.evictedPoolMachineId)}/stop`,
+              config.token,
+              fetchImpl,
+              { method: "POST", body: "{}" },
+            );
+            if (!stopResponse.ok && stopResponse.status !== 409) {
+              return { kind: outcome, candidateId: candidate.id };
+            }
+          }
+          const startResponse = await flyRequest(
+            `${config.baseUrl}/apps/${encodeURIComponent(app)}/machines/${encodeURIComponent(candidate.id)}/start`,
+            config.token,
+            fetchImpl,
+            { method: "POST", body: "{}" },
+          );
+          if (startResponse.ok || startResponse.status === 409) {
+            outcome = "started";
+            return { kind: outcome, candidateId: candidate.id };
+          }
+          return { kind: outcome, candidateId: candidate.id };
+        } catch {
+          return { kind: outcome, candidateId: candidate.id };
+        } finally {
+          if (outcome !== "started" && reserved) {
+            await releaseSlot(candidate.id, env).catch(() => undefined);
+          }
+          await recordConcurrencyMetric(
+            {
+              target,
+              outcome: outcome === "started" ? "started" : outcome,
+              durationMs: Date.now() - startedAt,
+            },
+            env,
+          ).catch(() => undefined);
         }
-      }
-      const startResponse = await flyRequest(
-        `${config.baseUrl}/apps/${encodeURIComponent(app)}/machines/${encodeURIComponent(candidate.id)}/start`,
-        config.token,
-        fetchImpl,
-        { method: "POST", body: "{}" },
-      );
-      if (startResponse.ok || startResponse.status === 409) {
-        started += 1;
-        continue;
-      }
-      await releaseSlot(candidate.id, env).catch(() => undefined);
-      return { ok: false, target, reason: "request_failed" };
-    }
-    if (started === 0 && capacityBlocked) {
+      },
+    );
+    const started = outcomes.filter((outcome) => outcome.kind === "started").length;
+    const requestFailed = outcomes.some((outcome) => outcome.kind === "request_failed");
+    const capacityBlocked = outcomes.some((outcome) => outcome.kind === "capacity_full");
+    if (started === 0 && capacityBlocked && !requestFailed) {
       return { ok: false, target, reason: "capacity_full" };
     }
+    if (requestFailed) return { ok: false, target, reason: "request_failed" };
     return {
       ok: true,
       target,

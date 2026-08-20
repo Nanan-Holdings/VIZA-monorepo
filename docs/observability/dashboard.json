@@ -6,7 +6,18 @@
     { "id": 2, "title": "Success rate", "type": "stat", "query": "sum(runner_job_events_total{event=\"succeeded\"}) / sum(runner_job_events_total{event=~\"succeeded|failed\"})" },
     { "id": 3, "title": "Halted awaiting payment", "type": "stat", "query": "sum by (country) (runner_job_events_total{event=\"halted\"})" },
     { "id": 4, "title": "Dead-letter count", "type": "stat", "query": "sum(runner_job_events_total{event=\"dead_lettered\"})" },
-    { "id": 5, "title": "Time to submit (p50/p95)", "type": "timeseries", "query": "histogram_quantile(0.95, runner_metric_time_to_submit_s)" }
+    { "id": 5, "title": "Time to submit (p50/p95)", "type": "timeseries", "query": "histogram_quantile(0.95, runner_metric_time_to_submit_s)" },
+    { "id": 6, "title": "Claim latency p95", "type": "stat", "query": "histogram_quantile(0.95, runner_claim_latency_ms)" },
+    { "id": 7, "title": "Oldest claimable work", "type": "stat", "query": "max(runner_pool_oldest_claimable_age_seconds)" },
+    { "id": 8, "title": "Runner slot utilization", "type": "timeseries", "query": "runner_slot_utilization_percent" },
+    { "id": 9, "title": "Retained Machine start-request p95", "type": "stat", "query": "histogram_quantile(0.95, runner_machine_start_duration_ms)" },
+    { "id": 10, "title": "Lease hygiene alerts", "type": "stat", "query": "sum(runner_slot_expired_owned) + sum(runner_slot_stale_renewal)" }
+  ],
+  "alerts": [
+    { "name": "claim_latency_high", "condition": "runner_claim_latency_p95_ms >= 500" },
+    { "name": "oldest_claimable_with_free_slot", "condition": "runner_pool_oldest_claimable_age_seconds > 120 and runner_slot_free > 0" },
+    { "name": "capacity_overshoot", "condition": "runner_country_running > runner_country_cap" },
+    { "name": "expired_or_stale_slot", "condition": "runner_slot_expired_owned > 0 or runner_slot_stale_renewal > 0" }
   ],
   "_note": "Generic dashboard config artifact (OBSV-001). Import into Grafana or map to the /admin/metrics page; no dashboard clicks required to commit."
 }
