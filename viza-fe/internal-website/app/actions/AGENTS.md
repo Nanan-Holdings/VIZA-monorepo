@@ -24,7 +24,10 @@ application lifecycle state.
   and update reads shared by the home dashboard and the submitted application
   view.
 - `application-group.ts`: group application and team companion creation,
-  companion review state, and authorized companion application reads.
+  companion review state, and authorized companion application reads. Explicit
+  application-form context must accept the signed VIZA client session as well
+  as Supabase Auth while still matching the applicant profile or legacy auth
+  owner; keep this boundary covered by `application-group.test.ts`.
 - `visa-application-answers.ts`: draft app creation and dynamic answer storage.
   Critical answer reads refresh an encrypted independent cache; transient save
   failures enqueue encrypted, idempotent replay events instead of losing work.
