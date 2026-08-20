@@ -17,7 +17,7 @@ describe("runner concurrency admin signals", () => {
           claimable: 1,
           scheduled: 0,
           running: 3,
-          expired_running: 0,
+          expired_running: 1,
           capacity_headroom: 0,
           oldest_claimable_at: new Date(Date.now() - 121_000).toISOString(),
           oldest_claimable_age_seconds: 121,

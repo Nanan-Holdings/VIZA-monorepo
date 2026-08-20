@@ -35,4 +35,4 @@ to keep the PostgREST response bounded; the displayed p95 is explicitly a
 recent sample, not a complete historical percentile. It fails closed when any
 required health view or metric table is missing or returns an error. Alerts are raised for claim p95 ≥ 500 ms, a
 claimable queue older than 120 seconds while a slot is free, cap overshoot,
-expired owned slots, or stale lease renewals.
+expired running jobs or owned slots, or stale lease renewals.
