@@ -21,6 +21,10 @@ const env = {
   SUPABASE_SERVICE_ROLE_KEY: "service-role",
 };
 
+async function flushBestEffortMetrics(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function machineList(count: number) {
   return Array.from({ length: count }, (_, index) => ({
     id: `pool-${index + 1}`,
@@ -67,6 +71,7 @@ describe("Fly capacity concurrency guard", () => {
         fetchImpl: fetchImpl as unknown as typeof fetch,
       }),
     ).resolves.toMatchObject({ ok: true, started: 6, active: 6 });
+    await flushBestEffortMetrics();
 
     expect(maxInFlightStarts).toBeLessThanOrEqual(MAX_PARALLEL_MACHINE_STARTS);
   });
@@ -87,6 +92,7 @@ describe("Fly capacity concurrency guard", () => {
         fetchImpl: fetchImpl as unknown as typeof fetch,
       }),
     ).resolves.toEqual({ ok: false, target: "pool", reason: "request_failed" });
+    await flushBestEffortMetrics();
 
     expect(rpcMock).toHaveBeenCalledWith(
       "release_runner_machine_slot",
@@ -129,5 +135,6 @@ describe("Fly capacity concurrency guard", () => {
         fetchImpl: fetchImpl as unknown as typeof fetch,
       }),
     ).resolves.toMatchObject({ ok: true, started: 1 });
+    await flushBestEffortMetrics();
   });
 });

@@ -248,6 +248,10 @@ The current internal automation migrations are:
   documents, events, bounded retry rows, and failure backoff. Legacy
   worker-only signatures are removed for the controlled cutover; callers must
   pass the generation returned by claim.
+- `0155_concurrency_stable_speed.sql`: adds the service-role-only exact-owner
+  machine-slot renewal RPC, queue/capacity health views for the six canonical
+  shared-runner tuples and ten logical slots, and bounded non-PII claim/start
+  timing samples. It does not change runner caps or slot allocation.
 - `0139_dedupe_ongoing_applications.sql`: consolidates duplicate in-flight
   applications and enforces one ongoing row per applicant/country/visa type
   while preserving completed submission history; QA dry-run rows are isolated
