@@ -18,11 +18,13 @@ Dispatch **Production database maintenance** with
 The JSON envelope identifies the source endpoints, exact project ref, and
 `viza-architecture-audit-metadata-only-v1` sanitization schema. Advisor titles,
 descriptions, details and remediation text are discarded. The action fails if
-the database project marker is missing or does not match production. Catalog
-ACL results are emitted per relation, sequence, schema, routine, and default
-privilege entry. Statement metrics include the statistics reset timestamp and
-observation-window length so a short or reset sample is never mistaken for a
-stable workload baseline.
+the Management API project-details response does not identify the exact
+production ref. A database project-ref GUC is an optional secondary marker: if
+present it must match, while an unset marker does not override the verified
+Management API identity. Catalog ACL results are emitted per relation,
+sequence, schema, routine, and default privilege entry. Statement metrics
+include the statistics reset timestamp and observation-window length so a
+short or reset sample is never mistaken for a stable workload baseline.
 
 ## Migration pull-request gate
 
