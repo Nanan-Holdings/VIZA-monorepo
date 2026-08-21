@@ -102,7 +102,9 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
       const payload = requests.length === 1
-        ? { lints: [{
+        ? { id: PRODUCTION_PROJECT_REF, ref: PRODUCTION_PROJECT_REF }
+        : requests.length === 2
+          ? { lints: [{
             name: "rls_disabled_in_public",
             title: "hidden title",
             level: "ERROR",
@@ -112,7 +114,7 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
             remediation: "must not be emitted",
             metadata: { schema: "public", name: "runner_job", entity: "runner_job", type: "table" },
           }] }
-        : requests.length === 2
+        : requests.length === 3
           ? { lints: [{
               name: "unindexed_foreign_keys",
               level: "WARN",
@@ -121,7 +123,7 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
               description: "must not be emitted",
               metadata: { schema: "public", name: "runner_job_fk", entity: "runner_job", type: "table" },
             }] }
-          : requests.length === 3
+          : requests.length === 4
             ? [{ architecture_audit: {
                 project_ref_marker: PRODUCTION_PROJECT_REF,
                 pg_stat_statements_available: true,
@@ -136,14 +138,15 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
     },
   });
 
-  assert.equal(requests.length, 4);
-  assert.match(requests[0].url, /advisors\/security$/u);
+  assert.equal(requests.length, 5);
+  assert.match(requests[0].url, new RegExp(`/projects/${PRODUCTION_PROJECT_REF}$`, "u"));
   assert.equal(requests[0].init.method, "GET");
-  assert.match(requests[1].url, /advisors\/performance$/u);
-  assert.match(requests[2].url, /database\/query\/read-only$/u);
+  assert.match(requests[1].url, /advisors\/security$/u);
+  assert.match(requests[2].url, /advisors\/performance$/u);
   assert.match(requests[3].url, /database\/query\/read-only$/u);
-  assert.equal(JSON.parse(requests[2].init.body).query, ARCHITECTURE_AUDIT_SQL);
-  assert.equal(JSON.parse(requests[3].init.body).query, PG_STAT_STATEMENTS_AUDIT_SQL);
+  assert.match(requests[4].url, /database\/query\/read-only$/u);
+  assert.equal(JSON.parse(requests[3].init.body).query, ARCHITECTURE_AUDIT_SQL);
+  assert.equal(JSON.parse(requests[4].init.body).query, PG_STAT_STATEMENTS_AUDIT_SQL);
   assert.deepEqual(result.advisors.security.lints, [{
     name: "rls_disabled_in_public",
     level: "ERROR",
@@ -157,6 +160,7 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
     "advisors/security",
     "advisors/performance",
   ]);
+  assert.equal(result.source.project_endpoint, `projects/${PRODUCTION_PROJECT_REF}`);
   assert.equal(JSON.stringify(result).includes("must not be emitted"), false);
   assert.deepEqual(result.pg_stat_statements, {
     stats_reset: "2026-08-21T00:00:00Z",
@@ -188,21 +192,64 @@ test("architecture audit skips statement metrics when the extension is unavailab
     },
     fetchImpl: async () => {
       calls += 1;
-      const payload = calls <= 2
-        ? { lints: [] }
-        : [{ architecture_audit: {
-            project_ref_marker: PRODUCTION_PROJECT_REF,
+      const payload = calls === 1
+        ? { id: PRODUCTION_PROJECT_REF }
+        : calls <= 3
+          ? { lints: [] }
+          : [{ architecture_audit: {
+            project_ref_marker: null,
             pg_stat_statements_available: false,
           } }];
       return new Response(JSON.stringify(payload), { status: 200 });
     },
   });
-  assert.equal(calls, 3);
+  assert.equal(calls, 4);
   assert.deepEqual(result.pg_stat_statements, {
     stats_reset: null,
     observation_window_seconds: null,
     statements: [],
   });
+});
+
+test("architecture audit rejects Management API and optional database identity mismatches", async () => {
+  const env = {
+    SUPABASE_ACCESS_TOKEN: "test-token",
+    SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+    PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:architecture-audit`,
+  };
+  let calls = 0;
+  await assert.rejects(
+    runArchitectureAudit({
+      env,
+      fetchImpl: async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ id: "wrong-project-ref" }), { status: 200 });
+      },
+    }),
+    /Management API project identity is missing or mismatched/u,
+  );
+  assert.equal(calls, 1);
+
+  calls = 0;
+  await assert.rejects(
+    runArchitectureAudit({
+      env,
+      fetchImpl: async () => {
+        calls += 1;
+        const payload = calls === 1
+          ? { ref: PRODUCTION_PROJECT_REF }
+          : calls <= 3
+            ? { lints: [] }
+            : [{ architecture_audit: {
+                project_ref_marker: "wrong-project-ref",
+                pg_stat_statements_available: false,
+              } }];
+        return new Response(JSON.stringify(payload), { status: 200 });
+      },
+    }),
+    /database project marker is mismatched/u,
+  );
+  assert.equal(calls, 4);
 });
 
 const genericBatchManifest = {
