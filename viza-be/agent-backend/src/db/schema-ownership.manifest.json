@@ -1,8 +1,12 @@
 {
-  "version": 1,
-  "productionProjectRef": "oyjxdzsoejraedqghndi",
-  "productionCatalogCapturedAt": "2026-08-21T13:19:23Z",
-  "owners": {
+  "version": 2,
+  "reconciliation": {
+    "status": "pending-live-reconciliation",
+    "productionProjectRef": "oyjxdzsoejraedqghndi",
+    "requiredArtifact": "architecture-audit",
+    "artifactSha256": null
+  },
+  "candidateOwnership": {
     "drizzle-managed": [
       "account_recovery_audit",
       "applicant_profiles",
@@ -162,7 +166,7 @@
       "visa_vietnam"
     ]
   },
-  "declaredButNotObserved": [
+  "knownDrizzleDeclarationsPendingLiveCheck": [
     "application_profile_snapshots",
     "ds160_interview_records",
     "ds160_lost_passports",

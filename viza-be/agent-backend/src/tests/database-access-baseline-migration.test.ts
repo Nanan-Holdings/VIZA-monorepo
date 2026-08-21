@@ -79,11 +79,20 @@ describe("database access baseline migration", () => {
 	it("turns users into an own-row authenticated lookup", () => {
 		expect(canonicalSql).toMatch(/ALTER TABLE public\.users ENABLE ROW LEVEL SECURITY/i);
 		expect(canonicalSql).toMatch(
+			/DROP POLICY IF EXISTS "Users can view all users" ON public\.users/i,
+		);
+		expect(canonicalSql).toMatch(
 			/CREATE POLICY users_select_own[\s\S]*?FOR SELECT TO authenticated[\s\S]*?id = \(SELECT auth\.uid\(\)\)/i,
 		);
 		expect(canonicalSql).toMatch(
 			/REVOKE ALL ON TABLE public\.users[\s\S]*?FROM PUBLIC, anon, authenticated, service_role[\s\S]*?GRANT SELECT ON TABLE public\.users TO authenticated[\s\S]*?GRANT ALL ON TABLE public\.users TO service_role/i,
 		);
+	});
+
+	it("requires other object owners to be reported by postflight audit without blocking the app migration", () => {
+		expect(canonicalSql).toMatch(/POSTFLIGHT-AUDIT:\s*other_owner_default_acl/i);
+		expect(canonicalSql).toMatch(/owner[\s\S]*schema[\s\S]*object_type[\s\S]*grantee[\s\S]*privilege_type/i);
+		expect(canonicalSql).toMatch(/must not fail this application migration/i);
 	});
 
 	it("makes queue depth an invoker view visible only to service role", () => {

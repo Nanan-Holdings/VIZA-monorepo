@@ -113,7 +113,9 @@ The current internal automation migrations are:
   compliance decision in package and fee-rule metadata while leaving runtime
   and applicant final-submission gates fail-closed.
 - `0158_database_access_baseline.sql`: establishes deny-by-default future
-  public-schema privileges, restores the typed application-translation table
+  public-schema privileges for the `postgres` application migration owner and
+  requires postflight findings for unsafe defaults owned by platform roles,
+  restores the typed application-translation table
   with authenticated ownership RLS, restricts encrypted/runner/takeover state
   to service role, enables own-row RLS on `users`, switches
   `runner_queue_depth` to security-invoker, and removes the confirmed

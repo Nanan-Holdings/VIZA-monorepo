@@ -6,7 +6,9 @@
 -- hardens the confirmed production ACL/RLS/view/function findings without
 -- deleting, renaming, or rewriting customer data.
 
--- Migrations execute as the database migration owner. Supabase also creates
+-- The protected application workflow executes this migration after SET ROLE
+-- postgres. The unconditional default-ACL contract therefore covers future
+-- objects created by that application migration owner. Supabase also creates
 -- objects as supabase_admin in some dashboard/platform paths. Configure that
 -- additional owner only when the active migration role is allowed to manage
 -- its defaults; production maintenance deliberately SET ROLEs to a non-member
@@ -41,6 +43,14 @@ BEGIN
   END IF;
 END
 $database_access_defaults$;
+
+-- POSTFLIGHT-AUDIT: other_owner_default_acl
+-- architecture-audit must emit a structured finding for every unsafe default
+-- ACL owned by any role other than the active application migration owner. Each
+-- finding must include: owner, schema, object_type, grantee, privilege_type,
+-- and source (global, public-schema, or built-in-default). Platform ownership
+-- is an external boundary: findings must not fail this application migration;
+-- operators remediate them through a separately authorized platform action.
 
 -- The application backend has always declared and used this table, but the
 -- production catalog did not contain it. Install the existing contract and
@@ -134,6 +144,10 @@ GRANT ALL ON TABLE public.application_translations TO service_role;
 -- caller's own role/profile row. Administrative list/mutation paths use the
 -- server-only service-role client.
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+-- Historical migration audit found one permissive SELECT policy on users.
+-- PostgreSQL combines permissive policies with OR, so it must be removed before
+-- installing the own-row contract or it would bypass users_select_own.
+DROP POLICY IF EXISTS "Users can view all users" ON public.users;
 DROP POLICY IF EXISTS users_select_own ON public.users;
 CREATE POLICY users_select_own
   ON public.users

@@ -294,8 +294,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260821131006_database_access_baseline.sql`; keep it
   byte-identical to
   `viza-be/agent-backend/drizzle/0158_database_access_baseline.sql`. It makes
-  future public objects private until explicitly granted and preserves
-  authenticated own-row access only where the migration declares it.
+  future objects created by the `postgres` application migration owner private
+  until explicitly granted, audits other owners as a platform boundary, and
+  preserves authenticated own-row access only where the migration declares it.
 - Dedicated arrival-card country/product repair is applied by
   `supabase/migrations/20260818155521_repair_arrival_card_product_country_identity.sql`;
   keep it byte-identical to
