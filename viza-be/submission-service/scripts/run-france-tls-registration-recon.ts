@@ -145,6 +145,7 @@ async function enterChinaCenterThroughUi(
   page: Page,
   captcha: CaptchaEvents,
   centerPath: string,
+  centerName: string,
 ): Promise<string[]> {
   const steps: string[] = [];
   await clickFirstVisible([
@@ -190,9 +191,27 @@ async function enterChinaCenterThroughUi(
   await settleOfficialPage(page, captcha, beforeConfirm);
 
   const centerLink = page.locator(`a[href*="${centerPath}"]`).first();
-  if (!await centerLink.isVisible({ timeout: 10_000 }).catch(() => false)) return steps;
+  let centerControl: Locator | null = await centerLink.isVisible({ timeout: 5_000 }).catch(() => false)
+    ? centerLink
+    : null;
+  if (!centerControl) {
+    const centerHeading = page.getByText(new RegExp(`^${centerName}$`, "i")).first();
+    if (await centerHeading.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      const centerCard = centerHeading.locator(
+        "xpath=ancestor::*[.//button[normalize-space()='Continue'] or .//a[normalize-space()='Continue']][1]",
+      );
+      const continueControl = centerCard.getByRole("button", { name: /^continue$/i }).first();
+      const continueLink = centerCard.getByRole("link", { name: /^continue$/i }).first();
+      centerControl = await continueControl.isVisible({ timeout: 2_000 }).catch(() => false)
+        ? continueControl
+        : await continueLink.isVisible({ timeout: 2_000 }).catch(() => false)
+          ? continueLink
+          : null;
+    }
+  }
+  if (!centerControl) return steps;
   const beforeCenter = captcha.snapshot();
-  await centerLink.click({ timeout: 15_000 });
+  await centerControl.click({ timeout: 15_000 });
   steps.push("center_clicked");
   await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
   await settleOfficialPage(page, captcha, beforeCenter);
@@ -227,6 +246,7 @@ async function main(): Promise<void> {
       session.page,
       captcha,
       centerPath,
+      center.cityEn,
     );
     await dismissCookies(session.page);
     const centerPage = artifactPath("02-center");

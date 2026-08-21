@@ -95,4 +95,120 @@ describe("France TLS account registration", () => {
       accountIdsToAbandon: ["legacy-1", "legacy-2"],
     });
   });
+
+  it("retries only an unverified failure from before official registration submission", () => {
+    assert.equal(accountRegistration.isFranceTlsPreRegistrationRetryEligible({
+      accountStatus: "manual_required",
+      emailVerified: false,
+    }), true);
+    assert.equal(accountRegistration.isFranceTlsPreRegistrationRetryEligible({
+      accountStatus: "activation_email_pending",
+      emailVerified: false,
+    }), false);
+    assert.equal(accountRegistration.isFranceTlsPreRegistrationRetryEligible({
+      accountStatus: "manual_required",
+      emailVerified: true,
+    }), false);
+    assert.equal(accountRegistration.isFranceTlsPreRegistrationRetryEligible({
+      accountStatus: "registration_retryable_error",
+      emailVerified: false,
+    }), true);
+    assert.equal(accountRegistration.isFranceTlsPreRegistrationRetryEligible({
+      accountStatus: "browser_session_retryable_error",
+      emailVerified: false,
+    }), true);
+  });
+
+  it("does not mistake the TLS registration service-error toast for success", () => {
+    assert.equal(accountRegistration.classifyFranceTlsRegistrationResult({
+      url: "https://visas-fr.tlscontact.com/en-us/registration",
+      bodyText: "We apologise for the inconvenience. Our website team is currently working to fix this.",
+    }), "retryable_error");
+    assert.equal(accountRegistration.classifyFranceTlsRegistrationResult({
+      url: "https://visas-fr.tlscontact.com/en-us/registration",
+      bodyText: "Please check your email to activate your account.",
+    }), "success");
+    assert.equal(accountRegistration.classifyFranceTlsRegistrationResult({
+      url: "https://visas-fr.tlscontact.com/en-us/registration",
+      bodyText: "Register your account with TLScontact",
+    }), "unverified");
+  });
+
+  it("retries only CAPTCHA failures that produced no answer", () => {
+    assert.equal(accountRegistration.isRetryableFranceTlsCaptchaSolveError(
+      new Error("2captcha API error: ERROR_CAPTCHA_UNSOLVABLE"),
+    ), true);
+    assert.equal(accountRegistration.isRetryableFranceTlsCaptchaSolveError(
+      new Error("2captcha polling timeout"),
+    ), true);
+    assert.equal(accountRegistration.isRetryableFranceTlsCaptchaSolveError(
+      new Error("TLS reCAPTCHA token injection failed"),
+    ), false);
+  });
+
+  it("preserves official registration outcome checkpoints across outer errors", () => {
+    assert.equal(accountRegistration.shouldPreserveFranceTlsRegistrationStatus(
+      "registration_retryable_error",
+    ), true);
+    assert.equal(accountRegistration.shouldPreserveFranceTlsRegistrationStatus(
+      "registration_result_unverified",
+    ), true);
+    assert.equal(accountRegistration.shouldPreserveFranceTlsRegistrationStatus(
+      "browser_session_retryable_error",
+    ), true);
+    assert.equal(accountRegistration.shouldPreserveFranceTlsRegistrationStatus(
+      "account_prepared",
+    ), false);
+  });
+
+  it("classifies Browserbase lifecycle failures as retryable", () => {
+    assert.equal(accountRegistration.isRetryableFranceTlsBrowserSessionError(
+      new Error("page.screenshot: Target page, context or browser has been closed"),
+    ), true);
+    assert.equal(accountRegistration.isRetryableFranceTlsBrowserSessionError(
+      new Error("TLS Cloudflare security verification did not clear within the Browserbase wait window"),
+    ), true);
+    assert.equal(accountRegistration.isRetryableFranceTlsBrowserSessionError(
+      new Error("TLS login rejected the stored credentials"),
+    ), false);
+  });
+
+  it("recognizes the official French Cloudflare waiting room", () => {
+    assert.equal(accountRegistration.isFranceTlsWaitingRoomText(
+      "Vous êtes maintenant dans la file d’attente. Votre temps d’attente est estimé à 1 minute.",
+    ), true);
+    assert.equal(accountRegistration.isFranceTlsWaitingRoomText(
+      "Sign in to TLScontact",
+    ), false);
+  });
+
+  it("recognizes the official TLS Cloudflare security verification page", () => {
+    assert.equal(accountRegistration.isFranceTlsSecurityVerificationText(
+      "Performing security verification. This website uses a security service to protect against malicious bots. This page is displayed while the website verifies you are not a bot.",
+    ), true);
+    assert.equal(accountRegistration.isFranceTlsSecurityVerificationText(
+      "Vérification de sécurité — un instant…",
+    ), true);
+    assert.equal(accountRegistration.isFranceTlsSecurityVerificationText(
+      "Sign in to TLScontact",
+    ), false);
+  });
+
+  it("bounds each CAPTCHA solve attempt within the Browserbase session budget", () => {
+    assert.equal(accountRegistration.resolveFranceTlsCaptchaAttemptTimeoutMs(undefined), 45_000);
+    assert.equal(accountRegistration.resolveFranceTlsCaptchaAttemptTimeoutMs("5000"), 10_000);
+    assert.equal(accountRegistration.resolveFranceTlsCaptchaAttemptTimeoutMs("180000"), 60_000);
+  });
+
+  it("retries only navigation failures from before the registration form", () => {
+    assert.equal(accountRegistration.isRetryableFranceTlsRegistrationNavigationError(
+      new Error("TLS registration entry was not found"),
+    ), true);
+    assert.equal(accountRegistration.isRetryableFranceTlsRegistrationNavigationError(
+      new Error("TLS registration form unavailable (captcha_token at https://visas-fr.tlscontact.com/en-us)"),
+    ), true);
+    assert.equal(accountRegistration.isRetryableFranceTlsRegistrationNavigationError(
+      new Error("TLScontact returned a retryable registration service error"),
+    ), false);
+  });
 });

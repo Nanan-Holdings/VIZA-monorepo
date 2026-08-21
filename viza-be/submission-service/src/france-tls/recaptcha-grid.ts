@@ -76,8 +76,10 @@ export async function solveVisibleRecaptchaGridChallenge(
   const image = frame.locator(IMAGE_SELECTOR).first();
   const solves: GridCaptchaSolveResult[] = [];
 
+  await image.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
   const imageCount = await image.count().catch(() => 0);
-  if (imageCount === 0) {
+  const imageVisible = imageCount > 0 && await image.isVisible({ timeout: 1_000 }).catch(() => false);
+  if (!imageVisible) {
     return { status: "no_challenge", reason: "recaptcha grid image not found" };
   }
 
