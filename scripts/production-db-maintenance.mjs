@@ -485,6 +485,54 @@ SELECT jsonb_build_object(
     JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
     WHERE p.prosecdef AND n.nspname IN ('public', 'runner_private')
   ),
+  'policy_contracts', (
+    SELECT COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'schema', policy_schema.nspname,
+          'table', policy_relation.relname,
+          'policy', policy.polname,
+          'command', CASE policy.polcmd
+            WHEN 'r' THEN 'SELECT'
+            WHEN 'a' THEN 'INSERT'
+            WHEN 'w' THEN 'UPDATE'
+            WHEN 'd' THEN 'DELETE'
+            WHEN '*' THEN 'ALL'
+            ELSE policy.polcmd::text
+          END,
+          'permissive', policy.polpermissive,
+          'roles', ARRAY(
+            SELECT CASE WHEN policy_role_oid = 0 THEN 'PUBLIC' ELSE policy_role.rolname END
+            FROM pg_catalog.unnest(policy.polroles) policy_role_oid
+            LEFT JOIN pg_catalog.pg_roles policy_role ON policy_role.oid = policy_role_oid
+            ORDER BY CASE WHEN policy_role_oid = 0 THEN 'PUBLIC' ELSE policy_role.rolname END
+          ),
+          'using_sha256', CASE WHEN policy.polqual IS NULL THEN NULL ELSE
+            pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+              pg_catalog.regexp_replace(pg_catalog.pg_get_expr(
+                policy.polqual, policy.polrelid
+              ), '\\s+', '', 'g'),
+              'UTF8'
+            )), 'hex')
+          END,
+          'check_sha256', CASE WHEN policy.polwithcheck IS NULL THEN NULL ELSE
+            pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+              pg_catalog.regexp_replace(pg_catalog.pg_get_expr(
+                policy.polwithcheck, policy.polrelid
+              ), '\\s+', '', 'g'),
+              'UTF8'
+            )), 'hex')
+          END
+        ) ORDER BY policy_schema.nspname, policy_relation.relname, policy.polname
+      ),
+      '[]'::jsonb
+    )
+    FROM pg_catalog.pg_policy policy
+    JOIN pg_catalog.pg_class policy_relation ON policy_relation.oid = policy.polrelid
+    JOIN pg_catalog.pg_namespace policy_schema
+      ON policy_schema.oid = policy_relation.relnamespace
+    WHERE policy_schema.nspname = 'public'
+  ),
   'views', (
     SELECT COALESCE(
       jsonb_agg(
