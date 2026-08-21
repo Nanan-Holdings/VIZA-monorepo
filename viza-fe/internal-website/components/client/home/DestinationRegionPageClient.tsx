@@ -64,6 +64,8 @@ export const SUPPORT_LABELS_ZH: Record<string, string> = {
   "UKVI form": "英国签证与移民局表单",
   "Vietnam pre-arrival declaration": "越南入境前申报",
   "Korea e-Arrival Card": "韩国电子入境卡",
+  "Arrival declaration · compliance review": "入境与海关申报",
+  "Electronic travel authorization": "电子旅行授权",
   "Application categories": "申请类别",
   "Destination region": "目的地区域",
 };
