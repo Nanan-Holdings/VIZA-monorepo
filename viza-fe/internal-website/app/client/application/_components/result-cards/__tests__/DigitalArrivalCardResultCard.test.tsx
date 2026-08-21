@@ -274,6 +274,24 @@ describe("DigitalArrivalCardResultCard", () => {
     ).toContain("云端浏览器启动失败");
   });
 
+  it("localizes Japan and Kenya automated-submission status messages", () => {
+    expect(userFacingSubmissionRuntimeMessage("Visit Japan Web QR code is ready.", true)).toBe(
+      "日本入境与海关申报二维码已准备好。",
+    );
+    expect(userFacingSubmissionRuntimeMessage("Official QR evidence is missing.", true)).toBe(
+      "缺少官方二维码凭证。",
+    );
+    expect(userFacingSubmissionRuntimeMessage("Kenya eTA approval is ready.", true)).toBe(
+      "肯尼亚电子旅行授权批准文件已准备好。",
+    );
+    expect(userFacingSubmissionRuntimeMessage("Official approval PDF is missing.", true)).toBe(
+      "缺少官方批准文件。",
+    );
+    expect(userFacingSubmissionRuntimeMessage("Kenya eTA approval is ready.", false)).toBe(
+      "Kenya eTA approval is ready.",
+    );
+  });
+
   it("shows downloadable Vietnam QR and PDF artifacts", () => {
     const result: DigitalArrivalCardSubmissionResult = {
       country: "VN",

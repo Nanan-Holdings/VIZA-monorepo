@@ -612,6 +612,21 @@ export function userFacingSubmissionRuntimeMessage(
     .trim();
   if (!normalized) return undefined;
 
+  if (isZh) {
+    const automatedProductMessagesZh: Record<string, string> = {
+      "Visit Japan Web QR evidence is not available yet.": "日本官方入境与海关申报二维码凭证暂不可用。",
+      "Official QR evidence is missing.": "缺少官方二维码凭证。",
+      "Visit Japan Web QR code is ready.": "日本入境与海关申报二维码已准备好。",
+      "Kenya eTA approval evidence is not available yet.": "肯尼亚电子旅行授权批准凭证暂不可用。",
+      "Official approval PDF is missing.": "缺少官方批准文件。",
+      "Kenya eTA approval is ready.": "肯尼亚电子旅行授权批准文件已准备好。",
+      "Visit Japan Web is scheduled for automatic submission after the compliance gate is cleared.": "日本入境与海关申报已进入自动提交计划，将在合规开关允许后执行。",
+      "Kenya eTA is scheduled for automatic submission.": "肯尼亚电子旅行授权已进入自动提交计划。",
+    };
+    const localizedAutomatedProductMessage = automatedProductMessagesZh[normalized];
+    if (localizedAutomatedProductMessage) return localizedAutomatedProductMessage;
+  }
+
   if (
     /browserType\.launch|Browser logs:|Call log:|Missing X server|XServer|Executable doesn't exist|Failed to launch|Target page, context or browser has been closed/i.test(
       normalized,
@@ -2115,6 +2130,7 @@ export function SubmissionStatusStep({
           visaType,
           vietnamPaymentCheckpointResult,
           snapshot?.queue?.id ?? null,
+          isZh,
         )}
       </div>
     );
@@ -2274,6 +2290,7 @@ export function SubmissionStatusStep({
           visaType,
           effectiveResult,
           snapshot?.queue?.id ?? null,
+          isZh,
         )}
       </div>
     );
@@ -2329,6 +2346,7 @@ function renderSubmissionResultCard(
   visaType: string | null,
   result: SubmissionResult | null,
   jobId: string | null = null,
+  isZh = false,
 ) {
   if (!result) {
     const persistenceKey = submissionProgressPersistenceKey(jobId);
@@ -2425,7 +2443,7 @@ function renderSubmissionResultCard(
       return isAutomatedOnlineResult(result) ? (
         <AutomatedOnlineResultCard result={result} />
       ) : (
-        <FailureCard errorMessage="The stored Kenya eTA result is invalid." />
+        <FailureCard errorMessage={isZh ? "保存的肯尼亚电子旅行授权结果无效。" : "The stored Kenya eTA result is invalid."} />
       );
     case "GENERIC":
       return (
