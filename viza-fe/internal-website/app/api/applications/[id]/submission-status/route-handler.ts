@@ -856,6 +856,11 @@ const RUNNER_JOB_STATUS_CONTRACT: Record<
 };
 
 function runnerJobIsScheduled(row: RunnerJobRow): boolean {
+  // `available_at` also carries the worker's short retry backoff. Once an
+  // attempt has started, a future timestamp means "retry shortly", not
+  // "wait for the official submission window". Calendar-scheduled jobs have
+  // not been attempted yet.
+  if ((row.attempts ?? 0) > 0) return false;
   if (!row.available_at) return false;
   const availableAtMs = Date.parse(row.available_at);
   return Number.isFinite(availableAtMs) && availableAtMs > Date.now();
