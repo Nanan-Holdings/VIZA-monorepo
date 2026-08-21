@@ -9,6 +9,7 @@
 /.git
 /.github
 /.ralph
+/.release
 /.tmp
 /.venv
 /.worktrees
