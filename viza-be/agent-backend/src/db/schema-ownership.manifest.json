@@ -1,12 +1,15 @@
 {
-  "version": 2,
+  "version": 3,
   "reconciliation": {
-    "status": "pending-live-reconciliation",
+    "status": "reconciled",
     "productionProjectRef": "oyjxdzsoejraedqghndi",
     "requiredArtifact": "architecture-audit",
-    "artifactSha256": null
+    "artifactPath": "./production-catalog.2026-08-22.audit-32507190455.json",
+    "artifactSha256": "b3b4f776a958abea4f7de001686ddf457dac3dffe864d5da9c39fa90ec7ddae8",
+    "auditRunId": 32507190455,
+    "auditJobId": 96849890973
   },
-  "candidateOwnership": {
+  "ownership": {
     "drizzle-managed": [
       "account_recovery_audit",
       "applicant_profiles",
@@ -137,6 +140,12 @@
       "privacy_execution_jobs",
       "retention_purge_log",
       "runner_metric",
+      "runner_pool_concurrency_health",
+      "runner_pool_depth",
+      "runner_private.runner_job_update_capability",
+      "runner_private.runner_load_test_config",
+      "runner_queue_depth",
+      "runner_slot_capacity_health",
       "runner_step_log",
       "secret_access_log",
       "signature_event",
@@ -151,9 +160,7 @@
       "treasury_funding_events",
       "treasury_payouts",
       "treasury_reconciliation_runs",
-      "users",
-      "runner_private.runner_job_update_capability",
-      "runner_private.runner_load_test_config"
+      "users"
     ],
     "compatibility-only": [
       "_migrations",
@@ -166,19 +173,21 @@
       "visa_vietnam"
     ]
   },
-  "knownDrizzleDeclarationsPendingLiveCheck": [
-    "application_profile_snapshots",
-    "ds160_interview_records",
-    "ds160_lost_passports",
-    "ds160_other_names",
-    "ds160_other_nationalities",
-    "ds160_payments",
-    "ds160_previous_employers",
-    "ds160_security_answers",
-    "ds160_social_media",
-    "ds160_travel_companions",
-    "ds160_us_relatives",
-    "france_live_manual_actions",
-    "knowledge_base_updates"
-  ]
+  "declaredButNotPresent": {
+    "drizzle-managed": [
+      "application_profile_snapshots",
+      "ds160_interview_records",
+      "ds160_lost_passports",
+      "ds160_other_names",
+      "ds160_other_nationalities",
+      "ds160_payments",
+      "ds160_previous_employers",
+      "ds160_security_answers",
+      "ds160_social_media",
+      "ds160_travel_companions",
+      "ds160_us_relatives",
+      "france_live_manual_actions",
+      "knowledge_base_updates"
+    ]
+  }
 }
