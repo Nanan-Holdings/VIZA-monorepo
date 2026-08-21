@@ -10,10 +10,14 @@ Supabase service-role client setup for the agent backend.
 
 ## Key Files
 
-- `schema.ts`: Drizzle table definitions and inferred TypeScript types.
-- `schema-ownership.manifest.json`: versioned production-table ownership
-  inventory separating Drizzle-managed, REST/service-only, and compatibility
-  objects; update it whenever the production catalog or ownership changes.
+- `schema.ts`: Drizzle table definitions and inferred TypeScript types. Entries
+  marked `TYPE-ONLY SCHEMA COMPATIBILITY` intentionally omit identity/per-column
+  DESC details unsupported by Drizzle 0.30; their named SQL migrations remain
+  authoritative and those entries must not drive `db:generate`/`db:push`.
+- `schema-ownership.manifest.json`: candidate ownership inventory separating
+  Drizzle-managed, REST/service-only, and compatibility objects. It must remain
+  `pending-live-reconciliation` until an `architecture-audit` artifact hash is
+  bound; candidate lists must not be described as the live production catalog.
 - `index.ts`: bounded Postgres/Drizzle runtime pool using the Supabase
   transaction-pooler `DATABASE_URL` (three connections per instance by default).
 - `migrate.ts`: migration runner.

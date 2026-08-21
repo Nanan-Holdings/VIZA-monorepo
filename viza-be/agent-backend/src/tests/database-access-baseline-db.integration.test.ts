@@ -76,6 +76,14 @@ describe.skipIf(!liveGateEnabled)("database access baseline database integration
 				applicant_id UUID NOT NULL REFERENCES public.applicant_profiles(id)
 			);
 			CREATE TABLE IF NOT EXISTS public.users (id UUID PRIMARY KEY);
+			ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+			DROP POLICY IF EXISTS "Users can view all users" ON public.users;
+			CREATE POLICY "Users can view all users"
+				ON public.users FOR SELECT TO authenticated USING (true);
+			INSERT INTO public.users (id) VALUES
+				('00000000-0000-0000-0000-000000000001'),
+				('00000000-0000-0000-0000-000000000002')
+			ON CONFLICT (id) DO NOTHING;
 			CREATE TABLE IF NOT EXISTS public.submission_queue (
 				id UUID PRIMARY KEY DEFAULT pg_catalog.gen_random_uuid()
 			);
@@ -198,6 +206,25 @@ describe.skipIf(!liveGateEnabled)("database access baseline database integration
 			auth_translation_select: true,
 			auth_translation_delete: false,
 		});
+	});
+
+	it("removes legacy permissive users policies and returns only the caller row", async () => {
+		const policies = await query<{ policyname: string; cmd: string }>(`SELECT policyname, cmd
+			FROM pg_policies
+			WHERE schemaname = 'public'
+			  AND tablename = 'users'
+			  AND cmd IN ('SELECT', 'ALL')
+			ORDER BY policyname`);
+		expect(policies.rows).toEqual([{ policyname: "users_select_own", cmd: "SELECT" }]);
+
+		await query(
+			"SELECT pg_catalog.set_config('request.jwt.claim.sub', $1, true)",
+			["00000000-0000-0000-0000-000000000001"],
+		);
+		await query("SET LOCAL ROLE authenticated");
+		const visible = await query<{ id: string }>("SELECT id::text FROM public.users ORDER BY id");
+		await query("SET LOCAL ROLE postgres");
+		expect(visible.rows).toEqual([{ id: "00000000-0000-0000-0000-000000000001" }]);
 	});
 
 	it("uses invoker view security and service-only RPC execution", async () => {
