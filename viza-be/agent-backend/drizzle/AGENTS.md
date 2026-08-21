@@ -120,6 +120,11 @@ The current internal automation migrations are:
   to service role, enables own-row RLS on `users`, switches
   `runner_queue_depth` to security-invoker, and removes the confirmed
   SECURITY DEFINER search-path/execute exposure without changing RPC identity.
+- `0159_database_performance_indexes.sql`: creates three evidence-backed online
+  indexes for application-scoped submission lookups and the confirmed
+  `visa_chunks.document_id` / `pii_access_log.application_id` foreign-key scan
+  gaps. It must run only through the non-transactional concurrent-index batch
+  executor and never removes an existing index.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.
