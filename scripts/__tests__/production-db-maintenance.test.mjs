@@ -127,6 +127,16 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
             ? [{ architecture_audit: {
                 project_ref_marker: PRODUCTION_PROJECT_REF,
                 pg_stat_statements_available: true,
+                policy_contracts: [{
+                  schema: "public",
+                  table: "users",
+                  policy: "users_select_own",
+                  command: "SELECT",
+                  permissive: true,
+                  roles: ["authenticated"],
+                  using_sha256: "a".repeat(64),
+                  check_sha256: null,
+                }],
                 tables: { total: 10 },
               } }]
             : [{ pg_stat_statements: {
@@ -167,6 +177,16 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
     observation_window_seconds: 3600,
     statements: [{ queryid: "42", calls: 100, mean_exec_time_ms: 1.5 }],
   });
+  assert.deepEqual(result.catalog.policy_contracts, [{
+    schema: "public",
+    table: "users",
+    policy: "users_select_own",
+    command: "SELECT",
+    permissive: true,
+    roles: ["authenticated"],
+    using_sha256: "a".repeat(64),
+    check_sha256: null,
+  }]);
   assert.doesNotMatch(ARCHITECTURE_AUDIT_SQL, /SELECT\s+\*\s+FROM\s+public\./iu);
   assert.doesNotMatch(PG_STAT_STATEMENTS_AUDIT_SQL, /\bquery\b\s*,/iu);
   assert.match(ARCHITECTURE_AUDIT_SQL, /relation_acl/u);
@@ -178,6 +198,9 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
   assert.match(ARCHITECTURE_AUDIT_SQL, /idx\.indpred IS NULL/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /idx\.indexprs IS NULL/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /generate_subscripts\(con\.conkey/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /'policy_contracts'/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /pg_catalog\.pg_policy/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /pg_catalog\.sha256/u);
   assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /stats_reset/u);
   assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /observation_window_seconds/u);
 });
