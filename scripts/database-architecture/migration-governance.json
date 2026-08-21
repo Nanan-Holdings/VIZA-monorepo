@@ -72,6 +72,29 @@
       "0150_vn_status_settlement_fence.sql"
     ]
   },
+  "historical_duplicate_supabase_versions": {
+    "20260220": [
+      "20260220_orders_search_optimization.sql",
+      "20260220_search_optimization_patients_customers.sql"
+    ],
+    "20260531": [
+      "20260531_create_application_documents_bucket.sql",
+      "20260531_create_consent_event.sql"
+    ],
+    "20260610": [
+      "20260610_applicant_profile_bilingual_fields.sql",
+      "20260610_ds160_live_assisted_controls.sql",
+      "20260610_france_live_assisted_controls.sql",
+      "20260610_fv_accounts.sql",
+      "20260610_submission_manual_action_bridge.sql"
+    ],
+    "20260625": [
+      "20260625_official_fee_payment.sql",
+      "20260625_vietnam_payment_status_tracking.sql",
+      "20260625_vn_evisa_official_form_parity.sql",
+      "20260625_vn_evisa_photo_face_rules.sql"
+    ]
+  },
   "migration_pairs": [],
   "no_mirror": []
 }

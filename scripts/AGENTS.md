@@ -95,7 +95,9 @@ smoke-test helpers for the VIZA monorepo.
   prefixes, rejects edits/renames/deletes of existing migrations, requires each
   new migration to be classified as one byte-identical mirror pair or an
   explicitly justified no-mirror file, and statically enforces public-table
-  RLS/ACL, empty SECURITY DEFINER search paths, and invoker views.
+  RLS/ACL, empty SECURITY DEFINER search paths, and invoker views. It also
+  preserves the exact historical Supabase duplicate-version allowlist and
+  requires new Supabase files to use unique 14-digit timestamps.
 - `database-architecture/migration-governance.json`: immutable duplicate-prefix
   allowlist plus hash-pinned mirror/no-mirror decisions for new migrations.
 - `database-architecture/approved-migration-batches.json`: reviewed batch ids,
@@ -107,3 +109,7 @@ sanitized Security/Performance Advisor metadata with a read-only catalog/stat
 snapshot, and `apply-approved-batch`, which accepts only a full commit SHA and
 an exact manifest entry. Architecture audit must never emit statement text,
 SQL parameters, table rows, applicant data, or advisor detail/remediation text.
+Approved batches use structured catalog assertions only; concurrent-index
+batches pin exact index definitions and may retry only an invalid/not-ready
+index. Temporary Management API login roles must not exceed ten minutes and
+must be revoked after successful, failed, or ambiguous creation attempts.

@@ -293,6 +293,167 @@ SELECT jsonb_build_object(
       GROUP BY grantee, privilege_type
     ) grants
   ),
+  'relation_acl', (
+    SELECT COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'schema', namespace.nspname,
+          'name', relation.relname,
+          'kind', CASE relation.relkind
+            WHEN 'r' THEN 'table'
+            WHEN 'p' THEN 'partitioned_table'
+            WHEN 'v' THEN 'view'
+            WHEN 'm' THEN 'materialized_view'
+            WHEN 'f' THEN 'foreign_table'
+            ELSE relation.relkind::text
+          END,
+          'owner', owner_role.rolname,
+          'rls_enabled', relation.relrowsecurity,
+          'rls_forced', relation.relforcerowsecurity,
+          'grants', COALESCE((
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'role', CASE WHEN relation_acl.grantee = 0
+                  THEN 'PUBLIC' ELSE grantee_role.rolname END,
+                'privilege', relation_acl.privilege_type,
+                'grantable', relation_acl.is_grantable
+              ) ORDER BY relation_acl.grantee, relation_acl.privilege_type
+            )
+            FROM pg_catalog.aclexplode(
+              COALESCE(relation.relacl, pg_catalog.acldefault('r', relation.relowner))
+            ) relation_acl
+            LEFT JOIN pg_catalog.pg_roles grantee_role
+              ON grantee_role.oid = relation_acl.grantee
+          ), '[]'::jsonb)
+        ) ORDER BY namespace.nspname, relation.relname
+      ),
+      '[]'::jsonb
+    )
+    FROM pg_catalog.pg_class relation
+    JOIN pg_catalog.pg_namespace namespace ON namespace.oid = relation.relnamespace
+    JOIN pg_catalog.pg_roles owner_role ON owner_role.oid = relation.relowner
+    WHERE namespace.nspname IN ('public', 'runner_private')
+      AND relation.relkind IN ('r', 'p', 'v', 'm', 'f')
+  ),
+  'sequence_acl', (
+    SELECT COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'schema', namespace.nspname,
+          'name', sequence.relname,
+          'owner', owner_role.rolname,
+          'grants', COALESCE((
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'role', CASE WHEN sequence_acl.grantee = 0
+                  THEN 'PUBLIC' ELSE grantee_role.rolname END,
+                'privilege', sequence_acl.privilege_type,
+                'grantable', sequence_acl.is_grantable
+              ) ORDER BY sequence_acl.grantee, sequence_acl.privilege_type
+            )
+            FROM pg_catalog.aclexplode(
+              COALESCE(sequence.relacl, pg_catalog.acldefault('S', sequence.relowner))
+            ) sequence_acl
+            LEFT JOIN pg_catalog.pg_roles grantee_role
+              ON grantee_role.oid = sequence_acl.grantee
+          ), '[]'::jsonb)
+        ) ORDER BY namespace.nspname, sequence.relname
+      ),
+      '[]'::jsonb
+    )
+    FROM pg_catalog.pg_class sequence
+    JOIN pg_catalog.pg_namespace namespace ON namespace.oid = sequence.relnamespace
+    JOIN pg_catalog.pg_roles owner_role ON owner_role.oid = sequence.relowner
+    WHERE namespace.nspname IN ('public', 'runner_private')
+      AND sequence.relkind = 'S'
+  ),
+  'schema_acl', (
+    SELECT COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'schema', namespace.nspname,
+          'owner', owner_role.rolname,
+          'grants', COALESCE((
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'role', CASE WHEN schema_acl.grantee = 0
+                  THEN 'PUBLIC' ELSE grantee_role.rolname END,
+                'privilege', schema_acl.privilege_type,
+                'grantable', schema_acl.is_grantable
+              ) ORDER BY schema_acl.grantee, schema_acl.privilege_type
+            )
+            FROM pg_catalog.aclexplode(
+              COALESCE(namespace.nspacl, pg_catalog.acldefault('n', namespace.nspowner))
+            ) schema_acl
+            LEFT JOIN pg_catalog.pg_roles grantee_role ON grantee_role.oid = schema_acl.grantee
+          ), '[]'::jsonb)
+        ) ORDER BY namespace.nspname
+      ),
+      '[]'::jsonb
+    )
+    FROM pg_catalog.pg_namespace namespace
+    JOIN pg_catalog.pg_roles owner_role ON owner_role.oid = namespace.nspowner
+    WHERE namespace.nspname IN ('public', 'runner_private')
+  ),
+  'routine_acl', (
+    SELECT COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'schema', namespace.nspname,
+          'name', routine.proname,
+          'identity_arguments', pg_catalog.pg_get_function_identity_arguments(routine.oid),
+          'kind', CASE routine.prokind WHEN 'p' THEN 'procedure' ELSE 'function' END,
+          'owner', owner_role.rolname,
+          'security_definer', routine.prosecdef,
+          'search_path', COALESCE(routine.proconfig, ARRAY[]::text[]),
+          'grants', COALESCE((
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'role', CASE WHEN routine_acl.grantee = 0
+                  THEN 'PUBLIC' ELSE grantee_role.rolname END,
+                'privilege', routine_acl.privilege_type,
+                'grantable', routine_acl.is_grantable
+              ) ORDER BY routine_acl.grantee, routine_acl.privilege_type
+            )
+            FROM pg_catalog.aclexplode(
+              COALESCE(routine.proacl, pg_catalog.acldefault('f', routine.proowner))
+            ) routine_acl
+            LEFT JOIN pg_catalog.pg_roles grantee_role ON grantee_role.oid = routine_acl.grantee
+          ), '[]'::jsonb)
+        ) ORDER BY namespace.nspname, routine.proname,
+          pg_catalog.pg_get_function_identity_arguments(routine.oid)
+      ),
+      '[]'::jsonb
+    )
+    FROM pg_catalog.pg_proc routine
+    JOIN pg_catalog.pg_namespace namespace ON namespace.oid = routine.pronamespace
+    JOIN pg_catalog.pg_roles owner_role ON owner_role.oid = routine.proowner
+    WHERE namespace.nspname IN ('public', 'runner_private')
+      AND routine.prokind IN ('f', 'p')
+  ),
+  'default_acl', (
+    SELECT COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'owner', owner_role.rolname,
+          'schema', COALESCE(namespace.nspname, '*'),
+          'object_type', default_acl.defaclobjtype::text,
+          'role', CASE WHEN acl_entry.grantee = 0 THEN 'PUBLIC' ELSE grantee_role.rolname END,
+          'privilege', acl_entry.privilege_type,
+          'grantable', acl_entry.is_grantable
+        ) ORDER BY owner_role.rolname, namespace.nspname,
+          default_acl.defaclobjtype, acl_entry.grantee, acl_entry.privilege_type
+      ),
+      '[]'::jsonb
+    )
+    FROM pg_catalog.pg_default_acl default_acl
+    JOIN pg_catalog.pg_roles owner_role ON owner_role.oid = default_acl.defaclrole
+    LEFT JOIN pg_catalog.pg_namespace namespace ON namespace.oid = default_acl.defaclnamespace
+    CROSS JOIN LATERAL pg_catalog.aclexplode(default_acl.defaclacl) acl_entry
+    LEFT JOIN pg_catalog.pg_roles grantee_role ON grantee_role.oid = acl_entry.grantee
+    WHERE namespace.nspname = 'public'
+       OR default_acl.defaclnamespace = 0
+  ),
   'security_definer_functions', (
     SELECT COALESCE(
       jsonb_agg(
@@ -355,7 +516,15 @@ SELECT jsonb_build_object(
             WHERE idx.indrelid = con.conrelid
               AND idx.indisvalid
               AND idx.indisready
-              AND (idx.indkey::smallint[]) @> con.conkey
+              AND idx.indpred IS NULL
+              AND idx.indexprs IS NULL
+              AND idx.indnkeyatts >= pg_catalog.cardinality(con.conkey)
+              AND NOT EXISTS (
+                SELECT 1
+                FROM pg_catalog.generate_subscripts(con.conkey, 1) column_position
+                WHERE (idx.indkey::smallint[])[column_position - 1]
+                  IS DISTINCT FROM con.conkey[column_position]
+              )
           )
         ),
         '[]'::jsonb
@@ -445,36 +614,45 @@ SELECT jsonb_build_object(
 `;
 
 export const PG_STAT_STATEMENTS_AUDIT_SQL = `
-SELECT COALESCE(
-  jsonb_agg(
-    jsonb_build_object(
-      'queryid', ranked.queryid::text,
-      'calls', ranked.calls,
-      'rows', ranked.rows,
-      'total_exec_time_ms', ROUND(ranked.total_exec_time::numeric, 3),
-      'mean_exec_time_ms', ROUND(ranked.mean_exec_time::numeric, 3),
-      'shared_blks_hit', ranked.shared_blks_hit,
-      'shared_blks_read', ranked.shared_blks_read,
-      'temp_blks_written', ranked.temp_blks_written
-    ) ORDER BY ranked.total_exec_time DESC
+SELECT jsonb_build_object(
+  'stats_reset', statement_info.stats_reset,
+  'observation_window_seconds', GREATEST(
+    0,
+    ROUND(EXTRACT(EPOCH FROM (pg_catalog.clock_timestamp() - statement_info.stats_reset)))
   ),
-  '[]'::jsonb
+  'statements', COALESCE((
+    SELECT jsonb_agg(
+      jsonb_build_object(
+        'queryid', ranked.queryid::text,
+        'calls', ranked.calls,
+        'rows', ranked.rows,
+        'total_exec_time_ms', ROUND(ranked.total_exec_time::numeric, 3),
+        'mean_exec_time_ms', ROUND(ranked.mean_exec_time::numeric, 3),
+        'shared_blks_hit', ranked.shared_blks_hit,
+        'shared_blks_read', ranked.shared_blks_read,
+        'temp_blks_written', ranked.temp_blks_written
+      ) ORDER BY ranked.total_exec_time DESC
+    )
+    FROM (
+      SELECT
+        queryid,
+        calls,
+        rows,
+        total_exec_time,
+        mean_exec_time,
+        shared_blks_hit,
+        shared_blks_read,
+        temp_blks_written
+      FROM pg_stat_statements
+      WHERE dbid = (
+        SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database()
+      )
+      ORDER BY total_exec_time DESC
+      LIMIT 50
+    ) ranked
+  ), '[]'::jsonb)
 ) AS pg_stat_statements
-FROM (
-  SELECT
-    queryid,
-    calls,
-    rows,
-    total_exec_time,
-    mean_exec_time,
-    shared_blks_hit,
-    shared_blks_read,
-    temp_blks_written
-  FROM pg_stat_statements
-  WHERE dbid = (SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database())
-  ORDER BY total_exec_time DESC
-  LIMIT 50
-) ranked;
+FROM pg_stat_statements_info statement_info;
 `;
 
 const expectedCapSnapshotSql = JSON.stringify(EXPECTED_CAP_SNAPSHOT).replaceAll("'", "''");
@@ -1116,6 +1294,9 @@ function validateApprovedBatchManifest(manifest) {
       throw new Error(`Approved migration batch_id is duplicated: ${batch.batch_id}`);
     }
     batchIds.add(batch.batch_id);
+    if (!/^[a-f0-9]{40}$/u.test(batch.source_ref ?? "")) {
+      throw new Error(`Approved migration batch ${batch.batch_id} must pin a full source_ref`);
+    }
     if (!['transactional', 'concurrent-index'].includes(batch.mode)) {
       throw new Error(`Approved migration batch ${batch.batch_id} has an invalid mode`);
     }
@@ -1136,6 +1317,20 @@ function validateApprovedBatchManifest(manifest) {
         throw new Error(`Approved migration version is duplicated: ${migration.version}`);
       }
       versions.add(migration.version);
+      if (batch.mode === "concurrent-index") {
+        if (!Array.isArray(migration.indexes) || migration.indexes.length === 0) {
+          throw new Error(
+            `Concurrent migration ${migration.version} must pin expected index definitions`,
+          );
+        }
+        for (const index of migration.indexes) {
+          if (!/^public\.[a-z_][a-z0-9_]*$/u.test(index.identity ?? "") ||
+              typeof index.definition !== "string" ||
+              !/^CREATE\s+(?:UNIQUE\s+)?INDEX\s+/u.test(index.definition)) {
+            throw new Error(`Concurrent migration ${migration.version} has invalid index metadata`);
+          }
+        }
+      }
     }
     for (const conditionName of ["preconditions", "postconditions"]) {
       const conditions = batch[conditionName] ?? {};
@@ -1146,9 +1341,114 @@ function validateApprovedBatchManifest(manifest) {
           throw new Error(`${batch.batch_id} ${conditionName}.${listName} is invalid`);
         }
       }
+      const assertions = conditions.catalog_assertions ?? [];
+      if (!Array.isArray(assertions)) {
+        throw new Error(`${batch.batch_id} ${conditionName}.catalog_assertions is invalid`);
+      }
+      const assertionIds = new Set();
+      for (const assertion of assertions) {
+        validateCatalogAssertion(assertion);
+        if (assertionIds.has(assertion.id)) {
+          throw new Error(`${batch.batch_id} duplicates catalog assertion ${assertion.id}`);
+        }
+        assertionIds.add(assertion.id);
+      }
     }
   }
   return manifest;
+}
+
+const APPROVED_RELATION_IDENTITY = /^(?:public|runner_private)\.[a-z_][a-z0-9_]*$/u;
+const APPROVED_FUNCTION_IDENTITY =
+  /^(?:public|runner_private)\.[a-z_][a-z0-9_]*\([a-z0-9_, \[\]]*\)$/u;
+const APPROVED_ROLES = new Set([
+  "PUBLIC",
+  "anon",
+  "authenticated",
+  "service_role",
+  "postgres",
+  "supabase_admin",
+]);
+
+function validateCatalogAssertion(assertion) {
+  if (!assertion || !/^[a-z0-9][a-z0-9_]{2,79}$/u.test(assertion.id ?? "")) {
+    throw new Error("Approved batch catalog assertion id is invalid");
+  }
+  const relationKinds = new Set([
+    "relation_exists",
+    "table_absent_or_columns_match",
+    "rls_enabled",
+    "relation_acl",
+    "view_security_invoker",
+  ]);
+  const functionKinds = new Set([
+    "function_exists",
+    "function_execute_acl",
+    "function_empty_search_path",
+  ]);
+  if (relationKinds.has(assertion.kind) &&
+      !APPROVED_RELATION_IDENTITY.test(assertion.identity ?? "")) {
+    throw new Error(`Approved batch assertion ${assertion.id} has an invalid relation identity`);
+  }
+  if (functionKinds.has(assertion.kind) &&
+      !APPROVED_FUNCTION_IDENTITY.test(assertion.identity ?? "")) {
+    throw new Error(`Approved batch assertion ${assertion.id} has an invalid function identity`);
+  }
+  if (assertion.kind === "table_absent_or_columns_match") {
+    if (!Array.isArray(assertion.columns) || assertion.columns.length === 0 ||
+        assertion.columns.some((column) =>
+          !/^[a-z_][a-z0-9_]*$/u.test(column.name ?? "") ||
+          !/^[a-z_][a-z0-9_ ]*$/u.test(column.type ?? "") ||
+          typeof column.nullable !== "boolean")) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid column metadata`);
+    }
+    return;
+  }
+  if (assertion.kind === "relation_acl") {
+    if (!['table', 'sequence', 'view'].includes(assertion.relation_kind) ||
+        !Array.isArray(assertion.required) || !Array.isArray(assertion.forbidden_roles)) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid ACL metadata`);
+    }
+    for (const grant of assertion.required) {
+      if (!APPROVED_ROLES.has(grant.role) || !Array.isArray(grant.privileges) ||
+          grant.privileges.some((privilege) => !/^[A-Z ]+$/u.test(privilege))) {
+        throw new Error(`Approved batch assertion ${assertion.id} has invalid required ACL`);
+      }
+    }
+    if (assertion.forbidden_roles.some((role) => !APPROVED_ROLES.has(role))) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid forbidden ACL`);
+    }
+    return;
+  }
+  if (assertion.kind === "function_execute_acl") {
+    if (!Array.isArray(assertion.required_roles) || !Array.isArray(assertion.forbidden_roles) ||
+        [...assertion.required_roles, ...assertion.forbidden_roles].some((role) =>
+          !APPROVED_ROLES.has(role))) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid function ACL`);
+    }
+    return;
+  }
+  if (assertion.kind === "default_acl_denied") {
+    if (!Array.isArray(assertion.owner_roles) || !Array.isArray(assertion.object_types) ||
+        !Array.isArray(assertion.denied_roles) ||
+        assertion.owner_roles.some((role) => !APPROVED_ROLES.has(role)) ||
+        assertion.denied_roles.some((role) => !APPROVED_ROLES.has(role)) ||
+        assertion.object_types.some((type) => !['r', 'S', 'f'].includes(type))) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid default ACL metadata`);
+    }
+    return;
+  }
+  if (assertion.kind === "migration_record") {
+    if (!/^\d{14}$/u.test(assertion.version ?? "") ||
+        !/^[a-z0-9][a-z0-9_]{2,127}$/u.test(assertion.name ?? "") ||
+        !/^[a-f0-9]{64}$/u.test(assertion.sha256 ?? "")) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid migration metadata`);
+    }
+    return;
+  }
+  if (!relationKinds.has(assertion.kind) && !functionKinds.has(assertion.kind)) {
+    throw new Error(`Unsupported approved batch catalog assertion: ${assertion.kind}`);
+  }
 }
 
 export function loadApprovedBatchManifest({
@@ -1175,7 +1475,13 @@ function validateConcurrentIndexSql(sql, migration) {
       `Migration ${migration.version} must contain only online CREATE INDEX CONCURRENTLY IF NOT EXISTS statements`,
     );
   }
-  return matches.map((match) => match[1].includes(".") ? match[1] : `public.${match[1]}`);
+  const identities = matches.map((match) =>
+    match[1].includes(".") ? match[1] : `public.${match[1]}`);
+  const expected = migration.indexes.map((index) => index.identity).sort();
+  if (JSON.stringify([...identities].sort()) !== JSON.stringify(expected)) {
+    throw new Error(`Migration ${migration.version} index identities do not match its manifest`);
+  }
+  return identities;
 }
 
 function resolveMigrationSourcePath(sourceRoot, migrationPath) {
@@ -1232,16 +1538,42 @@ export function loadGenericApprovedBatch({
       `${ledgerStatements.join("\n")}\nCOMMIT;\n`;
   }
 
-  const concurrentIndexes = sources.flatMap((migration) => migration.concurrentIndexes);
-  const indexList = concurrentIndexes.map(sqlLiteral).join(", ");
+  const concurrentIndexes = sources.flatMap((migration) => migration.indexes);
+  const indexValues = concurrentIndexes.map((index) =>
+    `(${sqlLiteral(index.identity)}, ${sqlLiteral(index.definition)})`).join(",\n      ");
   return `SET SESSION ROLE postgres;\n` +
     `SET lock_timeout = '5s';\nSET statement_timeout = '900s';\n` +
+    `SELECT pg_catalog.format(` +
+    `'DROP INDEX CONCURRENTLY IF EXISTS %s;', index_state.indexrelid::regclass)\n` +
+    `FROM (VALUES\n      ${indexValues}\n` +
+    `) AS expected(index_name, expected_definition)\n` +
+    `JOIN pg_catalog.pg_index index_state\n` +
+    `  ON index_state.indexrelid = pg_catalog.to_regclass(expected.index_name)\n` +
+    `WHERE index_state.indisvalid IS NOT TRUE OR index_state.indisready IS NOT TRUE\n` +
+    `\\gexec\n` +
+    `DO $approved_index_preflight$\n` +
+    `BEGIN\n` +
+    `  IF EXISTS (\n` +
+    `    SELECT 1\n` +
+    `    FROM (VALUES\n      ${indexValues}\n` +
+    `    ) AS expected(index_name, expected_definition)\n` +
+    `    JOIN pg_catalog.pg_index index_state\n` +
+    `      ON index_state.indexrelid = pg_catalog.to_regclass(expected.index_name)\n` +
+    `    WHERE pg_catalog.pg_get_indexdef(index_state.indexrelid)\n` +
+    `      IS DISTINCT FROM expected.expected_definition\n` +
+    `  ) THEN\n` +
+    `    RAISE EXCEPTION 'approved existing index definition does not match the manifest'\n` +
+    `      USING ERRCODE = '55000';\n` +
+    `  END IF;\n` +
+    `END\n` +
+    `$approved_index_preflight$;\n` +
     `${migrationStatements.join("\n\n")}\n` +
     `DO $approved_index_validity$\n` +
     `BEGIN\n` +
     `  IF EXISTS (\n` +
     `    SELECT 1\n` +
-    `    FROM unnest(ARRAY[${indexList}]::text[]) AS expected(index_name)\n` +
+    `    FROM (VALUES\n      ${indexValues}\n` +
+    `    ) AS expected(index_name, expected_definition)\n` +
     `    LEFT JOIN pg_catalog.pg_class index_class\n` +
     `      ON index_class.oid = pg_catalog.to_regclass(expected.index_name)\n` +
     `    LEFT JOIN pg_catalog.pg_index index_state\n` +
@@ -1249,6 +1581,8 @@ export function loadGenericApprovedBatch({
     `    WHERE index_state.indexrelid IS NULL\n` +
     `       OR index_state.indisvalid IS NOT TRUE\n` +
     `       OR index_state.indisready IS NOT TRUE\n` +
+    `       OR pg_catalog.pg_get_indexdef(index_state.indexrelid)\n` +
+    `          IS DISTINCT FROM expected.expected_definition\n` +
     `  ) THEN\n` +
     `    RAISE EXCEPTION 'approved concurrent index is missing, invalid, or not ready'\n` +
     `      USING ERRCODE = '55000';\n` +
@@ -1270,6 +1604,7 @@ async function managementJsonRequest({
   body,
   fetchImpl,
   timeoutMs = 60_000,
+  allowNotFound = false,
 }) {
   const response = await fetchImpl(managementApiUrl(projectRef, suffix), {
     method,
@@ -1281,12 +1616,28 @@ async function managementJsonRequest({
     signal: AbortSignal.timeout(timeoutMs),
   });
   const payload = await response.json().catch(() => null);
+  if (allowNotFound && response.status === 404) {
+    return payload;
+  }
   if (!response.ok) {
     const message =
       payload && typeof payload === "object" && typeof payload.message === "string"
         ? payload.message
         : "Management API request failed";
-    throw new Error(`Supabase temporary database access failed (${response.status}): ${message}`);
+    const requestError = new Error(
+      `Supabase temporary database access failed (${response.status}): ${message}`,
+    );
+    if (suffix === "/cli/login-role" && method === "POST") {
+      try {
+        await revokeTemporaryRole({ token, projectRef, fetchImpl });
+      } catch (cleanupError) {
+        throw new AggregateError(
+          [requestError, cleanupError],
+          "Temporary database access request failed and uncertain role cleanup also failed",
+        );
+      }
+    }
+    throw requestError;
   }
   return payload;
 }
@@ -1299,7 +1650,8 @@ function parseTemporaryRole(payload) {
     !/^cli_login_[a-z0-9_]+(?:\.[a-z0-9]{20})?$/u.test(role) ||
     password.length < 16 ||
     !Number.isFinite(ttlSeconds) ||
-    ttlSeconds < 60
+    ttlSeconds < 60 ||
+    ttlSeconds > 600
   ) {
     throw new Error("Supabase returned an invalid temporary database role");
   }
@@ -1470,6 +1822,7 @@ async function revokeTemporaryRole({ token, projectRef, fetchImpl, wait = setTim
         suffix: "/cli/login-role",
         method: "DELETE",
         fetchImpl,
+        allowNotFound: true,
       });
       return;
     } catch (error) {
@@ -1610,7 +1963,11 @@ export async function runArchitectureAudit({ env = process.env, fetchImpl = fetc
     throw new Error("Production architecture audit project marker is missing or mismatched");
   }
 
-  let statementMetrics = [];
+  let statementMetrics = {
+    stats_reset: null,
+    observation_window_seconds: null,
+    statements: [],
+  };
   if (catalog.pg_stat_statements_available === true) {
     const statementPayload = await managementQuery({
       env,
@@ -1624,10 +1981,22 @@ export async function runArchitectureAudit({ env = process.env, fetchImpl = fetc
       "pg_stat_statements",
       "Production architecture audit returned unexpected statement metadata",
     );
-    if (!Array.isArray(rawMetrics)) {
-      throw new Error("Production architecture audit statement metadata must be an array");
+    if (
+      !rawMetrics || typeof rawMetrics !== "object" ||
+      !Array.isArray(rawMetrics.statements) ||
+      (rawMetrics.stats_reset !== null && typeof rawMetrics.stats_reset !== "string") ||
+      (rawMetrics.observation_window_seconds !== null &&
+        (typeof rawMetrics.observation_window_seconds !== "number" ||
+          !Number.isFinite(rawMetrics.observation_window_seconds) ||
+          rawMetrics.observation_window_seconds < 0))
+    ) {
+      throw new Error("Production architecture audit statement metadata is invalid");
     }
-    statementMetrics = rawMetrics;
+    statementMetrics = {
+      stats_reset: rawMetrics.stats_reset,
+      observation_window_seconds: rawMetrics.observation_window_seconds,
+      statements: rawMetrics.statements,
+    };
   }
 
   return {
@@ -1862,7 +2231,170 @@ export async function runStableSpeedApply({
   return postflight;
 }
 
-function approvedBatchStateSql(batch) {
+function approvedRelationAclExpression(assertion) {
+  const identity = sqlLiteral(assertion.identity);
+  const privilegeFunction = assertion.relation_kind === "sequence"
+    ? "pg_catalog.has_sequence_privilege"
+    : "pg_catalog.has_table_privilege";
+  const objectPrivileges = assertion.relation_kind === "sequence"
+    ? ["USAGE", "SELECT", "UPDATE"]
+    : ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"];
+  const required = assertion.required.flatMap((grant) =>
+    grant.privileges.map((privilege) =>
+      `COALESCE(${privilegeFunction}(${sqlLiteral(grant.role)}, ` +
+      `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`));
+  const forbidden = assertion.forbidden_roles.map((role) => {
+    if (role === "PUBLIC") {
+      const aclDefaultType = assertion.relation_kind === "sequence" ? "S" : "r";
+      return `NOT EXISTS (\n` +
+        `      SELECT 1\n` +
+        `      FROM pg_catalog.pg_class acl_relation\n` +
+        `      CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+        `        COALESCE(acl_relation.relacl, ` +
+        `pg_catalog.acldefault(${sqlLiteral(aclDefaultType)}, acl_relation.relowner))\n` +
+        `      ) acl_entry\n` +
+        `      WHERE acl_relation.oid = pg_catalog.to_regclass(${identity})\n` +
+        `        AND acl_entry.grantee = 0\n` +
+        `    )`;
+    }
+    return objectPrivileges.map((privilege) =>
+      `NOT COALESCE(${privilegeFunction}(${sqlLiteral(role)}, ` +
+      `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`).join(" AND ");
+  });
+  return `(pg_catalog.to_regclass(${identity}) IS NOT NULL` +
+    [...required, ...forbidden].map((check) => `\n    AND (${check})`).join("") + `)`;
+}
+
+function approvedFunctionAclExpression(assertion) {
+  const identity = sqlLiteral(assertion.identity);
+  const required = assertion.required_roles.map((role) =>
+    `COALESCE(pg_catalog.has_function_privilege(${sqlLiteral(role)}, ` +
+    `pg_catalog.to_regprocedure(${identity}), 'EXECUTE'), FALSE)`);
+  const forbidden = assertion.forbidden_roles.map((role) => role === "PUBLIC"
+    ? `NOT EXISTS (\n` +
+      `      SELECT 1\n` +
+      `      FROM pg_catalog.pg_proc acl_function\n` +
+      `      CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+      `        COALESCE(acl_function.proacl, ` +
+      `pg_catalog.acldefault('f', acl_function.proowner))\n` +
+      `      ) acl_entry\n` +
+      `      WHERE acl_function.oid = pg_catalog.to_regprocedure(${identity})\n` +
+      `        AND acl_entry.grantee = 0\n` +
+      `    )`
+    : `NOT COALESCE(pg_catalog.has_function_privilege(${sqlLiteral(role)}, ` +
+      `pg_catalog.to_regprocedure(${identity}), 'EXECUTE'), FALSE)`);
+  return `(pg_catalog.to_regprocedure(${identity}) IS NOT NULL` +
+    [...required, ...forbidden].map((check) => `\n    AND (${check})`).join("") + `)`;
+}
+
+function approvedDefaultAclExpression(assertion) {
+  const ownerValues = assertion.owner_roles.map((role) => `(${sqlLiteral(role)})`).join(", ");
+  const typeValues = assertion.object_types.map((type) =>
+    `(${sqlLiteral(type)}::\"char\")`).join(", ");
+  const denied = assertion.denied_roles.filter((role) => role !== "PUBLIC");
+  const deniedList = denied.length > 0 ? denied.map(sqlLiteral).join(", ") : "NULL";
+  const publicCheck = assertion.denied_roles.includes("PUBLIC")
+    ? `acl_entry.grantee = 0 OR `
+    : "";
+  return `NOT EXISTS (\n` +
+    `    SELECT 1\n` +
+    `    FROM (VALUES ${ownerValues}) AS expected_owner(role_name)\n` +
+    `    JOIN pg_catalog.pg_roles owner_role\n` +
+    `      ON owner_role.rolname = expected_owner.role_name\n` +
+    `    CROSS JOIN (VALUES ${typeValues}) AS expected_type(object_type)\n` +
+    `    JOIN pg_catalog.pg_namespace default_schema ON default_schema.nspname = 'public'\n` +
+    `    CROSS JOIN LATERAL (VALUES (0::oid, TRUE), (default_schema.oid, FALSE)) ` +
+    `AS default_scope(namespace_oid, is_global)\n` +
+    `    LEFT JOIN pg_catalog.pg_default_acl default_acl\n` +
+    `      ON default_acl.defaclrole = owner_role.oid\n` +
+    `     AND default_acl.defaclnamespace = default_scope.namespace_oid\n` +
+    `     AND default_acl.defaclobjtype = expected_type.object_type\n` +
+    `    CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+    `      CASE\n` +
+    `        WHEN default_acl.oid IS NOT NULL THEN default_acl.defaclacl\n` +
+    `        WHEN default_scope.is_global THEN ` +
+    `pg_catalog.acldefault(expected_type.object_type, owner_role.oid)\n` +
+    `        ELSE '{}'::aclitem[]\n` +
+    `      END\n` +
+    `    ) acl_entry\n` +
+    `    LEFT JOIN pg_catalog.pg_roles grantee_role ON grantee_role.oid = acl_entry.grantee\n` +
+    `    WHERE ${publicCheck}grantee_role.rolname IN (${deniedList})\n` +
+    `  )`;
+}
+
+function approvedCatalogAssertionExpression(assertion) {
+  validateCatalogAssertion(assertion);
+  const identity = sqlLiteral(assertion.identity);
+  switch (assertion.kind) {
+    case "relation_exists":
+      return `pg_catalog.to_regclass(${identity}) IS NOT NULL`;
+    case "function_exists":
+      return `pg_catalog.to_regprocedure(${identity}) IS NOT NULL`;
+    case "table_absent_or_columns_match": {
+      const [schemaName, tableName] = assertion.identity.split(".");
+      const values = assertion.columns.map((column) =>
+        `(${sqlLiteral(column.name)}, ${sqlLiteral(column.type)}, ` +
+        `${column.nullable ? "TRUE" : "FALSE"})`).join(",\n        ");
+      return `(pg_catalog.to_regclass(${identity}) IS NULL OR NOT EXISTS (\n` +
+        `    SELECT 1\n` +
+        `    FROM (VALUES\n        ${values}\n` +
+        `    ) AS expected(column_name, udt_name, nullable)\n` +
+        `    WHERE NOT EXISTS (\n` +
+        `      SELECT 1\n` +
+        `      FROM information_schema.columns actual\n` +
+        `      WHERE actual.table_schema = ${sqlLiteral(schemaName)}\n` +
+        `        AND actual.table_name = ${sqlLiteral(tableName)}\n` +
+        `        AND actual.column_name = expected.column_name\n` +
+        `        AND actual.udt_name = expected.udt_name\n` +
+        `        AND (actual.is_nullable = 'YES') = expected.nullable\n` +
+        `    )\n` +
+        `  ))`;
+    }
+    case "rls_enabled":
+      return `EXISTS (\n` +
+        `    SELECT 1 FROM pg_catalog.pg_class rls_relation\n` +
+        `    WHERE rls_relation.oid = pg_catalog.to_regclass(${identity})\n` +
+        `      AND rls_relation.relrowsecurity IS TRUE\n` +
+        `  )`;
+    case "relation_acl":
+      return approvedRelationAclExpression(assertion);
+    case "function_execute_acl":
+      return approvedFunctionAclExpression(assertion);
+    case "view_security_invoker":
+      return `EXISTS (\n` +
+        `    SELECT 1 FROM pg_catalog.pg_class invoker_view\n` +
+        `    WHERE invoker_view.oid = pg_catalog.to_regclass(${identity})\n` +
+        `      AND invoker_view.relkind = 'v'\n` +
+        `      AND 'security_invoker=true' = ANY(COALESCE(invoker_view.reloptions, ARRAY[]::text[]))\n` +
+        `  )`;
+    case "function_empty_search_path":
+      return `EXISTS (\n` +
+        `    SELECT 1 FROM pg_catalog.pg_proc secure_function\n` +
+        `    WHERE secure_function.oid = pg_catalog.to_regprocedure(${identity})\n` +
+        `      AND secure_function.prosecdef IS TRUE\n` +
+        `      AND COALESCE(secure_function.proconfig, ARRAY[]::text[]) ` +
+        `@> ARRAY['search_path=""']::text[]\n` +
+        `  )`;
+    case "default_acl_denied":
+      return approvedDefaultAclExpression(assertion);
+    case "migration_record":
+      return `EXISTS (\n` +
+        `    SELECT 1 FROM supabase_migrations.schema_migrations migration_record\n` +
+        `    WHERE migration_record.version = ${sqlLiteral(assertion.version)}\n` +
+        `      AND migration_record.name = ${sqlLiteral(assertion.name)}\n` +
+        `      AND migration_record.statements = ` +
+        `ARRAY[${sqlLiteral(`sha256:${assertion.sha256}`)}]::text[]\n` +
+        `  )`;
+    default:
+      throw new Error(`Unsupported approved batch catalog assertion: ${assertion.kind}`);
+  }
+}
+
+export function buildApprovedBatchStateSql(batch, conditionName) {
+  validateApprovedBatchManifest({ schema_version: 1, batches: [batch] });
+  if (!['preconditions', 'postconditions'].includes(conditionName)) {
+    throw new Error("Approved batch condition phase is invalid");
+  }
   const versions = [...new Set([
     ...batch.migrations.map((migration) => migration.version),
     ...(batch.preconditions?.required_migration_versions ?? []),
@@ -1871,6 +2403,14 @@ function approvedBatchStateSql(batch) {
     ...(batch.postconditions?.absent_migration_versions ?? []),
   ])].sort();
   const versionList = versions.map(sqlLiteral).join(", ");
+  const assertions = batch[conditionName]?.catalog_assertions ?? [];
+  const assertionSql = assertions.length === 0
+    ? `'[]'::jsonb`
+    : `jsonb_build_array(\n${assertions.map((assertion) =>
+      `    jsonb_build_object(\n` +
+      `      'id', ${sqlLiteral(assertion.id)},\n` +
+      `      'passed', (${approvedCatalogAssertionExpression(assertion)})\n` +
+      `    )`).join(",\n")}\n  )`;
   return `SELECT jsonb_build_object(\n` +
     `  'project_ref_marker', current_setting('app.viza_project_ref', true),\n` +
     `  'environment_marker', current_setting('app.viza_environment', true),\n` +
@@ -1878,7 +2418,8 @@ function approvedBatchStateSql(batch) {
     `    SELECT jsonb_agg(version ORDER BY version)\n` +
     `    FROM supabase_migrations.schema_migrations\n` +
     `    WHERE version IN (${versionList})\n` +
-    `  ), '[]'::jsonb)\n` +
+    `  ), '[]'::jsonb),\n` +
+    `  'assertions', ${assertionSql}\n` +
     `) AS approved_batch_state;`;
 }
 
@@ -1889,7 +2430,8 @@ function parseApprovedBatchState(payload) {
     "Approved migration batch returned an unexpected state payload",
   );
   if (state.project_ref_marker !== PRODUCTION_PROJECT_REF ||
-      !Array.isArray(state.migration_versions)) {
+      !Array.isArray(state.migration_versions) ||
+      (state.assertions !== undefined && !Array.isArray(state.assertions))) {
     throw new Error("Approved migration batch state is not the production database marker");
   }
   return state;
@@ -1907,14 +2449,22 @@ function assertApprovedBatchConditions(state, conditions, phase) {
       throw new Error(`Approved migration batch ${phase} requires migration ${version} to be absent`);
     }
   }
+  const expectedAssertions = conditions?.catalog_assertions ?? [];
+  const results = Array.isArray(state.assertions) ? state.assertions : [];
+  for (const assertion of expectedAssertions) {
+    const matches = results.filter((result) => result?.id === assertion.id);
+    if (matches.length !== 1 || matches[0].passed !== true) {
+      throw new Error(`Approved migration batch ${phase} catalog guard failed: ${assertion.id}`);
+    }
+  }
 }
 
-async function readApprovedBatchState({ env, fetchImpl, batch, expectedConfirm }) {
+async function readApprovedBatchState({ env, fetchImpl, batch, expectedConfirm, conditionName }) {
   return parseApprovedBatchState(await managementQuery({
     env,
     fetchImpl,
     action: "apply-approved-batch",
-    query: approvedBatchStateSql(batch),
+    query: buildApprovedBatchStateSql(batch, conditionName),
     readOnly: true,
     expectedConfirm,
   }));
@@ -1955,11 +2505,15 @@ export async function runApprovedBatchApply({
     throw new Error(`Migration batch is not uniquely approved in the manifest: ${batchId}`);
   }
   const batch = matchingBatches[0];
+  if (sourceRef !== batch.source_ref) {
+    throw new Error(`Migration batch source ref is not approved: ${batchId}`);
+  }
   const preflight = await readApprovedBatchState({
     env,
     fetchImpl,
     batch,
     expectedConfirm,
+    conditionName: "preconditions",
   });
   assertApprovedBatchConditions(preflight, batch.preconditions, "preflight");
   for (const migration of batch.migrations) {
@@ -2027,6 +2581,7 @@ export async function runApprovedBatchApply({
     fetchImpl,
     batch,
     expectedConfirm,
+    conditionName: "postconditions",
   });
   assertApprovedBatchConditions(postflight, batch.postconditions, "postflight");
   for (const migration of batch.migrations) {
