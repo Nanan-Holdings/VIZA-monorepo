@@ -1109,18 +1109,18 @@ export function PersonalInfoStep({ country, prefill, visaType, onComplete }: Per
             badge="级联下拉"
             copilot={{
               fieldName: "country_of_birth",
-              label: "Country of birth",
+              label: "Country/Region of Birth",
               fieldType: "country",
               value: findOption(COUNTRY_OPTIONS, birthCountryCode)?.en ?? "",
               allAnswers: copilotAnswers,
               required: true,
-              placeholder: "Select country of birth",
+              placeholder: "Select country/region of birth",
             }}
             zhControl={
               <CountryOptionControl
                 side="zh"
                 value={birthCountryCode}
-                placeholder="选择出生国家..."
+                placeholder="选择出生国家/地区..."
                 onChange={handleBirthCountryChange}
               />
             }
@@ -1128,7 +1128,7 @@ export function PersonalInfoStep({ country, prefill, visaType, onComplete }: Per
               <CountryOptionControl
                 side="en"
                 value={birthCountryCode}
-                placeholder="Select country of birth..."
+                placeholder="Select country/region of birth..."
                 onChange={handleBirthCountryChange}
               />
             }

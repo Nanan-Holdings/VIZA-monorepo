@@ -75,7 +75,7 @@ export function getRagVisitorIntakeSteps(visaType: string): WizardStep[] {
           placeholder: "Select nationality",
         }),
         field(visaType, 1, "Personal Information", 4, "place_of_birth", "Place of birth", "text", {
-          placeholder: "City and country of birth",
+          placeholder: "City and country/region of birth",
         }),
         field(visaType, 1, "Personal Information", 5, "email_address", "Email address", "text", {
           required: true,

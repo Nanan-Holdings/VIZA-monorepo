@@ -50,7 +50,7 @@ export default function SimplifiedFormReviewPage() {
     addField("identity", "Gender", formData.identity.gender);
     addField("identity", "Nationality", formData.identity.nationality);
     addField("identity", "City of Birth", formData.identity.cityOfBirth);
-    addField("identity", "Country of Birth", formData.identity.countryOfBirth);
+    addField("identity", "Country/Region of Birth", formData.identity.countryOfBirth);
     addField("identity", "Marital Status", formData.identity.maritalStatus);
 
     if (["Married", "Common Law Marriage", "Civil Union / Domestic Partnership", "Legally Separated"].includes(formData.identity.maritalStatus)) {

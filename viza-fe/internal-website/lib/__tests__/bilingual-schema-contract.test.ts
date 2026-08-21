@@ -131,8 +131,30 @@ describe("bilingual schema contract", () => {
     }));
 
     expect(resolveLocalizedFieldLabel(country, "zh")).toBe("出生国家/地区");
+    expect(resolveLocalizedFieldLabel(country, "en")).toBe("Country/Region of Birth");
     expect(resolveLocalizedFieldLabel(province, "zh")).toBe("出生省/州（如适用）");
     expect(resolveLocalizedFieldLabel(city, "zh")).toBe("出生城市");
+  });
+
+  it("uses country/region wording for every birth-country relationship field", () => {
+    const cases = [
+      ["country_of_birth", "出生国家/地区", "Country/Region of Birth"],
+      ["birth_country", "出生国家/地区", "Country/Region of Birth"],
+      ["spouse_country_of_birth", "配偶出生国家/地区", "Spouse's Country/Region of Birth"],
+      ["partner_country_of_birth", "伴侣出生国家/地区", "Partner's Country/Region of Birth"],
+      ["father_country_of_birth", "父亲出生国家/地区", "Father's Country/Region of Birth"],
+      ["mother_country_of_birth", "母亲出生国家/地区", "Mother's Country/Region of Birth"],
+    ] as const;
+
+    for (const [fieldName, labelZh, labelEn] of cases) {
+      const normalized = normalizeBilingualFormField(field({
+        fieldName,
+        label: fieldName.replaceAll("_", " "),
+        fieldType: "country",
+      }));
+      expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe(labelZh);
+      expect(resolveLocalizedFieldLabel(normalized, "en")).toBe(labelEn);
+    }
   });
 
   it("uses curated labels for Schengen surname-at-birth fields", () => {

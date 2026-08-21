@@ -116,7 +116,7 @@ const placeOfBirthStep: WizardStep = {
       stepNumber: 1,
       stepName: "Personal Information",
       displayOrder: 1,
-      placeholder: "City and country of birth",
+      placeholder: "City and country/region of birth",
       validationRules: null,
       options: null,
       conditionalLogic: null,
