@@ -1504,10 +1504,6 @@ function isCheckedCheckboxValue(value: string): boolean {
   return normalised === "true" || normalised === "yes" || normalised === "1" || normalised === "on";
 }
 
-function isAuxiliaryBilingualKey(key: string): boolean {
-  return /_(zh|en)$/.test(key);
-}
-
 function filterCurrentStepValues(
   fields: VisaFormFieldRow[],
   values: Record<string, string>,
@@ -1528,7 +1524,11 @@ function filterCurrentStepValues(
 
   const filtered: Record<string, string> = {};
   for (const key of allowedKeys) {
-    if (isAuxiliaryBilingualKey(key)) continue;
+    // `allowedKeys` contains only canonical schema field names. A canonical
+    // field may legitimately end in `_en` (for example Korea's
+    // `stay_address_en`), so suffix-based auxiliary filtering here would drop
+    // an official answer before it reaches the runner. Generated bilingual
+    // companion keys are added later and are never part of this set.
     filtered[key] = values[key] ?? "";
   }
   return filtered;
@@ -1575,6 +1575,7 @@ function getLocalFieldIssue(
   const rules = field.validationRules as {
     maxLength?: number;
     pattern?: string;
+    at_least_one_of?: string[];
     allow_year_only?: boolean;
     min_date?: "today";
     max_days_from_today?: number;
@@ -1599,6 +1600,25 @@ function getLocalFieldIssue(
 
   if (rules?.maxLength && trimmed.length > rules.maxLength) {
     return issue("error", isZh ? `最多 ${rules.maxLength} 个字符` : `Maximum ${rules.maxLength} characters`);
+  }
+
+  if (
+    !trimmed &&
+    rules?.at_least_one_of?.length &&
+    !rules.at_least_one_of.some((fieldName) => (values[fieldName] ?? "").trim())
+  ) {
+    const isKoreaStayAddressGroup = rules.at_least_one_of.includes("stay_address_ko")
+      && rules.at_least_one_of.includes("stay_address_en");
+    return issue(
+      "error",
+      isKoreaStayAddressGroup
+        ? isZh
+          ? "请填写韩国住宿地址（韩文或英文任选一项）"
+          : "Enter the address in Korea in either Korean or English"
+        : isZh
+          ? "请至少填写这组字段中的一项"
+          : "Complete at least one field in this group",
+    );
   }
 
   const numericLengthRule = rules?.numeric_length_when
@@ -1628,7 +1648,18 @@ function getLocalFieldIssue(
   if (rules?.pattern && trimmed) {
     try {
       if (!new RegExp(rules.pattern).test(trimmed)) {
-        return issue("error", isZh ? "格式不符合要求" : "Format does not match the requirement");
+        const exactDigitLength = rules.pattern.match(/^\^\[0-9\]\{(\d+)\}\$$/u)?.[1]
+          ?? rules.pattern.match(/^\^\\d\{(\d+)\}\$$/u)?.[1];
+        return issue(
+          "error",
+          exactDigitLength
+            ? isZh
+              ? `请输入 ${exactDigitLength} 位数字`
+              : `Enter exactly ${exactDigitLength} digits`
+            : isZh
+              ? "格式不符合要求"
+              : "Format does not match the requirement",
+        );
       }
     } catch {
       // Ignore malformed schema regexes here; the backend logs them.
