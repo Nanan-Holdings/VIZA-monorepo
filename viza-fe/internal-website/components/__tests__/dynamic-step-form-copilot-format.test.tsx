@@ -859,6 +859,49 @@ const optionalPostcodeStep: WizardStep = {
   ],
 };
 
+const koreaStayAddressStep: WizardStep = {
+  stepNumber: 3,
+  stepName: "Stay in Korea",
+  fields: [
+    {
+      id: "field-stay-address-ko",
+      visaType: "KR_E_ARRIVAL_CARD",
+      fieldName: "stay_address_ko",
+      label: "Address in Korea (Korean)",
+      fieldType: "textarea",
+      required: false,
+      stepNumber: 3,
+      stepName: "Stay in Korea",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: {
+        label_zh: "韩国住宿地址（韩文）",
+        at_least_one_of: ["stay_address_ko", "stay_address_en"],
+      },
+      options: null,
+      conditionalLogic: null,
+    },
+    {
+      id: "field-stay-address-en",
+      visaType: "KR_E_ARRIVAL_CARD",
+      fieldName: "stay_address_en",
+      label: "Address in Korea (English)",
+      fieldType: "textarea",
+      required: false,
+      stepNumber: 3,
+      stepName: "Stay in Korea",
+      displayOrder: 2,
+      placeholder: null,
+      validationRules: {
+        label_zh: "韩国住宿地址（英文）",
+        at_least_one_of: ["stay_address_ko", "stay_address_en"],
+      },
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
 const vnPrearrivalEvisaNumberStep: WizardStep = {
   stepNumber: 1,
   stepName: "Passenger Information",
@@ -2327,16 +2370,41 @@ describe("DynamicStepForm copilot format", () => {
       />,
     );
 
-    expect(screen.getByText("格式不符合要求")).toBeInTheDocument();
+    expect(screen.getByText("请输入 5 位数字")).toBeInTheDocument();
 
     const textboxes = screen.getAllByRole("textbox");
     expect(textboxes).toHaveLength(1);
     fireEvent.change(textboxes[0]!, { target: { value: "" } });
 
-    expect(screen.queryByText("格式不符合要求")).not.toBeInTheDocument();
+    expect(screen.queryByText("请输入 5 位数字")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
 
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ postcode: "" }));
+  });
+
+  it("requires at least one Korea stay address before continuing", () => {
+    const onComplete = vi.fn();
+    render(
+      <DynamicStepForm
+        step={koreaStayAddressStep}
+        prefill={{}}
+        onComplete={onComplete}
+        visaType="KR_E_ARRIVAL_CARD"
+      />,
+    );
+
+    expect(screen.getAllByText("请填写韩国住宿地址（韩文或英文任选一项）")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "continue" })).toBeDisabled();
+
+    fireEvent.change(screen.getAllByRole("textbox")[1]!, {
+      target: { value: "1 Sejong-daero, Jung-gu, Seoul" },
+    });
+
+    expect(screen.queryByText("请填写韩国住宿地址（韩文或英文任选一项）")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "continue" }));
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
+      stay_address_en: "1 Sejong-daero, Jung-gu, Seoul",
+    }));
   });
 
   it("shows the official E-Visa number location guidance only for E-Visa applicants", () => {
