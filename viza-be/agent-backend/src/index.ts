@@ -6,6 +6,7 @@ dotenv.config();
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import app from './app.js';
+import { closeDatabase } from './db/index.js';
 import { testSupabaseConnection } from './db/supabase-client.js';
 import { describeMissingSupabaseUserAuthEnv } from './routes/supabase-user-auth-config.js';
 import { registerVisaNamespace } from './socket/visa-namespace.js';
@@ -52,27 +53,55 @@ const io = new SocketIOServer(server, {
 const visaNsp = io.of('/visa');
 registerVisaNamespace(visaNsp);
 
-// Graceful shutdown handlers
-process.on('SIGTERM', () => {
-  logger.warn('SIGTERM signal received: shutting down');
-  stopStatusProbeScheduler?.();
-  server.close(() => {
-    logger.info('HTTP server closed');
-    process.exit(0);
-  });
-  // Force exit after 5s if connections don't close
-  setTimeout(() => process.exit(0), 5000);
-});
+const gracefulShutdownTimeoutMs = 5_000;
+let shutdownStarted = false;
 
-process.on('SIGINT', () => {
-  logger.warn('SIGINT signal received: shutting down');
+function toError(value: unknown): Error {
+  return value instanceof Error ? value : new Error('Unknown shutdown error');
+}
+
+function shutdown(signal: 'SIGINT' | 'SIGTERM'): void {
+  if (shutdownStarted) return;
+  shutdownStarted = true;
+  logger.warn(`${signal} signal received: shutting down`);
   stopStatusProbeScheduler?.();
-  server.close(() => {
+
+  const forceExitTimer = setTimeout(() => {
+    logger.error(
+      'Graceful shutdown timed out',
+      new Error('Shutdown deadline exceeded'),
+      { timeoutMs: gracefulShutdownTimeoutMs },
+    );
+    process.exit(1);
+  }, gracefulShutdownTimeoutMs);
+  forceExitTimer.unref();
+
+  server.close((serverError?: Error) => {
+    if (serverError) {
+      clearTimeout(forceExitTimer);
+      logger.error('HTTP server failed to close', serverError);
+      process.exit(1);
+      return;
+    }
+
     logger.info('HTTP server closed');
-    process.exit(0);
+    void closeDatabase()
+      .then(() => {
+        clearTimeout(forceExitTimer);
+        logger.info('Database pool closed');
+        process.exit(0);
+      })
+      .catch((error: unknown) => {
+        clearTimeout(forceExitTimer);
+        logger.error('Database pool failed to close', toError(error));
+        process.exit(1);
+      });
   });
-  setTimeout(() => process.exit(0), 5000);
-});
+}
+
+// Stop accepting HTTP/Socket.IO work before draining the database pool.
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
 
 server.listen(port)
   .once('listening', async () => {
