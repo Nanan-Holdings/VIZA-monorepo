@@ -21,17 +21,17 @@ describe("database connection configuration", () => {
 			{
 				NODE_ENV: "production",
 				DATABASE_URL:
-					"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres",
+					"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-1-ap-south-1.pooler.supabase.com:6543/postgres",
 				DB_POOL_MAX: "99",
 			},
 			() => ca,
 		);
 
 		expect(config.connectionString).toBe(
-			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres",
+			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-1-ap-south-1.pooler.supabase.com:6543/postgres",
 		);
 		expect(config.max).toBe(20);
-		expect(config).not.toHaveProperty("application_name");
+		expect(config.application_name).toBe("viza-agent-backend");
 		expect(config).not.toHaveProperty("query_timeout");
 		expect(config).not.toHaveProperty("statement_timeout");
 		expect(config).not.toHaveProperty("idle_in_transaction_session_timeout");
@@ -55,7 +55,7 @@ describe("database connection configuration", () => {
 	it.each([
 		[
 			"session pooler",
-			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres",
+			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-1-ap-south-1.pooler.supabase.com:5432/postgres",
 		],
 		[
 			"direct endpoint",
@@ -64,19 +64,23 @@ describe("database connection configuration", () => {
 		["unmanaged database", "postgresql://postgres:secret@database.example.com:6543/postgres"],
 		[
 			"invalid shared-pooler user",
-			"postgresql://postgres:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres",
+			"postgresql://postgres:secret@aws-1-ap-south-1.pooler.supabase.com:6543/postgres",
 		],
 		[
 			"wrong Supabase project",
-			"postgresql://postgres.abcdefghijklmnopqrst:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres",
+			"postgresql://postgres.abcdefghijklmnopqrst:secret@aws-1-ap-south-1.pooler.supabase.com:6543/postgres",
+		],
+		[
+			"unapproved shared-pooler region",
+			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres",
 		],
 		[
 			"URL options",
-			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?options=-c%20statement_timeout%3D30000",
+			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?options=-c%20statement_timeout%3D30000",
 		],
 		[
 			"unexpected database path",
-			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/viza",
+			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-1-ap-south-1.pooler.supabase.com:6543/viza",
 		],
 	])("rejects a production %s URL", (_name, databaseUrl) => {
 		expect(() =>
