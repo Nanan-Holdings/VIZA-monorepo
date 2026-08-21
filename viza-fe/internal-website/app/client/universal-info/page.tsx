@@ -1807,14 +1807,14 @@ export default function UniversalInfoPage() {
                   }
                 />
                 <ProfileBilingualRow
-                  zhLabel="出生国家"
-                  enLabel="Country of birth"
+                  zhLabel="出生国家/地区"
+                  enLabel="Country/Region of Birth"
                   zhControl={
                     <div data-testid="birth-country-zh-control">
                       <BilingualCountryControl
                         side="zh"
                         value={form.birth_country}
-                        placeholder="选择出生国家..."
+                        placeholder="选择出生国家/地区..."
                         showSecondaryLabel={false}
                         onChange={updateBirthCountry}
                       />
@@ -1825,7 +1825,7 @@ export default function UniversalInfoPage() {
                       <BilingualCountryControl
                         side="en"
                         value={form.birth_country}
-                        placeholder="Select country of birth..."
+                        placeholder="Select country/region of birth..."
                         showSecondaryLabel={false}
                         onChange={updateBirthCountry}
                       />
