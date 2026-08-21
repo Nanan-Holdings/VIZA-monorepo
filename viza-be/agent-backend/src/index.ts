@@ -6,11 +6,13 @@ dotenv.config();
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import app from './app.js';
+import { closeDatabase, verifyDatabaseRuntimeGuards } from './db/index.js';
 import { testSupabaseConnection } from './db/supabase-client.js';
 import { describeMissingSupabaseUserAuthEnv } from './routes/supabase-user-auth-config.js';
 import { registerVisaNamespace } from './socket/visa-namespace.js';
 import { Logger } from './utils/logger.js';
 import { initSentry } from './observability/sentry-init.js';
+import { createBoundedServerShutdown } from './server-shutdown.js';
 import { startPortalHealthProbeScheduler } from './services/portal-health.service.js';
 
 await initSentry();
@@ -52,27 +54,54 @@ const io = new SocketIOServer(server, {
 const visaNsp = io.of('/visa');
 registerVisaNamespace(visaNsp);
 
-// Graceful shutdown handlers
-process.on('SIGTERM', () => {
-  logger.warn('SIGTERM signal received: shutting down');
-  stopStatusProbeScheduler?.();
-  server.close(() => {
-    logger.info('HTTP server closed');
-    process.exit(0);
-  });
-  // Force exit after 5s if connections don't close
-  setTimeout(() => process.exit(0), 5000);
+const gracefulShutdownTimeoutMs = 5_000;
+let shutdownExitStarted = false;
+
+function toError(value: unknown): Error {
+  return value instanceof Error ? value : new Error('Unknown shutdown error');
+}
+
+function shutdown(signal: 'SIGINT' | 'SIGTERM'): void {
+  if (shutdownExitStarted) return;
+  shutdownExitStarted = true;
+  logger.warn(`${signal} signal received: shutting down`);
+
+  void shutdownServer()
+    .then(() => {
+      logger.info('Socket.IO, HTTP server, and database pool closed');
+      process.exit(0);
+    })
+    .catch((error: unknown) => {
+      logger.error('Graceful shutdown failed', toError(error), {
+        timeoutMs: gracefulShutdownTimeoutMs,
+      });
+      process.exit(1);
+    });
+}
+
+const shutdownServer = createBoundedServerShutdown({
+  io,
+  closeDatabase,
+  beforeClose: () => stopStatusProbeScheduler?.(),
+  timeoutMs: gracefulShutdownTimeoutMs,
 });
 
-process.on('SIGINT', () => {
-  logger.warn('SIGINT signal received: shutting down');
-  stopStatusProbeScheduler?.();
-  server.close(() => {
-    logger.info('HTTP server closed');
-    process.exit(0);
+// Disconnect upgraded transports before draining HTTP and the database pool.
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
+
+try {
+  const runtimeGuards = await verifyDatabaseRuntimeGuards();
+  if (runtimeGuards) {
+    logger.info('Database role timeout guards verified', runtimeGuards);
+  }
+} catch (error) {
+  logger.error('Database role timeout guard verification failed', toError(error));
+  await closeDatabase().catch((closeError: unknown) => {
+    logger.error('Database pool failed to close after startup guard failure', toError(closeError));
   });
-  setTimeout(() => process.exit(0), 5000);
-});
+  throw error;
+}
 
 server.listen(port)
   .once('listening', async () => {
