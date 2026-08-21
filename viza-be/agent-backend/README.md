@@ -53,6 +53,13 @@ Notes:
   pooler at runtime. Direct database connections are operator-only for
   migrations and diagnostics. `DB_POOL_MAX` defaults to 3 per service instance
   (hard-clamped to 20); budget total connections against maximum instances.
+  Production additionally requires the VIZA project `:6543` pooler URL with no
+  URL options and the `/postgres` database. Before deployment, the database
+  `postgres` role must default `statement_timeout` and
+  `idle_in_transaction_session_timeout` to positive values no greater than 30
+  seconds; startup verifies both and refuses readiness otherwise. The matching
+  `DB_STATEMENT_TIMEOUT_MS` and `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` values are
+  maximum expectations, not pooler session settings.
 - `NEXT_PUBLIC_SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY` are required for
   Supabase service-role operations.
 

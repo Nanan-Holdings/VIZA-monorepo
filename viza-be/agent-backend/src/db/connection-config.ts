@@ -57,12 +57,18 @@ export interface PinnedCaLoadOptions {
 export interface DatabasePoolConfig extends PoolConfig {
 	connectionString: string;
 	max: number;
-	application_name: string;
 	connectionTimeoutMillis: number;
 	idleTimeoutMillis: number;
-	query_timeout: number;
-	statement_timeout: number;
-	idle_in_transaction_session_timeout: number;
+}
+
+export interface DatabaseRuntimeGuardExpectations {
+	maximumStatementTimeoutMs: number;
+	maximumIdleInTransactionTimeoutMs: number;
+}
+
+export interface DatabaseRuntimeGuardResult {
+	statementTimeoutMs: number;
+	idleInTransactionTimeoutMs: number;
 }
 
 interface QueryTarget {
@@ -137,6 +143,16 @@ function assertProductionTransactionPooler(databaseUrl: URL): void {
 			"Production DATABASE_URL must use VIZA's Supabase transaction pooler on port 6543.",
 		);
 	}
+	if (databaseUrl.pathname !== "/postgres") {
+		throw new Error(
+			"Production transaction pooler DATABASE_URL must use the /postgres database.",
+		);
+	}
+	if (databaseUrl.search || databaseUrl.hash) {
+		throw new Error(
+			"Production transaction pooler DATABASE_URL must not contain URL options.",
+		);
+	}
 }
 
 function sanitizeConnectionString(databaseUrl: URL): string {
@@ -163,12 +179,6 @@ function readBoundedInteger(
 	const parsed = Number(configured);
 	if (!Number.isFinite(parsed)) return fallback;
 	return Math.min(maximum, Math.max(minimum, Math.floor(parsed)));
-}
-
-function readApplicationName(env: NodeJS.ProcessEnv): string {
-	const configured = env.DB_APPLICATION_NAME?.trim() || "viza-agent-backend";
-	const sanitized = configured.replaceAll(/[^a-zA-Z0-9_.:-]/gu, "_").slice(0, 63);
-	return sanitized || "viza-agent-backend";
 }
 
 export function buildDatabasePoolConfig(
@@ -211,43 +221,6 @@ export function buildDatabasePoolConfig(
 		1_000,
 		300_000,
 	);
-	const queryTimeoutMillis = readBoundedInteger(
-		env,
-		[
-			"DB_QUERY_TIMEOUT_MS",
-			"DB_POOL_QUERY_TIMEOUT_MS",
-			"PG_QUERY_TIMEOUT_MS",
-			"DATABASE_QUERY_TIMEOUT_MS",
-			"QUERY_TIMEOUT_MS",
-		],
-		30_000,
-		1_000,
-		60_000,
-	);
-	const statementTimeoutMillis = readBoundedInteger(
-		env,
-		[
-			"DB_STATEMENT_TIMEOUT_MS",
-			"DB_POOL_STATEMENT_TIMEOUT_MS",
-			"PG_STATEMENT_TIMEOUT_MS",
-			"DATABASE_STATEMENT_TIMEOUT_MS",
-			"STATEMENT_TIMEOUT_MS",
-		],
-		queryTimeoutMillis,
-		1_000,
-		60_000,
-	);
-	const idleInTransactionTimeoutMillis = readBoundedInteger(
-		env,
-		[
-			"DB_IDLE_IN_TRANSACTION_TIMEOUT_MS",
-			"PG_IDLE_IN_TRANSACTION_TIMEOUT_MS",
-			"DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS",
-		],
-		30_000,
-		1_000,
-		120_000,
-	);
 	const useVerifiedSupabaseTls = isSupabaseHost(hostname);
 
 	return {
@@ -255,14 +228,101 @@ export function buildDatabasePoolConfig(
 		max: poolMax,
 		connectionTimeoutMillis,
 		idleTimeoutMillis,
-		query_timeout: queryTimeoutMillis,
-		statement_timeout: statementTimeoutMillis,
-		idle_in_transaction_session_timeout: idleInTransactionTimeoutMillis,
-		application_name: readApplicationName(env),
 		...(useVerifiedSupabaseTls
 			? { ssl: { ca: loadCa(), rejectUnauthorized: true } }
 			: {}),
 	};
+}
+
+export function readDatabaseRuntimeGuardExpectations(
+	env: NodeJS.ProcessEnv,
+): DatabaseRuntimeGuardExpectations {
+	return {
+		maximumStatementTimeoutMs: readBoundedInteger(
+			env,
+			[
+				"DB_STATEMENT_TIMEOUT_MS",
+				"DB_POOL_STATEMENT_TIMEOUT_MS",
+				"PG_STATEMENT_TIMEOUT_MS",
+				"DATABASE_STATEMENT_TIMEOUT_MS",
+				"STATEMENT_TIMEOUT_MS",
+			],
+			30_000,
+			1_000,
+			60_000,
+		),
+		maximumIdleInTransactionTimeoutMs: readBoundedInteger(
+			env,
+			[
+				"DB_IDLE_IN_TRANSACTION_TIMEOUT_MS",
+				"PG_IDLE_IN_TRANSACTION_TIMEOUT_MS",
+				"DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS",
+			],
+			30_000,
+			1_000,
+			120_000,
+		),
+	};
+}
+
+function parsePostgresDurationMs(value: unknown): number {
+	if (typeof value !== "string") return Number.NaN;
+	const match = /^(\d+(?:\.\d+)?)\s*(ms|s|min|h|d)?$/u.exec(value.trim());
+	if (!match) return Number.NaN;
+	const amount = Number(match[1]);
+	const multiplier =
+		match[2] === "d"
+			? 86_400_000
+			: match[2] === "h"
+				? 3_600_000
+				: match[2] === "min"
+					? 60_000
+					: match[2] === "s"
+						? 1_000
+						: 1;
+	return amount * multiplier;
+}
+
+function assertTimeoutGuard(
+	name: string,
+	actualMs: number,
+	maximumMs: number,
+): void {
+	if (!Number.isFinite(actualMs) || actualMs <= 0 || actualMs > maximumMs) {
+		throw new Error(
+			`Database role timeout guard failed for ${name}; expected > 0ms and <= ${maximumMs}ms.`,
+		);
+	}
+}
+
+export async function verifyDatabaseRoleTimeouts(
+	query: (sql: string) => Promise<{ rows: Record<string, unknown>[] }>,
+	expectations: DatabaseRuntimeGuardExpectations,
+): Promise<DatabaseRuntimeGuardResult> {
+	await query("BEGIN READ ONLY");
+	try {
+		const statementResult = await query("SHOW statement_timeout");
+		const idleResult = await query("SHOW idle_in_transaction_session_timeout");
+		const statementTimeoutMs = parsePostgresDurationMs(
+			statementResult.rows[0]?.statement_timeout,
+		);
+		const idleInTransactionTimeoutMs = parsePostgresDurationMs(
+			idleResult.rows[0]?.idle_in_transaction_session_timeout,
+		);
+		assertTimeoutGuard(
+			"statement_timeout",
+			statementTimeoutMs,
+			expectations.maximumStatementTimeoutMs,
+		);
+		assertTimeoutGuard(
+			"idle_in_transaction_session_timeout",
+			idleInTransactionTimeoutMs,
+			expectations.maximumIdleInTransactionTimeoutMs,
+		);
+		return { statementTimeoutMs, idleInTransactionTimeoutMs };
+	} finally {
+		await query("ROLLBACK");
+	}
 }
 
 export function fingerprintSql(query: string): string {

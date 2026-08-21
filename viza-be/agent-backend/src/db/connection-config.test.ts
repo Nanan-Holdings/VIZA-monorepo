@@ -7,7 +7,9 @@ import {
 	fingerprintSql,
 	loadPinnedSupabaseCa,
 	observePoolQueries,
+	readDatabaseRuntimeGuardExpectations,
 	SUPABASE_PRODUCTION_CA_SHA256,
+	verifyDatabaseRoleTimeouts,
 } from "./connection-config.js";
 
 const INVALID_CA = "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----\n";
@@ -19,10 +21,8 @@ describe("database connection configuration", () => {
 			{
 				NODE_ENV: "production",
 				DATABASE_URL:
-					"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&application_name=unsafe",
+					"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres",
 				DB_POOL_MAX: "99",
-				DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: "45000",
-				DB_APPLICATION_NAME: "viza backend/production",
 			},
 			() => ca,
 		);
@@ -31,8 +31,10 @@ describe("database connection configuration", () => {
 			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres",
 		);
 		expect(config.max).toBe(20);
-		expect(config.application_name).toBe("viza_backend_production");
-		expect(config.idle_in_transaction_session_timeout).toBe(45_000);
+		expect(config).not.toHaveProperty("application_name");
+		expect(config).not.toHaveProperty("query_timeout");
+		expect(config).not.toHaveProperty("statement_timeout");
+		expect(config).not.toHaveProperty("idle_in_transaction_session_timeout");
 		expect(config.ssl).toEqual({ ca, rejectUnauthorized: true });
 	});
 
@@ -68,6 +70,14 @@ describe("database connection configuration", () => {
 			"wrong Supabase project",
 			"postgresql://postgres.abcdefghijklmnopqrst:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres",
 		],
+		[
+			"URL options",
+			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?options=-c%20statement_timeout%3D30000",
+		],
+		[
+			"unexpected database path",
+			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/viza",
+		],
 	])("rejects a production %s URL", (_name, databaseUrl) => {
 		expect(() =>
 			buildDatabasePoolConfig(
@@ -101,6 +111,60 @@ describe("database connection configuration", () => {
 		);
 
 		expect(config.ssl).toEqual({ ca, rejectUnauthorized: true });
+	});
+});
+
+describe("database role timeout guards", () => {
+	it("verifies fail-closed role defaults inside one read-only transaction", async () => {
+		const query = vi.fn(async (sql: string) => {
+			if (sql === "SHOW statement_timeout") {
+				return { rows: [{ statement_timeout: "15s" }] };
+			}
+			if (sql === "SHOW idle_in_transaction_session_timeout") {
+				return { rows: [{ idle_in_transaction_session_timeout: "30s" }] };
+			}
+			return { rows: [] };
+		});
+		const expectations = readDatabaseRuntimeGuardExpectations({
+			DB_STATEMENT_TIMEOUT_MS: "30000",
+			DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: "30000",
+		});
+
+		await expect(verifyDatabaseRoleTimeouts(query, expectations)).resolves.toEqual({
+			statementTimeoutMs: 15_000,
+			idleInTransactionTimeoutMs: 30_000,
+		});
+		expect(query.mock.calls.map(([sql]) => sql)).toEqual([
+			"BEGIN READ ONLY",
+			"SHOW statement_timeout",
+			"SHOW idle_in_transaction_session_timeout",
+			"ROLLBACK",
+		]);
+	});
+
+	it.each([
+		["disabled statement timeout", "0", "30s"],
+		["too-lax statement timeout", "31s", "30s"],
+		["disabled idle transaction timeout", "30s", "0"],
+		["too-lax idle transaction timeout", "30s", "31s"],
+	])("fails closed for %s", async (_name, statementTimeout, idleTimeout) => {
+		const query = vi.fn(async (sql: string) => {
+			if (sql === "SHOW statement_timeout") {
+				return { rows: [{ statement_timeout: statementTimeout }] };
+			}
+			if (sql === "SHOW idle_in_transaction_session_timeout") {
+				return { rows: [{ idle_in_transaction_session_timeout: idleTimeout }] };
+			}
+			return { rows: [] };
+		});
+
+		await expect(
+			verifyDatabaseRoleTimeouts(query, {
+				maximumStatementTimeoutMs: 30_000,
+				maximumIdleInTransactionTimeoutMs: 30_000,
+			}),
+		).rejects.toThrow(/database role timeout/i);
+		expect(query).toHaveBeenLastCalledWith("ROLLBACK");
 	});
 });
 
