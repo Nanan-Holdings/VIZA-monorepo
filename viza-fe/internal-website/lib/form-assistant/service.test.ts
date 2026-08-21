@@ -916,6 +916,86 @@ describe("buildAssistantState", () => {
       "mobile_country_code",
     ]);
   });
+
+  it("does not ask Kenya eTA sex again when a reusable profile label matches an official option", () => {
+    const sex = {
+      ...field("sex", "Sex", "性别"),
+      fieldType: "select",
+      displayOrder: 1,
+      options: [
+        { value: "Male", text: "Male", label_zh: "男" },
+        { value: "Female", text: "Female", label_zh: "女" },
+        { value: "Other", text: "Other", label_zh: "其他" },
+      ],
+    } as VisaFormFieldRow;
+    const passport = {
+      ...field("passport_number", "Passport Number", "护照号码"),
+      displayOrder: 2,
+    } as VisaFormFieldRow;
+
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "kenya",
+      visaType: "KE_ETA",
+      steps: [{ stepNumber: 1, stepName: "Applicant and Passport", fields: [sex, passport] }],
+      answers: { sex: { value: "male", source: "universal_profile" } },
+      messages: [],
+      locale: "zh",
+    });
+
+    expect(state.assistantMessage).toContain("护照号码");
+    expect(state.assistantMessage).not.toContain("性别");
+    expect(state.missingFields.map((item) => item.fieldName)).toEqual(["passport_number"]);
+    expect(state.progress).toEqual({ completed: 1, total: 2 });
+  });
+});
+
+describe("latest-answer rescan", () => {
+  it("re-reads manual form values before asking the next question", async () => {
+    const sex = {
+      ...field("sex", "Sex", "性别"),
+      fieldType: "select",
+      displayOrder: 1,
+      options: [
+        { value: "Male", text: "Male", label_zh: "男" },
+        { value: "Female", text: "Female", label_zh: "女" },
+      ],
+    } as VisaFormFieldRow;
+    const passport = {
+      ...field("passport_number", "Passport Number", "护照号码"),
+      displayOrder: 2,
+    } as VisaFormFieldRow;
+    const stub = createAssistantAdminStub();
+
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "auth-user-id",
+      steps: [{ stepNumber: 1, stepName: "Applicant and Passport", fields: [sex, passport] }],
+      answers: {},
+      text: "我不知道",
+      locale: "zh",
+      inputMode: "text",
+      idempotencyKey: "manual-rescan",
+      country: "kenya",
+      visaType: "KE_ETA",
+      reloadAnswers: async () => ({
+        sex: { value: "male", source: "user_form" },
+      }),
+    });
+
+    expect(result.assistantMessage).toContain("护照号码");
+    expect(result.assistantMessage).not.toContain("性别");
+    expect(result.missingFields.map((item) => item.fieldName)).toEqual(["passport_number"]);
+    expect(result.progress).toEqual({ completed: 1, total: 2 });
+  });
 });
 
 describe("formAssistantTimeZone", () => {

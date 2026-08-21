@@ -78,6 +78,10 @@ export async function POST(
         : randomUUID(),
       country: owned.application.country,
       visaType: owned.application.visa_type,
+      reloadAnswers: () => loadAssistantAnswers(owned.admin, id, {
+        applicantId: owned.application.applicant_id,
+        authUserId: owned.user.id,
+      }),
     });
     return Response.json(response);
   } catch (error) {

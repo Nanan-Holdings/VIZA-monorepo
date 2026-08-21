@@ -21,7 +21,10 @@ import {
   getFormAssistantFallbackSources,
   isFieldClarificationRequest,
 } from "./constants";
-import { getAssistantProgress } from "./validator";
+import {
+  canonicalizeApplicationOptionAnswers,
+  getAssistantProgress,
+} from "./validator";
 
 export { isFieldClarificationRequest } from "./constants";
 
@@ -67,6 +70,25 @@ type SessionRow = {
   knowledge_release_key: string | null;
   state_json: Record<string, unknown> | null;
 };
+
+type AssistantAnswerRows = Record<string, { value: string; source: string | null }>;
+
+function canonicalizeAssistantAnswerRows(
+  steps: WizardStep[],
+  answerRows: AssistantAnswerRows,
+): { rows: AssistantAnswerRows; values: Record<string, string> } {
+  const sourceValues = Object.fromEntries(
+    Object.entries(answerRows).map(([key, item]) => [key, item.value]),
+  );
+  const { answers: values } = canonicalizeApplicationOptionAnswers(steps, sourceValues);
+  for (const [key, item] of Object.entries(answerRows)) {
+    const canonicalValue = values[key] ?? item.value;
+    if (canonicalValue !== item.value) {
+      answerRows[key] = { ...item, value: canonicalValue };
+    }
+  }
+  return { rows: answerRows, values };
+}
 
 type ProposedPatch = {
   fieldName: string;
@@ -1222,7 +1244,7 @@ export function buildAssistantState(params: {
   messages: FormAssistantMessage[];
   locale: string;
 }): FormAssistantState {
-  const values = Object.fromEntries(Object.entries(params.answers).map(([key, item]) => [key, item.value]));
+  const { values } = canonicalizeAssistantAnswerRows(params.steps, params.answers);
   const rawMissingFields = getMissingDynamicFormFields(params.steps, values);
   const fieldByName = new Map(params.steps.flatMap((step) => step.fields).map((field) => [field.fieldName, field]));
   const missingFields = localizeMissingFields(rawMissingFields, fieldByName, params.locale);
@@ -1534,6 +1556,7 @@ export async function runAssistantTurn(params: {
   idempotencyKey: string;
   country: string;
   visaType: string;
+  reloadAnswers?: () => Promise<AssistantAnswerRows>;
 }): Promise<FormAssistantTurnResponse> {
   const message = params.text.trim().slice(0, MAX_MESSAGE_LENGTH);
   if (!message) throw new Error("Message is required");
@@ -1547,7 +1570,9 @@ export async function runAssistantTurn(params: {
   if (priorResponse?.response_json) {
     return priorResponse.response_json as FormAssistantTurnResponse;
   }
-  const existingValues = Object.fromEntries(Object.entries(params.answers).map(([key, item]) => [key, item.value]));
+  const canonicalInitial = canonicalizeAssistantAnswerRows(params.steps, params.answers);
+  params.answers = canonicalInitial.rows;
+  const existingValues = canonicalInitial.values;
   const missing = getMissingDynamicFormFields(params.steps, existingValues);
   const allFields = params.steps.flatMap((step) => step.fields);
   const fieldByName = new Map(allFields.map((field) => [field.fieldName, field]));
@@ -1780,7 +1805,24 @@ export async function runAssistantTurn(params: {
     });
   }
 
-  const nextValues = Object.fromEntries(Object.entries(params.answers).map(([key, item]) => [key, item.value]));
+  // A manual save can finish while the model is interpreting this turn. Read
+  // once more immediately before choosing the next question so the form is
+  // authoritative even when it changes during an in-flight assistant request.
+  let latestAnswerRows = params.answers;
+  if (params.reloadAnswers) {
+    try {
+      latestAnswerRows = await params.reloadAnswers();
+    } catch (error) {
+      // Do not strand a turn after its answer patch was already committed.
+      // The request-start snapshot remains safe because compare-and-swap writes
+      // still prevent the assistant from overwriting a concurrent manual edit.
+      console.warn("[form-assistant] Unable to refresh answers before next question", {
+        applicationId: params.applicationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  const { values: nextValues } = canonicalizeAssistantAnswerRows(params.steps, latestAnswerRows);
   const nextMissing = localizeMissingFields(
     getMissingDynamicFormFields(params.steps, nextValues),
     fieldByName,
