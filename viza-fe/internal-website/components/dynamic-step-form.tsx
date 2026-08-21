@@ -3135,7 +3135,7 @@ export function DynamicStepForm({
 
     const currentPair = textPairsRef.current[valueKey];
     if (!currentPair || currentPair.zh.trim() !== sourceText) return;
-    if (!force && manualEnglishValueKeysRef.current[valueKey] && currentPair.en.trim()) return;
+    if (!force && manualEnglishValueKeysRef.current[valueKey]) return;
 
     const nextPair = { ...currentPair, en: normalized };
     const nextTextPairs = { ...textPairsRef.current, [valueKey]: nextPair };
@@ -3455,18 +3455,18 @@ export function DynamicStepForm({
 
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
     const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
+    const englishWasManuallyEdited = Boolean(manualEnglishValueKeysRef.current[fieldName]);
     const nextPair = side === "zh"
-      ? { zh: value, en: toOfficialEnglishValue(value) }
+      ? {
+          zh: value,
+          en: englishWasManuallyEdited ? currentPair.en : toOfficialEnglishValue(value),
+        }
       : { zh: currentPair.zh, en: value };
     if (currentPair.zh === nextPair.zh && currentPair.en === nextPair.en) return;
 
     pushUndoSnapshot();
     if (side === "en") {
-      const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: Boolean(value.trim()) };
-      manualEnglishValueKeysRef.current = nextManualKeys;
-      setManualEnglishValueKeys(nextManualKeys);
-    } else {
-      const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: false };
+      const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: true };
       manualEnglishValueKeysRef.current = nextManualKeys;
       setManualEnglishValueKeys(nextManualKeys);
     }
@@ -3475,7 +3475,9 @@ export function DynamicStepForm({
     textPairsRef.current = nextTextPairs;
     setTextPairs(nextTextPairs);
 
-    const officialValue = side === "en" ? value : nextPair.en || nextPair.zh;
+    const officialValue = side === "en"
+      ? value
+      : nextPair.en || (englishWasManuallyEdited ? "" : nextPair.zh);
     handleChange(fieldName, officialValue, { recordUndo: false });
   };
 
@@ -3821,7 +3823,7 @@ export function DynamicStepForm({
       visaType === "TH_TDAC_ARRIVAL_CARD" && field.fieldName === "is_transit_traveler";
     const isTextLike = usesBilingualTextPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
-    const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
+    const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey]);
     const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
     const isChineseOnlyVisaType = CHINESE_ONLY_VISA_TYPES.has(resolvedVisaType);
     const shouldExposeBaseFieldNameToControl =

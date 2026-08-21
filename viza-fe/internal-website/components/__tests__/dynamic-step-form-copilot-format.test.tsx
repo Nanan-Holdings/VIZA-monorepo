@@ -718,7 +718,7 @@ describe("DynamicStepForm copilot format", () => {
     }));
   });
 
-  it("keeps the Chinese side unchanged when the English side is edited", () => {
+  it("keeps manually edited English independent from the Chinese source", () => {
     const onComplete = vi.fn();
     render(
       <DynamicStepForm
@@ -745,11 +745,15 @@ describe("DynamicStepForm copilot format", () => {
     fireEvent.change(chineseInput!, { target: { value: "北京" } });
 
     expect(chineseInput).toHaveValue("北京");
-    expect(englishInput).toHaveValue("Beijing");
+    expect(englishInput).toHaveValue("Zhuzhou");
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
 
-    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ place_of_birth: "Beijing" }));
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
+      place_of_birth: "Zhuzhou",
+      place_of_birth_zh: "北京",
+      place_of_birth_en: "Zhuzhou",
+    }));
   });
 
   it("normalizes TDAC residence prefill into official dependent option values", () => {
