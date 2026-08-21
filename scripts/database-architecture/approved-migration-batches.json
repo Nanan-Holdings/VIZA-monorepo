@@ -1,4 +1,174 @@
 {
   "schema_version": 1,
-  "batches": []
+  "batches": [
+    {
+      "batch_id": "database-access-baseline-v1",
+      "source_ref": "48c724e1592945456e8d9d9ade8f9b87424e7d2b",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260821131006",
+          "name": "database_access_baseline",
+          "path": "viza-fe/internal-website/supabase/migrations/20260821131006_database_access_baseline.sql",
+          "sha256": "78302df52e8c127355e0a2167900cbe4e3832b2d850fc81cded57b9884aeaa18"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": [
+          "20260821002000"
+        ],
+        "absent_migration_versions": [
+          "20260821131006"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "users_table_exists",
+            "kind": "relation_exists",
+            "identity": "public.users"
+          },
+          {
+            "id": "applications_table_exists",
+            "kind": "relation_exists",
+            "identity": "public.applications"
+          },
+          {
+            "id": "application_translations_absent_or_compatible",
+            "kind": "table_absent_or_columns_match",
+            "identity": "public.application_translations",
+            "columns": [
+              { "name": "id", "type": "uuid", "nullable": false },
+              { "name": "application_id", "type": "uuid", "nullable": false },
+              { "name": "field_key", "type": "text", "nullable": false },
+              { "name": "source_text", "type": "text", "nullable": false },
+              { "name": "translated_text", "type": "text", "nullable": false },
+              { "name": "source_lang", "type": "text", "nullable": false },
+              { "name": "target_lang", "type": "text", "nullable": false },
+              { "name": "translated_by", "type": "text", "nullable": false },
+              { "name": "user_edited", "type": "bool", "nullable": false },
+              { "name": "created_at", "type": "timestamptz", "nullable": false },
+              { "name": "updated_at", "type": "timestamptz", "nullable": false }
+            ]
+          },
+          {
+            "id": "runner_queue_depth_exists",
+            "kind": "relation_exists",
+            "identity": "public.runner_queue_depth"
+          },
+          {
+            "id": "travel_commit_rpc_exists",
+            "kind": "function_exists",
+            "identity": "public.commit_travel_agent_turn(text,uuid,text,bigint,text,text,jsonb,text,text,jsonb,jsonb)"
+          }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": [
+          "20260821131006"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "migration_record_exact",
+            "kind": "migration_record",
+            "version": "20260821131006",
+            "name": "database_access_baseline",
+            "sha256": "78302df52e8c127355e0a2167900cbe4e3832b2d850fc81cded57b9884aeaa18"
+          },
+          {
+            "id": "users_rls_enabled",
+            "kind": "rls_enabled",
+            "identity": "public.users"
+          },
+          {
+            "id": "application_translations_rls_enabled",
+            "kind": "rls_enabled",
+            "identity": "public.application_translations"
+          },
+          {
+            "id": "ds160_sessions_service_only",
+            "kind": "relation_acl",
+            "identity": "public.ds160_live_sessions",
+            "relation_kind": "table",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE"] }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "takeover_sessions_service_only",
+            "kind": "relation_acl",
+            "identity": "public.takeover_session",
+            "relation_kind": "table",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE"] }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "takeover_logs_service_only",
+            "kind": "relation_acl",
+            "identity": "public.takeover_action_log",
+            "relation_kind": "table",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE"] }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "inbox_aliases_service_only",
+            "kind": "relation_acl",
+            "identity": "public.application_inbox_aliases",
+            "relation_kind": "table",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE"] }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "runner_metrics_service_only",
+            "kind": "relation_acl",
+            "identity": "public.runner_concurrency_metric",
+            "relation_kind": "table",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT", "INSERT"] }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "runner_queue_depth_invoker",
+            "kind": "view_security_invoker",
+            "identity": "public.runner_queue_depth"
+          },
+          {
+            "id": "runner_queue_depth_service_only",
+            "kind": "relation_acl",
+            "identity": "public.runner_queue_depth",
+            "relation_kind": "view",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT"] }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "travel_commit_rpc_service_only",
+            "kind": "function_execute_acl",
+            "identity": "public.commit_travel_agent_turn(text,uuid,text,bigint,text,text,jsonb,text,text,jsonb,jsonb)",
+            "required_roles": ["service_role"],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "travel_commit_rpc_empty_search_path",
+            "kind": "function_empty_search_path",
+            "identity": "public.commit_travel_agent_turn(text,uuid,text,bigint,text,text,jsonb,text,text,jsonb,jsonb)"
+          },
+          {
+            "id": "postgres_future_objects_private",
+            "kind": "default_acl_denied",
+            "owner_roles": ["postgres"],
+            "object_types": ["r", "S", "f"],
+            "denied_roles": ["PUBLIC", "anon", "authenticated", "service_role"]
+          }
+        ]
+      }
+    }
+  ]
 }
