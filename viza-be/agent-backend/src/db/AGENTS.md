@@ -84,14 +84,23 @@ Supabase service-role client setup for the agent backend.
 - Use service-role clients only after authorization checks in route/action code.
 - Do not put business logic in DB connection files.
 - Production runtime `DATABASE_URL` must identify project
-  `oyjxdzsoejraedqghndi` through a transaction pooler on port `6543`. Local
-  non-production PostgreSQL remains supported without TLS; remote Supabase
-  connections must verify the pinned CA and hostname.
+  `oyjxdzsoejraedqghndi` through a transaction pooler on port `6543`, use the
+  `/postgres` database, and contain no URL options. Local non-production
+  PostgreSQL remains supported without TLS; remote Supabase connections must
+  verify the pinned CA and hostname.
+- Supabase transaction pooling cannot rely on startup/session parameters.
+  Before a production deploy, the database `postgres` role must have positive
+  `statement_timeout` and `idle_in_transaction_session_timeout` defaults no
+  greater than 30 seconds. Startup verifies both with `SHOW` in one explicit
+  read-only transaction and refuses to become ready when either is absent or
+  too lax. Do not substitute node-postgres `query_timeout`: it does not cancel
+  the server-side query.
 - Database telemetry may contain only query fingerprints, parameter counts and
   types, durations, result status, and aggregate pool counts. Never emit SQL
   text, parameter values, connection strings, or applicant data.
-- Shutdown must stop the HTTP server before awaiting `closeDatabase()`; keep the
-  bounded forced-exit fallback so deploys cannot hang indefinitely.
+- Shutdown must actively disconnect Socket.IO upgraded transports, close its
+  HTTP server, and then await `closeDatabase()` through the shared bounded
+  shutdown coordinator so deploys cannot hang indefinitely.
 
 ## Validation
 

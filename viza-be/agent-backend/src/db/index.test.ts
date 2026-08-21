@@ -92,10 +92,12 @@ describe("database pool lifecycle", () => {
 });
 
 describe("server shutdown contract", () => {
-	it("drains HTTP before the database and keeps a bounded force-exit", () => {
+	it("uses the bounded Socket.IO-aware shutdown coordinator", () => {
 		const source = readFileSync(new URL("../index.ts", import.meta.url), "utf8");
 
-		expect(source).toMatch(/server\.close[\s\S]*closeDatabase\(\)/u);
+		expect(source).toMatch(
+			/createBoundedServerShutdown\(\{[\s\S]*io,[\s\S]*closeDatabase,[\s\S]*timeoutMs/u,
+		);
 		expect(source).toMatch(/gracefulShutdownTimeoutMs\s*=\s*5_000/u);
 		expect(source).toMatch(/process\.once\('SIGTERM'/u);
 		expect(source).toMatch(/process\.once\('SIGINT'/u);

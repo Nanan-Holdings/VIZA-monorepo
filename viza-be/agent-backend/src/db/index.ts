@@ -7,6 +7,8 @@ import { Pool } from "pg";
 import {
 	buildDatabasePoolConfig,
 	observePoolQueries,
+	readDatabaseRuntimeGuardExpectations,
+	verifyDatabaseRoleTimeouts,
 } from "./connection-config.js";
 import * as schema from "./schema.js";
 
@@ -75,6 +77,33 @@ export function closeDatabase(): Promise<void> {
 		},
 	);
 	return closePromise;
+}
+
+export async function verifyDatabaseRuntimeGuards(): Promise<{
+	statementTimeoutMs: number;
+	idleInTransactionTimeoutMs: number;
+} | null> {
+	if (process.env.NODE_ENV !== "production") return null;
+
+	const client = await pool.connect();
+	let verificationError: Error | undefined;
+	try {
+		return await verifyDatabaseRoleTimeouts(
+			async (sql) => {
+				const result = await client.query<Record<string, unknown>>(sql);
+				return { rows: result.rows };
+			},
+			readDatabaseRuntimeGuardExpectations(process.env),
+		);
+	} catch (error) {
+		verificationError =
+			error instanceof Error
+				? error
+				: new Error("Unknown database runtime guard failure.");
+		throw error;
+	} finally {
+		client.release(verificationError);
+	}
 }
 
 export const db = drizzle(pool, { schema });
