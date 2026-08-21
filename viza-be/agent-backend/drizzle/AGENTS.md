@@ -125,6 +125,12 @@ The current internal automation migrations are:
   `visa_chunks.document_id` / `pii_access_log.application_id` foreign-key scan
   gaps. It must run only through the non-transactional concurrent-index batch
   executor and never removes an existing index.
+- `0160_agent_backend_role_timeouts.sql`: sets the `postgres` runtime role's
+  `statement_timeout` and `idle_in_transaction_session_timeout` defaults to 30
+  seconds. Apply it before deploying the fail-closed agent-backend runtime;
+  postflight must verify the exact `pg_roles.rolconfig` entries and three new
+  connections after the application/pooler connection lifecycle is recycled.
+  The migration never terminates sessions or restarts PostgreSQL.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.

@@ -1513,10 +1513,45 @@ function validateCatalogAssertion(assertion) {
     }
     return;
   }
+  if (assertion.kind === "role_settings") {
+    const settings = assertion.settings;
+    const expectedSettingNames = [
+      "statement_timeout",
+      "idle_in_transaction_session_timeout",
+    ];
+    if (assertion.role !== "postgres" ||
+        !settings || typeof settings !== "object" || Array.isArray(settings) ||
+        Object.keys(settings).length !== expectedSettingNames.length ||
+        expectedSettingNames.some((name) => settings[name] !== "30s")) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid role settings`);
+    }
+    return;
+  }
   if (!relationKinds.has(assertion.kind) && !functionKinds.has(assertion.kind) &&
       !policyKinds.has(assertion.kind)) {
     throw new Error(`Unsupported approved batch catalog assertion: ${assertion.kind}`);
   }
+}
+
+function approvedRoleSettingsExpression(assertion) {
+  const expectedSettings = Object.entries(assertion.settings)
+    .map(([name, value]) => `${name}=${value}`)
+    .sort();
+  const expectedNames = Object.keys(assertion.settings).sort();
+  return `EXISTS (\n` +
+    `    SELECT 1\n` +
+    `    FROM pg_catalog.pg_roles configured_role\n` +
+    `    WHERE configured_role.rolname = ${sqlLiteral(assertion.role)}\n` +
+    `      AND ARRAY(\n` +
+    `        SELECT configured_setting\n` +
+    `        FROM pg_catalog.unnest(\n` +
+    `          COALESCE(configured_role.rolconfig, ARRAY[]::text[])\n` +
+    `        ) configured_setting\n` +
+    `        WHERE pg_catalog.split_part(configured_setting, '=', 1) IN (` +
+    `${expectedNames.map(sqlLiteral).join(", ")})\n` +
+    `        ORDER BY configured_setting\n` +
+    `      ) = ARRAY[${expectedSettings.map(sqlLiteral).join(", ")}]::text[]\n` +
+    `  )`;
 }
 
 export function loadApprovedBatchManifest({
@@ -2456,6 +2491,9 @@ function approvedPolicyContractExpression(assertion) {
 
 function approvedCatalogAssertionExpression(assertion) {
   validateCatalogAssertion(assertion);
+  if (assertion.kind === "role_settings") {
+    return approvedRoleSettingsExpression(assertion);
+  }
   const identity = sqlLiteral(assertion.identity);
   switch (assertion.kind) {
     case "relation_exists":

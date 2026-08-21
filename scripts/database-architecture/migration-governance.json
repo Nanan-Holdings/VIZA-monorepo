@@ -105,6 +105,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0159_database_performance_indexes.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20260821175138_database_performance_indexes.sql",
       "sha256": "34474dd9e3e265a1d3333abf13c0b7034727b2a1e08e44f8a28475d2997f3944"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0160_agent_backend_role_timeouts.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260821181514_agent_backend_role_timeouts.sql",
+      "sha256": "126ec3bfa2165be75996d53865a28ddd81f3b402107c68f4532ac714d7df4d6d"
     }
   ],
   "no_mirror": []
