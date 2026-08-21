@@ -95,6 +95,12 @@
       "20260625_vn_evisa_photo_face_rules.sql"
     ]
   },
-  "migration_pairs": [],
+  "migration_pairs": [
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0158_database_access_baseline.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260821131006_database_access_baseline.sql",
+      "sha256": "78302df52e8c127355e0a2167900cbe4e3832b2d850fc81cded57b9884aeaa18"
+    }
+  ],
   "no_mirror": []
 }
