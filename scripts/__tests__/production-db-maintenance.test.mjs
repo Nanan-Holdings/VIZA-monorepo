@@ -352,6 +352,32 @@ test("production performance-index batch pins the three reviewed online indexes"
   );
 });
 
+test("agent-backend timeout batch pins the role defaults and exact postflight", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "agent-backend-role-timeouts-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "a468609c31ccadd0ec758caedc18f1c6a037dcfe");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260821175138"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260821181514"]);
+  assert.equal(batch.migrations[0].sha256,
+    "126ec3bfa2165be75996d53865a28ddd81f3b402107c68f4532ac714d7df4d6d");
+  assert.deepEqual(
+    batch.postconditions.catalog_assertions.find(({ id }) =>
+      id === "postgres_runtime_timeouts_exact"),
+    {
+      id: "postgres_runtime_timeouts_exact",
+      kind: "role_settings",
+      role: "postgres",
+      settings: {
+        statement_timeout: "30s",
+        idle_in_transaction_session_timeout: "30s",
+      },
+    },
+  );
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
@@ -412,6 +438,15 @@ test("approved batch state SQL supports only structured exact catalog guards", (
           object_types: ["r", "S", "f"],
           denied_roles: ["PUBLIC", "anon", "authenticated", "service_role"],
         },
+        {
+          id: "postgres_runtime_timeouts_exact",
+          kind: "role_settings",
+          role: "postgres",
+          settings: {
+            statement_timeout: "30s",
+            idle_in_transaction_session_timeout: "30s",
+          },
+        },
       ],
     },
   };
@@ -427,6 +462,9 @@ test("approved batch state SQL supports only structured exact catalog guards", (
   assert.match(sql, /commit_travel_agent_turn/u);
   assert.match(sql, /default_scope\.namespace_oid/u);
   assert.match(sql, /VALUES \(0::oid, TRUE\)/u);
+  assert.match(sql, /pg_catalog\.pg_roles/u);
+  assert.match(sql, /statement_timeout=30s/u);
+  assert.match(sql, /idle_in_transaction_session_timeout=30s/u);
   assert.doesNotMatch(sql, /SELECT\s+\*\s+FROM\s+public\./iu);
 
   assert.throws(
@@ -438,6 +476,35 @@ test("approved batch state SQL supports only structured exact catalog guards", (
     }, "preconditions"),
     /Unsupported approved batch catalog assertion/u,
   );
+
+  for (const unsafeAssertion of [
+    {
+      id: "unsafe_role",
+      kind: "role_settings",
+      role: "service_role",
+      settings: { statement_timeout: "30s" },
+    },
+    {
+      id: "unsafe_setting",
+      kind: "role_settings",
+      role: "postgres",
+      settings: { search_path: "public" },
+    },
+    {
+      id: "unsafe_value",
+      kind: "role_settings",
+      role: "postgres",
+      settings: { statement_timeout: "0" },
+    },
+  ]) {
+    assert.throws(
+      () => buildApprovedBatchStateSql({
+        ...batch,
+        preconditions: { catalog_assertions: [unsafeAssertion] },
+      }, "preconditions"),
+      /invalid role settings/u,
+    );
+  }
 });
 
 test("generic approved batch is hash-pinned and transactionally ledgered", () => {
