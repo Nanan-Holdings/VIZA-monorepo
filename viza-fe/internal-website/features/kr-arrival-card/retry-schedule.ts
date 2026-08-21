@@ -50,6 +50,14 @@ export function decideKoreaEArrivalCardLiveSchedule(input: {
       message: "Korea e-Arrival Card arrival date is already in the past. Please update the travel dates before submitting.",
     };
   }
+  if (!input.accommodationAddressProvided) {
+    return {
+      action: "reject",
+      status: 422,
+      code: "kr_eac_stay_address_required",
+      message: "Please provide the address of your accommodation in Korea in English or Korean before submitting.",
+    };
+  }
   if (window.status === "scheduled") {
     return {
       action: "schedule",

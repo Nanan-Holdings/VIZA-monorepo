@@ -5,6 +5,7 @@ import {
   seoulCalendarDate,
   validateKoreaEArrivalCardTravelDates,
 } from "./date-window";
+import { decideKoreaEArrivalCardLiveSchedule } from "./retry-schedule";
 
 describe("Korea e-Arrival Card submission window", () => {
   it("uses the Korean calendar date at a UTC day boundary", () => {
@@ -39,6 +40,36 @@ describe("Korea e-Arrival Card submission window", () => {
       ok: true,
       arrivalDate: "2026-08-20",
       departureDate: "2026-08-21",
+    });
+  });
+});
+
+describe("Korea e-Arrival Card live scheduling decision", () => {
+  it("submits immediately when arrival is tomorrow in Korea and an address is present", () => {
+    expect(
+      decideKoreaEArrivalCardLiveSchedule({
+        applicationId: "application-1",
+        arrivalDate: "2026-08-22",
+        departureDate: "2026-08-29",
+        accommodationAddressProvided: true,
+        now: new Date("2026-08-21T12:22:59.000Z"),
+      }),
+    ).toMatchObject({ action: "submit", arrivalDate: "2026-08-22" });
+  });
+
+  it("rejects a missing Korea accommodation address before enqueue", () => {
+    expect(
+      decideKoreaEArrivalCardLiveSchedule({
+        applicationId: "application-1",
+        arrivalDate: "2026-08-22",
+        departureDate: "2026-08-29",
+        accommodationAddressProvided: false,
+        now: new Date("2026-08-21T12:22:59.000Z"),
+      }),
+    ).toMatchObject({
+      action: "reject",
+      status: 422,
+      code: "kr_eac_stay_address_required",
     });
   });
 });
