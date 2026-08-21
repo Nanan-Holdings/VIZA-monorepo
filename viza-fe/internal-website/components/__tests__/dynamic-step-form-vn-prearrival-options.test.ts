@@ -3,6 +3,7 @@ import {
   ensureVnPrearrivalOtherFlightFlow,
   getPhoneCountryCodeOptions,
   reconcileVnPrearrivalFlightAfterCatalogRefresh,
+  reconcileVnPrearrivalNationalityValue,
   withVnPrearrivalOtherHotelOption,
 } from "@/components/dynamic-step-form";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
@@ -70,6 +71,54 @@ describe("Vietnam pre-arrival dynamic form options", () => {
       catalogSource: "official_live",
       selectedExists: false,
     })).toBe(current);
+  });
+
+  it("migrates a legacy country-data-list name to the current official nationality code", () => {
+    const officialOptions = [
+      {
+        value: "HMD",
+        code: "HMD",
+        text: "Heard and McDonald Islands",
+        label_en: "Heard and McDonald Islands",
+        label_zh: "赫德岛和麦克唐纳群岛",
+        official_label: "Heard and McDonald Islands",
+      },
+    ];
+
+    expect(reconcileVnPrearrivalNationalityValue(
+      "Heard Island And McDonald Islands",
+      officialOptions,
+    )).toBe("HMD");
+    expect(reconcileVnPrearrivalNationalityValue("HMD", officialOptions)).toBe("HMD");
+  });
+
+  it("repairs stale country fields to load the official Vietnam nationality catalog", () => {
+    const staleSteps: WizardStep[] = [{
+      stepNumber: 2,
+      stepName: "Trip Information",
+      fields: [{
+        id: "departure-country",
+        visaType: "VN_PREARRIVAL_DECLARATION",
+        fieldName: "departure_country_before_arrival",
+        label: "Departure country before Arrival in Vietnam",
+        fieldType: "country",
+        required: true,
+        stepNumber: 2,
+        stepName: "Trip Information",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: { official: true },
+        options: null,
+        conditionalLogic: null,
+      }],
+    }];
+
+    const [repairedStep] = ensureVnPrearrivalOtherFlightFlow(staleSteps);
+    expect(repairedStep.fields[0]?.validationRules).toMatchObject({
+      official: true,
+      official_source: "prearrival_category:nationality",
+      remote_search: true,
+    });
   });
 
   it("repairs stale schemas so Other flight exposes a manual number and editable airport", () => {

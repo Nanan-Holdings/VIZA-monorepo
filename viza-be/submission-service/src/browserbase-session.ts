@@ -26,10 +26,11 @@ export interface BrowserbaseCloudBrowser {
 
 const DEFAULT_COUNTRY_BY_PREFIX: Readonly<Record<string, string>> = {
   CEAC: "US",
-  FRANCE_TLS: "FR",
+  FRANCE_TLS: "CN",
   FRANCE_VISAS: "FR",
   INDONESIA: "ID",
   KR_KVAC_SHENYANG: "CN",
+  KR_EAC: "KR",
   MDAC: "MY",
   JP_VFS_SG: "SG",
   PH_ETRAVEL: "PH",

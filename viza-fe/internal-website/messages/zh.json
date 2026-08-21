@@ -5346,9 +5346,23 @@
       "phone": "手机号码",
       "email": "个人邮箱",
       "address": "现居住地址",
+      "franceVisasReference": "France-Visas 官方申请编号",
       "center": "TLScontact 签证中心",
       "missing": "尚未填写",
-      "confirmation": "我已将以上资料与护照及 France-Visas 申请核对，并授权 VIZA 继续进入 TLScontact 官网账号流程。选择名额、付款授权和最终预约仍需分别确认。",
+      "missingFieldsTitle": "仍需补充资料",
+      "missingFieldsBody": "开始 TLScontact 流程前，请先在申请表补充以下字段：",
+      "missingFieldLabels": {
+        "fullName": "护照英文姓名",
+        "dateOfBirth": "出生日期",
+        "nationality": "国籍",
+        "passportNumber": "护照号码",
+        "passportExpiryDate": "护照有效期至",
+        "phone": "手机号码",
+        "email": "个人邮箱",
+        "address": "现居住地址",
+        "franceVisasReference": "France-Visas 官方申请编号"
+      },
+      "confirmation": "我已将以上资料与护照及 France-Visas 申请核对，并授权 VIZA 准备 TLScontact 账号及只读观察名额。本里程碑不开放选位、付款或预约。",
       "edit": "修改申请资料",
       "confirmAndContinue": "确认资料无误并继续"
     },
@@ -5364,7 +5378,7 @@
       "portal": "已观察 TLS 日历",
       "preSubmit": "已到最终提交前",
       "stopTitle": "官网最终按钮受保护",
-      "stopBody": "只有后端观察到名额、用户选择时段、完成所需支付授权并记录最终批准后，VIZA 才会启用 TLS 官网确认动作。仅打开本页不会启动任务或提交预约。"
+      "stopBody": "VIZA 会停在选位、付款及所有官网预约动作之前。本里程碑持续关闭这些动作；仅打开本页也不会启动任务或提交预约。"
     },
     "requirements": {
       "title": "请按顺序完成以下步骤",
@@ -5373,7 +5387,7 @@
       "officialCheckBody": "官网当前要求邮箱、密码及密码确认、必须接受的法律条款和 reCAPTCHA。邮件、电话、短信及推送营销同意均为可选项，注册不需要勾选。",
       "openApplication": "返回申请表复核资料",
       "userInputTitle": "您需要在 VIZA 填写什么",
-      "userInputBody": "准确的护照身份、护照资料、联系方式与住址、France-Visas 官方申请编号，以及希望办理的中国签证中心。VIZA 管理 Alias 账号和激活邮件；之后由您选择官网名额并批准费用与最终预约。",
+      "userInputBody": "准确的护照身份、护照资料、联系方式与住址、France-Visas 官方申请编号，以及希望办理的中国签证中心。VIZA 管理 Alias 账号和激活邮件，并在观察到名额结果后停止。",
       "states": {
         "ready": "已就绪",
         "review": "请复核一次",
@@ -5401,11 +5415,11 @@
         },
         "calendar": {
           "title": "读取日历并复核服务费",
-          "body": "VIZA 读取官网名额，不替您选择。您选择一个已观察到的时段并授权所需 TLS 服务费；3DS 或银行验证仍由您完成。"
+          "body": "VIZA 只读观察官网名额，不进行选择。本里程碑在展示当前名额或官网明确无号结果后停止。"
         },
         "booking": {
           "title": "批准最终预约",
-          "body": "复核中心、日期、时间与缴费状态。只有您明确最终批准后，VIZA 才能点击官网预约按钮并记录官方确认凭证。"
+          "body": "选位、服务费支付和官网预约按钮在后续里程碑完成验证前保持不可用。"
         }
       }
     },
@@ -5481,8 +5495,8 @@
     "consent": {
       "title": "授权与边界",
       "body1": "VIZA 可以在 France-Visas 官方申请编号创建后，协助处理中国大陆 TLScontact 预约流程。",
-      "body2": "VIZA 可处理支持的 TLS 登录、别名邮箱验证、CAPTCHA、名额读取、服务费支付交接和确认节点。您仍需选择名额、授权支付并批准最终预约。",
-      "checkbox": "我授权 VIZA 为本申请运行法国申根 TLScontact 中国预约操作，并保留明确选位、一次性支付授权、最终确认和官方证据记录。"
+      "body2": "VIZA 可处理支持的 TLS 登录、别名邮箱验证、CAPTCHA 和只读名额观察。本里程碑不开放选位、付款或最终预约。",
+      "checkbox": "我授权 VIZA 为本法国申根申请准备 TLScontact 中国账号并执行只读名额观察。"
     },
     "account": {
       "title": "VIZA 别名邮箱与 TLS 账号",
@@ -5523,7 +5537,10 @@
       "datePending": "日期待定",
       "timePending": "时间待定",
       "locationPending": "地点待定",
-      "slotLine": "{date} {time}"
+      "slotLine": "{date} {time}",
+      "observedOnly": "VIZA 已观察",
+      "liveObservationTitle": "仅限实时只读观察",
+      "liveObservationBody": "这些是 TLScontact 当前且尚未过期的真实观察结果。选位、付款和最终预约会在后续验证里程碑前保持关闭。"
     },
     "payment": {
       "title": "一次性 TLS 服务费授权",
@@ -5556,7 +5573,7 @@
     },
     "nextStepCard": {
       "title": "下一步：TLS 预约",
-      "body": "继续进入 TLScontact 中国预约设置，保留用户触发名额检查、明确选位、一次性支付授权和最终批准。",
+      "body": "继续准备 TLScontact 中国账号并由用户触发只读名额检查；选位、付款和预约保持关闭。",
       "button": "打开 TLS 预约助手",
       "badge": "TLScontact 中国"
     }

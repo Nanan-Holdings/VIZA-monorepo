@@ -11,6 +11,8 @@ export const BACKFILL_POOL_FLOW_KEYS = [
   "kr_arrival_card",
   "kr_eform",
   "tw_entry_permit",
+  "jp_vjw",
+  "ke_eta",
 ] as const;
 
 export type BackfillPoolFlowKey = (typeof BACKFILL_POOL_FLOW_KEYS)[number];
@@ -72,6 +74,18 @@ export function deriveBackfillPoolFlow(
     && normalizedVisaType === "TW_ENTRY_PERMIT"
   ) {
     return "tw_entry_permit";
+  }
+  if (
+    (normalizedCountry === "JP" || normalizedCountry === "JAPAN")
+    && normalizedVisaType === "JP_VISIT_JAPAN_WEB"
+  ) {
+    return "jp_vjw";
+  }
+  if (
+    (normalizedCountry === "KE" || normalizedCountry === "KENYA")
+    && normalizedVisaType === "KE_ETA"
+  ) {
+    return "ke_eta";
   }
   return null;
 }

@@ -6,6 +6,8 @@ import {
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import {
   isIndonesiaEVisaApplication,
+  isKenyaEtaApplication,
+  kenyaEtaSubmissionSchedule,
   queueProviderForApplication,
   queueStatusForApplication,
 } from "@/lib/submission-queue";
@@ -42,6 +44,7 @@ type ApplicationRow = {
   submission_result?: unknown;
   government_fee_cents?: number | null;
   government_fee_currency?: string | null;
+  arrival_date?: string | null;
 };
 
 type QueryErrorLike = {
@@ -942,6 +945,21 @@ async function enqueueManagedOfficialFeeRunner(input: {
     );
   }
 
+  const kenyaSchedule = isKenyaEtaApplication(input.application.country, input.application.visa_type)
+    ? kenyaEtaSubmissionSchedule(input.application.arrival_date)
+    : null;
+  if (kenyaSchedule?.status === "invalid" || kenyaSchedule?.status === "expired") {
+    return NextResponse.json(
+      {
+        error: kenyaSchedule.status === "expired"
+          ? "The Kenya arrival date is in the past."
+          : "A valid Kenya arrival date is required before scheduling the eTA.",
+        errorCode: `ke_eta_arrival_date_${kenyaSchedule.status}`,
+      },
+      { status: 422 },
+    );
+  }
+
   let job: { id: string; created: boolean };
   try {
     job = await enqueueRunnerJob(
@@ -957,7 +975,12 @@ async function enqueueManagedOfficialFeeRunner(input: {
           official_fee_provider: resolvedFee.catalog.provider,
           official_fee_amount_cents: resolvedFee.amountCents,
           official_fee_currency: resolvedFee.currency,
+          ...(kenyaSchedule ? {
+            eta_submission_policy: "arrival_minus_14_days",
+            eta_available_at: kenyaSchedule.availableAt,
+          } : {}),
         },
+        ...(kenyaSchedule?.availableAt ? { availableAt: kenyaSchedule.availableAt } : {}),
       },
     );
   } catch (error) {
@@ -1001,6 +1024,10 @@ async function enqueueManagedOfficialFeeRunner(input: {
         managed_virtual_card: true,
         country_code: resolvedFee.catalog.countryCode,
         provider: resolvedFee.catalog.provider,
+        ...(kenyaSchedule ? {
+          eta_schedule_status: kenyaSchedule.status,
+          eta_available_at: kenyaSchedule.availableAt,
+        } : {}),
       },
       occurred_at: now,
       created_at: now,
@@ -1016,7 +1043,11 @@ async function enqueueManagedOfficialFeeRunner(input: {
   return NextResponse.json({
     ok: true,
     queueId: job.id,
-    queueStatus: job.created ? "queued" : "active_job_reused",
+    queueStatus: kenyaSchedule?.status === "scheduled"
+      ? "scheduled"
+      : job.created
+        ? "queued"
+        : "active_job_reused",
     intentId: input.intentId,
     paymentMethod: "viza_managed_virtual_card",
     postEnqueueWarnings,
@@ -1043,7 +1074,7 @@ export async function POST(
 
   const { data: applicationData, error: applicationError } = await admin
     .from("applications")
-    .select("id, applicant_id, country, visa_type, submission_result, government_fee_cents, government_fee_currency")
+    .select("id, applicant_id, country, visa_type, arrival_date, submission_result, government_fee_cents, government_fee_currency")
     .eq("id", applicationId)
     .maybeSingle();
   if (applicationError) {

@@ -17,6 +17,8 @@ export type PopularVisaDestination = {
   href?: string;
   countryCount?: number;
   searchAliases?: string[];
+  /** False for legacy catalogue rows that must remain displayable in history but not recommended. */
+  recommendable?: boolean;
 };
 
 export type VisaDestinationRegionId =
@@ -189,6 +191,7 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     flag: "🇧🇷",
     region: "South America",
     searchAliases: ["Brazil eVisa", "VFS Brazil", "MRE Brazil"],
+    recommendable: false,
   }),
   destination({
     country: "cambodia",
@@ -374,6 +377,20 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     searchAliases: ["Japan eVISA", "Visit Japan Web", "VJW", "JP_TOURIST"],
   }),
   destination({
+    country: "japan",
+    countryName: "Japan",
+    countryNameZh: "日本",
+    visaType: "JP_VISIT_JAPAN_WEB",
+    visaName: "Visit Japan Web (Entry & Customs)",
+    visaNameZh: "Visit Japan Web 入境与海关申报",
+    description: "Free online arrival and customs declaration for Japan. VIZA is an independent service, not the Japanese government website.",
+    descriptionZh: "日本免费的在线入境与海关申报。VIZA 是独立服务，不是日本政府网站。",
+    flag: "🇯🇵",
+    region: "Asia",
+    supportLabel: "Arrival declaration · compliance review",
+    searchAliases: ["VJW", "Visit Japan Web", "Japan arrival declaration", "Japan customs declaration"],
+  }),
+  destination({
     country: "jordan",
     countryName: "Jordan",
     countryNameZh: "约旦",
@@ -390,14 +407,15 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     country: "kenya",
     countryName: "Kenya",
     countryNameZh: "肯尼亚",
-    visaType: "eta_travel_authorization",
-    visaName: "Electronic Travel Authorisation",
-    visaNameZh: "电子旅行授权",
-    description: "Kenya eTA intake for visitor travel and short stays.",
-    descriptionZh: "适合肯尼亚 eTA 电子旅行授权和短期访问的信息采集。",
+    visaType: "KE_ETA",
+    visaName: "Kenya Electronic Travel Authorisation (eTA)",
+    visaNameZh: "肯尼亚电子旅行授权（eTA）",
+    description: "Online Kenya eTA application with VIZA-managed official-fee payment and status tracking.",
+    descriptionZh: "在线办理肯尼亚 eTA；官方费用由 VIZA 按申请单独管理并跟踪申请结果。",
     flag: "🇰🇪",
     region: "Africa",
-    searchAliases: ["Kenya eTA", "etakenya"],
+    supportLabel: "Electronic travel authorization",
+    searchAliases: ["Kenya eTA", "Electronic Travel Authorisation", "etakenya"],
   }),
   destination({
     country: "laos",
@@ -562,6 +580,7 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     flag: "🇷🇺",
     region: "Europe",
     searchAliases: ["Russia eVisa", "Unified e-visa", "evisa.kdmid.ru"],
+    recommendable: false,
   }),
   destination({
     country: "saudi_arabia",
@@ -840,10 +859,10 @@ const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destina
     id: "south-america",
     name: "South America",
     nameZh: "南美",
-    description: "Brazil, Argentina, Colombia and other South America visitor workflows.",
-    descriptionZh: "巴西、阿根廷、哥伦比亚等南美访客签证和入境路线。",
-    flag: "🇧🇷",
-    countries: ["argentina", "brazil", "chile", "colombia", "peru"],
+    description: "Argentina, Colombia, Chile, Peru and other South America visitor workflows.",
+    descriptionZh: "阿根廷、哥伦比亚、智利、秘鲁等南美访客签证和入境路线。",
+    flag: "🇦🇷",
+    countries: ["argentina", "chile", "colombia", "peru"],
   },
   {
     id: "middle-east",
@@ -879,7 +898,7 @@ const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destina
     description: "European visitor routes that do not use the Schengen Type C form.",
     descriptionZh: "不使用申根 C 类表单的欧洲访客签证路线。",
     flag: "🇬🇧",
-    countries: ["ireland", "russia", "turkey", "united_kingdom"],
+    countries: ["ireland", "turkey", "united_kingdom"],
   },
   {
     id: "southeast-asia",
@@ -931,7 +950,7 @@ const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destina
 const SELECTABLE_VISA_DESTINATIONS = [
   ...NON_SCHENGEN_VISA_DESTINATIONS,
   ...SCHENGEN_VISA_DESTINATIONS,
-];
+].filter((destinationItem) => destinationItem.recommendable !== false);
 
 function destinationIdsForCountries(countries: string[]): string[] {
   const countrySet = new Set(countries);
@@ -1059,7 +1078,7 @@ export type VisaDestinationCountryGroup = {
  */
 export const VISA_DESTINATION_COUNTRY_GROUPS: VisaDestinationCountryGroup[] = (() => {
   const groups = new Map<string, VisaDestinationCountryGroup>();
-  for (const destinationItem of [...NON_SCHENGEN_VISA_DESTINATIONS, SCHENGEN_GROUP_DESTINATION]) {
+  for (const destinationItem of [...SELECTABLE_VISA_DESTINATIONS, SCHENGEN_GROUP_DESTINATION]) {
     const existing = groups.get(destinationItem.country);
     if (existing) {
       existing.destinations.push(destinationItem);
@@ -1089,6 +1108,11 @@ const COUNTRY_FLAGS = new Map(
   ]),
 );
 
+const LEGACY_COUNTRY_FLAGS = new Map([
+  ["brazil", "🇧🇷"],
+  ["russia", "🇷🇺"],
+]);
+
 const COUNTRY_NAMES = new Map(
   SELECTABLE_VISA_DESTINATIONS.map((destinationItem) => [
     destinationItem.country,
@@ -1102,6 +1126,16 @@ const COUNTRY_NAMES_ZH = new Map(
     destinationItem.countryNameZh,
   ]),
 );
+
+const LEGACY_COUNTRY_NAMES = new Map([
+  ["brazil", "Brazil"],
+  ["russia", "Russia"],
+]);
+
+const LEGACY_COUNTRY_NAMES_ZH = new Map([
+  ["brazil", "巴西"],
+  ["russia", "俄罗斯"],
+]);
 
 const VISA_TYPE_LABELS: Record<string, string> = {
   tourist_b211a: "Tourist Visa B211A",
@@ -1155,6 +1189,8 @@ const VISA_TYPE_LABELS: Record<string, string> = {
   KR_C39_SHORT_TERM_VISIT: "C-3 Visa / K-ETA",
   KR_E_ARRIVAL_CARD: "Korea e-Arrival Card",
   c3_or_keta: "C-3 Visa / K-ETA",
+  JP_VISIT_JAPAN_WEB: "Visit Japan Web (Entry & Customs)",
+  KE_ETA: "Kenya Electronic Travel Authorisation (eTA)",
   eta_tourism: "Tourist ETA",
   visa_exemption_or_tourist_visa: "Tourist Entry",
   evisa_tourism_business: "eVisa Tourism / Business",
@@ -1213,6 +1249,8 @@ const VISA_TYPE_LABELS_ZH: Record<string, string> = {
   KR_C39_SHORT_TERM_VISIT: "C-3 签证 / 电子旅行授权",
   KR_E_ARRIVAL_CARD: "韩国电子入境卡",
   c3_or_keta: "C-3 签证 / 电子旅行授权",
+  JP_VISIT_JAPAN_WEB: "Visit Japan Web 入境与海关申报",
+  KE_ETA: "肯尼亚电子旅行授权（eTA）",
   eta_tourism: "旅游电子旅行授权",
   visa_exemption_or_tourist_visa: "旅游入境",
   evisa_tourism_business: "旅游 / 商务电子签证",
@@ -1289,17 +1327,18 @@ export function getPopularVisaDestinationByPackage(country: string, visaType: st
 }
 
 export function getDestinationFlag(country: string): string {
-  return COUNTRY_FLAGS.get(country.toLowerCase()) ?? "🌐";
+  const canonicalCountry = getCanonicalVisaDestinationCountry(country);
+  return COUNTRY_FLAGS.get(canonicalCountry) ?? LEGACY_COUNTRY_FLAGS.get(canonicalCountry) ?? "🌐";
 }
 
 export function getDestinationDisplayName(country: string): string {
   const canonicalCountry = getCanonicalVisaDestinationCountry(country);
-  return COUNTRY_NAMES.get(canonicalCountry) ?? country.replace(/_/g, " ");
+  return COUNTRY_NAMES.get(canonicalCountry) ?? LEGACY_COUNTRY_NAMES.get(canonicalCountry) ?? country.replace(/_/g, " ");
 }
 
 export function getDestinationDisplayNameZh(country: string): string {
   const canonicalCountry = getCanonicalVisaDestinationCountry(country);
-  return COUNTRY_NAMES_ZH.get(canonicalCountry) ?? getDestinationDisplayName(country);
+  return COUNTRY_NAMES_ZH.get(canonicalCountry) ?? LEGACY_COUNTRY_NAMES_ZH.get(canonicalCountry) ?? getDestinationDisplayName(country);
 }
 
 function isChineseDisplayLocale(locale?: string | null): boolean {
@@ -1409,6 +1448,10 @@ export function getCanonicalVisaDestinationCountry(country: string): string {
     viet_nam: "vietnam",
     vn: "vietnam",
     越南: "vietnam",
+    巴西: "brazil",
+    brazil: "brazil",
+    俄罗斯: "russia",
+    russia: "russia",
   };
   if (aliases[normalized]) return aliases[normalized];
 

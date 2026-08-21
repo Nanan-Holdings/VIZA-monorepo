@@ -92,6 +92,47 @@ function fakeClient(initial: FakeProfile, options: { collisionOnce?: boolean } =
   };
 }
 
+function fakeApplicationAliasClient() {
+  const rows = new Map<string, {
+    application_id: string;
+    applicant_id: string;
+    alias: string;
+    retired_at: string | null;
+  }>();
+  return {
+    rows,
+    from(table: string) {
+      assert.equal(table, "application_inbox_aliases");
+      return {
+        select() {
+          return {
+            eq(_key: string, applicationId: string) {
+              return {
+                async maybeSingle() {
+                  return { data: rows.get(applicationId) ?? null, error: null };
+                },
+              };
+            },
+          };
+        },
+        insert(input: { application_id: string; applicant_id: string; alias: string }) {
+          const row = { ...input, retired_at: null };
+          rows.set(input.application_id, row);
+          return {
+            select() {
+              return {
+                async maybeSingle() {
+                  return { data: row, error: null };
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+}
+
 describe("applicant inbox alias", () => {
   it("returns an existing alias", async () => {
     const { ensureApplicantInboxAlias } = await import("../alias");
@@ -138,6 +179,20 @@ describe("applicant inbox alias", () => {
 
     assert.equal(result.created, true);
     assert.match(result.alias, /^appl-[0-9a-z]{26}@viza\.it\.com$/);
+  });
+
+  it("isolates aliases by application and reuses only the same application row", async () => {
+    const { ensureApplicationInboxAlias } = await import("../alias");
+    const client = fakeApplicationAliasClient();
+
+    const first = await ensureApplicationInboxAlias("application-1", "profile-1", client as never);
+    const firstAgain = await ensureApplicationInboxAlias("application-1", "profile-1", client as never);
+    const second = await ensureApplicationInboxAlias("application-2", "profile-1", client as never);
+
+    assert.equal(first.created, true);
+    assert.deepEqual(firstAgain, { ...first, created: false });
+    assert.notEqual(first.alias, second.alias);
+    assert.equal(client.rows.size, 2);
   });
 });
 

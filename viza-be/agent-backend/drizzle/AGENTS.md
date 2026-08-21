@@ -98,6 +98,20 @@ The current internal automation migrations are:
   that prevents another cross-country product identity. Its catalog-backed
   trigger also enforces exact linked-package identity and the canonical country
   for every product offered by exactly one country.
+- `0153_france_appointment_slot_expiry.sql`: adds the ten-minute expiry
+  contract and job/status/expiry lookup indexes for observed France TLS slots.
+- `0154_japan_vjw_kenya_eta_products.sql`: installs the separate
+  `JP_VISIT_JAPAN_WEB` arrival-declaration and `KE_ETA` travel-authorisation
+  catalog rows, baseline official-fee metadata, and package-owned document
+  requirements. Japan remains paper-form compatible and its delegated live
+  automation is explicitly gated pending Digital Agency authorization; Kenya
+  eTA is the only first-phase delegated online authorisation.
+- `0155_application_inbox_aliases.sql`: adds the service-role-only,
+  application-scoped alias table used by unattended portal runners so OTP and
+  approval mail remain isolated between applications.
+- `0156_jp_vjw_compliance_approval.sql`: records the operator-approved VJW
+  compliance decision in package and fee-rule metadata while leaving runtime
+  and applicant final-submission gates fail-closed.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.

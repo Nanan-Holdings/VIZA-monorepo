@@ -230,6 +230,15 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     wechatPayTotalFen: 71300,
   },
   {
+    country: "kenya",
+    visaType: "KE_ETA",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 3000,
+    currency: "USD",
+    govtFeeChannel: "viza_passthrough",
+    wechatPayTotalFen: 92900,
+  },
+  {
     country: "hong_kong",
     visaType: "HK_VISIT_VISA",
     agencyFeeCents: AGENCY_USD,

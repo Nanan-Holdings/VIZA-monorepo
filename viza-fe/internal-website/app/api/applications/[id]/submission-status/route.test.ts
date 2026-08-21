@@ -94,6 +94,84 @@ describe("shared runner status mapping", () => {
     });
   });
 
+  it("keeps a running runner job active while its lease is still valid", () => {
+    const startedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const leasedUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const queue = runnerPoolJobToQueueRow(
+      {
+        id: "vn_runner_leased",
+        status: "running",
+        attempts: 1,
+        last_error: null,
+        available_at: null,
+        enqueued_at: startedAt,
+        started_at: startedAt,
+        leased_until: leasedUntil,
+        finished_at: null,
+      },
+      "vn_prearrival",
+    );
+
+    expect(queue.leased_until).toBe(leasedUntil);
+    expect(
+      deriveNonTerminalStatus(
+        {
+          id: "vn_application_leased",
+          applicant_id: "profile_1",
+          country: "vietnam",
+          visa_type: "VN_PREARRIVAL_DECLARATION",
+          submitted_at: startedAt,
+          submission_result: null,
+          submission_result_status: "processing",
+          submission_result_updated_at: startedAt,
+          updated_at: startedAt,
+        },
+        queue,
+      ),
+    ).toMatchObject({
+      status: "running",
+      stage: "filling_form",
+    });
+  });
+
+  it("keeps the stale grace period after a runner job lease expires", () => {
+    const startedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const leasedUntil = new Date(Date.now() - 4 * 60 * 1000).toISOString();
+    const runnerError = "Official portal session timed out after the lease expired.";
+    const queue = runnerPoolJobToQueueRow(
+      {
+        id: "vn_runner_expired",
+        status: "running",
+        attempts: 1,
+        last_error: runnerError,
+        available_at: null,
+        enqueued_at: startedAt,
+        started_at: startedAt,
+        leased_until: leasedUntil,
+        finished_at: null,
+      },
+      "vn_prearrival",
+    );
+
+    const status = deriveNonTerminalStatus(
+      {
+        id: "vn_application_expired",
+        applicant_id: "profile_1",
+        country: "vietnam",
+        visa_type: "VN_PREARRIVAL_DECLARATION",
+        submitted_at: startedAt,
+        submission_result: null,
+        submission_result_status: "processing",
+        submission_result_updated_at: startedAt,
+        updated_at: startedAt,
+      },
+      queue,
+    );
+
+    expect(status.status).toBe("stalled");
+    expect(status.message).toBe(runnerError);
+  });
+
   it("prefers a new Korea runner job over the previous failed legacy queue", () => {
     const older = new Date(Date.now() - 60_000).toISOString();
     const newest = new Date().toISOString();
@@ -799,5 +877,93 @@ describe("hasTaiwanApplicantHandoffReady", () => {
         submission_result: { status: "stopped_at_captcha", handoffId: "handoff_1" },
       }),
     ).toBe(false);
+  });
+});
+
+describe("automated online entry status mapping", () => {
+  it.each([
+    ["JP_VISIT_JAPAN_WEB", "qr_ready", "qr_ready"],
+    ["KE_ETA", "submitted", "submitted"],
+    ["KE_ETA", "approved", "approved"],
+    ["KE_ETA", "rejected", "rejected"],
+  ] as const)("keeps %s %s as %s", (visaType, storedStatus, expectedStatus) => {
+    expect(
+      deriveSubmissionStatus(
+        {
+          id: `app_${visaType}`,
+          applicant_id: "profile_1",
+          country: visaType === "KE_ETA" ? "kenya" : "japan",
+          visa_type: visaType,
+          submitted_at: "2026-08-20T00:00:00.000Z",
+          submission_result:
+            visaType === "JP_VISIT_JAPAN_WEB"
+              ? {
+                  country: "JP",
+                  visaType,
+                  status: "qr_ready",
+                  qrReady: true,
+                  artifacts: { qrCodes: ["jp/qr.png"] },
+                }
+              : visaType === "KE_ETA" && storedStatus === "approved"
+                ? {
+                    country: "KE",
+                    visaType,
+                    status: "approved",
+                    approvalPdfStoragePath: "ke/approval.pdf",
+                    artifacts: { pdfs: [] },
+                  }
+                : {
+                    country: "KE",
+                    visaType,
+                    status: storedStatus,
+                    officialReference: "ETA-123",
+                  },
+          submission_result_status: storedStatus,
+          submission_result_updated_at: "2026-08-20T00:00:00.000Z",
+          updated_at: "2026-08-20T00:00:00.000Z",
+        },
+        null,
+        false,
+      ).status,
+    ).toBe(expectedStatus);
+  });
+
+  it("maps JP and Kenya scheduled queue rows to the shared scheduled stage", () => {
+    for (const [visaType, country, queueStatus] of [
+      ["JP_VISIT_JAPAN_WEB", "japan", "jp_vjw_live_assisted_scheduled"],
+      ["KE_ETA", "kenya", "ke_eta_live_assisted_scheduled"],
+    ] as const) {
+      expect(
+        deriveNonTerminalStatus(
+          {
+            id: `scheduled_${visaType}`,
+            applicant_id: "profile_1",
+            country,
+            visa_type: visaType,
+            submitted_at: "2026-08-20T00:00:00.000Z",
+            submission_result: null,
+            submission_result_status: "waiting",
+            submission_result_updated_at: "2026-08-20T00:00:00.000Z",
+            updated_at: "2026-08-20T00:00:00.000Z",
+          },
+          {
+            id: `queue_${visaType}`,
+            status: queueStatus,
+            attempts: 0,
+            mode: "live_assisted",
+            provider: visaType === "KE_ETA" ? "ke_eta_live" : "jp_visit_japan_web_live",
+            last_error: null,
+            error_code: null,
+            error_message: null,
+            current_stage: "scheduled",
+            heartbeat_at: "2026-08-20T00:00:00.000Z",
+            manual_action_status: null,
+            official_status: null,
+            created_at: "2026-08-20T00:00:00.000Z",
+            updated_at: "2026-08-20T00:00:00.000Z",
+          },
+        ),
+      ).toMatchObject({ status: "scheduled", stage: "scheduled" });
+    }
   });
 });

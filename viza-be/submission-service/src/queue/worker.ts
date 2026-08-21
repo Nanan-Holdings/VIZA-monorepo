@@ -134,6 +134,8 @@ const ACTIVE_POOL_FLOW_COUNTRIES = {
   kr_arrival_card: "south_korea",
   kr_eform: "south_korea",
   tw_entry_permit: "taiwan",
+  jp_vjw: "japan",
+  ke_eta: "kenya",
 } as const;
 
 const ACTIVE_POOL_COUNTRIES = new Set<string>(Object.values(ACTIVE_POOL_FLOW_COUNTRIES));

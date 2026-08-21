@@ -6,15 +6,22 @@ import type { Locator, Page } from "@playwright/test";
 import { redactOfficialUrl } from "../appointment-free-smoke";
 import { solveCaptcha } from "../captcha/two-captcha";
 import { ensureApplicantInboxAlias } from "../inbox/alias";
+import {
+  assertAppointmentAccountInboxRoutable,
+  assertInboxAliasDomainRoutable,
+} from "../inbox/wait-for-message";
 import { decryptSecret, encryptSecret } from "../secret-cipher";
 import { supabase } from "../supabase";
 import {
   isFranceTlsActivationRequiredText,
   isFranceTlsActivationExpiredText,
+  isFranceTlsPasswordResetCompletedText,
   waitForFranceTlsActivationEmail,
+  waitForFranceTlsPasswordResetEmail,
 } from "./activation";
 import {
   classifyFranceTlsBrowserState,
+  closeFranceTlsBrowserSession,
   createFranceTlsBrowserSession,
   isFranceTlsCaptchaBlocking,
   readFranceTlsBrowserState,
@@ -42,6 +49,10 @@ export interface FranceTlsAccountRegistrationInput {
   fillOfficialReference?: boolean;
   emailTimeoutMs?: number;
   refreshRetries?: number;
+}
+
+export interface FranceTlsAccountReplacementInput extends FranceTlsAccountRegistrationInput {
+  submitRegistration: true;
 }
 
 export interface FranceTlsAccountRegistrationResult {
@@ -91,6 +102,18 @@ export interface FranceTlsApplicantProfile {
   schengenVisaWithinFiveYears: boolean | null;
 }
 
+interface FranceTlsReplacementAccountRow {
+  id: string;
+  account_email: string | null;
+  account_status: string;
+  metadata_redacted_json: unknown;
+}
+
+export interface FranceTlsAccountReplacementPlan {
+  reusableAccountId: string | null;
+  accountIdsToAbandon: string[];
+}
+
 function firstRelation(value: unknown): Relation | null {
   if (Array.isArray(value)) return firstRelation(value[0]);
   return value && typeof value === "object" ? value as Relation : null;
@@ -136,6 +159,49 @@ export function normalizeFranceTlsPhone(value: unknown): {
     return { countryCode: "+86", number: compact };
   }
   return { countryCode: null, number: null };
+}
+
+export interface FranceTlsAccountRecoveryInput {
+  applicationId: string;
+  centerCode: string;
+  fillOfficialReference?: boolean;
+  emailTimeoutMs?: number;
+}
+
+export function resolveFranceTlsAccountAlias(input: {
+  applicantAlias: string;
+  storedAccountAlias: string | null;
+  emailVerified: boolean;
+}): string {
+  const applicantAlias = input.applicantAlias.trim().toLowerCase();
+  const storedAccountAlias = input.storedAccountAlias?.trim().toLowerCase() || null;
+  if (!storedAccountAlias || storedAccountAlias === applicantAlias) return applicantAlias;
+  if (!input.emailVerified) {
+    throw new Error("Unverified TLS account alias does not match the applicant alias");
+  }
+  // A verified official account remains bound to the alias used at
+  // registration. Applicant inbox rotation must not silently rewrite that
+  // login identifier or create a duplicate TLS account.
+  return storedAccountAlias;
+}
+
+export function planFranceTlsAccountReplacement(input: {
+  applicantAlias: string;
+  accounts: Array<Pick<FranceTlsReplacementAccountRow, "id" | "account_email" | "account_status">>;
+}): FranceTlsAccountReplacementPlan {
+  const applicantAlias = input.applicantAlias.trim().toLowerCase();
+  if (!applicantAlias) throw new Error("Applicant inbox alias is missing");
+  const activeAccounts = input.accounts.filter((account) => account.account_status !== "abandoned");
+  const matchingAccounts = activeAccounts.filter(
+    (account) => account.account_email?.trim().toLowerCase() === applicantAlias,
+  );
+  const reusableAccountId = matchingAccounts[0]?.id ?? null;
+  return {
+    reusableAccountId,
+    accountIdsToAbandon: activeAccounts
+      .filter((account) => account.id !== reusableAccountId)
+      .map((account) => account.id),
+  };
 }
 
 function answerRecord(rows: Array<Record<string, unknown>> | null): Record<string, unknown> {
@@ -248,6 +314,96 @@ async function updateAccountStatus(
   context.emailVerified = emailVerified;
 }
 
+async function persistRecoveredPassword(
+  context: FranceTlsStoredAccountContext,
+  password: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("appointment_accounts")
+    .update({
+      encrypted_account_password: encryptSecret(password),
+      account_status: "password_reset_completed",
+      email_verified: true,
+      metadata_redacted_json: {
+        created_by: "france_tls_account_registration",
+        account_email: "[REDACTED]",
+        password_recovered_at: now,
+      },
+      updated_at: now,
+    })
+    .eq("id", context.accountId)
+    .abortSignal(dbAbortSignal());
+  if (error) throw new Error(`TLS recovered password persistence failed: ${error.message}`);
+  context.password = password;
+  context.accountStatus = "password_reset_completed";
+  context.statusUpdatedAt = now;
+  context.emailVerified = true;
+}
+
+async function abandonLegacyFranceTlsAccounts(applicationId: string): Promise<void> {
+  const { data: application, error: applicationError } = await supabase
+    .from("applications")
+    .select("id,applicant_id,applicant_profiles!inner(inbox_alias)")
+    .eq("id", applicationId)
+    .abortSignal(dbAbortSignal())
+    .maybeSingle();
+  if (applicationError) throw new Error(`France application lookup failed: ${applicationError.message}`);
+  if (!application) throw new Error("France application not found");
+  const applicantId = requireString(application.applicant_id, "applications.applicant_id");
+  const profile = firstRelation(application.applicant_profiles);
+  const existingAlias = optionalString(profile?.inbox_alias)?.toLowerCase() ?? "";
+  const aliasResult = existingAlias
+    ? { alias: existingAlias, created: false }
+    : await ensureApplicantInboxAlias(applicantId);
+  await assertInboxAliasDomainRoutable(aliasResult.alias);
+
+  const { data: accounts, error: accountsError } = await supabase
+    .from("appointment_accounts")
+    .select("id,account_email,account_status,metadata_redacted_json")
+    .eq("application_id", applicationId)
+    .eq("country_code", "FR")
+    .eq("portal", TLS_PORTAL)
+    .order("updated_at", { ascending: false })
+    .abortSignal(dbAbortSignal());
+  if (accountsError) throw new Error(`TLS account lookup failed: ${accountsError.message}`);
+
+  const rows = (accounts ?? []) as FranceTlsReplacementAccountRow[];
+  const plan = planFranceTlsAccountReplacement({
+    applicantAlias: aliasResult.alias,
+    accounts: rows,
+  });
+  const abandonedAt = new Date().toISOString();
+  for (const accountId of plan.accountIdsToAbandon) {
+    const account = rows.find((candidate) => candidate.id === accountId);
+    const existingMetadata = account?.metadata_redacted_json
+      && typeof account.metadata_redacted_json === "object"
+      && !Array.isArray(account.metadata_redacted_json)
+      ? account.metadata_redacted_json as Record<string, unknown>
+      : {};
+    const { error } = await supabase
+      .from("appointment_accounts")
+      .update({
+        encrypted_account_password: null,
+        password_vault_ref: null,
+        account_status: "abandoned",
+        metadata_redacted_json: {
+          ...existingMetadata,
+          account_email: "[REDACTED]",
+          abandoned_by_user: true,
+          abandonment_reason: "unreachable_account_email",
+          abandoned_at: abandonedAt,
+          credentials_revoked_from_viza: true,
+        },
+        updated_at: abandonedAt,
+      })
+      .eq("id", accountId)
+      .neq("account_status", "abandoned")
+      .abortSignal(dbAbortSignal());
+    if (error) throw new Error(`TLS account abandonment failed: ${error.message}`);
+  }
+}
+
 async function loadRegistrationContext(
   applicationId: string,
   requireOfficialReference: boolean,
@@ -282,6 +438,7 @@ async function loadRegistrationContext(
         .select("id,account_email,encrypted_account_password,account_status,email_verified,updated_at")
         .eq("application_id", applicationId)
         .eq("portal", TLS_PORTAL)
+        .neq("account_status", "abandoned")
         .order("updated_at", { ascending: false })
         .limit(1)
         .abortSignal(dbAbortSignal())
@@ -304,9 +461,11 @@ async function loadRegistrationContext(
   if (accountError) throw new Error(`TLS account lookup failed: ${accountError.message}`);
   if (queueError) throw new Error(`France official reference lookup failed: ${queueError.message}`);
   if (answersError) throw new Error(`France appointment answer lookup failed: ${answersError.message}`);
-  if (account?.account_email && account.account_email.toLowerCase() !== aliasResult.alias) {
-    throw new Error("Existing TLS account alias does not match the applicant alias");
-  }
+  const accountAlias = resolveFranceTlsAccountAlias({
+    applicantAlias: aliasResult.alias,
+    storedAccountAlias: optionalString(account?.account_email),
+    emailVerified: Boolean(account?.email_verified),
+  });
   const officialReferenceEncrypted = queueRow?.official_application_reference_encrypted;
   if (requireOfficialReference && !officialReferenceEncrypted) {
     throw new Error("submission_queue.official_application_reference_encrypted is missing");
@@ -318,7 +477,7 @@ async function loadRegistrationContext(
     id: account?.id,
     applicationId,
     userId,
-    alias: aliasResult.alias,
+    alias: accountAlias,
     password,
     status: account?.account_status ?? "account_prepared",
     emailVerified: Boolean(account?.email_verified),
@@ -337,7 +496,7 @@ async function loadRegistrationContext(
     applicationId,
     applicantId,
     userId,
-    alias: aliasResult.alias,
+    alias: accountAlias,
     accountId,
     password,
     accountStatus: account?.account_status ?? "account_prepared",
@@ -692,22 +851,57 @@ async function waitForAuthenticatedTlsRedirect(page: Page, timeoutMs = 120_000):
   return false;
 }
 
-async function login(page: Page, context: FranceTlsStoredAccountContext, centerUrl: string): Promise<void> {
+async function reachLoginForm(
+  page: Page,
+  centerUrl: string,
+): Promise<"authenticated" | "login_form"> {
   const hasPassword = await page.locator("input[type='password']").first().isVisible({ timeout: 3_000 }).catch(() => false);
-  if (!hasPassword) {
-    await page.goto(centerUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+  if (hasPassword) return "login_form";
+
+  // Enter through TLScontact's residence/centre chooser instead of relying
+  // on a direct centre deep link. The official site can return a generic
+  // error or omit the login controls for direct Browserbase navigation even
+  // though the same centre is reachable through the public chooser.
+  await reachCenter(page, new URL(centerUrl).pathname, 2);
+  const authenticatedPageVisible = /\/(?:travel-groups|[^/]+\/workflow\/)/i.test(page.url())
+    || await page.getByText(/application list/i).first().isVisible({ timeout: 3_000 }).catch(() => false);
+  if (authenticatedPageVisible) return "authenticated";
+
+  const loginEntryClicked = await clickFirstVisible([
+    page.getByRole("link", { name: /log in|sign in/i }),
+    page.getByRole("button", { name: /log in|sign in/i }),
+    page.locator("a[href*='/login'], a[href*='/auth/']").filter({ hasText: /log\s*in|sign\s*in/i }),
+    page.locator("a, button, [role='button']").filter({ hasText: /^\s*(?:log\s*in|sign\s*in)\s*$/i }),
+  ]);
+  if (loginEntryClicked) {
     await settle(page);
-    const authenticatedPageVisible = /\/(?:travel-groups|[^/]+\/workflow\/)/i.test(page.url())
-      || await page.getByText(/application list/i).first().isVisible({ timeout: 3_000 }).catch(() => false);
-    if (authenticatedPageVisible) {
-      await updateAccountStatus(context, "logged_in", true);
-      return;
-    }
-    if (!await clickFirstVisible([
-      page.getByRole("link", { name: /log in|sign in/i }),
-      page.getByRole("button", { name: /log in|sign in/i }),
-    ])) throw new Error("TLS login entry was not found after activation");
+  } else {
+    // The current TLS shell sometimes omits the header login link while the
+    // canonical same-origin login route remains available after centre
+    // selection. This is a navigation-only fallback and never submits data.
+    await page.goto(new URL("/en-us/login", centerUrl).href, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
     await settle(page);
+  }
+
+  const loginReady = await page.locator("input[type='password']").first()
+    .isVisible({ timeout: 10_000 }).catch(() => false);
+  if (loginReady) return "login_form";
+
+  const finalInput = await readFranceTlsBrowserState(page);
+  const finalState = classifyFranceTlsBrowserState(finalInput);
+  await maskedScreenshot(page, "login-entry-missing").catch(() => null);
+  throw new Error(
+    `TLS login entry was not found after activation (checkpoint: ${finalState.checkpoint}; url: ${redactOfficialUrl(finalInput.url)})`,
+  );
+}
+
+async function login(page: Page, context: FranceTlsStoredAccountContext, centerUrl: string): Promise<void> {
+  if (await reachLoginForm(page, centerUrl) === "authenticated") {
+    await updateAccountStatus(context, "logged_in", true);
+    return;
   }
 
   // TLS can replace the Keycloak login DOM once more immediately after its
@@ -1074,6 +1268,234 @@ export async function submitFranceTlsOfficialReference(
   return { submitted: true, visibleUnmappedFields: [] };
 }
 
+async function finishFranceTlsAccountPreparation(input: {
+  page: Page;
+  context: FranceTlsStoredAccountContext;
+  center: NonNullable<ReturnType<typeof resolveFranceTlsCenter>>;
+  provider: string;
+  evidence: string[];
+  shouldFillReference: boolean;
+}): Promise<FranceTlsAccountRegistrationResult> {
+  input.evidence.push(await maskedScreenshot(input.page, "logged-in"));
+  if (input.shouldFillReference) {
+    const visibleUnmappedFields = await fillOfficialReference(
+      input.page,
+      input.context,
+      new URL(input.center.bookingUrl).pathname,
+    );
+    input.evidence.push(await maskedScreenshot(input.page, "appointment-reference"));
+    if (visibleUnmappedFields.length) {
+      const officialCheckpoint = visibleUnmappedFields.find((field) =>
+        field.startsWith("official_checkpoint_"),
+      );
+      const applicantReviewRequired = visibleUnmappedFields[0] === "applicant_profile_fields"
+        || visibleUnmappedFields[0] === "applicant_profile_review_required";
+      await updateAccountStatus(input.context, "manual_required", true);
+      return {
+        status: "manual_required",
+        accountId: input.context.accountId,
+        provider: input.provider,
+        centerCode: input.center.code,
+        finalUrl: redactOfficialUrl(input.page.url()),
+        replayUrl: null,
+        evidence: input.evidence,
+        checkpoint: {
+          type: officialCheckpoint
+            ? officialCheckpoint.replace(/^official_checkpoint_/, "")
+            : applicantReviewRequired
+              ? "applicant_profile_review_required"
+              : "official_field_mapping_required",
+          message: officialCheckpoint
+            ? "TLScontact login succeeded, but the official site returned a blocking page before the France-Visas reference could be verified."
+            : applicantReviewRequired
+              ? "TLScontact opened the applicant form and retained the France-Visas reference. Review or supply the remaining applicant fields before any official save action."
+              : "TLScontact login succeeded, but the France-Visas reference field was not visible.",
+          missingFields: visibleUnmappedFields,
+        },
+        stopPoint: "Stopped before submitting any appointment profile, selecting a slot, payment, or booking.",
+      };
+    }
+  }
+  return {
+    status: input.shouldFillReference ? "appointment_reference_filled" : "logged_in",
+    accountId: input.context.accountId,
+    provider: input.provider,
+    centerCode: input.center.code,
+    finalUrl: redactOfficialUrl(input.page.url()),
+    replayUrl: null,
+    evidence: input.evidence,
+    stopPoint: input.shouldFillReference
+      ? "The France-Visas reference was prepared. Stopped before slot selection, payment, or booking."
+      : "Stopped after login and before reference preparation, slot selection, payment, or booking.",
+  };
+}
+
+function passwordResetCaptchaWaitMs(): number {
+  const configured = Number.parseInt(
+    process.env.FRANCE_TLS_BROWSERBASE_CAPTCHA_WAIT_MS ?? "45000",
+    10,
+  );
+  return Number.isFinite(configured) && configured >= 0 ? configured : 45_000;
+}
+
+async function solvePasswordResetCaptchaIfPresent(page: Page): Promise<void> {
+  const field = page.locator(
+    "textarea[name='g-recaptcha-response'], input[name='g-recaptcha-response']",
+  ).first();
+  if (await field.count() === 0) return;
+  await ensureRecaptchaToken(page, {
+    providerWaitMs: passwordResetCaptchaWaitMs(),
+    required: true,
+  });
+}
+
+async function resetFranceTlsAccountPassword(input: {
+  page: Page;
+  context: FranceTlsStoredAccountContext;
+  centerUrl: string;
+  emailTimeoutMs: number;
+  evidence: string[];
+}): Promise<"already_authenticated" | "password_reset"> {
+  if (await reachLoginForm(input.page, input.centerUrl) === "authenticated") {
+    await updateAccountStatus(input.context, "logged_in", true);
+    return "already_authenticated";
+  }
+
+  const forgotPasswordClicked = await clickFirstVisible([
+    input.page.getByRole("link", { name: /forgot.{0,20}password|reset.{0,20}password/i }),
+    input.page.getByRole("button", { name: /forgot.{0,20}password|reset.{0,20}password/i }),
+    input.page.locator("a[href*='reset-credentials'], a[href*='forgot'], a[href*='reset']"),
+  ]);
+  if (!forgotPasswordClicked) {
+    input.evidence.push(await maskedScreenshot(input.page, "password-reset-entry-missing"));
+    throw new Error("TLS forgot-password entry was not found on the official login page");
+  }
+  await settle(input.page);
+
+  const accountEmail = input.page.locator(
+    "#username, #email-input-field, input[type='email'], input[name='username'], input[name='email']",
+  ).first();
+  if (!await accountEmail.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    input.evidence.push(await maskedScreenshot(input.page, "password-reset-email-missing"));
+    throw new Error("TLS password-reset email field was not found");
+  }
+  await accountEmail.fill(input.context.alias);
+  await solvePasswordResetCaptchaIfPresent(input.page);
+  const requestedAt = new Date().toISOString();
+  input.evidence.push(await maskedScreenshot(input.page, "password-reset-request-ready"));
+  const requestSubmitted = await clickFirstVisible([
+    input.page.getByRole("button", { name: /confirm|submit|continue|send|reset/i }),
+    input.page.locator("button[type='submit'], input[type='submit']"),
+  ]);
+  if (!requestSubmitted) throw new Error("TLS password-reset request control was not found");
+  await settle(input.page);
+  input.evidence.push(await maskedScreenshot(input.page, "password-reset-requested"));
+  await updateAccountStatus(input.context, "password_reset_email_requested", true);
+
+  const resetEmail = await waitForFranceTlsPasswordResetEmail({
+    applicationId: input.context.applicationId,
+    applicantId: input.context.applicantId,
+    accountId: input.context.accountId,
+  }, input.emailTimeoutMs, {
+    since: requestedAt,
+    includeProcessed: true,
+  });
+  await input.page.goto(resetEmail.resetUrl.href, {
+    waitUntil: "domcontentloaded",
+    timeout: 90_000,
+  });
+  await settle(input.page);
+
+  const passwordInputs = input.page.locator("input[type='password']:visible");
+  if (await passwordInputs.count() < 2) {
+    input.evidence.push(await maskedScreenshot(input.page, "password-reset-fields-missing"));
+    throw new Error("TLS password-reset confirmation fields were not found");
+  }
+  const replacementPassword = generateFranceTlsAccountPassword();
+  await passwordInputs.nth(0).fill(replacementPassword);
+  await passwordInputs.nth(1).fill(replacementPassword);
+  await solvePasswordResetCaptchaIfPresent(input.page);
+  input.evidence.push(await maskedScreenshot(input.page, "password-reset-confirm-ready"));
+  const resetSubmitted = await clickFirstVisible([
+    input.page.getByRole("button", { name: /submit|continue|save|reset|change password/i }),
+    input.page.locator("button[type='submit'], input[type='submit']"),
+  ]);
+  if (!resetSubmitted) throw new Error("TLS password-reset confirmation control was not found");
+  await settle(input.page);
+
+  const resetBody = await input.page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+  const invalidFields = await input.page.locator(":invalid").count().catch(() => 0);
+  if (invalidFields > 0 || /invalid|expired|failed|do not match|must not match/i.test(resetBody)) {
+    input.evidence.push(await maskedScreenshot(input.page, "password-reset-rejected"));
+    throw new Error("TLScontact rejected the replacement password or reset link");
+  }
+  const loginUsernameVisible = await input.page.locator(
+    "#email-input-field, input[type='email'], input[name='username'], input[name='email']",
+  ).first().isVisible({ timeout: 3_000 }).catch(() => false);
+  const returnedToLogin = loginUsernameVisible
+    && !/action-token|execute-actions|required-action/i.test(input.page.url());
+  if (!isFranceTlsPasswordResetCompletedText(resetBody) && !returnedToLogin) {
+    input.evidence.push(await maskedScreenshot(input.page, "password-reset-unverified"));
+    throw new Error("TLScontact did not show a verified password-reset completion state");
+  }
+
+  await persistRecoveredPassword(input.context, replacementPassword);
+  input.evidence.push(await maskedScreenshot(input.page, "password-reset-completed"));
+  return "password_reset";
+}
+
+export async function recoverAndPrepareFranceTlsAccount(
+  input: FranceTlsAccountRecoveryInput,
+): Promise<FranceTlsAccountRegistrationResult> {
+  const center = resolveFranceTlsCenter(input.centerCode);
+  if (!center) throw new Error("Unsupported TLScontact China center");
+  const shouldFillReference = input.fillOfficialReference !== false;
+  const context = await loadRegistrationContext(input.applicationId, shouldFillReference);
+  if (!context.emailVerified) {
+    throw new Error("TLS account password recovery requires an email-verified account");
+  }
+  try {
+    await assertAppointmentAccountInboxRoutable({
+      applicationId: context.applicationId,
+      applicantId: context.applicantId,
+      accountId: context.accountId,
+      portal: TLS_PORTAL,
+    });
+  } catch (error) {
+    await updateAccountStatus(context, "manual_required", true).catch(() => undefined);
+    throw error;
+  }
+  const session = await createFranceTlsBrowserSession();
+  const evidence: string[] = [];
+  try {
+    if (context.accountStatus !== "password_reset_completed") {
+      await resetFranceTlsAccountPassword({
+        page: session.page,
+        context,
+        centerUrl: center.bookingUrl,
+        emailTimeoutMs: input.emailTimeoutMs ?? 600_000,
+        evidence,
+      });
+    }
+    await login(session.page, context, center.bookingUrl);
+    return finishFranceTlsAccountPreparation({
+      page: session.page,
+      context,
+      center,
+      provider: session.provider,
+      evidence,
+      shouldFillReference,
+    });
+  } catch (error) {
+    if (context.accountStatus !== "password_reset_email_requested") {
+      await updateAccountStatus(context, "manual_required", true).catch(() => undefined);
+    }
+    throw error;
+  } finally {
+    await closeFranceTlsBrowserSession(session);
+  }
+}
+
 export async function registerAndPrepareFranceTlsAccount(
   input: FranceTlsAccountRegistrationInput,
 ): Promise<FranceTlsAccountRegistrationResult> {
@@ -1081,6 +1503,14 @@ export async function registerAndPrepareFranceTlsAccount(
   if (!center) throw new Error("Unsupported TLScontact China center");
   const shouldFillReference = input.fillOfficialReference !== false;
   const context = await loadRegistrationContext(input.applicationId, shouldFillReference);
+  if (!context.emailVerified && input.submitRegistration) {
+    await assertAppointmentAccountInboxRoutable({
+      applicationId: context.applicationId,
+      applicantId: context.applicantId,
+      accountId: context.accountId,
+      portal: TLS_PORTAL,
+    });
+  }
   const session = await createFranceTlsBrowserSession();
   const evidence: string[] = [];
   try {
@@ -1139,62 +1569,27 @@ export async function registerAndPrepareFranceTlsAccount(
       evidence.push(await maskedScreenshot(session.page, "account-reactivated"));
       await login(session.page, context, center.bookingUrl);
     }
-    evidence.push(await maskedScreenshot(session.page, "logged-in"));
-    if (shouldFillReference) {
-      const visibleUnmappedFields = await fillOfficialReference(
-        session.page,
-        context,
-        new URL(center.bookingUrl).pathname,
-      );
-      evidence.push(await maskedScreenshot(session.page, "appointment-reference"));
-      if (visibleUnmappedFields.length) {
-        const officialCheckpoint = visibleUnmappedFields.find((field) =>
-          field.startsWith("official_checkpoint_"),
-        );
-        const applicantReviewRequired = visibleUnmappedFields[0] === "applicant_profile_fields"
-          || visibleUnmappedFields[0] === "applicant_profile_review_required";
-        await updateAccountStatus(context, "manual_required", true);
-        return {
-          status: "manual_required",
-          accountId: context.accountId,
-          provider: session.provider,
-          centerCode: center.code,
-          finalUrl: redactOfficialUrl(session.page.url()),
-          replayUrl: null,
-          evidence,
-          checkpoint: {
-            type: officialCheckpoint
-              ? officialCheckpoint.replace(/^official_checkpoint_/, "")
-              : applicantReviewRequired
-                ? "applicant_profile_review_required"
-                : "official_field_mapping_required",
-            message: officialCheckpoint
-              ? "TLScontact login succeeded, but the official site returned a blocking page before the France-Visas reference could be verified."
-              : applicantReviewRequired
-                ? "TLScontact opened the applicant form and retained the France-Visas reference. Review or supply the remaining applicant fields before any official save action."
-                : "TLScontact login succeeded, but the France-Visas reference field was not visible.",
-            missingFields: visibleUnmappedFields,
-          },
-          stopPoint: "Stopped before submitting any appointment profile, selecting a slot, payment, or booking.",
-        };
-      }
-    }
-    return {
-      status: shouldFillReference ? "appointment_reference_filled" : "logged_in",
-      accountId: context.accountId,
+    return finishFranceTlsAccountPreparation({
+      page: session.page,
+      context,
+      center,
       provider: session.provider,
-      centerCode: center.code,
-      finalUrl: redactOfficialUrl(session.page.url()),
-      replayUrl: null,
       evidence,
-      stopPoint: "Stopped before submitting the appointment reference, selecting a slot, payment, or booking.",
-    };
+      shouldFillReference,
+    });
   } catch (error) {
     if (!["registration_submitting", "activation_email_pending"].includes(context.accountStatus)) {
       await updateAccountStatus(context, "manual_required", context.emailVerified).catch(() => undefined);
     }
     throw error;
   } finally {
-    await session.browser.close().catch(() => undefined);
+    await closeFranceTlsBrowserSession(session);
   }
+}
+
+export async function abandonAndRegisterFranceTlsAccount(
+  input: FranceTlsAccountReplacementInput,
+): Promise<FranceTlsAccountRegistrationResult> {
+  await abandonLegacyFranceTlsAccounts(input.applicationId);
+  return registerAndPrepareFranceTlsAccount(input);
 }

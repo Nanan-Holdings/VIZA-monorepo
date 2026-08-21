@@ -35,7 +35,7 @@ function firstConfiguredEndpoint(envNames: string[]): string | null {
   return null;
 }
 
-export type ArrivalCardBrowserPrefix = "MDAC" | "SGAC" | "TDAC" | "PH_ETRAVEL" | "VN_PREARRIVAL" | "TW_ENTRY_PERMIT" | "KR_EAC";
+export type ArrivalCardBrowserPrefix = "MDAC" | "SGAC" | "TDAC" | "PH_ETRAVEL" | "VN_PREARRIVAL" | "TW_ENTRY_PERMIT" | "KR_EAC" | "JP_VJW" | "KE_ETA";
 
 export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPrefix): string | null {
   const envNames = [
@@ -88,6 +88,15 @@ function requiresRemoteBrowserApi(prefix: ArrivalCardBrowserPrefix, endpoint: st
   return (prefix === "PH_ETRAVEL" || prefix === "TDAC") && Boolean(endpoint);
 }
 
+export function defaultsToBrowserbase(prefix: ArrivalCardBrowserPrefix): boolean {
+  return prefix === "TDAC" || prefix === "PH_ETRAVEL" || prefix === "KR_EAC";
+}
+
+export function isRemoteBrowserProviderPolicyBlockMessage(message: string): boolean {
+  return /bright\s*data|proxy_error|classified\s+as\s+government|residential.*policy/iu.test(message)
+    && /access denied|blocked|policy|government|proxy_error/iu.test(message);
+}
+
 export async function createArrivalCardBrowserSession(options: {
   prefix: ArrivalCardBrowserPrefix;
   headless?: boolean;
@@ -98,11 +107,12 @@ export async function createArrivalCardBrowserSession(options: {
   // global Browser API provider whose policy does not permit the official site.
   // Do not let that global endpoint silently win over the explicit choice.
   // Bright Data rejects the Thai and Philippines government portals by policy.
-  // Browserbase is therefore the default for both runners; an operator can
+  // It also rejects the Korea e-Arrival Card government portal. Browserbase is
+  // therefore the default for these runners; an operator can
   // explicitly disable it for local/CDP tests.
   const preferBrowserbase = !options.forceLocal && browserbaseEnabled(
     options.prefix,
-    options.prefix === "TDAC" || options.prefix === "PH_ETRAVEL",
+    defaultsToBrowserbase(options.prefix),
   );
   const endpoint = options.forceLocal || preferBrowserbase
     ? null

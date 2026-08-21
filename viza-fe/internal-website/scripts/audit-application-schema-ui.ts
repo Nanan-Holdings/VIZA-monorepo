@@ -12,6 +12,12 @@ import {
   type VisaFormFieldDbRow,
   type WizardStep,
 } from "@/types/visa-form-fields";
+import {
+  normalizeBilingualFormField,
+  normalizeBilingualWizardSteps,
+} from "@/lib/bilingual-schema-contract";
+import { augmentThailandTouristEVisaSteps } from "@/lib/thailand-tourist-evisa-form-overrides";
+import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form-parity";
 
 function readLocalEnv() {
   const values: Record<string, string> = {};
@@ -41,7 +47,7 @@ function buildSteps(rows: VisaFormFieldDbRow[]): WizardStep[] {
       stepName: row.step_name || `Step ${row.step_number}`,
       fields: [],
     };
-    step.fields.push(dbRowToFormField(row));
+    step.fields.push(normalizeBilingualFormField(dbRowToFormField(row)));
     stepMap.set(row.step_number, step);
   }
   return [...stepMap.values()]
@@ -50,6 +56,18 @@ function buildSteps(rows: VisaFormFieldDbRow[]): WizardStep[] {
       ...step,
       fields: [...step.fields].sort((a, b) => a.displayOrder - b.displayOrder),
     }));
+}
+
+function applyRuntimeSchemaPatches(steps: WizardStep[], visaType: string): WizardStep[] {
+  const vietnamPatched = visaType === "VN_E_VISA"
+    ? augmentVietnamEVisaOfficialParitySteps(steps)
+    : steps;
+  const countryPatched = visaType === "TH_TOURIST_E_VISA"
+    ? augmentThailandTouristEVisaSteps(vietnamPatched)
+    : vietnamPatched;
+  return visaType === "VN_E_VISA"
+    ? normalizeBilingualWizardSteps(countryPatched)
+    : countryPatched;
 }
 
 function formatIssue(issue: ApplicationSchemaUiIssue) {
@@ -97,7 +115,9 @@ async function main() {
     rowsByVisaType.set(row.visa_type, [...(rowsByVisaType.get(row.visa_type) ?? []), row]);
   }
   const reports = [...rowsByVisaType.entries()]
-    .map(([, visaRows]) => compileApplicationSchemaForUi(buildSteps(visaRows)).report)
+    .map(([visaType, visaRows]) =>
+      compileApplicationSchemaForUi(applyRuntimeSchemaPatches(buildSteps(visaRows), visaType)).report
+    )
     .sort((a, b) => a.visaType.localeCompare(b.visaType));
 
   if (json) {

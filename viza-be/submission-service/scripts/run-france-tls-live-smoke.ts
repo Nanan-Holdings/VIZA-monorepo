@@ -1,7 +1,10 @@
 import "dotenv/config";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
+import { redactOfficialUrl } from "../src/appointment-free-smoke";
 import {
+  closeFranceTlsBrowserSession,
   createFranceTlsBrowserSession,
   readFranceTlsBrowserState,
   waitForFranceTlsCloudflareClearance,
@@ -32,7 +35,9 @@ function readArg(name: string): string | null {
 }
 
 function artifactPath(prefix: string): string {
-  const dir = path.resolve("artifacts");
+  const configuredRoot = process.env.SUBMISSION_ARTIFACTS_DIR?.trim();
+  const root = configuredRoot ? path.resolve(configuredRoot) : path.join(os.tmpdir(), "viza-submission-artifacts");
+  const dir = path.join(root, "france-tls-live-smoke");
   fs.mkdirSync(dir, { recursive: true });
   return path.join(dir, `${prefix}-${Date.now()}.png`);
 }
@@ -67,7 +72,7 @@ async function main(): Promise<void> {
     const result: SmokeResult = {
       provider: session.provider,
       source: session.source,
-      url: finalStateInput.url,
+      url: redactOfficialUrl(finalStateInput.url),
       title: finalStateInput.title,
       checkpoint: stateAfterClearance.checkpoint,
       message: stateAfterClearance.message,
@@ -77,7 +82,7 @@ async function main(): Promise<void> {
     };
     console.log(JSON.stringify(result, null, 2));
   } finally {
-    await session.browser.close().catch(() => undefined);
+    await closeFranceTlsBrowserSession(session);
   }
 }
 

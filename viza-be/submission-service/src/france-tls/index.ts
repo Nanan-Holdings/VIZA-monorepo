@@ -6,3 +6,4 @@ export * from "./payment-session";
 export * from "./recaptcha-grid";
 export * from "./runner";
 export * from "./selectors";
+export * from "./slot-observation";

@@ -2,6 +2,8 @@ import {
   isTaiwanEntryPermitApplication,
   isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
+  isJapanVisitJapanWebApplication,
+  isKenyaEtaApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
   isVietnamEVisaApplication,
@@ -18,6 +20,8 @@ export const RUNNER_POOL_FLOW_KEYS = [
   "kr_eform",
   "kr_arrival_card",
   "tw_entry_permit",
+  "jp_vjw",
+  "ke_eta",
 ] as const;
 
 export type RunnerPoolFlowKey = (typeof RUNNER_POOL_FLOW_KEYS)[number];
@@ -29,6 +33,8 @@ const SHARED_RUNNER_POOL_COUNTRIES = new Set([
   "thailand",
   "south_korea",
   "taiwan",
+  "japan",
+  "kenya",
 ]);
 
 export function isSharedRunnerPoolCountry(country: string): boolean {
@@ -64,6 +70,8 @@ export function resolveRunnerPoolFlow(
   if (isVietnamPrearrivalApplication(country, visaType)) return "vn_prearrival";
   if (isVietnamEVisaApplication(country, visaType)) return "vn_evisa";
   if (isTaiwanEntryPermitApplication(country, visaType)) return "tw_entry_permit";
+  if (isJapanVisitJapanWebApplication(country, visaType)) return "jp_vjw";
+  if (isKenyaEtaApplication(country, visaType)) return "ke_eta";
   const normalizedCountry = country?.trim().toLowerCase().replace(/[\s-]+/gu, "_");
   const normalizedVisaType = visaType?.trim().toUpperCase() ?? "";
   if (

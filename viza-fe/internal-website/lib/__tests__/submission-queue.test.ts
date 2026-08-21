@@ -4,6 +4,8 @@ import {
   isDigitalArrivalCardApplication,
   isFreshDs160SubmissionIntent,
   isIndonesiaEVisaApplication,
+  isJapanVisitJapanWebApplication,
+  isKenyaEtaApplication,
   isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
@@ -15,6 +17,7 @@ import {
   queueProviderForVisaType,
   parseSubmissionRetryIntent,
   submissionQueueRequiresServerEnqueue,
+  kenyaEtaSubmissionSchedule,
   queueStatusForApplication,
   queueStatusForVisaType,
   submitModeForPrimaryApplicationAction,
@@ -32,6 +35,38 @@ describe("queueStatusForVisaType", () => {
     expect(queueStatusForVisaType("UK_STANDARD_VISITOR")).toBe("uk_prefill_pending");
     expect(queueStatusForVisaType("VN_E_VISA")).toBe("vn_dry_run_pending");
     expect(queueStatusForVisaType("AU_VISITOR_600")).toBe("au_prefill_pending");
+  });
+
+  it("schedules Kenya eTA fourteen days before a far-future arrival", () => {
+    expect(kenyaEtaSubmissionSchedule("2026-09-30", new Date("2026-08-20T00:00:00.000Z"))).toEqual({
+      status: "scheduled",
+      availableAt: "2026-09-16T12:00:00.000Z",
+    });
+    expect(kenyaEtaSubmissionSchedule("2026-08-30", new Date("2026-08-20T00:00:00.000Z"))).toEqual({
+      status: "ready",
+      availableAt: null,
+    });
+  });
+
+  it("routes Japan Visit Japan Web and Kenya eTA to dedicated live queues", () => {
+    expect(isJapanVisitJapanWebApplication("JP", "JP_VISIT_JAPAN_WEB")).toBe(true);
+    expect(isKenyaEtaApplication("kenya", "KE_ETA")).toBe(true);
+    expect(queueStatusForVisaType("JP_VISIT_JAPAN_WEB")).toBe("jp_vjw_live_assisted_pending");
+    expect(queueStatusForVisaType("KE_ETA")).toBe("ke_eta_live_assisted_pending");
+    expect(queueStatusForApplication("japan", "JP_VISIT_JAPAN_WEB", "live_assisted")).toBe(
+      "jp_vjw_live_assisted_pending",
+    );
+    expect(queueStatusForApplication("KE", "KE_ETA", "live_assisted")).toBe(
+      "ke_eta_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("japan", "JP_VISIT_JAPAN_WEB", "live_assisted")).toBe(
+      "jp_visit_japan_web_live",
+    );
+    expect(queueProviderForApplication("kenya", "KE_ETA", "live_assisted")).toBe("ke_eta_live");
+    expect(submitModeForPrimaryApplicationAction("japan", "JP_VISIT_JAPAN_WEB")).toBe("live_assisted");
+    expect(submitModeForPrimaryApplicationAction("kenya", "KE_ETA")).toBe("live_assisted");
+    expect(submissionQueueRequiresServerEnqueue("japan", "JP_VISIT_JAPAN_WEB", "live_assisted")).toBe(true);
+    expect(submissionQueueRequiresServerEnqueue("kenya", "KE_ETA", "live_assisted")).toBe(true);
   });
 
   it("routes legacy Vietnam e-visa tourism packages by country without hijacking other countries", () => {

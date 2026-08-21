@@ -277,6 +277,19 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260818063311_kr_e_arrival_card.sql`; keep it byte-identical
   to `viza-be/agent-backend/drizzle/0151_kr_e_arrival_card.sql` and preserve the
   exact `KR_E_ARRIVAL_CARD` / `kr_arrival_card` isolation from Korea C-3 e-Form.
+- Japan Visit Japan Web and Kenya eTA package, pricing, fee-rule, and document
+  metadata are applied by
+  `supabase/migrations/20260821000000_japan_vjw_kenya_eta_products.sql`; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0154_japan_vjw_kenya_eta_products.sql`.
+- Application-scoped unattended-runner aliases are created by
+  `supabase/migrations/20260821001000_application_inbox_aliases.sql`; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0155_application_inbox_aliases.sql`.
+- The approved Japan VJW launch-compliance decision is recorded by
+  `supabase/migrations/20260821002000_jp_vjw_compliance_approval.sql`; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0156_jp_vjw_compliance_approval.sql`.
 - Dedicated arrival-card country/product repair is applied by
   `supabase/migrations/20260818155521_repair_arrival_card_product_country_identity.sql`;
   keep it byte-identical to
@@ -498,6 +511,9 @@ Smoke URLs:
 - `lib/travel/*`
 - `messages/en.json`
 - `messages/zh.json`
+- `types/france-appointment.ts` and `types/france-appointment.test.ts`: the
+  persisted France TLS appointment snapshot contract and pure stage-mapping
+  regression coverage.
 - `types/us-appointment.ts`
 - `scripts/sync-supabase-auth-email-templates.mjs`
 - `scripts/audit-travel-card-coverage.mjs`

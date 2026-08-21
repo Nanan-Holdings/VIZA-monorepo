@@ -7,7 +7,9 @@ Scope: this file applies to `viza-be/email-worker/**`.
 This Cloudflare Email Worker owns the live VIZA applicant alias inbox path:
 
 `appl-*@viza.it.com` -> Cloudflare Email Routing -> Supabase `inbound_email`
--> applicant real email forwarding. R2 raw-message archival is optional until
+-> applicant real email forwarding. New unattended products resolve aliases
+from `application_inbox_aliases` (one alias per application), then fall back to
+the legacy `applicant_profiles.inbox_alias` path. R2 raw-message archival is optional until
 the Cloudflare account enables R2.
 
 Indonesia's official portal may address mail to the reversible country alias
@@ -24,7 +26,8 @@ the existing default-allow/skip behavior.
   message before acknowledging receipt so forwarding failures can be retried.
 - OTP consumers read `inbound_email`; forwarding must never mark a message
   processed or delay runner access.
-- Resolve the forwarding destination from `applicant_profiles.email`. Never
+- Resolve the alias owner from `application_inbox_aliases` first and the
+  forwarding destination from `applicant_profiles.email`. Never
   submit the real email to an official portal when a managed alias is required.
 - Resolve a destination only after the applicant has accepted the exact current
   `alias_email_forwarding` consent version and hash. The worker must accept the

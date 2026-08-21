@@ -146,6 +146,7 @@ const COUNTRY_ALIASES: Readonly<Record<string, string>> = {
   VN: "vietnam",
   AU: "australia",
   JP: "japan",
+  KE: "kenya",
   ID: "indonesia",
   EG: "egypt",
   KR: "south_korea",

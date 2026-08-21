@@ -4,7 +4,7 @@ import {
   classifyFranceTlsBrowserState,
   hasFranceTlsCloudflareChallenge,
   isFranceTlsCaptchaBlocking,
-  resolveFranceTlsBrowserEndpoint,
+  resolveFranceTlsBrowserSelection,
   shouldWaitForFranceTlsCloudflareClearance,
 } from "../browser-api.js";
 
@@ -31,21 +31,44 @@ function withEnv<T>(env: Record<string, string | undefined>, run: () => T): T {
   }
 }
 
-test("france-tls browser-api: prefers TLS-specific Browser API endpoint over global endpoint", () => {
-  const endpoint = withEnv(
+test("france-tls browser-api: Browserbase ignores TLS-specific, local, and global endpoints", () => {
+  const selection = withEnv(
     {
+      FRANCE_TLS_BROWSERBASE_ENABLED: "true",
       FRANCE_TLS_BROWSER_API_ENDPOINT: "wss://tls-specific.example",
       FRANCE_TLS_CDP_ENDPOINT: "http://127.0.0.1:9222",
       BRIGHTDATA_BROWSER_API_ENDPOINT: "wss://global.example",
     },
-    () => resolveFranceTlsBrowserEndpoint(),
+    () => resolveFranceTlsBrowserSelection(),
   );
 
-  assert.deepEqual(endpoint, {
-    endpoint: "wss://tls-specific.example",
-    provider: "remote-browser-api",
-    source: "FRANCE_TLS_BROWSER_API_ENDPOINT",
+  assert.deepEqual(selection, {
+    kind: "browserbase",
+    source: "FRANCE_TLS_BROWSERBASE_ENABLED",
   });
+});
+
+test("france-tls browser-api: Browserbase is enabled by default", () => {
+  const selection = withEnv(
+    { FRANCE_TLS_BROWSERBASE_ENABLED: undefined },
+    () => resolveFranceTlsBrowserSelection(),
+  );
+
+  assert.deepEqual(selection, {
+    kind: "browserbase",
+    source: "FRANCE_TLS_BROWSERBASE_ENABLED",
+  });
+});
+
+test("france-tls browser-api: explicitly disabling Browserbase fails closed", () => {
+  assert.throws(
+    () => withEnv({
+      FRANCE_TLS_BROWSERBASE_ENABLED: "false",
+      FRANCE_TLS_BROWSER_API_ENDPOINT: "wss://tls-specific.example",
+      BRIGHTDATA_BROWSER_API_ENDPOINT: "wss://global.example",
+    }, () => resolveFranceTlsBrowserSelection()),
+    /requires Browserbase/i,
+  );
 });
 
 test("france-tls browser-api: classifies Cloudflare security verification as waf", () => {
@@ -54,6 +77,18 @@ test("france-tls browser-api: classifies Cloudflare security verification as waf
       url: "https://visas-fr.tlscontact.com/en-us/login",
       title: "Just a moment...",
       bodyText: "Performing security verification. This website uses a security service to protect against malicious bots.",
+      frameUrls: [],
+    }).checkpoint,
+    "waf",
+  );
+});
+
+test("france-tls browser-api: classifies French Cloudflare waiting page as waf", () => {
+  assert.equal(
+    classifyFranceTlsBrowserState({
+      url: "https://visas-fr.tlscontact.com/en-us/login",
+      title: "Un instant…",
+      bodyText: "Vérification de sécurité. Ray ID: abc123",
       frameUrls: [],
     }).checkpoint,
     "waf",
@@ -141,4 +176,14 @@ test("france-tls browser-api: does not classify public fee-copy pages as payment
   });
 
   assert.equal(state.checkpoint, "ready");
+});
+
+test("france-tls browser-api: fails closed on an unrecognized non-empty page", () => {
+  const state = classifyFranceTlsBrowserState({
+    url: "https://visas-fr.tlscontact.com/en-us/unknown",
+    title: "Unexpected page",
+    bodyText: "Some unrelated content",
+    frameUrls: [],
+  });
+  assert.equal(state.checkpoint, "site_policy_review");
 });

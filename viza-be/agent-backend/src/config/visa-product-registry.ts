@@ -12,6 +12,9 @@ export type VisaProductSupportLevel =
   | 'automated'
   | 'official_redirect';
 export type VisaProductRequirement = 'required' | 'conditional' | 'optional';
+export type VisaProductAutomationGate =
+  | 'ready'
+  | 'requires_official_authorization';
 
 export interface VisaProductDefinition {
   productCode: string;
@@ -23,6 +26,8 @@ export interface VisaProductDefinition {
   displayNameEn: string;
   url: string;
   packageCountry?: string;
+  automationGate?: VisaProductAutomationGate;
+  publicNotice?: string;
 }
 
 export interface VisaProductRecommendation extends VisaProductDefinition {
@@ -36,6 +41,7 @@ export const VISA_PRODUCT_REGISTRY: Readonly<Record<string, VisaProductDefinitio
   ID_C1_TOURIST: product({ productCode: 'ID_C1_TOURIST', country: 'indonesia', kind: 'visa', provider: 'viza', supportLevel: 'assisted_submission', displayNameZh: '印度尼西亚C1旅游签证', displayNameEn: 'Indonesia C1 Tourist Visa', url: '/client/application?country=indonesia&visaType=ID_C1_TOURIST' }),
   VN_E_VISA: product({ productCode: 'VN_E_VISA', country: 'vietnam', kind: 'visa', provider: 'viza', supportLevel: 'assisted_submission', displayNameZh: '越南旅游电子签证', displayNameEn: 'Vietnam e-Visa', url: '/client/application?country=vietnam&visaType=VN_E_VISA' }),
   VN_PREARRIVAL_DECLARATION: product({ productCode: 'VN_PREARRIVAL_DECLARATION', country: 'vietnam', kind: 'arrival_declaration', provider: 'viza', supportLevel: 'assisted_submission', displayNameZh: '越南入境前申报', displayNameEn: 'Vietnam Pre-Arrival Declaration', url: '/client/application?country=vietnam&visaType=VN_PREARRIVAL_DECLARATION' }),
+  JP_VISIT_JAPAN_WEB: product({ productCode: 'JP_VISIT_JAPAN_WEB', country: 'japan', kind: 'arrival_declaration', provider: 'viza', supportLevel: 'automated', automationGate: 'requires_official_authorization', publicNotice: 'Official portal automation is gated pending Digital Agency authorization; do not promise live submission until the gate is cleared.', displayNameZh: '日本 Visit Japan Web 入境申报', displayNameEn: 'Japan Visit Japan Web', url: '/client/application?country=japan&visaType=JP_VISIT_JAPAN_WEB' }),
   SG_VISITOR_VISA: product({ productCode: 'SG_VISITOR_VISA', country: 'singapore', kind: 'visa', provider: 'viza', supportLevel: 'form_only', displayNameZh: '新加坡入境签证', displayNameEn: 'Singapore Entry Visa', url: '/client/application?country=singapore&visaType=SG_VISITOR_VISA' }),
   SG_ARRIVAL_CARD: product({ productCode: 'SG_ARRIVAL_CARD', country: 'singapore', kind: 'arrival_declaration', provider: 'viza', supportLevel: 'automated', displayNameZh: '新加坡电子入境卡', displayNameEn: 'Singapore Arrival Card', url: '/client/application?country=singapore&visaType=SG_ARRIVAL_CARD' }),
   MY_TOURIST_E_VISA: product({ productCode: 'MY_TOURIST_E_VISA', country: 'malaysia', kind: 'visa', provider: 'viza', supportLevel: 'form_only', displayNameZh: '马来西亚旅游电子签证', displayNameEn: 'Malaysia Tourist eVISA', url: '/client/application?country=malaysia&visaType=MY_TOURIST_E_VISA' }),
@@ -52,6 +58,7 @@ export const VISA_PRODUCT_REGISTRY: Readonly<Record<string, VisaProductDefinitio
   PH_TEMPORARY_VISITOR_VISA: product({ productCode: 'PH_TEMPORARY_VISITOR_VISA', country: 'philippines', kind: 'visa', provider: 'viza', supportLevel: 'form_only', displayNameZh: '菲律宾临时访客签证', displayNameEn: 'Philippines Temporary Visitor Visa', url: '/client/application?country=philippines&visaType=PH_TEMPORARY_VISITOR_VISA' }),
   PH_ETRAVEL_ARRIVAL_CARD: product({ productCode: 'PH_ETRAVEL_ARRIVAL_CARD', country: 'philippines', kind: 'arrival_declaration', provider: 'viza', supportLevel: 'assisted_submission', displayNameZh: '菲律宾电子入境申报', displayNameEn: 'Philippines eTravel Arrival Declaration', url: '/client/application?country=philippines&visaType=PH_ETRAVEL_ARRIVAL_CARD' }),
   PH_ETRAVEL_DEPARTURE_CARD: product({ productCode: 'PH_ETRAVEL_DEPARTURE_CARD', country: 'philippines', kind: 'departure_declaration', provider: 'viza', supportLevel: 'assisted_submission', displayNameZh: '菲律宾电子出境申报', displayNameEn: 'Philippines eTravel Departure Declaration', url: '/client/application?country=philippines&visaType=PH_ETRAVEL_DEPARTURE_CARD' }),
+  KE_ETA: product({ productCode: 'KE_ETA', country: 'kenya', kind: 'travel_authorization', provider: 'viza', supportLevel: 'automated', automationGate: 'ready', publicNotice: 'Kenya eTA permits applications on behalf of another traveller; the applicant remains responsible for the accuracy of the submitted information.', displayNameZh: '肯尼亚电子旅行授权', displayNameEn: 'Kenya Electronic Travel Authorisation', url: '/client/application?country=kenya&visaType=KE_ETA' }),
   UK_STANDARD_VISITOR: product({ productCode: 'UK_STANDARD_VISITOR', country: 'uk', packageCountry: 'united_kingdom', kind: 'visa', provider: 'viza', supportLevel: 'assisted_submission', displayNameZh: '英国标准访客签证', displayNameEn: 'UK Standard Visitor Visa', url: '/client/application?country=united_kingdom&visaType=UK_STANDARD_VISITOR' }),
   UK_ETA: product({ productCode: 'UK_ETA', country: 'uk', kind: 'travel_authorization', provider: 'official', supportLevel: 'official_redirect', displayNameZh: '英国电子旅行许可', displayNameEn: 'UK Electronic Travel Authorisation', url: 'https://www.gov.uk/guidance/apply-for-an-electronic-travel-authorisation-eta' }),
   TW_ENTRY_PERMIT: product({ productCode: 'TW_ENTRY_PERMIT', country: 'taiwan', kind: 'entry_permit', provider: 'viza', supportLevel: 'assisted_submission', displayNameZh: '台湾入境许可证', displayNameEn: 'Taiwan Entry Permit', url: '/client/application?country=taiwan&visaType=TW_ENTRY_PERMIT' }),

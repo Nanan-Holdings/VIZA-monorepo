@@ -98,6 +98,10 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/kr-annex17-pdf/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/korea-official-eform/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/korea-appointment/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/france-visas-account/route.ts`
+  and its `route-handler.ts` expose only a masked, browser-safe France-Visas
+  account status projection; the focused regression test must keep passwords
+  and official references out of the response.
 - `viza-fe/internal-website/app/api/applications/[id]/korea-evidence/route.ts`
   serves private Korea appointment screenshots and PDFs only after application
   ownership checks. Storage paths must stay under the owned application's

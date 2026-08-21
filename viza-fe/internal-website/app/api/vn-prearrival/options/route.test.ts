@@ -454,6 +454,7 @@ describe("Vietnam pre-arrival official option mapping", () => {
     ["LAO", "Lao People's Democratic Republic", "老挝"],
     ["MDA", "Republic of Moldova", "摩尔多瓦"],
     ["SJM", "Svalbard and Jan Mayen Islands", "斯瓦尔巴和扬马延"],
+    ["HMD", "Heard and McDonald Islands", "赫德岛和麦克唐纳群岛"],
     ["VAT", "Holy See", "梵蒂冈"],
     ["COD", "Democratic Republic of the Congo", "刚果（金）"],
   ])("maps official nationality %s to a complete Chinese label", (code, english, chinese) => {
@@ -485,6 +486,23 @@ describe("Vietnam pre-arrival official option mapping", () => {
       expect(label, code).not.toBe("");
       expect(label, code).not.toMatch(/[A-Za-z]/);
     }
+  });
+
+  it("keeps a complete current official nationality snapshot when the live endpoint is session-gated", () => {
+    const items = __testables.localOfficialNationalityItems();
+
+    expect(items).toHaveLength(242);
+    expect(items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "HMD",
+        en_value: "Heard and McDonald Islands",
+      }),
+      expect.objectContaining({
+        code: "SGP",
+        en_value: "Singapore",
+      }),
+    ]));
+    expect(items.some((item) => item.code === "VNM" || item.code === "HKG")).toBe(false);
   });
 
   it("filters official hotel options locally after loading findAllActive hotel", () => {

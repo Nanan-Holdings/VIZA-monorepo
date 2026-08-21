@@ -58,6 +58,38 @@ export class KrEArrivalPortalValidationError extends Error {
   }
 }
 
+function normalizeOfficialTravelLookupValue(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase("en-US")
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+export function officialTravelLookupMatches(expected: string, observed: string): boolean {
+  const expectedNormalized = normalizeOfficialTravelLookupValue(expected);
+  const observedNormalized = normalizeOfficialTravelLookupValue(observed);
+  if (!expectedNormalized || !observedNormalized) return false;
+  return expectedNormalized === observedNormalized
+    || expectedNormalized.includes(observedNormalized)
+    || observedNormalized.includes(expectedNormalized);
+}
+
+export function classifyOfficialTravelLookup(
+  expectedCountry: string | null,
+  expectedCity: string | null,
+  observedCountry: string,
+  observedCity: string,
+): "matched" | "unresolved" | "mismatch" {
+  if (!observedCountry.trim() && !observedCity.trim()) return "unresolved";
+  if (expectedCountry && !officialTravelLookupMatches(expectedCountry, observedCountry)) {
+    return "mismatch";
+  }
+  if (expectedCity && !officialTravelLookupMatches(expectedCity, observedCity)) {
+    return "mismatch";
+  }
+  return "matched";
+}
+
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }

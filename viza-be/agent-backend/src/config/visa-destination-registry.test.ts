@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   VISA_DESTINATION_REGISTRY,
+  VISA_SERVICE_COUNTRIES,
   canonicalVisaType,
   countrySupportsVisaType,
   getDefaultVisitorVisaType,
@@ -24,11 +25,18 @@ describe('visa destination registry canonical products', () => {
     ['saudi_arabia', 'SA_E_VISA'],
     ['turkey', 'TR_E_VISA'],
     ['united_arab_emirates', 'AE_TOURIST_VISA'],
+    ['japan', 'short_term_tourism_evisa'],
+    ['kenya', 'KE_ETA'],
   ] as const)('uses the canonical default for %s', (country, visaType) => {
     expect(getDefaultVisitorVisaType(country)).toBe(visaType);
   });
 
   it('keeps visa and arrival declarations as separate products', () => {
+    expect(VISA_DESTINATION_REGISTRY.japan.supportedVisaTypes).toEqual([
+      'short_term_tourism_evisa',
+      'JP_VISIT_JAPAN_WEB',
+    ]);
+    expect(VISA_DESTINATION_REGISTRY.kenya.supportedVisaTypes).toEqual(['KE_ETA']);
     expect(VISA_DESTINATION_REGISTRY.singapore.supportedVisaTypes).toEqual([
       'SG_ARRIVAL_CARD',
       'SG_VISITOR_VISA',
@@ -62,6 +70,8 @@ describe('visa destination registry canonical products', () => {
     ['saudi_arabia', 'tourist_evisa', 'SA_E_VISA'],
     ['turkey', 'evisa_tourism_business', 'TR_E_VISA'],
     ['united_arab_emirates', 'visa_free_or_tourist_visa', 'AE_TOURIST_VISA'],
+    ['japan', 'vjw', 'JP_VISIT_JAPAN_WEB'],
+    ['kenya', 'kenya_eta', 'KE_ETA'],
   ] as const)('normalizes legacy %s/%s to %s', (country, legacy, canonical) => {
     expect(canonicalVisaType(country, legacy)).toBe(canonical);
     expect(countrySupportsVisaType(country, legacy)).toBe(true);
@@ -71,5 +81,9 @@ describe('visa destination registry canonical products', () => {
     expect(canonicalVisaType('malaysia', 'evisa_tourism')).toBe('evisa_tourism');
     expect(countrySupportsVisaType('malaysia', 'evisa_tourism')).toBe(false);
     expect(countrySupportsVisaType('vietnam', 'evisa_tourism')).toBe(true);
+  });
+
+  it('does not recommend the removed Russia route', () => {
+    expect(VISA_SERVICE_COUNTRIES.has('russia')).toBe(false);
   });
 });

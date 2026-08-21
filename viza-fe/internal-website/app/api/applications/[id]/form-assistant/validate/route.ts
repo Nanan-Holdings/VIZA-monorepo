@@ -7,7 +7,10 @@ import {
   requireOwnedApplication,
 } from "@/lib/form-assistant/server-context";
 import { formAssistantTimeZone, getOrCreateAssistantSession } from "@/lib/form-assistant/service";
-import { validateApplicationAnswers } from "@/lib/form-assistant/validator";
+import {
+  canonicalizeApplicationOptionAnswers,
+  validateApplicationAnswers,
+} from "@/lib/form-assistant/validator";
 import type { FormAssistantValidationResponse } from "@/types/form-assistant";
 
 export const runtime = "nodejs";
@@ -45,7 +48,21 @@ export async function POST(
       visaType: owned.application.visa_type,
       steps,
     });
-    const answers = Object.fromEntries(Object.entries(answerRows).map(([key, item]) => [key, item.value]));
+    const loadedAnswers = Object.fromEntries(Object.entries(answerRows).map(([key, item]) => [key, item.value]));
+    const { answers, patches } = canonicalizeApplicationOptionAnswers(steps, loadedAnswers);
+    if (patches.length > 0) {
+      const updatedAt = new Date().toISOString();
+      const results = await Promise.all(patches.map((patch) =>
+        owned.admin
+          .from("visa_application_answers")
+          .update({ value_text: patch.value, updated_at: updatedAt })
+          .eq("application_id", id)
+          .eq("field_name", patch.fieldName)
+          .eq("value_text", patch.previousValue)
+      ));
+      const canonicalizationError = results.find((item) => item.error)?.error;
+      if (canonicalizationError) throw new Error(canonicalizationError.message);
+    }
     const result = validateApplicationAnswers({
       steps,
       answers,

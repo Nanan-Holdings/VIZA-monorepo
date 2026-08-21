@@ -352,6 +352,21 @@ franceAppointmentApplicationRouter.get(
         data: snapshot ?? {
           job: null,
           account: null,
+          review: {
+            fullName: null,
+            dateOfBirth: null,
+            nationality: null,
+            passportNumber: null,
+            passportExpiryDate: null,
+            phone: null,
+            email: null,
+            address: null,
+            franceVisasReferenceMasked: null,
+            centerCode: null,
+            centerName: null,
+            missingFields: [],
+            complete: false,
+          },
           slots: [],
           pendingManualAction: null,
           manualActions: [],
@@ -376,7 +391,7 @@ franceAppointmentOperationsRouter.post(
       return;
     }
     try {
-      const snapshot = await service.checkSlots(jobId);
+      const snapshot = await service.run(jobId);
       res.json({ error: false, data: snapshot });
     } catch (error) {
       sendFranceAppointmentError(res, error, "france_appointment_run_failed");

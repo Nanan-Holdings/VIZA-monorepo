@@ -58,6 +58,8 @@ describe("official fee catalog", () => {
   it.each([
     ["italy", "EU_SCHENGEN_C_SHORT_STAY", "offline"],
     ["japan", "JP_TOURIST", "offline"],
+    ["japan", "JP_VISIT_JAPAN_WEB", "free"],
+    ["kenya", "KE_ETA", "viza_managed_card"],
     ["hong_kong", "HK_VISIT_VISA", "offline"],
     ["macau", "MO_VISIT_VISA", "offline"],
     ["maldives", "MV_IMUGA", "free"],
@@ -78,5 +80,7 @@ describe("official fee catalog", () => {
     expect(officialFeeCatalogFor("VN", "TOURIST_EVISA")?.visaType).toBe("VN_E_VISA");
     expect(officialFeeCatalogFor("VIET_NAM", "VN_E_VISA")?.countryCode).toBe("VN");
     expect(officialFeeCatalogFor("UAE", "AE_TOURIST_VISA")?.countryCode).toBe("AE");
+    expect(officialFeeCatalogFor("JP", "JP_VISIT_JAPAN_WEB")?.fundingClass).toBe("free");
+    expect(officialFeeCatalogFor("KE", "KE_ETA")?.fundingClass).toBe("viza_managed_card");
   });
 });

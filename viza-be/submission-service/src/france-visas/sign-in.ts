@@ -12,6 +12,7 @@
  */
 
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { launchFvBrowser } from "./browser";
@@ -20,6 +21,7 @@ import { waitForPage } from "./pages";
 import { assertNoGate } from "./gates";
 import { makeSessionCloser } from "./session";
 import { SessionBootstrapError } from "./errors";
+import { redactOfficialUrl } from "../appointment-free-smoke";
 
 export interface FvSignInInput {
   email: string;
@@ -88,6 +90,7 @@ export async function restoreFvSession(
 
   try {
     await page.goto(FV_URLS.ACCUEIL, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await assertNoGate(page);
     await waitForPage(page, "accueil", { timeoutMs: ACCUEIL_WAIT_TIMEOUT_MS });
   } catch (err) {
     await context.close().catch(() => undefined);
@@ -95,7 +98,7 @@ export async function restoreFvSession(
     throw new SessionBootstrapError(
       "Stored storageState did not restore an authenticated France-Visas session",
       {
-        url: page.url(),
+        url: redactOfficialUrl(page.url()),
         details: {
           cause: err instanceof Error ? err.message : String(err),
           runId: options.runId,
@@ -232,7 +235,7 @@ export async function signInWithPassword(
     throw new SessionBootstrapError(
       `France-Visas sign-in failed: ${err instanceof Error ? err.message : String(err)}`,
       {
-        url: page.url(),
+        url: redactOfficialUrl(page.url()),
         details: {
           runId: options.runId,
           title,
@@ -248,31 +251,26 @@ async function captureSignInFailureDiagnostics(
   page: Page,
   runId: string | undefined,
 ): Promise<{ screenshotPath: string | null; htmlPath: string | null; textPath: string | null } | null> {
-  const dir = path.join(process.cwd(), "artifacts", "france-live", runId ?? "latest");
+  const configuredRoot = process.env.SUBMISSION_ARTIFACTS_DIR?.trim();
+  const root = configuredRoot
+    ? path.resolve(configuredRoot)
+    : path.join(os.tmpdir(), "viza-submission-artifacts");
+  const dir = path.join(root, "france-visas", runId ?? "latest");
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   await fs.mkdir(dir, { recursive: true }).catch(() => undefined);
   const screenshotPath = path.join(dir, `${stamp}-sign-in.png`);
-  const htmlPath = path.join(dir, `${stamp}-sign-in.html`);
-  const textPath = path.join(dir, `${stamp}-sign-in.txt`);
   const out: { screenshotPath: string | null; htmlPath: string | null; textPath: string | null } = {
     screenshotPath,
-    htmlPath,
-    textPath,
+    htmlPath: null,
+    textPath: null,
   };
   try {
-    await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 10_000 });
+    const mask = [page.locator(
+      "input:not([type='checkbox']):not([type='radio']):not([type='submit']):not([type='button']), textarea, [contenteditable='true']",
+    )];
+    await page.screenshot({ path: screenshotPath, fullPage: true, mask, timeout: 10_000 });
   } catch {
     out.screenshotPath = null;
-  }
-  try {
-    await fs.writeFile(htmlPath, await page.content(), "utf8");
-  } catch {
-    out.htmlPath = null;
-  }
-  try {
-    await fs.writeFile(textPath, await page.locator("body").innerText({ timeout: 2_000 }), "utf8");
-  } catch {
-    out.textPath = null;
   }
   return out;
 }
