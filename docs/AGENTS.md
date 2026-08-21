@@ -36,6 +36,9 @@ reports, and workflow documentation for VIZA.
   completion and six-tab Chrome QA across every DB-driven application schema.
 - `SUPABASE_AGENT_SETUP.md`: remote Supabase setup, migration, verification,
   and troubleshooting workflow for agents.
+- `db/database-architecture-governance.md`: metadata-only production database
+  architecture audit, immutable migration CI, and hash-pinned approved-batch
+  operating contract.
 - `operations/supabase-self-heal.md`: production Supabase health probes,
   guarded restart policy, GitHub Actions controls, and incident runbook.
 - `operations/viza-zero-ops-resilience.md`: three-layer database pressure,
