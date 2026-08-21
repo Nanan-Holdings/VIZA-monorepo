@@ -15,7 +15,7 @@
       ],
       "preconditions": {
         "required_migration_versions": [
-          "20260821002000"
+          "20260820175334"
         ],
         "absent_migration_versions": [
           "20260821131006"
