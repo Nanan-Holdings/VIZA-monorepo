@@ -1,123 +1,80 @@
 import * as dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { EventEmitter } from "node:events";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
+import {
+	buildDatabasePoolConfig,
+	observePoolQueries,
+} from "./connection-config.js";
 import * as schema from "./schema.js";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-import { Logger as DrizzleLogger } from "drizzle-orm/logger";
-import { EventEmitter } from "events";
 
-// Event emitter for broadcasting database queries to debug UI
-export const dbLogEmitter = new EventEmitter();
+export type DatabasePoolState = "open" | "closing" | "closed" | "error";
 
-class QueryLogger implements DrizzleLogger {
-	logQuery(query: string, params: unknown[]): void {
-		dbLogEmitter.emit("db_query", {
-			query: query.substring(0, 500),
-			params: params.slice(0, 5),
-			timestamp: Date.now(),
-		});
-	}
+export interface DatabasePoolMetrics {
+	state: DatabasePoolState;
+	maxConnections: number;
+	totalConnections: number;
+	activeConnections: number;
+	idleConnections: number;
+	waitingRequests: number;
+	utilizationPercent: number;
 }
 
-// Get project root and load .env.local (with .env as fallback)
+// Event emitter for redacted database telemetry consumed by the debug UI and
+// health instrumentation. Events never include SQL text or parameter values.
+export const dbLogEmitter = new EventEmitter();
+
+// Get project root and load .env.local (with .env as fallback).
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, "../../.env.local") });
 dotenv.config({ path: join(__dirname, "../../.env") });
 
-// Runtime DATABASE_URL must point at the Supabase pooler. Direct database
-// connections are reserved for operator-run migrations and diagnostics.
-const connectionString = process.env.DATABASE_URL;
+const poolConfig = buildDatabasePoolConfig(process.env);
+const pool = observePoolQueries(new Pool(poolConfig), dbLogEmitter);
+let poolState: DatabasePoolState = "open";
+let closePromise: Promise<void> | null = null;
 
-if (!connectionString) {
-	throw new Error(
-		"DATABASE_URL is required and must use the Supabase transaction pooler."
-	);
+export function getDatabasePoolMetrics(): DatabasePoolMetrics {
+	const activeConnections = Math.max(0, pool.totalCount - pool.idleCount);
+	return {
+		state: poolState,
+		maxConnections: poolConfig.max,
+		totalConnections: pool.totalCount,
+		activeConnections,
+		idleConnections: pool.idleCount,
+		waitingRequests: pool.waitingCount,
+		utilizationPercent:
+			Math.round((activeConnections / poolConfig.max) * 10_000) / 100,
+	};
 }
 
-function readBoundedInteger(
-	names: readonly string[],
-	fallback: number,
-	minimum: number,
-	maximum: number,
-): number {
-	const configured = names
-		.map((name) => process.env[name]?.trim())
-		.find((value) => value);
-	if (!configured) return fallback;
-
-	const parsed = Number(configured);
-	if (!Number.isFinite(parsed)) return fallback;
-	return Math.min(maximum, Math.max(minimum, Math.floor(parsed)));
-}
-
-// Keep the pool finite and fail fast under connection/query pressure. Every
-// timeout is clamped to a positive upper bound so an accidental `0` or an
-// unreasonably large deployment value cannot restore unbounded work.
-const poolMax = readBoundedInteger(
-	["DB_POOL_MAX", "PG_POOL_MAX", "PGPOOL_MAX", "DATABASE_POOL_MAX"],
-	3,
-	1,
-	20,
-);
-const connectionTimeoutMillis = readBoundedInteger(
-	[
-		"DB_CONNECTION_TIMEOUT_MS",
-		"DB_POOL_CONNECTION_TIMEOUT_MS",
-		"PG_CONNECTION_TIMEOUT_MS",
-		"DATABASE_CONNECTION_TIMEOUT_MS",
-	],
-	2_000,
-	250,
-	30_000,
-);
-const idleTimeoutMillis = readBoundedInteger(
-	[
-		"DB_IDLE_TIMEOUT_MS",
-		"DB_POOL_IDLE_TIMEOUT_MS",
-		"PG_IDLE_TIMEOUT_MS",
-		"DATABASE_IDLE_TIMEOUT_MS",
-	],
-	30_000,
-	1_000,
-	300_000,
-);
-const queryTimeoutMillis = readBoundedInteger(
-	[
-		"DB_QUERY_TIMEOUT_MS",
-		"DB_POOL_QUERY_TIMEOUT_MS",
-		"PG_QUERY_TIMEOUT_MS",
-		"DATABASE_QUERY_TIMEOUT_MS",
-		"QUERY_TIMEOUT_MS",
-	],
-	30_000,
-	1_000,
-	60_000,
-);
-const statementTimeoutMillis = readBoundedInteger(
-	[
-		"DB_STATEMENT_TIMEOUT_MS",
-		"DB_POOL_STATEMENT_TIMEOUT_MS",
-		"PG_STATEMENT_TIMEOUT_MS",
-		"DATABASE_STATEMENT_TIMEOUT_MS",
-		"STATEMENT_TIMEOUT_MS",
-	],
-	queryTimeoutMillis,
-	1_000,
-	60_000,
-);
-
-const pool = new Pool({
-	connectionString,
-	max: poolMax,
-	connectionTimeoutMillis,
-	idleTimeoutMillis,
-	query_timeout: queryTimeoutMillis,
-	statement_timeout: statementTimeoutMillis,
-	ssl: connectionString.includes("supabase")
-		? { rejectUnauthorized: false }
-		: undefined,
+pool.on("error", (error: Error & { code?: string }) => {
+	const event = {
+		name: error.name || "Error",
+		code: error.code ?? "UNKNOWN",
+		timestamp: Date.now(),
+		pool: getDatabasePoolMetrics(),
+	};
+	dbLogEmitter.emit("db_pool_error", event);
+	console.error("database_pool_idle_client_error", event);
 });
 
-export const db = drizzle(pool, { schema, logger: new QueryLogger() });
+export function closeDatabase(): Promise<void> {
+	if (closePromise) return closePromise;
+	poolState = "closing";
+	closePromise = pool.end().then(
+		() => {
+			poolState = "closed";
+		},
+		(error: unknown) => {
+			poolState = "error";
+			throw error;
+		},
+	);
+	return closePromise;
+}
+
+export const db = drizzle(pool, { schema });
