@@ -1,0 +1,1270 @@
+{
+  "version": 1,
+  "metadataOnly": true,
+  "source": {
+    "projectRef": "oyjxdzsoejraedqghndi",
+    "runId": 32507190455,
+    "jobId": 96849890973,
+    "runUrl": "https://github.com/Nanan-Holdings/VIZA-monorepo/actions/runs/32507190455",
+    "sourceRef": "ad72610156ca324fe61298c942288b98ba50521d",
+    "capturedAt": "2026-08-21T17:15:45.525Z"
+  },
+  "querySchema": {
+    "auditSchemaVersion": 1,
+    "catalogSchemaVersion": 1,
+    "sanitizationSchema": "viza-architecture-audit-metadata-only-v1",
+    "source": "supabase-management-api-read-only"
+  },
+  "relationCount": 156,
+  "relationsSha256": "3f1d460a72b073cc56d24d6d33c20c8bc4123d2ca53f7faca286cbe80c000493",
+  "relations": [
+    {
+      "schema": "public",
+      "name": "_migrations",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "account_action_log",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "account_recovery_audit",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "admin_command_events",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "admin_work_item_events",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "admin_work_items",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "alert_throttle",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "applicant_browser_profile",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "applicant_profiles",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "applicant_secret",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "application_documents",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "application_events",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "application_group",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "application_inbox_aliases",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "application_packets",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "application_signatures",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "application_status_history",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "application_translations",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "applications",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "appointment_accounts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "appointment_assistance_attempts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "appointment_assistance_jobs",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "appointment_audit_events",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "appointment_confirmations",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "appointment_manual_actions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "appointment_operation_cases",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "appointment_slots",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "appointment_status_checks",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "au_accounts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "catalogue_publication_history",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "catalogue_publications",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "consent_event",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "consent_events",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "coverage_matrix",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "data_privacy_requests",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "document_requirements",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "ds160_live_manual_actions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "ds160_live_sessions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "ds160_official_review_snapshots",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "ds160_review_diffs",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "ds160_submission_jobs",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "eg_accounts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "face_match_audit",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "form_assistant_messages",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "form_assistant_sessions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "fv_accounts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "government_fee_allocations",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "government_fee_rules",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "inbound_email",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "invoice_requests",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "issuer_card_attempts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "it_vfs_cn_accounts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "marketing_leads",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "notification_dlq",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "notification_event_log",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "notification_events",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "notification_preferences",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "ocr_extractions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "official_application_tracking",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "official_fee_payment_attempts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "official_fee_payment_intents",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "official_fee_quotes",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "official_fee_receipts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "official_fee_reconciliation_entries",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "official_status_checks",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "order",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "order_line",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "package_pricing",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "package_pricing_history",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "package_sla",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "paper_template",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "payment_dispute_cases",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "payment_instruments",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "payment_lifecycle_events",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "payment_provisioning_jobs",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "payment_records",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "ph_etravel_accounts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "photo_spec",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "pii_access_log",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "pii_retention_jobs",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "portal_health",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "portal_health_checks",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "privacy_execution_jobs",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "proxy_pool",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "question_field",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "question_set",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "refund_records",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "refund_request",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "retention_purge_log",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "runner_concurrency_cap",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "runner_concurrency_metric",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "runner_job",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "runner_machine_slot",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "runner_metric",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "runner_pool_concurrency_health",
+      "kind": "view",
+      "owner": "postgres",
+      "rlsEnabled": false,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "runner_pool_depth",
+      "kind": "view",
+      "owner": "postgres",
+      "rlsEnabled": false,
+      "rlsForced": false
+    },
+    {
+      "schema": "runner_private",
+      "name": "runner_job_update_capability",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "runner_private",
+      "name": "runner_load_test_config",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "runner_queue_depth",
+      "kind": "view",
+      "owner": "postgres",
+      "rlsEnabled": false,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "runner_slot_capacity_health",
+      "kind": "view",
+      "owner": "postgres",
+      "rlsEnabled": false,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "runner_step_log",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "secret_access_log",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "shared_profile_fields",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "signature_event",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "staff_chat_message",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "staff_chat_thread",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "status_incidents",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "storage_backup_log",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "stripe_identity_session",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "submission_manual_actions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "submission_queue",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "submission_review_diffs",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "submission_review_snapshots",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "support_internal_note",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "support_macro",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "support_message",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "support_ticket",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "supporting_doc_slot",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "supporting_doc_submission",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "takeover_action_log",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "takeover_session",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_agent_messages",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_agent_sessions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_assets",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_attractions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_destination_aliases",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_destination_cards",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_destinations",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_enrichment_events",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_enrichment_jobs",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_itinerary_sessions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_unresolved_destinations",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "travel_user_preferences",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "treasury_exceptions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "treasury_funding_events",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "treasury_payouts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "treasury_reconciliation_runs",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "uk_accounts",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "universal_profile_answers",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "universal_profile_documents",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "user_chat_sessions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "user_form_requests",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "user_packages",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "users",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "vietnam_live_manual_actions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_agent_run_diagnostics",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_application_answers",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_chat_messages",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_chat_sessions",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_chunks",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_documents",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_entry_rules",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_form_fields",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_knowledge_releases",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_packages",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    },
+    {
+      "schema": "public",
+      "name": "visa_vietnam",
+      "kind": "table",
+      "owner": "postgres",
+      "rlsEnabled": true,
+      "rlsForced": false
+    }
+  ]
+}
