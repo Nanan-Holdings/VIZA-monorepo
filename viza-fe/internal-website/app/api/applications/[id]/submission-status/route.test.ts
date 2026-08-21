@@ -94,6 +94,29 @@ describe("shared runner status mapping", () => {
     });
   });
 
+  it("does not present a Korea runner retry backoff as a future submission window", () => {
+    const enqueuedAt = new Date().toISOString();
+    const retryAt = new Date(Date.now() + 30_000).toISOString();
+    expect(
+      runnerPoolJobToQueueRow(
+        {
+          id: "kr_runner_retry",
+          status: "queued",
+          attempts: 1,
+          last_error: "Temporary runner error",
+          available_at: retryAt,
+          enqueued_at: enqueuedAt,
+          started_at: null,
+          finished_at: null,
+        },
+        "kr_arrival_card",
+      ),
+    ).toMatchObject({
+      status: "kr_eac_live_assisted_pending",
+      current_stage: "waiting_for_kr_arrival_card_runner",
+    });
+  });
+
   it("keeps a running runner job active while its lease is still valid", () => {
     const startedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const leasedUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
