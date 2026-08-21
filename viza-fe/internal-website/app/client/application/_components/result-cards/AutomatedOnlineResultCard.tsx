@@ -35,22 +35,28 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
   const rejected = result.country === "KE" && result.status === "rejected";
   const success = evidence.qrReady || evidence.approved || (evidence.submitted && !isJapan);
   const safeSummary = success
-    ? result.portalResponseSummary
+    ? isZh
+      ? isJapan
+        ? "已取得日本官方入境与海关申报二维码。"
+        : evidence.approved
+          ? "已取得肯尼亚官方电子旅行授权批准文件。"
+          : "肯尼亚官方电子旅行授权申请已提交。"
+      : result.portalResponseSummary
     : rejected
-      ? (isZh ? "肯尼亚移民部门未批准本次 eTA；如需进一步信息，请联系 VIZA 支持。" : "Kenya Immigration did not approve this eTA. Contact VIZA support if you need more information.")
+      ? (isZh ? "肯尼亚移民部门未批准本次电子旅行授权；如需进一步信息，请联系 VIZA 支持。" : "Kenya Immigration did not approve this eTA. Contact VIZA support if you need more information.")
       : blocked
         ? (isZh ? "官方流程尚未完成。VIZA 工作人员会根据错误代码复核，内部门户详情不会在此显示。" : "The official flow has not completed. VIZA staff will review the structured error code; internal portal details are not shown here.")
         : (isZh ? "VIZA 正在核验官方结果。" : "VIZA is verifying the official result.");
   const title = success
     ? isJapan
-      ? (isZh ? "Visit Japan Web 二维码已准备好" : "Visit Japan Web QR code is ready")
+      ? (isZh ? "日本入境与海关申报二维码已准备好" : "Visit Japan Web QR code is ready")
       : evidence.approved
-        ? (isZh ? "肯尼亚 eTA 已批准" : "Kenya eTA approved")
-        : (isZh ? "肯尼亚 eTA 已提交" : "Kenya eTA submitted")
+        ? (isZh ? "肯尼亚电子旅行授权已批准" : "Kenya eTA approved")
+        : (isZh ? "肯尼亚电子旅行授权已提交" : "Kenya eTA submitted")
     : blocked
       ? (isZh ? "官方自动提交暂不可用" : "Official automated submission is unavailable")
       : rejected
-        ? (isZh ? "肯尼亚 eTA 未获批准" : "Kenya eTA was rejected")
+        ? (isZh ? "肯尼亚电子旅行授权未获批准" : "Kenya eTA was rejected")
         : (isZh ? "正在核验官方结果" : "Verifying the official result");
 
   return (
@@ -82,7 +88,7 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
         {isJapan ? (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
             {isZh
-              ? "Visit Japan Web 官方服务免费。VIZA 是独立服务，不是日本政府网站；根据官方使用条款，用户本人操作要求仍适用，VIZA 的自动化入口须经过合规授权，未获授权时不会执行官网操作。"
+              ? "日本官方线上入境与海关申报服务免费。VIZA 是独立服务，不是日本政府网站；根据官方使用条款，用户本人操作要求仍适用，VIZA 的自动化入口须经过合规授权，未获授权时不会执行官网操作。"
               : "Visit Japan Web is free. VIZA is an independent service, not a Japanese government website. Its terms require the traveller to operate the service unless delegated operation is authorized; VIZA will not access the portal while that compliance gate is closed."}
           </p>
         ) : (

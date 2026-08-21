@@ -1166,11 +1166,11 @@ function FinalConfirmationPanel({
                         : "Taiwan official background submission is currently disabled.")
                   : isJapanVjw
                     ? (isZh
-                        ? "Visit Japan Web 自动化入口正在进行合规审核；在取得数字厅认可前不会执行官网操作。"
+                        ? "日本线上入境与海关申报自动化入口正在进行合规审核；在取得数字厅认可前不会执行官网操作。"
                         : "Visit Japan Web automation is under compliance review and will not access the official portal until delegated operation is authorized.")
                   : isKenyaEta
                     ? (isZh
-                        ? "肯尼亚 eTA 自动提交暂时未启用。"
+                        ? "肯尼亚电子旅行授权自动提交暂时未启用。"
                         : "Kenya eTA live submission is currently disabled.")
         : (isZh
             ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"

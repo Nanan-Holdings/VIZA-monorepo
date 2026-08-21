@@ -9,12 +9,14 @@ describe('visa product registry', () => {
   it('keeps internal form and official redirect products explicit', () => {
     expect(VISA_PRODUCT_REGISTRY.SG_ARRIVAL_CARD.kind).toBe('arrival_declaration');
     expect(VISA_PRODUCT_REGISTRY.JP_VISIT_JAPAN_WEB.kind).toBe('arrival_declaration');
+    expect(VISA_PRODUCT_REGISTRY.JP_VISIT_JAPAN_WEB.displayNameZh).toBe('日本入境与海关申报');
     expect(VISA_PRODUCT_REGISTRY.JP_VISIT_JAPAN_WEB.supportLevel).toBe('automated');
     expect(VISA_PRODUCT_REGISTRY.JP_VISIT_JAPAN_WEB.automationGate).toBe('requires_official_authorization');
     expect(VISA_PRODUCT_REGISTRY.KE_ETA.kind).toBe('travel_authorization');
     expect(VISA_PRODUCT_REGISTRY.KE_ETA.supportLevel).toBe('automated');
     expect(VISA_PRODUCT_REGISTRY.KE_ETA.automationGate).toBe('ready');
     expect(VISA_PRODUCT_REGISTRY.KE_ETA.country).toBe('kenya');
+    expect(VISA_PRODUCT_REGISTRY.KE_ETA.displayNameZh).toBe('肯尼亚电子旅行授权');
     expect(VISA_PRODUCT_REGISTRY.KR_E_ARRIVAL_CARD.kind).toBe('arrival_declaration');
     expect(VISA_PRODUCT_REGISTRY.KR_E_ARRIVAL_CARD.country).toBe('south_korea');
     expect(VISA_PRODUCT_REGISTRY.SG_VISITOR_VISA.kind).toBe('visa');
