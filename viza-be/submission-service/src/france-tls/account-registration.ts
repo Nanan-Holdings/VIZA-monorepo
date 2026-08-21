@@ -2,7 +2,7 @@ import { randomBytes, randomInt } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Locator, Page } from "@playwright/test";
+import type { ConsoleMessage, Locator, Page } from "@playwright/test";
 import { redactOfficialUrl } from "../appointment-free-smoke";
 import { solveCaptcha } from "../captcha/two-captcha";
 import { ensureApplicantInboxAlias } from "../inbox/alias";
@@ -27,7 +27,8 @@ import {
   readFranceTlsBrowserState,
   waitForFranceTlsCloudflareClearance,
 } from "./browser-api";
-import { resolveFranceTlsCenter } from "./center-registry";
+import { FRANCE_TLS_CHINA_CENTERS, resolveFranceTlsCenter } from "./center-registry";
+import { solveVisibleRecaptchaGridChallenge } from "./recaptcha-grid";
 
 const TLS_PORTAL = "tlscontact_cn_fr";
 const DB_TIMEOUT_MS = 15_000;
@@ -106,12 +107,94 @@ interface FranceTlsReplacementAccountRow {
   id: string;
   account_email: string | null;
   account_status: string;
+  email_verified: boolean | null;
   metadata_redacted_json: unknown;
 }
 
 export interface FranceTlsAccountReplacementPlan {
   reusableAccountId: string | null;
   accountIdsToAbandon: string[];
+}
+
+export function isFranceTlsPreRegistrationRetryEligible(input: {
+  accountStatus: string;
+  emailVerified: boolean;
+}): boolean {
+  return [
+    "manual_required",
+    "registration_retryable_error",
+    "browser_session_retryable_error",
+  ].includes(input.accountStatus)
+    && !input.emailVerified;
+}
+
+export type FranceTlsRegistrationResultState = "success" | "retryable_error" | "unverified";
+
+export function classifyFranceTlsRegistrationResult(input: {
+  url: string;
+  bodyText: string;
+}): FranceTlsRegistrationResultState {
+  const body = input.bodyText.replace(/\s+/g, " ").trim();
+  if (
+    /we apologise for the inconvenience.{0,100}website team is currently working to fix this/i.test(body)
+    || /temporar(?:y|ily).{0,60}(?:unavailable|unable to process)/i.test(body)
+  ) {
+    return "retryable_error";
+  }
+  if (
+    /(?:check|verify|confirm).{0,50}(?:email|inbox)/i.test(body)
+    || /(?:activation|confirmation).{0,50}(?:email|link).{0,30}(?:sent|receive)/i.test(body)
+    || /account.{0,40}(?:created|registered).{0,60}(?:email|activate)/i.test(body)
+    || /\/login(?:[/?#]|$)/i.test(input.url)
+  ) {
+    return "success";
+  }
+  return "unverified";
+}
+
+export function isRetryableFranceTlsCaptchaSolveError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /ERROR_CAPTCHA_UNSOLVABLE|ERROR_NO_SLOT_AVAILABLE|timed?\s*out|timeout/i.test(message);
+}
+
+export function isRetryableFranceTlsBrowserSessionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /target page, context or browser has been closed|browserbase.{0,40}(?:timed out|timeout)|browser session.{0,20}(?:timed out|closed)|cloudflare (?:waiting room|security verification)|checkpoint:\s*waf/i
+    .test(message);
+}
+
+export function isFranceTlsWaitingRoomText(value: string): boolean {
+  return /file d['’]attente|waiting room|temps d['’]attente|estimated wait|page s['’]actualisera automatiquement/i
+    .test(value.replace(/\s+/g, " "));
+}
+
+export function isFranceTlsSecurityVerificationText(value: string): boolean {
+  return /performing security verification|v[ée]rification de s[ée]curit[ée]|this website uses a security service|protect against malicious bots|verifies you are not a bot/i
+    .test(value.replace(/\s+/g, " "));
+}
+
+export function resolveFranceTlsCaptchaAttemptTimeoutMs(value: string | undefined): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 45_000;
+  // Browserbase plans used by this runner can cap a session at 300 seconds.
+  // Two rounds plus provider waits must leave time for navigation and cleanup.
+  return Math.min(Math.max(parsed, 10_000), 60_000);
+}
+
+export function shouldPreserveFranceTlsRegistrationStatus(status: string): boolean {
+  return [
+    "registration_submitting",
+    "activation_email_pending",
+    "registration_retryable_error",
+    "registration_result_unverified",
+    "browser_session_retryable_error",
+  ].includes(status);
+}
+
+export function isRetryableFranceTlsRegistrationNavigationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /TLS (?:registration entry was not found|registration form unavailable|center selection control could not be activated)/i
+    .test(message);
 }
 
 function firstRelation(value: unknown): Relation | null {
@@ -360,7 +443,7 @@ async function abandonLegacyFranceTlsAccounts(applicationId: string): Promise<vo
 
   const { data: accounts, error: accountsError } = await supabase
     .from("appointment_accounts")
-    .select("id,account_email,account_status,metadata_redacted_json")
+    .select("id,account_email,account_status,email_verified,metadata_redacted_json")
     .eq("application_id", applicationId)
     .eq("country_code", "FR")
     .eq("portal", TLS_PORTAL)
@@ -374,6 +457,37 @@ async function abandonLegacyFranceTlsAccounts(applicationId: string): Promise<vo
     accounts: rows,
   });
   const abandonedAt = new Date().toISOString();
+  const reusableAccount = rows.find((candidate) => candidate.id === plan.reusableAccountId);
+  if (
+    reusableAccount
+    && isFranceTlsPreRegistrationRetryEligible({
+      accountStatus: reusableAccount.account_status,
+      emailVerified: Boolean(reusableAccount.email_verified),
+    })
+  ) {
+    const existingMetadata = reusableAccount.metadata_redacted_json
+      && typeof reusableAccount.metadata_redacted_json === "object"
+      && !Array.isArray(reusableAccount.metadata_redacted_json)
+      ? reusableAccount.metadata_redacted_json as Record<string, unknown>
+      : {};
+    const { error } = await supabase
+      .from("appointment_accounts")
+      .update({
+        account_status: "account_prepared",
+        metadata_redacted_json: {
+          ...existingMetadata,
+          account_email: "[REDACTED]",
+          pre_registration_retry_authorized: true,
+          pre_registration_retry_authorized_at: abandonedAt,
+        },
+        updated_at: abandonedAt,
+      })
+      .eq("id", reusableAccount.id)
+      .in("account_status", ["manual_required", "registration_retryable_error"])
+      .eq("email_verified", false)
+      .abortSignal(dbAbortSignal());
+    if (error) throw new Error(`TLS account retry preparation failed: ${error.message}`);
+  }
   for (const accountId of plan.accountIdsToAbandon) {
     const account = rows.find((candidate) => candidate.id === accountId);
     const existingMetadata = account?.metadata_redacted_json
@@ -561,6 +675,38 @@ async function settle(page: Page): Promise<void> {
   await page.waitForTimeout(1_500);
 }
 
+function observeBrowserbaseCaptcha(page: Page): () => Promise<void> {
+  let startedCount = 0;
+  let finishedCount = 0;
+  const listener = (message: ConsoleMessage) => {
+    if (["browserbase-solving-started", "browser-solving-started"].includes(message.text())) {
+      startedCount += 1;
+    }
+    if ([
+      "browserbase-solving-finished",
+      "browser-solving-finished",
+      "browser-solving-completed",
+    ].includes(message.text())) {
+      finishedCount += 1;
+    }
+  };
+  page.on("console", listener);
+  return async () => {
+    try {
+      const detectionDeadline = Date.now() + 5_000;
+      while (Date.now() < detectionDeadline && startedCount === 0) {
+        await page.waitForTimeout(250);
+      }
+      const finishDeadline = Date.now() + 35_000;
+      while (Date.now() < finishDeadline && finishedCount < startedCount) {
+        await page.waitForTimeout(500);
+      }
+    } finally {
+      page.off("console", listener);
+    }
+  };
+}
+
 async function dismissConsentBanner(page: Page): Promise<void> {
   const dismissed = await clickFirstVisible([
     page.getByRole("button", { name: /reject all/i }),
@@ -572,18 +718,42 @@ async function dismissConsentBanner(page: Page): Promise<void> {
   if (dismissed) await page.waitForTimeout(500);
 }
 
+async function navigateFranceTlsPage(page: Page, url: string): Promise<void> {
+  const transientCodes = new Set([
+    "ERR_TUNNEL_CONNECTION_FAILED",
+    "ERR_PROXY_CONNECTION_FAILED",
+    "ERR_CONNECTION_RESET",
+    "ERR_CONNECTION_CLOSED",
+  ]);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90_000 });
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const code = message.match(/net::(ERR_[A-Z_]+)/)?.[1] ?? null;
+      if (!code || !transientCodes.has(code) || attempt === 2) {
+        throw new Error(`TLS official navigation failed (${code ?? "browser_error"})`);
+      }
+      await page.waitForTimeout((attempt + 1) * 2_000);
+    }
+  }
+}
+
 async function navigateToCenter(page: Page, centerPath: string): Promise<void> {
   const centerUrl = new URL(centerPath, "https://visas-fr.tlscontact.com").href;
-  await page.goto(centerUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+  await navigateFranceTlsPage(page, centerUrl);
   await settle(page);
   await dismissConsentBanner(page);
 }
 
-async function reachCenter(page: Page, centerPath: string, refreshRetries: number): Promise<void> {
-  await page.goto("https://visas-fr.tlscontact.com/en-us", {
-    waitUntil: "domcontentloaded",
-    timeout: 90_000,
-  });
+async function reachCenter(
+  page: Page,
+  centerPath: string,
+  refreshRetries: number,
+  centerName?: string,
+): Promise<void> {
+  await navigateFranceTlsPage(page, "https://visas-fr.tlscontact.com/en-us");
   await settle(page);
   await dismissConsentBanner(page);
   const appointmentEntryClicked = await clickFirstVisible([
@@ -600,6 +770,7 @@ async function reachCenter(page: Page, centerPath: string, refreshRetries: numbe
     return;
   }
   await select.selectOption({ label: "China" });
+  const waitForResidenceCaptcha = observeBrowserbaseCaptcha(page);
   const residenceConfirmed = await clickFirstVisible([
     page.locator("#btn-confirm-country"),
     page.getByRole("link", { name: /^confirm$/i }),
@@ -607,18 +778,44 @@ async function reachCenter(page: Page, centerPath: string, refreshRetries: numbe
     page.locator("button, a, [role='button']").filter({ hasText: /^confirm$/i }),
   ]);
   if (!residenceConfirmed) {
+    await waitForResidenceCaptcha();
     await navigateToCenter(page, centerPath);
     return;
   }
   await clickFirstVisible([page.locator("#btn-yes"), page.getByRole("button", { name: /^yes$/i })]);
+  await waitForResidenceCaptcha();
   await settle(page);
   await dismissConsentBanner(page);
   const centerLink = page.locator(`a[href*="${centerPath}"]`).first();
-  if (!await centerLink.isVisible({ timeout: 10_000 }).catch(() => false)) {
+  let centerControl: Locator | null = await centerLink.isVisible({ timeout: 5_000 }).catch(() => false)
+    ? centerLink
+    : null;
+  if (!centerControl && centerName) {
+    const centerHeading = page.getByText(new RegExp(`^${centerName}$`, "i")).first();
+    if (await centerHeading.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      const centerCard = centerHeading.locator(
+        "xpath=ancestor::*[.//button[normalize-space()='Continue'] or .//a[normalize-space()='Continue']][1]",
+      );
+      const continueControl = centerCard.getByRole("button", { name: /^continue$/i }).first();
+      const continueLink = centerCard.getByRole("link", { name: /^continue$/i }).first();
+      centerControl = await continueControl.isVisible({ timeout: 2_000 }).catch(() => false)
+        ? continueControl
+        : await continueLink.isVisible({ timeout: 2_000 }).catch(() => false)
+          ? continueLink
+          : null;
+    }
+  }
+  if (!centerControl) {
     await navigateToCenter(page, centerPath);
     return;
   }
-  await centerLink.click({ timeout: 15_000 });
+  const waitForCenterCaptcha = observeBrowserbaseCaptcha(page);
+  const centerClicked = await clickFirstVisible([centerControl]);
+  if (!centerClicked) {
+    await waitForCenterCaptcha();
+    throw new Error("TLS center selection control could not be activated");
+  }
+  await waitForCenterCaptcha();
   await settle(page);
   for (let attempt = 1; attempt <= Math.min(2, Math.max(0, refreshRetries)); attempt += 1) {
     const state = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(page));
@@ -630,27 +827,68 @@ async function reachCenter(page: Page, centerPath: string, refreshRetries: numbe
 }
 
 async function reachRegistrationForm(page: Page): Promise<void> {
+  let waitForRegistrationCaptcha = observeBrowserbaseCaptcha(page);
   let clicked = await clickFirstVisible([
     page.getByRole("link", { name: /register|create account|new user/i }),
     page.getByRole("button", { name: /register|create account|new user/i }),
   ]);
   if (!clicked) {
+    await waitForRegistrationCaptcha();
+    waitForRegistrationCaptcha = observeBrowserbaseCaptcha(page);
     clicked = await clickFirstVisible([
       page.getByRole("link", { name: /log in|sign in/i }),
       page.getByRole("button", { name: /log in|sign in/i }),
     ]);
     if (clicked) {
+      await waitForRegistrationCaptcha();
       await settle(page);
+      waitForRegistrationCaptcha = observeBrowserbaseCaptcha(page);
       clicked = await clickFirstVisible([
         page.getByRole("link", { name: /register|create account|new user/i }),
         page.getByRole("button", { name: /register|create account|new user/i }),
       ]);
     }
   }
-  if (!clicked) throw new Error("TLS registration entry was not found");
+  if (!clicked) {
+    await waitForRegistrationCaptcha();
+    throw new Error("TLS registration entry was not found");
+  }
+  await waitForRegistrationCaptcha();
   await settle(page);
-  if (!await page.locator("#email, input[name='email']").first().isVisible({ timeout: 10_000 }).catch(() => false)) {
-    throw new Error("TLS registration email field was not found");
+  const emailField = page.locator("#email, input[name='email']").first();
+  if (!await emailField.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    await navigateFranceTlsPage(page, "https://visas-fr.tlscontact.com/en-us/registration");
+    await settle(page);
+  }
+  if (!await emailField.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    const state = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(page));
+    await maskedScreenshot(page, "registration-form-unavailable");
+    throw new Error(
+      `TLS registration form unavailable (${state.checkpoint} at ${redactOfficialUrl(page.url())})`,
+    );
+  }
+}
+
+async function reachFranceTlsRegistrationForm(input: {
+  page: Page;
+  centerPath: string;
+  centerName: string;
+  refreshRetries: number;
+}): Promise<void> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await reachCenter(
+        input.page,
+        input.centerPath,
+        input.refreshRetries,
+        input.centerName,
+      );
+      await reachRegistrationForm(input.page);
+      return;
+    } catch (error) {
+      if (attempt === 1 || !isRetryableFranceTlsRegistrationNavigationError(error)) throw error;
+      await input.page.waitForTimeout(2_000);
+    }
   }
 }
 
@@ -682,16 +920,46 @@ async function ensureRecaptchaToken(
     if (options.required) throw new Error("TLS reCAPTCHA response field was not found");
     return;
   }
-  const providerWaitMs = options.providerWaitMs ?? 30_000;
-  const solved = providerWaitMs > 0
-    ? await page.waitForFunction(() => {
+  const waitForResponse = async (timeoutMs: number): Promise<boolean> => timeoutMs > 0
+    ? page.waitForFunction(() => {
         const element = document.querySelector<HTMLTextAreaElement | HTMLInputElement>(
           "textarea[name='g-recaptcha-response'], input[name='g-recaptcha-response']",
         );
         return Boolean(element?.value.trim());
-      }, undefined, { timeout: providerWaitMs }).then(() => true).catch(() => false)
-    : await response.inputValue().then((value) => Boolean(value.trim())).catch(() => false);
+      }, undefined, { timeout: timeoutMs }).then(() => true).catch(() => false)
+    : response.inputValue().then((value) => Boolean(value.trim())).catch(() => false);
+
+  const providerWaitMs = options.providerWaitMs ?? 30_000;
+  const solved = await waitForResponse(providerWaitMs);
   if (solved) return;
+
+  // Browserbase can detect reCAPTCHA before the checkbox has opened the
+  // interactive challenge, but a solve may never complete in that state. Give
+  // the provider one bounded post-click window, then use the existing GridTask
+  // solver only when a real image grid is visible in this same Browserbase
+  // session. This never launches or falls back to a different browser.
+  const anchor = page
+    .frameLocator('iframe[src*="recaptcha"][src*="anchor"]')
+    .locator("#recaptcha-anchor")
+    .first();
+  if (await anchor.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await anchor.click({ timeout: 5_000 }).catch(() => undefined);
+    if (await waitForResponse(Math.min(35_000, Math.max(10_000, providerWaitMs)))) return;
+
+    const gridOutcome = await solveVisibleRecaptchaGridChallenge(page, {
+      maxRounds: 2,
+      timeoutMs: resolveFranceTlsCaptchaAttemptTimeoutMs(
+        process.env.FRANCE_TLS_RECAPTCHA_TIMEOUT_MS,
+      ),
+    });
+    if (gridOutcome.status === "solved") {
+      if (await waitForResponse(10_000)) return;
+      throw new Error("TLS reCAPTCHA grid closed without a verified response token");
+    }
+    if (gridOutcome.status === "failed") {
+      throw new Error(`TLS reCAPTCHA grid solve failed: ${gridOutcome.reason}`);
+    }
+  }
 
   const twoCaptchaEnabled = process.env.FRANCE_REGISTRATION_2CAPTCHA_ENABLED?.trim().toLowerCase();
   if (!process.env.TWOCAPTCHA_API_KEY?.trim() || twoCaptchaEnabled === "false" || twoCaptchaEnabled === "0") {
@@ -706,16 +974,49 @@ async function ensureRecaptchaToken(
   });
   if (!siteKey) throw new Error("TLS reCAPTCHA site key was not found");
 
-  const timeoutMs = Number.parseInt(process.env.FRANCE_TLS_RECAPTCHA_TIMEOUT_MS ?? "180000", 10);
-  const result = await solveCaptcha({
-    type: "recaptcha-v2",
-    siteKey,
-    pageUrl: page.url(),
-    timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 180_000,
-  });
+  const timeoutMs = resolveFranceTlsCaptchaAttemptTimeoutMs(
+    process.env.FRANCE_TLS_RECAPTCHA_TIMEOUT_MS,
+  );
+  let result: Awaited<ReturnType<typeof solveCaptcha>> | null = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      result = await solveCaptcha({
+        type: "recaptcha-v2",
+        siteKey,
+        pageUrl: page.url(),
+        timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 180_000,
+      });
+      break;
+    } catch (error) {
+      if (attempt === 1 || !isRetryableFranceTlsCaptchaSolveError(error)) throw error;
+      await page.waitForTimeout(2_000);
+    }
+  }
+  if (!result) throw new Error("TLS reCAPTCHA solver did not return a result");
   const token = result.text.trim();
   if (!token) throw new Error("TLS reCAPTCHA solver returned an empty token");
   await page.evaluate((captchaToken) => {
+    const recaptchaWindow = window as Window & { ___grecaptcha_cfg?: { clients?: Record<string, unknown> } };
+    for (const client of Object.values(recaptchaWindow.___grecaptcha_cfg?.clients ?? {})) {
+      const pending: unknown[] = [client];
+      const seen = new Set<unknown>();
+      while (pending.length > 0) {
+        const value = pending.pop();
+        if (!value || typeof value !== "object" || seen.has(value)) continue;
+        seen.add(value);
+        for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+          if (key === "callback" && typeof child === "function") {
+            try {
+              (child as (tokenValue: string) => void)(captchaToken);
+            } catch {
+              // Continue through other registered reCAPTCHA clients.
+            }
+          } else {
+            pending.push(child);
+          }
+        }
+      }
+    }
     const fields = Array.from(document.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>(
       "textarea[name='g-recaptcha-response'], input[name='g-recaptcha-response']",
     ));
@@ -724,25 +1025,6 @@ async function ensureRecaptchaToken(
       field.innerHTML = captchaToken;
       field.dispatchEvent(new Event("input", { bubbles: true }));
       field.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-    const visit = (value: unknown, seen: Set<unknown>): void => {
-      if (!value || typeof value !== "object" || seen.has(value)) return;
-      seen.add(value);
-      for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-        if (key === "callback" && typeof child === "function") {
-          try {
-            (child as (tokenValue: string) => void)(captchaToken);
-          } catch {
-            // Continue through other registered reCAPTCHA clients.
-          }
-        } else {
-          visit(child, seen);
-        }
-      }
-    };
-    const recaptchaWindow = window as Window & { ___grecaptcha_cfg?: { clients?: Record<string, unknown> } };
-    for (const client of Object.values(recaptchaWindow.___grecaptcha_cfg?.clients ?? {})) {
-      visit(client, new Set<unknown>());
     }
   }, token);
   const injected = await response.inputValue().then((value) => Boolean(value.trim())).catch(() => false);
@@ -766,6 +1048,7 @@ async function submitRegistrationForm(page: Page, context: FranceTlsStoredAccoun
   }
   await ensureRecaptchaToken(page);
   const evidence = [await maskedScreenshot(page, "registration-filled")];
+  await updateAccountStatus(context, "registration_submitting", false);
   await page.locator("button#submit, button[type='submit']").first().click({ timeout: 15_000 });
   await settle(page);
   const invalidFields = await page.locator(":invalid").evaluateAll((elements) => elements.map((element) => {
@@ -774,6 +1057,19 @@ async function submitRegistrationForm(page: Page, context: FranceTlsStoredAccoun
   })).catch(() => [] as string[]);
   if (invalidFields.length) throw new Error(`TLS registration validation failed: ${invalidFields.join(", ")}`);
   evidence.push(await maskedScreenshot(page, "registration-submitted"));
+  const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+  const resultState = classifyFranceTlsRegistrationResult({
+    url: page.url(),
+    bodyText,
+  });
+  if (resultState === "retryable_error") {
+    await updateAccountStatus(context, "registration_retryable_error", false);
+    throw new Error("TLScontact returned a retryable registration service error");
+  }
+  if (resultState !== "success") {
+    await updateAccountStatus(context, "registration_result_unverified", false);
+    throw new Error("TLScontact did not confirm account registration");
+  }
   return evidence;
 }
 
@@ -782,7 +1078,7 @@ async function activateAccount(page: Page, context: FranceTlsStoredAccountContex
     since,
     includeProcessed: true,
   });
-  await page.goto(message.activationUrl.href, { waitUntil: "domcontentloaded", timeout: 90_000 });
+  await navigateFranceTlsPage(page, message.activationUrl.href);
   await settle(page);
   const body = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
   if (isFranceTlsActivationExpiredText(body)) throw new Error("TLS activation link expired");
@@ -862,7 +1158,11 @@ async function reachLoginForm(
   // on a direct centre deep link. The official site can return a generic
   // error or omit the login controls for direct Browserbase navigation even
   // though the same centre is reachable through the public chooser.
-  await reachCenter(page, new URL(centerUrl).pathname, 2);
+  const centerPath = new URL(centerUrl).pathname;
+  const centerName = FRANCE_TLS_CHINA_CENTERS.find(
+    (center) => new URL(center.bookingUrl).pathname === centerPath,
+  )?.cityEn;
+  await reachCenter(page, centerPath, 2, centerName);
   const authenticatedPageVisible = /\/(?:travel-groups|[^/]+\/workflow\/)/i.test(page.url())
     || await page.getByText(/application list/i).first().isVisible({ timeout: 3_000 }).catch(() => false);
   if (authenticatedPageVisible) return "authenticated";
@@ -879,10 +1179,7 @@ async function reachLoginForm(
     // The current TLS shell sometimes omits the header login link while the
     // canonical same-origin login route remains available after centre
     // selection. This is a navigation-only fallback and never submits data.
-    await page.goto(new URL("/en-us/login", centerUrl).href, {
-      waitUntil: "domcontentloaded",
-      timeout: 90_000,
-    });
+    await navigateFranceTlsPage(page, new URL("/en-us/login", centerUrl).href);
     await settle(page);
   }
 
@@ -893,6 +1190,12 @@ async function reachLoginForm(
   const finalInput = await readFranceTlsBrowserState(page);
   const finalState = classifyFranceTlsBrowserState(finalInput);
   await maskedScreenshot(page, "login-entry-missing").catch(() => null);
+  if (finalState.checkpoint === "waf" && isFranceTlsWaitingRoomText(finalInput.bodyText)) {
+    throw new Error("TLS Cloudflare waiting room did not clear within the Browserbase wait window");
+  }
+  if (finalState.checkpoint === "waf" && isFranceTlsSecurityVerificationText(finalInput.bodyText)) {
+    throw new Error("TLS Cloudflare security verification did not clear within the Browserbase wait window");
+  }
   throw new Error(
     `TLS login entry was not found after activation (checkpoint: ${finalState.checkpoint}; url: ${redactOfficialUrl(finalInput.url)})`,
   );
@@ -1003,7 +1306,7 @@ async function enterSingleExistingTravelGroup(page: Page): Promise<"not_present"
   const observedWorkflowUrl = await observedWorkflowUrlPromise;
   await settle(page);
   if (observedWorkflowUrl && !/\/workflow\//i.test(page.url())) {
-    await page.goto(observedWorkflowUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await navigateFranceTlsPage(page, observedWorkflowUrl);
     await settle(page);
   }
   const staleApplicationList = /\/workflow\//i.test(page.url())
@@ -1400,10 +1703,7 @@ async function resetFranceTlsAccountPassword(input: {
     since: requestedAt,
     includeProcessed: true,
   });
-  await input.page.goto(resetEmail.resetUrl.href, {
-    waitUntil: "domcontentloaded",
-    timeout: 90_000,
-  });
+  await navigateFranceTlsPage(input.page, resetEmail.resetUrl.href);
   await settle(input.page);
 
   const passwordInputs = input.page.locator("input[type='password']:visible");
@@ -1521,8 +1821,12 @@ export async function registerAndPrepareFranceTlsAccount(
         if (context.accountStatus === "manual_required") {
           throw new Error("TLS account is marked manual_required; refusing to resubmit registration automatically");
         }
-        await reachCenter(session.page, new URL(center.bookingUrl).pathname, input.refreshRetries ?? 2);
-        await reachRegistrationForm(session.page);
+        await reachFranceTlsRegistrationForm({
+          page: session.page,
+          centerPath: new URL(center.bookingUrl).pathname,
+          centerName: center.cityEn,
+          refreshRetries: input.refreshRetries ?? 2,
+        });
         if (!input.submitRegistration) {
           evidence.push(await maskedScreenshot(session.page, "registration-form-ready"));
           return {
@@ -1536,7 +1840,6 @@ export async function registerAndPrepareFranceTlsAccount(
             stopPoint: "Registration fields were not submitted because submitRegistration was false.",
           };
         }
-        await updateAccountStatus(context, "registration_submitting", false);
         evidence.push(...await submitRegistrationForm(session.page, context));
         await updateAccountStatus(context, "activation_email_pending", false);
       }
@@ -1578,7 +1881,13 @@ export async function registerAndPrepareFranceTlsAccount(
       shouldFillReference,
     });
   } catch (error) {
-    if (!["registration_submitting", "activation_email_pending"].includes(context.accountStatus)) {
+    if (isRetryableFranceTlsBrowserSessionError(error)) {
+      await updateAccountStatus(
+        context,
+        "browser_session_retryable_error",
+        context.emailVerified,
+      ).catch(() => undefined);
+    } else if (!shouldPreserveFranceTlsRegistrationStatus(context.accountStatus)) {
       await updateAccountStatus(context, "manual_required", context.emailVerified).catch(() => undefined);
     }
     throw error;

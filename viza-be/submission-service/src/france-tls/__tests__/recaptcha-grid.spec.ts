@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { gridTileCenters } from "../recaptcha-grid.js";
+import {
+  gridTileCenters,
+  inferGridDimensionsFromTileCount,
+} from "../recaptcha-grid.js";
 
 test("france-tls recaptcha grid: maps one-based tile numbers to cell centers", () => {
   assert.deepEqual(
@@ -29,4 +32,9 @@ test("france-tls recaptcha grid: rejects tile numbers outside the grid", () => {
       }),
     /outside 3x3 grid/,
   );
+});
+
+test("france-tls recaptcha grid: infers only supported official grid dimensions", () => {
+  assert.deepEqual(inferGridDimensionsFromTileCount(9), { rows: 3, columns: 3 });
+  assert.deepEqual(inferGridDimensionsFromTileCount(16), { rows: 4, columns: 4 });
 });
