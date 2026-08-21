@@ -329,6 +329,29 @@ test("production access batch pins observed production policy hashes", () => {
   }
 });
 
+test("production performance-index batch pins the three reviewed online indexes", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "database-performance-indexes-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "acb1a0694afb8b572acfaba626596702e0a88d2e");
+  assert.equal(batch.mode, "concurrent-index");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260821131006"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260821175138"]);
+  assert.deepEqual(
+    batch.migrations.flatMap(({ indexes }) => indexes.map(({ identity }) => identity)).sort(),
+    [
+      "public.pii_access_log_application_id_idx",
+      "public.submission_queue_application_latest_idx",
+      "public.visa_chunks_document_id_idx",
+    ],
+  );
+  assert.equal(
+    batch.migrations[0].sha256,
+    "34474dd9e3e265a1d3333abf13c0b7034727b2a1e08e44f8a28475d2997f3944",
+  );
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
