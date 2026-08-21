@@ -41,3 +41,11 @@ scheduled recovery workflows.
   reviewed migration commit and SHA-256; it preserves the active six-country
   cap snapshot and installs only the exact-owner renew RPC, health views, and
   service-role-only metric table.
+- `database-migration-governance.yml` runs on migration/governance pull-request
+  changes with full history so the governance script can reject any existing
+  migration edit, rename, copy, or deletion relative to the target branch.
+- `production-db-maintenance.yml` also exposes the read-only
+  `architecture-audit` action and the manifest/hash-gated
+  `apply-approved-batch` action. The latter requires `batch_id` plus a full
+  40-character reviewed commit SHA and checks out that SHA only as migration
+  input; the current default-branch script and manifest remain the trust root.
