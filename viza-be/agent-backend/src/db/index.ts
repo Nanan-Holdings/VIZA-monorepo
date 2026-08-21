@@ -3,12 +3,12 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { EventEmitter } from "node:events";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Pool } from "pg";
+import { Client, Pool } from "pg";
 import {
 	buildDatabasePoolConfig,
 	observePoolQueries,
 	readDatabaseRuntimeGuardExpectations,
-	verifyDatabaseRoleTimeouts,
+	verifyDatabaseRoleTimeoutSamples,
 } from "./connection-config.js";
 import * as schema from "./schema.js";
 
@@ -80,30 +80,26 @@ export function closeDatabase(): Promise<void> {
 }
 
 export async function verifyDatabaseRuntimeGuards(): Promise<{
+	samplesVerified: number;
 	statementTimeoutMs: number;
 	idleInTransactionTimeoutMs: number;
 } | null> {
 	if (process.env.NODE_ENV !== "production") return null;
 
-	const client = await pool.connect();
-	let verificationError: Error | undefined;
-	try {
-		return await verifyDatabaseRoleTimeouts(
-			async (sql) => {
-				const result = await client.query<Record<string, unknown>>(sql);
-				return { rows: result.rows };
-			},
-			readDatabaseRuntimeGuardExpectations(process.env),
-		);
-	} catch (error) {
-		verificationError =
-			error instanceof Error
-				? error
-				: new Error("Unknown database runtime guard failure.");
-		throw error;
-	} finally {
-		client.release(verificationError);
-	}
+	return verifyDatabaseRoleTimeoutSamples(
+		() => {
+			const client = new Client(poolConfig);
+			return {
+				connect: () => client.connect(),
+				query: async (sql) => {
+					const result = await client.query<Record<string, unknown>>(sql);
+					return { rows: result.rows };
+				},
+				close: () => client.end(),
+			};
+		},
+		readDatabaseRuntimeGuardExpectations(process.env),
+	);
 }
 
 export const db = drizzle(pool, { schema });

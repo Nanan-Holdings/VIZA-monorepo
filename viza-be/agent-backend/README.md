@@ -59,9 +59,11 @@ Notes:
   deployment, the database
   `postgres` role must default `statement_timeout` and
   `idle_in_transaction_session_timeout` to positive values no greater than 30
-  seconds; startup verifies both and refuses readiness otherwise. The matching
-  `DB_STATEMENT_TIMEOUT_MS` and `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` values are
-  maximum expectations, not pooler session settings.
+  seconds; startup verifies both across three concurrent fresh connections,
+  closes the sampling clients, and refuses readiness if any sample differs.
+  The matching `DB_STATEMENT_TIMEOUT_MS` and
+  `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` values are maximum expectations, not
+  pooler session settings.
   `application_name=viza-agent-backend` is sent only as best-effort
   observability metadata and is never used as a security or readiness guard.
 - `NEXT_PUBLIC_SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY` are required for
