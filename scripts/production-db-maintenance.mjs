@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 
 export const PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
 export const APPROVED_MIGRATION_SOURCE_REF = "c4fbff410b958b2ff7e8b2e3f945061a9c33bd4e";
+export const STABLE_SPEED_MIGRATION_SOURCE_REF = "9278267c5440b1727e04cf4bf5e5b72128457a1d";
 export const SUPABASE_PRODUCTION_CA_URL =
   "https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt";
 export const SUPABASE_PRODUCTION_CA_SHA256 =
@@ -25,12 +26,27 @@ export const APPROVED_MIGRATIONS = [
     sha256: "146406a8238b036d900b0d976eb4c8405534742d54831d8514fc6f82cf5f760c",
   },
 ];
+export const STABLE_SPEED_MIGRATION = {
+  version: "20260820152526",
+  name: "concurrency_stable_speed",
+  path: "viza-fe/internal-website/supabase/migrations/20260820152526_concurrency_stable_speed.sql",
+  sha256: "83e981efc32257a266ebebd3d744605afb1ecd43a01ebbd5efe6dcc30a4da841",
+};
 
 const TAIWAN_CAP = {
   country: "taiwan",
   max_concurrent: 1,
   notes: "Shared pool: Taiwan entry-permit applicant handoff",
 };
+
+const STABLE_SPEED_CAPS = new Map([
+  ["malaysia", 2],
+  ["singapore", 1],
+  ["south_korea", 1],
+  ["taiwan", 1],
+  ["thailand", 2],
+  ["vietnam", 2],
+]);
 
 export const EXPECTED_CAP_SNAPSHOT = [
   {
@@ -187,6 +203,43 @@ SELECT jsonb_build_object(
       WHERE table_schema = 'public'
         AND table_name = 'official_status_checks'
         AND column_name = 'lease_generation'
+    ),
+    'stable_slot_renew_rpc', to_regprocedure(
+      'public.renew_runner_machine_slot(text,text,integer)'
+    ) IS NOT NULL,
+    'stable_pool_health_view', to_regclass(
+      'public.runner_pool_concurrency_health'
+    ) IS NOT NULL,
+    'stable_slot_health_view', to_regclass(
+      'public.runner_slot_capacity_health'
+    ) IS NOT NULL,
+    'stable_metric_table', to_regclass(
+      'public.runner_concurrency_metric'
+    ) IS NOT NULL,
+    'stable_acl_ok', COALESCE(
+      has_function_privilege(
+        'service_role',
+        to_regprocedure('public.renew_runner_machine_slot(text,text,integer)'),
+        'EXECUTE'
+      )
+      AND NOT has_function_privilege(
+        'anon',
+        to_regprocedure('public.renew_runner_machine_slot(text,text,integer)'),
+        'EXECUTE'
+      )
+      AND has_table_privilege(
+        'service_role', to_regclass('public.runner_pool_concurrency_health'), 'SELECT'
+      )
+      AND has_table_privilege(
+        'service_role', to_regclass('public.runner_slot_capacity_health'), 'SELECT'
+      )
+      AND has_table_privilege(
+        'service_role', to_regclass('public.runner_concurrency_metric'), 'SELECT,INSERT'
+      )
+      AND NOT has_table_privilege(
+        'anon', to_regclass('public.runner_concurrency_metric'), 'SELECT,INSERT'
+      ),
+      FALSE
     )
   )
 ) AS maintenance_state
@@ -652,6 +705,74 @@ function assertApplyPostconditions(payload) {
   }
 }
 
+function assertStableSpeedPreconditions(payload) {
+  const state = maintenanceState(payload);
+  if (
+    state.strict_objects?.runner_private_schema !== true ||
+    state.strict_objects?.load_claim_rpc !== true ||
+    state.strict_objects?.vn_generation_claim_rpc !== true ||
+    state.strict_objects?.vn_lease_generation_column !== true
+  ) {
+    throw new Error("Strict production database baseline is incomplete");
+  }
+  if (
+    state.strict_objects?.stable_slot_renew_rpc !== false ||
+    state.strict_objects?.stable_pool_health_view !== false ||
+    state.strict_objects?.stable_slot_health_view !== false ||
+    state.strict_objects?.stable_metric_table !== false
+  ) {
+    throw new Error("Stable-speed database objects are already present or ambiguous");
+  }
+
+  const caps = Array.isArray(state.caps) ? state.caps : [];
+  if (
+    caps.length !== STABLE_SPEED_CAPS.size ||
+    caps.some((cap) =>
+      STABLE_SPEED_CAPS.get(cap.country) !== cap.max_concurrent || cap.paused !== false)
+  ) {
+    throw new Error("Production runner caps are not the approved active topology");
+  }
+
+  const versions = new Set(
+    (Array.isArray(state.recent_migrations) ? state.recent_migrations : []).map(
+      (migration) => migration.version,
+    ),
+  );
+  for (const migration of APPROVED_MIGRATIONS) {
+    if (!versions.has(migration.version)) {
+      throw new Error(`Required baseline migration ${migration.version} is missing`);
+    }
+  }
+  if (versions.has(STABLE_SPEED_MIGRATION.version)) {
+    throw new Error(`Migration ${STABLE_SPEED_MIGRATION.version} is already recorded`);
+  }
+  return JSON.stringify(caps);
+}
+
+function assertStableSpeedPostconditions(payload, capSnapshot) {
+  const state = maintenanceState(payload);
+  if (
+    state.strict_objects?.stable_slot_renew_rpc !== true ||
+    state.strict_objects?.stable_pool_health_view !== true ||
+    state.strict_objects?.stable_slot_health_view !== true ||
+    state.strict_objects?.stable_metric_table !== true ||
+    state.strict_objects?.stable_acl_ok !== true
+  ) {
+    throw new Error("Stable-speed database objects or privileges are incomplete after migration");
+  }
+  if (JSON.stringify(Array.isArray(state.caps) ? state.caps : []) !== capSnapshot) {
+    throw new Error("Production runner caps changed during stable-speed migration");
+  }
+  const versions = new Set(
+    (Array.isArray(state.recent_migrations) ? state.recent_migrations : []).map(
+      (migration) => migration.version,
+    ),
+  );
+  if (!versions.has(STABLE_SPEED_MIGRATION.version)) {
+    throw new Error(`Migration ${STABLE_SPEED_MIGRATION.version} was not recorded`);
+  }
+}
+
 function sqlLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
@@ -712,6 +833,44 @@ export function loadApprovedMigrationBatch({
     `    WHERE version IN ('20260816160000','20260816161000')\n` +
     `  )\n` +
     `) AS maintenance_apply_state;`;
+}
+
+export function loadStableSpeedMigrationBatch({
+  sourceRoot,
+  readFile = readFileSync,
+  hash = (buffer) => createHash("sha256").update(buffer).digest("hex"),
+} = {}) {
+  if (!sourceRoot) throw new Error("MIGRATION_SOURCE_ROOT is required");
+  const filePath = path.resolve(sourceRoot, STABLE_SPEED_MIGRATION.path);
+  const bytes = readFile(filePath);
+  const actualHash = hash(bytes);
+  if (actualHash !== STABLE_SPEED_MIGRATION.sha256) {
+    throw new Error(`Migration ${STABLE_SPEED_MIGRATION.version} hash mismatch`);
+  }
+  const sql = Buffer.from(bytes).toString("utf8");
+  return `SET SESSION ROLE postgres;\nBEGIN;\n` +
+    `SET LOCAL lock_timeout = '5s';\n` +
+    `SET LOCAL statement_timeout = '120s';\n` +
+    `SELECT pg_catalog.pg_advisory_xact_lock(` +
+      `pg_catalog.hashtextextended('viza:production-controlled-cutover', 0)` +
+    `);\n` +
+    `-- BEGIN APPROVED MIGRATION ${STABLE_SPEED_MIGRATION.version}\n${sql}\n` +
+    `-- END APPROVED MIGRATION ${STABLE_SPEED_MIGRATION.version}\n` +
+    `INSERT INTO supabase_migrations.schema_migrations (version, statements, name)\n` +
+    `VALUES (${sqlLiteral(STABLE_SPEED_MIGRATION.version)}, ` +
+      `ARRAY[${sqlLiteral(`sha256:${STABLE_SPEED_MIGRATION.sha256}`)}]::TEXT[], ` +
+      `${sqlLiteral(STABLE_SPEED_MIGRATION.name)});\n` +
+    `COMMIT;\n` +
+    `SELECT jsonb_build_object(\n` +
+    `  'renew_rpc', pg_catalog.to_regprocedure(` +
+      `'public.renew_runner_machine_slot(text,text,integer)'` +
+    `) IS NOT NULL,\n` +
+    `  'metric_table', pg_catalog.to_regclass(` +
+      `'public.runner_concurrency_metric'` +
+    `) IS NOT NULL,\n` +
+    `  'version', (SELECT version FROM supabase_migrations.schema_migrations ` +
+      `WHERE version = ${sqlLiteral(STABLE_SPEED_MIGRATION.version)})\n` +
+    `) AS stable_speed_apply_state;`;
 }
 
 function managementApiUrl(projectRef, suffix) {
@@ -1107,6 +1266,99 @@ export async function runApply({
   return postflight;
 }
 
+export async function runStableSpeedApply({
+  env = process.env,
+  fetchImpl = fetch,
+  readFile = readFileSync,
+  hash,
+  executeMigration = executePsqlMigration,
+  downloadCa = downloadSupabaseProductionCa,
+} = {}) {
+  const sourceRef = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_SOURCE_REF");
+  const sourceRoot = requiredEnv(env, "MIGRATION_SOURCE_ROOT");
+  const confirm = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_CONFIRM");
+  if (sourceRef !== STABLE_SPEED_MIGRATION_SOURCE_REF) {
+    throw new Error("Stable-speed migration source ref is not approved");
+  }
+  if (confirm !== `${PRODUCTION_PROJECT_REF}:apply-stable-speed:${sourceRef}`) {
+    throw new Error("PRODUCTION_DB_MAINTENANCE_CONFIRM does not authorize apply-stable-speed");
+  }
+
+  const preflight = await runPreflight({
+    env: {
+      ...env,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:preflight`,
+    },
+    fetchImpl,
+  });
+  const capSnapshot = assertStableSpeedPreconditions(preflight);
+  const query = loadStableSpeedMigrationBatch({ sourceRoot, readFile, hash });
+  const caCertificate = await downloadCa({ fetchImpl });
+  const token = requiredEnv(env, "SUPABASE_ACCESS_TOKEN");
+  const projectRef = requiredEnv(env, "SUPABASE_PROJECT_REF");
+  let applyError;
+  let temporaryRole;
+  let loginRoleCreated = false;
+  try {
+    const temporaryRolePayload = await managementJsonRequest({
+      token,
+      projectRef,
+      suffix: "/cli/login-role",
+      method: "POST",
+      body: { read_only: false },
+      fetchImpl,
+    });
+    loginRoleCreated = true;
+    temporaryRole = parseTemporaryRole(temporaryRolePayload);
+    const pooler = parsePrimarySessionPooler(
+      await managementJsonRequest({
+        token,
+        projectRef,
+        suffix: "/config/database/pooler",
+        method: "GET",
+        fetchImpl,
+      }),
+      projectRef,
+    );
+    await executeMigration({
+      query,
+      projectRef,
+      ...temporaryRole,
+      pooler,
+      caCertificate,
+    });
+  } catch (error) {
+    applyError = error;
+  }
+
+  let cleanupError;
+  if (loginRoleCreated) {
+    try {
+      await revokeTemporaryRole({ token, projectRef, fetchImpl });
+    } catch (error) {
+      cleanupError = error;
+    }
+  }
+  if (applyError && cleanupError) {
+    throw new AggregateError(
+      [applyError, cleanupError],
+      "Stable-speed migration failed and temporary database access cleanup also failed",
+    );
+  }
+  if (applyError) throw applyError;
+  if (cleanupError) throw cleanupError;
+
+  const postflight = await runPreflight({
+    env: {
+      ...env,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:preflight`,
+    },
+    fetchImpl,
+  });
+  assertStableSpeedPostconditions(postflight, capSnapshot);
+  return postflight;
+}
+
 async function main() {
   const action = process.env.PRODUCTION_DB_MAINTENANCE_ACTION?.trim() || "preflight";
   const payload =
@@ -1118,6 +1370,8 @@ async function main() {
           ? await runResume()
         : action === "apply"
           ? await runApply()
+        : action === "apply-stable-speed"
+          ? await runStableSpeedApply()
         : (() => {
             throw new Error(`Unsupported production database maintenance action: ${action}`);
           })();

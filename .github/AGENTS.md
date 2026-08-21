@@ -36,3 +36,8 @@ scheduled recovery workflows.
   eTA official-source baselines every Monday. Drift only opens or updates a
   GitHub review issue; it must never rewrite the manifest, rules, seeds, or
   runner selectors automatically.
+- `production-db-maintenance.yml`'s `apply-stable-speed` action is a separate
+  online expand-only action pinned to one
+  reviewed migration commit and SHA-256; it preserves the active six-country
+  cap snapshot and installs only the exact-owner renew RPC, health views, and
+  service-role-only metric table.

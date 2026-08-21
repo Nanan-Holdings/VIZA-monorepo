@@ -85,4 +85,8 @@ smoke-test helpers for the VIZA monorepo.
   `20260816160000` and `20260816161000`, rechecks the drained pause state, and
   records both migrations atomically with the schema changes. Resume requires
   those ledger versions and strict objects, zero live work, six exact paused
-  caps, and no status cron before atomically restoring the caps and cron.
+  caps, and no status cron before atomically restoring the caps and cron. The
+  separate `apply-stable-speed` path is pinned to the reviewed additive
+  concurrency migration, verifies the active six-country cap topology before
+  and after, and installs the renewal/health/metric objects without pausing or
+  mutating jobs, caps, slots, or cron.
