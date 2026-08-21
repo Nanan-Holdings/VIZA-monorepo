@@ -38,6 +38,11 @@ function assertHistoricalManifestImmutable(manifest, baseManifest) {
   ) {
     throw new Error("Historical duplicate allowlist is immutable");
   }
+  if (baseManifest.historical_duplicate_supabase_versions !== undefined &&
+      stableJson(manifest.historical_duplicate_supabase_versions) !==
+      stableJson(baseManifest.historical_duplicate_supabase_versions)) {
+    throw new Error("Historical Supabase version allowlist is immutable");
+  }
 
   for (const key of ["migration_pairs", "no_mirror"]) {
     const current = new Set((manifest[key] ?? []).map(stableJson));
@@ -46,6 +51,35 @@ function assertHistoricalManifestImmutable(manifest, baseManifest) {
       throw new Error(`Previously approved ${key} entries are immutable`);
     }
   }
+}
+
+function assertExactHistoricalSupabaseVersions(currentFiles, manifest) {
+  const groups = new Map();
+  for (const filePath of currentFiles) {
+    if (!filePath.startsWith(`${SUPABASE_MIGRATION_ROOT}/`)) continue;
+    const fileName = path.posix.basename(filePath);
+    const match = /^(\d+)_/u.exec(fileName);
+    if (!match) throw new Error(`Invalid Supabase migration filename: ${fileName}`);
+    const names = groups.get(match[1]) ?? [];
+    names.push(fileName);
+    groups.set(match[1], names);
+  }
+  const allowlist = manifest.historical_duplicate_supabase_versions ?? {};
+  for (const [version, names] of groups) {
+    if (names.length <= 1) continue;
+    const actual = [...names].sort();
+    const expected = Array.isArray(allowlist[version]) ? [...allowlist[version]].sort() : [];
+    if (stableJson(actual) !== stableJson(expected)) {
+      throw new Error(`Duplicate Supabase migration version ${version}`);
+    }
+  }
+  for (const [version, expectedNames] of Object.entries(allowlist)) {
+    const actual = [...(groups.get(version) ?? [])].sort();
+    if (stableJson(actual) !== stableJson([...expectedNames].sort())) {
+      throw new Error(`Historical Supabase version ${version} no longer matches its allowlist`);
+    }
+  }
+  return Object.keys(allowlist).length;
 }
 
 function assertExactHistoricalDuplicates(currentFiles, manifest) {
@@ -84,47 +118,131 @@ function escapedRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
+function maskSqlLiteralsAndComments(sql) {
+  let result = "";
+  for (let index = 0; index < sql.length;) {
+    if (sql.startsWith("--", index)) {
+      const end = sql.indexOf("\n", index + 2);
+      const stop = end === -1 ? sql.length : end;
+      result += " ".repeat(stop - index);
+      index = stop;
+      continue;
+    }
+    if (sql.startsWith("/*", index)) {
+      const end = sql.indexOf("*/", index + 2);
+      const stop = end === -1 ? sql.length : end + 2;
+      result += " ".repeat(stop - index);
+      index = stop;
+      continue;
+    }
+    if (sql[index] === "'") {
+      if (sql[index + 1] === "'") {
+        result += "''";
+        index += 2;
+        continue;
+      }
+      let stop = index + 1;
+      while (stop < sql.length) {
+        if (sql[stop] === "'" && sql[stop + 1] === "'") {
+          stop += 2;
+        } else if (sql[stop] === "'") {
+          stop += 1;
+          break;
+        } else {
+          stop += 1;
+        }
+      }
+      result += " ".repeat(stop - index);
+      index = stop;
+      continue;
+    }
+    if (sql[index] === "$") {
+      const delimiter = /^\$[a-z_][a-z0-9_]*\$|^\$\$/iu.exec(sql.slice(index))?.[0];
+      if (delimiter) {
+        const end = sql.indexOf(delimiter, index + delimiter.length);
+        const stop = end === -1 ? sql.length : end + delimiter.length;
+        result += " ".repeat(stop - index);
+        index = stop;
+        continue;
+      }
+    }
+    result += sql[index];
+    index += 1;
+  }
+  return result;
+}
+
+const SQL_IDENTIFIER = '(?:"(?:[^"]|"")*"|[a-z_][a-z0-9_$]*)';
+
+function decodedIdentifier(value) {
+  return value.startsWith('"') ? value.slice(1, -1).replaceAll('""', '"') : value;
+}
+
+function identifierPattern(value) {
+  return value.startsWith('"')
+    ? escapedRegExp(value)
+    : `(?:${escapedRegExp(value)}|"${escapedRegExp(value)}")`;
+}
+
 function assertSecureNewPublicObjects(sql, filePath) {
-  const tablePattern = /\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?public\.("?[a-z_][a-z0-9_]*"?)/giu;
-  for (const match of sql.matchAll(tablePattern)) {
-    const table = match[1];
-    const qualified = `public\\.${escapedRegExp(table)}`;
+  const structuralSql = maskSqlLiteralsAndComments(sql);
+  const tablePattern = new RegExp(
+    `\\bCREATE\\s+(?:UNLOGGED\\s+)?TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?` +
+    `(${SQL_IDENTIFIER})\\s*\\.\\s*(${SQL_IDENTIFIER})`,
+    "giu",
+  );
+  for (const match of structuralSql.matchAll(tablePattern)) {
+    const schema = decodedIdentifier(match[1]);
+    const table = decodedIdentifier(match[2]);
+    if (schema.toLowerCase() !== "public") continue;
+    const qualified = `${identifierPattern(match[1])}\\s*\\.\\s*${identifierPattern(match[2])}`;
     const rlsPattern = new RegExp(
       `\\bALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?${qualified}\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY\\b`,
       "iu",
     );
-    if (!rlsPattern.test(sql)) {
+    if (!rlsPattern.test(structuralSql)) {
       throw new Error(`${filePath}: public.${table} must enable RLS in the same migration`);
     }
     const aclPattern = new RegExp(
       `\\b(?:GRANT|REVOKE)\\b[\\s\\S]*?\\bON\\s+(?:TABLE\\s+)?${qualified}\\b`,
       "iu",
     );
-    if (!aclPattern.test(sql)) {
+    if (!aclPattern.test(structuralSql)) {
       throw new Error(`${filePath}: public.${table} must declare an explicit ACL in the same migration`);
     }
   }
 
-  const functionStarts = [...sql.matchAll(
-    /\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.[a-z_][a-z0-9_]*\s*\(/giu,
-  )];
+  const routinePattern = new RegExp(
+    `\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:FUNCTION|PROCEDURE)\\s+` +
+    `${SQL_IDENTIFIER}\\s*\\.\\s*${SQL_IDENTIFIER}\\s*\\(`,
+    "giu",
+  );
+  const functionStarts = [...structuralSql.matchAll(routinePattern)];
   for (let index = 0; index < functionStarts.length; index += 1) {
     const start = functionStarts[index].index;
-    const end = functionStarts[index + 1]?.index ?? sql.length;
-    const definition = sql.slice(start, end);
+    const end = functionStarts[index + 1]?.index ?? structuralSql.length;
+    const definition = structuralSql.slice(start, end);
     if (/\bSECURITY\s+DEFINER\b/iu.test(definition) &&
-        !/\bSET\s+search_path\s*(?:=|TO)\s*''\s*(?:\r?\n|AS\b|LANGUAGE\b)/iu.test(definition)) {
+        !/\bSET\s+search_path\s*(?:=|TO)\s*''\s*(?:\r?\n|AS\b|LANGUAGE\b)/iu.test(
+          definition,
+        )) {
       throw new Error(`${filePath}: SECURITY DEFINER functions require an empty search_path`);
     }
   }
 
-  const viewPattern = /\bCREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+public\.("?[a-z_][a-z0-9_]*"?)/giu;
-  for (const match of sql.matchAll(viewPattern)) {
-    const definition = sql.slice(match.index, sql.indexOf(";", match.index) === -1
-      ? sql.length
-      : sql.indexOf(";", match.index) + 1);
+  const viewPattern = new RegExp(
+    `\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?VIEW\\s+` +
+    `(${SQL_IDENTIFIER})\\s*\\.\\s*(${SQL_IDENTIFIER})`,
+    "giu",
+  );
+  for (const match of structuralSql.matchAll(viewPattern)) {
+    const definition = structuralSql.slice(match.index, structuralSql.indexOf(";", match.index) === -1
+      ? structuralSql.length
+      : structuralSql.indexOf(";", match.index) + 1);
     if (!/\bWITH\s*\([^)]*\bsecurity_invoker\s*=\s*true\b[^)]*\)/iu.test(definition)) {
-      throw new Error(`${filePath}: public.${match[1]} views require security_invoker = true`);
+      throw new Error(
+        `${filePath}: ${decodedIdentifier(match[1])}.${decodedIdentifier(match[2])} views require security_invoker = true`,
+      );
     }
   }
 }
@@ -161,6 +279,10 @@ export function validateMigrationGovernance({
   const normalizedFiles = currentFiles.map(normalizePath).filter(isMigrationPath);
   const currentFileSet = new Set(normalizedFiles);
   const historicalDuplicateGroups = assertExactHistoricalDuplicates(normalizedFiles, manifest);
+  const historicalSupabaseDuplicateVersions = assertExactHistoricalSupabaseVersions(
+    normalizedFiles,
+    manifest,
+  );
 
   const migrationChanges = changes
     .map((change) => ({ ...change, path: normalizePath(change.path) }))
@@ -172,6 +294,12 @@ export function validateMigrationGovernance({
     );
   }
   const added = migrationChanges.filter((change) => change.status === "A").map((change) => change.path);
+  for (const filePath of added) {
+    if (filePath.startsWith(`${SUPABASE_MIGRATION_ROOT}/`) &&
+        !/^\d{14}_[a-zA-Z0-9][a-zA-Z0-9_.-]*\.sql$/u.test(path.posix.basename(filePath))) {
+      throw new Error(`New Supabase migration requires a unique 14-digit timestamp: ${filePath}`);
+    }
+  }
   const classifications = new Map(added.map((filePath) => [filePath, 0]));
 
   const pairs = manifest.migration_pairs ?? [];
@@ -212,6 +340,7 @@ export function validateMigrationGovernance({
 
   return {
     historical_duplicate_groups: historicalDuplicateGroups,
+    historical_supabase_duplicate_versions: historicalSupabaseDuplicateVersions,
     added_migrations: added.length,
     migration_pairs: pairs.length,
     no_mirror: noMirror.length,

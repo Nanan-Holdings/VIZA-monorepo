@@ -44,6 +44,7 @@ function fixture(overrides = {}) {
           "0012_vn_e_visa_package.sql",
         ],
       },
+      historical_duplicate_supabase_versions: {},
       migration_pairs: [{
         drizzle: drizzlePath,
         supabase: supabasePath,
@@ -59,6 +60,7 @@ function fixture(overrides = {}) {
           "0012_vn_e_visa_package.sql",
         ],
       },
+      historical_duplicate_supabase_versions: {},
       migration_pairs: [],
       no_mirror: [],
     },
@@ -89,6 +91,7 @@ test("accepts an exact new mirror pair with secure public objects", () => {
   const result = validateMigrationGovernance(fixture());
   assert.deepEqual(result, {
     historical_duplicate_groups: 1,
+    historical_supabase_duplicate_versions: 0,
     added_migrations: 2,
     migration_pairs: 1,
     no_mirror: 0,
@@ -188,5 +191,66 @@ test("requires empty search_path for SECURITY DEFINER and security_invoker views
   assert.throws(
     () => validateMigrationGovernance(view),
     /public\.unsafe_view.*security_invoker/u,
+  );
+});
+
+test("comments, quoted identifiers, UNLOGGED tables, and non-public definer routines cannot bypass guards", () => {
+  const quotedTable = fixture({
+    readFile: () => Buffer.from(
+      'CREATE/* hidden */UNLOGGED TABLE "public"."unsafe_records" (id uuid);',
+    ),
+  });
+  assert.throws(
+    () => validateMigrationGovernance(quotedTable),
+    /unsafe_records.*enable RLS/u,
+  );
+
+  const definerProcedure = fixture({
+    readFile: () => Buffer.from(`
+      CREATE PROCEDURE "private"."unsafe"()
+      LANGUAGE plpgsql SECURITY/* hidden */DEFINER
+      AS $$ BEGIN NULL; END; $$;
+    `),
+  });
+  assert.throws(
+    () => validateMigrationGovernance(definerProcedure),
+    /SECURITY DEFINER.*empty search_path/u,
+  );
+
+  const quotedView = fixture({
+    readFile: () => Buffer.from('CREATE VIEW "public"."unsafe_view" AS SELECT 1 AS value;'),
+  });
+  assert.throws(
+    () => validateMigrationGovernance(quotedView),
+    /unsafe_view.*security_invoker/u,
+  );
+});
+
+test("new Supabase migrations require a unique 14-digit timestamp", () => {
+  const input = fixture();
+  const duplicate = `${supabaseRoot}/20260822000000_second.sql`;
+  input.currentFiles.push(duplicate);
+  input.changes.push({ status: "A", path: duplicate });
+  input.manifest.no_mirror.push({
+    path: duplicate,
+    sha256: sameHash,
+    reason: "Supabase-only test migration",
+  });
+  assert.throws(
+    () => validateMigrationGovernance(input),
+    /Duplicate Supabase migration version 20260822000000/u,
+  );
+
+  const shortVersion = fixture();
+  const original = shortVersion.manifest.migration_pairs[0].supabase;
+  const replacement = `${supabaseRoot}/20260822_short.sql`;
+  shortVersion.currentFiles = shortVersion.currentFiles.map((filePath) =>
+    filePath === original ? replacement : filePath);
+  shortVersion.changes = shortVersion.changes.map((change) =>
+    change.path === original ? { ...change, path: replacement } : change);
+  shortVersion.manifest.migration_pairs[0].supabase = replacement;
+  assert.throws(
+    () => validateMigrationGovernance(shortVersion),
+    /14-digit timestamp/u,
   );
 });

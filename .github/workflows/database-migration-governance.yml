@@ -6,8 +6,11 @@ on:
       - viza-be/agent-backend/drizzle/**
       - viza-fe/internal-website/supabase/migrations/**
       - scripts/database-migration-governance.mjs
+      - scripts/production-db-maintenance.mjs
       - scripts/database-architecture/migration-governance.json
+      - scripts/database-architecture/approved-migration-batches.json
       - scripts/__tests__/database-migration-governance.test.mjs
+      - scripts/__tests__/production-db-maintenance.test.mjs
       - .github/workflows/database-migration-governance.yml
 
 permissions:
