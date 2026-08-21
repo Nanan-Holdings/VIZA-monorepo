@@ -11,6 +11,13 @@ const poolMocks = vi.hoisted(() => ({
 	} | null,
 }));
 
+const clientMocks = vi.hoisted(() => ({
+	connect: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+	query: vi.fn().mockResolvedValue({ rows: [] }),
+	end: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+	instances: 0,
+}));
+
 vi.mock("pg", async () => {
 	const { EventEmitter: MockEventEmitter } = await import("node:events");
 	class MockPool extends MockEventEmitter {
@@ -25,7 +32,16 @@ vi.mock("pg", async () => {
 			poolMocks.instance = this;
 		}
 	}
-	return { Pool: MockPool };
+	class MockClient {
+		constructor() {
+			clientMocks.instances += 1;
+		}
+
+		connect = clientMocks.connect;
+		query = clientMocks.query;
+		end = clientMocks.end;
+	}
+	return { Client: MockClient, Pool: MockPool };
 });
 
 vi.mock("drizzle-orm/node-postgres", () => ({
@@ -88,6 +104,42 @@ describe("database pool lifecycle", () => {
 			"contains-sensitive-detail",
 		);
 		consoleError.mockRestore();
+	});
+
+	it("verifies role defaults through exactly three fresh production clients", async () => {
+		process.env.NODE_ENV = "production";
+		process.env.DATABASE_URL =
+			"postgresql://postgres.oyjxdzsoejraedqghndi:secret@aws-1-ap-south-1.pooler.supabase.com:6543/postgres";
+		clientMocks.instances = 0;
+		clientMocks.connect.mockClear();
+		clientMocks.end.mockClear();
+		clientMocks.query.mockReset().mockImplementation(async (sql: string) => {
+			if (sql === "SHOW statement_timeout") {
+				return { rows: [{ statement_timeout: "30s" }] };
+			}
+			if (sql === "SHOW idle_in_transaction_session_timeout") {
+				return { rows: [{ idle_in_transaction_session_timeout: "30s" }] };
+			}
+			return { rows: [] };
+		});
+		vi.resetModules();
+
+		try {
+			const database = await import("./index.js");
+			await expect(database.verifyDatabaseRuntimeGuards()).resolves.toEqual({
+				samplesVerified: 3,
+				statementTimeoutMs: 30_000,
+				idleInTransactionTimeoutMs: 30_000,
+			});
+			expect(clientMocks.instances).toBe(3);
+			expect(clientMocks.connect).toHaveBeenCalledTimes(3);
+			expect(clientMocks.end).toHaveBeenCalledTimes(3);
+		} finally {
+			process.env.NODE_ENV = "test";
+			process.env.DATABASE_URL =
+				"postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+			vi.resetModules();
+		}
 	});
 });
 

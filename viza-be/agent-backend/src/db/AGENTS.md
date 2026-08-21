@@ -92,10 +92,11 @@ Supabase service-role client setup for the agent backend.
 - Supabase transaction pooling cannot rely on startup/session parameters.
   Before a production deploy, the database `postgres` role must have positive
   `statement_timeout` and `idle_in_transaction_session_timeout` defaults no
-  greater than 30 seconds. Startup verifies both with `SHOW` in one explicit
-  read-only transaction and refuses to become ready when either is absent or
-  too lax. Do not substitute node-postgres `query_timeout`: it does not cancel
-  the server-side query.
+  greater than 30 seconds. Startup opens three fresh clients concurrently,
+  verifies both values with `SHOW` inside an explicit read-only transaction on
+  every client, closes all three, and refuses to become ready when any sample
+  is absent or too lax. Do not substitute node-postgres `query_timeout`: it
+  does not cancel the server-side query.
 - The pool sends `application_name=viza-agent-backend` as best-effort
   observability metadata only. Transaction-pooler behavior means it must not be
   used as a security, timeout, or readiness guarantee.

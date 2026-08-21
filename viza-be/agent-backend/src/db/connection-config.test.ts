@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	buildDatabasePoolConfig,
 	createSafeQueryTelemetry,
+	DATABASE_RUNTIME_GUARD_SAMPLE_COUNT,
 	describeParameterTypes,
 	fingerprintSql,
 	loadPinnedSupabaseCa,
@@ -10,6 +11,7 @@ import {
 	readDatabaseRuntimeGuardExpectations,
 	SUPABASE_PRODUCTION_CA_SHA256,
 	verifyDatabaseRoleTimeouts,
+	verifyDatabaseRoleTimeoutSamples,
 } from "./connection-config.js";
 
 const INVALID_CA = "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----\n";
@@ -119,6 +121,76 @@ describe("database connection configuration", () => {
 });
 
 describe("database role timeout guards", () => {
+	it("samples exactly three fresh clients and closes every client", async () => {
+		const clients = Array.from({ length: 3 }, () => ({
+			connect: vi.fn(async () => undefined),
+			query: vi.fn(async (sql: string) => {
+				if (sql === "SHOW statement_timeout") {
+					return { rows: [{ statement_timeout: "30s" }] };
+				}
+				if (sql === "SHOW idle_in_transaction_session_timeout") {
+					return { rows: [{ idle_in_transaction_session_timeout: "30s" }] };
+				}
+				return { rows: [] };
+			}),
+			close: vi.fn(async () => undefined),
+		}));
+		let nextClient = 0;
+
+		await expect(
+			verifyDatabaseRoleTimeoutSamples(
+				() => clients[nextClient++],
+				{
+					maximumStatementTimeoutMs: 30_000,
+					maximumIdleInTransactionTimeoutMs: 30_000,
+				},
+			),
+		).resolves.toEqual({
+			samplesVerified: 3,
+			statementTimeoutMs: 30_000,
+			idleInTransactionTimeoutMs: 30_000,
+		});
+		expect(DATABASE_RUNTIME_GUARD_SAMPLE_COUNT).toBe(3);
+		expect(clients.every(({ connect }) => connect.mock.calls.length === 1)).toBe(true);
+		expect(clients.every(({ close }) => close.mock.calls.length === 1)).toBe(true);
+		expect(
+			clients.every(({ query }) =>
+				query.mock.calls.map(([sql]) => sql).join(",") ===
+				"BEGIN READ ONLY,SHOW statement_timeout,SHOW idle_in_transaction_session_timeout,ROLLBACK"),
+		).toBe(true);
+	});
+
+	it("closes every fresh client when one sample fails closed", async () => {
+		const clients = Array.from({ length: 3 }, (_, index) => ({
+			connect: vi.fn(async () => undefined),
+			query: vi.fn(async (sql: string) => {
+				if (sql === "SHOW statement_timeout") {
+					return { rows: [{ statement_timeout: index === 1 ? "0" : "30s" }] };
+				}
+				if (sql === "SHOW idle_in_transaction_session_timeout") {
+					return { rows: [{ idle_in_transaction_session_timeout: "30s" }] };
+				}
+				return { rows: [] };
+			}),
+			close: vi.fn(async () => undefined),
+		}));
+		let nextClient = 0;
+
+		await expect(
+			verifyDatabaseRoleTimeoutSamples(
+				() => clients[nextClient++],
+				{
+					maximumStatementTimeoutMs: 30_000,
+					maximumIdleInTransactionTimeoutMs: 30_000,
+				},
+			),
+		).rejects.toThrow(/database role timeout/i);
+		expect(clients.every(({ close }) => close.mock.calls.length === 1)).toBe(true);
+		expect(clients.every(({ query }) => query.mock.calls.at(-1)?.[0] === "ROLLBACK")).toBe(
+			true,
+		);
+	});
+
 	it("verifies fail-closed role defaults inside one read-only transaction", async () => {
 		const query = vi.fn(async (sql: string) => {
 			if (sql === "SHOW statement_timeout") {

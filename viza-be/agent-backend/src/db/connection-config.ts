@@ -74,6 +74,18 @@ export interface DatabaseRuntimeGuardResult {
 	idleInTransactionTimeoutMs: number;
 }
 
+export interface DatabaseRuntimeGuardSampleResult extends DatabaseRuntimeGuardResult {
+	samplesVerified: number;
+}
+
+export interface DatabaseRuntimeGuardClient {
+	connect(): Promise<void>;
+	query(sql: string): Promise<{ rows: Record<string, unknown>[] }>;
+	close(): Promise<void>;
+}
+
+export const DATABASE_RUNTIME_GUARD_SAMPLE_COUNT = 3;
+
 interface QueryTarget {
 	query: unknown;
 }
@@ -328,6 +340,84 @@ export async function verifyDatabaseRoleTimeouts(
 	} finally {
 		await query("ROLLBACK");
 	}
+}
+
+function normalizeRuntimeGuardError(error: unknown): Error {
+	return error instanceof Error
+		? error
+		: new Error("Unknown database runtime guard failure.");
+}
+
+export async function verifyDatabaseRoleTimeoutSamples(
+	createClient: () => DatabaseRuntimeGuardClient,
+	expectations: DatabaseRuntimeGuardExpectations,
+): Promise<DatabaseRuntimeGuardSampleResult> {
+	const clients = Array.from(
+		{ length: DATABASE_RUNTIME_GUARD_SAMPLE_COUNT },
+		() => createClient(),
+	);
+	let result: DatabaseRuntimeGuardSampleResult | undefined;
+	let verificationError: Error | undefined;
+
+	try {
+		const connectionResults = await Promise.allSettled(
+			clients.map((client) => client.connect()),
+		);
+		const connectionFailures = connectionResults
+			.filter((connectionResult) => connectionResult.status === "rejected")
+			.map((connectionResult) => normalizeRuntimeGuardError(connectionResult.reason));
+		if (connectionFailures.length > 0) {
+			throw new AggregateError(
+				connectionFailures,
+				"Database runtime guard could not open every required fresh client.",
+			);
+		}
+		const samples = await Promise.all(
+			clients.map((client) =>
+				verifyDatabaseRoleTimeouts(
+					(sql) => client.query(sql),
+					expectations,
+				),
+			),
+		);
+		result = {
+			samplesVerified: samples.length,
+			statementTimeoutMs: Math.max(
+				...samples.map(({ statementTimeoutMs }) => statementTimeoutMs),
+			),
+			idleInTransactionTimeoutMs: Math.max(
+				...samples.map(
+					({ idleInTransactionTimeoutMs }) => idleInTransactionTimeoutMs,
+				),
+			),
+		};
+	} catch (error) {
+		verificationError = normalizeRuntimeGuardError(error);
+	}
+
+	const closeFailures = (await Promise.allSettled(
+		clients.map((client) => client.close()),
+	))
+		.filter((closeResult) => closeResult.status === "rejected")
+		.map((closeResult) => normalizeRuntimeGuardError(closeResult.reason));
+
+	if (verificationError && closeFailures.length > 0) {
+		throw new AggregateError(
+			[verificationError, ...closeFailures],
+			"Database runtime guard verification and client cleanup failed.",
+		);
+	}
+	if (verificationError) throw verificationError;
+	if (closeFailures.length > 0) {
+		throw new AggregateError(
+			closeFailures,
+			"Database runtime guard client cleanup failed.",
+		);
+	}
+	if (!result || result.samplesVerified !== DATABASE_RUNTIME_GUARD_SAMPLE_COUNT) {
+		throw new Error("Database runtime guard did not verify every required client sample.");
+	}
+	return result;
 }
 
 export function fingerprintSql(query: string): string {
