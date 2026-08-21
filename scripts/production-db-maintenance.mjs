@@ -2610,15 +2610,87 @@ function assertApprovedBatchConditions(state, conditions, phase) {
   }
 }
 
-async function readApprovedBatchState({ env, fetchImpl, batch, expectedConfirm, conditionName }) {
+async function readApprovedBatchState({
+  env,
+  fetchImpl,
+  batch,
+  expectedConfirm,
+  conditionName,
+  action = "apply-approved-batch",
+}) {
   return parseApprovedBatchState(await managementQuery({
     env,
     fetchImpl,
-    action: "apply-approved-batch",
+    action,
     query: buildApprovedBatchStateSql(batch, conditionName),
     readOnly: true,
     expectedConfirm,
   }));
+}
+
+export async function runApprovedBatchVerify({
+  env = process.env,
+  fetchImpl = fetch,
+  manifest,
+} = {}) {
+  const token = requiredEnv(env, "SUPABASE_ACCESS_TOKEN");
+  const projectRef = requiredEnv(env, "SUPABASE_PROJECT_REF");
+  const batchId = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_BATCH_ID");
+  const sourceRef = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_SOURCE_REF");
+  const confirm = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_CONFIRM");
+  if (projectRef !== PRODUCTION_PROJECT_REF) {
+    throw new Error("SUPABASE_PROJECT_REF is not the approved production project");
+  }
+  if (!/^[a-f0-9]{40}$/u.test(sourceRef)) {
+    throw new Error("Approved migration_ref must be a full 40-character commit SHA");
+  }
+  const expectedConfirm =
+    `${PRODUCTION_PROJECT_REF}:verify-approved-batch:${batchId}:${sourceRef}`;
+  if (confirm !== expectedConfirm) {
+    throw new Error("PRODUCTION_DB_MAINTENANCE_CONFIRM does not authorize verify-approved-batch");
+  }
+
+  const approvedManifest = validateApprovedBatchManifest(
+    manifest ?? loadApprovedBatchManifest(),
+  );
+  const matchingBatches = approvedManifest.batches.filter((batch) => batch.batch_id === batchId);
+  if (matchingBatches.length !== 1) {
+    throw new Error(`Migration batch is not uniquely approved in the manifest: ${batchId}`);
+  }
+  const batch = matchingBatches[0];
+  if (sourceRef !== batch.source_ref) {
+    throw new Error(`Migration batch source ref is not approved: ${batchId}`);
+  }
+  assertManagementProjectIdentity(await managementJsonRequest({
+    token,
+    projectRef,
+    suffix: "",
+    method: "GET",
+    fetchImpl,
+  }), projectRef);
+  const postflight = await readApprovedBatchState({
+    env,
+    fetchImpl,
+    batch,
+    expectedConfirm,
+    conditionName: "postconditions",
+    action: "verify-approved-batch",
+  });
+  assertApprovedBatchConditions(postflight, batch.postconditions, "postflight");
+  for (const migration of batch.migrations) {
+    if (!postflight.migration_versions.includes(migration.version)) {
+      throw new Error(`Approved migration ${migration.version} was not recorded`);
+    }
+  }
+  return {
+    schema_version: 1,
+    source: "approved-migration-batch-verification",
+    project_ref: projectRef,
+    batch_id: batch.batch_id,
+    mode: batch.mode,
+    migration_ref: sourceRef,
+    migration_versions: postflight.migration_versions,
+  };
 }
 
 export async function runApprovedBatchApply({
@@ -2775,6 +2847,8 @@ async function main() {
            ? await runStableSpeedApply()
           : action === "apply-approved-batch"
             ? await runApprovedBatchApply()
+            : action === "verify-approved-batch"
+              ? await runApprovedBatchVerify()
         : (() => {
             throw new Error(`Unsupported production database maintenance action: ${action}`);
           })();
