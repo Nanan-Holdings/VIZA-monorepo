@@ -10,7 +10,14 @@ Supabase service-role client setup for the agent backend.
 
 ## Key Files
 
-- `schema.ts`: Drizzle table definitions and inferred TypeScript types.
+- `schema.ts`: Drizzle table definitions and inferred TypeScript types. Entries
+  marked `TYPE-ONLY SCHEMA COMPATIBILITY` intentionally omit identity/per-column
+  DESC details unsupported by Drizzle 0.30; their named SQL migrations remain
+  authoritative and those entries must not drive `db:generate`/`db:push`.
+- `schema-ownership.manifest.json`: candidate ownership inventory separating
+  Drizzle-managed, REST/service-only, and compatibility objects. It must remain
+  `pending-live-reconciliation` until an `architecture-audit` artifact hash is
+  bound; candidate lists must not be described as the live production catalog.
 - `index.ts`: bounded Postgres/Drizzle runtime pool using the Supabase
   transaction-pooler `DATABASE_URL` (three connections per instance by default).
 - `migrate.ts`: migration runner.
@@ -47,6 +54,9 @@ Supabase service-role client setup for the agent backend.
 - `../../drizzle/0150_public_status_tracking.sql`: current service-health
   projection metadata, append-only checks, derived incidents, and redacted
   aggregation/recording RPCs.
+- `../../drizzle/0158_database_access_baseline.sql`: future default-privilege
+  deny baseline, targeted RLS/ACL/view/RPC hardening, and the missing
+  `application_translations` production contract.
 - `../../drizzle/0140_prevent_qa_placeholder_submission.sql`: database-level
   rejection of synthetic QA data in customer applications and live queues.
 - `../../drizzle/0141_block_known_qa_account_sentinel.sql`: follow-up protection

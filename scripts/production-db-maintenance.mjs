@@ -1376,6 +1376,7 @@ function validateCatalogAssertion(assertion) {
   }
   const relationKinds = new Set([
     "relation_exists",
+    "relation_absent",
     "table_absent_or_columns_match",
     "rls_enabled",
     "relation_acl",
@@ -1386,6 +1387,7 @@ function validateCatalogAssertion(assertion) {
     "function_execute_acl",
     "function_empty_search_path",
   ]);
+  const policyKinds = new Set(["policy_absent", "policy_contract"]);
   if (relationKinds.has(assertion.kind) &&
       !APPROVED_RELATION_IDENTITY.test(assertion.identity ?? "")) {
     throw new Error(`Approved batch assertion ${assertion.id} has an invalid relation identity`);
@@ -1393,6 +1395,21 @@ function validateCatalogAssertion(assertion) {
   if (functionKinds.has(assertion.kind) &&
       !APPROVED_FUNCTION_IDENTITY.test(assertion.identity ?? "")) {
     throw new Error(`Approved batch assertion ${assertion.id} has an invalid function identity`);
+  }
+  if (policyKinds.has(assertion.kind)) {
+    if (!APPROVED_RELATION_IDENTITY.test(assertion.identity ?? "") ||
+        !/^[A-Za-z0-9 _-]{1,63}$/u.test(assertion.policy ?? "")) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid policy metadata`);
+    }
+    if (assertion.kind === "policy_contract" &&
+        (!['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'ALL'].includes(assertion.command) ||
+         !Array.isArray(assertion.roles) || assertion.roles.length === 0 ||
+         assertion.roles.some((role) => !APPROVED_ROLES.has(role)) ||
+         typeof assertion.permissive !== "boolean" ||
+         ![assertion.using_sha256, assertion.check_sha256].every((value) =>
+           value === null || /^[a-f0-9]{64}$/u.test(value ?? "")))) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid policy contract`);
+    }
   }
   if (assertion.kind === "table_absent_or_columns_match") {
     if (!Array.isArray(assertion.columns) || assertion.columns.length === 0 ||
@@ -1411,7 +1428,9 @@ function validateCatalogAssertion(assertion) {
     }
     for (const grant of assertion.required) {
       if (!APPROVED_ROLES.has(grant.role) || !Array.isArray(grant.privileges) ||
-          grant.privileges.some((privilege) => !/^[A-Z ]+$/u.test(privilege))) {
+          grant.privileges.length === 0 ||
+          grant.privileges.some((privilege) => !/^[A-Z ]+$/u.test(privilege)) ||
+          (grant.exact !== undefined && typeof grant.exact !== "boolean")) {
         throw new Error(`Approved batch assertion ${assertion.id} has invalid required ACL`);
       }
     }
@@ -1446,7 +1465,8 @@ function validateCatalogAssertion(assertion) {
     }
     return;
   }
-  if (!relationKinds.has(assertion.kind) && !functionKinds.has(assertion.kind)) {
+  if (!relationKinds.has(assertion.kind) && !functionKinds.has(assertion.kind) &&
+      !policyKinds.has(assertion.kind)) {
     throw new Error(`Unsupported approved batch catalog assertion: ${assertion.kind}`);
   }
 }
@@ -2259,10 +2279,16 @@ function approvedRelationAclExpression(assertion) {
   const objectPrivileges = assertion.relation_kind === "sequence"
     ? ["USAGE", "SELECT", "UPDATE"]
     : ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"];
-  const required = assertion.required.flatMap((grant) =>
-    grant.privileges.map((privilege) =>
+  const required = assertion.required.flatMap((grant) => [
+    ...grant.privileges.map((privilege) =>
       `COALESCE(${privilegeFunction}(${sqlLiteral(grant.role)}, ` +
-      `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`));
+      `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`),
+    ...(grant.exact
+      ? objectPrivileges.filter((privilege) => !grant.privileges.includes(privilege)).map((privilege) =>
+        `NOT COALESCE(${privilegeFunction}(${sqlLiteral(grant.role)}, ` +
+        `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`)
+      : []),
+  ]);
   const forbidden = assertion.forbidden_roles.map((role) => {
     if (role === "PUBLIC") {
       const aclDefaultType = assertion.relation_kind === "sequence" ? "S" : "r";
@@ -2342,12 +2368,52 @@ function approvedDefaultAclExpression(assertion) {
     `  )`;
 }
 
+function approvedPolicyExpressionHash(columnName, expectedHash) {
+  if (expectedHash === null) return `secure_policy.${columnName} IS NULL`;
+  return `pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(` +
+    `pg_catalog.regexp_replace(pg_catalog.pg_get_expr(` +
+    `secure_policy.${columnName}, secure_policy.polrelid), '\\s+', '', 'g'), ` +
+    `'UTF8')), 'hex') = ${sqlLiteral(expectedHash)}`;
+}
+
+function approvedPolicyContractExpression(assertion) {
+  const [schemaName, tableName] = assertion.identity.split(".");
+  const commandCode = {
+    SELECT: "r",
+    INSERT: "a",
+    UPDATE: "w",
+    DELETE: "d",
+    ALL: "*",
+  }[assertion.command];
+  const roleOids = assertion.roles.map((role) => role === "PUBLIC"
+    ? "0::oid"
+    : `(SELECT policy_role.oid FROM pg_catalog.pg_roles policy_role ` +
+      `WHERE policy_role.rolname = ${sqlLiteral(role)})`).join(", ");
+  return `EXISTS (\n` +
+    `    SELECT 1\n` +
+    `    FROM pg_catalog.pg_policy secure_policy\n` +
+    `    JOIN pg_catalog.pg_class policy_relation ON policy_relation.oid = secure_policy.polrelid\n` +
+    `    JOIN pg_catalog.pg_namespace policy_schema ON policy_schema.oid = policy_relation.relnamespace\n` +
+    `    WHERE policy_schema.nspname = ${sqlLiteral(schemaName)}\n` +
+    `      AND policy_relation.relname = ${sqlLiteral(tableName)}\n` +
+    `      AND secure_policy.polname = ${sqlLiteral(assertion.policy)}\n` +
+    `      AND secure_policy.polcmd = ${sqlLiteral(commandCode)}::\"char\"\n` +
+    `      AND secure_policy.polpermissive IS ${assertion.permissive ? "TRUE" : "FALSE"}\n` +
+    `      AND ARRAY(SELECT actual_role FROM pg_catalog.unnest(secure_policy.polroles) actual_role ORDER BY actual_role) =\n` +
+    `          ARRAY(SELECT expected_role FROM pg_catalog.unnest(ARRAY[${roleOids}]::oid[]) expected_role ORDER BY expected_role)\n` +
+    `      AND ${approvedPolicyExpressionHash("polqual", assertion.using_sha256)}\n` +
+    `      AND ${approvedPolicyExpressionHash("polwithcheck", assertion.check_sha256)}\n` +
+    `  )`;
+}
+
 function approvedCatalogAssertionExpression(assertion) {
   validateCatalogAssertion(assertion);
   const identity = sqlLiteral(assertion.identity);
   switch (assertion.kind) {
     case "relation_exists":
       return `pg_catalog.to_regclass(${identity}) IS NOT NULL`;
+    case "relation_absent":
+      return `pg_catalog.to_regclass(${identity}) IS NULL`;
     case "function_exists":
       return `pg_catalog.to_regprocedure(${identity}) IS NOT NULL`;
     case "table_absent_or_columns_match": {
@@ -2395,6 +2461,20 @@ function approvedCatalogAssertionExpression(assertion) {
         `      AND COALESCE(secure_function.proconfig, ARRAY[]::text[]) ` +
         `@> ARRAY['search_path=""']::text[]\n` +
         `  )`;
+    case "policy_absent": {
+      const [schemaName, tableName] = assertion.identity.split(".");
+      return `NOT EXISTS (\n` +
+        `    SELECT 1\n` +
+        `    FROM pg_catalog.pg_policy absent_policy\n` +
+        `    JOIN pg_catalog.pg_class policy_relation ON policy_relation.oid = absent_policy.polrelid\n` +
+        `    JOIN pg_catalog.pg_namespace policy_schema ON policy_schema.oid = policy_relation.relnamespace\n` +
+        `    WHERE policy_schema.nspname = ${sqlLiteral(schemaName)}\n` +
+        `      AND policy_relation.relname = ${sqlLiteral(tableName)}\n` +
+        `      AND absent_policy.polname = ${sqlLiteral(assertion.policy)}\n` +
+        `  )`;
+    }
+    case "policy_contract":
+      return approvedPolicyContractExpression(assertion);
     case "default_acl_denied":
       return approvedDefaultAclExpression(assertion);
     case "migration_record":
