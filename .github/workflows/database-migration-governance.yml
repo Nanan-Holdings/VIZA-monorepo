@@ -1,0 +1,32 @@
+name: Database migration governance
+
+on:
+  pull_request:
+    paths:
+      - viza-be/agent-backend/drizzle/**
+      - viza-fe/internal-website/supabase/migrations/**
+      - scripts/database-migration-governance.mjs
+      - scripts/database-architecture/migration-governance.json
+      - scripts/__tests__/database-migration-governance.test.mjs
+      - .github/workflows/database-migration-governance.yml
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    name: Immutable, classified, secure migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate migration governance
+        run: node scripts/database-migration-governance.mjs --base-ref origin/${{ github.base_ref }}
+
+      - name: Run governance contract tests
+        run: node --test scripts/__tests__/database-migration-governance.test.mjs

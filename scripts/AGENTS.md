@@ -90,3 +90,20 @@ smoke-test helpers for the VIZA monorepo.
   concurrency migration, verifies the active six-country cap topology before
   and after, and installs the renewal/health/metric objects without pausing or
   mutating jobs, caps, slots, or cron.
+- `database-migration-governance.mjs`: pull-request gate for the two VIZA SQL
+  migration roots. It preserves the exact 17 historical duplicate Drizzle
+  prefixes, rejects edits/renames/deletes of existing migrations, requires each
+  new migration to be classified as one byte-identical mirror pair or an
+  explicitly justified no-mirror file, and statically enforces public-table
+  RLS/ACL, empty SECURITY DEFINER search paths, and invoker views.
+- `database-architecture/migration-governance.json`: immutable duplicate-prefix
+  allowlist plus hash-pinned mirror/no-mirror decisions for new migrations.
+- `database-architecture/approved-migration-batches.json`: reviewed batch ids,
+  exact migration paths/versions/SHA-256 values, execution modes, and migration
+  ledger pre/postconditions used by `apply-approved-batch`.
+
+`production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
+sanitized Security/Performance Advisor metadata with a read-only catalog/stat
+snapshot, and `apply-approved-batch`, which accepts only a full commit SHA and
+an exact manifest entry. Architecture audit must never emit statement text,
+SQL parameters, table rows, applicant data, or advisor detail/remediation text.
