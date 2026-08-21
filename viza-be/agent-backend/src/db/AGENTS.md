@@ -11,6 +11,9 @@ Supabase service-role client setup for the agent backend.
 ## Key Files
 
 - `schema.ts`: Drizzle table definitions and inferred TypeScript types.
+- `schema-ownership.manifest.json`: versioned production-table ownership
+  inventory separating Drizzle-managed, REST/service-only, and compatibility
+  objects; update it whenever the production catalog or ownership changes.
 - `index.ts`: bounded Postgres/Drizzle runtime pool using the Supabase
   transaction-pooler `DATABASE_URL` (three connections per instance by default).
 - `migrate.ts`: migration runner.
@@ -47,6 +50,9 @@ Supabase service-role client setup for the agent backend.
 - `../../drizzle/0150_public_status_tracking.sql`: current service-health
   projection metadata, append-only checks, derived incidents, and redacted
   aggregation/recording RPCs.
+- `../../drizzle/0158_database_access_baseline.sql`: future default-privilege
+  deny baseline, targeted RLS/ACL/view/RPC hardening, and the missing
+  `application_translations` production contract.
 - `../../drizzle/0140_prevent_qa_placeholder_submission.sql`: database-level
   rejection of synthetic QA data in customer applications and live queues.
 - `../../drizzle/0141_block_known_qa_account_sentinel.sql`: follow-up protection
