@@ -1922,6 +1922,17 @@ function sanitizeAdvisorPayload(payload) {
   };
 }
 
+function assertManagementProjectIdentity(payload, projectRef) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Supabase Management API project identity is missing or mismatched");
+  }
+  const identities = [payload.id, payload.ref]
+    .filter((value) => typeof value === "string" && value.length > 0);
+  if (identities.length === 0 || identities.some((value) => value !== projectRef)) {
+    throw new Error("Supabase Management API project identity is missing or mismatched");
+  }
+}
+
 export async function runArchitectureAudit({ env = process.env, fetchImpl = fetch } = {}) {
   const token = requiredEnv(env, "SUPABASE_ACCESS_TOKEN");
   const projectRef = requiredEnv(env, "SUPABASE_PROJECT_REF");
@@ -1933,6 +1944,13 @@ export async function runArchitectureAudit({ env = process.env, fetchImpl = fetc
     throw new Error("PRODUCTION_DB_MAINTENANCE_CONFIRM does not authorize architecture-audit");
   }
 
+  assertManagementProjectIdentity(await managementJsonRequest({
+    token,
+    projectRef,
+    suffix: "",
+    method: "GET",
+    fetchImpl,
+  }), projectRef);
   const security = sanitizeAdvisorPayload(await managementJsonRequest({
     token,
     projectRef,
@@ -1959,8 +1977,9 @@ export async function runArchitectureAudit({ env = process.env, fetchImpl = fetc
     "architecture_audit",
     "Production architecture audit returned an unexpected catalog payload",
   );
-  if (catalog.project_ref_marker !== PRODUCTION_PROJECT_REF) {
-    throw new Error("Production architecture audit project marker is missing or mismatched");
+  if (catalog.project_ref_marker != null &&
+      catalog.project_ref_marker !== PRODUCTION_PROJECT_REF) {
+    throw new Error("Production architecture audit database project marker is mismatched");
   }
 
   let statementMetrics = {
@@ -2003,6 +2022,7 @@ export async function runArchitectureAudit({ env = process.env, fetchImpl = fetc
     schema_version: 1,
     source: {
       management_api: "https://api.supabase.com/v1",
+      project_endpoint: `projects/${projectRef}`,
       advisor_endpoints: ["advisors/security", "advisors/performance"],
       catalog_endpoint: "database/query/read-only",
     },
