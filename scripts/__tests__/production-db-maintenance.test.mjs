@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   APPROVED_MIGRATION_SOURCE_REF,
   APPROVED_MIGRATIONS,
+  ARCHITECTURE_AUDIT_SQL,
+  PG_STAT_STATEMENTS_AUDIT_SQL,
   STABLE_SPEED_MIGRATION_SOURCE_REF,
   STABLE_SPEED_MIGRATION,
   PREFLIGHT_SQL,
@@ -14,8 +16,12 @@ import {
   SUPABASE_PRODUCTION_CA_SHA256,
   SUPABASE_PRODUCTION_CA_URL,
   downloadSupabaseProductionCa,
+  buildApprovedBatchStateSql,
   executePsqlMigration,
   loadApprovedMigrationBatch,
+  loadGenericApprovedBatch,
+  runArchitectureAudit,
+  runApprovedBatchApply,
   loadStableSpeedMigrationBatch,
   runApply,
   runPause,
@@ -59,6 +65,507 @@ test("workflow exposes the explicit stable-speed action and exact confirmation",
     workflow,
     /oyjxdzsoejraedqghndi:apply-stable-speed:\{0\}/u,
   );
+});
+
+test("workflow exposes architecture audit and generic approved batches", () => {
+  const workflow = readFileSync(
+    new URL("../../.github/workflows/production-db-maintenance.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /- architecture-audit/u);
+  assert.match(workflow, /- apply-approved-batch/u);
+  assert.match(workflow, /batch_id:/u);
+  assert.match(
+    workflow,
+    /inputs\.action == 'apply-approved-batch'/u,
+  );
+  assert.match(
+    workflow,
+    /apply-approved-batch:\{0\}:\{1\}/u,
+  );
+  const governanceWorkflow = readFileSync(
+    new URL("../../.github/workflows/database-migration-governance.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(governanceWorkflow, /scripts\/production-db-maintenance\.mjs/u);
+  assert.match(governanceWorkflow, /approved-migration-batches\.json/u);
+});
+
+test("architecture audit combines sanitized advisors and read-only catalog metadata", async () => {
+  const requests = [];
+  const result = await runArchitectureAudit({
+    env: {
+      SUPABASE_ACCESS_TOKEN: "test-token",
+      SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:architecture-audit`,
+    },
+    fetchImpl: async (url, init) => {
+      requests.push({ url, init });
+      const payload = requests.length === 1
+        ? { lints: [{
+            name: "rls_disabled_in_public",
+            title: "hidden title",
+            level: "ERROR",
+            facing: "EXTERNAL",
+            categories: ["SECURITY"],
+            detail: "must not be emitted",
+            remediation: "must not be emitted",
+            metadata: { schema: "public", name: "runner_job", entity: "runner_job", type: "table" },
+          }] }
+        : requests.length === 2
+          ? { lints: [{
+              name: "unindexed_foreign_keys",
+              level: "WARN",
+              facing: "EXTERNAL",
+              categories: ["PERFORMANCE"],
+              description: "must not be emitted",
+              metadata: { schema: "public", name: "runner_job_fk", entity: "runner_job", type: "table" },
+            }] }
+          : requests.length === 3
+            ? [{ architecture_audit: {
+                project_ref_marker: PRODUCTION_PROJECT_REF,
+                pg_stat_statements_available: true,
+                tables: { total: 10 },
+              } }]
+            : [{ pg_stat_statements: {
+                stats_reset: "2026-08-21T00:00:00Z",
+                observation_window_seconds: 3600,
+                statements: [{ queryid: "42", calls: 100, mean_exec_time_ms: 1.5 }],
+              } }];
+      return new Response(JSON.stringify(payload), { status: 200 });
+    },
+  });
+
+  assert.equal(requests.length, 4);
+  assert.match(requests[0].url, /advisors\/security$/u);
+  assert.equal(requests[0].init.method, "GET");
+  assert.match(requests[1].url, /advisors\/performance$/u);
+  assert.match(requests[2].url, /database\/query\/read-only$/u);
+  assert.match(requests[3].url, /database\/query\/read-only$/u);
+  assert.equal(JSON.parse(requests[2].init.body).query, ARCHITECTURE_AUDIT_SQL);
+  assert.equal(JSON.parse(requests[3].init.body).query, PG_STAT_STATEMENTS_AUDIT_SQL);
+  assert.deepEqual(result.advisors.security.lints, [{
+    name: "rls_disabled_in_public",
+    level: "ERROR",
+    facing: "EXTERNAL",
+    categories: ["SECURITY"],
+    object: { schema: "public", name: "runner_job", entity: "runner_job", type: "table" },
+  }]);
+  assert.equal(result.project_ref, PRODUCTION_PROJECT_REF);
+  assert.equal(result.sanitization_schema, "viza-architecture-audit-metadata-only-v1");
+  assert.deepEqual(result.source.advisor_endpoints, [
+    "advisors/security",
+    "advisors/performance",
+  ]);
+  assert.equal(JSON.stringify(result).includes("must not be emitted"), false);
+  assert.deepEqual(result.pg_stat_statements, {
+    stats_reset: "2026-08-21T00:00:00Z",
+    observation_window_seconds: 3600,
+    statements: [{ queryid: "42", calls: 100, mean_exec_time_ms: 1.5 }],
+  });
+  assert.doesNotMatch(ARCHITECTURE_AUDIT_SQL, /SELECT\s+\*\s+FROM\s+public\./iu);
+  assert.doesNotMatch(PG_STAT_STATEMENTS_AUDIT_SQL, /\bquery\b\s*,/iu);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /relation_acl/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /sequence_acl/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /schema_acl/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /routine_acl/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /default_acl/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /default_acl\.defaclnamespace = 0/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /idx\.indpred IS NULL/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /idx\.indexprs IS NULL/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /generate_subscripts\(con\.conkey/u);
+  assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /stats_reset/u);
+  assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /observation_window_seconds/u);
+});
+
+test("architecture audit skips statement metrics when the extension is unavailable", async () => {
+  let calls = 0;
+  const result = await runArchitectureAudit({
+    env: {
+      SUPABASE_ACCESS_TOKEN: "test-token",
+      SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:architecture-audit`,
+    },
+    fetchImpl: async () => {
+      calls += 1;
+      const payload = calls <= 2
+        ? { lints: [] }
+        : [{ architecture_audit: {
+            project_ref_marker: PRODUCTION_PROJECT_REF,
+            pg_stat_statements_available: false,
+          } }];
+      return new Response(JSON.stringify(payload), { status: 200 });
+    },
+  });
+  assert.equal(calls, 3);
+  assert.deepEqual(result.pg_stat_statements, {
+    stats_reset: null,
+    observation_window_seconds: null,
+    statements: [],
+  });
+});
+
+const genericBatchManifest = {
+  schema_version: 1,
+  batches: [{
+    batch_id: "database-access-baseline-v1",
+    source_ref: "a".repeat(40),
+    mode: "transactional",
+    migrations: [{
+      version: "20260822000000",
+      name: "database_access_baseline",
+      path: "viza-fe/internal-website/supabase/migrations/20260822000000_database_access_baseline.sql",
+      sha256: "a".repeat(64),
+    }],
+    preconditions: {
+      required_migration_versions: ["20260820152526"],
+      absent_migration_versions: ["20260822000000"],
+    },
+    postconditions: {
+      required_migration_versions: ["20260822000000"],
+    },
+  }],
+};
+
+test("approved batch state SQL supports only structured exact catalog guards", () => {
+  const batch = {
+    ...genericBatchManifest.batches[0],
+    preconditions: {
+      ...genericBatchManifest.batches[0].preconditions,
+      catalog_assertions: [
+        { id: "users_exists", kind: "relation_exists", identity: "public.users" },
+        {
+          id: "translations_compatible",
+          kind: "table_absent_or_columns_match",
+          identity: "public.application_translations",
+          columns: [
+            { name: "id", type: "uuid", nullable: false },
+            { name: "field_key", type: "text", nullable: false },
+          ],
+        },
+        {
+          id: "commit_rpc_signature",
+          kind: "function_exists",
+          identity: "public.commit_travel_agent_turn(text,uuid,text,bigint,text,text,jsonb,text,text,jsonb,jsonb)",
+        },
+        {
+          id: "future_objects_private",
+          kind: "default_acl_denied",
+          owner_roles: ["postgres"],
+          object_types: ["r", "S", "f"],
+          denied_roles: ["PUBLIC", "anon", "authenticated", "service_role"],
+        },
+      ],
+    },
+  };
+  const sql = buildApprovedBatchStateSql(batch, "preconditions");
+  assert.match(sql, /public\.users/u);
+  assert.match(sql, /public\.application_translations/u);
+  assert.match(sql, /information_schema\.columns/u);
+  assert.match(sql, /commit_travel_agent_turn/u);
+  assert.match(sql, /default_scope\.namespace_oid/u);
+  assert.match(sql, /VALUES \(0::oid, TRUE\)/u);
+  assert.doesNotMatch(sql, /SELECT\s+\*\s+FROM\s+public\./iu);
+
+  assert.throws(
+    () => buildApprovedBatchStateSql({
+      ...batch,
+      preconditions: {
+        catalog_assertions: [{ id: "unsafe", kind: "raw_sql", sql: "SELECT true" }],
+      },
+    }, "preconditions"),
+    /Unsupported approved batch catalog assertion/u,
+  );
+});
+
+test("generic approved batch is hash-pinned and transactionally ledgered", () => {
+  const query = loadGenericApprovedBatch({
+    batch: genericBatchManifest.batches[0],
+    sourceRoot: "/approved-source",
+    readFile: () => Buffer.from("SELECT 1;"),
+    hash: () => "a".repeat(64),
+  });
+  assert.match(query, /^SET SESSION ROLE postgres;\nBEGIN;/u);
+  assert.match(query, /SET LOCAL lock_timeout = '5s'/u);
+  assert.match(query, /20260822000000/u);
+  assert.match(query, /INSERT INTO supabase_migrations\.schema_migrations/u);
+  assert.match(query, /COMMIT;/u);
+});
+
+test("generic concurrent-index batch permits only online idempotent index statements", () => {
+  const batch = {
+    ...genericBatchManifest.batches[0],
+    mode: "concurrent-index",
+    migrations: genericBatchManifest.batches[0].migrations.map((migration) => ({
+      ...migration,
+      indexes: [{
+        identity: "public.idx_example",
+        definition: "CREATE INDEX idx_example ON public.example USING btree (id)",
+      }],
+    })),
+  };
+  const query = loadGenericApprovedBatch({
+    batch,
+    sourceRoot: "/approved-source",
+    readFile: () => Buffer.from(
+      "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_example ON public.example (id);",
+    ),
+    hash: () => "a".repeat(64),
+  });
+  assert.match(query, /CREATE INDEX CONCURRENTLY IF NOT EXISTS/u);
+  assert.match(query, /indisvalid/u);
+  assert.match(query, /indisready/u);
+  assert.match(query, /pg_get_indexdef/u);
+  assert.match(query, /DROP INDEX CONCURRENTLY/u);
+  assert.match(query, /\\gexec/u);
+  assert.match(query, /BEGIN;\nINSERT INTO supabase_migrations/u);
+  assert.doesNotMatch(query, /^SET SESSION ROLE postgres;\nBEGIN;/u);
+
+  assert.throws(
+    () => loadGenericApprovedBatch({
+      batch,
+      sourceRoot: "/approved-source",
+      readFile: () => Buffer.from("CREATE INDEX idx_unsafe ON public.example (id);"),
+      hash: () => "a".repeat(64),
+    }),
+    /online CREATE INDEX CONCURRENTLY IF NOT EXISTS/u,
+  );
+
+  assert.throws(
+    () => loadGenericApprovedBatch({
+      batch,
+      sourceRoot: "/approved-source",
+      readFile: () => Buffer.from(
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_ok ON public.example (id); DELETE FROM public.example;",
+      ),
+      hash: () => "a".repeat(64),
+    }),
+    /online CREATE INDEX CONCURRENTLY IF NOT EXISTS/u,
+  );
+});
+
+test("generic approved batch performs guarded preflight, apply, cleanup, and postflight", async () => {
+  const migrationRef = "a".repeat(40);
+  const requests = [];
+  let execution;
+  const result = await runApprovedBatchApply({
+    env: {
+      SUPABASE_ACCESS_TOKEN: "test-token",
+      SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+      PRODUCTION_DB_MAINTENANCE_ACTION: "apply-approved-batch",
+      PRODUCTION_DB_MAINTENANCE_BATCH_ID: "database-access-baseline-v1",
+      PRODUCTION_DB_MAINTENANCE_SOURCE_REF: migrationRef,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM:
+        `${PRODUCTION_PROJECT_REF}:apply-approved-batch:database-access-baseline-v1:${migrationRef}`,
+      MIGRATION_SOURCE_ROOT: "/approved-source",
+    },
+    manifest: genericBatchManifest,
+    readFile: () => Buffer.from("SELECT 1;"),
+    hash: () => "a".repeat(64),
+    downloadCa: async () => Buffer.from("pinned-ca"),
+    executeMigration: async (input) => { execution = input; },
+    fetchImpl: async (url, init) => {
+      requests.push({ url, method: init.method });
+      const payload = requests.length === 1
+        ? [{ approved_batch_state: {
+            project_ref_marker: PRODUCTION_PROJECT_REF,
+            migration_versions: ["20260820152526"],
+          } }]
+        : requests.length === 2
+          ? { role: "cli_login_postgres", password: "temporary-password-123", ttl_seconds: 300 }
+          : requests.length === 3
+            ? [{
+                database_type: "PRIMARY",
+                db_host: "aws-1-ap-south-1.pooler.supabase.com",
+                db_port: 5432,
+                db_name: "postgres",
+                db_user: `postgres.${PRODUCTION_PROJECT_REF}`,
+                pool_mode: "session",
+              }]
+            : requests.length === 4
+              ? { message: "ok" }
+              : [{ approved_batch_state: {
+                  project_ref_marker: PRODUCTION_PROJECT_REF,
+                  migration_versions: ["20260820152526", "20260822000000"],
+                } }];
+      return new Response(JSON.stringify(payload), { status: 200 });
+    },
+  });
+
+  assert.equal(requests.length, 5);
+  assert.match(requests[0].url, /database\/query\/read-only$/u);
+  assert.match(requests[4].url, /database\/query\/read-only$/u);
+  assert.match(execution.query, /20260822000000/u);
+  assert.equal(result.batch_id, "database-access-baseline-v1");
+  assert.deepEqual(result.migration_versions, ["20260820152526", "20260822000000"]);
+});
+
+test("generic approved batch rejects a short ref and source hash drift", async () => {
+  await assert.rejects(
+    runApprovedBatchApply({
+      env: {
+        SUPABASE_ACCESS_TOKEN: "test-token",
+        SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+        PRODUCTION_DB_MAINTENANCE_BATCH_ID: "database-access-baseline-v1",
+        PRODUCTION_DB_MAINTENANCE_SOURCE_REF: "main",
+        PRODUCTION_DB_MAINTENANCE_CONFIRM:
+          `${PRODUCTION_PROJECT_REF}:apply-approved-batch:database-access-baseline-v1:main`,
+        MIGRATION_SOURCE_ROOT: "/approved-source",
+      },
+      manifest: genericBatchManifest,
+      fetchImpl: async () => { throw new Error("must not fetch"); },
+    }),
+    /full 40-character commit SHA/u,
+  );
+
+  assert.throws(
+    () => loadGenericApprovedBatch({
+      batch: genericBatchManifest.batches[0],
+      sourceRoot: "/approved-source",
+      readFile: () => Buffer.from("changed"),
+      hash: () => "wrong-hash",
+    }),
+    /hash mismatch/u,
+  );
+});
+
+test("generic approved batch rejects an unlisted batch before any request", async () => {
+  const migrationRef = "b".repeat(40);
+  await assert.rejects(
+    runApprovedBatchApply({
+      env: {
+        SUPABASE_ACCESS_TOKEN: "test-token",
+        SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+        PRODUCTION_DB_MAINTENANCE_BATCH_ID: "not-approved",
+        PRODUCTION_DB_MAINTENANCE_SOURCE_REF: migrationRef,
+        PRODUCTION_DB_MAINTENANCE_CONFIRM:
+          `${PRODUCTION_PROJECT_REF}:apply-approved-batch:not-approved:${migrationRef}`,
+        MIGRATION_SOURCE_ROOT: "/approved-source",
+      },
+      manifest: genericBatchManifest,
+      fetchImpl: async () => { throw new Error("must not fetch"); },
+    }),
+    /not uniquely approved/u,
+  );
+});
+
+test("generic approved batch rejects source-ref drift and failed catalog guards", async () => {
+  const wrongRef = "c".repeat(40);
+  await assert.rejects(
+    runApprovedBatchApply({
+      env: {
+        SUPABASE_ACCESS_TOKEN: "test-token",
+        SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+        PRODUCTION_DB_MAINTENANCE_BATCH_ID: "database-access-baseline-v1",
+        PRODUCTION_DB_MAINTENANCE_SOURCE_REF: wrongRef,
+        PRODUCTION_DB_MAINTENANCE_CONFIRM:
+          `${PRODUCTION_PROJECT_REF}:apply-approved-batch:database-access-baseline-v1:${wrongRef}`,
+        MIGRATION_SOURCE_ROOT: "/approved-source",
+      },
+      manifest: genericBatchManifest,
+      fetchImpl: async () => { throw new Error("must not fetch"); },
+    }),
+    /source ref is not approved/u,
+  );
+
+  const guardedManifest = structuredClone(genericBatchManifest);
+  guardedManifest.batches[0].preconditions.catalog_assertions = [{
+    id: "users_exists",
+    kind: "relation_exists",
+    identity: "public.users",
+  }];
+  await assert.rejects(
+    runApprovedBatchApply({
+      env: {
+        SUPABASE_ACCESS_TOKEN: "test-token",
+        SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+        PRODUCTION_DB_MAINTENANCE_BATCH_ID: "database-access-baseline-v1",
+        PRODUCTION_DB_MAINTENANCE_SOURCE_REF: "a".repeat(40),
+        PRODUCTION_DB_MAINTENANCE_CONFIRM:
+          `${PRODUCTION_PROJECT_REF}:apply-approved-batch:database-access-baseline-v1:${"a".repeat(40)}`,
+        MIGRATION_SOURCE_ROOT: "/approved-source",
+      },
+      manifest: guardedManifest,
+      fetchImpl: async () => new Response(JSON.stringify([{
+        approved_batch_state: {
+          project_ref_marker: PRODUCTION_PROJECT_REF,
+          migration_versions: ["20260820152526"],
+          assertions: [{ id: "users_exists", passed: false }],
+        },
+      }]), { status: 200 }),
+    }),
+    /catalog guard failed: users_exists/u,
+  );
+});
+
+test("temporary login role TTL is bounded and ambiguous creation is always revoked", async () => {
+  const env = {
+    SUPABASE_ACCESS_TOKEN: "test-token",
+    SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+    PRODUCTION_DB_MAINTENANCE_CONFIRM:
+      `${PRODUCTION_PROJECT_REF}:apply:${APPROVED_MIGRATION_SOURCE_REF}`,
+    PRODUCTION_DB_MAINTENANCE_SOURCE_REF: APPROVED_MIGRATION_SOURCE_REF,
+    MIGRATION_SOURCE_ROOT: "/approved-source",
+  };
+  const methods = [];
+  await assert.rejects(
+    runApply({
+      env,
+      readFile: (filePath) => Buffer.from(`sql:${filePath}`),
+      hash: (bytes) => {
+        const filePath = bytes.toString("utf8").slice(4).replaceAll("\\", "/");
+        return APPROVED_MIGRATIONS.find((migration) => filePath.endsWith(migration.path)).sha256;
+      },
+      downloadCa: async () => Buffer.from("pinned-ca"),
+      fetchImpl: async (url, init) => {
+        methods.push({ url, method: init.method });
+        if (url.endsWith("/database/query/read-only")) {
+          return new Response(JSON.stringify(drainedPreflightPayload()), { status: 200 });
+        }
+        if (url.endsWith("/cli/login-role") && init.method === "POST") {
+          return new Response(JSON.stringify({
+            role: "cli_login_postgres",
+            password: "temporary-password-123",
+            ttl_seconds: 3600,
+          }), { status: 200 });
+        }
+        if (url.endsWith("/cli/login-role") && init.method === "DELETE") {
+          return new Response(JSON.stringify({ message: "ok" }), { status: 200 });
+        }
+        throw new Error(`unexpected request: ${url}`);
+      },
+    }),
+    /invalid temporary database role/u,
+  );
+  assert.equal(methods.at(-1).method, "DELETE");
+
+  methods.length = 0;
+  await assert.rejects(
+    runApply({
+      env,
+      readFile: (filePath) => Buffer.from(`sql:${filePath}`),
+      hash: (bytes) => {
+        const filePath = bytes.toString("utf8").slice(4).replaceAll("\\", "/");
+        return APPROVED_MIGRATIONS.find((migration) => filePath.endsWith(migration.path)).sha256;
+      },
+      downloadCa: async () => Buffer.from("pinned-ca"),
+      fetchImpl: async (url, init) => {
+        methods.push({ url, method: init.method });
+        if (url.endsWith("/database/query/read-only")) {
+          return new Response(JSON.stringify(drainedPreflightPayload()), { status: 200 });
+        }
+        if (url.endsWith("/cli/login-role") && init.method === "POST") {
+          return new Response(JSON.stringify({ message: "ambiguous" }), { status: 503 });
+        }
+        if (url.endsWith("/cli/login-role") && init.method === "DELETE") {
+          return new Response(JSON.stringify({ message: "not found" }), { status: 404 });
+        }
+        throw new Error(`unexpected request: ${url}`);
+      },
+    }),
+    /temporary database access failed/u,
+  );
+  assert.equal(methods.at(-1).method, "DELETE");
 });
 
 test("preflight uses the read-only Management API and aggregate-only SQL", async () => {
