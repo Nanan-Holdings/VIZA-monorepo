@@ -46,10 +46,26 @@ describe.skipIf(!liveGateEnabled)("database access baseline database integration
 			);
 		}
 		await client.query("BEGIN");
+		await client.query("GRANT USAGE, CREATE ON SCHEMA public TO postgres");
+		await client.query("SET ROLE postgres");
+		const migrationRole = await client.query<{
+			current_user: string;
+			is_superuser: boolean;
+			is_supabase_admin_member: boolean;
+		}>(`SELECT
+				current_user,
+				(SELECT rolsuper FROM pg_roles WHERE rolname = current_user) AS is_superuser,
+				pg_has_role(current_user, 'supabase_admin', 'MEMBER') AS is_supabase_admin_member`);
+		expect(migrationRole.rows[0]).toEqual({
+			current_user: "postgres",
+			is_superuser: false,
+			is_supabase_admin_member: false,
+		});
 		// Keep the suite independently runnable against a disposable PostgreSQL
 		// container. Every compatibility object is created inside this transaction
-		// and rolled back; an already-migrated local Supabase database keeps its
-		// real definitions because every statement is IF NOT EXISTS/OR REPLACE.
+		// and rolled back. The migration runs after SET ROLE postgres to mirror the
+		// production maintenance executor: postgres is deliberately neither a
+		// superuser nor a supabase_admin member.
 		await client.query(`
 			CREATE TABLE IF NOT EXISTS public.applicant_profiles (
 				id UUID PRIMARY KEY DEFAULT pg_catalog.gen_random_uuid(),
@@ -220,8 +236,53 @@ describe.skipIf(!liveGateEnabled)("database access baseline database integration
 		expect(result.rows).toEqual([]);
 	});
 
+	it("keeps newly created public objects private until explicitly granted", async () => {
+		await query(`
+			CREATE TABLE public.database_access_future_probe (
+				id BIGSERIAL PRIMARY KEY
+			);
+			CREATE FUNCTION public.database_access_future_probe_fn()
+			RETURNS integer
+			LANGUAGE sql
+			SET search_path = ''
+			AS $$ SELECT 1 $$;
+		`);
+		const result = await query<{
+			anon_table: boolean;
+			auth_table: boolean;
+			service_table: boolean;
+			anon_sequence: boolean;
+			auth_sequence: boolean;
+			service_sequence: boolean;
+			anon_function: boolean;
+			auth_function: boolean;
+			service_function: boolean;
+		}>(`SELECT
+			has_table_privilege('anon', 'public.database_access_future_probe', 'SELECT') AS anon_table,
+			has_table_privilege('authenticated', 'public.database_access_future_probe', 'SELECT') AS auth_table,
+			has_table_privilege('service_role', 'public.database_access_future_probe', 'SELECT') AS service_table,
+			has_sequence_privilege('anon', 'public.database_access_future_probe_id_seq', 'USAGE') AS anon_sequence,
+			has_sequence_privilege('authenticated', 'public.database_access_future_probe_id_seq', 'USAGE') AS auth_sequence,
+			has_sequence_privilege('service_role', 'public.database_access_future_probe_id_seq', 'USAGE') AS service_sequence,
+			has_function_privilege('anon', 'public.database_access_future_probe_fn()', 'EXECUTE') AS anon_function,
+			has_function_privilege('authenticated', 'public.database_access_future_probe_fn()', 'EXECUTE') AS auth_function,
+			has_function_privilege('service_role', 'public.database_access_future_probe_fn()', 'EXECUTE') AS service_function`);
+		expect(result.rows[0]).toEqual({
+			anon_table: false,
+			auth_table: false,
+			service_table: false,
+			anon_sequence: false,
+			auth_sequence: false,
+			service_sequence: false,
+			anon_function: false,
+			auth_function: false,
+			service_function: false,
+		});
+	});
+
 	afterAll(async () => {
 		if (client) {
+			await client.query("RESET ROLE").catch(() => undefined);
 			await client.query("ROLLBACK").catch(() => undefined);
 			client.release();
 		}

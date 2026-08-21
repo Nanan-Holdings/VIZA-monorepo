@@ -32,6 +32,9 @@ describe("database access baseline migration", () => {
 				),
 			);
 		}
+		expect(canonicalSql).toMatch(
+			/pg_has_role\(current_user,\s*'supabase_admin',\s*'(?:MEMBER|SET)'\)/i,
+		);
 		expect(canonicalSql).toMatch(/FOR ROLE supabase_admin[\s\S]*?REVOKE ALL ON TABLES/i);
 		expect(canonicalSql).toMatch(/FOR ROLE supabase_admin[\s\S]*?REVOKE ALL ON SEQUENCES/i);
 		expect(canonicalSql).toMatch(/FOR ROLE supabase_admin[\s\S]*?REVOKE ALL ON FUNCTIONS/i);
