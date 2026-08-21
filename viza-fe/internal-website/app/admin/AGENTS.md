@@ -21,6 +21,9 @@ website automation monitoring, coverage, and billing support.
 - `(dashboard)/page.tsx`: live operations control tower across work items,
   provisioning, submissions, support, privacy, appointments, portal health,
   refunds, takeovers, and notification failures.
+- `(dashboard)/metrics/concurrency-health.ts`: pure shared-pool health and alert
+  derivation used by the metrics page and its unit tests; keep helpers outside
+  the Next.js page module so the route exports only supported page fields.
 - `(dashboard)/work/**`: durable staff work queue with ownership, SLA, SOP
   checklists, resolution codes, and event history.
 - `(dashboard)/leads/**`: marketing enquiry ownership, response SLA,

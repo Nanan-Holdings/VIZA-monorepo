@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveConcurrencyAlerts, percentile } from "./page";
+import { deriveConcurrencyAlerts, percentile } from "./concurrency-health";
 
 describe("runner concurrency admin signals", () => {
   const healthyCountry = (country: string) => ({
