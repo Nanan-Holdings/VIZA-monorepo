@@ -106,7 +106,7 @@
             "command": "SELECT",
             "roles": ["authenticated"],
             "permissive": true,
-            "using_sha256": "7685be6a25df2575e76a301114c0f240bfc762dae4fb9d036c2b17e067d24e36",
+            "using_sha256": "9eb2ae882c5df8f07df6b9694b665ca1e1a718b39812bbbde6a8f95af17637ba",
             "check_sha256": null
           },
           {
@@ -117,7 +117,7 @@
             "command": "SELECT",
             "roles": ["authenticated"],
             "permissive": true,
-            "using_sha256": "e5679d23d93d9f5919c9b8717a07449600ffad91b2665dec02a9eac23271a30b",
+            "using_sha256": "798452f9af245df3fabc82efdd13ce75324ce5a06cfd6d1e4341dc8525f83fc4",
             "check_sha256": null
           },
           {
@@ -129,7 +129,7 @@
             "roles": ["authenticated"],
             "permissive": true,
             "using_sha256": null,
-            "check_sha256": "e5679d23d93d9f5919c9b8717a07449600ffad91b2665dec02a9eac23271a30b"
+            "check_sha256": "798452f9af245df3fabc82efdd13ce75324ce5a06cfd6d1e4341dc8525f83fc4"
           },
           {
             "id": "application_translations_update_policy_exact",
@@ -139,8 +139,8 @@
             "command": "UPDATE",
             "roles": ["authenticated"],
             "permissive": true,
-            "using_sha256": "e5679d23d93d9f5919c9b8717a07449600ffad91b2665dec02a9eac23271a30b",
-            "check_sha256": "e5679d23d93d9f5919c9b8717a07449600ffad91b2665dec02a9eac23271a30b"
+            "using_sha256": "798452f9af245df3fabc82efdd13ce75324ce5a06cfd6d1e4341dc8525f83fc4",
+            "check_sha256": "798452f9af245df3fabc82efdd13ce75324ce5a06cfd6d1e4341dc8525f83fc4"
           },
           {
             "id": "ds160_sessions_service_only",

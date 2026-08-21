@@ -18,10 +18,12 @@ import {
   downloadSupabaseProductionCa,
   buildApprovedBatchStateSql,
   executePsqlMigration,
+  loadApprovedBatchManifest,
   loadApprovedMigrationBatch,
   loadGenericApprovedBatch,
   runArchitectureAudit,
   runApprovedBatchApply,
+  runApprovedBatchVerify,
   loadStableSpeedMigrationBatch,
   runApply,
   runPause,
@@ -74,6 +76,7 @@ test("workflow exposes architecture audit and generic approved batches", () => {
   );
   assert.match(workflow, /- architecture-audit/u);
   assert.match(workflow, /- apply-approved-batch/u);
+  assert.match(workflow, /- verify-approved-batch/u);
   assert.match(workflow, /batch_id:/u);
   assert.match(
     workflow,
@@ -82,6 +85,10 @@ test("workflow exposes architecture audit and generic approved batches", () => {
   assert.match(
     workflow,
     /apply-approved-batch:\{0\}:\{1\}/u,
+  );
+  assert.match(
+    workflow,
+    /verify-approved-batch:\{0\}:\{1\}/u,
   );
   const governanceWorkflow = readFileSync(
     new URL("../../.github/workflows/database-migration-governance.yml", import.meta.url),
@@ -297,6 +304,31 @@ const genericBatchManifest = {
   }],
 };
 
+test("production access batch pins observed production policy hashes", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "database-access-baseline-v1");
+  const policies = Object.fromEntries(
+    batch.postconditions.catalog_assertions
+      .filter(({ kind }) => kind === "policy_contract")
+      .map((assertion) => [assertion.id, assertion]),
+  );
+  assert.equal(
+    policies.users_select_own_policy_exact.using_sha256,
+    "9eb2ae882c5df8f07df6b9694b665ca1e1a718b39812bbbde6a8f95af17637ba",
+  );
+  for (const policyId of [
+    "application_translations_select_policy_exact",
+    "application_translations_insert_policy_exact",
+    "application_translations_update_policy_exact",
+  ]) {
+    const policy = policies[policyId];
+    for (const hash of [policy.using_sha256, policy.check_sha256].filter(Boolean)) {
+      assert.equal(hash, "798452f9af245df3fabc82efdd13ce75324ce5a06cfd6d1e4341dc8525f83fc4");
+    }
+  }
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
@@ -508,6 +540,38 @@ test("generic approved batch performs guarded preflight, apply, cleanup, and pos
   assert.match(execution.query, /20260822000000/u);
   assert.equal(result.batch_id, "database-access-baseline-v1");
   assert.deepEqual(result.migration_versions, ["20260820152526", "20260822000000"]);
+});
+
+test("approved batch verification is read-only and validates an already-recorded batch", async () => {
+  const migrationRef = "a".repeat(40);
+  const requests = [];
+  const result = await runApprovedBatchVerify({
+    env: {
+      SUPABASE_ACCESS_TOKEN: "test-token",
+      SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+      PRODUCTION_DB_MAINTENANCE_BATCH_ID: "database-access-baseline-v1",
+      PRODUCTION_DB_MAINTENANCE_SOURCE_REF: migrationRef,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM:
+        `${PRODUCTION_PROJECT_REF}:verify-approved-batch:database-access-baseline-v1:${migrationRef}`,
+    },
+    manifest: genericBatchManifest,
+    fetchImpl: async (url, init) => {
+      requests.push({ url, init });
+      const payload = requests.length === 1
+        ? { id: PRODUCTION_PROJECT_REF, ref: PRODUCTION_PROJECT_REF }
+        : [{ approved_batch_state: {
+            project_ref_marker: null,
+            migration_versions: ["20260820152526", "20260822000000"],
+          } }];
+      return new Response(JSON.stringify(payload), { status: 200 });
+    },
+  });
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].init.method, "GET");
+  assert.match(requests[1].url, /database\/query\/read-only$/u);
+  assert.equal(requests[1].init.method, "POST");
+  assert.deepEqual(result.migration_versions, ["20260820152526", "20260822000000"]);
+  assert.equal(result.source, "approved-migration-batch-verification");
 });
 
 test("generic approved batch verifies Management API identity and rejects a mismatched database marker", async () => {

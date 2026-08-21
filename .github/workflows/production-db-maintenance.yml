@@ -15,9 +15,10 @@ on:
           - apply
           - apply-stable-speed
           - apply-approved-batch
+          - verify-approved-batch
           - resume
       batch_id:
-        description: Approved batch id (required only for apply-approved-batch)
+        description: Approved batch id (required for apply-approved-batch or verify-approved-batch)
         required: false
         type: string
         default: ""
@@ -59,7 +60,7 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
           PRODUCTION_DB_MAINTENANCE_ACTION: ${{ inputs.action }}
           PRODUCTION_DB_MAINTENANCE_BATCH_ID: ${{ inputs.batch_id }}
-          PRODUCTION_DB_MAINTENANCE_CONFIRM: ${{ inputs.action == 'apply' && format('oyjxdzsoejraedqghndi:apply:{0}', inputs.migration_ref) || inputs.action == 'apply-stable-speed' && format('oyjxdzsoejraedqghndi:apply-stable-speed:{0}', inputs.migration_ref) || inputs.action == 'apply-approved-batch' && format('oyjxdzsoejraedqghndi:apply-approved-batch:{0}:{1}', inputs.batch_id, inputs.migration_ref) || format('oyjxdzsoejraedqghndi:{0}', inputs.action) }}
+          PRODUCTION_DB_MAINTENANCE_CONFIRM: ${{ inputs.action == 'apply' && format('oyjxdzsoejraedqghndi:apply:{0}', inputs.migration_ref) || inputs.action == 'apply-stable-speed' && format('oyjxdzsoejraedqghndi:apply-stable-speed:{0}', inputs.migration_ref) || inputs.action == 'apply-approved-batch' && format('oyjxdzsoejraedqghndi:apply-approved-batch:{0}:{1}', inputs.batch_id, inputs.migration_ref) || inputs.action == 'verify-approved-batch' && format('oyjxdzsoejraedqghndi:verify-approved-batch:{0}:{1}', inputs.batch_id, inputs.migration_ref) || format('oyjxdzsoejraedqghndi:{0}', inputs.action) }}
           PRODUCTION_DB_MAINTENANCE_SOURCE_REF: ${{ inputs.migration_ref }}
           MIGRATION_SOURCE_ROOT: ${{ github.workspace }}/migration-source
         run: node scripts/production-db-maintenance.mjs
