@@ -298,6 +298,72 @@
           }
         ]
       }
+    },
+    {
+      "batch_id": "database-performance-indexes-v1",
+      "source_ref": "acb1a0694afb8b572acfaba626596702e0a88d2e",
+      "mode": "concurrent-index",
+      "migrations": [
+        {
+          "version": "20260821175138",
+          "name": "database_performance_indexes",
+          "path": "viza-fe/internal-website/supabase/migrations/20260821175138_database_performance_indexes.sql",
+          "sha256": "34474dd9e3e265a1d3333abf13c0b7034727b2a1e08e44f8a28475d2997f3944",
+          "indexes": [
+            {
+              "identity": "public.submission_queue_application_latest_idx",
+              "definition": "CREATE INDEX submission_queue_application_latest_idx ON public.submission_queue USING btree (application_id, updated_at DESC, created_at DESC)"
+            },
+            {
+              "identity": "public.visa_chunks_document_id_idx",
+              "definition": "CREATE INDEX visa_chunks_document_id_idx ON public.visa_chunks USING btree (document_id)"
+            },
+            {
+              "identity": "public.pii_access_log_application_id_idx",
+              "definition": "CREATE INDEX pii_access_log_application_id_idx ON public.pii_access_log USING btree (application_id)"
+            }
+          ]
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": [
+          "20260821131006"
+        ],
+        "absent_migration_versions": [
+          "20260821175138"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "submission_queue_exists",
+            "kind": "relation_exists",
+            "identity": "public.submission_queue"
+          },
+          {
+            "id": "visa_chunks_exists",
+            "kind": "relation_exists",
+            "identity": "public.visa_chunks"
+          },
+          {
+            "id": "pii_access_log_exists",
+            "kind": "relation_exists",
+            "identity": "public.pii_access_log"
+          }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": [
+          "20260821175138"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "performance_indexes_migration_record_exact",
+            "kind": "migration_record",
+            "version": "20260821175138",
+            "name": "database_performance_indexes",
+            "sha256": "34474dd9e3e265a1d3333abf13c0b7034727b2a1e08e44f8a28475d2997f3944"
+          }
+        ]
+      }
     }
   ]
 }
