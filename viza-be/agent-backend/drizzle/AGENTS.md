@@ -112,6 +112,12 @@ The current internal automation migrations are:
 - `0157_jp_vjw_compliance_approval.sql`: records the operator-approved VJW
   compliance decision in package and fee-rule metadata while leaving runtime
   and applicant final-submission gates fail-closed.
+- `0158_database_access_baseline.sql`: establishes deny-by-default future
+  public-schema privileges, restores the typed application-translation table
+  with authenticated ownership RLS, restricts encrypted/runner/takeover state
+  to service role, enables own-row RLS on `users`, switches
+  `runner_queue_depth` to security-invoker, and removes the confirmed
+  SECURITY DEFINER search-path/execute exposure without changing RPC identity.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.
