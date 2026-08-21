@@ -25,6 +25,26 @@ function field(input: Partial<VisaFormFieldRow> & { fieldName: string; displayOr
 }
 
 describe("augmentVietnamEVisaOfficialParitySteps", () => {
+  it("keeps accompanying-child portrait uploads in Document Center, not answer fields", () => {
+    const steps: WizardStep[] = [{
+      stepNumber: 7,
+      stepName: "Accompanying Children",
+      fields: [field({
+        fieldName: "accompanying_child_portrait_photo",
+        fieldType: "file",
+        displayOrder: 4,
+        stepNumber: 7,
+        stepName: "Accompanying Children",
+      })],
+    }];
+
+    const patchedFields = augmentVietnamEVisaOfficialParitySteps(steps)
+      .flatMap((step) => step.fields);
+
+    expect(patchedFields.some((item) => item.fieldName === "accompanying_child_portrait_photo"))
+      .toBe(false);
+  });
+
   it("uses the exact 205 official country options for every Vietnam eVisa nationality field", () => {
     const countryFieldNames = [
       "nationality",

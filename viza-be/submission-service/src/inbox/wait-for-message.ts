@@ -219,6 +219,73 @@ async function loadAlias(applicantId: string): Promise<string> {
   return data.inbox_alias.toLowerCase();
 }
 
+async function loadApplicationAlias(
+  applicationId: string,
+  applicantId: string,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("application_inbox_aliases")
+    .select("alias, applicant_id, retired_at")
+    .eq("application_id", applicationId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`waitForApplicationMessage alias read failed: ${error.message}`);
+  }
+  if (!data?.alias || data.applicant_id !== applicantId || data.retired_at) {
+    throw new InboxAliasMissingError(`${applicantId}/${applicationId}`);
+  }
+  return String(data.alias).toLowerCase();
+}
+
+async function loadAppointmentAccountAlias(input: {
+  applicationId: string;
+  applicantId: string;
+  accountId: string;
+  portal: string;
+}): Promise<string> {
+  const [{ data: application, error: applicationError }, { data: account, error: accountError }] =
+    await Promise.all([
+      supabase
+        .from("applications")
+        .select("applicant_id")
+        .eq("id", input.applicationId)
+        .maybeSingle(),
+      supabase
+        .from("appointment_accounts")
+        .select("application_id,account_email,portal")
+        .eq("id", input.accountId)
+        .maybeSingle(),
+    ]);
+  if (applicationError) {
+    throw new Error(`waitForAppointmentAccountMessage application read failed: ${applicationError.message}`);
+  }
+  if (accountError) {
+    throw new Error(`waitForAppointmentAccountMessage account read failed: ${accountError.message}`);
+  }
+  if (
+    application?.applicant_id !== input.applicantId
+    || account?.application_id !== input.applicationId
+    || account?.portal !== input.portal
+    || typeof account.account_email !== "string"
+    || !account.account_email.trim()
+  ) {
+    throw new InboxAliasMissingError(
+      `${input.applicantId}/${input.applicationId}/${input.portal}`,
+    );
+  }
+  return account.account_email.trim().toLowerCase();
+}
+
+export async function assertAppointmentAccountInboxRoutable(input: {
+  applicationId: string;
+  applicantId: string;
+  accountId: string;
+  portal: string;
+}): Promise<void> {
+  const alias = await loadAppointmentAccountAlias(input);
+  await assertInboxAliasDomainRoutable(alias);
+}
+
 export function resolveApplicantInboxAlias(
   canonicalAlias: string,
   aliasOverride?: string,
@@ -279,11 +346,59 @@ export async function waitForMessage(
   timeoutMs: number,
   opts: WaitForMessageOpts = {},
 ): Promise<InboundMessage> {
+  const canonicalAlias = await loadAlias(applicantId);
+  const alias = resolveApplicantInboxAlias(canonicalAlias, opts.aliasOverride);
+  return waitForResolvedAlias(alias, applicantId, predicate, timeoutMs, opts);
+}
+
+export async function waitForApplicationMessage(
+  applicationId: string,
+  applicantId: string,
+  predicate: (msg: InboundMessage) => boolean,
+  timeoutMs: number,
+  opts: Omit<WaitForMessageOpts, "aliasOverride"> = {},
+): Promise<InboundMessage> {
+  const alias = await loadApplicationAlias(applicationId, applicantId);
+  return waitForResolvedAlias(alias, `${applicantId}/${applicationId}`, predicate, timeoutMs, opts);
+}
+
+/**
+ * Wait on the immutable alias bound to an official appointment account. The
+ * DB relationship is revalidated before reading mail so alias rotation on the
+ * applicant profile cannot redirect password-recovery messages or expose an
+ * unrelated managed inbox.
+ */
+export async function waitForAppointmentAccountMessage(
+  input: {
+    applicationId: string;
+    applicantId: string;
+    accountId: string;
+    portal: string;
+  },
+  predicate: (msg: InboundMessage) => boolean,
+  timeoutMs: number,
+  opts: Omit<WaitForMessageOpts, "aliasOverride"> = {},
+): Promise<InboundMessage> {
+  const alias = await loadAppointmentAccountAlias(input);
+  return waitForResolvedAlias(
+    alias,
+    `${input.applicantId}/${input.applicationId}/${input.portal}`,
+    predicate,
+    timeoutMs,
+    opts,
+  );
+}
+
+async function waitForResolvedAlias(
+  alias: string,
+  timeoutIdentity: string,
+  predicate: (msg: InboundMessage) => boolean,
+  timeoutMs: number,
+  opts: Omit<WaitForMessageOpts, "aliasOverride">,
+): Promise<InboundMessage> {
   const pollIntervalMs = opts.pollIntervalMs ?? 5_000;
   const now = opts.now ?? (() => Date.now());
   const since = opts.since ?? new Date(now() - 60_000).toISOString();
-  const canonicalAlias = await loadAlias(applicantId);
-  const alias = resolveApplicantInboxAlias(canonicalAlias, opts.aliasOverride);
   await assertInboxAliasDomainRoutable(alias);
 
   const deadline = now() + timeoutMs;
@@ -305,9 +420,12 @@ export async function waitForMessage(
     if (now() + pollIntervalMs >= deadline) break;
     await sleep(pollIntervalMs);
   }
-  throw new InboxTimeoutError(applicantId, timeoutMs);
+  throw new InboxTimeoutError(timeoutIdentity, timeoutMs);
 }
 
 export const inbox = {
   waitForMessage,
+  waitForApplicationMessage,
+  waitForAppointmentAccountMessage,
+  assertAppointmentAccountInboxRoutable,
 };

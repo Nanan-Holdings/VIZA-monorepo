@@ -20,6 +20,10 @@ import {
 } from "@/lib/submission-live-status";
 import { isQaDryRunPurpose } from "@/lib/applications/qa-safety";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
+import {
+  getAutomatedOnlineSubmissionEvidence,
+  isAutomatedOnlineVisaType,
+} from "@/lib/submission-result-evidence";
 
 export type StatusStepKey =
   | "payment"
@@ -359,6 +363,7 @@ const ARRIVAL_CARD_VISA_TYPES = new Set([
   "PH_ETRAVEL_DEPARTURE_CARD",
   "VN_PREARRIVAL_DECLARATION",
   "KR_E_ARRIVAL_CARD",
+  "JP_VISIT_JAPAN_WEB",
 ]);
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
 const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
@@ -407,6 +412,9 @@ function getSubmissionResult(application: ApplicationRow): Record<string, unknow
 
 function submissionResultIsSubmitted(application: ApplicationRow): boolean {
   const result = getSubmissionResult(application);
+  if (isAutomatedOnlineVisaType(application.visa_type)) {
+    return getAutomatedOnlineSubmissionEvidence(result, application.visa_type).submitted;
+  }
   const resultStatus = normalizeStatus(getStringValue(result, ["status"]));
   const storedStatus = normalizeStatus(application.submission_result_status);
   return (
@@ -448,7 +456,18 @@ function arrivalCardResultIsReady(application: ApplicationRow): boolean {
 
 function getSubmissionResultReference(application: ApplicationRow): string | null {
   const result = getSubmissionResult(application);
-  return getStringValue(result, ["issueNumber", "confirmationNumber", "referenceNumber", "applicationReference", "reference"]);
+  if (isAutomatedOnlineVisaType(application.visa_type)) {
+    const evidence = getAutomatedOnlineSubmissionEvidence(result, application.visa_type);
+    return evidence.submitted ? evidence.reference : null;
+  }
+  return getStringValue(result, [
+    "issueNumber",
+    "officialReference",
+    "confirmationNumber",
+    "referenceNumber",
+    "applicationReference",
+    "reference",
+  ]);
 }
 
 function hasOfficialArrivalCardPdf(application: ApplicationRow): boolean {
@@ -464,6 +483,12 @@ function hasOfficialArrivalCardPdf(application: ApplicationRow): boolean {
 }
 
 function getSubmissionResultPdfPaths(application: ApplicationRow): string[] {
+  if (isAutomatedOnlineVisaType(application.visa_type)) {
+    return getAutomatedOnlineSubmissionEvidence(
+      application.submission_result,
+      application.visa_type,
+    ).pdfPaths;
+  }
   if (!hasOfficialArrivalCardPdf(application)) return [];
   const result = getSubmissionResult(application);
   const paths = new Set<string>();
@@ -474,6 +499,17 @@ function getSubmissionResultPdfPaths(application: ApplicationRow): string[] {
   for (const path of getStringArrayValue(artifacts, "pdfs")) paths.add(path);
 
   return [...paths];
+}
+
+function getSubmissionResultArtifactPaths(application: ApplicationRow): string[] {
+  if (isAutomatedOnlineVisaType(application.visa_type)) {
+    const evidence = getAutomatedOnlineSubmissionEvidence(
+      application.submission_result,
+      application.visa_type,
+    );
+    return [...new Set([...evidence.pdfPaths, ...evidence.qrPaths])];
+  }
+  return getSubmissionResultPdfPaths(application);
 }
 
 function sortByNewest<T>(rows: T[], getDate: (row: T) => string | null | undefined): T[] {
@@ -855,7 +891,9 @@ function getResultState(
     submissionResultIsSubmitted(application) ||
     APPROVED_RESULT_STATUSES.has(resultStatus) ||
     SUCCESS_SUBMISSION_RESULT_STATUSES.has(submissionResultStatus) ||
+    APPROVED_RESULT_STATUSES.has(submissionResultStatus) ||
     REJECTED_RESULT_STATUSES.has(resultStatus) ||
+    REJECTED_RESULT_STATUSES.has(submissionResultStatus) ||
     APPROVED_RESULT_STATUSES.has(rawStatus) ||
     REJECTED_RESULT_STATUSES.has(rawStatus)
   ) {
@@ -870,8 +908,16 @@ function getOverallState(steps: StatusStep[], application: ApplicationRow | null
   const rawStatus = normalizeStatus(application?.status);
   const resultStatus = normalizeStatus(application?.result_status);
   const submissionResultStatus = normalizeStatus(application?.submission_result_status);
-  if (APPROVED_RESULT_STATUSES.has(rawStatus) || APPROVED_RESULT_STATUSES.has(resultStatus)) return "approved";
-  if (REJECTED_RESULT_STATUSES.has(rawStatus) || REJECTED_RESULT_STATUSES.has(resultStatus)) return "rejected";
+  if (
+    APPROVED_RESULT_STATUSES.has(rawStatus) ||
+    APPROVED_RESULT_STATUSES.has(resultStatus) ||
+    APPROVED_RESULT_STATUSES.has(submissionResultStatus)
+  ) return "approved";
+  if (
+    REJECTED_RESULT_STATUSES.has(rawStatus) ||
+    REJECTED_RESULT_STATUSES.has(resultStatus) ||
+    REJECTED_RESULT_STATUSES.has(submissionResultStatus)
+  ) return "rejected";
   if (application && (submissionResultIsSubmitted(application) || SUCCESS_SUBMISSION_RESULT_STATUSES.has(submissionResultStatus))) return "submitted";
   if (!application) return "not_started";
   if (steps.some((step) => step.state === "attention")) return "needs_attention";
@@ -1108,9 +1154,13 @@ async function buildFiles({
     });
   }
 
-  for (const path of getSubmissionResultPdfPaths(application)) {
+  for (const path of getSubmissionResultArtifactPaths(application)) {
     files.push({
-      key: isArrivalCardVisaType(application.visa_type) ? "arrivalCardConfirmation" : "resultFile",
+      key: isArrivalCardVisaType(application.visa_type)
+        ? "arrivalCardConfirmation"
+        : getAutomatedOnlineSubmissionEvidence(application.submission_result, application.visa_type).approved
+          ? "approvedResult"
+          : "resultFile",
       href: await resolveSubmissionArtifactHref(adminClient, path),
       reference: path,
       createdAt: application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at,

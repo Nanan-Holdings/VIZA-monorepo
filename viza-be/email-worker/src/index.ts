@@ -235,23 +235,65 @@ interface ForwardingDestination {
   reason: "authorized" | "missing_profile_email" | "consent_required";
 }
 
+interface AliasOwner {
+  id: string;
+  email: string | null;
+}
+
+function isMissingApplicationAliasSchema(status: number, detail: string): boolean {
+  const normalized = detail.toLowerCase();
+  return (status === 400 || status === 404) && (
+    normalized.includes("application_inbox_aliases") &&
+    (normalized.includes("schema cache") || normalized.includes("does not exist") || normalized.includes("could not find"))
+  );
+}
+
+async function loadAliasOwner(env: Env, alias: string): Promise<AliasOwner | null> {
+  const base = env.SUPABASE_URL.replace(/\/$/, "");
+  const profileAlias = applicantProfileAlias(alias);
+  const headers = supabaseHeaders(env);
+  const applicationAliasUrl = `${base}/rest/v1/application_inbox_aliases?alias=eq.${encodeURIComponent(profileAlias)}&select=applicant_id,retired_at&limit=1`;
+  const applicationAliasRes = await fetch(applicationAliasUrl, { method: "GET", headers });
+  if (applicationAliasRes.ok) {
+    const rows = (await applicationAliasRes.json()) as Array<{
+      applicant_id: string;
+      retired_at: string | null;
+    }>;
+    const applicationAlias = rows[0];
+    if (applicationAlias?.applicant_id && applicationAlias.retired_at === null) {
+      const profileUrl = `${base}/rest/v1/applicant_profiles?id=eq.${encodeURIComponent(applicationAlias.applicant_id)}&select=id,email&limit=1`;
+      const profileRes = await fetch(profileUrl, { method: "GET", headers });
+      if (!profileRes.ok) {
+        const detail = await profileRes.text();
+        throw new Error(`application alias owner lookup failed: ${profileRes.status} ${detail}`);
+      }
+      const profiles = (await profileRes.json()) as AliasOwner[];
+      return profiles[0] ?? null;
+    }
+    if (applicationAlias?.retired_at) return null;
+  } else {
+    const detail = await applicationAliasRes.text();
+    if (!isMissingApplicationAliasSchema(applicationAliasRes.status, detail)) {
+      throw new Error(`application alias lookup failed: ${applicationAliasRes.status} ${detail}`);
+    }
+  }
+
+  const url = `${base}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(profileAlias)}&select=id,email&limit=1`;
+  const res = await fetch(url, { method: "GET", headers });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`alias owner lookup failed: ${res.status} ${detail}`);
+  }
+  const rows = (await res.json()) as AliasOwner[];
+  return rows[0] ?? null;
+}
+
 async function loadForwardingDestination(
   env: Env,
   alias: string,
 ): Promise<ForwardingDestination> {
   const base = env.SUPABASE_URL.replace(/\/$/, "");
-  const profileAlias = applicantProfileAlias(alias);
-  const url = `${base}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(profileAlias)}&select=id,email&limit=1`;
-  const res = await fetch(url, {
-    method: "GET",
-    headers: supabaseHeaders(env),
-  });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`alias owner lookup failed: ${res.status} ${detail}`);
-  }
-  const rows = (await res.json()) as Array<{ id: string; email: string | null }>;
-  const owner = rows[0];
+  const owner = await loadAliasOwner(env, alias);
   const email = owner?.email?.trim().toLowerCase() || null;
   if (!owner?.id || !email) {
     return { email: null, reason: "missing_profile_email" };
@@ -518,7 +560,23 @@ async function retryPendingForwards(env: Env): Promise<void> {
 
 async function aliasIsActive(env: Env, toAddr: string): Promise<boolean> {
   const profileAlias = applicantProfileAlias(toAddr);
-  const url = `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(profileAlias)}&select=inbox_alias_retired_at&limit=1`;
+  const base = env.SUPABASE_URL.replace(/\/$/, "");
+  const applicationAliasUrl = `${base}/rest/v1/application_inbox_aliases?alias=eq.${encodeURIComponent(profileAlias)}&select=retired_at&limit=1`;
+  const applicationAliasRes = await fetch(applicationAliasUrl, {
+    method: "GET",
+    headers: supabaseHeaders(env),
+  });
+  if (applicationAliasRes.ok) {
+    const aliases = (await applicationAliasRes.json()) as Array<{ retired_at: string | null }>;
+    if (aliases.length > 0) return aliases[0].retired_at === null;
+  } else {
+    const detail = await applicationAliasRes.text();
+    if (!isMissingApplicationAliasSchema(applicationAliasRes.status, detail)) {
+      return true;
+    }
+  }
+
+  const url = `${base}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(profileAlias)}&select=inbox_alias_retired_at&limit=1`;
   const res = await fetch(url, {
     method: "GET",
     headers: {

@@ -32,3 +32,7 @@ scheduled recovery workflows.
   migrations plus ledger rows in one transaction. `resume` requires both ledger
   versions, all strict objects, zero live work, six exact paused caps, and no
   status cron before restoring the caps and canonical cron atomically.
+- `automated-product-source-drift.yml` checks the committed Japan VJW and Kenya
+  eTA official-source baselines every Monday. Drift only opens or updates a
+  GitHub review issue; it must never rewrite the manifest, rules, seeds, or
+  runner selectors automatically.

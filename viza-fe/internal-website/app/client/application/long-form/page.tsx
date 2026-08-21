@@ -148,6 +148,8 @@ import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
   isIndonesiaEVisaApplication,
+  isJapanVisitJapanWebApplication,
+  isKenyaEtaApplication,
   isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
   isFranceVisasVisaType,
@@ -273,6 +275,16 @@ const INDONESIA_LIVE_ASSISTED_ENABLED =
 const TAIWAN_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED !== "false";
 
+// Visit Japan Web terms require the traveller to operate the service unless
+// delegated operation is expressly authorized. Keep this gate fail-closed;
+// the portal and VIZA notice remain visible while compliance review is open.
+const JP_VJW_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED === "true" &&
+  process.env.NEXT_PUBLIC_JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED === "true";
+
+const KE_ETA_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_KE_ETA_LIVE_SUBMISSION_ENABLED === "true";
+
 const KOREA_E_ARRIVAL_CARD_LIVE_ASSISTED_ENABLED =
   isKoreaEArrivalCardLiveEnabled({
     serverFlag: process.env.NEXT_PUBLIC_KR_E_ARRIVAL_CARD_LIVE_SUBMISSION_ENABLED,
@@ -292,6 +304,8 @@ type LiveAssistedTarget =
   | "uk"
   | "indonesia"
   | "taiwan"
+  | "jp_vjw"
+  | "ke_eta"
   | null;
 
 interface VietnamOneTimePaymentCard {
@@ -1101,6 +1115,8 @@ function FinalConfirmationPanel({
   const isPhEtravel = liveAssistedTarget === "phetravel";
   const isIndonesia = liveAssistedTarget === "indonesia";
   const isTaiwan = liveAssistedTarget === "taiwan";
+  const isJapanVjw = liveAssistedTarget === "jp_vjw";
+  const isKenyaEta = liveAssistedTarget === "ke_eta";
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
     : isKoreaEArrivalCard && !koreaPreflightTrusted
@@ -1144,10 +1160,18 @@ function FinalConfirmationPanel({
                     ? (isZh
                         ? "本地 Indonesia live handoff 已关闭。请确认 INDONESIA_LIVE_SUBMISSION_ENABLED。"
                         : "Indonesia live handoff is disabled locally. Check INDONESIA_LIVE_SUBMISSION_ENABLED.")
-                  : isTaiwan
+                : isTaiwan
                     ? (isZh
                         ? "台湾官网后台提交暂时未启用。"
                         : "Taiwan official background submission is currently disabled.")
+                  : isJapanVjw
+                    ? (isZh
+                        ? "Visit Japan Web 自动化入口正在进行合规审核；在取得数字厅认可前不会执行官网操作。"
+                        : "Visit Japan Web automation is under compliance review and will not access the official portal until delegated operation is authorized.")
+                  : isKenyaEta
+                    ? (isZh
+                        ? "肯尼亚 eTA 自动提交暂时未启用。"
+                        : "Kenya eTA live submission is currently disabled.")
         : (isZh
             ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"
             : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
@@ -1160,7 +1184,8 @@ function FinalConfirmationPanel({
   const taiwanTermsReady =
     !isTaiwan || (taiwanEntryPromptAccepted && taiwanTermsModalAccepted);
   const submitDisabled = isSubmitting || isChecking || !taiwanTermsReady ||
-    (isKoreaEArrivalCard && !koreaPreflightTrusted);
+    (isKoreaEArrivalCard && !koreaPreflightTrusted) ||
+    (hasLiveAssistedTarget && !liveAssistedEnabled);
   const officialPaymentCard: VietnamOneTimePaymentCard | undefined = undefined;
   const submitCopy = forceDryRun
     ? isZh
@@ -2043,6 +2068,8 @@ export default function ApplicationPage() {
   const isVietnamPrearrival = isVietnamPrearrivalApplication(resolvedCountry, resolvedVisaType);
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isKoreaEArrivalCard = isKoreaEArrivalCardApplication(resolvedCountry, resolvedVisaType);
+  const isJapanVjwApplication = isJapanVisitJapanWebApplication(resolvedCountry, resolvedVisaType);
+  const isKenyaEtaProduct = isKenyaEtaApplication(resolvedCountry, resolvedVisaType);
   const koreaSchemaFieldNames = dbSteps.flatMap((step) => step.fields.map((field) => field.fieldName));
   const koreaSchemaUnavailable = isKoreaArrivalCardSchemaUnavailable({
     isKoreaArrivalCard: isKoreaEArrivalCard,
@@ -2157,6 +2184,10 @@ export default function ApplicationPage() {
                   ? "indonesia"
                   : isTaiwanEntryPermit
                     ? "taiwan"
+                  : isJapanVjwApplication
+                    ? "jp_vjw"
+                  : isKenyaEtaProduct
+                    ? "ke_eta"
                   : null;
   const liveAssistedEnabled = liveAssistedTarget === "ds160"
     ? DS160_LIVE_ASSISTED_ENABLED
@@ -2182,6 +2213,10 @@ export default function ApplicationPage() {
                   ? INDONESIA_LIVE_ASSISTED_ENABLED
                   : liveAssistedTarget === "taiwan"
                     ? TAIWAN_LIVE_ASSISTED_ENABLED
+                  : liveAssistedTarget === "jp_vjw"
+                    ? JP_VJW_LIVE_ASSISTED_ENABLED
+                  : liveAssistedTarget === "ke_eta"
+                    ? KE_ETA_LIVE_ASSISTED_ENABLED
                   : false;
 
   useEffect(() => {

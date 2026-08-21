@@ -30,6 +30,11 @@ The existing reviewed product codes are:
 - Philippines: `PH_TEMPORARY_VISITOR_VISA`, `PH_ETRAVEL_ARRIVAL_CARD`
 - United Kingdom: `UK_STANDARD_VISITOR`
 - Taiwan: `TW_ENTRY_PERMIT`; `TW_ARRIVAL_CARD` remains an official-only arrival-declaration route
+- Japan: `JP_VISIT_JAPAN_WEB` (Visit Japan Web immigration/customs declaration;
+  live third-party automation remains gated on current Digital Agency terms and
+  authorization)
+- Kenya: `KE_ETA` (official electronic travel authorisation; standard official
+  fee baseline USD 30; no F88 product)
 
 Visa, travel authorisation and arrival/departure declarations are separate
 products. A `form_requirements` document must exist independently for every

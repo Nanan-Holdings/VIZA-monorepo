@@ -123,6 +123,8 @@ function isAllowedChoiceValue(field: VisaFormFieldRow, value: string | null | un
   if (
     !field.options?.length ||
     field.validationRules?.remote_search === true ||
+    typeof field.validationRules?.official_options_source === "string" ||
+    typeof field.validationRules?.dynamic_option_source === "string" ||
     !["select", "radio", "country"].includes(field.fieldType)
   ) return true;
   return field.options.some((option) => (

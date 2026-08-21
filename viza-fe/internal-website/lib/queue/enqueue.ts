@@ -99,6 +99,8 @@ const SHARED_POOL_FLOW_KEYS_BY_COUNTRY: Record<string, readonly RunnerPoolFlowKe
   thailand: ["tdac"],
   south_korea: ["kr_eform", "kr_arrival_card"],
   taiwan: ["tw_entry_permit"],
+  japan: ["jp_vjw"],
+  kenya: ["ke_eta"],
 };
 
 function assertExactSharedRunnerPoolTuple(

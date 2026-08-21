@@ -50,6 +50,10 @@ import { JpResultCard } from "./JpResultCard";
 import { normalizeTwStatus, TwResultCard } from "./TwResultCard";
 import { KrResultCard } from "./KrResultCard";
 import {
+  AutomatedOnlineResultCard,
+  isAutomatedOnlineResult,
+} from "./AutomatedOnlineResultCard";
+import {
   isDs160VisaType,
   isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
@@ -533,6 +537,9 @@ function visualStatusFromApplication(status: SubmissionResultStatus | null): Sub
   if (normalized === "processing") return "running";
   if (normalized === "failed") return "failed";
   if (normalized === "stalled") return "stalled";
+  if (normalized === "needs_attention") return "needs_user_action";
+  if (normalized === "rejected") return "failed";
+  if (normalized === "qr_ready" || normalized === "approved" || normalized === "submitted") return "completed";
   if (
     normalized === "needs_user_action" ||
     normalized === "action_required" ||
@@ -1705,6 +1712,10 @@ export function SubmissionStatusStep({
     extractError(effectiveResult, snapshot?.error),
     isZh,
   );
+  const effectiveMessage = userFacingSubmissionRuntimeMessage(
+    snapshot?.message?.trim() || effectiveError,
+    isZh,
+  );
   const effectiveApplicationStatus = terminalPropsAvailable
     ? status
     : snapshot?.applicationStatus ?? status;
@@ -2201,6 +2212,7 @@ export function SubmissionStatusStep({
           applicationId={applicationId ?? undefined}
           errorMessage={
             retryError ??
+            effectiveMessage ??
             effectiveError ??
             "Submission job stalled because the worker did not pick it up in time."
           }
@@ -2289,7 +2301,7 @@ export function SubmissionStatusStep({
             ? isZh
               ? "官网已接收申报。系统每 3 秒自动检查一次；二维码生成后，本页面会立即显示提交成功和下载按钮。"
               : "The official portal received the declaration. VIZA checks every 3 seconds and will show success and the QR download as soon as it is available."
-            : userFacingSubmissionRuntimeMessage(snapshot?.message, isZh)
+            : effectiveMessage
         }
         error={effectiveError}
         applicationId={applicationId}
@@ -2394,6 +2406,9 @@ function renderSubmissionResultCard(
         <AuResultCard applicationId={applicationId} result={result} />
       ) : null;
     case "JP":
+      if (isAutomatedOnlineResult(result)) {
+        return <AutomatedOnlineResultCard result={result} />;
+      }
       return applicationId ? (
         <JpResultCard applicationId={applicationId} result={result} />
       ) : null;
@@ -2406,6 +2421,12 @@ function renderSubmissionResultCard(
       return applicationId ? (
         <KrResultCard applicationId={applicationId} result={result} />
       ) : null;
+    case "KE":
+      return isAutomatedOnlineResult(result) ? (
+        <AutomatedOnlineResultCard result={result} />
+      ) : (
+        <FailureCard errorMessage="The stored Kenya eTA result is invalid." />
+      );
     case "GENERIC":
       return (
         <GenericResultCard

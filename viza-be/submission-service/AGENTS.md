@@ -244,9 +244,11 @@ and must fail closed; callers must not perform a direct table settlement.
   coverage/verification utilities.
 - `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill.
 - `src/france-visas/**`: France-Visas sign-in, five fill steps, dashboard
-  reference capture, optional CERFA PDF finalization, standard Chromium launch,
-  VIZA-alias account registration, registration CAPTCHA solving when explicitly
-  enabled, manual checkpoints, and typed failures.
+  reference capture, optional CERFA PDF finalization, Browserbase-only launch,
+  VIZA-alias account registration,
+  registration CAPTCHA solving when explicitly enabled, manual checkpoints,
+  and typed failures. Blank pages and Cloudflare/WAF pages fail closed; failure
+  screenshots are masked and written outside the repository by default.
 - `src/france-tls/**`: TLScontact China appointment scaffold for France
   Schengen. Keeps the mainland China center registry in one provider, models
   selector/page boundaries, reads backend-observed slots, consumes short-TTL
@@ -256,22 +258,23 @@ and must fail closed; callers must not perform a direct table settlement.
   reCAPTCHA image-grid challenges to 2captcha `GridTask` solves and page
   clicks; it must not be treated as a Cloudflare/WAF, MFA, identity, or
   payment-challenge bypass. `src/france-tls/browser-api.ts` owns TLS-specific
-  Browser API/CDP endpoint selection, provider-native CAPTCHA solve attempts,
+  Browserbase sessions, provider-native CAPTCHA solve attempts,
   Cloudflare/WAF classification, and shared live-smoke page state detection.
-  Bright Data Browser API zones block password entry by default; TLS login can
-  only be fully automated in the same session when the configured Browser API
-  zone has password entry enabled by the provider, or when a local/TLS CDP
-  session is already past Cloudflare and authorized for official login.
+  `src/france-tls/slot-observation.ts` reads one official DOM container per
+  slot and requires a provider slot id plus a paired date/time; it never
+  creates Cartesian-product or `00:00` fallback slots. Empty availability is
+  returned explicitly and unparseable containers become `selector_drift`.
   `src/france-tls/account-registration.ts` owns the idempotent VIZA-alias
   account preparation path: encrypted password persistence, mandatory legal
-  consent only, Cloudflare Email Worker activation, login, and France-Visas
-  reference prefill. It always stops before submitting appointment data,
-  selecting a slot, payment, or booking; real account creation also requires
-  `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true` at the caller boundary.
+  consent only, Cloudflare Email Worker activation, separately authorized
+  official password recovery for a routable account alias, login, and
+  France-Visas reference prefill. It always stops before submitting appointment
+  data, selecting a slot, payment, or booking; real account creation and
+  password reset use separate explicit gates at the caller boundary.
 - `POST /local/france-tls/check-slots`: localhost-only health-server endpoint
   gated by `FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED=true`. It opens the
-  configured TLS VAC official URL through France-specific Browser API/CDP or a
-  local browser, returns visible slots when safely observed, and otherwise
+  configured TLS VAC official URL through Browserbase, returns visible slots
+  when safely observed, and otherwise
   returns structured checkpoints such as `login`, `captcha`, `waf`, `payment`,
   or `selector_drift` without logging Browser API endpoints.
 - `POST /internal/vietnam/card-session`: bearer-protected production handoff
@@ -340,6 +343,8 @@ and must fail closed; callers must not perform a direct table settlement.
   registration. Country runners that need email OTP must force the managed
   alias into the official form; user-entered email remains the forwarding
   destination only.
+  `ensureApplicationInboxAlias` is mandatory for new unattended products;
+  applicant-level aliases remain compatibility-only for older runners.
 - `scripts/ts-node-js-resolver.cjs`: local dev preload that lets `ts-node`
   resolve relative `.js` source imports to sibling `.ts` files while preserving
   build output imports.
@@ -469,6 +474,13 @@ and must fail closed; callers must not perform a direct table settlement.
   registration additionally requires both `--submit-registration` and
   `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true`, then waits for the applicant
   alias activation email and stops before appointment reference submission.
+  The separately authorized `--reset-password` path requires
+  `FRANCE_TLS_ACCOUNT_PASSWORD_RESET_ENABLED=true`, uses the immutable account
+  alias bound to the existing verified appointment account, verifies that
+  alias/domain can receive mail before clicking the official reset control,
+  persists only the encrypted replacement password, verifies a real login,
+  and never creates a second account. Legacy accounts bound to an unreachable
+  non-VIZA mailbox must stop before another reset request.
 - `scripts/run-france-tls-appointment-flow.ts`: resumable, single-application
   TLScontact operator flow. It prepares the alias account, observes and persists
   official slots, stops for the applicant's Portal slot choice and final
@@ -754,9 +766,13 @@ and must fail closed; callers must not perform a direct table settlement.
 - France TLS service-fee payment sessions must be short TTL, in-memory/local
   handoffs. Do not persist full card numbers, CVV, OTP, payment passwords, or
   official TLS cookies to DB, logs, traces, screenshots, `.env`, or AGENTS.
-- France TLS official-page checks should prefer `FRANCE_TLS_BROWSER_API_ENDPOINT`
-  or `FRANCE_TLS_CDP_ENDPOINT` before global Browser API settings. Never log
-  endpoint URLs or embedded credentials.
+- France-Visas and mainland-China France TLScontact are Browserbase-only.
+  Their runners must ignore country/global CDP and Bright Data endpoint
+  variables, fail closed when Browserbase is disabled or unavailable, and
+  never fall back to local Chromium. Use a France proxy location for
+  France-Visas and a China proxy location for the mainland TLS centers. Never
+  log Browserbase API keys, connection URLs, session credentials, or live-view
+  URLs.
 - France TLS live booking must not bypass unsupported official-site MFA,
   real-name, WAF, policy, or payment-challenge gates. Stop with structured
   checkpoint/error evidence instead of marking success.
@@ -789,7 +805,7 @@ npm run install-browsers
 npx ts-node src/ceac/smoke.ts
 # Requires FV_EMAIL/FV_PASSWORD and creates a France-Visas draft/reference:
 npx ts-node scripts/run-fv-smoke.ts .\scripts\fv-answers.example.json
-# Requires an authorized FRANCE_TLS_* or global Browser API/CDP endpoint;
+# Requires the authorized France TLS Browserbase configuration;
 # captures official TLS WAF/login/slot/payment checkpoints:
 npm run france-tls:live-smoke -- --url=https://visas-fr.tlscontact.com/en-us/login
 # Requires AU_USERNAME/AU_PASSWORD, optional AU_TOTP_SECRET:
@@ -879,7 +895,11 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/france-tls/*`
 - `viza-be/submission-service/src/tw/*`
 - `viza-be/submission-service/scripts/run-france-tls-live-smoke.ts`
+- `viza-be/submission-service/scripts/run-france-tls-registration-recon.ts`
+- `viza-be/submission-service/scripts/run-france-visas-browser-recon.ts`
+- `viza-be/submission-service/src/france-visas/__tests__/browser.spec.ts`
 - `viza-be/submission-service/src/france-tls/__tests__/browser-api.spec.ts`
+- `viza-be/submission-service/src/france-tls/__tests__/slot-observation.spec.ts`
 - `viza-be/submission-service/src/france-tls/__tests__/recaptcha-grid.spec.ts`
 - `viza-be/submission-service/src/captcha/__tests__/two-captcha-grid.spec.ts`
 - `viza-be/submission-service/src/ceac/AGENTS.md`

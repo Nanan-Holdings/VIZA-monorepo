@@ -3,7 +3,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { type Locator, type Page } from "@playwright/test";
 import { solveCaptcha, solveImageCaptcha, reportBadCaptcha } from "../captcha/index.js";
-import { createArrivalCardBrowserSession } from "../arrival-card-browser.js";
+import {
+  createArrivalCardBrowserSession,
+  isRemoteBrowserProviderPolicyBlockMessage,
+} from "../arrival-card-browser.js";
 import { inbox, type InboundMessage, InboxDomainUnroutableError, InboxTimeoutError } from "../inbox/wait-for-message.js";
 import { closeResourceBestEffort, launchAbortableResource } from "../queue/portal-safety.js";
 import { RunnerJobOwnershipLostError, type RunnerExecutionContext } from "../queue/execution-context.js";
@@ -12,8 +15,10 @@ import {
   isOfficialAdditionalQuestionKey,
 } from "./official-options.js";
 import {
+  classifyOfficialTravelLookup,
   KR_EARRIVAL_CHECK_EDIT_URL,
   KR_EARRIVAL_OFFICIAL_PORTAL_URL,
+  officialTravelLookupMatches,
   type KrEArrivalPortalPayload,
 } from "./normalize.js";
 
@@ -63,6 +68,11 @@ export class KrEArrivalPortalError extends Error {
   }
 }
 
+function safeErrorMessage(error: unknown, sensitiveValues: string[] = []): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return safeSummary(message.split("\n")[0] ?? message, sensitiveValues);
+}
+
 async function findVisible(page: Page, selectors: string[]): Promise<Locator | null> {
   for (const selector of selectors) {
     const count = await page.locator(selector).count().catch(() => 0);
@@ -109,45 +119,28 @@ async function saveScreenshot(
     const currentWindow = window as Window & {
       [stateKey]?: {
         elements: Array<{ element: HTMLInputElement | HTMLTextAreaElement; value: string }>;
+        styledElements: Array<{ element: HTMLElement; style: string | null }>;
         textNodes: Array<{ node: Text; value: string }>;
       };
     };
     const state = {
       elements: [] as Array<{ element: HTMLInputElement | HTMLTextAreaElement; value: string }>,
+      styledElements: [] as Array<{ element: HTMLElement; style: string | null }>,
       textNodes: [] as Array<{ node: Text; value: string }>,
     };
     const replacements = values.filter((value) => value.trim()).map((value) => [value, "[redacted]"] as const);
-    const replaceText = (source: string): string => {
-      let output = source;
-      for (const [needle, replacement] of replacements) output = output.split(needle).join(replacement);
-      return output
-        .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/gu, "[email]")
-        .replace(/\b\d{6}\b/gu, "[otp]")
-        .replace(/\b\d{7,}\b/gu, "[redacted-number]");
-    };
-    const fieldSelector = [
-      "input[name*='email' i]",
-      "input[class*='eml' i]",
-      "input[id*='email' i]",
-      "input[id*='eml' i]",
-      "input[name*='passport' i]",
-      "input[class*='ps_no' i]",
-      "input[id*='passport' i]",
-      "input[id*='ps_no' i]",
-      "input[name*='phone' i]",
-      "input[name*='tel' i]",
-      "input[class*='tel' i]",
-      "input[id*='phone' i]",
-      "input[id*='tel' i]",
-      "input[name*='idcd' i]",
-      "input[id*='idcd' i]",
-      "input[class*='auth' i]",
-      "input[id*='auth' i]",
-      "textarea[name*='email' i]",
-    ].join(",");
+    // File input values are browser-protected and assigning a non-empty value
+    // throws a DOMException. They never contain typed form answers, so leave
+    // them untouched while masking every text-like control.
+    const fieldSelector = "input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not([type='file']), textarea";
     document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(fieldSelector).forEach((element) => {
       state.elements.push({ element, value: element.value });
       element.value = "[redacted]";
+    });
+    document.querySelectorAll<HTMLElement>("select").forEach((element) => {
+      state.styledElements.push({ element, style: element.getAttribute("style") });
+      element.style.setProperty("color", "transparent", "important");
+      element.style.setProperty("text-shadow", "0 0 8px rgba(0, 0, 0, 0.9)", "important");
     });
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     let node: Node | null = walker.nextNode();
@@ -155,7 +148,14 @@ async function saveScreenshot(
       const textNode = node as Text;
       const parent = textNode.parentElement;
       if (parent && !/^(SCRIPT|STYLE|NOSCRIPT)$/u.test(parent.tagName)) {
-        const replacement = replaceText(textNode.nodeValue ?? "");
+        let replacement = textNode.nodeValue ?? "";
+        for (const [needle, redacted] of replacements) {
+          replacement = replacement.split(needle).join(redacted);
+        }
+        replacement = replacement
+          .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/gu, "[email]")
+          .replace(/\b\d{6}\b/gu, "[otp]")
+          .replace(/\b\d{7,}\b/gu, "[redacted-number]");
         if (replacement !== textNode.nodeValue) {
           state.textNodes.push({ node: textNode, value: textNode.nodeValue ?? "" });
           textNode.nodeValue = replacement;
@@ -173,12 +173,17 @@ async function saveScreenshot(
       const currentWindow = window as Window & {
         [stateKey]?: {
           elements: Array<{ element: HTMLInputElement | HTMLTextAreaElement; value: string }>;
+          styledElements: Array<{ element: HTMLElement; style: string | null }>;
           textNodes: Array<{ node: Text; value: string }>;
         };
       };
       const state = currentWindow[stateKey];
       if (!state) return;
       for (const entry of state.elements) entry.element.value = entry.value;
+      for (const entry of state.styledElements) {
+        if (entry.style === null) entry.element.removeAttribute("style");
+        else entry.element.setAttribute("style", entry.style);
+      }
       for (const entry of state.textNodes) entry.node.nodeValue = entry.value;
       delete currentWindow[stateKey];
     }).catch(() => undefined);
@@ -217,6 +222,62 @@ async function selectExact(page: Page, selector: string, value: string, label: s
   await select.selectOption({ value });
 }
 
+async function runOfficialDateRefresh(
+  page: Page,
+  selectors: { year: string; month: string; day: string },
+): Promise<boolean> {
+  return page.evaluate(({ yearSelector, monthSelector, daySelector }) => {
+    const year = document.querySelector(yearSelector);
+    const month = document.querySelector(monthSelector);
+    const day = document.querySelector(daySelector);
+    if (!(year instanceof HTMLSelectElement)
+      || !(month instanceof HTMLSelectElement)
+      || !(day instanceof HTMLSelectElement)) return false;
+    if (year.disabled || month.disabled || year.value === "N" || month.value === "N") return false;
+
+    const jquery = (window as unknown as {
+      jQuery?: (element: Element) => { trigger: (eventName: string) => void };
+    }).jQuery;
+    if (!jquery) return false;
+
+    // Browserbase exposes native selects through individual accessibility
+    // wrappers. Korea's own month-change handler expects the original year,
+    // month, and day selects to be siblings, so temporarily restore that
+    // relationship while invoking the portal's handler. The portal remains
+    // responsible for generating the permitted day options.
+    const yearParent = year.parentNode;
+    const monthParent = month.parentNode;
+    const dayParent = day.parentNode;
+    if (!(yearParent instanceof HTMLElement)
+      || !(monthParent instanceof HTMLElement)
+      || !(dayParent instanceof HTMLElement)
+      || !yearParent.classList.contains("bb-custom-select-container")
+      || !monthParent.classList.contains("bb-custom-select-container")
+      || !dayParent.classList.contains("bb-custom-select-container")
+      || !monthParent.parentNode) return false;
+
+    const yearNext = year.nextSibling;
+    const monthNext = month.nextSibling;
+    const dayNext = day.nextSibling;
+    const bridge = document.createElement("div");
+    monthParent.parentNode.insertBefore(bridge, monthParent);
+    try {
+      bridge.append(year, month, day);
+      jquery(month).trigger("change");
+    } finally {
+      yearParent.insertBefore(year, yearNext);
+      monthParent.insertBefore(month, monthNext);
+      dayParent.insertBefore(day, dayNext);
+      bridge.remove();
+    }
+    return !day.disabled && day.options.length > 1;
+  }, {
+    yearSelector: selectors.year,
+    monthSelector: selectors.month,
+    daySelector: selectors.day,
+  });
+}
+
 async function fillDate(
   page: Page,
   selectors: { year: string; month: string; day: string },
@@ -227,6 +288,20 @@ async function fillDate(
   if (!match) throw new KrEArrivalPortalError(`Invalid ${label} date supplied to the official portal.`, { code: "kr_eac_invalid_date" });
   await selectExact(page, selectors.year, match[1], `${label} year`);
   await selectExact(page, selectors.month, match[2], `${label} month`);
+  const dayOption = page.locator(selectors.day).first().locator(`option[value="${match[3]}"]`);
+  await dayOption.waitFor({
+    state: "attached",
+    timeout: 2_000,
+  }).catch(() => undefined);
+  if (!(await dayOption.count())) {
+    const refreshed = await runOfficialDateRefresh(page, selectors).catch(() => false);
+    if (!refreshed) {
+      throw new KrEArrivalPortalError(
+        `Official Korea e-Arrival Card ${label} date widget did not generate day options.`,
+        { code: "kr_eac_date_widget_incompatible", blocked: true },
+      );
+    }
+  }
   await selectExact(page, selectors.day, match[3], `${label} day`);
 }
 
@@ -235,11 +310,166 @@ async function clickVisible(
   selectors: string[],
   label: string,
   executionContext?: RunnerExecutionContext,
+  options: { noWaitAfter?: boolean } = {},
 ): Promise<void> {
   const target = await findVisible(page, selectors);
   if (!target) throw new KrEArrivalPortalError(`Official Korea e-Arrival Card ${label} control was not found.`, { code: "kr_eac_selector_drift" });
   executionContext?.assertOwned();
-  await target.click({ timeout: 20_000 });
+  await target.click({ timeout: 20_000, noWaitAfter: options.noWaitAfter }).catch((error) => {
+    throw new KrEArrivalPortalError(
+      `Official Korea e-Arrival Card ${label} control could not be clicked.`,
+      {
+        code: "kr_eac_control_click_failed",
+        portalSummary: safeSummary(error instanceof Error ? error.message : String(error)),
+        blocked: true,
+      },
+    );
+  });
+}
+
+async function setRequiredAgreement(
+  page: Page,
+  selector: string,
+  label: string,
+  executionContext?: RunnerExecutionContext,
+): Promise<void> {
+  const checkbox = page.locator(selector).first();
+  await checkbox.waitFor({ state: "attached", timeout: 30_000 }).catch(() => {
+    throw new KrEArrivalPortalError(
+      `Official Korea e-Arrival Card ${label} checkbox was not found.`,
+      { code: "kr_eac_agreement_selector_drift", blocked: true },
+    );
+  });
+  if (await checkbox.isDisabled().catch(() => true)) {
+    throw new KrEArrivalPortalError(
+      `Official Korea e-Arrival Card ${label} checkbox is disabled.`,
+      { code: "kr_eac_agreement_not_editable", blocked: true },
+    );
+  }
+  if (!(await checkbox.isChecked().catch(() => false))) {
+    executionContext?.assertOwned();
+    // The official checkbox is visually covered by its custom check-mark span.
+    // Browserbase may accept a click on the surrounding label without toggling
+    // the native input, so set the real checkbox and then verify its committed
+    // state before the portal's Confirm action.
+    await checkbox.setChecked(true, { force: true, timeout: 20_000 }).catch((error) => {
+      throw new KrEArrivalPortalError(
+        `Official Korea e-Arrival Card ${label} checkbox could not be selected.`,
+        {
+          code: "kr_eac_agreement_click_failed",
+          portalSummary: safeSummary(error instanceof Error ? error.message : String(error)),
+          blocked: true,
+        },
+      );
+    });
+  }
+  if (!(await checkbox.isChecked().catch(() => false))) {
+    throw new KrEArrivalPortalError(
+      `Official Korea e-Arrival Card ${label} checkbox did not retain its selected state.`,
+      { code: "kr_eac_agreement_not_committed", blocked: true },
+    );
+  }
+}
+
+async function waitForIndividualFormAfterAgreement(
+  page: Page,
+  logs: string[],
+  sensitiveValues: string[],
+  timeoutMs = 25_000,
+): Promise<void> {
+  const form = page.locator(".info_wrap.applyNo01").first();
+  const portalPrompt = page.locator(".popBox").filter({
+    has: page.locator("#btnPopConfirm, #btnPopClose"),
+  }).filter({
+    hasNot: page.locator(".info_wrap.applyNo01"),
+  }).first();
+  const outcome = await Promise.race([
+    form.waitFor({ state: "visible", timeout: timeoutMs }).then(() => "form" as const),
+    portalPrompt.waitFor({ state: "visible", timeout: timeoutMs }).then(() => "prompt" as const),
+  ]).catch(() => "timeout" as const);
+
+  if (outcome === "form") return;
+
+  const promptText = outcome === "prompt"
+    ? safeSummary(await portalPrompt.innerText().catch(() => ""), sensitiveValues)
+    : "";
+  const currentPath = (() => {
+    try { return new URL(page.url()).pathname; } catch { return "unknown"; }
+  })();
+  logs.push(`kr_eac_agreement_confirmation_${outcome} path=${currentPath}`);
+  throw new KrEArrivalPortalError(
+    outcome === "prompt"
+      ? "Official Korea e-Arrival Card rejected the agreement confirmation."
+      : "Official Korea e-Arrival Card did not open the individual declaration form after agreement confirmation.",
+    {
+      code: outcome === "prompt"
+        ? "kr_eac_agreement_confirmation_rejected"
+        : "kr_eac_individual_form_timeout",
+      logs,
+      portalSummary: promptText || `Agreement confirmation remained on ${currentPath}.`,
+      retryable: outcome === "timeout",
+      blocked: true,
+    },
+  );
+}
+
+async function submitAgreementConfirmation(
+  page: Page,
+  logs: string[],
+  sensitiveValues: string[],
+  executionContext?: RunnerExecutionContext,
+): Promise<void> {
+  const emailCheckPromise = page.waitForResponse((response) => {
+    try {
+      return new URL(response.url()).pathname === "/portal/apply/exptEmlChk.do";
+    } catch {
+      return false;
+    }
+  }, { timeout: 20_000 }).then(async (response) => ({
+    observed: true as const,
+    ok: response.ok(),
+    status: response.status(),
+    rejected: (await response.text().catch(() => "")).trim() === "Y",
+  })).catch(() => ({ observed: false as const }));
+
+  await clickVisible(
+    page,
+    ["#btnOk"],
+    "agreement confirmation",
+    executionContext,
+    { noWaitAfter: true },
+  );
+  const emailCheck = await emailCheckPromise;
+  if (!emailCheck.observed) {
+    logs.push("kr_eac_agreement_email_check_timeout");
+  } else {
+    logs.push(`kr_eac_agreement_email_check status=${emailCheck.status} decision=${emailCheck.rejected ? "rejected" : "allowed"}`);
+    if (!emailCheck.ok) {
+      throw new KrEArrivalPortalError(
+        "Official Korea e-Arrival Card email eligibility check returned an HTTP error.",
+        {
+          code: "kr_eac_agreement_email_check_failed",
+          logs,
+          portalSummary: `Email eligibility check returned HTTP ${emailCheck.status}.`,
+          retryable: true,
+          blocked: true,
+        },
+      );
+    }
+    if (emailCheck.rejected) {
+      throw new KrEArrivalPortalError(
+        "Official Korea e-Arrival Card rejected the managed inbox address.",
+        {
+          code: "kr_eac_agreement_email_rejected",
+          logs,
+          portalSummary: "The official email eligibility endpoint rejected the managed inbox address.",
+          blocked: true,
+        },
+      );
+    }
+  }
+
+  await waitForIndividualFormAfterAgreement(page, logs, sensitiveValues);
 }
 
 function normalizeAddressForMatch(value: string): string {
@@ -257,6 +487,46 @@ function addressContainsOrMatches(query: string, candidate: string): boolean {
   return normalizedQuery === normalizedCandidate
     || normalizedCandidate.includes(normalizedQuery)
     || normalizedQuery.includes(normalizedCandidate);
+}
+
+function leadingAddressNumber(value: string): string | null {
+  return /^\s*(\d+(?:-\d+)?)\b/u.exec(value)?.[1] ?? null;
+}
+
+async function acknowledgeOfficialAddressNoResultsPrompt(
+  page: Page,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
+  const noResultsPattern = /(?:no\s+(?:search\s+)?results?|not\s+found|no\s+matching|검색\s*결과.*없|검색된.*없|주소.*찾.*없)/iu;
+  const dialogs = page.locator(".popBox, [role='dialog'], .ui-dialog");
+  const count = await dialogs.count().catch(() => 0);
+  for (let index = count - 1; index >= 0; index -= 1) {
+    const dialog = dialogs.nth(index);
+    if (!(await dialog.isVisible().catch(() => false))) continue;
+    const body = await dialog.innerText().catch(() => "");
+    if (!noResultsPattern.test(body)) continue;
+    const confirmation = dialog
+      .locator("button, input[type='button'], input[type='submit'], a, [role='button']")
+      .filter({ hasText: /^(?:ok|confirm|close|확인|닫기)$/iu })
+      .first();
+    if (await confirmation.count().catch(() => 0) === 0 || !(await confirmation.isVisible().catch(() => false))) {
+      throw new KrEArrivalPortalError(
+        "Official Korea e-Arrival Card address no-results prompt has no observable confirmation control.",
+        { code: "kr_eac_address_prompt_drift", blocked: true },
+      );
+    }
+    executionContext?.assertOwned();
+    await confirmation.click({ timeout: 15_000 });
+    await dialog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => undefined);
+    if (await dialog.isVisible().catch(() => false)) {
+      throw new KrEArrivalPortalError(
+        "Official Korea e-Arrival Card address no-results prompt did not close.",
+        { code: "kr_eac_address_prompt_drift", blocked: true },
+      );
+    }
+    return true;
+  }
+  return false;
 }
 
 async function selectOfficialStayAddress(
@@ -285,11 +555,25 @@ async function selectOfficialStayAddress(
     );
   }
   executionContext?.assertOwned();
-  await button.click({ timeout: 20_000 });
+  await button.click({ timeout: 20_000 }).catch((error) => {
+    throw new KrEArrivalPortalError(
+      "Official Korea e-Arrival Card address lookup control could not be opened.",
+      {
+        code: "kr_eac_address_widget_click_failed",
+        portalSummary: safeSummary(error instanceof Error ? error.message : String(error)),
+        blocked: true,
+      },
+    );
+  });
   const postalOnly = !addressQuery || /^\d{5}$/u.test(addressQuery.trim());
+  const keywordSelectors = postalOnly ? ["#keywordZipCode", "#keywordAddr"] : ["#keywordAddr"];
+  await page.locator(keywordSelectors.join(",")).first().waitFor({
+    state: "visible",
+    timeout: 10_000,
+  }).catch(() => undefined);
   const keyword = await findVisible(
     page,
-    postalOnly ? ["#keywordZipCode", "#keywordAddr"] : ["#keywordAddr"],
+    keywordSelectors,
   );
   if (!keyword) {
     throw new KrEArrivalPortalError(
@@ -309,14 +593,30 @@ async function selectOfficialStayAddress(
     );
   }
   executionContext?.assertOwned();
-  await search.click({ timeout: 20_000 });
-  const resultLinks = page.locator("a[onclick^='addrSet(']");
+  // The official search handler sometimes leaves a scheduled navigation
+  // unresolved after its AJAX results are already rendered. Wait for the
+  // observable result controls below instead of Playwright's navigation hook.
+  await search.click({ timeout: 20_000, noWaitAfter: true }).catch((error) => {
+    throw new KrEArrivalPortalError(
+      "Official Korea e-Arrival Card address search could not be started.",
+      {
+        code: "kr_eac_address_search_click_failed",
+        portalSummary: safeSummary(error instanceof Error ? error.message : String(error)),
+        blocked: true,
+      },
+    );
+  });
+  const resultLinks = page.locator("[onclick*='addrSet(']");
+  const searchDiagnostics: Array<{ links: number; parsed: number; postalMatches: number }> = [];
   const findMatchingResult = async (
     requireAddressMatch: boolean,
     requirePostalMatch = false,
+    allowUniquePostalFallback = false,
   ): Promise<Locator | null> => {
     await resultLinks.first().waitFor({ state: "visible", timeout: 30_000 }).catch(() => undefined);
     const count = await resultLinks.count();
+    const postalCandidates: Locator[] = [];
+    let parsedCount = 0;
     for (let index = 0; index < count; index += 1) {
       const candidate = resultLinks.nth(index);
       if (!(await candidate.isVisible().catch(() => false))) continue;
@@ -325,20 +625,119 @@ async function selectOfficialStayAddress(
         ? /addrSet\(\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*\)/u.exec(onclick)
         : null;
       if (!match) continue;
+      parsedCount += 1;
       const candidatePostal = match[1].trim();
       const candidateAddress = (language === "ko" ? match[3] : match[2]).trim();
       const postalMatches = candidatePostal === postalQuery.trim();
       const addressMatches = !postalOnly && addressQuery
         ? addressContainsOrMatches(addressQuery, candidateAddress)
         : true;
+      if (postalMatches) postalCandidates.push(candidate);
       if (
         (requireAddressMatch && addressMatches && (!requirePostalMatch || postalMatches))
         || (!requireAddressMatch && postalMatches && addressMatches)
       ) {
+        searchDiagnostics.push({ links: count, parsed: parsedCount, postalMatches: postalCandidates.length });
         return candidate;
       }
     }
-    return null;
+    searchDiagnostics.push({ links: count, parsed: parsedCount, postalMatches: postalCandidates.length });
+    return allowUniquePostalFallback && postalCandidates.length === 1
+      ? postalCandidates[0] ?? null
+      : null;
+  };
+
+  const findUniquePostalBuildingResult = async (
+    postalKeyword: Locator,
+    postalSearch: Locator,
+  ): Promise<Locator | null> => {
+    const savedBuildingNumber = leadingAddressNumber(addressQuery);
+    if (!savedBuildingNumber || !postalQuery) return null;
+
+    type AddressCandidate = {
+      onclick: string;
+      postal: string;
+      address: string;
+    };
+    const readCandidates = async (): Promise<AddressCandidate[]> => resultLinks.evaluateAll((elements) => {
+      const candidates = new Map<string, AddressCandidate>();
+      for (const element of elements) {
+        const onclick = element.getAttribute("onclick") ?? "";
+        const match = /addrSet\(\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*\)/u.exec(onclick);
+        if (!match || candidates.has(onclick)) continue;
+        candidates.set(onclick, { onclick, postal: match[1], address: match[2] });
+      }
+      return Array.from(candidates.values());
+    });
+    const findCandidateLocator = async (onclick: string): Promise<Locator | null> => {
+      const count = await resultLinks.count();
+      for (let index = 0; index < count; index += 1) {
+        const candidate = resultLinks.nth(index);
+        if (await candidate.getAttribute("onclick").catch(() => "") === onclick) return candidate;
+      }
+      return null;
+    };
+    const goToNextPage = async (pageNumber: number): Promise<boolean> => {
+      const firstBefore = await resultLinks.first().getAttribute("onclick").catch(() => "");
+      const link = page.locator(`.pagination a[onclick*="fn_egov_link_page(${pageNumber})"]`).first();
+      if (!(await link.isVisible().catch(() => false))) return false;
+      executionContext?.assertOwned();
+      await link.click({ timeout: 20_000, noWaitAfter: true });
+      await page.waitForFunction(
+        ({ selector, previous }) => {
+          const first = document.querySelector(selector);
+          return Boolean(first && first.getAttribute("onclick") !== previous);
+        },
+        { selector: "[onclick*='addrSet(']", previous: firstBefore },
+        { timeout: 30_000 },
+      ).catch(() => undefined);
+      return (await resultLinks.first().getAttribute("onclick").catch(() => "")) !== firstBefore;
+    };
+
+    const totalCount = Number.parseInt(
+      await page.locator("#totalCount").first().innerText().catch(() => "0"),
+      10,
+    );
+    const firstPageCount = (await readCandidates()).length;
+    const pageSize = Math.max(1, firstPageCount);
+    const totalPages = Math.min(40, Math.max(1, Math.ceil(totalCount / pageSize)));
+    const numberMatches: Array<{ page: number; onclick: string }> = [];
+
+    for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+      const candidates = await readCandidates();
+      for (const candidate of candidates) {
+        if (
+          candidate.postal === postalQuery
+          && leadingAddressNumber(candidate.address) === savedBuildingNumber
+        ) {
+          numberMatches.push({ page: pageNumber, onclick: candidate.onclick });
+        }
+      }
+      if (pageNumber < totalPages && !(await goToNextPage(pageNumber + 1))) break;
+    }
+
+    const uniqueMatches = Array.from(
+      new Map(numberMatches.map((match) => [match.onclick, match])).values(),
+    );
+    if (uniqueMatches.length !== 1) return null;
+
+    const match = uniqueMatches[0];
+    const firstBeforeRestart = await resultLinks.first().getAttribute("onclick").catch(() => "");
+    await postalKeyword.fill(postalQuery);
+    executionContext?.assertOwned();
+    await postalSearch.click({ timeout: 20_000, noWaitAfter: true });
+    await page.waitForFunction(
+      ({ selector, previous }) => {
+        const first = document.querySelector(selector);
+        return Boolean(first && first.getAttribute("onclick") !== previous);
+      },
+      { selector: "[onclick*='addrSet(']", previous: firstBeforeRestart },
+      { timeout: 30_000 },
+    ).catch(() => undefined);
+    for (let pageNumber = 2; pageNumber <= match.page; pageNumber += 1) {
+      if (!(await goToNextPage(pageNumber))) return null;
+    }
+    return findCandidateLocator(match.onclick);
   };
 
   let selected = await findMatchingResult(!postalOnly && Boolean(addressQuery), Boolean(postalQuery));
@@ -346,23 +745,48 @@ async function selectOfficialStayAddress(
     // Address text can be transliterated or abbreviated in saved data. If the
     // address search has no exact result, use the official postal-code tab and
     // still require the returned ZIP/address pair to match the saved values.
-    const zipKeyword = await findVisible(page, ["#keywordZipCode"]);
-    const zipSearch = await findVisible(page, ["#btnSearchZipCode"]);
+    await acknowledgeOfficialAddressNoResultsPrompt(page, executionContext);
+    const zipKeyword = await findVisible(page, ["#keywordZipCode", "#keywordAddr"]);
+    const zipSearch = await findVisible(page, ["#btnSearchZipCode", "#btnSearchAddr"]);
     if (zipKeyword && zipSearch) {
       await zipKeyword.fill(postalQuery);
       executionContext?.assertOwned();
-      await zipSearch.click({ timeout: 20_000 });
-      selected = await findMatchingResult(true, true);
+      await zipSearch.click({ timeout: 20_000, noWaitAfter: true }).catch((error) => {
+        throw new KrEArrivalPortalError(
+          "Official Korea e-Arrival Card postal-code search could not be started.",
+          {
+            code: "kr_eac_address_search_click_failed",
+            portalSummary: safeSummary(error instanceof Error ? error.message : String(error)),
+            blocked: true,
+          },
+        );
+      });
+      selected = await findMatchingResult(true, true, true);
+      if (!selected) selected = await findUniquePostalBuildingResult(zipKeyword, zipSearch);
+      if (!selected) await acknowledgeOfficialAddressNoResultsPrompt(page, executionContext);
     }
   }
   if (!selected) {
     throw new KrEArrivalPortalError(
       "Official Korea e-Arrival Card address lookup did not return an exact matching result.",
-      { code: "kr_eac_address_match_failed", blocked: true },
+      {
+        code: "kr_eac_address_match_failed",
+        portalSummary: safeSummary(JSON.stringify(searchDiagnostics)),
+        blocked: true,
+      },
     );
   }
   executionContext?.assertOwned();
-  await selected.click({ timeout: 20_000 });
+  await selected.click({ timeout: 20_000 }).catch((error) => {
+    throw new KrEArrivalPortalError(
+      "Official Korea e-Arrival Card address result could not be selected.",
+      {
+        code: "kr_eac_address_result_click_failed",
+        portalSummary: safeSummary(error instanceof Error ? error.message : String(error)),
+        blocked: true,
+      },
+    );
+  });
   await page.waitForTimeout(300);
   const korean = await page.locator("input.soj_prrpl_rnm_bs_han_addr").first().inputValue().catch(() => "");
   const english = await page.locator("input.soj_prrpl_rnm_bs_eng_addr").first().inputValue().catch(() => "");
@@ -375,26 +799,68 @@ async function selectOfficialStayAddress(
   }
 }
 
-function normalizeTravelLookupValue(value: string): string {
-  return value
-    .trim()
-    .toLocaleLowerCase("en-US")
-    .replace(/[^\p{L}\p{N}]+/gu, "");
-}
-
-function travelLookupMatches(expected: string, observed: string): boolean {
-  const expectedNormalized = normalizeTravelLookupValue(expected);
-  const observedNormalized = normalizeTravelLookupValue(observed);
-  if (!expectedNormalized || !observedNormalized) return false;
-  return expectedNormalized === observedNormalized
-    || expectedNormalized.includes(observedNormalized)
-    || observedNormalized.includes(expectedNormalized);
-}
-
 async function readOfficialTravelLookupValue(page: Page, selectors: string[]): Promise<string> {
   const field = page.locator(selectors.join(",")).first();
   if (await field.count().catch(() => 0) === 0) return "";
   return await field.inputValue().catch(async () => await field.getAttribute("value").catch(() => "") ?? "");
+}
+
+async function fillOfficialAirFlightNumber(
+  page: Page,
+  scope: string,
+  segment: "E" | "D",
+  flightNumber: string,
+  executionContext?: RunnerExecutionContext,
+): Promise<void> {
+  const normalized = flightNumber.trim().toUpperCase().replace(/\s+/gu, "");
+  const airlineCode = /^([A-Z0-9]{2})[A-Z0-9]+$/u.exec(normalized)?.[1] ?? null;
+  const selector = segment === "E" ? ".ent_str_cno_select" : ".dep_end_cno_select";
+  const inputSelector = segment === "E" ? ".ent_cno_nm" : ".dep_cno_nm";
+  const selectedCodeSelector = segment === "E" ? ".ent_cno_cd" : ".dep_cno_cd";
+  const wrapper = await findVisible(page, [`${scope} ${selector}`]);
+  if (!wrapper) {
+    throw new KrEArrivalPortalError(
+      "Official Korea e-Arrival Card airline selector was not observable.",
+      { code: "kr_eac_airline_widget_drift", blocked: true },
+    );
+  }
+  executionContext?.assertOwned();
+  await wrapper.click({ timeout: 20_000 });
+  const optionsSelector = `${scope} .cno-options[data-edgb='${segment}'] .cno-options-value`;
+  const options = page.locator(optionsSelector);
+  await options.first().waitFor({ state: "visible", timeout: 20_000 });
+  const exact = airlineCode
+    ? page.locator(`${optionsSelector}[data-code='${airlineCode}']`).first()
+    : null;
+  const direct = page.locator(`${optionsSelector}[data-code='direct']`).first();
+  const exactVisible = exact ? await exact.isVisible().catch(() => false) : false;
+  const selected = exactVisible && exact ? exact : direct;
+  if (!(await selected.isVisible().catch(() => false))) {
+    throw new KrEArrivalPortalError(
+      `Official Korea e-Arrival Card airline option ${airlineCode ?? "direct"} was not found.`,
+      { code: "kr_eac_airline_option_drift", blocked: true },
+    );
+  }
+  executionContext?.assertOwned();
+  await selected.click({ timeout: 20_000 }).catch((error) => {
+    throw new KrEArrivalPortalError(
+      "Official Korea e-Arrival Card airline option could not be selected.",
+      {
+        code: "kr_eac_airline_option_click_failed",
+        portalSummary: safeSummary(error instanceof Error ? error.message : String(error)),
+        blocked: true,
+      },
+    );
+  });
+  const officialCode = await page.locator(`${scope} ${selectedCodeSelector}`).first().inputValue().catch(() => "");
+  if (exactVisible && officialCode !== airlineCode) {
+    throw new KrEArrivalPortalError(
+      "Official Korea e-Arrival Card airline selector did not commit the selected code.",
+      { code: "kr_eac_airline_widget_drift", blocked: true },
+    );
+  }
+  await fillInput(page, `${scope} ${inputSelector}`, normalized, "flight number");
+  await page.locator(`${scope} ${inputSelector}`).first().press("Tab");
 }
 
 /**
@@ -409,28 +875,57 @@ async function acknowledgeOfficialTravelLookupPrompt(
   logs: string[],
   executionContext?: RunnerExecutionContext,
 ): Promise<void> {
-  const dialogs = page.locator(".popBox, [role='dialog'], .ui-dialog");
-  const count = await dialogs.count().catch(() => 0);
-  for (let index = 0; index < count; index += 1) {
-    const dialog = dialogs.nth(index);
-    if (!(await dialog.isVisible().catch(() => false))) continue;
-    const body = await dialog.innerText().catch(() => "");
-    if (!/(?:flight|ship|airport|port|not found|unknown|unable|조회|항공|선박|공항|항구|없)/iu.test(body)) continue;
-    const confirmation = dialog
-      .locator("button, input[type='button'], input[type='submit'], a, [role='button']")
-      .filter({ hasText: /^(?:ok|confirm|close|확인|닫기)$/iu })
-      .first();
-    if (await confirmation.count().catch(() => 0) === 0 || !(await confirmation.isVisible().catch(() => false))) {
-      throw new KrEArrivalPortalError(
-        `Official Korea e-Arrival Card ${label} lookup prompt has no observable confirmation control.`,
-        { code: "kr_eac_travel_lookup_prompt_drift", blocked: true },
-      );
+  const travelPromptPattern = /(?:flight|ship|airport|port|not found|unknown|unable|조회|항공|선박|공항|항구|없)/iu;
+  let acknowledged = false;
+  for (let pass = 0; pass < 3; pass += 1) {
+    const dialogs = page.locator(".popBox, [role='dialog'], .ui-dialog");
+    const count = await dialogs.count().catch(() => 0);
+    let handledThisPass = false;
+    for (let index = 0; index < count; index += 1) {
+      const dialog = dialogs.nth(index);
+      if (!(await dialog.isVisible().catch(() => false))) continue;
+      const body = await dialog.innerText().catch(() => "");
+      if (!travelPromptPattern.test(body)) continue;
+      const confirmation = dialog
+        .locator("button, input[type='button'], input[type='submit'], a, [role='button']")
+        .filter({ hasText: /^(?:ok|confirm|close|확인|닫기)$/iu })
+        .first();
+      if (await confirmation.count().catch(() => 0) === 0 || !(await confirmation.isVisible().catch(() => false))) {
+        throw new KrEArrivalPortalError(
+          `Official Korea e-Arrival Card ${label} lookup prompt has no observable confirmation control.`,
+          { code: "kr_eac_travel_lookup_prompt_drift", blocked: true },
+        );
+      }
+      executionContext?.assertOwned();
+      await confirmation.click({ timeout: 15_000 });
+      await page.waitForTimeout(300);
+      acknowledged = true;
+      handledThisPass = true;
+      break;
     }
-    executionContext?.assertOwned();
-    await confirmation.click({ timeout: 15_000 });
-    logs.push(`kr_eac_${label}_lookup_prompt_acknowledged`);
-    return;
+    if (!handledThisPass) break;
   }
+  if (!acknowledged) return;
+
+  const remainingDialogs = page.locator(".popBox, [role='dialog'], .ui-dialog");
+  const remainingCount = await remainingDialogs.count().catch(() => 0);
+  const visibleBodies: string[] = [];
+  for (let index = 0; index < remainingCount; index += 1) {
+    const dialog = remainingDialogs.nth(index);
+    if (!(await dialog.isVisible().catch(() => false))) continue;
+    visibleBodies.push(await dialog.innerText().catch(() => ""));
+  }
+  if (visibleBodies.length > 0) {
+    throw new KrEArrivalPortalError(
+      `Official Korea e-Arrival Card ${label} lookup left an unexpected modal open.`,
+      {
+        code: "kr_eac_travel_lookup_prompt_drift",
+        portalSummary: safeSummary(visibleBodies.join(" ")),
+        blocked: true,
+      },
+    );
+  }
+  logs.push(`kr_eac_${label}_lookup_prompt_acknowledged`);
 }
 
 async function lookupOfficialTravelLocation(
@@ -475,20 +970,23 @@ async function lookupOfficialTravelLocation(
     : [`${scope} .dep_str_apt`];
   const observedCountry = await readOfficialTravelLookupValue(page, countrySelector);
   const observedCity = await readOfficialTravelLookupValue(page, citySelector);
-
-  if (expectedCountry && !travelLookupMatches(expectedCountry, observedCountry)) {
+  const lookupState = classifyOfficialTravelLookup(
+    expectedCountry,
+    expectedCity,
+    observedCountry,
+    observedCity,
+  );
+  if (lookupState === "mismatch") {
     throw new KrEArrivalPortalError(
-      `Official Korea e-Arrival Card ${label} country lookup did not match the saved answer.`,
-      { code: "kr_eac_travel_lookup_mismatch", blocked: true },
+      `Official Korea e-Arrival Card ${label} lookup did not match the saved answer.`,
+      {
+        code: "kr_eac_travel_lookup_mismatch",
+        portalSummary: `Official lookup comparison: country=${expectedCountry ? (officialTravelLookupMatches(expectedCountry, observedCountry) ? "matched" : "mismatch") : "not_provided"}, city=${expectedCity ? (officialTravelLookupMatches(expectedCity, observedCity) ? "matched" : "mismatch") : "not_provided"}.`,
+        blocked: true,
+      },
     );
   }
-  if (expectedCity && !travelLookupMatches(expectedCity, observedCity)) {
-    throw new KrEArrivalPortalError(
-      `Official Korea e-Arrival Card ${label} airport or port lookup did not match the saved answer.`,
-      { code: "kr_eac_travel_lookup_mismatch", blocked: true },
-    );
-  }
-  logs.push(`kr_eac_${label}_lookup_${observedCountry || observedCity ? "matched" : "unresolved"}`);
+  logs.push(`kr_eac_${label}_lookup_${lookupState}`);
 }
 
 async function chooseNationality(
@@ -549,23 +1047,100 @@ async function waitForOfficialLanding(page: Page, logs: string[]): Promise<strin
   return body;
 }
 
+async function navigateToOfficialAgreement(
+  page: Page,
+  payload: KrEArrivalPortalPayload,
+  logs: string[],
+  executionContext?: RunnerExecutionContext,
+): Promise<void> {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    executionContext?.assertOwned();
+    let navigationError: unknown;
+    await page.goto(KR_EARRIVAL_OFFICIAL_PORTAL_URL, {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    }).catch((error) => {
+      navigationError = error;
+    });
+
+    const agreementRendered = await page.locator("#chkAgreement1, #emlAddr1").first().waitFor({
+      state: "attached",
+      timeout: navigationError ? 5_000 : 15_000,
+    }).then(() => true).catch(() => false);
+    if (!navigationError || agreementRendered) {
+      if (navigationError) logs.push(`kr_eac_navigation_recovered attempt=${attempt}`);
+      await waitForOfficialLanding(page, logs);
+      return;
+    }
+
+    const cause = safeErrorMessage(navigationError, [payload.emailAddress, payload.passportNumber]);
+    const providerPolicyBlocked = isRemoteBrowserProviderPolicyBlockMessage(cause);
+    logs.push(`kr_eac_navigation_failed attempt=${attempt} ${providerPolicyBlocked ? "provider_policy_blocked" : "portal_navigation_failed"} ${cause}`);
+    if (providerPolicyBlocked || attempt === 2) {
+      throw new KrEArrivalPortalError(
+        providerPolicyBlocked
+          ? "The configured remote browser provider does not permit access to the Korea e-Arrival Card government portal."
+          : "Official Korea e-Arrival Card portal could not be reached by the runner.",
+        {
+          code: providerPolicyBlocked
+            ? "kr_eac_browser_provider_policy_blocked"
+            : "kr_eac_official_portal_navigation_failed",
+          logs,
+          portalSummary: cause,
+          retryable: !providerPolicyBlocked,
+          blocked: true,
+        },
+      );
+    }
+    logs.push(`kr_eac_navigation_retry attempt=${attempt + 1}`);
+  }
+}
+
 async function openIndividualForm(
   page: Page,
   payload: KrEArrivalPortalPayload,
   logs: string[],
   executionContext?: RunnerExecutionContext,
 ): Promise<void> {
-  executionContext?.assertOwned();
-  await page.goto(KR_EARRIVAL_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  await waitForOfficialLanding(page, logs);
-  await clickVisible(page, ["label[for='chkAgreement1']"], "required privacy consent", executionContext);
-  await clickVisible(page, ["label[for='chkAgreement3']"], "terms consent", executionContext);
-  await clickVisible(page, ["label[for='chkAgreement4']"], "representative age consent", executionContext);
-  await fillInput(page, "#emlAddr1", payload.emailAddress, "representative email");
-  await fillInput(page, "#emlAddr2", payload.emailAddress, "representative email confirmation");
-  await clickVisible(page, ["#btnOk"], "agreement confirmation", executionContext);
-  await page.waitForURL(/\/portal\/apply\/individual\.do/i, { timeout: 45_000 }).catch(() => undefined);
-  await page.locator(".info_wrap.applyNo01").waitFor({ state: "visible", timeout: 45_000 });
+  await navigateToOfficialAgreement(page, payload, logs, executionContext);
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      if (attempt > 1) {
+        await navigateToOfficialAgreement(page, payload, logs, executionContext);
+      }
+      await setRequiredAgreement(page, "#chkAgreement1", "required privacy consent", executionContext);
+      await setRequiredAgreement(page, "#chkAgreement3", "terms consent", executionContext);
+      await setRequiredAgreement(page, "#chkAgreement4", "representative age consent", executionContext);
+      logs.push(`kr_eac_agreements_verified attempt=${attempt}`);
+      await fillInput(page, "#emlAddr1", payload.emailAddress, "representative email");
+      await fillInput(page, "#emlAddr2", payload.emailAddress, "representative email confirmation");
+      await submitAgreementConfirmation(
+        page,
+        logs,
+        [payload.emailAddress, payload.passportNumber],
+        executionContext,
+      );
+      logs.push(`kr_eac_agreement_confirmed attempt=${attempt}`);
+      break;
+    } catch (error) {
+      const retryableAgreementFailure = error instanceof KrEArrivalPortalError
+        && (
+          error.code === "kr_eac_agreement_selector_drift"
+          || error.code === "kr_eac_agreement_email_check_failed"
+          || error.code === "kr_eac_individual_form_timeout"
+        );
+      if (attempt === 1 && retryableAgreementFailure) {
+        logs.push(`kr_eac_agreement_retry code=${error.code}`);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  // The passport OCR prompt is mounted asynchronously after the application
+  // form becomes visible. Looking for it only once races the portal animation
+  // and can leave an invisible overlay intercepting the first form click.
+  await page.locator("#btnPopClose").first().waitFor({ state: "visible", timeout: 7_500 }).catch(() => undefined);
   const ocrClose = await findVisible(page, ["#btnPopClose"]);
   if (ocrClose) {
     executionContext?.assertOwned();
@@ -573,6 +1148,7 @@ async function openIndividualForm(
     await page.locator("#btnPopClose").waitFor({ state: "hidden", timeout: 10_000 }).catch(() => undefined);
     logs.push("kr_eac_passport_ocr_modal_closed_manual_entry");
   }
+  logs.push("kr_eac_individual_form_ready");
 }
 
 async function fillOfficialForm(
@@ -597,6 +1173,7 @@ async function fillOfficialForm(
     month: `${scope} .ps_expr_month`,
     day: `${scope} .ps_expr_day`,
   }, payload.passportExpiryDate, "passport expiry");
+  logs.push("kr_eac_identity_section_filled");
 
   await clickVisible(
     page,
@@ -606,7 +1183,13 @@ async function fillOfficialForm(
   );
   await fillInput(page, `${scope} .ent_prr_ymd`, payload.arrivalDate, "arrival date");
   if (payload.arrivalMode === "air") {
-    await fillInput(page, `${scope} .ent_cno_nm`, payload.arrivalFlightNumber ?? "", "arrival flight");
+    await fillOfficialAirFlightNumber(
+      page,
+      scope,
+      "E",
+      payload.arrivalFlightNumber ?? "",
+      executionContext,
+    );
   } else {
     await fillInput(page, `${scope} .ent_ship_nm`, payload.arrivalShipName ?? "", "arrival ship");
   }
@@ -621,6 +1204,7 @@ async function fillOfficialForm(
     logs,
     executionContext,
   );
+  logs.push("kr_eac_arrival_section_verified");
 
   await clickVisible(
     page,
@@ -630,7 +1214,13 @@ async function fillOfficialForm(
   );
   await fillInput(page, `${scope} .dep_prr_ymd`, payload.departureDate, "departure date");
   if (payload.departureMode === "air" && payload.departureFlightNumber) {
-    await fillInput(page, `${scope} .dep_cno_nm`, payload.departureFlightNumber, "departure flight");
+    await fillOfficialAirFlightNumber(
+      page,
+      scope,
+      "D",
+      payload.departureFlightNumber,
+      executionContext,
+    );
   }
   if (payload.departureMode === "sea" && payload.departureShipName) {
     await fillInput(page, `${scope} .dep_ship_nm`, payload.departureShipName, "departure ship");
@@ -646,12 +1236,15 @@ async function fillOfficialForm(
     logs,
     executionContext,
   );
+  logs.push("kr_eac_departure_section_filled");
 
   await selectExact(page, `${scope} .ent_purp_cd`, payload.purposeCode, "entry purpose");
   if (payload.purposeCode === "99" && payload.purposeOther) {
     await fillInput(page, `${scope} .ent_purp_cd_dir`, payload.purposeOther, "entry purpose details");
   }
+  logs.push("kr_eac_purpose_section_filled");
   await selectOfficialStayAddress(page, payload, executionContext);
+  logs.push("kr_eac_address_section_verified");
   if (payload.addressDetail) {
     await fillInput(page, `${scope} .soj_prrpl_rnm_det_addr`, payload.addressDetail, "stay address detail");
   }
@@ -958,6 +1551,16 @@ export async function runKrEArrivalPortalSubmission(
     payload.emailAddress,
     payload.dodIdNumber ?? "",
     payload.koreaContactNumber,
+    payload.surname,
+    payload.givenName,
+    payload.dateOfBirth,
+    payload.addressKorean,
+    payload.addressEnglish,
+    payload.addressDetail,
+    payload.arrivalFlightNumber ?? "",
+    payload.departureFlightNumber ?? "",
+    payload.arrivalShipName ?? "",
+    payload.departureShipName ?? "",
   ];
   const tempDir = makeTempDir();
   options.executionContext?.assertOwned();
@@ -1032,15 +1635,31 @@ export async function runKrEArrivalPortalSubmission(
       if (error.screenshotPaths.length === 0) {
         try { error.screenshotPaths.push(await saveScreenshot(page, tempDir, "error", logs, sensitiveValues)); } catch { /* best effort */ }
       }
+      const mergedLogs = Array.from(new Set([...logs, ...error.logs]));
+      error.logs.splice(0, error.logs.length, ...mergedLogs);
       throw error;
     }
+    const cause = safeErrorMessage(error, sensitiveValues);
+    logs.push(`kr_eac_unexpected_error ${cause}`);
+    const diagnosticScreenshots = [...screenshots];
+    try {
+      diagnosticScreenshots.push(
+        await saveScreenshot(page, tempDir, "unexpected-error", logs, sensitiveValues),
+      );
+    } catch {
+      // Best-effort evidence capture must not replace the original portal error.
+    }
+    const portalText = safeSummary(
+      await page.locator("body").innerText().catch(() => ""),
+      sensitiveValues,
+    );
     throw new KrEArrivalPortalError(
       "Korea e-Arrival Card official portal run failed.",
       {
         code: "kr_eac_runner_failed",
-        screenshotPaths: screenshots,
+        screenshotPaths: diagnosticScreenshots,
         logs,
-        portalSummary: safeSummary(await page.locator("body").innerText().catch(() => ""), sensitiveValues),
+        portalSummary: portalText || cause,
         retryable: true,
       },
     );

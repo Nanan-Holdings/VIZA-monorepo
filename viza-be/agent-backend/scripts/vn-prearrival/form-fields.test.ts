@@ -31,6 +31,26 @@ describe("Vietnam Pre-Arrival official form schema", () => {
     ]);
   });
 
+  it("loads the departure country from the same official nationality catalog as the portal", () => {
+    const departureCountry = VN_PREARRIVAL_FORM_FIELDS.find(
+      (field) => field.field_name === "departure_country_before_arrival",
+    );
+    const nationality = VN_PREARRIVAL_FORM_FIELDS.find(
+      (field) => field.field_name === "nationality",
+    );
+
+    for (const field of [nationality, departureCountry]) {
+      expect(field).toMatchObject({
+        field_type: "country",
+        required: true,
+        validation_rules: expect.objectContaining({
+          official_source: "prearrival_category:nationality",
+          remote_search: true,
+        }),
+      });
+    }
+  });
+
   it("models official flights plus the official Other/manual-flight branch", () => {
     const flightField = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "flight_number");
     const customFlightField = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "custom_flight_number");

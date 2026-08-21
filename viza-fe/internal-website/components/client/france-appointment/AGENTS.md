@@ -31,3 +31,6 @@ France-Visas official reference capture.
 - All text must use `messages/en.json` and `messages/zh.json`.
 - Use client portal primitives (`BrandField`, `BrandInput`,
   `BrandActionButton`, shadcn `Card`, `Alert`, `Button`, and Phosphor icons).
+- `france-appointment-assistant.test.tsx` covers the assisted-live read-only
+  slot observation boundary; keep selection, payment, and final-booking
+  controls absent from that mode.

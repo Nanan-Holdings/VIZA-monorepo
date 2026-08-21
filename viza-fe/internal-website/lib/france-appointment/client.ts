@@ -118,7 +118,7 @@ export function createFranceAppointmentJob(
     {
       method: "POST",
       body: JSON.stringify({
-        mode: payload.mode ?? "dry_run",
+        mode: payload.mode ?? "assisted_live",
         centerCode: payload.centerCode,
         userPreferencesJson: payload.userPreferencesJson,
         idempotencyKey: payload.idempotencyKey,

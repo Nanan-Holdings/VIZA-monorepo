@@ -16,8 +16,10 @@ const ENV_NAMES = [
   "MDAC_BROWSERBASE_TIMEOUT_SECONDS",
   "PH_ETRAVEL_BROWSERBASE_COUNTRY",
   "CEAC_BROWSERBASE_COUNTRY",
+  "FRANCE_TLS_BROWSERBASE_COUNTRY",
   "FRANCE_VISAS_BROWSERBASE_COUNTRY",
   "INDONESIA_BROWSERBASE_COUNTRY",
+  "KR_EAC_BROWSERBASE_COUNTRY",
   "SGAC_BROWSERBASE_COUNTRY",
   "TDAC_BROWSERBASE_COUNTRY",
   "VN_BROWSERBASE_COUNTRY",
@@ -138,8 +140,10 @@ test("selects a country-specific proxy location for every migrated runner", asyn
   process.env.BROWSERBASE_API_KEY = "test-secret";
   const expected = {
     CEAC: "US",
+    FRANCE_TLS: "CN",
     FRANCE_VISAS: "FR",
     INDONESIA: "ID",
+    KR_EAC: "KR",
     MDAC: "MY",
     PH_ETRAVEL: "PH",
     SGAC: "SG",

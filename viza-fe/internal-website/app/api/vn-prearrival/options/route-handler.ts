@@ -83,6 +83,46 @@ const COUNTRY_ALPHA2_BY_ALPHA3 = new Map(
   }),
 );
 
+const VN_PREARRIVAL_NON_OFFICIAL_NATIONALITY_CODES = new Set([
+  "ASC", "BES", "CPT", "DGA", "EUE", "FXX", "GGY", "HKG", "MAC", "SSD",
+  "SUN", "SXM", "TAA", "VNM", "XKX",
+]);
+
+const VN_PREARRIVAL_OFFICIAL_NATIONALITY_LABEL_OVERRIDES: Record<string, string> = {
+  BIH: "Bosnia and Herzegovina",
+  BOL: "Bolivia",
+  COD: "Democratic Republic of the Congo",
+  COG: "Republic of the Congo",
+  CZE: "Czechia",
+  FLK: "Falkland Islands (Malvinas)",
+  FSM: "Federated States of Micronesia",
+  HMD: "Heard and McDonald Islands",
+  IOT: "British India Ocean Territory",
+  IRN: "Islamic Republic of Iran",
+  KOR: "Republic of Korea",
+  LCA: "Santalucia",
+  MAF: "Saint Martin (French part)",
+  MDA: "Republic of Moldova",
+  PRK: "Democratic People's Republic of Korea",
+  PSE: "State of Palestine",
+  RUS: "Russian Federation",
+  SHN: "Saint Helena",
+  SJM: "Svalbard and Jan Mayen Islands",
+  TLS: "Timor-Leste",
+  TWN: "China (Taiwan)",
+  TZA: "United Republic of Tanzania",
+  VAT: "Holy See",
+  VEN: "Bolivarian Republic of Venezuela",
+  WLF: "Wallis and Futuna Islands",
+};
+
+type CountryCatalogEntry = {
+  alpha2: string;
+  alpha3: string;
+  name: string;
+  status: string;
+};
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -140,6 +180,22 @@ function localCountryCodeOptions(): VisaFormOption[] {
         };
       });
   });
+}
+
+function localOfficialNationalityItems(): OfficialOption[] {
+  return (countries.all as CountryCatalogEntry[])
+    .filter((country) =>
+      country.status !== "deleted"
+      && Boolean(country.alpha3)
+      && !VN_PREARRIVAL_NON_OFFICIAL_NATIONALITY_CODES.has(country.alpha3.toUpperCase()),
+    )
+    .map((country) => {
+      const code = country.alpha3.toUpperCase();
+      return {
+        code,
+        en_value: VN_PREARRIVAL_OFFICIAL_NATIONALITY_LABEL_OVERRIDES[code] ?? country.name,
+      };
+    });
 }
 
 function optionFromOfficial(item: OfficialOption, source: string): VisaFormOption | null {
@@ -241,6 +297,10 @@ async function loadOfficialItems(source: string): Promise<OfficialOption[]> {
   const promise = fetchOfficialJson(`/category/findAllActive/${source}`)
     .then((json) => officialItems(json))
     .then((items) => {
+      if (source === "nationality" && items.length === 0) {
+        officialOptionsCache.delete(source);
+        return localOfficialNationalityItems();
+      }
       officialOptionsCache.set(source, { items, expiresAt: Date.now() + ttl });
       return items;
     })
@@ -251,6 +311,12 @@ async function loadOfficialItems(source: string): Promise<OfficialOption[]> {
           expiresAt: Date.now() + ttl,
         });
         return staticItems;
+      }
+      if (source === "nationality") {
+        // This official category is intermittently session-gated. Do not cache
+        // the fallback so the next form entry retries the live source.
+        officialOptionsCache.delete(source);
+        return localOfficialNationalityItems();
       }
       officialOptionsCache.delete(source);
       throw error;
@@ -758,6 +824,7 @@ export const __testables = {
   filterHotelOptionsByHierarchy,
   filterOptionsByKeyword,
   fallbackFlightSearch,
+  localOfficialNationalityItems,
   normalizeOfficialFlightSearch,
   officialFlightSearchBody,
   optionFromOfficial,

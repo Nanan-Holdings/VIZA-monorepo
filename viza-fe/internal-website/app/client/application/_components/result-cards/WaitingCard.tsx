@@ -81,17 +81,19 @@ function isCompletionStatus(status: SubmissionVisualStatus | null | undefined): 
   return [
     "completed",
     "submitted",
+    "qr_ready",
+    "approved",
     "submitted_mock",
     "form_ready_for_agency",
   ].includes(normalizeStatus(status));
 }
 
 function isFailedStatus(status: SubmissionVisualStatus | null | undefined): boolean {
-  return normalizeStatus(status) === "failed";
+  return ["failed", "rejected"].includes(normalizeStatus(status));
 }
 
 function isWaitingForUserStatus(status: SubmissionVisualStatus | null | undefined): boolean {
-  return ["needs_user_action", "action_required", "blocked"].includes(normalizeStatus(status));
+  return ["needs_user_action", "needs_attention", "action_required", "blocked"].includes(normalizeStatus(status));
 }
 
 function isScheduledStatus(status: SubmissionVisualStatus | null | undefined): boolean {

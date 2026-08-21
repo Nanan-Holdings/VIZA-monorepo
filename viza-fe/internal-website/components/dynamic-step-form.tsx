@@ -183,6 +183,7 @@ function normalizeIndonesiaMobileNumber(value: string): string {
 
 interface CountryDataListCountry {
   alpha2: string;
+  alpha3: string;
   countryCallingCodes: string[];
   name: string;
   status: string;
@@ -990,6 +991,30 @@ export function ensureVnPrearrivalOtherFlightFlow(
         };
       }
 
+      if (
+        field.fieldName === "nationality"
+        || field.fieldName === "departure_country_before_arrival"
+      ) {
+        const rules = field.validationRules ?? {};
+        if (
+          rules.official === true
+          && rules.official_source === "prearrival_category:nationality"
+          && rules.remote_search === true
+        ) {
+          return field;
+        }
+        changed = true;
+        return {
+          ...field,
+          validationRules: {
+            ...rules,
+            official: true,
+            official_source: "prearrival_category:nationality",
+            remote_search: true,
+          },
+        };
+      }
+
       if (field.fieldName === "custom_flight_number") {
         hasCustomFlightField = true;
         const expectedCondition = "mode_of_travel === air && flight_number === other";
@@ -1058,6 +1083,42 @@ export function ensureVnPrearrivalOtherFlightFlow(
       fields: fields.sort((left, right) => left.displayOrder - right.displayOrder),
     };
   });
+}
+
+export function reconcileVnPrearrivalNationalityValue(
+  currentValue: string,
+  options: VisaFormFieldOption[],
+): string {
+  const trimmed = currentValue.trim();
+  if (!trimmed || options.length === 0) return currentValue;
+
+  const normalized = normalizeComparableOptionValue(trimmed);
+  const directMatch = options.find((option) => {
+    if (typeof option === "string") {
+      return normalizeComparableOptionValue(option) === normalized;
+    }
+    return [
+      option.value,
+      option.code,
+      option.text,
+      option.label_en,
+      option.official_label,
+    ].some((candidate) => normalizeComparableOptionValue(candidate) === normalized);
+  });
+  if (directMatch) return optionValue(directMatch);
+
+  const country = (countries.all as CountryDataListCountry[]).find((candidate) =>
+    [candidate.alpha2, candidate.alpha3, candidate.name]
+      .some((candidateValue) => normalizeComparableOptionValue(candidateValue) === normalized),
+  );
+  if (!country?.alpha3) return currentValue;
+
+  const officialCode = country.alpha3.toUpperCase();
+  const officialMatch = options.find((option) => {
+    if (typeof option === "string") return option.toUpperCase() === officialCode;
+    return option.value.toUpperCase() === officialCode || option.code?.toUpperCase() === officialCode;
+  });
+  return officialMatch ? optionValue(officialMatch) : currentValue;
 }
 
 function mergeVnPrearrivalFlightPages(
@@ -2440,6 +2501,19 @@ function shouldOwnConditionalPanel(field: VisaFormFieldRow): boolean {
   return hasConditionalVisibility(field) && getCompiledConditionalPanelMode(field) !== "outer_only";
 }
 
+function getDataDependencies(field: VisaFormFieldRow): string[] {
+  const dependencies = new Set<string>();
+  const rules = field.validationRules as {
+    dependent_on?: string;
+    depends_on?: string;
+    dependsOn?: string;
+  } | null;
+  for (const dependency of [rules?.dependent_on, rules?.depends_on, rules?.dependsOn]) {
+    if (dependency) dependencies.add(dependency);
+  }
+  return [...dependencies];
+}
+
 function getConditionalDependencies(field: VisaFormFieldRow): string[] {
   const visibilityDependencies = new Set<string>();
   const showIf = (field.conditionalLogic as { showIf?: string } | null)?.showIf;
@@ -2454,18 +2528,7 @@ function getConditionalDependencies(field: VisaFormFieldRow): string[] {
   // dependencies (for example a flight list keyed by arrival date) must not
   // split fields that are revealed by the same radio/dropdown branch.
   if (visibilityDependencies.size > 0) return [...visibilityDependencies];
-
-  const dataDependencies = new Set<string>();
-  const rules = field.validationRules as {
-    dependent_on?: string;
-    depends_on?: string;
-    dependsOn?: string;
-  } | null;
-  for (const dependency of [rules?.dependent_on, rules?.depends_on, rules?.dependsOn]) {
-    if (dependency) dataDependencies.add(dependency);
-  }
-
-  return [...dataDependencies];
+  return getDataDependencies(field);
 }
 
 const GATING_TOGGLE_LABEL_PATTERNS = [
@@ -3370,6 +3433,15 @@ export function DynamicStepForm({
             setValues((current) => ({ ...current, [field.fieldName]: normalizedValue }));
           }
         }
+        if (source.endsWith(":nationality")) {
+          const currentValue = valuesRef.current[field.fieldName] ?? "";
+          const normalizedValue = reconcileVnPrearrivalNationalityValue(currentValue, options);
+          if (normalizedValue !== currentValue) {
+            const nextValues = { ...valuesRef.current, [field.fieldName]: normalizedValue };
+            valuesRef.current = nextValues;
+            setValues(nextValues);
+          }
+        }
         // A parent-field change is handled synchronously in `handleChange`.
         // Do not invalidate a selected dependent value from an asynchronous
         // refresh: an earlier response can otherwise erase the value the user
@@ -3785,6 +3857,12 @@ export function DynamicStepForm({
 
     for (const field of step.fields) {
       for (const dependency of getConditionalDependencies(field)) {
+        addDependency(dependency, field.fieldName);
+      }
+      // A field can be both visibility-gated and data-dependent. Keep the
+      // data edge as well so changing a parent select synchronously clears
+      // stale descendants (province -> ward -> hotel, for example).
+      for (const dependency of getDataDependencies(field)) {
         addDependency(dependency, field.fieldName);
       }
     }

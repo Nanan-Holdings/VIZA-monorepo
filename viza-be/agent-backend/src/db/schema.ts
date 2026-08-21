@@ -14,6 +14,7 @@
 	index,
 	uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // =============================================================================
 // CUSTOM TYPES
@@ -1784,12 +1785,16 @@ export const appointmentSlots = pgTable("appointment_slots", {
   source: text("source"),
   status: text("status").notNull().default("observed"),
   observedAt: timestamp("observed_at", { withTimezone: true }).defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP + INTERVAL '10 minutes'`),
   metadataRedactedJson: jsonb("metadata_redacted_json"),
 }, (table) => ({
   jobIdx: index("appointment_slots_job_idx").on(table.jobId),
   observedAtIdx: index("appointment_slots_observed_at_idx").on(table.observedAt),
   applicationIdx: index("appointment_slots_application_idx").on(table.applicationId),
   statusIdx: index("appointment_slots_status_idx").on(table.status),
+  activeLookupIdx: index("appointment_slots_job_status_expires_idx").on(table.jobId, table.status, table.expiresAt),
 }));
 
 export const appointmentConfirmations = pgTable("appointment_confirmations", {

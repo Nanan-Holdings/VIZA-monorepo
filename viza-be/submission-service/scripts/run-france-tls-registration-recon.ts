@@ -1,10 +1,12 @@
 import "dotenv/config";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import type { Locator, Page } from "@playwright/test";
 import { redactOfficialUrl } from "../src/appointment-free-smoke";
 import {
   classifyFranceTlsBrowserState,
+  closeFranceTlsBrowserSession,
   createFranceTlsBrowserSession,
   readFranceTlsBrowserState,
   waitForFranceTlsCloudflareClearance,
@@ -24,7 +26,9 @@ function readArg(name: string): string | null {
 }
 
 function artifactPath(name: string): string {
-  const directory = path.resolve("artifacts/france-tls-registration-recon");
+  const configuredRoot = process.env.SUBMISSION_ARTIFACTS_DIR?.trim();
+  const root = configuredRoot ? path.resolve(configuredRoot) : path.join(os.tmpdir(), "viza-submission-artifacts");
+  const directory = path.join(root, "france-tls-registration-recon");
   fs.mkdirSync(directory, { recursive: true });
   return path.join(directory, `${name}-${Date.now()}.png`);
 }
@@ -301,7 +305,7 @@ async function main(): Promise<void> {
       stopPoint: "No account data was entered and no registration, email verification, slot selection, payment, or booking was submitted.",
     }, null, 2));
   } finally {
-    await session.browser.close().catch(() => undefined);
+    await closeFranceTlsBrowserSession(session);
   }
 }
 

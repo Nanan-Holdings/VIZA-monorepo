@@ -211,6 +211,24 @@ describe("computeAllTabCompletion", () => {
       .toEqual([]);
   });
 
+  test("does not reject a live official value against a partial fallback option list", () => {
+    const remoteCountry = {
+      ...field("place_of_birth", { label: "Place of Birth" }),
+      visaType: "AUDIT",
+      fieldType: "select" as const,
+      validationRules: { official_options_source: "/api/official-countries" },
+      options: [{ value: "fallback", text: "Fallback" }],
+    };
+    const countrySteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      fields: [remoteCountry],
+    }];
+
+    expect(getMissingDynamicFormFields(countrySteps, { place_of_birth: "LIVE_OFFICIAL_VALUE" }))
+      .toEqual([]);
+  });
+
   test("uses the same __2 suffix as the repeatable form for its second instance", () => {
     const repeatedPassport = {
       ...field("other_passport_number", { label: "Other passport number" }),

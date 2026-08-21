@@ -137,6 +137,7 @@ load-test-results/concurrency/
 **/temp/
 /.codex-worktrees/
 /.worktrees/
+/.release/
 **/node_modules.link-backup/
 
 # Submission service recon/diagnostic artifacts (HTML/PNG dumps)

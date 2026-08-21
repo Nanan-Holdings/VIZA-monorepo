@@ -17,6 +17,7 @@ import {
   resolveVietnamSubmissionActionType,
 } from "./payment-country";
 import { sanitizeCustomerSubmissionResult } from "../../customer-submission-result";
+import { getAutomatedOnlineSubmissionEvidence } from "@/lib/submission-result-evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,12 @@ type SubmissionApiStatus =
   | "queued"
   | "running"
   | "needs_user_action"
+  | "needs_attention"
   | "completed"
+  | "submitted"
+  | "qr_ready"
+  | "approved"
+  | "rejected"
   | "failed"
   | "stalled";
 
@@ -64,6 +70,7 @@ type QueueRow = {
   error_message: string | null;
   current_stage: string | null;
   heartbeat_at: string | null;
+  leased_until?: string | null;
   manual_action_status: string | null;
   official_status: string | null;
   official_portal_url?: string | null;
@@ -81,6 +88,7 @@ type RunnerJobRow = {
   available_at?: string | null;
   enqueued_at: string | null;
   started_at: string | null;
+  leased_until?: string | null;
   finished_at: string | null;
 };
 
@@ -91,7 +99,7 @@ const SUBMISSION_QUEUE_STATUS_SELECT =
   "id, status, attempts, mode, provider, last_error, error_code, error_message, current_stage, heartbeat_at, manual_action_status, official_status, official_portal_url, payment_status, vn_result_payload, created_at, updated_at";
 
 const RUNNER_JOB_STATUS_SELECT =
-  "id, status, attempts, last_error, available_at, enqueued_at, started_at, finished_at";
+  "id, status, attempts, last_error, available_at, enqueued_at, started_at, leased_until, finished_at";
 
 type DerivedStatus = {
   status: SubmissionApiStatus;
@@ -109,7 +117,6 @@ const RUNNING_STALE_AFTER_MS = 3 * 60 * 1000;
 
 const COMPLETED_APPLICATION_STATUSES = new Set([
   "completed",
-  "submitted",
   "submitted_mock",
   "form_ready_for_agency",
 ]);
@@ -130,6 +137,10 @@ const COMPLETED_QUEUE_STATUSES = new Set([
   "phetravel_live_assisted_completed",
   "kr_eac_live_assisted_submitted",
   "kr_eac_live_assisted_completed",
+  "jp_vjw_live_assisted_submitted",
+  "jp_vjw_live_assisted_completed",
+  "ke_eta_live_assisted_submitted",
+  "ke_eta_live_assisted_completed",
 ]);
 
 const ACTION_REQUIRED_APPLICATION_STATUSES = new Set([
@@ -446,6 +457,11 @@ function deriveTerminalApplicationStatus(
   const ukPrefillStored = isUkPrefillSubmissionResult(storedResult);
   const resultError = extractResultError(storedResult);
   const queueError = queue?.last_error?.trim() || queue?.error_message?.trim() || null;
+  const automatedEntryProduct =
+    application.visa_type === "JP_VISIT_JAPAN_WEB" || application.visa_type === "KE_ETA";
+  const safeAutomatedFailure = automatedEntryProduct
+    ? "The official portal flow needs staff review. Internal portal details are not shown here."
+    : null;
   const staleUkMisroute =
     ukPrefillStored && queueError ? isUkMisroutedDryRunError(queueError) : false;
 
@@ -464,8 +480,8 @@ function deriveTerminalApplicationStatus(
       status: "failed",
       stage: "failed",
       progress: 0,
-      message: resultError ?? queueError ?? "Submission failed.",
-      error: resultError ?? queueError ?? "Submission failed.",
+      message: safeAutomatedFailure ?? resultError ?? queueError ?? "Submission failed.",
+      error: safeAutomatedFailure ?? resultError ?? queueError ?? "Submission failed.",
     };
   }
 
@@ -474,14 +490,91 @@ function deriveTerminalApplicationStatus(
       status: "stalled",
       stage: "confirming_result",
       progress: 99,
-      message:
-        resultError ??
-        queueError ??
+      message: safeAutomatedFailure ?? resultError ?? queueError ??
         "Submission job stalled because the worker did not pick it up in time.",
-      error:
-        resultError ??
-        queueError ??
+      error: safeAutomatedFailure ?? resultError ?? queueError ??
         "Submission job stalled because the worker did not pick it up in time.",
+    };
+  }
+
+  const automatedEntryEvidence = automatedEntryProduct
+    ? getAutomatedOnlineSubmissionEvidence(storedResult, application.visa_type)
+    : null;
+
+  if (automatedEntryProduct && appStatus === "needs_attention") {
+    return {
+      status: "needs_attention",
+      stage: "confirming_result",
+      progress: 99,
+      message: "The official portal needs attention before the result can be confirmed.",
+      error: safeAutomatedFailure,
+    };
+  }
+
+  if (automatedEntryProduct && appStatus === "qr_ready") {
+    if (!automatedEntryEvidence?.qrReady) {
+      return {
+        status: "needs_attention",
+        stage: "confirming_result",
+        progress: 99,
+        message: "Visit Japan Web QR evidence is not available yet.",
+        error: "Official QR evidence is missing.",
+      };
+    }
+    return {
+      status: "qr_ready",
+      stage: "completed",
+      progress: 100,
+      message: "Visit Japan Web QR code is ready.",
+      error: null,
+    };
+  }
+
+  if (automatedEntryProduct && appStatus === "approved") {
+    if (!automatedEntryEvidence?.approved) {
+      return {
+        status: "needs_attention",
+        stage: "confirming_result",
+        progress: 99,
+        message: "Kenya eTA approval evidence is not available yet.",
+        error: "Official approval PDF is missing.",
+      };
+    }
+    return {
+      status: "approved",
+      stage: "completed",
+      progress: 100,
+      message: "Kenya eTA approval is ready.",
+      error: null,
+    };
+  }
+
+  if (automatedEntryProduct && appStatus === "rejected") {
+    return {
+      status: "rejected",
+      stage: "completed",
+      progress: 100,
+      message: "The official travel authorization was rejected.",
+      error: null,
+    };
+  }
+
+  if (automatedEntryProduct && appStatus === "submitted") {
+    if (!automatedEntryEvidence?.submitted) {
+      return {
+        status: "needs_attention",
+        stage: "confirming_result",
+        progress: 99,
+        message: "The official application reference is not available yet.",
+        error: "Official application reference is missing.",
+      };
+    }
+    return {
+      status: "submitted",
+      stage: "completed",
+      progress: 100,
+      message: "The official application was submitted.",
+      error: null,
     };
   }
 
@@ -533,7 +626,9 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
 
   if (
     queueStatus === "sgac_live_assisted_scheduled" ||
-    queueStatus === "kr_eac_live_assisted_scheduled"
+    queueStatus === "kr_eac_live_assisted_scheduled" ||
+    queueStatus === "jp_vjw_live_assisted_scheduled" ||
+    queueStatus === "ke_eta_live_assisted_scheduled"
   ) {
     return { status: "scheduled", stage: "scheduled", progress: 0 };
   }
@@ -560,6 +655,10 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
 
   if (queueStatus === "action_required") {
     return { status: "needs_user_action", stage: "payment_handoff", progress: 99 };
+  }
+
+  if (queueStatus === "jp_vjw_blocked" || queueStatus === "ke_eta_blocked") {
+    return { status: "needs_attention", stage: "confirming_result", progress: 99 };
   }
 
   if (COMPLETED_QUEUE_STATUSES.has(queueStatus)) {
@@ -656,6 +755,31 @@ function isVietnamAuthorizedPaymentQueue(queue: QueueRow | null): boolean {
   );
 }
 
+function hasActiveRunnerJobLease(queue: QueueRow | null): boolean {
+  if (!queue || queue.transport !== "runner_job") return false;
+  if (!normalizeStatus(queue.status).endsWith("_processing")) return false;
+  if (!queue.leased_until) return false;
+  const leasedUntilMs = Date.parse(queue.leased_until);
+  return Number.isFinite(leasedUntilMs) && leasedUntilMs > Date.now();
+}
+
+function staleTimestampForQueue(
+  queue: QueueRow | null,
+  fallback: string | null,
+): string | null {
+  // runner_job has no heartbeat column. Once its lease expires, use the lease
+  // boundary as the activity timestamp so the existing stale grace period is
+  // measured after the worker actually lost ownership, not from started_at.
+  if (
+    queue?.transport === "runner_job" &&
+    normalizeStatus(queue.status).endsWith("_processing") &&
+    queue.leased_until
+  ) {
+    return queue.leased_until;
+  }
+  return fallback;
+}
+
 function isActiveQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
   const queueStatus = normalizeStatus(queue.status);
@@ -727,6 +851,8 @@ const RUNNER_JOB_STATUS_CONTRACT: Record<
     provider: "korea_e_arrival_card_runner_job",
   },
   tw_entry_permit: { prefix: "tw_live_assisted", provider: "taiwan_entry_permit_runner_job" },
+  jp_vjw: { prefix: "jp_vjw_live_assisted", provider: "jp_visit_japan_web_live" },
+  ke_eta: { prefix: "ke_eta_live_assisted", provider: "ke_eta_live" },
 };
 
 function runnerJobIsScheduled(row: RunnerJobRow): boolean {
@@ -774,6 +900,7 @@ export function runnerPoolJobToQueueRow(
             : `waiting_for_${flowKey}_runner`
           : null,
     heartbeat_at: row.started_at,
+    leased_until: row.leased_until ?? null,
     manual_action_status: null,
     official_status: status === "succeeded" ? "submitted" : null,
     created_at: row.enqueued_at,
@@ -815,6 +942,7 @@ export function deriveNonTerminalStatus(
     (activeQueue ? null : extractResultError(application.submission_result));
   const currentStage = normalizeStatus(queue?.current_stage);
   const error = queueMessage;
+  const runnerJobLeaseActive = hasActiveRunnerJobLease(queue);
 
   if (currentStage === "bank_authentication_waiting") {
     return {
@@ -904,7 +1032,11 @@ export function deriveNonTerminalStatus(
         queueMessage ??
         queueStatus === "kr_eac_live_assisted_scheduled"
           ? "Korea e-Arrival Card is scheduled for automatic submission when the Korea-time window opens."
-          : "SG Arrival Card is scheduled for automatic submission when the ICA three-day window opens.",
+          : queueStatus === "jp_vjw_live_assisted_scheduled"
+            ? "Visit Japan Web is scheduled for automatic submission after the compliance gate is cleared."
+            : queueStatus === "ke_eta_live_assisted_scheduled"
+              ? "Kenya eTA is scheduled for automatic submission."
+              : "SG Arrival Card is scheduled for automatic submission when the ICA three-day window opens.",
       error: null,
     };
   }
@@ -916,8 +1048,9 @@ export function deriveNonTerminalStatus(
 
   if (
     (queueDerived.status === "queued" || queueDerived.status === "running") &&
+    !runnerJobLeaseActive &&
     isStale(
-      updatedAt,
+      staleTimestampForQueue(queue, updatedAt),
       queueStatus === "pending" || queueStatus.endsWith("_pending")
         ? PENDING_PICKUP_STALE_AFTER_MS
         : RUNNING_STALE_AFTER_MS,
@@ -928,9 +1061,10 @@ export function deriveNonTerminalStatus(
       stage: "confirming_result",
       progress: 99,
       message:
-        queueStatus === "pending" || queueStatus.endsWith("_pending")
+        error ??
+        (queueStatus === "pending" || queueStatus.endsWith("_pending")
           ? "Submission job is still queued. The worker has not picked it up yet."
-          : "Still confirming the submission result. The runner heartbeat has not changed recently.",
+          : "Still confirming the submission result. The runner heartbeat has not changed recently."),
       error,
     };
   }
@@ -1079,12 +1213,21 @@ async function getSubmissionStatus(
   // sees the button needed to finish on the official portal.
   const activeQueueOverridesTerminal =
     isActiveQueue(queue) && !hasTaiwanApplicantHandoffReady(application);
+  const authoritativeAutomatedResult =
+    !activeQueueOverridesTerminal &&
+    (application.visa_type === "JP_VISIT_JAPAN_WEB" || application.visa_type === "KE_ETA") &&
+    ["needs_attention", "submitted", "qr_ready", "approved", "rejected"].includes(
+      normalizeStatus(application.submission_result_status),
+    );
   const terminalQueueOverridesApplication =
     !activeQueueOverridesTerminal &&
+    !authoritativeAutomatedResult &&
     queueDerived.status !== "queued" &&
     queueDerived.status !== "running" &&
     isAfterOrEqual(queueUpdatedAt, application.submission_result_updated_at);
-  const queueResult = synthesizeQueueResult(queue, application);
+  const queueResult = authoritativeAutomatedResult
+    ? null
+    : synthesizeQueueResult(queue, application);
   const storedResult = application.submission_result;
   const queueOverridesApplication = activeQueueOverridesTerminal || terminalQueueOverridesApplication;
   const derived = deriveSubmissionStatus(application, queue, queueOverridesApplication);

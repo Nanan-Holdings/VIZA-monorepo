@@ -21,6 +21,7 @@ export type SupportedKnowledgeCountry =
   | 'indonesia'
   | 'italy'
   | 'japan'
+  | 'kenya'
   | 'laos'
   | 'latvia'
   | 'liechtenstein'
@@ -103,6 +104,16 @@ const VISA_TYPE_ALIASES: Partial<
     regular_tourist_visa: 'IN_E_VISA',
     tourist_evisa: 'IN_E_VISA',
     tourist_e_visa: 'IN_E_VISA',
+  },
+  japan: {
+    jp_visit_japan_web: 'JP_VISIT_JAPAN_WEB',
+    visit_japan_web: 'JP_VISIT_JAPAN_WEB',
+    vjw: 'JP_VISIT_JAPAN_WEB',
+  },
+  kenya: {
+    eta_travel_authorization: 'KE_ETA',
+    kenya_eta: 'KE_ETA',
+    ke_eta: 'KE_ETA',
   },
   malaysia: {
     mdac: 'MY_MDAC_ARRIVAL_CARD',
@@ -245,7 +256,13 @@ export const VISA_DESTINATION_REGISTRY: Record<
     supportedVisaTypes: ['ID_B1_EVOA', 'ID_C1_TOURIST'],
   }),
   italy: destination('italy', 'Italy', ['意大利', 'italy', 'rome', 'milan', 'venice', '罗马', '米兰', '威尼斯'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
-  japan: destination('japan', 'Japan', ['日本', 'japan', 'tokyo', 'osaka', 'kyoto', '东京', '大阪', '京都', 'japan evisa'], 'short_term_tourism_evisa'),
+  japan: destination('japan', 'Japan', ['日本', 'japan', 'tokyo', 'osaka', 'kyoto', '东京', '大阪', '京都', 'visit japan web', 'vjw'], 'short_term_tourism_evisa', {
+    supportedVisaTypes: ['short_term_tourism_evisa', 'JP_VISIT_JAPAN_WEB'],
+  }),
+  kenya: destination('kenya', 'Kenya', ['肯尼亚', 'kenya', 'nairobi', 'mombasa', '内罗毕', '蒙巴萨', 'kenya eta', 'etakenya'], 'KE_ETA', {
+    supportedVisaTypes: ['KE_ETA'],
+    schemaKey: 'KE_ETA',
+  }),
   laos: destination('laos', 'Laos', ['老挝', 'laos', 'vientiane', 'luang prabang', '万象', '琅勃拉邦'], 'tourist_evisa'),
   latvia: destination('latvia', 'Latvia', ['拉脱维亚', 'latvia', 'riga', '里加'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   liechtenstein: destination('liechtenstein', 'Liechtenstein', ['列支敦士登', 'liechtenstein', 'vaduz', '瓦杜兹'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
@@ -339,6 +356,7 @@ export const VISA_SERVICE_COUNTRIES = new Set<SupportedKnowledgeCountry>([
   'indonesia',
   'italy',
   'japan',
+  'kenya',
   'laos',
   'latvia',
   'liechtenstein',
@@ -355,7 +373,6 @@ export const VISA_SERVICE_COUNTRIES = new Set<SupportedKnowledgeCountry>([
   'poland',
   'portugal',
   'romania',
-  'russia',
   'saudi_arabia',
   'singapore',
   'slovakia',

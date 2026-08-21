@@ -5254,9 +5254,23 @@
       "phone": "Phone",
       "email": "Personal email",
       "address": "Residential address",
+      "franceVisasReference": "France-Visas reference",
       "center": "TLScontact center",
       "missing": "Not provided",
-      "confirmation": "I have checked these details against the passport and France-Visas application, and I authorize VIZA to continue to the TLScontact account workflow. Slot selection, payment authorization, and final booking remain separate confirmations.",
+      "missingFieldsTitle": "Information still needed",
+      "missingFieldsBody": "Complete these fields in the application before starting the TLScontact flow:",
+      "missingFieldLabels": {
+        "fullName": "Passport name",
+        "dateOfBirth": "Date of birth",
+        "nationality": "Nationality",
+        "passportNumber": "Passport number",
+        "passportExpiryDate": "Passport expiry date",
+        "phone": "Phone",
+        "email": "Personal email",
+        "address": "Residential address",
+        "franceVisasReference": "France-Visas reference"
+      },
+      "confirmation": "I have checked these details against the passport and France-Visas application, and I authorize VIZA to prepare the TLScontact account and observe availability. Slot selection, payment, and booking are disabled in this milestone.",
       "edit": "Edit application",
       "confirmAndContinue": "Confirm details and continue"
     },
@@ -5272,7 +5286,7 @@
       "portal": "Observed TLS calendar",
       "preSubmit": "Ready before submit",
       "stopTitle": "The official final button is protected",
-      "stopBody": "VIZA stops before the official TLS confirmation click until an observed slot is selected, any required payment authorization is present, and final approval is recorded. Opening this page never starts or submits an appointment."
+      "stopBody": "VIZA stops before slot selection, payment, and every official booking action. Those actions remain disabled in this milestone, and opening this page never starts or submits an appointment."
     },
     "requirements": {
       "title": "Complete these steps in order",
@@ -5281,7 +5295,7 @@
       "officialCheckBody": "The official form currently asks for email, password and password confirmation, mandatory legal consent, and reCAPTCHA. Email, phone, SMS, and push marketing consents are optional and are not required for registration.",
       "openApplication": "Review application details",
       "userInputTitle": "What you need to enter in VIZA",
-      "userInputBody": "Accurate passport identity, passport details, contact/address information, the France-Visas application reference, and the preferred China application centre. VIZA manages the alias account and activation email; you later choose the observed slot and approve any fee and final booking.",
+      "userInputBody": "Accurate passport identity, passport details, contact/address information, the France-Visas application reference, and the preferred China application centre. VIZA manages the alias account and activation email, then stops after observing availability.",
       "states": {
         "ready": "Ready",
         "review": "Review once",
@@ -5309,11 +5323,11 @@
         },
         "calendar": {
           "title": "Read the calendar and review the service fee",
-          "body": "VIZA reads official availability without choosing for you. You select one observed slot and authorize the required TLS service-fee step; 3DS or bank verification remains yours."
+          "body": "VIZA reads official availability without choosing a slot. This milestone stops after showing a current slot or an official no-availability result."
         },
         "booking": {
           "title": "Approve the final appointment",
-          "body": "Review the centre, date, time, and fee status. VIZA can click the official booking control only after your explicit final approval and records the official confirmation evidence."
+          "body": "Slot selection, fee payment, and the official booking control are intentionally unavailable until a later verified milestone."
         }
       }
     },
@@ -5389,8 +5403,8 @@
     "consent": {
       "title": "Consent and boundaries",
       "body1": "VIZA can assist the mainland China TLScontact flow after the France-Visas application reference has been created.",
-      "body2": "VIZA may handle supported TLS login, alias-email verification, CAPTCHA, slot observation, service-fee payment handoff, and confirmation checkpoints. You still choose the slot, authorize payment, and approve final booking.",
-      "checkbox": "I authorize VIZA to run France Schengen TLScontact China appointment actions for this application, with explicit slot selection, one-time payment authorization, final approval, and official evidence capture."
+      "body2": "VIZA may handle supported TLS login, alias-email verification, CAPTCHA, and read-only slot observation. Slot selection, payment, and final booking remain disabled.",
+      "checkbox": "I authorize VIZA to prepare the TLScontact China account and perform read-only availability observation for this France Schengen application."
     },
     "account": {
       "title": "VIZA alias and TLS account",
@@ -5431,7 +5445,10 @@
       "datePending": "Date pending",
       "timePending": "Time pending",
       "locationPending": "Location pending",
-      "slotLine": "{date} at {time}"
+      "slotLine": "{date} at {time}",
+      "observedOnly": "Observed by VIZA",
+      "liveObservationTitle": "Read-only live observation",
+      "liveObservationBody": "These are current, non-expired TLScontact observations. Slot selection, payment, and final booking remain disabled until a later verified milestone."
     },
     "payment": {
       "title": "One-time TLS fee authorization",
@@ -5464,7 +5481,7 @@
     },
     "nextStepCard": {
       "title": "Next: TLS appointment",
-      "body": "Continue to TLScontact China appointment setup with user-triggered slot checks, explicit slot selection, one-time payment authorization, and final approval.",
+      "body": "Continue to TLScontact China account preparation and user-triggered, read-only availability checks. Selection, payment, and booking remain disabled.",
       "button": "Open TLS appointment assistant",
       "badge": "TLScontact China"
     }

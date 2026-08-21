@@ -28,6 +28,7 @@
     "indonesia:visible-qa": "tsx scripts/run-indonesia-visible-qa.ts",
     "japan-vfs:placeholder-account": "tsx scripts/run-japan-vfs-placeholder-account.ts",
     "france-tls:registration-recon": "tsx scripts/run-france-tls-registration-recon.ts",
+    "france-visas:browser-recon": "tsx scripts/run-france-visas-browser-recon.ts",
     "france-tls:readiness": "tsx scripts/check-france-tls-readiness.ts",
     "france-tls:register-account": "tsx scripts/run-france-tls-register-account.ts",
     "france-tls:appointment-flow": "tsx scripts/run-france-tls-appointment-flow.ts",

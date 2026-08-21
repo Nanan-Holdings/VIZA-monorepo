@@ -970,8 +970,11 @@ const vnPrearrivalHotelHierarchyStep: WizardStep = {
       displayOrder: 2,
       placeholder: "Select...",
       validationRules: { official_source: "prearrival_category:administrative_unit_level1" },
-      options: null,
-      conditionalLogic: null,
+      options: [
+        { value: "48", text: "Da Nang City", label_zh: "岘港市", label_en: "Da Nang City" },
+        { value: "01", text: "Ha Noi City", label_zh: "河内市", label_en: "Ha Noi City" },
+      ],
+      conditionalLogic: { showIf: "accommodation_type === hotel" },
     },
     {
       id: "field-ward-commune",
@@ -988,8 +991,10 @@ const vnPrearrivalHotelHierarchyStep: WizardStep = {
         official_source: "prearrival_category:administrative_unit_level2",
         depends_on: "province_city_of_hotel",
       },
-      options: null,
-      conditionalLogic: null,
+      options: [
+        { value: "20194", text: "Hoa Cuong Ward", label_zh: "和强坊", label_en: "Hoa Cuong Ward" },
+      ],
+      conditionalLogic: { showIf: "accommodation_type === hotel" },
     },
     {
       id: "field-hotel-address",
@@ -1006,8 +1011,10 @@ const vnPrearrivalHotelHierarchyStep: WizardStep = {
         official_source: "prearrival_category:hotel",
         depends_on: "ward_commune_of_hotel",
       },
-      options: null,
-      conditionalLogic: null,
+      options: [
+        { value: "KSDN_01", text: "Minh Toan Galaxy Hotel", label_zh: "明全银河酒店", label_en: "Minh Toan Galaxy Hotel" },
+      ],
+      conditionalLogic: { showIf: "accommodation_type === hotel" },
     },
   ],
 };
@@ -2408,6 +2415,45 @@ describe("DynamicStepForm copilot format", () => {
       ward_commune_of_hotel: "20194",
       hotel_accommodation_address: "KSDN_01",
     });
+  });
+
+  it("clears the Vietnam ward and hotel when the selected province changes", async () => {
+    const onDraftChange = vi.fn();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(
+      JSON.stringify({ options: [] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )));
+
+    const { container } = render(
+      <DynamicStepForm
+        step={vnPrearrivalHotelHierarchyStep}
+        prefill={{
+          flight_number: "MH0746_DAD",
+          accommodation_type: "hotel",
+          province_city_of_hotel: "48",
+          ward_commune_of_hotel: "20194",
+          hotel_accommodation_address: "KSDN_01",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={onDraftChange}
+        visaType="VN_PREARRIVAL_DECLARATION"
+      />,
+    );
+
+    const provinceTrigger = container.querySelector<HTMLButtonElement>(
+      '[data-application-field-name="province_city_of_hotel"] button.application-form-control',
+    );
+    expect(provinceTrigger).not.toBeNull();
+    fireEvent.click(provinceTrigger!);
+    fireEvent.click(screen.getByRole("option", { name: "河内市" }));
+
+    await waitFor(() => expect(onDraftChange).toHaveBeenLastCalledWith({
+      flight_number: "MH0746_DAD",
+      accommodation_type: "hotel",
+      province_city_of_hotel: "01",
+      ward_commune_of_hotel: "",
+      hotel_accommodation_address: "",
+    }));
   });
 
   it("stores Vietnam arrival-date radio choices as ISO while displaying the official format", async () => {

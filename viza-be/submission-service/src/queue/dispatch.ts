@@ -31,6 +31,7 @@ import { runOne as runSingapore } from "../sg/runner.js";
 import { runOne as runUae } from "../ae/runner.js";
 import { runOne as runTaiwan } from "../tw/runner.js";
 import { runArrivalCardPoolFlow } from "./arrival-card-runners.js";
+import { runAutomatedPortalPoolFlow } from "./automated-portal-runners.js";
 import { runKoreaEformBackground } from "./korea-eform-runner.js";
 import { runOne as runPhilippines } from "../ph-etravel/runner-job.js";
 import { requirePoolExecutionIdentity } from "./execution-context.js";
@@ -147,6 +148,8 @@ export const POOL_FLOW_COUNTRIES = {
   kr_arrival_card: "south_korea",
   kr_eform: "south_korea",
   tw_entry_permit: "taiwan",
+  jp_vjw: "japan",
+  ke_eta: "kenya",
 } as const;
 
 export interface PoolFlowDispatchDependencies {
@@ -154,6 +157,7 @@ export interface PoolFlowDispatchDependencies {
   runSingapore: RunOne;
   runTaiwan: RunOne;
   runArrivalCardPoolFlow: typeof runArrivalCardPoolFlow;
+  runAutomatedPortalPoolFlow?: typeof runAutomatedPortalPoolFlow;
   runKoreaEformBackground: typeof runKoreaEformBackground;
 }
 
@@ -169,6 +173,7 @@ export function createPoolFlowDispatch(
     runSingapore,
     runTaiwan,
     runArrivalCardPoolFlow,
+    runAutomatedPortalPoolFlow,
     runKoreaEformBackground,
   },
 ): Record<string, RunOne> {
@@ -228,6 +233,24 @@ export function createPoolFlowDispatch(
     tw_entry_permit: (applicationId, jobId, execution) => {
       const identity = requirePoolExecutionIdentity(execution, jobId, "tw_entry_permit pool dispatch");
       return dependencies.runTaiwan(applicationId, identity.jobId, identity.executionContext);
+    },
+    jp_vjw: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "jp_vjw pool dispatch");
+      return (dependencies.runAutomatedPortalPoolFlow ?? runAutomatedPortalPoolFlow)(
+        applicationId,
+        identity.jobId,
+        "jp_vjw",
+        identity.executionContext,
+      );
+    },
+    ke_eta: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "ke_eta pool dispatch");
+      return (dependencies.runAutomatedPortalPoolFlow ?? runAutomatedPortalPoolFlow)(
+        applicationId,
+        identity.jobId,
+        "ke_eta",
+        identity.executionContext,
+      );
     },
   };
 }

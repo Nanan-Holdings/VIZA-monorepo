@@ -94,6 +94,18 @@ export type SubmissionQueueStatus =
   | "kr_eac_live_assisted_processing"
   | "kr_eac_live_assisted_failed"
   | "kr_eac_blocked"
+  | "jp_vjw_live_assisted_pending"
+  | "jp_vjw_live_assisted_scheduled"
+  | "jp_vjw_live_assisted_processing"
+  | "jp_vjw_live_assisted_failed"
+  | "jp_vjw_live_assisted_cancelled"
+  | "jp_vjw_blocked"
+  | "ke_eta_live_assisted_pending"
+  | "ke_eta_live_assisted_scheduled"
+  | "ke_eta_live_assisted_processing"
+  | "ke_eta_live_assisted_failed"
+  | "ke_eta_live_assisted_cancelled"
+  | "ke_eta_blocked"
   | "id_c1_live_assisted_pending"
   | "id_c1_live_assisted_processing"
   | "id_c1_payment_pending"
@@ -216,6 +228,52 @@ const KOREA_E_ARRIVAL_CARD_TYPES = new Set([
   "KR_E_ARRIVAL_CARD",
 ]);
 
+const JAPAN_COUNTRY_ALIASES = new Set([
+  "JP",
+  "JAPAN",
+]);
+
+const JAPAN_VISIT_JAPAN_WEB_TYPES = new Set([
+  "JP_VISIT_JAPAN_WEB",
+]);
+
+const KENYA_COUNTRY_ALIASES = new Set([
+  "KE",
+  "KENYA",
+]);
+
+const KENYA_ETA_TYPES = new Set([
+  "KE_ETA",
+]);
+
+const DAY_MS = 24 * 60 * 60 * 1_000;
+
+export type KenyaEtaScheduleDecision = {
+  status: "scheduled" | "ready" | "expired" | "invalid";
+  availableAt: string | null;
+};
+
+/**
+ * Keep far-future Kenya eTA work out of the claimable pool until fourteen
+ * days before arrival. The eTA is valid for travel within 90 days of issue,
+ * so eager submission would needlessly consume its validity window.
+ */
+export function kenyaEtaSubmissionSchedule(
+  arrivalDate: string | null | undefined,
+  now = new Date(),
+): KenyaEtaScheduleDecision {
+  if (!arrivalDate || !/^\d{4}-\d{2}-\d{2}$/u.test(arrivalDate)) {
+    return { status: "invalid", availableAt: null };
+  }
+  const arrivalAt = Date.parse(`${arrivalDate}T12:00:00.000Z`);
+  if (!Number.isFinite(arrivalAt)) return { status: "invalid", availableAt: null };
+  if (arrivalAt < now.getTime() - DAY_MS) return { status: "expired", availableAt: null };
+  const availableAt = arrivalAt - 14 * DAY_MS;
+  return availableAt > now.getTime()
+    ? { status: "scheduled", availableAt: new Date(availableAt).toISOString() }
+    : { status: "ready", availableAt: null };
+}
+
 const TAIWAN_COUNTRY_ALIASES = new Set([
   "TW",
   "TAIWAN",
@@ -307,6 +365,12 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "kr_eac_live_assisted_scheduled",
   "kr_eac_live_assisted_pending",
   "kr_eac_live_assisted_processing",
+  "jp_vjw_live_assisted_scheduled",
+  "jp_vjw_live_assisted_pending",
+  "jp_vjw_live_assisted_processing",
+  "ke_eta_live_assisted_scheduled",
+  "ke_eta_live_assisted_pending",
+  "ke_eta_live_assisted_processing",
   "id_c1_live_assisted_pending",
   "id_c1_live_assisted_processing",
   "id_c1_payment_pending",
@@ -360,6 +424,10 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "kr_eac_dry_run_pending",
   "kr_eac_live_assisted_pending",
   "kr_eac_live_assisted_scheduled",
+  "jp_vjw_live_assisted_pending",
+  "jp_vjw_live_assisted_scheduled",
+  "ke_eta_live_assisted_pending",
+  "ke_eta_live_assisted_scheduled",
   "id_c1_live_assisted_pending",
   "id_c1_payment_pending",
   "id_b1_evoa_live_assisted_pending",
@@ -405,6 +473,12 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "kr_eac_live_assisted_failed",
   "kr_eac_live_assisted_cancelled",
   "kr_eac_blocked",
+  "jp_vjw_live_assisted_failed",
+  "jp_vjw_live_assisted_cancelled",
+  "jp_vjw_blocked",
+  "ke_eta_live_assisted_failed",
+  "ke_eta_live_assisted_cancelled",
+  "ke_eta_blocked",
   "id_c1_live_assisted_failed",
   "id_c1_payment_pending",
   "id_c1_payment_processing",
@@ -534,6 +608,33 @@ export function isKoreaEArrivalCardApplication(
   );
 }
 
+export function isJapanVisitJapanWebApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    JAPAN_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    JAPAN_VISIT_JAPAN_WEB_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
+export function isKenyaEtaApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    KENYA_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    KENYA_ETA_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
+export function isAutomatedOnlineApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return isJapanVisitJapanWebApplication(country, visaType) || isKenyaEtaApplication(country, visaType);
+}
+
 export function isTaiwanEntryPermitApplication(
   country: string | null | undefined,
   visaType: string | null | undefined,
@@ -565,7 +666,8 @@ export function isDigitalArrivalCardApplication(
     isMalaysiaMdacApplication(country, visaType) ||
     isThailandTdacApplication(country, visaType) ||
     isPhilippinesEtravelApplication(country, visaType) ||
-    isKoreaEArrivalCardApplication(country, visaType)
+    isKoreaEArrivalCardApplication(country, visaType) ||
+    isJapanVisitJapanWebApplication(country, visaType)
   );
 }
 
@@ -602,6 +704,10 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
       return "phetravel_dry_run_pending";
     case "KR_E_ARRIVAL_CARD":
       return "kr_eac_dry_run_pending";
+    case "JP_VISIT_JAPAN_WEB":
+      return "jp_vjw_live_assisted_pending";
+    case "KE_ETA":
+      return "ke_eta_live_assisted_pending";
     case "TW_ENTRY_PERMIT":
       return "tw_dry_run_pending";
     case "AU_VISITOR_600":
@@ -652,6 +758,12 @@ export function queueStatusForApplication(
   }
   if (isKoreaEArrivalCardApplication(country, visaType)) {
     return mode === "live_assisted" ? "kr_eac_live_assisted_pending" : "kr_eac_dry_run_pending";
+  }
+  if (isJapanVisitJapanWebApplication(country, visaType)) {
+    return "jp_vjw_live_assisted_pending";
+  }
+  if (isKenyaEtaApplication(country, visaType)) {
+    return "ke_eta_live_assisted_pending";
   }
   if (isTaiwanEntryPermitApplication(country, visaType)) {
     return mode === "live_assisted" ? "tw_live_assisted_pending" : "tw_dry_run_pending";
@@ -721,6 +833,12 @@ export function queueProviderForVisaType(
   if (KOREA_E_ARRIVAL_CARD_TYPES.has(normalizeVisaType(visaType))) {
     return mode === "live_assisted" ? "korea_e_arrival_card_live" : "korea_e_arrival_card_dry_run";
   }
+  if (JAPAN_VISIT_JAPAN_WEB_TYPES.has(normalizeVisaType(visaType))) {
+    return "jp_visit_japan_web_live";
+  }
+  if (KENYA_ETA_TYPES.has(normalizeVisaType(visaType))) {
+    return "ke_eta_live";
+  }
   if (TAIWAN_ENTRY_PERMIT_TYPES.has(normalizeVisaType(visaType))) {
     return mode === "live_assisted"
       ? "taiwan_overseas_cn_entry_permit_live"
@@ -761,6 +879,12 @@ export function queueProviderForApplication(
   if (isKoreaEArrivalCardApplication(country, visaType)) {
     return mode === "live_assisted" ? "korea_e_arrival_card_live" : "korea_e_arrival_card_dry_run";
   }
+  if (isJapanVisitJapanWebApplication(country, visaType)) {
+    return "jp_visit_japan_web_live";
+  }
+  if (isKenyaEtaApplication(country, visaType)) {
+    return "ke_eta_live";
+  }
   if (isTaiwanEntryPermitApplication(country, visaType)) {
     return mode === "live_assisted"
       ? "taiwan_overseas_cn_entry_permit_live"
@@ -784,6 +908,7 @@ export function submissionQueueRequiresServerEnqueue(
     isUkStandardVisitorApplication(country, visaType) ||
     isVietnamEVisaApplication(country, visaType) ||
     isDigitalArrivalCardApplication(country, visaType) ||
+    isAutomatedOnlineApplication(country, visaType) ||
     isTaiwanEntryPermitApplication(country, visaType) ||
     isIndonesiaEVisaApplication(country, visaType)
   );
@@ -826,6 +951,10 @@ export function retryQueueInsertCanUseLegacyPayload(
     input.queueStatus === "tdac_live_assisted_scheduled" ||
     input.queueStatus === "kr_eac_live_assisted_pending" ||
     input.queueStatus === "kr_eac_live_assisted_scheduled" ||
+    input.queueStatus === "jp_vjw_live_assisted_pending" ||
+    input.queueStatus === "jp_vjw_live_assisted_scheduled" ||
+    input.queueStatus === "ke_eta_live_assisted_pending" ||
+    input.queueStatus === "ke_eta_live_assisted_scheduled" ||
     input.queueStatus === "id_c1_live_assisted_pending" ||
     input.queueStatus === "id_b1_evoa_live_assisted_pending" ||
     input.queueStatus === "id_c1_payment_pending" ||
@@ -850,6 +979,7 @@ export function submitModeForPrimaryApplicationAction(
     isUkStandardVisitorApplication(country, visaType) ||
     isVietnamEVisaApplication(country, visaType) ||
     isDigitalArrivalCardApplication(country, visaType) ||
+    isAutomatedOnlineApplication(country, visaType) ||
     isTaiwanEntryPermitApplication(country, visaType) ||
     isIndonesiaEVisaApplication(country, visaType)
   ) {

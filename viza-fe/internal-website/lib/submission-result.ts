@@ -37,6 +37,8 @@ export type SubmissionResult =
   | VnSubmissionResult
   | SgArrivalCardSubmissionResult
   | DigitalArrivalCardSubmissionResult
+  | JpVisitJapanWebSubmissionResult
+  | KeEtaSubmissionResult
   | AuSubmissionResult
   | JpSubmissionResult
   | TwSubmissionResult
@@ -293,6 +295,68 @@ export interface DigitalArrivalCardSubmissionResult {
   };
 }
 
+/** Japan Visit Japan Web. Success requires an official QR artifact. */
+export interface JpVisitJapanWebSubmissionResult {
+  country: "JP";
+  visaType: "JP_VISIT_JAPAN_WEB";
+  status: "qr_ready" | "blocked" | "validation_failed" | "official_portal_error";
+  mode: "live_assisted" | "dry_run";
+  provider: "jp_visit_japan_web_live";
+  applicationId: string;
+  submitted: boolean;
+  qrReady: boolean;
+  referenceNumber?: string | null;
+  submittedAt?: string | null;
+  portalUrl: string;
+  portalResponseSummary: string;
+  errorDetails?: {
+    code: string;
+    message: string;
+    missingFields?: string[];
+  };
+  artifacts?: {
+    screenshots: string[];
+    qrCodes: string[];
+    logs: string[];
+    traces: string[];
+  };
+}
+
+/** Kenya eTA. Approval is authoritative only with an official PDF artifact. */
+export interface KeEtaSubmissionResult {
+  country: "KE";
+  visaType: "KE_ETA";
+  status:
+    | "submitted"
+    | "approved"
+    | "rejected"
+    | "blocked"
+    | "validation_failed"
+    | "official_portal_error";
+  mode: "live_assisted" | "dry_run";
+  provider: "ke_eta_live";
+  applicationId: string;
+  submitted: boolean;
+  officialReference?: string | null;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  portalUrl: string;
+  portalResponseSummary: string;
+  paymentReceipt?: string | null;
+  approvalPdfStoragePath?: string | null;
+  errorDetails?: {
+    code: string;
+    message: string;
+    missingFields?: string[];
+  };
+  artifacts?: {
+    screenshots: string[];
+    pdfs: string[];
+    logs: string[];
+    traces: string[];
+  };
+}
+
 export interface AuSubmissionResult {
   country: "AU";
   status: "stopped_at_review";
@@ -464,9 +528,13 @@ export type SubmissionResultStatus =
   | "scheduled"
   | "processing"
   | "needs_user_action"
+  | "needs_attention"
   | "completed"
   | "stalled"
   | "submitted"
+  | "qr_ready"
+  | "approved"
+  | "rejected"
   | "submitted_mock"
   | "unsupported"
   | "action_required"

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { WizardStep } from "@/types/visa-form-fields";
-import { getAssistantProgress, validateApplicationAnswers } from "../validator";
+import { VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS } from "@/lib/vietnam-evisa-official-countries";
+import {
+  canonicalizeApplicationOptionAnswers,
+  getAssistantProgress,
+  validateApplicationAnswers,
+} from "../validator";
 
 const steps: WizardStep[] = [
   {
@@ -102,6 +107,22 @@ describe("validateApplicationAnswers", () => {
     expect(result.warnings.some((issue) => issue.code === "sgac_three_day_window")).toBe(true);
   });
 
+  it("uses Singapore's calendar date for ICA's three-day window", () => {
+    const result = validateApplicationAnswers({
+      steps,
+      answers: {
+        arrival_date: "2026-08-09",
+        departure_date: "2026-08-10",
+        mode_of_travel: "land",
+      },
+      visaType: "SG_ARRIVAL_CARD",
+      now: new Date("2026-08-06T16:30:00Z"),
+      timeZone: "Asia/Singapore",
+    });
+
+    expect(result.warnings.some((issue) => issue.code === "sgac_three_day_window")).toBe(false);
+  });
+
   it("uses the product day boundary for date-window validation", () => {
     const malaysiaSteps: WizardStep[] = [{
       stepNumber: 1,
@@ -143,7 +164,7 @@ describe("validateApplicationAnswers", () => {
         displayOrder: 1,
         placeholder: null,
         validationRules: { mustBeTrue: true },
-        options: null,
+        options: [{ value: "yes", text: "I agree" }],
         conditionalLogic: null,
       }],
     }];
@@ -154,9 +175,7 @@ describe("validateApplicationAnswers", () => {
       visaType: "TW_ENTRY_PERMIT",
     });
 
-    expect(result.errors.map((issue) => issue.code)).toEqual(
-      expect.arrayContaining(["required_missing", "acceptance_required"]),
-    );
+    expect(result.errors.map((issue) => issue.code)).toEqual(["acceptance_required"]);
     expect(result.progress).toEqual({ completed: 0, total: 1 });
   });
 
@@ -398,5 +417,243 @@ describe("validateApplicationAnswers", () => {
         fieldNames: ["departure_date", "arrival_date"],
       }),
     ]));
+  });
+
+  it("accepts Vietnam year-only birth dates and official country codes from the visible controls", () => {
+    const vietnamSteps: WizardStep[] = [{
+      stepNumber: 6,
+      stepName: "Information About the Trip",
+      fields: [
+        {
+          ...steps[0]!.fields[0]!,
+          id: "relative-birth-date",
+          visaType: "VN_E_VISA",
+          fieldName: "relative_date_of_birth",
+          label: "Relative's date of birth",
+          validationRules: { label_zh: "在越亲属出生日期", allow_year_only: true },
+        },
+        {
+          ...steps[0]!.fields[2]!,
+          id: "relative-nationality",
+          visaType: "VN_E_VISA",
+          fieldName: "relative_nationality",
+          label: "Relative's nationality",
+          fieldType: "country",
+          validationRules: { label_zh: "在越亲属国籍", source: "VN_E_VISA_OFFICIAL_COUNTRIES" },
+          options: VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS,
+        },
+      ],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: vietnamSteps,
+      answers: { relative_date_of_birth: "2001", relative_nationality: "PAN" },
+      visaType: "VN_E_VISA",
+      locale: "zh-CN",
+      now: new Date("2026-08-19T00:00:00Z"),
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.missingFields).toEqual([]);
+  });
+
+  it("canonicalizes a historical localized option label to the official value", () => {
+    const vietnamSteps: WizardStep[] = [{
+      stepNumber: 6,
+      stepName: "Information About the Trip",
+      fields: [{
+        ...steps[0]!.fields[2]!,
+        id: "relative-nationality",
+        visaType: "VN_E_VISA",
+        fieldName: "relative_nationality",
+        label: "Relative's nationality",
+        fieldType: "country",
+        validationRules: { label_zh: "在越亲属国籍", source: "VN_E_VISA_OFFICIAL_COUNTRIES" },
+        options: VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS,
+      }],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: vietnamSteps,
+      answers: { relative_nationality: "巴拿马" },
+      visaType: "VN_E_VISA",
+      locale: "zh",
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.missingFields).toEqual([]);
+    expect(canonicalizeApplicationOptionAnswers(
+      vietnamSteps,
+      { relative_nationality: "巴拿马" },
+    ).patches).toEqual([{
+      fieldName: "relative_nationality",
+      previousValue: "巴拿马",
+      value: "PAN",
+    }]);
+  });
+
+  it("uses the Chinese schema label and emits one actionable issue for a truly invalid official choice", () => {
+    const vietnamSteps: WizardStep[] = [{
+      stepNumber: 6,
+      stepName: "Information About the Trip",
+      fields: [{
+        ...steps[0]!.fields[2]!,
+        id: "relative-nationality",
+        visaType: "VN_E_VISA",
+        fieldName: "relative_nationality",
+        label: "Relative's nationality",
+        fieldType: "country",
+        validationRules: { label_zh: "在越亲属国籍", source: "VN_E_VISA_OFFICIAL_COUNTRIES" },
+        options: VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS,
+      }],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: vietnamSteps,
+      answers: { relative_nationality: "火星" },
+      visaType: "VN_E_VISA",
+      locale: "zh",
+    });
+
+    expect(result.errors).toEqual([expect.objectContaining({
+      code: "invalid_option",
+      fieldNames: ["relative_nationality"],
+      message: "请为在越亲属国籍选择官网提供的选项。",
+    })]);
+    expect(result.errors.some((issue) => issue.code === "required_missing")).toBe(false);
+  });
+
+  it("validates every populated repeat instance against its matching related answers", () => {
+    const repeatedSteps: WizardStep[] = [{
+      stepNumber: 6,
+      stepName: "Information About the Trip",
+      fields: [
+        {
+          ...steps[0]!.fields[0]!,
+          id: "relative-birth-date",
+          visaType: "VN_E_VISA",
+          fieldName: "relative_date_of_birth",
+          label: "Relative's date of birth",
+          validationRules: {
+            label_zh: "在越亲属出生日期",
+            allow_year_only: true,
+            repeatable: true,
+            repeat_group: "vietnam_relatives",
+            max_items: 5,
+          },
+        },
+        {
+          ...steps[0]!.fields[2]!,
+          id: "relative-nationality",
+          visaType: "VN_E_VISA",
+          fieldName: "relative_nationality",
+          label: "Relative's nationality",
+          fieldType: "country",
+          validationRules: {
+            label_zh: "在越亲属国籍",
+            repeatable: true,
+            repeat_group: "vietnam_relatives",
+            max_items: 5,
+          },
+          options: VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS,
+        },
+      ],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: repeatedSteps,
+      answers: {
+        relative_date_of_birth: "2001",
+        relative_date_of_birth__2: "1999",
+        relative_nationality: "PAN",
+        relative_nationality__2: "not-official",
+      },
+      visaType: "VN_E_VISA",
+      locale: "zh",
+    });
+
+    expect(result.errors).toEqual([expect.objectContaining({
+      code: "invalid_option",
+      fieldNames: ["relative_nationality__2"],
+    })]);
+  });
+
+  it("accepts multi-select values and explicit schema-supported non-value answers", () => {
+    const auditedSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Audited fields",
+      fields: [
+        {
+          ...steps[0]!.fields[2]!,
+          id: "purposes",
+          fieldName: "purposes",
+          fieldType: "multi_select",
+          options: ["tourism", "business", "study"],
+        },
+        {
+          ...steps[0]!.fields[0]!,
+          id: "unknown-date",
+          fieldName: "unknown_date",
+          validationRules: { allow_do_not_know: true, pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+        },
+        {
+          ...steps[0]!.fields[0]!,
+          id: "not-applicable-date",
+          fieldName: "not_applicable_date",
+          validationRules: { allow_does_not_apply: true },
+        },
+      ],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: auditedSteps,
+      answers: {
+        purposes: "tourism,business",
+        unknown_date: "DO_NOT_KNOW",
+        not_applicable_date: "DOES_NOT_APPLY",
+      },
+      visaType: "AUDIT",
+      locale: "zh",
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it("accepts DS-160 official month-name dates and values from partial remote option lists", () => {
+    const auditedSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Travel Information",
+      fields: [
+        {
+          ...steps[0]!.fields[0]!,
+          id: "ds160-date",
+          visaType: "DS160",
+          fieldName: "intended_arrival_date",
+          validationRules: { format: "DD-MMM-YYYY" },
+        },
+        {
+          ...steps[0]!.fields[2]!,
+          id: "remote-country",
+          visaType: "AUDIT",
+          fieldName: "remote_country",
+          fieldType: "select",
+          validationRules: { official_options_source: "/api/official-countries" },
+          options: [{ value: "fallback", text: "Fallback" }],
+        },
+      ],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: auditedSteps,
+      answers: {
+        intended_arrival_date: "15-SEP-2026",
+        remote_country: "LIVE_OFFICIAL_VALUE",
+      },
+      visaType: "AUDIT",
+      locale: "zh",
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.missingFields).toEqual([]);
   });
 });

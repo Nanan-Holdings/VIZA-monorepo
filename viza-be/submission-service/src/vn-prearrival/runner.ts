@@ -145,6 +145,75 @@ type OfficialStaticItem = {
   airport?: string;
 };
 
+const LEGACY_NATIONALITY_CODE_BY_NAME: Record<string, string> = {
+  HEARDISLANDANDMCDONALDISLANDS: "HMD",
+};
+
+function normalizeNationalityLookup(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/gi, "")
+    .toUpperCase();
+}
+
+function officialNationalityItems(value: unknown): OfficialStaticItem[] {
+  if (Array.isArray(value)) return value as OfficialStaticItem[];
+  if (typeof value !== "object" || value === null) return [];
+  const record = value as Record<string, unknown>;
+  if (Array.isArray(record.data)) return record.data as OfficialStaticItem[];
+  if (typeof record.data === "object" && record.data !== null) {
+    const data = record.data as Record<string, unknown>;
+    if (Array.isArray(data.content)) return data.content as OfficialStaticItem[];
+  }
+  if (Array.isArray(record.content)) return record.content as OfficialStaticItem[];
+  return [];
+}
+
+export function officialNationalityLabel(
+  items: OfficialStaticItem[],
+  value: string,
+): string {
+  const normalizedValue = normalizeNationalityLookup(value);
+  const legacyCode = LEGACY_NATIONALITY_CODE_BY_NAME[normalizedValue];
+  const item = items.find((candidate) => {
+    const candidateCode = normalizeNationalityLookup(candidate.code ?? "");
+    if (candidateCode && (candidateCode === normalizedValue || candidateCode === legacyCode)) return true;
+    return [candidate.en_value, candidate.english_value, candidate.vn_value]
+      .some((candidateValue) => normalizeNationalityLookup(candidateValue ?? "") === normalizedValue);
+  });
+  return item?.en_value ?? item?.english_value ?? item?.vn_value ?? value;
+}
+
+async function loadOfficialNationalityItems(page: Page, logs: string[]): Promise<OfficialStaticItem[]> {
+  try {
+    const result = await page.evaluate(async () => {
+      const response = await fetch(
+        "/bio-management-service/category/findAllActive/nationality",
+        {
+          credentials: "include",
+          headers: {
+            "Accept": "application/json, text/plain, */*",
+            "device-id": window.localStorage.getItem("deviceId") ?? "",
+          },
+        },
+      );
+      return {
+        ok: response.ok,
+        status: response.status,
+        payload: await response.json().catch(() => null) as unknown,
+      };
+    });
+    const items = result.ok ? officialNationalityItems(result.payload) : [];
+    logs.push(`vn_prearrival_nationality_catalog status=${result.status} count=${items.length}`);
+    return items;
+  } catch (error) {
+    const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+    logs.push(`vn_prearrival_nationality_catalog_failed ${message}`);
+    return [];
+  }
+}
+
 type OfficialStaticCatalog = {
   sources?: Record<string, OfficialStaticItem[] | undefined>;
 };
@@ -1260,7 +1329,15 @@ export async function runVietnamPrearrivalPortalSubmission(
       );
     }
     await handleCaptchaGate(page, screenshots, logs, tempDir, options.executionContext);
-    if (!(await completeNationalityGate(page, payload.nationality))) {
+    const officialNationalityOptions = await loadOfficialNationalityItems(page, logs);
+    const nationalityLabel = officialNationalityLabel(officialNationalityOptions, payload.nationality);
+    const departureCountryLabel = officialNationalityLabel(
+      officialNationalityOptions,
+      payload.departureCountryBeforeArrival,
+    );
+    logs.push(`vn_prearrival_option_resolved field=nationality value=${nationalityLabel}`);
+    logs.push(`vn_prearrival_option_resolved field=departure_country_before_arrival value=${departureCountryLabel}`);
+    if (!(await completeNationalityGate(page, nationalityLabel))) {
       throw new VnPrearrivalPortalError(
         "Vietnam Pre-Arrival nationality selection could not be completed on the official portal.",
         "vn_prearrival_nationality_gate_not_completed",
@@ -1273,7 +1350,7 @@ export async function runVietnamPrearrivalPortalSubmission(
     // nationality screen. Do not treat the modal as an empty declaration form.
     if (!(await waitForPassengerForm(
       page,
-      payload.nationality,
+      nationalityLabel,
       screenshots,
       logs,
       tempDir,
@@ -1391,7 +1468,12 @@ export async function runVietnamPrearrivalPortalSubmission(
     // border gate is read-only and only becomes populated after a flight option
     // is selected from the official autocomplete list.
     if (!(await selectOfficialRadio(page, payload.modeOfTravel))) missingControls.push("mode_of_travel");
-    if (!(await selectNearLabel(page, [/departure country before arrival/i], payload.departureCountryBeforeArrival))) {
+    if (!(await selectNearLabel(
+      page,
+      [/departure country before arrival/i],
+      departureCountryLabel,
+      departureCountryLabel,
+    ))) {
       missingControls.push("departure_country_before_arrival");
     }
     if (!(await selectNearLabel(page, [/purpose of travel/i, /mục đích/i], payload.purposeOfTravel))) {

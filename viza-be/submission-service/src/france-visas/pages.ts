@@ -12,7 +12,8 @@
 
 import type { Page } from "@playwright/test";
 import { FV_SESSION_EXPIRED_MARKERS, FV_CHECK_MAILBOX_MARKERS } from "./selectors";
-import { UnexpectedPageError, SessionExpiredError } from "./errors";
+import { UnexpectedPageError, SessionExpiredError, GateDetectedError } from "./errors";
+import { classifyFranceVisasBrowserState, type FvBrowserSecurityCheckpoint } from "./browser";
 
 /**
  * France-Visas Schengen Type C form has **6 steps**, not the 12 logical
@@ -54,7 +55,7 @@ export type FvPageId =
  */
 const URL_PATTERNS: ReadonlyArray<[FvPageId, RegExp]> = [
   ["registration", /login-actions\/registration/i],
-  ["login", /login-actions\/authenticate/i],
+  ["login", /login-actions\/authenticate|\/realms\/usager\/protocol\/openid-connect\/auth/i],
   ["check_mailbox", /login-actions\/required-action.*execution=VERIFY_EMAIL/i],
   ["email_verified", /execute-actions|verify-email/i],
   ["accueil", /accueil\.xhtml/i],
@@ -68,10 +69,19 @@ const URL_PATTERNS: ReadonlyArray<[FvPageId, RegExp]> = [
   ["confirmation", /confirmation\.xhtml/i],
 ];
 
+export function detectFranceVisasPageIdFromUrl(url: string): FvPageId | "unknown" {
+  for (const [id, pattern] of URL_PATTERNS) {
+    if (pattern.test(url)) return id;
+  }
+  return "unknown";
+}
+
 export interface PageIdentityResult {
   id: FvPageId | "unknown";
   heading: string | null;
   url: string;
+  securityCheckpoint?: FvBrowserSecurityCheckpoint;
+  securityMessage?: string;
 }
 
 export async function detectPage(page: Page): Promise<PageIdentityResult> {
@@ -87,6 +97,21 @@ export async function detectPage(page: Page): Promise<PageIdentityResult> {
     // Navigation mid-flight — fall through to URL matching.
   }
 
+  const security = classifyFranceVisasBrowserState({
+    url,
+    title: await page.title().catch(() => ""),
+    bodyText,
+  });
+  if (security.checkpoint !== "ready") {
+    return {
+      id: "unknown",
+      heading: null,
+      url,
+      securityCheckpoint: security.checkpoint,
+      securityMessage: security.message,
+    };
+  }
+
   if (FV_SESSION_EXPIRED_MARKERS.some((re) => re.test(bodyText))) {
     return { id: "session_expired", heading: null, url };
   }
@@ -95,10 +120,9 @@ export async function detectPage(page: Page): Promise<PageIdentityResult> {
     return { id: "check_mailbox", heading: null, url };
   }
 
-  for (const [id, pattern] of URL_PATTERNS) {
-    if (pattern.test(url)) {
-      return { id, heading: await readFirstHeading(page), url };
-    }
+  const urlPageId = detectFranceVisasPageIdFromUrl(url);
+  if (urlPageId !== "unknown") {
+    return { id: urlPageId, heading: await readFirstHeading(page), url };
   }
 
   return { id: "unknown", heading: await readFirstHeading(page), url };
@@ -158,6 +182,19 @@ export async function waitForPage(
   let last: PageIdentityResult | null = null;
   while (Date.now() < deadline) {
     last = await detectPage(page);
+
+    if (last.securityCheckpoint && last.securityCheckpoint !== "ready") {
+      throw new GateDetectedError(
+        `France-Visas security checkpoint detected (${last.securityCheckpoint}): worker cannot proceed`,
+        {
+          url: last.url,
+          details: {
+            checkpoint: last.securityCheckpoint,
+            message: last.securityMessage,
+          },
+        },
+      );
+    }
 
     if (last.id === "session_expired" && !expectedList.includes("session_expired")) {
       throw new SessionExpiredError("France-Visas session expired while waiting for page", {

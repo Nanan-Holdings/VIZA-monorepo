@@ -9,8 +9,9 @@
 import type { Page } from "@playwright/test";
 import { FV_GATE_MARKERS } from "./selectors";
 import { GateDetectedError, type FvErrorContext } from "./errors";
+import { classifyFranceVisasBrowserState } from "./browser";
 
-export type FvGateKind = "captcha" | "anti_bot_text" | "captcha_and_text";
+export type FvGateKind = "captcha" | "anti_bot_text" | "captcha_and_text" | "waf" | "blank_page" | "unknown_page";
 
 export interface GateDetectionResult {
   gated: boolean;
@@ -23,6 +24,13 @@ export interface GateDetectionResult {
 
 export async function detectGate(page: Page): Promise<GateDetectionResult> {
   const url = page.url();
+
+  let title = "";
+  try {
+    title = await page.title();
+  } catch {
+    // Navigation may still be settling; body/URL markers remain useful.
+  }
 
   let visibleText = "";
   try {
@@ -54,10 +62,22 @@ export async function detectGate(page: Page): Promise<GateDetectionResult> {
 
   const hasCaptcha = matchedCaptchaSelectors.length > 0;
   const hasText = matchedTextPatterns.length > 0;
-  const gated = hasCaptcha || hasText;
+  const security = classifyFranceVisasBrowserState({
+    url,
+    title,
+    bodyText: visibleText,
+  });
+  if (security.checkpoint === "waf") matchedTextPatterns.push("Cloudflare/WAF security checkpoint");
+  if (security.checkpoint === "blank") matchedTextPatterns.push("blank official page");
+  if (security.checkpoint === "unknown") matchedTextPatterns.push("unrecognized official page");
+  const hasSecurityCheckpoint = security.checkpoint !== "ready";
+  const gated = hasCaptcha || hasText || hasSecurityCheckpoint;
 
   let gateKind: FvGateKind | null = null;
-  if (hasCaptcha && hasText) gateKind = "captcha_and_text";
+  if (security.checkpoint === "blank") gateKind = "blank_page";
+  else if (security.checkpoint === "waf") gateKind = "waf";
+  else if (security.checkpoint === "unknown") gateKind = "unknown_page";
+  else if (hasCaptcha && hasText) gateKind = "captcha_and_text";
   else if (hasCaptcha) gateKind = "captcha";
   else if (hasText) gateKind = "anti_bot_text";
 
