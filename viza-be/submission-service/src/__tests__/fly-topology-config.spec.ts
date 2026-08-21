@@ -67,6 +67,9 @@ test("Vietnam Pre-Arrival remains shared-pool only", () => {
   assert.match(poolConfig, /VN_PREARRIVAL_BROWSERBASE_ENABLED = "true"/);
   assert.match(poolConfig, /KR_EAC_BROWSERBASE_ENABLED = "true"/);
   assert.match(poolConfig, /KR_EAC_BROWSERBASE_COUNTRY = "KR"/);
+  assert.match(poolConfig, /JP_VJW_LIVE_ENABLED = "true"/);
+  assert.match(poolConfig, /JP_VJW_DELEGATED_OPERATION_APPROVED = "true"/);
+  assert.match(poolConfig, /KE_ETA_LIVE_ENABLED = "true"/);
   assert.match(wakeRouting, /vn: "pool"/);
   assert.doesNotMatch(wakeRouting, /viza-runner-vietnam/);
   assert.match(deployWorkflow, /deploy-pool\.sh/);
