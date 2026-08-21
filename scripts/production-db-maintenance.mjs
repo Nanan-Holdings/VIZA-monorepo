@@ -2529,10 +2529,13 @@ function parseApprovedBatchState(payload) {
     "approved_batch_state",
     "Approved migration batch returned an unexpected state payload",
   );
-  if (state.project_ref_marker !== PRODUCTION_PROJECT_REF ||
-      !Array.isArray(state.migration_versions) ||
+  if (!Array.isArray(state.migration_versions) ||
       (state.assertions !== undefined && !Array.isArray(state.assertions))) {
     throw new Error("Approved migration batch state is not the production database marker");
+  }
+  if (state.project_ref_marker !== null &&
+      state.project_ref_marker !== PRODUCTION_PROJECT_REF) {
+    throw new Error("Approved migration batch database project marker is mismatched");
   }
   return state;
 }
@@ -2608,6 +2611,13 @@ export async function runApprovedBatchApply({
   if (sourceRef !== batch.source_ref) {
     throw new Error(`Migration batch source ref is not approved: ${batchId}`);
   }
+  assertManagementProjectIdentity(await managementJsonRequest({
+    token,
+    projectRef,
+    suffix: "",
+    method: "GET",
+    fetchImpl,
+  }), projectRef);
   const preflight = await readApprovedBatchState({
     env,
     fetchImpl,

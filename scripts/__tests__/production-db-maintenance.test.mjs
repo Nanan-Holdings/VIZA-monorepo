@@ -451,13 +451,15 @@ test("generic approved batch performs guarded preflight, apply, cleanup, and pos
     fetchImpl: async (url, init) => {
       requests.push({ url, method: init.method });
       const payload = requests.length === 1
-        ? [{ approved_batch_state: {
-            project_ref_marker: PRODUCTION_PROJECT_REF,
+        ? { id: PRODUCTION_PROJECT_REF, ref: PRODUCTION_PROJECT_REF }
+        : requests.length === 2
+          ? [{ approved_batch_state: {
+            project_ref_marker: null,
             migration_versions: ["20260820152526"],
           } }]
-        : requests.length === 2
+        : requests.length === 3
           ? { role: "cli_login_postgres", password: "temporary-password-123", ttl_seconds: 300 }
-          : requests.length === 3
+          : requests.length === 4
             ? [{
                 database_type: "PRIMARY",
                 db_host: "aws-1-ap-south-1.pooler.supabase.com",
@@ -466,22 +468,70 @@ test("generic approved batch performs guarded preflight, apply, cleanup, and pos
                 db_user: `postgres.${PRODUCTION_PROJECT_REF}`,
                 pool_mode: "session",
               }]
-            : requests.length === 4
+            : requests.length === 5
               ? { message: "ok" }
               : [{ approved_batch_state: {
-                  project_ref_marker: PRODUCTION_PROJECT_REF,
+                  project_ref_marker: null,
                   migration_versions: ["20260820152526", "20260822000000"],
                 } }];
       return new Response(JSON.stringify(payload), { status: 200 });
     },
   });
 
-  assert.equal(requests.length, 5);
-  assert.match(requests[0].url, /database\/query\/read-only$/u);
-  assert.match(requests[4].url, /database\/query\/read-only$/u);
+  assert.equal(requests.length, 6);
+  assert.match(requests[0].url, new RegExp(`/projects/${PRODUCTION_PROJECT_REF}$`, "u"));
+  assert.match(requests[1].url, /database\/query\/read-only$/u);
+  assert.match(requests[5].url, /database\/query\/read-only$/u);
   assert.match(execution.query, /20260822000000/u);
   assert.equal(result.batch_id, "database-access-baseline-v1");
   assert.deepEqual(result.migration_versions, ["20260820152526", "20260822000000"]);
+});
+
+test("generic approved batch verifies Management API identity and rejects a mismatched database marker", async () => {
+  const migrationRef = "a".repeat(40);
+  const env = {
+    SUPABASE_ACCESS_TOKEN: "test-token",
+    SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+    PRODUCTION_DB_MAINTENANCE_ACTION: "apply-approved-batch",
+    PRODUCTION_DB_MAINTENANCE_BATCH_ID: "database-access-baseline-v1",
+    PRODUCTION_DB_MAINTENANCE_SOURCE_REF: migrationRef,
+    PRODUCTION_DB_MAINTENANCE_CONFIRM:
+      `${PRODUCTION_PROJECT_REF}:apply-approved-batch:database-access-baseline-v1:${migrationRef}`,
+    MIGRATION_SOURCE_ROOT: "/approved-source",
+  };
+  let calls = 0;
+  await assert.rejects(
+    runApprovedBatchApply({
+      env,
+      manifest: genericBatchManifest,
+      fetchImpl: async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ id: "wrong-project-ref" }), { status: 200 });
+      },
+    }),
+    /Management API project identity is missing or mismatched/u,
+  );
+  assert.equal(calls, 1);
+
+  calls = 0;
+  await assert.rejects(
+    runApprovedBatchApply({
+      env,
+      manifest: genericBatchManifest,
+      fetchImpl: async () => {
+        calls += 1;
+        const payload = calls === 1
+          ? { ref: PRODUCTION_PROJECT_REF }
+          : [{ approved_batch_state: {
+              project_ref_marker: "wrong-project-ref",
+              migration_versions: ["20260820152526"],
+            } }];
+        return new Response(JSON.stringify(payload), { status: 200 });
+      },
+    }),
+    /database project marker is mismatched/u,
+  );
+  assert.equal(calls, 2);
 });
 
 test("generic approved batch rejects a short ref and source hash drift", async () => {
@@ -558,6 +608,7 @@ test("generic approved batch rejects source-ref drift and failed catalog guards"
     kind: "relation_exists",
     identity: "public.users",
   }];
+  let guardedCalls = 0;
   await assert.rejects(
     runApprovedBatchApply({
       env: {
@@ -570,16 +621,23 @@ test("generic approved batch rejects source-ref drift and failed catalog guards"
         MIGRATION_SOURCE_ROOT: "/approved-source",
       },
       manifest: guardedManifest,
-      fetchImpl: async () => new Response(JSON.stringify([{
-        approved_batch_state: {
-          project_ref_marker: PRODUCTION_PROJECT_REF,
-          migration_versions: ["20260820152526"],
-          assertions: [{ id: "users_exists", passed: false }],
-        },
-      }]), { status: 200 }),
+      fetchImpl: async () => {
+        guardedCalls += 1;
+        const payload = guardedCalls === 1
+          ? { id: PRODUCTION_PROJECT_REF }
+          : [{
+              approved_batch_state: {
+                project_ref_marker: null,
+                migration_versions: ["20260820152526"],
+                assertions: [{ id: "users_exists", passed: false }],
+              },
+            }];
+        return new Response(JSON.stringify(payload), { status: 200 });
+      },
     }),
     /catalog guard failed: users_exists/u,
   );
+  assert.equal(guardedCalls, 2);
 });
 
 test("temporary login role TTL is bounded and ambiguous creation is always revoked", async () => {
