@@ -364,6 +364,51 @@
           }
         ]
       }
+    },
+    {
+      "batch_id": "agent-backend-role-timeouts-v1",
+      "source_ref": "a468609c31ccadd0ec758caedc18f1c6a037dcfe",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260821181514",
+          "name": "agent_backend_role_timeouts",
+          "path": "viza-fe/internal-website/supabase/migrations/20260821181514_agent_backend_role_timeouts.sql",
+          "sha256": "126ec3bfa2165be75996d53865a28ddd81f3b402107c68f4532ac714d7df4d6d"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": [
+          "20260821175138"
+        ],
+        "absent_migration_versions": [
+          "20260821181514"
+        ],
+        "catalog_assertions": []
+      },
+      "postconditions": {
+        "required_migration_versions": [
+          "20260821181514"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "role_timeouts_migration_record_exact",
+            "kind": "migration_record",
+            "version": "20260821181514",
+            "name": "agent_backend_role_timeouts",
+            "sha256": "126ec3bfa2165be75996d53865a28ddd81f3b402107c68f4532ac714d7df4d6d"
+          },
+          {
+            "id": "postgres_runtime_timeouts_exact",
+            "kind": "role_settings",
+            "role": "postgres",
+            "settings": {
+              "statement_timeout": "30s",
+              "idle_in_transaction_session_timeout": "30s"
+            }
+          }
+        ]
+      }
     }
   ]
 }
