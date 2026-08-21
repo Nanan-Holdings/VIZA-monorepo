@@ -113,3 +113,8 @@ Approved batches use structured catalog assertions only; concurrent-index
 batches pin exact index definitions and may retry only an invalid/not-ready
 index. Temporary Management API login roles must not exceed ten minutes and
 must be revoked after successful, failed, or ambiguous creation attempts.
+When a transactional migration committed but a later metadata postflight was
+stricter than the target PostgreSQL catalog representation, use the read-only
+`verify-approved-batch` action after correcting and reviewing the exact
+structured assertion. Never replay an already-recorded migration to repair a
+postflight-only failure.
