@@ -7,8 +7,19 @@
 -- deleting, renaming, or rewriting customer data.
 
 -- Migrations execute as the database migration owner. Supabase also creates
--- objects as supabase_admin in some dashboard/platform paths, so configure both
--- owners when that managed role is present.
+-- objects as supabase_admin in some dashboard/platform paths. Configure that
+-- additional owner only when the active migration role is allowed to manage
+-- its defaults; production maintenance deliberately SET ROLEs to a non-member
+-- postgres role. Global revokes remove PostgreSQL's built-in PUBLIC function
+-- EXECUTE default; schema revokes also undo any existing Supabase public-schema
+-- default grants.
+ALTER DEFAULT PRIVILEGES
+  REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES
+  REVOKE ALL ON SEQUENCES FROM PUBLIC, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES
+  REVOKE ALL ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role;
+
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
@@ -19,9 +30,14 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 DO $database_access_defaults$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'supabase_admin') THEN
-    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated, service_role';
-    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC, anon, authenticated, service_role';
-    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role';
+    IF pg_catalog.pg_has_role(current_user, 'supabase_admin', 'MEMBER') THEN
+      EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated, service_role';
+      EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin REVOKE ALL ON SEQUENCES FROM PUBLIC, anon, authenticated, service_role';
+      EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin REVOKE ALL ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role';
+      EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated, service_role';
+      EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC, anon, authenticated, service_role';
+      EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role';
+    END IF;
   END IF;
 END
 $database_access_defaults$;
