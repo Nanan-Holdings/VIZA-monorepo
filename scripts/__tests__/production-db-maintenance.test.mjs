@@ -282,6 +282,11 @@ test("approved batch state SQL supports only structured exact catalog guards", (
       catalog_assertions: [
         { id: "users_exists", kind: "relation_exists", identity: "public.users" },
         {
+          id: "translations_absent",
+          kind: "relation_absent",
+          identity: "public.application_translations",
+        },
+        {
           id: "translations_compatible",
           kind: "table_absent_or_columns_match",
           identity: "public.application_translations",
@@ -289,6 +294,33 @@ test("approved batch state SQL supports only structured exact catalog guards", (
             { name: "id", type: "uuid", nullable: false },
             { name: "field_key", type: "text", nullable: false },
           ],
+        },
+        {
+          id: "users_legacy_policy_absent",
+          kind: "policy_absent",
+          identity: "public.users",
+          policy: "Users can view all users",
+        },
+        {
+          id: "users_policy_exact",
+          kind: "policy_contract",
+          identity: "public.users",
+          policy: "users_select_own",
+          command: "SELECT",
+          roles: ["authenticated"],
+          permissive: true,
+          using_sha256: "7".repeat(64),
+          check_sha256: null,
+        },
+        {
+          id: "users_acl_exact",
+          kind: "relation_acl",
+          identity: "public.users",
+          relation_kind: "table",
+          required: [
+            { role: "authenticated", privileges: ["SELECT"], exact: true },
+          ],
+          forbidden_roles: ["PUBLIC", "anon"],
         },
         {
           id: "commit_rpc_signature",
@@ -308,6 +340,11 @@ test("approved batch state SQL supports only structured exact catalog guards", (
   const sql = buildApprovedBatchStateSql(batch, "preconditions");
   assert.match(sql, /public\.users/u);
   assert.match(sql, /public\.application_translations/u);
+  assert.match(sql, /to_regclass\('public\.application_translations'\) IS NULL/u);
+  assert.match(sql, /Users can view all users/u);
+  assert.match(sql, /users_select_own/u);
+  assert.match(sql, /pg_catalog\.sha256/u);
+  assert.match(sql, /has_table_privilege\('authenticated',[\s\S]*?'INSERT'\), FALSE/u);
   assert.match(sql, /information_schema\.columns/u);
   assert.match(sql, /commit_travel_agent_turn/u);
   assert.match(sql, /default_scope\.namespace_oid/u);
