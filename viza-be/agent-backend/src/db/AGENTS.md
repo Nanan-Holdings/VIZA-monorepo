@@ -14,10 +14,14 @@ Supabase service-role client setup for the agent backend.
   marked `TYPE-ONLY SCHEMA COMPATIBILITY` intentionally omit identity/per-column
   DESC details unsupported by Drizzle 0.30; their named SQL migrations remain
   authoritative and those entries must not drive `db:generate`/`db:push`.
-- `schema-ownership.manifest.json`: candidate ownership inventory separating
-  Drizzle-managed, REST/service-only, and compatibility objects. It must remain
-  `pending-live-reconciliation` until an `architecture-audit` artifact hash is
-  bound; candidate lists must not be described as the live production catalog.
+- `schema-ownership.manifest.json`: reconciled ownership inventory separating
+  Drizzle-managed, REST/service-only, and compatibility relations. Its
+  production claim is valid only while its run/job identity and SHA-256 match
+  the bound metadata-only architecture-audit artifact.
+- `production-catalog.*.json`: compact, sorted
+  table/view catalog captured by the successful read-only production audit.
+  It contains only schema/name/kind/owner/RLS metadata plus provenance and
+  integrity hashes; never add grants, SQL text, row values, or applicant data.
 - `index.ts`: bounded Postgres/Drizzle runtime pool using the Supabase
   transaction-pooler `DATABASE_URL` (three connections per instance by default).
 - `migrate.ts`: migration runner.
