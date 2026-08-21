@@ -84,10 +84,11 @@ Supabase service-role client setup for the agent backend.
 - Use service-role clients only after authorization checks in route/action code.
 - Do not put business logic in DB connection files.
 - Production runtime `DATABASE_URL` must identify project
-  `oyjxdzsoejraedqghndi` through a transaction pooler on port `6543`, use the
-  `/postgres` database, and contain no URL options. Local non-production
-  PostgreSQL remains supported without TLS; remote Supabase connections must
-  verify the pinned CA and hostname.
+  `oyjxdzsoejraedqghndi` through the approved Mumbai shared pooler
+  `aws-1-ap-south-1.pooler.supabase.com:6543` or its project-scoped dedicated
+  pooler, use the `/postgres` database, and contain no URL options. Local
+  non-production PostgreSQL remains supported without TLS; remote Supabase
+  connections must verify the pinned CA and hostname.
 - Supabase transaction pooling cannot rely on startup/session parameters.
   Before a production deploy, the database `postgres` role must have positive
   `statement_timeout` and `idle_in_transaction_session_timeout` defaults no
@@ -95,6 +96,9 @@ Supabase service-role client setup for the agent backend.
   read-only transaction and refuses to become ready when either is absent or
   too lax. Do not substitute node-postgres `query_timeout`: it does not cancel
   the server-side query.
+- The pool sends `application_name=viza-agent-backend` as best-effort
+  observability metadata only. Transaction-pooler behavior means it must not be
+  used as a security, timeout, or readiness guarantee.
 - Database telemetry may contain only query fingerprints, parameter counts and
   types, durations, result status, and aggregate pool counts. Never emit SQL
   text, parameter values, connection strings, or applicant data.

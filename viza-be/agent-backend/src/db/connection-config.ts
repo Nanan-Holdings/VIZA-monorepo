@@ -5,6 +5,8 @@ import type { PoolConfig } from "pg";
 import { SUPABASE_PRODUCTION_CA_PEM } from "./supabase-production-ca.js";
 
 export const VIZA_PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
+export const VIZA_PRODUCTION_SHARED_POOLER_HOST =
+	"aws-1-ap-south-1.pooler.supabase.com";
 export const SUPABASE_PRODUCTION_CA_SHA256 =
 	"700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7";
 
@@ -57,6 +59,7 @@ export interface PinnedCaLoadOptions {
 export interface DatabasePoolConfig extends PoolConfig {
 	connectionString: string;
 	max: number;
+	application_name: string;
 	connectionTimeoutMillis: number;
 	idleTimeoutMillis: number;
 }
@@ -130,6 +133,7 @@ function assertProductionTransactionPooler(databaseUrl: URL): void {
 
 	const validSharedPooler =
 		sharedPooler &&
+		hostname === VIZA_PRODUCTION_SHARED_POOLER_HOST &&
 		databaseUrl.port === "6543" &&
 		sharedProjectRef === VIZA_PRODUCTION_PROJECT_REF;
 	const validDedicatedPooler =
@@ -226,6 +230,7 @@ export function buildDatabasePoolConfig(
 	return {
 		connectionString: sanitizeConnectionString(databaseUrl),
 		max: poolMax,
+		application_name: "viza-agent-backend",
 		connectionTimeoutMillis,
 		idleTimeoutMillis,
 		...(useVerifiedSupabaseTls
