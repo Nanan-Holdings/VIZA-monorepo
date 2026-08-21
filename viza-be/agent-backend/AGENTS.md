@@ -16,8 +16,10 @@ explicitly reintroduces another provider.
 
 ## Key Flows
 
-- Startup: `src/index.ts` loads `.env`, creates HTTP server, attaches Socket.IO,
-  registers `/visa`, and checks Supabase.
+- Startup: `src/index.ts` loads `.env`, verifies production database-role
+  timeout defaults on three fresh connections before readiness, creates the HTTP server, attaches
+  Socket.IO, registers `/visa`, and checks Supabase. `src/server-shutdown.ts`
+  owns the bounded Socket.IO/HTTP/database shutdown order.
 - Express app: `src/app.ts` mounts REST routes and error handling.
 - VIZA AI chat: `src/socket/visa-namespace.ts` plus `src/agent/index.ts`.
 - RAG retrieval: `src/services/visa-knowledge.service.ts`,

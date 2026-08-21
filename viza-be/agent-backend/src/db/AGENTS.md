@@ -22,8 +22,16 @@ Supabase service-role client setup for the agent backend.
   table/view catalog captured by the successful read-only production audit.
   It contains only schema/name/kind/owner/RLS metadata plus provenance and
   integrity hashes; never add grants, SQL text, row values, or applicant data.
-- `index.ts`: bounded Postgres/Drizzle runtime pool using the Supabase
-  transaction-pooler `DATABASE_URL` (three connections per instance by default).
+- `index.ts`: bounded Postgres/Drizzle runtime pool, redacted pool/query
+  telemetry, health metrics, and idempotent graceful close.
+- `connection-config.ts`: validates the production VIZA Supabase transaction
+  pooler, configures bounded client connection/idle handling, verifies database
+  role timeout defaults, and loads the pinned public Supabase CA with SHA-256
+  integrity verification.
+- `supabase-production-ca.ts`: public Supabase production root CA embedded for
+  dist-only runtime images; keep its normalized SHA-256 synchronized with the
+  production maintenance workflow and never replace it without validating the
+  official download.
 - `migrate.ts`: migration runner.
 - `supabase-client.ts`: service-role Supabase client and connection check.
 - `supabase-adapter.ts`: Supabase helper adapter for selected operations.
@@ -75,6 +83,29 @@ Supabase service-role client setup for the agent backend.
 - Update `schema.ts` when adding tables/columns used by TypeScript code.
 - Use service-role clients only after authorization checks in route/action code.
 - Do not put business logic in DB connection files.
+- Production runtime `DATABASE_URL` must identify project
+  `oyjxdzsoejraedqghndi` through the approved Mumbai shared pooler
+  `aws-1-ap-south-1.pooler.supabase.com:6543` or its project-scoped dedicated
+  pooler, use the `/postgres` database, and contain no URL options. Local
+  non-production PostgreSQL remains supported without TLS; remote Supabase
+  connections must verify the pinned CA and hostname.
+- Supabase transaction pooling cannot rely on startup/session parameters.
+  Before a production deploy, the database `postgres` role must have positive
+  `statement_timeout` and `idle_in_transaction_session_timeout` defaults no
+  greater than 30 seconds. Startup opens three fresh clients concurrently,
+  verifies both values with `SHOW` inside an explicit read-only transaction on
+  every client, closes all three, and refuses to become ready when any sample
+  is absent or too lax. Do not substitute node-postgres `query_timeout`: it
+  does not cancel the server-side query.
+- The pool sends `application_name=viza-agent-backend` as best-effort
+  observability metadata only. Transaction-pooler behavior means it must not be
+  used as a security, timeout, or readiness guarantee.
+- Database telemetry may contain only query fingerprints, parameter counts and
+  types, durations, result status, and aggregate pool counts. Never emit SQL
+  text, parameter values, connection strings, or applicant data.
+- Shutdown must actively disconnect Socket.IO upgraded transports, close its
+  HTTP server, and then await `closeDatabase()` through the shared bounded
+  shutdown coordinator so deploys cannot hang indefinitely.
 
 ## Validation
 
@@ -83,6 +114,7 @@ Run from `viza-be/agent-backend`:
 ```powershell
 npm run type-check
 npm run db:migrate
+npm test -- --run src/db/connection-config.test.ts
 ```
 
 For schema changes, also run any affected route/eval tests.
