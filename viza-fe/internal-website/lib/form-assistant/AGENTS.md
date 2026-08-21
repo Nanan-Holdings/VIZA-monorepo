@@ -43,6 +43,9 @@ Scope: this file applies to `lib/form-assistant/**`.
   assistant API response. Remote-search official selects are controlled by
   their product option endpoint and must not be rejected against a partial
   static fallback list.
+- Canonicalize saved/profile option labels to the schema's exact value before
+  calculating missing fields, and re-read application answers immediately
+  before choosing every next question so concurrent manual edits always win.
 - Knowledge sources and prompts must remain bound to the owned application's
   exact `country + visaType`. Never return the SGAC ICA fallback source for a
   different Singapore product or another country.
