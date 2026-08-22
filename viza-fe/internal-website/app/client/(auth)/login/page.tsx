@@ -14,7 +14,7 @@ import { getSafeClientLoginNext } from '@/lib/client-login-redirect'
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
 
-const AUTH_REQUEST_TIMEOUT_MS = 9_000
+export const AUTH_REQUEST_TIMEOUT_MS = 22_000
 const AUTH_RETRY_DELAY_MS = 500
 
 function getLocalizedAuthError(
