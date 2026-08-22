@@ -241,6 +241,88 @@ test("architecture audit skips statement metrics when the extension is unavailab
   });
 });
 
+test("architecture audit retries one transient read-only Management API failure", async () => {
+  const env = {
+    SUPABASE_ACCESS_TOKEN: "test-token",
+    SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+    PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:architecture-audit`,
+  };
+  let securityAttempts = 0;
+  const waits = [];
+  const result = await runArchitectureAudit({
+    env,
+    wait: (resolve, delayMs) => {
+      waits.push(delayMs);
+      resolve();
+    },
+    fetchImpl: async (url, init) => {
+      if (url.endsWith(`/projects/${PRODUCTION_PROJECT_REF}`)) {
+        return new Response(JSON.stringify({ id: PRODUCTION_PROJECT_REF }), { status: 200 });
+      }
+      if (url.endsWith("/advisors/security")) {
+        securityAttempts += 1;
+        if (securityAttempts === 1) {
+          return new Response(JSON.stringify({
+            message: "Failed to run sql query: Connection terminated due to connection timeout",
+          }), { status: 544 });
+        }
+        return new Response(JSON.stringify({ lints: [] }), { status: 200 });
+      }
+      if (url.endsWith("/advisors/performance")) {
+        return new Response(JSON.stringify({ lints: [] }), { status: 200 });
+      }
+      const query = JSON.parse(init.body).query;
+      assert.equal(query, ARCHITECTURE_AUDIT_SQL);
+      return new Response(JSON.stringify([{ architecture_audit: {
+        project_ref_marker: PRODUCTION_PROJECT_REF,
+        pg_stat_statements_available: false,
+      } }]), { status: 200 });
+    },
+  });
+
+  assert.equal(result.project_ref, PRODUCTION_PROJECT_REF);
+  assert.equal(securityAttempts, 2);
+  assert.deepEqual(waits, [500]);
+});
+
+test("architecture audit never retries authorization failures and names exhausted phases", async () => {
+  const env = {
+    SUPABASE_ACCESS_TOKEN: "test-token",
+    SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+    PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:architecture-audit`,
+  };
+  let calls = 0;
+  await assert.rejects(
+    runArchitectureAudit({
+      env,
+      wait: (resolve) => resolve(),
+      fetchImpl: async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ message: "forbidden" }), { status: 403 });
+      },
+    }),
+    /project identity failed: .*\(403\): forbidden/u,
+  );
+  assert.equal(calls, 1);
+
+  calls = 0;
+  await assert.rejects(
+    runArchitectureAudit({
+      env,
+      wait: (resolve) => resolve(),
+      fetchImpl: async (url) => {
+        calls += 1;
+        if (url.endsWith(`/projects/${PRODUCTION_PROJECT_REF}`)) {
+          return new Response(JSON.stringify({ id: PRODUCTION_PROJECT_REF }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ message: "connection timeout" }), { status: 544 });
+      },
+    }),
+    /security advisor failed after two attempts: .*\(544\): connection timeout/u,
+  );
+  assert.equal(calls, 3);
+});
+
 test("architecture audit rejects Management API and optional database identity mismatches", async () => {
   const env = {
     SUPABASE_ACCESS_TOKEN: "test-token",
