@@ -41,12 +41,15 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL("/client/home", request.url));
     }
 
-    const supabaseSession = await getSupabaseUserSession(request);
-    if (supabaseSession) {
-      return NextResponse.redirect(new URL("/client/home", request.url));
+    const supabaseAuth = await getSupabaseUserSession(request);
+    if (supabaseAuth.session) {
+      return copyResponseCookies(
+        supabaseAuth.response,
+        NextResponse.redirect(new URL("/client/home", request.url)),
+      );
     }
 
-    return NextResponse.next();
+    return supabaseAuth.response;
   }
 
   // Handle auth callback routes - let them through
@@ -98,20 +101,28 @@ async function handleClientRoutes(request: NextRequest, pathname: string) {
   }
 
   // 3. Try Supabase session only when no VIZA session is available.
-  const supabaseSession = await getSupabaseUserSession(request);
-  if (supabaseSession) {
-    return NextResponse.next();
+  const supabaseAuth = await getSupabaseUserSession(request);
+  if (supabaseAuth.session) {
+    return supabaseAuth.response;
   }
 
   // 4. Special case: Allow /client/report without auth
   // This page handles magic link hash tokens (#access_token=...) client-side
   // The page itself will redirect to login if no valid session after processing tokens
   if (pathname === "/client/report") {
-    return NextResponse.next();
+    return supabaseAuth.response;
   }
 
   // No valid session - redirect to new client login portal
-  return NextResponse.redirect(new URL("/client/login", request.url));
+  return copyResponseCookies(
+    supabaseAuth.response,
+    NextResponse.redirect(new URL("/client/login", request.url)),
+  );
+}
+
+function copyResponseCookies(source: NextResponse, target: NextResponse): NextResponse {
+  source.cookies.getAll().forEach((cookie) => target.cookies.set(cookie));
+  return target;
 }
 
 /**
@@ -122,16 +133,16 @@ async function handleClientRoutes(request: NextRequest, pathname: string) {
  * this request, allow the client portal to handle the rest.
  */
 async function getSupabaseUserSession(request: NextRequest): Promise<{
-  userId: string;
-  email: string;
-} | null> {
-  try {
-    const response = NextResponse.next({
-      request: {
-        headers: request.headers,
-      },
-    });
+  session: { userId: string; email: string } | null;
+  response: NextResponse;
+}> {
+  const response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
 
+  try {
     const supabase = createServerClient(
       normalizeSupabaseEnvValue(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -167,15 +178,15 @@ async function getSupabaseUserSession(request: NextRequest): Promise<{
     const userId = typeof claims?.sub === "string" ? claims.sub : null;
     const email = typeof claims?.email === "string" ? claims.email : null;
     if (!userId || !email) {
-      return null;
+      return { session: null, response };
     }
 
     return {
-      userId,
-      email,
+      session: { userId, email },
+      response,
     };
   } catch {
-    return null;
+    return { session: null, response };
   }
 }
 

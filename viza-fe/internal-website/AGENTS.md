@@ -409,6 +409,8 @@ Smoke URLs:
 
 - `package.json`
 - `proxy.ts`
+- `proxy.test.ts`: verifies rotated Supabase SSR cookies survive client-route
+  responses and authenticated login redirects.
 - `vitest.config.mts`
 - `vitest.server-only.ts`
 - `app/layout.tsx`
