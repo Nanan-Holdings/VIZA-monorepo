@@ -45,7 +45,7 @@ function localizedRuleText(
 }
 
 export function isFieldChoiceControl(field: Pick<VisaFormFieldRow, "fieldType">): boolean {
-  return ["select", "multi_select", "country", "radio", "checkbox"].includes(field.fieldType);
+  return ["select", "multi_select", "country", "radio", "checkbox", "address_lookup"].includes(field.fieldType);
 }
 
 export function isFieldMetadataUnverified(field: FieldExplanationTarget): boolean {

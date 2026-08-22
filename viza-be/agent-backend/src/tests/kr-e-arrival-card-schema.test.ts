@@ -13,6 +13,10 @@ const migrationSource = readFileSync(
   new URL("../../drizzle/0151_kr_e_arrival_card.sql", import.meta.url),
   "utf8",
 );
+const officialFieldContractMigrationSource = readFileSync(
+  new URL("../../drizzle/0161_kr_e_arrival_official_field_contract.sql", import.meta.url),
+  "utf8",
+);
 const ragSource = readFileSync(
   new URL("../../../../knowledge-base/visa-rag-seeds/countries/south_korea.json", import.meta.url),
   "utf8",
@@ -35,12 +39,16 @@ describe("Korea e-Arrival Card backend schema", () => {
       "passport_expiry_date",
       "arrival_mode",
       "arrival_date",
-      "arrival_flight_or_ship",
+      "arrival_flight_number",
+      "arrival_ship_name",
       "departure_mode",
       "departure_date",
       "purpose_of_entry",
       "occupation",
+      "stay_address_search",
+      "stay_address_ko",
       "stay_address_en",
+      "stay_address_detail",
       "stay_postal_code",
       "stay_contact_phone",
       "declaration_confirmed",
@@ -58,6 +66,34 @@ describe("Korea e-Arrival Card backend schema", () => {
       official_statement_en: "I declare that the information provided is true and correct.",
     });
     expect(KR_E_ARRIVAL_FORM_FIELDS.length).toBeGreaterThanOrEqual(25);
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "arrival_mode"))
+      .toMatchObject({ field_type: "radio", required: true });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "departure_mode"))
+      .toMatchObject({ field_type: "radio", required: true });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "arrival_flight_number")?.conditional_logic)
+      .toEqual({ showIf: 'arrival_mode === "A"' });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "arrival_ship_name")?.conditional_logic)
+      .toEqual({ showIf: 'arrival_mode === "S"' });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "date_of_birth")?.validation_rules)
+      .toMatchObject({ official_control: "date_parts" });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "passport_expiry_date")?.validation_rules)
+      .toMatchObject({ official_control: "date_parts" });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "arrival_date")?.validation_rules)
+      .toMatchObject({ official_control: "formatted_date_text" });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "nationality")?.validation_rules)
+      .toMatchObject({ official_control: "country_search" });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "stay_address_search"))
+      .toMatchObject({ field_type: "address_lookup", required: true });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "stay_address_search")?.validation_rules)
+      .toMatchObject({
+        source: "korea_e_arrival_card_address_search",
+        remote_search: true,
+        derived_fields: ["stay_address_ko", "stay_address_en", "stay_postal_code"],
+      });
+    for (const fieldName of ["stay_address_ko", "stay_address_en", "stay_postal_code"]) {
+      expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === fieldName)?.validation_rules)
+        .toMatchObject({ read_only: true, derived_from: "stay_address_search" });
+    }
   });
 
   it("keeps official English values and Chinese labels separate", () => {
@@ -75,6 +111,11 @@ describe("Korea e-Arrival Card backend schema", () => {
       "Male",
       "Third gender",
     ]);
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "arrival_mode")?.options)
+      .toMatchObject([
+        { value: "A", code: "A", official_label: "Air" },
+        { value: "S", code: "S", official_label: "Sea" },
+      ]);
     for (const option of [...KR_E_ARRIVAL_SEX_OPTIONS, ...KR_E_ARRIVAL_PURPOSE_OPTIONS, ...KR_E_ARRIVAL_OCCUPATION_OPTIONS]) {
       expect(option.code).toBe(option.value);
       expect(option.text).toBe(option.official_label);
@@ -136,8 +177,8 @@ describe("Korea e-Arrival Card backend schema", () => {
     expect(KR_E_ARRIVAL_DYNAMIC_OPTION_SOURCES.additionalQuestions.endpoint).toContain("srchAddItemList.do");
     expect(KR_E_ARRIVAL_DYNAMIC_OPTION_SOURCES.additionalQuestions.fail_closed_on_snapshot_miss).toBe(true);
     expect(KR_E_ARRIVAL_DYNAMIC_OPTION_SOURCES.purposeAndOccupation.static_code_snapshot).toBe(true);
-    expect(snapshot.snapshotVersion).toBe("2026-08-18");
-    expect(snapshot.reviewedAt).toBe("2026-08-18");
+    expect(snapshot.snapshotVersion).toBe("2026-08-22");
+    expect(snapshot.reviewedAt).toBe("2026-08-22");
     expect(snapshot.sourceEndpoints.submit).toContain("insertEacApply.do");
     expect(snapshot.sourceEndpoints.additionalQuestions).toContain("srchAddItemList.do");
     const snapshotJson = JSON.parse(
@@ -193,6 +234,18 @@ describe("Korea e-Arrival Card backend schema", () => {
     expect(cancellationSection).toContain("kr_eac_live_assisted_pending");
     expect(cancellationSection).toContain("kr_eac_dry_run_pending");
     expect(cancellationSection).toContain("KR_E_ARRIVAL_CARD");
+  });
+
+  it("migrates the live schema to the official Korea control contract", () => {
+    expect(officialFieldContractMigrationSource.startsWith("-- Korea e-Arrival Card official control contract.")).toBe(true);
+    expect(officialFieldContractMigrationSource).toContain("'address_lookup'");
+    expect(officialFieldContractMigrationSource).toContain("'stay_address_search'");
+    expect(officialFieldContractMigrationSource).toContain("'stay_address_ko'");
+    expect(officialFieldContractMigrationSource).toContain("'stay_address_en'");
+    expect(officialFieldContractMigrationSource).toContain("'stay_postal_code'");
+    expect(officialFieldContractMigrationSource).toContain("'date_parts'");
+    expect(officialFieldContractMigrationSource).toContain("'formatted_date_text'");
+    expect(officialFieldContractMigrationSource).not.toContain("+-- Korea e-Arrival");
   });
 
   it("adds a separate Korea e-Arrival RAG product and keeps visa/K-ETA distinct", () => {

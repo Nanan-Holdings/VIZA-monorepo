@@ -390,6 +390,10 @@ export async function searchKoreaAddresses(keyword: string, options: { limit?: n
         label_en: `${value}${suffix}`,
         label_zh: labelZh,
         official_label: record.koreanAddress ?? record.roadAddress,
+        koreanAddress: record.koreanAddress ?? record.roadAddress,
+        englishAddress: value,
+        postalCode: record.zipNo,
+        buildingName: record.buildingName ?? undefined,
       };
     }),
   };

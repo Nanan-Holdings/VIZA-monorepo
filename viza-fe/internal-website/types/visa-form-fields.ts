@@ -20,6 +20,11 @@ export type VisaFormFieldOption =
       airline?: string;
       province_city?: string;
       ward?: string;
+      /** Canonical values returned by the Korean government address dataset. */
+      koreanAddress?: string;
+      englishAddress?: string;
+      postalCode?: string;
+      buildingName?: string;
     };
 
 export type VisaFormFieldType =
@@ -35,7 +40,8 @@ export type VisaFormFieldType =
   | "radio"
   | "checkbox"
   | "textarea"
-  | "country";
+  | "country"
+  | "address_lookup";
 
 export interface VisaFormFieldRow {
   id: string;

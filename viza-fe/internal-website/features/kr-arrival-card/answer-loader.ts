@@ -50,11 +50,10 @@ export function extractKoreaEArrivalAnswers(
     departureDate: firstText([answers.departure_date, fallback.departure_date]),
     arrivalMode: firstText([answers.arrival_mode]),
     stayAddressProvided: Boolean(
-      firstText([
-        answers.stay_address_ko,
-        answers.stay_address_en,
-        fallback.accommodation_address,
-      ]),
+      firstText([answers.stay_address_search])
+      && firstText([answers.stay_address_ko])
+      && firstText([answers.stay_address_en])
+      && /^\d{5}$/u.test(firstText([answers.stay_postal_code]) ?? ""),
     ),
   };
 }

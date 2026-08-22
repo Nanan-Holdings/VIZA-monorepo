@@ -113,9 +113,10 @@ const SUPPORTED_FIELD_TYPES = new Set<VisaFormFieldType>([
   "checkbox",
   "textarea",
   "country",
+  "address_lookup",
 ]);
 
-const OPTION_FIELD_TYPES = new Set<VisaFormFieldType>(["select", "multi_select", "radio"]);
+const OPTION_FIELD_TYPES = new Set<VisaFormFieldType>(["select", "multi_select", "radio", "address_lookup"]);
 const PANEL_CONTROLLER_TYPES = new Set<VisaFormFieldType>([
   "select",
   "multi_select",
@@ -227,6 +228,8 @@ export function getApplicationFieldUiComponent(
       return "supporting-document-card";
     case "multi_select":
       return "application-searchable-multi-select";
+    case "address_lookup":
+      return "application-searchable-select";
     case "select":
       if (optionSource === "ISO3166-1" || optionSource === "SCHENGEN_MEMBER_STATES") return "country-dropdown";
       if (optionSource === "US_STATES") return "application-region-select";

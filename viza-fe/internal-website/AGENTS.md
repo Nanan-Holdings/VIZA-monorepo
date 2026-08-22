@@ -89,6 +89,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Philippines eTravel airline-dependent flight numbers are proxied read-only
   through `app/api/ph-etravel/options/**`; the form stores the exact official
   flight code and reloads options whenever the official airline code changes.
+- Korea e-Arrival Card address selection is a dedicated official lookup in
+  `components/dynamic-step-form.tsx`; focused coverage in
+  `components/__tests__/dynamic-step-form-korea-address.test.tsx` verifies one
+  selected result atomically derives the Korean address, English address, and
+  five-digit ZIP.
 - Indonesia eVisa postal-code preflight is proxied through
   `app/api/indonesia/postal-code/**`. It may only validate and derive the
   province/city/district/village display values; the official eVisa portal
@@ -277,6 +282,12 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260818063311_kr_e_arrival_card.sql`; keep it byte-identical
   to `viza-be/agent-backend/drizzle/0151_kr_e_arrival_card.sql` and preserve the
   exact `KR_E_ARRIVAL_CARD` / `kr_arrival_card` isolation from Korea C-3 e-Form.
+- Korea e-Arrival Card official field/control parity is applied by
+  `supabase/migrations/20260822020959_kr_e_arrival_official_field_contract.sql`;
+  keep it byte-identical to backend migration
+  `0161_kr_e_arrival_official_field_contract.sql`. The address lookup must
+  persist the official Korean address, English address, and five-digit ZIP as
+  one selected record instead of accepting independent free-text values.
 - Japan Visit Japan Web and Kenya eTA package, pricing, fee-rule, and document
   metadata are applied by
   `supabase/migrations/20260821000000_japan_vjw_kenya_eta_products.sql`; keep it

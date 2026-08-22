@@ -324,27 +324,26 @@ const KR_EARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("email_address", "Managed alias email", "contact"),
   arrivalCardField("arrival_mode", "Arrival mode", "trip"),
   arrivalCardField("arrival_date", "Arrival date", "trip"),
-  arrivalCardField("arrival_flight_or_ship", "Arrival flight / ship", "trip", {
+  arrivalCardField("arrival_flight_number", "Arrival flight number", "trip", {
     key: "answers.arrival_mode",
-    equals: "air",
+    equals: "a",
   }),
-  arrivalCardField("arrival_flight_or_ship", "Arrival flight / ship", "trip", {
+  arrivalCardField("arrival_ship_name", "Arrival ship name", "trip", {
     key: "answers.arrival_mode",
-    equals: "sea",
+    equals: "s",
   }),
   arrivalCardField("departure_mode", "Departure mode", "trip"),
   arrivalCardField("departure_date", "Departure date", "trip"),
   arrivalCardField("purpose_of_entry", "Purpose of entry", "trip"),
   arrivalCardField("occupation", "Occupation", "personal"),
+  arrivalCardField("stay_address_search", "Selected official Korea stay address", "trip"),
+  arrivalCardField("stay_address_en", "Korea stay address (English)", "trip"),
+  arrivalCardField("stay_address_ko", "Korea stay address (Korean)", "trip"),
   arrivalCardField("stay_postal_code", "Korea stay postal code", "trip"),
   arrivalCardField("stay_contact_phone", "Korea stay contact phone", "contact"),
   arrivalCardField("declaration_confirmed", "Official declaration confirmation", "security"),
-  // The official form accepts a Korean or English base address. The
-  // normalizer enforces this OR requirement because FieldRequirement cannot
-  // express a mutually exclusive pair.
-  { key: "answers.stay_address_en", label: "Korea stay address (English)", category: "trip", required: false },
-  { key: "answers.stay_address_ko", label: "Korea stay address (Korean)", category: "trip", required: false },
-  { key: "answers.departure_flight_or_ship", label: "Departure flight / ship", category: "trip", required: false },
+  { key: "answers.departure_flight_number", label: "Departure flight number", category: "trip", required: false },
+  { key: "answers.departure_ship_name", label: "Departure ship name", category: "trip", required: false },
   { key: "answers.purpose_other", label: "Other entry purpose", category: "trip", required: false },
   { key: "answers.occupation_other", label: "Other occupation", category: "personal", required: false },
 ];

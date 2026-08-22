@@ -55,7 +55,7 @@ export function decideKoreaEArrivalCardLiveSchedule(input: {
       action: "reject",
       status: 422,
       code: "kr_eac_stay_address_required",
-      message: "Please provide the address of your accommodation in Korea in English or Korean before submitting.",
+      message: "Search and select your Korea accommodation address so its official Korean address, English address, and 5-digit postal code are saved before submitting.",
     };
   }
   if (window.status === "scheduled") {

@@ -280,15 +280,23 @@ export function normalizeKrEArrivalPortalPayload(payload: SubmissionPayload): Kr
     : optionalAnswer(payload, "occupation_other", "occupation_other_detail", "occp_cd_dir");
   requireConfirmedDeclaration(payload, missing);
 
+  const addressLookupSelection = requireAnswer(payload, "stay_address_search", missing);
   const suppliedAddressEnglish = optionalAnswer(payload, "address_english", "stay_address_english", "stay_address_en", "soj_prrpl_rnm_bs_eng_addr");
   const suppliedAddressKorean = optionalAnswer(payload, "address_korean", "stay_address_korean", "stay_address_ko", "soj_prrpl_rnm_bs_han_addr");
-  if (!suppliedAddressEnglish && !suppliedAddressKorean) missing.push("answers.stay_address(english_or_korean)");
-  // The current VIZA schema collects a single address in either language and
-  // does not require a separate detail line.  The official page accepts the
-  // same canonical stay address in both language controls; a future schema
-  // can provide distinct values without changing the runner contract.
-  const addressEnglish = suppliedAddressEnglish ?? suppliedAddressKorean ?? "";
-  const addressKorean = suppliedAddressKorean ?? suppliedAddressEnglish ?? "";
+  if (!suppliedAddressEnglish) missing.push("answers.stay_address_en(official_lookup_value)");
+  if (!suppliedAddressKorean) missing.push("answers.stay_address_ko(official_lookup_value)");
+  // The official address widget commits a Korean address, an English address,
+  // and a ZIP together. Never synthesize one language from the other: doing
+  // so makes the later official lookup ambiguous and caused false no-results.
+  const addressEnglish = suppliedAddressEnglish ?? "";
+  const addressKorean = suppliedAddressKorean ?? "";
+  if (
+    addressLookupSelection
+    && addressEnglish
+    && !officialTravelLookupMatches(addressLookupSelection, addressEnglish)
+  ) {
+    missing.push("answers.stay_address_search(matches_official_english_address)");
+  }
   const addressDetail = optionalAnswer(payload, "address_detail", "stay_address_detail", "soj_prrpl_rnm_det_addr") ?? "";
   const postalCode = requireAnswer(payload, "postal_code", missing, ["stay_postal_code", "zip"]);
   const koreaContactNumber = requireAnswer(payload, "korea_contact_number", missing, ["contact_number", "stay_contact_phone", "soj_prrar_tel"]);

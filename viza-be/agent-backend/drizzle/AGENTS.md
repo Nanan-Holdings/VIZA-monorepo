@@ -131,6 +131,10 @@ The current internal automation migrations are:
   postflight must verify the exact `pg_roles.rolconfig` entries and three new
   connections after the application/pooler connection lifecycle is recycled.
   The migration never terminates sessions or restarts PostgreSQL.
+- `0161_kr_e_arrival_official_field_contract.sql`: replaces Korea e-Arrival
+  combined/free-text transport and address controls with official A/S mode
+  codes, mode-specific flight/ship fields, and one address-lookup record that
+  derives the Korean address, English address, and five-digit ZIP together.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.

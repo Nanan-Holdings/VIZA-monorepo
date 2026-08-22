@@ -2933,7 +2933,16 @@ export default function ApplicationPage() {
         throw new Error(result.error ?? t("errors.noApplicationFound"));
       }
       applicationId = result.applicationId;
-      setAppState((prev) => ({ ...prev, applicationId }));
+      setAppState((prev) => prev.applicationId === applicationId
+        ? prev
+        : {
+            ...prev,
+            applicationId,
+            confirmationNumber: undefined,
+            submittedAt: undefined,
+            submissionResultStatus: null,
+            submissionResult: null,
+          });
     } else if (!applicationId) {
       throw new Error(t("errors.noApplicationFound"));
     }
@@ -3928,10 +3937,11 @@ export default function ApplicationPage() {
     const isJpTourist = resolvedVisaType === "JP_TOURIST";
     const isKrC39 = resolvedVisaType === "KR_C39_SHORT_TERM_VISIT";
     const shouldShowSubmissionImmediately = !isJpTourist && !isKrC39;
-    const previousSubmissionState = {
+    let previousSubmissionState = {
       submittedAt: appState.submittedAt,
       submissionResultStatus: appState.submissionResultStatus,
       submissionResult: appState.submissionResult,
+      confirmationNumber: appState.confirmationNumber,
     };
     if (shouldShowSubmissionImmediately) {
       const submittedAt = new Date().toISOString();
@@ -3961,6 +3971,14 @@ export default function ApplicationPage() {
       if (!explicitApplicationId) {
         if (isKoreaEArrivalCard) {
           applicationId = await ensureWritableApplicationId();
+          if (applicationId !== appState.applicationId) {
+            previousSubmissionState = {
+              submittedAt: undefined,
+              submissionResultStatus: null,
+              submissionResult: null,
+              confirmationNumber: undefined,
+            };
+          }
         } else {
           const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
             preferExplicit: preferExplicitPackage,
@@ -4110,10 +4128,11 @@ export default function ApplicationPage() {
     setSaving(true);
     setSubmittingMode(mode);
     setError(null);
-    const previousSubmissionState = {
+    let previousSubmissionState = {
       submittedAt: appState.submittedAt,
       submissionResultStatus: appState.submissionResultStatus,
       submissionResult: appState.submissionResult,
+      confirmationNumber: appState.confirmationNumber,
     };
     const optimisticSubmittedAt = new Date().toISOString();
     setAppState((prev) => ({
@@ -4141,6 +4160,14 @@ export default function ApplicationPage() {
       if (!explicitApplicationId) {
         if (isKoreaEArrivalCard) {
           applicationId = await ensureWritableApplicationId();
+          if (applicationId !== appState.applicationId) {
+            previousSubmissionState = {
+              submittedAt: undefined,
+              submissionResultStatus: null,
+              submissionResult: null,
+              confirmationNumber: undefined,
+            };
+          }
         } else {
           const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
             preferExplicit: preferExplicitPackage,

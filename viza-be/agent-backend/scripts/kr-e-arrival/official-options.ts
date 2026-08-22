@@ -34,8 +34,8 @@ export const KR_E_ARRIVAL_SEX_OPTIONS = [
 ] as const;
 
 export const KR_E_ARRIVAL_TRANSPORT_OPTIONS = [
-  option("Air", "航空", "Air"),
-  option("Sea", "海路", "Sea"),
+  option("A", "航空", "Air", "A"),
+  option("S", "海路", "Sea", "S"),
 ] as const;
 
 export const KR_E_ARRIVAL_PURPOSE_OPTIONS = [

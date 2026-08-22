@@ -13,6 +13,7 @@ function field(
     label?: string;
     required?: boolean;
     showIf?: string;
+    validationRules?: Record<string, unknown> | null;
   } = {},
 ) {
   return {
@@ -26,7 +27,7 @@ function field(
     stepName: "Travel Information",
     displayOrder: 1,
     placeholder: null,
-    validationRules: null,
+    validationRules: options.validationRules ?? null,
     options: null,
     conditionalLogic: options.showIf ? { showIf: options.showIf } : null,
   };
@@ -170,6 +171,28 @@ function vietnamDocsWithRequiredUploads(): DocumentCenterData {
 }
 
 describe("computeAllTabCompletion", () => {
+  test("blocks final submission when an at-least-one-of official field group is empty", () => {
+    const addressFields: WizardStep[] = [{
+      stepNumber: 3,
+      stepName: "Stay in Korea",
+      fields: [
+        field("stay_address_ko", {
+          required: false,
+          validationRules: { at_least_one_of: ["stay_address_ko", "stay_address_en"] },
+        }),
+        field("stay_address_en", {
+          required: false,
+          validationRules: { at_least_one_of: ["stay_address_ko", "stay_address_en"] },
+        }),
+      ],
+    }];
+
+    expect(getMissingDynamicFormFields(addressFields, {})).toMatchObject([
+      { fieldName: "stay_address_ko", reason: "required" },
+    ]);
+    expect(getMissingDynamicFormFields(addressFields, { stay_address_en: "1 Sejong-daero" })).toEqual([]);
+  });
+
   test("does not count a false required checkbox as complete", () => {
     const checkbox = {
       ...field("accepted_terms"),
