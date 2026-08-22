@@ -9,8 +9,11 @@ Scope: the DB-driven `JP_VISIT_JAPAN_WEB` arrival-declaration schema.
   requirements and `application_documents`, never as file-path answers.
 - `options.value`, `label_en`, and `official_label` are the official English
   values used by the runner. `label_zh` is display-only Chinese UI text.
-- Dynamic airport and port values must be resolved from the live official
-  portal before submission; do not invent a static airport list in this seed.
+- `official-airports.ts` is a versioned snapshot of the Japan Customs
+  "Customs Airport" table. Preserve its exact official English values and
+  Chinese display-only labels. Revalidate the selected airport against the
+  current official source before live submission; never silently expand the
+  list from unofficial travel data.
 - The seed is single-traveller and limited to Chinese ordinary-passport
   tourism in the first release.
 - `seed-form-fields.ts` replaces this product's rows idempotently and the

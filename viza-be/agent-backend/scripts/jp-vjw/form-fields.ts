@@ -1,4 +1,5 @@
 import { toBilingualSeedRow, type BilingualSeedField } from "../bilingual-seed-row";
+import { JP_CUSTOMS_AIRPORT_OPTIONS, JP_CUSTOMS_AIRPORT_SOURCE } from "./official-airports";
 
 export const JP_VISIT_JAPAN_WEB_VISA_TYPE = "JP_VISIT_JAPAN_WEB";
 
@@ -196,16 +197,21 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
   },
   {
     field_name: "arrival_airport",
-    label: "Intended Port of Entry",
+    label: "Intended Arrival Airport in Japan",
     field_type: "select",
     required: true,
     step_number: 2,
     step_name: "Arrival and Stay",
     display_order: 2,
-    validation_rules: rules("计划入境机场 / 港口", {
-      dynamic_option_source: "visit_japan_web_official_airports_and_ports",
-      option_identity: "official_value",
-      runtime_code_resolution: "required_before_live_submit",
+    options: JP_CUSTOMS_AIRPORT_OPTIONS,
+    validation_rules: rules("计划入境机场", {
+      official_options_source: JP_CUSTOMS_AIRPORT_SOURCE.url,
+      official_options_authority: JP_CUSTOMS_AIRPORT_SOURCE.authority,
+      official_options_effective_date: JP_CUSTOMS_AIRPORT_SOURCE.effectiveDate,
+      official_options_retrieved_at: JP_CUSTOMS_AIRPORT_SOURCE.retrievedAt,
+      option_scope: "japan_customs_airports",
+      option_identity: "official_english_name",
+      runtime_code_resolution: "revalidate_against_current_official_source_before_live_submit",
     }),
   },
   {
@@ -451,17 +457,20 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
   },
   {
     field_name: "immigration_declaration",
-    label: "I confirm that my immigration information is complete and truthful.",
+    label: "I have reviewed the immigration declaration answers above and confirm that they are complete and truthful.",
     field_type: "checkbox",
     required: true,
     step_number: 3,
-    step_name: "Final Review and Authorization",
-    display_order: 1,
-    validation_rules: rules("我确认入境信息完整且真实", {
+    step_name: "Immigration Declaration",
+    display_order: 4,
+    validation_rules: rules("我已核对上述入境申报信息，并确认完整且真实", {
       final_review: true,
       runner_canonical_key: "immigration_declaration",
       boolean_contract: "must_be_true",
       official_value: "true",
+      helper_priority: "critical",
+      helper_zh: "请先完成并核对上方三项入境申报问题。勾选后即表示这些答案已经由您确认，VIZA 将按此信息填写官方申报。",
+      helper_en: "Complete and review the three immigration declaration questions above before confirming. VIZA will use the confirmed answers for the official declaration.",
     }),
   },
   {
