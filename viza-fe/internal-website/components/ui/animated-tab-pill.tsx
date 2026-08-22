@@ -2,7 +2,6 @@
 
 import { type ReactNode } from "react";
 import { motion } from "motion/react";
-import clsx from "clsx";
 import { cn } from "@/lib/utils";
 
 export interface TabPillItem {
@@ -19,6 +18,18 @@ export interface AnimatedTabPillProps {
   className?: string;
   activeColor?: string;
   inactiveColor?: string;
+}
+
+export function getTabPillStateClasses(isActive: boolean, isDark: boolean) {
+  if (isActive) {
+    return isDark
+      ? "bg-white border-white text-brand-500"
+      : "bg-transparent border-transparent text-brand-500";
+  }
+
+  return isDark
+    ? "bg-transparent border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
+    : "bg-white border-[#ececec] text-black";
 }
 
 export function AnimatedTabPill({
@@ -73,14 +84,11 @@ export function AnimatedTabPill({
             key={tab.id}
             type="button"
             data-nav-anchor={tab.id}
+            aria-current={isActive ? "page" : undefined}
             onClick={() => onTabChange(tab.id)}
-            className={clsx(
+            className={cn(
               "px-[16px] py-[6px] rounded-full text-[16px] leading-[1.6] font-medium whitespace-nowrap shrink-0 transition-colors duration-200 border border-solid",
-              isActive
-                ? "bg-transparent border-transparent text-[#03346E]"
-                : isDark
-                  ? "bg-transparent border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
-                  : "bg-white border-[#ececec] text-black",
+              getTabPillStateClasses(isActive, isDark),
             )}
           >
             {tab.label}

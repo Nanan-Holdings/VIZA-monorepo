@@ -20,6 +20,13 @@ type ApplicationRow = {
   created_at: string;
 };
 
+type AnswerRow = {
+  application_id: string;
+  field_name: string;
+  value_text: string;
+  updated_at: string | null;
+};
+
 function readLocalEnv() {
   const values: Record<string, string> = {};
   for (const line of readFileSync(resolve(process.cwd(), ".env.local"), "utf8").split(/\r?\n/)) {
@@ -45,13 +52,21 @@ function hasValue(value: string | null | undefined) {
   return normalized !== "" && normalized !== "[]" && normalized !== "{}";
 }
 
+function isAcceptedCheckbox(value: string | null | undefined) {
+  return ["true", "yes", "1", "on"].includes(value?.trim().toLowerCase() ?? "");
+}
+
 function repeatKey(fieldName: string, index: number) {
   return index === 0 ? fieldName : `${fieldName}__${index}`;
 }
 
 function fieldIsComplete(field: VisaFormFieldRow, answers: Record<string, string>) {
   const rules = field.validationRules as { repeat_group?: string; max_items?: number } | null;
-  if (!rules?.repeat_group) return hasValue(answers[field.fieldName]);
+  if (!rules?.repeat_group) {
+    return field.fieldType === "checkbox" && field.required
+      ? isAcceptedCheckbox(answers[field.fieldName])
+      : hasValue(answers[field.fieldName]);
+  }
   const maxItems = typeof rules.max_items === "number" && rules.max_items > 0 ? rules.max_items : 1;
   return Array.from({ length: maxItems }, (_, index) => repeatKey(field.fieldName, index)).some((key) =>
     hasValue(answers[key]),
@@ -80,9 +95,15 @@ function buildSteps(visaType: string, rows: VisaFormFieldDbRow[]) {
 async function main() {
   const applicantId = readArgument("applicant-id");
   const createdAfter = readArgument("created-after");
-  if (!applicantId || !createdAfter) {
+  const requestedApplicationIds = (readArgument("application-id") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const strict = process.argv.includes("--strict");
+  if (requestedApplicationIds.length === 0 && (!applicantId || !createdAfter)) {
     throw new Error(
-      "Usage: npm run qa:audit-schema-drafts -- --applicant-id=<id> --created-after=<ISO timestamp>",
+      "Usage: npm run qa:audit-schema-drafts -- --application-id=<id>[,<id>...] [--strict]\n" +
+      "   or: npm run qa:audit-schema-drafts -- --applicant-id=<id> --created-after=<ISO timestamp> [--strict]",
     );
   }
 
@@ -91,13 +112,16 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: applicationRows, error: applicationError } = await supabase
+  const applicationQuery = supabase
     .from("applications")
     .select("id,country,visa_type,created_at")
-    .eq("applicant_id", applicantId)
-    .eq("purpose", "VIZA_PLACEHOLDER_DRY_RUN")
-    .gte("created_at", createdAfter)
     .order("created_at", { ascending: false });
+  const { data: applicationRows, error: applicationError } = requestedApplicationIds.length > 0
+    ? await applicationQuery.in("id", requestedApplicationIds)
+    : await applicationQuery
+        .eq("applicant_id", applicantId!)
+        .eq("purpose", "VIZA_PLACEHOLDER_DRY_RUN")
+        .gte("created_at", createdAfter!);
   if (applicationError) throw new Error(applicationError.message);
 
   const latestByVisaType = new Map<string, ApplicationRow>();
@@ -124,11 +148,11 @@ async function main() {
   }
 
   const applicationIds = applications.map((application) => application.id);
-  const answerRows: Array<{ application_id: string; field_name: string; value_text: string }> = [];
+  const answerRows: AnswerRow[] = [];
   for (let offset = 0; offset < 10_000; offset += 1_000) {
     const { data, error } = await supabase
       .from("visa_application_answers")
-      .select("application_id,field_name,value_text")
+      .select("application_id,field_name,value_text,updated_at")
       .in("application_id", applicationIds)
       .order("application_id")
       .order("field_name")
@@ -180,12 +204,31 @@ async function main() {
       const dedupedMissing = [
         ...new Map([...missing, ...ds160Missing].map((field) => [field.fieldName, field])).values(),
       ];
+      const schemaRows = formRows.filter((row) => row.visa_type === application.visa_type);
+      const latestSchemaChange = schemaRows
+        .map((row) => {
+          const timestamp = (row as VisaFormFieldDbRow & { updated_at?: string | null; created_at?: string | null }).updated_at
+            ?? (row as VisaFormFieldDbRow & { created_at?: string | null }).created_at;
+          return timestamp ? Date.parse(timestamp) : Number.NaN;
+        })
+        .filter(Number.isFinite)
+        .sort((a, b) => b - a)[0];
+      const latestAnswerChange = answerRows
+        .filter((row) => row.application_id === application.id && row.updated_at)
+        .map((row) => Date.parse(row.updated_at!))
+        .filter(Number.isFinite)
+        .sort((a, b) => b - a)[0];
       return {
         country: application.country,
         visaType: application.visa_type,
         applicationId: application.id,
         schemaFields: steps.reduce((total, step) => total + step.fields.length, 0),
         savedAnswers: Object.keys(answers).length,
+        schemaLastChangedAt: latestSchemaChange ? new Date(latestSchemaChange).toISOString() : null,
+        answersLastChangedAt: latestAnswerChange ? new Date(latestAnswerChange).toISOString() : null,
+        schemaChangedAfterLastAnswer: Boolean(
+          latestSchemaChange && (!latestAnswerChange || latestSchemaChange > latestAnswerChange)
+        ),
         missingRequiredCount: dedupedMissing.length,
         missingRequired: dedupedMissing,
       };
@@ -193,6 +236,9 @@ async function main() {
     .sort((a, b) => a.visaType.localeCompare(b.visaType));
 
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  if (strict && report.some((item) => item.schemaChangedAfterLastAnswer || item.missingRequiredCount > 0)) {
+    throw new Error("Schema draft audit failed: at least one draft is stale or incomplete");
+  }
 }
 
 main().catch((error) => {

@@ -17,7 +17,6 @@ import {
   type PhEtravelPostSignatureEvidencePath,
   type PhEtravelPostSignatureSemantic,
 } from "./wizard-semantics";
-import { buildPhEtravelProfileOwnedActionPlan } from "./profile-owned-preflight";
 
 export type PhEtravelFieldKind = "text" | "date" | "choice" | "checkbox";
 
@@ -1624,14 +1623,6 @@ export async function fillPhEtravelOfficialDeclaration(
     beforeSubmit?: () => Promise<void>;
   },
 ): Promise<PhEtravelFormFillResult> {
-  if (payload.travelType === "ARRIVAL") {
-    const profileOwnedPlan = buildPhEtravelProfileOwnedActionPlan();
-    throw new PhEtravelFormFillError(
-      "Philippines eTravel profile-owned photo, mobile, and residence controls need controlled live and server review before browser filling.",
-      "ph_etravel_launch_profile_persona_review_required",
-      profileOwnedPlan.blockingCodes.join(", "),
-    );
-  }
   const completed = new Set<string>();
   const isSeaArrival = payload.travelType === "ARRIVAL" &&
     (payload.transportType === "SEA" || payload.arrivalBranch?.transportType === "SEA");
@@ -1761,7 +1752,12 @@ export async function fillPhEtravelOfficialDeclaration(
       await clickVisibleButton(page, /^confirm$|yes,? submit|proceed/i).catch(() => false);
       await page.waitForLoadState("domcontentloaded", { timeout: 45_000 }).catch(() => undefined);
       await page.waitForTimeout(3_000);
-      continue;
+      // The official client treats a successful final POST as a navigation
+      // trigger and reads the authoritative registration on the destination
+      // route. Never click Submit a second time when that navigation is slow
+      // or interrupted; the runner performs a read-only result recovery next.
+      portalText = await page.locator("body").innerText().catch(() => portalText);
+      return { reachedReview: true, submitted: true, portalText, filledFields: [...completed] };
     }
 
     const newlyFilled = await fillVisibleFields(page, plan, completed);

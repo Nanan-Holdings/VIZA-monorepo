@@ -4497,6 +4497,13 @@ export function DynamicStepForm({
     const isTextLike = usesBilingualTextPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
+    const isAiFilled = Boolean(aiFilledFieldNames?.has(field.fieldName) && values[valueKey]?.trim());
+    const aiFilledBadge = isAiFilled ? (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600">
+        <Sparkles className="h-3 w-3" aria-hidden="true" />
+        {isChineseInterface ? "AI 已填写" : "AI filled"}
+      </span>
+    ) : null;
     let guidancePopover: ReactNode = null;
 
     const renderSide = (side: BilingualSide) => {
@@ -4570,6 +4577,7 @@ export function DynamicStepForm({
             forceWhiteBackground={forceWhiteBackground}
             disabled={lt24Disabled || tdacTransitCheckboxLocked || isFieldReadOnly}
             displayLocale={side}
+            labelMeta={side === (isChineseInterface ? "zh" : "en") ? aiFilledBadge : undefined}
             labelAction={side === (isChineseInterface ? "zh" : "en") ? guidancePopover : undefined}
             onSearchQuery={
               isKoreaAddressSearchSelect
@@ -4643,13 +4651,6 @@ export function DynamicStepForm({
           }
       : null;
     const issue = postalLookupIssue ?? requiredIssue ?? localIssue;
-    const isAiFilled = Boolean(aiFilledFieldNames?.has(field.fieldName) && values[valueKey]?.trim());
-    const aiFilledBadge = isAiFilled ? (
-      <span className="mb-1 inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600">
-        <Sparkles className="h-3 w-3" aria-hidden="true" />
-        {isChineseInterface ? "AI 已填写" : "AI filled"}
-      </span>
-    ) : null;
     // Requiredness is already communicated by the canonical red asterisk on
     // the field label. Do not repeat a bare "Required"/"必填项" tag below the
     // control for any country; submit-time invalid styling remains separate.
@@ -4723,14 +4724,13 @@ export function DynamicStepForm({
             "application-form-field group/field relative transition-colors",
             forceWhiteBackground && "py-1.5",
             panelOpen ? "bg-[#fbfdff]" : "",
-            isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
+            isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2 py-2",
             highlightControlAsWarning && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
             reviewIssue && "-mx-3 px-3 py-3",
             reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
             reviewWarning && "rounded-lg bg-amber-50 [&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
           )}
         >
-          {aiFilledBadge}
           <div className="min-w-0">
             {renderSide("en")}
           </div>
@@ -4788,7 +4788,7 @@ export function DynamicStepForm({
           "application-form-field group/field relative transition-colors",
           forceWhiteBackground && "py-1.5",
           panelOpen ? "bg-[#fbfdff]" : "",
-          isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
+          isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2 py-2",
           highlightControlAsWarning && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
           reviewIssue && "-mx-3 px-3 py-3",
           reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
@@ -4796,7 +4796,6 @@ export function DynamicStepForm({
           highlightedFieldName === valueKey && "rounded-lg ring-2 ring-amber-300 ring-offset-2",
         )}
       >
-        {aiFilledBadge}
         <div className="min-w-0">
           {renderSide("zh")}
         </div>

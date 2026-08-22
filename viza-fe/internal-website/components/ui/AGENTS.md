@@ -103,4 +103,8 @@ Smoke at least one route that uses the changed primitive.
 - `review-edit-button.tsx`: canonical icon-only edit action for application
   review sections. Like the field AI robot trigger, its background remains
   transparent on hover and only the brand-colored icon darkens.
+- `animated-tab-pill.tsx`: shared desktop text tabs and mobile pill tabs. Dark
+  mobile headers use a white active pill with brand-colored text so the current
+  destination remains visible; focused coverage lives in
+  `__tests__/animated-tab-pill.test.tsx`.
 - `viza-fe/internal-website/frontend.md`

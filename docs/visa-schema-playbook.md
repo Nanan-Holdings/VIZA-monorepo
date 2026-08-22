@@ -1854,6 +1854,23 @@ cd viza-fe/internal-website
 npm run qa:audit-schema-ui -- --visa-type=<VISA_TYPE> --strict
 ```
 
+If the visa type already has a QA or applicant draft, audit that draft against
+the newly published schema before describing it as filled or starting portal
+automation:
+
+```bash
+cd viza-fe/internal-website
+npm run qa:audit-schema-drafts -- --application-id=<APPLICATION_ID>[,<APPLICATION_ID>...] --strict
+```
+
+The draft audit compares the current master-schema timestamp with the latest
+saved answer, recalculates conditional required fields, and fails when the
+schema changed after the last answer pass or required answers are missing. This
+check is mandatory after seed scripts replace `visa_form_fields`: deleting and
+reinserting a schema can add new required questions to an older draft even when
+that draft was complete against the previous revision. Synthetic QA fixtures
+must be regenerated only after the final schema publication.
+
 Do not launch with strict errors. Persist explicit `validation_rules.source`,
 `option_source_field`, remote/dependent option metadata, and deterministic
 `display_order` values even when the runtime compiler can safely infer them.

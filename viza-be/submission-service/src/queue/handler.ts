@@ -1,6 +1,6 @@
 import type { JobHandler } from "./worker.js";
 import { getRunOne } from "./dispatch.js";
-import { UnsupportedCountryError } from "./types.js";
+import { NeedsHumanError, UnsupportedCountryError } from "./types.js";
 import { emitRunnerEvent } from "../metrics/emit.js";
 import { isRunnerJobOwnershipLost } from "./worker.js";
 
@@ -46,6 +46,8 @@ export function createRunnerJobHandler(
     } catch (err) {
       if (isRunnerJobOwnershipLost(err) || execution.signal.aborted) {
         emitRunnerEvent(job.country, "ownership_lost", job.id);
+      } else if (err instanceof NeedsHumanError) {
+        emitRunnerEvent(job.country, "needs_human", job.id);
       } else {
         emitRunnerEvent(job.country, "failed", job.id);
       }

@@ -14,6 +14,7 @@ import {
 import { auditPiiRead } from "@/lib/legal/audit-pii";
 import {
   buildUniversalProfileAnswerPatch,
+  normalizeUniversalProfilePatchForSchema,
   type UniversalProfileSnapshot,
 } from "@/lib/universal-profile-prefill";
 import {
@@ -56,6 +57,12 @@ import {
 import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 import { canContinueKoreaArrivalPreflight } from "@/app/client/arrival-cards/south-korea/eligibility";
 import { buildKoreaEArrivalPreflightAnswerPatch } from "@/features/kr-arrival-card/preflight";
+import { CANADA_IRCC_PORTAL_TERMS_CONSENT, isCanadaTrvApplication } from "@/lib/canada-trv-completion";
+import {
+  AGENCY_AUTHORISATION_DOCUMENT,
+  AGENCY_SIGNATURE_TYPE,
+  CONSENT_DOCUMENTS,
+} from "@/app/client/consent/consent-config";
 
 type ApplicationOwnerProfile = {
   id?: string | null;
@@ -578,9 +585,21 @@ async function seedNewApplicationFromUniversalProfile(
   adminClient: ReturnType<typeof createAdminClient>,
   applicationId: string,
   applicantId: string,
-  profile: SeedableUniversalProfile
+  profile: SeedableUniversalProfile,
+  visaType: string,
 ) {
-  const answerPatch = buildUniversalProfileAnswerPatch(profile);
+  const { data: schemaRows, error: schemaError } = await adminClient
+    .from("visa_form_fields")
+    .select("*")
+    .eq("visa_type", visaType);
+  if (schemaError) return schemaError.message;
+  const schemaFields = ((schemaRows ?? []) as VisaFormFieldDbRow[]).map((row) =>
+    normalizeBilingualFormField(dbRowToFormField(row)),
+  );
+  const answerPatch = normalizeUniversalProfilePatchForSchema(
+    buildUniversalProfileAnswerPatch(profile),
+    schemaFields,
+  );
   const answerEntries = Object.entries(answerPatch).filter(
     ([, value]) => value.trim() !== ""
   );
@@ -1447,7 +1466,8 @@ export async function ensureDraftApplication(
       adminClient,
       newApp.id,
       profile.id,
-      seedProfile
+      seedProfile,
+      resolvedVisaType,
     );
     if (seedError) return { error: seedError };
 
@@ -1594,7 +1614,7 @@ export async function loadApplicationFormContext(
     );
     if (reusableResult.error) return { error: reusableResult.error };
 
-    const customerApplication = application
+    const customerApplication: Record<string, unknown> | null = application
       ? {
           ...application,
           submission_result: sanitizeCustomerSubmissionResult(
@@ -1602,13 +1622,66 @@ export async function loadApplicationFormContext(
           ),
         }
       : null;
+    let applicationConsentPresent = false;
+    let applicationSignaturePresent = false;
+    let canadaPortalTermsConsentPresent = false;
+    if (
+      customerApplication?.id &&
+      isCanadaTrvApplication(
+        customerApplication.country as string | null,
+        customerApplication.visa_type as string | null,
+      )
+    ) {
+      const [consentResult, signatureResult, portalTermsResult] = await Promise.all([
+        adminClient
+          .from("consent_events")
+          .select("consent_type, version, document_hash")
+          .eq("application_id", customerApplication.id)
+          .eq("accepted", true)
+          .is("revoked_at", null),
+        adminClient
+          .from("application_signatures")
+          .select("id")
+          .eq("application_id", customerApplication.id)
+          .eq("signature_type", AGENCY_SIGNATURE_TYPE)
+          .eq("document_hash", AGENCY_AUTHORISATION_DOCUMENT.documentHash)
+          .limit(1),
+        adminClient
+          .from("consent_events")
+          .select("id")
+          .eq("application_id", customerApplication.id)
+          .eq("consent_type", CANADA_IRCC_PORTAL_TERMS_CONSENT.type)
+          .eq("version", CANADA_IRCC_PORTAL_TERMS_CONSENT.version)
+          .eq("accepted", true)
+          .is("revoked_at", null)
+          .limit(1),
+      ]);
+      const legalError = consentResult.error ?? signatureResult.error ?? portalTermsResult.error;
+      if (legalError) return { error: legalError.message };
+      applicationConsentPresent = CONSENT_DOCUMENTS.every((document) =>
+        (consentResult.data ?? []).some((row) =>
+          row.consent_type === document.consentType &&
+          row.version === document.version &&
+          row.document_hash === document.documentHash
+        )
+      );
+      applicationSignaturePresent = Boolean(signatureResult.data?.[0]?.id);
+      canadaPortalTermsConsentPresent = Boolean(portalTermsResult.data?.[0]?.id);
+    }
 
     return {
       profile: {
         ...profile,
         reusable_answers: reusableResult.answers,
       },
-      application: customerApplication,
+      application: customerApplication
+        ? {
+            ...customerApplication,
+            application_consent_present: applicationConsentPresent,
+            application_signature_present: applicationSignaturePresent,
+            canada_ircc_portal_terms_consent_present: canadaPortalTermsConsentPresent,
+          }
+        : null,
     };
   } catch (err) {
     return {

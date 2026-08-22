@@ -9,12 +9,13 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { ArrowUp, Robot as Bot, CheckCircle as CheckCircle2, Microphone as Mic, Square, Warning as TriangleAlert } from "@phosphor-icons/react";
+import { ArrowUp, Robot as Bot, Microphone as Mic, Square, Warning as TriangleAlert } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
+import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,11 +27,14 @@ export interface FormAssistantMessage {
   role: "assistant" | "user";
   content: string;
   createdAt?: string;
+  inputMode?: "text" | "voice" | "system" | "confirmation";
 }
 
 export interface FormAssistantMissingField {
   fieldName: string;
   label: string;
+  fieldType?: string;
+  requiresConfirmation?: boolean;
   required?: boolean;
   section?: string;
 }
@@ -57,18 +61,6 @@ export type FormAssistantTranscription =
       durationMs?: number;
     };
 
-export interface FormAssistantFillNoticeItem {
-  fieldName: string;
-  label: string;
-  value: string;
-  displayValue: string;
-}
-
-export interface FormAssistantFillNotice {
-  id: string;
-  items: FormAssistantFillNoticeItem[];
-}
-
 export interface FormFillingAssistantProps {
   applicationId: string;
   locale: string;
@@ -76,17 +68,16 @@ export interface FormFillingAssistantProps {
   progress: { completed: number; total: number };
   messages: FormAssistantMessage[];
   missingFields: FormAssistantMissingField[];
-  fillNotice?: FormAssistantFillNotice | null;
   loading?: boolean;
   validationResult?: FormAssistantValidationResult | null;
   showReviewAction?: boolean;
   onSend: (text: string) => void | Promise<void>;
+  onConfirm: (field: FormAssistantMissingField) => void | Promise<void>;
   onTranscribe: (file: File) => FormAssistantTranscription | Promise<FormAssistantTranscription>;
   onAcknowledgeWarnings: () => void | Promise<void>;
-  onUndoFill: (items: FormAssistantFillNoticeItem[]) => void | Promise<void>;
-  onDismissFillNotice: (noticeId: string) => void;
   onValidate: () => unknown | Promise<unknown>;
   onGoToReview: () => void | Promise<void>;
+  requiredDocumentUploader?: ReactNode;
   renderIssueField?: (issue: FormAssistantValidationIssue) => ReactNode;
   onJumpToIssue?: (fieldName: string) => void;
   className?: string;
@@ -126,17 +117,16 @@ export function FormFillingAssistant({
   progress,
   messages,
   missingFields,
-  fillNotice = null,
   loading = false,
   validationResult = null,
   showReviewAction,
   onSend,
+  onConfirm,
   onTranscribe,
   onAcknowledgeWarnings,
-  onUndoFill,
-  onDismissFillNotice,
   onValidate,
   onGoToReview,
+  requiredDocumentUploader,
   renderIssueField,
   onJumpToIssue,
   className,
@@ -153,10 +143,9 @@ export function FormFillingAssistant({
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
-  const [undoingFill, setUndoingFill] = useState(false);
-  const [undoFillError, setUndoFillError] = useState<string | null>(null);
   const [reviewActionPending, setReviewActionPending] = useState(false);
   const [reviewActionError, setReviewActionError] = useState<string | null>(null);
+  const [pendingConfirmationFieldName, setPendingConfirmationFieldName] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -169,6 +158,11 @@ export function FormFillingAssistant({
   const shouldFollowLatestRef = useRef(true);
   const [showScrollToLatest, setShowScrollToLatest] = useState(false);
   const resolvedIsZh = isZh ?? locale.toLowerCase().startsWith("zh");
+  const currentConfirmationField = missingFields[0]?.fieldType === "checkbox" &&
+    missingFields[0]?.requiresConfirmation === true
+    ? missingFields[0]
+    : null;
+  const currentConfirmationPending = pendingConfirmationFieldName === currentConfirmationField?.fieldName;
 
   const clearRecordingTimers = useCallback(() => {
     if (timeoutRef.current !== null) {
@@ -347,14 +341,6 @@ export function FormFillingAssistant({
   }, [composerStorageKey, draft]);
 
   useEffect(() => {
-    setUndoFillError(null);
-    if (!fillNotice) return;
-    const noticeId = fillNotice.id;
-    const timeout = window.setTimeout(() => onDismissFillNotice(noticeId), 10_000);
-    return () => window.clearTimeout(timeout);
-  }, [fillNotice, onDismissFillNotice]);
-
-  useEffect(() => {
     const composer = composerRef.current;
     if (!composer) return;
     composer.style.height = "auto";
@@ -418,19 +404,31 @@ export function FormFillingAssistant({
     [draft, handleSend],
   );
 
-  const handleUndoFill = useCallback(async () => {
-    if (!fillNotice || undoingFill) return;
-    setUndoingFill(true);
-    setUndoFillError(null);
-    try {
-      await onUndoFill(fillNotice.items);
-      onDismissFillNotice(fillNotice.id);
-    } catch {
-      setUndoFillError(t("filledNotice.undoFailed"));
-    } finally {
-      if (mountedRef.current) setUndoingFill(false);
+  const handleConfirmationCheck = useCallback((checked: boolean) => {
+    if (!checked || !currentConfirmationField || currentConfirmationPending || loading) return;
+    // The checkbox is replaced/disabled as soon as its answer is submitted.
+    // Leaving that disappearing input focused can make the browser scroll the
+    // outer application page to keep the stale focus target in view.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
     }
-  }, [fillNotice, onDismissFillNotice, onUndoFill, t, undoingFill]);
+    setRecordingError(null);
+    setPendingConfirmationFieldName(currentConfirmationField.fieldName);
+    const result = onConfirm(currentConfirmationField);
+    void Promise.resolve(result)
+      .then(() => setPendingConfirmationFieldName(null))
+      .catch((error: unknown) => {
+        setPendingConfirmationFieldName(null);
+        const code = error instanceof Error && "code" in error
+          ? (error as Error & { code?: unknown }).code
+          : null;
+        setRecordingError(t(
+          code === FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE
+            ? "errors.providersUnavailable"
+            : "errors.confirmationFailed",
+        ));
+      });
+  }, [currentConfirmationField, currentConfirmationPending, loading, onConfirm, t]);
 
   const completed = Math.max(0, Math.min(progress.completed, progress.total));
   const progressPercent = progress.total > 0 ? Math.round((completed / progress.total) * 100) : 0;
@@ -533,14 +531,50 @@ export function FormFillingAssistant({
             {messages.length === 0 ? (
               <ChatMessage role="agent" content={t("emptyConversation")} density="compact" />
             ) : (
-              messages.map((message) => (
-                <ChatMessage
-                  key={message.id}
-                  role={message.role === "user" ? "user" : "agent"}
-                  content={message.content}
-                  density="compact"
-                />
-              ))
+              messages.map((message, index) => {
+                const previousMessage = messages[index - 1];
+                if (message.inputMode === "confirmation" && previousMessage?.role === "assistant") {
+                  return null;
+                }
+                const followingMessage = messages[index + 1];
+                const persistedConfirmation = message.role === "assistant" && followingMessage?.inputMode === "confirmation"
+                  ? followingMessage
+                  : null;
+                const pendingConfirmation = message.role === "assistant" && index === messages.length - 1
+                  ? currentConfirmationField
+                  : null;
+                const confirmationLabel = persistedConfirmation?.content ?? pendingConfirmation?.label;
+
+                if (message.inputMode === "confirmation") {
+                  return (
+                    <ApplicationCheckbox
+                      key={message.id}
+                      checked
+                      disabled
+                      label={message.content}
+                    />
+                  );
+                }
+
+                return (
+                  <div key={message.id} className={confirmationLabel ? "space-y-2" : undefined}>
+                    <ChatMessage
+                      role={message.role === "user" ? "user" : "agent"}
+                      content={message.content}
+                      density="compact"
+                    />
+                    {confirmationLabel ? (
+                      <ApplicationCheckbox
+                        checked={Boolean(persistedConfirmation) || currentConfirmationPending}
+                        disabled={Boolean(persistedConfirmation) || currentConfirmationPending}
+                        required={pendingConfirmation?.required}
+                        label={confirmationLabel}
+                        onCheckedChange={persistedConfirmation ? undefined : handleConfirmationCheck}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })
             )}
             {loading ? (
               <div className="flex gap-1" aria-label={t("thinking")} aria-live="polite">
@@ -552,6 +586,11 @@ export function FormFillingAssistant({
                     aria-hidden="true"
                   />
                 ))}
+              </div>
+            ) : null}
+            {!loading && requiredDocumentUploader ? (
+              <div data-testid="form-assistant-required-document-uploader">
+                {requiredDocumentUploader}
               </div>
             ) : null}
             {validationResult ? (
@@ -656,39 +695,6 @@ export function FormFillingAssistant({
             className="bottom-3 right-3 px-4 py-2"
           />
         </div>
-
-        {fillNotice ? (
-          <section
-            className="fixed bottom-6 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-xl border border-brand-100 bg-white px-4 py-3 text-brand-700 shadow-lg sm:bottom-8"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            data-testid="form-assistant-fill-notice"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-0 items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden="true" />
-                <div className="space-y-1">
-                  {fillNotice.items.map((item) => (
-                    <p key={item.fieldName} className="text-sm leading-5">
-                      {t("filledNotice.message", { label: item.label, value: item.displayValue })}
-                    </p>
-                  ))}
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-9 px-3 text-sm font-medium text-brand-600 hover:bg-brand-100 hover:text-brand-700"
-                onClick={() => void handleUndoFill()}
-                disabled={undoingFill}
-              >
-                {undoingFill ? t("filledNotice.undoing") : t("filledNotice.undo")}
-              </Button>
-            </div>
-            {undoFillError ? <ClientErrorAlert className="mt-2" message={undoFillError} /> : null}
-          </section>
-        ) : null}
 
         {recordingError ? <ClientErrorAlert message={recordingError} /> : null}
 

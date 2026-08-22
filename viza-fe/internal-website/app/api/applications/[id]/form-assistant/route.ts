@@ -2,7 +2,9 @@ import { isFormAssistantEnabled } from "@/lib/form-assistant/constants";
 import { consumeFormAssistantRateLimit } from "@/lib/form-assistant/rate-limit";
 import {
   loadAssistantAnswers,
+  loadAssistantDocumentReadiness,
   loadAssistantSchema,
+  repairAssistantOfficialOptionAnswers,
   requireOwnedApplication,
 } from "@/lib/form-assistant/server-context";
 import {
@@ -29,13 +31,27 @@ export async function GET(
 
   try {
     const locale = new URL(request.url).searchParams.get("locale") ?? "en";
-    const [steps, answers] = await Promise.all([
+    const [steps, answerRows, documentReadiness] = await Promise.all([
       loadAssistantSchema(owned.admin, owned.application.country, owned.application.visa_type),
       loadAssistantAnswers(owned.admin, id, {
         applicantId: owned.application.applicant_id,
         authUserId: owned.user.id,
       }),
+      loadAssistantDocumentReadiness({
+        applicationId: id,
+        country: owned.application.country,
+        visaType: owned.application.visa_type,
+      }).catch((error) => {
+        console.warn("[form-assistant] Document readiness lookup failed", error);
+        return null;
+      }),
     ]);
+    const answers = await repairAssistantOfficialOptionAnswers(
+      owned.admin,
+      id,
+      steps,
+      answerRows,
+    );
     const session = await getOrCreateAssistantSession({
       admin: owned.admin,
       applicationId: id,
@@ -54,6 +70,7 @@ export async function GET(
       answers,
       messages,
       locale,
+      documentReadiness,
     }));
   } catch (error) {
     console.error("[form-assistant] Failed to load state", error);

@@ -51,7 +51,7 @@ function Option({
   return (
     <label
       className={cn(
-        "inline-flex items-start gap-[10px] text-[15px] font-normal leading-[1.5] text-[#3d3d3d]",
+        "relative inline-flex items-start gap-[10px] text-[15px] font-normal leading-[1.5] text-[#3d3d3d]",
         disabled ? "cursor-not-allowed opacity-45" : "cursor-pointer",
         className,
       )}

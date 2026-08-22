@@ -2,6 +2,7 @@ import { evaluateShowIf } from "@/lib/form-utils";
 import { resolveLocalizedFieldLabel } from "@/lib/bilingual-schema-contract";
 import {
   getMissingDynamicFormFields,
+  isPastUpcomingTravelDate,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
 import type { VisaFormFieldOption, WizardStep } from "@/types/visa-form-fields";
@@ -243,6 +244,7 @@ function isAcceptedCheckboxValue(value: string): boolean {
 export function getAssistantProgress(
   steps: WizardStep[],
   answers: Record<string, string>,
+  now: Date = new Date(),
 ): FormAssistantProgress {
   const visibleRequired = steps.flatMap((step) =>
     step.fields.filter(
@@ -250,7 +252,7 @@ export function getAssistantProgress(
     ),
   );
   const missingNames = new Set(
-    getMissingDynamicFormFields(steps, answers).map((field) => field.fieldName),
+    getMissingDynamicFormFields(steps, answers, { now }).map((field) => field.fieldName),
   );
   const completed = visibleRequired.filter((field) => !missingNames.has(field.fieldName)).length;
   return { completed, total: visibleRequired.length };
@@ -276,12 +278,19 @@ export function validateApplicationAnswers(params: {
   const fieldByName = new Map(steps.flatMap((step) => step.fields).map((field) => [field.fieldName, field]));
   const labelForField = (field: WizardStep["fields"][number]) =>
     resolveLocalizedFieldLabel(field, isZh ? "zh" : "en");
-  const missingFields = getMissingDynamicFormFields(steps, answers).map((missing) => {
+  const missingFields = getMissingDynamicFormFields(steps, answers, { now: params.now }).map((missing) => {
     const field = fieldByName.get(missing.fieldName);
     return field ? { ...missing, label: labelForField(field) } : missing;
   });
   const errors: FormAssistantValidationIssue[] = missingFields.flatMap((missing) => {
     const field = fieldByName.get(missing.fieldName);
+    if (field && isPastUpcomingTravelDate(field, answers[missing.fieldName], params.now)) {
+      return [{
+        code: "date_before_today",
+        fieldNames: [missing.fieldName],
+        message: message(`${missing.label} cannot be before today.`, `${missing.label}不能早于今天。`),
+      }];
+    }
     // A non-empty but invalid choice/acceptance is not also "missing". The
     // specific validator below owns that one actionable issue.
     if (hasAnyFieldAnswer(field, answers)) return [];
@@ -512,7 +521,7 @@ export function validateApplicationAnswers(params: {
   return {
     errors: dedupe(errors),
     warnings: dedupe(warnings),
-    progress: getAssistantProgress(steps, answers),
+    progress: getAssistantProgress(steps, answers, params.now),
     missingFields,
   };
 }

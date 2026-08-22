@@ -8,9 +8,9 @@ import {
  * Standard runner-result → runner_job outcome mapping (RUN-CORE-002).
  *
  * Single place that maps every runner outcome to a DispatchOutcome (normal
- * return → worker marks `succeeded`) or a thrown error (worker retries →
- * eventually `failed`/`dead_letter`). Keeps status semantics uniform with
- * worker.ts across every RUN-* runner.
+ * return → worker marks `succeeded`) or a typed error. Retryable errors use
+ * bounded retries; NeedsHumanError settles immediately as `needs_human`.
+ * Keeps status semantics uniform with worker.ts across every RUN-* runner.
  *
  *   submitted            → submitted_pending_pay   (succeeded)
  *   stopped_before_pay   → halted_before_pay       (succeeded)
@@ -18,7 +18,7 @@ import {
  *   submitted_pending_pay → submitted_pending_pay  (succeeded)
  *   paper_ready          → paper_ready             (succeeded)
  *   blocked / anti_bot_gate → throw RetryableRunnerError (retry → failed)
- *   needs_human          → throw NeedsHumanError   (retry → failed)
+ *   needs_human          → throw NeedsHumanError   (terminal needs_human)
  */
 
 export interface StandardRunResultLike {
@@ -37,6 +37,7 @@ export function mapStandardToOutcome(r: StandardRunResultLike): DispatchOutcome 
       return { outcome: "submitted_pending_pay", reachedStep, artefacts };
     case "stopped_before_pay":
     case "stopped_before_signature":
+    case "stopped_before_official_record":
     case "halted_before_pay":
     case "managed_payment_adapter_unavailable":
     case "managed_payment_review_required":

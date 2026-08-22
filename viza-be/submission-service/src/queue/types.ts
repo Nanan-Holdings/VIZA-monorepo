@@ -32,6 +32,49 @@ export class NeedsHumanError extends Error {
   }
 }
 
+const HTTP_URL_PATTERN = /https?:\/\/[^\s<>"'`]+/giu;
+const MAX_RUNNER_ERROR_NAME_LENGTH = 120;
+const MAX_RUNNER_ERROR_MESSAGE_LENGTH = 2_000;
+
+/**
+ * Remove every HTTP(S) destination from runner errors before they cross a
+ * logging, database, or alert boundary. Hosts are intentionally omitted too:
+ * an untrusted host can itself contain applicant data or a secret subdomain.
+ */
+export function redactRunnerErrorUrls(value: string): string {
+  return value.replace(HTTP_URL_PATTERN, "[redacted-url]");
+}
+
+export interface SanitizedRunnerError {
+  name: string;
+  message: string;
+  summary: string;
+}
+
+/** Return a bounded, stack-free error description safe for persistence/logs. */
+export function sanitizeRunnerError(error: unknown): SanitizedRunnerError {
+  let rawName = "Error";
+  let rawMessage: string;
+  if (error instanceof Error) {
+    rawName = error.name || "Error";
+    rawMessage = error.message;
+  } else {
+    try {
+      rawMessage = String(error);
+    } catch {
+      rawMessage = "Unknown runner error";
+    }
+  }
+
+  const name = redactRunnerErrorUrls(rawName)
+    .slice(0, MAX_RUNNER_ERROR_NAME_LENGTH)
+    .trim() || "Error";
+  const message = redactRunnerErrorUrls(rawMessage)
+    .slice(0, MAX_RUNNER_ERROR_MESSAGE_LENGTH)
+    .trim() || "Unknown runner error";
+  return { name, message, summary: `${name}: ${message}` };
+}
+
 export interface DispatchOutcome {
   outcome: "halted_before_pay" | "submitted_pending_pay" | "paper_ready";
   reachedStep: string;

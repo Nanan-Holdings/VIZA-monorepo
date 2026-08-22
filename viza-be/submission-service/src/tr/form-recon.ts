@@ -3,9 +3,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { chromium } from "@playwright/test";
 import { discoverFields, withRetry } from "../runners/standard-evisa.js";
+import { TOURIST_LIVE_CHECKPOINTS } from "../tourist-live-checkpoints.js";
 
 /** Türkiye e-Visa form recon (RUN-TR-001/002 / DATA-001). npx ts-node src/tr/form-recon.ts */
-const BASE_URL = process.env.TR_PORTAL_URL ?? "https://www.evisa.gov.tr";
+const BASE_URL = process.env.TR_PORTAL_URL ?? TOURIST_LIVE_CHECKPOINTS.turkey.url;
 const OUT_DIR = path.join(process.cwd(), "recon-out", "tr");
 
 async function main(): Promise<void> {

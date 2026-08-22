@@ -83,7 +83,7 @@ applicant info, and help pages.
   the Free Plan phase.
 - `universal-info/page.tsx`: reusable applicant profile editor. Keep its major
   categories as separate application-style cards; reusable passport, signature,
-  and portrait uploads live in
+  portrait, recent bank-statement, and genuine travel/medical-insurance uploads live in
   `components/client/universal-profile-documents-carousel.tsx`, while expanded
   schema-backed categories live in
   `components/client/universal-profile-extended-editor.tsx`.

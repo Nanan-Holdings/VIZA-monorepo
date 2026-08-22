@@ -24,13 +24,18 @@ interface UniversalProfileDocumentsCarouselProps {
   identityCard: ReusableDocumentState;
   photo: ReusableDocumentState;
   signature: ReusableDocumentState;
+  bankStatement: ReusableDocumentState;
+  travelInsurance: ReusableDocumentState;
   onPassportFieldsApplied: (fields: UniversalProfileSnapshot) => void;
-  onDocumentUploaded: (type: "passport" | "identityCard" | "photo" | "signature", fileName: string) => void;
+  onDocumentUploaded: (
+    type: "passport" | "identityCard" | "photo" | "signature" | "bankStatement" | "travelInsurance",
+    fileName: string,
+  ) => void;
 }
 
 interface CompactUploadProps {
   applicationId: string | null;
-  documentType: "electronic_signature" | "photo";
+  documentType: "electronic_signature" | "photo" | "bank_statement" | "travel_insurance";
   initialState: ReusableDocumentState;
   accept: string;
   title: string;
@@ -179,7 +184,10 @@ function CompactProfileUpload({
         }
         file={
           state.uploaded && !uploading
-            ? { name: state.fileName ?? uploadedLabel, kind: "image" }
+            ? {
+                name: state.fileName ?? uploadedLabel,
+                kind: state.fileName?.toLowerCase().endsWith(".pdf") ? "document" : "image",
+              }
             : null
         }
         reason={error}
@@ -201,6 +209,8 @@ export function UniversalProfileDocumentsCarousel({
   identityCard,
   photo,
   signature,
+  bankStatement,
+  travelInsurance,
   onPassportFieldsApplied,
   onDocumentUploaded,
 }: UniversalProfileDocumentsCarouselProps) {
@@ -220,7 +230,7 @@ export function UniversalProfileDocumentsCarousel({
           </p>
         </div>
         <span className="w-fit rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600">
-          {isZh ? "4 项材料" : "4 items"}
+          {isZh ? "6 项材料" : "6 items"}
         </span>
       </div>
 
@@ -312,6 +322,54 @@ export function UniversalProfileDocumentsCarousel({
           uploadFailedLabel={isZh ? "证件照上传失败，请检查文件格式后重试。" : "Portrait upload failed. Check the file format and try again."}
           formatsLabel={isZh ? "JPG、PNG 或 WEBP" : "JPG, PNG or WEBP"}
           onUploaded={(fileName) => onDocumentUploaded("photo", fileName)}
+        />
+        <CompactProfileUpload
+          applicationId={applicationId}
+          documentType="bank_statement"
+          initialState={bankStatement}
+          accept=".pdf,application/pdf"
+          title={isZh ? "银行对账单" : "Bank statement"}
+          description={
+            isZh
+              ? "保存近期银行对账单。每个目的地仍会检查账期、余额和签发日期。"
+              : "Save a recent bank statement. Each destination still checks its statement period, balance, and issue date."
+          }
+          securityNote={
+            isZh
+              ? "对账单属于时效性材料。系统会提供最近版本，但提交前仍需确认其满足目的地的最新要求。"
+              : "Statements are time-sensitive. VIZA offers the latest version, but it must still be checked against the destination's current requirements before submission."
+          }
+          replaceLabel={isZh ? "更换对账单" : "Replace statement"}
+          preparingLabel={isZh ? "正在准备" : "Preparing"}
+          uploadingLabel={isZh ? "上传中" : "Uploading"}
+          uploadedLabel={isZh ? "银行对账单已保存" : "Bank statement saved"}
+          uploadFailedLabel={isZh ? "银行对账单上传失败，请上传 PDF 后重试。" : "Bank statement upload failed. Upload a PDF and try again."}
+          formatsLabel="PDF"
+          onUploaded={(fileName) => onDocumentUploaded("bankStatement", fileName)}
+        />
+        <CompactProfileUpload
+          applicationId={applicationId}
+          documentType="travel_insurance"
+          initialState={travelInsurance}
+          accept=".pdf,application/pdf"
+          title={isZh ? "旅行与医疗保险" : "Travel and medical insurance"}
+          description={
+            isZh
+              ? "保存当前保险凭证。具体申请仍会检查保障地区、日期和最低保障范围。"
+              : "Save current coverage evidence. Each application still checks territory, dates, and minimum coverage."
+          }
+          securityNote={
+            isZh
+              ? "仅保存真实有效的保险凭证；过期或仅供演示的文件不得用于正式政府申请。"
+              : "Store only genuine, valid coverage evidence. Expired or demonstration files must never be used for a government submission."
+          }
+          replaceLabel={isZh ? "更换保险凭证" : "Replace insurance"}
+          preparingLabel={isZh ? "正在准备" : "Preparing"}
+          uploadingLabel={isZh ? "上传中" : "Uploading"}
+          uploadedLabel={isZh ? "保险凭证已保存" : "Insurance saved"}
+          uploadFailedLabel={isZh ? "保险凭证上传失败，请上传 PDF 后重试。" : "Insurance upload failed. Upload a PDF and try again."}
+          formatsLabel="PDF"
+          onUploaded={(fileName) => onDocumentUploaded("travelInsurance", fileName)}
         />
       </div>
     </section>

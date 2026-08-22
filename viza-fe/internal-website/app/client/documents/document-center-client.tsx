@@ -47,11 +47,13 @@ import type { FieldGuidanceChatMessage } from "@/types/field-guidance";
 import type { VisaFormFieldRow } from "@/types/visa-form-fields";
 import {
   loadDocumentCenterData,
+  removeApplicationDocument,
   reuseUniversalProfileDocument,
   type ApplicationDocument,
   type DocumentApplication,
   type DocumentCenterData,
   type DocumentRequirement,
+  type ReusableProfileDocument,
 } from "./actions";
 
 interface DocumentCenterClientProps {
@@ -109,7 +111,7 @@ interface TravelSupportCandidate {
 }
 
 type BusyTarget = {
-  type: "upload" | "travel" | "refresh" | "face_match";
+  type: "upload" | "remove" | "travel" | "refresh" | "face_match";
   key: string;
 } | null;
 
@@ -130,17 +132,39 @@ const PROFILE_SIGNATURE_DOCUMENT_TYPES = [
   "signature",
   "signature_image",
 ] as const;
-const UNIVERSAL_UPLOAD_DOCUMENT_TYPES = new Set<string>([
+const PROFILE_PASSPORT_DOCUMENT_TYPES = [
+  "passport_copy",
+  "passport_bio_page",
+  "passport_scan",
+  "passport",
+] as const;
+const REUSABLE_PROFILE_DOCUMENT_TYPES = new Set<string>([
+  ...PROFILE_PASSPORT_DOCUMENT_TYPES,
   ...PROFILE_PHOTO_DOCUMENT_TYPES,
   ...PROFILE_SIGNATURE_DOCUMENT_TYPES,
 ]);
-const REUSABLE_PROFILE_DOCUMENT_TYPES = new Set<string>([
-  "passport_copy",
-  "passport",
-  "passport_bio_page",
-  "passport_scan",
-  ...UNIVERSAL_UPLOAD_DOCUMENT_TYPES,
-]);
+
+function findReusableProfileDocument(
+  documentType: string,
+  savedDocuments: ReusableProfileDocument[],
+): ReusableProfileDocument | null {
+  let aliases: readonly string[] = [documentType];
+  if (PROFILE_PASSPORT_DOCUMENT_TYPES.includes(
+    documentType as (typeof PROFILE_PASSPORT_DOCUMENT_TYPES)[number],
+  )) {
+    aliases = PROFILE_PASSPORT_DOCUMENT_TYPES;
+  } else if (PROFILE_PHOTO_DOCUMENT_TYPES.includes(
+    documentType as (typeof PROFILE_PHOTO_DOCUMENT_TYPES)[number],
+  )) {
+    aliases = PROFILE_PHOTO_DOCUMENT_TYPES;
+  } else if (PROFILE_SIGNATURE_DOCUMENT_TYPES.includes(
+    documentType as (typeof PROFILE_SIGNATURE_DOCUMENT_TYPES)[number],
+  )) {
+    aliases = PROFILE_SIGNATURE_DOCUMENT_TYPES;
+  }
+
+  return savedDocuments.find((document) => aliases.includes(document.documentType)) ?? null;
+}
 const TW_ENTRY_PERMIT_REQUIREMENT_LABEL_ZH: Record<string, string> = {
   mainland_travel_document: "大陆地区所发尚余6个月以上效期之旅行证件或香港、澳门政府核发之非永久性居民旅行证件",
   eligibility_supporting_document_1: "有效学生签证（或再入国签证）及学校核发之3个月内在学证明",
@@ -710,7 +734,9 @@ function RequirementRow({
   country,
   visaType,
   secondaryAction,
+  savedProfileDocument,
   onReuseProfileDocument,
+  onRemove,
   highlighted,
 }: {
   view: DocumentViewState;
@@ -721,7 +747,9 @@ function RequirementRow({
   country: string;
   visaType: string;
   secondaryAction?: { label: string; onClick: () => void };
+  savedProfileDocument?: ReusableProfileDocument | null;
   onReuseProfileDocument?: () => void;
+  onRemove?: () => void;
   highlighted?: boolean;
 }) {
   const { requirement, document, status } = view;
@@ -748,9 +776,15 @@ function RequirementRow({
     conditionalLogic: null,
   };
   const action = secondaryAction ?? (
-    onReuseProfileDocument && !document
+    onReuseProfileDocument && savedProfileDocument && !document
       ? {
-          label: isZh ? "使用已保存资料" : "Use saved profile file",
+          label: savedProfileDocument.filename
+            ? isZh
+              ? `使用已保存文件：${savedProfileDocument.filename}`
+              : `Use saved ${savedProfileDocument.filename}`
+            : isZh
+              ? "使用已保存资料"
+              : "Use saved profile file",
           onClick: onReuseProfileDocument,
         }
       : undefined
@@ -816,6 +850,7 @@ function RequirementRow({
                   )
                     ? "image"
                     : "document",
+                  previewUrl: document.previewUrl ?? null,
                 }
               : null
           }
@@ -828,6 +863,7 @@ function RequirementRow({
           }
           action={action}
           removeLabel={isZh ? "移除文件" : "Remove file"}
+          onRemove={onRemove}
           accept={getRequirementAccept(requirement)}
           disabled={busy}
           inputAriaLabel={
@@ -1284,9 +1320,6 @@ export function DocumentCenterClient({
       uploadForm.set("filename", safeName);
       uploadForm.set("required", String(requirement.required));
       uploadForm.set("source", source);
-      if (UNIVERSAL_UPLOAD_DOCUMENT_TYPES.has(requirement.documentType)) {
-        uploadForm.set("scope", "universal_profile");
-      }
       uploadForm.set("file", file);
       const result = await uploadApplicationDocumentFromClient(uploadForm);
       if (!result.ok) throw new Error(result.error);
@@ -1313,6 +1346,24 @@ export function DocumentCenterClient({
     });
     if (!result.ok) {
       setError(result.error || formatUploadError(new Error(result.error), isZh));
+      setBusyTarget(null);
+      return;
+    }
+    await refreshData();
+    onUploadComplete?.();
+  }
+
+  async function removeFile(requirement: DocumentRequirement) {
+    if (!selectedApplication) return;
+    const key = getDocumentKey(requirement);
+    setBusyTarget({ type: "remove", key });
+    setError(null);
+    const result = await removeApplicationDocument({
+      applicationId: selectedApplication.id,
+      documentType: requirement.documentType,
+    });
+    if (!result.ok) {
+      setError(result.error);
       setBusyTarget(null);
       return;
     }
@@ -1560,6 +1611,10 @@ export function DocumentCenterClient({
             <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
               {requiredViews.map((view) => {
                 const key = getDocumentKey(view.requirement);
+                const savedProfileDocument = findReusableProfileDocument(
+                  view.requirement.documentType,
+                  data.reusableProfileDocuments ?? [],
+                );
                 return (
                   <RequirementRow
                     key={key}
@@ -1567,6 +1622,7 @@ export function DocumentCenterClient({
                     busy={
                       busyTarget?.key === key &&
                       (busyTarget.type === "upload" ||
+                        busyTarget.type === "remove" ||
                         busyTarget.type === "travel")
                     }
                     onFile={(file) => void handleFileChange(view.requirement, file)}
@@ -1576,9 +1632,15 @@ export function DocumentCenterClient({
                     visaType={selectedApplication.visaType}
                     highlighted={highlightRequirementKey === view.requirement.key || highlightRequirementKey === key}
                     secondaryAction={getTravelAiAction(view)}
+                    savedProfileDocument={savedProfileDocument}
                     onReuseProfileDocument={
-                      REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType)
+                      REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType) && savedProfileDocument
                         ? () => void reuseProfileDocument(view.requirement)
+                        : undefined
+                    }
+                    onRemove={
+                      view.document?.source === "application_documents"
+                        ? () => void removeFile(view.requirement)
                         : undefined
                     }
                   />
@@ -1601,6 +1663,10 @@ export function DocumentCenterClient({
             <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
               {conditionalViews.map((view) => {
                 const key = getDocumentKey(view.requirement);
+                const savedProfileDocument = findReusableProfileDocument(
+                  view.requirement.documentType,
+                  data.reusableProfileDocuments ?? [],
+                );
                 return (
                   <RequirementRow
                     key={key}
@@ -1608,6 +1674,7 @@ export function DocumentCenterClient({
                     busy={
                       busyTarget?.key === key &&
                       (busyTarget.type === "upload" ||
+                        busyTarget.type === "remove" ||
                         busyTarget.type === "travel")
                     }
                     onFile={(file) => void handleFileChange(view.requirement, file)}
@@ -1617,9 +1684,15 @@ export function DocumentCenterClient({
                     visaType={selectedApplication.visaType}
                     highlighted={highlightRequirementKey === view.requirement.key || highlightRequirementKey === key}
                     secondaryAction={getTravelAiAction(view)}
+                    savedProfileDocument={savedProfileDocument}
                     onReuseProfileDocument={
-                      REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType)
+                      REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType) && savedProfileDocument
                         ? () => void reuseProfileDocument(view.requirement)
+                        : undefined
+                    }
+                    onRemove={
+                      view.document?.source === "application_documents"
+                        ? () => void removeFile(view.requirement)
                         : undefined
                     }
                   />
@@ -1629,7 +1702,7 @@ export function DocumentCenterClient({
           </section>
           )}
 
-          {!hideOptionalDocuments && (
+          {!hideOptionalDocuments && optionalViews.length > 0 && (
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <h2 className={cn("font-semibold", isTaiwanInline ? "text-lg" : "text-xl")}>
@@ -1640,42 +1713,45 @@ export function DocumentCenterClient({
                 {isZh ? "项" : optionalViews.length === 1 ? "item" : "items"}
               </span>
             </div>
-            {optionalViews.length > 0 ? (
-              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
-                {optionalViews.map((view) => {
-                  const key = getDocumentKey(view.requirement);
-                  return (
-                    <RequirementRow
-                      key={key}
-                      view={view}
-                      busy={
-                        busyTarget?.key === key &&
-                        (busyTarget.type === "upload" ||
-                          busyTarget.type === "travel")
-                      }
-                      onFile={(file) => void handleFileChange(view.requirement, file)}
-                      isZh={isZh}
-                      locale={locale}
-                      country={selectedApplication.country}
-                      visaType={selectedApplication.visaType}
-                      highlighted={highlightRequirementKey === view.requirement.key || highlightRequirementKey === key}
-                      secondaryAction={getTravelAiAction(view)}
-                      onReuseProfileDocument={
-                        REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType)
-                          ? () => void reuseProfileDocument(view.requirement)
-                          : undefined
-                      }
-                    />
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-border bg-white p-4 text-sm text-muted-foreground shadow-sm">
-                {isZh
-                  ? "该签证包暂未配置可选补充材料。"
-                  : "No optional supporting documents are configured for this visa package yet."}
-              </div>
-            )}
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
+              {optionalViews.map((view) => {
+                const key = getDocumentKey(view.requirement);
+                const savedProfileDocument = findReusableProfileDocument(
+                  view.requirement.documentType,
+                  data.reusableProfileDocuments ?? [],
+                );
+                return (
+                  <RequirementRow
+                    key={key}
+                    view={view}
+                    busy={
+                      busyTarget?.key === key &&
+                      (busyTarget.type === "upload" ||
+                        busyTarget.type === "remove" ||
+                        busyTarget.type === "travel")
+                    }
+                    onFile={(file) => void handleFileChange(view.requirement, file)}
+                    isZh={isZh}
+                    locale={locale}
+                    country={selectedApplication.country}
+                    visaType={selectedApplication.visaType}
+                    highlighted={highlightRequirementKey === view.requirement.key || highlightRequirementKey === key}
+                    secondaryAction={getTravelAiAction(view)}
+                    savedProfileDocument={savedProfileDocument}
+                    onReuseProfileDocument={
+                      REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType) && savedProfileDocument
+                        ? () => void reuseProfileDocument(view.requirement)
+                        : undefined
+                    }
+                    onRemove={
+                      view.document?.source === "application_documents"
+                        ? () => void removeFile(view.requirement)
+                        : undefined
+                    }
+                  />
+                );
+              })}
+            </div>
           </section>
           )}
       </div>

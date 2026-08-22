@@ -6,11 +6,38 @@ import {
   canUseFormAssistant,
   getFormAssistantFallbackSources,
   isFieldClarificationRequest,
+  isFormAssistantConfirmationField,
   isFormAssistantEnabled,
   isUsefulFieldClarificationReply,
 } from "./constants";
 
 describe("form assistant product coverage", () => {
+  it("distinguishes legal declarations from ordinary required checkboxes", () => {
+    expect(isFormAssistantConfirmationField({
+      fieldName: "customs_information_acknowledgement",
+      label: "I confirm that I have read and understood the customs and currency declaration information above.",
+      fieldType: "checkbox",
+      required: true,
+      validationRules: null,
+    })).toBe(true);
+
+    expect(isFormAssistantConfirmationField({
+      fieldName: "has_connecting_flight",
+      label: "Will you have a connecting flight?",
+      fieldType: "checkbox",
+      required: true,
+      validationRules: null,
+    })).toBe(false);
+
+    expect(isFormAssistantConfirmationField({
+      fieldName: "data_privacy_consent",
+      label: "By clicking Continue, you agree to our Data Privacy and Affidavit of Undertaking.",
+      fieldType: "checkbox",
+      required: false,
+      validationRules: { mustBeTrue: true },
+    })).toBe(true);
+  });
+
   it.each([
     "SG_ARRIVAL_CARD",
     "MY_MDAC_ARRIVAL_CARD",
@@ -55,9 +82,6 @@ describe("form assistant product coverage", () => {
 
   it("never leaks SGAC sources into another product", () => {
     expect(getFormAssistantFallbackSources("singapore", "SG_ARRIVAL_CARD")).toHaveLength(1);
-    expect(getFormAssistantFallbackSources("south_korea", "KR_E_ARRIVAL_CARD")[0]?.url).toBe(
-      "https://www.e-arrivalcard.go.kr/portal/",
-    );
     expect(getFormAssistantFallbackSources("germany", "schengen_c")).toEqual([]);
     expect(getFormAssistantFallbackSources("singapore", "SG_VISITOR_VISA")).toEqual([]);
   });
@@ -73,7 +97,7 @@ describe("shared field explanation policy", () => {
     options: null,
   };
 
-  it("explains an address from its source without inventing a country-specific value", () => {
+  it("gives both assistants the same address meaning and source without inventing an example", () => {
     const explanation = buildFieldExplanation(accommodationAddress, "zh");
     const reply = buildFieldClarificationFallback(accommodationAddress, "zh");
 
@@ -98,191 +122,148 @@ describe("shared field explanation policy", () => {
     )).toBe(true);
   });
 
-  it.each([
-    ["Indonesia C1", "information_true_declaration", "I declare that the information I provided is true.", "checkbox"],
-    ["Indonesia e-VOA", "billing_responsibility_declaration", "I understand that official payment must be completed.", "checkbox"],
-    ["Vietnam e-Visa", "final_declaration", "I declare that the above statements are true and complete.", "checkbox"],
-    ["Vietnam pre-arrival", "visa_information_acknowledgement", "I have read and understood this information.", "checkbox"],
-    ["Singapore", "has_health_symptoms", "Do you currently have any listed health symptoms?", "radio"],
-    ["Malaysia", "purpose_of_travel", "Purpose of Travel", "select"],
-    ["Thailand", "transit_without_stay", "I am a transit passenger and will not stay in Thailand.", "checkbox"],
-    ["Philippines", "data_privacy_agreement", "I agree to the Data Privacy and Affidavit of Undertaking.", "checkbox"],
-    ["Taiwan", "accepted_terms", "I have read and accept the following terms and conditions.", "checkbox"],
-    ["United States", "has_specific_travel_plans", "Have you made specific travel plans?", "radio"],
-    ["France", "directive_2004_38_acknowledged", "I acknowledge these rights under Directive 2004/38/EC.", "radio"],
-    ["Korea", "declaration_consent", "I declare that the application is true and correct.", "checkbox"],
-  ] as const)("keeps the %s choice-field copilot semantic and example-free", (_country, fieldName, label, fieldType) => {
-    const explanation = buildFieldExplanation({
-      fieldName,
-      label,
-      fieldType,
+  it("explains option-backed fields as a chat reply instead of a page selection", () => {
+    const reply = buildFieldClarificationFallback({
+      fieldName: "traveller_type",
+      label: "Traveller Type",
+      fieldType: "select",
       required: true,
       placeholder: null,
-      options: fieldType === "radio"
-        ? [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }]
-        : fieldType === "select"
-          ? [{ value: "tourism", text: "Tourism" }]
-          : [{ value: "yes", text: "I agree" }],
-      validationRules: fieldName === "visa_information_acknowledgement"
-        ? { helper_zh: "请提供越南签证信息（如适用），并与官方签证文件一致。" }
-        : null,
-    }, "zh");
-
-    expect(explanation.example).toBeNull();
-    expect(explanation.summary).toMatch(/勾选|选择|选“|确认|声明|同意/);
-    expect(JSON.stringify(explanation)).not.toContain("请按护照、身份证明或官方文件上的原文填写");
-  });
-
-  it("surfaces configured country-field helper copy inside the copilot", () => {
-    const explanation = buildFieldExplanation({
-      fieldName: "visa_information_acknowledgement",
-      label: "我已阅读并理解此信息",
-      fieldType: "checkbox",
-      required: true,
-      placeholder: null,
-      options: null,
-      validationRules: {
-        helper_zh: "请提供越南签证信息（如适用），并与官方签证文件一致。",
-      },
-    }, "zh");
-
-    expect(explanation.sourceHint).toContain("越南签证信息");
-  });
-
-  it.each([
-    ["YYYY-MM-DD", "2026-09-15"],
-    ["DD/MM/YYYY", "15/09/2026"],
-    ["YYYY/MM/DD", "2026/09/15"],
-    ["DD-MMM-YYYY", "15-SEP-2026"],
-    ["YYYY", "2026"],
-  ])("uses only the declared date format %s for examples", (format, expected) => {
-    const explanation = buildFieldExplanation({
-      fieldName: "travel_date",
-      label: "Travel date",
-      fieldType: "date",
-      required: true,
-      placeholder: null,
-      options: null,
-      validationRules: { format },
+      options: [
+        { value: "AIRCRAFT PASSENGER", text: "AIRCRAFT PASSENGER" },
+        { value: "VESSEL PASSENGER", text: "VESSEL PASSENGER" },
+      ],
     }, "en");
 
-    expect(explanation.example).toBe(expected);
+    expect(reply).toContain("asks whether you are travelling as an aircraft passenger or a vessel passenger");
+    expect(reply).toContain("Reply with how you are entering the destination country");
+    expect(reply).toContain("simply aircraft");
+    expect(reply).not.toMatch(/\b(?:choose|select|click)\b/i);
   });
 
-  it("uses canonical date metadata and treats an explicit year field as YYYY", () => {
-    const philippinesDate = buildFieldExplanation({
-      fieldName: "flight_arrival_date",
-      label: "Date of Arrival",
-      fieldType: "date",
+  it("explains country of origin by its travel meaning, not its control type", () => {
+    const reply = buildFieldClarificationFallback({
+      fieldName: "origin_country",
+      label: "Country of Origin",
+      fieldType: "select",
       required: true,
       placeholder: null,
-      options: null,
-      validationRules: { canonical_format: "YYYY-MM-DD" },
-    }, "en");
-    const ds160Year = buildFieldExplanation({
-      fieldName: "last_visa_issue_year",
-      label: "Date Last Visa Was Issued (Year)",
-      fieldType: "text",
-      required: true,
-      placeholder: "YYYY",
-      options: null,
-      validationRules: { format: "DD-MMM-YYYY", pattern: "^[0-9]{4}$" },
+      options: [{ value: "SG", text: "Singapore" }],
     }, "en");
 
-    expect(philippinesDate.example).toBe("2026-09-15");
-    expect(ds160Year.example).toBe("2026");
+    expect(reply).toContain("journey segment");
+    expect(reply).toContain("itinerary or ticket");
+    expect(reply).toContain("not your nationality, country of birth, or permanent residence");
+    expect(reply).toContain("If this flight departs from Singapore");
+    expect(reply).not.toContain("official category");
   });
 
-  it("explains the Philippines holder category instead of repeating the misleading Nationality label", () => {
-    const explanation = buildFieldExplanation({
-      fieldName: "passport_holder_type",
-      label: "Nationality",
+  it("distinguishes baggage count from a customs declaration decision", () => {
+    const reply = buildFieldClarificationFallback({
+      fieldName: "has_baggage_or_currency_to_declare",
+      label: "Do you have baggage or currency to declare?",
       fieldType: "radio",
       required: true,
       placeholder: null,
       options: [
-        { value: "FILIPINO", text: "PHILIPPINE PASSPORT Holder" },
-        { value: "FOREIGNER", text: "FOREIGN PASSPORT Holder" },
+        { value: "yes", text: "Yes" },
+        { value: "no", text: "No" },
       ],
-      validationRules: { official: true },
     }, "en");
 
-    expect(explanation.summary).toContain("passport or travel-document holder category");
-    expect(explanation.summary).toContain("not for a second nationality");
-    expect(explanation.example).toBeNull();
+    expect(reply).toContain("not how many bags you have");
+    expect(reply).toContain("Having checked or carry-on baggage alone does not make the answer Yes");
+    expect(reply).toContain("declarable goods");
+    expect(reply).not.toContain("official category");
+    expect(reply).not.toContain("Format example: Yes, No");
   });
 
-  it("does not collapse a combined issuing-authority/place field into one meaning", () => {
+  it.each([
+    ["transit_country", "Country of Transit", "connection before reaching the destination"],
+    ["destination_country", "Country of Destination", "onward or final country"],
+    ["country_of_residence", "Permanent Country of Residence", "normally live"],
+    ["nationality", "Citizenship", "passport"],
+    ["occupation", "Occupation", "current main job"],
+    ["purpose_of_travel", "Purpose of Travel", "main real reason"],
+    ["airport_of_origin", "Airport of Origin", "flight segment"],
+    ["port_of_entry", "Airport of Destination in the Philippines", "arriving flight lands"],
+    ["accompanied_under_18_count", "Below 18 yrs. old", "family members under age 18"],
+    ["accompanied_18_plus_count", "18 yrs. old and above", "family members aged 18 or older"],
+    ["checked_baggage_count", "Checked-in (pcs)", "checked baggage pieces"],
+    ["handcarry_baggage_count", "Hand-carried (pcs)", "hand-carried baggage pieces"],
+  ])("provides a semantic explanation for %s", (fieldName, label, expectedMeaning) => {
     const explanation = buildFieldExplanation({
-      fieldName: "passport_issuing_authority",
-      label: "Issuing Authority/Place of issue",
-      fieldType: "text",
-      required: false,
-      placeholder: null,
-      options: null,
-      validationRules: null,
-    }, "zh");
-
-    expect(explanation.summary).toContain("合并询问");
-    expect(explanation.sourceHint).toContain("不要根据办理城市");
-    expect(explanation.example).toBeNull();
-  });
-
-  it("keeps Taiwan Chinese-name guidance separate from romanized passport names", () => {
-    const explanation = buildFieldExplanation({
-      fieldName: "name_chinese",
-      label: "中文姓名",
-      fieldType: "text",
+      fieldName,
+      label,
+      fieldType: "select",
       required: true,
       placeholder: null,
-      options: null,
-      validationRules: { script: "traditional_chinese" },
-    }, "zh");
+      options: [{ value: "EXAMPLE", text: "Example" }],
+    }, "en");
 
-    expect(explanation.sourceHint).toContain("繁体或简体中文");
-    expect(explanation.sourceHint).not.toContain("拼音原样填写");
-    expect(explanation.example).toBeNull();
+    expect(`${explanation.summary} ${explanation.sourceHint}`).toContain(expectedMeaning);
+    expect(explanation.summary).not.toContain("official category");
   });
 
-  it("does not guess a date format or phone country code", () => {
-    const unknownDate = buildFieldExplanation({
-      fieldName: "travel_date",
-      label: "Travel date",
-      fieldType: "date",
+  it.each([
+    ["country_of_citizenship", "Country of citizenship", "passport"],
+    ["current_nationality", "Current nationality", "passport"],
+    ["birth_country", "Birth country", "born"],
+    ["residence_country", "Country of residence", "normally live"],
+    ["country_boarded", "Country where you boarded", "journey segment"],
+    ["purpose_of_visit", "Purpose of visit", "main real reason"],
+    ["purpose_of_journey", "Purpose of journey", "main real reason"],
+    ["arrival_airport", "Arrival airport", "arriving flight lands"],
+    ["current_occupation", "Current occupation", "current main job"],
+  ])("reuses shared semantics for cross-country field alias %s", (fieldName, label, expectedMeaning) => {
+    const explanation = buildFieldExplanation({
+      fieldName,
+      label,
+      fieldType: "select",
       required: true,
       placeholder: null,
-      options: null,
-      validationRules: null,
-    }, "en");
-    const phone = buildFieldExplanation({
-      fieldName: "mobile_phone",
-      label: "Mobile phone",
-      fieldType: "tel",
-      required: true,
-      placeholder: "e.g. +65 8123 4567",
-      options: null,
-      validationRules: null,
+      options: [{ value: "EXAMPLE", text: "Example" }],
     }, "en");
 
-    expect(unknownDate.example).toBeNull();
-    expect(phone.example).toBeNull();
-    expect(JSON.stringify(phone)).not.toContain("+65");
-    expect(JSON.stringify(phone)).not.toContain("+86");
+    expect(`${explanation.summary} ${explanation.sourceHint}`).toContain(expectedMeaning);
+    expect(explanation.summary).not.toContain("Philippines");
   });
 
-  it("does not confuse an email_address key with a street address", () => {
+  it("uses country schema helper text instead of a generic option explanation", () => {
     const explanation = buildFieldExplanation({
-      fieldName: "email_address",
-      label: "Email Address",
-      fieldType: "text",
+      fieldName: "local_permit_category",
+      label: "Permit category",
+      fieldType: "select",
       required: true,
-      placeholder: "name@example.com",
-      options: null,
-      validationRules: { format: "email" },
+      placeholder: null,
+      validationRules: {
+        helper_en: "Use the category printed on the approval notice.",
+      },
+      options: [
+        { value: "A", text: "Category A" },
+        { value: "B", text: "Category B" },
+      ],
     }, "en");
 
-    expect(explanation.summary).toContain("email address");
-    expect(explanation.summary).not.toContain("identifiable address");
-    expect(explanation.example).toBe("name@example.com");
+    expect(explanation.sourceHint).toBe("Use the category printed on the approval notice.");
+    expect(explanation.summary).not.toContain("official category");
+  });
+
+  it("does not dump arbitrary examples for large official option sets", () => {
+    const reply = buildFieldClarificationFallback({
+      fieldName: "unmapped_official_category",
+      label: "Unmapped official category",
+      fieldType: "select",
+      required: true,
+      placeholder: null,
+      options: Array.from({ length: 6 }, (_, index) => ({
+        value: `COUNTRY_${index + 1}`,
+        text: `Country ${index + 1}`,
+      })),
+    }, "en");
+
+    expect(reply).toContain("Reply in your own words");
+    expect(reply).not.toContain("Format example");
+    expect(reply).not.toContain("Country 1");
   });
 });

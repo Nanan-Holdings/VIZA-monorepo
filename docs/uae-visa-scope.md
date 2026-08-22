@@ -4,7 +4,7 @@
 
 **Status:** Official-source ICP transaction reconstruction; authenticated UAE Pass QA required
 
-**Last audited:** 2026-08-16
+**Last audited:** 2026-08-18
 
 **Compatibility VIZA visa type:** `AE_TOURIST_VISA`
 
@@ -91,23 +91,24 @@ slots as metadata on nationality; it does not define file fields.
 | --- | --- |
 | `passport_bio_page` | Required; passport valid for at least six months |
 | `personal_photo` | Required |
-| `six_month_bank_statement` | Required; official threshold is USD 4,000 or equivalent balance |
-| `uae_health_coverage_evidence` | Required; UAE-issued coverage valid for 180 days |
+| `six_month_bank_statement` | Required; official, stamped, signed, colored statement covering six months and showing at least USD 4,000 (or equivalent) in each month |
+| `uae_health_coverage_evidence` | Required; medical-insurance evidence issued in the United Arab Emirates and valid for at least 180 days |
 | `return_or_onward_ticket` | Required |
-| `uae_accommodation_evidence` | Required |
-| `national_identity_copy` | Required only when `current_nationality` is `Afghanistan`, `Iran`, or `Iraq`, according to the current ICP service card |
-
-The conditional document rule deliberately uses the stored country names, not
-ISO codes:
-
-```text
-current_nationality === Afghanistan ||
-current_nationality === Iran ||
-current_nationality === Iraq
-```
+| `uae_accommodation_evidence` | Conditional only if the authenticated transaction-783 form requests it for the entered data; it is not listed in the public service-card requirements |
+| `national_identity_copy` | Optional on the public service card; require only if the authenticated form requests it for the entered data |
 
 Document upload status, replacement, OCR, storage paths, and server-side file
 identity remain Document Center concerns.
+
+An uploaded filename is not proof that these content rules are met. Before an
+authenticated transaction-783 session may open, the submission runner requires
+`validated`, `accepted`, or `approved` status plus a valid review timestamp and
+the exact content findings under the document metadata namespace
+`ae_transaction_783_evidence_review`. For a bank statement the audited keys are
+`statement_months`, `minimum_monthly_balance_usd_equivalent`, `official`,
+`stamped`, `signed`, and `colored`. For insurance they are `issuer_country` and
+`validity_days`. Missing or stale review metadata stops at
+`document_content_review`; file presence alone never clears the gate.
 
 ## 5. Workflow-only controls
 
@@ -120,17 +121,43 @@ These controls and records are intentionally absent from `visa_form_fields`:
 - official fees, smart-service charges, payment methods, cards, and receipts
 - review-screen state, application status, and official transaction/session IDs
 
-The current public ICP service card lists application, issuance, smart-service,
-guarantee, and deposit charges. VIZA must treat those as official-fee workflow
-records and must not promise a final total before the authenticated checkout.
+The public service card updated 2025-02-16 lists the following AED components:
+
+| Component | Listed amount |
+| --- | ---: |
+| Request | AED 100 |
+| Issue | AED 500 |
+| Security deposit | AED 3,025 |
+| E-services | AED 28 |
+| ICP fees | AED 22 |
+| Smart Services | AED 100 |
+| **Listed total** | **AED 3,775** |
+
+The service card warns that fees may vary with entered data. Health-insurance
+fees and deposits are refundable only when the main application is rejected;
+the security deposit is refunded after visa cancellation or expiry. VIZA must
+store these as separate official-fee/deposit workflow records, verify the live
+AED breakdown at checkout, and never treat the public total as an immutable
+charge quote.
 
 ## 6. Authentication-gated fields and QA policy
 
 The public service card establishes the product, requirements, and eligibility.
-The Smart Services request itself requires UAE Pass/login, and its lookup API
-rejects unauthenticated requests. Public official client templates therefore
-give high-confidence semantic fields but not a complete transaction-783
-requiredness/options snapshot.
+The current transaction-783 route renders the exact product plus the four-step
+progress shell (`Request Information`, `Attachments Info`, `Review
+Application`, `Application Fees`) but exposes no applicant inputs, file inputs,
+or start control to a guest session. UAE Pass/login is therefore the next
+verified boundary, and the lookup API rejects unauthenticated requests. Public
+official client templates give high-confidence semantic fields but not a
+complete transaction-783 requiredness/options snapshot.
+
+The login page offers `Sign in with UAE PASS` and `Use Other Login Option`, but
+ordinary Smart Services username registration is limited to UAE/GCC
+citizens/residents, corporate-guarantor files, establishments, and typing
+centers. An ordinary foreign tourist must therefore use an authorized UAE PASS
+session or an explicitly eligible provider session. VIZA must not create a
+generic username account or collect UAE PASS credentials as application
+answers.
 
 Fields backed by authentication-gated lookups or configuration carry:
 

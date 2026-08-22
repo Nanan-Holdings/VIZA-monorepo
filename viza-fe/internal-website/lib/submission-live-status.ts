@@ -1,6 +1,12 @@
 import "server-only";
 
 import type { createAdminClient } from "@/lib/supabase/admin";
+import {
+  STATUS_VISIBLE_RUNNER_FLOWS,
+  presentRunnerJobStatus,
+  statusVisibleRunnerFlowForApplication,
+  type StatusVisibleRunnerFlow,
+} from "@/lib/status/runner-job-visibility";
 
 export type LiveSubmissionState =
   | "pending"
@@ -73,11 +79,18 @@ type QueueRow = {
 type RunnerJobRow = {
   id: string;
   application_id: string;
+  country: string;
   status: string;
   last_error: string | null;
   enqueued_at: string | null;
   started_at: string | null;
   finished_at: string | null;
+};
+
+type ApplicationProductRow = {
+  id: string;
+  country: string | null;
+  visa_type: string | null;
 };
 
 type ManualActionRow = {
@@ -143,6 +156,7 @@ const LIVE_ACTION_STATUSES = new Set([
   "blocked",
   "action_required",
   "manual_action_required",
+  "needs_human",
   "vn_blocked",
   "ds160_blocked",
   "france_blocked",
@@ -243,14 +257,6 @@ function deriveState(row: QueueRow, pendingManualAction: LiveManualActionSummary
   return row.mode === "live_assisted" ? "running" : "pending";
 }
 
-function deriveRunnerState(statusValue: string): LiveSubmissionState {
-  const status = normalizeStatus(statusValue);
-  if (status === "queued" || status === "paused") return "pending";
-  if (status === "running") return "running";
-  if (status === "succeeded") return "completed";
-  return "failed";
-}
-
 function normalizeAction(row: ManualActionRow, sourceTable: string): LiveManualActionSummary {
   return {
     id: row.id,
@@ -264,6 +270,48 @@ function normalizeAction(row: ManualActionRow, sourceTable: string): LiveManualA
     completedAt: row.completed_at,
     expiresAt: row.expires_at,
     sourceTable,
+  };
+}
+
+export function runnerJobToLiveSubmissionSummary(
+  row: RunnerJobRow,
+  flow: StatusVisibleRunnerFlow,
+): LiveSubmissionSummary {
+  // This loader does not read persisted application results, so tourist
+  // `succeeded` rows deliberately stay at the safe-checkpoint state. The
+  // application status route can promote them only with independent proof.
+  const presentation = presentRunnerJobStatus(row.status, flow);
+  const runnerUpdatedAt = row.finished_at ?? row.started_at ?? row.enqueued_at;
+  const normalizedRunnerStatus = normalizeStatus(row.status);
+  return {
+    jobId: row.id,
+    applicationId: row.application_id,
+    status: flow.singaporeArrivalCard ? row.status : presentation.queueStatus,
+    state: presentation.state,
+    mode: "live_assisted",
+    provider: presentation.provider,
+    currentStage: flow.singaporeArrivalCard
+      ? normalizedRunnerStatus === "running"
+        ? "official_portal_submission"
+        : normalizedRunnerStatus === "queued"
+          ? "waiting_for_singapore_runner"
+          : null
+      : presentation.currentStage,
+    liveCheckpoint: null,
+    manualActionStatus: flow.singaporeArrivalCard
+      ? null
+      : presentation.manualActionStatus,
+    errorCode: null,
+    errorMessage: row.last_error,
+    officialPortalUrl: null,
+    officialStatus: presentation.officialStatus,
+    paymentStatus: null,
+    officialReference: null,
+    liveSubmittedAt: flow.singaporeArrivalCard ? row.finished_at : null,
+    updatedAt: runnerUpdatedAt,
+    createdAt: row.enqueued_at,
+    pendingManualAction: null,
+    manualActions: [],
   };
 }
 
@@ -313,23 +361,45 @@ export async function loadLiveSubmissionSummaries(
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(500);
 
-  if (error) {
-    if (isSchemaMissingError(error)) return new Map();
+  if (error && !isSchemaMissingError(error)) {
     throw new Error(error.message);
   }
 
-  const { data: runnerData, error: runnerError } = await adminClient
-    .from("runner_job")
-    .select("id, application_id, status, last_error, enqueued_at, started_at, finished_at")
-    .in("application_id", applicationIds)
-    .eq("country", "singapore")
-    .order("enqueued_at", { ascending: false, nullsFirst: false })
-    .limit(500);
+  const { data: applicationData, error: applicationError } = await adminClient
+    .from("applications")
+    .select("id, country, visa_type")
+    .in("id", applicationIds);
+  if (applicationError) throw new Error(applicationError.message);
+
+  const runnerFlowByApplication = new Map<string, StatusVisibleRunnerFlow>();
+  for (const application of (applicationData ?? []) as ApplicationProductRow[]) {
+    const flow = statusVisibleRunnerFlowForApplication(
+      application.country,
+      application.visa_type,
+    );
+    if (flow) runnerFlowByApplication.set(application.id, flow);
+  }
+  const eligibleRunnerApplicationIds = [...runnerFlowByApplication.keys()];
+  const runnerResult = eligibleRunnerApplicationIds.length > 0
+    ? await adminClient
+        .from("runner_job")
+        .select(
+          "id, application_id, country, status, last_error, enqueued_at, started_at, finished_at",
+        )
+        .in("application_id", eligibleRunnerApplicationIds)
+        .in(
+          "country",
+          STATUS_VISIBLE_RUNNER_FLOWS.map((flow) => flow.country),
+        )
+        .order("enqueued_at", { ascending: false, nullsFirst: false })
+        .limit(500)
+    : { data: [], error: null };
+  const { data: runnerData, error: runnerError } = runnerResult;
   if (runnerError && !isSchemaMissingError(runnerError)) {
     throw new Error(runnerError.message);
   }
 
-  const liveRows = ((data ?? []) as QueueRow[]).filter(isLiveQueue);
+  const liveRows = (error ? [] : ((data ?? []) as QueueRow[])).filter(isLiveQueue);
   const jobIds = liveRows.map((row) => row.id);
   const actionGroups = new Map<string, LiveManualActionSummary[]>();
 
@@ -406,7 +476,11 @@ export async function loadLiveSubmissionSummaries(
   }
 
   const latestRunnerByApplication = new Map<string, RunnerJobRow>();
-  for (const row of ([...(runnerData ?? [])] as RunnerJobRow[]).sort((a, b) =>
+  const visibleRunnerRows = ((runnerData ?? []) as RunnerJobRow[]).filter((row) => {
+    const flow = runnerFlowByApplication.get(row.application_id);
+    return flow?.country === row.country;
+  });
+  for (const row of [...visibleRunnerRows].sort((a, b) =>
     compareByNewest(
       { updated_at: a.finished_at ?? a.started_at, created_at: a.enqueued_at },
       { updated_at: b.finished_at ?? b.started_at, created_at: b.enqueued_at },
@@ -425,33 +499,9 @@ export async function loadLiveSubmissionSummaries(
     if (existing && Number.isFinite(existingMs) && (!Number.isFinite(runnerMs) || existingMs > runnerMs)) {
       continue;
     }
-    summaries.set(applicationId, {
-      jobId: row.id,
-      applicationId,
-      status: row.status,
-      state: deriveRunnerState(row.status),
-      mode: "live_assisted",
-      provider: "sg_arrival_card_runner_job",
-      currentStage:
-        normalizeStatus(row.status) === "running"
-          ? "official_portal_submission"
-          : normalizeStatus(row.status) === "queued"
-            ? "waiting_for_singapore_runner"
-            : null,
-      liveCheckpoint: null,
-      manualActionStatus: null,
-      errorCode: null,
-      errorMessage: row.last_error,
-      officialPortalUrl: null,
-      officialStatus: normalizeStatus(row.status) === "succeeded" ? "submitted" : null,
-      paymentStatus: null,
-      officialReference: null,
-      liveSubmittedAt: row.finished_at,
-      updatedAt: runnerUpdatedAt,
-      createdAt: row.enqueued_at,
-      pendingManualAction: null,
-      manualActions: [],
-    });
+    const flow = runnerFlowByApplication.get(applicationId);
+    if (!flow) continue;
+    summaries.set(applicationId, runnerJobToLiveSubmissionSummary(row, flow));
   }
 
   return summaries;

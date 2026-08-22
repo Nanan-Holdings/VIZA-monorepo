@@ -35,8 +35,8 @@ async function main() {
     ),
   ]);
   console.log(JSON.stringify(result, null, 2));
-  if (result.status === "stopped_before_pay") {
-    console.log("✅ runner reached the pre-pay checkpoint");
+  if (result.status === "stopped_before_official_record") {
+    console.log("✅ runner reached the pre-application checkpoint");
     process.exit(0);
   }
   console.error(`❌ ${result.status} — ${result.reason}`);

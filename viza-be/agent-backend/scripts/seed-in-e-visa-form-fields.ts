@@ -7,7 +7,7 @@
  * year, or five years. Business, medical, attendant, conference, transit,
  * student, family, and mountaineering services require separate products.
  *
- * Sources checked 2026-08-16:
+ * Sources checked 2026-08-18:
  * - https://indianvisaonline.gov.in/evisa/Registration
  * - https://indianvisaonline.gov.in/evisa/images/SampleForm.pdf
  * - https://indianvisaonline.gov.in/evisa/
@@ -214,18 +214,38 @@ const PAKISTAN_ANCESTRY = "has_pakistan_parent_or_grandparent_history === yes";
 const VISITED_INDIA = "visited_india_before === yes";
 const INDIA_PERMISSION_REFUSED = "india_permission_previously_refused === yes";
 const VISITED_SAARC = "visited_saarc_last_three_years === yes";
+const RECENT_EBOLA_REGION_VISIT =
+  "visited_drc_uganda_south_sudan_last_21_days === yes";
+const CLEARED_EBOLA_EXIT_WINDOW =
+  "visited_drc_uganda_south_sudan_last_21_days === yes && completed_21_days_after_exit === yes";
+const RECENT_EBOLA_SYMPTOMS =
+  "visited_drc_uganda_south_sudan_last_21_days === yes && completed_21_days_after_exit === yes && ebola_symptoms_last_21_days === yes";
 
 const FIELDS: FieldDef[] = [
-  // Step 1 — public registration screen. Duplicate-email confirmation and
-  // CAPTCHA are UI/session controls and deliberately not answer fields.
-  { field_name: "nationality", label: "Nationality/region", field_type: "country", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 1, validation_rules: { source: "official-evisa-nationality-list", official_field: "appl.nationality" } },
-  { field_name: "passport_type", label: "Passport type", field_type: "select", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 2, options: [{ value: "1", text: "Ordinary Passport" }], validation_rules: { official_field: "appl.ppt_type_id", note: "Non-ordinary passport holders are not eligible for this product." } },
-  { field_name: "port_of_arrival", label: "Port of arrival", field_type: "select", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 3, options: PORT_OPTIONS, validation_rules: { official_field: "appl.missioncode", official_values_preserved: true } },
-  { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 4, validation_rules: { format: "DD/MM/YYYY", official_field: "appl.birthdate" } },
-  { field_name: "email_address", label: "Email address", field_type: "text", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 5, validation_rules: { maxLength: 50, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", official_field: "appl.email" } },
-  { field_name: "tourist_validity", label: "e-Tourist Visa validity", field_type: "radio", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 6, options: TOURIST_VALIDITY_OPTIONS, validation_rules: { official_service_ids: { "30_days": "31", "1_year": "3", "5_years": "32" } } },
-  { field_name: "tourist_purpose", label: "Purpose of the e-Tourist visit", field_type: "select", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 7, options: TOURIST_PURPOSE_OPTIONS, validation_rules: { official_field: "evisa_purpose", official_purpose_ids_by_validity: { "30_days": { recreation_sightseeing: "251", meeting_friends_relatives: "252", short_term_yoga: "253", short_term_course: "259", voluntary_work: "260" }, "1_year": { recreation_sightseeing: "21", meeting_friends_relatives: "22", short_term_yoga: "23", short_term_course: "257", voluntary_work: "258" }, "5_years": { recreation_sightseeing: "254", meeting_friends_relatives: "255", short_term_yoga: "256", short_term_course: "261", voluntary_work: "262" } } } },
-  { field_name: "expected_arrival_date", label: "Expected date of arrival", field_type: "date", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 8, validation_rules: { format: "DD/MM/YYYY", official_field: "appl.journeydate" } },
+  // Step 1 — live public eligibility gate plus registration screen.
+  // The 2026-08 gate posts passport/name/nationality and the screening answer
+  // to /evisa/json/saveGateKeep before enabling the main registration form.
+  // CAPTCHA and duplicate-email confirmation remain UI/session controls.
+  { field_name: "visited_drc_uganda_south_sudan_last_21_days", label: "Have you visited the Democratic Republic of Congo, Uganda, or South Sudan in the last 21 days?", field_type: "radio", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 1, options: YES_NO, validation_rules: { official_field: "gatekeeper.q1", live_checked: "2026-08-18" } },
+  { field_name: "completed_21_days_after_exit", label: "Have 21 days passed since you exited that territory?", field_type: "radio", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 2, options: YES_NO, conditional_logic: { showIf: RECENT_EBOLA_REGION_VISIT }, validation_rules: { official_field: "gatekeeper.q2", blocking_value: "no" } },
+  { field_name: "ebola_symptoms_last_21_days", label: "In the last 21 days, have you had any listed symptoms or suffered from Ebola disease?", field_type: "radio", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 3, options: YES_NO, conditional_logic: { showIf: CLEARED_EBOLA_EXIT_WINDOW }, validation_rules: { official_field: "gatekeeper.q3" } },
+  { field_name: "ebola_symptom", label: "Select the symptom", field_type: "select", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 4, conditional_logic: { showIf: RECENT_EBOLA_SYMPTOMS }, options: [
+    { value: "Fever", text: "Fever" },
+    { value: "Muscle pain", text: "Muscle pain" },
+    { value: "Headache", text: "Headache" },
+    { value: "Vomiting", text: "Vomiting" },
+    { value: "Diarrhea", text: "Diarrhea" },
+    { value: "Sore throat", text: "Sore throat" },
+    { value: "Rash", text: "Rash" },
+  ], validation_rules: { official_field: "gatekeeper.symptom", blocking_when_present: true } },
+  { field_name: "nationality", label: "Nationality/region", field_type: "country", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 10, validation_rules: { source: "official-evisa-nationality-list", official_field: "appl.nationality" } },
+  { field_name: "passport_type", label: "Passport type", field_type: "select", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 11, options: [{ value: "1", text: "Ordinary Passport" }], validation_rules: { official_field: "appl.ppt_type_id", note: "Non-ordinary passport holders are not eligible for this product." } },
+  { field_name: "port_of_arrival", label: "Port of arrival", field_type: "select", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 12, options: PORT_OPTIONS, validation_rules: { official_field: "appl.missioncode", official_values_preserved: true } },
+  { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 13, validation_rules: { format: "DD/MM/YYYY", official_field: "appl.birthdate" } },
+  { field_name: "email_address", label: "Email address", field_type: "text", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 14, validation_rules: { maxLength: 50, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", official_field: "appl.email" } },
+  { field_name: "tourist_validity", label: "e-Tourist Visa validity", field_type: "radio", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 15, options: TOURIST_VALIDITY_OPTIONS, validation_rules: { official_service_ids: { "30_days": "31", "1_year": "3", "5_years": "32" } } },
+  { field_name: "tourist_purpose", label: "Purpose of the e-Tourist visit", field_type: "select", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 16, options: TOURIST_PURPOSE_OPTIONS, validation_rules: { official_field: "evisa_purpose", official_purpose_ids_by_validity: { "30_days": { recreation_sightseeing: "251", meeting_friends_relatives: "252", short_term_yoga: "253", short_term_course: "259", voluntary_work: "260" }, "1_year": { recreation_sightseeing: "21", meeting_friends_relatives: "22", short_term_yoga: "23", short_term_course: "257", voluntary_work: "258" }, "5_years": { recreation_sightseeing: "254", meeting_friends_relatives: "255", short_term_yoga: "256", short_term_course: "261", voluntary_work: "262" } } } },
+  { field_name: "expected_arrival_date", label: "Expected date of arrival", field_type: "date", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 17, validation_rules: { format: "DD/MM/YYYY", official_field: "appl.journeydate" } },
 
   // Step 2 — applicant and travel-document details.
   { field_name: "surname", label: "Surname / family name, exactly as in your passport", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 1, validation_rules: { maxLength: 50 } },
@@ -318,7 +338,7 @@ const FIELDS: FieldDef[] = [
   { field_name: "expressed_support_for_terrorist_violence_details", label: "Give details", field_type: "textarea", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 10, conditional_logic: { showIf: "expressed_support_for_terrorist_violence === yes" }, validation_rules: { maxLength: 1500 } },
   { field_name: "sought_asylum", label: "Have you sought asylum, political or otherwise, in any country?", field_type: "radio", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 11, options: YES_NO },
   { field_name: "sought_asylum_details", label: "Give details", field_type: "textarea", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 12, conditional_logic: { showIf: "sought_asylum === yes" }, validation_rules: { maxLength: 1500 } },
-  { field_name: "final_declaration", label: "I declare that the information furnished is correct to the best of my knowledge and belief, and I understand that false information may result in legal action, deportation, or blacklisting.", field_type: "checkbox", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 13, options: [{ value: "yes", text: "I agree" }] },
+  { field_name: "final_declaration", label: "I declare that the information furnished is correct to the best of my knowledge and belief, and I understand that false information may result in legal action, deportation, or blacklisting.", field_type: "checkbox", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 13, options: [{ value: "yes", text: "I agree" }], validation_rules: { mustBeTrue: true } },
 ];
 
 async function seed() {

@@ -20,7 +20,41 @@ Scope: this file applies to `lib/form-assistant/**`.
 - Ask the current field in concise, supportive language that explains the
   expected answer with a useful example or reviewed choices when appropriate.
   SGAC-specific copy must only be used for SGAC; other products use their own
-  localized schema labels and exact options.
+  localized schema labels and exact options. Do not mechanically prepend
+  “What is your” to terse official labels; count and quantity fields must ask
+  explicitly what is being counted and say when `0` is a valid none answer.
+- Shared semantic explanations must be destination-neutral. Common schema
+  aliases such as `country_of_citizenship`, `current_nationality`,
+  `purpose_of_visit`, and `arrival_airport` reuse one meaning without naming a
+  different country. Prefer reviewed `validation_rules.helper_en/helper_zh`
+  when a country schema supplies more specific guidance.
+- Use `isFormAssistantConfirmationField` in both orchestration and UI mapping
+  so legal declarations render as inline confirmation controls without
+  converting ordinary required boolean fields into declarations.
+- Confirmation actions are idempotent across stale tabs: if the exact declared
+  field is already true, return the current missing-field state without writing
+  duplicate chat messages or rejecting the old checkbox action.
+- Treat option-backed fields as chat questions, not visible form controls.
+  Clarifications must ask the applicant to reply in their own words and must
+  not tell them to select, click, or find an option. Resolve unique reviewed
+  aliases and unique short label terms deterministically to the exact stored
+  option value. When an answer identifies a shared entity but matches several
+  official variants, acknowledge what was identified and ask only for the
+  missing discriminator (for example, the NAIA terminal). A still-unmatched
+  answer must receive useful chat guidance, not the identical field question
+  again.
+- Model turns use a semantic decision contract, not labels and option strings
+  alone. Send the current field's reviewed meaning, guidance, answer policy,
+  allowlisted official contract metadata, and relevant answers from any schema
+  step. Related-answer selection must prefer explicit schema relationships,
+  groups, dependencies, and shared semantic context without dumping the whole
+  application into the prompt.
+- Classify model turns as `answer`, `clarification`, `related_answer`,
+  `correction`, or `unclear`. When no patch is safe, preserve a useful targeted
+  model follow-up instead of replacing it with generic “official value” copy.
+  A related fact must not be treated as proof of a legal or customs conclusion;
+  for example, baggage count does not establish that baggage contents require
+  declaration.
 - Hierarchical official options may use unique comma-delimited segments as
   natural-language aliases (for example `长沙` for
   `CHINA, HUNAN, CHANGSHA`). Apply a value only when the full option set has
@@ -63,5 +97,6 @@ npx vitest run lib/form-assistant/bootstrap.test.ts
 npx vitest run lib/form-assistant/constants.test.ts
 npx vitest run lib/form-assistant/review-issues.test.ts
 npx vitest run lib/form-assistant/service.test.ts
+npm run qa:audit-schema-ui -- --summary --assistant
 npm run type-check
 ```

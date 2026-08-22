@@ -51,7 +51,7 @@ async function preparePayload(
   applicationId: string,
   jobId: string,
   flow: AutomatedPortalPoolFlow,
-): Promise<{ payload: SubmissionPayload; applicantId: string }> {
+): Promise<{ payload: SubmissionPayload; applicantId: string; cleanupDocuments: () => Promise<void> }> {
   const context = await loadCountrySubmissionContext(applicationId);
   const managedAlias = await ensureApplicationInboxAlias(applicationId, context.profile.id);
   await assertInboxAliasDomainRoutable(managedAlias.alias);
@@ -63,9 +63,11 @@ async function preparePayload(
     alias_email_address: managedAlias.alias,
     email_address: managedAlias.alias,
   };
-  const applicationDocumentPaths = flow === "ke_eta"
+  const documentLease = flow === "ke_eta"
     ? await resolveApplicationDocumentPaths(applicationId)
-    : new Map<string, string>();
+    : null;
+  const applicationDocumentPaths = documentLease?.paths ?? new Map<string, string>();
+  try {
   const attachments = {
     passportBioPage: applicationDocumentPaths.get("passport_copy")
       ?? applicationDocumentPaths.get("passport_bio_page")
@@ -113,7 +115,12 @@ async function preparePayload(
   return {
     payload: mappedPayload,
     applicantId: context.profile.id,
+    cleanupDocuments: documentLease?.cleanup ?? (async () => {}),
   };
+  } catch (error) {
+    await documentLease?.cleanup();
+    throw error;
+  }
 }
 
 async function persistFiles(
@@ -304,8 +311,11 @@ export async function runAutomatedPortalPoolFlow(
   const poolIdentity = requirePoolExecutionIdentity(executionContext, jobId, "Automated portal pool execution");
   const owned = poolIdentity.executionContext;
   const identity = flowIdentity(flow);
+  let cleanupDocuments = async (): Promise<void> => {};
   try {
-    const { payload, applicantId } = await preparePayload(applicationId, jobId, flow);
+    const prepared = await preparePayload(applicationId, jobId, flow);
+    cleanupDocuments = prepared.cleanupDocuments;
+    const { payload, applicantId } = prepared;
     owned.assertOwned();
     const portal = await executePortal(flow, payload, owned, applicantId);
     owned.assertOwned();
@@ -366,5 +376,7 @@ export async function runAutomatedPortalPoolFlow(
     await writeRunnerPoolSubmissionResult(owned, failure, "failed");
     if (detail.retryable) throw new RetryableRunnerError(detail.message);
     throw new NeedsHumanError(detail.message);
+  } finally {
+    await cleanupDocuments();
   }
 }

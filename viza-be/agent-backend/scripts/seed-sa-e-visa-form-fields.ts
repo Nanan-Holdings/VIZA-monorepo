@@ -67,6 +67,10 @@ const GENDER_OPTIONS = [
   { value: "female", text: "Female" },
 ];
 
+const PASSPORT_TYPE_OPTIONS = [
+  { value: "regular", text: "Regular Passport" },
+];
+
 const ACCOMMODATION_OPTIONS = [
   { value: "hotel", text: "Hotel or other commercial accommodation" },
   { value: "residence", text: "Private residence" },
@@ -157,11 +161,12 @@ const FIELDS: FieldDef[] = [
   { field_name: "guardian_full_name", label: "Guardian full name", field_type: "text", required: true, step_number: 1, step_name: "Applicant Information", display_order: 13, conditional_logic: { showIf: "applicant_is_minor === yes" }, validation_rules: qaRules("The official portal selects a guardian from linked group applications. VIZA must resolve this answer to that application relationship during submission.", { maxLength: 160, official_field: "GuardianList", block_group: "minor_guardian" }) },
   { field_name: "guardian_relationship", label: "Guardian relationship to applicant", field_type: "text", required: true, step_number: 1, step_name: "Applicant Information", display_order: 14, conditional_logic: { showIf: "applicant_is_minor === yes" }, validation_rules: qaRules("Capture authenticated GuardianRelation lookup values/codes and reconfirm requiredness.", { maxLength: 80, official_field: "GuardianRelation", official_control: "lookup", block_group: "minor_guardian" }) },
 
-  { field_name: "passport_number", label: "Passport number", field_type: "text", required: true, step_number: 2, step_name: "Passport", display_order: 1, validation_rules: qaRules("Confirm the authenticated control name and exact character validation. The product accepts regular passports only.", { maxLength: 20, transform: "uppercase", passport_type_locked: "Regular Passport" }) },
-  { field_name: "passport_issuing_country", label: "Passport issuing country", field_type: "country", required: true, step_number: 2, step_name: "Passport", display_order: 2, validation_rules: qaRules("Confirm the authenticated control name and whether nationality preselects this value.", { source: "ISO3166-1", block_group: "passport_issue" }) },
-  { field_name: "passport_issue_place", label: "Passport place of issue", field_type: "text", required: true, step_number: 2, step_name: "Passport", display_order: 3, validation_rules: qaRules("Confirm the authenticated control name and exact maximum length.", { maxLength: 100, block_group: "passport_issue" }) },
-  { field_name: "passport_issue_date", label: "Passport issue date", field_type: "date", required: true, step_number: 2, step_name: "Passport", display_order: 4, validation_rules: { format: "DD/MM/YYYY", official_field: "PassportIssueDate", inline_group: "passport_dates" } },
-  { field_name: "passport_expiry_date", label: "Passport expiry date", field_type: "date", required: true, step_number: 2, step_name: "Passport", display_order: 5, validation_rules: { format: "DD/MM/YYYY", official_field: "PassportExpiryDate", minimum_validity_at_entry_months: 6, inline_group: "passport_dates" } },
+  { field_name: "passport_type", label: "Passport type", field_type: "select", required: true, step_number: 2, step_name: "Passport", display_order: 1, options: PASSPORT_TYPE_OPTIONS, validation_rules: { official_field: "PassportType", official_value_map: { regular: "1" }, note: "Select the applicant's truthful passport type. VisitSaudi currently exposes only Regular Passport for this eVisa eligibility flow; never default this answer." } },
+  { field_name: "passport_number", label: "Passport number", field_type: "text", required: true, step_number: 2, step_name: "Passport", display_order: 2, validation_rules: qaRules("Confirm the authenticated control name and exact character validation.", { maxLength: 20, transform: "uppercase" }) },
+  { field_name: "passport_issuing_country", label: "Passport issuing country", field_type: "country", required: true, step_number: 2, step_name: "Passport", display_order: 3, validation_rules: qaRules("Confirm the authenticated control name and whether nationality preselects this value.", { source: "ISO3166-1", block_group: "passport_issue" }) },
+  { field_name: "passport_issue_place", label: "Passport place of issue", field_type: "text", required: true, step_number: 2, step_name: "Passport", display_order: 4, validation_rules: qaRules("Confirm the authenticated control name and exact maximum length.", { maxLength: 100, block_group: "passport_issue" }) },
+  { field_name: "passport_issue_date", label: "Passport issue date", field_type: "date", required: true, step_number: 2, step_name: "Passport", display_order: 5, validation_rules: { format: "DD/MM/YYYY", official_field: "PassportIssueDate", inline_group: "passport_dates" } },
+  { field_name: "passport_expiry_date", label: "Passport expiry date", field_type: "date", required: true, step_number: 2, step_name: "Passport", display_order: 6, validation_rules: { format: "DD/MM/YYYY", official_field: "PassportExpiryDate", minimum_validity_at_entry_months: 6, inline_group: "passport_dates" } },
 
   { field_name: "residence_country", label: "Country of residence", field_type: "country", required: true, step_number: 3, step_name: "Contact & Residence", display_order: 1, validation_rules: { source: "ISO3166-1", official_field: "Country", block_group: "residence_address" } },
   { field_name: "residence_city", label: "City of residence", field_type: "text", required: true, step_number: 3, step_name: "Contact & Residence", display_order: 2, validation_rules: { maxLength: 100, official_field: "City", block_group: "residence_address" } },

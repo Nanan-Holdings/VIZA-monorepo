@@ -20,9 +20,18 @@ describe("mapRunnerJobStatus", () => {
     expect(mapRunnerJobStatus("failed").supportNeeded).toBe(true);
   });
 
-  it("queued/running/succeeded(no halt) map to pending/in_progress/done", () => {
+  it("needs_human → applicant action without misreporting a hard failure", () => {
+    const lc = mapRunnerJobStatus("needs_human");
+    expect(lc.status).toBe("needs_human");
+    expect(lc.phase).toBe("action_required");
+    expect(lc.actionable).toBe(true);
+    expect(lc.supportNeeded).toBe(false);
+  });
+
+  it("queued/running/succeeded(no proof) never invent official submission", () => {
     expect(mapRunnerJobStatus("queued").phase).toBe("pending");
     expect(mapRunnerJobStatus("running").phase).toBe("in_progress");
-    expect(mapRunnerJobStatus("succeeded").phase).toBe("done");
+    expect(mapRunnerJobStatus("succeeded").phase).toBe("in_progress");
+    expect(mapRunnerJobStatus("succeeded").label).not.toMatch(/submitted/i);
   });
 });

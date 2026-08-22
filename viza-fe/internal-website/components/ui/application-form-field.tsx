@@ -13,6 +13,7 @@ function ApplicationFormLabelAction({ children }: { children: React.ReactNode })
 
 function ApplicationFormField({
   label,
+  labelMeta,
   required = false,
   helperText,
   htmlFor,
@@ -21,6 +22,7 @@ function ApplicationFormField({
   className,
 }: {
   label: string;
+  labelMeta?: React.ReactNode;
   required?: boolean;
   helperText?: string;
   htmlFor?: string;
@@ -31,7 +33,7 @@ function ApplicationFormField({
 }) {
   return (
     <div className={cn("application-form-field group/field relative flex flex-col gap-2", className)}>
-      <div className="relative flex min-h-5 w-full max-w-full items-center">
+      <div className="relative flex min-h-5 w-full max-w-full items-center gap-2">
         <Label
           htmlFor={htmlFor}
           className={cn(
@@ -42,6 +44,7 @@ function ApplicationFormField({
           {label}
           {required ? <span className="ml-1 text-red-500">*</span> : null}
         </Label>
+        {labelMeta}
         {labelAction ? <ApplicationFormLabelAction>{labelAction}</ApplicationFormLabelAction> : null}
       </div>
       {children}
