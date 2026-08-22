@@ -1231,8 +1231,8 @@ function FinalConfirmationPanel({
             </h3>
             <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
               {isZh
-                ? "两项授权会分别记录。确认后，VIZA 将在后台自动完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。若审核通过后产生官网费用，VIZA 将从本申请专属的官方费用分配中自动支付。"
-                : "Each authorization is recorded separately. VIZA will complete the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified. If an official fee becomes payable after approval, VIZA will pay it from this application's dedicated official-fee allocation."}
+                ? "两项授权会分别记录。确认后，VIZA 将在后台自动完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。审核通过后如产生官网费用，申请人需按官网通知另行支付，VIZA 不会自动付款。"
+                : "Each authorization is recorded separately. VIZA will complete the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified. If an official fee becomes payable after approval, the applicant must pay it separately as instructed by the official site; VIZA will not pay it automatically."}
             </p>
           </div>
           <ApplicationCheckbox

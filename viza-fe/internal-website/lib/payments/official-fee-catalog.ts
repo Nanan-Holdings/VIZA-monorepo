@@ -288,7 +288,7 @@ export const OFFICIAL_FEE_CATALOG = [
     country: "taiwan",
     visaType: "TW_ENTRY_PERMIT",
     countryCode: "TW",
-    fundingClass: "viza_managed_card",
+    fundingClass: "offline",
     provider: "taiwan_entry_permit_official_fee",
     targetPayee: "Taiwan National Immigration Agency",
     officialUrl: "https://coa.immigration.gov.tw/coa-frontend/overseas-foreign-china",

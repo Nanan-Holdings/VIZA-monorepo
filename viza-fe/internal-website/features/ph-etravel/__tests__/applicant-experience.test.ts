@@ -68,8 +68,8 @@ describe("Philippines eTravel applicant experience adapter", () => {
     ]);
   });
 
-  test("keeps refresh/recovery read-only across scheduled, processing, and ambiguous results", () => {
-    for (const runtimeState of ["scheduled", "processing"] as const) {
+  test("keeps refresh/recovery read-only across scheduled, queued, processing, and ambiguous results", () => {
+    for (const runtimeState of ["scheduled", "queued", "processing"] as const) {
       expect(
         createPhEtravelApplicantExperience({ runtimeState }).actions
       ).toEqual([{ id: "refresh_status", readOnly: true }]);
@@ -88,6 +88,13 @@ describe("Philippines eTravel applicant experience adapter", () => {
       noResubmit: true,
       actions: [{ id: "reread_official_result", readOnly: true }],
     });
+  });
+
+  test("keeps queued separate from active processing", () => {
+    expect(resolvePhEtravelRuntimeState({ queueStatus: "queued" })).toBe("queued");
+    expect(resolvePhEtravelRuntimeState({ status: "pending" })).toBe("queued");
+    expect(resolvePhEtravelRuntimeState({ status: "processing" })).toBe("processing");
+    expect(resolvePhEtravelRuntimeState({ queueStatus: "running" })).toBe("processing");
   });
 
   test("models action-required and failed states without adding a retry-submit action", () => {

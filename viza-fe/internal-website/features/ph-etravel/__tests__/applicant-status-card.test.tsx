@@ -28,6 +28,28 @@ describe("PhEtravelApplicantStatusCard", () => {
     expect(screen.queryByRole("button", { name: "提交" })).not.toBeInTheDocument();
   });
 
+  test("shows queued separately from active processing", () => {
+    const { rerender } = render(
+      <PhEtravelApplicantStatusCard
+        applicationId="application-id"
+        status={{ queueStatus: "queued" }}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("eTravel 已排队")).toBeInTheDocument();
+
+    rerender(
+      <PhEtravelApplicantStatusCard
+        applicationId="application-id"
+        status={{ queueStatus: "running" }}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("eTravel 正在处理")).toBeInTheDocument();
+  });
+
   test("renders a QR only from the same authoritative reference", async () => {
     render(
       <PhEtravelApplicantStatusCard

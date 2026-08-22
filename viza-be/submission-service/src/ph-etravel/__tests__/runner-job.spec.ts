@@ -7,6 +7,14 @@ import {
   runPhEtravelArrivalRunnerJob,
   type PhEtravelRunnerJobState,
 } from "../runner-job.js";
+import { PH_ETRAVEL_FINAL_SUBMIT_ENABLED } from "../final-submit-gate.js";
+import {
+  buildPhEtravelFieldPlan,
+  isPhEtravelConfirmationText,
+  isPhEtravelReviewSummaryText,
+} from "../form-filler.js";
+import { normalizePhEtravelPortalPayload } from "../normalize.js";
+import { gatePhEtravelAuthoritativeResult } from "../result-evidence.js";
 import type { CanonicalRecord } from "../../queue/answers.js";
 
 const applicationId = "app-runner-job-test";
@@ -30,6 +38,69 @@ function state(overrides: Partial<PhEtravelRunnerJobState> = {}): PhEtravelRunne
     submissionResultStatus: "processing",
     submissionResult: null,
     activeJobIds: [],
+    ...overrides,
+  };
+}
+
+function ordinaryPassengerAnswers(overrides: CanonicalRecord = {}): CanonicalRecord {
+  return {
+    registration_for: "FOR_ME",
+    travel_type: "ARRIVAL",
+    transport_type: "AIR",
+    passport_holder_type: "FOREIGNER",
+    traveller_type: "AIRCRAFT PASSENGER",
+    first_name: "SYNTHETIC",
+    middle_name: "TEST",
+    last_name: "USER",
+    date_of_birth: "1990-01-01",
+    sex: "FEMALE",
+    nationality: "CN",
+    country_of_birth: "CN",
+    country_of_residence: "CN",
+    residence_address_line1: "Synthetic residence",
+    occupation: "OCC007",
+    passport_number: "X12345678",
+    passport_issue_date: "2020-01-01",
+    passport_expiry_date: "2030-12-31",
+    passport_issuing_authority: "CN",
+    email_address: "synthetic@example.test",
+    mobile_country_code: "+86",
+    mobile_number: "13800138000",
+    purpose_of_travel: "POV001",
+    airline_name: "TC002",
+    flight_number: "PR101",
+    airport_of_origin: "SIN",
+    origin_country: "SG",
+    flight_departure_date: "2026-08-15",
+    flight_arrival_date: "2026-08-15",
+    port_of_entry: "TP1000",
+    destination_port_code: "TP1000",
+    destination_type: "HOTEL",
+    destination_hotel_address: "Synthetic hotel address",
+    has_recent_travel_history_30d: "no",
+    has_exposure_to_sick_person_30d: "no",
+    has_been_sick_30d: "no",
+    accompanied_under_18_count: "0",
+    accompanied_18_plus_count: "0",
+    first_time_visiting_philippines: "no",
+    checked_baggage_count: "1",
+    handcarry_baggage_count: "1",
+    customs_information_acknowledgement: "yes",
+    has_baggage_or_currency_to_declare: "no",
+    customs_checklist_1: "no",
+    customs_checklist_2: "no",
+    customs_checklist_3: "no",
+    customs_checklist_4: "no",
+    customs_checklist_5: "no",
+    customs_checklist_6: "no",
+    customs_checklist_7: "no",
+    customs_checklist_8: "no",
+    customs_checklist_9: "no",
+    customs_checklist_10: "no",
+    customs_checklist_11: "no",
+    customs_checklist_12: "no",
+    customs_signature_declaration: "yes",
+    final_declaration: "yes",
     ...overrides,
   };
 }
@@ -114,6 +185,188 @@ test("PH runner_job blocks active duplicates and P0 preflight before account, OT
   assert.equal(preflight.stage, "preflight_action_required");
   assert.equal(portalCalls, 0);
   assert.doesNotMatch(JSON.stringify(preflight), /synthetic@example\.test|P12345678/);
+});
+
+test("PH AIR and SEA synthetic answers normalize to field plans and Review stop offline", () => {
+  const reviewSummary = "New Travel Declaration Summary Kindly double check the information before submitting. For Customs - General Declaration Previous Submit";
+  const fixtures: Array<["AIR" | "SEA", CanonicalRecord, {
+    transportNumberKey: string;
+    travelCompanyKey: string;
+    travelCompanyPortalName: string;
+    transportNumberPortalName: string;
+  }]> = [
+    ["AIR", ordinaryPassengerAnswers(), {
+      transportNumberKey: "flight_number",
+      travelCompanyKey: "airline",
+      travelCompanyPortalName: "travel_company_code",
+      transportNumberPortalName: "flight_number",
+    }],
+    ["SEA", ordinaryPassengerAnswers({
+      transport_type: "SEA",
+      passport_holder_type: "FILIPINO",
+      traveller_type: "VESSEL_PASSENGER",
+      nationality: "PH",
+      country_of_birth: "PH",
+      country_of_residence: "PH",
+      passport_issuing_authority: "PH",
+      airline_name: "",
+      vessel_name: "Synthetic Vessel",
+      flight_number: "",
+      voyage_number: "VOY-SYN-001",
+      flight_departure_date: "2020-01-01",
+      flight_arrival_date: "2020-01-01",
+      voyage_departure_date: "2026-08-15",
+      voyage_arrival_date: "2026-08-15",
+      airport_of_origin: "",
+      origin_port: "SGSIN",
+      port_of_entry: "TP0103",
+      destination_port_code: "TP0103",
+      is_disembarking: "yes",
+      destination_type: "TRAVEL_PORT",
+      disembarking_port_code: "TP2000",
+      destination_hotel_address: "",
+    }), {
+      transportNumberKey: "voyage_number",
+      travelCompanyKey: "vessel_name",
+      travelCompanyPortalName: "vessel_name",
+      transportNumberPortalName: "flight_number",
+    }],
+  ];
+
+  for (const [transport, fixture, expected] of fixtures) {
+    const submission = buildPhEtravelArrivalRunnerJobPayload(applicationId, `${jobId}-${transport.toLowerCase()}`, fixture);
+    const normalized = normalizePhEtravelPortalPayload(submission, { now: new Date("2026-08-13T00:00:00Z") });
+    const plan = buildPhEtravelFieldPlan(normalized);
+    const byKey = new Map(plan.map((item) => [item.key, item]));
+    const transportNumber = byKey.get(expected.transportNumberKey);
+
+    assert.equal(normalized.travelType, "ARRIVAL");
+    assert.equal(normalized.transportType, transport);
+    assert.equal(normalized.arrivalBranch?.transportType, transport);
+    assert.equal(byKey.get("purpose")?.portalName, "purpose_of_visit_code");
+    assert.equal(byKey.get(expected.travelCompanyKey)?.portalName, expected.travelCompanyPortalName);
+    assert.equal(byKey.get("port_of_entry")?.portalName, "destination_port_code");
+    assert.equal(transportNumber?.portalName, expected.transportNumberPortalName);
+    assert.equal(transportNumber?.value, transport === "AIR" ? "PR101" : "VOY-SYN-001");
+    assert.equal(byKey.get("health_recent_travel")?.value, "No");
+    assert.equal(byKey.get("health_exposure")?.value, "No");
+    assert.equal(byKey.get("health_sick")?.value, "No");
+    if (transport === "SEA") {
+      assert.equal(normalized.portOfEntry, "TP0103");
+      assert.equal(normalized.destinationPort, "TP2000");
+      assert.equal(byKey.get("disembarking_port")?.portalName, "disembarking_port_code");
+    }
+  }
+
+  assert.equal(isPhEtravelReviewSummaryText(reviewSummary), true);
+  assert.equal(isPhEtravelConfirmationText(reviewSummary), false);
+  assert.equal(PH_ETRAVEL_FINAL_SUBMIT_ENABLED, false);
+
+  const reviewOnlyGate = gatePhEtravelAuthoritativeResult({ finalPostObservation: "http_200_navigation" });
+  assert.equal(reviewOnlyGate.status, "recovery_required");
+  if (reviewOnlyGate.status === "recovery_required") {
+    assert.equal(reviewOnlyGate.officialResubmitAllowed, false);
+  }
+});
+
+test("PH final success gate requires authoritative registration read and matching reference QR", () => {
+  const http200Only = gatePhEtravelAuthoritativeResult({ finalPostObservation: "http_200_navigation" });
+  assert.equal(http200Only.status, "recovery_required");
+
+  const qrWithoutAuthoritativeReference = gatePhEtravelAuthoritativeResult({
+    qrRender: {
+      renderer: "official_client_reference_qr",
+      renderedForReference: "LOCAL-REF-001",
+      rendered: true,
+      referenceValueValidated: true,
+    },
+  });
+  assert.equal(qrWithoutAuthoritativeReference.status, "recovery_required");
+
+  const mismatchedQr = gatePhEtravelAuthoritativeResult({
+    authoritativeRead: {
+      source: "official_registration_result_read",
+      postSubmitRead: true,
+      referenceNumber: "REF-OK-001",
+      stableReference: true,
+    },
+    qrRender: {
+      renderer: "official_client_reference_qr",
+      renderedForReference: "REF-WRONG-001",
+      rendered: true,
+      referenceValueValidated: true,
+    },
+  });
+  assert.equal(mismatchedQr.status, "recovery_required");
+
+  const complete = gatePhEtravelAuthoritativeResult({
+    authoritativeRead: {
+      source: "official_registration_result_read",
+      postSubmitRead: true,
+      referenceNumber: "REF-OK-001",
+      stableReference: true,
+    },
+    qrRender: {
+      renderer: "official_client_reference_qr",
+      renderedForReference: "REF-OK-001",
+      rendered: true,
+      referenceValueValidated: true,
+    },
+  });
+  assert.equal(complete.status, "recoverable_submitted_candidate");
+});
+
+test("PH canonical AIR and SEA runner paths fail closed before external actions", async () => {
+  let portalCalls = 0;
+  const fixtures: Array<["AIR" | "SEA", CanonicalRecord]> = [
+    ["AIR", ordinaryPassengerAnswers()],
+    ["SEA", ordinaryPassengerAnswers({
+      transport_type: "SEA",
+      passport_holder_type: "FILIPINO",
+      traveller_type: "VESSEL_PASSENGER",
+      nationality: "PH",
+      country_of_birth: "PH",
+      country_of_residence: "PH",
+      passport_issuing_authority: "PH",
+      airline_name: "",
+      vessel_name: "Synthetic Vessel",
+      flight_number: "",
+      voyage_number: "VOY-SYN-001",
+      flight_departure_date: "2020-01-01",
+      flight_arrival_date: "2020-01-01",
+      voyage_departure_date: "2026-08-15",
+      voyage_arrival_date: "2026-08-15",
+      airport_of_origin: "",
+      origin_port: "SGSIN",
+      port_of_entry: "TP0103",
+      destination_port_code: "TP0103",
+      is_disembarking: "yes",
+      destination_type: "TRAVEL_PORT",
+      disembarking_port_code: "TP2000",
+      destination_hotel_address: "",
+    })],
+  ];
+
+  for (const [transport, fixture] of fixtures) {
+    const result = await runPhEtravelArrivalRunnerJob(applicationId, `${jobId}-${transport.toLowerCase()}`, {
+      loadAnswers: async () => fixture,
+      loadState: async () => state(),
+      allowBrowser: true,
+      portalRunner: async () => {
+        portalCalls += 1;
+        throw new Error("must not run before preflight closes");
+      },
+      now: new Date("2026-08-13T00:00:00Z"),
+    });
+    assert.equal(result.stage, "preflight_action_required");
+    assert.equal(result.officialResubmitAllowed, false);
+    assert.equal(result.queue, "not_started");
+    assert.equal(result.browser, "not_started");
+    assert.equal(result.accountPreparation, "not_started");
+    assert.doesNotMatch(JSON.stringify(result), /synthetic@example\.test|X12345678/);
+  }
+
+  assert.equal(portalCalls, 0);
 });
 
 test("PH runner_job syncs only stored authoritative reference-derived QR evidence", async () => {

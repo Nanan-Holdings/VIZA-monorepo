@@ -68,7 +68,10 @@ export function PhEtravelApplicantStatusCard({
   const displayRecovery = presentation.state === "recovery_required" || qrRenderFailed;
   const showSubmittedResult = presentation.submitted && !qrRenderFailed && Boolean(qrDataUrl);
   const isRenderingQr = presentation.submitted && !qrRenderFailed && !qrDataUrl;
-  const isWaiting = presentation.state === "scheduled" || presentation.state === "processing";
+  const isWaiting =
+    presentation.state === "scheduled" ||
+    presentation.state === "queued" ||
+    presentation.state === "processing";
   const canRefresh = Boolean(applicationId && onRefresh);
   const actions = displayRecovery && presentation.actions.length === 0
     ? [{ id: "reread_official_result" as const }]
