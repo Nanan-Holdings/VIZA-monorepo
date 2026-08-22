@@ -78,6 +78,16 @@ cd viza-fe/internal-website
 npm run qa:audit-schema-ui -- --visa-type=<VISA_TYPE> --strict
 ```
 
+Existing drafts must then pass the freshness/completeness audit against that
+published master schema:
+
+```bash
+npm run qa:audit-schema-drafts -- --application-id=<APPLICATION_ID>[,<APPLICATION_ID>...] --strict
+```
+
+This prevents a draft filled against an earlier field set from being reported
+as current after a seed refresh adds required controls.
+
 Run `npm run qa:audit-schema-ui -- --summary --strict` for the whole master
 schema. `--json` produces machine-readable reports. A strict error is a launch
 blocker; warnings and guidance require an explicit schema correction or design

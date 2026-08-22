@@ -6706,6 +6706,8 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       qrCodes?: string[];
       pdfs: string[];
       logs: string[];
+      authoritativeRead?: Awaited<ReturnType<typeof runPhEtravelPortalSubmission>>["authoritativeRead"];
+      qrRender?: Awaited<ReturnType<typeof runPhEtravelPortalSubmission>>["qrRender"];
     };
     if (isMdac) {
       const resultMdac = await runMdacPortalSubmission(normalizeMdacPortalPayload(payload), {
@@ -6865,6 +6867,14 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       portalUrl: portalResult.portalUrl,
       portalResponseSummary: portalResult.portalResponseSummary,
       confirmationPdfStoragePath: pdfArtifacts[0] ?? null,
+      ...(!isMdac && !isTdac
+        ? {
+            resultEvidence: {
+              authoritativeRead: portalResult.authoritativeRead ?? null,
+              qrRender: portalResult.qrRender ?? null,
+            },
+          }
+        : {}),
       artifacts: {
         screenshots: screenshotArtifacts,
         qrCodes: qrArtifacts,

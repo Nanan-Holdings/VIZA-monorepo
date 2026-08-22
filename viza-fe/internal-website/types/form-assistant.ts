@@ -27,11 +27,22 @@ export interface FormAssistantMessage {
   role: "user" | "assistant";
   content: string;
   createdAt: string;
+  inputMode?: "text" | "voice" | "system" | "confirmation";
 }
 
 export interface FormAssistantProgress {
   completed: number;
   total: number;
+}
+
+export interface FormAssistantDocumentReadiness {
+  documentCollectionComplete: boolean;
+  missingDocumentCount: number;
+  missingDocuments: Array<{
+    requirementKey: string;
+    labelEn: string;
+    labelZh: string;
+  }>;
 }
 
 export interface FormAssistantTurnResponse {

@@ -52,6 +52,21 @@ const indonesiaStickyMigrationPath = path.join(
   "drizzle",
   "0129_indonesia_sticky_runner.sql",
 );
+const touristRunnerClaimMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0152_enable_five_tourist_runner_claims.sql",
+);
+const touristRunnerClaimSupabaseMigrationPath = path.join(
+  repoRoot,
+  "viza-fe",
+  "internal-website",
+  "supabase",
+  "migrations",
+  "20260818130000_enable_five_tourist_runner_claims.sql",
+);
 const queueWorkerLeaseMigrationPath = path.join(
   repoRoot,
   "viza-be",
@@ -150,6 +165,66 @@ test("Indonesia sticky migration isolates B1/C1 behind a dedicated service-role 
   assert.doesNotMatch(genericClaim, /id_b1_evoa_live_assisted_pending/);
   assert.doesNotMatch(genericClaim, /vn_prearrival_live_assisted_pending/);
   assert.match(sql, /before insert[\s\S]*reject_indonesia_runner_job_transport/);
+});
+
+test("five tourist countries are claimable by the guarded shared pool in both migration lineages", () => {
+  const drizzleSql = readFileSync(touristRunnerClaimMigrationPath, "utf8").toLowerCase();
+  const supabaseSql = readFileSync(touristRunnerClaimSupabaseMigrationPath, "utf8").toLowerCase();
+  const claim = drizzleSql
+    .split("create or replace function public.claim_runner_pool_job")[1]
+    ?.split("create or replace view public.runner_pool_depth")[0] ?? "";
+  const depthView = drizzleSql
+    .split("create or replace view public.runner_pool_depth")[1]
+    ?.split("revoke all on function public.claim_runner_pool_job")[0] ?? "";
+  const existingPoolCountries = [
+    "vietnam",
+    "singapore",
+    "malaysia",
+    "thailand",
+    "south_korea",
+  ];
+  const touristCountries = [
+    "canada",
+    "turkey",
+    "india",
+    "saudi_arabia",
+    "united_arab_emirates",
+  ];
+
+  assert.equal(drizzleSql, supabaseSql);
+  assert.ok(claim.length > 0);
+  assert.ok(depthView.length > 0);
+
+  for (const country of [...existingPoolCountries, ...touristCountries]) {
+    assert.equal(
+      claim.match(new RegExp(`'${country}'`, "g"))?.length ?? 0,
+      3,
+      `${country} must be covered by lease recovery, global capacity, and queued selection`,
+    );
+    assert.match(depthView, new RegExp(`'${country}'`));
+  }
+
+  for (const country of touristCountries) {
+    assert.match(drizzleSql, new RegExp(`\\('${country}', 1, false`));
+  }
+
+  assert.doesNotMatch(claim, /'indonesia'/);
+  assert.doesNotMatch(depthView, /'indonesia'/);
+  assert.match(claim, /pg_try_advisory_xact_lock/);
+  assert.doesNotMatch(claim, /perform\s+pg_advisory_xact_lock/);
+  assert.match(claim, /p_require_slot/);
+  assert.match(claim, /rms\.owner_kind = 'pool'/);
+  assert.match(claim, /if v_running >= 10/);
+  assert.match(claim, /rj\.available_at <= p_now/);
+  assert.match(claim, /not cap\.paused/);
+  assert.match(claim, /< cap\.max_concurrent/);
+  assert.match(claim, /for update of rj skip locked/);
+  assert.match(drizzleSql, /on conflict \(country\) do update/);
+  assert.doesNotMatch(drizzleSql, /paused\s*=\s*excluded\.paused/);
+  assert.match(drizzleSql, /revoke all on function public\.claim_runner_pool_job[\s\S]*from public, anon, authenticated/);
+  assert.match(drizzleSql, /grant execute on function public\.claim_runner_pool_job[\s\S]*to service_role/);
+  assert.match(drizzleSql, /revoke all on table public\.runner_pool_depth from public, anon, authenticated/);
+  assert.match(drizzleSql, /grant select on table public\.runner_pool_depth to service_role/);
 });
 
 test("official-fee enqueue is serialized per application and cannot create competing active jobs", () => {

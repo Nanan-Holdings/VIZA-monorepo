@@ -216,7 +216,7 @@ export default function UiComponentsPage() {
                 aria-readonly="true"
                 className="h-12 bg-gray-50 text-[15px] text-gray-700"
               >
-                appl-01kz0prkbncz7sstraymxejfeg@viza.it.com
+                applicant@viza.example
               </ApplicationFormControlDisplay>
             </ApplicationFormField>
           </ApplicationFormPanel>

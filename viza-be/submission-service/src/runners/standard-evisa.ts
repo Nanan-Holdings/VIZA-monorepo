@@ -170,6 +170,17 @@ export interface StdRunnerConfig {
   defaultVisaType: string;
   mappings: StdFieldMapping[];
   locale?: string;
+  /**
+   * A verified public boundary that must stop this generic runner. This keeps
+   * login/CAPTCHA/guest shells from being misreported as a payment checkpoint.
+   */
+  terminalCheckpoint?: {
+    requiredSelectors?: string[];
+    requiredText?: string;
+    status: "blocked" | "needs_human";
+    reason: string;
+    reachedStep: string;
+  };
 }
 
 export interface StdRunResult {
@@ -227,6 +238,40 @@ export function makeStandardEvisaRunner(cfg: StdRunnerConfig): {
       const title = await page.title().catch(() => "");
       if (/just a moment|attention required/i.test(title)) {
         return { status: "anti_bot_gate", reason: `anti-bot gate: ${title}`, reachedStep, artefacts };
+      }
+
+      if (cfg.terminalCheckpoint) {
+        const missingSelectors: string[] = [];
+        for (const selector of cfg.terminalCheckpoint.requiredSelectors ?? []) {
+          if ((await page.locator(selector).count()) === 0) missingSelectors.push(selector);
+        }
+        const bodyText = cfg.terminalCheckpoint.requiredText
+          ? await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "")
+          : "";
+        const missingText = Boolean(
+          cfg.terminalCheckpoint.requiredText &&
+            !bodyText.includes(cfg.terminalCheckpoint.requiredText),
+        );
+        if (missingSelectors.length > 0 || missingText) {
+          const details = [
+            missingSelectors.length > 0
+              ? `missing selectors: ${missingSelectors.join(", ")}`
+              : "",
+            missingText ? "expected product heading missing" : "",
+          ].filter(Boolean);
+          return {
+            status: "blocked",
+            reason: `official portal checkpoint drift: ${details.join("; ")}`,
+            reachedStep: "checkpoint_mismatch",
+            artefacts,
+          };
+        }
+        return {
+          status: cfg.terminalCheckpoint.status,
+          reason: cfg.terminalCheckpoint.reason,
+          reachedStep: cfg.terminalCheckpoint.reachedStep,
+          artefacts,
+        };
       }
 
       reachedStep = "form";

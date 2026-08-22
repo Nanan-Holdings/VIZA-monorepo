@@ -33,6 +33,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Arrival-card preview entries under `app/client/arrival-cards/**`, routed to
   dedicated DB-driven application packages and kept separate from visa packages.
 - Admin portal under `app/admin/**`.
+- Admin visual tokens are isolated by `app/admin/admin-theme.css`; reusable
+  admin patterns compose shadcn primitives under `components/admin/**` so
+  client portal styling remains independent.
 - Application lifecycle and dynamic forms under `app/client/application/**`,
   `components/dynamic-step-form.tsx`, `components/dynamic-form-field.tsx`, and
   `components/application-steps/**`.
@@ -43,6 +46,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - The development-only `/edge-cases` route under `app/edge-cases/**` reads that
   same compiler report and presents every current design edge case as a
   component study with the complete affected visa-type and field inventory.
+- The development-only `/schema-qa` route under `app/schema-qa/**` renders one
+  live master schema with deterministic fictional answers entirely in browser
+  memory. It must never load applicant data or call save/submission APIs.
 - Ongoing application identity and terminal-state classification live in
   `lib/applications/ongoing-application.ts`; database migrations enforce one
   in-flight row per applicant, canonical country, and visa type while allowing
@@ -105,15 +111,25 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.
-- Reusable passport, portrait, and electronic-signature metadata is stored in
+- Application uploads remain application-scoped unless the applicant
+  explicitly selects `universal_profile`; reusable-type aliases alone must not
+  promote a file. Reuse accepts only the explicit usable-status allowlist, and
+  every replacement returns to `uploaded` with privileged review fields clear.
+- Reusable passport, portrait, electronic-signature, recent-bank-statement,
+  and genuine travel/medical-insurance metadata is stored in
   the server-only `universal_profile_documents` table created by
   `supabase/migrations/20260721030018_create_universal_profile_documents.sql`;
-  application document requirements may map their country-specific photo and
-  signature aliases to these canonical profile materials.
+  application document requirements may map their country-specific aliases to
+  these canonical profile materials. Bank statements and insurance remain
+  time-sensitive and must be revalidated against each destination before use.
 - Application-scoped Form Filling Assistant sessions and persisted text turns
   are stored in `form_assistant_sessions` and `form_assistant_messages` by
   `supabase/migrations/20260806155039_form_assistant_sessions.sql`; raw voice
   recordings are ephemeral and never persisted.
+- Form-assistant checkbox confirmations use the `confirmation` input mode added
+  by `supabase/migrations/20260822043857_allow_form_assistant_confirmation_input_mode.sql`;
+  the application retains a narrow compatibility retry for databases that have
+  not applied that migration yet.
 - Expanded reusable applicant facts are stored in the server-only,
   field-keyed `universal_profile_answers` table created by
   `supabase/migrations/20260801193500_create_universal_profile_answers.sql`.
@@ -154,6 +170,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
   `lib/client-session.ts`, `lib/impersonation-session.ts`, and the production
   admin email allowlist in `lib/admin-access.ts`.
+- Admin login uses the shared auth form controls but intentionally keeps a
+  centered, globe-free layout distinct from the client login; authentication
+  logic and portal authorization remain separate.
 - Supabase client credentials are normalized by `lib/supabase/env.ts` before
   use so BOM or surrounding whitespace from local environment files cannot
   produce invalid HTTP authorization headers.
@@ -183,8 +202,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Targeted VIZA-only Supabase migration through
   `scripts/migrate-viza-required.ts`.
 - Live-assisted official submission status summaries are loaded through
-  `lib/submission-live-status.ts`; keep service-role access server-only and
-  expose customer/staff actions through route handlers or server actions.
+  `lib/submission-live-status.ts`; exact runner-job product visibility and its
+  conservative terminal mapping live in `lib/status/runner-job-visibility.ts`.
+  Focused coverage lives beside both modules in their `.test.ts` files.
+  Keep service-role access server-only and expose customer/staff actions
+  through route handlers or server actions.
 - Cloud submission worker wake requests use the authenticated
   `app/api/submission-worker/wake/route.ts` boundary and the server-only
   `lib/submission-worker-wake.server.ts` helper. Never expose the internal
@@ -481,6 +503,8 @@ Smoke URLs:
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`
 - `lib/application-tab-completion.ts`
+- `lib/canada-trv-completion.ts`: fail-closed CA_TRV value validation and
+  versioned consent/signature/IRCC-terms completion gates shared by the wizard.
 - `lib/application-step-sections.ts`
 - `lib/birthplace-options.ts`
 - `lib/vietnam-administrative-units.ts`
@@ -516,6 +540,12 @@ Smoke URLs:
 - `supabase/migrations/20260815152000_protect_issuer_card_attempt_leases.sql`:
   prevents a different worker from overwriting an unexpired managed-card lease
   while preserving same-worker renewal and expired-lease recovery.
+- `supabase/migrations/20260818130000_enable_five_tourist_runner_claims.sql`:
+  mirrors the backend shared-pool claim expansion for the five tourist
+  submission products while preserving per-country and global limits.
+- `supabase/migrations/20260818140000_application_document_review_integrity.sql`:
+  mirrors the backend applicant-document review trigger and resets legacy
+  reviewed statuses so only a fresh authorized staff review can approve them.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`

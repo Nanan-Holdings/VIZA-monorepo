@@ -112,12 +112,22 @@ VIZA owns account/session management and official payment workflow. Applicant
 email and telephone fields in the schema are correspondence/contact data, not
 official-portal credentials.
 
+Before VIZA progresses the eligibility CAPTCHA into account registration,
+checks the official Privacy Policy control, follows an activation link, or
+attempts login, `consent_events` must contain an accepted, unrevoked,
+application-scoped `sa_visitsaudi_privacy_policy_authorization` row for the
+current English policy snapshot. The audit scope must explicitly authorize
+account registration, activation, and login; a runner feature flag is not
+authorization. Policy-content drift invalidates the stored hash and requires a
+new applicant confirmation.
+
 ## 6. Evidence and live-portal QA
 
 Primary sources:
 
 - [VisitSaudi eVisa portal](https://visa.visitsaudi.com/)
 - [VisitSaudi terms and conditions](https://visa.visitsaudi.com/Home/TermsConditions)
+- [VisitSaudi Privacy Policy](https://visa.visitsaudi.com/Home/PrivacyPolicy?lang=en)
 - [VisitSaudi registration eligibility gate](https://visa.visitsaudi.com/Registration/Verify)
 - [VisitSaudi photo specification](https://visa.visitsaudi.com/Home/PhotoSpecifications)
 - VisitSaudi authenticated-application client templates served by the official portal

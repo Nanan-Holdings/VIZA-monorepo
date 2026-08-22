@@ -9,6 +9,7 @@
 
 import type { Page } from "@playwright/test";
 import { runGenericPrefill, gFill, gClick, type GenericRunInput, type GenericRunResult } from "../generic/prefill.js";
+import { TOURIST_LIVE_CHECKPOINTS } from "../tourist-live-checkpoints.js";
 
 export interface CommonAnswers {
   surname: string;
@@ -119,7 +120,7 @@ export async function runRuPrefill(input: GenericRunInput<CommonAnswers>): Promi
   );
 }
 
-export const TR_BASE = process.env.TR_PORTAL_URL ?? "https://www.evisa.gov.tr";
+export const TR_BASE = process.env.TR_PORTAL_URL ?? TOURIST_LIVE_CHECKPOINTS.turkey.url;
 export async function runTrPrefill(input: GenericRunInput<CommonAnswers>): Promise<GenericRunResult> {
   return runGenericPrefill(
     { cc: "tr", baseUrl: TR_BASE, applyOpener: APPLY_OPENERS, fillForm: fillStandardPersonalInfo },
@@ -127,7 +128,7 @@ export async function runTrPrefill(input: GenericRunInput<CommonAnswers>): Promi
   );
 }
 
-export const AE_BASE = process.env.AE_PORTAL_URL ?? "https://smartservices.icp.gov.ae";
+export const AE_BASE = process.env.AE_PORTAL_URL ?? TOURIST_LIVE_CHECKPOINTS.united_arab_emirates.url;
 export async function runAePrefill(input: GenericRunInput<CommonAnswers>): Promise<GenericRunResult> {
   return runGenericPrefill(
     { cc: "ae", baseUrl: AE_BASE, applyOpener: APPLY_OPENERS, fillForm: fillStandardPersonalInfo },
@@ -135,7 +136,7 @@ export async function runAePrefill(input: GenericRunInput<CommonAnswers>): Promi
   );
 }
 
-export const CA_ETA_BASE = process.env.CA_PORTAL_URL ?? "https://onlineservices-servicesenligne.cic.gc.ca/eapp/welcome.do";
+export const CA_ETA_BASE = process.env.CA_PORTAL_URL ?? TOURIST_LIVE_CHECKPOINTS.canada.url;
 export async function runCaEtaPrefill(input: GenericRunInput<CommonAnswers>): Promise<GenericRunResult> {
   return runGenericPrefill(
     {

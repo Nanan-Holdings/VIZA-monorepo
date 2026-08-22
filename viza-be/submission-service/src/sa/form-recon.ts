@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { chromium } from "@playwright/test";
 import { discoverFields, withRetry } from "../runners/standard-evisa.js";
+import { TOURIST_LIVE_CHECKPOINTS } from "../tourist-live-checkpoints.js";
 
 /**
  * Saudi e-Visa form recon (RUN-SA-001 / RUN-SA-002 / DATA-001).
@@ -14,7 +15,7 @@ import { discoverFields, withRetry } from "../runners/standard-evisa.js";
  */
 export type { ReconField } from "../runners/standard-evisa.js";
 
-const BASE_URL = process.env.SA_PORTAL_URL ?? "https://visa.visitsaudi.com";
+const BASE_URL = process.env.SA_PORTAL_URL ?? TOURIST_LIVE_CHECKPOINTS.saudi_arabia.url;
 const OUT_DIR = path.join(process.cwd(), "recon-out", "sa");
 
 async function main(): Promise<void> {

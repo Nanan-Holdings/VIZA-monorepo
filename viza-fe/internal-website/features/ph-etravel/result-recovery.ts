@@ -264,7 +264,16 @@ export function createPhEtravelStoredResultRecoveryPresentation(
   storedResult: unknown,
 ): PhEtravelResultRecoveryPresentation {
   const result = readRecord(storedResult);
-  const authoritative = readRecord(result?.authoritativeRegistration);
+  const legacyAuthoritative = readRecord(result?.authoritativeRegistration);
+  const resultEvidence = readRecord(result?.resultEvidence);
+  const authoritativeRead = readRecord(resultEvidence?.authoritativeRead);
+  const qrRender = readRecord(resultEvidence?.qrRender);
+  const authoritative = legacyAuthoritative ?? (authoritativeRead ? {
+    read: authoritativeRead.postSubmitRead === true && authoritativeRead.stableReference === true,
+    referenceNumber: readString(authoritativeRead, "referenceNumber"),
+    derivedQrRenderStatus: qrRender?.rendered === true ? "rendered" : "unknown",
+    derivedQrReferenceValue: readString(qrRender, "renderedForReference"),
+  } : null);
   return createPhEtravelResultRecoveryPresentation({
     authoritativePostSubmitRead: authoritative?.read === true,
     authoritativeReferenceNumber: readString(authoritative, "referenceNumber"),

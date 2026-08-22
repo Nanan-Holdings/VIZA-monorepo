@@ -14,9 +14,10 @@
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { runPortalRecon, type ReconPageStep } from "../recon/walker";
+import { TOURIST_LIVE_CHECKPOINTS } from "../tourist-live-checkpoints";
 
 const BASE_URL =
-  process.env.IN_RECON_BASE_URL || "https://indianvisaonline.gov.in/evisa/tvoa.html";
+  process.env.IN_RECON_BASE_URL || TOURIST_LIVE_CHECKPOINTS.india.url;
 const OUT_DIR = path.resolve(__dirname, "../../recon-out/in");
 
 const PAGES: ReconPageStep[] = [

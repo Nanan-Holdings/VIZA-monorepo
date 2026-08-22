@@ -80,6 +80,14 @@ and must fail closed; callers must not perform a direct table settlement.
 - `src/korea-vfs-shenyang/runner.ts`: Browserbase-backed Shenyang VFS account FSM. It requires explicit portal-term authorization, stores only an encrypted portal password, uses the managed alias for official activation email, preserves a five-minute SMS OTP session, records only current official slot observations, revalidates the exact user-selected slot, and requires a real confirmation number plus stored screenshot before success. The South Korea Fly machine and `/deploy-ready` protect active OTP sessions. `src/korea-vfs-shenyang/applicant-details.ts` is fail-closed: validate the complete required answer set before any Browserbase call; the runner then uses typed field mappings and visible duplicate-selector/evidence checks without retaining raw applicant data. Only the selected Shenyang center may invoke this helper; other centers must not fall through to it.
 - `src/index.ts`: polling loop, Supabase data loading, document download,
   per-country dispatch, retry/failure handling, queue status transitions.
+- `src/documents/reusable-document-aliases.ts` and
+  `src/documents/resolve-application-documents.ts`: map private Universal
+  Profile passport, portrait, bank-statement, insurance, signature, and
+  identity-card files to country requirement aliases. Resolve and validate the
+  metadata inventory before downloading anything, accept only the explicit
+  usable-status allowlist, and keep application-specific uploads authoritative.
+  Callers that genuinely require plaintext paths receive a disposable lease
+  and must run its cleanup in `finally`, including after partial preparation.
 - `src/queue/arrival-card-runners.ts` and
   `src/queue/korea-eform-runner.ts`: shared-pool adapters for complete
   MDAC/TDAC/Vietnam Pre-Arrival portal runs and Korea background e-Form
@@ -334,6 +342,69 @@ and must fail closed; callers must not perform a direct table settlement.
 - `scripts/run-arrival-card-pre-submit-qa.ts`: concurrently opens the seven
   supported arrival-card portals from tagged QA drafts, disables external
   CAPTCHA/cloud-browser services, and always stops before final submission.
+- `scripts/run-tourist-live-pre-submit-qa.ts`: checks the verified Canada,
+  Türkiye, India, Saudi Arabia, and UAE tourist-product entry points, selects
+  only harmless public dropdown values, and stops before credentials, CAPTCHA,
+  Continue/application creation, payment, or submission.
+- `src/tr/preflight.ts` and `src/in/preflight.ts`: fail-closed Türkiye and
+  India tourist-product answer/document/credential checks. They force official
+  correspondence to the VIZA-managed alias, report only missing field or slot
+  keys, and keep official-record creation unreachable until intake is complete.
+  Türkiye may run its public CAPTCHA-backed nationality/arrival eligibility
+  check from the smaller `readyForEligibility` field set; a visa-exempt result
+  is a successful no-application terminal, while all later steps still require
+  the full preflight and operator gate.
+- `src/tr/live-flow.ts`: dedicated Türkiye ASP.NET/Kendo public-flow state
+  machine. It follows the rotating DTV signed handoff, sets hidden official
+  selectors, uses TWOCAPTCHA for the image challenge, matches only explicitly
+  confirmed prerequisite statements, fills the arrival/personal/supporting
+  document steps, and defaults to stopping before official application
+  creation. `TR_LIVE_QA_TO_PAYMENT=1` is the explicit operator-only live-QA
+  gate; it consumes the managed-alias verification email, accepts
+  only trusted evisa.gov.tr verification URLs, and strictly observes an unpaid
+  USD payment checkpoint without using card material or clicking Pay.
+- India registration likewise defaults to the pre-application checkpoint.
+  The runner must honor the current official nationality-specific service
+  allowlist and stop before CAPTCHA when the requested tourist service is not
+  offered. `IN_LIVE_QA_TO_PAYMENT=1` is the explicit operator-only live-QA
+  gate that may confirm the official required-document dialog and create a
+  Temporary Application ID; it currently stops at the explicit
+  downstream-selector-mapping checkpoint rather than claiming unverified
+  applicant-details/document/review/payment coverage.
+- `src/__tests__/tr-in-schema-preflight-parity.spec.ts`: prevents the Türkiye
+  and India applicant-answer seeds from drifting away from fixed and
+  conditional live-preflight requirements, and forbids workflow-only live-QA
+  gates from reappearing as applicant questions.
+- `src/sa/live-flow.ts` and `src/ae/live-flow.ts`: disabled-by-default Saudi
+  VisitSaudi and UAE ICP transaction-783 account/session, CAPTCHA, document,
+  and payment-checkpoint boundaries. Saudi credentials use the encrypted
+  applicant vault and may not be used for login until official activation is
+  confirmed; UAE requires an explicitly authorized UAE Pass CDP session.
+  Both flows must remain on their exact credential-free HTTPS official host,
+  retain no authenticated full-page screenshots, require exact schema answers
+  and usable documents before browser work, and observe payment without
+  entering card material or submitting. Saudi passport type must come from an
+  explicit truthful answer; there is no default or separate filler fallback.
+  `src/ae/document-evidence.ts` additionally requires the exact immutable
+  staff transaction-783 review command for each bank/insurance document,
+  recomputes the current Storage object and evidence-state fingerprints, and
+  honors the latest decisive audit event. A generic reviewed status, stale
+  approval, or Universal Profile metadata must not unlock an ICP session.
+  `src/sa/privacy-authorization.ts` additionally binds VisitSaudi account
+  registration, activation, CAPTCHA progression, and login to an accepted,
+  unrevoked, application-scoped `consent_events` row for the current hashed
+  official Privacy Policy snapshot. A feature flag alone is never consent.
+- `src/ca/browser.ts`, `src/ca/readiness.ts`, `src/ca/preflight.ts`, `src/ca/portal.ts`,
+  `src/ca/password-recovery.ts`, `src/ca/purpose-page.ts`, and
+  `src/ca/post-purpose.ts`: Canada TRV staged
+  readiness, managed-account login/recovery through authenticated IRCC mail in
+  `inbound_email`, encrypted vault rotation, versioned IRCC-terms
+  authorization, exact live purpose/application-type selectors, a fail-closed
+  representative-status boundary, and schema/document gates.
+  Expected data/legal stops persist an action-required checkpoint instead of
+  retrying. Payment evidence is observation-only and must never enter card data
+  or click payment. `scripts/check-canada-trv-readiness.ts` prints a PII-free
+  staged report and never opens the official portal.
 - `scripts/run-japan-vfs-placeholder-account.ts`: explicit operator-only
   Browserbase-proxy smoke that creates one clearly marked placeholder VFS
   account for a supplied local test application, consumes managed-alias

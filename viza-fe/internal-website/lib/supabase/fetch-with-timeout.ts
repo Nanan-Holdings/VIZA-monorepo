@@ -1,4 +1,7 @@
-import { getSupabaseCircuitBreaker } from "./circuit-breaker";
+import {
+  getSupabaseCircuitBreaker,
+  SupabaseCircuitOpenError,
+} from "./circuit-breaker";
 
 export type FetchWithTimeout = typeof fetch;
 
@@ -9,7 +12,8 @@ const CIRCUIT_FAILURE_STATUSES = new Set([500, 502, 503, 504, 520, 522, 524]);
 type SupabaseFetchOptions = {
   requestTimeoutMs?: number;
   retryDelaysMs?: readonly number[];
-  circuitBreakerScope?: string;
+  circuitBreakerScope?: string | null;
+  returnUnavailableResponse?: boolean;
 };
 
 type SupabaseResultWithError = {
@@ -25,6 +29,27 @@ function requestMethod(input: RequestInfo | URL, init?: RequestInit): string {
 function isRetryableNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true;
   return error instanceof DOMException && ["NetworkError", "TimeoutError"].includes(error.name);
+}
+
+function createSupabaseUnavailableResponse(retryAfterMs?: number): Response {
+  const headers = new Headers({
+    "content-type": "application/json",
+  });
+  if (retryAfterMs !== undefined) {
+    headers.set("retry-after", String(Math.max(1, Math.ceil(retryAfterMs / 1_000))));
+  }
+
+  return new Response(
+    JSON.stringify({
+      code: "VIZA_SUPABASE_UNAVAILABLE",
+      message: "Supabase is temporarily unavailable after a network failure",
+    }),
+    {
+      status: 503,
+      statusText: "Service Unavailable",
+      headers,
+    },
+  );
 }
 
 function waitForRetry(delayMs: number, signal?: AbortSignal | null): Promise<void> {
@@ -125,8 +150,17 @@ export function createFetchWithTransientRetry(
     : (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init);
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
-    const circuit = getSupabaseCircuitBreaker(options.circuitBreakerScope);
-    circuit.beforeRequest();
+    const circuit = options.circuitBreakerScope === null
+      ? null
+      : getSupabaseCircuitBreaker(options.circuitBreakerScope);
+    try {
+      circuit?.beforeRequest();
+    } catch (error) {
+      if (options.returnUnavailableResponse && error instanceof SupabaseCircuitOpenError) {
+        return createSupabaseUnavailableResponse(error.retryAfterMs);
+      }
+      throw error;
+    }
     const method = requestMethod(input, init);
     const canRetry = method === "GET" || method === "HEAD";
 
@@ -136,9 +170,9 @@ export function createFetchWithTransientRetry(
         const retryDelay = retryDelaysMs[attempt];
         if (!canRetry || retryDelay === undefined || !RETRYABLE_SUPABASE_STATUSES.has(response.status)) {
           if (CIRCUIT_FAILURE_STATUSES.has(response.status)) {
-            circuit.recordFailure();
+            circuit?.recordFailure();
           } else {
-            circuit.recordSuccess();
+            circuit?.recordSuccess();
           }
           return response;
         }
@@ -153,7 +187,10 @@ export function createFetchWithTransientRetry(
           init?.signal?.aborted ||
           !isRetryableNetworkError(error)
         ) {
-          if (isRetryableNetworkError(error)) circuit.recordFailure();
+          if (isRetryableNetworkError(error)) circuit?.recordFailure();
+          if (options.returnUnavailableResponse && isRetryableNetworkError(error)) {
+            return createSupabaseUnavailableResponse();
+          }
           throw error;
         }
         await waitForRetry(retryDelay, init?.signal);

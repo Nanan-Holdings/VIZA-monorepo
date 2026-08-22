@@ -42,4 +42,25 @@ describe("Philippines eTravel stored result recovery", () => {
     expect(recovery.state).toBe("recovery_required");
     expect(candidate.state).toBe("submitted_candidate");
   });
+
+  test("accepts the canonical runner resultEvidence shape", () => {
+    const candidate = createPhEtravelStoredResultRecoveryPresentation({
+      resultEvidence: {
+        authoritativeRead: {
+          source: "official_registration_result_read",
+          postSubmitRead: true,
+          referenceNumber: "ETRAVEL-456",
+          stableReference: true,
+        },
+        qrRender: {
+          renderer: "official_client_reference_qr",
+          renderedForReference: "ETRAVEL-456",
+          rendered: true,
+          referenceValueValidated: true,
+        },
+      },
+    });
+
+    expect(candidate.state).toBe("submitted_candidate");
+  });
 });

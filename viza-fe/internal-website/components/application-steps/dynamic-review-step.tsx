@@ -17,6 +17,7 @@ import { ValidationPanel } from "./review-step";
 import { BilingualReviewPanel, type ReviewRow } from "./bilingual-review-panel";
 import { type FormAssistantFieldReviewIssue } from "@/types/form-assistant";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { isVisibleDynamicFieldRequired } from "@/lib/application-tab-completion";
 import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 import { Button } from "@/components/ui/button";
 import { ReviewEditButton } from "@/components/ui/review-edit-button";
@@ -240,6 +241,7 @@ export function DynamicReviewStep({
   const bilingualRows = useMemo<ReviewRow[]>(() => {
     const completedRows: ReviewRow[] = [];
     const missingRows: ReviewRow[] = [];
+    const optionalRows: ReviewRow[] = [];
 
     dbSteps.forEach((step, sourceIndex) => {
       const sectionTitle = (() => {
@@ -266,6 +268,9 @@ export function DynamicReviewStep({
         for (const answerKey of answerKeys) {
           const value = dynamicAnswers[answerKey] ?? "";
           const isMissing = !value.trim();
+          const isRequired = isVisibleDynamicFieldRequired(field, dynamicAnswers, step.fields);
+          const isRequiredMissing = isMissing && isRequired;
+          const isOptionalBlank = isMissing && !isRequired;
 
           const sourceLabel = getReviewSourceLabel(field);
           const officialLabel = getReviewOfficialLabel(field);
@@ -304,8 +309,10 @@ export function DynamicReviewStep({
           }
 
           const row: ReviewRow = {
-            section: isMissing
+            section: isRequiredMissing
               ? `${sectionTitle} · ${t("review.missingInformation")}`
+              : isOptionalBlank
+                ? `${sectionTitle} · ${t("review.optionalInformation")}`
               : sectionTitle,
             fieldName: answerKey,
             label: displayLabel,
@@ -321,18 +328,20 @@ export function DynamicReviewStep({
             warnings,
             editable: true,
             editStepIndex: sourceIndex,
-            missing: isMissing,
+            missing: isRequiredMissing,
+            optional: isOptionalBlank,
             issueSeverity: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.severity,
             issueMessage: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.message,
           };
 
-          if (isMissing) missingRows.push(row);
+          if (isRequiredMissing) missingRows.push(row);
+          else if (isOptionalBlank) optionalRows.push(row);
           else completedRows.push(row);
         }
       }
     });
 
-    return [...completedRows, ...missingRows];
+    return [...completedRows, ...missingRows, ...optionalRows];
   }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, reviewIssues, t, tDyn]);
 
   return (

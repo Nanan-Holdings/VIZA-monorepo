@@ -1,5 +1,14 @@
 import type { DocumentCenterData } from "@/app/client/documents/actions";
-import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
+import {
+  evaluateShowIf,
+  isRequiredUnlessSatisfied,
+  isRequiredWhenSatisfied,
+} from "@/lib/form-utils";
+import {
+  getInvalidCanadaTrvFields,
+  getMissingCanadaTrvExternalGates,
+  isCanadaTrvApplication,
+} from "@/lib/canada-trv-completion";
 import type { VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
 
 export interface ApplicationStepRef {
@@ -13,7 +22,7 @@ export interface MissingApplicationField {
   stepName: string;
   fieldName: string;
   label: string;
-  reason: "required" | "ceac_required";
+  reason: "required" | "invalid" | "external_gate" | "ceac_required";
 }
 
 export interface TabCompletionResult {
@@ -31,12 +40,16 @@ interface ComputeAllTabCompletionInput {
   submissionResultStatus?: string | null;
   country?: string | null;
   visaType?: string | null;
+  applicationConsentPresent?: boolean;
+  applicationSignaturePresent?: boolean;
+  canadaPortalTermsConsentPresent?: boolean;
   documentStepId: number;
   reviewStepId: number;
   teamStepId: number;
   confirmationStepId: number;
   showDocumentStep?: boolean;
   showTeamStep: boolean;
+  now?: Date;
 }
 
 const LT24_VALUES = new Set(["less_than_24_hours", "less than 24 hours", "h"]);
@@ -52,6 +65,14 @@ const TERMINAL_SUBMISSION_STATUSES = new Set([
   "form_ready_for_agency",
   "failed",
   "timed_out",
+]);
+const READY_DOCUMENT_STATUSES = new Set([
+  "uploaded",
+  "pending_review",
+  "approved",
+  "accepted",
+  "verified",
+  "ready",
 ]);
 
 function text(value: string | null | undefined): string {
@@ -112,9 +133,76 @@ function instanceKey(fieldName: string, index: number): string {
   return index === 0 ? fieldName : `${fieldName}__${index + 1}`;
 }
 
-function isVisibleRequiredField(field: VisaFormFieldRow, values: Record<string, string>, fields: VisaFormFieldRow[]) {
-  if (!field.required) return false;
+function requiredExpectedAnswer(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as {
+    must_equal?: unknown;
+    mustEqual?: unknown;
+  } | null;
+  const expected = rules?.must_equal ?? rules?.mustEqual;
+  return typeof expected === "string" && expected.trim()
+    ? expected.trim().toLowerCase()
+    : null;
+}
+
+function ruleRequiresAcceptance(field: VisaFormFieldRow): boolean {
+  const rules = field.validationRules as { mustBeTrue?: unknown } | null;
+  return rules?.mustBeTrue === true || requiredExpectedAnswer(field) !== null;
+}
+
+const HISTORICAL_DATE_CONTEXT = /(^|_)(birth|born|issue|issued|previous|prior|history|historical|past|last_visit)(_|$)/;
+const TRAVEL_ARRIVAL_DATE_CONTEXT = /(^|_)(arrival|entry)(_|$)/;
+
+/**
+ * Returns true only for dates that describe the upcoming trip's arrival or
+ * entry. Schemas can opt out with `allow_past_date`; otherwise canonical
+ * arrival aliases are recognized across country packages. Historical travel,
+ * birth, and document-issue dates are deliberately excluded.
+ */
+export function isUpcomingTravelDateField(field: VisaFormFieldRow): boolean {
+  if (field.fieldType !== "date") return false;
+  const rules = field.validationRules as {
+    min_date?: unknown;
+    not_before_today?: unknown;
+    allow_past_date?: unknown;
+    official_key?: unknown;
+    date_role?: unknown;
+  } | null;
+  if (rules?.allow_past_date === true) return false;
+  if (rules?.min_date === "today" || rules?.not_before_today === true) return true;
+  if (rules?.date_role === "arrival" || rules?.date_role === "entry") return true;
+
+  const fieldName = field.fieldName.trim().toLowerCase();
+  const officialKey = typeof rules?.official_key === "string"
+    ? rules.official_key.trim().toLowerCase()
+    : "";
+  if (HISTORICAL_DATE_CONTEXT.test(fieldName)) return false;
+  return TRAVEL_ARRIVAL_DATE_CONTEXT.test(fieldName) ||
+    officialKey === "arrival_date" ||
+    officialKey === "entry_date";
+}
+
+function isoCalendarDate(value: Date): string {
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
+}
+
+export function isPastUpcomingTravelDate(
+  field: VisaFormFieldRow,
+  value: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  const normalized = text(value);
+  return isUpcomingTravelDateField(field) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(normalized) &&
+    normalized < isoCalendarDate(now);
+}
+
+export function isVisibleDynamicFieldRequired(
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+  fields: VisaFormFieldRow[],
+): boolean {
   if (isRequiredUnlessSatisfied(field, values)) return false;
+  if (!field.required && !isRequiredWhenSatisfied(field, values) && !ruleRequiresAcceptance(field)) return false;
   return evaluateShowIf(field, values, fields);
 }
 
@@ -138,12 +226,23 @@ function isAllowedChoiceValue(field: VisaFormFieldRow, value: string | null | un
   ) === value);
 }
 
-function isFieldComplete(field: VisaFormFieldRow, values: Record<string, string>): boolean {
-  if (field.fieldType === "checkbox" && field.required) {
+function isFieldComplete(
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+  now: Date = new Date(),
+): boolean {
+  if (field.fieldType === "checkbox" && (field.required || ruleRequiresAcceptance(field))) {
     return isAcceptedCheckboxValue(values[field.fieldName]);
   }
+  const expected = requiredExpectedAnswer(field);
+  if (expected !== null) return normalizeAnswer(values[field.fieldName]) === expected;
   const group = getRepeatGroup(field);
-  if (!group) return isAllowedChoiceValue(field, values[field.fieldName]);
+  if (!group) {
+    const value = text(values[field.fieldName]);
+    if (!hasValue(value)) return false;
+    if (isPastUpcomingTravelDate(field, value, now)) return false;
+    return isAllowedChoiceValue(field, value);
+  }
 
   const count = getMaxItems(field) ?? 1;
   for (let index = 0; index < count; index += 1) {
@@ -152,17 +251,23 @@ function isFieldComplete(field: VisaFormFieldRow, values: Record<string, string>
   return false;
 }
 
-function missingForDynamicStep(step: WizardStep, stepId: number, stepName: string, answers: Record<string, string>) {
+function missingForDynamicStep(
+  step: WizardStep,
+  stepId: number,
+  stepName: string,
+  answers: Record<string, string>,
+  now: Date = new Date(),
+) {
   const missing: MissingApplicationField[] = [];
   for (const field of step.fields) {
-    if (!isVisibleRequiredField(field, answers, step.fields)) continue;
-    if (isFieldComplete(field, answers)) continue;
+    if (!isVisibleDynamicFieldRequired(field, answers, step.fields)) continue;
+    if (isFieldComplete(field, answers, now)) continue;
     missing.push({
       stepId,
       stepName,
       fieldName: field.fieldName,
       label: field.label || field.fieldName,
-      reason: "required",
+      reason: hasValue(answers[field.fieldName]) ? "invalid" : "required",
     });
   }
 
@@ -201,10 +306,21 @@ function missingForDynamicStep(step: WizardStep, stepId: number, stepName: strin
 export function getMissingDynamicFormFields(
   dbSteps: WizardStep[],
   answers: Record<string, string>,
+  options: { country?: string | null; visaType?: string | null; now?: Date } = {},
 ): MissingApplicationField[] {
-  return dbSteps.flatMap((step, index) =>
-    missingForDynamicStep(step, index, step.stepName, answers),
+  const missing = dbSteps.flatMap((step, index) =>
+    missingForDynamicStep(step, index, step.stepName, answers, options.now),
   );
+  if (isCanadaTrvApplication(options.country, options.visaType)) {
+    missing.push(...getInvalidCanadaTrvFields(dbSteps, answers).map(({ stepIndex, field }) => ({
+      stepId: stepIndex,
+      stepName: dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`,
+      fieldName: field.fieldName,
+      label: field.label || field.fieldName,
+      reason: "invalid" as const,
+    })));
+  }
+  return missing;
 }
 
 function pushMissing(
@@ -271,19 +387,40 @@ export function getDs160CeacMissingFields(
   return missing;
 }
 
-function documentsComplete(data: DocumentCenterData | null): boolean {
-  if (!data) return false;
+export function getRequiredDocumentProgress(data: DocumentCenterData | null): {
+  completed: number;
+  total: number;
+} {
+  // A visible document step whose checklist has not loaded is still an
+  // unresolved readiness gate. Count one pending item so the application can
+  // never briefly or permanently claim 100% while document readiness is
+  // unknown.
+  if (!data) return { completed: 0, total: 1 };
   const required = data.requirements.filter((requirement) => requirement.required);
-  if (required.length === 0) return true;
-  return required.every((requirement) =>
-    data.documents.some((document) => {
+  const missingKeys = new Set(getMissingRequiredDocumentRequirementKeys(data));
+  const completed = required.filter((requirement) => !missingKeys.has(requirement.key)).length;
+  return { completed, total: required.length };
+}
+
+export function getMissingRequiredDocumentRequirementKeys(
+  data: DocumentCenterData | null,
+): string[] {
+  if (!data) return [];
+  return data.requirements
+    .filter((requirement) => requirement.required)
+    .filter((requirement) => !data.documents.some((document) => {
       const matchesRequirement =
         document.requirementKey === requirement.key ||
         document.documentType === requirement.documentType;
       if (!matchesRequirement) return false;
-      return !["missing", "rejected", "failed"].includes(normalizeAnswer(document.status));
-    })
-  );
+      return READY_DOCUMENT_STATUSES.has(normalizeAnswer(document.status));
+    }))
+    .map((requirement) => requirement.key);
+}
+
+function documentsComplete(data: DocumentCenterData | null): boolean {
+  const progress = getRequiredDocumentProgress(data);
+  return progress.completed === progress.total;
 }
 
 function findStepName(steps: ApplicationStepRef[], stepId: number, fallback: string): string {
@@ -312,10 +449,44 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
   input.dbSteps.forEach((step, index) => {
     const stepId = dynamicStepIds[index] ?? index;
     const stepName = input.effectiveSteps.find((candidate) => candidate.id === stepId)?.name ?? step.stepName;
-    const missing = missingForDynamicStep(step, stepId, stepName, completionAnswers);
+    const missing = missingForDynamicStep(step, stepId, stepName, completionAnswers, input.now);
     missingFields.push(...missing);
     if (missing.length === 0) completed.add(stepId);
   });
+
+  if (isCanadaTrvApplication(input.country, input.visaType)) {
+    const invalidFields = getInvalidCanadaTrvFields(input.dbSteps, completionAnswers)
+      .map(({ stepIndex, field }) => {
+        const stepId = dynamicStepIds[stepIndex] ?? stepIndex;
+        return {
+          stepId,
+          stepName: input.effectiveSteps.find((candidate) => candidate.id === stepId)?.name ??
+            input.dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`,
+          fieldName: field.fieldName,
+          label: field.label || field.fieldName,
+          reason: "invalid" as const,
+        };
+      });
+    missingFields.push(...invalidFields);
+    for (const item of invalidFields) completed.delete(item.stepId);
+
+    const gateLabels = {
+      canada_application_consent: "Application consent",
+      canada_application_signature: "Application signature",
+      canada_ircc_portal_terms_consent: "IRCC Portal terms authorization",
+    } as const;
+    missingFields.push(...getMissingCanadaTrvExternalGates({
+      applicationConsentPresent: input.applicationConsentPresent,
+      applicationSignaturePresent: input.applicationSignaturePresent,
+      portalTermsConsentPresent: input.canadaPortalTermsConsentPresent,
+    }).map((fieldName) => ({
+      stepId: input.reviewStepId,
+      stepName: findStepName(input.effectiveSteps, input.reviewStepId, "Review Application"),
+      fieldName,
+      label: gateLabels[fieldName],
+      reason: "external_gate" as const,
+    })));
+  }
 
   const ds160Missing = isUsDs160(input.country, input.visaType)
     ? getDs160CeacMissingFields(input.dbSteps, dynamicStepIds, completionAnswers)

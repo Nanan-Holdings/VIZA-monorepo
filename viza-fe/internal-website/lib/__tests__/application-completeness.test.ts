@@ -117,6 +117,88 @@ function uploaded(requirementKey: string): ApplicationCompletenessDocument {
 }
 
 describe("application completeness", () => {
+  it("requires the exact affirmative value for must_equal declarations", () => {
+    const prerequisite = field({
+      visaType: "TR_E_VISA",
+      fieldName: "confirm_passport_covers_stay",
+      label: "Passport covers stay",
+      fieldType: "radio",
+      validationRules: { must_equal: "yes" },
+    });
+
+    const rejected = computeApplicationCompleteness({
+      steps: [{ stepNumber: 1, stepName: "Eligibility", fields: [prerequisite] }],
+      answers: { confirm_passport_covers_stay: "no" },
+      requirements: [],
+      documents: [],
+      country: "turkey",
+      visaType: "TR_E_VISA",
+    });
+    const accepted = computeApplicationCompleteness({
+      steps: [{ stepNumber: 1, stepName: "Eligibility", fields: [prerequisite] }],
+      answers: { confirm_passport_covers_stay: "yes" },
+      requirements: [],
+      documents: [],
+      country: "turkey",
+      visaType: "TR_E_VISA",
+    });
+
+    expect(rejected.complete).toBe(false);
+    expect(rejected.missingInfo.map((item) => item.fieldName)).toEqual(["confirm_passport_covers_stay"]);
+    expect(accepted.complete).toBe(true);
+  });
+
+  it("activates purpose-specific India documents from requirement metadata", () => {
+    const conditionalLetter: ApplicationCompletenessDocumentRequirement = {
+      requirement_key: "short_course_letter",
+      document_type: "short_course_letter",
+      label_en: "Short-course letter",
+      label_zh: "短期课程证明信",
+      required: false,
+      metadata: {
+        condition_field: "tourist_purpose",
+        condition_values: ["short_term_course"],
+      },
+    };
+    const result = computeApplicationCompleteness({
+      steps: [],
+      answers: { tourist_purpose: "short_term_course" },
+      requirements: [conditionalLetter],
+      documents: [],
+      country: "india",
+      visaType: "IN_E_VISA",
+    });
+
+    expect(result.missingDocuments.map((item) => item.requirementKey)).toEqual(["short_course_letter"]);
+    expect(result.complete).toBe(false);
+  });
+
+  it("does not treat a declined required checkbox declaration as complete", () => {
+    const declaration = field({
+      fieldName: "applicant_declaration",
+      fieldType: "checkbox",
+      required: true,
+      stepName: "Declaration",
+    });
+
+    const declined = computeApplicationCompleteness({
+      steps: [{ stepNumber: 1, stepName: "Declaration", fields: [declaration] }],
+      answers: { applicant_declaration: "false" },
+      requirements: [],
+      documents: [],
+    });
+    const accepted = computeApplicationCompleteness({
+      steps: [{ stepNumber: 1, stepName: "Declaration", fields: [declaration] }],
+      answers: { applicant_declaration: "true" },
+      requirements: [],
+      documents: [],
+    });
+
+    expect(declined.complete).toBe(false);
+    expect(declined.missingInfo.map((item) => item.fieldName)).toEqual(["applicant_declaration"]);
+    expect(accepted.complete).toBe(true);
+  });
+
   it("lists triggered required fields and omits hidden or untriggered conditional fields", () => {
     const result = computeApplicationCompleteness({
       steps: twSteps([
@@ -544,5 +626,106 @@ describe("application completeness", () => {
     });
 
     expect(result.missingDocuments.map((item) => item.requirementKey)).toEqual(["passport_copy"]);
+  });
+
+  it("keeps applicant intake completion separate from official runner readiness", () => {
+    const result = computeApplicationCompleteness({
+      steps: [{
+        stepNumber: 1,
+        stepName: "Applicant",
+        fields: [field({
+          visaType: "SA_E_VISA",
+          fieldName: "father_name",
+          stepNumber: 1,
+          stepName: "Applicant",
+        })],
+      }],
+      answers: { father_name: "Saved applicant answer" },
+      requirements: [],
+      documents: [],
+      country: "saudi_arabia",
+      visaType: "SA_E_VISA",
+    });
+
+    expect(result).toMatchObject({
+      completionScope: "applicant_intake",
+      complete: true,
+      questionnaireComplete: true,
+      documentCollectionComplete: true,
+    });
+    expect(result).not.toHaveProperty("privacyConsentComplete");
+    expect(result).not.toHaveProperty("officialSessionReady");
+    expect(result).not.toHaveProperty("paymentReady");
+  });
+
+  it("reads document types from requirement metadata and accepts runner-compatible profile aliases", () => {
+    const result = computeApplicationCompleteness({
+      steps: [],
+      answers: {},
+      requirements: [
+        {
+          requirement_key: "passport_copy",
+          label_en: "Passport",
+          required: true,
+          metadata: { document_type: "passport_copy" },
+        },
+        {
+          requirement_key: "personal_photo",
+          label_en: "Photo",
+          required: true,
+          metadata: { document_type: "photo" },
+        },
+        {
+          requirement_key: "six_month_bank_statement",
+          label_en: "Bank statement",
+          required: true,
+          metadata: { document_type: "bank_statement" },
+        },
+        {
+          requirement_key: "uae_health_coverage_evidence",
+          label_en: "Insurance",
+          required: true,
+          metadata: { document_type: "travel_insurance" },
+        },
+        {
+          requirement_key: "return_or_onward_ticket",
+          label_en: "Ticket",
+          required: true,
+          metadata: { document_type: "return_ticket" },
+        },
+        {
+          requirement_key: "uae_accommodation_evidence",
+          label_en: "Accommodation",
+          required: false,
+          metadata: { document_type: "hotel_booking", applicability: "conditional" },
+        },
+        {
+          requirement_key: "national_identity_copy",
+          label_en: "National ID",
+          required: false,
+          metadata: { document_type: "national_identity_card", applicability: "optional" },
+        },
+      ],
+      documents: [
+        { document_type: "passport_bio_page", status: "validated" },
+        { document_type: "personal_photo", status: "validated" },
+        { document_type: "bank_statement", status: "uploaded" },
+      ],
+      country: "united_arab_emirates",
+      visaType: "AE_TOURIST_VISA",
+    });
+
+    expect(result.questionnaireComplete).toBe(true);
+    expect(result.documentCollectionComplete).toBe(false);
+    expect(result.missingDocuments.map((item) => item.requirementKey)).toEqual([
+      "uae_health_coverage_evidence",
+      "return_or_onward_ticket",
+    ]);
+    expect(result.missingDocuments.map((item) => item.requirementKey)).not.toContain(
+      "uae_accommodation_evidence",
+    );
+    expect(result.missingDocuments.map((item) => item.requirementKey)).not.toContain(
+      "national_identity_copy",
+    );
   });
 });

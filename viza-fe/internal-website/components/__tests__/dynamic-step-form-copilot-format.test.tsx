@@ -2017,6 +2017,28 @@ describe("DynamicStepForm copilot format", () => {
     expect(control).not.toHaveClass("pr-10");
   });
 
+  it("places the AI-filled marker beside the field label with compact vertical padding", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={requiredTextStep}
+        prefill={{ surname: "ZHANG" }}
+        onComplete={vi.fn()}
+        aiFilledFieldNames={new Set(["surname"])}
+        visaType="DS160"
+      />,
+    );
+
+    const field = container.querySelector<HTMLElement>('[data-application-field-name="surname"]');
+    const label = field?.querySelector<HTMLElement>(".application-form-question-label");
+    const badge = screen.getByText("AI 已填写").closest("span");
+    const labelRow = label?.parentElement;
+
+    expect(field).toHaveClass("py-2");
+    expect(labelRow).toContainElement(badge);
+    expect(label?.nextElementSibling).toBe(badge);
+    expect(badge).toHaveClass("shrink-0");
+  });
+
   it("preserves bottom-page height after removing a repeat instance until scrolling safely upward", () => {
     let repeatGroupWasExpanded = false;
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (this: HTMLElement) {

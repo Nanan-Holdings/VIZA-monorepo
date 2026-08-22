@@ -24,7 +24,12 @@ import {
   verifyPhEtravelSeaPortFlowPage,
 } from "../sea-port-flow";
 import type { PhEtravelPortalPayload } from "../normalize";
-import { buildPhEtravelSuccessFromPortalText, PhEtravelPortalError } from "../runner";
+import {
+  buildPhEtravelSuccessFromPortalText,
+  extractPhEtravelRegistrationId,
+  extractPhEtravelRegistrationReference,
+  PhEtravelPortalError,
+} from "../runner";
 
 const payload: PhEtravelPortalPayload = {
   countryCode: "PH",
@@ -1057,6 +1062,30 @@ test("Philippines eTravel success requires an authoritative result read and matc
 
   assert.deepEqual(result.qrCodes, ["rendered-reference.png"]);
   assert.equal(result.referenceNumber, "F00TEST12345");
+});
+
+test("Philippines eTravel extracts the authoritative reference only from official registration response fields", () => {
+  assert.equal(extractPhEtravelRegistrationReference({
+    data: { registration: { reference_number: "F00TEST12345" } },
+  }), "F00TEST12345");
+  assert.equal(extractPhEtravelRegistrationReference({
+    message: "Reference Number F00TEXTONLY",
+  }), null);
+  assert.equal(extractPhEtravelRegistrationReference({
+    data: { reference_number: "invalid reference with spaces" },
+  }), null);
+});
+
+test("Philippines eTravel preserves the official registration id across wizard and result routes", () => {
+  assert.equal(
+    extractPhEtravelRegistrationId("https://etravel.gov.ph/wizard/me?id=9fc6d490-50a8-4a45-babd-eec233c79243&wizard_page=8"),
+    "9fc6d490-50a8-4a45-babd-eec233c79243",
+  );
+  assert.equal(
+    extractPhEtravelRegistrationId("https://etravel.gov.ph/qr-code?id=9fc6d490-50a8-4a45-babd-eec233c79243"),
+    "9fc6d490-50a8-4a45-babd-eec233c79243",
+  );
+  assert.equal(extractPhEtravelRegistrationId("https://etravel.gov.ph/qr-code?id=bad/value"), null);
 });
 
 test("Philippines eTravel success rejects HTTP/Summary/local reference and QR visual without authoritative result evidence", () => {

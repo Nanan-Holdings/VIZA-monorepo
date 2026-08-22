@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadDocumentCenterData } from "@/app/client/documents/actions";
+import { getMissingRequiredDocumentRequirementKeys } from "@/lib/application-tab-completion";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getClientSessionWithFallback } from "@/lib/client-session";
 import {
@@ -14,8 +16,10 @@ import {
 import { augmentThailandTouristEVisaSteps } from "@/lib/thailand-tourist-evisa-form-overrides";
 import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form-parity";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
+import { canonicalizeSchemaOptionValue } from "@/lib/universal-profile-prefill";
 import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/types/visa-form-fields";
 import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
+import type { FormAssistantDocumentReadiness } from "@/types/form-assistant";
 
 export interface OwnedApplicationContext {
   admin: SupabaseClient;
@@ -187,4 +191,72 @@ export async function loadAssistantAnswers(
     }
   }
   return answers;
+}
+
+export async function repairAssistantOfficialOptionAnswers(
+  admin: SupabaseClient,
+  applicationId: string,
+  steps: WizardStep[],
+  answers: Record<string, { value: string; source: string | null }>,
+): Promise<Record<string, { value: string; source: string | null }>> {
+  const repaired = { ...answers };
+  const fields = steps.flatMap((step) => step.fields);
+  for (const field of fields) {
+    const current = repaired[field.fieldName];
+    if (
+      !current?.value.trim()
+      || !field.options?.length
+      || !["universal_profile", "form_assistant"].includes(current.source ?? "")
+    ) continue;
+    const canonical = canonicalizeSchemaOptionValue(field, current.value);
+    if (!canonical || canonical === current.value) continue;
+
+    const { data, error } = await admin
+      .from("visa_application_answers")
+      .update({ value_text: canonical, updated_at: new Date().toISOString() })
+      .eq("application_id", applicationId)
+      .eq("field_name", field.fieldName)
+      .eq("value_text", current.value)
+      .eq("source", current.source)
+      .select("field_name")
+      .maybeSingle();
+    if (error) {
+      console.warn("[form-assistant] Unable to repair legacy official option value", {
+        fieldName: field.fieldName,
+        code: error.code,
+      });
+      continue;
+    }
+    if (data?.field_name) {
+      repaired[field.fieldName] = { ...current, value: canonical };
+    }
+  }
+  return repaired;
+}
+
+export async function loadAssistantDocumentReadiness(input: {
+  applicationId: string;
+  country: string;
+  visaType: string;
+}): Promise<FormAssistantDocumentReadiness | null> {
+  const result = await loadDocumentCenterData({
+    applicationId: input.applicationId,
+    country: input.country,
+    visaType: input.visaType,
+  });
+  if (!result.ok) return null;
+
+  const missingKeys = new Set(getMissingRequiredDocumentRequirementKeys(result.data));
+  const missingDocuments = result.data.requirements
+    .filter((requirement) => requirement.required && missingKeys.has(requirement.key))
+    .map((requirement) => ({
+      requirementKey: requirement.key,
+      labelEn: requirement.labelEn,
+      labelZh: requirement.labelZh,
+    }));
+  return {
+    documentCollectionComplete: missingDocuments.length === 0,
+    missingDocumentCount: missingDocuments.length,
+    missingDocuments,
+  };
 }

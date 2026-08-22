@@ -1153,6 +1153,8 @@ export default function UniversalInfoPage() {
   const [identityCardUpload, setIdentityCardUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
   const [photoUpload, setPhotoUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
   const [signatureUpload, setSignatureUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
+  const [bankStatementUpload, setBankStatementUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
+  const [travelInsuranceUpload, setTravelInsuranceUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
   const [message, setMessage] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1274,6 +1276,8 @@ export default function UniversalInfoPage() {
           setIdentityCardUpload(reusableDocumentsResult.documents.identityCard);
           setPhotoUpload(reusableDocumentsResult.documents.photo);
           setSignatureUpload(reusableDocumentsResult.documents.signature);
+          setBankStatementUpload(reusableDocumentsResult.documents.bankStatement);
+          setTravelInsuranceUpload(reusableDocumentsResult.documents.travelInsurance);
         }
         if (isMounted && draftResult.applicationId) {
           setPassportOcrApplicationId(draftResult.applicationId);
@@ -1895,6 +1899,8 @@ export default function UniversalInfoPage() {
                 identityCard={identityCardUpload}
                 photo={photoUpload}
                 signature={signatureUpload}
+                bankStatement={bankStatementUpload}
+                travelInsurance={travelInsuranceUpload}
                 onPassportFieldsApplied={applyPassportOcrFields}
                 onDocumentUploaded={(type, fileName) => {
                   const nextState = {
@@ -1907,6 +1913,8 @@ export default function UniversalInfoPage() {
                   if (type === "identityCard") setIdentityCardUpload(nextState);
                   if (type === "photo") setPhotoUpload(nextState);
                   if (type === "signature") setSignatureUpload(nextState);
+                  if (type === "bankStatement") setBankStatementUpload(nextState);
+                  if (type === "travelInsurance") setTravelInsuranceUpload(nextState);
                 }}
               />
             ) : null}

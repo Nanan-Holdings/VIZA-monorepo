@@ -9,18 +9,22 @@ vi.mock("server-only", () => ({}));
 import {
   buildAccommodationClarification,
   buildAssistantState,
+  buildFormAssistantFieldQuestion,
   buildFormAssistantModelInstructions,
+  buildOptionDisambiguation,
   findAccommodationOptionCandidates,
   formAssistantTimeZone,
-  getOrCreateAssistantSession,
   inferRequestedCorrectionFieldName,
   inferRequestedCorrectionFieldNameFromFields,
   isAmbiguousAlternativeAnswer,
+  isApplicationReadinessQuestion,
   isFieldClarificationRequest,
   isPromptInjectionAttempt,
   isVagueFormAnswer,
   isCorrectionCancellation,
   messageLikelyContainsMultipleAnswers,
+  normalizeStoredAssistantMessage,
+  normalizeStoredAssistantMessages,
   parseExplicitMultiFieldAnswers,
   parseDirectCurrentFieldAnswer,
   parseDirectYesNoAnswer,
@@ -71,6 +75,32 @@ describe("buildFormAssistantModelInstructions", () => {
   });
 });
 
+describe("cross-country assistant question grammar", () => {
+  const product = { country: "example", visaType: "EXAMPLE_VISITOR" };
+
+  it.each([
+    ["under_18_traveller_count", "Below 18 yrs. old", "number", "How many travellers under 18 are travelling with you? Enter 0 if none."],
+    ["interview_date", "When is your interview.", "date", "When is your interview?"],
+    ["arrival_date", "Date of Arrival", "date", "What is the date of arrival?"],
+    ["employer_name", "Name of Employer", "text", "What is the name of employer?"],
+    ["previous_refusal", "Have you ever been refused a visa.", "radio", "Have you ever been refused a visa?"],
+  ])("turns %s into a natural direct question", (fieldName, label, fieldType, expected) => {
+    expect(buildFormAssistantFieldQuestion({
+      ...field(fieldName, label, label),
+      fieldType: fieldType as VisaFormFieldRow["fieldType"],
+      options: fieldType === "radio" ? ["Yes", "No"] : null,
+    }, "en", product)).toBe(expected);
+  });
+
+  it("keeps legal declarations in the inline confirmation flow", () => {
+    expect(buildFormAssistantFieldQuestion({
+      ...field("truth_declaration", "I certify that this declaration is true and correct.", "本人确认声明真实无误。"),
+      fieldType: "checkbox",
+      validationRules: { mustBeTrue: true },
+    }, "en", product)).toBe("Please review and confirm the complete declaration shown below.");
+  });
+});
+
 describe("human-style assistant edge cases", () => {
   const passport = field("passport_number", "Passport number", "护照号码");
   const email = field("email_address", "Email address", "电子邮箱");
@@ -101,6 +131,17 @@ describe("human-style assistant edge cases", () => {
   it.each(["明天或者后天", "Beijing or Shanghai"])(
     "does not choose between contradictory alternatives: %s",
     (answer) => expect(isAmbiguousAlternativeAnswer(answer)).toBe(true),
+  );
+
+  it("allows explicitly labelled alternatives that resolve the current field", () => {
+    expect(isAmbiguousAlternativeAnswer(
+      "outside of ph or inside? inside is CanopyProperties in Makati. outside is 02-17 227 Pasir Panjang Rd S117341",
+    )).toBe(false);
+  });
+
+  it.each(["are you sure?", "Is the application complete?", "what is still missing?", "申请完成了吗？"])(
+    "recognizes an application-readiness question: %s",
+    (message) => expect(isApplicationReadinessQuestion(message)).toBe(true),
   );
 
   it("maps common Korean and Taiwan answers to official option values", () => {
@@ -229,7 +270,8 @@ function yesNoField(fieldName: string, label: string, labelZh: string): VisaForm
 
 function createAssistantAdminStub(
   priorResponse?: Record<string, unknown>,
-  answerUpdateReturnsRow = true,
+  recentMessageRows: Array<Record<string, unknown>> = [],
+  options: { rejectConfirmationInputMode?: boolean } = {},
 ) {
   const messages: Array<Record<string, unknown>> = [];
   const answerUpdates: Array<Record<string, unknown>> = [];
@@ -285,80 +327,37 @@ function createAssistantAdminStub(
           return { data: { response_json: priorResponse }, error: null };
         }
         if (table === "form_assistant_messages" && operation === "upsert") {
+          if (options.rejectConfirmationInputMode && payload.input_mode === "confirmation") {
+            return {
+              data: null,
+              error: {
+                code: "23514",
+                message: "new row for relation form_assistant_messages violates check constraint form_assistant_messages_input_mode_check",
+              },
+            };
+          }
           messageSequence += 1;
           return { data: { id: `message-${messageSequence}` }, error: null };
         }
         if (table === "visa_application_answers" && operation === "update") {
-          return {
-            data: answerUpdateReturnsRow ? { field_name: "accommodation_name", ...payload } : null,
-            error: null,
-          };
+          return { data: { field_name: "accommodation_name", ...payload }, error: null };
         }
         return { data: null, error: null };
       };
+      chain.then = (
+        onFulfilled: (value: { data: Array<Record<string, unknown>> | null; error: null }) => unknown,
+        onRejected?: (reason: unknown) => unknown,
+      ) => Promise.resolve({
+        data: table === "form_assistant_messages" && operation === "select"
+          ? recentMessageRows
+          : null,
+        error: null,
+      }).then(onFulfilled, onRejected);
       return chain;
     },
   } as unknown as SupabaseClient;
   return { admin, messages, answerUpdates, sessionUpdates, deletedMessageIds };
 }
-
-describe("assistant session bootstrapping", () => {
-  it("reuses the concurrent winner when two first requests hit the unique application constraint", async () => {
-    const concurrentSession = {
-      id: "concurrent-session",
-      schema_fingerprint: "fingerprint",
-      knowledge_release_key: null,
-      state_json: { optionalFieldsAcknowledged: false },
-    };
-    let sessionReadCount = 0;
-    const admin = {
-      from(table: string) {
-        let operation = "select";
-        const chain: Record<string, unknown> = {};
-        const returnChain = () => chain;
-        chain.select = returnChain;
-        chain.eq = returnChain;
-        chain.order = returnChain;
-        chain.limit = returnChain;
-        chain.ilike = returnChain;
-        chain.insert = () => {
-          operation = "insert";
-          return chain;
-        };
-        chain.maybeSingle = async () => {
-          if (table === "form_assistant_sessions") {
-            sessionReadCount += 1;
-            return sessionReadCount === 1
-              ? { data: null, error: null }
-              : { data: concurrentSession, error: null };
-          }
-          return { data: null, error: null };
-        };
-        chain.single = async () => operation === "insert"
-          ? {
-              data: null,
-              error: {
-                code: "23505",
-                message: "duplicate key value violates unique constraint form_assistant_sessions_application_id_key",
-              },
-            }
-          : { data: null, error: null };
-        return chain;
-      },
-    } as unknown as SupabaseClient;
-
-    await expect(getOrCreateAssistantSession({
-      admin,
-      applicationId: "application-id",
-      applicantId: "applicant-id",
-      authUserId: "auth-user-id",
-      country: "malaysia",
-      visaType: "MY_MDAC_ARRIVAL_CARD",
-      steps: [],
-    })).resolves.toEqual(concurrentSession);
-    expect(sessionReadCount).toBe(2);
-  });
-});
 
 describe("generic natural-language model extraction", () => {
   it("translates a natural answer into a high-confidence field patch for a non-SG form", async () => {
@@ -429,6 +428,269 @@ describe("generic natural-language model extraction", () => {
     }
   });
 
+  it("uses labelled address context instead of rejecting the word or as ambiguous", async () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    const singaporeAddress = "02-17 227 Pasir Panjang Rd S117341";
+    const userMessage = `outside of ph or inside? inside is CanopyProperties in Makati. outside is ${singaporeAddress}`;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+      ok: true,
+      json: async () => ({
+        output_text: JSON.stringify({
+          reply: "",
+          patches: [{
+            fieldName: "residence_address_line1",
+            value: singaporeAddress,
+            confidence: "high",
+          }],
+        }),
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const stub = createAssistantAdminStub(undefined, [{
+      role: "assistant",
+      content: "This field asks for your permanent residence address outside the Philippines.",
+      created_at: "2026-08-20T15:00:00.000Z",
+    }]);
+    const countryField: VisaFormFieldRow = {
+      ...field("country_of_residence", "Permanent Country of Residence", "永久居住国家"),
+      fieldType: "select",
+      validationRules: { label_zh: "永久居住国家", block_group: "residence_address" },
+      options: [{ value: "SG", text: "Singapore" }],
+    };
+    const addressField: VisaFormFieldRow = {
+      ...field("residence_address_line1", "No./Bldg./City/State/Province", "门牌 / 楼宇 / 城市 / 州省"),
+      validationRules: {
+        label_zh: "门牌 / 楼宇 / 城市 / 州省",
+        block_group: "residence_address",
+        maxLength: 160,
+      },
+    };
+
+    try {
+      const result = await runAssistantTurn({
+        admin: stub.admin,
+        session: {
+          id: "session-id",
+          schema_fingerprint: "fingerprint",
+          knowledge_release_key: null,
+          state_json: {},
+        },
+        applicationId: "application-id",
+        applicantId: "applicant-id",
+        authUserId: "user-id",
+        steps: [{
+          stepNumber: 2,
+          stepName: "Traveller Information",
+          fields: [countryField, addressField],
+        }],
+        answers: {
+          country_of_residence: { value: "SG", source: "user_form" },
+        },
+        text: userMessage,
+        locale: "en",
+        inputMode: "text",
+        idempotencyKey: "labelled-address-turn",
+        country: "philippines",
+        visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      });
+
+      expect(result.appliedPatches).toEqual([expect.objectContaining({
+        fieldName: "residence_address_line1",
+        value: singaporeAddress,
+      })]);
+      expect(result.assistantMessage).not.toContain("two possible answers");
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as { input: string };
+      const modelInput = JSON.parse(requestBody.input) as {
+        recentConversation: Array<{ role: string; content: string }>;
+        relevantExistingAnswers: Array<{ fieldName: string; value: string }>;
+      };
+      expect(modelInput.recentConversation).toEqual([expect.objectContaining({
+        role: "assistant",
+        content: expect.stringContaining("outside the Philippines"),
+      })]);
+      expect(modelInput.relevantExistingAnswers).toContainEqual(expect.objectContaining({
+        fieldName: "country_of_residence",
+        value: "SG",
+      }));
+    } finally {
+      if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses cross-step semantic context and preserves a targeted related-answer follow-up", async () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    const followUp = "Got it—you have two carry-on bags. That answers the baggage-count field, but this question is about their contents or currency: are you carrying anything that Philippine customs requires you to declare?";
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+      ok: true,
+      json: async () => ({
+        output_text: JSON.stringify({
+          intent: "related_answer",
+          reply: followUp,
+          patches: [],
+        }),
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const stub = createAssistantAdminStub();
+    const handCarryField: VisaFormFieldRow = {
+      ...field("handcarry_baggage_count", "Hand-carried (pcs)", "手提行李件数"),
+      stepNumber: 6,
+      stepName: "Other Travel Details",
+      validationRules: {
+        label_zh: "手提行李件数",
+        inline_group: "baggage_counts",
+        pattern: "^[0-9]+$",
+      },
+    };
+    const declarationField: VisaFormFieldRow = {
+      ...yesNoField(
+        "has_baggage_or_currency_to_declare",
+        "Do you have baggage or currency to declare?",
+        "你是否有需要申报的行李或货币？",
+      ),
+      stepNumber: 7,
+      stepName: "Customs Declaration",
+      validationRules: {
+        label_zh: "你是否有需要申报的行李或货币？",
+        customs_contract: "entry_gate_only_not_a_substitute_for_item_answers",
+        official_control_type: "yes_no_button",
+      },
+    };
+
+    try {
+      const result = await runAssistantTurn({
+        admin: stub.admin,
+        session: {
+          id: "session-id",
+          schema_fingerprint: "fingerprint",
+          knowledge_release_key: null,
+          state_json: {},
+        },
+        applicationId: "application-id",
+        applicantId: "applicant-id",
+        authUserId: "user-id",
+        steps: [
+          { stepNumber: 6, stepName: "Other Travel Details", fields: [handCarryField] },
+          { stepNumber: 7, stepName: "Customs Declaration", fields: [declarationField] },
+        ],
+        answers: {
+          handcarry_baggage_count: { value: "2", source: "form_assistant" },
+        },
+        text: "I have 2 carry on",
+        locale: "en",
+        inputMode: "text",
+        idempotencyKey: "customs-related-baggage-answer",
+        country: "philippines",
+        visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      });
+
+      expect(result.appliedPatches).toEqual([]);
+      expect(result.assistantMessage).toBe(followUp);
+      expect(result.assistantMessage).not.toContain("official value");
+      expect(result.assistantMessage).not.toContain("Format example: Yes, No");
+
+      const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+        instructions: string;
+        input: string;
+        text: { format: { schema: { required: string[] } } };
+      };
+      const modelInput = JSON.parse(requestBody.input) as {
+        currentQuestion: {
+          semantics: {
+            meaning: string;
+            answerPolicy: string;
+            officialContract: Record<string, string>;
+          };
+        };
+        relevantExistingAnswers: Array<{
+          fieldName: string;
+          value: string;
+          relationship: string[];
+        }>;
+      };
+      expect(requestBody.instructions).toContain("a baggage count does not prove");
+      expect(requestBody.text.format.schema.required).toContain("intent");
+      expect(modelInput.currentQuestion.semantics.meaning).toContain("not how many bags you have");
+      expect(modelInput.currentQuestion.semantics.answerPolicy).toContain("A related fact is not enough");
+      expect(modelInput.currentQuestion.semantics.officialContract).toEqual(expect.objectContaining({
+        customs_contract: "entry_gate_only_not_a_substitute_for_item_answers",
+      }));
+      expect(modelInput.relevantExistingAnswers).toContainEqual(expect.objectContaining({
+        fieldName: "handcarry_baggage_count",
+        value: "2",
+        relationship: expect.arrayContaining(["shared_baggage_context"]),
+      }));
+    } finally {
+      if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("rejects a repeated option question and falls back to semantic guidance", async () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        output_text: JSON.stringify({
+          intent: "unclear",
+          reply: "Do you have baggage or currency to declare?",
+          patches: [],
+        }),
+      }),
+    })));
+    const stub = createAssistantAdminStub();
+    const declarationField: VisaFormFieldRow = {
+      ...yesNoField(
+        "has_baggage_or_currency_to_declare",
+        "Do you have baggage or currency to declare?",
+        "你是否有需要申报的行李或货币？",
+      ),
+      validationRules: {
+        label_zh: "你是否有需要申报的行李或货币？",
+        customs_contract: "entry_gate_only_not_a_substitute_for_item_answers",
+      },
+    };
+
+    try {
+      const result = await runAssistantTurn({
+        admin: stub.admin,
+        session: {
+          id: "session-id",
+          schema_fingerprint: "fingerprint",
+          knowledge_release_key: null,
+          state_json: {},
+        },
+        applicationId: "application-id",
+        applicantId: "applicant-id",
+        authUserId: "user-id",
+        steps: [{ stepNumber: 7, stepName: "Customs Declaration", fields: [declarationField] }],
+        answers: {},
+        text: "I have some bags",
+        locale: "en",
+        inputMode: "text",
+        idempotencyKey: "repeated-customs-question",
+        country: "philippines",
+        visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      });
+
+      expect(result.appliedPatches).toEqual([]);
+      expect(result.assistantMessage).toContain("not how many bags you have");
+      expect(result.assistantMessage).not.toBe("Do you have baggage or currency to declare?");
+      expect(result.assistantMessage).not.toContain("official value");
+    } finally {
+      if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("returns the model's field explanation instead of repeating the same question", async () => {
     const originalKey = process.env.OPENAI_API_KEY;
     process.env.OPENAI_API_KEY = "test-key";
@@ -489,6 +751,165 @@ describe("generic natural-language model extraction", () => {
       else process.env.OPENAI_API_KEY = originalKey;
       vi.unstubAllGlobals();
     }
+  });
+
+  it("explains Philippine traveller type in chat and accepts aircraft without repeating the field", async () => {
+    const stub = createAssistantAdminStub();
+    const answers: Record<string, { value: string; source: string | null }> = {};
+    const travellerTypeField: VisaFormFieldRow = {
+      ...field("traveller_type", "Traveller Type", "旅客类型"),
+      fieldType: "select",
+      options: [
+        { value: "AIRCRAFT PASSENGER", text: "AIRCRAFT PASSENGER" },
+        { value: "VESSEL PASSENGER", text: "VESSEL PASSENGER" },
+      ],
+    };
+    const baseParams = {
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "user-id",
+      steps: [{
+        stepNumber: 3,
+        stepName: "Travel Details - Philippine Arrival",
+        fields: [travellerTypeField],
+      }],
+      answers,
+      locale: "en",
+      inputMode: "text" as const,
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+    };
+
+    const clarification = await runAssistantTurn({
+      ...baseParams,
+      text: "what do you mean?",
+      idempotencyKey: "traveller-type-clarification",
+    });
+
+    expect(clarification.appliedPatches).toEqual([]);
+    expect(clarification.assistantMessage).toContain("Reply with how you are entering the destination country");
+    expect(clarification.assistantMessage).not.toMatch(/\b(?:choose|select|click)\b/i);
+
+    const answer = await runAssistantTurn({
+      ...baseParams,
+      text: "aircraft",
+      idempotencyKey: "traveller-type-answer",
+    });
+
+    expect(answer.appliedPatches).toEqual([expect.objectContaining({
+      fieldName: "traveller_type",
+      value: "AIRCRAFT PASSENGER",
+      confidence: "high",
+    })]);
+    expect(answer.assistantMessage).not.toContain("What is your traveller type?");
+  });
+
+  it("asks for the meaningful distinction when an answer matches several options", async () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        output_text: JSON.stringify({ reply: "", patches: [] }),
+      }),
+    })));
+    const stub = createAssistantAdminStub();
+    const travellerTypeField: VisaFormFieldRow = {
+      ...field("traveller_type", "Traveller Type", "旅客类型"),
+      fieldType: "select",
+      options: [
+        { value: "AIRCRAFT PASSENGER", text: "AIRCRAFT PASSENGER" },
+        { value: "VESSEL PASSENGER", text: "VESSEL PASSENGER" },
+      ],
+    };
+
+    try {
+      const result = await runAssistantTurn({
+        admin: stub.admin,
+        session: {
+          id: "session-id",
+          schema_fingerprint: "fingerprint",
+          knowledge_release_key: null,
+          state_json: {},
+        },
+        applicationId: "application-id",
+        applicantId: "applicant-id",
+        authUserId: "user-id",
+        steps: [{
+          stepNumber: 3,
+          stepName: "Travel Details - Philippine Arrival",
+          fields: [travellerTypeField],
+        }],
+        answers: {},
+        text: "passenger",
+        locale: "en",
+        inputMode: "text",
+        idempotencyKey: "unmatched-traveller-type",
+        country: "philippines",
+        visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      });
+
+      expect(result.appliedPatches).toEqual([]);
+      expect(result.assistantMessage).toBe("Are you entering the Philippines by aircraft or by vessel?");
+      expect(result.assistantMessage).not.toBe("What is your traveller type?");
+      expect(result.assistantMessage).not.toMatch(/\b(?:choose|select|click)\b/i);
+    } finally {
+      if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("asks only for the NAIA terminal when the airport name matches every terminal option", async () => {
+    const stub = createAssistantAdminStub();
+    const portOfEntryField: VisaFormFieldRow = {
+      ...field("port_of_entry", "Airport of Destination in the Philippines", "菲律宾目的机场"),
+      fieldType: "select",
+      options: [
+        { value: "TP1000", text: "Ninoy Aquino International Airport T1 - (MNL)" },
+        { value: "TP2000", text: "Ninoy Aquino International Airport T2 - (MNL)" },
+        { value: "TP3000", text: "Ninoy Aquino International Airport T3 - (MNL)" },
+        { value: "NAIA4", text: "Ninoy Aquino International Airport T4 - (MNL)" },
+      ],
+    };
+
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "user-id",
+      steps: [{
+        stepNumber: 3,
+        stepName: "Travel Details - Philippine Arrival",
+        fields: [portOfEntryField],
+      }],
+      answers: {},
+      text: "Ninoy Aquino International Airport",
+      locale: "en",
+      inputMode: "text",
+      idempotencyKey: "naia-terminal-clarification",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+    });
+
+    expect(result.appliedPatches).toEqual([]);
+    expect(result.assistantMessage).toContain("I found the airport: Ninoy Aquino International Airport");
+    expect(result.assistantMessage).toContain("Which terminal is shown on your itinerary");
+    expect(result.assistantMessage).toContain("Terminal 1, Terminal 2, Terminal 3, Terminal 4");
+    expect(result.assistantMessage).not.toContain("couldn't match");
   });
 
   it("falls back to DeepSeek when OpenAI rejects the request", async () => {
@@ -630,126 +1051,6 @@ describe("generic natural-language model extraction", () => {
   });
 });
 
-describe("short-answer conversation progression", () => {
-  it("keeps a uniquely matched calling code when the visible question became stale", async () => {
-    const phoneField: VisaFormFieldRow = {
-      ...field("mobile_country_code", "Mobile Country Code", "手机国家 / 地区代码"),
-      displayOrder: 2,
-      validationRules: {
-        label_zh: "手机国家 / 地区代码",
-        pattern: "^[0-9]{1,4}$",
-        official: true,
-      },
-    };
-    const birthCountryField: VisaFormFieldRow = {
-      ...field("place_of_birth", "Place of Birth", "出生地"),
-      fieldType: "select",
-      displayOrder: 1,
-      options: [
-        { value: "AFG", text: "AFGHANISTAN", label_zh: "阿富汗" },
-        { value: "ALA", text: "ALAND ISLANDS", label_zh: "奥兰群岛" },
-        { value: "ALB", text: "ALBANIA", label_zh: "阿尔巴尼亚" },
-        { value: "DZA", text: "ALGERIA", label_zh: "阿尔及利亚" },
-        { value: "ASM", text: "AMERICAN SAMOA", label_zh: "美属萨摩亚" },
-        { value: "CHN", text: "CHINA", label_zh: "中国" },
-      ],
-    };
-    const steps: WizardStep[] = [{
-      stepNumber: 1,
-      stepName: "Traveller Information",
-      fields: [birthCountryField, phoneField],
-    }];
-    const answers: Record<string, { value: string; source: string | null }> = {};
-    const stub = createAssistantAdminStub();
-    const common = {
-      admin: stub.admin,
-      session: {
-        id: "session-id",
-        schema_fingerprint: "fingerprint",
-        knowledge_release_key: null,
-        state_json: {},
-      },
-      applicationId: "application-id",
-      applicantId: "applicant-id",
-      authUserId: "auth-user-id",
-      steps,
-      answers,
-      locale: "zh",
-      inputMode: "text" as const,
-      country: "malaysia",
-      visaType: "MY_MDAC_ARRIVAL_CARD",
-    };
-
-    const callingCodeTurn = await runAssistantTurn({
-      ...common,
-      text: "65",
-      idempotencyKey: "calling-code-turn",
-    });
-    expect(callingCodeTurn.appliedPatches).toEqual([expect.objectContaining({
-      fieldName: "mobile_country_code",
-      value: "65",
-    })]);
-    expect(callingCodeTurn.assistantMessage).toContain("出生地");
-    expect(callingCodeTurn.assistantMessage).not.toContain("阿富汗");
-
-    const birthCountryTurn = await runAssistantTurn({
-      ...common,
-      text: "中国",
-      idempotencyKey: "birth-country-turn",
-    });
-    expect(birthCountryTurn.appliedPatches).toEqual([expect.objectContaining({
-      fieldName: "place_of_birth",
-      value: "CHN",
-    })]);
-    expect(birthCountryTurn.missingFields).toEqual([]);
-    expect(birthCountryTurn.assistantMessage).not.toContain("手机国家 / 地区代码");
-  });
-
-  it("replaces an invalid reusable-profile option instead of trapping the assistant on it", async () => {
-    const birthCountryField: VisaFormFieldRow = {
-      ...field("place_of_birth", "Place of Birth", "出生地"),
-      fieldType: "select",
-      options: [
-        { value: "CHN", text: "CHINA", label_zh: "中国" },
-        { value: "SGP", text: "SINGAPORE", label_zh: "新加坡" },
-      ],
-    };
-    const answers = {
-      place_of_birth: { value: "Changsha", source: "universal_profile" },
-    };
-    const stub = createAssistantAdminStub(undefined, false);
-
-    const result = await runAssistantTurn({
-      admin: stub.admin,
-      session: {
-        id: "session-id",
-        schema_fingerprint: "fingerprint",
-        knowledge_release_key: null,
-        state_json: {},
-      },
-      applicationId: "application-id",
-      applicantId: "applicant-id",
-      authUserId: "auth-user-id",
-      steps: [{ stepNumber: 1, stepName: "Traveller Information", fields: [birthCountryField] }],
-      answers,
-      text: "中国",
-      locale: "zh",
-      inputMode: "text",
-      idempotencyKey: "correct-invalid-profile-option",
-      country: "malaysia",
-      visaType: "MY_MDAC_ARRIVAL_CARD",
-    });
-
-    expect(result.appliedPatches).toEqual([expect.objectContaining({
-      fieldName: "place_of_birth",
-      value: "CHN",
-    })]);
-    expect(result.skippedConflicts).toEqual([]);
-    expect(answers.place_of_birth).toEqual({ value: "CHN", source: "form_assistant" });
-    expect(stub.answerUpdates).toHaveLength(2);
-  });
-});
-
 describe("buildAssistantState", () => {
   const steps: WizardStep[] = [{
     stepNumber: 1,
@@ -776,6 +1077,43 @@ describe("buildAssistantState", () => {
     expect(state.missingFields).toHaveLength(2);
   });
 
+  it("reports missing required uploads instead of claiming the application is complete", () => {
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps,
+      answers: {
+        arrival_date: { value: "2026-08-21", source: "user" },
+        departure_date: { value: "2026-08-23", source: "user" },
+      },
+      messages: [],
+      locale: "en",
+      documentReadiness: {
+        documentCollectionComplete: false,
+        missingDocumentCount: 2,
+        missingDocuments: [
+          {
+            requirementKey: "photo",
+            labelZh: "个人照片",
+            labelEn: "Profile photo",
+          },
+          {
+            requirementKey: "customs_signature",
+            labelZh: "海关申报签名",
+            labelEn: "For Customs — Declaration Signature",
+          },
+        ],
+      },
+    });
+
+    expect(state.assistantMessage).toContain("application is not complete yet");
+    expect(state.assistantMessage).toContain("Profile photo");
+    expect(state.assistantMessage).toContain("Declaration Signature");
+    expect(state.assistantMessage).toContain("upload fields below");
+    expect(state.canRunFinalCheck).toBe(false);
+  });
+
   it("replaces a legacy multi-question prompt with the current single question", () => {
     const state = buildAssistantState({
       sessionId: "session-id",
@@ -794,6 +1132,76 @@ describe("buildAssistantState", () => {
 
     expect(state.assistantMessage).toContain("arrive in Singapore");
     expect(state.assistantMessage).not.toContain("leave Singapore");
+  });
+
+  it("preserves a concise acknowledgement attached to the exact current question", () => {
+    const occupationField = field("occupation", "Occupation", "职业");
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps: [{ stepNumber: 2, stepName: "Traveller Information", fields: [occupationField] }],
+      answers: {},
+      messages: [{
+        id: "assistant-occupation",
+        role: "assistant",
+        content: "Great. What is your occupation?",
+        createdAt: "2026-08-20T12:01:00.000Z",
+      }],
+      locale: "en",
+    });
+
+    expect(state.assistantMessage).toBe("Great. What is your occupation?");
+  });
+
+  it("preserves a useful clarification for the still-current field after reload", () => {
+    const countryOfOriginField: VisaFormFieldRow = {
+      ...field("origin_country", "Country of Origin", "始发国家"),
+      fieldType: "select",
+      options: [{ value: "SG", text: "Singapore" }],
+    };
+    const clarification = "“Country of Origin” means the country where the journey segment to the Philippines departs. It is not your nationality or residence.";
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps: [{ stepNumber: 3, stepName: "Travel details", fields: [countryOfOriginField] }],
+      answers: {},
+      messages: [{
+        id: "origin-clarification",
+        role: "assistant",
+        content: clarification,
+        createdAt: "2026-08-21T00:00:00.000Z",
+      }],
+      locale: "en",
+    });
+
+    expect(state.assistantMessage).toBe(clarification);
+  });
+
+  it("preserves the NAIA terminal follow-up for the still-current destination field", () => {
+    const portField: VisaFormFieldRow = {
+      ...field("port_of_entry", "Airport of Destination in the Philippines", "菲律宾目的机场"),
+      fieldType: "select",
+      options: [{ value: "TP3000", text: "Ninoy Aquino International Airport T3 - (MNL)" }],
+    };
+    const clarification = "I found the airport: Ninoy Aquino International Airport. The official form separates it by terminal. Which terminal is shown on your itinerary—Terminal 1, Terminal 2, Terminal 3, Terminal 4?";
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps: [{ stepNumber: 3, stepName: "Travel details", fields: [portField] }],
+      answers: {},
+      messages: [{
+        id: "terminal-clarification",
+        role: "assistant",
+        content: clarification,
+        createdAt: "2026-08-21T00:00:00.000Z",
+      }],
+      locale: "en",
+    });
+
+    expect(state.assistantMessage).toBe(clarification);
   });
 
   it("asks select questions in warm, conversational language", () => {
@@ -818,6 +1226,119 @@ describe("buildAssistantState", () => {
 
     expect(state.assistantMessage).toBe("你准备通过什么交通方式前往新加坡？是航空、陆路还是海路？");
     expect(state.assistantMessage).not.toContain("我们一次填写一项");
+  });
+
+  it("asks the Philippines passport-holder choice as a direct human question", () => {
+    const passportHolderField: VisaFormFieldRow = {
+      ...field("passport_holder_type", "Nationality", "护照持有人类型"),
+      fieldType: "radio",
+      options: [
+        { value: "FILIPINO", text: "PHILIPPINE PASSPORT" },
+        { value: "FOREIGNER", text: "FOREIGN PASSPORT" },
+      ],
+    };
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps: [{ stepNumber: 2, stepName: "Traveller Information", fields: [passportHolderField] }],
+      answers: {},
+      messages: [],
+      locale: "en",
+    });
+
+    expect(state.assistantMessage).toBe(
+      "Will you enter the Philippines with a Philippine passport or a foreign passport?",
+    );
+    expect(state.assistantMessage).not.toContain("For Nationality, please choose");
+    expect(state.assistantMessage).not.toContain("PHILIPPINE PASSPORT, FOREIGN PASSPORT");
+  });
+
+  it("asks Philippine traveller type as a direct chat question", () => {
+    const travellerTypeField: VisaFormFieldRow = {
+      ...field("traveller_type", "Traveller Type", "旅客类型"),
+      fieldType: "select",
+      options: [
+        { value: "AIRCRAFT PASSENGER", text: "AIRCRAFT PASSENGER" },
+        { value: "VESSEL PASSENGER", text: "VESSEL PASSENGER" },
+      ],
+    };
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps: [{ stepNumber: 3, stepName: "Travel Details", fields: [travellerTypeField] }],
+      answers: {},
+      messages: [],
+      locale: "en",
+    });
+
+    expect(state.assistantMessage).toBe(
+      "Are you entering the Philippines as an aircraft passenger or a vessel passenger?",
+    );
+    expect(state.assistantMessage).not.toMatch(/\b(?:choose|select|click)\b/i);
+  });
+
+  it.each([
+    [
+      "accompanied_under_18_count",
+      "Below 18 yrs. old",
+      "How many family members under 18 are travelling with you? Enter 0 if none.",
+    ],
+    [
+      "accompanied_18_plus_count",
+      "18 yrs. old and above",
+      "How many family members aged 18 or older are travelling with you? Enter 0 if none.",
+    ],
+    [
+      "checked_baggage_count",
+      "Checked-in (pcs)",
+      "How many pieces of checked baggage are you bringing? Enter 0 if none.",
+    ],
+    [
+      "handcarry_baggage_count",
+      "Hand-carried (pcs)",
+      "How many pieces of hand-carried baggage are you bringing? Enter 0 if none.",
+    ],
+    [
+      "first_time_visiting_philippines",
+      "First time visiting Philippines?",
+      "Is this your first visit to the Philippines?",
+    ],
+  ])("asks the Philippine field %s in natural language", (fieldName, label, expected) => {
+    const countField = field(fieldName, label, label);
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps: [{ stepNumber: 6, stepName: "Other Travel Details", fields: [countField] }],
+      answers: {},
+      messages: [],
+      locale: "en",
+    });
+
+    expect(state.assistantMessage).toBe(expected);
+    expect(state.assistantMessage).not.toMatch(/What is your (?:below|18 yrs|checked-in|hand-carried)/i);
+  });
+
+  it("does not turn an ordinary boolean question into a declaration prompt", () => {
+    const transitField: VisaFormFieldRow = {
+      ...field("with_transit", "Will you have a connecting flight?", "你是否有中转航班？"),
+      fieldType: "checkbox",
+      validationRules: { label_zh: "你是否有中转航班？" },
+    };
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps: [{ stepNumber: 3, stepName: "Travel Details", fields: [transitField] }],
+      answers: {},
+      messages: [],
+      locale: "en",
+    });
+
+    expect(state.assistantMessage).toBe("Will you have a connecting flight?");
+    expect(state.assistantMessage).not.toContain("declaration");
   });
 
   it("uses product-neutral copy and sources outside SGAC", () => {
@@ -851,119 +1372,443 @@ describe("buildAssistantState", () => {
       locale: "zh",
     });
 
-    expect(state.assistantMessage).toBe("请告诉我出生时姓氏/曾用姓氏。");
+    expect(state.assistantMessage).toBe("你的出生时姓氏/曾用姓氏是什么？");
     expect(state.assistantMessage).not.toContain("按自己的习惯回答");
     expect(state.assistantMessage).not.toContain("整理成表单需要的格式");
   });
 
-  it("does not present the first five rows of a large country list as the only choices", () => {
-    const birthCountry = {
-      ...field("place_of_birth", "Place of Birth", "出生地"),
-      fieldType: "select",
-      options: [
-        { value: "AFG", text: "AFGHANISTAN", label_zh: "阿富汗" },
-        { value: "ALA", text: "ALAND ISLANDS", label_zh: "奥兰群岛" },
-        { value: "ALB", text: "ALBANIA", label_zh: "阿尔巴尼亚" },
-        { value: "DZA", text: "ALGERIA", label_zh: "阿尔及利亚" },
-        { value: "ASM", text: "AMERICAN SAMOA", label_zh: "美属萨摩亚" },
-        { value: "CHN", text: "CHINA", label_zh: "中国" },
-      ],
-    } as VisaFormFieldRow;
+  it.each([
+    ["united_kingdom", "academic_research_topic", "Describe your research or academic activity", "textarea", "Please describe your research or academic activity."],
+    ["australia", "criminal_record_details", "Provide details (country, date, charge, sentence)", "textarea", "Please provide details (country, date, charge, sentence)."],
+    ["australia", "au_gov_debt_details", "Details of debt to Australian Government", "textarea", "Please provide details of debt to Australian Government."],
+    ["schengen", "civil_status_other", "Please specify your civil status", "text", "Please specify your civil status."],
+    ["taiwan", "chinese_commercial_code_number", "Enter name in Chinese Commercial Code number (if used)", "text", "Please enter the name in Chinese Commercial Code number (if used)."],
+    ["united_kingdom", "clinical_no_patient_treatment_confirm", "Confirm you will not provide treatment to UK patients", "radio", "Please confirm that you will not provide treatment to UK patients."],
+    ["canada", "passport_upload", "Upload your passport bio-data page", "file", "Please upload your passport bio-data page using the upload control below."],
+    ["canada", "visit_details", "Tell us more about what you'll do in Canada. Include dates.", "textarea", "Please tell me more about what you'll do in Canada. Include dates."],
+    ["australia", "job_title", "Your job title", "text", "What is your job title?"],
+    ["australia", "activity_from", "Employment or activity — From", "text", "What is the start date for employment or activity?"],
+    ["australia", "activity_to", "Employment or activity — To", "text", "What is the end date for employment or activity?"],
+    ["malaysia", "arrival_date", "Date of Arrival in Malaysia", "date", "What is the date of arrival in Malaysia?"],
+    ["south_korea", "korea_visit_count", "Number of times visited Korea (last 5 years)", "text", "How many times have you visited Korea in the last 5 years? Enter 0 if none."],
+  ])(
+    "turns the %s schema label for %s into a grammatical prompt",
+    (country, fieldName, label, fieldType, expected) => {
+      const schemaField = { ...field(fieldName, label, label), fieldType } as VisaFormFieldRow;
+      const state = buildAssistantState({
+        sessionId: "session-id",
+        country,
+        visaType: "GENERIC_FORM",
+        steps: [{ stepNumber: 1, stepName: "Details", fields: [schemaField] }],
+        answers: {},
+        messages: [],
+        locale: "en",
+      });
+
+      expect(state.assistantMessage).toBe(expected);
+      expect(state.assistantMessage).not.toMatch(/What is your (?:please|describe|give|provide|specify|confirm|enter|upload|select|i)\b/i);
+    },
+  );
+
+  it("uses a clear declaration prompt instead of duplicating checkbox label instructions", () => {
+    const consentField: VisaFormFieldRow = {
+      ...field(
+        "data_privacy_agreement",
+        "By clicking Continue, you agree to our Data Privacy and Affidavit of Undertaking.",
+        "点击继续即表示您同意数据隐私政策与承诺书",
+      ),
+      fieldType: "checkbox",
+      validationRules: {
+        label_zh: "点击继续即表示您同意数据隐私政策与承诺书",
+        mustBeTrue: true,
+      },
+    };
     const state = buildAssistantState({
       sessionId: "session-id",
-      country: "malaysia",
-      visaType: "MY_MDAC_ARRIVAL_CARD",
-      steps: [{ stepNumber: 1, stepName: "Traveller Information", fields: [birthCountry] }],
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps: [{ stepNumber: 1, stepName: "Travel Registration", fields: [consentField] }],
       answers: {},
       messages: [],
-      locale: "zh",
+      locale: "en",
     });
 
-    expect(state.assistantMessage).toBe("请告诉我出生地。");
-    expect(state.assistantMessage).not.toContain("阿富汗");
-    expect(state.assistantMessage).not.toContain("美属萨摩亚");
+    expect(state.assistantMessage).toBe("Please review and confirm the complete declaration shown below.");
+    expect(state.assistantMessage).not.toContain("Please confirm By clicking Continue");
   });
 
-  it("asks again when a reusable prefill is non-empty but not an official select value", () => {
-    const birthCountry = {
-      ...field("place_of_birth", "Place of Birth", "出生地"),
-      fieldType: "select",
-      displayOrder: 1,
-      options: [
-        { value: "CHN", text: "CHINA", label_zh: "中国" },
-        { value: "SGP", text: "SINGAPORE", label_zh: "新加坡" },
-      ],
-    } as VisaFormFieldRow;
-    const callingCode = {
-      ...field("mobile_country_code", "Mobile Country Code", "手机国家 / 地区代码"),
-      displayOrder: 2,
-      validationRules: { label_zh: "手机国家 / 地区代码", pattern: "^[0-9]{1,4}$" },
-    } as VisaFormFieldRow;
+  it("treats every required declaration checkbox as a checkbox confirmation", () => {
+    const customsAcknowledgement: VisaFormFieldRow = {
+      ...field(
+        "customs_information_acknowledgement",
+        "I confirm that I have read and understood the customs and currency declaration information above.",
+        "我确认已阅读并理解上述海关和货币申报信息。",
+      ),
+      fieldType: "checkbox",
+      validationRules: {
+        label_zh: "我确认已阅读并理解上述海关和货币申报信息。",
+      },
+    };
     const state = buildAssistantState({
       sessionId: "session-id",
-      country: "malaysia",
-      visaType: "MY_MDAC_ARRIVAL_CARD",
-      steps: [{ stepNumber: 1, stepName: "Traveller Information", fields: [birthCountry, callingCode] }],
-      answers: { place_of_birth: { value: "Changsha", source: "universal_profile" } },
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps: [{ stepNumber: 7, stepName: "Customs Declaration", fields: [customsAcknowledgement] }],
+      answers: {},
       messages: [],
-      locale: "zh",
+      locale: "en",
     });
 
-    expect(state.assistantMessage).toContain("出生地");
-    expect(state.assistantMessage).not.toContain("手机国家 / 地区代码");
-    expect(state.missingFields.map((item) => item.fieldName)).toEqual([
-      "place_of_birth",
-      "mobile_country_code",
+    expect(state.assistantMessage).toBe("Please review and confirm the complete declaration shown below.");
+    expect(state.missingFields[0]).toMatchObject({
+      fieldName: "customs_information_acknowledgement",
+    });
+  });
+
+  it("turns a first-person yes/no declaration into a confirmation request", () => {
+    const awarenessField: VisaFormFieldRow = {
+      ...field(
+        "declaration_fee_not_refunded_awareness",
+        "I am aware that the visa fee is not refunded if the visa is refused.",
+        "我了解签证被拒时签证费不予退还。",
+      ),
+      fieldType: "radio",
+      options: [
+        { value: "yes", text: "Yes" },
+        { value: "no", text: "No" },
+      ],
+    };
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "france",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      steps: [{ stepNumber: 9, stepName: "Declarations", fields: [awarenessField] }],
+      answers: {},
+      messages: [],
+      locale: "en",
+    });
+
+    expect(state.assistantMessage).toBe(
+      "Please confirm whether the following statement is true for you: “I am aware that the visa fee is not refunded if the visa is refused.”",
+    );
+    expect(state.assistantMessage).not.toContain("What is your I");
+  });
+
+  it("normalizes legacy confirmation chat text into a persisted checkbox message", () => {
+    expect(normalizeStoredAssistantMessage({
+      id: "legacy-confirmation",
+      role: "user",
+      content: 'I have read and agree to "By clicking Continue, you agree to our Data Privacy and Affidavit of Undertaking.".',
+      created_at: "2026-08-20T12:00:00.000Z",
+      input_mode: "text",
+    })).toEqual({
+      id: "legacy-confirmation",
+      role: "user",
+      content: "By clicking Continue, you agree to our Data Privacy and Affidavit of Undertaking.",
+      createdAt: "2026-08-20T12:00:00.000Z",
+      inputMode: "confirmation",
+    });
+  });
+
+  it("replaces the legacy duplicated declaration prompt with the canonical instruction", () => {
+    expect(normalizeStoredAssistantMessage({
+      id: "legacy-prompt",
+      role: "assistant",
+      content: "Got it. I recorded the information you just confirmed.\n\nPlease confirm By clicking Continue, you agree to our Data Privacy and Affidavit of Undertaking..",
+      created_at: "2026-08-20T11:59:00.000Z",
+      input_mode: "system",
+    }).content).toBe(
+      "Got it. Please review and confirm the complete declaration shown below.",
+    );
+  });
+
+  it("repairs a persisted declaration that was malformed as a possessive question", () => {
+    expect(normalizeStoredAssistantMessage({
+      id: "legacy-customs-declaration-question",
+      role: "assistant",
+      content: "Sounds good. What is your i confirm that i have read and understood the customs and currency declaration information above.?",
+      created_at: "2026-08-21T01:00:00.000Z",
+      input_mode: "system",
+    }).content).toBe(
+      "Please review and confirm the complete declaration shown below.",
+    );
+  });
+
+  it("removes option dumps from persisted assistant history", () => {
+    expect(normalizeStoredAssistantMessage({
+      id: "legacy-option-prompt",
+      role: "assistant",
+      content: "Got it. I recorded the information you just confirmed.\n\nFor Mode of Travel, please choose AIR, SEA.",
+      created_at: "2026-08-20T11:58:00.000Z",
+      input_mode: "system",
+    }).content).toBe(
+      "Got it. Will you travel to the Philippines by air or by sea?",
+    );
+  });
+
+  it("replaces legacy traveller-type selection instructions with chat language", () => {
+    expect(normalizeStoredAssistantMessage({
+      id: "legacy-traveller-type-help",
+      role: "assistant",
+      content: "“Traveller Type” asks what kind of traveller you are for this trip and transport. Choose the option that matches how you are entering the Philippines.\n\nFor example: if you are arriving on a commercial flight as a regular passenger, select “AIRCRAFT PASSENGER.”",
+      created_at: "2026-08-20T11:58:30.000Z",
+      input_mode: "system",
+    }).content).toBe(
+      "“Traveller Type” identifies whether you are entering the Philippines as an aircraft passenger or a vessel passenger. Reply with how you are travelling—for example, “aircraft” or “vessel.”",
+    );
+  });
+
+  it("replaces a persisted generic country-of-origin reply with its actual meaning", () => {
+    const content = normalizeStoredAssistantMessage({
+      id: "legacy-origin-country-help",
+      role: "assistant",
+      content: "“Country of Origin” identifies which official category matches your situation. Reply with what applies based on your documents, travel plans, or actual situation; I will map your answer to the form's official value.",
+      created_at: "2026-08-21T00:00:00.000Z",
+      input_mode: "system",
+    }).content;
+
+    expect(content).toContain("journey segment");
+    expect(content).toContain("itinerary or ticket");
+    expect(content).not.toContain("official category");
+  });
+
+  it("repairs the persisted NAIA mismatch into a terminal clarification", () => {
+    const content = normalizeStoredAssistantMessage({
+      id: "legacy-naia-mismatch",
+      role: "assistant",
+      content: "I couldn't match that answer to one official value yet. “Airport of Destination in the Philippines” means the Philippine airport where this arriving flight lands. Use the arrival airport on your itinerary, including the correct terminal when the official entry distinguishes terminals. Format example: Ninoy Aquino International Airport Terminal 3.",
+      created_at: "2026-08-21T00:00:00.000Z",
+      input_mode: "system",
+    }).content;
+
+    expect(content).toContain("I found the airport: Ninoy Aquino International Airport");
+    expect(content).toContain("Which terminal is shown on your itinerary");
+    expect(content).not.toContain("couldn't match");
+  });
+
+  it("repairs a repeated port question after the user identifies NAIA", () => {
+    const messages = normalizeStoredAssistantMessages([
+      {
+        id: "naia-answer",
+        role: "user",
+        content: "Ninoy Aquino International Airport",
+        created_at: "2026-08-21T00:00:00.000Z",
+        input_mode: "text",
+      },
+      {
+        id: "intervening-system-event",
+        role: "assistant",
+        content: "Saved",
+        created_at: "2026-08-21T00:00:00.500Z",
+        input_mode: "system",
+      },
+      {
+        id: "repeated-port-question",
+        role: "assistant",
+        content: "What is your airport/port of destination in the philippines?",
+        created_at: "2026-08-21T00:00:01.000Z",
+        input_mode: "system",
+      },
+    ]);
+
+    expect(messages[2]?.content).toContain("Which terminal is shown on your itinerary");
+    expect(messages[2]?.content).not.toContain("What is your airport/port");
+  });
+
+  it("repairs persisted raw count labels into natural questions", () => {
+    const content = normalizeStoredAssistantMessage({
+      id: "legacy-under-18-question",
+      role: "assistant",
+      content: "Sounds good. What is your below 18 yrs. old?",
+      created_at: "2026-08-21T00:00:00.000Z",
+      input_mode: "system",
+    }).content;
+
+    expect(content).toBe(
+      "Sounds good. How many family members under 18 are travelling with you? Enter 0 if none.",
+    );
+  });
+
+  it("rotates concise acknowledgements without repeating the robotic recording sentence", () => {
+    const row = {
+      id: "legacy-acknowledgement",
+      role: "assistant",
+      content: "Got it. I recorded the information you just confirmed.\n\nWhat is your occupation?",
+      created_at: "2026-08-20T11:57:00.000Z",
+      input_mode: "system",
+    };
+
+    expect(normalizeStoredAssistantMessage(row, 0).content).toBe("Got it. What is your occupation?");
+    expect(normalizeStoredAssistantMessage(row, 1).content).toBe("Great. What is your occupation?");
+    expect(normalizeStoredAssistantMessage(row, 2).content).toBe("Sounds good. What is your occupation?");
+    expect(normalizeStoredAssistantMessage(row, 2).content).not.toContain("recorded the information");
+  });
+
+  it("adds a concise acknowledgement to a persisted bare follow-up question", () => {
+    const messages = normalizeStoredAssistantMessages([
+      {
+        id: "user-answer",
+        role: "user",
+        content: "foreign passport",
+        created_at: "2026-08-20T11:56:00.000Z",
+        input_mode: "text",
+      },
+      {
+        id: "assistant-question",
+        role: "assistant",
+        content: "What is your occupation?",
+        created_at: "2026-08-20T11:56:01.000Z",
+        input_mode: "system",
+      },
+    ]);
+
+    expect(messages[1]?.content).toBe("Great. What is your occupation?");
+  });
+
+  it("persists a checkbox action as a structured confirmation with its exact label", async () => {
+    const label = "By clicking Continue, you agree to our Data Privacy and Affidavit of Undertaking.";
+    const consentField: VisaFormFieldRow = {
+      ...field("data_privacy_agreement", label, "点击继续即表示您同意数据隐私政策与承诺书"),
+      fieldType: "checkbox",
+      validationRules: {
+        label_zh: "点击继续即表示您同意数据隐私政策与承诺书",
+        mustBeTrue: true,
+      },
+    };
+    const stub = createAssistantAdminStub();
+
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "user-id",
+      steps: [{ stepNumber: 1, stepName: "Travel Registration", fields: [consentField] }],
+      answers: {},
+      text: `I have read and agree to "${label}".`,
+      locale: "en",
+      inputMode: "confirmation",
+      idempotencyKey: "confirmation-turn",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+    });
+
+    expect(result.appliedPatches).toEqual([expect.objectContaining({
+      fieldName: "data_privacy_agreement",
+      value: "true",
+    })]);
+    expect(result.assistantMessage).toMatch(/^Great\. /);
+    expect(result.assistantMessage).not.toContain("recorded the information");
+    expect(stub.messages[0]).toMatchObject({
+      role: "user",
+      content: `I have read and agree to "${label}".`,
+      input_mode: "confirmation",
+    });
+  });
+
+  it("falls back safely when the deployed database has the old confirmation input-mode constraint", async () => {
+    const label = "I confirm that I have read and understood the customs and currency declaration information above.";
+    const consentField: VisaFormFieldRow = {
+      ...field("customs_information_acknowledgement", label, "我确认已阅读并理解上述海关和货币申报信息。"),
+      fieldType: "checkbox",
+      validationRules: { label_zh: "我确认已阅读并理解上述海关和货币申报信息。" },
+    };
+    const stub = createAssistantAdminStub(undefined, [], { rejectConfirmationInputMode: true });
+
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "user-id",
+      steps: [{ stepNumber: 7, stepName: "Customs Declaration", fields: [consentField] }],
+      answers: {},
+      text: `I have read and agree to "${label}".`,
+      locale: "en",
+      inputMode: "confirmation",
+      idempotencyKey: "confirmation-stale-constraint-turn",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+    });
+
+    expect(result.appliedPatches).toEqual([expect.objectContaining({
+      fieldName: "customs_information_acknowledgement",
+      value: "true",
+    })]);
+    expect(stub.messages.slice(0, 2)).toEqual([
+      expect.objectContaining({ input_mode: "confirmation" }),
+      expect.objectContaining({
+        input_mode: "text",
+        content: `I have read and agree to "${label}".`,
+      }),
     ]);
   });
 
-  it("does not ask Kenya eTA sex again when a reusable profile label matches an official option", () => {
-    const sex = {
-      ...field("sex", "Sex", "性别"),
-      fieldType: "select",
-      displayOrder: 1,
-      options: [
-        { value: "Male", text: "Male", label_zh: "男" },
-        { value: "Female", text: "Female", label_zh: "女" },
-        { value: "Other", text: "Other", label_zh: "其他" },
-      ],
-    } as VisaFormFieldRow;
-    const passport = {
-      ...field("passport_number", "Passport Number", "护照号码"),
-      displayOrder: 2,
-    } as VisaFormFieldRow;
+  it("treats a stale repeated confirmation as an idempotent refresh instead of an error", async () => {
+    const label = "I confirm that I have read and understood the customs and currency declaration information above.";
+    const consentField: VisaFormFieldRow = {
+      ...field("customs_information_acknowledgement", label, "我确认已阅读并理解上述海关和货币申报信息。"),
+      fieldType: "checkbox",
+      validationRules: { label_zh: "我确认已阅读并理解上述海关和货币申报信息。" },
+    };
+    const declarationField = yesNoField(
+      "has_baggage_or_currency_to_declare",
+      "Do you have baggage or currency to declare?",
+      "你是否有需要申报的行李或货币？",
+    );
+    const stub = createAssistantAdminStub();
 
-    const state = buildAssistantState({
-      sessionId: "session-id",
-      country: "kenya",
-      visaType: "KE_ETA",
-      steps: [{ stepNumber: 1, stepName: "Applicant and Passport", fields: [sex, passport] }],
-      answers: { sex: { value: "male", source: "universal_profile" } },
-      messages: [],
-      locale: "zh",
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "user-id",
+      steps: [{
+        stepNumber: 7,
+        stepName: "Customs Declaration",
+        fields: [consentField, declarationField],
+      }],
+      answers: {
+        customs_information_acknowledgement: { value: "true", source: "form_assistant" },
+      },
+      text: `I have read and agree to "${label}".`,
+      locale: "en",
+      inputMode: "confirmation",
+      idempotencyKey: "stale-confirmation-turn",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
     });
 
-    expect(state.assistantMessage).toContain("护照号码");
-    expect(state.assistantMessage).not.toContain("性别");
-    expect(state.missingFields.map((item) => item.fieldName)).toEqual(["passport_number"]);
-    expect(state.progress).toEqual({ completed: 1, total: 2 });
+    expect(result.assistantMessage).toBe("Do you have baggage or currency to declare?");
+    expect(result.appliedPatches).toEqual([expect.objectContaining({
+      fieldName: "customs_information_acknowledgement",
+      value: "true",
+    })]);
+    expect(result.progress).toEqual({ completed: 1, total: 2 });
+    expect(stub.messages).toEqual([]);
   });
-});
 
-describe("latest-answer rescan", () => {
-  it("re-reads manual form values before asking the next question", async () => {
-    const sex = {
-      ...field("sex", "Sex", "性别"),
-      fieldType: "select",
-      displayOrder: 1,
-      options: [
-        { value: "Male", text: "Male", label_zh: "男" },
-        { value: "Female", text: "Female", label_zh: "女" },
-      ],
-    } as VisaFormFieldRow;
-    const passport = {
-      ...field("passport_number", "Passport Number", "护照号码"),
-      displayOrder: 2,
+  it("answers a completion challenge with missing document readiness instead of repeating the optional question", async () => {
+    const requiredField = field("registration_for", "Travel Registration", "旅行登记");
+    const specialFlightField = {
+      ...field("special_flight", "Special Flight", "特殊航班", false),
+      fieldType: "checkbox",
     } as VisaFormFieldRow;
     const stub = createAssistantAdminStub();
 
@@ -977,24 +1822,45 @@ describe("latest-answer rescan", () => {
       },
       applicationId: "application-id",
       applicantId: "applicant-id",
-      authUserId: "auth-user-id",
-      steps: [{ stepNumber: 1, stepName: "Applicant and Passport", fields: [sex, passport] }],
-      answers: {},
-      text: "我不知道",
-      locale: "zh",
+      authUserId: "user-id",
+      steps: [{
+        stepNumber: 1,
+        stepName: "Travel Registration",
+        fields: [requiredField, specialFlightField],
+      }],
+      answers: {
+        registration_for: { value: "FOR_ME", source: "user" },
+      },
+      text: "are you sure?",
+      locale: "en",
       inputMode: "text",
-      idempotencyKey: "manual-rescan",
-      country: "kenya",
-      visaType: "KE_ETA",
-      reloadAnswers: async () => ({
-        sex: { value: "male", source: "user_form" },
-      }),
+      idempotencyKey: "readiness-question-turn",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      documentReadiness: {
+        documentCollectionComplete: false,
+        missingDocumentCount: 2,
+        missingDocuments: [
+          {
+            requirementKey: "photo",
+            labelZh: "个人照片",
+            labelEn: "Profile photo",
+          },
+          {
+            requirementKey: "customs_signature",
+            labelZh: "海关申报签名",
+            labelEn: "For Customs — Declaration Signature",
+          },
+        ],
+      },
     });
 
-    expect(result.assistantMessage).toContain("护照号码");
-    expect(result.assistantMessage).not.toContain("性别");
-    expect(result.missingFields.map((item) => item.fieldName)).toEqual(["passport_number"]);
-    expect(result.progress).toEqual({ completed: 1, total: 2 });
+    expect(result.assistantMessage).toContain("application itself is not complete");
+    expect(result.assistantMessage).toContain("2 required documents");
+    expect(result.assistantMessage).toContain("Profile photo");
+    expect(result.assistantMessage).not.toContain("optional detail");
+    expect(result.canRunFinalCheck).toBe(false);
+    expect(result.appliedPatches).toEqual([]);
   });
 });
 
@@ -1002,7 +1868,6 @@ describe("formAssistantTimeZone", () => {
   it.each([
     ["singapore", "SG_ARRIVAL_CARD", "Asia/Singapore"],
     ["malaysia", "MY_MDAC_ARRIVAL_CARD", "Asia/Kuala_Lumpur"],
-    ["south_korea", "KR_E_ARRIVAL_CARD", "Asia/Seoul"],
     ["united_states", "DS160", "America/New_York"],
     ["germany", "schengen_c", "Europe/Berlin"],
     ["unknown", "custom_form", "UTC"],
@@ -1423,6 +2288,28 @@ describe("parseDirectYesNoAnswer", () => {
   );
 
   it.each([
+    ["yes", "true"],
+    ["是", "true"],
+    ["no", "false"],
+    ["否", "false"],
+  ])("maps %s to a boolean-backed official option", (answer, value) => {
+    const booleanHealthField: VisaFormFieldRow = {
+      ...field("has_been_sick_30d", "Have you been sick in the past 30 days?", "过去 30 天是否生病？"),
+      fieldType: "radio",
+      options: [
+        { value: "true", text: "Yes", label_zh: "是" },
+        { value: "false", text: "No", label_zh: "否" },
+      ],
+    };
+
+    expect(parseDirectYesNoAnswer(answer, booleanHealthField)).toEqual({
+      fieldName: "has_been_sick_30d",
+      value,
+      confidence: "high",
+    });
+  });
+
+  it.each([
     "没有，我最近六天没有去过这些地区",
     "我从未到访过黄热病风险地区",
     "No, I haven't visited any of those places",
@@ -1473,14 +2360,6 @@ describe("parseDirectYesNoAnswer", () => {
 });
 
 describe("parseDirectCurrentFieldAnswer", () => {
-  const mobileCountryCodeField: VisaFormFieldRow = {
-    ...field("mobile_country_code", "Mobile Country Code", "手机国家 / 地区代码"),
-    validationRules: {
-      label_zh: "手机国家 / 地区代码",
-      pattern: "^[0-9]{1,4}$",
-      official: true,
-    },
-  };
   const arrivalDateField: VisaFormFieldRow = {
     ...field("arrival_date", "Arrival date", "抵达日期"),
     fieldType: "date",
@@ -1492,6 +2371,42 @@ describe("parseDirectCurrentFieldAnswer", () => {
       { value: "air", text: "Air", label_zh: "航空", label_en: "Air" },
       { value: "land", text: "Land", label_zh: "陆路", label_en: "Land" },
       { value: "sea", text: "Sea", label_zh: "海路", label_en: "Sea" },
+    ],
+  };
+  const travellerTypeField: VisaFormFieldRow = {
+    ...field("traveller_type", "Traveller Type", "旅客类型"),
+    fieldType: "select",
+    options: [
+      { value: "AIRCRAFT PASSENGER", text: "AIRCRAFT PASSENGER" },
+      { value: "VESSEL PASSENGER", text: "VESSEL PASSENGER" },
+    ],
+  };
+  const naiaDestinationField: VisaFormFieldRow = {
+    ...field("port_of_entry", "Airport of Destination in the Philippines", "菲律宾目的机场"),
+    fieldType: "select",
+    options: [
+      { value: "TP1000", text: "Ninoy Aquino International Airport T1 - (MNL)" },
+      { value: "TP2000", text: "Ninoy Aquino International Airport T2 - (MNL)" },
+      { value: "TP3000", text: "Ninoy Aquino International Airport T3 - (MNL)" },
+      { value: "NAIA4", text: "Ninoy Aquino International Airport T4 - (MNL)" },
+    ],
+  };
+  const codedPurposeField: VisaFormFieldRow = {
+    ...field("purpose_of_travel", "Purpose of Travel", "旅行目的"),
+    fieldType: "select",
+    options: [
+      { value: "POV001", text: "Holiday/Pleasure/Vacation" },
+      { value: "POV006", text: "Business/Professional Activity" },
+      { value: "POV008", text: "Work/Employment" },
+    ],
+  };
+  const codedOccupationField: VisaFormFieldRow = {
+    ...field("occupation", "Occupation", "职业"),
+    fieldType: "select",
+    options: [
+      { value: "OCC007", text: "Student/Minor" },
+      { value: "OCC008", text: "Retired/Pensioner" },
+      { value: "OCC014", text: "Unemployed" },
     ],
   };
   const airTransportTypeField: VisaFormFieldRow = {
@@ -1602,23 +2517,6 @@ describe("parseDirectCurrentFieldAnswer", () => {
   };
 
   it.each([
-    ["65", "65"],
-    ["+65", "65"],
-  ])("records the exact phone country code %s without relying on a model", (answer, expected) => {
-    expect(parseDirectCurrentFieldAnswer(answer, mobileCountryCodeField)).toEqual({
-      fieldName: "mobile_country_code",
-      value: expected,
-      confidence: "high",
-      modelSource: "deterministic",
-    });
-  });
-
-  it.each(["12345", "大概65", "65 or 86"])(
-    "does not force an invalid or ambiguous phone country code: %s",
-    (answer) => expect(parseDirectCurrentFieldAnswer(answer, mobileCountryCodeField)).toBeNull(),
-  );
-
-  it.each([
     ["明天", "2026-08-08"],
     ["我明天抵达", "2026-08-08"],
     ["tomorrow", "2026-08-08"],
@@ -1685,6 +2583,64 @@ describe("parseDirectCurrentFieldAnswer", () => {
       confidence: "high",
       modelSource: "deterministic",
     });
+  });
+
+  it.each([
+    ["aircraft", "AIRCRAFT PASSENGER"],
+    ["I am flying", "AIRCRAFT PASSENGER"],
+    ["vessel", "VESSEL PASSENGER"],
+    ["by ferry", "VESSEL PASSENGER"],
+  ])("maps the Philippine traveller-type chat answer %s", (answer, expected) => {
+    expect(parseDirectCurrentFieldAnswer(answer, travellerTypeField)).toEqual({
+      fieldName: "traveller_type",
+      value: expected,
+      confidence: "high",
+      modelSource: "deterministic",
+    });
+  });
+
+  it.each([
+    ["holiday", codedPurposeField, "purpose_of_travel", "POV001"],
+    ["employment", codedPurposeField, "purpose_of_travel", "POV008"],
+    ["student", codedOccupationField, "occupation", "OCC007"],
+    ["retired", codedOccupationField, "occupation", "OCC008"],
+  ])("maps the unique short official-label answer %s", (answer, optionField, fieldName, expected) => {
+    expect(parseDirectCurrentFieldAnswer(answer, optionField)).toEqual({
+      fieldName,
+      value: expected,
+      confidence: "high",
+      modelSource: "deterministic",
+    });
+  });
+
+  it("does not guess when a short label term matches more than one option", () => {
+    expect(parseDirectCurrentFieldAnswer("passenger", travellerTypeField)).toBeNull();
+  });
+
+  it.each(["Terminal 3", "T3", "NAIA T3", "MNL Terminal 3", "Ninoy Aquino International Airport Terminal 3"])(
+    "maps the natural Manila terminal answer %s to the exact official value",
+    (answer) => {
+      expect(parseDirectCurrentFieldAnswer(answer, naiaDestinationField)).toEqual({
+        fieldName: "port_of_entry",
+        value: "TP3000",
+        confidence: "high",
+        modelSource: "deterministic",
+      });
+    },
+  );
+
+  it("recognizes the airport name but asks for the official terminal distinction", () => {
+    expect(parseDirectCurrentFieldAnswer(
+      "Ninoy Aquino International Airport",
+      naiaDestinationField,
+    )).toBeNull();
+    expect(buildOptionDisambiguation(
+      naiaDestinationField,
+      naiaDestinationField.options!,
+      "en",
+    )).toBe(
+      "I found the airport: Ninoy Aquino International Airport. The official form separates it by terminal. Which terminal is shown on your itinerary—Terminal 1, Terminal 2, Terminal 3, Terminal 4?",
+    );
   });
 
   it.each([

@@ -22,6 +22,7 @@ export interface ReviewRow {
   editable: boolean;
   editStepIndex?: number;
   missing?: boolean;
+  optional?: boolean;
   issueSeverity?: "error" | "warning";
   issueMessage?: string;
 }
@@ -82,9 +83,9 @@ function BilingualReviewRow({
     return (
       <TableRow
         className={row.issueSeverity === "error"
-          ? "border-red-200 bg-red-50 hover:bg-red-50"
+          ? "border-border bg-red-50 hover:bg-red-50"
           : row.issueSeverity === "warning"
-            ? "border-amber-200 bg-amber-50 hover:bg-amber-50"
+            ? "border-border bg-amber-50 hover:bg-amber-50"
             : "hover:bg-transparent"}
         data-review-issue={row.issueSeverity}
       >
@@ -106,6 +107,8 @@ function BilingualReviewRow({
             ? "px-0 py-2 text-right align-top text-sm font-medium text-red-700"
             : row.missing
               ? "px-0 py-2 text-right align-top text-sm font-medium text-red-600"
+            : row.optional
+              ? "px-0 py-2 text-right align-top text-sm font-medium text-muted-foreground"
             : row.issueSeverity === "warning"
               ? "px-0 py-2 text-right align-top text-sm font-medium text-amber-900"
               : "px-0 py-2 text-right align-top text-sm font-medium text-foreground"}
@@ -127,9 +130,9 @@ function BilingualReviewRow({
   return (
     <TableRow
       className={row.issueSeverity === "error"
-        ? "border-red-200 bg-red-50 hover:bg-red-50"
+        ? "border-border bg-red-50 hover:bg-red-50"
         : row.issueSeverity === "warning"
-          ? "border-amber-200 bg-amber-50 hover:bg-amber-50"
+          ? "border-border bg-amber-50 hover:bg-amber-50"
           : "hover:bg-transparent"}
       data-review-issue={row.issueSeverity}
     >
@@ -159,6 +162,8 @@ function BilingualReviewRow({
           ? "block whitespace-pre-wrap break-words text-sm font-medium text-red-700"
           : row.missing
             ? "block whitespace-pre-wrap break-words text-sm font-medium text-red-600"
+          : row.optional
+            ? "block whitespace-pre-wrap break-words text-sm font-medium text-muted-foreground"
           : row.issueSeverity === "warning"
             ? "block whitespace-pre-wrap break-words text-sm font-medium text-amber-900"
             : "block whitespace-pre-wrap break-words text-sm font-medium text-foreground"}
@@ -171,6 +176,8 @@ function BilingualReviewRow({
             ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-red-700"
             : row.missing
               ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-red-600"
+            : row.optional
+              ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-muted-foreground"
             : row.issueSeverity === "warning"
               ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-amber-800"
               : "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-muted-foreground"}

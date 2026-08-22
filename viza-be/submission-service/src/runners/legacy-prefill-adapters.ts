@@ -1,7 +1,14 @@
-import { loadCanonicalAnswers, pick } from "../queue/answers.js";
+import {
+  loadCanonicalAnswers,
+  loadSubmissionPreflightContext,
+  matchesSubmissionPreflightApplication,
+  pick,
+} from "../queue/answers.js";
 import { mapStandardToOutcome } from "./result-map.js";
-import type { DispatchOutcome } from "../queue/types.js";
+import { NeedsHumanError, type DispatchOutcome } from "../queue/types.js";
 import { runInPrefill } from "../in/runner.js";
+import { ensureApplicantInboxAlias } from "../inbox/alias.js";
+import { formatInPreflightFailure, validateInSubmissionPreflight } from "../in/preflight.js";
 import { runLkPrefill } from "../lk/runner.js";
 import { runKhPrefill } from "../kh/runner.js";
 import { runLaPrefill } from "../la/runner.js";
@@ -22,25 +29,56 @@ export async function runIndia(
   jobId?: string,
   paymentHooks?: ManagedPaymentHooks,
 ): Promise<DispatchOutcome> {
-  const rec = await loadCanonicalAnswers(applicationId);
+  const [rec, context] = await Promise.all([
+    loadCanonicalAnswers(applicationId),
+    loadSubmissionPreflightContext(applicationId),
+  ]);
+  if (!matchesSubmissionPreflightApplication(context, "india", "IN_E_VISA")) {
+    throw new NeedsHumanError(
+      "India runner received an application outside IN_E_VISA",
+    );
+  }
+  const managedEmailAlias =
+    context.inboxAlias ?? (await ensureApplicantInboxAlias(context.applicantId)).alias;
+  const preflight = validateInSubmissionPreflight({
+    answers: rec,
+    managedEmailAlias,
+    documents: context.documents,
+    captchaConfigured: Boolean(process.env.TWOCAPTCHA_API_KEY?.trim()),
+  });
+  if (!preflight.ready) {
+    throw new NeedsHumanError(`IN_E_VISA preflight failed: ${formatInPreflightFailure(preflight)}`);
+  }
+
   const result = await runInPrefill({
     jobId: jobId ?? applicationId,
     applicationId,
     answers: {
-      surname: pick(rec, "surname"),
-      given_names: pick(rec, "given_names"),
-      date_of_birth: pick(rec, "date_of_birth"),
-      nationality: pick(rec, "nationality"),
-      passport_number: pick(rec, "passport_number"),
-      passport_expiry_date: pick(rec, "passport_expiry_date"),
-      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
-      email: pick(rec, "email"),
-      phone: pick(rec, "phone"),
-      intended_arrival_date: pick(rec, "intended_arrival_date"),
-      port_of_arrival: pick(rec, "port_of_arrival") || undefined,
-      occupation: pick(rec, "occupation") || undefined,
-      visa_purpose: "tourism",
+      surname: preflight.normalizedAnswers.surname,
+      given_names: preflight.normalizedAnswers.given_names,
+      date_of_birth: preflight.registration.dateOfBirth,
+      nationality: preflight.registration.nationality,
+      passport_number: preflight.normalizedAnswers.passport_number,
+      passport_expiry_date: preflight.normalizedAnswers.passport_expiry_date,
+      passport_issuing_country: preflight.normalizedAnswers.passport_issuing_country,
+      email: preflight.registration.emailAddress,
+      phone: preflight.normalizedAnswers.phone_number,
+      intended_arrival_date: preflight.registration.expectedArrivalDate,
+      port_of_arrival: preflight.registration.arrivalPortId,
+      occupation: preflight.normalizedAnswers.occupation || undefined,
+      passport_type: preflight.registration.passportTypeId,
+      mission_code: preflight.registration.arrivalPortId,
+      visa_service_id: preflight.registration.touristServiceId,
+      visa_purpose: preflight.registration.touristPurposeId,
+      visited_drc_uganda_south_sudan_last_21_days:
+        preflight.normalizedAnswers.visited_drc_uganda_south_sudan_last_21_days,
+      completed_21_days_after_exit:
+        preflight.normalizedAnswers.completed_21_days_after_exit || undefined,
+      ebola_symptoms_last_21_days:
+        preflight.normalizedAnswers.ebola_symptoms_last_21_days || undefined,
+      ebola_symptom: preflight.normalizedAnswers.ebola_symptom || undefined,
     },
+    allowOfficialApplicationCreation: process.env.IN_LIVE_QA_TO_PAYMENT === "1",
     paymentHooks: paymentHooks ?? createManagedPaymentHooks({
       applicationId,
       workerId: jobId ?? applicationId,

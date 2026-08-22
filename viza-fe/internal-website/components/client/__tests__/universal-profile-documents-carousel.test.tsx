@@ -30,6 +30,8 @@ describe("UniversalProfileDocumentsCarousel", () => {
         identityCard={emptyDocument}
         photo={emptyDocument}
         signature={emptyDocument}
+        bankStatement={emptyDocument}
+        travelInsurance={emptyDocument}
         onPassportFieldsApplied={vi.fn()}
         onDocumentUploaded={vi.fn()}
       />,
@@ -40,6 +42,8 @@ describe("UniversalProfileDocumentsCarousel", () => {
     expect(screen.getByRole("heading", { name: "支持材料" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "电子签名" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "证件照" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "银行对账单" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "旅行与医疗保险" })).toBeInTheDocument();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "下一页" })).not.toBeInTheDocument();
   });
@@ -52,6 +56,8 @@ describe("UniversalProfileDocumentsCarousel", () => {
         identityCard={emptyDocument}
         photo={emptyDocument}
         signature={emptyDocument}
+        bankStatement={emptyDocument}
+        travelInsurance={emptyDocument}
         onPassportFieldsApplied={vi.fn()}
         onDocumentUploaded={vi.fn()}
       />,
@@ -60,7 +66,7 @@ describe("UniversalProfileDocumentsCarousel", () => {
     const panel = screen.getByRole("region", { name: "支持材料" });
     expect(panel).toHaveClass("rounded-xl", "border", "bg-white");
     expect(panel.querySelector(".grid")).toHaveClass("md:grid-cols-2");
-    expect(container.querySelectorAll("article")).toHaveLength(4);
+    expect(container.querySelectorAll("article")).toHaveLength(6);
   });
 
   it("keeps privacy notes behind each AI help icon", () => {
@@ -72,6 +78,8 @@ describe("UniversalProfileDocumentsCarousel", () => {
         identityCard={emptyDocument}
         photo={emptyDocument}
         signature={emptyDocument}
+        bankStatement={emptyDocument}
+        travelInsurance={emptyDocument}
         onPassportFieldsApplied={vi.fn()}
         onDocumentUploaded={vi.fn()}
       />,

@@ -106,7 +106,14 @@ function isoWeekStart(d: Date = new Date()): string {
  * `runner_job_events_total{country,event}` without a schema change. Dimensions
  * + dashboard config: docs/observability/metrics.md + dashboard.json.
  */
-export type RunnerEvent = "started" | "succeeded" | "halted" | "failed" | "dead_lettered" | "ownership_lost";
+export type RunnerEvent =
+  | "started"
+  | "succeeded"
+  | "halted"
+  | "needs_human"
+  | "failed"
+  | "dead_lettered"
+  | "ownership_lost";
 
 export function emitRunnerEvent(country: string, event: RunnerEvent, jobId?: string): void {
   console.log(

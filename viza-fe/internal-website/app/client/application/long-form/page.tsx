@@ -42,8 +42,7 @@ import { SmoothProgressBar } from "@/components/smooth-progress";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
   FormFillingAssistant,
-  type FormAssistantFillNotice,
-  type FormAssistantFillNoticeItem,
+  type FormAssistantMissingField,
   type FormAssistantValidationIssue as FormAssistantDisplayValidationIssue,
 } from "@/components/client/form-assistant";
 import { BrandActionButton } from "@/components/client/brand-action-button";
@@ -69,13 +68,12 @@ import type {
   FormAssistantTurnResponse,
   FormAssistantValidationResponse,
   FormAssistantTranscriptionResponse,
-  FormAssistantUndoResponse,
 } from "@/types/form-assistant";
 type FormAssistantRequestError = Error & {
   code?: string;
 };
 import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
-import { canUseFormAssistant } from "@/lib/form-assistant/constants";
+import { canUseFormAssistant, isFormAssistantConfirmationField } from "@/lib/form-assistant/constants";
 import {
   buildFormAssistantFieldReviewIssues,
   getBaseAnswerFieldName,
@@ -85,7 +83,6 @@ import {
   FormAssistantValidationRefreshGuard,
   mergeFormAssistantIssueDraft,
 } from "@/lib/form-assistant/validation-refresh";
-import { getAssistantProgress } from "@/lib/form-assistant/validator";
 import {
   buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
@@ -110,8 +107,11 @@ import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/custome
 import {
   computeAllTabCompletion,
   getContiguousCompletedCount,
+  getMissingRequiredDocumentRequirementKeys,
+  getRequiredDocumentProgress,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
+import { getAssistantProgress, validateApplicationAnswers } from "@/lib/form-assistant/validator";
 import {
   shouldShowReviewAlongsideSubmissionStatus,
   shouldShowSubmissionStatusStep,
@@ -176,40 +176,6 @@ type StepStatus = "complete" | "in_progress" | "locked";
 
 const DYNAMIC_AUTOSAVE_INTERVAL_MS = 30_000;
 
-function formAssistantFieldLabel(field: VisaFormFieldRow, isZh: boolean): string {
-  if (isZh) {
-    const label = field.validationRules?.label_zh;
-    if (typeof label === "string" && label.trim()) return label.trim();
-  }
-  return field.label;
-}
-
-function formAssistantDisplayValue(
-  field: VisaFormFieldRow,
-  value: string,
-  locale: string,
-  isZh: boolean,
-): string {
-  if (field.fieldType === "date" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [, month, day] = value.split("-");
-    if (isZh) return `${Number(month)}月${Number(day)}日`;
-    return new Intl.DateTimeFormat(locale, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      timeZone: "UTC",
-    }).format(new Date(`${value}T00:00:00Z`));
-  }
-  const option = field.options?.find((candidate) =>
-    (typeof candidate === "string" ? candidate : candidate.value) === value,
-  );
-  if (option && typeof option !== "string") {
-    if (isZh && option.label_zh?.trim()) return option.label_zh.trim();
-    return option.label_en?.trim() || option.text?.trim() || option.value;
-  }
-  return value;
-}
-
 function prepareFormAssistantState(state: FormAssistantState): FormAssistantState {
   const persistedMessages = state.messages.at(-1)?.role === "assistant"
     ? state.messages.slice(0, -1)
@@ -223,6 +189,7 @@ function prepareFormAssistantState(state: FormAssistantState): FormAssistantStat
         role: "assistant",
         content: state.assistantMessage,
         createdAt: new Date().toISOString(),
+        inputMode: "system",
       },
     ],
   };
@@ -1327,6 +1294,9 @@ interface ApplicationState {
   submittedAt?: string;
   submissionResult: SubmissionResult | null;
   submissionResultStatus: SubmissionResultStatus | null;
+  applicationConsentPresent: boolean;
+  applicationSignaturePresent: boolean;
+  canadaPortalTermsConsentPresent: boolean;
 }
 
 interface SubmissionQueueJobInput {
@@ -1672,6 +1642,9 @@ type LoadedApplication = {
   submitted_at?: string | null;
   submission_result?: unknown | null;
   submission_result_status?: string | null;
+  application_consent_present?: boolean | null;
+  application_signature_present?: boolean | null;
+  canada_ircc_portal_terms_consent_present?: boolean | null;
   arrival_date?: string | null;
   departure_date?: string | null;
   port_of_entry?: string | null;
@@ -1819,6 +1792,9 @@ export default function ApplicationPage() {
     photo: null,
     submissionResult: null,
     submissionResultStatus: null,
+    applicationConsentPresent: false,
+    applicationSignaturePresent: false,
+    canadaPortalTermsConsentPresent: false,
   });
   const [saving, setSaving] = useState(false);
   const [autosaving, setAutosaving] = useState(false);
@@ -1840,7 +1816,6 @@ export default function ApplicationPage() {
   const [formAssistantAnswerRevision, setFormAssistantAnswerRevision] = useState(0);
   const [formAssistantUnavailable, setFormAssistantUnavailable] = useState(false);
   const [aiFilledFieldNames, setAiFilledFieldNames] = useState<string[]>([]);
-  const [formAssistantFillNotice, setFormAssistantFillNotice] = useState<FormAssistantFillNotice | null>(null);
   const [draftVersion, setDraftVersion] = useState(0);
   const [autosaveVersion, setAutosaveVersion] = useState(0);
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
@@ -2133,7 +2108,6 @@ export default function ApplicationPage() {
     if (!formAssistantEligible || !applicationId) {
       setFormAssistantState(null);
       setAiFilledFieldNames([]);
-      setFormAssistantFillNotice(null);
       setFormAssistantUnavailable(false);
       return;
     }
@@ -2294,11 +2268,6 @@ export default function ApplicationPage() {
     () => ({ ...dynamicAnswers, ...pendingDynamicDrafts }),
     [dynamicAnswers, pendingDynamicDrafts],
   );
-  const liveFormAssistantProgress = useMemo(
-    () => getAssistantProgress(dbSteps, dynamicAnswerSnapshot),
-    [dbSteps, dynamicAnswerSnapshot],
-  );
-
   const visibleDynamicSteps = useMemo(
     () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswerSnapshot) : []),
     [dbSteps, dynamicAnswerSnapshot, useDynamic],
@@ -2462,6 +2431,9 @@ export default function ApplicationPage() {
       documentsLoaded: documentCenterLoaded,
       submittedAt: appState.submittedAt,
       submissionResultStatus: appState.submissionResultStatus,
+      applicationConsentPresent: appState.applicationConsentPresent,
+      applicationSignaturePresent: appState.applicationSignaturePresent,
+      canadaPortalTermsConsentPresent: appState.canadaPortalTermsConsentPresent,
       country: resolvedCountry,
       visaType: resolvedVisaType,
       documentStepId: documentStepIndex,
@@ -2474,6 +2446,9 @@ export default function ApplicationPage() {
     [
       appState.submissionResultStatus,
       appState.submittedAt,
+      appState.applicationConsentPresent,
+      appState.applicationSignaturePresent,
+      appState.canadaPortalTermsConsentPresent,
       dbSteps,
       documentCenterData,
       documentCenterLoaded,
@@ -2499,12 +2474,42 @@ export default function ApplicationPage() {
   const confirmationMissingFields = forceDryRun
     ? visibleMissingFields.filter((item) => item.stepId !== documentStepIndex)
     : visibleMissingFields;
+  const automaticPastDateValidation = useMemo(() => {
+    if (!useDynamic) return null;
+    const result = validateApplicationAnswers({
+      steps: dbSteps,
+      answers: dynamicAnswerSnapshot,
+      visaType: resolvedVisaType,
+      locale,
+    });
+    const errors = result.errors.filter((issue) => issue.code === "date_before_today");
+    if (errors.length === 0) return null;
+    return {
+      ...result,
+      errors,
+      warnings: [],
+      canReview: false,
+      validationId: "automatic-past-travel-date-review",
+    } satisfies FormAssistantValidationResponse;
+  }, [dbSteps, dynamicAnswerSnapshot, locale, resolvedVisaType, useDynamic]);
+  const reviewValidation = useMemo<FormAssistantValidationResponse | null>(() => {
+    if (!automaticPastDateValidation) return formAssistantValidation;
+    if (!formAssistantValidation) return automaticPastDateValidation;
+    return {
+      ...formAssistantValidation,
+      errors: [
+        ...automaticPastDateValidation.errors,
+        ...formAssistantValidation.errors,
+      ],
+      canReview: false,
+    };
+  }, [automaticPastDateValidation, formAssistantValidation]);
   const formAssistantFieldReviewIssues = useMemo(
     () => buildFormAssistantFieldReviewIssues(
-      formAssistantValidationDirty ? null : formAssistantValidation,
+      formAssistantValidationDirty ? null : reviewValidation,
       visibleDynamicSteps.map(({ step }) => step),
     ),
-    [formAssistantValidation, formAssistantValidationDirty, visibleDynamicSteps],
+    [formAssistantValidationDirty, reviewValidation, visibleDynamicSteps],
   );
   const formAssistantFieldReviewIssueMap = useMemo(
     () => new Map(formAssistantFieldReviewIssues.map((issue) => [issue.fieldName, issue])),
@@ -2544,6 +2549,24 @@ export default function ApplicationPage() {
     () => tabCompletion.missingFields.every((item) => item.stepId >= documentStepIndex),
     [documentStepIndex, tabCompletion.missingFields],
   );
+  const formAssistantReadinessProgress = useMemo(() => {
+    const formProgress = getAssistantProgress(dbSteps, dynamicAnswerSnapshot);
+    if (!showStandaloneDocumentStep) return formProgress;
+    const documentProgress = getRequiredDocumentProgress(documentCenterData);
+    return {
+      completed: formProgress.completed + documentProgress.completed,
+      total: formProgress.total + documentProgress.total,
+    };
+  }, [dbSteps, documentCenterData, dynamicAnswerSnapshot, showStandaloneDocumentStep]);
+  const missingRequiredDocumentKeys = useMemo(
+    () => showStandaloneDocumentStep
+      ? getMissingRequiredDocumentRequirementKeys(documentCenterData)
+      : [],
+    [documentCenterData, showStandaloneDocumentStep],
+  );
+  const applicationReadyForAssistantReview =
+    (!showStandaloneDocumentStep || documentCenterLoaded) &&
+    tabCompletion.missingFields.length === 0;
   const lastVisibleFormStepId = visibleDynamicSteps.at(-1)?.sourceIndex ?? null;
   const invalidFieldNamesByStep = useMemo(() => {
     const fieldsByStep = new Map<number, Set<string>>();
@@ -2595,6 +2618,9 @@ export default function ApplicationPage() {
       submittedAt: undefined,
       submissionResult: null,
       submissionResultStatus: null,
+      applicationConsentPresent: false,
+      applicationSignaturePresent: false,
+      canadaPortalTermsConsentPresent: false,
     }));
   }, [explicitApplicationId, isKoreaEArrivalCard, resolvedCountry, resolvedVisaType]);
 
@@ -2753,6 +2779,11 @@ export default function ApplicationPage() {
           submissionResultStatus:
             (application?.submission_result_status as SubmissionResultStatus | null) ??
             prev.submissionResultStatus,
+          applicationConsentPresent: Boolean(application?.application_consent_present),
+          applicationSignaturePresent: Boolean(application?.application_signature_present),
+          canadaPortalTermsConsentPresent: Boolean(
+            application?.canada_ircc_portal_terms_consent_present,
+          ),
         }));
 
         if (!initialStepResolvedRef.current) {
@@ -3075,9 +3106,17 @@ export default function ApplicationPage() {
     }
   }, [dynamicAnswers, ensureWritableApplicationId]);
 
-  const handleFormAssistantSend = useCallback(async (text: string) => {
+  const handleFormAssistantSend = useCallback(async (
+    text: string,
+    options: {
+      inputMode?: "text" | "confirmation";
+      displayContent?: string;
+    } = {},
+  ) => {
     const applicationId = appState.applicationId;
     if (!applicationId) throw new Error(t("errors.noApplicationFound"));
+    const inputMode = options.inputMode ?? "text";
+    const displayContent = options.displayContent ?? text;
     const priorAttempt = formAssistantRetryRef.current;
     const idempotencyKey = priorAttempt?.applicationId === applicationId && priorAttempt.text === text
       ? priorAttempt.idempotencyKey
@@ -3090,7 +3129,13 @@ export default function ApplicationPage() {
       ...current,
       messages: [
         ...current.messages,
-        { id: optimisticMessageId, role: "user", content: text, createdAt: now },
+        {
+          id: optimisticMessageId,
+          role: "user",
+          content: displayContent,
+          createdAt: now,
+          inputMode,
+        },
       ],
     } : current);
     try {
@@ -3101,7 +3146,7 @@ export default function ApplicationPage() {
         body: JSON.stringify({
           message: text,
           locale,
-          inputMode: "text",
+          inputMode,
           idempotencyKey,
         }),
       });
@@ -3117,7 +3162,6 @@ export default function ApplicationPage() {
       formAssistantRetryRef.current = null;
 
       if (payload.appliedPatches.length > 0) {
-        const fields = dbSteps.flatMap((step) => step.fields);
         const patch = Object.fromEntries(payload.appliedPatches.map((item) => [item.fieldName, item.value]));
         for (const item of payload.appliedPatches) {
           // Assistant values are persisted in the schema's official value.
@@ -3167,19 +3211,6 @@ export default function ApplicationPage() {
           ...current,
           ...payload.appliedPatches.map((item) => item.fieldName),
         ])));
-        const noticeItems = payload.appliedPatches.flatMap<FormAssistantFillNoticeItem>((item) => {
-          const field = fields.find((candidate) => candidate.fieldName === item.fieldName);
-          if (!field) return [];
-          return [{
-            fieldName: item.fieldName,
-            label: formAssistantFieldLabel(field, isZhInterface),
-            value: item.value,
-            displayValue: formAssistantDisplayValue(field, item.value, locale, isZhInterface),
-          }];
-        });
-        if (noticeItems.length > 0) {
-          setFormAssistantFillNotice({ id: crypto.randomUUID(), items: noticeItems });
-        }
         markFormAssistantAnswersChanged();
       }
       setFormAssistantState((current) => current ? {
@@ -3187,7 +3218,13 @@ export default function ApplicationPage() {
         ...payload,
         messages: [
           ...current.messages,
-          { id: `assistant-${crypto.randomUUID()}`, role: "assistant", content: payload.assistantMessage, createdAt: now },
+          {
+            id: `assistant-${crypto.randomUUID()}`,
+            role: "assistant",
+            content: payload.assistantMessage,
+            createdAt: now,
+            inputMode: "system",
+          },
         ],
         aiFilledFieldNames: Array.from(new Set([
           ...current.aiFilledFieldNames,
@@ -3203,63 +3240,47 @@ export default function ApplicationPage() {
     } finally {
       setFormAssistantBusy(false);
     }
-  }, [appState.applicationId, dbSteps, isZhInterface, locale, markFormAssistantAnswersChanged, saveAllDynamicDrafts, t]);
+  }, [appState.applicationId, dbSteps, locale, markFormAssistantAnswersChanged, saveAllDynamicDrafts, t]);
 
-  const handleFormAssistantUndoFill = useCallback(async (items: FormAssistantFillNoticeItem[]) => {
-    const applicationId = appState.applicationId;
-    if (!applicationId || items.length === 0) throw new Error("No assistant patch to undo");
-    const response = await fetch(`/api/applications/${applicationId}/form-assistant/undo`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        patches: items.map((item) => ({ fieldName: item.fieldName, value: item.value })),
-      }),
-    });
-    const payload = await response.json() as FormAssistantUndoResponse & { error?: string };
-    if (!response.ok || payload.skippedConflicts.length > 0) {
-      throw new Error(payload.error ?? "The assistant patch could not be undone");
-    }
-
-    const restored = new Map(payload.restored.map((item) => [item.fieldName, item]));
-    for (const item of payload.restored) {
-      const stepIndex = dbSteps.findIndex((step) =>
-        step.fields.some((field) => field.fieldName === item.fieldName),
-      );
-      if (stepIndex < 0) continue;
-      const nextDraft = { ...(dynamicDraftRef.current[stepIndex] ?? {}) };
-      if (item.restoredValue === null) delete nextDraft[item.fieldName];
-      else nextDraft[item.fieldName] = item.restoredValue;
-      dynamicDraftRef.current[stepIndex] = nextDraft;
-    }
-    setDynamicAnswers((current) => {
-      const next = { ...current };
-      for (const item of payload.restored) {
-        if (item.restoredValue === null) delete next[item.fieldName];
-        else next[item.fieldName] = item.restoredValue;
+  const handleFormAssistantConfirm = useCallback((field: FormAssistantMissingField) => {
+    const scrollContainer = window.matchMedia("(min-width: 1024px)").matches
+      ? applicationContentRef.current
+      : null;
+    const scrollTop = scrollContainer?.scrollTop ?? window.scrollY;
+    const assistant = formAssistantRef.current;
+    const restoreViewport = () => {
+      // Confirmation replaces the live checkbox with its persisted state and
+      // advances the conversation. Browsers can move the outer scroll viewport
+      // while reconciling the focused checkbox, even when the next section is
+      // not the bottom of the page. Keep the application exactly where the user
+      // clicked instead of only correcting exact-bottom jumps.
+      if (!assistant?.isConnected || formAssistantRef.current !== assistant) return;
+      if (scrollContainer?.isConnected) {
+        if (Math.abs(scrollContainer.scrollTop - scrollTop) > 1) {
+          scrollContainer.scrollTo({ top: scrollTop, behavior: "auto" });
+        }
+        return;
       }
-      return next;
+      if (Math.abs(window.scrollY - scrollTop) > 1) {
+        window.scrollTo({ top: scrollTop, behavior: "auto" });
+      }
+    };
+    const response = isZhInterface
+      ? `我已阅读并同意“${field.label}”。`
+      : `I have read and agree to "${field.label}".`;
+    window.requestAnimationFrame(restoreViewport);
+    return handleFormAssistantSend(response, {
+      inputMode: "confirmation",
+      displayContent: field.label,
+    }).finally(() => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          restoreViewport();
+          window.setTimeout(restoreViewport, 100);
+        });
+      });
     });
-    setAiFilledFieldNames((current) => current.filter((fieldName) => {
-      const item = restored.get(fieldName);
-      return !item || item.restoredSource === "form_assistant";
-    }));
-    markFormAssistantAnswersChanged();
-    setFormAssistantFillNotice(null);
-
-    const stateResponse = await fetch(
-      `/api/applications/${applicationId}/form-assistant?locale=${encodeURIComponent(locale)}`,
-      { cache: "no-store" },
-    );
-    if (stateResponse.ok) {
-      const state = await stateResponse.json() as FormAssistantState;
-      setFormAssistantState(prepareFormAssistantState(state));
-      setAiFilledFieldNames(state.aiFilledFieldNames);
-    }
-  }, [appState.applicationId, dbSteps, locale, markFormAssistantAnswersChanged]);
-
-  const handleDismissFormAssistantFillNotice = useCallback((noticeId: string) => {
-    setFormAssistantFillNotice((current) => current?.id === noticeId ? null : current);
-  }, []);
+  }, [handleFormAssistantSend, isZhInterface]);
 
   const handleFormAssistantTranscribe = useCallback(async (file: File): Promise<FormAssistantTranscriptionResponse> => {
     const applicationId = appState.applicationId;
@@ -3877,6 +3898,9 @@ export default function ApplicationPage() {
       documentsLoaded: documentCenterLoaded,
       submittedAt: appState.submittedAt,
       submissionResultStatus: appState.submissionResultStatus,
+      applicationConsentPresent: appState.applicationConsentPresent,
+      applicationSignaturePresent: appState.applicationSignaturePresent,
+      canadaPortalTermsConsentPresent: appState.canadaPortalTermsConsentPresent,
       country: resolvedCountry,
       visaType: resolvedVisaType,
       documentStepId: documentStepIndex,
@@ -3889,6 +3913,9 @@ export default function ApplicationPage() {
     [
       appState.submissionResultStatus,
       appState.submittedAt,
+      appState.applicationConsentPresent,
+      appState.applicationSignaturePresent,
+      appState.canadaPortalTermsConsentPresent,
       dbSteps,
       documentCenterData,
       documentCenterLoaded,
@@ -4720,25 +4747,51 @@ export default function ApplicationPage() {
                 applicationId={appState.applicationId!}
                 locale={locale}
                 isZh={isZhInterface}
-                progress={liveFormAssistantProgress}
+                progress={formAssistantReadinessProgress}
                 messages={formAssistantState?.messages ?? []}
-                missingFields={(formAssistantState?.missingFields ?? []).map((field) => ({
-                  fieldName: field.fieldName,
-                  label: field.label,
-                  required: true,
-                  section: field.stepName,
-                }))}
-                fillNotice={formAssistantFillNotice}
+                missingFields={(formAssistantState?.missingFields ?? []).map((field) => {
+                  const schemaField = dbSteps
+                    .flatMap((step) => step.fields)
+                    .find((candidate) => candidate.fieldName === field.fieldName);
+                  return {
+                    fieldName: field.fieldName,
+                    label: field.label,
+                    fieldType: schemaField?.fieldType,
+                    requiresConfirmation: schemaField
+                      ? isFormAssistantConfirmationField(schemaField)
+                      : false,
+                    required: true,
+                    section: field.stepName,
+                  };
+                })}
                 loading={formAssistantBusy}
                 validationResult={formAssistantDisplayValidation}
-                showReviewAction={formFieldsComplete}
+                showReviewAction={applicationReadyForAssistantReview}
                 onSend={handleFormAssistantSend}
+                onConfirm={handleFormAssistantConfirm}
                 onTranscribe={handleFormAssistantTranscribe}
                 onValidate={handleFormAssistantValidate}
                 onAcknowledgeWarnings={handleFormAssistantAcknowledgeWarnings}
-                onUndoFill={handleFormAssistantUndoFill}
-                onDismissFillNotice={handleDismissFormAssistantFillNotice}
                 onGoToReview={handleFormAssistantGoToReview}
+                requiredDocumentUploader={
+                  documentCenterLoaded &&
+                  appState.applicationId &&
+                  missingRequiredDocumentKeys.length > 0
+                    ? (
+                        <DocumentCenterClient
+                          initialData={documentCenterData}
+                          initialError={documentCenterError}
+                          applicationId={appState.applicationId}
+                          country={activeCountry}
+                          visaType={activeVisaType}
+                          embedded
+                          onlyRequirementKeys={missingRequiredDocumentKeys}
+                          hideOptionalDocuments
+                          onDataChange={setDocumentCenterData}
+                        />
+                      )
+                    : null
+                }
                 renderIssueField={renderFormAssistantIssueField}
                 onJumpToIssue={scrollToApplicationField}
                 className="mb-5"

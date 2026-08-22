@@ -481,6 +481,7 @@ export interface PreparedTwEntryPermitApplication {
   input: TwApplyInput;
   applyOptions: Pick<TwApplyOptions, "photoFilePath" | "supportingDocuments">;
   requiredDocumentCount: number;
+  cleanupDocuments: () => Promise<void>;
 }
 
 /**
@@ -504,6 +505,7 @@ export const runTwHalt: RunOne = async (applicationId, jobId, execution) => {
     throw err;
   }
 
+  try {
   const { input, applyOptions } = prepared;
 
   let result;
@@ -566,6 +568,9 @@ export const runTwHalt: RunOne = async (applicationId, jobId, execution) => {
     throw new RetryableRunnerError(`taiwan failed: ${result.error}`);
   }
   throw new Error(`unexpected taiwan status: ${(result as { status: string }).status}`);
+  } finally {
+    await prepared.cleanupDocuments();
+  }
 };
 
 export async function prepareTwEntryPermitApplication(
@@ -585,7 +590,9 @@ export async function prepareTwEntryPermitApplication(
   // documents) live in application_documents, keyed by requirement_key —
   // NOT in visa_application_answers, so they can't come through `answers`
   // (see the comment on this in src/tw/normalize.ts). Resolve them here.
-  const documentPaths = await resolveApplicationDocumentPaths(applicationId);
+  const documentLease = await resolveApplicationDocumentPaths(applicationId);
+  const documentPaths = documentLease.paths;
+  try {
   let requiredDocumentCount = 0;
   const requiredDocMissing = (key: string, condition: boolean): void => {
     if (condition) requiredDocumentCount += 1;
@@ -625,9 +632,14 @@ export async function prepareTwEntryPermitApplication(
           mainlandIdCardScanPath: documentPaths.get("mainland_id_card_scan"),
           otherSupportingDocumentPath: documentPaths.get("other_supporting_document"),
         },
-      },
+    },
     requiredDocumentCount,
+    cleanupDocuments: documentLease.cleanup,
   };
+  } catch (error) {
+    await documentLease.cleanup();
+    throw error;
+  }
 }
 
 export function twApplicationInboxAlias(applicationId: string): string {
