@@ -89,8 +89,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Philippines eTravel airline-dependent flight numbers are proxied read-only
   through `app/api/ph-etravel/options/**`; the form stores the exact official
   flight code and reloads options whenever the official airline code changes.
-- Korea e-Arrival Card address selection is a dedicated official lookup in
-  `components/dynamic-step-form.tsx`; focused coverage in
+- Korea e-Arrival Card and Korea C-3-9 share the official address lookup in
+  `lib/korea-address-search.ts`, `app/api/korea-addresses/**`, and
+  `components/dynamic-step-form.tsx`. Chinese UI labels may be translated, but
+  the selected official Korean/English values and ZIP must remain unchanged.
+  Focused coverage in `lib/korea-address-search.test.ts` and
   `components/__tests__/dynamic-step-form-korea-address.test.tsx` verifies one
   selected result atomically derives the Korean address, English address, and
   five-digit ZIP.

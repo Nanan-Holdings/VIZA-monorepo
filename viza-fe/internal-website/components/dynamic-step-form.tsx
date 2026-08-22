@@ -1556,6 +1556,10 @@ function buildCurrentStepAnswerPatch(
   const answers = filterCurrentStepValues(fields, values, groupCounts);
 
   for (const field of fields) {
+    if (isKoreaOfficialAddressSearchField(field)) {
+      answers[`${field.fieldName}_zh`] = values[`${field.fieldName}_zh`] ?? "";
+      answers[`${field.fieldName}_en`] = values[`${field.fieldName}_en`] ?? values[field.fieldName] ?? "";
+    }
     if (!usesBilingualTextPair(field)) continue;
     const group = getRepeatGroup(field);
     const keys = group
@@ -4009,12 +4013,20 @@ export function DynamicStepForm({
       const next = {
         ...valuesRef.current,
         [fieldName]: "",
+        [`${fieldName}_zh`]: "",
+        [`${fieldName}_en`]: "",
         stay_address_ko: "",
         stay_address_en: "",
         stay_postal_code: "",
       };
       valuesRef.current = next;
       setValues(next);
+      onDraftChangeRef.current?.(buildCurrentStepAnswerPatch(
+        step.fields,
+        next,
+        groupCountsRef.current,
+        textPairsRef.current,
+      ));
       return;
     }
     const selected = koreaAddressOptions.find((option) =>
@@ -4030,12 +4042,24 @@ export function DynamicStepForm({
     const next = {
       ...valuesRef.current,
       [fieldName]: value,
+      [`${fieldName}_zh`]: selected.label_zh ?? selected.text ?? value,
+      [`${fieldName}_en`]: selected.label_en ?? selected.englishAddress ?? value,
       stay_address_ko: selected.koreanAddress ?? selected.official_label ?? "",
       stay_address_en: selected.englishAddress ?? selected.value,
       stay_postal_code: selected.postalCode ?? "",
     };
     valuesRef.current = next;
     setValues(next);
+    // Publish the derived official values synchronously. Waiting for React's
+    // values effect creates a small race where an immediate click on the
+    // page-level Submit button can enqueue before the Korean/English address
+    // and postal code have reached the parent draft buffer.
+    onDraftChangeRef.current?.(buildCurrentStepAnswerPatch(
+      step.fields,
+      next,
+      groupCountsRef.current,
+      textPairsRef.current,
+    ));
   };
 
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
@@ -4322,7 +4346,12 @@ export function DynamicStepForm({
           return option.value === selectedValue;
         });
       fieldOptions = selectedValue && !hasSelectedValue
-        ? [{ value: selectedValue, text: selectedValue }, ...koreaAddressOptions]
+        ? [{
+            value: selectedValue,
+            text: values[`${valueKey}_zh`] || selectedValue,
+            label_zh: values[`${valueKey}_zh`] || selectedValue,
+            label_en: values[`${valueKey}_en`] || selectedValue,
+          }, ...koreaAddressOptions]
         : koreaAddressOptions;
     }
     const vnPrearrivalSource = getVnPrearrivalOfficialSource(field);

@@ -48,7 +48,7 @@ describe("application submit navigation", () => {
     );
   });
 
-  it("enters waiting state immediately for every queue-backed form", () => {
+  it("shows dynamic submission status only after the queue endpoint accepts the job", () => {
     const pageSource = readFileSync(
       join(process.cwd(), "app/client/application/long-form/page.tsx"),
       "utf8",
@@ -64,18 +64,37 @@ describe("application submit navigation", () => {
       "const focusFirstMissingField =",
     );
 
-    expect(dynamicSubmit).toContain(
-      "const shouldShowSubmissionImmediately = !isJpTourist && !isKrC39;",
+    expect(dynamicSubmit).not.toContain("shouldShowSubmissionImmediately");
+    expect(dynamicSubmit.indexOf("queueAccepted = true;")).toBeGreaterThan(
+      dynamicSubmit.indexOf("await insertSubmissionQueueJob"),
     );
-    expect(dynamicSubmit).toMatch(
-      /if \(shouldShowSubmissionImmediately\) \{[\s\S]*submissionResultStatus: "waiting",[\s\S]*submissionResult: null,/,
+    expect(dynamicSubmit.indexOf("submissionResultStatus: queueJob.submissionResultStatus")).toBeGreaterThan(
+      dynamicSubmit.indexOf("queueAccepted = true;"),
     );
-    expect(dynamicSubmit).not.toContain("shouldShowArrivalSubmissionImmediately");
+    expect(dynamicSubmit).toContain("submissionResultStatus: queueJob.submissionResultStatus");
+    expect(dynamicSubmit).toContain("if (queueAccepted) return;");
     expect(fallbackSubmit).toMatch(
       /submissionResultStatus: "waiting",[\s\S]*submissionResult: null,/,
     );
     expect(
       pageSource.match(/submissionStarting=\{saving && submittingMode !== null\}/g),
     ).toHaveLength(2);
+  });
+
+  it("shows specific Chinese Korea queue errors instead of leaking English server copy", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+    const queueHelper = sourceBetween(
+      pageSource,
+      "async function insertSubmissionQueueJob",
+      "async function insertOfficialFeeSubmissionQueueJobWithCard",
+    );
+
+    expect(queueHelper).toContain("kr_eac_stay_address_required");
+    expect(queueHelper).toContain("确认韩文地址、英文地址和 5 位邮编均已自动填写");
+    expect(queueHelper).toContain("登录状态已过期，请刷新页面或重新登录后再提交");
+    expect(queueHelper).toContain("input.locale.toLowerCase().startsWith(\"zh\")");
   });
 });
