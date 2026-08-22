@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 type AuthOperation = "password" | "send_otp" | "verify_otp";
-const SUPABASE_AUTH_TIMEOUT_MS = 6_000;
+export const SUPABASE_AUTH_TIMEOUT_MS = 18_000;
 
 interface ClientAuthRequest {
   operation?: unknown;

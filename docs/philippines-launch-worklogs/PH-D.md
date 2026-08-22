@@ -1746,3 +1746,9 @@
 - 已配置 synthetic fixture production gate：`PH_ETRAVEL_SYNTHETIC_FIXTURES_ENABLED` 与 `PH_ETRAVEL_SYNTHETIC_FIXTURE_TOKEN` 存在；API 仍要求 Supabase 登录用户与 bearer token，未配置 email allowlist，普通用户无 token 不可调用。`NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED` / `PH_ETRAVEL_LIVE_SUBMISSION_ENABLED` 未在本轮开启。
 - 生产 smoke：`app.viza.it.com` 根路径返回登录重定向；`/client/arrival-cards/philippines` 可达登录页并保留 `next=%2Fclient%2Farrival-cards%2Fphilippines`。Chrome 可控会话中未找到已登录 PH/VIZA session；可见 VIZA tabs 只有 PH login 页与旧 Taiwan long-form tab，因此未创建 AIR/SEA applications、未保存 answers/documents/consent、未 completeness、未 enqueue runner_job。
 - 阻断结论：无法通过 canonical UI/API 创建隔离 AIR/SEA synthetic fixture，因为当前可控 Chrome production session 未登录；按安全边界未请求密码/Cookie/token，未 service-role 直插业务表，未覆盖/删除既有草稿，未触发菲律宾官网或 final Submit。
+
+## 第三十八轮：生产登录 Auth timeout 热修（2026-08-22）
+
+- 用户在 PH login `next=/client/arrival-cards/philippines` 页点击获取验证码前看到 `Supabase 登录服务暂时不可用`。只读复核显示 production alias 仍指向 `dpl_6M3GhZefbG65rwfdfbHePub4kZzL`，Supabase env 名称存在，Supabase Auth host 可达；`/api/client/auth` 三次复现均在约 6.15s 返回 `provider_unavailable`，与服务端 6s Supabase Auth timeout 相符。
+- 最小修复：`/api/client/auth` server timeout 从 6s 增至 18s，login browser request timeout 从 9s 增至 22s；验证码发送仍只尝试一次，避免 outage 下重复邮件。本轮未改 PH 表单、runner、DB、env 值、migration 或 official flow。
+- Focused validation：`npx vitest run app/api/client/auth/login-timeout.test.ts --testTimeout=15000` passed；`npm run build` passed；`npx tsc --noEmit --incremental false --pretty false` 仍仅失败于既有 travel tuple 与缺 Playwright types。
