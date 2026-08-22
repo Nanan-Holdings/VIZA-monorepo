@@ -263,14 +263,44 @@ function readString(record: Record<string, unknown> | null, key: string): string
 export function createPhEtravelStoredResultRecoveryPresentation(
   storedResult: unknown,
 ): PhEtravelResultRecoveryPresentation {
+  return createPhEtravelResultRecoveryPresentation(
+    readPhEtravelStoredResultEvidence(storedResult),
+  );
+}
+
+export function readPhEtravelStoredResultEvidence(
+  storedResult: unknown,
+): PhEtravelResultEvidence {
   const result = readRecord(storedResult);
+  const resultEvidence = readRecord(result?.resultEvidence);
+  const authoritativeRead = readRecord(resultEvidence?.authoritativeRead);
+  const qrRender = readRecord(resultEvidence?.qrRender);
   const authoritative = readRecord(result?.authoritativeRegistration);
-  return createPhEtravelResultRecoveryPresentation({
-    authoritativePostSubmitRead: authoritative?.read === true,
-    authoritativeReferenceNumber: readString(authoritative, "referenceNumber"),
-    authoritativeReadFailed: authoritative?.readFailed === true,
-    derivedQrRenderStatus: readString(authoritative, "derivedQrRenderStatus") as PhEtravelDerivedQrRenderStatus | null,
-    derivedQrReferenceValue: readString(authoritative, "derivedQrReferenceValue"),
+  const hasCurrentAuthoritativeRead =
+    authoritativeRead?.postSubmitRead === true &&
+    authoritativeRead?.stableReference === true;
+  const currentQrRendered =
+    qrRender?.rendered === true &&
+    qrRender?.referenceValueValidated === true;
+
+  return {
+    authoritativePostSubmitRead:
+      hasCurrentAuthoritativeRead || authoritative?.read === true,
+    authoritativeReferenceNumber: hasCurrentAuthoritativeRead
+      ? readString(authoritativeRead, "referenceNumber")
+      : readString(authoritative, "referenceNumber"),
+    authoritativeReadFailed:
+      authoritativeRead?.readFailed === true || authoritative?.readFailed === true,
+    derivedQrRenderStatus: qrRender
+      ? currentQrRendered
+        ? "rendered"
+        : qrRender.rendered === false
+          ? "failed"
+          : "unknown"
+      : readString(authoritative, "derivedQrRenderStatus") as PhEtravelDerivedQrRenderStatus | null,
+    derivedQrReferenceValue: currentQrRendered
+      ? readString(qrRender, "renderedForReference")
+      : readString(authoritative, "derivedQrReferenceValue"),
     reopenStateConsistent:
       typeof authoritative?.reopenStateConsistent === "boolean"
         ? authoritative.reopenStateConsistent
@@ -286,5 +316,5 @@ export function createPhEtravelStoredResultRecoveryPresentation(
     stoppedBeforeSubmit: result?.stoppedBeforeSubmit === true,
     officialStatus: readString(result, "officialStatus"),
     code: readString(result, "code"),
-  });
+  };
 }

@@ -17,7 +17,7 @@ type AuthOperation = "password" | "send_otp" | "verify_otp";
 // longer than password verification. Recent production requests completed in
 // 8-9 seconds, so the previous 6-second deadline reported a false outage and
 // abandoned successful code requests before the UI could advance.
-const SUPABASE_AUTH_TIMEOUT_MS = 20_000;
+export const SUPABASE_AUTH_TIMEOUT_MS = 20_000;
 const CLIENT_SESSION_BOOTSTRAP_TIMEOUT_MS = 500;
 
 interface ClientAuthRequest {
